@@ -82,6 +82,10 @@ func (f *fakeJourneyEngine) Decide(ctx context.Context, intentID string, _ works
 	return f.Inspect(ctx, intentID)
 }
 
+func (f *fakeJourneyEngine) Acknowledge(ctx context.Context, intentID string, _ workspace.Acknowledgement) (workspace.JourneyDetail, error) {
+	return f.Inspect(ctx, intentID)
+}
+
 func (f *fakeJourneyEngine) EditProposal(context.Context, string, uint64, string, string, workspace.EditProposalInput) (workspace.JourneySummary, string, error) {
 	return workspace.JourneySummary{}, "", nil
 }

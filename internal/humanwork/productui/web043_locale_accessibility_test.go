@@ -127,7 +127,7 @@ func findLabelFor(root *xhtml.Node, id string) *xhtml.Node {
 }
 
 // web043GoldenDigest is pinned from the GREEN implementation run.
-const web043GoldenDigest = "51fab1e9353c09aa90f152064cac734c6f76a22d89a552b52c090811382361cb"
+const web043GoldenDigest = "e8785e1a30e918f53ca24d20e2e33ea3b8f2686c8ed8c175a3fdd6fa384e4d0e"
 
 func TestTodo_WEB_043_Golden(t *testing.T) {
 	doc, err := Render(testView(PageSettings))

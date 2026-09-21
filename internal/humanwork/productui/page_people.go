@@ -155,24 +155,12 @@ func peopleSortColumns(view View) []PeopleSortColumnProps {
 func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 	rows := make([]PeopleRowProps, 0, len(window.People))
 	workflows := rankedPersonWorkflows(view.PersonWorkflows, view.WorkflowUses)
-	unauthorized := len(view.EffectivePermissions) > 0 && !view.Can(PageJourneys, "create")
-	if unauthorized {
-		workflows = nil
-	}
 	for _, person := range window.People {
-		reason := ""
-		if unauthorized {
-			// The same reason PromotionAvailability would have resolved to
-			// for this viewer had a per-worker verdict even been asked for:
-			// every worker collapses to the identical, non-revealing
-			// withheld text once no workflow at all is offered, rather than
-			// the bare, unexplained fallback this gate used to leave behind.
-			reason = PromotionAvailabilityReason(view.Locale, PromotionWithheld)
-		}
-		actions, workflowReason, _ := personWorkflowActions(view, person, workflows)
-		if workflowReason != "" {
-			reason = workflowReason
-		}
+		// UXLIVE-033: one server-resolved projection decides authority,
+		// eligibility and continuation; the row only presents it. A viewer
+		// without authority gets the identical withheld reason for every
+		// worker, whatever that worker's hidden eligibility.
+		projection := resolvePersonWorkflowActions(view, person, workflows)
 		identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
 		workerNumber := ""
 		if identity.WorkerNumberStatus == WorkerFactPresent {
@@ -181,8 +169,8 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 		rows = append(rows, PeopleRowProps{
 			ID: person.ID, Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Name, WorkerNumber: workerNumber, Role: identity.Role, Team: person.Team,
 			Manager: person.Manager, Location: person.Location, Navigate: view.Navigate,
-			Href: peoplePersonHref(view, person.ID, window.Page), QuickActions: actions,
-			WorkflowsUnavailableReason: reason,
+			Href: peoplePersonHref(view, person.ID, window.Page), QuickActions: projection.Actions,
+			WorkflowsUnavailableReason: projection.Reason,
 		})
 	}
 	return rows
@@ -201,22 +189,31 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 // reason is empty), so a caller that lists actions per workflow does not
 // have to re-derive which workflow the reason belongs to.
 func personWorkflowActions(view View, person Person, workflows []PersonWorkflow) (actions []PeopleQuickActionProps, reason string, reasonWorkflow string) {
+	actions, reason, reasonWorkflow, _ = personWorkflowActionList(view, person, workflows)
+	return actions, reason, reasonWorkflow
+}
+
+// personWorkflowActionList is personWorkflowActions plus whether an open
+// request for the person is in view, so the UXLIVE-033 projection does not
+// scan the viewer's work a second time per directory row.
+func personWorkflowActionList(view View, person Person, workflows []PersonWorkflow) (actions []PeopleQuickActionProps, reason string, reasonWorkflow string, hasActiveJourney bool) {
 	actions = make([]PeopleQuickActionProps, 0, len(workflows))
 	accessiblePerson := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view)).Label
 	// PROMOUX-012: an open journey in view guards Start even when the
 	// availability verdict disagrees, the same rule the profile applies.
-	_, hasActiveJourney := activePromotionWorkItem(view, person.ID)
+	activeItem, hasActiveJourney := activePromotionWorkItem(view, person.ID)
 	for _, workflow := range workflows {
 		if workflow.ID == "promotion" && (person.PromotionAvailability == PromotionActiveConflict || hasActiveJourney) {
 			// PROMOUX-002 GREEN #3: a conflicting worker never loses the
 			// action entirely -- Start is replaced with a link to the
 			// journey already blocking a new one, so continuity survives
 			// the refusal rather than dead-ending at a bare reason.
-			if item, ok := activePromotionWorkItem(view, person.ID); ok {
+			if hasActiveJourney {
 				actions = append(actions, PeopleQuickActionProps{
 					Label:           view.Locale.Text("people.open_active_promotion"),
 					AccessibleLabel: view.Locale.Text("people.open_active_promotion_aria", map[string]string{"name": accessiblePerson}),
-					Href:            JourneyDetailHref(view, item.ID),
+					Href:            JourneyDetailHref(view, activeItem.ID),
+					WorkflowID:      workflow.ID, Continuation: true,
 				})
 				continue
 			}
@@ -240,9 +237,9 @@ func personWorkflowActions(view View, person Person, workflows []PersonWorkflow)
 		}
 		actions = append(actions, PeopleQuickActionProps{Label: workflow.Name,
 			AccessibleLabel: view.Locale.Text("people.workflow_aria", map[string]string{"workflow": workflow.Name, "name": accessiblePerson}),
-			Href:            href, Frequent: workflow.UseCount > 0})
+			Href:            href, Frequent: workflow.UseCount > 0, WorkflowID: workflow.ID})
 	}
-	return actions, reason, reasonWorkflow
+	return actions, reason, reasonWorkflow, hasActiveJourney
 }
 
 func peoplePaginationProps(view View, window peoplePageWindow) PeoplePaginationProps {

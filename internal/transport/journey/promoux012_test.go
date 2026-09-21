@@ -18,6 +18,7 @@ func TestTodo_PROMOUX_012(t *testing.T) {
 		workspace.JourneyNextStepStartApproval, workspace.JourneyNextStepCorrectProposal, workspace.JourneyNextStepApprovalDecision,
 		workspace.JourneyNextStepManagerDecision, workspace.JourneyNextStepFinanceDecision, workspace.JourneyNextStepReapprovalDecision,
 		workspace.JourneyNextStepRepair, workspace.JourneyNextStepAwaitEffectiveDate, workspace.JourneyNextStepSystemProcessing,
+		workspace.JourneyNextStepAwaitAcknowledgement,
 	}
 	if len(steps) != len(journeyv1.JourneyNextStep_name)-1 {
 		t.Fatalf("%d workspace next steps, %d wire values: a new step needs a mapping", len(steps), len(journeyv1.JourneyNextStep_name)-1)

@@ -38,9 +38,18 @@ import (
 const (
 	FixtureApprovalCompile     = "fixture:workflow.promotion-approval/reproducible-compile@v1"
 	FixtureApprovalRequirement = "fixture:workflow.promotion-approval/approval-step@v1"
-	FixtureExecuteCompile      = "fixture:workflow.promotion-execute/reproducible-compile@v1"
-	FixtureExecuteGraph        = "fixture:workflow.promotion-execute/graph-and-simulation@v1"
-	FixtureExecuteApprovals    = "fixture:workflow.promotion-execute/approval-separation@v1"
+	// FixtureExecuteCompile and FixtureExecuteGraph are the frozen 1.0.0
+	// execute version's fixtures: they compare against
+	// promotionexec.CompileV1_0.
+	FixtureExecuteCompile = "fixture:workflow.promotion-execute/reproducible-compile@v1"
+	FixtureExecuteGraph   = "fixture:workflow.promotion-execute/graph-and-simulation@v1"
+	// FixtureExecuteCompileV1_1 and FixtureExecuteGraphV1_1 are the 1.1.0
+	// execute version's fixtures: they compare against promotionexec.Compile.
+	FixtureExecuteCompileV1_1 = "fixture:workflow.promotion-execute/reproducible-compile@v2"
+	FixtureExecuteGraphV1_1   = "fixture:workflow.promotion-execute/graph-and-simulation@v2"
+	// FixtureExecuteApprovals holds for both execute versions: their approval
+	// requirements are the same.
+	FixtureExecuteApprovals = "fixture:workflow.promotion-execute/approval-separation@v1"
 )
 
 const (
@@ -77,24 +86,60 @@ func ShippedFixtures() releasefixture.Suite {
 	return releasefixture.Suite{
 		FixtureApprovalCompile:     func(v version.CompiledVersion) error { return reproducesPlan(v, prototype.CompileApproval) },
 		FixtureApprovalRequirement: approvalStepFixture,
-		FixtureExecuteCompile:      executeCompileFixture,
-		FixtureExecuteGraph:        executeGraphFixture,
+		FixtureExecuteCompile:      executeV1_0.compileFixture,
+		FixtureExecuteGraph:        executeV1_0.graphFixture,
+		FixtureExecuteCompileV1_1:  executeV1_1.compileFixture,
+		FixtureExecuteGraphV1_1:    executeV1_1.graphFixture,
 		FixtureExecuteApprovals:    executeApprovalsFixture,
 	}
 }
 
+// shippedExecute is one shipped version of the executable promotion workflow:
+// its definition, its served compilations and its documented node order.
+type shippedExecute struct {
+	semanticVersion string
+	definition      func() workflow.Definition
+	compile         func() (*workflow.CompiledWorkflow, error)
+	simulate        func() (*workflow.CompiledWorkflow, error)
+	nodeOrder       func() []string
+	fixtures        []string
+}
+
+var (
+	// executeV1_0 is the frozen 1.0.0 graph, still served to the instances
+	// that pinned it.
+	executeV1_0 = shippedExecute{
+		semanticVersion: promotionexec.SemanticVersionV1_0,
+		definition:      promotionexec.DefinitionV1_0,
+		compile:         func() (*workflow.CompiledWorkflow, error) { return promotionexec.CompileV1_0() },
+		simulate:        promotionexec.CompileSimulationV1_0,
+		nodeOrder:       promotionexec.NodeOrderV1_0,
+		fixtures:        []string{FixtureExecuteCompile, FixtureExecuteGraph, FixtureExecuteApprovals},
+	}
+	// executeV1_1 is the current graph with the provider-confirmation waits.
+	executeV1_1 = shippedExecute{
+		semanticVersion: promotionexec.SemanticVersion,
+		definition:      promotionexec.Definition,
+		compile:         func() (*workflow.CompiledWorkflow, error) { return promotionexec.Compile() },
+		simulate:        func() (*workflow.CompiledWorkflow, error) { return promotionexec.CompileSimulation() },
+		nodeOrder:       promotionexec.NodeOrder,
+		fixtures:        []string{FixtureExecuteCompileV1_1, FixtureExecuteGraphV1_1, FixtureExecuteApprovals},
+	}
+	// shippedExecuteVersions is publication order: the frozen version first,
+	// so a superseding activation of the current one is the last word.
+	shippedExecuteVersions = []shippedExecute{executeV1_0, executeV1_1}
+)
+
 // PublishShippedVersions publishes the prototype approval and the executable
 // promotion workflows into store as DRAFT versions, idempotently: a version
 // already published under the same compiled-plan digest is returned as it is
-// stored, whatever its status. It approves and activates nothing.
+// stored, whatever its status. It approves and activates nothing. The
+// executable promotion ships two versions side by side, in order: the frozen
+// 1.0.0 its live instances pinned, then 1.1.0 for new starts.
 func PublishShippedVersions(store version.Store, at time.Time) ([]version.CompiledVersion, error) {
 	prototypePlan, err := prototype.CompileApproval()
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: compile the promotion approval workflow: %w", err)
-	}
-	executePlan, err := promotionexec.Compile()
-	if err != nil {
-		return nil, fmt.Errorf("platform execution: compile the promotion execute workflow: %w", err)
 	}
 	tools := map[string]string{"go": goruntime.Version(), "publisher": "internal/platform/execution"}
 	approval, err := version.Publish(store, prototype.ApprovalDefinition(), prototypePlan,
@@ -105,15 +150,23 @@ func PublishShippedVersions(store version.Store, at time.Time) ([]version.Compil
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: publish the promotion approval workflow: %w", err)
 	}
-	executed, err := version.Publish(store, promotionPublishDefinition(), executePlan,
-		promotionPublishOptions(), version.PublishMeta{
-			SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: versionPublisher, ToolVersions: tools,
-			FixtureRefs: []string{FixtureExecuteCompile, FixtureExecuteGraph, FixtureExecuteApprovals},
-		})
-	if err != nil {
-		return nil, fmt.Errorf("platform execution: publish the promotion execute workflow: %w", err)
+	out := []version.CompiledVersion{approval}
+	for _, shipped := range shippedExecuteVersions {
+		executePlan, err := shipped.compile()
+		if err != nil {
+			return nil, fmt.Errorf("platform execution: compile the promotion execute workflow %s: %w", shipped.semanticVersion, err)
+		}
+		executed, err := version.Publish(store, promotionPublishDefinition(shipped.definition()), executePlan,
+			promotionPublishOptions(), version.PublishMeta{
+				SemanticVersion: shipped.semanticVersion, PublishedAt: at, PublishedBy: versionPublisher, ToolVersions: tools,
+				FixtureRefs: append([]string(nil), shipped.fixtures...),
+			})
+		if err != nil {
+			return nil, fmt.Errorf("platform execution: publish the promotion execute workflow %s: %w", shipped.semanticVersion, err)
+		}
+		out = append(out, executed)
 	}
-	return []version.CompiledVersion{approval, executed}, nil
+	return out, nil
 }
 
 // ReleaseApproval is an operator's approval of one published version on the
@@ -169,7 +222,9 @@ func ApproveRelease(ctx context.Context, registry VersionRegistry, suite release
 // BootstrapDevVersions is the explicit local-development release: it
 // publishes the shipped versions (idempotently), runs each DRAFT's fixtures,
 // approves it under [DevReleaseApprover] through [ApproveRelease] and
-// activates it, superseding a version a previous build left active. An ACTIVE
+// activates it, superseding a version a previous build left active (the
+// current promotion execute version supersedes the frozen 1.0.0, which stays
+// QUARANTINED by supersession and keeps serving the instances pinned to it). An ACTIVE
 // version is left alone, and so is a QUARANTINED or RETIRED one: bootstrap
 // never undoes a governed quarantine. It returns every shipped version as it
 // stands afterwards.
@@ -204,6 +259,18 @@ func BootstrapDevVersions(ctx context.Context, registry VersionRegistry, at time
 		}
 		out = append(out, active)
 	}
+	// A later shipped version may have superseded an earlier one this run
+	// activated (promotion execute 1.1.0 supersedes 1.0.0): report each as it
+	// stands now.
+	for i, v := range out {
+		current, found, err := registry.GetByDigest(v.CompiledPlanDigest)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			out[i] = current
+		}
+	}
 	return out, nil
 }
 
@@ -219,6 +286,10 @@ func activateInMemory(registry version.Store, published version.CompiledVersion,
 		Authorized: true, ApprovedBy: unitCompositionApprover, Authority: "authority:unit-composition",
 		Reason: "in-process fixture report " + report.ReportDigest, ApprovedAt: at,
 		ReviewedPlanDigest: report.CompiledPlanDigest, TestsPassed: report.Passed(),
+		// The shipped execute versions activate in publication order, so the
+		// current one supersedes the frozen one exactly as a durable
+		// bootstrap does.
+		SupersedeActive: true,
 	})
 	return err
 }
@@ -295,16 +366,17 @@ func approvalStepFixture(v version.CompiledVersion) error {
 	return nil
 }
 
-// executeCompileFixture proves the executable version is both the publication
-// projection and the plan the served resolver runs.
-func executeCompileFixture(v version.CompiledVersion) error {
+// compileFixture proves the executable version is both the publication
+// projection of this shipped definition and the plan the served resolver
+// runs for it.
+func (e shippedExecute) compileFixture(v version.CompiledVersion) error {
 	publication := func() (*workflow.CompiledWorkflow, error) {
-		return workflow.Compile(promotionPublishDefinition(), promotionPublishOptions())
+		return workflow.Compile(promotionPublishDefinition(e.definition()), promotionPublishOptions())
 	}
 	if err := reproducesPlan(v, publication); err != nil {
 		return err
 	}
-	served, err := promotionexec.Compile()
+	served, err := e.compile()
 	if err != nil {
 		return fmt.Errorf("compile the served plan: %w", err)
 	}
@@ -314,15 +386,15 @@ func executeCompileFixture(v version.CompiledVersion) error {
 	return nil
 }
 
-// executeGraphFixture proves the executable plan holds exactly the documented
-// node set and that its zero-effect SIMULATE projection still compiles.
-func executeGraphFixture(v version.CompiledVersion) error {
-	if err := executeCompileFixture(v); err != nil {
+// graphFixture proves the executable plan holds exactly the documented node
+// set and that its zero-effect SIMULATE projection still compiles.
+func (e shippedExecute) graphFixture(v version.CompiledVersion) error {
+	if err := e.compileFixture(v); err != nil {
 		return err
 	}
-	plan, _ := promotionexec.Compile()
+	plan, _ := e.compile()
 	want := map[string]bool{}
-	for _, id := range promotionexec.NodeOrder() {
+	for _, id := range e.nodeOrder() {
 		want[id] = true
 	}
 	if len(plan.Nodes) != len(want) {
@@ -333,7 +405,7 @@ func executeGraphFixture(v version.CompiledVersion) error {
 			return fmt.Errorf("plan node %s is not in the documented order", node.ID)
 		}
 	}
-	simulation, err := promotionexec.CompileSimulation()
+	simulation, err := e.simulate()
 	if err != nil {
 		return fmt.Errorf("compile the SIMULATE projection: %w", err)
 	}
@@ -341,6 +413,21 @@ func executeGraphFixture(v version.CompiledVersion) error {
 		return fmt.Errorf("the SIMULATE projection digests to the EXECUTE plan")
 	}
 	return nil
+}
+
+// executeCompileFixture proves v is one of the shipped executable versions.
+// The approval fixture holds for both, so it first proves which plan it is
+// about.
+func executeCompileFixture(v version.CompiledVersion) error {
+	var errs []error
+	for _, shipped := range shippedExecuteVersions {
+		err := shipped.compileFixture(v)
+		if err == nil {
+			return nil
+		}
+		errs = append(errs, fmt.Errorf("%s: %w", shipped.semanticVersion, err))
+	}
+	return fmt.Errorf("version %s is no shipped promotion execute version: %w", v.CompiledPlanDigest, errors.Join(errs...))
 }
 
 // executeApprovalsFixture proves the executable plan's finance and manager

@@ -183,7 +183,7 @@ func declareUxaudit008TableDensityStyles() {
 			gwccss.PaddingY(gwccss.Px(11)), gwccss.PaddingX(gwccss.Px(14)),
 			gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
 			gwccss.Raw("background", "var(--surface)!important"),
-			gwccss.Raw("text-align", "left"),
+			gwccss.Raw("text-align", "start"),
 		),
 	)
 	declareGlobal(".people-directory .data-table .data-table-cell:not(.data-table-row-header):not(.people-row-actions):before",
@@ -218,7 +218,7 @@ func declareUxaudit008TableDensityStyles() {
 		gwccss.PaddingY(gwccss.Px(3)), gwccss.PaddingX(gwccss.Px(8)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("white-space", "nowrap"),
 		gwccss.Raw("cursor", "default"),
 	)

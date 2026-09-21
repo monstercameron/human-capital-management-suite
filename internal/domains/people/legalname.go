@@ -24,7 +24,7 @@ import (
 	"time"
 	"unicode"
 
-	"golang.org/x/text/unicode/norm"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 // Sentinel causes. Classify with errors.Is.
@@ -121,7 +121,7 @@ func Normalize(parts []string, latin string) (StructuredName, error) {
 	name := StructuredName{NormalizationProfile: "NFC"}
 	needsLatin := false
 	for _, part := range parts {
-		normalized := norm.NFC.String(part)
+		normalized := values.NFC(part)
 		if strings.TrimSpace(normalized) == "" {
 			return StructuredName{}, ErrEmptyName
 		}
@@ -152,7 +152,7 @@ func Normalize(parts []string, latin string) (StructuredName, error) {
 		if strings.TrimSpace(latin) == "" {
 			return StructuredName{}, ErrMissingLatin
 		}
-		normalized := norm.NFC.String(latin)
+		normalized := values.NFC(latin)
 		for _, r := range normalized {
 			if s := scriptOf(r); s != "Latn" && s != "Zyyy" {
 				return StructuredName{}, fmt.Errorf("people: Latin representation leaves Latin: %w", ErrMissingLatin)
@@ -160,7 +160,7 @@ func Normalize(parts []string, latin string) (StructuredName, error) {
 		}
 		name.Latin = normalized
 	} else {
-		name.Latin = norm.NFC.String(strings.Join(parts, " "))
+		name.Latin = values.NFC(strings.Join(parts, " "))
 	}
 	full := make([]string, 0, len(name.Parts))
 	for _, part := range name.Parts {

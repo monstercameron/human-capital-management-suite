@@ -14,9 +14,12 @@ import (
 
 // TestListWorkersForwardsBothPopulationsAndTheOptions drives the read half of
 // the workforce surface through a real gRPC client: both sources arrive with
-// their Source token intact, the created worker keeps the compensation
-// baseline only it carries, and the options travel in the same response as
-// the list -- which is what makes the list actionable rather than decorative.
+// their Source token intact, row visibility is unchanged, and the options
+// travel in the same response as the list -- which is what makes the list
+// actionable rather than decorative. The created worker's compensation
+// baseline is authorization-gated (RBAC-RT-001): an authorized viewer
+// receives it whole, while the ordinary fixture principal (no compensation
+// grant) receives the row with pay omitted.
 func TestListWorkersForwardsBothPopulationsAndTheOptions(t *testing.T) {
 	engine := newFakeEngine()
 	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
@@ -41,14 +44,25 @@ func TestListWorkersForwardsBothPopulationsAndTheOptions(t *testing.T) {
 		t.Errorf("created identity = %q/%q, want %q/%q",
 			created.GetWorkerRef(), created.GetWorkerId(), want.WorkerRef, want.WorkerID)
 	}
-	if created.GetBasePay() != want.BasePay || created.GetCurrency() != want.Currency ||
-		created.GetBonusTarget() != want.BonusTarget {
-		t.Errorf("created baseline = %s/%s/%s, want %s/%s/%s",
-			created.GetBasePay(), created.GetCurrency(), created.GetBonusTarget(),
-			want.BasePay, want.Currency, want.BonusTarget)
+	if created.GetBasePay() != "" || created.GetBonusTarget() != "" {
+		t.Errorf("ordinary viewer received pay baseline = %s/%s, want omitted",
+			created.GetBasePay(), created.GetBonusTarget())
 	}
 	if created.GetCreatedAt() == nil {
 		t.Error("a created worker arrives with no creation instant")
+	}
+
+	authorized := startDirectoryServer(t, journey.Dependencies{Engine: engine})
+	authorizedResp, err := authorized.ListWorkers(dirCallContext(t, dirCompAdminToken), &journeyv1.ListWorkersRequest{})
+	if err != nil {
+		t.Fatalf("authorized ListWorkers: %v", err)
+	}
+	got := authorizedResp.GetWorkers()[0]
+	if got.GetBasePay() != want.BasePay || got.GetCurrency() != want.Currency ||
+		got.GetBonusTarget() != want.BonusTarget {
+		t.Errorf("authorized baseline = %s/%s/%s, want %s/%s/%s",
+			got.GetBasePay(), got.GetCurrency(), got.GetBonusTarget(),
+			want.BasePay, want.Currency, want.BonusTarget)
 	}
 	// A corpus worker has no baseline and no creation instant, and the
 	// conversion must not invent either.

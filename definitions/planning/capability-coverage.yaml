@@ -16,6 +16,10 @@ items:
       - REPORT-002:DOMAIN
       - REPORT-003:DOMAIN
       - RETRIEVAL-001:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-032-03:DOMAIN
+      - REV-040-02:DOMAIN
+      - REV-079-01:DOMAIN
       - SCENARIO-001:DOMAIN
       - SCENARIO-002:DOMAIN
       - SCENARIO-003:DOMAIN
@@ -67,6 +71,7 @@ items:
       - EXPORT-001:DOMAIN
       - FORENSIC-001:DOMAIN
       - GATEB-EVID-001:DOMAIN
+      - INTAPI-004:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
@@ -96,10 +101,30 @@ items:
       - PROMO-007:DOMAIN
       - PROMO-008:DOMAIN
       - PROMO-013:DOMAIN
+      - PROMOUX-017:DOMAIN
+      - RBAC-RT-005:DOMAIN
+      - RBAC-RT-009:DOMAIN
       - RECON-001:DOMAIN
       - RECON-002:DOMAIN
       - REPAIR-002:DOMAIN
       - REPAIR-003:DOMAIN
+      - REV-017-01:DOMAIN
+      - REV-017-02:DOMAIN
+      - REV-017-03:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-031-01:DOMAIN
+      - REV-043-03:DOMAIN
+      - REV-055-01:DOMAIN
+      - REV-058-01:DOMAIN
+      - REV-058-02:DOMAIN
+      - REV-060-01:DOMAIN
+      - REV-080-01:DOMAIN
+      - REV-080-02:DOMAIN
+      - REV-087-01:DOMAIN
+      - REV-087-02:DOMAIN
+      - REV-090-02:DOMAIN
+      - REV-098-04:DOMAIN
+      - REV-100-02:DOMAIN
       - ROLLOUT-001:DOMAIN
       - ROLLOUT-002:DOMAIN
       - ROLLOUT-003:DOMAIN
@@ -109,6 +134,8 @@ items:
       - ROLLOUT-007:DOMAIN
       - ROLLOUT-008:DOMAIN
       - STATUS-001:DOMAIN
+      - UXAUDIT-021:DOMAIN
+      - UXLIVE-042:DOMAIN
       - WEB-229:DOMAIN
       - WEB-230:DOMAIN
       - WEB-231:DOMAIN
@@ -121,6 +148,14 @@ items:
       - WEB-238:DOMAIN
       - WEB-239:DOMAIN
       - WEB-240:DOMAIN
+      - WEB-244:DOMAIN
+      - WEB-245:DOMAIN
+      - WEB-246:DOMAIN
+      - WF-DATA-014:DOMAIN
+      - WF-DATA-019:DOMAIN
+      - WF-DATA-027:DOMAIN
+      - WF-DATA-028:DOMAIN
+      - WF-DATA-033:DOMAIN
       - WF-DISC-006:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
@@ -150,6 +185,7 @@ items:
       - EXPORT-001:DOMAIN
       - FORENSIC-001:DOMAIN
       - GATEB-EVID-001:DOMAIN
+      - INTAPI-004:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
@@ -179,11 +215,31 @@ items:
       - PROMO-007:DOMAIN
       - PROMO-008:DOMAIN
       - PROMO-013:DOMAIN
+      - PROMOUX-017:DOMAIN
+      - RBAC-RT-005:DOMAIN
+      - RBAC-RT-009:DOMAIN
       - RECON-001:DOMAIN
       - RECON-002:DOMAIN
       - REPAIR-001:DOMAIN
       - REPAIR-002:DOMAIN
       - REPAIR-003:DOMAIN
+      - REV-017-01:DOMAIN
+      - REV-017-02:DOMAIN
+      - REV-017-03:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-031-01:DOMAIN
+      - REV-043-03:DOMAIN
+      - REV-055-01:DOMAIN
+      - REV-058-01:DOMAIN
+      - REV-058-02:DOMAIN
+      - REV-060-01:DOMAIN
+      - REV-080-01:DOMAIN
+      - REV-080-02:DOMAIN
+      - REV-087-01:DOMAIN
+      - REV-087-02:DOMAIN
+      - REV-090-02:DOMAIN
+      - REV-098-04:DOMAIN
+      - REV-100-02:DOMAIN
       - ROLLOUT-001:DOMAIN
       - ROLLOUT-002:DOMAIN
       - ROLLOUT-003:DOMAIN
@@ -193,6 +249,8 @@ items:
       - ROLLOUT-007:DOMAIN
       - ROLLOUT-008:DOMAIN
       - STATUS-001:DOMAIN
+      - UXAUDIT-021:DOMAIN
+      - UXLIVE-042:DOMAIN
       - WEB-229:DOMAIN
       - WEB-230:DOMAIN
       - WEB-231:DOMAIN
@@ -205,6 +263,14 @@ items:
       - WEB-238:DOMAIN
       - WEB-239:DOMAIN
       - WEB-240:DOMAIN
+      - WEB-244:DOMAIN
+      - WEB-245:DOMAIN
+      - WEB-246:DOMAIN
+      - WF-DATA-014:DOMAIN
+      - WF-DATA-019:DOMAIN
+      - WF-DATA-027:DOMAIN
+      - WF-DATA-028:DOMAIN
+      - WF-DATA-033:DOMAIN
       - WF-DISC-006:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
@@ -234,6 +300,7 @@ items:
       - EXPORT-001:DOMAIN
       - FORENSIC-001:DOMAIN
       - GATEB-EVID-001:DOMAIN
+      - INTAPI-004:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
@@ -263,10 +330,30 @@ items:
       - PROMO-007:DOMAIN
       - PROMO-008:DOMAIN
       - PROMO-013:DOMAIN
+      - PROMOUX-017:DOMAIN
+      - RBAC-RT-005:DOMAIN
+      - RBAC-RT-009:DOMAIN
       - RECON-001:DOMAIN
       - RECON-002:DOMAIN
       - REPAIR-001:DOMAIN
       - REPAIR-002:DOMAIN
+      - REV-017-01:DOMAIN
+      - REV-017-02:DOMAIN
+      - REV-017-03:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-031-01:DOMAIN
+      - REV-043-03:DOMAIN
+      - REV-055-01:DOMAIN
+      - REV-058-01:DOMAIN
+      - REV-058-02:DOMAIN
+      - REV-060-01:DOMAIN
+      - REV-080-01:DOMAIN
+      - REV-080-02:DOMAIN
+      - REV-087-01:DOMAIN
+      - REV-087-02:DOMAIN
+      - REV-090-02:DOMAIN
+      - REV-098-04:DOMAIN
+      - REV-100-02:DOMAIN
       - ROLLOUT-001:DOMAIN
       - ROLLOUT-002:DOMAIN
       - ROLLOUT-003:DOMAIN
@@ -276,6 +363,8 @@ items:
       - ROLLOUT-007:DOMAIN
       - ROLLOUT-008:DOMAIN
       - STATUS-001:DOMAIN
+      - UXAUDIT-021:DOMAIN
+      - UXLIVE-042:DOMAIN
       - WEB-229:DOMAIN
       - WEB-230:DOMAIN
       - WEB-231:DOMAIN
@@ -288,6 +377,14 @@ items:
       - WEB-238:DOMAIN
       - WEB-239:DOMAIN
       - WEB-240:DOMAIN
+      - WEB-244:DOMAIN
+      - WEB-245:DOMAIN
+      - WEB-246:DOMAIN
+      - WF-DATA-014:DOMAIN
+      - WF-DATA-019:DOMAIN
+      - WF-DATA-027:DOMAIN
+      - WF-DATA-028:DOMAIN
+      - WF-DATA-033:DOMAIN
       - WF-DISC-006:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
@@ -315,6 +412,9 @@ items:
       - CROSS-CONF-002:DOMAIN
       - CUSTOMER-002:DOMAIN
       - EP-PROMO-001:DOMAIN
+      - HIPERF-004:DOMAIN
+      - INTAPI-010:DOMAIN
+      - INTAPI-011:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
       - LIB-020:DOMAIN
@@ -359,8 +459,26 @@ items:
       - PROMOUX-005:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-052-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-070-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-076-01:DOMAIN
+      - REV-076-02:DOMAIN
+      - REV-076-03:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-091-03:DOMAIN
+      - REV-095-03:DOMAIN
+      - REV-097-01:DOMAIN
+      - REV-102-02:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -374,6 +492,19 @@ items:
       - UXAUDIT-008:DOMAIN
       - UXAUDIT-016:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-021:DOMAIN
+      - UXLIVE-023:DOMAIN
+      - UXLIVE-029:DOMAIN
+      - UXLIVE-030:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-038:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-001:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
+      - UXSCAN-005:DOMAIN
       - WEB-109:DOMAIN
       - WEB-110:DOMAIN
       - WEB-111:DOMAIN
@@ -410,7 +541,14 @@ items:
       - WEB-190:DOMAIN
       - WEB-191:DOMAIN
       - WEB-192:DOMAIN
+      - WF-CAP-001:DOMAIN
+      - WF-CAP-002:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-DATA-002:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-008:DOMAIN
+      - WF-REV-012:DOMAIN
+      - WF-REV-016:DOMAIN
     tests:
       - TestExplainWorkerStateReturnsAuthorizedBitemporalFactsAndProvenance
   - id: hcmnext.people.promote_worker
@@ -440,6 +578,9 @@ items:
       - CROSS-CONF-002:DOMAIN
       - CUSTOMER-002:DOMAIN
       - EP-PROMO-001:DOMAIN
+      - HIPERF-004:DOMAIN
+      - INTAPI-010:DOMAIN
+      - INTAPI-011:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
       - LIB-020:DOMAIN
@@ -473,8 +614,26 @@ items:
       - PROMOUX-005:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-052-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-070-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-076-01:DOMAIN
+      - REV-076-02:DOMAIN
+      - REV-076-03:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-091-03:DOMAIN
+      - REV-095-03:DOMAIN
+      - REV-097-01:DOMAIN
+      - REV-102-02:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -487,6 +646,19 @@ items:
       - UXAUDIT-008:DOMAIN
       - UXAUDIT-016:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-021:DOMAIN
+      - UXLIVE-023:DOMAIN
+      - UXLIVE-029:DOMAIN
+      - UXLIVE-030:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-038:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-001:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
+      - UXSCAN-005:DOMAIN
       - WEB-109:DOMAIN
       - WEB-110:DOMAIN
       - WEB-111:DOMAIN
@@ -523,7 +695,14 @@ items:
       - WEB-190:DOMAIN
       - WEB-191:DOMAIN
       - WEB-192:DOMAIN
+      - WF-CAP-001:DOMAIN
+      - WF-CAP-002:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-DATA-002:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-008:DOMAIN
+      - WF-REV-012:DOMAIN
+      - WF-REV-016:DOMAIN
     tests:
       - BenchmarkTodo_PROMO_001
       - TestCommandRefusesAPlanThatDropsAParticipant
@@ -535,10 +714,25 @@ items:
       - TestJourneyDecideRejectReachesTheRejectedTerminal
       - TestJourneyExecuteIsRefusedWithoutTheExecutionRole
       - TestP1APromotionProducesExactEvidenceAndZeroAuthoritativeOrProviderEffect
+      - TestP1BAuthorityAmendmentSelectsOneTopologyAndEmitsOnlyTruthfulFacts
+      - TestP1BPreWriteAuthorityEvidenceRejectsMissingStaleCircularOrPostPilotProof
       - TestProposePromotionForwardsToThePromotionService
       - TestProposePromotionIsUnavailableWithoutTheContract
       - TestProposePromotionProjectsThePortsRefusals
       - TestStreamInterceptorRejectsAnUnauthenticatedStream
+      - TestTodo_NEXT_006_Conformance
+      - TestTodo_NEXT_006_Fault
+      - TestTodo_NEXT_006_Golden
+      - TestTodo_NEXT_006_Mutation
+      - TestTodo_NEXT_006_Property
+      - TestTodo_NEXT_006_Security
+      - TestTodo_NEXT_009_Conformance
+      - TestTodo_NEXT_009_Fault
+      - TestTodo_NEXT_009_Golden
+      - TestTodo_NEXT_009_Mutation
+      - TestTodo_NEXT_009_Property
+      - TestTodo_NEXT_009_Recovery
+      - TestTodo_NEXT_009_Security
       - TestTodo_PROMO_001
       - TestTodo_PROMO_001_Conditional
       - TestTodo_PROMO_001_Golden
@@ -642,8 +836,12 @@ items:
       - FX-001:DOMAIN
       - FX-002:DOMAIN
       - FX-003:DOMAIN
+      - HIPERF-001:DOMAIN
+      - HIPERF-003:DOMAIN
+      - HIPERF-005:DOMAIN
       - INCENTIVE-001:DOMAIN
       - INCENTIVE-002:DOMAIN
+      - INTAPI-010:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
@@ -692,8 +890,32 @@ items:
       - PROMOUX-009:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-039-01:DOMAIN
+      - REV-039-02:DOMAIN
+      - REV-039-03:DOMAIN
+      - REV-041-01:DOMAIN
+      - REV-045-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-074-01:DOMAIN
+      - REV-074-02:DOMAIN
+      - REV-074-03:DOMAIN
+      - REV-091-01:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-095-01:DOMAIN
+      - REV-095-02:DOMAIN
+      - REV-096-01:DOMAIN
+      - REV-097-02:DOMAIN
+      - REV-101-03:DOMAIN
+      - REV-102-04:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -703,6 +925,31 @@ items:
       - UX-JOBARCH-001:DOMAIN
       - UXAUDIT-002:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-001:DOMAIN
+      - UXLIVE-002:DOMAIN
+      - UXLIVE-003:DOMAIN
+      - UXLIVE-004:DOMAIN
+      - UXLIVE-006:DOMAIN
+      - UXLIVE-009:DOMAIN
+      - UXLIVE-010:DOMAIN
+      - UXLIVE-011:DOMAIN
+      - UXLIVE-012:DOMAIN
+      - UXLIVE-026:DOMAIN
+      - UXLIVE-031:DOMAIN
+      - UXLIVE-032:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-034:DOMAIN
+      - UXLIVE-035:DOMAIN
+      - UXLIVE-036:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-039:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-041:DOMAIN
+      - UXLIVE-043:DOMAIN
+      - UXLIVE-045:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
       - WEB-121:DOMAIN
       - WEB-122:DOMAIN
       - WEB-123:DOMAIN
@@ -727,7 +974,18 @@ items:
       - WEB-166:DOMAIN
       - WEB-167:DOMAIN
       - WEB-168:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-CAP-009:DOMAIN
+      - WF-CAP-010:DOMAIN
+      - WF-CAP-013:DOMAIN
+      - WF-CAP-016:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-001:DOMAIN
+      - WF-EXT-020:DOMAIN
+      - WF-REV-003:DOMAIN
+      - WF-REV-004:DOMAIN
+      - WF-REV-016:DOMAIN
+      - WF-RUN-034:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
       - TestTodo_COMP_003
@@ -796,8 +1054,12 @@ items:
       - FX-001:DOMAIN
       - FX-002:DOMAIN
       - FX-003:DOMAIN
+      - HIPERF-001:DOMAIN
+      - HIPERF-003:DOMAIN
+      - HIPERF-005:DOMAIN
       - INCENTIVE-001:DOMAIN
       - INCENTIVE-002:DOMAIN
+      - INTAPI-010:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
@@ -846,8 +1108,32 @@ items:
       - PROMOUX-009:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-039-01:DOMAIN
+      - REV-039-02:DOMAIN
+      - REV-039-03:DOMAIN
+      - REV-041-01:DOMAIN
+      - REV-045-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-074-01:DOMAIN
+      - REV-074-02:DOMAIN
+      - REV-074-03:DOMAIN
+      - REV-091-01:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-095-01:DOMAIN
+      - REV-095-02:DOMAIN
+      - REV-096-01:DOMAIN
+      - REV-097-02:DOMAIN
+      - REV-101-03:DOMAIN
+      - REV-102-04:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -857,6 +1143,31 @@ items:
       - UX-JOBARCH-001:DOMAIN
       - UXAUDIT-002:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-001:DOMAIN
+      - UXLIVE-002:DOMAIN
+      - UXLIVE-003:DOMAIN
+      - UXLIVE-004:DOMAIN
+      - UXLIVE-006:DOMAIN
+      - UXLIVE-009:DOMAIN
+      - UXLIVE-010:DOMAIN
+      - UXLIVE-011:DOMAIN
+      - UXLIVE-012:DOMAIN
+      - UXLIVE-026:DOMAIN
+      - UXLIVE-031:DOMAIN
+      - UXLIVE-032:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-034:DOMAIN
+      - UXLIVE-035:DOMAIN
+      - UXLIVE-036:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-039:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-041:DOMAIN
+      - UXLIVE-043:DOMAIN
+      - UXLIVE-045:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
       - WEB-121:DOMAIN
       - WEB-122:DOMAIN
       - WEB-123:DOMAIN
@@ -881,7 +1192,18 @@ items:
       - WEB-166:DOMAIN
       - WEB-167:DOMAIN
       - WEB-168:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-CAP-009:DOMAIN
+      - WF-CAP-010:DOMAIN
+      - WF-CAP-013:DOMAIN
+      - WF-CAP-016:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-001:DOMAIN
+      - WF-EXT-020:DOMAIN
+      - WF-REV-003:DOMAIN
+      - WF-REV-004:DOMAIN
+      - WF-REV-016:DOMAIN
+      - WF-RUN-034:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
       - FuzzEvaluatePayBandPosition
@@ -958,6 +1280,9 @@ items:
       - CROSS-CONF-002:DOMAIN
       - CUSTOMER-002:DOMAIN
       - EP-PROMO-001:DOMAIN
+      - HIPERF-004:DOMAIN
+      - INTAPI-010:DOMAIN
+      - INTAPI-011:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
       - LIB-020:DOMAIN
@@ -1003,8 +1328,26 @@ items:
       - PROMOUX-005:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-052-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-070-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-076-01:DOMAIN
+      - REV-076-02:DOMAIN
+      - REV-076-03:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-091-03:DOMAIN
+      - REV-095-03:DOMAIN
+      - REV-097-01:DOMAIN
+      - REV-102-02:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -1018,6 +1361,19 @@ items:
       - UXAUDIT-008:DOMAIN
       - UXAUDIT-016:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-021:DOMAIN
+      - UXLIVE-023:DOMAIN
+      - UXLIVE-029:DOMAIN
+      - UXLIVE-030:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-038:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-001:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
+      - UXSCAN-005:DOMAIN
       - WEB-109:DOMAIN
       - WEB-110:DOMAIN
       - WEB-111:DOMAIN
@@ -1054,7 +1410,14 @@ items:
       - WEB-190:DOMAIN
       - WEB-191:DOMAIN
       - WEB-192:DOMAIN
+      - WF-CAP-001:DOMAIN
+      - WF-CAP-002:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-DATA-002:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-008:DOMAIN
+      - WF-REV-012:DOMAIN
+      - WF-REV-016:DOMAIN
     tests:
       - TestChangeManagerIntentConformancePreservesGraphAuthorityAndZeroProductionExposure
   - id: hcmnext.people.explain_worker_state
@@ -1072,6 +1435,9 @@ items:
       - CROSS-CONF-002:DOMAIN
       - CUSTOMER-002:DOMAIN
       - EP-PROMO-001:DOMAIN
+      - HIPERF-004:DOMAIN
+      - INTAPI-010:DOMAIN
+      - INTAPI-011:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
       - LIB-020:DOMAIN
@@ -1116,8 +1482,26 @@ items:
       - PROMOUX-005:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-052-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-070-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-076-01:DOMAIN
+      - REV-076-02:DOMAIN
+      - REV-076-03:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-091-03:DOMAIN
+      - REV-095-03:DOMAIN
+      - REV-097-01:DOMAIN
+      - REV-102-02:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -1131,6 +1515,19 @@ items:
       - UXAUDIT-008:DOMAIN
       - UXAUDIT-016:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-021:DOMAIN
+      - UXLIVE-023:DOMAIN
+      - UXLIVE-029:DOMAIN
+      - UXLIVE-030:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-038:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-001:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
+      - UXSCAN-005:DOMAIN
       - WEB-109:DOMAIN
       - WEB-110:DOMAIN
       - WEB-111:DOMAIN
@@ -1167,7 +1564,14 @@ items:
       - WEB-190:DOMAIN
       - WEB-191:DOMAIN
       - WEB-192:DOMAIN
+      - WF-CAP-001:DOMAIN
+      - WF-CAP-002:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-DATA-002:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-008:DOMAIN
+      - WF-REV-012:DOMAIN
+      - WF-REV-016:DOMAIN
     tests:
       - TestExplainWorkerStateReturnsAuthorizedBitemporalFactsAndProvenance
   - id: hcmnext.people.promote_worker
@@ -1197,6 +1601,9 @@ items:
       - CROSS-CONF-002:DOMAIN
       - CUSTOMER-002:DOMAIN
       - EP-PROMO-001:DOMAIN
+      - HIPERF-004:DOMAIN
+      - INTAPI-010:DOMAIN
+      - INTAPI-011:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
       - LIB-020:DOMAIN
@@ -1230,8 +1637,26 @@ items:
       - PROMOUX-005:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-052-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-070-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-076-01:DOMAIN
+      - REV-076-02:DOMAIN
+      - REV-076-03:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-091-03:DOMAIN
+      - REV-095-03:DOMAIN
+      - REV-097-01:DOMAIN
+      - REV-102-02:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -1244,6 +1669,19 @@ items:
       - UXAUDIT-008:DOMAIN
       - UXAUDIT-016:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-021:DOMAIN
+      - UXLIVE-023:DOMAIN
+      - UXLIVE-029:DOMAIN
+      - UXLIVE-030:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-038:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-001:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
+      - UXSCAN-005:DOMAIN
       - WEB-109:DOMAIN
       - WEB-110:DOMAIN
       - WEB-111:DOMAIN
@@ -1280,7 +1718,14 @@ items:
       - WEB-190:DOMAIN
       - WEB-191:DOMAIN
       - WEB-192:DOMAIN
+      - WF-CAP-001:DOMAIN
+      - WF-CAP-002:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-DATA-002:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-008:DOMAIN
+      - WF-REV-012:DOMAIN
+      - WF-REV-016:DOMAIN
     tests:
       - BenchmarkTodo_PROMO_001
       - TestCommandRefusesAPlanThatDropsAParticipant
@@ -1292,10 +1737,25 @@ items:
       - TestJourneyDecideRejectReachesTheRejectedTerminal
       - TestJourneyExecuteIsRefusedWithoutTheExecutionRole
       - TestP1APromotionProducesExactEvidenceAndZeroAuthoritativeOrProviderEffect
+      - TestP1BAuthorityAmendmentSelectsOneTopologyAndEmitsOnlyTruthfulFacts
+      - TestP1BPreWriteAuthorityEvidenceRejectsMissingStaleCircularOrPostPilotProof
       - TestProposePromotionForwardsToThePromotionService
       - TestProposePromotionIsUnavailableWithoutTheContract
       - TestProposePromotionProjectsThePortsRefusals
       - TestStreamInterceptorRejectsAnUnauthenticatedStream
+      - TestTodo_NEXT_006_Conformance
+      - TestTodo_NEXT_006_Fault
+      - TestTodo_NEXT_006_Golden
+      - TestTodo_NEXT_006_Mutation
+      - TestTodo_NEXT_006_Property
+      - TestTodo_NEXT_006_Security
+      - TestTodo_NEXT_009_Conformance
+      - TestTodo_NEXT_009_Fault
+      - TestTodo_NEXT_009_Golden
+      - TestTodo_NEXT_009_Mutation
+      - TestTodo_NEXT_009_Property
+      - TestTodo_NEXT_009_Recovery
+      - TestTodo_NEXT_009_Security
       - TestTodo_PROMO_001
       - TestTodo_PROMO_001_Conditional
       - TestTodo_PROMO_001_Golden
@@ -1387,8 +1847,12 @@ items:
       - FX-001:DOMAIN
       - FX-002:DOMAIN
       - FX-003:DOMAIN
+      - HIPERF-001:DOMAIN
+      - HIPERF-003:DOMAIN
+      - HIPERF-005:DOMAIN
       - INCENTIVE-001:DOMAIN
       - INCENTIVE-002:DOMAIN
+      - INTAPI-010:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
@@ -1437,8 +1901,32 @@ items:
       - PROMOUX-009:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-039-01:DOMAIN
+      - REV-039-02:DOMAIN
+      - REV-039-03:DOMAIN
+      - REV-041-01:DOMAIN
+      - REV-045-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-074-01:DOMAIN
+      - REV-074-02:DOMAIN
+      - REV-074-03:DOMAIN
+      - REV-091-01:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-095-01:DOMAIN
+      - REV-095-02:DOMAIN
+      - REV-096-01:DOMAIN
+      - REV-097-02:DOMAIN
+      - REV-101-03:DOMAIN
+      - REV-102-04:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -1448,6 +1936,31 @@ items:
       - UX-JOBARCH-001:DOMAIN
       - UXAUDIT-002:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-001:DOMAIN
+      - UXLIVE-002:DOMAIN
+      - UXLIVE-003:DOMAIN
+      - UXLIVE-004:DOMAIN
+      - UXLIVE-006:DOMAIN
+      - UXLIVE-009:DOMAIN
+      - UXLIVE-010:DOMAIN
+      - UXLIVE-011:DOMAIN
+      - UXLIVE-012:DOMAIN
+      - UXLIVE-026:DOMAIN
+      - UXLIVE-031:DOMAIN
+      - UXLIVE-032:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-034:DOMAIN
+      - UXLIVE-035:DOMAIN
+      - UXLIVE-036:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-039:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-041:DOMAIN
+      - UXLIVE-043:DOMAIN
+      - UXLIVE-045:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
       - WEB-121:DOMAIN
       - WEB-122:DOMAIN
       - WEB-123:DOMAIN
@@ -1472,7 +1985,18 @@ items:
       - WEB-166:DOMAIN
       - WEB-167:DOMAIN
       - WEB-168:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-CAP-009:DOMAIN
+      - WF-CAP-010:DOMAIN
+      - WF-CAP-013:DOMAIN
+      - WF-CAP-016:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-001:DOMAIN
+      - WF-EXT-020:DOMAIN
+      - WF-REV-003:DOMAIN
+      - WF-REV-004:DOMAIN
+      - WF-REV-016:DOMAIN
+      - WF-RUN-034:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
       - TestTodo_COMP_004
@@ -1541,8 +2065,12 @@ items:
       - FX-001:DOMAIN
       - FX-002:DOMAIN
       - FX-003:DOMAIN
+      - HIPERF-001:DOMAIN
+      - HIPERF-003:DOMAIN
+      - HIPERF-005:DOMAIN
       - INCENTIVE-001:DOMAIN
       - INCENTIVE-002:DOMAIN
+      - INTAPI-010:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
@@ -1591,8 +2119,32 @@ items:
       - PROMOUX-009:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-039-01:DOMAIN
+      - REV-039-02:DOMAIN
+      - REV-039-03:DOMAIN
+      - REV-041-01:DOMAIN
+      - REV-045-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-074-01:DOMAIN
+      - REV-074-02:DOMAIN
+      - REV-074-03:DOMAIN
+      - REV-091-01:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-095-01:DOMAIN
+      - REV-095-02:DOMAIN
+      - REV-096-01:DOMAIN
+      - REV-097-02:DOMAIN
+      - REV-101-03:DOMAIN
+      - REV-102-04:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -1602,6 +2154,31 @@ items:
       - UX-JOBARCH-001:DOMAIN
       - UXAUDIT-002:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-001:DOMAIN
+      - UXLIVE-002:DOMAIN
+      - UXLIVE-003:DOMAIN
+      - UXLIVE-004:DOMAIN
+      - UXLIVE-006:DOMAIN
+      - UXLIVE-009:DOMAIN
+      - UXLIVE-010:DOMAIN
+      - UXLIVE-011:DOMAIN
+      - UXLIVE-012:DOMAIN
+      - UXLIVE-026:DOMAIN
+      - UXLIVE-031:DOMAIN
+      - UXLIVE-032:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-034:DOMAIN
+      - UXLIVE-035:DOMAIN
+      - UXLIVE-036:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-039:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-041:DOMAIN
+      - UXLIVE-043:DOMAIN
+      - UXLIVE-045:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
       - WEB-121:DOMAIN
       - WEB-122:DOMAIN
       - WEB-123:DOMAIN
@@ -1626,7 +2203,18 @@ items:
       - WEB-166:DOMAIN
       - WEB-167:DOMAIN
       - WEB-168:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-CAP-009:DOMAIN
+      - WF-CAP-010:DOMAIN
+      - WF-CAP-013:DOMAIN
+      - WF-CAP-016:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-001:DOMAIN
+      - WF-EXT-020:DOMAIN
+      - WF-REV-003:DOMAIN
+      - WF-REV-004:DOMAIN
+      - WF-REV-016:DOMAIN
+      - WF-RUN-034:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
       - TestTodo_COMP_003
@@ -1713,8 +2301,12 @@ items:
       - FX-001:DOMAIN
       - FX-002:DOMAIN
       - FX-003:DOMAIN
+      - HIPERF-001:DOMAIN
+      - HIPERF-003:DOMAIN
+      - HIPERF-005:DOMAIN
       - INCENTIVE-001:DOMAIN
       - INCENTIVE-002:DOMAIN
+      - INTAPI-010:DOMAIN
       - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
@@ -1763,8 +2355,32 @@ items:
       - PROMOUX-009:DOMAIN
       - PROMOUX-013:DOMAIN
       - PROMOUX-015:DOMAIN
+      - PROMOUX-016:DOMAIN
       - PROVIDER-001:DOMAIN
       - PROVIDER-002:DOMAIN
+      - RBAC-RT-001:DOMAIN
+      - REV-006-01:DOMAIN
+      - REV-006-02:DOMAIN
+      - REV-022-01:DOMAIN
+      - REV-039-01:DOMAIN
+      - REV-039-02:DOMAIN
+      - REV-039-03:DOMAIN
+      - REV-041-01:DOMAIN
+      - REV-045-01:DOMAIN
+      - REV-059-01:DOMAIN
+      - REV-071-01:DOMAIN
+      - REV-071-02:DOMAIN
+      - REV-074-01:DOMAIN
+      - REV-074-02:DOMAIN
+      - REV-074-03:DOMAIN
+      - REV-091-01:DOMAIN
+      - REV-091-02:DOMAIN
+      - REV-095-01:DOMAIN
+      - REV-095-02:DOMAIN
+      - REV-096-01:DOMAIN
+      - REV-097-02:DOMAIN
+      - REV-101-03:DOMAIN
+      - REV-102-04:DOMAIN
       - SELECT-001:DOMAIN
       - SELECT-002:DOMAIN
       - SERVICE-001:DOMAIN
@@ -1774,6 +2390,31 @@ items:
       - UX-JOBARCH-001:DOMAIN
       - UXAUDIT-002:DOMAIN
       - UXAUDIT-025:DOMAIN
+      - UXLIVE-001:DOMAIN
+      - UXLIVE-002:DOMAIN
+      - UXLIVE-003:DOMAIN
+      - UXLIVE-004:DOMAIN
+      - UXLIVE-006:DOMAIN
+      - UXLIVE-009:DOMAIN
+      - UXLIVE-010:DOMAIN
+      - UXLIVE-011:DOMAIN
+      - UXLIVE-012:DOMAIN
+      - UXLIVE-026:DOMAIN
+      - UXLIVE-031:DOMAIN
+      - UXLIVE-032:DOMAIN
+      - UXLIVE-033:DOMAIN
+      - UXLIVE-034:DOMAIN
+      - UXLIVE-035:DOMAIN
+      - UXLIVE-036:DOMAIN
+      - UXLIVE-037:DOMAIN
+      - UXLIVE-039:DOMAIN
+      - UXLIVE-040:DOMAIN
+      - UXLIVE-041:DOMAIN
+      - UXLIVE-043:DOMAIN
+      - UXLIVE-045:DOMAIN
+      - UXLIVE-046:DOMAIN
+      - UXSCAN-002:DOMAIN
+      - UXSCAN-003:DOMAIN
       - WEB-121:DOMAIN
       - WEB-122:DOMAIN
       - WEB-123:DOMAIN
@@ -1798,7 +2439,18 @@ items:
       - WEB-166:DOMAIN
       - WEB-167:DOMAIN
       - WEB-168:DOMAIN
+      - WF-CAP-008:DOMAIN
+      - WF-CAP-009:DOMAIN
+      - WF-CAP-010:DOMAIN
+      - WF-CAP-013:DOMAIN
+      - WF-CAP-016:DOMAIN
       - WF-DISC-006:DOMAIN
+      - WF-EXT-001:DOMAIN
+      - WF-EXT-020:DOMAIN
+      - WF-REV-003:DOMAIN
+      - WF-REV-004:DOMAIN
+      - WF-REV-016:DOMAIN
+      - WF-RUN-034:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
       - FuzzEvaluatePayBandPosition

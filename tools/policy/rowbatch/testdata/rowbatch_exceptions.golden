@@ -1,0 +1,10 @@
+internal/data/conflictstore/store.go :: per-footprint insert with conflict-verify follow-up; convertible with the meritstore pattern, deferred to follow-up
+internal/data/contactstore/store.go :: per-event insert; convertible with the meritstore pattern, deferred to follow-up
+internal/data/dbport/batch.go :: ExecAll sequential fallback for drivers without batch support; the batch primitive cannot batch itself
+internal/data/jobarchstore/store.go :: per-revision inserts in import helpers; convertible with the meritstore pattern, deferred to follow-up
+internal/data/meritstore/store.go :: per-recommendation insert in Save; convertible with the emission pattern, deferred to follow-up
+internal/data/promotionladder/ladder.go :: Seed path for ladder edges, bulk import and bootstrap
+internal/data/roleaccessstore/store.go :: tenant Bootstrap path, runs once per tenant
+internal/data/seed/seed.go :: bootstrap seed path, not a request path
+internal/data/signals/expire.go :: background expiry sweep over due subscriptions
+internal/data/workeridstore/store.go :: ID reservation retry loop; each attempt depends on the previous attempt conflict outcome, statements cannot be queued up front

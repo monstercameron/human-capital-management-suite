@@ -98,7 +98,7 @@ func TestTodo_UXAUDIT_008_Accessibility_MergedUX(t *testing.T) {
 	}
 	if !strings.Contains(markup, `aria-label="Why workflows are unavailable for Avery Patel: No eligible promotion role`) ||
 		!strings.Contains(markup, `<summary`) ||
-		!strings.Contains(markup, `>Unavailable<svg`) ||
+		!strings.Contains(markup, `<span class="people-availability-note">No workflow to start</span>`) ||
 		!strings.Contains(markup, `class="people-workflow-unavailable-reason"`) {
 		t.Fatalf("compact row lost its named explanation disclosure: %s", markup)
 	}
@@ -123,7 +123,7 @@ func TestTodo_UXAUDIT_008_Density(t *testing.T) {
 	if got := strings.Count(markup, `class="popover-root people-workflow-menu people-unavailable-menu"`); got != count {
 		t.Fatalf("100-row directory has %d compact unavailable controls, want %d", got, count)
 	}
-	if got := strings.Count(markup, `>Unavailable<svg`); got != count {
+	if got := strings.Count(markup, `<span class="people-availability-note">No workflow to start</span>`); got != count {
 		t.Fatalf("100-row directory repeats full explanations in visible action cells: compact summaries=%d", got)
 	}
 }
@@ -145,9 +145,10 @@ func TestTodo_UXAUDIT_008_Layout(t *testing.T) {
 
 func TestTodo_UXAUDIT_008_I18N_UnavailableDisclosure(t *testing.T) {
 	for _, tc := range []struct{ locale, label string }{
-		{"en-US", "Unavailable"},
-		{"de-DE", "Nicht verfügbar"},
-		{"ar", "غير متاح"},
+		// UXLIVE-033: a quiet explanation, not a failure-looking "Unavailable".
+		{"en-US", "No workflow to start"},
+		{"de-DE", "Kein Ablauf startbar"},
+		{"ar", "لا يوجد مسار عمل للبدء"},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
 			locale := ResolveProductLocale(tc.locale)
@@ -160,7 +161,7 @@ func TestTodo_UXAUDIT_008_I18N_UnavailableDisclosure(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !strings.Contains(markup, ">"+tc.label+"<svg") || strings.Contains(markup, "people.workflow_unavailable") {
+			if !strings.Contains(markup, `<span class="people-availability-note">`+tc.label+"</span>") || strings.Contains(markup, "people.workflow_unavailable") {
 				t.Fatalf("%s disclosure label did not resolve: %s", tc.locale, markup)
 			}
 			announcement := locale.Text("people.workflow_unavailable_reason_aria", map[string]string{"name": "Avery Patel", "reason": reason})

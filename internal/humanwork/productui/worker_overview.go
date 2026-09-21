@@ -1,5 +1,10 @@
 package productui
 
+import (
+	"strings"
+	"time"
+)
+
 // WorkerFact is one resolved section fact: the field key,
 // its localized label, and its verdict-projected value.
 type WorkerFact struct {
@@ -44,11 +49,32 @@ var workerOverviewFacts = []sectionFact{
 	{"person.worker_number", "worker_number", func(_ LocaleContext, person Person) string { return person.WorkerNumber }},
 	{"person.job_code", "job_code", func(_ LocaleContext, person Person) string { return person.JobCode }},
 	{"person.job_level", "job_level", func(_ LocaleContext, person Person) string { return person.Grade }},
-	{"person.hire_date", "hire_date", func(_ LocaleContext, person Person) string { return person.HireDate }},
-	{"person.employment_type", "employment_type", func(LocaleContext, Person) string { return "" }},
-	{"person.time_type", "time_type", func(LocaleContext, Person) string { return "" }},
+	{"person.hire_date", "hire_date", func(locale LocaleContext, person Person) string { return localizedRecordDate(locale, person.HireDate) }},
+	{"person.employment_type", "employment_type", func(locale LocaleContext, person Person) string {
+		return employmentTerm(locale, person.EmploymentType)
+	}},
+	{"person.time_type", "time_type", func(locale LocaleContext, person Person) string {
+		return employmentTerm(locale, person.TimeType)
+	}},
 	{"person.record_source", "record_source", func(_ LocaleContext, person Person) string { return person.Source }},
-	{"person.record_created", "record_created", func(_ LocaleContext, person Person) string { return person.CreatedAt }},
+	{"person.record_created", "record_created", func(locale LocaleContext, person Person) string { return localizedRecordDate(locale, person.CreatedAt) }},
+}
+
+// localizedRecordDate shows a record's date the way the reader's locale
+// writes dates ("17 Aug 2019"), as the journey pages already do, rather than
+// the raw ISO key ("2019-08-17"). A value that is not an ISO date or
+// timestamp is shown as it came, so nothing is ever lost to a failed parse.
+func localizedRecordDate(locale LocaleContext, raw string) string {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return raw
+	}
+	for _, layout := range []string{"2006-01-02", time.RFC3339, time.RFC3339Nano} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return locale.FormatDate(parsed)
+		}
+	}
+	return raw
 }
 
 // ResolveWorkerOverview resolves the worker overview section

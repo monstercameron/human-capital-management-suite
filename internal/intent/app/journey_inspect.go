@@ -331,8 +331,18 @@ func journeyStageForNode(nodeID string) (workspace.JourneyStage, bool) {
 		return journeyStageReapproval, true
 	case promotionexec.NodeExecutePromotion:
 		return journeyStageExecuted, true
-	case promotionexec.NodeObservePayroll, promotionexec.NodeObserveAccess, promotionexec.NodeObserveReconciliation:
+	case promotionexec.NodeAwaitPayrollConfirmation, promotionexec.NodeObservePayroll,
+		promotionexec.NodeAwaitAccessConfirmation, promotionexec.NodeObserveAccess, promotionexec.NodeObserveReconciliation:
+		// The 1.1.0 provider waits sit between the core commit and its
+		// observations: the change is committed and its effects are being
+		// confirmed.
 		return journeyStageObservingEffects, true
+	case promotionexec.NodeAcknowledgeRelease:
+		return workspace.JourneyStageAwaitingAcknowledgement, true
+	case promotionexec.NodeCompensateHold:
+		// Every compensate route lands on the RepairPlan terminal: once the
+		// run reaches this node, governed repair is its determined future.
+		return journeyStageRepairRequired, true
 	case promotionexec.NodeEndComplete:
 		return journeyStageRecorded, true
 	case promotionexec.NodeEndRepairPlan:
@@ -467,6 +477,13 @@ func (e *journeyEngine) inspectWithRelationships(
 	if recErr != nil {
 		return workspace.JourneyDetail{}, recErr
 	}
+	// The remaining projection may re-simulate and resolve people through the
+	// same bounded pool. Release this read connection before those calls;
+	// concurrent detail requests must not occupy every connection while each
+	// waits for another one.
+	if err := tx.Rollback(ctx); err != nil {
+		return workspace.JourneyDetail{}, fmt.Errorf("app: journey: release record read: %w", err)
+	}
 	relationships, relErr := approvalReviewRelationships(principal, summary.Worker, inst.CreatedAt, record.items)
 	if relErr != nil {
 		return workspace.JourneyDetail{}, relErr
@@ -518,15 +535,23 @@ func (e *journeyEngine) inspectWithRelationships(
 		Findings:             findings,
 		PlannedWrites:        plannedWrites,
 	}
+	detailTx, txErr := e.beginTenant(ctx, principal)
+	if txErr != nil {
+		return workspace.JourneyDetail{}, txErr
+	}
+	defer func() { _ = detailTx.Rollback(ctx) }()
 
 	if !executed {
-		record, recErr = e.readRecord(ctx, tx, principal, summary.MaterialDigest)
+		record, recErr = e.readRecord(ctx, detailTx, principal, summary.MaterialDigest)
 		if recErr != nil {
 			return workspace.JourneyDetail{}, recErr
 		}
 	}
 
 	detail.Summary.Stage = deriveJourneyStage(summary.ProposalRevisionID, record)
+	if record.instance == nil && requestEndedBeforeExecution(inst.Lifecycle.Request) {
+		detail.Summary.Stage = workspace.JourneyStageFailed
+	}
 	// PROMOUX-012: the same viewer projection the list resolves. The work item
 	// summary is used only for the viewer's own membership; the detail page
 	// reads the work items themselves.
@@ -559,11 +584,14 @@ func (e *journeyEngine) inspectWithRelationships(
 			CompletedAt:     utcPtr(inst.CompletedAt),
 		}
 	}
-	evidenceIDs, evErr := e.evidenceIDsFor(ctx, principal, intentID, detail.Summary.InstanceID)
-	if evErr != nil {
-		return workspace.JourneyDetail{}, evErr
+	// Resolve display names only after closing the tenant read. That resolver
+	// can query the directory and must not recursively acquire from this pool.
+	notes, notesErr := readJourneyNotes(ctx, detailTx, e.svc.tenantUUID(principal.Tenant()), intentID,
+		principal.Subject(), nil)
+	if notesErr != nil {
+		return workspace.JourneyDetail{}, notesErr
 	}
-	detail.EvidenceIDs = evidenceIDs
+	detail.Notes = notes
 	applyJourneyChronology(&detail, record)
 
 	// PROMOUX-014: a journey parked on the effective-date wait explains
@@ -571,12 +599,28 @@ func (e *journeyEngine) inspectWithRelationships(
 	// each fact sources from.
 	if detail.Summary.Stage == workspace.JourneyStageWaitingEffectiveDate && record.instance != nil {
 		tenantID := e.svc.tenantUUID(principal.Tenant())
-		waitTimer, waitErr := journeyWaitTimer(ctx, tx, tenantID, record.instance.InstanceID)
+		waitTimer, waitErr := journeyWaitTimer(ctx, detailTx, tenantID, record.instance.InstanceID)
 		if waitErr != nil {
 			return workspace.JourneyDetail{}, waitErr
 		}
 		detail.Findings = append(detail.Findings, journeyWaitFindings(waitTimer, detail.WorkItems)...)
 	}
+	if err := detailTx.Rollback(ctx); err != nil {
+		return workspace.JourneyDetail{}, fmt.Errorf("app: journey: release detail read: %w", err)
+	}
+	resolveName := e.assigneeNameResolver(ctx, principal.Tenant())
+	for i := range detail.Notes {
+		detail.Notes[i].AuthorDisplay = resolveName(detail.Notes[i].AuthorRef)
+	}
+	evidenceIDs, evErr := e.evidenceIDsFor(ctx, principal, intentID, detail.Summary.InstanceID)
+	if evErr != nil {
+		return workspace.JourneyDetail{}, evErr
+	}
+	detail.EvidenceIDs = evidenceIDs
+	// REV-091-02: the reviewer's reporting-line impact and compensation
+	// guardrail, under this viewer's own authorization.
+	detail.Review = e.journeyPromotionReview(ctx, principal, purposeOf(principal, inv), msg,
+		summary.Worker, inst.CreatedAt, relationships)
 	if !detail.DiagnosticsAvailable {
 		redactJourneyDiagnostics(&detail)
 	}

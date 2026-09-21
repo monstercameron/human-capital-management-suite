@@ -91,7 +91,7 @@ func TestTodo_PROMOUX_014_Integration(t *testing.T) {
 
 	proposed, err := journey.Propose(ctx, workspace.ProposalInput{
 		WorkerRef: "omar-reyes", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
-		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "promoux014_integration_fixture",
+		ProposedBase: "98000.00", EffectiveDate: "2026-06-01", BusinessReason: "promoux014 integration fixture",
 	})
 	if err != nil {
 		t.Fatalf("Journey.Propose: %v", err)

@@ -263,6 +263,18 @@ func TestTodo_PROMO_EXEC_SERVE_StageProjectionCoversEveryExecutablePromotionNode
 			t.Errorf("journeyStageForNode(%q) = %q, %t; want a named stage", nodeID, stage, ok)
 		}
 	}
+	// A run parked on a 1.1.0 provider-confirmation wait has committed and is
+	// confirming its effects.
+	for _, nodeID := range []string{promotionexec.NodeAwaitPayrollConfirmation, promotionexec.NodeAwaitAccessConfirmation} {
+		if stage, _ := journeyStageForNode(nodeID); stage != journeyStageObservingEffects {
+			t.Errorf("journeyStageForNode(%q) = %q, want %q", nodeID, stage, journeyStageObservingEffects)
+		}
+	}
+	for _, nodeID := range promotionexec.NodeOrderV1_0() {
+		if _, ok := journeyStageForNode(nodeID); !ok {
+			t.Errorf("frozen 1.0.0 node %q has no stage", nodeID)
+		}
+	}
 }
 
 func TestDeriveJourneyStageFromDurableExecutionState(t *testing.T) {

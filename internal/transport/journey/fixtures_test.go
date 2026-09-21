@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -88,6 +90,9 @@ func (fakeVerifier) Verify(_ context.Context, cred trust.Credential) (*trust.Pri
 // service is not allowed to have.
 func startTestServer(t *testing.T, deps journey.Dependencies) *grpc.ClientConn {
 	t.Helper()
+	if deps.RoleAccess == nil {
+		deps.RoleAccess = defaultFixtureRoleAccess()
+	}
 
 	cfg := transport.Config{Verifier: fakeVerifier{}}
 	srv := grpc.NewServer(
@@ -113,6 +118,52 @@ func startTestServer(t *testing.T, deps journey.Dependencies) *grpc.ClientConn {
 		_ = lis.Close()
 	})
 	return conn
+}
+
+// defaultFixtureRoleAccess gives legacy transport fixtures the same explicit
+// page and feature grants a composed server receives from role-access
+// bootstrap. Production remains fail closed when the store is absent; the
+// RBAC tests use startRT2Server and continue to exercise nil, empty, and
+// partially seeded stores directly.
+func defaultFixtureRoleAccess() *roleAccessSpy {
+	// The shared transport fixture exercises forwarding, projection, and
+	// error mapping rather than the default role matrix. Give both admitted
+	// fixture roles every page operation, then let the feature catalogue cap
+	// each feature at the operations it actually supports. Authorization
+	// behavior has dedicated fail-closed fixtures below startRT2Server.
+	roles := []string{"intent_author", "comp_admin"}
+	pageIDs := make(map[string]struct{})
+	for _, permission := range roleaccess.DefaultPagePermissions() {
+		pageIDs[permission.PageID] = struct{}{}
+	}
+	pages := make([]roleaccess.PagePermission, 0, len(pageIDs)*len(roles))
+	for pageID := range pageIDs {
+		for _, roleID := range roles {
+			if pageID == roleaccess.PageJourneyDiagnostics && roleID != "comp_admin" {
+				continue
+			}
+			pages = append(pages, roleaccess.PagePermission{
+				RoleID: roleID, PageID: pageID,
+				View: true, Create: true, Update: true, Delete: true,
+			})
+		}
+	}
+	registrations := productui.FlattenFeatureDefinitions()
+	features := make([]roleaccess.FeatureDefinition, 0, len(registrations))
+	for _, registration := range registrations {
+		features = append(features, roleaccess.FeatureDefinition{
+			PageID:    string(registration.Page),
+			FeatureID: string(registration.Feature.ID),
+			View:      registration.Feature.View,
+			Create:    registration.Feature.Create,
+			Update:    registration.Feature.Update,
+			Delete:    registration.Feature.Delete,
+		})
+	}
+	return &roleAccessSpy{snapshot: roleaccess.Snapshot{
+		PagePermissions:    pages,
+		FeaturePermissions: roleaccess.DefaultFeaturePermissions(features, pages),
+	}}
 }
 
 // dialJourneyClient returns the generated Go journey client bound to conn.
@@ -170,6 +221,7 @@ type fakeEngine struct {
 	inspectErr      error
 	executeErr      error
 	decideErr       error
+	acknowledgeErr  error
 	listWorkersErr  error
 	createWorkerErr error
 	editErr         error
@@ -190,6 +242,7 @@ type fakeEngine struct {
 	lastProposal        workspace.ProposalInput
 	lastIntentID        string
 	lastDecision        workspace.Decision
+	lastAcknowledgement workspace.Acknowledgement
 	lastWorkerInput     workspace.WorkerInput
 	lastEditInput       workspace.EditProposalInput
 	lastEditExpected    uint64
@@ -287,6 +340,17 @@ func (f *fakeEngine) Decide(_ context.Context, intentID string, d workspace.Deci
 	f.lastDecision = d
 	if f.decideErr != nil {
 		return workspace.JourneyDetail{}, f.decideErr
+	}
+	return f.detail, nil
+}
+
+func (f *fakeEngine) Acknowledge(_ context.Context, intentID string, ack workspace.Acknowledgement) (workspace.JourneyDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lastIntentID = intentID
+	f.lastAcknowledgement = ack
+	if f.acknowledgeErr != nil {
+		return workspace.JourneyDetail{}, f.acknowledgeErr
 	}
 	return f.detail, nil
 }

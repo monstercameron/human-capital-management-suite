@@ -165,7 +165,7 @@ func (s *IntentService) decideProposal(ctx context.Context, req ProposalDecision
 	}
 	if decision.needsResume() {
 		result, resumeErr := s.executor.Resume(ctx, ExecutionResumeRequest{
-			Start:                   start,
+			Start:                   pinnedStart(start, decision.instance),
 			InstanceID:              decision.instance.InstanceID,
 			ExpectedInstanceVersion: decision.instance.InstanceVersion,
 			WorkItem:                decision.item,

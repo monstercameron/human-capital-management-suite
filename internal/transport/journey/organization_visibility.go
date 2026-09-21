@@ -12,14 +12,18 @@ import (
 )
 
 func (s *server) visibleWorkforce(ctx context.Context, principal *trust.Principal, workers []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
-	if principal.HasRole("hcm_admin") || principal.HasRole("comp_admin") {
+	// The administrator shortcut reads the server-side role set: a revoked
+	// administrator whose durable assignment no longer holds the role lists
+	// through policy like anyone else.
+	roles := s.effectiveRoles(ctx, principal)
+	if isAdministratorRoleSet(roles) {
 		return projectAuthorizedManagers(workers, workers), options, nil
 	}
-	visible, visibleOptions, err := s.visibleByPolicy(ctx, principal, workers, options)
+	visible, visibleOptions, err := s.visibleByPolicy(ctx, principal, roles, workers, options)
 	if err != nil {
 		return nil, workspace.WorkforceOptions{}, err
 	}
-	return withManagedReports(principal, workers, visible, visibleOptions)
+	return withManagedReports(principal, roles, workers, visible, visibleOptions)
 }
 
 // maxReportingDepth bounds one reporting-line walk, matching the engine's own
@@ -35,9 +39,13 @@ const maxReportingDepth = 16
 // discover that worker on the listing at all. The walk reads only the
 // ManagerRef each listed worker already carries, never a relationship the
 // listing does not hold, and a reference naming no listed worker ends it.
-func withManagedReports(principal *trust.Principal, all, visible []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
+// withManagedReports adds, for a principal whose server-side role set holds
+// the manager role, every worker whose reporting line reaches that
+// principal. roles is the already-resolved set from [server.effectiveRoles],
+// never the credential.
+func withManagedReports(principal *trust.Principal, roles []string, all, visible []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	subject := strings.ToLower(strings.TrimSpace(principal.Subject()))
-	if !principal.HasRole("manager") || subject == "" {
+	if !roleaccess.ContainsRole(roles, "manager") || subject == "" {
 		return visible, options, nil
 	}
 	byRef := make(map[string]workspace.WorkerSummary, len(all)*2)
@@ -93,15 +101,16 @@ func reportsTo(worker workspace.WorkerSummary, subject string, byRef map[string]
 }
 
 // visibleByPolicy applies the role-access or personal organization-visibility
-// policy that governs the listing.
-func (s *server) visibleByPolicy(ctx context.Context, principal *trust.Principal, workers []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
+// policy that governs the listing. roles is the already-resolved
+// server-side set; the fresh snapshot only re-applies it so a concurrent
+// assignment change is honored, and it never reintroduces credential claims.
+func (s *server) visibleByPolicy(ctx context.Context, principal *trust.Principal, roles []string, workers []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	if s.deps.RoleAccess != nil {
 		snapshot, err := s.deps.RoleAccess.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
 		if err != nil {
 			return nil, workspace.WorkforceOptions{}, err
 		}
-		roles := roleaccess.AssignedRoles(snapshot, principal.Subject(), principal.Roles())
-		if policies := roleaccess.PoliciesForRoles(snapshot, roles); len(policies) > 0 {
+		if policies := roleaccess.PoliciesForRoles(snapshot, roleaccess.AssignedRoles(snapshot, principal.Subject(), roles)); len(policies) > 0 {
 			visible, visibleOptions := visibleWorkforceForRolePolicies(principal, workers, options, policies)
 			return projectAuthorizedManagers(workers, visible), visibleOptions, nil
 		}

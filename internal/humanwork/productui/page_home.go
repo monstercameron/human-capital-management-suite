@@ -1,8 +1,6 @@
 package productui
 
 import (
-	"fmt"
-
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
@@ -29,20 +27,23 @@ func homePage(view View) ui.Node {
 	}
 	peopleVisible := view.Allows(PagePeople, "view")
 	visiblePeople := admittedPeople(view)
-	_, terminal := journeyCounts(historyPopulation)
-	activities := make([]ActivityProps, 0)
-	for _, item := range RecentWork(historyPopulation) {
-		if len(activities) == homeRecentLimit {
-			break
-		}
-		var detail string
-		if peopleVisible {
-			if person := RecentPeople(visiblePeople, []WorkItem{item}, 1); len(person) > 0 {
-				detail = person[0].Name
-			}
-		}
-		activities = append(activities, ActivityProps{Title: localizedWorkTitle(view.Locale, item), Detail: detail, Status: localizedWorkStatus(view.Locale, item)})
+	// UXLIVE-027/030: every journey number on Home is the server's one
+	// authorized summary, the same one Insights and Journeys reconcile to.
+	totals, _ := journeyTotals(view)
+	// REV-069-02: the recent rail derives from the governed
+	// completed-work history mapped by ID, never hand-picked per
+	// row, so redefining "completed" only touches
+	// CompletedHistory. The human task label still names the
+	// person, so no detail line repeats it (UXLIVE-030).
+	activities := completedActivityProps(view, CompletedHistory(historyPopulation), historyPopulation)
+	if len(activities) > homeRecentLimit {
+		activities = activities[:homeRecentLimit]
 	}
+	// REV-069-01: the announcements slot renders the
+	// tenant-admin-authored stream through the governed
+	// polite/assertive split, never hand-split.
+	politeAnnouncements, assertiveAnnouncements := GovernAnnouncements(view.Announcements)
+	announcementProps, showAnnouncements := homeAnnouncementProps(view, politeAnnouncements, assertiveAnnouncements)
 	scoped := view
 	viewerWork := MyWorkItems(workPopulation, view.Viewer)
 	queue := ActionableWorkItems(viewerWork)
@@ -114,27 +115,17 @@ func homePage(view View) ui.Node {
 	if !(view.Allows(PageJourneys, "create") && view.Allows(PagePeople, "view")) {
 		quickTitle = view.Locale.Text("home.quick_links_title")
 	}
-	facts := make([]FactProps, 0, 4)
-	if workVisible {
-		facts = append(facts,
-			FactProps{Label: view.Locale.Text("home.needs_action"), Value: fmt.Sprint(len(queue))},
-			FactProps{Label: view.Locale.Text("home.tracked_waiting"), Value: fmt.Sprint(len(trackedItems))},
-		)
-	}
-	if historyVisible {
-		facts = append(facts, FactProps{Label: view.Locale.Text("home.closed"), Value: fmt.Sprint(terminal)})
-	}
-	if peopleVisible {
-		facts = append(facts, FactProps{Label: view.Locale.Text("home.visible_workers"), Value: fmt.Sprint(len(visiblePeople))})
-	}
+	groups := homeOperationalGroups(view, totals, workVisible, historyVisible, peopleVisible, visiblePeople)
+	exceptions, showExceptions := homeExceptions(view, totals)
+	recentRequests, showRecentRequests := homeRecentRequests(view)
 	scopeKey := "home.activity_scope"
 	if workVisible && !peopleVisible {
 		scopeKey = "home.activity_scope_work"
 	} else if !workVisible && peopleVisible {
 		scopeKey = "home.activity_scope_people"
 	}
-	overview := SummaryCardProps{Title: view.Locale.Text("home.activity_title"), Description: view.Locale.Text(scopeKey), Facts: facts}
-	if len(facts) == 0 {
+	overview := SummaryCardProps{Title: view.Locale.Text("home.activity_title"), Description: view.Locale.Text(scopeKey), Groups: groups}
+	if len(groups) == 0 {
 		overview = SummaryCardProps{}
 	}
 	recent := RecentActivityProps{Title: view.Locale.Text("home.recent_completed_title"), Items: activities, EmptyTitle: view.Locale.Text("home.recent_completed_empty_title"), EmptyDescription: view.Locale.Text("home.recent_completed_empty_detail")}
@@ -150,21 +141,28 @@ func homePage(view View) ui.Node {
 	}
 	// A visible employee count is useful context, not activity. A genuinely
 	// quiet work stream should not expand four zero-state cards around it.
-	compactEmpty := len(population) == 0 && len(queue) == 0 && len(buckets.Drafts) == 0 && len(tracked.Items) == 0 && len(recentPeople) == 0 && len(activities) == 0
+	// A failed read is not evidence of a quiet workspace: the shell reports
+	// the failure, and Home makes no "no work" claim under it (UXLIVE-027).
+	compactEmpty := totals.Total == 0 && len(population) == 0 && len(queue) == 0 && len(buckets.Drafts) == 0 && len(tracked.Items) == 0 && len(recentPeople) == 0 && len(activities) == 0
 	return ui.CreateElement(HomePage, HomePageProps{
 		Work: work, ShowWork: sections[HomeSectionAttention],
-		Drafts: drafts, ShowDrafts: sections[HomeSectionRecentWork] && workVisible,
+		// UXLIVE-030: a populated Home drops continuity cards whose own
+		// population is empty; the summary card already states the zeros.
+		Drafts: drafts, ShowDrafts: sections[HomeSectionRecentWork] && workVisible && len(buckets.Drafts) > 0,
 		DraftsEmptyTitle: view.Locale.Text("home.drafts_empty_title"), DraftsEmptyDetail: view.Locale.Text("home.drafts_empty_detail"),
-		Tracked: tracked, ShowTracked: sections[HomeSectionRecentWork] && workVisible,
+		Tracked: tracked, ShowTracked: sections[HomeSectionRecentWork] && workVisible && len(tracked.Items) > 0,
+		RecentRequests: recentRequests, ShowRecentRequest: sections[HomeSectionRecentWork] && workVisible && showRecentRequests,
+		Exceptions: exceptions, ShowExceptions: sections[HomeSectionAttention] && workVisible && showExceptions,
 		RecentPeople: RecentPeopleProps{
 			Title: view.Locale.Text("home.recent_people_title"), Description: view.Locale.Text("home.recent_people_description"), Items: recentPeople,
 			EmptyTitle: view.Locale.Text("home.recent_people_empty_title"), EmptyDetail: view.Locale.Text("home.recent_people_empty_detail"),
-		}, ShowPeople: sections[HomeSectionRecentWork] && peopleVisible,
-		Overview: overview, ShowOverview: sections[HomeSectionSummaries] && len(facts) > 0,
+		}, ShowPeople: sections[HomeSectionRecentWork] && peopleVisible && len(recentPeople) > 0,
+		Overview: overview, ShowOverview: sections[HomeSectionSummaries] && len(groups) > 0,
 		QuickStart: QuickActionsProps{Title: quickTitle, Class: "home-quick-actions", Actions: actions},
-		Recent:     recent, ShowRecent: sections[HomeSectionRecentWork] && historyVisible,
-		CompactEmpty: compactEmpty,
-		EmptyTitle:   view.Locale.Text("home.empty_title"), EmptyDetail: view.Locale.Text("home.empty_detail"),
+		Recent:     recent, ShowRecent: sections[HomeSectionRecentWork] && historyVisible && len(activities) > 0,
+		Announcements: announcementProps, ShowAnnouncements: showAnnouncements,
+		CompactEmpty: compactEmpty, SuppressEmptyClaim: view.LoadError != "",
+		EmptyTitle: view.Locale.Text("home.empty_title"), EmptyDetail: view.Locale.Text("home.empty_detail"),
 	})
 }
 

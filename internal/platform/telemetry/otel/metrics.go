@@ -25,9 +25,29 @@ const (
 	metricOutboxLag             = "outbox.lag"
 	metricEdgeParity            = "edge.parity"
 	metricEffectDispatchLatency = "effect.dispatch.duration"
+
+	// Provider integration metrics (telemetry.ProviderIntegrationMetrics).
+	metricProviderDeliveryAttempts    = "provider.delivery.attempts"
+	metricProviderDeliveryDuration    = "provider.delivery.duration"
+	metricProviderDeliveryAbandoned   = "provider.delivery.abandoned"
+	metricProviderRetryDelay          = "provider.retry.delay"
+	metricProviderBreakerTransitions  = "provider.breaker.transitions"
+	metricProviderCallbackReceived    = "provider.callback.received"
+	metricProviderCallbackSecretIndex = "provider.callback.secret_index"
+	metricProviderTokenRefreshes      = "provider.token.refreshes"
+	metricProviderWaitNearTimeout     = "provider.wait.near_timeout"
 )
 
-// Metrics registers exactly the P1A cell's six catalog instruments
+// Explicit histogram boundaries, in milliseconds, for the provider
+// integration histograms: one HTTP attempt is bounded by the client
+// timeout (15s by default), while a scheduled retry delay can reach the
+// queue's backoff ceiling.
+var (
+	providerDeliveryBucketsMS = []float64{5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 15000, 30000}
+	providerRetryBucketsMS    = []float64{100, 500, 1000, 5000, 15000, 60000, 300000, 900000, 3600000}
+)
+
+// Metrics registers exactly the P1A cell's catalog instruments
 // (telemetry.MetricCatalog) against a metric.Meter and exposes one typed,
 // narrow recording method per instrument. It is the only way this package
 // lets a caller record a metric: there is no generic "record an arbitrary
@@ -45,6 +65,16 @@ type Metrics struct {
 	edgeParity      metric.Float64Gauge
 	dispatchLatency metric.Float64Histogram
 
+	providerAttempts     metric.Int64Counter
+	providerDuration     metric.Float64Histogram
+	providerAbandoned    metric.Int64Counter
+	providerRetryDelay   metric.Float64Histogram
+	providerBreaker      metric.Int64Counter
+	providerCallback     metric.Int64Counter
+	providerSecretIndex  metric.Int64Counter
+	providerTokenRefresh metric.Int64Counter
+	providerNearTimeout  metric.Int64Counter
+
 	mu      sync.Mutex
 	emitted map[string]struct{}
 }
@@ -58,7 +88,26 @@ type Metrics struct {
 // the completeness checker, much later.
 func newMetrics(meter metric.Meter, eval *telemetry.Evaluator) (*Metrics, error) {
 	m := &Metrics{eval: eval, emitted: make(map[string]struct{})}
-	seen := make(map[string]bool, len(telemetry.P1ACellMetrics))
+	seen := make(map[string]bool, len(telemetry.P1ACellMetrics)+len(telemetry.ProviderIntegrationMetrics))
+	counter := func(def telemetry.MetricDefinition, dst *metric.Int64Counter) error {
+		c, err := meter.Int64Counter(def.Name, metric.WithUnit(def.Unit), metric.WithDescription(def.Description))
+		if err != nil {
+			return fmt.Errorf("otel: creating counter %q: %w", def.Name, err)
+		}
+		*dst = c
+		return nil
+	}
+	histogram := func(def telemetry.MetricDefinition, dst *metric.Float64Histogram, bounds []float64) error {
+		h, err := meter.Float64Histogram(def.Name,
+			metric.WithUnit(def.Unit),
+			metric.WithDescription(def.Description),
+			metric.WithExplicitBucketBoundaries(bounds...))
+		if err != nil {
+			return fmt.Errorf("otel: creating histogram %q: %w", def.Name, err)
+		}
+		*dst = h
+		return nil
+	}
 
 	for _, def := range telemetry.MetricCatalog() {
 		seen[def.Name] = true
@@ -102,11 +151,52 @@ func newMetrics(meter metric.Meter, eval *telemetry.Evaluator) (*Metrics, error)
 				return nil, fmt.Errorf("otel: creating gauge %q: %w", def.Name, err)
 			}
 			m.edgeParity = g
+		case metricProviderDeliveryAttempts:
+			if err := counter(def, &m.providerAttempts); err != nil {
+				return nil, err
+			}
+		case metricProviderDeliveryDuration:
+			if err := histogram(def, &m.providerDuration, providerDeliveryBucketsMS); err != nil {
+				return nil, err
+			}
+		case metricProviderDeliveryAbandoned:
+			if err := counter(def, &m.providerAbandoned); err != nil {
+				return nil, err
+			}
+		case metricProviderRetryDelay:
+			if err := histogram(def, &m.providerRetryDelay, providerRetryBucketsMS); err != nil {
+				return nil, err
+			}
+		case metricProviderBreakerTransitions:
+			if err := counter(def, &m.providerBreaker); err != nil {
+				return nil, err
+			}
+		case metricProviderCallbackReceived:
+			if err := counter(def, &m.providerCallback); err != nil {
+				return nil, err
+			}
+		case metricProviderCallbackSecretIndex:
+			if err := counter(def, &m.providerSecretIndex); err != nil {
+				return nil, err
+			}
+		case metricProviderTokenRefreshes:
+			if err := counter(def, &m.providerTokenRefresh); err != nil {
+				return nil, err
+			}
+		case metricProviderWaitNearTimeout:
+			if err := counter(def, &m.providerNearTimeout); err != nil {
+				return nil, err
+			}
 		default:
 			return nil, fmt.Errorf("otel: metric catalog declares %q, which this adapter does not know how to register (update internal/platform/telemetry/otel/metrics.go)", def.Name)
 		}
 	}
-	for _, want := range []string{metricIntentCreated, metricIntentSimulated, metricLedgerAppend, metricOutboxLag, metricEdgeParity, metricEffectDispatchLatency} {
+	for _, want := range []string{
+		metricIntentCreated, metricIntentSimulated, metricLedgerAppend, metricOutboxLag, metricEdgeParity, metricEffectDispatchLatency,
+		metricProviderDeliveryAttempts, metricProviderDeliveryDuration, metricProviderDeliveryAbandoned, metricProviderRetryDelay,
+		metricProviderBreakerTransitions, metricProviderCallbackReceived, metricProviderCallbackSecretIndex,
+		metricProviderTokenRefreshes, metricProviderWaitNearTimeout,
+	} {
 		if !seen[want] {
 			return nil, fmt.Errorf("otel: metric catalog no longer declares %q, which this adapter expects to register", want)
 		}
@@ -237,6 +327,99 @@ func (m *Metrics) RecordEdgeParity(ctx context.Context, cellID, edge string, inP
 	}
 	m.edgeParity.Record(ctx, value, metric.WithAttributes(attrs...))
 	m.markEmitted(metricEdgeParity)
+}
+
+// RecordProviderDeliveryAttempt records one provider delivery, reversal or
+// status attempt. provider, operation and outcomeClass are closed
+// vocabularies; a change ref or correlation id is never a label here.
+func (m *Metrics) RecordProviderDeliveryAttempt(ctx context.Context, provider, operation, outcomeClass string) {
+	attrs := m.filterLabels(
+		kv{"provider", provider},
+		kv{"provider_operation", operation},
+		kv{"outcome_class", outcomeClass},
+	)
+	m.providerAttempts.Add(ctx, 1, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderDeliveryAttempts)
+}
+
+// RecordProviderDeliveryDuration records the latency, in milliseconds, of
+// one provider attempt. Record inside the attempt's span context so a slow
+// attempt carries an exemplar pointing at its trace.
+func (m *Metrics) RecordProviderDeliveryDuration(ctx context.Context, provider, operation, outcomeClass string, ms float64) {
+	attrs := m.filterLabels(
+		kv{"provider", provider},
+		kv{"provider_operation", operation},
+		kv{"outcome_class", outcomeClass},
+	)
+	m.providerDuration.Record(ctx, ms, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderDeliveryDuration)
+}
+
+// RecordProviderDeliveryAbandoned records one provider change given up on
+// after its retry budget, by the last outcome class.
+func (m *Metrics) RecordProviderDeliveryAbandoned(ctx context.Context, provider, outcomeClass string) {
+	attrs := m.filterLabels(
+		kv{"provider", provider},
+		kv{"outcome_class", outcomeClass},
+	)
+	m.providerAbandoned.Add(ctx, 1, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderDeliveryAbandoned)
+}
+
+// RecordProviderRetryDelay records the delay, in milliseconds, scheduled
+// before the next provider attempt.
+func (m *Metrics) RecordProviderRetryDelay(ctx context.Context, provider string, ms float64) {
+	attrs := m.filterLabels(kv{"provider", provider})
+	m.providerRetryDelay.Record(ctx, ms, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderRetryDelay)
+}
+
+// RecordProviderBreakerTransition records one circuit-breaker transition
+// into toState.
+func (m *Metrics) RecordProviderBreakerTransition(ctx context.Context, provider, toState string) {
+	attrs := m.filterLabels(
+		kv{"provider", provider},
+		kv{"to_state", toState},
+	)
+	m.providerBreaker.Add(ctx, 1, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderBreakerTransitions)
+}
+
+// RecordProviderCallbackReceived records one provider callback, by intake
+// result.
+func (m *Metrics) RecordProviderCallbackReceived(ctx context.Context, provider, result string) {
+	attrs := m.filterLabels(
+		kv{"provider", provider},
+		kv{"result", result},
+	)
+	m.providerCallback.Add(ctx, 1, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderCallbackReceived)
+}
+
+// RecordProviderCallbackSecretIndex records which signing secret slot
+// (current or previous) verified a provider callback.
+func (m *Metrics) RecordProviderCallbackSecretIndex(ctx context.Context, provider, slot string) {
+	attrs := m.filterLabels(
+		kv{"provider", provider},
+		kv{"secret_slot", slot},
+	)
+	m.providerSecretIndex.Add(ctx, 1, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderCallbackSecretIndex)
+}
+
+// RecordProviderTokenRefresh records one OAuth token refresh, by result.
+func (m *Metrics) RecordProviderTokenRefresh(ctx context.Context, result string) {
+	attrs := m.filterLabels(kv{"result", result})
+	m.providerTokenRefresh.Add(ctx, 1, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderTokenRefreshes)
+}
+
+// RecordProviderWaitNearTimeout records one provider result wait that came
+// close to its timeout.
+func (m *Metrics) RecordProviderWaitNearTimeout(ctx context.Context, provider string) {
+	attrs := m.filterLabels(kv{"provider", provider})
+	m.providerNearTimeout.Add(ctx, 1, metric.WithAttributes(attrs...))
+	m.markEmitted(metricProviderWaitNearTimeout)
 }
 
 // kv is an unexported label-name/value pair; filterLabels is the only

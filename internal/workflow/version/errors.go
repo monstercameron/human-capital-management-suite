@@ -20,6 +20,11 @@ const (
 	// CodeMissingSemanticVersion reports a [PublishMeta] with no semantic
 	// version, the identity a human names a version by.
 	CodeMissingSemanticVersion = "MISSING_SEMANTIC_VERSION"
+	// CodeInvalidSemanticVersion reports a non-canonical SemVer 2.0.0 value.
+	CodeInvalidSemanticVersion = "INVALID_SEMANTIC_VERSION"
+	// CodeSemanticVersionConflict reports changed content published under a
+	// workflow's existing semantic-version identity.
+	CodeSemanticVersionConflict = "SEMANTIC_VERSION_CONFLICT"
 	// CodeCompilationRejected reports a definition that does not compile at
 	// all under the supplied options. Wraps the underlying
 	// [workflow.Diagnostics].
@@ -64,6 +69,9 @@ const (
 	// explicit supersede instruction in the evidence. A rollback or a
 	// forward roll is an explicit governed act, never an implicit swap.
 	CodeAnotherVersionActive = "ANOTHER_VERSION_ACTIVE"
+	// CodeVersionNotNewer reports an attempted replacement whose semantic
+	// version does not have greater precedence than the active version.
+	CodeVersionNotNewer = "VERSION_NOT_NEWER"
 	// CodeNotActive reports a [Quarantine] call against a version that is not
 	// currently active.
 	CodeNotActive = "NOT_ACTIVE"

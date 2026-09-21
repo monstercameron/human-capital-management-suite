@@ -216,6 +216,33 @@ type Result struct {
 	ExplanationDigest string
 }
 
+// Explanation is the safe explanation metadata retained by the shared
+// envelope. The human-readable explanation is intentionally not retained:
+// callers can join the result and explanation digests to separately governed
+// evidence without making untrusted prose part of engine state.
+type Explanation struct {
+	EngineDefinition  string
+	EngineRevision    string
+	ResultDigest      string
+	ExplanationDigest string
+}
+
+// Explain returns the result's governed explanation identity. It refuses
+// incomplete or forged-looking results rather than manufacturing an account
+// that is not bound to an executed engine result.
+func Explain(result Result) (Explanation, error) {
+	if strings.TrimSpace(result.EngineDefinition) == "" || strings.TrimSpace(result.EngineRevision) == "" ||
+		strings.TrimSpace(result.ResultDigest) == "" || strings.TrimSpace(result.ExplanationDigest) == "" {
+		return Explanation{}, fmt.Errorf("%w: result explanation identity is incomplete", ErrContextIncomplete)
+	}
+	return Explanation{
+		EngineDefinition:  result.EngineDefinition,
+		EngineRevision:    result.EngineRevision,
+		ResultDigest:      result.ResultDigest,
+		ExplanationDigest: result.ExplanationDigest,
+	}, nil
+}
+
 // Transform is the engine-owned pure computation. It receives only the
 // pinned request and returns outputs with the uncertainty it claims; the
 // envelope verifies the claim against the propagated floor.

@@ -99,6 +99,17 @@ service AdminService {
   // (REDACTED), so an empty governance or work-item reference is never
   // silently indistinguishable from an unrecorded one.
   rpc GetWorkflowInstance(GetWorkflowInstanceRequest) returns (GetWorkflowInstanceResponse);
+  rpc ListLedgerEvents(ListLedgerEventsRequest) returns (ListLedgerEventsResponse);
+  rpc GetChainVerification(GetChainVerificationRequest) returns (GetChainVerificationResponse);
+  rpc SimulateAuthorization(SimulateAuthorizationRequest) returns (SimulateAuthorizationResponse);
+  rpc ConfigInspect(ConfigInspectRequest) returns (ConfigInspectResponse);
+  rpc ConfigTest(ConfigTestRequest) returns (ConfigTestResponse);
+  rpc ConfigRedrive(ConfigRedriveRequest) returns (ConfigRedriveResponse);
+  rpc ConfigReconcile(ConfigReconcileRequest) returns (ConfigReconcileResponse);
+  rpc ConfigDiff(ConfigDiffRequest) returns (ConfigDiffResponse);
+  rpc ConfigSimulate(ConfigSimulateRequest) returns (ConfigSimulateResponse);
+  rpc ConfigPromote(ConfigPromoteRequest) returns (ConfigPromoteResponse);
+  rpc ConfigRollback(ConfigRollbackRequest) returns (ConfigRollbackResponse);
 }
 
 // ListIntentsRequest mirrors hcmnext.intents.v1.ListIntentsRequest (see
@@ -493,4 +504,280 @@ message GetWorkflowInstanceResponse {
   repeated string redactions = 11;
   repeated string gaps = 12;
   hcmnext.common.v1.EvidenceRef evidence_ref = 13;
+}
+
+// ListLedgerEventsRequest selects one tenant stream for the operator.
+// tenant_id is the ledger tenant UUID string; stream_key names the stream.
+message ListLedgerEventsRequest {
+  string tenant_id = 1;
+  string stream_key = 2;
+}
+
+// LedgerEventProfile is one ledger event as the operator may see it. The
+// payload and authority fields are already redacted by
+// internal/operations/explorer for the caller's decision: payload_withheld
+// and subject_withheld carry the typed unavailable states, so an empty
+// payload can never be mistaken for an event with no payload.
+message LedgerEventProfile {
+  string tenant_id = 1;
+  string stream_key = 2;
+  int64 sequence = 3;
+  string event_id = 4;
+  string assertion_class = 5;
+  string schema_ref = 6;
+  string digest = 7;
+  string digest_algorithm = 8;
+  google.protobuf.Timestamp occurred_at = 9;
+  google.protobuf.Timestamp effective_at = 10;
+  google.protobuf.Timestamp recorded_at = 11;
+  string correlation_id = 12;
+  string idempotency_key = 13;
+  string authority = 14;
+  string source_ref = 15;
+  bytes payload = 16;
+  string artifact_ref = 17;
+  bool payload_withheld = 18;
+  bool subject_withheld = 19;
+}
+
+message ListLedgerEventsResponse {
+  repeated LedgerEventProfile events = 1;
+  string digest = 2;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 3;
+}
+
+// GetChainVerificationRequest asks the explorer to replay one stream's
+// hash chain from genesis to head.
+message GetChainVerificationRequest {
+  string tenant_id = 1;
+  string stream_key = 2;
+}
+
+message ChainHeadProfile {
+  string stream_key = 1;
+  int64 sequence = 2;
+  string chain_hash = 3;
+  string algorithm = 4;
+}
+
+message GetChainVerificationResponse {
+  string stream_key = 1;
+  bool verified = 2;
+  ChainHeadProfile head = 3;
+  bool empty = 4;
+  string broken_sequence = 5;
+  string broken_reason = 6;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 7;
+}
+
+// SimulateAuthorizationRequest asks what the caller's own principal may do
+// with one subject. The principal always comes from the caller's credential:
+// the request only names the subject, the purpose, the fields and the policy
+// version label it is simulated against.
+message SimulateAuthorizationRequest {
+  string subject_tenant_id = 1;
+  string subject_kind = 2;
+  string subject_id = 3;
+  string purpose = 4;
+  repeated string fields = 5;
+  string policy_version = 6;
+}
+
+message SimulateAuthorizationResponse {
+  bool subject_disclosable = 1;
+  string denial_reason = 2;
+  string tenant_effect = 3;
+  string scope_effect = 4;
+  map<string, string> field_rulings = 5;
+  repeated string matched_rules = 6;
+  bool policy_version_match = 7;
+  string explanation = 8;
+  string digest = 9;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 10;
+}
+
+// ConfigDependency pins one component a config bundle was compiled against.
+message ConfigDependency {
+  string kind = 1;
+  string name = 2;
+  string version = 3;
+  string digest = 4;
+}
+
+// ConfigBundle is one immutable, scope-bound configuration bundle.
+message ConfigBundle {
+  string bundle_id = 1;
+  uint32 manifest_version = 2;
+  repeated ConfigDependency dependencies = 3;
+  string compatibility_range = 4;
+  string signer = 5;
+  string provenance = 6;
+  repeated string credential_refs = 7;
+  string target_scope = 8;
+  string minimum_runtime_version = 9;
+}
+
+message ConfigSignedBundle {
+  ConfigBundle bundle = 1;
+  string digest = 2;
+  string signer_key_id = 3;
+  string signature = 4;
+}
+
+// ConfigPackage is one promotable unit: a signed bundle for one
+// environment plus the key that authorizes it.
+message ConfigPackage {
+  string id = 1;
+  string environment = 2;
+  ConfigSignedBundle bundle = 3;
+  bytes public_key = 4;
+}
+
+// ConfigRecordProfile is one promotion record as the operator may see it.
+message ConfigRecordProfile {
+  string id = 1;
+  string environment = 2;
+  string status = 3;
+  string digest = 4;
+  bool validated = 5;
+  bool simulated = 6;
+  bool approved = 7;
+  string approver = 8;
+  string rollback_to = 9;
+  string evidence_digest = 10;
+}
+
+message ConfigInspectRequest {
+  string id = 1;
+  string environment = 2;
+}
+
+message ConfigInspectResponse {
+  repeated ConfigRecordProfile records = 1;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 2;
+}
+
+message ConfigTestRequest {
+  ConfigPackage package = 1;
+}
+
+message ConfigTestResponse {
+  string package_id = 1;
+  string digest = 2;
+  bool compatible = 3;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 4;
+}
+
+message ConfigRedriveRequest {
+  string id = 1;
+}
+
+message ConfigRedriveResponse {
+  string package_id = 1;
+  string digest = 2;
+  bool passed = 3;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 4;
+}
+
+// ConfigSnapshotEntry is one configuration entry. Secret entries carry a
+// fingerprint instead of a value: raw secret material never crosses this
+// surface.
+message ConfigSnapshotEntry {
+  string key = 1;
+  string kind = 2;
+  string value = 3;
+  bool explicit = 4;
+  string semantic = 5;
+  string secret_fingerprint = 6;
+  repeated string ref_capabilities = 7;
+  repeated string ref_workflows = 8;
+  repeated string ref_tenants = 9;
+}
+
+message ConfigSnapshot {
+  string name = 1;
+  string version = 2;
+  repeated ConfigSnapshotEntry entries = 3;
+}
+
+message ConfigDiffRequest {
+  ConfigSnapshot before = 1;
+  ConfigSnapshot after = 2;
+}
+
+message ConfigDiffChange {
+  string key = 1;
+  string kind = 2;
+  string compatibility = 3;
+  string before_value = 4;
+  string after_value = 5;
+  bool secret_fingerprint_changed = 6;
+  repeated string impacted_capabilities = 7;
+  repeated string impacted_workflows = 8;
+  repeated string impacted_tenants = 9;
+}
+
+message ConfigDiffResponse {
+  repeated ConfigDiffChange added = 1;
+  repeated ConfigDiffChange removed = 2;
+  repeated ConfigDiffChange changed = 3;
+  string digest = 4;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 5;
+}
+
+message ConfigReconcileRequest {
+  string environment = 1;
+  ConfigSnapshot live = 2;
+  ConfigSnapshot desired = 3;
+}
+
+message ConfigReconcileResponse {
+  string environment = 1;
+  bool in_sync = 2;
+  bool breaking_changes = 3;
+  int32 added = 4;
+  int32 removed = 5;
+  int32 changed = 6;
+  string digest = 7;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 8;
+}
+
+message ConfigSimulateRequest {
+  string id = 1;
+}
+
+message ConfigSimulateResponse {
+  string package_id = 1;
+  string digest = 2;
+  bool compatible = 3;
+  bool passed = 4;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 5;
+}
+
+message ConfigPromoteRequest {
+  string id = 1;
+  bool confirm = 2;
+}
+
+message ConfigPromoteResponse {
+  string package_id = 1;
+  string environment = 2;
+  string status = 3;
+  string approver = 4;
+  string evidence_digest = 5;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 6;
+}
+
+message ConfigRollbackRequest {
+  string environment = 1;
+  bool confirm = 2;
+}
+
+message ConfigRollbackResponse {
+  string package_id = 1;
+  string environment = 2;
+  string status = 3;
+  string rollback_to = 4;
+  string evidence_digest = 5;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 6;
 }

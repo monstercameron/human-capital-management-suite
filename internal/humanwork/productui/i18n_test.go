@@ -79,7 +79,7 @@ func TestProductLocaleFormatsExactMoneyWithoutBinaryFloatingPoint(t *testing.T) 
 	if got := percentage(english, "0.1800"); got != "18%" {
 		t.Fatalf("percentage() = %q", got)
 	}
-	if got := percentage(locale, "0.125"); got != "12,5%" {
+	if got := percentage(locale, "0.125"); got != "12,5\u00a0%" {
 		t.Fatalf("localized percentage() = %q", got)
 	}
 }

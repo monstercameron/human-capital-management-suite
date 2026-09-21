@@ -25,8 +25,10 @@ import (
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/schedule"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/scheduler"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -124,7 +126,7 @@ func (h *promoux015Harness) discoverPromotion(persona string) (*journeyv1.Propos
 		base := promoux015ProposedBase(h.t, subject.GetBasePay(), path.GetMinimumBaseIncrease())
 		return &journeyv1.ProposeJourneyRequest{
 			WorkerRef: subject.GetWorkerRef(), Target: &journeyv1.Placement{JobCode: path.GetTargetJobCode(), Grade: path.GetTargetGrade()},
-			ProposedBase: base, EffectiveDate: h.effective, BusinessReason: promoux015FixtureVersion,
+			ProposedBase: base, EffectiveDate: h.effective, BusinessReason: "Promotion fixture " + promoux015FixtureVersion,
 		}, path
 	}
 	h.t.Fatalf("no published promotion path starts at the subject's %s/%s", subject.GetJobCode(), subject.GetGrade())
@@ -216,9 +218,10 @@ func (h *promoux015Harness) journeyFor(persona, id string) *journeyv1.Journey {
 // The proposer discovers the subject and a published path without
 // foreknowledge; the operator executes; the finance partner and the current
 // manager each decide only their own approval; the production scheduler fires
-// the effective-date wait once and the promotion commits exactly once; and
-// each persona then reviews the outcome from the surfaces it may reach, with
-// the server's own relationship-to-viewer projection.
+// the effective-date wait once; the HR operator's attestation clears the
+// acknowledgement gate and the promotion commits exactly once; and each
+// persona then reviews the outcome from the surfaces it may reach, with the
+// server's own relationship-to-viewer projection.
 func TestTodo_PROMOUX_015(t *testing.T) {
 	h := promoux015Compose(t)
 	before := h.effects()
@@ -243,6 +246,10 @@ func TestTodo_PROMOUX_015(t *testing.T) {
 	if fired.Fired != 1 {
 		t.Fatalf("Tick after the effective date fired %d timers, want exactly 1", fired.Fired)
 	}
+	// The fired wait parks the run on the acknowledgement gate; the HR
+	// operator's attestation clears it and the promotion commits exactly
+	// once.
+	h.acknowledgeParkedPromotion(id)
 	committed := h.effects()
 	t.Logf("%s effects: before %+v, approved %+v, committed %+v", promoux015FixtureVersion, before, approved, committed)
 	if committed.outcomeEvents != approved.outcomeEvents+1 {
@@ -283,6 +290,97 @@ func TestTodo_PROMOUX_015(t *testing.T) {
 	for _, persona := range []string{"admin", "finance-partner"} {
 		if j := h.journeyFor(persona, id); j != nil && j.GetViewer().GetResponsibility() == journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_ACTION_REQUIRED {
 			t.Fatalf("%s is still asked to act on a recorded promotion: %v", persona, j.GetViewer())
+		}
+	}
+
+	// The served approval proof: both separated approvals and the terminal
+	// commit recorded durable execution evidence the journey read serves.
+	h.promoux015ApprovalProof(id)
+}
+
+// promoux015ApprovalProof asserts the served approval proof at terminal
+// state: each separated approval recorded a durable APPROVAL_COMPLETED entry
+// shaped "<instance>|<node>" with "<work item>|<output digest>" provenance
+// naming a real completed approval work item of this journey, the commit
+// recorded its TERMINAL_WRITTEN entry, and the served journey read serves
+// those entries back for the instance.
+func (h *promoux015Harness) promoux015ApprovalProof(intentID string) {
+	h.t.Helper()
+	ctx := context.Background()
+	type evidenceRow struct{ id, subject, reason string }
+	byDecision := map[string][]evidenceRow{}
+	rows, err := h.pool.Query(ctx, `SELECT evidence_id, subject_ref, reason_code, decision FROM capability_invocation_evidence
+		WHERE decision IN ('APPROVAL_COMPLETED','TERMINAL_WRITTEN') ORDER BY record_seq`)
+	if err != nil {
+		h.t.Fatalf("read execution evidence: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var row evidenceRow
+		var decision string
+		if err := rows.Scan(&row.id, &row.subject, &row.reason, &decision); err != nil {
+			h.t.Fatalf("scan execution evidence: %v", err)
+		}
+		byDecision[decision] = append(byDecision[decision], row)
+	}
+	if err := rows.Err(); err != nil {
+		h.t.Fatalf("execution evidence: %v", err)
+	}
+	approvals := byDecision["APPROVAL_COMPLETED"]
+	if len(approvals) != 2 {
+		h.t.Fatalf("APPROVAL_COMPLETED entries = %d, want 2 (finance and manager)", len(approvals))
+	}
+	terminals := byDecision["TERMINAL_WRITTEN"]
+	if len(terminals) != 1 {
+		h.t.Fatalf("TERMINAL_WRITTEN entries = %d, want 1 (the single commit)", len(terminals))
+	}
+	split := func(s, sep string) (string, string, bool) {
+		left, right, ok := strings.Cut(s, sep)
+		return left, right, ok && left != "" && right != ""
+	}
+	items := h.items(intentID)
+	instance := ""
+	for _, row := range approvals {
+		inst, node, ok := split(row.subject, "|")
+		if !ok {
+			h.t.Fatalf("approval entry %s subject %q is not <instance>|<node>", row.id, row.subject)
+		}
+		if instance == "" {
+			instance = inst
+		} else if instance != inst {
+			h.t.Fatalf("approval entries span instances %s and %s, want one journey", instance, inst)
+		}
+		workItem, _, ok := split(row.reason, "|")
+		if !ok {
+			h.t.Fatalf("approval entry %s reason %q is not <work item>|<digest>", row.id, row.reason)
+		}
+		var found bool
+		for _, item := range items {
+			if item.id == workItem && item.node == node && item.status == string(workitem.StatusCompleted) {
+				found = true
+			}
+		}
+		if !found {
+			h.t.Fatalf("approval entry %s names no completed %s work item %s of this journey", row.id, node, workItem)
+		}
+	}
+	if inst, node, ok := split(terminals[0].subject, "|"); !ok || inst != instance || node == "" {
+		h.t.Fatalf("terminal entry %s subject %q is not the committed instance %s", terminals[0].id, terminals[0].subject, instance)
+	}
+
+	// The served journey read serves the proof back for the instance.
+	tenant := values.TenantId(demoworkforce.CompanyKey)
+	served, err := h.composed.Cell().Evidence.JourneyEvidenceIDs(ctx, tenant, pgstore.TenantID(demoworkforce.CompanyKey), "", instance)
+	if err != nil {
+		h.t.Fatalf("served journey evidence read: %v", err)
+	}
+	want := map[string]bool{approvals[0].id: false, approvals[1].id: false, terminals[0].id: false}
+	for _, id := range served {
+		want[id] = true
+	}
+	for id, seen := range want {
+		if !seen {
+			h.t.Fatalf("served journey read %v omits evidence %s", served, id)
 		}
 	}
 }

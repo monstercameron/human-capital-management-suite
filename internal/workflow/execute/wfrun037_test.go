@@ -33,7 +33,9 @@ const legSchemaRef = "hcmnext.test.wfrun037/v1"
 // the leg failing to the existing repair terminal.
 func legDefinition(t *testing.T, role workflow.EffectRole) workflow.Definition {
 	t.Helper()
-	def := promotionexec.Definition()
+	// The frozen 1.0.0 graph, where execute_promotion routes straight to
+	// observe_payroll (see newPromotionFixtureV1_0).
+	def := promotionexec.DefinitionV1_0()
 	var core workflow.Node
 	for _, n := range def.Nodes {
 		if n.ID == promotionexec.NodeExecutePromotion {

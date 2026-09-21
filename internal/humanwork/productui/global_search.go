@@ -474,9 +474,22 @@ func globalSearchKindPriority(kind string) int {
 
 // GlobalSearch is the top-level command/search surface shared by every page.
 func GlobalSearch(props GlobalSearchProps) ui.Node {
-	query := ui.UseState(props.InitialQuery)
-	open := ui.UseState(strings.TrimSpace(props.InitialQuery) != "")
+	// UXLIVE-029: the field is not a controlled input. Its value attribute is
+	// the mount-time seed and never changes, so no rerender can write an
+	// older query over what the reader has typed since (GWC writes `value`
+	// whenever the rendered prop differs from the previous render's). The
+	// controller owns query, generation and results separately.
+	seed := ui.UseRef(props.InitialQuery)
+	controllerRef := ui.UseRef[*globalSearchController](nil)
+	if controllerRef.Get() == nil {
+		controllerRef.Set(newGlobalSearchController(seed.Get()))
+	}
+	controller := controllerRef.Get()
+	query := ui.UseState(seed.Get())
+	clearEpoch := ui.UseState(0)
+	open := ui.UseState(strings.TrimSpace(seed.Get()) != "")
 	active := ui.UseState(0)
+	debounced := ui.UseDebounced(query.Get(), globalSearchDebounceDelay)
 	hasQuery := strings.TrimSpace(query.Get()) != ""
 	prepared := ui.UseMemo(func() []preparedGlobalSearchItem {
 		if !hasQuery {
@@ -484,16 +497,48 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 		}
 		return prepareGlobalSearchItems(props.Items)
 	}, props.Items, hasQuery)
-	results := ui.UseMemo(func() []GlobalSearchItem {
-		return searchPreparedGlobalItems(prepared, query.Get(), globalSearchLimit)
-	}, prepared, query.Get())
+	settled := debounced.Get()
+	settledResults := ui.UseMemo(func() []GlobalSearchItem {
+		return searchPreparedGlobalItems(prepared, settled, globalSearchLimit)
+	}, prepared, settled)
+	if generation, current := controller.Request(); current == settled {
+		controller.Resolve(generation, settled, settledResults)
+	}
+	results, _, resultsCurrent := controller.Results()
+	// flush answers the exact current query at once, for a choice made before
+	// the debounce settled (Enter, submit), so it never picks a stale result.
+	flush := func() []GlobalSearchItem {
+		generation, current := controller.Request()
+		answer := SearchGlobalItems(props.Items, current, globalSearchLimit)
+		controller.Resolve(generation, current, answer)
+		return answer
+	}
 	activeIndex := active.Get()
 	if activeIndex >= len(results) && len(results) > 0 {
 		activeIndex = len(results) - 1
 	}
+	// choose reads the controller at event time, not this render's snapshot.
+	choose := func() (GlobalSearchItem, bool) {
+		answer, _, fresh := controller.Results()
+		index := active.Get()
+		if !fresh {
+			answer, index = flush(), 0
+		}
+		if len(answer) == 0 {
+			return GlobalSearchItem{}, false
+		}
+		if index >= len(answer) {
+			index = len(answer) - 1
+		}
+		return answer[index], true
+	}
 
 	navigate := func(item GlobalSearchItem) {
+		controller.Clear()
+		seed.Set("")
 		query.Set("")
+		// A new key remounts an empty field; the old one is not written to.
+		clearEpoch.Set(clearEpoch.Get() + 1)
 		open.Set(false)
 		active.Set(0)
 		if props.Navigate != nil {
@@ -511,11 +556,15 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 		}
 	}
 	inputProps := html.Props{
-		ID: "global-search-input", Name: "q", Value: query.Get(), Class: "global-search-input", Aria: inputAria,
+		ID: "global-search-input", Key: "global-search-input-" + fmt.Sprint(clearEpoch.Get()), Name: "q", Value: seed.Get(), Class: "global-search-input", Aria: inputAria,
 		Raw: map[string]any{"type": "search", "role": "combobox", "placeholder": props.Text("global_search.placeholder"), "autocomplete": "off", "spellcheck": "false"},
 		OnInput: ui.UseEvent(func(event ui.InputEvent) {
-			query.Set(event.GetValue())
-			open.Set(strings.TrimSpace(event.GetValue()) != "")
+			// The event carries the field's own contents; it is recorded, never
+			// echoed back into the field.
+			value := event.GetValue()
+			controller.Edit(value)
+			query.Set(value)
+			open.Set(strings.TrimSpace(value) != "")
 			active.Set(0)
 		}),
 		OnFocus: ui.UseEvent(func(ui.FocusEvent) {
@@ -538,18 +587,24 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 					active.Set((active.Get() - 1 + len(results)) % len(results))
 				}
 			case "Enter":
-				if open.Get() && len(results) > 0 {
+				if !open.Get() {
+					return
+				}
+				if item, ok := choose(); ok {
 					event.PreventDefault()
-					navigate(results[activeIndex])
+					navigate(item)
 				}
 			}
 		}),
 	}
 
 	children := []ui.Node{
+		// The input is keyed by its clear epoch (UXLIVE-029), so every sibling
+		// is keyed too: a list that mixes keyed and unkeyed children is a
+		// reconciliation hazard GWC warns about.
 		html.Div(html.Props{Class: "global-search-control"},
-			html.Label(html.Props{Class: "sr-only", For: "global-search-input"}, ui.Text(props.Text("global_search.label"))),
-			productIcon("search", "global-search-glyph"),
+			html.Label(html.Props{Key: "global-search-label", Class: "sr-only", For: "global-search-input"}, ui.Text(props.Text("global_search.label"))),
+			html.WithKey(productIcon("search", "global-search-glyph"), "global-search-glyph"),
 			html.Tag("input", inputProps),
 		),
 	}
@@ -563,29 +618,34 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 		children = append(children, html.Tag("input", html.Props{Name: name, Value: value, Raw: map[string]any{"type": "hidden"}}))
 	}
 	if open.Get() && strings.TrimSpace(query.Get()) != "" {
-		children = append(children, globalSearchResults(props, results, activeIndex, navigate))
+		children = append(children, globalSearchResults(props, results, activeIndex, resultsCurrent, navigate))
 	}
 	formProps := html.Props{
 		Class: "global-search", Action: props.FallbackHref, Method: "get", Raw: map[string]any{"role": "search"},
 		OnSubmit: ui.UseEvent(func(event ui.FormEvent) {
-			if props.Navigate == nil || len(results) == 0 {
+			if props.Navigate == nil {
 				return
 			}
-			event.PreventDefault()
-			navigate(results[activeIndex])
+			if item, ok := choose(); ok {
+				event.PreventDefault()
+				navigate(item)
+			}
 		}),
 	}
 	return html.Form(formProps, children...)
 }
 
-func globalSearchResults(props GlobalSearchProps, results []GlobalSearchItem, active int, navigate func(GlobalSearchItem)) ui.Node {
+// current is false while the shown results answer an earlier query: they
+// stay visible and the list is marked busy, and "no results" is not claimed
+// for a query that has not been answered yet.
+func globalSearchResults(props GlobalSearchProps, results []GlobalSearchItem, active int, current bool, navigate func(GlobalSearchItem)) ui.Node {
 	children := []ui.Node{
 		html.Div(html.Props{Class: "global-search-panel-head"},
 			html.Strong(html.Props{}, ui.Text(props.Text("global_search.results"))),
 			html.Span(html.Props{}, ui.Text(props.Text("global_search.hint"))),
 		),
 	}
-	if len(results) == 0 {
+	if len(results) == 0 && current {
 		children = append(children, html.Div(html.Props{Class: "global-search-empty", Raw: map[string]any{"role": "status"}}, ui.Text(props.Text("global_search.no_results"))))
 	} else {
 		for index, result := range results {
@@ -612,8 +672,12 @@ func globalSearchResults(props GlobalSearchProps, results []GlobalSearchItem, ac
 			))
 		}
 	}
+	raw := map[string]any{"role": "listbox", "aria-label": props.Text("global_search.results")}
+	if !current {
+		raw["aria-busy"] = "true"
+	}
 	return ui.CreateElement(PopoverSurface, PopoverSurfaceProps{
 		ID: "global-search-results", Class: "global-search-panel",
-		Raw: map[string]any{"role": "listbox", "aria-label": props.Text("global_search.results")}, Children: children,
+		Raw: raw, Children: children,
 	})
 }

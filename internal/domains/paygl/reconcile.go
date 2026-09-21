@@ -45,13 +45,8 @@ type ERPObservation struct {
 	Currency      string
 }
 
-// ERPReader is the port through which ERP observations arrive. The domain
-// never calls a provider directly; adapters implement this port.
-type ERPReader interface {
-	ReadObservation(journalDigest string) (ERPObservation, error)
-}
-
-// MemoryERPStore is a kernel-pure ERPReader for tests and local harnesses.
+// MemoryERPStore is a kernel-pure observation store for tests and local
+// harnesses. Production consumers own the reader port they require.
 type MemoryERPStore struct {
 	mu   sync.RWMutex
 	held map[string]ERPObservation

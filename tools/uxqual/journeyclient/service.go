@@ -4,6 +4,7 @@ import (
 	"context"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"google.golang.org/grpc"
 )
 
@@ -70,6 +71,25 @@ type PreferenceService interface {
 	SaveWorkerIDPolicy(context.Context, *journeyv1.SaveWorkerIDPolicyRequest) (*journeyv1.SaveWorkerIDPolicyResponse, error)
 }
 
+// WorkflowViewerService is the workflow catalog, view, and draft-authoring
+// extension implemented by the production gRPC client. It is separate from
+// Service so journey execution tests remain narrowly scoped and existing
+// fakes do not gain unrelated methods.
+type WorkflowViewerService interface {
+	ListWorkflowPublications(context.Context, *workflowv1.ListWorkflowPublicationsRequest) (*workflowv1.ListWorkflowPublicationsResponse, error)
+	GetWorkflowDefinitionView(context.Context, *workflowv1.GetWorkflowDefinitionViewRequest) (*workflowv1.GetWorkflowDefinitionViewResponse, error)
+	ListWorkflowBlocks(context.Context, *workflowv1.ListWorkflowBlocksRequest) (*workflowv1.ListWorkflowBlocksResponse, error)
+	CreateWorkflowDraft(context.Context, *workflowv1.CreateWorkflowDraftRequest) (*workflowv1.CreateWorkflowDraftResponse, error)
+	GetWorkflowDraft(context.Context, *workflowv1.GetWorkflowDraftRequest) (*workflowv1.GetWorkflowDraftResponse, error)
+	InsertWorkflowPaletteEntry(context.Context, *workflowv1.InsertWorkflowPaletteEntryRequest) (*workflowv1.InsertWorkflowPaletteEntryResponse, error)
+	UpdateWorkflowDraftNode(context.Context, *workflowv1.UpdateWorkflowDraftNodeRequest) (*workflowv1.UpdateWorkflowDraftNodeResponse, error)
+	SetWorkflowDraftOutcome(context.Context, *workflowv1.SetWorkflowDraftOutcomeRequest) (*workflowv1.SetWorkflowDraftOutcomeResponse, error)
+	BindWorkflowDraftInput(context.Context, *workflowv1.BindWorkflowDraftInputRequest) (*workflowv1.BindWorkflowDraftInputResponse, error)
+	MoveWorkflowDraftNode(context.Context, *workflowv1.MoveWorkflowDraftNodeRequest) (*workflowv1.MoveWorkflowDraftNodeResponse, error)
+	NavigateWorkflowDraftHistory(context.Context, *workflowv1.NavigateWorkflowDraftHistoryRequest) (*workflowv1.NavigateWorkflowDraftHistoryResponse, error)
+	ApplyWorkflowTemplateOverlay(context.Context, *workflowv1.ApplyWorkflowTemplateOverlayRequest) (*workflowv1.ApplyWorkflowTemplateOverlayResponse, error)
+}
+
 // WatchStream is the receiving half of one WatchJourney call: the generated
 // grpc.ServerStreamingClient narrowed to the one method this client uses, so
 // a fake stream in a test is four lines rather than an embedded generated
@@ -94,7 +114,8 @@ const BearerScheme = "Bearer "
 
 // grpcService is [Service] over one client connection.
 type grpcService struct {
-	client journeyv1.JourneyServiceClient
+	client   journeyv1.JourneyServiceClient
+	workflow workflowv1.WorkflowServiceClient
 }
 
 // NewGRPCService returns the production [Service]: the generated client over
@@ -102,7 +123,56 @@ type grpcService struct {
 // canonical-method, message-bound, metadata and deadline policy.
 func NewGRPCService(conn grpc.ClientConnInterface, bearer string) Service {
 	adapter := NewRPCAdapter(conn, RPCAdapterConfig{Bearer: bearer})
-	return &grpcService{client: journeyv1.NewJourneyServiceClient(adapter)}
+	workflowAdapter := newWorkflowRPCAdapter(conn, RPCAdapterConfig{Bearer: bearer})
+	return &grpcService{client: journeyv1.NewJourneyServiceClient(adapter), workflow: workflowv1.NewWorkflowServiceClient(workflowAdapter)}
+}
+
+func (s *grpcService) ListWorkflowPublications(ctx context.Context, in *workflowv1.ListWorkflowPublicationsRequest) (*workflowv1.ListWorkflowPublicationsResponse, error) {
+	return s.workflow.ListWorkflowPublications(ctx, in)
+}
+
+func (s *grpcService) GetWorkflowDefinitionView(ctx context.Context, in *workflowv1.GetWorkflowDefinitionViewRequest) (*workflowv1.GetWorkflowDefinitionViewResponse, error) {
+	return s.workflow.GetWorkflowDefinitionView(ctx, in)
+}
+
+func (s *grpcService) ListWorkflowBlocks(ctx context.Context, in *workflowv1.ListWorkflowBlocksRequest) (*workflowv1.ListWorkflowBlocksResponse, error) {
+	return s.workflow.ListWorkflowBlocks(ctx, in)
+}
+
+func (s *grpcService) CreateWorkflowDraft(ctx context.Context, in *workflowv1.CreateWorkflowDraftRequest) (*workflowv1.CreateWorkflowDraftResponse, error) {
+	return s.workflow.CreateWorkflowDraft(ctx, in)
+}
+
+func (s *grpcService) GetWorkflowDraft(ctx context.Context, in *workflowv1.GetWorkflowDraftRequest) (*workflowv1.GetWorkflowDraftResponse, error) {
+	return s.workflow.GetWorkflowDraft(ctx, in)
+}
+
+func (s *grpcService) InsertWorkflowPaletteEntry(ctx context.Context, in *workflowv1.InsertWorkflowPaletteEntryRequest) (*workflowv1.InsertWorkflowPaletteEntryResponse, error) {
+	return s.workflow.InsertWorkflowPaletteEntry(ctx, in)
+}
+
+func (s *grpcService) UpdateWorkflowDraftNode(ctx context.Context, in *workflowv1.UpdateWorkflowDraftNodeRequest) (*workflowv1.UpdateWorkflowDraftNodeResponse, error) {
+	return s.workflow.UpdateWorkflowDraftNode(ctx, in)
+}
+
+func (s *grpcService) SetWorkflowDraftOutcome(ctx context.Context, in *workflowv1.SetWorkflowDraftOutcomeRequest) (*workflowv1.SetWorkflowDraftOutcomeResponse, error) {
+	return s.workflow.SetWorkflowDraftOutcome(ctx, in)
+}
+
+func (s *grpcService) BindWorkflowDraftInput(ctx context.Context, in *workflowv1.BindWorkflowDraftInputRequest) (*workflowv1.BindWorkflowDraftInputResponse, error) {
+	return s.workflow.BindWorkflowDraftInput(ctx, in)
+}
+
+func (s *grpcService) MoveWorkflowDraftNode(ctx context.Context, in *workflowv1.MoveWorkflowDraftNodeRequest) (*workflowv1.MoveWorkflowDraftNodeResponse, error) {
+	return s.workflow.MoveWorkflowDraftNode(ctx, in)
+}
+
+func (s *grpcService) NavigateWorkflowDraftHistory(ctx context.Context, in *workflowv1.NavigateWorkflowDraftHistoryRequest) (*workflowv1.NavigateWorkflowDraftHistoryResponse, error) {
+	return s.workflow.NavigateWorkflowDraftHistory(ctx, in)
+}
+
+func (s *grpcService) ApplyWorkflowTemplateOverlay(ctx context.Context, in *workflowv1.ApplyWorkflowTemplateOverlayRequest) (*workflowv1.ApplyWorkflowTemplateOverlayResponse, error) {
+	return s.workflow.ApplyWorkflowTemplateOverlay(ctx, in)
 }
 
 func (s *grpcService) ListJourneys(ctx context.Context, in *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error) {
@@ -143,6 +213,10 @@ func (s *grpcService) ListWorkers(ctx context.Context, in *journeyv1.ListWorkers
 
 func (s *grpcService) CreateWorker(ctx context.Context, in *journeyv1.CreateWorkerRequest) (*journeyv1.CreateWorkerResponse, error) {
 	return s.client.CreateWorker(ctx, in)
+}
+
+func (s *grpcService) AddJourneyNote(ctx context.Context, in *journeyv1.AddJourneyNoteRequest) (*journeyv1.AddJourneyNoteResponse, error) {
+	return s.client.AddJourneyNote(ctx, in)
 }
 
 func (s *grpcService) WatchJourney(ctx context.Context, in *journeyv1.WatchJourneyRequest) (WatchStream, error) {

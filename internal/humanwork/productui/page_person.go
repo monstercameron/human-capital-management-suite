@@ -62,12 +62,15 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 	fields := view.RecordVerdicts[person.ID].Fields
 	silent := len(view.RecordVerdicts) == 0
 	fact := func(facts []ProfileFactProps, label, name, raw string) []ProfileFactProps {
+		// The worker and record identifiers are machine keys, set as code
+		// whenever their value is shown (a withheld value is a sentence).
+		code := raw != "" && (name == "worker_id" || name == "record_id")
 		if silent {
 			status := WorkerFactPresent
 			if raw == "" {
 				status = WorkerFactMissing
 			}
-			return append(facts, ProfileFactProps{Label: label, Value: value(raw), Status: status})
+			return append(facts, ProfileFactProps{Label: label, Value: value(raw), Status: status, Code: code})
 		}
 		field, known := fields[name]
 		if record, hasRecord := view.RecordVerdicts[person.ID]; hasRecord && !record.Disclosable {
@@ -91,7 +94,7 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 				status = WorkerFactMissing
 			}
 		}
-		return append(facts, ProfileFactProps{Label: label, Value: projected.Text, Status: status})
+		return append(facts, ProfileFactProps{Label: label, Value: projected.Text, Status: status, Code: code && status == WorkerFactPresent})
 	}
 	details := profileFactsFromWorkerSection(overview)
 	organization := profileFactsFromWorkerSection(employment)
@@ -100,9 +103,10 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 	personal = fact(personal, text("person.preferred_name"), "preferred_name", person.PreferredName)
 	personal = fact(personal, text("person.worker_id"), "worker_id", person.WorkerID)
 	personal = fact(personal, text("person.worker_ref"), "record_id", person.ID)
+
 	return PersonProfileProps{
 		Hero: PersonHeroProps{
-			Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Label, Role: identity.Role,
+			Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Label, Role: identity.Role, StatusLabel: identity.StatusLabel,
 			NameStatus: identity.NameStatus, RoleStatus: identity.RoleStatus,
 		},
 		Details: EmploymentDetailsProps{
@@ -141,38 +145,55 @@ func profileFactsFromWorkerSection(section WorkerSection) []ProfileFactProps {
 
 func personWorkflowLauncherProps(view View, person Person, target PageID) WorkflowLauncherProps {
 	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
-	authorized := len(view.EffectivePermissions) == 0 || view.Can(PageJourneys, "create")
-	actions := []WorkerAction(nil)
-	if authorized {
-		actions = DiscoverWorkerActions(view.PersonWorkflows, person, view.WorkflowQuery)
-	}
-	workflows := make([]WorkflowCardProps, 0, len(actions))
-	activeItem, hasActiveJourney := activePromotionWorkItem(view, person.ID)
-	hasActivePromotion := false
-	for _, action := range actions {
-		// Never advertise a duplicate Start when an open journey already
-		// exists, even if an availability projection lags the journey state.
-		if action.ID == "promotion" && (person.PromotionAvailability == PromotionActiveConflict || hasActiveJourney) {
-			if hasActiveJourney {
-				hasActivePromotion = true
-				workflows = append(workflows, WorkflowCardProps{
-					Name:            view.Locale.Text("people.open_active_promotion"),
-					ActionLabel:     view.Locale.Text("people.open_active_promotion"),
-					AccessibleLabel: view.Locale.Text("people.open_active_promotion_aria", map[string]string{"name": identity.Label}),
-					Category:        action.Category,
-					Description:     PromotionAvailabilityReason(view.Locale, PromotionActiveConflict),
-					Href:            JourneyDetailHref(view, activeItem.ID), Navigate: view.Navigate,
-				})
+	// UXLIVE-033: authority, the promotion verdict and the continuation of
+	// an open request come from the one projection the People row and the
+	// action launcher also read; this launcher only lays them out.
+	projection := ResolvePersonWorkflowActions(view, person)
+	authorized := projection.Authorized
+	continuation, promotionOffered := projectionAction(projection, "promotion")
+	hasActiveJourney := projection.ActiveRequest
+	// cardsFor builds the launcher's cards for one search. It runs twice
+	// when a search was entered: once for what the search shows, once for
+	// what the launcher holds at all, so a search that matches nothing is
+	// told apart from a launcher with no card (REV-095-03).
+	cardsFor := func(query string) ([]WorkflowCardProps, bool) {
+		actions := []WorkerAction(nil)
+		if authorized {
+			actions = DiscoverWorkerActions(view.PersonWorkflows, person, query)
+		}
+		workflows := make([]WorkflowCardProps, 0, len(actions))
+		hasActivePromotion := false
+		for _, action := range actions {
+			// Never advertise a duplicate Start when an open journey already
+			// exists, even if an availability projection lags the journey state.
+			if action.ID == "promotion" && (person.PromotionAvailability == PromotionActiveConflict || hasActiveJourney) {
+				if continuation.Continuation {
+					hasActivePromotion = true
+					workflows = append(workflows, WorkflowCardProps{
+						Name:            view.Locale.Text("people.open_active_promotion"),
+						ActionLabel:     view.Locale.Text("people.open_active_promotion"),
+						AccessibleLabel: view.Locale.Text("people.open_active_promotion_aria", map[string]string{"name": identity.Label}),
+						Category:        action.Category,
+						Description:     PromotionAvailabilityReason(view.Locale, PromotionActiveConflict),
+						Href:            continuation.Href, Navigate: view.Navigate,
+					})
+				}
+				continue
 			}
-			continue
+			if action.ID == "promotion" && !promotionOffered {
+				continue
+			}
+			workflows = append(workflows, WorkflowCardProps{
+				Name: action.Name, Category: action.Category, Description: action.Description, Href: action.Href, Navigate: view.Navigate,
+				AccessibleLabel: view.Locale.Text("people.workflow_aria", map[string]string{"workflow": action.Name, "name": identity.Label}),
+			})
 		}
-		if action.ID == "promotion" && !personPromotionEligible(person) {
-			continue
-		}
-		workflows = append(workflows, WorkflowCardProps{
-			Name: action.Name, Category: action.Category, Description: action.Description, Href: action.Href, Navigate: view.Navigate,
-			AccessibleLabel: view.Locale.Text("people.workflow_aria", map[string]string{"workflow": action.Name, "name": identity.Label}),
-		})
+		return workflows, hasActivePromotion
+	}
+	workflows, hasActivePromotion := cardsFor(view.WorkflowQuery)
+	available := workflows
+	if strings.TrimSpace(view.WorkflowQuery) != "" {
+		available, hasActivePromotion = cardsFor("")
 	}
 	filter := workflowFilterProps(view, person, target)
 	unavailableDetail := ""
@@ -180,13 +201,20 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 	case !authorized:
 		unavailableDetail = PromotionAvailabilityReason(view.Locale, PromotionWithheld)
 	case hasActiveJourney:
-		// The active-promotion card above is the recovery path.
+		// The active-promotion card above is the recovery path. When the
+		// launcher has no card to show anyway, the empty state says why
+		// rather than falling back to the generic unavailable sentence
+		// (UXLIVE-023); this names nothing the page does not already show
+		// in its own active-workflows list.
+		if len(available) == 0 {
+			unavailableDetail = PromotionAvailabilityReason(view.Locale, PromotionActiveConflict)
+		}
 	case !personPromotionEligible(person):
 		unavailableDetail = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability)
 	}
 	launcher := WorkflowLauncherProps{
 		UnavailableDetail: unavailableDetail,
-		PersonName:        identity.Label, TotalCount: len(workflows), Filter: filter, Workflows: workflows,
+		PersonName:        identity.Label, TotalCount: len(available), Filter: filter, Workflows: workflows,
 	}
 	if hasActivePromotion {
 		launcher.Heading = view.Locale.Text("workflow.continue_heading")

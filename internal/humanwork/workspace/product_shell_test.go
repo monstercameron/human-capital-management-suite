@@ -376,3 +376,29 @@ func splitAtConfigIsland(t *testing.T, doc string) (rendered, configIsland strin
 	}
 	return doc[:at], doc[at:]
 }
+
+// TestAssignedJourneyDetailAdmitsOnlyTheDetail: a finance approver has My
+// Work but not Journeys, and "Open live journey" on their queue led to "Page
+// unavailable". One journey's detail is admitted to a My Work viewer; the
+// journeys list, and every viewer without My Work, still are not.
+func TestAssignedJourneyDetailAdmitsOnlyTheDetail(t *testing.T) {
+	finance := productAccess{roles: []string{"finance_partner"}}
+	if !productui.PageVisible(productui.PageWork, finance.roles) || productui.PageVisible(productui.PageJourneys, finance.roles) {
+		t.Skip("finance_partner no longer has My Work without Journeys")
+	}
+	detail := map[string][]string{"journey": {"01a0b867-e24b-75b6-961b-5a87e6127ac8"}}
+	if !assignedJourneyDetail(productui.PageJourneys, detail, finance) {
+		t.Fatal("a My Work viewer was refused the detail of a journey")
+	}
+	if assignedJourneyDetail(productui.PageJourneys, map[string][]string{}, finance) ||
+		assignedJourneyDetail(productui.PageJourneys, map[string][]string{"journey": {" "}}, finance) {
+		t.Fatal("the journeys list was admitted through the detail exception")
+	}
+	if assignedJourneyDetail(productui.PagePeople, detail, finance) {
+		t.Fatal("the exception reached a page other than Journeys")
+	}
+	if assignedJourneyDetail(productui.PageJourneys, detail, productAccess{roles: []string{"worker_self"}}) &&
+		!productui.PageVisible(productui.PageWork, []string{"worker_self"}) {
+		t.Fatal("a viewer without My Work was admitted")
+	}
+}

@@ -20,7 +20,10 @@ func TestTodo_UXAUDIT_015(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Needs your attention", "Resumable drafts", "Tracked requests", "Recent people", "Promotion draft"} {
+	markup = withoutVisibleRequests(markup)
+	// UXLIVE-030: a populated Home drops continuity cards whose own
+	// population is empty (no directory people here, so no Recent people).
+	for _, want := range []string{"Needs your attention", "Resumable drafts", "Tracked requests", "Promotion draft"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("Home missing prioritized continuity surface %q: %s", want, markup)
 		}
@@ -115,10 +118,10 @@ func TestTodo_UXAUDIT_015_Regression_DeniedPersonDoesNotEnterRecentPeopleOrCount
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, "Visible Person") || !strings.Contains(markup, "<dt>Visible workers</dt><dd>1</dd>") {
+	if !strings.Contains(markup, "Visible Person") || homeFactValue(markup, "Visible workers") != "1" {
 		t.Fatalf("admitted person and count missing: %s", markup)
 	}
-	if strings.Contains(markup, "Hidden Person") || strings.Contains(markup, "person=hidden") || strings.Contains(markup, "<dt>Visible workers</dt><dd>2</dd>") {
+	if strings.Contains(markup, "Hidden Person") || strings.Contains(markup, "person=hidden") || homeFactValue(markup, "Visible workers") == "2" {
 		t.Fatalf("denied person influenced Home: %s", markup)
 	}
 }
@@ -214,7 +217,8 @@ func TestTodo_UXAUDIT_015_Regression_UnboundViewerGetsNoActionQueue(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(markup, "Private approval") || strings.Contains(markup, "<dt>Your actions</dt><dd>1</dd>") {
+	markup = withoutVisibleRequests(markup)
+	if strings.Contains(markup, "Private approval") || homeFactValue(markup, "Your actions") == "1" {
 		t.Fatalf("unbound viewer received assigned action: %s", markup)
 	}
 }
@@ -227,10 +231,15 @@ func TestTodo_UXAUDIT_015_Regression_HomeSeparatesAssignedWorkFromVisibleJourney
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Nothing needs your action", "Your assigned work and records visible to you.", "<dt>Your actions</dt><dd>0</dd>", "<dt>Your tracked requests and waits</dt><dd>0</dd>"} {
+	markup = withoutVisibleRequests(markup)
+	for _, want := range []string{"Nothing needs your action", "Your assigned work and records visible to you."} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("Home does not explain viewer-scoped zero beside visible journeys: missing %q", want)
 		}
+	}
+	// UXLIVE-030: the counts are drill-downs into My Work's exact filters.
+	if homeFactValue(markup, "Your actions") != "0" || homeFactValue(markup, "Requests you started") != "0" {
+		t.Fatalf("Home does not state the viewer-scoped zeros: %s", markup)
 	}
 	if strings.Contains(markup, "No work in this view") || strings.Contains(markup, "sofia-wait") {
 		t.Fatalf("Home leaked another person's request into an assigned-work slot: %s", markup)
@@ -240,7 +249,8 @@ func TestTodo_UXAUDIT_015_Regression_HomeSeparatesAssignedWorkFromVisibleJourney
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, "<dt>Your tracked requests and waits</dt><dd>1</dd>") || !strings.Contains(markup, "sofia-wait") {
+	markup = withoutVisibleRequests(markup)
+	if !strings.Contains(markup, "sofia-wait") {
 		t.Fatalf("assigned passive wait did not enter Rafael's tracking: %s", markup)
 	}
 }
@@ -274,6 +284,7 @@ func TestTodo_UXAUDIT_015_Regression_BoundedHomeKeepsDueAndServerOrder(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
+	markup = withoutVisibleRequests(markup)
 	attentionEnd := strings.Index(markup, "<h2>Current activity</h2>")
 	recentStart := strings.Index(markup, "<h2>Recently completed</h2>")
 	if attentionEnd < 0 || recentStart < 0 {
@@ -289,7 +300,7 @@ func TestTodo_UXAUDIT_015_Regression_BoundedHomeKeepsDueAndServerOrder(t *testin
 			t.Fatalf("due-first attention window wrong for %s: %s", want, attention)
 		}
 	}
-	if !strings.Contains(markup, "<dt>Your actions</dt><dd>12</dd>") || !strings.Contains(markup, ">12 items<") {
+	if homeFactValue(markup, "Your actions") != "12" || !strings.Contains(markup, ">12 items<") {
 		t.Fatalf("bounded attention lost total count: %s", markup)
 	}
 	recent := markup[recentStart:]
@@ -383,4 +394,20 @@ func TestTodo_UXAUDIT_015_I18N_ArabicAttention(t *testing.T) {
 			t.Fatalf("Arabic attention still contains English fallback %q: %s", fallback, markup)
 		}
 	}
+}
+
+// withoutVisibleRequests drops UXLIVE-030's "Recent requests" card, which
+// deliberately lists every open journey the viewer can see. The assertions
+// above are about the viewer's own assigned and tracked slots.
+func withoutVisibleRequests(markup string) string {
+	heading := strings.Index(markup, "<h2>Recent requests</h2>")
+	if heading < 0 {
+		return markup
+	}
+	start := strings.LastIndex(markup[:heading], "<section")
+	end := strings.Index(markup[heading:], "</section>")
+	if start < 0 || end < 0 {
+		return markup
+	}
+	return markup[:start] + markup[heading+end+len("</section>"):]
 }

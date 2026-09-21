@@ -77,7 +77,9 @@ func (h *promoux015Harness) restart() {
 	if err := h.composed.Stop(stopCtx); err != nil {
 		h.t.Fatalf("stop the composed server: %v", err)
 	}
-	composed, err := ComposeServe(context.Background(), ServeInput{Config: h.cfg, Pool: h.pool, Identity: "promoux015-restarted-" + uuid.NewString()})
+	composed, err := ComposeServe(context.Background(), ServeInput{Config: h.cfg, Pool: h.pool, Identity: "promoux015-restarted-" + uuid.NewString(),
+		// The providers' receipts are external state: they survive the restart.
+		Options: Options{ProviderReceipts: h.receipts}})
 	if err != nil {
 		h.t.Fatalf("recompose over the same database: %v", err)
 	}
@@ -225,6 +227,7 @@ func TestTodo_PROMOUX_015_Recovery(t *testing.T) {
 	if fired, err := h.scheduler(h.afterEffectiveDate()).Tick(context.Background()); err != nil || fired.Fired != 1 {
 		t.Fatalf("Tick after restart = %+v, %v; want exactly one timer fired", fired, err)
 	}
+	h.acknowledgeParkedPromotion(id)
 	if err := promoux015CommittedOnce(approved, h.effects()); err != nil {
 		t.Fatal(err)
 	}
@@ -304,6 +307,7 @@ func TestTodo_PROMOUX_015_Mutation(t *testing.T) {
 	if fired, err := h.scheduler(h.afterEffectiveDate()).Tick(context.Background()); err != nil || fired.Fired != 1 {
 		t.Fatalf("Tick = %+v, %v; want exactly one timer fired", fired, err)
 	}
+	h.acknowledgeParkedPromotion(id)
 	committed := h.effects()
 	if err := promoux015CommittedOnce(approved, committed); err != nil {
 		t.Fatalf("the unmutated journey fails its own oracle: %v", err)

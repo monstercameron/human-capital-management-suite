@@ -64,9 +64,13 @@ type AnswerCitation struct {
 
 // AnswerCandidate is one composed answer awaiting the freshness gate.
 // ContentDigest seals the prose; Citations bind every claim; Articles
-// carries the cited sources with their pipeline verdicts.
+// carries the cited sources with their pipeline verdicts. AnswerText carries
+// the composed prose itself when the composer releases it: when present it
+// is screened by the shared instruction-taint detector, so a smuggled
+// instruction in the prose is refused even when every citation is current.
 type AnswerCandidate struct {
 	ContentDigest string
+	AnswerText    string
 	Citations     []AnswerCitation
 	Articles      []ResolvableArticle
 }
@@ -113,8 +117,18 @@ func (v AnswerVerdict) computedDigest(query ResolveQuery, answer AnswerCandidate
 
 // EvaluateAnswerFreshness gates one composed answer on citation safety.
 // Conflicting cited versions and unknown coverage escalate with an
-// explicit report; everything unsafe is refused.
+// explicit report; everything unsafe is refused. Instruction-taint
+// screening runs the shared default detector; use
+// EvaluateAnswerFreshnessWithDetector to inject one.
 func EvaluateAnswerFreshness(query ResolveQuery, answer AnswerCandidate) (AnswerVerdict, error) {
+	return EvaluateAnswerFreshnessWithDetector(query, answer, DetectInstructionTaint)
+}
+
+// EvaluateAnswerFreshnessWithDetector gates one composed answer on citation
+// safety with an injectable instruction-taint detector. A nil detector
+// selects the shared default; a failing detector fails closed and the
+// answer is refused.
+func EvaluateAnswerFreshnessWithDetector(query ResolveQuery, answer AnswerCandidate, detect InstructionDetector) (AnswerVerdict, error) {
 	if err := query.Validate(); err != nil {
 		return AnswerVerdict{}, freshnessReject("freshness.query", "INVALID", fmt.Sprintf("query is invalid: %v", err))
 	}
@@ -123,6 +137,14 @@ func EvaluateAnswerFreshness(query ResolveQuery, answer AnswerCandidate) (Answer
 	}
 	if len(answer.Citations) == 0 {
 		return AnswerVerdict{}, freshnessReject("freshness.citations", "UNCITED", "an answer with no citations is not publishable")
+	}
+	detector := defaultDetector(detect)
+	tainted, err := detector(answer.AnswerText)
+	if err != nil {
+		return AnswerVerdict{}, freshnessReject("answer.content", "HOSTILE", fmt.Sprintf("instruction-taint detector failure: %v", err))
+	}
+	if tainted {
+		return AnswerVerdict{}, freshnessReject("answer.content", "HOSTILE", "answer prose carries an instruction-smuggling marker")
 	}
 	byID := make(map[string]ResolvableArticle, len(answer.Articles))
 	for _, a := range answer.Articles {

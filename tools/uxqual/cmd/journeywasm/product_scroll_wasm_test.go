@@ -30,6 +30,9 @@ func TestProductRouteEffectsResetOnlyNewDestinations(t *testing.T) {
 	bind(heading, "hasAttribute", func(js.Value, []js.Value) any { return true })
 	bind(heading, "focus", func(js.Value, []js.Value) any {
 		focusCalls++
+		// Like a browser: the focused heading becomes document.activeElement,
+		// so the route-focus keeper sees focus held and does not refocus.
+		js.Global().Get("document").Set("activeElement", heading)
 		return nil
 	})
 	document := object.New()

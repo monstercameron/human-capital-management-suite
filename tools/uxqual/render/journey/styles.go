@@ -203,6 +203,9 @@ func journeyTypedStylesheet() string {
 	grow := func(declare func()) string { return buildTypedSheet(declare) }
 	out.WriteString(grow(declareJourneyTokens))
 	out.WriteString(grow(declareJourneyForms))
+	out.WriteString(grow(declareJourneyNotes))
 	out.WriteString(grow(declareJourneyMotion))
+	out.WriteString(grow(declareJourneyTracker))
+	out.WriteString(grow(declareJourneyReview))
 	return out.String()
 }

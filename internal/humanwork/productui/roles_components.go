@@ -241,9 +241,13 @@ func roleDefinitionDisclosure(props RolesPageProps, role AccessRole, policy Orga
 	// Scope and domains are optional because older server adapters do not
 	// provide those projections. Omitting them is safer than describing an
 	// invented empty/global scope to an administrator.
-	if mode := strings.TrimSpace(policy.Mode); mode != "" {
+	if mode := strings.TrimSpace(policy.Mode); mode != "" || IsAdministratorVisibilityRole(role.ID) {
+		scope := localizedRoleMode(props, mode)
+		if IsAdministratorVisibilityRole(role.ID) {
+			scope = roleAccessPreviewText(props.Locale, "override_summary")
+		}
 		definitionFields = append(definitionFields,
-			html.Div(html.Props{}, html.Tag("dt", html.Props{}, ui.Text(props.Text("organization_visibility.scope_title"))), html.Tag("dd", html.Props{}, ui.Text(localizedRoleMode(props, mode)))),
+			html.Div(html.Props{}, html.Tag("dt", html.Props{}, ui.Text(props.Text("organization_visibility.scope_title"))), html.Tag("dd", html.Props{}, ui.Text(scope))),
 		)
 	}
 	if len(units) > 0 {

@@ -36,5 +36,6 @@ func organizationVisibilityPage(view View) ui.Node {
 		RolesLink: ActionLinkProps{Label: "Manage roles", Href: statefulHref(view, PageRoles), Class: "button secondary", Navigate: view.Navigate},
 		Editable:  len(view.EffectivePermissions) == 0 || view.Can(PageOrganizationVisibility, "update"),
 		OnSave:    view.SaveRoleVisibility,
+		OnPreview: view.PreviewRoleVisibility,
 	})
 }

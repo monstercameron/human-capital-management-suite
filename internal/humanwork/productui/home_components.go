@@ -17,22 +17,43 @@ type HomePageProps struct {
 	DraftsEmptyDetail string
 	Tracked           TrackedRequestsProps
 	ShowTracked       bool
+	Exceptions        TrackedRequestsProps
+	ShowExceptions    bool
+	RecentRequests    TrackedRequestsProps
+	ShowRecentRequest bool
 	RecentPeople      RecentPeopleProps
 	ShowPeople        bool
 	Recent            RecentActivityProps
 	ShowRecent        bool
+	// Announcements carries the governed polite/assertive regions;
+	// homePage resolves them from the view stream through
+	// GovernAnnouncements, never hand-split.
+	Announcements     AnnouncementsProps
+	ShowAnnouncements bool
 	// CompactEmpty keeps a quiet workspace focused on its next authorized
 	// action. It is set by the server-backed page projection, not inferred
 	// from client state.
 	CompactEmpty bool
 	EmptyTitle   string
 	EmptyDetail  string
+	// SuppressEmptyClaim drops the "no work in progress" continuity card
+	// when the page's own read failed (UXLIVE-027).
+	SuppressEmptyClaim bool
 }
 
 type SummaryCardProps struct {
 	Title       string
 	Description string
 	Facts       []FactProps
+	// Groups, when set, replaces Facts with titled groups, one per scope
+	// (UXLIVE-030: the viewer's own work, requests they can see, people).
+	Groups []FactGroupProps
+}
+
+// FactGroupProps is one titled scope of summary facts.
+type FactGroupProps struct {
+	Title string
+	Facts []FactProps
 }
 
 type QuickActionsProps struct {
@@ -67,6 +88,9 @@ func HomePage(props HomePageProps) ui.Node {
 	} else {
 		gridClass += " home-grid-without-work"
 	}
+	if props.ShowExceptions {
+		primary = append(primary, ui.CreateElement(TrackedRequests, props.Exceptions))
+	}
 	if len(props.QuickStart.Actions) > 0 {
 		primary = append(primary, ui.CreateElement(QuickActions, props.QuickStart))
 	}
@@ -80,11 +104,17 @@ func HomePage(props HomePageProps) ui.Node {
 			}))
 		}
 	}
+	if props.ShowRecentRequest {
+		primary = append(primary, ui.CreateElement(TrackedRequests, props.RecentRequests))
+	}
 	if props.ShowTracked {
 		primary = append(primary, ui.CreateElement(TrackedRequests, props.Tracked))
 	}
 	if props.ShowRecent {
 		primary = append(primary, ui.CreateElement(RecentActivity, props.Recent))
+	}
+	if props.ShowAnnouncements {
+		primary = append(primary, ui.CreateElement(Announcements, props.Announcements))
 	}
 	primaryRail := html.Div(html.Props{Class: "home-primary-rail side-stack"}, primary...)
 	supporting := make([]ui.Node, 0, 2)
@@ -106,6 +136,14 @@ func homeEmptyPage(props HomePageProps) ui.Node {
 			Title: props.QuickStart.Title, Class: "home-quick-actions home-empty-primary", Actions: actions,
 		}))
 	}
+	if props.SuppressEmptyClaim {
+		if props.ShowAnnouncements {
+			primary = append(primary, ui.CreateElement(Announcements, props.Announcements))
+		}
+		return html.Div(html.Props{}, html.Div(html.Props{Class: "home-grid home-grid-empty"},
+			html.Div(html.Props{Class: "home-primary-rail side-stack"}, primary...),
+		))
+	}
 	continuityTitle := props.EmptyTitle
 	if continuityTitle == "" {
 		continuityTitle = props.Drafts.Title
@@ -118,6 +156,9 @@ func homeEmptyPage(props HomePageProps) ui.Node {
 		Title: continuityTitle, Class: "home-continuity-summary",
 		Body: html.P(html.Props{Class: "muted"}, ui.Text(continuityDetail)),
 	}))
+	if props.ShowAnnouncements {
+		primary = append(primary, ui.CreateElement(Announcements, props.Announcements))
+	}
 	return html.Div(html.Props{}, html.Div(html.Props{Class: "home-grid home-grid-empty"},
 		html.Div(html.Props{Class: "home-primary-rail side-stack"}, primary...),
 	))
@@ -135,8 +176,20 @@ func SummaryCard(props SummaryCardProps) ui.Node {
 	if props.Description != "" {
 		body = append(body, html.P(html.Props{Class: "summary-scope muted"}, ui.Text(props.Description)))
 	}
-	body = append(body, FactList(props.Facts))
-	return ui.CreateElement(Panel, PanelProps{Title: props.Title, Body: html.Div(html.Props{}, body...)})
+	if len(props.Groups) == 0 {
+		body = append(body, FactList(props.Facts))
+	}
+	for _, group := range props.Groups {
+		body = append(body, html.Div(html.Props{Class: "fact-group"},
+			html.H3(html.Props{Class: "fact-group-title"}, ui.Text(group.Title)),
+			FactList(group.Facts),
+		))
+	}
+	class := ""
+	if len(props.Groups) > 0 {
+		class = "home-summary-card"
+	}
+	return ui.CreateElement(Panel, PanelProps{Title: props.Title, Class: class, Body: html.Div(html.Props{}, body...)})
 }
 
 func QuickActions(props QuickActionsProps) ui.Node {

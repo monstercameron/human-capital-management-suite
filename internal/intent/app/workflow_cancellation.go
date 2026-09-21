@@ -190,6 +190,16 @@ func composeWorkflowCancellation(db dbport.Beginner, tenantUUID func(values.Tena
 	if err != nil {
 		return nil, nil, fmt.Errorf("app: compile promotion simulation plan for cancellation: %w", err)
 	}
+	// Instances pinned to the frozen 1.0.0 plan stay cancellable and
+	// controllable after 1.1.0 is activated.
+	frozen, err := promotionexec.CompileV1_0()
+	if err != nil {
+		return nil, nil, fmt.Errorf("app: compile the frozen promotion plan for cancellation: %w", err)
+	}
+	frozenSimulation, err := promotionexec.CompileSimulationV1_0()
+	if err != nil {
+		return nil, nil, fmt.Errorf("app: compile the frozen promotion simulation plan for cancellation: %w", err)
+	}
 	release := func(ctx context.Context, tenant values.TenantId, intentID string, at time.Time) error {
 		id, err := uuid.Parse(intentID)
 		if err != nil {
@@ -209,5 +219,5 @@ func composeWorkflowCancellation(db dbport.Beginner, tenantUUID func(values.Tena
 		}
 		return tx.Commit(ctx)
 	}
-	return executionWorkflowCancellation{db: db, tenantUUID: tenantUUID, plans: workflowcontrol.NewPlanSet(plan, simulation)}, release, nil
+	return executionWorkflowCancellation{db: db, tenantUUID: tenantUUID, plans: workflowcontrol.NewPlanSet(plan, simulation, frozen, frozenSimulation)}, release, nil
 }

@@ -109,18 +109,20 @@ type releaseFixtureInputs struct {
 	bin  string
 	ver  string
 	pol  map[string]string
+	gate map[string]string
 }
 
 func (f releaseFixtureInputs) options(out string) Options {
 	return Options{
-		Out:             out,
-		VersionFile:     f.ver,
-		Binaries:        []BinaryInput{{Name: "hcmnext.exe", Path: f.bin}},
-		SBOMPath:        filepath.Join(f.root, "definitions", "supply-chain", "sbom.cdx.json"),
-		ProvenancePath:  filepath.Join(f.root, "definitions", "supply-chain", "provenance.json"),
-		P1AEvidencePath: filepath.Join(f.root, "definitions", "planning", "gates", "p1a-evidence-report.json"),
-		PolicyReports:   f.pol,
-		KeyPath:         filepath.Join(f.root, DefaultKeyPath),
+		Out:                 out,
+		VersionFile:         f.ver,
+		Binaries:            []BinaryInput{{Name: "hcmnext.exe", Path: f.bin}},
+		SBOMPath:            filepath.Join(f.root, "definitions", "supply-chain", "sbom.cdx.json"),
+		ProvenancePath:      filepath.Join(f.root, "definitions", "supply-chain", "provenance.json"),
+		P1AEvidencePath:     filepath.Join(f.root, "definitions", "planning", "gates", "p1a-evidence-report.json"),
+		PolicyReports:       f.pol,
+		ProductGateEvidence: f.gate,
+		KeyPath:             filepath.Join(f.root, DefaultKeyPath),
 	}
 }
 
@@ -143,7 +145,11 @@ func releaseFixture(t *testing.T, root string) releaseFixtureInputs {
 		}
 		policies[name] = path
 	}
-	return releaseFixtureInputs{root: root, bin: bin, ver: version, pol: policies}
+	gate := make(map[string]string, len(ProductGateGates()))
+	for _, name := range ProductGateGates() {
+		gate[name] = "fixture-digest-" + name
+	}
+	return releaseFixtureInputs{root: root, bin: bin, ver: version, pol: policies, gate: gate}
 }
 
 func releaseRepoRoot(t *testing.T) string {

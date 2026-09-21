@@ -52,6 +52,14 @@ const (
 	FingerprintRule FingerprintKind = "RULE"
 	// FingerprintMapping is a transform (mapping) "<ref>@v<version>".
 	FingerprintMapping FingerprintKind = "MAPPING"
+	// FingerprintResolver is a bound resolver "<id>@<version>" (WF-COMP-007).
+	FingerprintResolver FingerprintKind = "RESOLVER"
+	// FingerprintTimeoutPolicy is a bound timeout policy "<id>@<version>"
+	// (WF-COMP-007).
+	FingerprintTimeoutPolicy FingerprintKind = "TIMEOUT_POLICY"
+	// FingerprintCompensation is a bound compensation "<id>@<version>"
+	// (WF-COMP-007).
+	FingerprintCompensation FingerprintKind = "COMPENSATION"
 	// FingerprintSchema is a data or event schema "<schema_id>@v<version>".
 	FingerprintSchema FingerprintKind = "SCHEMA"
 	// FingerprintReferenceData is reference data a node binds: a calendar
@@ -64,6 +72,7 @@ var fingerprintKinds = map[FingerprintKind]bool{
 	FingerprintCapability: true, FingerprintCapabilityManifest: true, FingerprintPolicy: true,
 	FingerprintEvaluator: true, FingerprintRule: true, FingerprintMapping: true, FingerprintSchema: true,
 	FingerprintReferenceData: true,
+	FingerprintResolver:      true, FingerprintTimeoutPolicy: true, FingerprintCompensation: true,
 }
 
 // Valid reports whether k is a declared component kind.
@@ -163,12 +172,28 @@ func DeriveNodeFingerprint(plan *workflow.CompiledWorkflow, nodeID, runtimeVersi
 			add(FingerprintSchema, versioned(s.SchemaID, s.Version))
 		}
 	}
+	// addReference records one WF-COMP-007 published binding under its own
+	// kind, so a bad resolver, timeout-policy or compensation release is a
+	// blast-radius query away. The compiler resolves these against published
+	// registries; a nil binding means the plan binds none.
+	addReference := func(kind FingerprintKind, r *workflow.ResolvedReference) {
+		if r == nil {
+			return
+		}
+		id, version := strings.TrimSpace(r.ID), strings.TrimSpace(r.Version)
+		if id != "" && version != "" {
+			add(kind, id+"@"+version)
+		}
+	}
 
 	add(FingerprintWorkflow, versioned(plan.WorkflowID, plan.Version))
 	add(FingerprintPlan, f.CompiledPlanDigest)
 	add(FingerprintCompiler, f.CompilerVersion)
 	add(FingerprintRuntime, runtimeVersion)
 	addPolicies(plan.FailurePolicyRef, plan.CancellationPolicyRef, plan.MigrationPolicyRef, plan.RetentionPolicyRef)
+	addReference(FingerprintResolver, node.ResolverRef)
+	addReference(FingerprintTimeoutPolicy, node.TimeoutPolicy)
+	addReference(FingerprintCompensation, node.CompensationRef)
 
 	addSchema(node.InputSchema)
 	addSchema(node.OutputSchema)
@@ -188,9 +213,21 @@ func DeriveNodeFingerprint(plan *workflow.CompiledWorkflow, nodeID, runtimeVersi
 	if d := node.Decision; d != nil {
 		add(FingerprintEvaluator, versioned(d.EvaluatorRef, d.EvaluatorVersion))
 		add(FingerprintRule, d.RuleRef)
+		// The resolved rule target names the exact published table the bare
+		// RuleRef spelling resolved to; both spellings are indexed so an
+		// operator holding either one finds the executions.
+		addReference(FingerprintRule, d.Rule)
 	}
 	if t := node.Transform; t != nil {
 		add(FingerprintMapping, versioned(t.TransformRef, t.Version))
+		// Every compiled lookup is pinned (the compiler refuses an unpinned
+		// one), so the snapshot digest identifies the reference data read.
+		for _, l := range t.Lookups {
+			ref, snap := strings.TrimSpace(l.Ref), strings.TrimSpace(l.SnapshotDigest)
+			if ref != "" && snap != "" {
+				add(FingerprintReferenceData, "lookup:"+ref+"@"+snap)
+			}
+		}
 	}
 	if w := node.Wait; w != nil {
 		if w.CalendarRef != "" {

@@ -30,7 +30,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "vitest run --exclude '.artifacts/**' src/tests/e2e src/workflows && npm run test --workspaces --if-present",
+    "test": "vitest run --exclude '**/.artifacts/**' src/tests/e2e src/workflows && npm run test --workspaces --if-present",
     "test:uxqual-browser": "go run ./tools/uxqual/cmd/genfixtures && playwright test -c tools/uxqual/browser/playwright.config.mjs",
     "test:frontend": "go test -count=1 ./cmd/frontenddev ./internal/humanwork/... ./tools/uxqual/... ./test/workspace",
     "test:go": "cd src/blocks/go && go test ./...",

@@ -61,10 +61,10 @@ func NewFacts(db dbport.Beginner, tenantUUID func(values.TenantId) uuid.UUID) Fa
 // The projection is exactly q.Fields and never wider: a field the caller was
 // not authorized for is a field this reader is never asked about, and
 // answering one anyway would defeat the whole point of the port taking a
-// projection at all. A field this population does not carry
-// (people.FieldLegalEntity, which journey_worker has no column for) is
-// disclosed as absent rather than omitted, so a caller can tell "nobody
-// asserts a legal entity for this worker" apart from "you were not shown it".
+// projection at all. A field this row leaves unset -- every column
+// migrations/00316 added is optional -- is disclosed as absent rather than
+// omitted, so a caller can tell "nobody asserts a legal entity for this
+// worker" apart from "you were not shown it".
 func (f Facts) WorkerFactsAt(ctx context.Context, q people.FactQuery) (people.FactSet, error) {
 	if err := q.Validate(); err != nil {
 		return people.FactSet{}, err
@@ -185,10 +185,18 @@ func EvidenceRef(row WorkerRow) string {
 // [people.FieldID], the same mapping fixtures.MemoryWorkerFacts builds over
 // the corpus record.
 //
-// people.FieldLegalEntity is deliberately not in the map: journey_worker has
-// no legal_entity column, and a created worker's legal entity is a fact
-// nothing in this cell asserts. Its absence here is what makes the projected
-// fact absent rather than an empty string pretending to be an answer.
+// people.FieldLegalEntity is answered from the row's company, the employing
+// legal entity migrations/00316 gave this table a column for. The column is
+// optional, so a row that names no company still projects the fact as absent
+// rather than as an empty string pretending to be an answer -- which is the
+// distinction [Facts.project] draws from an empty value here.
+//
+// The other five facts that migration added -- employment and time type,
+// business unit, cost center, work arrangement -- have no people.FieldID and
+// deliberately get none. [people.FieldID] is the closed projection the
+// promotion authorization contract is written against; widening it would
+// re-open that contract for facts no governed read asks for. They travel to
+// the object page on the worker listing row instead.
 func FieldValues(row WorkerRow) map[people.FieldID]string {
 	return map[people.FieldID]string{
 		people.FieldWorkerNumber:    row.WorkerNumber,
@@ -197,6 +205,7 @@ func FieldValues(row WorkerRow) map[people.FieldID]string {
 		people.FieldPreferredName:   row.PreferredName,
 		people.FieldEmploymentID:    row.EmploymentID,
 		people.FieldWorkerType:      row.WorkerType,
+		people.FieldLegalEntity:     row.Company,
 		people.FieldHireDate:        row.HireDate,
 		// journey_worker carries one lifecycle token; a created worker's
 		// employment status is that same token, because a created worker
@@ -279,4 +288,29 @@ func (f Facts) Lookup(ctx context.Context, tenant values.TenantId, ref string) (
 		return WorkerRow{}, false, nil
 	}
 	return f.read(ctx, tenantID, ref)
+}
+
+// Populated reports whether this tenant has a durable population of its own.
+//
+// A cell that cannot read one answers false, which is the same answer it
+// gives for a tenant that genuinely has nobody: both mean "the release's
+// fixed corpus is this cell's population", which is exactly what the caller
+// asks this to decide.
+func (f Facts) Populated(ctx context.Context, tenant values.TenantId) (bool, error) {
+	if f.DB == nil || f.TenantUUID == nil {
+		return false, nil
+	}
+	tenantID := f.TenantUUID(tenant)
+	if tenantID == uuid.Nil {
+		return false, nil
+	}
+	tx, err := f.DB.Begin(ctx)
+	if err != nil {
+		return false, fmt.Errorf("workforce: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		return false, fmt.Errorf("workforce: scope tenant: %w", err)
+	}
+	return f.store.Populated(ctx, tx, tenantID)
 }

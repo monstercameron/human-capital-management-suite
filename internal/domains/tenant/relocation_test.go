@@ -68,14 +68,6 @@ func advanceRelocation(t *testing.T, plan *tenant.RelocationPlan) {
 	}
 }
 
-func streamIDs(refs []tenant.StreamRef) []string {
-	ids := make([]string, 0, len(refs))
-	for _, ref := range refs {
-		ids = append(ids, ref.Kind+":"+ref.ID)
-	}
-	return ids
-}
-
 // TestTodo_TENANT_005 is the PRIMARY contract: freeze, snapshot, copy,
 // catch-up, cutover and reconciliation preserve tenant and stream identity
 // while the signed epoch fences the old cell.

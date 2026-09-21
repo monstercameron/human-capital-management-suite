@@ -79,7 +79,7 @@ func (c *Cell) RedeliverReady(ctx context.Context, instanceID string, expectedVe
 	if err != nil {
 		return ExecutionResult{}, err
 	}
-	start, intentInstance, intentRecord, err := c.parkedExecutionStart(ctx, tx, tenant, tenantID, instance, "ready redelivery")
+	start, intentInstance, intentRecord, err := c.Service.parkedExecutionStart(ctx, tx, tenant, tenantID, instance, "ready redelivery")
 	if err != nil {
 		return ExecutionResult{}, err
 	}
@@ -106,12 +106,13 @@ func (c *Cell) RedeliverReady(ctx context.Context, instanceID string, expectedVe
 // instance was started with, from durable rows only: the intent the instance's
 // correlation names, and the stored, digest-verified proposal revision. It is
 // shared by every path that continues an instance no request is carrying the
-// proposal for -- a fired timer and a redelivered drain -- so both present the
-// start identity the instance pinned. what labels its refusals.
-func (c *Cell) parkedExecutionStart(
+// proposal for -- a fired timer, a redelivered drain, and a received signal --
+// so all present the start identity the instance pinned. what labels its
+// refusals.
+func (s *IntentService) parkedExecutionStart(
 	ctx context.Context, tx dbport.Tx, tenant string, tenantID uuid.UUID, instance runtime.Instance, what string,
 ) (runtime.StartRequest, intent.Instance, IntentRecord, error) {
-	reader, ok := c.Service.store.(intentCorrelationReader)
+	reader, ok := s.store.(intentCorrelationReader)
 	if !ok {
 		return runtime.StartRequest{}, intent.Instance{}, IntentRecord{}, fmt.Errorf("app: intent store cannot resolve workflow correlation")
 	}
@@ -131,7 +132,7 @@ func (c *Cell) parkedExecutionStart(
 	if err != nil {
 		return runtime.StartRequest{}, intent.Instance{}, IntentRecord{}, fmt.Errorf("app: load stored proposal revision: %w", err)
 	}
-	revision, err := intentcontrol.DecodeFullProposal(stored.Payload, fullProposalVerifier{c.Service.digester})
+	revision, err := intentcontrol.DecodeFullProposal(stored.Payload, fullProposalVerifier{s.digester})
 	if err != nil {
 		return runtime.StartRequest{}, intent.Instance{}, IntentRecord{}, fmt.Errorf("app: %s legacy/tampered proposal: %w", what, err)
 	}
@@ -145,9 +146,9 @@ func (c *Cell) parkedExecutionStart(
 		IntentId: intentInstance.IntentID, ProposalRevisionId: revision.ProposalRevisionID,
 		MaterialProposalDigest: revision.MaterialDigest.ToProto(),
 	}
-	start, startErr := c.Service.executionStart(intentInstance, artifact, what, revision)
+	start, startErr := s.executionStart(intentInstance, artifact, what, revision)
 	if startErr != nil {
 		return runtime.StartRequest{}, intent.Instance{}, IntentRecord{}, startErr
 	}
-	return start, intentInstance, intentRecord, nil
+	return pinnedStart(start, instance), intentInstance, intentRecord, nil
 }

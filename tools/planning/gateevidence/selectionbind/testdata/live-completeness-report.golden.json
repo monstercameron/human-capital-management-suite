@@ -1,5 +1,5 @@
 {
-  "manifest_digest": "e9d7ffe66f019dc8ea8b4252303cde9dfc6b22cf705a8de5c6a024d1fbcd34dc",
+  "manifest_digest": "b51c2d018dcceafb13fa8b74ec2e03a8f85b630e28d597ef17f232d61a4f2da1",
   "as_of": "2026-09-13",
   "status": "INCOMPLETE",
   "manifest_reasons": null,
@@ -14,7 +14,7 @@
     {
       "todo_id": "SELECT-001",
       "path": "definitions/planning/gates/select-001-jurisdiction-profile.yaml",
-      "digest": "fb8dfca360a4ea907de5f5f16b04234deeef32f99578cadf55dede866a54a9e1",
+      "digest": "0562121ef76600fece6b07b5e34b49ad891b9a5c0370cd8abf888c54c1a491fc",
       "ready": false,
       "reasons": [
         "reviewer.name: missing - a qualified legal owner/reviewer is required; this profile is HUMAN_REVIEW_REQUIRED pending a named reviewer",

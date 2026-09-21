@@ -77,19 +77,27 @@ func (s *Store) EnqueueCompensationChangeIntentsTx(ctx context.Context, tx dbpor
 		}
 	}
 	fresh := make([]merit.CompensationChangeIntent, 0, len(children))
+	statements := make([]dbport.Statement, 0, len(children))
 	for _, child := range children {
 		payload, err := marshalCompensationIntent(child)
 		if err != nil {
 			return nil, err
 		}
-		inserted, err := tx.Exec(ctx, `INSERT INTO merit_compensation_intent_emission
+		statements = append(statements, dbport.Statement{SQL: `INSERT INTO merit_compensation_intent_emission
 			(tenant_id,intent_id,cycle_id,cycle_revision,participant_id,payload,canonical_digest,source_digest)
 			VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8) ON CONFLICT (tenant_id,intent_id) DO NOTHING`,
-			tid, child.IntentID, child.CycleID, int64(child.CycleRevision), child.ParticipantID, string(payload), storageDigest(child.CanonicalDigest), storageDigest(child.SourceDigest))
-		if err != nil {
-			return nil, fmt.Errorf("meritstore: enqueue compensation intent: %w", err)
+			Args: []any{tid, child.IntentID, child.CycleID, int64(child.CycleRevision), child.ParticipantID, string(payload), storageDigest(child.CanonicalDigest), storageDigest(child.SourceDigest)},
+		})
+	}
+	counts, err := dbport.ExecAll(ctx, tx, statements)
+	if err != nil {
+		if failed := dbport.FailedStatement(counts, len(children)); failed >= 0 && failed < len(children) {
+			return nil, fmt.Errorf("meritstore: enqueue compensation intent %s: %w", children[failed].IntentID, err)
 		}
-		if inserted == 1 {
+		return nil, fmt.Errorf("meritstore: enqueue compensation intent: %w", err)
+	}
+	for i, child := range children {
+		if counts[i] == 1 {
 			fresh = append(fresh, child)
 			continue
 		}

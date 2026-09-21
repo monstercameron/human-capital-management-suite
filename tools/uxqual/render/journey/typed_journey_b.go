@@ -12,10 +12,10 @@ func declareJourneyForms() {
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-people-action`,
-		gwccss.Raw("text-align", "right"),
+		gwccss.Raw("text-align", "end"),
 	)
 	declareGlobal(`.jn-source`,
-		gwccss.Raw("font-weight", "640"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-people tbody tr[data-tone="info"] .jn-people-idcell`,
 		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("jn-info"))),
@@ -34,6 +34,24 @@ func declareJourneyForms() {
 	)
 	declareGlobal(`.jn-people tbody tr[data-selected="true"] .jn-people-idcell`,
 		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("jn-accent"))),
+	)
+	// The id cell's tone bar marks the row's leading edge. In a right-to-left
+	// table that edge is the cell's right side; the bar was drawn on its left,
+	// between the id and the next column.
+	declareGlobal(`.jn-people tbody tr[data-tone="info"] .jn-people-idcell:dir(rtl)`,
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("jn-info"))),
+	)
+	declareGlobal(`.jn-people tbody tr[data-tone="success"] .jn-people-idcell:dir(rtl)`,
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("jn-success"))),
+	)
+	declareGlobal(`.jn-people tbody tr[data-tone="warning"] .jn-people-idcell:dir(rtl)`,
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("jn-warning"))),
+	)
+	declareGlobal(`.jn-people tbody tr[data-tone="danger"] .jn-people-idcell:dir(rtl)`,
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("jn-danger"))),
+	)
+	declareGlobal(`.jn-people tbody tr[data-selected="true"] .jn-people-idcell:dir(rtl)`,
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("jn-accent"))),
 	)
 	declareGlobal(`.jn-people tbody tr[data-selected="true"] .jn-people-name`,
 		gwccss.TextColor(gwccss.Var("jn-accent-strong")),
@@ -55,8 +73,18 @@ func declareJourneyForms() {
 	)
 	declareGlobal(`.jn-empty-title`,
 		gwccss.TextColor(gwccss.Var("jn-ink")),
-		gwccss.Raw("font-weight", "640"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.FontSize(gwccss.Rem(1)),
+	)
+	// The explanation sits a step below its title, in a centred column narrow
+	// enough to read as one thought, and wraps without stranding a last word
+	// ("...Choose an employee to start / one.").
+	declareGlobal(`.jn-empty-title+p`,
+		gwccss.Raw("margin", ".375rem auto 0"),
+		gwccss.MaxWidth(gwccss.RawLength("48ch")),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
+		gwccss.Raw("text-wrap", "pretty"),
 	)
 	declareGlobal(`.jn-callout`,
 		gwccss.Display.Flex,
@@ -73,11 +101,11 @@ func declareJourneyForms() {
 		gwccss.Raw("margin-top", ".125rem"),
 	)
 	declareGlobal(`.jn-callout-title`,
-		gwccss.Raw("font-weight", "640"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("jn-info")),
 	)
 	declareGlobal(`.jn-callout-detail`,
-		gwccss.FontSize(gwccss.Rem(.875)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 		gwccss.Raw("margin-top", ".125rem"),
 	)
 	declareGlobal(`.jn-fieldgrid`,
@@ -98,13 +126,13 @@ func declareJourneyForms() {
 		gwccss.MinWidth(gwccss.Zero),
 	)
 	declareGlobal(`.jn-label`,
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "640"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(-.005)),
 	)
 	declareGlobal(`.jn-req`,
 		gwccss.TextColor(gwccss.Var("jn-danger")),
-		gwccss.Raw("margin-left", ".125rem"),
+		gwccss.Raw("margin-inline-start", ".125rem"),
 	)
 	declareGlobal(`.jn-inputwrap`,
 		gwccss.Display.Flex,
@@ -130,23 +158,23 @@ func declareJourneyForms() {
 		gwccss.Display.Flex,
 		gwccss.Items.Center,
 		gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Rem(.625)),
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 		gwccss.Bg(gwccss.Var("jn-surface-sunk")),
 		gwccss.Raw("white-space", "nowrap"),
 	)
 	declareGlobal(`.jn-adorn[data-side="prefix"]`,
-		gwccss.BorderRight(gwccss.Px(1), gwccss.Var("jn-hairline")),
+		gwccss.Raw("border-inline-end", "1px solid var(--jn-hairline)"),
 		gwccss.Rounded(gwccss.RawLength("var(--jn-r1) 0 0 var(--jn-r1)")),
 	)
 	declareGlobal(`.jn-adorn[data-side="suffix"]`,
-		gwccss.BorderLeft(gwccss.Px(1), gwccss.Var("jn-hairline")),
+		gwccss.Raw("border-inline-start", "1px solid var(--jn-hairline)"),
 		gwccss.Rounded(gwccss.RawLength("0 var(--jn-r1) var(--jn-r1) 0")),
 	)
 	declareGlobal(`.jn-input`,
 		gwccss.Raw("font", "inherit"),
-		gwccss.FontSize(gwccss.Rem(.9375)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 		gwccss.TextColor(gwccss.Var("jn-ink")),
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.MinWidth(gwccss.Zero),
@@ -167,16 +195,22 @@ func declareJourneyForms() {
 		gwccss.Raw("cursor", "pointer"),
 	)
 	declareGlobal(`.jn-help`,
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-error`,
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("jn-danger")),
 		gwccss.Display.Flex,
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Rem(.3125)),
+	)
+	// On a phone the form's action spans the width, where a thumb reaches
+	// it, rather than sitting as a small button at the left edge.
+	declareGlobal(`.jn-formfoot>.jn-btn,.jn-formfoot>.jn-confirm,.jn-formfoot>.jn-confirm>summary.jn-btn`,
+		gwccss.W(gwccss.Percent(100)),
+		mediaRule(gwccss.RawMedia("(min-width:30rem)"), gwccss.W(gwccss.RawLength("auto"))),
 	)
 	declareGlobal(`.jn-formfoot`,
 		gwccss.Display.Flex,
@@ -189,8 +223,8 @@ func declareJourneyForms() {
 	)
 	declareGlobal(`.jn-btn`,
 		gwccss.Raw("font", "inherit"),
-		gwccss.FontSize(gwccss.Rem(.875)),
-		gwccss.Raw("font-weight", "640"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(-.005)),
 		gwccss.Display.InlineFlex,
 		gwccss.Items.Center,
@@ -232,7 +266,7 @@ func declareJourneyForms() {
 	)
 	declareGlobal(`.jn-btn[data-size="sm"]`,
 		gwccss.PaddingY(gwccss.Rem(.3125)), gwccss.PaddingX(gwccss.Rem(.6875)),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Tracking(gwccss.Zero),
 	)
 	declareGlobal(`.jn-btn[disabled]`,
@@ -260,7 +294,7 @@ func declareJourneyForms() {
 	)
 	declareGlobal(`.jn-hero-pay`,
 		gwccss.FontSize(gwccss.Rem(1.5)),
-		gwccss.Raw("font-weight", "660"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(-.024)),
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
 	)
@@ -286,7 +320,7 @@ func declareJourneyForms() {
 	declareGlobal(`.jn-step::before`,
 		gwccss.Raw("content", "\"\""),
 		gwccss.Position.Absolute,
-		gwccss.Left(gwccss.Rem(.8125)),
+		gwccss.Raw("inset-inline-start", ".8125rem"),
 		gwccss.Top(gwccss.Rem(1.875)),
 		gwccss.Bottom(gwccss.Rem(.25)),
 		gwccss.W(gwccss.Px(2)),
@@ -295,7 +329,7 @@ func declareJourneyForms() {
 	declareGlobal(`.jn-step::after`,
 		gwccss.Raw("content", "\"\""),
 		gwccss.Position.Absolute,
-		gwccss.Left(gwccss.Rem(.8125)),
+		gwccss.Raw("inset-inline-start", ".8125rem"),
 		gwccss.Top(gwccss.Rem(1.875)),
 		gwccss.W(gwccss.Px(2)),
 		gwccss.H(gwccss.Zero),
@@ -334,8 +368,8 @@ func declareJourneyForms() {
 		gwccss.Border(gwccss.Px(2), gwccss.Var("jn-control-border")),
 		gwccss.Bg(gwccss.Var("jn-surface")),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "680"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "700"),
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
 		gwccss.Position.Relative,
 		gwccss.ZIndex(1),
@@ -369,8 +403,8 @@ func declareJourneyForms() {
 		gwccss.Raw("padding-top", ".125rem"),
 	)
 	declareGlobal(`.jn-steplabel`,
-		gwccss.FontSize(gwccss.Rem(.875)),
-		gwccss.Raw("font-weight", "640"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-step[data-state="active"] .jn-steplabel`,
 		gwccss.TextColor(gwccss.Var("jn-accent")),
@@ -382,11 +416,11 @@ func declareJourneyForms() {
 		gwccss.TextColor(gwccss.Var("jn-danger")),
 	)
 	declareGlobal(`.jn-stepdetail`,
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
 	declareGlobal(`.jn-stepat`,
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
 	)
@@ -394,16 +428,16 @@ func declareJourneyForms() {
 		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.FlexDir.Row),
 	)
 	declareGlobal(`.jn-step`,
-		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.Raw("flex", "1 1 0"), gwccss.FlexDir.Col, gwccss.Gap(gwccss.Rem(.5)), gwccss.Raw("padding-bottom", "0"), gwccss.Raw("padding-right", "var(--jn-s2)")),
+		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.Raw("flex", "1 1 0"), gwccss.FlexDir.Col, gwccss.Gap(gwccss.Rem(.5)), gwccss.Raw("padding-bottom", "0"), gwccss.Raw("padding-inline-end", "var(--jn-s2)")),
 	)
 	declareGlobal(`.jn-step:last-child`,
-		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.Raw("padding-right", "0")),
+		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.Raw("padding-inline-end", "0")),
 	)
 	declareGlobal(`.jn-step::before`,
-		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.Left(gwccss.Rem(2.25)), gwccss.Right(gwccss.Rem(.5)), gwccss.Top(gwccss.Rem(.8125)), gwccss.Bottom(gwccss.RawLength("auto")), gwccss.W(gwccss.RawLength("auto")), gwccss.H(gwccss.Px(2))),
+		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.Raw("inset-inline-start", "2.25rem"), gwccss.Raw("inset-inline-end", ".5rem"), gwccss.Top(gwccss.Rem(.8125)), gwccss.Bottom(gwccss.RawLength("auto")), gwccss.W(gwccss.RawLength("auto")), gwccss.H(gwccss.Px(2))),
 	)
 	declareGlobal(`.jn-step::after`,
-		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.Left(gwccss.Rem(2.25)), gwccss.Top(gwccss.Rem(.8125)), gwccss.H(gwccss.Px(2)), gwccss.W(gwccss.Zero)),
+		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.Raw("inset-inline-start", "2.25rem"), gwccss.Top(gwccss.Rem(.8125)), gwccss.H(gwccss.Px(2)), gwccss.W(gwccss.Zero)),
 	)
 	declareGlobal(`.jn-step[data-state="done"]::after`,
 		mediaRule(gwccss.RawMedia("(min-width:60rem)"), gwccss.W(gwccss.RawLength("calc(100% - 2.75rem)")), gwccss.H(gwccss.Px(2)), gwccss.Keyframes("jn-grow-x", jnGrowXFrames...), gwccss.Animation(gwccss.RawDuration(".5s"), gwccss.Easing("var(--jn-ease)")), gwccss.Raw("animation-fill-mode", "both")),
@@ -436,8 +470,8 @@ func declareJourneyForms() {
 		gwccss.Items.Center,
 	)
 	declareGlobal(`.jn-context-nav a`,
-		gwccss.FontSize(gwccss.Rem(.875)),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 	)
 	declareGlobal(`.jn-context-nav a:first-child::before`,
@@ -452,9 +486,9 @@ func declareJourneyForms() {
 	declareGlobal(`.jn-subhead`,
 		gwccss.Raw("margin-bottom", ".75rem"),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "660"),
-		gwccss.Tracking(gwccss.Ems(.05)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps,.05em)"),
 		gwccss.Raw("text-transform", "uppercase"),
 	)
 	declareGlobal(`.jn-facts`,
@@ -469,30 +503,33 @@ func declareJourneyForms() {
 		gwccss.MinWidth(gwccss.Zero),
 	)
 	declareGlobal(`.jn-fact dt`,
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Tracking(gwccss.Ems(.02)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
 	)
+	// The value is the fact; its label is the caption. At regular weight the
+	// value read as a second line of the same caption.
 	declareGlobal(`.jn-fact dd`,
 		gwccss.Margin(gwccss.Zero),
-		gwccss.FontSize(gwccss.Rem(.9375)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-fact[data-tone="success"] dd`,
 		gwccss.TextColor(gwccss.Var("jn-success")),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-fact[data-tone="warning"] dd`,
 		gwccss.TextColor(gwccss.Var("jn-warning")),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-fact[data-tone="danger"] dd`,
 		gwccss.TextColor(gwccss.Var("jn-danger")),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-fact[data-tone="info"] dd`,
 		gwccss.TextColor(gwccss.Var("jn-info")),
-		gwccss.Raw("font-weight", "620"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(`.jn-tablewrap`,
 		gwccss.Raw("overflow-x", "auto"),
@@ -501,7 +538,7 @@ func declareJourneyForms() {
 	)
 	declareGlobal(`.jn-people-preview-foot`,
 		gwccss.Position.Sticky,
-		gwccss.Left(gwccss.Zero),
+		gwccss.Raw("inset-inline-start", "0"),
 		gwccss.Display.Flex,
 		gwccss.Items.Center,
 		gwccss.Raw("justify-content", "space-between"),
@@ -513,25 +550,25 @@ func declareJourneyForms() {
 	declareGlobal(`.jn-people-preview-foot p`,
 		gwccss.Margin(gwccss.Zero),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(`table.jn-table`,
 		gwccss.W(gwccss.Percent(100)),
 		gwccss.Raw("border-collapse", "collapse"),
-		gwccss.FontSize(gwccss.Rem(.875)),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 	)
 	declareGlobal(`.jn-table th,.jn-table td`,
 		gwccss.PaddingY(gwccss.Rem(.5625)), gwccss.PaddingX(gwccss.Rem(.75)),
-		gwccss.Raw("text-align", "left"),
+		gwccss.Raw("text-align", "start"),
 		gwccss.Raw("vertical-align", "top"),
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("jn-hairline")),
 	)
 	declareGlobal(`.jn-table thead th`,
 		gwccss.Bg(gwccss.Var("jn-surface-muted")),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
-		gwccss.FontSize(gwccss.Rem(.6875)),
-		gwccss.Raw("font-weight", "660"),
-		gwccss.Tracking(gwccss.Ems(.06)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps,.05em)"),
 		gwccss.Raw("text-transform", "uppercase"),
 		gwccss.Raw("white-space", "nowrap"),
 		gwccss.Position.Sticky,
@@ -563,11 +600,16 @@ func declareJourneyForms() {
 		gwccss.Bg(gwccss.Var("jn-accent-soft")),
 	)
 	declareGlobal(`.jn-table tr[data-changed="true"] td.jn-proposed`,
-		gwccss.Raw("font-weight", "660"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.TextColor(gwccss.Var("jn-accent")),
 	)
+	// The amount sits on its own line under the Changed chip and never
+	// splits: "+USD" stranded beside the chip read as a separate value.
 	declareGlobal(`.jn-delta`,
-		gwccss.Raw("font-weight", "640"),
+		gwccss.Display.Block,
+		gwccss.Raw("margin-top", ".25rem"),
+		gwccss.Raw("white-space", "nowrap"),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("font-variant-numeric", "tabular-nums"),
 	)
 	declareGlobal(`.jn-table td.jn-change`,
@@ -612,16 +654,16 @@ func declareJourneyForms() {
 		gwccss.Raw("animation-delay", ".42s"),
 	)
 	declareGlobal(`.jn-check[data-severity="blocking"]`,
-		gwccss.BorderLeft(gwccss.Px(3), gwccss.Var("jn-danger")),
+		gwccss.Raw("border-inline-start", "3px solid var(--jn-danger)"),
 	)
 	declareGlobal(`.jn-check[data-severity="warning"]`,
-		gwccss.BorderLeft(gwccss.Px(3), gwccss.Var("jn-warning")),
+		gwccss.Raw("border-inline-start", "3px solid var(--jn-warning)"),
 	)
 	declareGlobal(`.jn-check[data-severity="success"]`,
-		gwccss.BorderLeft(gwccss.Px(3), gwccss.Var("jn-success")),
+		gwccss.Raw("border-inline-start", "3px solid var(--jn-success)"),
 	)
 	declareGlobal(`.jn-check[data-severity="info"]`,
-		gwccss.BorderLeft(gwccss.Px(3), gwccss.Var("jn-info")),
+		gwccss.Raw("border-inline-start", "3px solid var(--jn-info)"),
 	)
 	declareGlobal(`.jn-checkpill`,
 		gwccss.Raw("flex", "none"),
@@ -629,11 +671,11 @@ func declareJourneyForms() {
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Rem(.3125)),
 		gwccss.MinWidth(gwccss.Rem(6.5)),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Rounded(gwccss.VarLength("jn-rpill")),
 		gwccss.PaddingY(gwccss.Rem(.25)), gwccss.PaddingX(gwccss.Rem(.625)),
-		gwccss.FontSize(gwccss.Rem(.6875)),
-		gwccss.Raw("font-weight", "680"),
-		gwccss.Tracking(gwccss.Ems(.03)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("letter-spacing", "var(--hcm-tracking-caps,.05em)"),
 		gwccss.Raw("text-transform", "uppercase"),
 		gwccss.Bg(gwccss.Var("jn-neutral-soft")),
 		gwccss.TextColor(gwccss.Var("jn-neutral")),

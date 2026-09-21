@@ -159,6 +159,8 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 	}
 	sort.Strings(got)
 	want := strings.Split(strings.TrimSpace(`
+/hcmnext.journey.v1.JourneyService/AcknowledgeJourney|1|hcmnext.journey.v1.AcknowledgeJourneyRequest|hcmnext.journey.v1.AcknowledgeJourneyResponse
+/hcmnext.journey.v1.JourneyService/AddJourneyNote|1|hcmnext.journey.v1.AddJourneyNoteRequest|hcmnext.journey.v1.AddJourneyNoteResponse
 /hcmnext.journey.v1.JourneyService/CreateWorker|1|hcmnext.journey.v1.CreateWorkerRequest|hcmnext.journey.v1.CreateWorkerResponse
 /hcmnext.journey.v1.JourneyService/DecideJourney|1|hcmnext.journey.v1.DecideJourneyRequest|hcmnext.journey.v1.DecideJourneyResponse
 /hcmnext.journey.v1.JourneyService/EditProposal|1|hcmnext.journey.v1.EditProposalRequest|hcmnext.journey.v1.EditProposalResponse
@@ -170,6 +172,7 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 /hcmnext.journey.v1.JourneyService/ListJourneys|1|hcmnext.journey.v1.ListJourneysRequest|hcmnext.journey.v1.ListJourneysResponse
 /hcmnext.journey.v1.JourneyService/ListWorkers|1|hcmnext.journey.v1.ListWorkersRequest|hcmnext.journey.v1.ListWorkersResponse
 /hcmnext.journey.v1.JourneyService/PreviewJourneyIntervention|1|hcmnext.journey.v1.PreviewJourneyInterventionRequest|hcmnext.journey.v1.PreviewJourneyInterventionResponse
+/hcmnext.journey.v1.JourneyService/PreviewRoleAccess|1|hcmnext.journey.v1.PreviewRoleAccessRequest|hcmnext.journey.v1.PreviewRoleAccessResponse
 /hcmnext.journey.v1.JourneyService/ProposeJourney|1|hcmnext.journey.v1.ProposeJourneyRequest|hcmnext.journey.v1.ProposeJourneyResponse
 /hcmnext.journey.v1.JourneyService/ProposePromotion|1|hcmnext.journey.v1.ProposePromotionRequest|hcmnext.journey.v1.ProposePromotionResponse
 /hcmnext.journey.v1.JourneyService/RecordWorkflowUse|1|hcmnext.journey.v1.RecordWorkflowUseRequest|hcmnext.journey.v1.RecordWorkflowUseResponse
@@ -184,6 +187,7 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 /hcmnext.journey.v1.JourneyService/SaveWorkerIDPolicy|1|hcmnext.journey.v1.SaveWorkerIDPolicyRequest|hcmnext.journey.v1.SaveWorkerIDPolicyResponse
 /hcmnext.journey.v1.JourneyService/SaveWorkerRoleAssignment|1|hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest|hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
 /hcmnext.journey.v1.JourneyService/WatchJourney|2|hcmnext.journey.v1.WatchJourneyRequest|hcmnext.journey.v1.WatchJourneyResponse
+/hcmnext.journey.v1.JourneyService/WatchPromotionInvalidations|2|hcmnext.journey.v1.WatchPromotionInvalidationsRequest|hcmnext.journey.v1.WatchPromotionInvalidationsResponse
 `), "\n")
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("generated method descriptor vector:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -751,10 +755,12 @@ func (*web034ConcurrentConn) NewStream(context.Context, *grpc.StreamDesc, string
 
 func TestTodo_WEB_034_Latency(t *testing.T) {
 	budget := latencygate.Budget{Name: "browser RPC adapter boundary", P95: 2 * time.Millisecond, Warmups: 3, Samples: 25}
+	conn := &web034Conn{}
+	adapter := NewRPCAdapter(conn, web034Config("latency"))
+	request := &journeyv1.ListJourneysRequest{}
+	response := &journeyv1.ListJourneysResponse{}
 	result, err := latencygate.Measure(budget, func() error {
-		conn := &web034Conn{}
-		adapter := NewRPCAdapter(conn, web034Config("latency"))
-		return adapter.Invoke(context.Background(), journeyv1.JourneyService_ListJourneys_FullMethodName, &journeyv1.ListJourneysRequest{}, &journeyv1.ListJourneysResponse{})
+		return adapter.Invoke(context.Background(), journeyv1.JourneyService_ListJourneys_FullMethodName, request, response)
 	})
 	if err != nil {
 		t.Fatal(err)

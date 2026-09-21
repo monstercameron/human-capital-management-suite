@@ -8,7 +8,7 @@ import (
 
 // TestTodo_DB_016_Conformance proves the validator accepts today's generated
 // preview set outright: every table declares RLS, every append-only table
-// (leave_record, payroll_ledger_entry, ... per the disposition preview)
+// (leave_record_preview, payroll_ledger_entry, ... per the disposition preview)
 // carries forbid_mutation, and none of the twenty table names collide with
 // migrations/, definitions/storage/storage-disposition.yaml or a
 // write-capable Phase 1 capability.
@@ -66,7 +66,7 @@ func TestTodo_DB_016_Mutation(t *testing.T) {
 	t.Run("strip RLS from a table", func(t *testing.T) {
 		set := cloneSet(baseline)
 		mutateFile(t, &set, "004_leave.sql", func(sql string) string {
-			return strings.Replace(sql, "ALTER TABLE leave_request FORCE ROW LEVEL SECURITY;\n", "", 1)
+			return strings.Replace(sql, "ALTER TABLE leave_request_preview FORCE ROW LEVEL SECURITY;\n", "", 1)
 		})
 		report, err := Validate(root, domains, set)
 		if err != nil {
@@ -75,8 +75,8 @@ func TestTodo_DB_016_Mutation(t *testing.T) {
 		if report.Empty() {
 			t.Fatal("expected MissingRLS violation, got a clean report")
 		}
-		if !containsStr(report.MissingRLS, "leave_request") {
-			t.Fatalf("expected leave_request in MissingRLS, got %v", report.MissingRLS)
+		if !containsStr(report.MissingRLS, "leave_request_preview") {
+			t.Fatalf("expected leave_request_preview in MissingRLS, got %v", report.MissingRLS)
 		}
 	})
 
@@ -84,7 +84,7 @@ func TestTodo_DB_016_Mutation(t *testing.T) {
 		set := cloneSet(baseline)
 		mutateFile(t, &set, "004_leave.sql", func(sql string) string {
 			return strings.Replace(sql,
-				"CREATE OR REPLACE TRIGGER leave_record_append_only\n    BEFORE UPDATE OR DELETE ON leave_record\n    FOR EACH ROW EXECUTE FUNCTION forbid_mutation();\n\n",
+				"CREATE OR REPLACE TRIGGER leave_record_preview_append_only\n    BEFORE UPDATE OR DELETE ON leave_record_preview\n    FOR EACH ROW EXECUTE FUNCTION forbid_mutation();\n\n",
 				"", 1)
 		})
 		report, err := Validate(root, domains, set)
@@ -94,8 +94,8 @@ func TestTodo_DB_016_Mutation(t *testing.T) {
 		if report.Empty() {
 			t.Fatal("expected MissingForbidMutation violation, got a clean report")
 		}
-		if !containsStr(report.MissingForbidMutation, "leave_record") {
-			t.Fatalf("expected leave_record in MissingForbidMutation, got %v", report.MissingForbidMutation)
+		if !containsStr(report.MissingForbidMutation, "leave_record_preview") {
+			t.Fatalf("expected leave_record_preview in MissingForbidMutation, got %v", report.MissingForbidMutation)
 		}
 	})
 

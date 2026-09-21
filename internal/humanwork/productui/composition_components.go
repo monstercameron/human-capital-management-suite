@@ -44,6 +44,10 @@ type LabeledControlProps struct {
 type FactProps struct {
 	Label string
 	Value string
+	// Href, when set, makes the value a drill-down into the exact population
+	// it counts (UXLIVE-030).
+	Href     string
+	Navigate func(string)
 }
 
 // MetricProps is a single operational measure and its provenance note.
@@ -58,6 +62,13 @@ type ActivityProps struct {
 	Title  string
 	Detail string
 	Status string
+	// Href, when set, opens the record the entry describes.
+	Href     string
+	Navigate func(string)
+	// Tone is the outcome's status tone. Only a successful outcome (or an
+	// entry with no tone) carries the check; any other outcome keeps its own
+	// status treatment instead of a success mark (UXLIVE-030).
+	Tone string
 }
 
 // PanelProps is the common titled-surface composition primitive. Body is a
@@ -120,7 +131,7 @@ func LabeledControl(props LabeledControlProps) ui.Node {
 	if props.Help != "" {
 		children = append(children, html.Small(html.Props{}, ui.Text(props.Help)))
 	}
-	return html.Label(html.Props{For: props.For}, children...)
+	return html.Label(html.Props{For: props.For, Class: "labeled-control"}, children...)
 }
 
 func SectionHeading(props SectionHeadingProps) ui.Node {
@@ -192,9 +203,13 @@ func FactList(facts []FactProps) ui.Node {
 func factRows(facts []FactProps) []ui.Node {
 	children := make([]ui.Node, 0, len(facts))
 	for _, item := range facts {
+		value := ui.Text(item.Value)
+		if item.Href != "" {
+			value = ui.CreateElement(FactLink, item)
+		}
 		children = append(children, html.Div(html.Props{},
 			html.Tag("dt", html.Props{}, ui.Text(item.Label)),
-			html.Tag("dd", html.Props{}, ui.Text(item.Value)),
+			html.Tag("dd", html.Props{}, value),
 		))
 	}
 	return children
@@ -292,13 +307,22 @@ func ActivityList(items []ActivityProps, emptyTitle, emptyDescription string) ui
 	children := make([]ui.Node, 0, len(items))
 	for _, item := range items {
 		main := []ui.Node{html.Strong(html.Props{}, ui.Text(item.Title))}
+		if item.Href != "" {
+			main[0] = softwareLink(item.Navigate, html.Props{}, item.Href, html.Strong(html.Props{}, ui.Text(item.Title)))
+		}
 		if item.Detail != "" {
 			main = append(main, html.Small(html.Props{}, ui.Text(item.Detail)))
 		}
+		marker := html.Span(html.Props{Class: "check"}, productIcon("check", "activity-check-glyph"))
+		status := html.Small(html.Props{}, ui.Text(item.Status))
+		if item.Tone != "" && item.Tone != "success" {
+			marker = html.Span(html.Props{Class: "check activity-outcome activity-outcome-" + item.Tone}, productIcon("close", "activity-check-glyph"))
+			status = html.Span(html.Props{Class: "status " + item.Tone}, ui.Text(item.Status))
+		}
 		children = append(children, html.Li(html.Props{Class: "activity"},
-			html.Span(html.Props{Class: "check"}, productIcon("check", "activity-check-glyph")),
+			marker,
 			html.Span(html.Props{Class: "row-main"}, main...),
-			html.Small(html.Props{}, ui.Text(item.Status)),
+			status,
 		))
 	}
 	if len(children) == 0 {

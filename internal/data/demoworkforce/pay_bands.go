@@ -37,33 +37,36 @@ func PayBandSpecs() ([]PayBandSpec, error) {
 		return nil, err
 	}
 	payZones := PayZones()
-	seen := make(map[string]bool)
-	specs := make([]PayBandSpec, 0, len(staffing)*len(payZones))
-	for _, group := range staffing {
-		for _, role := range group.Roles {
-			if seen[role.Code] {
-				return nil, fmt.Errorf("demoworkforce: duplicate job code %q in pay-band policy", role.Code)
-			}
-			seen[role.Code] = true
-			midpoint, err := values.NewMoney(role.BasePay, "USD", 2, values.RoundingExactRequired)
-			if err != nil {
-				return nil, fmt.Errorf("demoworkforce: role %s midpoint: %w", role.Code, err)
-			}
-			minimum, err := midpoint.MulDecimal(minimumFactor, 2, values.RoundingExactRequired)
-			if err != nil {
-				return nil, fmt.Errorf("demoworkforce: role %s minimum: %w", role.Code, err)
-			}
-			maximum, err := midpoint.MulDecimal(maximumFactor, 2, values.RoundingExactRequired)
-			if err != nil {
-				return nil, fmt.Errorf("demoworkforce: role %s maximum: %w", role.Code, err)
-			}
-			for _, zone := range payZones {
-				specs = append(specs, PayBandSpec{
-					ID:      "harborcare-demo.band/" + role.Code + "/" + role.Grade + "/" + zone,
-					Version: PayBandPolicyVersion, JobCode: role.Code, Grade: role.Grade, PayZone: zone,
-					Minimum: minimum, Midpoint: midpoint, Maximum: maximum,
-				})
-			}
+	// Every published role, staffed or not: a promotion target nobody holds
+	// yet still has to be priced, or the band lookup that governs the move
+	// finds nothing.
+	seats := allRoles()
+	seen := make(map[string]bool, len(seats))
+	specs := make([]PayBandSpec, 0, len(seats)*len(payZones))
+	for _, seat := range seats {
+		role := seat.Role
+		if seen[role.Code] {
+			return nil, fmt.Errorf("demoworkforce: duplicate job code %q in pay-band policy", role.Code)
+		}
+		seen[role.Code] = true
+		midpoint, err := values.NewMoney(role.BasePay, "USD", 2, values.RoundingExactRequired)
+		if err != nil {
+			return nil, fmt.Errorf("demoworkforce: role %s midpoint: %w", role.Code, err)
+		}
+		minimum, err := midpoint.MulDecimal(minimumFactor, 2, values.RoundingExactRequired)
+		if err != nil {
+			return nil, fmt.Errorf("demoworkforce: role %s minimum: %w", role.Code, err)
+		}
+		maximum, err := midpoint.MulDecimal(maximumFactor, 2, values.RoundingExactRequired)
+		if err != nil {
+			return nil, fmt.Errorf("demoworkforce: role %s maximum: %w", role.Code, err)
+		}
+		for _, zone := range payZones {
+			specs = append(specs, PayBandSpec{
+				ID:      "harborcare-demo.band/" + role.Code + "/" + role.Grade + "/" + zone,
+				Version: PayBandPolicyVersion, JobCode: role.Code, Grade: role.Grade, PayZone: zone,
+				Minimum: minimum, Midpoint: midpoint, Maximum: maximum,
+			})
 		}
 	}
 	sort.Slice(specs, func(i, j int) bool { return specs[i].ID < specs[j].ID })

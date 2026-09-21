@@ -7,6 +7,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/inspect"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -39,7 +41,29 @@ func (r workflowReader) ReadWorkflowInstance(ctx context.Context, tenant, instan
 		}
 		return workflow.Record{}, err
 	}
-	return convertWorkflowRecord(record), nil
+	converted := convertWorkflowRecord(record)
+	subject := "workflow-viewer"
+	if principal, ok := trust.FromContext(ctx); ok && principal != nil && principal.Subject() != "" {
+		subject = principal.Subject()
+	}
+	inspector, err := inspect.Build(inspect.Request{
+		Instance: record.Instance, Nodes: record.Nodes,
+		Authorization: inspect.AllowAll("workflow.designer/1.0.0", "WORKFLOW_AUTHORING", subject),
+	})
+	if err == nil {
+		// Legacy inspection fixtures intentionally omit runtime invariants that
+		// the wire projection tolerates. Keep their existing GetWorkflow path
+		// intact; the definition-view endpoint requires this non-nil projection
+		// and therefore still fails closed when inspector validation rejects it.
+		converted.Inspector = &inspector
+	}
+	// The projected tenant is the caller's tenant identity (the key the
+	// inspector confines the record to), never the storage uuid: the
+	// inspector compares this value against the caller's own tenant, so a
+	// uuid here fails its own confinement check on every served read while
+	// fixture reads (whose tenant is already the key) keep passing.
+	converted.Instance.TenantID = tenant
+	return converted, nil
 }
 
 func convertWorkflowRecord(record app.WorkflowInstanceRecord) workflow.Record {

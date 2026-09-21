@@ -11,13 +11,25 @@ import (
 
 // workflowFile is the minimal shape this test needs out of
 // .github/workflows/tests.yml: enough to prove the file parses as valid
-// YAML and that every job this task added or touched (go-core's race step,
+// YAML and that every job this task added or touched (the split root lanes,
 // the new ephemeral-PostgreSQL job, and the new dependency-admission job)
 // is actually present and wired to a runner.
 type workflowFile struct {
+	On struct {
+		Push struct {
+			Branches []string `yaml:"branches"`
+		} `yaml:"push"`
+	} `yaml:"on"`
 	Jobs map[string]struct {
-		RunsOn string `yaml:"runs-on"`
-		Steps  []struct {
+		Name     string   `yaml:"name"`
+		Needs    []string `yaml:"needs"`
+		RunsOn   string   `yaml:"runs-on"`
+		Strategy struct {
+			Matrix struct {
+				Shard []int `yaml:"shard"`
+			} `yaml:"matrix"`
+		} `yaml:"strategy"`
+		Steps []struct {
 			Name string `yaml:"name"`
 			Run  string `yaml:"run"`
 			Uses string `yaml:"uses"`
@@ -41,8 +53,11 @@ func TestTestsWorkflowYAMLIsValid(t *testing.T) {
 	if err := yaml.Unmarshal(data, &wf); err != nil {
 		t.Fatalf("%s is not valid YAML: %v", path, err)
 	}
+	if len(wf.On.Push.Branches) != 1 || wf.On.Push.Branches[0] != "main" {
+		t.Fatalf("topic-branch pushes must not duplicate pull-request checks; push branches = %v", wf.On.Push.Branches)
+	}
 
-	for _, name := range []string{"node", "go", "go-core", "go-core-ephemeral-pg", "dependency-admission"} {
+	for _, name := range []string{"node", "go", "go-core-quality", "go-core-race", "go-core-coverage", "go-core", "go-core-ephemeral-pg", "dependency-admission"} {
 		job, ok := wf.Jobs[name]
 		if !ok {
 			t.Errorf("workflow has no job named %q", name)
@@ -56,9 +71,36 @@ func TestTestsWorkflowYAMLIsValid(t *testing.T) {
 		}
 	}
 
-	race := findStep(t, wf, "go-core", "race")
+	race := findStep(t, wf, "go-core-race", "race")
 	if race == "" {
-		t.Fatal("go-core has no step invoking `go test -race` (TOOL-012)")
+		t.Fatal("go-core-race has no step invoking `go test -race` (TOOL-012)")
+	}
+	coverage := findStep(t, wf, "go-core-coverage", "covergate")
+	if coverage == "" {
+		t.Fatal("go-core-coverage has no full coverage sweep")
+	}
+	for _, jobName := range []string{"go-core-race", "go-core-coverage"} {
+		shards := wf.Jobs[jobName].Strategy.Matrix.Shard
+		if len(shards) != 4 || shards[0] != 0 || shards[1] != 1 || shards[2] != 2 || shards[3] != 3 {
+			t.Errorf("job %q must cover deterministic shards [0 1 2 3], got %v", jobName, shards)
+		}
+	}
+	if !strings.Contains(race, "race-shard.txt") || !strings.Contains(race, "(NR - 1) % 4") {
+		t.Fatal("go-core-race does not partition the complete policy package list")
+	}
+	if !strings.Contains(coverage, "-shard-index") || !strings.Contains(coverage, "-shard-count 4") {
+		t.Fatal("go-core-coverage does not invoke all-package deterministic sharding")
+	}
+	root := wf.Jobs["go-core"]
+	if root.Name != "Go tests (root module)" {
+		t.Fatalf("required root check name changed: %q", root.Name)
+	}
+	wantNeeds := map[string]bool{"go-core-quality": true, "go-core-race": true, "go-core-coverage": true}
+	for _, need := range root.Needs {
+		delete(wantNeeds, need)
+	}
+	if len(wantNeeds) != 0 {
+		t.Fatalf("required root check does not fan in every root lane: missing %v", wantNeeds)
 	}
 
 	ephemeral := findStep(t, wf, "go-core-ephemeral-pg", "pgtest")

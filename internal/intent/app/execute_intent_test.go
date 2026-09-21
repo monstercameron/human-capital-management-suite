@@ -175,6 +175,14 @@ func TestExecutionErrorProjectsTheDerivedProposalRefusals(t *testing.T) {
 		{runtime.CodeSupersededProposal, reasonSupersededProposal},
 		{runtime.CodeMutableProposal, reasonStaleProposal},
 		{runtime.CodeApprovalBindingMismatch, reasonStaleProposal},
+		// A missing ACTIVE workflow version is a release nobody performed,
+		// and carries its own refusal so the page does not invite a retry
+		// that can never succeed (see no_active_version_refusal_test.go).
+		{runtime.CodeVersionNotActive, reasonNoActiveWorkflowVersion},
+		// A version that exists but does not resolve is the cell's
+		// configuration, so the journey page reports it unavailable.
+		{runtime.CodeVersionResolutionFailed, reasonExecutionUnavailable},
+		{runtime.CodeWorkflowResolutionFailed, reasonExecutionUnavailable},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
 			owned := executionError(&runtime.Error{Code: tc.code, Detail: "refused"})

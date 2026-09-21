@@ -27,8 +27,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"golang.org/x/text/language"
-
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
 )
 
@@ -446,8 +445,8 @@ func validLocale(value string) bool {
 	if value == "" || len(value) > maxProgressiveLocale || strings.TrimSpace(value) != value {
 		return false
 	}
-	tag, err := language.Parse(value)
-	return err == nil && tag.String() == value
+	tag, ok := values.CanonicalLanguageTag(value)
+	return ok && tag == value
 }
 
 func validRequiredText(value string) bool {

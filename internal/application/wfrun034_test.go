@@ -20,6 +20,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
@@ -73,9 +74,10 @@ func (h *promoux015Harness) wfrun034Count(sql string, args ...any) int64 {
 // deadline and effect class), routes the real threshold decision, and after
 // the effective date revalidates for real against the GOVERN-002 decision its
 // approvals recorded: an unchanged world confirms, execute_promotion commits
-// the bounded domain change inside the advance transaction, the three
-// observations read it back and the run closes PROMOTION_COMPLETE with its
-// one ledger fact. Nothing here is fabricated: every route is the answer a
+// the bounded domain change inside the advance transaction, the run waits for
+// the payroll and identity providers' confirmations (1.1.0), the three
+// observations read the change and the receipts back and the run closes
+// PROMOTION_COMPLETE with its one ledger fact. Nothing here is fabricated: every route is the answer a
 // governed read produced.
 func TestTodo_WF_RUN_034_Integration(t *testing.T) {
 	h := promoux015Compose(t)
@@ -137,14 +139,23 @@ func TestTodo_WF_RUN_034_Integration(t *testing.T) {
 	if err != nil || fired.Fired != 1 {
 		t.Fatalf("Tick after the effective date = %+v, %v; want one timer fired", fired, err)
 	}
+	// Promotion 1.1.0: the committed run parks on the payroll provider's
+	// confirmation; the providers confirm the committed change, payroll then
+	// identity, and each observation reads the provider's receipt.
+	if got := h.wfrun034Count(`SELECT count(*) FROM workflow_signal_subscription WHERE node_id = $1 AND subscription_state = 'OPEN'`, promotionexec.NodeAwaitPayrollConfirmation); got != 1 {
+		t.Fatalf("open payroll confirmation waits = %d, want 1", got)
+	}
+	h.confirmProviders()
 	routes = h.wfrun034Routes()
 	for _, edge := range [][2]string{
 		{promotionexec.NodeRevalidate, promotionexec.NodeStillValid},
 		{promotionexec.NodeStillValid, promotionexec.NodeExecutePromotion},
-		{promotionexec.NodeExecutePromotion, promotionexec.NodeObservePayroll},
-		{promotionexec.NodeObservePayroll, promotionexec.NodeObserveAccess},
+		{promotionexec.NodeExecutePromotion, promotionexec.NodeAwaitPayrollConfirmation},
+		{promotionexec.NodeAwaitPayrollConfirmation, promotionexec.NodeObservePayroll},
+		{promotionexec.NodeObservePayroll, promotionexec.NodeAwaitAccessConfirmation},
+		{promotionexec.NodeAwaitAccessConfirmation, promotionexec.NodeObserveAccess},
 		{promotionexec.NodeObserveAccess, promotionexec.NodeObserveReconciliation},
-		{promotionexec.NodeObserveReconciliation, promotionexec.NodeEndComplete},
+		{promotionexec.NodeObserveReconciliation, promotionexec.NodeAcknowledgeRelease},
 	} {
 		if !wfrun034Took(routes, edge[0], edge[1]) {
 			t.Fatalf("after the effective date the run did not advance %s -> %s; routes %+v", edge[0], edge[1], routes)
@@ -152,6 +163,28 @@ func TestTodo_WF_RUN_034_Integration(t *testing.T) {
 	}
 	if wfrun034Took(routes, promotionexec.NodeStillValid, promotionexec.NodeEndBlocked) {
 		t.Fatal("still_valid blocked a revalidation the recorded governance confirms")
+	}
+	// Reconciliation verified every downstream leg, but the run must not
+	// complete while the acknowledgement obligation is open: it parks on the
+	// gate with a durable OPEN subscription instead of completing silently.
+	if got := h.wfrun034Count(`SELECT count(*) FROM workflow_signal_subscription WHERE node_id = $1 AND subscription_state = 'OPEN'`, promotionexec.NodeAcknowledgeRelease); got != 1 {
+		t.Fatalf("open acknowledgement subscriptions = %d, want 1", got)
+	}
+	if got := h.journeyFor("hiring-manager", id).GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT {
+		t.Fatalf("parked proposer sees stage %s, want AWAITING_ACKNOWLEDGEMENT", got)
+	}
+	acked, ackErr := h.composed.Cell().Journey.Acknowledge(h.ackOperatorCtx(), id, workspace.Acknowledgement{
+		EvidenceRef: "hris:signature:wfrun034", Note: "signed copy verified against the HRIS record",
+	})
+	if ackErr != nil {
+		t.Fatalf("Journey.Acknowledge as the HR operator: %v", ackErr)
+	}
+	if got := acked.Summary.Stage; got != workspace.JourneyStageRecorded {
+		t.Fatalf("acknowledged journey stage = %s, want RECORDED", got)
+	}
+	routes = h.wfrun034Routes()
+	if !wfrun034Took(routes, promotionexec.NodeAcknowledgeRelease, promotionexec.NodeEndComplete) {
+		t.Fatalf("after the acknowledgement the run did not advance %s -> %s; routes %+v", promotionexec.NodeAcknowledgeRelease, promotionexec.NodeEndComplete, routes)
 	}
 	var completed bool
 	for _, r := range routes {
@@ -358,9 +391,27 @@ func TestTodo_WF_RUN_034_Fault(t *testing.T) {
 func TestTodo_WF_RUN_034_Security(t *testing.T) {
 	h := promoux015Compose(t)
 	ctx := context.Background()
-	if _, err := h.composed.Cell().RoleAccess.SaveAssignment(ctx, values.TenantId(demoworkforce.CompanyKey), "system:wfrun034", roleaccess.Assignment{
-		WorkerRef: promoux015Manager, RoleIDs: []string{"hcm_admin", "comp_admin", "intent_author"},
-	}); err != nil {
+	// The demo tenant seeds a durable role set for every planned worker, so
+	// this operator already has one and a revocation is a compare-and-swap
+	// over it: an assignment written with no expected version is a create,
+	// and a create collides with the seeded row. Read the version being
+	// replaced, which is what an administrator revoking a role actually does.
+	store := h.composed.Cell().RoleAccess
+	tenant := values.TenantId(demoworkforce.CompanyKey)
+	snapshot, err := store.Load(ctx, tenant, "org:"+demoworkforce.CompanyKey+":people-ops")
+	if err != nil {
+		t.Fatalf("load the role directory: %v", err)
+	}
+	revocation := roleaccess.Assignment{WorkerRef: promoux015Manager, RoleIDs: []string{"hcm_admin", "comp_admin", "intent_author"}}
+	for _, assignment := range snapshot.Assignments {
+		if strings.EqualFold(strings.TrimSpace(assignment.WorkerRef), promoux015Manager) {
+			revocation.Version = assignment.Version
+		}
+	}
+	if revocation.Version == 0 {
+		t.Fatalf("%s holds no durable role set to revoke from", promoux015Manager)
+	}
+	if _, err := store.SaveAssignment(ctx, tenant, "system:wfrun034", revocation); err != nil {
 		t.Fatalf("revoke promotion_operator: %v", err)
 	}
 	evidence := func() []evidencestore.Record {

@@ -3,6 +3,8 @@ package journey
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -33,6 +35,10 @@ type Dependencies struct {
 	Preferences preferences.Store
 	RoleAccess  roleaccess.Store
 	WorkerIDs   workerids.Store
+	// Invalidations is the committed-transition hub
+	// WatchPromotionInvalidations subscribes to (REV-091-03). Nil answers
+	// that stream UNAVAILABLE.
+	Invalidations InvalidationSource
 	// PollInterval is how often WatchJourney re-reads the engine looking for
 	// a change. Zero or negative means [defaultWatchPollInterval].
 	//
@@ -99,6 +105,12 @@ type server struct {
 	journeyv1.UnimplementedJourneyServiceServer
 
 	deps Dependencies
+
+	// roleMu guards roleCache, the server's short-TTL durable role cache
+	// (RBAC-RT-002). It lives on the server value that owns it, never in
+	// a package-level registry.
+	roleMu    sync.Mutex
+	roleCache *roleaccess.Resolver
 }
 
 // Register adds hcmnext.journey.v1.JourneyService to srv. srv must already
@@ -264,12 +276,20 @@ var knownInputFields = map[string]bool{
 	"worker_key": true, "worker": true, "legal_name": true, "preferred_name": true,
 	"org_unit": true, "pay_zone": true, "location": true, "job_code": true, "grade": true,
 	"base_pay": true, "currency": true, "bonus_target": true, "hire_date": true,
+	"body": true, "idempotency_key": true,
 }
 
 var knownInputReasons = map[string]bool{
 	"journey.input.invalid":                       true,
 	"promotion.base_pay.not_exact":                true,
 	"promotion.ladder.base_increase_out_of_range": true,
+	workspace.JourneyNoteReasonEmpty:              true,
+	workspace.JourneyNoteReasonTooLong:            true,
+	workspace.JourneyNoteReasonInvalidText:        true,
+	workspace.JourneyNoteReasonKeyInvalid:         true,
+	workspace.JourneyNoteReasonKeyReused:          true,
+	workspace.JourneyNoteReasonLimit:              true,
+	workspace.JourneyReasonNotProse:               true,
 }
 
 // engine returns the configured port, or a typed UNAVAILABLE when the
@@ -315,6 +335,9 @@ func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequ
 	for _, summary := range summaries {
 		resp.Journeys = append(resp.Journeys, toJourney(summary, diagAuthorized))
 	}
+	// UXLIVE-027: the one authorized population summary, over exactly the
+	// journeys above, so no page recounts or re-filters the collection.
+	resp.Population = toPopulation(workspace.SummarizeJourneys(summaries, s.deps.nowFunc()()))
 	return resp, nil
 }
 
@@ -421,6 +444,35 @@ func (s *server) DecideJourney(ctx context.Context, req *journeyv1.DecideJourney
 	return &journeyv1.DecideJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
 }
 
+// AcknowledgeJourney forwards to workspace.JourneyEngine.Acknowledge, which
+// receives the employee's verified acknowledgement as a correlated signal and
+// resumes the driver from the matched receipt. Governed write. The page gate
+// matches ExecuteJourney (advancing the journey, not deciding an approval);
+// the engine itself enforces the attester rules (cell admission, no
+// self-attestation by the initiator, open wait required).
+func (s *server) AcknowledgeJourney(ctx context.Context, req *journeyv1.AcknowledgeJourneyRequest) (*journeyv1.AcknowledgeJourneyResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
+		return nil, err
+	}
+	eng, depErr := s.engine(principal, inv, "acknowledge")
+	if depErr != nil {
+		return nil, depErr
+	}
+
+	detail, err := eng.Acknowledge(ctx, req.GetIntentId(), workspace.Acknowledgement{
+		EvidenceRef: req.GetEvidenceRef(),
+		Note:        req.GetNote(),
+	})
+	if err != nil {
+		return nil, ownedError(err, principal, inv, "acknowledge")
+	}
+	return &journeyv1.AcknowledgeJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
+}
+
 // EditProposal forwards to workspace.JourneyEngine.EditProposal, which is
 // SupersedeIntent scoped to journeys. Governed write.
 func (s *server) EditProposal(ctx context.Context, req *journeyv1.EditProposalRequest) (*journeyv1.EditProposalResponse, error) {
@@ -480,6 +532,41 @@ func (s *server) PreviewJourneyIntervention(ctx context.Context, req *journeyv1.
 // RequestJourneyIntervention forwards to
 // workspace.JourneyEngine.RequestIntervention, which is CancelIntent scoped
 // to journeys. Governed write.
+// AddJourneyNote forwards to workspace.JourneyNoteEngine.AddNote. Append-only
+// experience write. The page gate is the detail gate: whoever may read a
+// journey's detail may leave a note on it, and the engine re-admits the
+// caller to that one journey before recording anything.
+func (s *server) AddJourneyNote(ctx context.Context, req *journeyv1.AddJourneyNoteRequest) (*journeyv1.AddJourneyNoteResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	if err := s.requireAnyFeatureView(ctx, principal, inv,
+		featureAccessRequest{pageID: "journeys", featureID: "journey_detail"},
+		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
+	); err != nil {
+		return nil, err
+	}
+	eng, depErr := s.engine(principal, inv, "add_note")
+	if depErr != nil {
+		return nil, depErr
+	}
+	notes, ok := eng.(workspace.JourneyNoteEngine)
+	if !ok {
+		return nil, ownedError(fmt.Errorf("%w: this cell records no journey notes", workspace.ErrJourneyUnavailable), principal, inv, "add_note")
+	}
+	note, detail, err := notes.AddNote(ctx, req.GetIntentId(), workspace.JourneyNoteInput{
+		Body: req.GetBody(), IdempotencyKey: req.GetIdempotencyKey(),
+	})
+	if err != nil {
+		return nil, ownedError(err, principal, inv, "add_note")
+	}
+	return &journeyv1.AddJourneyNoteResponse{
+		Note:   toJourneyNote(note),
+		Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal)),
+	}, nil
+}
+
 func (s *server) RequestJourneyIntervention(ctx context.Context, req *journeyv1.RequestJourneyInterventionRequest) (*journeyv1.RequestJourneyInterventionResponse, error) {
 	principal, inv, ctxErr := trustedContext(ctx)
 	if ctxErr != nil {
@@ -527,15 +614,16 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "list_workers")
 	}
-	workers, options, err = s.visibleWorkforce(ctx, principal, workers, options)
+	// The complete listing stays available as the reporting-line source for
+	// per-subject field disclosure; visibleWorkforce only filters rows.
+	visible, options, err := s.visibleWorkforce(ctx, principal, workers, options)
 	if err != nil {
 		return nil, preferenceError(err, principal, inv.RequestID(), "load_organization_visibility")
 	}
-	resp := &journeyv1.ListWorkersResponse{Options: toWorkforceOptions(options)}
-	for _, w := range workers {
-		resp.Workers = append(resp.Workers, toWorker(w))
-	}
-	return resp, nil
+	return &journeyv1.ListWorkersResponse{
+		Options: toWorkforceOptions(options),
+		Workers: s.authorizeWorkers(ctx, principal, workers, visible),
+	}, nil
 }
 
 // CreateWorker forwards to workspace.JourneyEngine.CreateWorker, which records
@@ -558,5 +646,5 @@ func (s *server) CreateWorker(ctx context.Context, req *journeyv1.CreateWorkerRe
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "create_worker")
 	}
-	return &journeyv1.CreateWorkerResponse{Worker: toWorker(worker)}, nil
+	return &journeyv1.CreateWorkerResponse{Worker: s.authorizeWorker(ctx, principal, worker)}, nil
 }

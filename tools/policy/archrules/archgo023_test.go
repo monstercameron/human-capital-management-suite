@@ -252,6 +252,14 @@ type transportImportException struct {
 }
 
 var transportAdminBusinessImportAllowlist = map[string]transportImportException{
+	"internal/transport/admin->internal/data/ledger": {
+		OwnerTodo: "REV-037-01",
+		Reason:    "operator ledger explorer receives the composed read store",
+	},
+	"internal/transport/admin->internal/data/ledger/hashchain": {
+		OwnerTodo: "REV-037-01",
+		Reason:    "operator ledger verification reports the canonical hash-chain result",
+	},
 	"internal/transport/admin->internal/domains/intelligence": {
 		OwnerTodo: "ARCH-GO-023",
 		Reason:    "SVC-011/ADMIN-001 governed read-only passthrough",
@@ -259,6 +267,14 @@ var transportAdminBusinessImportAllowlist = map[string]transportImportException{
 	"internal/transport/admin->internal/domains/people": {
 		OwnerTodo: "ARCH-GO-023",
 		Reason:    "SVC-011/ADMIN-001 governed read-only passthrough",
+	},
+	"internal/transport/cell->internal/data/workflowdraftstore": {
+		OwnerTodo: "WF-UI-004",
+		Reason:    "cell is the composition root that constructs the workflow draft adapter",
+	},
+	"internal/transport/journey->internal/domains/promotion": {
+		OwnerTodo: "REV-091-02",
+		Reason:    "journey projection maps the governed promotion review value without performing domain work",
 	},
 }
 
@@ -275,8 +291,12 @@ var transportHandlerStatementBudgetAllowlist = map[string]bool{}
 // artifact.
 func TestTodo_ARCH_GO_023_Golden(t *testing.T) {
 	wantImportEdges := []string{
+		"internal/transport/admin->internal/data/ledger",
+		"internal/transport/admin->internal/data/ledger/hashchain",
 		"internal/transport/admin->internal/domains/intelligence",
 		"internal/transport/admin->internal/domains/people",
+		"internal/transport/cell->internal/data/workflowdraftstore",
+		"internal/transport/journey->internal/domains/promotion",
 	}
 	var gotImportEdges []string
 	for edge := range transportAdminBusinessImportAllowlist {

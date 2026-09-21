@@ -101,18 +101,20 @@ var ImplicitAllowlist = []ImplicitEntry{
 	{Package: "internal/data/jobarchstore", Owner: "data platform", Reason: "job architecture persistence (PERSIST-JOBARCH-001) is a store adapter below the persistence owner"},
 	{Package: "internal/domains/jobarch", Owner: "workforce domain", Reason: "job architecture is a domain model; its scheduling vocabulary is not the scheduling substrate"},
 	{Package: "internal/governance/legal/researchgaps", Owner: "legal platform", Reason: "legal research-gap search is a governance consumer of search mechanics, not the search owner"},
+	{Package: "internal/governance/privacy/transfer", Owner: "privacy platform", Reason: "transfer-safeguard rules consume canonical encoding and remain owned by privacy governance"},
 	{Package: "internal/platform/execution/scheduler", Owner: "scheduling platform", Reason: "durable workflow timer and ready-work dispatch (SVC-004) runs below the scheduling engine as its process-role adapter"},
 	{Package: "internal/platform/telemetry/securityevidence", Owner: "observability platform", Reason: "security evidence emission (SECARCH-008) remains below the telemetry owner"},
 	{Package: "internal/workflow/migrate/artifacts", Owner: "artifact platform", Reason: "workflow version-migration artifacts are a workflow consumer of artifact mechanics"},
 	{Package: "internal/platform/telemetry/queue", Owner: "observability platform", Reason: "bounded telemetry queue, retry and backpressure mechanics (OBS-019) remain below the telemetry owner"},
 	{Package: "internal/connectivity/artifactstore", Owner: "integration platform", Reason: "connector consumer of substrate mechanics (Gate A wave 2026-09-06)"},
-	{Package: "internal/operations/telemetry", Owner: "operations platform", Reason: "operational consumer of substrate mechanics (Gate A wave 2026-09-06)"},
 	{Package: "internal/operations/telemetryhealth", Owner: "operations platform", Reason: "operational consumer of substrate mechanics (Gate A wave 2026-09-06)"},
 	{Package: "internal/platform/telemetry/backends", Owner: "observability platform", Reason: "telemetry mechanics remain below the telemetry owner (Gate A wave 2026-09-06)"},
 	{Package: "internal/platform/telemetry/diagnostic", Owner: "observability platform", Reason: "telemetry mechanics remain below the telemetry owner (Gate A wave 2026-09-06)"},
 	{Package: "internal/platform/telemetry/lifecycle", Owner: "observability platform", Reason: "telemetry mechanics remain below the telemetry owner (Gate A wave 2026-09-06)"},
 	{Package: "internal/platform/telemetry/correlation", Owner: "observability platform", Reason: "signal-correlation helpers and join scoping (OBS-016) remain below the telemetry owner"},
 	{Package: "internal/connectivity/syncjob", Owner: "integration platform", Reason: "the resumable SyncJob kernel (INTG-019) is pure: it plans batches and returns a cursor, and the scheduling and persistence of that cursor stay with its callers"},
+	{Package: "internal/connectivity/providertelemetry", Owner: "integration platform", Reason: "provider-call metrics and trace/correlation header propagation are a connector consumer of telemetry mechanics; the telemetry owner keeps the catalog and exporters"},
+	{Package: "internal/connectivity/providertelemetry/providerwire", Owner: "integration platform", Reason: "the provider wire-header names shared by the connector and the simulators are a connector consumer of telemetry mechanics"},
 }
 
 // Options allows focused tests and future reviewed table revisions without

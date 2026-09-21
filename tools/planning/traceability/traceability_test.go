@@ -27,6 +27,11 @@ func TestRequirementTraceabilityRejectsOrphans(t *testing.T) {
 		assertNames(t, got, []string{"TestTodo_ID", "TestTodo_ID_Golden", "TestTodo_ID_Race", "FuzzTodo_ID"})
 	})
 
+	t.Run("first matrix variant establishes the todo root", func(t *testing.T) {
+		got := ExtractEvidenceTestNames("`TestP1BAuthority`, `TestTodo_NEXT_006_Property`, `_Golden`, `_Security`")
+		assertNames(t, got, []string{"TestP1BAuthority", "TestTodo_NEXT_006_Property", "TestTodo_NEXT_006_Golden", "TestTodo_NEXT_006_Security"})
+	})
+
 	t.Run("shorthand suffix rebases on the root even after a compound plain name", func(t *testing.T) {
 		// Real corpus shape: `TestTodo_DATA_005`, `TestTodo_DATA_005_Property`,
 		// `_Property_MonotonicKnowledge`, `_Security` - the last two must
@@ -98,6 +103,14 @@ func TestRequirementTraceabilityRejectsOrphans(t *testing.T) {
 		existing := map[string]bool{"TestReal": true}
 		if orphans := CheckTraceability(todos, existing); len(orphans) != 0 {
 			t.Errorf("expected zero orphans, got %v", orphans)
+		}
+	})
+
+	t.Run("one real top-level test resolves shorthand subtest labels", func(t *testing.T) {
+		todos := []todoregistry.Todo{{ID: "X-001A", Done: true, Evidence: "`TestReal`, `_Golden`, `_Race` in `tools/x`"}}
+		existing := map[string]bool{"TestReal": true}
+		if orphans := CheckTraceability(todos, existing); len(orphans) != 0 {
+			t.Errorf("expected the real top-level test to resolve the evidence, got %v", orphans)
 		}
 	})
 
@@ -175,7 +188,7 @@ func TestTodo_GOV_003_Golden(t *testing.T) {
 	if len(orphans) != 1 {
 		t.Fatalf("expected exactly one orphan, got %d: %v", len(orphans), orphans)
 	}
-	const want = "GOLDEN-001: Evidence names TestGoldenMissing, which does not exist in the repository"
+	const want = "GOLDEN-001: Evidence names no repository test; first unresolved name is TestGoldenMissing"
 	if got := orphans[0].String(); got != want {
 		t.Errorf("orphan message changed:\n got:  %s\n want: %s", got, want)
 	}

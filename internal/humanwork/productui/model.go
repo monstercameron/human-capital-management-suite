@@ -3,6 +3,7 @@ package productui
 import (
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -139,6 +140,7 @@ const (
 	PageOrganizationVisibility  PageID = "organization-visibility"
 	PageAppearance              PageID = "appearance"
 	PageStudio                  PageID = "studio"
+	PageWorkflowDesigner        PageID = "workflow-designer"
 	PageHelp                    PageID = "help"
 	PageSettings                PageID = "settings"
 )
@@ -292,7 +294,33 @@ type Person struct {
 	BonusTarget           string
 	HireDate              string
 	Source                string
-	CreatedAt             string
+	// LifecycleStatus and WorkerType are the journey_worker
+	// vocabulary tokens for this worker, carried unbroken from
+	// the listing row: ACTIVE, TERMINATED or ON_LEAVE, and
+	// EMPLOYEE, CONTRACTOR, INTERN or TEMPORARY. Empty means
+	// nobody asserted the fact (corpus workers assert neither),
+	// and every consumer interprets them through ParseLifecycleStatus
+	// and ParseWorkerType, never ad hoc string checks.
+	LifecycleStatus string
+	WorkerType      string
+	CreatedAt       string
+	// The employment facts the object page shows beside the placement, as the
+	// service disclosed them. EmploymentType, TimeType, WorkArrangement and
+	// PayBasis are server vocabulary tokens, not display text: the section
+	// accessors translate them, so a token this build does not recognise is
+	// shown as it came rather than silently blanked. Company, BusinessUnit and
+	// CostCenter are already the recorded names and codes.
+	//
+	// Empty means the service disclosed no value, which the object page
+	// reports as unreported. A caller that leaves them unset therefore
+	// understates the record rather than inventing one.
+	EmploymentType  string
+	TimeType        string
+	Company         string
+	BusinessUnit    string
+	CostCenter      string
+	WorkArrangement string
+	PayBasis        string
 	// ManagerID is the manager's own WorkerID (the raw canonical worker
 	// identity workforce.WorkerRow.WorkerID carries, distinct from Manager --
 	// a display name -- and from ID/WorkerRef, the public routing reference).
@@ -338,13 +366,14 @@ type ViewerProfile struct {
 // available for a person. It is presentation metadata, not action authority;
 // the destination service still authorizes and validates every proposal.
 type PersonWorkflow struct {
-	ID          string
-	Name        string
-	Category    string
-	Description string
-	Href        string
-	UseCount    int64
-	LaunchHref  func(string) string
+	ID              string
+	Name            string
+	Category        string
+	Description     string
+	Href            string
+	UseCount        int64
+	WorkforceChange bool
+	LaunchHref      func(string) string
 }
 
 type StoredTablePreferences struct {
@@ -361,6 +390,9 @@ type StoredUserPreferences struct {
 	FavoritePages    []PageID
 	Tables           map[string]StoredTablePreferences
 	WorkflowUses     map[string]int64
+	// Density is the person's own layout density; "" inherits the
+	// organization appearance (REV-092-01, see EffectiveAppearance).
+	Density string
 }
 
 // WorkerIDPolicy is the organization-admin projection of human-facing worker
@@ -447,18 +479,32 @@ type View struct {
 	Work                 []WorkItem
 	People               []Person
 	PersonWorkflows      []PersonWorkflow
+	// JourneyPopulation is the server's authorized summary over exactly the
+	// journeys in Work (UXLIVE-027). Nil when no summary was read.
+	JourneyPopulation *JourneyPopulation
 	// LauncherActions is the server-resolved semantic-action projection for
 	// the current principal. It is deliberately separate from page CRUD and
 	// PersonWorkflows, neither of which grants authority to start an action.
 	LauncherActions []LauncherActionProjection
-	SelectedWork    string
-	SelectedPerson  string
-	Query           string
-	RolePage        int
-	PeoplePage      int
-	PeoplePageSize  int
-	PeopleTeam      string
-	PeopleLocation  string
+	// Announcements is the server-scoped, tenant-admin-authored
+	// announcement stream for broadcast surfaces. It arrives
+	// authorized for the viewing principal; page composition
+	// passes it through GovernAnnouncements, never hand-splits
+	// it. Nil or empty announces nothing.
+	Announcements  []Announcement
+	SelectedWork   string
+	SelectedPerson string
+	Query          string
+	RolePage       int
+	PeoplePage     int
+	PeoplePageSize int
+	PeopleTeam     string
+	PeopleLocation string
+	// PeopleStatus is the raw directory lifecycle opt-in
+	// ("terminated", "on-leave", "all"); empty resolves to the
+	// documented active-only default through
+	// ParsePeopleStatusFilter.
+	PeopleStatus string
 	// PeopleEligibleOnly filters the directory to workers whose
 	// PromotionAvailability resolves to PromotionEligible for the current
 	// viewer, so an authorized reader can find candidates without knowing
@@ -495,31 +541,55 @@ type View struct {
 	JourneyID              string
 	JourneyWorker          string
 	JourneyMode            string
-	NavCollapsed           bool
-	MenuQuery              string
-	FavoritePages          []PageID
+	JourneyList            JourneyListFilter
+	// PublishedWorkflows and WorkflowView are authorized, read-only
+	// projections for the workflow designer. The product layer never parses a
+	// draft or reconstructs runtime state from URLs; adapters populate these
+	// values from the version registry and workflow inspector.
+	PublishedWorkflows      []WorkflowCatalogItem
+	WorkflowPalette         []WorkflowPaletteItem
+	WorkflowView            *workflowview.View
+	WorkflowDraft           *WorkflowDraftView
+	SelectedWorkflowID      string
+	SelectedWorkflowRunID   string
+	SelectedWorkflowDraftID string
+	SelectedWorkflowNodeID  string
+	NavCollapsed            bool
+	MenuQuery               string
+	FavoritePages           []PageID
 	// NavigationGroupOpen contains the authenticated user's server-side
 	// disclosure preferences. Missing entries retain the contextual default.
-	NavigationGroupOpen        map[PageID]bool
-	Locale                     LocaleContext
-	Appearance                 CustomerTheme
-	Accessibility              AccessibilityPreferences
-	PreviewTheme               func(CustomerTheme)
-	SaveTheme                  func(CustomerTheme)
-	ResetTheme                 func()
-	SaveWorkerIDPolicy         func(WorkerIDPolicy)
-	SaveOrganizationVisibility func(OrganizationVisibilityPolicy)
-	SaveAccessRole             func(AccessRole)
-	SaveWorkerRoleAssignment   func(WorkerRoleAssignment)
-	SaveRoleVisibility         func(OrganizationVisibilityPolicy)
-	SaveRolePagePermission     func(RolePagePermission)
-	SaveRoleFeaturePermission  func(RoleFeaturePermission)
-	PreviewAccessibility       func(AccessibilityPreferences)
-	SaveAccessibility          func(AccessibilityPreferences)
-	ResetAccessibility         func()
-	UpdatePeopleDirectory      func(PeopleDirectoryChange)
-	Source                     string
-	LoadError                  string
+	NavigationGroupOpen          map[PageID]bool
+	Locale                       LocaleContext
+	Appearance                   CustomerTheme
+	Accessibility                AccessibilityPreferences
+	PreviewTheme                 func(CustomerTheme)
+	SaveTheme                    func(CustomerTheme)
+	ResetTheme                   func()
+	SaveWorkerIDPolicy           func(WorkerIDPolicy)
+	SaveOrganizationVisibility   func(OrganizationVisibilityPolicy)
+	SaveAccessRole               func(AccessRole)
+	SaveWorkerRoleAssignment     func(WorkerRoleAssignment)
+	SaveRoleVisibility           func(OrganizationVisibilityPolicy)
+	PreviewRoleVisibility        RoleAccessPreviewRequest
+	SaveRolePagePermission       func(RolePagePermission)
+	SaveRoleFeaturePermission    func(RoleFeaturePermission)
+	PreviewAccessibility         func(AccessibilityPreferences)
+	SaveAccessibility            func(AccessibilityPreferences)
+	ResetAccessibility           func()
+	SaveDensity                  func(string)
+	CreateWorkflowDraft          func(WorkflowDraftCreateRequest)
+	InsertWorkflowPaletteEntry   func(WorkflowPaletteItem)
+	UpdateWorkflowDraftNode      func(WorkflowNodeParameterChange)
+	SetWorkflowDraftOutcome      func(WorkflowOutcomeChange)
+	BindWorkflowDraftInput       func(WorkflowInputBindingChange)
+	MoveWorkflowDraftNode        func(WorkflowNodeMove)
+	ApplyWorkflowOverlay         func(WorkflowTemplateOverlayChange)
+	NavigateWorkflowDraftHistory func(string)
+	SelectWorkflowDraftNode      func(string)
+	UpdatePeopleDirectory        func(PeopleDirectoryChange)
+	Source                       string
+	LoadError                    string
 	// Loading is presentation state set only while the route's authorized
 	// database-backed projection is resolving. It never implies authority or
 	// substitutes empty records for an answer from the service.

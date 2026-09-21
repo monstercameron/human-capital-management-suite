@@ -58,7 +58,7 @@ func TestTodo_GOV_030_Security(t *testing.T) {
 	definition, todos := realInputs(t)
 	for index := range definition.Controls {
 		if definition.Controls[index].ID == "F-13" {
-			definition.Controls[index].DeclaredStatus = string(Implemented)
+			definition.Controls[index].DeclaredStatus = string(Missing)
 		}
 	}
 	_, err := Regenerate(definition, todos, nil)

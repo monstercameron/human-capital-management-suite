@@ -2869,6 +2869,2451 @@ func (x *GetWorkflowInstanceResponse) GetEvidenceRef() *v1.EvidenceRef {
 	return nil
 }
 
+// ListLedgerEventsRequest selects one tenant stream for the operator.
+// tenant_id is the ledger tenant UUID string; stream_key names the stream.
+type ListLedgerEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	StreamKey     string                 `protobuf:"bytes,2,opt,name=stream_key,json=streamKey,proto3" json:"stream_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListLedgerEventsRequest) Reset() {
+	*x = ListLedgerEventsRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListLedgerEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListLedgerEventsRequest) ProtoMessage() {}
+
+func (x *ListLedgerEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListLedgerEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListLedgerEventsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *ListLedgerEventsRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *ListLedgerEventsRequest) GetStreamKey() string {
+	if x != nil {
+		return x.StreamKey
+	}
+	return ""
+}
+
+// LedgerEventProfile is one ledger event as the operator may see it. The
+// payload and authority fields are already redacted by
+// internal/operations/explorer for the caller's decision: payload_withheld
+// and subject_withheld carry the typed unavailable states, so an empty
+// payload can never be mistaken for an event with no payload.
+type LedgerEventProfile struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TenantId        string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	StreamKey       string                 `protobuf:"bytes,2,opt,name=stream_key,json=streamKey,proto3" json:"stream_key,omitempty"`
+	Sequence        int64                  `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	EventId         string                 `protobuf:"bytes,4,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	AssertionClass  string                 `protobuf:"bytes,5,opt,name=assertion_class,json=assertionClass,proto3" json:"assertion_class,omitempty"`
+	SchemaRef       string                 `protobuf:"bytes,6,opt,name=schema_ref,json=schemaRef,proto3" json:"schema_ref,omitempty"`
+	Digest          string                 `protobuf:"bytes,7,opt,name=digest,proto3" json:"digest,omitempty"`
+	DigestAlgorithm string                 `protobuf:"bytes,8,opt,name=digest_algorithm,json=digestAlgorithm,proto3" json:"digest_algorithm,omitempty"`
+	OccurredAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	EffectiveAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=effective_at,json=effectiveAt,proto3" json:"effective_at,omitempty"`
+	RecordedAt      *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	CorrelationId   string                 `protobuf:"bytes,12,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
+	IdempotencyKey  string                 `protobuf:"bytes,13,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Authority       string                 `protobuf:"bytes,14,opt,name=authority,proto3" json:"authority,omitempty"`
+	SourceRef       string                 `protobuf:"bytes,15,opt,name=source_ref,json=sourceRef,proto3" json:"source_ref,omitempty"`
+	Payload         []byte                 `protobuf:"bytes,16,opt,name=payload,proto3" json:"payload,omitempty"`
+	ArtifactRef     string                 `protobuf:"bytes,17,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	PayloadWithheld bool                   `protobuf:"varint,18,opt,name=payload_withheld,json=payloadWithheld,proto3" json:"payload_withheld,omitempty"`
+	SubjectWithheld bool                   `protobuf:"varint,19,opt,name=subject_withheld,json=subjectWithheld,proto3" json:"subject_withheld,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *LedgerEventProfile) Reset() {
+	*x = LedgerEventProfile{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LedgerEventProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LedgerEventProfile) ProtoMessage() {}
+
+func (x *LedgerEventProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LedgerEventProfile.ProtoReflect.Descriptor instead.
+func (*LedgerEventProfile) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *LedgerEventProfile) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetStreamKey() string {
+	if x != nil {
+		return x.StreamKey
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetSequence() int64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *LedgerEventProfile) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetAssertionClass() string {
+	if x != nil {
+		return x.AssertionClass
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetSchemaRef() string {
+	if x != nil {
+		return x.SchemaRef
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetDigestAlgorithm() string {
+	if x != nil {
+		return x.DigestAlgorithm
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+func (x *LedgerEventProfile) GetEffectiveAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EffectiveAt
+	}
+	return nil
+}
+
+func (x *LedgerEventProfile) GetRecordedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RecordedAt
+	}
+	return nil
+}
+
+func (x *LedgerEventProfile) GetCorrelationId() string {
+	if x != nil {
+		return x.CorrelationId
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetAuthority() string {
+	if x != nil {
+		return x.Authority
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetSourceRef() string {
+	if x != nil {
+		return x.SourceRef
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *LedgerEventProfile) GetArtifactRef() string {
+	if x != nil {
+		return x.ArtifactRef
+	}
+	return ""
+}
+
+func (x *LedgerEventProfile) GetPayloadWithheld() bool {
+	if x != nil {
+		return x.PayloadWithheld
+	}
+	return false
+}
+
+func (x *LedgerEventProfile) GetSubjectWithheld() bool {
+	if x != nil {
+		return x.SubjectWithheld
+	}
+	return false
+}
+
+type ListLedgerEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*LedgerEventProfile  `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	Digest        string                 `protobuf:"bytes,2,opt,name=digest,proto3" json:"digest,omitempty"`
+	EvidenceRef   *v1.EvidenceRef        `protobuf:"bytes,3,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListLedgerEventsResponse) Reset() {
+	*x = ListLedgerEventsResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListLedgerEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListLedgerEventsResponse) ProtoMessage() {}
+
+func (x *ListLedgerEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListLedgerEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListLedgerEventsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ListLedgerEventsResponse) GetEvents() []*LedgerEventProfile {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *ListLedgerEventsResponse) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *ListLedgerEventsResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+// GetChainVerificationRequest asks the explorer to replay one stream's
+// hash chain from genesis to head.
+type GetChainVerificationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	StreamKey     string                 `protobuf:"bytes,2,opt,name=stream_key,json=streamKey,proto3" json:"stream_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChainVerificationRequest) Reset() {
+	*x = GetChainVerificationRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChainVerificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChainVerificationRequest) ProtoMessage() {}
+
+func (x *GetChainVerificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChainVerificationRequest.ProtoReflect.Descriptor instead.
+func (*GetChainVerificationRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *GetChainVerificationRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *GetChainVerificationRequest) GetStreamKey() string {
+	if x != nil {
+		return x.StreamKey
+	}
+	return ""
+}
+
+type ChainHeadProfile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StreamKey     string                 `protobuf:"bytes,1,opt,name=stream_key,json=streamKey,proto3" json:"stream_key,omitempty"`
+	Sequence      int64                  `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	ChainHash     string                 `protobuf:"bytes,3,opt,name=chain_hash,json=chainHash,proto3" json:"chain_hash,omitempty"`
+	Algorithm     string                 `protobuf:"bytes,4,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChainHeadProfile) Reset() {
+	*x = ChainHeadProfile{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChainHeadProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChainHeadProfile) ProtoMessage() {}
+
+func (x *ChainHeadProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChainHeadProfile.ProtoReflect.Descriptor instead.
+func (*ChainHeadProfile) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ChainHeadProfile) GetStreamKey() string {
+	if x != nil {
+		return x.StreamKey
+	}
+	return ""
+}
+
+func (x *ChainHeadProfile) GetSequence() int64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *ChainHeadProfile) GetChainHash() string {
+	if x != nil {
+		return x.ChainHash
+	}
+	return ""
+}
+
+func (x *ChainHeadProfile) GetAlgorithm() string {
+	if x != nil {
+		return x.Algorithm
+	}
+	return ""
+}
+
+type GetChainVerificationResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	StreamKey      string                 `protobuf:"bytes,1,opt,name=stream_key,json=streamKey,proto3" json:"stream_key,omitempty"`
+	Verified       bool                   `protobuf:"varint,2,opt,name=verified,proto3" json:"verified,omitempty"`
+	Head           *ChainHeadProfile      `protobuf:"bytes,3,opt,name=head,proto3" json:"head,omitempty"`
+	Empty          bool                   `protobuf:"varint,4,opt,name=empty,proto3" json:"empty,omitempty"`
+	BrokenSequence string                 `protobuf:"bytes,5,opt,name=broken_sequence,json=brokenSequence,proto3" json:"broken_sequence,omitempty"`
+	BrokenReason   string                 `protobuf:"bytes,6,opt,name=broken_reason,json=brokenReason,proto3" json:"broken_reason,omitempty"`
+	EvidenceRef    *v1.EvidenceRef        `protobuf:"bytes,7,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetChainVerificationResponse) Reset() {
+	*x = GetChainVerificationResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChainVerificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChainVerificationResponse) ProtoMessage() {}
+
+func (x *GetChainVerificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChainVerificationResponse.ProtoReflect.Descriptor instead.
+func (*GetChainVerificationResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetChainVerificationResponse) GetStreamKey() string {
+	if x != nil {
+		return x.StreamKey
+	}
+	return ""
+}
+
+func (x *GetChainVerificationResponse) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *GetChainVerificationResponse) GetHead() *ChainHeadProfile {
+	if x != nil {
+		return x.Head
+	}
+	return nil
+}
+
+func (x *GetChainVerificationResponse) GetEmpty() bool {
+	if x != nil {
+		return x.Empty
+	}
+	return false
+}
+
+func (x *GetChainVerificationResponse) GetBrokenSequence() string {
+	if x != nil {
+		return x.BrokenSequence
+	}
+	return ""
+}
+
+func (x *GetChainVerificationResponse) GetBrokenReason() string {
+	if x != nil {
+		return x.BrokenReason
+	}
+	return ""
+}
+
+func (x *GetChainVerificationResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+// SimulateAuthorizationRequest asks what the caller's own principal may do
+// with one subject. The principal always comes from the caller's credential:
+// the request only names the subject, the purpose, the fields and the policy
+// version label it is simulated against.
+type SimulateAuthorizationRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	SubjectTenantId string                 `protobuf:"bytes,1,opt,name=subject_tenant_id,json=subjectTenantId,proto3" json:"subject_tenant_id,omitempty"`
+	SubjectKind     string                 `protobuf:"bytes,2,opt,name=subject_kind,json=subjectKind,proto3" json:"subject_kind,omitempty"`
+	SubjectId       string                 `protobuf:"bytes,3,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	Purpose         string                 `protobuf:"bytes,4,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Fields          []string               `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
+	PolicyVersion   string                 `protobuf:"bytes,6,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SimulateAuthorizationRequest) Reset() {
+	*x = SimulateAuthorizationRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SimulateAuthorizationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SimulateAuthorizationRequest) ProtoMessage() {}
+
+func (x *SimulateAuthorizationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SimulateAuthorizationRequest.ProtoReflect.Descriptor instead.
+func (*SimulateAuthorizationRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *SimulateAuthorizationRequest) GetSubjectTenantId() string {
+	if x != nil {
+		return x.SubjectTenantId
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationRequest) GetSubjectKind() string {
+	if x != nil {
+		return x.SubjectKind
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationRequest) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationRequest) GetFields() []string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *SimulateAuthorizationRequest) GetPolicyVersion() string {
+	if x != nil {
+		return x.PolicyVersion
+	}
+	return ""
+}
+
+type SimulateAuthorizationResponse struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	SubjectDisclosable bool                   `protobuf:"varint,1,opt,name=subject_disclosable,json=subjectDisclosable,proto3" json:"subject_disclosable,omitempty"`
+	DenialReason       string                 `protobuf:"bytes,2,opt,name=denial_reason,json=denialReason,proto3" json:"denial_reason,omitempty"`
+	TenantEffect       string                 `protobuf:"bytes,3,opt,name=tenant_effect,json=tenantEffect,proto3" json:"tenant_effect,omitempty"`
+	ScopeEffect        string                 `protobuf:"bytes,4,opt,name=scope_effect,json=scopeEffect,proto3" json:"scope_effect,omitempty"`
+	FieldRulings       map[string]string      `protobuf:"bytes,5,rep,name=field_rulings,json=fieldRulings,proto3" json:"field_rulings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	MatchedRules       []string               `protobuf:"bytes,6,rep,name=matched_rules,json=matchedRules,proto3" json:"matched_rules,omitempty"`
+	PolicyVersionMatch bool                   `protobuf:"varint,7,opt,name=policy_version_match,json=policyVersionMatch,proto3" json:"policy_version_match,omitempty"`
+	Explanation        string                 `protobuf:"bytes,8,opt,name=explanation,proto3" json:"explanation,omitempty"`
+	Digest             string                 `protobuf:"bytes,9,opt,name=digest,proto3" json:"digest,omitempty"`
+	EvidenceRef        *v1.EvidenceRef        `protobuf:"bytes,10,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *SimulateAuthorizationResponse) Reset() {
+	*x = SimulateAuthorizationResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SimulateAuthorizationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SimulateAuthorizationResponse) ProtoMessage() {}
+
+func (x *SimulateAuthorizationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SimulateAuthorizationResponse.ProtoReflect.Descriptor instead.
+func (*SimulateAuthorizationResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *SimulateAuthorizationResponse) GetSubjectDisclosable() bool {
+	if x != nil {
+		return x.SubjectDisclosable
+	}
+	return false
+}
+
+func (x *SimulateAuthorizationResponse) GetDenialReason() string {
+	if x != nil {
+		return x.DenialReason
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationResponse) GetTenantEffect() string {
+	if x != nil {
+		return x.TenantEffect
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationResponse) GetScopeEffect() string {
+	if x != nil {
+		return x.ScopeEffect
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationResponse) GetFieldRulings() map[string]string {
+	if x != nil {
+		return x.FieldRulings
+	}
+	return nil
+}
+
+func (x *SimulateAuthorizationResponse) GetMatchedRules() []string {
+	if x != nil {
+		return x.MatchedRules
+	}
+	return nil
+}
+
+func (x *SimulateAuthorizationResponse) GetPolicyVersionMatch() bool {
+	if x != nil {
+		return x.PolicyVersionMatch
+	}
+	return false
+}
+
+func (x *SimulateAuthorizationResponse) GetExplanation() string {
+	if x != nil {
+		return x.Explanation
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationResponse) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *SimulateAuthorizationResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+// ConfigDependency pins one component a config bundle was compiled against.
+type ConfigDependency struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Digest        string                 `protobuf:"bytes,4,opt,name=digest,proto3" json:"digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigDependency) Reset() {
+	*x = ConfigDependency{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigDependency) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigDependency) ProtoMessage() {}
+
+func (x *ConfigDependency) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigDependency.ProtoReflect.Descriptor instead.
+func (*ConfigDependency) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *ConfigDependency) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ConfigDependency) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ConfigDependency) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ConfigDependency) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+// ConfigBundle is one immutable, scope-bound configuration bundle.
+type ConfigBundle struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	BundleId              string                 `protobuf:"bytes,1,opt,name=bundle_id,json=bundleId,proto3" json:"bundle_id,omitempty"`
+	ManifestVersion       uint32                 `protobuf:"varint,2,opt,name=manifest_version,json=manifestVersion,proto3" json:"manifest_version,omitempty"`
+	Dependencies          []*ConfigDependency    `protobuf:"bytes,3,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
+	CompatibilityRange    string                 `protobuf:"bytes,4,opt,name=compatibility_range,json=compatibilityRange,proto3" json:"compatibility_range,omitempty"`
+	Signer                string                 `protobuf:"bytes,5,opt,name=signer,proto3" json:"signer,omitempty"`
+	Provenance            string                 `protobuf:"bytes,6,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	CredentialRefs        []string               `protobuf:"bytes,7,rep,name=credential_refs,json=credentialRefs,proto3" json:"credential_refs,omitempty"`
+	TargetScope           string                 `protobuf:"bytes,8,opt,name=target_scope,json=targetScope,proto3" json:"target_scope,omitempty"`
+	MinimumRuntimeVersion string                 `protobuf:"bytes,9,opt,name=minimum_runtime_version,json=minimumRuntimeVersion,proto3" json:"minimum_runtime_version,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ConfigBundle) Reset() {
+	*x = ConfigBundle{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigBundle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigBundle) ProtoMessage() {}
+
+func (x *ConfigBundle) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigBundle.ProtoReflect.Descriptor instead.
+func (*ConfigBundle) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ConfigBundle) GetBundleId() string {
+	if x != nil {
+		return x.BundleId
+	}
+	return ""
+}
+
+func (x *ConfigBundle) GetManifestVersion() uint32 {
+	if x != nil {
+		return x.ManifestVersion
+	}
+	return 0
+}
+
+func (x *ConfigBundle) GetDependencies() []*ConfigDependency {
+	if x != nil {
+		return x.Dependencies
+	}
+	return nil
+}
+
+func (x *ConfigBundle) GetCompatibilityRange() string {
+	if x != nil {
+		return x.CompatibilityRange
+	}
+	return ""
+}
+
+func (x *ConfigBundle) GetSigner() string {
+	if x != nil {
+		return x.Signer
+	}
+	return ""
+}
+
+func (x *ConfigBundle) GetProvenance() string {
+	if x != nil {
+		return x.Provenance
+	}
+	return ""
+}
+
+func (x *ConfigBundle) GetCredentialRefs() []string {
+	if x != nil {
+		return x.CredentialRefs
+	}
+	return nil
+}
+
+func (x *ConfigBundle) GetTargetScope() string {
+	if x != nil {
+		return x.TargetScope
+	}
+	return ""
+}
+
+func (x *ConfigBundle) GetMinimumRuntimeVersion() string {
+	if x != nil {
+		return x.MinimumRuntimeVersion
+	}
+	return ""
+}
+
+type ConfigSignedBundle struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bundle        *ConfigBundle          `protobuf:"bytes,1,opt,name=bundle,proto3" json:"bundle,omitempty"`
+	Digest        string                 `protobuf:"bytes,2,opt,name=digest,proto3" json:"digest,omitempty"`
+	SignerKeyId   string                 `protobuf:"bytes,3,opt,name=signer_key_id,json=signerKeyId,proto3" json:"signer_key_id,omitempty"`
+	Signature     string                 `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigSignedBundle) Reset() {
+	*x = ConfigSignedBundle{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigSignedBundle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigSignedBundle) ProtoMessage() {}
+
+func (x *ConfigSignedBundle) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigSignedBundle.ProtoReflect.Descriptor instead.
+func (*ConfigSignedBundle) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ConfigSignedBundle) GetBundle() *ConfigBundle {
+	if x != nil {
+		return x.Bundle
+	}
+	return nil
+}
+
+func (x *ConfigSignedBundle) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *ConfigSignedBundle) GetSignerKeyId() string {
+	if x != nil {
+		return x.SignerKeyId
+	}
+	return ""
+}
+
+func (x *ConfigSignedBundle) GetSignature() string {
+	if x != nil {
+		return x.Signature
+	}
+	return ""
+}
+
+// ConfigPackage is one promotable unit: a signed bundle for one
+// environment plus the key that authorizes it.
+type ConfigPackage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Environment   string                 `protobuf:"bytes,2,opt,name=environment,proto3" json:"environment,omitempty"`
+	Bundle        *ConfigSignedBundle    `protobuf:"bytes,3,opt,name=bundle,proto3" json:"bundle,omitempty"`
+	PublicKey     []byte                 `protobuf:"bytes,4,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigPackage) Reset() {
+	*x = ConfigPackage{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigPackage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigPackage) ProtoMessage() {}
+
+func (x *ConfigPackage) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigPackage.ProtoReflect.Descriptor instead.
+func (*ConfigPackage) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ConfigPackage) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ConfigPackage) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *ConfigPackage) GetBundle() *ConfigSignedBundle {
+	if x != nil {
+		return x.Bundle
+	}
+	return nil
+}
+
+func (x *ConfigPackage) GetPublicKey() []byte {
+	if x != nil {
+		return x.PublicKey
+	}
+	return nil
+}
+
+// ConfigRecordProfile is one promotion record as the operator may see it.
+type ConfigRecordProfile struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Environment    string                 `protobuf:"bytes,2,opt,name=environment,proto3" json:"environment,omitempty"`
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Digest         string                 `protobuf:"bytes,4,opt,name=digest,proto3" json:"digest,omitempty"`
+	Validated      bool                   `protobuf:"varint,5,opt,name=validated,proto3" json:"validated,omitempty"`
+	Simulated      bool                   `protobuf:"varint,6,opt,name=simulated,proto3" json:"simulated,omitempty"`
+	Approved       bool                   `protobuf:"varint,7,opt,name=approved,proto3" json:"approved,omitempty"`
+	Approver       string                 `protobuf:"bytes,8,opt,name=approver,proto3" json:"approver,omitempty"`
+	RollbackTo     string                 `protobuf:"bytes,9,opt,name=rollback_to,json=rollbackTo,proto3" json:"rollback_to,omitempty"`
+	EvidenceDigest string                 `protobuf:"bytes,10,opt,name=evidence_digest,json=evidenceDigest,proto3" json:"evidence_digest,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ConfigRecordProfile) Reset() {
+	*x = ConfigRecordProfile{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigRecordProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigRecordProfile) ProtoMessage() {}
+
+func (x *ConfigRecordProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigRecordProfile.ProtoReflect.Descriptor instead.
+func (*ConfigRecordProfile) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ConfigRecordProfile) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ConfigRecordProfile) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *ConfigRecordProfile) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ConfigRecordProfile) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *ConfigRecordProfile) GetValidated() bool {
+	if x != nil {
+		return x.Validated
+	}
+	return false
+}
+
+func (x *ConfigRecordProfile) GetSimulated() bool {
+	if x != nil {
+		return x.Simulated
+	}
+	return false
+}
+
+func (x *ConfigRecordProfile) GetApproved() bool {
+	if x != nil {
+		return x.Approved
+	}
+	return false
+}
+
+func (x *ConfigRecordProfile) GetApprover() string {
+	if x != nil {
+		return x.Approver
+	}
+	return ""
+}
+
+func (x *ConfigRecordProfile) GetRollbackTo() string {
+	if x != nil {
+		return x.RollbackTo
+	}
+	return ""
+}
+
+func (x *ConfigRecordProfile) GetEvidenceDigest() string {
+	if x != nil {
+		return x.EvidenceDigest
+	}
+	return ""
+}
+
+type ConfigInspectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Environment   string                 `protobuf:"bytes,2,opt,name=environment,proto3" json:"environment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigInspectRequest) Reset() {
+	*x = ConfigInspectRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigInspectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigInspectRequest) ProtoMessage() {}
+
+func (x *ConfigInspectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigInspectRequest.ProtoReflect.Descriptor instead.
+func (*ConfigInspectRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ConfigInspectRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ConfigInspectRequest) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+type ConfigInspectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Records       []*ConfigRecordProfile `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	EvidenceRef   *v1.EvidenceRef        `protobuf:"bytes,2,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigInspectResponse) Reset() {
+	*x = ConfigInspectResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigInspectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigInspectResponse) ProtoMessage() {}
+
+func (x *ConfigInspectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigInspectResponse.ProtoReflect.Descriptor instead.
+func (*ConfigInspectResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *ConfigInspectResponse) GetRecords() []*ConfigRecordProfile {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
+func (x *ConfigInspectResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+type ConfigTestRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Package       *ConfigPackage         `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigTestRequest) Reset() {
+	*x = ConfigTestRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigTestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigTestRequest) ProtoMessage() {}
+
+func (x *ConfigTestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigTestRequest.ProtoReflect.Descriptor instead.
+func (*ConfigTestRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ConfigTestRequest) GetPackage() *ConfigPackage {
+	if x != nil {
+		return x.Package
+	}
+	return nil
+}
+
+type ConfigTestResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Digest        string                 `protobuf:"bytes,2,opt,name=digest,proto3" json:"digest,omitempty"`
+	Compatible    bool                   `protobuf:"varint,3,opt,name=compatible,proto3" json:"compatible,omitempty"`
+	EvidenceRef   *v1.EvidenceRef        `protobuf:"bytes,4,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigTestResponse) Reset() {
+	*x = ConfigTestResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigTestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigTestResponse) ProtoMessage() {}
+
+func (x *ConfigTestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigTestResponse.ProtoReflect.Descriptor instead.
+func (*ConfigTestResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ConfigTestResponse) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *ConfigTestResponse) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *ConfigTestResponse) GetCompatible() bool {
+	if x != nil {
+		return x.Compatible
+	}
+	return false
+}
+
+func (x *ConfigTestResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+type ConfigRedriveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigRedriveRequest) Reset() {
+	*x = ConfigRedriveRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigRedriveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigRedriveRequest) ProtoMessage() {}
+
+func (x *ConfigRedriveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigRedriveRequest.ProtoReflect.Descriptor instead.
+func (*ConfigRedriveRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *ConfigRedriveRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ConfigRedriveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Digest        string                 `protobuf:"bytes,2,opt,name=digest,proto3" json:"digest,omitempty"`
+	Passed        bool                   `protobuf:"varint,3,opt,name=passed,proto3" json:"passed,omitempty"`
+	EvidenceRef   *v1.EvidenceRef        `protobuf:"bytes,4,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigRedriveResponse) Reset() {
+	*x = ConfigRedriveResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigRedriveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigRedriveResponse) ProtoMessage() {}
+
+func (x *ConfigRedriveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigRedriveResponse.ProtoReflect.Descriptor instead.
+func (*ConfigRedriveResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *ConfigRedriveResponse) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *ConfigRedriveResponse) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *ConfigRedriveResponse) GetPassed() bool {
+	if x != nil {
+		return x.Passed
+	}
+	return false
+}
+
+func (x *ConfigRedriveResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+// ConfigSnapshotEntry is one configuration entry. Secret entries carry a
+// fingerprint instead of a value: raw secret material never crosses this
+// surface.
+type ConfigSnapshotEntry struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Key               string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Kind              string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Value             string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Explicit          bool                   `protobuf:"varint,4,opt,name=explicit,proto3" json:"explicit,omitempty"`
+	Semantic          string                 `protobuf:"bytes,5,opt,name=semantic,proto3" json:"semantic,omitempty"`
+	SecretFingerprint string                 `protobuf:"bytes,6,opt,name=secret_fingerprint,json=secretFingerprint,proto3" json:"secret_fingerprint,omitempty"`
+	RefCapabilities   []string               `protobuf:"bytes,7,rep,name=ref_capabilities,json=refCapabilities,proto3" json:"ref_capabilities,omitempty"`
+	RefWorkflows      []string               `protobuf:"bytes,8,rep,name=ref_workflows,json=refWorkflows,proto3" json:"ref_workflows,omitempty"`
+	RefTenants        []string               `protobuf:"bytes,9,rep,name=ref_tenants,json=refTenants,proto3" json:"ref_tenants,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ConfigSnapshotEntry) Reset() {
+	*x = ConfigSnapshotEntry{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigSnapshotEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigSnapshotEntry) ProtoMessage() {}
+
+func (x *ConfigSnapshotEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigSnapshotEntry.ProtoReflect.Descriptor instead.
+func (*ConfigSnapshotEntry) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *ConfigSnapshotEntry) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ConfigSnapshotEntry) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ConfigSnapshotEntry) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *ConfigSnapshotEntry) GetExplicit() bool {
+	if x != nil {
+		return x.Explicit
+	}
+	return false
+}
+
+func (x *ConfigSnapshotEntry) GetSemantic() string {
+	if x != nil {
+		return x.Semantic
+	}
+	return ""
+}
+
+func (x *ConfigSnapshotEntry) GetSecretFingerprint() string {
+	if x != nil {
+		return x.SecretFingerprint
+	}
+	return ""
+}
+
+func (x *ConfigSnapshotEntry) GetRefCapabilities() []string {
+	if x != nil {
+		return x.RefCapabilities
+	}
+	return nil
+}
+
+func (x *ConfigSnapshotEntry) GetRefWorkflows() []string {
+	if x != nil {
+		return x.RefWorkflows
+	}
+	return nil
+}
+
+func (x *ConfigSnapshotEntry) GetRefTenants() []string {
+	if x != nil {
+		return x.RefTenants
+	}
+	return nil
+}
+
+type ConfigSnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Entries       []*ConfigSnapshotEntry `protobuf:"bytes,3,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigSnapshot) Reset() {
+	*x = ConfigSnapshot{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigSnapshot) ProtoMessage() {}
+
+func (x *ConfigSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigSnapshot.ProtoReflect.Descriptor instead.
+func (*ConfigSnapshot) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *ConfigSnapshot) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetEntries() []*ConfigSnapshotEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type ConfigDiffRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Before        *ConfigSnapshot        `protobuf:"bytes,1,opt,name=before,proto3" json:"before,omitempty"`
+	After         *ConfigSnapshot        `protobuf:"bytes,2,opt,name=after,proto3" json:"after,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigDiffRequest) Reset() {
+	*x = ConfigDiffRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigDiffRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigDiffRequest) ProtoMessage() {}
+
+func (x *ConfigDiffRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigDiffRequest.ProtoReflect.Descriptor instead.
+func (*ConfigDiffRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ConfigDiffRequest) GetBefore() *ConfigSnapshot {
+	if x != nil {
+		return x.Before
+	}
+	return nil
+}
+
+func (x *ConfigDiffRequest) GetAfter() *ConfigSnapshot {
+	if x != nil {
+		return x.After
+	}
+	return nil
+}
+
+type ConfigDiffChange struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Key                      string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Kind                     string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Compatibility            string                 `protobuf:"bytes,3,opt,name=compatibility,proto3" json:"compatibility,omitempty"`
+	BeforeValue              string                 `protobuf:"bytes,4,opt,name=before_value,json=beforeValue,proto3" json:"before_value,omitempty"`
+	AfterValue               string                 `protobuf:"bytes,5,opt,name=after_value,json=afterValue,proto3" json:"after_value,omitempty"`
+	SecretFingerprintChanged bool                   `protobuf:"varint,6,opt,name=secret_fingerprint_changed,json=secretFingerprintChanged,proto3" json:"secret_fingerprint_changed,omitempty"`
+	ImpactedCapabilities     []string               `protobuf:"bytes,7,rep,name=impacted_capabilities,json=impactedCapabilities,proto3" json:"impacted_capabilities,omitempty"`
+	ImpactedWorkflows        []string               `protobuf:"bytes,8,rep,name=impacted_workflows,json=impactedWorkflows,proto3" json:"impacted_workflows,omitempty"`
+	ImpactedTenants          []string               `protobuf:"bytes,9,rep,name=impacted_tenants,json=impactedTenants,proto3" json:"impacted_tenants,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ConfigDiffChange) Reset() {
+	*x = ConfigDiffChange{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigDiffChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigDiffChange) ProtoMessage() {}
+
+func (x *ConfigDiffChange) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigDiffChange.ProtoReflect.Descriptor instead.
+func (*ConfigDiffChange) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ConfigDiffChange) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ConfigDiffChange) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ConfigDiffChange) GetCompatibility() string {
+	if x != nil {
+		return x.Compatibility
+	}
+	return ""
+}
+
+func (x *ConfigDiffChange) GetBeforeValue() string {
+	if x != nil {
+		return x.BeforeValue
+	}
+	return ""
+}
+
+func (x *ConfigDiffChange) GetAfterValue() string {
+	if x != nil {
+		return x.AfterValue
+	}
+	return ""
+}
+
+func (x *ConfigDiffChange) GetSecretFingerprintChanged() bool {
+	if x != nil {
+		return x.SecretFingerprintChanged
+	}
+	return false
+}
+
+func (x *ConfigDiffChange) GetImpactedCapabilities() []string {
+	if x != nil {
+		return x.ImpactedCapabilities
+	}
+	return nil
+}
+
+func (x *ConfigDiffChange) GetImpactedWorkflows() []string {
+	if x != nil {
+		return x.ImpactedWorkflows
+	}
+	return nil
+}
+
+func (x *ConfigDiffChange) GetImpactedTenants() []string {
+	if x != nil {
+		return x.ImpactedTenants
+	}
+	return nil
+}
+
+type ConfigDiffResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Added         []*ConfigDiffChange    `protobuf:"bytes,1,rep,name=added,proto3" json:"added,omitempty"`
+	Removed       []*ConfigDiffChange    `protobuf:"bytes,2,rep,name=removed,proto3" json:"removed,omitempty"`
+	Changed       []*ConfigDiffChange    `protobuf:"bytes,3,rep,name=changed,proto3" json:"changed,omitempty"`
+	Digest        string                 `protobuf:"bytes,4,opt,name=digest,proto3" json:"digest,omitempty"`
+	EvidenceRef   *v1.EvidenceRef        `protobuf:"bytes,5,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigDiffResponse) Reset() {
+	*x = ConfigDiffResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigDiffResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigDiffResponse) ProtoMessage() {}
+
+func (x *ConfigDiffResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigDiffResponse.ProtoReflect.Descriptor instead.
+func (*ConfigDiffResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *ConfigDiffResponse) GetAdded() []*ConfigDiffChange {
+	if x != nil {
+		return x.Added
+	}
+	return nil
+}
+
+func (x *ConfigDiffResponse) GetRemoved() []*ConfigDiffChange {
+	if x != nil {
+		return x.Removed
+	}
+	return nil
+}
+
+func (x *ConfigDiffResponse) GetChanged() []*ConfigDiffChange {
+	if x != nil {
+		return x.Changed
+	}
+	return nil
+}
+
+func (x *ConfigDiffResponse) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *ConfigDiffResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+type ConfigReconcileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Environment   string                 `protobuf:"bytes,1,opt,name=environment,proto3" json:"environment,omitempty"`
+	Live          *ConfigSnapshot        `protobuf:"bytes,2,opt,name=live,proto3" json:"live,omitempty"`
+	Desired       *ConfigSnapshot        `protobuf:"bytes,3,opt,name=desired,proto3" json:"desired,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigReconcileRequest) Reset() {
+	*x = ConfigReconcileRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigReconcileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigReconcileRequest) ProtoMessage() {}
+
+func (x *ConfigReconcileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigReconcileRequest.ProtoReflect.Descriptor instead.
+func (*ConfigReconcileRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *ConfigReconcileRequest) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *ConfigReconcileRequest) GetLive() *ConfigSnapshot {
+	if x != nil {
+		return x.Live
+	}
+	return nil
+}
+
+func (x *ConfigReconcileRequest) GetDesired() *ConfigSnapshot {
+	if x != nil {
+		return x.Desired
+	}
+	return nil
+}
+
+type ConfigReconcileResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Environment     string                 `protobuf:"bytes,1,opt,name=environment,proto3" json:"environment,omitempty"`
+	InSync          bool                   `protobuf:"varint,2,opt,name=in_sync,json=inSync,proto3" json:"in_sync,omitempty"`
+	BreakingChanges bool                   `protobuf:"varint,3,opt,name=breaking_changes,json=breakingChanges,proto3" json:"breaking_changes,omitempty"`
+	Added           int32                  `protobuf:"varint,4,opt,name=added,proto3" json:"added,omitempty"`
+	Removed         int32                  `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
+	Changed         int32                  `protobuf:"varint,6,opt,name=changed,proto3" json:"changed,omitempty"`
+	Digest          string                 `protobuf:"bytes,7,opt,name=digest,proto3" json:"digest,omitempty"`
+	EvidenceRef     *v1.EvidenceRef        `protobuf:"bytes,8,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ConfigReconcileResponse) Reset() {
+	*x = ConfigReconcileResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigReconcileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigReconcileResponse) ProtoMessage() {}
+
+func (x *ConfigReconcileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigReconcileResponse.ProtoReflect.Descriptor instead.
+func (*ConfigReconcileResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *ConfigReconcileResponse) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *ConfigReconcileResponse) GetInSync() bool {
+	if x != nil {
+		return x.InSync
+	}
+	return false
+}
+
+func (x *ConfigReconcileResponse) GetBreakingChanges() bool {
+	if x != nil {
+		return x.BreakingChanges
+	}
+	return false
+}
+
+func (x *ConfigReconcileResponse) GetAdded() int32 {
+	if x != nil {
+		return x.Added
+	}
+	return 0
+}
+
+func (x *ConfigReconcileResponse) GetRemoved() int32 {
+	if x != nil {
+		return x.Removed
+	}
+	return 0
+}
+
+func (x *ConfigReconcileResponse) GetChanged() int32 {
+	if x != nil {
+		return x.Changed
+	}
+	return 0
+}
+
+func (x *ConfigReconcileResponse) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *ConfigReconcileResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+type ConfigSimulateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigSimulateRequest) Reset() {
+	*x = ConfigSimulateRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigSimulateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigSimulateRequest) ProtoMessage() {}
+
+func (x *ConfigSimulateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigSimulateRequest.ProtoReflect.Descriptor instead.
+func (*ConfigSimulateRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *ConfigSimulateRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ConfigSimulateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Digest        string                 `protobuf:"bytes,2,opt,name=digest,proto3" json:"digest,omitempty"`
+	Compatible    bool                   `protobuf:"varint,3,opt,name=compatible,proto3" json:"compatible,omitempty"`
+	Passed        bool                   `protobuf:"varint,4,opt,name=passed,proto3" json:"passed,omitempty"`
+	EvidenceRef   *v1.EvidenceRef        `protobuf:"bytes,5,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigSimulateResponse) Reset() {
+	*x = ConfigSimulateResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigSimulateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigSimulateResponse) ProtoMessage() {}
+
+func (x *ConfigSimulateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigSimulateResponse.ProtoReflect.Descriptor instead.
+func (*ConfigSimulateResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *ConfigSimulateResponse) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *ConfigSimulateResponse) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *ConfigSimulateResponse) GetCompatible() bool {
+	if x != nil {
+		return x.Compatible
+	}
+	return false
+}
+
+func (x *ConfigSimulateResponse) GetPassed() bool {
+	if x != nil {
+		return x.Passed
+	}
+	return false
+}
+
+func (x *ConfigSimulateResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+type ConfigPromoteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Confirm       bool                   `protobuf:"varint,2,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigPromoteRequest) Reset() {
+	*x = ConfigPromoteRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigPromoteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigPromoteRequest) ProtoMessage() {}
+
+func (x *ConfigPromoteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigPromoteRequest.ProtoReflect.Descriptor instead.
+func (*ConfigPromoteRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *ConfigPromoteRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ConfigPromoteRequest) GetConfirm() bool {
+	if x != nil {
+		return x.Confirm
+	}
+	return false
+}
+
+type ConfigPromoteResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PackageId      string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Environment    string                 `protobuf:"bytes,2,opt,name=environment,proto3" json:"environment,omitempty"`
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Approver       string                 `protobuf:"bytes,4,opt,name=approver,proto3" json:"approver,omitempty"`
+	EvidenceDigest string                 `protobuf:"bytes,5,opt,name=evidence_digest,json=evidenceDigest,proto3" json:"evidence_digest,omitempty"`
+	EvidenceRef    *v1.EvidenceRef        `protobuf:"bytes,6,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ConfigPromoteResponse) Reset() {
+	*x = ConfigPromoteResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigPromoteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigPromoteResponse) ProtoMessage() {}
+
+func (x *ConfigPromoteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigPromoteResponse.ProtoReflect.Descriptor instead.
+func (*ConfigPromoteResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *ConfigPromoteResponse) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *ConfigPromoteResponse) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *ConfigPromoteResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ConfigPromoteResponse) GetApprover() string {
+	if x != nil {
+		return x.Approver
+	}
+	return ""
+}
+
+func (x *ConfigPromoteResponse) GetEvidenceDigest() string {
+	if x != nil {
+		return x.EvidenceDigest
+	}
+	return ""
+}
+
+func (x *ConfigPromoteResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
+type ConfigRollbackRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Environment   string                 `protobuf:"bytes,1,opt,name=environment,proto3" json:"environment,omitempty"`
+	Confirm       bool                   `protobuf:"varint,2,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigRollbackRequest) Reset() {
+	*x = ConfigRollbackRequest{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigRollbackRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigRollbackRequest) ProtoMessage() {}
+
+func (x *ConfigRollbackRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigRollbackRequest.ProtoReflect.Descriptor instead.
+func (*ConfigRollbackRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *ConfigRollbackRequest) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *ConfigRollbackRequest) GetConfirm() bool {
+	if x != nil {
+		return x.Confirm
+	}
+	return false
+}
+
+type ConfigRollbackResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PackageId      string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Environment    string                 `protobuf:"bytes,2,opt,name=environment,proto3" json:"environment,omitempty"`
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	RollbackTo     string                 `protobuf:"bytes,4,opt,name=rollback_to,json=rollbackTo,proto3" json:"rollback_to,omitempty"`
+	EvidenceDigest string                 `protobuf:"bytes,5,opt,name=evidence_digest,json=evidenceDigest,proto3" json:"evidence_digest,omitempty"`
+	EvidenceRef    *v1.EvidenceRef        `protobuf:"bytes,6,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ConfigRollbackResponse) Reset() {
+	*x = ConfigRollbackResponse{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigRollbackResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigRollbackResponse) ProtoMessage() {}
+
+func (x *ConfigRollbackResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigRollbackResponse.ProtoReflect.Descriptor instead.
+func (*ConfigRollbackResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *ConfigRollbackResponse) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *ConfigRollbackResponse) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *ConfigRollbackResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ConfigRollbackResponse) GetRollbackTo() string {
+	if x != nil {
+		return x.RollbackTo
+	}
+	return ""
+}
+
+func (x *ConfigRollbackResponse) GetEvidenceDigest() string {
+	if x != nil {
+		return x.EvidenceDigest
+	}
+	return ""
+}
+
+func (x *ConfigRollbackResponse) GetEvidenceRef() *v1.EvidenceRef {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return nil
+}
+
 var File_hcmnext_admin_v1_admin_service_proto protoreflect.FileDescriptor
 
 const file_hcmnext_admin_v1_admin_service_proto_rawDesc = "" +
@@ -3149,14 +5594,251 @@ const file_hcmnext_admin_v1_admin_service_proto_rawDesc = "" +
 	"redactions\x18\v \x03(\tR\n" +
 	"redactions\x12\x12\n" +
 	"\x04gaps\x18\f \x03(\tR\x04gaps\x12A\n" +
-	"\fevidence_ref\x18\r \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef2\xa2\x05\n" +
+	"\fevidence_ref\x18\r \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"U\n" +
+	"\x17ListLedgerEventsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"stream_key\x18\x02 \x01(\tR\tstreamKey\"\xeb\x05\n" +
+	"\x12LedgerEventProfile\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"stream_key\x18\x02 \x01(\tR\tstreamKey\x12\x1a\n" +
+	"\bsequence\x18\x03 \x01(\x03R\bsequence\x12\x19\n" +
+	"\bevent_id\x18\x04 \x01(\tR\aeventId\x12'\n" +
+	"\x0fassertion_class\x18\x05 \x01(\tR\x0eassertionClass\x12\x1d\n" +
+	"\n" +
+	"schema_ref\x18\x06 \x01(\tR\tschemaRef\x12\x16\n" +
+	"\x06digest\x18\a \x01(\tR\x06digest\x12)\n" +
+	"\x10digest_algorithm\x18\b \x01(\tR\x0fdigestAlgorithm\x12;\n" +
+	"\voccurred_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\x12=\n" +
+	"\feffective_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\veffectiveAt\x12;\n" +
+	"\vrecorded_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"recordedAt\x12%\n" +
+	"\x0ecorrelation_id\x18\f \x01(\tR\rcorrelationId\x12'\n" +
+	"\x0fidempotency_key\x18\r \x01(\tR\x0eidempotencyKey\x12\x1c\n" +
+	"\tauthority\x18\x0e \x01(\tR\tauthority\x12\x1d\n" +
+	"\n" +
+	"source_ref\x18\x0f \x01(\tR\tsourceRef\x12\x18\n" +
+	"\apayload\x18\x10 \x01(\fR\apayload\x12!\n" +
+	"\fartifact_ref\x18\x11 \x01(\tR\vartifactRef\x12)\n" +
+	"\x10payload_withheld\x18\x12 \x01(\bR\x0fpayloadWithheld\x12)\n" +
+	"\x10subject_withheld\x18\x13 \x01(\bR\x0fsubjectWithheld\"\xb3\x01\n" +
+	"\x18ListLedgerEventsResponse\x12<\n" +
+	"\x06events\x18\x01 \x03(\v2$.hcmnext.admin.v1.LedgerEventProfileR\x06events\x12\x16\n" +
+	"\x06digest\x18\x02 \x01(\tR\x06digest\x12A\n" +
+	"\fevidence_ref\x18\x03 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"Y\n" +
+	"\x1bGetChainVerificationRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"stream_key\x18\x02 \x01(\tR\tstreamKey\"\x8a\x01\n" +
+	"\x10ChainHeadProfile\x12\x1d\n" +
+	"\n" +
+	"stream_key\x18\x01 \x01(\tR\tstreamKey\x12\x1a\n" +
+	"\bsequence\x18\x02 \x01(\x03R\bsequence\x12\x1d\n" +
+	"\n" +
+	"chain_hash\x18\x03 \x01(\tR\tchainHash\x12\x1c\n" +
+	"\talgorithm\x18\x04 \x01(\tR\talgorithm\"\xb8\x02\n" +
+	"\x1cGetChainVerificationResponse\x12\x1d\n" +
+	"\n" +
+	"stream_key\x18\x01 \x01(\tR\tstreamKey\x12\x1a\n" +
+	"\bverified\x18\x02 \x01(\bR\bverified\x126\n" +
+	"\x04head\x18\x03 \x01(\v2\".hcmnext.admin.v1.ChainHeadProfileR\x04head\x12\x14\n" +
+	"\x05empty\x18\x04 \x01(\bR\x05empty\x12'\n" +
+	"\x0fbroken_sequence\x18\x05 \x01(\tR\x0ebrokenSequence\x12#\n" +
+	"\rbroken_reason\x18\x06 \x01(\tR\fbrokenReason\x12A\n" +
+	"\fevidence_ref\x18\a \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"\xe5\x01\n" +
+	"\x1cSimulateAuthorizationRequest\x12*\n" +
+	"\x11subject_tenant_id\x18\x01 \x01(\tR\x0fsubjectTenantId\x12!\n" +
+	"\fsubject_kind\x18\x02 \x01(\tR\vsubjectKind\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x03 \x01(\tR\tsubjectId\x12\x18\n" +
+	"\apurpose\x18\x04 \x01(\tR\apurpose\x12\x16\n" +
+	"\x06fields\x18\x05 \x03(\tR\x06fields\x12%\n" +
+	"\x0epolicy_version\x18\x06 \x01(\tR\rpolicyVersion\"\xba\x04\n" +
+	"\x1dSimulateAuthorizationResponse\x12/\n" +
+	"\x13subject_disclosable\x18\x01 \x01(\bR\x12subjectDisclosable\x12#\n" +
+	"\rdenial_reason\x18\x02 \x01(\tR\fdenialReason\x12#\n" +
+	"\rtenant_effect\x18\x03 \x01(\tR\ftenantEffect\x12!\n" +
+	"\fscope_effect\x18\x04 \x01(\tR\vscopeEffect\x12f\n" +
+	"\rfield_rulings\x18\x05 \x03(\v2A.hcmnext.admin.v1.SimulateAuthorizationResponse.FieldRulingsEntryR\ffieldRulings\x12#\n" +
+	"\rmatched_rules\x18\x06 \x03(\tR\fmatchedRules\x120\n" +
+	"\x14policy_version_match\x18\a \x01(\bR\x12policyVersionMatch\x12 \n" +
+	"\vexplanation\x18\b \x01(\tR\vexplanation\x12\x16\n" +
+	"\x06digest\x18\t \x01(\tR\x06digest\x12A\n" +
+	"\fevidence_ref\x18\n" +
+	" \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\x1a?\n" +
+	"\x11FieldRulingsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"l\n" +
+	"\x10ConfigDependency\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12\x16\n" +
+	"\x06digest\x18\x04 \x01(\tR\x06digest\"\x8b\x03\n" +
+	"\fConfigBundle\x12\x1b\n" +
+	"\tbundle_id\x18\x01 \x01(\tR\bbundleId\x12)\n" +
+	"\x10manifest_version\x18\x02 \x01(\rR\x0fmanifestVersion\x12F\n" +
+	"\fdependencies\x18\x03 \x03(\v2\".hcmnext.admin.v1.ConfigDependencyR\fdependencies\x12/\n" +
+	"\x13compatibility_range\x18\x04 \x01(\tR\x12compatibilityRange\x12\x16\n" +
+	"\x06signer\x18\x05 \x01(\tR\x06signer\x12\x1e\n" +
+	"\n" +
+	"provenance\x18\x06 \x01(\tR\n" +
+	"provenance\x12'\n" +
+	"\x0fcredential_refs\x18\a \x03(\tR\x0ecredentialRefs\x12!\n" +
+	"\ftarget_scope\x18\b \x01(\tR\vtargetScope\x126\n" +
+	"\x17minimum_runtime_version\x18\t \x01(\tR\x15minimumRuntimeVersion\"\xa6\x01\n" +
+	"\x12ConfigSignedBundle\x126\n" +
+	"\x06bundle\x18\x01 \x01(\v2\x1e.hcmnext.admin.v1.ConfigBundleR\x06bundle\x12\x16\n" +
+	"\x06digest\x18\x02 \x01(\tR\x06digest\x12\"\n" +
+	"\rsigner_key_id\x18\x03 \x01(\tR\vsignerKeyId\x12\x1c\n" +
+	"\tsignature\x18\x04 \x01(\tR\tsignature\"\x9e\x01\n" +
+	"\rConfigPackage\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
+	"\venvironment\x18\x02 \x01(\tR\venvironment\x12<\n" +
+	"\x06bundle\x18\x03 \x01(\v2$.hcmnext.admin.v1.ConfigSignedBundleR\x06bundle\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x04 \x01(\fR\tpublicKey\"\xb5\x02\n" +
+	"\x13ConfigRecordProfile\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
+	"\venvironment\x18\x02 \x01(\tR\venvironment\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x16\n" +
+	"\x06digest\x18\x04 \x01(\tR\x06digest\x12\x1c\n" +
+	"\tvalidated\x18\x05 \x01(\bR\tvalidated\x12\x1c\n" +
+	"\tsimulated\x18\x06 \x01(\bR\tsimulated\x12\x1a\n" +
+	"\bapproved\x18\a \x01(\bR\bapproved\x12\x1a\n" +
+	"\bapprover\x18\b \x01(\tR\bapprover\x12\x1f\n" +
+	"\vrollback_to\x18\t \x01(\tR\n" +
+	"rollbackTo\x12'\n" +
+	"\x0fevidence_digest\x18\n" +
+	" \x01(\tR\x0eevidenceDigest\"H\n" +
+	"\x14ConfigInspectRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
+	"\venvironment\x18\x02 \x01(\tR\venvironment\"\x9b\x01\n" +
+	"\x15ConfigInspectResponse\x12?\n" +
+	"\arecords\x18\x01 \x03(\v2%.hcmnext.admin.v1.ConfigRecordProfileR\arecords\x12A\n" +
+	"\fevidence_ref\x18\x02 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"N\n" +
+	"\x11ConfigTestRequest\x129\n" +
+	"\apackage\x18\x01 \x01(\v2\x1f.hcmnext.admin.v1.ConfigPackageR\apackage\"\xae\x01\n" +
+	"\x12ConfigTestResponse\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\x12\x16\n" +
+	"\x06digest\x18\x02 \x01(\tR\x06digest\x12\x1e\n" +
+	"\n" +
+	"compatible\x18\x03 \x01(\bR\n" +
+	"compatible\x12A\n" +
+	"\fevidence_ref\x18\x04 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"&\n" +
+	"\x14ConfigRedriveRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xa9\x01\n" +
+	"\x15ConfigRedriveResponse\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\x12\x16\n" +
+	"\x06digest\x18\x02 \x01(\tR\x06digest\x12\x16\n" +
+	"\x06passed\x18\x03 \x01(\bR\x06passed\x12A\n" +
+	"\fevidence_ref\x18\x04 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"\xa9\x02\n" +
+	"\x13ConfigSnapshotEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x1a\n" +
+	"\bexplicit\x18\x04 \x01(\bR\bexplicit\x12\x1a\n" +
+	"\bsemantic\x18\x05 \x01(\tR\bsemantic\x12-\n" +
+	"\x12secret_fingerprint\x18\x06 \x01(\tR\x11secretFingerprint\x12)\n" +
+	"\x10ref_capabilities\x18\a \x03(\tR\x0frefCapabilities\x12#\n" +
+	"\rref_workflows\x18\b \x03(\tR\frefWorkflows\x12\x1f\n" +
+	"\vref_tenants\x18\t \x03(\tR\n" +
+	"refTenants\"\x7f\n" +
+	"\x0eConfigSnapshot\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12?\n" +
+	"\aentries\x18\x03 \x03(\v2%.hcmnext.admin.v1.ConfigSnapshotEntryR\aentries\"\x85\x01\n" +
+	"\x11ConfigDiffRequest\x128\n" +
+	"\x06before\x18\x01 \x01(\v2 .hcmnext.admin.v1.ConfigSnapshotR\x06before\x126\n" +
+	"\x05after\x18\x02 \x01(\v2 .hcmnext.admin.v1.ConfigSnapshotR\x05after\"\xef\x02\n" +
+	"\x10ConfigDiffChange\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12$\n" +
+	"\rcompatibility\x18\x03 \x01(\tR\rcompatibility\x12!\n" +
+	"\fbefore_value\x18\x04 \x01(\tR\vbeforeValue\x12\x1f\n" +
+	"\vafter_value\x18\x05 \x01(\tR\n" +
+	"afterValue\x12<\n" +
+	"\x1asecret_fingerprint_changed\x18\x06 \x01(\bR\x18secretFingerprintChanged\x123\n" +
+	"\x15impacted_capabilities\x18\a \x03(\tR\x14impactedCapabilities\x12-\n" +
+	"\x12impacted_workflows\x18\b \x03(\tR\x11impactedWorkflows\x12)\n" +
+	"\x10impacted_tenants\x18\t \x03(\tR\x0fimpactedTenants\"\xa5\x02\n" +
+	"\x12ConfigDiffResponse\x128\n" +
+	"\x05added\x18\x01 \x03(\v2\".hcmnext.admin.v1.ConfigDiffChangeR\x05added\x12<\n" +
+	"\aremoved\x18\x02 \x03(\v2\".hcmnext.admin.v1.ConfigDiffChangeR\aremoved\x12<\n" +
+	"\achanged\x18\x03 \x03(\v2\".hcmnext.admin.v1.ConfigDiffChangeR\achanged\x12\x16\n" +
+	"\x06digest\x18\x04 \x01(\tR\x06digest\x12A\n" +
+	"\fevidence_ref\x18\x05 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"\xac\x01\n" +
+	"\x16ConfigReconcileRequest\x12 \n" +
+	"\venvironment\x18\x01 \x01(\tR\venvironment\x124\n" +
+	"\x04live\x18\x02 \x01(\v2 .hcmnext.admin.v1.ConfigSnapshotR\x04live\x12:\n" +
+	"\adesired\x18\x03 \x01(\v2 .hcmnext.admin.v1.ConfigSnapshotR\adesired\"\xa4\x02\n" +
+	"\x17ConfigReconcileResponse\x12 \n" +
+	"\venvironment\x18\x01 \x01(\tR\venvironment\x12\x17\n" +
+	"\ain_sync\x18\x02 \x01(\bR\x06inSync\x12)\n" +
+	"\x10breaking_changes\x18\x03 \x01(\bR\x0fbreakingChanges\x12\x14\n" +
+	"\x05added\x18\x04 \x01(\x05R\x05added\x12\x18\n" +
+	"\aremoved\x18\x05 \x01(\x05R\aremoved\x12\x18\n" +
+	"\achanged\x18\x06 \x01(\x05R\achanged\x12\x16\n" +
+	"\x06digest\x18\a \x01(\tR\x06digest\x12A\n" +
+	"\fevidence_ref\x18\b \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"'\n" +
+	"\x15ConfigSimulateRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xca\x01\n" +
+	"\x16ConfigSimulateResponse\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\x12\x16\n" +
+	"\x06digest\x18\x02 \x01(\tR\x06digest\x12\x1e\n" +
+	"\n" +
+	"compatible\x18\x03 \x01(\bR\n" +
+	"compatible\x12\x16\n" +
+	"\x06passed\x18\x04 \x01(\bR\x06passed\x12A\n" +
+	"\fevidence_ref\x18\x05 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"@\n" +
+	"\x14ConfigPromoteRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aconfirm\x18\x02 \x01(\bR\aconfirm\"\xf8\x01\n" +
+	"\x15ConfigPromoteResponse\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\x12 \n" +
+	"\venvironment\x18\x02 \x01(\tR\venvironment\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1a\n" +
+	"\bapprover\x18\x04 \x01(\tR\bapprover\x12'\n" +
+	"\x0fevidence_digest\x18\x05 \x01(\tR\x0eevidenceDigest\x12A\n" +
+	"\fevidence_ref\x18\x06 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"S\n" +
+	"\x15ConfigRollbackRequest\x12 \n" +
+	"\venvironment\x18\x01 \x01(\tR\venvironment\x12\x18\n" +
+	"\aconfirm\x18\x02 \x01(\bR\aconfirm\"\xfe\x01\n" +
+	"\x16ConfigRollbackResponse\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\x12 \n" +
+	"\venvironment\x18\x02 \x01(\tR\venvironment\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1f\n" +
+	"\vrollback_to\x18\x04 \x01(\tR\n" +
+	"rollbackTo\x12'\n" +
+	"\x0fevidence_digest\x18\x05 \x01(\tR\x0eevidenceDigest\x12A\n" +
+	"\fevidence_ref\x18\x06 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef2\x88\x0e\n" +
 	"\fAdminService\x12Z\n" +
 	"\vListIntents\x12$.hcmnext.admin.v1.ListIntentsRequest\x1a%.hcmnext.admin.v1.ListIntentsResponse\x12o\n" +
 	"\x12GetReleaseManifest\x12+.hcmnext.admin.v1.GetReleaseManifestRequest\x1a,.hcmnext.admin.v1.GetReleaseManifestResponse\x12{\n" +
 	"\x16ListCapabilityProfiles\x12/.hcmnext.admin.v1.ListCapabilityProfilesRequest\x1a0.hcmnext.admin.v1.ListCapabilityProfilesResponse\x12o\n" +
 	"\x12ExplainTransaction\x12+.hcmnext.admin.v1.ExplainTransactionRequest\x1a,.hcmnext.admin.v1.ExplainTransactionResponse\x12c\n" +
 	"\x0eGetWorkerState\x12'.hcmnext.admin.v1.GetWorkerStateRequest\x1a(.hcmnext.admin.v1.GetWorkerStateResponse\x12r\n" +
-	"\x13GetWorkflowInstance\x12,.hcmnext.admin.v1.GetWorkflowInstanceRequest\x1a-.hcmnext.admin.v1.GetWorkflowInstanceResponseBZZXgithub.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1;adminv1b\x06proto3"
+	"\x13GetWorkflowInstance\x12,.hcmnext.admin.v1.GetWorkflowInstanceRequest\x1a-.hcmnext.admin.v1.GetWorkflowInstanceResponse\x12i\n" +
+	"\x10ListLedgerEvents\x12).hcmnext.admin.v1.ListLedgerEventsRequest\x1a*.hcmnext.admin.v1.ListLedgerEventsResponse\x12u\n" +
+	"\x14GetChainVerification\x12-.hcmnext.admin.v1.GetChainVerificationRequest\x1a..hcmnext.admin.v1.GetChainVerificationResponse\x12x\n" +
+	"\x15SimulateAuthorization\x12..hcmnext.admin.v1.SimulateAuthorizationRequest\x1a/.hcmnext.admin.v1.SimulateAuthorizationResponse\x12`\n" +
+	"\rConfigInspect\x12&.hcmnext.admin.v1.ConfigInspectRequest\x1a'.hcmnext.admin.v1.ConfigInspectResponse\x12W\n" +
+	"\n" +
+	"ConfigTest\x12#.hcmnext.admin.v1.ConfigTestRequest\x1a$.hcmnext.admin.v1.ConfigTestResponse\x12`\n" +
+	"\rConfigRedrive\x12&.hcmnext.admin.v1.ConfigRedriveRequest\x1a'.hcmnext.admin.v1.ConfigRedriveResponse\x12f\n" +
+	"\x0fConfigReconcile\x12(.hcmnext.admin.v1.ConfigReconcileRequest\x1a).hcmnext.admin.v1.ConfigReconcileResponse\x12W\n" +
+	"\n" +
+	"ConfigDiff\x12#.hcmnext.admin.v1.ConfigDiffRequest\x1a$.hcmnext.admin.v1.ConfigDiffResponse\x12c\n" +
+	"\x0eConfigSimulate\x12'.hcmnext.admin.v1.ConfigSimulateRequest\x1a(.hcmnext.admin.v1.ConfigSimulateResponse\x12`\n" +
+	"\rConfigPromote\x12&.hcmnext.admin.v1.ConfigPromoteRequest\x1a'.hcmnext.admin.v1.ConfigPromoteResponse\x12c\n" +
+	"\x0eConfigRollback\x12'.hcmnext.admin.v1.ConfigRollbackRequest\x1a(.hcmnext.admin.v1.ConfigRollbackResponseBZZXgithub.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1;adminv1b\x06proto3"
 
 var (
 	file_hcmnext_admin_v1_admin_service_proto_rawDescOnce sync.Once
@@ -3170,7 +5852,7 @@ func file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP() []byte {
 	return file_hcmnext_admin_v1_admin_service_proto_rawDescData
 }
 
-var file_hcmnext_admin_v1_admin_service_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_hcmnext_admin_v1_admin_service_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
 var file_hcmnext_admin_v1_admin_service_proto_goTypes = []any{
 	(*ListIntentsRequest)(nil),             // 0: hcmnext.admin.v1.ListIntentsRequest
 	(*ListIntentsResponse)(nil),            // 1: hcmnext.admin.v1.ListIntentsResponse
@@ -3204,102 +5886,187 @@ var file_hcmnext_admin_v1_admin_service_proto_goTypes = []any{
 	(*WorkItemProfile)(nil),                // 29: hcmnext.admin.v1.WorkItemProfile
 	(*GetWorkflowInstanceRequest)(nil),     // 30: hcmnext.admin.v1.GetWorkflowInstanceRequest
 	(*GetWorkflowInstanceResponse)(nil),    // 31: hcmnext.admin.v1.GetWorkflowInstanceResponse
-	(*v1.ScopeContext)(nil),                // 32: hcmnext.common.v1.ScopeContext
-	(*v1.PageRequest)(nil),                 // 33: hcmnext.common.v1.PageRequest
-	(v11.ConsistencyFreshnessHint)(0),      // 34: hcmnext.intents.v1.ConsistencyFreshnessHint
-	(*v11.IntentInstance)(nil),             // 35: hcmnext.intents.v1.IntentInstance
-	(*v1.PageResponse)(nil),                // 36: hcmnext.common.v1.PageResponse
-	(*v1.EvidenceRef)(nil),                 // 37: hcmnext.common.v1.EvidenceRef
-	(*timestamppb.Timestamp)(nil),          // 38: google.protobuf.Timestamp
+	(*ListLedgerEventsRequest)(nil),        // 32: hcmnext.admin.v1.ListLedgerEventsRequest
+	(*LedgerEventProfile)(nil),             // 33: hcmnext.admin.v1.LedgerEventProfile
+	(*ListLedgerEventsResponse)(nil),       // 34: hcmnext.admin.v1.ListLedgerEventsResponse
+	(*GetChainVerificationRequest)(nil),    // 35: hcmnext.admin.v1.GetChainVerificationRequest
+	(*ChainHeadProfile)(nil),               // 36: hcmnext.admin.v1.ChainHeadProfile
+	(*GetChainVerificationResponse)(nil),   // 37: hcmnext.admin.v1.GetChainVerificationResponse
+	(*SimulateAuthorizationRequest)(nil),   // 38: hcmnext.admin.v1.SimulateAuthorizationRequest
+	(*SimulateAuthorizationResponse)(nil),  // 39: hcmnext.admin.v1.SimulateAuthorizationResponse
+	(*ConfigDependency)(nil),               // 40: hcmnext.admin.v1.ConfigDependency
+	(*ConfigBundle)(nil),                   // 41: hcmnext.admin.v1.ConfigBundle
+	(*ConfigSignedBundle)(nil),             // 42: hcmnext.admin.v1.ConfigSignedBundle
+	(*ConfigPackage)(nil),                  // 43: hcmnext.admin.v1.ConfigPackage
+	(*ConfigRecordProfile)(nil),            // 44: hcmnext.admin.v1.ConfigRecordProfile
+	(*ConfigInspectRequest)(nil),           // 45: hcmnext.admin.v1.ConfigInspectRequest
+	(*ConfigInspectResponse)(nil),          // 46: hcmnext.admin.v1.ConfigInspectResponse
+	(*ConfigTestRequest)(nil),              // 47: hcmnext.admin.v1.ConfigTestRequest
+	(*ConfigTestResponse)(nil),             // 48: hcmnext.admin.v1.ConfigTestResponse
+	(*ConfigRedriveRequest)(nil),           // 49: hcmnext.admin.v1.ConfigRedriveRequest
+	(*ConfigRedriveResponse)(nil),          // 50: hcmnext.admin.v1.ConfigRedriveResponse
+	(*ConfigSnapshotEntry)(nil),            // 51: hcmnext.admin.v1.ConfigSnapshotEntry
+	(*ConfigSnapshot)(nil),                 // 52: hcmnext.admin.v1.ConfigSnapshot
+	(*ConfigDiffRequest)(nil),              // 53: hcmnext.admin.v1.ConfigDiffRequest
+	(*ConfigDiffChange)(nil),               // 54: hcmnext.admin.v1.ConfigDiffChange
+	(*ConfigDiffResponse)(nil),             // 55: hcmnext.admin.v1.ConfigDiffResponse
+	(*ConfigReconcileRequest)(nil),         // 56: hcmnext.admin.v1.ConfigReconcileRequest
+	(*ConfigReconcileResponse)(nil),        // 57: hcmnext.admin.v1.ConfigReconcileResponse
+	(*ConfigSimulateRequest)(nil),          // 58: hcmnext.admin.v1.ConfigSimulateRequest
+	(*ConfigSimulateResponse)(nil),         // 59: hcmnext.admin.v1.ConfigSimulateResponse
+	(*ConfigPromoteRequest)(nil),           // 60: hcmnext.admin.v1.ConfigPromoteRequest
+	(*ConfigPromoteResponse)(nil),          // 61: hcmnext.admin.v1.ConfigPromoteResponse
+	(*ConfigRollbackRequest)(nil),          // 62: hcmnext.admin.v1.ConfigRollbackRequest
+	(*ConfigRollbackResponse)(nil),         // 63: hcmnext.admin.v1.ConfigRollbackResponse
+	nil,                                    // 64: hcmnext.admin.v1.SimulateAuthorizationResponse.FieldRulingsEntry
+	(*v1.ScopeContext)(nil),                // 65: hcmnext.common.v1.ScopeContext
+	(*v1.PageRequest)(nil),                 // 66: hcmnext.common.v1.PageRequest
+	(v11.ConsistencyFreshnessHint)(0),      // 67: hcmnext.intents.v1.ConsistencyFreshnessHint
+	(*v11.IntentInstance)(nil),             // 68: hcmnext.intents.v1.IntentInstance
+	(*v1.PageResponse)(nil),                // 69: hcmnext.common.v1.PageResponse
+	(*v1.EvidenceRef)(nil),                 // 70: hcmnext.common.v1.EvidenceRef
+	(*timestamppb.Timestamp)(nil),          // 71: google.protobuf.Timestamp
 }
 var file_hcmnext_admin_v1_admin_service_proto_depIdxs = []int32{
-	32, // 0: hcmnext.admin.v1.ListIntentsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	33, // 1: hcmnext.admin.v1.ListIntentsRequest.page:type_name -> hcmnext.common.v1.PageRequest
-	34, // 2: hcmnext.admin.v1.ListIntentsRequest.freshness:type_name -> hcmnext.intents.v1.ConsistencyFreshnessHint
-	35, // 3: hcmnext.admin.v1.ListIntentsResponse.intents:type_name -> hcmnext.intents.v1.IntentInstance
-	36, // 4: hcmnext.admin.v1.ListIntentsResponse.page:type_name -> hcmnext.common.v1.PageResponse
-	37, // 5: hcmnext.admin.v1.ListIntentsResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	3,  // 6: hcmnext.admin.v1.GetReleaseManifestResponse.endpoints:type_name -> hcmnext.admin.v1.EndpointProfile
-	7,  // 7: hcmnext.admin.v1.GetReleaseManifestResponse.capabilities:type_name -> hcmnext.admin.v1.CapabilityProfile
-	4,  // 8: hcmnext.admin.v1.GetReleaseManifestResponse.intent_definitions:type_name -> hcmnext.admin.v1.IntentDefinitionProfile
-	37, // 9: hcmnext.admin.v1.GetReleaseManifestResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	7,  // 10: hcmnext.admin.v1.ListCapabilityProfilesResponse.capabilities:type_name -> hcmnext.admin.v1.CapabilityProfile
-	37, // 11: hcmnext.admin.v1.ListCapabilityProfilesResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	32, // 12: hcmnext.admin.v1.ExplainTransactionRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	9,  // 13: hcmnext.admin.v1.ExplainTransactionRequest.transaction:type_name -> hcmnext.admin.v1.TransactionRef
-	38, // 14: hcmnext.admin.v1.ExplainTransactionRequest.known_at:type_name -> google.protobuf.Timestamp
-	11, // 15: hcmnext.admin.v1.ExplainTransactionResponse.sections:type_name -> hcmnext.admin.v1.SectionResult
-	37, // 16: hcmnext.admin.v1.ExplainTransactionResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	32, // 17: hcmnext.admin.v1.GetWorkerStateRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	38, // 18: hcmnext.admin.v1.GetWorkerStateRequest.known_at:type_name -> google.protobuf.Timestamp
-	14, // 19: hcmnext.admin.v1.GetWorkerStateResponse.fields:type_name -> hcmnext.admin.v1.FieldResult
-	37, // 20: hcmnext.admin.v1.GetWorkerStateResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	19, // 21: hcmnext.admin.v1.WorkflowInstanceProfile.lifecycle:type_name -> hcmnext.admin.v1.LifecycleProfile
-	16, // 22: hcmnext.admin.v1.WorkflowInstanceProfile.input_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 23: hcmnext.admin.v1.WorkflowInstanceProfile.effective_context_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 24: hcmnext.admin.v1.WorkflowInstanceProfile.last_checkpoint_ref:type_name -> hcmnext.admin.v1.RefValue
-	17, // 25: hcmnext.admin.v1.WorkflowInstanceProfile.business_subject_refs:type_name -> hcmnext.admin.v1.RefListValue
-	38, // 26: hcmnext.admin.v1.WorkflowInstanceProfile.created_at:type_name -> google.protobuf.Timestamp
-	38, // 27: hcmnext.admin.v1.WorkflowInstanceProfile.started_at:type_name -> google.protobuf.Timestamp
-	38, // 28: hcmnext.admin.v1.WorkflowInstanceProfile.completed_at:type_name -> google.protobuf.Timestamp
-	16, // 29: hcmnext.admin.v1.GovernanceProfile.authorization_decision_id:type_name -> hcmnext.admin.v1.RefValue
-	16, // 30: hcmnext.admin.v1.GovernanceProfile.decision_id:type_name -> hcmnext.admin.v1.RefValue
-	16, // 31: hcmnext.admin.v1.GovernanceProfile.policy_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 32: hcmnext.admin.v1.GovernanceProfile.proposal_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 33: hcmnext.admin.v1.GovernanceProfile.baseline_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 34: hcmnext.admin.v1.GovernanceProfile.human_task_id:type_name -> hcmnext.admin.v1.RefValue
-	16, // 35: hcmnext.admin.v1.GovernanceProfile.agent_execution_id:type_name -> hcmnext.admin.v1.RefValue
-	16, // 36: hcmnext.admin.v1.TransactionProfile.business_transaction_id:type_name -> hcmnext.admin.v1.RefValue
-	16, // 37: hcmnext.admin.v1.ConnectorProfile.capability_execution_id:type_name -> hcmnext.admin.v1.RefValue
-	17, // 38: hcmnext.admin.v1.ConnectorProfile.effect_refs:type_name -> hcmnext.admin.v1.RefListValue
-	16, // 39: hcmnext.admin.v1.ObservationProfile.error_class:type_name -> hcmnext.admin.v1.RefValue
-	16, // 40: hcmnext.admin.v1.ObservationProfile.repair_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 41: hcmnext.admin.v1.TraceProfile.trace_id:type_name -> hcmnext.admin.v1.RefValue
-	16, // 42: hcmnext.admin.v1.NodeProfile.retry_policy_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 43: hcmnext.admin.v1.NodeProfile.input_snapshot_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 44: hcmnext.admin.v1.NodeProfile.output_artifact_ref:type_name -> hcmnext.admin.v1.RefValue
-	22, // 45: hcmnext.admin.v1.NodeProfile.governance:type_name -> hcmnext.admin.v1.GovernanceProfile
-	23, // 46: hcmnext.admin.v1.NodeProfile.transaction:type_name -> hcmnext.admin.v1.TransactionProfile
-	24, // 47: hcmnext.admin.v1.NodeProfile.connector:type_name -> hcmnext.admin.v1.ConnectorProfile
-	25, // 48: hcmnext.admin.v1.NodeProfile.observation:type_name -> hcmnext.admin.v1.ObservationProfile
-	26, // 49: hcmnext.admin.v1.NodeProfile.trace:type_name -> hcmnext.admin.v1.TraceProfile
-	38, // 50: hcmnext.admin.v1.NodeProfile.started_at:type_name -> google.protobuf.Timestamp
-	38, // 51: hcmnext.admin.v1.NodeProfile.completed_at:type_name -> google.protobuf.Timestamp
-	38, // 52: hcmnext.admin.v1.NodeProfile.recorded_at:type_name -> google.protobuf.Timestamp
-	16, // 53: hcmnext.admin.v1.WorkItemTransitionProfile.evidence_ref:type_name -> hcmnext.admin.v1.RefValue
-	38, // 54: hcmnext.admin.v1.WorkItemTransitionProfile.at:type_name -> google.protobuf.Timestamp
-	38, // 55: hcmnext.admin.v1.WorkItemTransitionProfile.recorded_at:type_name -> google.protobuf.Timestamp
-	16, // 56: hcmnext.admin.v1.WorkItemProfile.approval_requirement_ref:type_name -> hcmnext.admin.v1.RefValue
-	16, // 57: hcmnext.admin.v1.WorkItemProfile.proposal_ref:type_name -> hcmnext.admin.v1.RefValue
-	17, // 58: hcmnext.admin.v1.WorkItemProfile.subject_refs:type_name -> hcmnext.admin.v1.RefListValue
-	38, // 59: hcmnext.admin.v1.WorkItemProfile.deadline_at:type_name -> google.protobuf.Timestamp
-	16, // 60: hcmnext.admin.v1.WorkItemProfile.completed_output_digest:type_name -> hcmnext.admin.v1.RefValue
-	38, // 61: hcmnext.admin.v1.WorkItemProfile.created_at:type_name -> google.protobuf.Timestamp
-	28, // 62: hcmnext.admin.v1.WorkItemProfile.transitions:type_name -> hcmnext.admin.v1.WorkItemTransitionProfile
-	32, // 63: hcmnext.admin.v1.GetWorkflowInstanceRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	18, // 64: hcmnext.admin.v1.GetWorkflowInstanceResponse.definition:type_name -> hcmnext.admin.v1.WorkflowDefinitionProfile
-	20, // 65: hcmnext.admin.v1.GetWorkflowInstanceResponse.instance:type_name -> hcmnext.admin.v1.WorkflowInstanceProfile
-	21, // 66: hcmnext.admin.v1.GetWorkflowInstanceResponse.frontier:type_name -> hcmnext.admin.v1.FrontierEntryProfile
-	27, // 67: hcmnext.admin.v1.GetWorkflowInstanceResponse.nodes:type_name -> hcmnext.admin.v1.NodeProfile
-	29, // 68: hcmnext.admin.v1.GetWorkflowInstanceResponse.work_items:type_name -> hcmnext.admin.v1.WorkItemProfile
-	37, // 69: hcmnext.admin.v1.GetWorkflowInstanceResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	0,  // 70: hcmnext.admin.v1.AdminService.ListIntents:input_type -> hcmnext.admin.v1.ListIntentsRequest
-	2,  // 71: hcmnext.admin.v1.AdminService.GetReleaseManifest:input_type -> hcmnext.admin.v1.GetReleaseManifestRequest
-	6,  // 72: hcmnext.admin.v1.AdminService.ListCapabilityProfiles:input_type -> hcmnext.admin.v1.ListCapabilityProfilesRequest
-	10, // 73: hcmnext.admin.v1.AdminService.ExplainTransaction:input_type -> hcmnext.admin.v1.ExplainTransactionRequest
-	13, // 74: hcmnext.admin.v1.AdminService.GetWorkerState:input_type -> hcmnext.admin.v1.GetWorkerStateRequest
-	30, // 75: hcmnext.admin.v1.AdminService.GetWorkflowInstance:input_type -> hcmnext.admin.v1.GetWorkflowInstanceRequest
-	1,  // 76: hcmnext.admin.v1.AdminService.ListIntents:output_type -> hcmnext.admin.v1.ListIntentsResponse
-	5,  // 77: hcmnext.admin.v1.AdminService.GetReleaseManifest:output_type -> hcmnext.admin.v1.GetReleaseManifestResponse
-	8,  // 78: hcmnext.admin.v1.AdminService.ListCapabilityProfiles:output_type -> hcmnext.admin.v1.ListCapabilityProfilesResponse
-	12, // 79: hcmnext.admin.v1.AdminService.ExplainTransaction:output_type -> hcmnext.admin.v1.ExplainTransactionResponse
-	15, // 80: hcmnext.admin.v1.AdminService.GetWorkerState:output_type -> hcmnext.admin.v1.GetWorkerStateResponse
-	31, // 81: hcmnext.admin.v1.AdminService.GetWorkflowInstance:output_type -> hcmnext.admin.v1.GetWorkflowInstanceResponse
-	76, // [76:82] is the sub-list for method output_type
-	70, // [70:76] is the sub-list for method input_type
-	70, // [70:70] is the sub-list for extension type_name
-	70, // [70:70] is the sub-list for extension extendee
-	0,  // [0:70] is the sub-list for field type_name
+	65,  // 0: hcmnext.admin.v1.ListIntentsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	66,  // 1: hcmnext.admin.v1.ListIntentsRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	67,  // 2: hcmnext.admin.v1.ListIntentsRequest.freshness:type_name -> hcmnext.intents.v1.ConsistencyFreshnessHint
+	68,  // 3: hcmnext.admin.v1.ListIntentsResponse.intents:type_name -> hcmnext.intents.v1.IntentInstance
+	69,  // 4: hcmnext.admin.v1.ListIntentsResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	70,  // 5: hcmnext.admin.v1.ListIntentsResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	3,   // 6: hcmnext.admin.v1.GetReleaseManifestResponse.endpoints:type_name -> hcmnext.admin.v1.EndpointProfile
+	7,   // 7: hcmnext.admin.v1.GetReleaseManifestResponse.capabilities:type_name -> hcmnext.admin.v1.CapabilityProfile
+	4,   // 8: hcmnext.admin.v1.GetReleaseManifestResponse.intent_definitions:type_name -> hcmnext.admin.v1.IntentDefinitionProfile
+	70,  // 9: hcmnext.admin.v1.GetReleaseManifestResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	7,   // 10: hcmnext.admin.v1.ListCapabilityProfilesResponse.capabilities:type_name -> hcmnext.admin.v1.CapabilityProfile
+	70,  // 11: hcmnext.admin.v1.ListCapabilityProfilesResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	65,  // 12: hcmnext.admin.v1.ExplainTransactionRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	9,   // 13: hcmnext.admin.v1.ExplainTransactionRequest.transaction:type_name -> hcmnext.admin.v1.TransactionRef
+	71,  // 14: hcmnext.admin.v1.ExplainTransactionRequest.known_at:type_name -> google.protobuf.Timestamp
+	11,  // 15: hcmnext.admin.v1.ExplainTransactionResponse.sections:type_name -> hcmnext.admin.v1.SectionResult
+	70,  // 16: hcmnext.admin.v1.ExplainTransactionResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	65,  // 17: hcmnext.admin.v1.GetWorkerStateRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	71,  // 18: hcmnext.admin.v1.GetWorkerStateRequest.known_at:type_name -> google.protobuf.Timestamp
+	14,  // 19: hcmnext.admin.v1.GetWorkerStateResponse.fields:type_name -> hcmnext.admin.v1.FieldResult
+	70,  // 20: hcmnext.admin.v1.GetWorkerStateResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	19,  // 21: hcmnext.admin.v1.WorkflowInstanceProfile.lifecycle:type_name -> hcmnext.admin.v1.LifecycleProfile
+	16,  // 22: hcmnext.admin.v1.WorkflowInstanceProfile.input_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 23: hcmnext.admin.v1.WorkflowInstanceProfile.effective_context_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 24: hcmnext.admin.v1.WorkflowInstanceProfile.last_checkpoint_ref:type_name -> hcmnext.admin.v1.RefValue
+	17,  // 25: hcmnext.admin.v1.WorkflowInstanceProfile.business_subject_refs:type_name -> hcmnext.admin.v1.RefListValue
+	71,  // 26: hcmnext.admin.v1.WorkflowInstanceProfile.created_at:type_name -> google.protobuf.Timestamp
+	71,  // 27: hcmnext.admin.v1.WorkflowInstanceProfile.started_at:type_name -> google.protobuf.Timestamp
+	71,  // 28: hcmnext.admin.v1.WorkflowInstanceProfile.completed_at:type_name -> google.protobuf.Timestamp
+	16,  // 29: hcmnext.admin.v1.GovernanceProfile.authorization_decision_id:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 30: hcmnext.admin.v1.GovernanceProfile.decision_id:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 31: hcmnext.admin.v1.GovernanceProfile.policy_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 32: hcmnext.admin.v1.GovernanceProfile.proposal_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 33: hcmnext.admin.v1.GovernanceProfile.baseline_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 34: hcmnext.admin.v1.GovernanceProfile.human_task_id:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 35: hcmnext.admin.v1.GovernanceProfile.agent_execution_id:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 36: hcmnext.admin.v1.TransactionProfile.business_transaction_id:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 37: hcmnext.admin.v1.ConnectorProfile.capability_execution_id:type_name -> hcmnext.admin.v1.RefValue
+	17,  // 38: hcmnext.admin.v1.ConnectorProfile.effect_refs:type_name -> hcmnext.admin.v1.RefListValue
+	16,  // 39: hcmnext.admin.v1.ObservationProfile.error_class:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 40: hcmnext.admin.v1.ObservationProfile.repair_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 41: hcmnext.admin.v1.TraceProfile.trace_id:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 42: hcmnext.admin.v1.NodeProfile.retry_policy_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 43: hcmnext.admin.v1.NodeProfile.input_snapshot_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 44: hcmnext.admin.v1.NodeProfile.output_artifact_ref:type_name -> hcmnext.admin.v1.RefValue
+	22,  // 45: hcmnext.admin.v1.NodeProfile.governance:type_name -> hcmnext.admin.v1.GovernanceProfile
+	23,  // 46: hcmnext.admin.v1.NodeProfile.transaction:type_name -> hcmnext.admin.v1.TransactionProfile
+	24,  // 47: hcmnext.admin.v1.NodeProfile.connector:type_name -> hcmnext.admin.v1.ConnectorProfile
+	25,  // 48: hcmnext.admin.v1.NodeProfile.observation:type_name -> hcmnext.admin.v1.ObservationProfile
+	26,  // 49: hcmnext.admin.v1.NodeProfile.trace:type_name -> hcmnext.admin.v1.TraceProfile
+	71,  // 50: hcmnext.admin.v1.NodeProfile.started_at:type_name -> google.protobuf.Timestamp
+	71,  // 51: hcmnext.admin.v1.NodeProfile.completed_at:type_name -> google.protobuf.Timestamp
+	71,  // 52: hcmnext.admin.v1.NodeProfile.recorded_at:type_name -> google.protobuf.Timestamp
+	16,  // 53: hcmnext.admin.v1.WorkItemTransitionProfile.evidence_ref:type_name -> hcmnext.admin.v1.RefValue
+	71,  // 54: hcmnext.admin.v1.WorkItemTransitionProfile.at:type_name -> google.protobuf.Timestamp
+	71,  // 55: hcmnext.admin.v1.WorkItemTransitionProfile.recorded_at:type_name -> google.protobuf.Timestamp
+	16,  // 56: hcmnext.admin.v1.WorkItemProfile.approval_requirement_ref:type_name -> hcmnext.admin.v1.RefValue
+	16,  // 57: hcmnext.admin.v1.WorkItemProfile.proposal_ref:type_name -> hcmnext.admin.v1.RefValue
+	17,  // 58: hcmnext.admin.v1.WorkItemProfile.subject_refs:type_name -> hcmnext.admin.v1.RefListValue
+	71,  // 59: hcmnext.admin.v1.WorkItemProfile.deadline_at:type_name -> google.protobuf.Timestamp
+	16,  // 60: hcmnext.admin.v1.WorkItemProfile.completed_output_digest:type_name -> hcmnext.admin.v1.RefValue
+	71,  // 61: hcmnext.admin.v1.WorkItemProfile.created_at:type_name -> google.protobuf.Timestamp
+	28,  // 62: hcmnext.admin.v1.WorkItemProfile.transitions:type_name -> hcmnext.admin.v1.WorkItemTransitionProfile
+	65,  // 63: hcmnext.admin.v1.GetWorkflowInstanceRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	18,  // 64: hcmnext.admin.v1.GetWorkflowInstanceResponse.definition:type_name -> hcmnext.admin.v1.WorkflowDefinitionProfile
+	20,  // 65: hcmnext.admin.v1.GetWorkflowInstanceResponse.instance:type_name -> hcmnext.admin.v1.WorkflowInstanceProfile
+	21,  // 66: hcmnext.admin.v1.GetWorkflowInstanceResponse.frontier:type_name -> hcmnext.admin.v1.FrontierEntryProfile
+	27,  // 67: hcmnext.admin.v1.GetWorkflowInstanceResponse.nodes:type_name -> hcmnext.admin.v1.NodeProfile
+	29,  // 68: hcmnext.admin.v1.GetWorkflowInstanceResponse.work_items:type_name -> hcmnext.admin.v1.WorkItemProfile
+	70,  // 69: hcmnext.admin.v1.GetWorkflowInstanceResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	71,  // 70: hcmnext.admin.v1.LedgerEventProfile.occurred_at:type_name -> google.protobuf.Timestamp
+	71,  // 71: hcmnext.admin.v1.LedgerEventProfile.effective_at:type_name -> google.protobuf.Timestamp
+	71,  // 72: hcmnext.admin.v1.LedgerEventProfile.recorded_at:type_name -> google.protobuf.Timestamp
+	33,  // 73: hcmnext.admin.v1.ListLedgerEventsResponse.events:type_name -> hcmnext.admin.v1.LedgerEventProfile
+	70,  // 74: hcmnext.admin.v1.ListLedgerEventsResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	36,  // 75: hcmnext.admin.v1.GetChainVerificationResponse.head:type_name -> hcmnext.admin.v1.ChainHeadProfile
+	70,  // 76: hcmnext.admin.v1.GetChainVerificationResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	64,  // 77: hcmnext.admin.v1.SimulateAuthorizationResponse.field_rulings:type_name -> hcmnext.admin.v1.SimulateAuthorizationResponse.FieldRulingsEntry
+	70,  // 78: hcmnext.admin.v1.SimulateAuthorizationResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	40,  // 79: hcmnext.admin.v1.ConfigBundle.dependencies:type_name -> hcmnext.admin.v1.ConfigDependency
+	41,  // 80: hcmnext.admin.v1.ConfigSignedBundle.bundle:type_name -> hcmnext.admin.v1.ConfigBundle
+	42,  // 81: hcmnext.admin.v1.ConfigPackage.bundle:type_name -> hcmnext.admin.v1.ConfigSignedBundle
+	44,  // 82: hcmnext.admin.v1.ConfigInspectResponse.records:type_name -> hcmnext.admin.v1.ConfigRecordProfile
+	70,  // 83: hcmnext.admin.v1.ConfigInspectResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	43,  // 84: hcmnext.admin.v1.ConfigTestRequest.package:type_name -> hcmnext.admin.v1.ConfigPackage
+	70,  // 85: hcmnext.admin.v1.ConfigTestResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	70,  // 86: hcmnext.admin.v1.ConfigRedriveResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	51,  // 87: hcmnext.admin.v1.ConfigSnapshot.entries:type_name -> hcmnext.admin.v1.ConfigSnapshotEntry
+	52,  // 88: hcmnext.admin.v1.ConfigDiffRequest.before:type_name -> hcmnext.admin.v1.ConfigSnapshot
+	52,  // 89: hcmnext.admin.v1.ConfigDiffRequest.after:type_name -> hcmnext.admin.v1.ConfigSnapshot
+	54,  // 90: hcmnext.admin.v1.ConfigDiffResponse.added:type_name -> hcmnext.admin.v1.ConfigDiffChange
+	54,  // 91: hcmnext.admin.v1.ConfigDiffResponse.removed:type_name -> hcmnext.admin.v1.ConfigDiffChange
+	54,  // 92: hcmnext.admin.v1.ConfigDiffResponse.changed:type_name -> hcmnext.admin.v1.ConfigDiffChange
+	70,  // 93: hcmnext.admin.v1.ConfigDiffResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	52,  // 94: hcmnext.admin.v1.ConfigReconcileRequest.live:type_name -> hcmnext.admin.v1.ConfigSnapshot
+	52,  // 95: hcmnext.admin.v1.ConfigReconcileRequest.desired:type_name -> hcmnext.admin.v1.ConfigSnapshot
+	70,  // 96: hcmnext.admin.v1.ConfigReconcileResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	70,  // 97: hcmnext.admin.v1.ConfigSimulateResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	70,  // 98: hcmnext.admin.v1.ConfigPromoteResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	70,  // 99: hcmnext.admin.v1.ConfigRollbackResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	0,   // 100: hcmnext.admin.v1.AdminService.ListIntents:input_type -> hcmnext.admin.v1.ListIntentsRequest
+	2,   // 101: hcmnext.admin.v1.AdminService.GetReleaseManifest:input_type -> hcmnext.admin.v1.GetReleaseManifestRequest
+	6,   // 102: hcmnext.admin.v1.AdminService.ListCapabilityProfiles:input_type -> hcmnext.admin.v1.ListCapabilityProfilesRequest
+	10,  // 103: hcmnext.admin.v1.AdminService.ExplainTransaction:input_type -> hcmnext.admin.v1.ExplainTransactionRequest
+	13,  // 104: hcmnext.admin.v1.AdminService.GetWorkerState:input_type -> hcmnext.admin.v1.GetWorkerStateRequest
+	30,  // 105: hcmnext.admin.v1.AdminService.GetWorkflowInstance:input_type -> hcmnext.admin.v1.GetWorkflowInstanceRequest
+	32,  // 106: hcmnext.admin.v1.AdminService.ListLedgerEvents:input_type -> hcmnext.admin.v1.ListLedgerEventsRequest
+	35,  // 107: hcmnext.admin.v1.AdminService.GetChainVerification:input_type -> hcmnext.admin.v1.GetChainVerificationRequest
+	38,  // 108: hcmnext.admin.v1.AdminService.SimulateAuthorization:input_type -> hcmnext.admin.v1.SimulateAuthorizationRequest
+	45,  // 109: hcmnext.admin.v1.AdminService.ConfigInspect:input_type -> hcmnext.admin.v1.ConfigInspectRequest
+	47,  // 110: hcmnext.admin.v1.AdminService.ConfigTest:input_type -> hcmnext.admin.v1.ConfigTestRequest
+	49,  // 111: hcmnext.admin.v1.AdminService.ConfigRedrive:input_type -> hcmnext.admin.v1.ConfigRedriveRequest
+	56,  // 112: hcmnext.admin.v1.AdminService.ConfigReconcile:input_type -> hcmnext.admin.v1.ConfigReconcileRequest
+	53,  // 113: hcmnext.admin.v1.AdminService.ConfigDiff:input_type -> hcmnext.admin.v1.ConfigDiffRequest
+	58,  // 114: hcmnext.admin.v1.AdminService.ConfigSimulate:input_type -> hcmnext.admin.v1.ConfigSimulateRequest
+	60,  // 115: hcmnext.admin.v1.AdminService.ConfigPromote:input_type -> hcmnext.admin.v1.ConfigPromoteRequest
+	62,  // 116: hcmnext.admin.v1.AdminService.ConfigRollback:input_type -> hcmnext.admin.v1.ConfigRollbackRequest
+	1,   // 117: hcmnext.admin.v1.AdminService.ListIntents:output_type -> hcmnext.admin.v1.ListIntentsResponse
+	5,   // 118: hcmnext.admin.v1.AdminService.GetReleaseManifest:output_type -> hcmnext.admin.v1.GetReleaseManifestResponse
+	8,   // 119: hcmnext.admin.v1.AdminService.ListCapabilityProfiles:output_type -> hcmnext.admin.v1.ListCapabilityProfilesResponse
+	12,  // 120: hcmnext.admin.v1.AdminService.ExplainTransaction:output_type -> hcmnext.admin.v1.ExplainTransactionResponse
+	15,  // 121: hcmnext.admin.v1.AdminService.GetWorkerState:output_type -> hcmnext.admin.v1.GetWorkerStateResponse
+	31,  // 122: hcmnext.admin.v1.AdminService.GetWorkflowInstance:output_type -> hcmnext.admin.v1.GetWorkflowInstanceResponse
+	34,  // 123: hcmnext.admin.v1.AdminService.ListLedgerEvents:output_type -> hcmnext.admin.v1.ListLedgerEventsResponse
+	37,  // 124: hcmnext.admin.v1.AdminService.GetChainVerification:output_type -> hcmnext.admin.v1.GetChainVerificationResponse
+	39,  // 125: hcmnext.admin.v1.AdminService.SimulateAuthorization:output_type -> hcmnext.admin.v1.SimulateAuthorizationResponse
+	46,  // 126: hcmnext.admin.v1.AdminService.ConfigInspect:output_type -> hcmnext.admin.v1.ConfigInspectResponse
+	48,  // 127: hcmnext.admin.v1.AdminService.ConfigTest:output_type -> hcmnext.admin.v1.ConfigTestResponse
+	50,  // 128: hcmnext.admin.v1.AdminService.ConfigRedrive:output_type -> hcmnext.admin.v1.ConfigRedriveResponse
+	57,  // 129: hcmnext.admin.v1.AdminService.ConfigReconcile:output_type -> hcmnext.admin.v1.ConfigReconcileResponse
+	55,  // 130: hcmnext.admin.v1.AdminService.ConfigDiff:output_type -> hcmnext.admin.v1.ConfigDiffResponse
+	59,  // 131: hcmnext.admin.v1.AdminService.ConfigSimulate:output_type -> hcmnext.admin.v1.ConfigSimulateResponse
+	61,  // 132: hcmnext.admin.v1.AdminService.ConfigPromote:output_type -> hcmnext.admin.v1.ConfigPromoteResponse
+	63,  // 133: hcmnext.admin.v1.AdminService.ConfigRollback:output_type -> hcmnext.admin.v1.ConfigRollbackResponse
+	117, // [117:134] is the sub-list for method output_type
+	100, // [100:117] is the sub-list for method input_type
+	100, // [100:100] is the sub-list for extension type_name
+	100, // [100:100] is the sub-list for extension extendee
+	0,   // [0:100] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_admin_v1_admin_service_proto_init() }
@@ -3313,7 +6080,7 @@ func file_hcmnext_admin_v1_admin_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_admin_v1_admin_service_proto_rawDesc), len(file_hcmnext_admin_v1_admin_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   32,
+			NumMessages:   65,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

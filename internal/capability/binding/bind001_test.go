@@ -437,7 +437,7 @@ func reverseClaims(in []Claim) []Claim {
 // generated model registry changed a bound property. Any of those is a real
 // change to what this system exposes, and re-pinning it is the point at
 // which someone looks.
-const goldenLiveDigest = "c6e7c667c099f8bdb000f567ec44f09af5d88d1a6bc82863110c54b261b35e61"
+const goldenLiveDigest = "7b98a464740026da87266b80bcb4dd90c1d71047f7ab90437f83733e0d9f46b6"
 
 // goldenLiveShape pins the counts, so a digest change reads as "what moved"
 // rather than "something moved".
@@ -448,9 +448,9 @@ var goldenLiveShape = struct {
 	Gaps         int
 }{
 	Capabilities: 10,
-	WireMethods:  45,
+	WireMethods:  60,
 	Entries:      0,
-	Gaps:         49,
+	Gaps:         64,
 }
 
 func TestTodo_BIND_001_Golden(t *testing.T) {

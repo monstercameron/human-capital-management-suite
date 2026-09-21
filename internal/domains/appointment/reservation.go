@@ -50,15 +50,6 @@ const (
 	ReservationCancelled ReservationState = "CANCELLED"
 )
 
-func (s ReservationState) valid() bool {
-	switch s {
-	case ReservationHeld, ReservationExpired, ReservationReleased, ReservationConfirmed, ReservationCancelled:
-		return true
-	default:
-		return false
-	}
-}
-
 // active reports whether the state still fences its slot and holds.
 func (s ReservationState) active() bool {
 	return s == ReservationHeld || s == ReservationConfirmed

@@ -292,7 +292,7 @@ func promoUXPropose(worker *journeyv1.Worker, targetJob, targetGrade, positionRe
 	return &journeyv1.ProposePromotionRequest{
 		SubjectWorkerRef: worker.GetWorkerRef(), DesiredJobCode: targetJob, DesiredGrade: targetGrade,
 		DesiredPositionId: positionRef, DesiredBasePay: "98000.00", DesiredPayCurrency: "USD",
-		EffectiveDate: "2026-06-01", Reason: "promotion_into_senior_hrbp",
+		EffectiveDate: "2026-06-01", Reason: "Promotion into the senior HRBP role",
 		ExpectedSubjectRevision: expectedRevision, ClientRequestId: clientID,
 	}
 }

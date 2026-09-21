@@ -108,7 +108,7 @@ func (uxaudit014RoleAccess) SaveFeaturePermission(context.Context, values.Tenant
 // link rendered anywhere on a page (primary nav, quick actions, breadcrumbs).
 // Requesting only the Home page for a freshly-authenticated persona (no
 // breadcrumb trail yet) keeps this to the actual navigation menu.
-var destinationHrefRE = regexp.MustCompile(`href="` + regexp.QuoteMeta(PathProductPrefix) + `([a-z0-9-]+)`)
+var destinationHrefRE = regexp.MustCompile(`href="` + regexp.QuoteMeta(PathProductPrefix) + `([a-z0-9-]+(?:/[a-z0-9-]+)*)`)
 
 // renderedDestinations GETs path as a logged-in persona's session and
 // returns the set of top-level /workspace/app/<slug> destinations its

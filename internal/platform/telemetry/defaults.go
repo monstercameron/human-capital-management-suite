@@ -144,6 +144,84 @@ func DefaultAllowlistDefinitions() []AttributeDefinition {
 			MaxCardinality: 16,
 			Description:    "Closed asynchronous message-kind vocabulary; span context only, never payload, authority, or metric label.",
 		},
+		{
+			Key: "provider", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan, SignalMetric},
+			MaxCardinality: 8,
+			Description:    "Closed third-party provider vocabulary (payroll, iam); never a vendor account or tenant identity.",
+		},
+		{
+			Key: "provider_operation", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan, SignalMetric},
+			MaxCardinality: 8,
+			Description:    "Closed provider operation vocabulary (deliver, reverse, status, token, callback).",
+		},
+		{
+			Key: "outcome_class", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan, SignalMetric},
+			MaxCardinality: 16,
+			Description:    "Stable provider delivery failure class (providerdelivery Class values).",
+		},
+		{
+			Key: "result", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan, SignalMetric},
+			MaxCardinality: 16,
+			Description:    "Closed result vocabulary of a provider callback intake or token refresh.",
+		},
+		{
+			Key: "to_state", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan, SignalMetric},
+			MaxCardinality: 4,
+			Description:    "Circuit-breaker state entered by a transition (closed, open, half_open).",
+		},
+		{
+			Key: "from_state", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan},
+			MaxCardinality: 4,
+			Description:    "Circuit-breaker state left by a transition; logs and traces only.",
+		},
+		{
+			Key: "breaker_state", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan},
+			MaxCardinality: 4,
+			Description:    "Circuit-breaker state of a provider after a transition; logs and traces only.",
+		},
+		{
+			Key: "secret_slot", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan, SignalMetric},
+			MaxCardinality: 4,
+			Description:    "Which configured callback-signing secret verified a receipt (current, previous, other); never the secret.",
+		},
+		{
+			Key: "secret_index", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan},
+			MaxCardinality: 8,
+			Description:    "Small index of the callback-signing secret that verified a receipt; never the secret, never a metric label.",
+		},
+		{
+			Key: "retry_delay_ms", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog, SignalSpan},
+			MaxCardinality: 0,
+			Description:    "Scheduled provider retry delay in milliseconds; logs and traces only, never a metric label.",
+		},
+		{
+			Key: "attempt", Class: ClassOperationalPublic,
+			Signals:        []SignalKind{SignalLog},
+			MaxCardinality: 0,
+			Description:    "1-based provider delivery attempt number on log lines (spans carry it as attempt_id); never a metric label.",
+		},
+		{
+			Key: "change_ref", Class: ClassOperationalRestricted,
+			Signals:        []SignalKind{SignalLog, SignalSpan},
+			MaxCardinality: 0,
+			Description:    "Opaque outbox change reference (for example payroll:<uuid>); logs and traces only, never a metric label.",
+		},
+		{
+			Key: "event_id", Class: ClassOperationalRestricted,
+			Signals:        []SignalKind{SignalLog, SignalSpan},
+			MaxCardinality: 0,
+			Description:    "Provider callback event identifier (Webhook-Id); logs and traces only, never a metric label.",
+		},
 	}
 }
 

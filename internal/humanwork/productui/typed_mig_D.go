@@ -17,7 +17,7 @@ func declareColorModeControlStylesStyles() {
 		gwccss.GridCols(gwccss.Repeat(3, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
 	)
 	declareGlobal(".swatch-system-1,.swatch-light-1",
-		gwccss.Bg(gwccss.Hex("fff")),
+		gwccss.Bg(gwccss.Var("surface")),
 	)
 	declareGlobal(".swatch-system-2,.swatch-dark-1",
 		gwccss.Bg(gwccss.Hex("101820")),
@@ -93,14 +93,14 @@ func declareLocaleStylesStyles() {
 	declareGlobal(".locale-menu>summary",
 		gwccss.Display.Grid,
 		gwccss.Raw("place-items", "center"),
-		gwccss.MinWidth(gwccss.Px(44)),
-		gwccss.MinHeight(gwccss.Px(44)),
+		gwccss.MinWidth(gwccss.RawLength("var(--hcm-control-height)")),
+		gwccss.MinHeight(gwccss.RawLength("var(--hcm-control-height)")),
 		gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(8)),
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("radius")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "750"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "700"),
 		gwccss.Raw("list-style", "none"),
 	)
 	declareGlobal(".locale-menu>summary::-webkit-details-marker",
@@ -123,6 +123,16 @@ func declareLocaleStylesStyles() {
 		gwccss.Bg(gwccss.Var("soft")),
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
+	// The current language is marked the way every other current item in the
+	// shell is (navigation, search, the launcher): a leading accent bar, so it
+	// is not told apart from a hovered option by fill alone.
+	declareGlobal(".locale-option[aria-current=true]",
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
+		gwccss.Raw("font-weight", "600"),
+	)
+	declareGlobal("[dir=rtl] .locale-option[aria-current=true]",
+		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
+	)
 	declareGlobal("[dir=rtl] :where(input,textarea,select)",
 		gwccss.Raw("text-align", "start"),
 	)
@@ -130,10 +140,18 @@ func declareLocaleStylesStyles() {
 		gwccss.Right(gwccss.RawLength("auto")),
 		gwccss.Left(gwccss.Zero),
 	)
-	declareGlobal("[dir=rtl] .nav-link[aria-current=page],[dir=rtl] .work-row.selected,[dir=rtl] .people-row.selected",
+	// Every leading accent bar in the shell is mirrored here; the collapsed
+	// rail, ownership cards, the Myself compensation panel and the context
+	// switcher's current option were missing and drew theirs on the far edge.
+	declareGlobal("[dir=rtl] .nav-link[aria-current=page],[dir=rtl] .work-row.selected,[dir=rtl] .people-row.selected,[dir=rtl] .sidebar.collapsed .nav-link[aria-current=page],[dir=rtl] .ownership-card.current-person,[dir=rtl] .ownership-card.selected-person,[dir=rtl] .myself-page .compensation-details,[dir=rtl] .context-switcher-option.current",
 		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(-3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
 	)
 	declareGlobal("[dir=rtl] .nav-chevron,[dir=rtl] .work-row-chevron,[dir=rtl] .organization-unit-glyph,[dir=rtl] .sensitive-summary-chevron",
+		gwccss.Raw("transform", "scaleX(-1)"),
+	)
+	// The sidebar collapse control points toward the edge the sidebar folds
+	// into, which is the right in a right-to-left layout.
+	declareGlobal("[dir=rtl] .header-nav-toggle .nav-icon",
 		gwccss.Raw("transform", "scaleX(-1)"),
 	)
 	declareGlobal("[dir=rtl] .sensitive-details[open]>.sensitive-summary .sensitive-summary-chevron",
@@ -232,7 +250,7 @@ func declareLocalePreferenceStylesStyles() {
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("accent")),
-		gwccss.FontSize(gwccss.Rem(.72)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-weight", "800"),
 		gwccss.Tracking(gwccss.Ems(.04)),
 	)
@@ -246,19 +264,22 @@ func declareLocalePreferenceStylesStyles() {
 	)
 	declareGlobal(".locale-current",
 		gwccss.PaddingY(gwccss.Px(5)), gwccss.PaddingX(gwccss.Px(8)),
-		gwccss.Rounded(gwccss.Px(999)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 		gwccss.Bg(gwccss.Var("accent")),
 		gwccss.TextColor(gwccss.Var("on-brand")),
-		gwccss.FontSize(gwccss.Rem(.7)),
-		gwccss.Raw("font-weight", "750"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "700"),
 	)
+	// A footer strip across the card, not prose: the paragraph reading
+	// measure cut its tinted band off at 437px, halfway across the card.
 	declareGlobal(".locale-preferences-status",
+		gwccss.Raw("max-inline-size", "none"),
 		gwccss.Margin(gwccss.Zero),
 		gwccss.PaddingY(gwccss.Px(13)), gwccss.PaddingX(gwccss.Px(22)),
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.78)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".settings-overview-grid",
 		mediaRule(gwccss.MaxW(960), gwccss.GridCols(gwccss.Fr(1))),
@@ -357,12 +378,26 @@ func declareAccessibilityStylesStyles() {
 		gwccss.Padding(gwccss.Zero),
 		gwccss.Raw("list-style", "none"),
 	)
+	// These lists are layout, not prose. UIPOLISH-001's readable measure caps
+	// every li in the shell at 65ch, which is right for a sentence and wrong
+	// for a container: it held each organization unit to 583px inside an
+	// 886px column and left the rest of the card empty (UXLIVE-024). The
+	// text inside them keeps its own measure.
+	//
+	// The shell class is part of the selector deliberately. UIPOLISH-001's
+	// rule is `:where(.app-shell,.jn-embedded) :is(...,.prose p,...)`, whose
+	// :is() takes `.prose p`'s (0,1,1); a bare `:is(classes)>li` ties with it
+	// and loses on source order, because the typography sheet is
+	// concatenated after this one.
+	declareGlobal(":is(.app-shell,.jn-embedded) :is(.metrics,.recent,.org-branches,.work-rows,.people-rows)>li",
+		gwccss.Raw("max-inline-size", "none"),
+	)
 	declareGlobal(".facts,.person-fact-grid",
 		gwccss.Margin(gwccss.Zero),
 	)
 	declareGlobal(".facts dt,.profile-fact dt",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".facts dd,.profile-fact dd",
 		gwccss.Margin(gwccss.Zero),
@@ -371,7 +406,7 @@ func declareAccessibilityStylesStyles() {
 	)
 	declareGlobal(".activity>time",
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.8)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".nav-favorite",
 		gwccss.MinWidth(gwccss.Px(44)),
@@ -410,12 +445,23 @@ func declareAccessibilityStylesStyles() {
 		gwccss.Raw("border", "0"),
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
 	)
-	declareGlobal(".accessibility-group legend",
+	// Each group's title sits under its divider, not on it: a legend renders
+	// across its fieldset's top border, so the rule ran out from the end of
+	// the title like a strikethrough. Floated, the rule is a clean divider
+	// above a 16px/600 group title, with its description a step under.
+	declareGlobal(".accessibility-group>legend",
+		gwccss.Raw("float", "inline-start"),
+		gwccss.W(gwccss.Percent(100)),
 		gwccss.Padding(gwccss.Zero),
-		gwccss.Raw("font-weight", "750"),
+		gwccss.FontSize(gwccss.Rem(1)),
+		gwccss.Raw("font-weight", "600"),
+	)
+	declareGlobal(".accessibility-group>legend+*",
+		gwccss.Raw("clear", "both"),
 	)
 	declareGlobal(".accessibility-group>p",
 		gwccss.Raw("margin", "4px 0 12px"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
 	)
 	declareGlobal(".accessibility-options",
 		gwccss.Display.Grid,
@@ -449,6 +495,11 @@ func declareAccessibilityStylesStyles() {
 		gwccss.Raw("margin-top", "3px"),
 		gwccss.TextColor(gwccss.Var("muted")),
 	)
+	// On a phone the form's two actions share the row as equal targets, as
+	// the appearance editor's do.
+	declareGlobal(".accessibility-actions .button",
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("flex", "1 1 0"), gwccss.Raw("justify-content", "center")),
+	)
 	declareGlobal(".accessibility-actions",
 		gwccss.Display.Flex,
 		gwccss.Raw("flex-wrap", "wrap"),
@@ -460,7 +511,7 @@ func declareAccessibilityStylesStyles() {
 		gwccss.MinHeight(gwccss.Px(24)),
 		gwccss.Raw("margin", "10px 0 0"),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.8)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".accessibility-status[data-tone=\"success\"]",
 		gwccss.TextColor(gwccss.Var("success")),
@@ -510,7 +561,7 @@ func declareAccessibilityStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("justify-content", "space-between"), gwccss.Gap(gwccss.Px(18))),
 	)
 	declareGlobal(".people-row>.people-cell:before",
-		mediaRule(gwccss.MaxW(760), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "650")),
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "600")),
 	)
 	declareGlobal(".history-action,.history-action>.button",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("justify-self", "stretch"), gwccss.W(gwccss.Percent(100))),
@@ -696,8 +747,7 @@ func declareThemeCoverageBaseStylesStyles() {
 		gwccss.Custom("jn-r2", "var(--hcm-radius-control)"),
 		gwccss.Custom("jn-r3", "var(--hcm-radius-surface)"),
 		gwccss.Custom("jn-r4", "var(--hcm-radius-surface)"),
-		gwccss.Custom("jn-shadow", "var(--hcm-shadow-resting)"),
-		gwccss.Custom("jn-shadow-raised", "var(--hcm-shadow-raised)"),
+		gwccss.Custom("jn-rpill", "var(--hcm-radius-status)"),
 		gwccss.Custom("jn-shadow-lift", "var(--hcm-shadow-raised)"),
 		gwccss.Custom("jn-ring", "0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)"),
 	)

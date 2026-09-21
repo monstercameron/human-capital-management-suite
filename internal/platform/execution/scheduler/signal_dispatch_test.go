@@ -142,6 +142,17 @@ func newSignalCell(t *testing.T, db *pgtest.DB, tenantID uuid.UUID, subject stri
 		tenantID: tenantID, subject: subject})
 }
 
+// unexpectedExpirer fails any test whose tick expires a wait that should
+// still be OPEN: expiry in the matched-path tests would mean the close
+// window moved.
+func unexpectedExpirer(t *testing.T) SignalExpirer {
+	t.Helper()
+	return SignalExpirerFunc(func(context.Context, ExpiredSignalWork) (Disposition, error) {
+		t.Error("expiry fired for a wait that should still be OPEN")
+		return DispositionRetry, nil
+	})
+}
+
 // resumer is the test's SignalResumer: it reads the instance's current
 // version and resumes through the real driver, counting advancements that
 // actually committed.
@@ -176,6 +187,30 @@ func (c signalCell) instance(ctx context.Context, instanceID uuid.UUID) (wfrunti
 		return wfruntime.Instance{}, err
 	}
 	return (wfruntime.Store{}).LoadInstance(ctx, tx, c.tenantID, instanceID)
+}
+
+// expirer is the test's SignalExpirer: it reads the instance's current
+// version and times out through the real driver, counting advancements that
+// actually committed.
+func (c signalCell) expirer(expired *atomic.Int64) SignalExpirer {
+	return SignalExpirerFunc(func(ctx context.Context, work ExpiredSignalWork) (Disposition, error) {
+		instance, err := c.instance(ctx, work.Row.InstanceID)
+		if err != nil {
+			return DispositionRetry, err
+		}
+		result, err := c.driver.ResumeSignalTimeout(ctx, execute.ResumeSignalTimeoutRequest{
+			Start: c.start, InstanceID: work.Row.InstanceID, ExpectedInstanceVersion: instance.InstanceVersion,
+			SubscriptionID: work.Subscription.SubscriptionID,
+		})
+		if err != nil {
+			return DispositionRetry, err
+		}
+		expired.Add(1)
+		if result.Status != execute.StatusComplete {
+			return DispositionRetry, fmt.Errorf("timed-out instance is %s, want COMPLETE", result.Status)
+		}
+		return DispositionCompleted, nil
+	})
 }
 
 type signalVerifier struct{ forged string }
@@ -287,7 +322,8 @@ func TestTodo_WF_RUN_005_ServedPath(t *testing.T) {
 
 	var resumed atomic.Int64
 	logger := &recordingLogger{}
-	dispatcher, err := NewSignalDispatcher(SignalDispatcherConfig{DB: appConn(t, db), Resumer: cell.resumer(&resumed), Clock: func() time.Time { return at }, Logger: logger})
+	dispatcher, err := NewSignalDispatcher(SignalDispatcherConfig{DB: appConn(t, db), Resumer: cell.resumer(&resumed),
+		Expirer: unexpectedExpirer(t), Clock: func() time.Time { return at }, Logger: logger})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -409,6 +445,99 @@ func TestTodo_WF_RUN_005_ServedPath(t *testing.T) {
 	}
 }
 
+// TestTodo_WF_RUN_005_ServedExpiry parks a SIGNAL node and proves the close
+// window is enforced on the served path: a tick before the close claims
+// nothing, the first tick after the close sweeps the wait to EXPIRED and
+// resumes the node exactly once with TIMED_OUT onto its declared edge, a
+// signal that arrives after the close is REFUSED_LATE, and a second sweep, a
+// direct replayed timeout resume and a routed redelivery never advance it
+// again.
+func TestTodo_WF_RUN_005_ServedExpiry(t *testing.T) {
+	db := pgtest.New(t)
+	ctx := context.Background()
+	at := fixtureAt
+	tenantID := insertTenant(t, db, "wf-run-005-served-expiry", at.Add(-time.Hour))
+	cell := newSignalCell(t, db, tenantID, "jane-expiry", at)
+	instance := startParked(t, cell)
+	subscriptionID := signals.SubscriptionIDFor(tenantID, instance.InstanceID, nodeSignalAwait, 1)
+	if n := signalRows(t, db, `SELECT count(*) FROM workflow_signal_subscription WHERE subscription_id = $1 AND subscription_state = 'OPEN'`, subscriptionID); n != 1 {
+		t.Fatalf("open subscriptions for the parked node = %d, want 1", n)
+	}
+
+	var resumed, expired atomic.Int64
+	logger := &recordingLogger{}
+	dispatcher, err := NewSignalDispatcher(SignalDispatcherConfig{DB: appConn(t, db), Resumer: cell.resumer(&resumed),
+		Expirer: cell.expirer(&expired), Clock: func() time.Time { return at }, Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := claimFixture(tenantID, "replica:signal-expiry")
+	fence := acquireQueue(t, db, claim, at)
+	verify := signalVerifier{}
+	schema := signalPayloadSchema.String()
+
+	// A tick while the wait is still OPEN claims nothing, matched or
+	// expired: the close is a day out.
+	if count, err := dispatcher.RunFencedSignalRole(ctx, claim, fence, at, "signal"); err != nil || count != 0 {
+		t.Fatalf("sweep before the close = %d, %v; want nothing to claim", count, err)
+	}
+
+	// The first tick after the close sweeps the wait and times the node out
+	// onto its declared TIMED_OUT edge.
+	late := at.Add(25 * time.Hour)
+	lateFence := acquireQueue(t, db, claim, late)
+	count, err := dispatcher.RunFencedSignalRole(ctx, claim, lateFence, late, "signal")
+	if err != nil || count != 1 {
+		t.Fatalf("sweep after the close = %d, %v; want exactly one claimed expiry", count, err)
+	}
+	if expired.Load() != 1 || resumed.Load() != 0 {
+		t.Fatalf("expiry resumes = %d, signal resumes = %d; want 1 and 0", expired.Load(), resumed.Load())
+	}
+	if n := signalRows(t, db, `SELECT count(*) FROM workflow_signal_subscription WHERE subscription_id = $1 AND subscription_state = 'EXPIRED'`, subscriptionID); n != 1 {
+		t.Fatalf("expired subscriptions = %d, want 1", n)
+	}
+	done, err := cell.instance(ctx, instance.InstanceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done.RuntimeStatus != wfruntime.InstanceCancelled {
+		t.Fatalf("instance after timeout = %s, want CANCELLED on the TIMED_OUT edge", done.RuntimeStatus)
+	}
+	var output string
+	if err := db.QueryRow(ctx, `SELECT output_artifact_ref FROM workflow_node_execution WHERE instance_id = $1 AND node_id = $2`,
+		instance.InstanceID, nodeSignalAwait).Scan(&output); err != nil {
+		t.Fatal(err)
+	}
+	if output != signals.ExpiryContinuationRef(subscriptionID) {
+		t.Fatalf("SIGNAL node output = %q, want the timeout reference, never a signal", output)
+	}
+
+	// A signal that arrives after the close is refused late, and a second
+	// sweep has nothing left to claim.
+	onlyStatus(t, receive(t, cell.db, tenantID, cell.signal("ack-too-late", signalSource, schema, "employment:jane-expiry", late), verify),
+		stepSignal.StatusRefusedLate, "signal after the close")
+	// The replica keeps its queue lease across ticks within its TTL, exactly
+	// as the matched-path test does.
+	if count, err := dispatcher.RunFencedSignalRole(ctx, claim, lateFence, late.Add(time.Minute), "signal"); err != nil || count != 0 {
+		t.Fatalf("second sweep = %d, %v; want nothing left to claim", count, err)
+	}
+	if _, err := cell.driver.ResumeSignalTimeout(ctx, execute.ResumeSignalTimeoutRequest{
+		Start: cell.start, InstanceID: instance.InstanceID, ExpectedInstanceVersion: done.InstanceVersion,
+		SubscriptionID: subscriptionID,
+	}); err == nil {
+		t.Fatal("a replayed timeout resume from the consumed expiry advanced again")
+	}
+	if expired.Load() != 1 {
+		t.Fatalf("expiry resumes after every redelivery = %d, want still 1", expired.Load())
+	}
+	if state, _ := readyStateOf(t, db, tenantID, onlyReadyID(t, db, instance.InstanceID)); state != runtimestate.ReadyDone {
+		t.Fatalf("expiry continuation settled %s, want DONE", state)
+	}
+	if logger.count("scheduler.signal_expiry_settled") != 1 {
+		t.Fatalf("expiry settle log lines = %d, want 1", logger.count("scheduler.signal_expiry_settled"))
+	}
+}
+
 func onlyReadyID(t *testing.T, db *pgtest.DB, instanceID uuid.UUID) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
@@ -478,7 +607,8 @@ func TestTodo_WF_RUN_005_Race(t *testing.T) {
 	counts := make(chan int, 2)
 	sweepStart := make(chan struct{})
 	for i := range 2 {
-		dispatcher, err := NewSignalDispatcher(SignalDispatcherConfig{DB: appConn(t, db), Resumer: cell.forResumeConn(t, db).resumer(&resumed), Clock: func() time.Time { return at }})
+		dispatcher, err := NewSignalDispatcher(SignalDispatcherConfig{DB: appConn(t, db), Resumer: cell.forResumeConn(t, db).resumer(&resumed),
+			Expirer: unexpectedExpirer(t), Clock: func() time.Time { return at }})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -526,7 +656,7 @@ func newSignalCellOn(t *testing.T, conn dbport.Beginner, base signalCell) signal
 			Appender: newLedgerAppender(t), ProjectionName: "workflow_promotion_signal_scheduled",
 			SourceRef: "hcmnext:test:scheduler-signal",
 		},
-		Signals: ports, SignalReader: ports,
+		Signals: ports, SignalReader: ports, SignalTimeoutReader: ports,
 		Guard:     idempotency.PostgresStore{},
 		Retention: idempotency.RetentionPolicy{Retention: 72 * time.Hour, RetryWindow: 6 * time.Hour},
 		Clock:     func() time.Time { return fixtureAt },
@@ -545,17 +675,19 @@ func newSignalCellOn(t *testing.T, conn dbport.Beginner, base signalCell) signal
 
 func TestNewSignalDispatcher_RefusesIncompleteWiring(t *testing.T) {
 	resumer := SignalResumerFunc(func(context.Context, SignalWork) (Disposition, error) { return DispositionCompleted, nil })
+	expirer := SignalExpirerFunc(func(context.Context, ExpiredSignalWork) (Disposition, error) { return DispositionCompleted, nil })
 	for name, cfg := range map[string]SignalDispatcherConfig{
-		"no database":       {Resumer: resumer},
-		"no resumer":        {DB: failingBeginner{}},
-		"negative batch":    {DB: failingBeginner{}, Resumer: resumer, BatchSize: -1},
-		"negative instance": {DB: failingBeginner{}, Resumer: resumer, InstanceTTL: -time.Second},
+		"no database":       {Resumer: resumer, Expirer: expirer},
+		"no resumer":        {DB: failingBeginner{}, Expirer: expirer},
+		"no expirer":        {DB: failingBeginner{}, Resumer: resumer},
+		"negative batch":    {DB: failingBeginner{}, Resumer: resumer, Expirer: expirer, BatchSize: -1},
+		"negative instance": {DB: failingBeginner{}, Resumer: resumer, Expirer: expirer, InstanceTTL: -time.Second},
 	} {
 		if _, err := NewSignalDispatcher(cfg); !errors.Is(err, ErrConfig) {
 			t.Fatalf("%s: err = %v, want ErrConfig", name, err)
 		}
 	}
-	d, err := NewSignalDispatcher(SignalDispatcherConfig{DB: failingBeginner{err: errors.New("down")}, Resumer: resumer})
+	d, err := NewSignalDispatcher(SignalDispatcherConfig{DB: failingBeginner{err: errors.New("down")}, Resumer: resumer, Expirer: expirer})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -575,6 +707,9 @@ func TestNewSignalDispatcher_RefusesIncompleteWiring(t *testing.T) {
 	if got, err := resumer.ResumeSignal(context.Background(), SignalWork{}); err != nil || got != DispositionCompleted {
 		t.Fatalf("SignalResumerFunc = %s, %v", got, err)
 	}
+	if got, err := expirer.ResumeExpiredSignal(context.Background(), ExpiredSignalWork{}); err != nil || got != DispositionCompleted {
+		t.Fatalf("SignalExpirerFunc = %s, %v", got, err)
+	}
 }
 
 func TestSignalDispatcher_ResumeTurnsFailuresIntoRetries(t *testing.T) {
@@ -593,7 +728,9 @@ func TestSignalDispatcher_ResumeTurnsFailuresIntoRetries(t *testing.T) {
 		"abandoned": {resumer: func(context.Context, SignalWork) (Disposition, error) { return DispositionAbandoned, nil },
 			want: DispositionAbandoned},
 	} {
-		d, err := NewSignalDispatcher(SignalDispatcherConfig{DB: failingBeginner{}, Resumer: tc.resumer, Logger: logger})
+		d, err := NewSignalDispatcher(SignalDispatcherConfig{DB: failingBeginner{}, Resumer: tc.resumer,
+			Expirer: SignalExpirerFunc(func(context.Context, ExpiredSignalWork) (Disposition, error) { return DispositionCompleted, nil }),
+			Logger:  logger})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -604,7 +741,9 @@ func TestSignalDispatcher_ResumeTurnsFailuresIntoRetries(t *testing.T) {
 			t.Fatalf("%s: no %s log line", name, tc.log)
 		}
 	}
-	d, _ := NewSignalDispatcher(SignalDispatcherConfig{DB: failingBeginner{}, Resumer: SignalResumerFunc(func(context.Context, SignalWork) (Disposition, error) { return DispositionCompleted, nil })})
+	d, _ := NewSignalDispatcher(SignalDispatcherConfig{DB: failingBeginner{},
+		Resumer: SignalResumerFunc(func(context.Context, SignalWork) (Disposition, error) { return DispositionCompleted, nil }),
+		Expirer: SignalExpirerFunc(func(context.Context, ExpiredSignalWork) (Disposition, error) { return DispositionCompleted, nil })})
 	if err := d.settle(context.Background(), SignalWork{Row: readyWorkFixture()}, Disposition("MAYBE")); !errors.Is(err, ErrConfig) {
 		t.Fatalf("settle with an undeclared disposition = %v, want ErrConfig", err)
 	}

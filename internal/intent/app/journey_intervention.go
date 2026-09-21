@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -164,7 +165,11 @@ func (e *journeyEngine) loadPromotionJourney(ctx context.Context, intentID strin
 // doc comment for why it is Cancel-then-repropose rather than Supersede.
 func (e *journeyEngine) EditProposal(
 	ctx context.Context, intentID string, expectedInstanceVersion uint64, idempotencyKey, reason string, in workspace.EditProposalInput,
-) (workspace.JourneySummary, string, error) {
+) (successor workspace.JourneySummary, superseded string, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.proposal_edited", intentID, retErr, slog.String("successor_intent_id", successor.IntentID))
+		e.publishCommitted(ctx, retErr, intentID, successor.IntentID)
+	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.JourneySummary{}, "", err
@@ -253,13 +258,21 @@ func (e *journeyEngine) EditProposal(
 // leak information a viewer who reached this far was not already entitled
 // to (PROMOUX-001/PROMOUX-004's disclosure-by-value precedent applied here:
 // the same stage always produces the same reason text, whoever is asking).
-func interventionUnavailableAtStage(kind workspace.JourneyInterventionKind, stage workspace.JourneyStage) (string, bool) {
+// interventionUnavailableAtStage decides which intervention a journey may be
+// offered. started reports whether the approval workflow actually began,
+// which the stage alone cannot say: BLOCKED is reachable both from a
+// proposal that never started and from a run whose approvals are recorded
+// and whose revalidation then refused. Treating every blocked journey as
+// unstarted offered Withdraw on the second kind under the description
+// "before any approval has been recorded", which was false (UXLIVE-026).
+func interventionUnavailableAtStage(kind workspace.JourneyInterventionKind, stage workspace.JourneyStage, started bool) (string, bool) {
 	terminal := map[workspace.JourneyStage]bool{
 		workspace.JourneyStageCompleted: true, workspace.JourneyStageRejected: true,
 		workspace.JourneyStageFailed: true, workspace.JourneyStageRecorded: true,
 	}
 	unstarted := map[workspace.JourneyStage]bool{
-		workspace.JourneyStageProposed: true, workspace.JourneyStageBlocked: true,
+		workspace.JourneyStageProposed: true,
+		workspace.JourneyStageBlocked:  !started,
 	}
 	committed := map[workspace.JourneyStage]bool{
 		workspace.JourneyStageExecuted: true, workspace.JourneyStageObservingEffects: true,
@@ -292,14 +305,28 @@ func interventionUnavailableAtStage(kind workspace.JourneyInterventionKind, stag
 func (e *journeyEngine) PreviewIntervention(
 	ctx context.Context, intentID string, kind workspace.JourneyInterventionKind,
 ) (workspace.JourneyInterventionPreview, error) {
-	if kind != workspace.JourneyInterventionWithdraw && kind != workspace.JourneyInterventionCancel {
-		return workspace.JourneyInterventionPreview{}, journeyInputError("kind", "must be WITHDRAW or CANCEL")
+	switch kind {
+	case workspace.JourneyInterventionWithdraw, workspace.JourneyInterventionCancel, workspace.JourneyInterventionRepair:
+	default:
+		return workspace.JourneyInterventionPreview{}, journeyInputError("kind", "must be WITHDRAW, CANCEL or REPAIR")
 	}
 	detail, err := e.Inspect(ctx, intentID)
 	if err != nil {
 		return workspace.JourneyInterventionPreview{}, err
 	}
-	if reasonRef, unavailable := interventionUnavailableAtStage(kind, detail.Summary.Stage); unavailable {
+	// UXLIVE-006: REPAIR is not a stage-only question. Whether a repair is
+	// offered depends on this deployment holding the governed door and on
+	// this viewer holding the grant to open it, so it is answered by its own
+	// projection rather than by the stage table below -- which exists to
+	// guarantee the WITHDRAW/CANCEL answer varies by nothing but the stage.
+	if kind == workspace.JourneyInterventionRepair {
+		principal, principalErr := journeyPrincipal(ctx)
+		if principalErr != nil {
+			return workspace.JourneyInterventionPreview{}, principalErr
+		}
+		return e.previewRepair(ctx, principal, detail.Summary.Stage, detail.Summary.GovernanceVersion), nil
+	}
+	if reasonRef, unavailable := interventionUnavailableAtStage(kind, detail.Summary.Stage, detail.Instance != nil); unavailable {
 		return workspace.JourneyInterventionPreview{Available: false, UnavailableReasonRef: reasonRef}, nil
 	}
 	switch kind {
@@ -357,10 +384,23 @@ func interventionOutcomeFromDisposition(d intent.CancellationDisposition) worksp
 // refuses before any row is written.
 func (e *journeyEngine) RequestIntervention(
 	ctx context.Context, intentID string, req workspace.JourneyInterventionRequest,
-) (workspace.JourneyInterventionResult, error) {
+) (result workspace.JourneyInterventionResult, retErr error) {
+	defer func() {
+		e.journeyEvent(ctx, "journey.intervention", intentID, retErr,
+			slog.String("kind", string(req.Kind)), slog.String("disposition", string(result.Outcome)))
+		if interventionChanged(result.Outcome) {
+			e.publishCommitted(ctx, retErr, intentID)
+		}
+	}()
 	principal, principalErr := journeyPrincipal(ctx)
 	if principalErr != nil {
 		return workspace.JourneyInterventionResult{}, principalErr
+	}
+	// A repair is previewed here and run through the operator door; see
+	// repairNotRequestableHere for why forwarding it would be worse than
+	// refusing it.
+	if req.Kind == workspace.JourneyInterventionRepair {
+		return workspace.JourneyInterventionResult{}, repairNotRequestableHere()
 	}
 	switch {
 	case req.Kind != workspace.JourneyInterventionWithdraw && req.Kind != workspace.JourneyInterventionCancel:

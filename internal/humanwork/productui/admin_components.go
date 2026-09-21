@@ -1,6 +1,8 @@
 package productui
 
 import (
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -68,9 +70,17 @@ func CapabilityCard(props CapabilityCardProps) ui.Node {
 		}
 		return html.Section(html.Props{Class: "surface admin-card", Raw: map[string]any{"role": "listitem", "data-action-state": "unavailable"}}, children...)
 	}
-	return html.Section(html.Props{Class: "surface admin-card", Raw: map[string]any{"role": "listitem"}},
+	// An available card carries no state badge. The badge exists to mark a
+	// card that is not simply available; printing it on every card made it
+	// read as decoration and left the one card it applied to competing with
+	// five copies of itself (UXLIVE-014).
+	children := []ui.Node{
 		html.Div(html.Props{}, html.H3(html.Props{}, ui.Text(props.Title)), html.P(html.Props{Class: "muted"}, ui.Text(props.Description))),
-		html.Strong(html.Props{Class: tone}, ui.Text(props.State)),
-		ui.CreateElement(ActionLink, props.Action),
+	}
+	if strings.TrimSpace(props.State) != "" {
+		children = append(children, html.Strong(html.Props{Class: tone}, ui.Text(props.State)))
+	}
+	return html.Section(html.Props{Class: "surface admin-card", Raw: map[string]any{"role": "listitem"}},
+		append(children, ui.CreateElement(ActionLink, props.Action))...,
 	)
 }

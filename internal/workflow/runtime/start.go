@@ -194,6 +194,15 @@ type StartRequest struct {
 	// its demand exceeds the resolved limits.
 	Workload *WorkloadGate
 
+	// PinnedCompiledPlanDigest is the compiled-plan digest of the existing
+	// instance a request continues (its CompiledPlanHash): a resume, a
+	// redelivery, a signal or timer resume, an approval completion. It lets a
+	// resolver serving more than one version of a workflow select the exact
+	// plan the instance pinned rather than the version new starts receive,
+	// and lets the driver keep advancing an instance whose version a later
+	// activation superseded. Empty on a new start.
+	PinnedCompiledPlanDigest string
+
 	// Delegation, when non-nil, is the executing principal's authority the
 	// instance's later steps act under (WF-RUN-034), recorded once in the
 	// start transaction. It is not part of the execution-context digest.

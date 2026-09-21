@@ -88,6 +88,7 @@ type releaseInputs struct {
 	prov    string
 	p1a     string
 	pol     map[string]string
+	gate    map[string]string
 }
 
 func newReleaseInputs(t *testing.T) releaseInputs {
@@ -106,11 +107,15 @@ func newReleaseInputs(t *testing.T) releaseInputs {
 		}
 		inputs.pol[name] = path
 	}
+	inputs.gate = make(map[string]string, len(release.ProductGateGates()))
+	for _, name := range release.ProductGateGates() {
+		inputs.gate[name] = "fixture-digest-" + name
+	}
 	return inputs
 }
 
 func (in releaseInputs) options(out string) release.Options {
-	return release.Options{Out: out, VersionFile: in.version, Binaries: []release.BinaryInput{{Name: "hcmnext.exe", Path: in.bin}}, SBOMPath: in.sbom, ProvenancePath: in.prov, P1AEvidencePath: in.p1a, PolicyReports: in.pol}
+	return release.Options{Out: out, VersionFile: in.version, Binaries: []release.BinaryInput{{Name: "hcmnext.exe", Path: in.bin}}, SBOMPath: in.sbom, ProvenancePath: in.prov, P1AEvidencePath: in.p1a, PolicyReports: in.pol, ProductGateEvidence: in.gate}
 }
 
 func custodySource(t *testing.T, provider custody.Provider, version string, private ed25519.PrivateKey) release.KeySource {

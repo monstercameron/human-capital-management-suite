@@ -94,7 +94,7 @@ func BuildWithKeySource(root string, opts Options, source KeySource) (Manifest, 
 	if err := writeBundleFiles(stage, version, inputs); err != nil {
 		return Manifest{}, err
 	}
-	manifest, err := manifestFor(stage, version)
+	manifest, err := manifestFor(stage, version, inputs.gate)
 	if err != nil {
 		return Manifest{}, err
 	}

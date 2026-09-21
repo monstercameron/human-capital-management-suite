@@ -1,5 +1,8 @@
 # Infra
 
-Deployment, local infrastructure, container, and environment assets belong here.
+This directory is currently reserved and empty.
 
-The V0 demo currently expects local Postgres plus the Node API and Go block runner.
+Run the prototype locally with the Go cell plus PostgreSQL as described in the
+root README section "Run the prototype locally". There are no container,
+compose, Dockerfile, or environment assets here, and no Node API or Go block
+runner.

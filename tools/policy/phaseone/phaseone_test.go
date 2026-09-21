@@ -47,8 +47,8 @@ func TestPhaseOnePackageAllowlist(t *testing.T) {
 		t.Fatal("no deferred roots")
 	}
 	edges := [][2]string{
-		{"github.com/monstercameron/human-capital-management-suite/internal/transport/edge", "github.com/monstercameron/human-capital-management-suite/internal/humanwork/messaging"},
-		{"github.com/monstercameron/human-capital-management-suite/internal/capability/registry", "github.com/monstercameron/human-capital-management-suite/internal/humanwork/forms"},
+		{"github.com/monstercameron/human-capital-management-suite/internal/transport/edge", "github.com/monstercameron/human-capital-management-suite/internal/configuration/policy"},
+		{"github.com/monstercameron/human-capital-management-suite/internal/capability/registry", "github.com/monstercameron/human-capital-management-suite/internal/evidence/receipts"},
 	}
 	violations := phaseone.CheckGraph(m, edges)
 	if len(violations) != 2 {
@@ -62,10 +62,10 @@ func TestPhaseOnePackageAllowlist(t *testing.T) {
 		t.Fatalf("allowed edge rejected %+v", v)
 	}
 	golden := [][2]string{
-		{"github.com/monstercameron/human-capital-management-suite/cmd/hcmnext", "github.com/monstercameron/human-capital-management-suite/internal/humanwork/inbox"},
+		{"github.com/monstercameron/human-capital-management-suite/cmd/hcmnext", "github.com/monstercameron/human-capital-management-suite/internal/configuration/policy"},
 	}
 	if v := phaseone.CheckGraph(m, golden); len(v) == 0 {
-		t.Fatal("deferred humanwork must be rejected")
+		t.Fatal("deferred configuration must be rejected")
 	}
 }
 
@@ -84,10 +84,10 @@ func TestTodo_ARCH_GO_018_Property(t *testing.T) {
 		}
 	}
 	for _, tc := range []struct{ imp, wantRoot string }{
-		{"github.com/monstercameron/human-capital-management-suite/internal/humanwork/messaging/sender", "internal/humanwork"},
+		{"github.com/monstercameron/human-capital-management-suite/internal/configuration/policy", "internal/configuration"},
 		{"github.com/monstercameron/human-capital-management-suite/internal/domains/people/store", "internal/domains"},
 	} {
-		if !phaseone.IsDeferredImport(m, tc.imp) && tc.wantRoot == "internal/humanwork" {
+		if !phaseone.IsDeferredImport(m, tc.imp) && tc.wantRoot == "internal/configuration" {
 			t.Fatalf("expected deferred %q", tc.imp)
 		}
 	}
@@ -132,16 +132,16 @@ func TestTodo_ARCH_GO_018_Security(t *testing.T) {
 	if phaseone.IsDeferredImport(m, "github.com/monstercameron/human-capital-management-suite/internal/kernel/money") {
 		t.Fatal("kernel must not be deferred")
 	}
-	if !phaseone.IsDeferredImport(m, "github.com/monstercameron/human-capital-management-suite/internal/humanwork") {
-		t.Fatal("humanwork must be deferred")
+	if !phaseone.IsDeferredImport(m, "github.com/monstercameron/human-capital-management-suite/internal/configuration") {
+		t.Fatal("configuration must be deferred")
 	}
 }
 
 func TestTodo_ARCH_GO_018_Conformance(t *testing.T) {
 	m := loadManifest(t)
 	for _, r := range m.InternalPackageRoots {
-		if r.Phase == "P1A" && r.Name == "humanwork" {
-			t.Fatal("humanwork is P1A but must be deferred")
+		if r.Phase == "P1A" && r.Name == "configuration" {
+			t.Fatal("configuration is P1A but must be deferred")
 		}
 	}
 }
@@ -159,7 +159,7 @@ func TestTodo_ARCH_GO_018_Mutation(t *testing.T) {
 	if err := phaseone.ValidateManifest(&m2); err == nil {
 		t.Log("mutated phase still maybe valid but deferred check should catch")
 	}
-	if !phaseone.IsDeferredImport(m, "github.com/monstercameron/human-capital-management-suite/internal/humanwork/messaging") {
+	if !phaseone.IsDeferredImport(m, "github.com/monstercameron/human-capital-management-suite/internal/configuration/policy") {
 		t.Fatal("mutation did not affect deferred detection")
 	}
 }

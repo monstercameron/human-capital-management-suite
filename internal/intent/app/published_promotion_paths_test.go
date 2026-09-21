@@ -53,6 +53,11 @@ func TestPublishedPromotionPathsListedAreAcceptedByTheLadderGate(t *testing.T) {
 	}
 	baseline := journeyBaselineFacts{currentBase: "112000.00", currency: "USD"}
 	for _, option := range options.PromotionPaths {
+		// Every published edge states the range the gate will hold a
+		// proposal to, so a form never has to say none is available.
+		if option.MinimumBaseIncrease == "" || option.MaximumBaseIncrease == "" {
+			t.Errorf("published path %s carries no base-increase bounds", option.PathRef)
+		}
 		current := journeyCurrent{jobCode: option.SourceJobCode, grade: option.SourceGrade}
 		in := workspace.ProposalInput{
 			TargetJobCode: option.TargetJobCode, TargetGrade: option.TargetGrade,

@@ -21,6 +21,11 @@ type LoadingProxyProps struct {
 	Page    PageID
 	State   AsyncRegionState
 	Message string
+	// Failure, used only when State is AsyncRegionFailure, makes the failed
+	// region visibly distinct from loading: a message and a Retry control
+	// drawn over the same size-compatible body (REV-090-01). Nil keeps the
+	// announcement-only failure shape.
+	Failure *AsyncRegionFailureProps
 }
 
 // LoadingRegionPage is the stable outlet used by route transitions. Keeping
@@ -47,14 +52,14 @@ type LoadingGeometry struct {
 // fallback for a route that cannot be classified.
 func LoadingProxyGeometry(page PageID) LoadingGeometry {
 	switch page {
-	case PagePeople, PageHistory:
+	case PagePeople, PageHistory, PageOrganization:
 		return LoadingGeometry{Layout: "table", Rows: 8, Columns: 4}
 	case PagePerson, PageMyself:
 		return LoadingGeometry{Layout: "profile", Rows: 10, Columns: 2}
-	case PageOrganization, PageInsights:
+	case PageInsights:
 		return LoadingGeometry{Layout: "analysis", Rows: 13, Columns: 2}
 	case PageHome, PageWork, PageJourneys:
-		return LoadingGeometry{Layout: "work", Rows: 12, Columns: 2}
+		return LoadingGeometry{Layout: "work", Rows: 6, Columns: 1}
 	default:
 		return LoadingGeometry{Layout: "settings", Rows: 11, Columns: 2}
 	}
@@ -156,6 +161,14 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 	case AsyncRegionLoading, AsyncRegionEmpty, AsyncRegionStale, AsyncRegionResolved:
 		return html.Section(html.Props{Class: class, Raw: map[string]any{"aria-hidden": "true", "data-async-region": LoadingRegionPage, "data-loading-contract": LoadingContractVersion, "data-loading-layout": geometry.Layout, "data-preserve-scroll": "true", "data-preserve-focus": "true"}}, body)
 	case AsyncRegionFailure:
+		if props.Failure != nil {
+			// The notice is drawn over the unchanged body, so the failed region
+			// keeps the loading region's exact dimensions (no layout shift).
+			return html.Section(html.Props{Class: class + " " + asyncRegionFailedClass, Raw: map[string]any{"data-async-region-state": "failure"}},
+				ui.CreateElement(asyncRegionFailureNotice, *props.Failure),
+				body,
+			)
+		}
 		return html.Section(html.Props{Class: class, Raw: map[string]any{"role": "alert", "aria-live": "assertive"}},
 			html.Span(html.Props{Class: "sr-only"}, ui.Text(strings.TrimSpace(props.Message))),
 			body,
@@ -169,7 +182,10 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 
 func loadingProxyBody(page PageID) ui.Node {
 	switch page {
-	case PagePeople, PageHistory:
+	// Organization is a search field over one list of teams, which is this
+	// shape; it used to borrow Insights' metric cards and chart, none of which
+	// it has.
+	case PagePeople, PageHistory, PageOrganization:
 		return html.Div(html.Props{Class: "loading-table-layout"},
 			loadingToolbar(),
 			loadingPanel("loading-table-panel", loadingTable(7)),
@@ -185,7 +201,7 @@ func loadingProxyBody(page PageID) ui.Node {
 				loadingPanel("", loadingRows(4, false)),
 			),
 		)
-	case PageOrganization, PageInsights:
+	case PageInsights:
 		return html.Div(html.Props{Class: "loading-analysis-layout"},
 			loadingMetrics(3),
 			html.Div(html.Props{Class: "loading-two-column"},
@@ -194,12 +210,13 @@ func loadingProxyBody(page PageID) ui.Node {
 			),
 		)
 	case PageHome, PageWork, PageJourneys:
+		// One column, as Home, My Work and Journeys all render. The proxy used
+		// to reserve a list and a detail panel beside it; no page in this
+		// family has that panel, so every navigation to one opened on a
+		// two-column shape and collapsed to one when the data arrived.
 		return html.Div(html.Props{Class: "loading-work-layout"},
 			loadingToolbar(),
-			html.Div(html.Props{Class: "loading-two-column"},
-				loadingPanel("", loadingRows(6, true)),
-				loadingPanel("loading-detail-proxy", loadingFacts(6)),
-			),
+			loadingPanel("", loadingRows(6, true)),
 		)
 	default:
 		return html.Div(html.Props{Class: "loading-settings-layout"},

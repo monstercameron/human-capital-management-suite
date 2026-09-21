@@ -42,7 +42,7 @@ func promoux004LivePathQuery(targetPositionID string) workspace.Query {
 		TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", TargetOrgUnit: "people-ops",
 		TargetPositionID: targetPositionID, TargetPayZone: "US-EAST",
 		EffectiveDate: "2026-06-01", EvaluationDate: "2026-05-15",
-		BusinessReason: "promotion_into_senior_hrbp", BudgetAvailable: "50000.00",
+		BusinessReason: "Promotion into the senior HRBP role", BudgetAvailable: "50000.00",
 	}
 }
 

@@ -29,18 +29,27 @@ routes through the registry instead of casting URL segments into page IDs.
 
 ## Source ownership
 
-- `registry.go`: canonical page definitions and route resolution.
-- `provider.go`: transport-neutral projection boundary.
-- `shell.go`: header, navigation, page frame, and landmarks.
-- `components.go`: reusable product primitives.
-- `page_*.go`: one feature surface and its private subcomponents per file.
-- `selectors.go`: pure filtering and selection over authorized models.
-- `model.go`: presentation contracts and development fixtures.
-- `styles.go`: semantic platform and component styles.
-- `theme.go`: validated semantic token compiler and protected accessibility boundaries.
-- `appearance.go`: closed customer palette, shape, density, glyph, and motion presets.
-- `appearance_components.go`: storage-independent customer appearance editor.
-- `render.go`: document assembly only.
+Ownership is by file family, and this list is not exhaustive. `registry.go`
+is the canonical inventory of page identity, routes, titles, navigation
+eligibility, ordering, and renderers.
+
+- Pages: over 130 `page_*.go` surfaces, one feature surface and its private
+  subcomponents per file.
+- Shell and frame: `shell.go` (header, navigation, page frame, landmarks),
+  `components.go` (reusable product primitives), `render.go` (document
+  assembly only).
+- Navigation: `navigation_components.go`, `history_navigation.go`.
+- Tables and data display: `data_table.go`, `selectors.go` (pure filtering
+  and selection over authorized models), `model.go` (presentation contracts
+  and development fixtures).
+- Typed style migrations: `typed_mig_A.go`–`typed_mig_F.go`, `styles.go`
+  (semantic platform and component styles), `theme.go` (validated semantic
+  token compiler and protected accessibility boundaries), `appearance.go`
+  (closed customer palette, shape, density, glyph, and motion presets),
+  `appearance_components.go` (storage-independent customer appearance
+  editor).
+- Launching and widgets: `action_launcher.go`, `widget.go`.
+- Transport boundary: `provider.go` (transport-neutral projection boundary).
 
 ## Adding a page
 

@@ -176,7 +176,7 @@ func TestTodo_EP_WORK_001_Integration(t *testing.T) {
 	cursorKey := []byte("bootstrap-work-queue-key")
 
 	grpcServer, err := transportcell.NewGRPCServerWithWorkflowInspectorAndOperations(
-		c.app, nil, queueReader, nil, cursorKey)
+		c.app, nil, queueReader, nil, cursorKey, transporthumanwork.WritePorts{})
 	if err != nil {
 		t.Fatalf("NewGRPCServerWithWorkflowInspectorAndOperations: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestTodo_EP_WORK_001_Integration(t *testing.T) {
 	t.Cleanup(func() { _ = listener.Close() })
 
 	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnelAndDependencies(
-		c.app, grpcServer, nil, queueReader, nil, cursorKey)
+		c.app, grpcServer, nil, queueReader, nil, cursorKey, transporthumanwork.WritePorts{})
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithTunnelAndDependencies: %v", err)
 	}

@@ -27,7 +27,7 @@ release: P1B
 todo_id: NEXT-002
 p1a_manifest:
   path: definitions/planning/gates/p1a-manifest.yaml
-  digest: "e9d7ffe66f019dc8ea8b4252303cde9dfc6b22cf705a8de5c6a024d1fbcd34dc"
+  digest: "b51c2d018dcceafb13fa8b74ec2e03a8f85b630e28d597ef17f232d61a4f2da1"
 requires_gate_a_decision: true
 gate_a_decision: ""
 authority_digest: ""
@@ -57,4 +57,4 @@ signature:
   algorithm: ed25519
   public_key: 93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b
   key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml
-  value: "21fb24e7021ca674a76ece11993353fc036b6b6052a16dec41194411bdf2a34cf7b94b3b561aa626f27005bff3cfc9632f27e38577866dfebd100784a342020b"
+  value: "818f677dbbec1be69697dace83070034e9ee9761d03e90318b95c5aa6a9f2fd9e35a4e6850ca74ca9e1f0521305570a499b9930565722b3c55b32a92db6e9c08"

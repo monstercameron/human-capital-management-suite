@@ -9,10 +9,17 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
 
-// The digest moved with WF-RUN-037: it now pins execute_promotion as the
-// AUTHORITATIVE_CORE (the only change; with the role cleared the plan still
-// digests to 186dcb387bc3f6576b88935be0435839fb96afd055e1e69a1da0c6fa74d60674).
-const promotionExecutePlanDigest = "f368f53c962603e0546a888d2a965b2b0568e08d925e352af00ded2898eb5864"
+// promotionExecutePlanDigestV1_0 is the frozen 1.0.0 plan. It moved last with
+// WF-RUN-037 (execute_promotion pinned as the AUTHORITATIVE_CORE; with the
+// role cleared the plan digests to
+// 186dcb387bc3f6576b88935be0435839fb96afd055e1e69a1da0c6fa74d60674) and must
+// never move again: live 1.0.0 instances are pinned to it.
+const promotionExecutePlanDigestV1_0 = "655535f1e484991a79562a292eb21374381b1e757e115a3ec53eb25ce61679d7"
+
+// promotionExecutePlanDigest is the 1.1.0 plan: the 1.0.0 graph plus the two
+// provider-confirmation SIGNAL waits (execute -> await payroll -> observe
+// payroll -> await access -> observe access) at definition version 2.
+const promotionExecutePlanDigest = "9c97ca67a56638f631bebd17c0bbdb62336ca7ae801d43571e9b8f908f46d2bf"
 
 func TestPromotionExecuteDefinitionCompiles(t *testing.T) {
 	plan, err := Compile()
@@ -59,32 +66,75 @@ func TestTodo_PROMO_EXEC_DEF_Golden(t *testing.T) {
 	if !reflect.DeepEqual(plan.Reachability.Order, wantOrder) {
 		t.Fatalf("reachability order = %v, want %v", plan.Reachability.Order, wantOrder)
 	}
+	if !HasProviderWaits(plan) {
+		t.Fatal("the 1.1.0 plan reports no provider waits")
+	}
+}
+
+// TestPromotionExecuteV1_0IsFrozen proves the 1.0.0 graph still compiles to
+// the exact plan its live instances pinned, under its own version identity
+// and without the provider waits.
+func TestPromotionExecuteV1_0IsFrozen(t *testing.T) {
+	plan, err := CompileV1_0()
+	if err != nil {
+		t.Fatalf("CompileV1_0: %v", err)
+	}
+	if got := plan.Digest(); got != promotionExecutePlanDigestV1_0 {
+		t.Fatalf("1.0.0 plan digest = %q, want the frozen %q", got, promotionExecutePlanDigestV1_0)
+	}
+	if plan.WorkflowID != WorkflowID || plan.Version != VersionV1_0 {
+		t.Fatalf("1.0.0 identity = %s/%d, want %s/%d", plan.WorkflowID, plan.Version, WorkflowID, VersionV1_0)
+	}
+	if !reflect.DeepEqual(plan.Reachability.Order, NodeOrderV1_0()) {
+		t.Fatalf("1.0.0 reachability order = %v, want %v", plan.Reachability.Order, NodeOrderV1_0())
+	}
+	if HasProviderWaits(plan) {
+		t.Fatal("the frozen 1.0.0 plan reports provider waits")
+	}
+	if HasProviderWaits(nil) {
+		t.Fatal("a nil plan reports provider waits")
+	}
+	sim, err := CompileSimulationV1_0()
+	if err != nil || sim.Digest() == plan.Digest() {
+		t.Fatalf("1.0.0 SIMULATE projection = %v, %v; want a distinct zero-effect plan", sim, err)
+	}
+	current, err := Compile()
+	if err != nil || current.Digest() == plan.Digest() {
+		t.Fatalf("1.1.0 digest equals 1.0.0 (%v)", err)
+	}
+	if SemanticVersion == SemanticVersionV1_0 || Version == VersionV1_0 {
+		t.Fatalf("versions %s/%d and %s/%d do not differ", SemanticVersion, Version, SemanticVersionV1_0, VersionV1_0)
+	}
 }
 
 func TestTodo_PROMO_EXEC_DEF_Conformance(t *testing.T) {
 	def := Definition()
 	wantTypes := map[string]workflow.StepType{
-		NodeSnapshotWorker:        workflow.StepCapability,
-		NodeSimulateCompensation:  workflow.StepCapability,
-		NodeEvaluateBand:          workflow.StepCapability,
-		NodeRaiseThreshold:        workflow.StepDecision,
-		NodeApproveFinance:        workflow.StepApproval,
-		NodeApproveManager:        workflow.StepApproval,
-		NodeWaitEffectiveDate:     workflow.StepWait,
-		NodeRevalidate:            workflow.StepCapability,
-		NodeStillValid:            workflow.StepDecision,
-		NodeReapproval:            workflow.StepTask,
-		NodeExecutePromotion:      workflow.StepCapability,
-		NodeObservePayroll:        workflow.StepObserve,
-		NodeObserveAccess:         workflow.StepObserve,
-		NodeObserveReconciliation: workflow.StepObserve,
-		NodeEndComplete:           workflow.StepEnd,
-		NodeEndRepairPlan:         workflow.StepEnd,
-		NodeEndRejected:           workflow.StepEnd,
-		NodeEndInvalidated:        workflow.StepEnd,
-		NodeEndExpired:            workflow.StepEnd,
-		NodeEndCancelled:          workflow.StepEnd,
-		NodeEndBlocked:            workflow.StepEnd,
+		NodeSnapshotWorker:           workflow.StepCapability,
+		NodeSimulateCompensation:     workflow.StepCapability,
+		NodeEvaluateBand:             workflow.StepCapability,
+		NodeRaiseThreshold:           workflow.StepDecision,
+		NodeApproveFinance:           workflow.StepApproval,
+		NodeApproveManager:           workflow.StepApproval,
+		NodeWaitEffectiveDate:        workflow.StepWait,
+		NodeRevalidate:               workflow.StepCapability,
+		NodeStillValid:               workflow.StepDecision,
+		NodeReapproval:               workflow.StepTask,
+		NodeExecutePromotion:         workflow.StepCapability,
+		NodeCompensateHold:           workflow.StepCompensate,
+		NodeAcknowledgeRelease:       workflow.StepSignal,
+		NodeAwaitPayrollConfirmation: workflow.StepSignal,
+		NodeAwaitAccessConfirmation:  workflow.StepSignal,
+		NodeObservePayroll:           workflow.StepObserve,
+		NodeObserveAccess:            workflow.StepObserve,
+		NodeObserveReconciliation:    workflow.StepObserve,
+		NodeEndComplete:              workflow.StepEnd,
+		NodeEndRepairPlan:            workflow.StepEnd,
+		NodeEndRejected:              workflow.StepEnd,
+		NodeEndInvalidated:           workflow.StepEnd,
+		NodeEndExpired:               workflow.StepEnd,
+		NodeEndCancelled:             workflow.StepEnd,
+		NodeEndBlocked:               workflow.StepEnd,
 	}
 	gotTypes := map[string]workflow.StepType{}
 	for _, node := range def.Nodes {
@@ -108,10 +158,17 @@ func TestTodo_PROMO_EXEC_DEF_Conformance(t *testing.T) {
 		{NodeReapproval, NodeApproveManager, "REAPPROVED"},
 		{NodeReapproval, NodeEndCancelled, "WITHDRAWN"},
 		{NodeReapproval, NodeEndInvalidated, "INVALIDATED"},
-		{NodeExecutePromotion, NodeObservePayroll, "SUCCEEDED"},
-		{NodeObservePayroll, NodeObserveAccess, "PASS"},
+		{NodeExecutePromotion, NodeAwaitPayrollConfirmation, "SUCCEEDED"},
+		{NodeAwaitPayrollConfirmation, NodeObservePayroll, "SUCCEEDED"},
+		{NodeObservePayroll, NodeAwaitAccessConfirmation, "PASS"},
+		{NodeAwaitAccessConfirmation, NodeObserveAccess, "SUCCEEDED"},
+		{NodeObservePayroll, NodeCompensateHold, "FAIL"},
 		{NodeObserveAccess, NodeObserveReconciliation, "PASS"},
-		{NodeObserveReconciliation, NodeEndComplete, "CONSISTENT"},
+		{NodeObserveAccess, NodeCompensateHold, "PARTIAL"},
+		{NodeCompensateHold, NodeEndRepairPlan, "COMPENSATED"},
+		{NodeObserveReconciliation, NodeAcknowledgeRelease, "CONSISTENT"},
+		{NodeAcknowledgeRelease, NodeEndComplete, "SUCCEEDED"},
+		{NodeAcknowledgeRelease, NodeEndRepairPlan, "TIMED_OUT"},
 		{NodeObserveReconciliation, NodeEndRepairPlan, "DEGRADED"},
 	}
 	for _, want := range expectedEdges {

@@ -7,6 +7,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"google.golang.org/grpc/codes"
@@ -102,8 +103,15 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 	if got := detail.GetJourney().GetProposedBase(); got != "98000.00" {
 		t.Fatalf("proposed base = %q, want exact Money text 98000.00", got)
 	}
-	if got := detail.GetJourney().GetTarget(); got.GetJobCode() != targetJob || got.GetGrade() != targetGrade || got.GetPositionId() != h.positionRef {
-		t.Fatalf("target placement = %+v, want %s/%s/issued position reference", got, targetJob, targetGrade)
+	// UXLIVE-003: the inspect projection renders the position the issued
+	// reference names, not the reference token itself, so the expected
+	// placement decodes the seeded reference the same way the server does.
+	selected, _, err := position.RevisionRef(h.positionRef).Decode()
+	if err != nil {
+		t.Fatalf("seeded position reference did not decode: %v", err)
+	}
+	if got := detail.GetJourney().GetTarget(); got.GetJobCode() != targetJob || got.GetGrade() != targetGrade || got.GetPositionId() != selected.Id {
+		t.Fatalf("target placement = %+v, want %s/%s/position %s named by the issued reference", got, targetJob, targetGrade, selected.Id)
 	}
 	if detail.GetJourney().GetCurrent().GetJobCode() != worker.GetJobCode() || detail.GetJourney().GetCurrent().GetGrade() != worker.GetGrade() {
 		t.Fatalf("current placement was not read from the discovered worker: %+v", detail.GetJourney().GetCurrent())
@@ -218,19 +226,26 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 	}
 	if managerDetail.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
 		watchCancel()
-		managerDetail = promoUXWaitForStage(t, h, "proposer", proposed.GetIntentId(), journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED)
+		promoUXWaitForStage(t, h, "proposer", proposed.GetIntentId(), journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED)
 	}
 	watchCancel()
 
 	if lastCursor == "" || lastSequence < 2 {
 		t.Fatalf("completed watch did not retain a resumable cursor: %q/%d", lastCursor, lastSequence)
 	}
+	// The live stream belongs to the proposer. The manager's detail is a
+	// different viewer projection and may have a different digest even at the
+	// same stage; reconnect with the proposer's current digest instead.
+	review := promoUXInspect(t, h, "proposer", proposed.GetIntentId())
+	if review.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED {
+		t.Fatalf("proposer's resumed detail stage = %s, want BLOCKED", review.GetJourney().GetStage())
+	}
 	// A reconnect carrying both the last detail digest and its cursor must not
 	// replay the terminal detail. The short deadline is the expected quiet
 	// stream result, not a server failure.
 	reconnectCtx, reconnectCancel := h.ctx(t, "proposer", 500*time.Millisecond)
 	reconnected, err := h.client.WatchJourney(reconnectCtx, &journeyv1.WatchJourneyRequest{
-		IntentId: proposed.GetIntentId(), SinceDigest: managerDetail.GetDetailDigest(), ResumeCursor: lastCursor,
+		IntentId: proposed.GetIntentId(), SinceDigest: review.GetDetailDigest(), ResumeCursor: lastCursor,
 	})
 	if err != nil {
 		reconnectCancel()
@@ -242,7 +257,6 @@ func TestPromoUXRealServerPromotionContract(t *testing.T) {
 		t.Fatalf("WatchJourney reconnect replay result = %v, want quiet deadline/EOF", err)
 	}
 
-	review := promoUXInspect(t, h, "proposer", proposed.GetIntentId())
 	if review.GetJourney().GetStage() != journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED || review.GetLedger() == nil {
 		t.Fatalf("final review = stage %s ledger=%+v, want BLOCKED (WF-RUN-034: a corpus worker has no projected aggregates, position or pool, so the recorded approval denies) with ledger fact", review.GetJourney().GetStage(), review.GetLedger())
 	}

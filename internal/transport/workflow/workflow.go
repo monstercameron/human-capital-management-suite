@@ -22,26 +22,59 @@ import (
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/designeredit"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/inspect"
+	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
 const (
-	GetWorkflowProcedure        = "/hcmnext.workflow.v1.WorkflowService/GetWorkflow"
-	ListNodeExecutionsProcedure = "/hcmnext.workflow.v1.WorkflowService/ListNodeExecutions"
-	ActionGetWorkflow           = "get_workflow"
-	ActionListNodeExecutions    = "list_node_executions"
-	defaultPageSize             = 100
-	maxPageSize                 = 1000
+	GetWorkflowProcedure                  = "/hcmnext.workflow.v1.WorkflowService/GetWorkflow"
+	ListNodeExecutionsProcedure           = "/hcmnext.workflow.v1.WorkflowService/ListNodeExecutions"
+	ActionGetWorkflow                     = "get_workflow"
+	ActionListNodeExecutions              = "list_node_executions"
+	ListWorkflowPublicationsProcedure     = "/hcmnext.workflow.v1.WorkflowService/ListWorkflowPublications"
+	GetWorkflowDefinitionViewProcedure    = "/hcmnext.workflow.v1.WorkflowService/GetWorkflowDefinitionView"
+	CompileWorkflowDraftProcedure         = "/hcmnext.workflow.v1.WorkflowService/CompileWorkflowDraft"
+	ListWorkflowBlocksProcedure           = "/hcmnext.workflow.v1.WorkflowService/ListWorkflowBlocks"
+	CreateWorkflowDraftProcedure          = "/hcmnext.workflow.v1.WorkflowService/CreateWorkflowDraft"
+	GetWorkflowDraftProcedure             = "/hcmnext.workflow.v1.WorkflowService/GetWorkflowDraft"
+	InsertWorkflowPaletteEntryProcedure   = "/hcmnext.workflow.v1.WorkflowService/InsertWorkflowPaletteEntry"
+	UpdateWorkflowDraftNodeProcedure      = "/hcmnext.workflow.v1.WorkflowService/UpdateWorkflowDraftNode"
+	SetWorkflowDraftOutcomeProcedure      = "/hcmnext.workflow.v1.WorkflowService/SetWorkflowDraftOutcome"
+	BindWorkflowDraftInputProcedure       = "/hcmnext.workflow.v1.WorkflowService/BindWorkflowDraftInput"
+	MoveWorkflowDraftNodeProcedure        = "/hcmnext.workflow.v1.WorkflowService/MoveWorkflowDraftNode"
+	NavigateWorkflowDraftHistoryProcedure = "/hcmnext.workflow.v1.WorkflowService/NavigateWorkflowDraftHistory"
+	ApplyWorkflowTemplateOverlayProcedure = "/hcmnext.workflow.v1.WorkflowService/ApplyWorkflowTemplateOverlay"
+	ActionListWorkflowPublications        = "list_workflow_publications"
+	ActionGetWorkflowDefinitionView       = "get_workflow_definition_view"
+	ActionCompileWorkflowDraft            = "compile_workflow_draft"
+	ActionListWorkflowBlocks              = "list_workflow_blocks"
+	ActionCreateWorkflowDraft             = "create_workflow_draft"
+	ActionGetWorkflowDraft                = "get_workflow_draft"
+	ActionInsertWorkflowPaletteEntry      = "insert_workflow_palette_entry"
+	ActionUpdateWorkflowDraftNode         = "update_workflow_draft_node"
+	ActionSetWorkflowDraftOutcome         = "set_workflow_draft_outcome"
+	ActionBindWorkflowDraftInput          = "bind_workflow_draft_input"
+	ActionMoveWorkflowDraftNode           = "move_workflow_draft_node"
+	ActionNavigateWorkflowDraftHistory    = "navigate_workflow_draft_history"
+	ActionApplyWorkflowTemplateOverlay    = "apply_workflow_template_overlay"
+	defaultPageSize                       = 100
+	maxPageSize                           = 1000
 )
 
 var (
-	ErrNotFound       = errors.New("workflow: instance not found")
-	ErrInvalidRecord  = errors.New("workflow: inspection record is invalid")
-	ErrInvalidCursor  = errors.New("workflow: inspection cursor is invalid")
-	ErrCursorKeyUnset = errors.New("workflow: inspection cursor key is unset")
+	ErrNotFound                  = errors.New("workflow: instance not found")
+	ErrInvalidRecord             = errors.New("workflow: inspection record is invalid")
+	ErrInvalidCursor             = errors.New("workflow: inspection cursor is invalid")
+	ErrCursorKeyUnset            = errors.New("workflow: inspection cursor key is unset")
+	errDraftCompilerUnavailable  = errors.New("workflow: draft compiler is not configured")
+	errPaletteUnavailable        = errors.New("workflow: workflow palette is not configured")
+	errDraftAuthoringUnavailable = errors.New("workflow: draft authoring is not configured")
 )
 
 // Instance is the redacted, transport-safe instance projection supplied by a
@@ -97,16 +130,35 @@ type NodeExecution struct {
 type Record struct {
 	Instance Instance
 	Nodes    []NodeExecution
+	// Inspector is the authorization-shaped runtime projection built from the
+	// same durable record. Definition-view endpoints consume it directly so
+	// the product never invents node state from transport rows.
+	Inspector *inspect.View
 }
 
 type Reader interface {
 	ReadWorkflowInstance(context.Context, string, string) (Record, error)
 }
 
+// DefinitionReader is the immutable publication port used by the read-only
+// workflow designer. The runtime keeps depending on workflowversion.Store;
+// only surfaces that actually render a catalog require this wider read port.
+type DefinitionReader interface {
+	ListAll() ([]workflowversion.CompiledVersion, error)
+	GetByDigest(string) (workflowversion.CompiledVersion, bool, error)
+	GetActiveForWorkflow(string) (workflowversion.CompiledVersion, bool, error)
+	List(string) ([]workflowversion.CompiledVersion, error)
+}
+
 type Dependencies struct {
-	Instances Reader
-	Authorize func(*trust.Principal, string) bool
-	CursorKey []byte
+	Instances      Reader
+	Definitions    DefinitionReader
+	Drafts         DraftReader
+	DraftCompiler  DraftCompiler
+	Palette        Palette
+	DraftAuthoring *designeredit.Service
+	Authorize      func(*trust.Principal, string) bool
+	CursorKey      []byte
 	// Control runs governed Pause/Resume/Cancel/RetryNode controls. Nil (or a
 	// nil TenantIDs) refuses every control with FAILED_PRECONDITION and
 	// performs no transition.
@@ -135,6 +187,97 @@ func Register(srv *grpc.Server, deps Dependencies) {
 func NewHandler(deps Dependencies, opts ...connect.HandlerOption) http.Handler {
 	s := &server{deps: deps}
 	mux := http.NewServeMux()
+	mux.Handle(ListWorkflowPublicationsProcedure, connect.NewUnaryHandler(ListWorkflowPublicationsProcedure, func(ctx context.Context, req *connect.Request[workflowv1.ListWorkflowPublicationsRequest]) (*connect.Response[workflowv1.ListWorkflowPublicationsResponse], error) {
+		res, err := s.ListWorkflowPublications(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(GetWorkflowDefinitionViewProcedure, connect.NewUnaryHandler(GetWorkflowDefinitionViewProcedure, func(ctx context.Context, req *connect.Request[workflowv1.GetWorkflowDefinitionViewRequest]) (*connect.Response[workflowv1.GetWorkflowDefinitionViewResponse], error) {
+		res, err := s.GetWorkflowDefinitionView(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(CompileWorkflowDraftProcedure, connect.NewUnaryHandler(CompileWorkflowDraftProcedure, func(ctx context.Context, req *connect.Request[workflowv1.CompileWorkflowDraftRequest]) (*connect.Response[workflowv1.CompileWorkflowDraftResponse], error) {
+		res, err := s.CompileWorkflowDraft(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(ListWorkflowBlocksProcedure, connect.NewUnaryHandler(ListWorkflowBlocksProcedure, func(ctx context.Context, req *connect.Request[workflowv1.ListWorkflowBlocksRequest]) (*connect.Response[workflowv1.ListWorkflowBlocksResponse], error) {
+		res, err := s.ListWorkflowBlocks(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(CreateWorkflowDraftProcedure, connect.NewUnaryHandler(CreateWorkflowDraftProcedure, func(ctx context.Context, req *connect.Request[workflowv1.CreateWorkflowDraftRequest]) (*connect.Response[workflowv1.CreateWorkflowDraftResponse], error) {
+		res, err := s.CreateWorkflowDraft(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(GetWorkflowDraftProcedure, connect.NewUnaryHandler(GetWorkflowDraftProcedure, func(ctx context.Context, req *connect.Request[workflowv1.GetWorkflowDraftRequest]) (*connect.Response[workflowv1.GetWorkflowDraftResponse], error) {
+		res, err := s.GetWorkflowDraft(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(InsertWorkflowPaletteEntryProcedure, connect.NewUnaryHandler(InsertWorkflowPaletteEntryProcedure, func(ctx context.Context, req *connect.Request[workflowv1.InsertWorkflowPaletteEntryRequest]) (*connect.Response[workflowv1.InsertWorkflowPaletteEntryResponse], error) {
+		res, err := s.InsertWorkflowPaletteEntry(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(UpdateWorkflowDraftNodeProcedure, connect.NewUnaryHandler(UpdateWorkflowDraftNodeProcedure, func(ctx context.Context, req *connect.Request[workflowv1.UpdateWorkflowDraftNodeRequest]) (*connect.Response[workflowv1.UpdateWorkflowDraftNodeResponse], error) {
+		res, err := s.UpdateWorkflowDraftNode(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(SetWorkflowDraftOutcomeProcedure, connect.NewUnaryHandler(SetWorkflowDraftOutcomeProcedure, func(ctx context.Context, req *connect.Request[workflowv1.SetWorkflowDraftOutcomeRequest]) (*connect.Response[workflowv1.SetWorkflowDraftOutcomeResponse], error) {
+		res, err := s.SetWorkflowDraftOutcome(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(BindWorkflowDraftInputProcedure, connect.NewUnaryHandler(BindWorkflowDraftInputProcedure, func(ctx context.Context, req *connect.Request[workflowv1.BindWorkflowDraftInputRequest]) (*connect.Response[workflowv1.BindWorkflowDraftInputResponse], error) {
+		res, err := s.BindWorkflowDraftInput(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(MoveWorkflowDraftNodeProcedure, connect.NewUnaryHandler(MoveWorkflowDraftNodeProcedure, func(ctx context.Context, req *connect.Request[workflowv1.MoveWorkflowDraftNodeRequest]) (*connect.Response[workflowv1.MoveWorkflowDraftNodeResponse], error) {
+		res, err := s.MoveWorkflowDraftNode(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(NavigateWorkflowDraftHistoryProcedure, connect.NewUnaryHandler(NavigateWorkflowDraftHistoryProcedure, func(ctx context.Context, req *connect.Request[workflowv1.NavigateWorkflowDraftHistoryRequest]) (*connect.Response[workflowv1.NavigateWorkflowDraftHistoryResponse], error) {
+		res, err := s.NavigateWorkflowDraftHistory(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(ApplyWorkflowTemplateOverlayProcedure, connect.NewUnaryHandler(ApplyWorkflowTemplateOverlayProcedure, func(ctx context.Context, req *connect.Request[workflowv1.ApplyWorkflowTemplateOverlayRequest]) (*connect.Response[workflowv1.ApplyWorkflowTemplateOverlayResponse], error) {
+		res, err := s.ApplyWorkflowTemplateOverlay(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
 	mux.Handle(GetWorkflowProcedure, connect.NewUnaryHandler(GetWorkflowProcedure, func(ctx context.Context, req *connect.Request[workflowv1.GetWorkflowRequest]) (*connect.Response[workflowv1.GetWorkflowResponse], error) {
 		res, err := s.GetWorkflow(ctx, req.Msg)
 		if err != nil {
@@ -151,6 +294,174 @@ func NewHandler(deps Dependencies, opts ...connect.HandlerOption) http.Handler {
 	}, opts...))
 	registerControlHandlers(mux, s, opts...)
 	return mux
+}
+
+func (s *server) ListWorkflowPublications(ctx context.Context, _ *workflowv1.ListWorkflowPublicationsRequest) (*workflowv1.ListWorkflowPublicationsResponse, error) {
+	p, inv, ownedErr := trustedContext(ctx)
+	if ownedErr != nil {
+		return nil, ownedErr
+	}
+	if !s.authorized(p, ActionListWorkflowPublications) {
+		return nil, denied(inv, p)
+	}
+	if s.deps.Definitions == nil {
+		return nil, projectReadError(errors.New("workflow publication catalog is not configured"), inv, p)
+	}
+	versions, err := s.deps.Definitions.ListAll()
+	if err != nil {
+		return nil, projectReadError(err, inv, p)
+	}
+	selected := selectCatalogVersions(versions)
+	response := &workflowv1.ListWorkflowPublicationsResponse{Publications: make([]*workflowv1.WorkflowPublicationSummary, 0, len(selected))}
+	for _, publication := range selected {
+		view, err := workflowview.Build(publication, nil)
+		if err != nil {
+			return nil, projectReadError(err, inv, p)
+		}
+		response.Publications = append(response.Publications, projectPublication(publication, view.Name))
+	}
+	sort.SliceStable(response.Publications, func(i, j int) bool {
+		left, right := response.Publications[i], response.Publications[j]
+		if strings.EqualFold(left.GetName(), right.GetName()) {
+			return left.GetWorkflowId() < right.GetWorkflowId()
+		}
+		return strings.ToLower(left.GetName()) < strings.ToLower(right.GetName())
+	})
+	return response, nil
+}
+
+func (s *server) GetWorkflowDefinitionView(ctx context.Context, req *workflowv1.GetWorkflowDefinitionViewRequest) (*workflowv1.GetWorkflowDefinitionViewResponse, error) {
+	p, inv, ownedErr := trustedContext(ctx)
+	if ownedErr != nil {
+		return nil, ownedErr
+	}
+	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" && strings.TrimSpace(req.GetInstanceId()) == "" {
+		return nil, invalid(inv, "workflow_id")
+	}
+	if !s.authorized(p, ActionGetWorkflowDefinitionView) {
+		return nil, denied(inv, p)
+	}
+	if s.deps.Definitions == nil {
+		return nil, projectReadError(errors.New("workflow publication catalog is not configured"), inv, p)
+	}
+
+	workflowID := strings.TrimSpace(req.GetWorkflowId())
+	var live *inspect.View
+	var pinnedDigest string
+	if instanceID := strings.TrimSpace(req.GetInstanceId()); instanceID != "" {
+		record, readErr := s.read(ctx, p.Tenant().String(), instanceID)
+		if readErr != nil {
+			return nil, projectReadError(readErr, inv, p)
+		}
+		if err := validateRecord(record, p.Tenant().String(), instanceID); err != nil {
+			return nil, projectReadError(err, inv, p)
+		}
+		if record.Inspector == nil {
+			return nil, projectReadError(errors.New("workflow inspector projection is unavailable"), inv, p)
+		}
+		if workflowID != "" && workflowID != record.Instance.WorkflowID {
+			return nil, projectReadError(ErrNotFound, inv, p)
+		}
+		workflowID, pinnedDigest, live = record.Instance.WorkflowID, record.Instance.CompiledPlanDigest, record.Inspector
+	}
+
+	publication, found, readErr := resolvePublication(s.deps.Definitions, workflowID, pinnedDigest)
+	if readErr != nil {
+		return nil, projectReadError(readErr, inv, p)
+	}
+	if !found {
+		return nil, projectReadError(ErrNotFound, inv, p)
+	}
+	view, err := workflowview.Build(publication, live)
+	if err != nil {
+		return nil, projectReadError(err, inv, p)
+	}
+	return &workflowv1.GetWorkflowDefinitionViewResponse{View: projectDefinitionView(view)}, nil
+}
+
+func selectCatalogVersions(versions []workflowversion.CompiledVersion) []workflowversion.CompiledVersion {
+	selected := make(map[string]workflowversion.CompiledVersion)
+	for _, candidate := range versions {
+		current, ok := selected[candidate.WorkflowID]
+		if !ok || preferCatalogVersion(candidate, current) {
+			selected[candidate.WorkflowID] = candidate
+		}
+	}
+	result := make([]workflowversion.CompiledVersion, 0, len(selected))
+	for _, publication := range selected {
+		result = append(result, publication)
+	}
+	return result
+}
+
+func preferCatalogVersion(candidate, current workflowversion.CompiledVersion) bool {
+	if candidate.Status == workflowversion.StatusActive && current.Status != workflowversion.StatusActive {
+		return true
+	}
+	if candidate.Status != workflowversion.StatusActive && current.Status == workflowversion.StatusActive {
+		return false
+	}
+	if candidate.PublishedAt.Equal(current.PublishedAt) {
+		return candidate.CompiledPlanDigest > current.CompiledPlanDigest
+	}
+	return candidate.PublishedAt.After(current.PublishedAt)
+}
+
+func resolvePublication(reader DefinitionReader, workflowID, digest string) (workflowversion.CompiledVersion, bool, error) {
+	if digest != "" {
+		publication, found, err := reader.GetByDigest(digest)
+		if err != nil || !found || publication.WorkflowID != workflowID {
+			return workflowversion.CompiledVersion{}, found && publication.WorkflowID == workflowID, err
+		}
+		return publication, true, nil
+	}
+	publication, found, err := reader.GetActiveForWorkflow(workflowID)
+	if err != nil || found {
+		return publication, found, err
+	}
+	versions, err := reader.List(workflowID)
+	if err != nil || len(versions) == 0 {
+		return workflowversion.CompiledVersion{}, false, err
+	}
+	return selectCatalogVersions(versions)[0], true, nil
+}
+
+func projectPublication(publication workflowversion.CompiledVersion, name string) *workflowv1.WorkflowPublicationSummary {
+	return &workflowv1.WorkflowPublicationSummary{
+		WorkflowId: publication.WorkflowID, Name: name, DefinitionVersion: publication.DefinitionVersion,
+		SemanticVersion: publication.SemanticVersion, CompiledPlanDigest: publication.CompiledPlanDigest,
+		Status: string(publication.Status), PublishedBy: publication.PublishedBy, PublishedAt: timestamp(publication.PublishedAt),
+	}
+}
+
+func projectDefinitionView(view workflowview.View) *workflowv1.WorkflowDefinitionView {
+	out := &workflowv1.WorkflowDefinitionView{
+		WorkflowId: view.WorkflowID, Name: view.Name, DefinitionVersion: view.Version,
+		SemanticVersion: view.SemanticVersion, CompiledPlanDigest: view.PlanDigest,
+		PublicationStatus: view.PublicationStatus, HasRun: view.HasRun, RunDisclosed: view.RunDisclosed,
+		InstanceId: view.InstanceID, RuntimeStatus: view.RuntimeStatus, Complete: view.Completeness,
+		Redactions: append([]string(nil), view.Redactions...), Gaps: append([]string(nil), view.Gaps...),
+		MaxDepth: int32(view.MaxDepth), MaxLane: int32(view.MaxLane),
+		Nodes: make([]*workflowv1.WorkflowViewNode, 0, len(view.Nodes)),
+		Edges: make([]*workflowv1.WorkflowViewEdge, 0, len(view.Edges)),
+	}
+	for _, node := range view.Nodes {
+		projected := &workflowv1.WorkflowViewNode{
+			Id: node.ID, Label: node.Label, StepType: node.StepType, Depth: int32(node.Depth), Lane: int32(node.Lane),
+			Start: node.Start, Terminal: node.Terminal, Current: node.Current, Attempt: int32(node.Attempt),
+			Status: node.Status, State: string(node.State), StartedAt: timestampPtr(node.StartedAt),
+			CompletedAt: timestampPtr(node.CompletedAt), RuntimeKnown: node.RuntimeKnown, RuntimeGap: node.RuntimeGap,
+			Routes: make([]*workflowv1.WorkflowViewRoute, 0, len(node.Routes)),
+		}
+		for _, route := range node.Routes {
+			projected.Routes = append(projected.Routes, &workflowv1.WorkflowViewRoute{Key: route.Key, TargetId: route.TargetID})
+		}
+		out.Nodes = append(out.Nodes, projected)
+	}
+	for _, edge := range view.Edges {
+		out.Edges = append(out.Edges, &workflowv1.WorkflowViewEdge{Id: edge.ID, FromId: edge.FromID, ToId: edge.ToID, RouteKey: edge.RouteKey})
+	}
+	return out
 }
 
 func (s *server) GetWorkflow(ctx context.Context, req *workflowv1.GetWorkflowRequest) (*workflowv1.GetWorkflowResponse, error) {

@@ -19,6 +19,9 @@ type OrganizationVisibilityPageProps struct {
 	RolesLink        ActionLinkProps
 	Editable         bool
 	OnSave           func(OrganizationVisibilityPolicy)
+	// OnPreview asks the server what a draft would reveal before it is
+	// saved (REV-093-01). Nil keeps the unavailable notice.
+	OnPreview RoleAccessPreviewRequest
 }
 
 type organizationVisibilityMode struct{ Value, Label, Detail string }
@@ -199,6 +202,9 @@ func roleVisibilityEditor(props OrganizationVisibilityPageProps, role AccessRole
 		state.Set(current)
 	}
 	draft := current.Draft
+	// Administrator roles see every worker before any visibility policy
+	// runs, so their saved policy is inert and the editor says so.
+	override := IsAdministratorVisibilityRole(role.ID)
 	validation := organizationVisibilityPolicyValidation(draft, props.AvailableUnits)
 	setDraft := func(update func(*OrganizationVisibilityPolicy)) {
 		next := state.Get()
@@ -272,17 +278,27 @@ func roleVisibilityEditor(props OrganizationVisibilityPageProps, role AccessRole
 	if diffChanged {
 		formChildren = append(formChildren, diffBlock)
 	}
-	formChildren = append(formChildren, organizationVisibilityPreviewUnavailable(props))
+	formChildren = append(formChildren, ui.CreateElement(RoleAccessPreviewPanel, roleAccessPreviewPanelProps{Page: props, Role: role, Draft: draft, Invalid: len(validation) > 0}))
 	if diffChanged || len(validation) > 0 {
 		formChildren = append(formChildren, organizationVisibilityValidation(props, validation))
 	}
 	if len(policy.DataDomains) > 0 && len(ResolveDataDomainScope(policy.DataDomains, props.AvailableDomains)) > 0 {
 		formChildren = append(formChildren, dataDomainScope(props, policy.DataDomains, props.AvailableDomains))
 	}
-	formChildren = append(formChildren, saveActions(props, role, diffChanged, len(validation) > 0))
+	summaryStatus := localizedVisibilityModeLabel(props, policy.Mode)
+	onSubmit := saveOrganizationVisibility(props.OnSave, &draft)
+	if override {
+		summaryStatus = roleAccessPreviewText(props.Locale, "override_summary")
+		onSubmit = saveOrganizationVisibility(nil, &draft)
+		// UXLIVE-014/017: no inert choices, scope panel, preview or save
+		// for a policy that has no effect; only the explanation remains.
+		formChildren = []ui.Node{administratorOverrideNotice(props, role)}
+	} else {
+		formChildren = append(formChildren, saveActions(props, role, diffChanged, len(validation) > 0))
+	}
 	return html.Tag("details", detailsProps,
-		html.Tag("summary", html.Props{}, html.Div(html.Props{}, html.Strong(html.Props{}, ui.Text(role.Name)), html.Code(html.Props{}, ui.Text(role.ID))), html.Span(html.Props{Class: "status"}, ui.Text(localizedVisibilityModeLabel(props, policy.Mode)))),
-		html.Form(html.Props{Class: formClass, OnSubmit: saveOrganizationVisibility(props.OnSave, &draft)}, formChildren...),
+		html.Tag("summary", html.Props{}, html.Div(html.Props{}, html.Strong(html.Props{}, ui.Text(role.Name)), html.Code(html.Props{}, ui.Text(role.ID))), html.Span(html.Props{Class: "status"}, ui.Text(summaryStatus))),
+		html.Form(html.Props{Class: formClass, OnSubmit: onSubmit}, formChildren...),
 	)
 }
 

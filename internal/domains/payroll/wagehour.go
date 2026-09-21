@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/legal/stateparams"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -67,6 +68,7 @@ type WageInput struct {
 	MissedMealPeriods  int
 	Rounding           values.RoundingMode
 	RuleVersion        string
+	Overtime           *stateparams.OvertimeThreshold
 }
 
 // WageResult is the exact WAGE-001 answer with its rule trace.
@@ -162,8 +164,52 @@ func wageDigest(input WageInput, result WageResult) string {
 		input.RegularRate.String(), input.MinimumWage.String(),
 		result.RegularHours.String(), result.OvertimeHours.String(), result.DoubleTimeHours.String(),
 		result.PremiumHours.String(), result.GrossPay.String(), string(result.Status), input.RuleVersion,
+		overtimeThresholdIdentity(input.Overtime),
 	}, "\x00")))
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func overtimeThresholdIdentity(threshold *stateparams.OvertimeThreshold) string {
+	if threshold == nil {
+		return "legacy"
+	}
+	daily := "none"
+	if threshold.DailyThresholdHours != nil {
+		daily = fmt.Sprint(*threshold.DailyThresholdHours)
+	}
+	return strings.Join([]string{
+		threshold.ID,
+		daily,
+		fmt.Sprint(threshold.WeeklyThresholdHours),
+		fmt.Sprint(threshold.ConsecutiveDayTrigger),
+		threshold.Multiplier.String(),
+	}, ":")
+}
+
+func resolveOvertimeParameters(input WageInput) (WageInput, error) {
+	threshold := input.Overtime
+	if threshold == nil {
+		return input, nil
+	}
+	if strings.TrimSpace(threshold.ID) == "" || threshold.WeeklyThresholdHours <= 0 ||
+		(threshold.DailyThresholdHours != nil && *threshold.DailyThresholdHours <= 0) {
+		return WageInput{}, fmt.Errorf("%w: overtime threshold is incomplete", ErrWageInput)
+	}
+	if err := threshold.Multiplier.Validate(); err != nil || threshold.Multiplier.Sign() <= 0 {
+		return WageInput{}, fmt.Errorf("%w: overtime threshold multiplier is invalid", ErrWageInput)
+	}
+	if err := input.OvertimeMultiple.Validate(); err == nil && input.OvertimeMultiple.Sign() > 0 && input.OvertimeMultiple.Cmp(threshold.Multiplier) != 0 {
+		return WageInput{}, fmt.Errorf("%w: overtime multiple contradicts the resolved threshold", ErrWageInput)
+	}
+	if err := input.DoubleTimeMultiple.Validate(); err == nil && input.DoubleTimeMultiple.Sign() > 0 {
+		return WageInput{}, fmt.Errorf("%w: double-time multiple is not declared by the resolved threshold", ErrWageInput)
+	}
+	input.OvertimeMultiple = threshold.Multiplier
+	// The resolved threshold has no double-time bucket. A valid multiplier is
+	// still needed by the common exact-decimal pricing path, where its hours
+	// remain zero by construction.
+	input.DoubleTimeMultiple = threshold.Multiplier
+	return input, nil
 }
 
 // EvaluateWages prices one approved workweek deterministically. Missing or
@@ -171,6 +217,11 @@ func wageDigest(input WageInput, result WageResult) string {
 // exemption returns UNKNOWN with zero pay. Minimum-wage floors and meal
 // premiums price exactly but flag REVIEW_REQUIRED.
 func EvaluateWages(input WageInput) (WageResult, error) {
+	var err error
+	input, err = resolveOvertimeParameters(input)
+	if err != nil {
+		return WageResult{}, err
+	}
 	if err := input.validate(); err != nil {
 		return WageResult{}, err
 	}
@@ -228,7 +279,24 @@ func EvaluateWages(input WageInput) (WageResult, error) {
 	for d, hours := range input.DailyHours {
 		dayRegular, dayOT, dayDouble := hours, zero, zero
 		if input.Exemption == ExemptionNonexempt {
-			if hours.Cmp(twelve) > 0 {
+			if input.Overtime != nil {
+				if input.Overtime.ConsecutiveDayTrigger && d >= 5 && hours.Sign() > 0 {
+					dayRegular = zero
+					dayOT = hours
+				} else if input.Overtime.DailyThresholdHours != nil {
+					daily, thresholdErr := constAt(fmt.Sprint(*input.Overtime.DailyThresholdHours))
+					if thresholdErr != nil {
+						return WageResult{}, thresholdErr
+					}
+					if hours.Cmp(daily) > 0 {
+						dayOT, err = hours.Sub(daily)
+						if err != nil {
+							return WageResult{}, err
+						}
+						dayRegular = daily
+					}
+				}
+			} else if hours.Cmp(twelve) > 0 {
 				var err error
 				dayDouble, err = hours.Sub(twelve)
 				if err != nil {
@@ -236,7 +304,7 @@ func EvaluateWages(input WageInput) (WageResult, error) {
 				}
 				dayRegular = twelve
 			}
-			if dayRegular.Cmp(eight) > 0 {
+			if input.Overtime == nil && dayRegular.Cmp(eight) > 0 {
 				var err error
 				excess, err := dayRegular.Sub(eight)
 				if err != nil {
@@ -249,7 +317,7 @@ func EvaluateWages(input WageInput) (WageResult, error) {
 		if !dayDouble.IsZero() {
 			record("day %d: %s past twelve prices at double time", d, dayDouble)
 		} else if !dayOT.IsZero() {
-			record("day %d: %s past eight prices at overtime", d, dayOT)
+			record("day %d: %s prices at overtime", d, dayOT)
 		}
 		var err error
 		if regular, err = regular.Add(dayRegular); err != nil {
@@ -265,6 +333,13 @@ func EvaluateWages(input WageInput) (WageResult, error) {
 	// Weekly overtime prices non-exempt hours past forty that daily rules
 	// have not already moved to premium rates.
 	if input.Exemption == ExemptionNonexempt {
+		weeklyThreshold := forty
+		if input.Overtime != nil {
+			weeklyThreshold, err = constAt(fmt.Sprint(input.Overtime.WeeklyThresholdHours))
+			if err != nil {
+				return WageResult{}, err
+			}
+		}
 		classified, err := regular.Add(overtime)
 		if err != nil {
 			return WageResult{}, err
@@ -273,8 +348,8 @@ func EvaluateWages(input WageInput) (WageResult, error) {
 		if err != nil {
 			return WageResult{}, err
 		}
-		if total.Cmp(forty) > 0 {
-			excess, err := total.Sub(forty)
+		if total.Cmp(weeklyThreshold) > 0 {
+			excess, err := total.Sub(weeklyThreshold)
 			if err != nil {
 				return WageResult{}, err
 			}
@@ -299,7 +374,7 @@ func EvaluateWages(input WageInput) (WageResult, error) {
 				if err != nil {
 					return WageResult{}, err
 				}
-				record("weekly: %s past forty prices at overtime", move)
+				record("weekly: %s past %s prices at overtime", move, weeklyThreshold)
 			}
 		}
 	} else {

@@ -248,3 +248,100 @@ being authoritative for the underlying business fact.
   tombstones under a separate retention rule.
 - Projections, search, analytics, vectors and caches are reconstructable and do
   not acquire authority through replication.
+
+## Tenant data models at scale
+
+Status: Gate C contract (todos `WF-DATA-001`–`WF-DATA-035`). Tenants define their own
+record types and build small systems from them. The same metamodel defines
+product features, so a gap that blocks a client also blocks the product.
+
+### One metamodel, generic primitives
+
+A tenant model is data, never code or DDL. It is built from a closed set of
+declarative primitives. Each primitive is generic: it is defined once and
+applies to any type or relationship, never to one use case.
+
+```text
+types + relationships     objects, fields, typed links, self-links (trees)
+derived fields            bounded expression over a record and its links
+path resolution           value resolved along a relationship path under a
+                          policy: nearest wins | min | max | accumulate | locked
+rollups                   registered reducers over related records
+constraints               conditional required, scoped uniqueness, cross-record
+lifecycles                declared states and guarded transitions
+access rules              owner, scope and relationship based record policy
+automation                record and schedule events start workflows
+presentation              generated list, detail and form pages, governed reports
+packages                  versioned bundles of all of the above
+```
+
+Org cascades, location defaults, headcount rollups, custody trackers and
+expiry-driven renewals are compositions of these, not features.
+
+### Definition compile
+
+Publishing a definition, or a package of definitions, compiles a dependency
+graph across derived fields, resolutions, rollups, constraints and lifecycles.
+Compilation rejects:
+
+- cycles between definitions;
+- expressions or paths above their cost bounds;
+- hierarchies without a depth limit;
+- a rollup or resolution whose worst-case fan-out exceeds the tenant's limits
+  without being declared asynchronous.
+
+The compiled definition is pinned by version and digest exactly as a workflow
+plan is, and workflows reference it by that pin.
+
+### Storage without per-tenant DDL
+
+```text
+custom_record_revision      append-only truth, hash-partitioned by tenant
+custom_record_current       REBUILDABLE current-state projection
+custom_field_index          REBUILDABLE typed index rows
+                            (field key, text | number | date | reference value,
+                            record, effective interval) under generic indexes
+hierarchy_closure           REBUILDABLE effective-dated ancestor rows
+                            per relationship type
+resolved_value, rollup      REBUILDABLE projections with watermarks
+```
+
+- The platform never creates a column, table or expression index for one
+  tenant.
+- A tenant's searchable fields become rows in the generic typed index, and
+  queries may filter or sort only on those.
+- A very large tenant may be placed on its own partition or cell. Its schema
+  does not change.
+
+### Propagation, freshness and stability
+
+- A change that fans out, such as a value set at the root of a 20,000-unit
+  tree or a reorg that re-parents a division, is never recomputed inside the
+  writing transaction. The write commits one fact. An asynchronous,
+  resumable, throttled propagation job updates the projections from the
+  ledger and advances their watermarks. It reports progress and can be
+  paused.
+- Readers declare the freshness they need: a maximum age or a required
+  watermark, the same fields workflow context requirements already carry.
+  A DECISION reads a pinned snapshot, so propagation in progress cannot flip
+  a route mid-run.
+- A new derived field, rollup or index is backfilled before use. It stays
+  unusable by workflows and screens until its backfill reports `READY`.
+- Record events feed workflow triggers through coalescing and rate limits. A
+  change whose preview would start more runs than the tenant threshold needs
+  an explicit confirmation, and a circuit breaker stops runaway triggering.
+- Each tenant has budgets for expression evaluation, propagation throughput
+  and trigger rate. A definition that repeatedly breaches them is
+  quarantined, and existing pinned consumers keep their prior version.
+- Projection lag, propagation backlog, resolution latency and trigger rate
+  are observable per tenant and per definition, with SLOs.
+
+### Proof
+
+A large-company fixture (at least 500,000 workers, 20,000 organization units,
+five hierarchies and 5,000,000 custom records) is a release benchmark.
+
+Three product features ship as metadata packages with no feature-specific Go
+code: organization cascading attributes, asset custody, and training
+requirements with expiry and renewal. They are the acceptance test that the
+primitives are sufficient.

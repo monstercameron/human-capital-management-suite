@@ -4,9 +4,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/positionpicker"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
@@ -69,6 +71,11 @@ const (
 	fieldKindSelect   = "select"
 	fieldKindTextarea = "textarea"
 	fieldKindHidden   = "hidden"
+	// fieldKindPositionPicker is UXLIVE-011's governed position choice. It
+	// is not an <input> with a different type: the whole control is
+	// productui.PositionPicker, the accessible fieldset PROMOUX-004 built,
+	// so this renderer does not draw a second version of it.
+	fieldKindPositionPicker = "positionpicker"
 )
 
 // skipTarget is the id of the <main> landmark the skip link jumps to.
@@ -183,6 +190,11 @@ type live struct {
 	values        map[string]string
 	onFieldChange func(fieldID, value string)
 	locale        string
+	// sharedBlocked is the one reason every action in the current section
+	// is refused for, when they all give the same one. An action card that
+	// sees it points at the section's single statement instead of repeating
+	// it (UXLIVE-017).
+	sharedBlocked string
 }
 
 func liveOf(p Page) live {
@@ -710,7 +722,7 @@ func listView(p Page, v ListView) ui.Node {
 		htmlIf(v.People != nil, func() ui.Node { return newEmployeeSection(l, v.People.Form) }),
 		engineUnavailableCallout(p.Locale, v.EngineAvailable, v.EngineNotice),
 		proposalSection(l, v),
-		journeysSection(p.Locale, v),
+		journeysSectionLive(liveOf(p), v),
 	)
 }
 
@@ -730,7 +742,7 @@ func embeddedListView(p Page, v ListView) ui.Node {
 				return html.A(html.Props{Class: "jn-btn", Href: link.Href, OnClick: activate(link.OnNavigate)}, html.Text(copy.Text("journey.list_choose_employee")))
 			})},
 		}),
-		journeysSection(p.Locale, v),
+		journeysSectionLive(liveOf(p), v),
 		engineUnavailableCallout(p.Locale, v.EngineAvailable, v.EngineNotice),
 	)
 }
@@ -750,21 +762,30 @@ func readableTenantLabel(value string) string {
 }
 
 func journeysSection(locale string, v ListView) ui.Node {
+	return journeysSectionLive(live{locale: locale}, v)
+}
+
+func journeysSectionLive(l live, v ListView) ui.Node {
+	locale := l.locale
 	copy := productui.ResolveProductLocale(locale)
 	body := ui.Node(nil)
 	switch {
+	case v.Filter != nil && v.Filter.Narrowed && len(v.Journeys) == 0:
+		// UXLIVE-031: a filter that matches nothing says so and offers the
+		// way back, instead of claiming no request exists at all.
+		body = journeyFilterEmpty(v.Filter)
 	case len(v.Groups) > 0:
 		body = html.Div(html.Props{Class: "jn-journey-groups"}, journeySubjectGroupSections(locale, v.Groups)...)
 	case len(v.Journeys) == 0:
 		body = emptyStateLocale(locale, v.Empty)
-	case hasLifecycleGroups(v.Journeys):
+	case hasLifecycleGroups(v.Journeys) && v.Grouping != journeyGroupingNone:
 		sections := make([]ui.Node, 0, 5)
 		for _, group := range groupedJourneys(v.Journeys) {
 			rows := html.Map(group.cards, func(j JourneyCard) ui.Node {
 				return html.Li(html.Props{Class: "jn-griditem"}, journeyCardLocale(locale, j))
 			})
 			sections = append(sections, html.Section(html.Props{Class: "jn-journey-group", Aria: map[string]string{"labelledby": "journeys-group-" + group.id}},
-				html.Div(html.Props{Class: "jn-sectionhead"},
+				html.Div(html.Props{Class: "jn-sectionhead jn-sectionhead-inline"},
 					html.H3(html.Props{ID: "journeys-group-" + group.id}, html.Text(copy.Text("journey.group."+group.id))),
 					chip(toneNeutral, countLabelLocale(locale, len(group.cards))),
 				),
@@ -779,10 +800,13 @@ func journeysSection(locale string, v ListView) ui.Node {
 			})...)
 	}
 	return html.Section(html.Props{Aria: map[string]string{"labelledby": "journeys-heading"}},
-		html.Div(html.Props{Class: "jn-sectionhead"},
+		// A heading and the count of what is under it are one statement.
+		// Pushed to opposite edges of a wide page they read as two.
+		html.Div(html.Props{Class: "jn-sectionhead jn-sectionhead-inline"},
 			html.H2(html.Props{ID: "journeys-heading"}, html.Text(copy.Text("journey.section_title"))),
-			chip(toneNeutral, countLabelLocale(locale, len(v.Journeys))),
+			journeyResultCount(locale, v),
 		),
+		journeyFilterForm(l, v.Filter),
 		body,
 	)
 }
@@ -810,17 +834,31 @@ func journeySubjectGroupSections(locale string, groups []JourneySubjectGroup) []
 }
 
 func journeySubjectGroupSection(locale string, group JourneySubjectGroup, index int) ui.Node {
+	copy := productui.ResolveProductLocale(locale)
 	headingID := "journey-group-" + strconv.Itoa(index) + "-heading"
+	// The group's statuses summarize the cards inside it. With exactly one
+	// card there is nothing to summarize: the chip repeats, word for word and
+	// a few pixels away, the chip the card already carries, and a screen
+	// reader hears the same status twice for one request. The summary is
+	// therefore omitted rather than hidden, so the two agree about what is
+	// on the page.
 	statusChips := make([]ui.Node, 0, len(group.Statuses))
-	for _, status := range group.Statuses {
-		statusChips = append(statusChips, chip(status.Tone, status.Label))
+	if len(group.Journeys) > 1 {
+		for _, status := range group.Statuses {
+			statusChips = append(statusChips, chip(status.Tone, status.Label))
+		}
 	}
 	return html.Section(html.Props{Class: "jn-journey-group", Aria: map[string]string{"labelledby": headingID}},
 		html.Div(html.Props{Class: "jn-journey-group-head"},
 			html.H3(html.Props{ID: headingID, Class: "jn-journey-group-subject"}, html.Text(group.Subject)),
 			chip(toneNeutral, countLabelLocale(locale, len(group.Journeys))),
 			htmlIf(len(statusChips) > 0, func() ui.Node {
-				return html.Div(html.Props{Class: "jn-journey-group-statuses", Aria: map[string]string{"label": "Statuses in this group"}}, statusChips...)
+				// The region is named after the subject it belongs to: with
+				// several groups on the page, "Statuses in this group" gives a
+				// screen reader no way to tell one from the next.
+				return html.Div(html.Props{Class: "jn-journey-group-statuses",
+					Aria: map[string]string{"label": copy.Text("journey.group_statuses", map[string]string{"name": group.Subject})}},
+					statusChips...)
 			}),
 		),
 		html.Ul(html.Props{Class: "jn-grid jn-journey-group-list", Role: "list"},
@@ -874,19 +912,32 @@ func journeyCard(j JourneyCard) ui.Node {
 	return journeyCardLocale("", j)
 }
 
+// JourneyReference is a short, stable label for one request, derived from
+// its intent id. A tracker that lists several requests for the same person
+// with the same role change and near-identical pay gave a reader nothing to
+// tell them apart and gave a screen reader several identical headings
+// (UXLIVE-010). It is a handle, not an identity: the full id stays in the
+// authorized diagnostics disclosure.
+func JourneyReference(intentID string) string {
+	trimmed := strings.TrimSpace(intentID)
+	if trimmed == "" {
+		return ""
+	}
+	compact := strings.ReplaceAll(trimmed, "-", "")
+	if len(compact) > 6 {
+		compact = compact[len(compact)-6:]
+	}
+	return strings.ToUpper(compact)
+}
+
 func journeyCardLocale(locale string, j JourneyCard) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
 	return html.Article(html.Props{Class: "jn-card jn-journey",
 		DataAttr: html.DataAttribute{Name: "stage", Value: j.Stage}},
-		html.Div(html.Props{Class: "jn-journey-top"},
-			html.H3(html.Props{},
-				html.A(html.Props{Href: j.Href, OnClick: activate(j.OnOpen)},
-					html.Text(j.WorkerName),
-					visuallyHidden(" — "+copy.Text("journey.open_request")),
-				),
-			),
-			chip(j.StageTone, j.StageLabel),
-		),
+		// UXLIVE-032: task label, reference and status are separate slots
+		// of the shared object identity, not one concatenated heading.
+		journeyCardHead(locale, j),
+		journeyCardReference(locale, j),
 		htmlIf(j.Headline != "", func() ui.Node {
 			return html.P(html.Props{Class: "jn-journey-headline"}, html.Text(j.Headline))
 		}),
@@ -942,9 +993,10 @@ func technicalDetailsSection(locale string, authorized bool, items []technicalDe
 			html.Span(html.Props{Class: "jn-meta-key"}, html.Text(item.Label+" ")),
 			html.Span(html.Props{Class: "jn-meta-value jn-mono"}, html.Text(maskIdentifier(value))),
 			html.Button(html.Props{
-				Type:    "button",
-				Class:   "jn-copy-btn",
-				Aria:    map[string]string{"label": "Copy " + item.Label + " value"},
+				Type:  "button",
+				Class: "jn-copy-btn",
+				Aria: map[string]string{"label": productui.ResolveProductLocale(locale).
+					Text("journey.copy_value", map[string]string{"field": item.Label})},
 				OnClick: activate(func() { copyToClipboard(value) }),
 			}, html.Text("Copy")),
 		))
@@ -1028,18 +1080,34 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 		// same compact, contained, keyboard-stable confirmation instead of
 		// submitting straight from the input fields.
 		triggerLabel := submit
+		confirmHeading := copy.Text("journey.action_confirm_generic", map[string]string{"action": strings.ToLower(submit)})
+		finalBtn := submitBtn
 		if !strings.EqualFold(strings.TrimSpace(submit), strings.TrimSpace(copy.Text("journey.form_submit"))) {
 			triggerLabel = copy.Text("journey.action_review_generic", map[string]string{"action": strings.ToLower(submit)})
+		} else {
+			// The trigger already says "Review and submit". Inside the review
+			// the heading and the final button repeated it ("Confirm review
+			// and submit" over a second "Review and submit"), so the button
+			// that actually sends the proposal did not say it sends it.
+			confirmHeading = copy.Text("journey.form_confirm_title")
+			finalBtn = html.Button(btn, html.Text(copy.Text("journey.form_submit_final")))
 		}
+		// The review trigger is this form's primary action: the page exists to
+		// propose, and nothing else on it is primary. Left at the surface's
+		// secondary default it read as optional, an outlined button at the
+		// foot of a long form.
 		foot = append(foot, ui.CreateElement(reviewSurface, reviewSurfaceProps{
-			ID:           proposeReviewID,
-			TriggerLabel: triggerLabel,
-			Heading:      copy.Text("journey.action_confirm_generic", map[string]string{"action": strings.ToLower(submit)}),
-			Facts:        f.Confirmation,
-			Note:         nonEmpty(f.ConfirmationNote, copy.Text("journey.form_submit_help")),
-			Submit:       submitBtn,
-			Busy:         busy,
-			BusyLabel:    f.BusyLabel,
+			ID:             proposeReviewID,
+			TriggerVariant: "primary",
+			TriggerLabel:   triggerLabel,
+			Heading:        confirmHeading,
+			Facts:          f.Confirmation,
+			Note:           nonEmpty(f.ConfirmationNote, copy.Text("journey.form_submit_help")),
+			Submit:         finalBtn,
+			Busy:           busy,
+			BusyLabel:      f.BusyLabel,
+			DismissLabel:   copy.Text("journey.action_cancel_review"),
+			CancelLabel:    copy.Text("journey.action_cancel"),
 		}))
 	default:
 		foot = append(foot, submitBtn,
@@ -1100,6 +1168,87 @@ func formProps(l live, action string, onSubmit func(map[string]string), hidden m
 // Form fields
 // ----------------------------------------------------------------------
 
+// positionPickerField renders UXLIVE-011's governed position choice through
+// productui.PositionPicker -- the same fieldset/legend/radio control
+// PROMOUX-004 built, with each option's vacancy window and reservation state
+// tied to its input by aria-describedby.
+//
+// It returns the picker in place of the label/input/help stack every other
+// field uses, because the picker already carries its own legend: nesting it
+// inside a <label for> would name a group after a control that does not
+// exist. Help and error still render beneath it, in the same reading order
+// and with the same classes, so the error summary's anchors keep working.
+//
+// An empty Vacancies list is rendered, deliberately, as the picker's own
+// empty state rather than as a text box. The whole point of this todo is
+// that there is no free-text path back: a form that cannot offer a position
+// says so.
+func positionPickerField(l live, f Field) ui.Node {
+	copy := productui.ResolveProductLocale(l.locale)
+	options := make([]productui.PositionPickerOptionProps, 0, len(f.Vacancies))
+	for _, vacancy := range f.Vacancies {
+		options = append(options, productui.PositionPickerOptionProps{
+			Reference:        vacancy.Reference,
+			Title:            vacancy.Title,
+			Organization:     vacancy.Organization,
+			Manager:          vacancy.Manager,
+			Location:         vacancy.Location,
+			VacancyWindow:    vacancyWindowText(copy, vacancy.VacancyEndISO),
+			ReservationState: vacancyReservationText(copy, vacancy.ReservationState),
+		})
+	}
+	props := productui.PositionPickerProps{
+		Name:        f.Name,
+		Legend:      f.Label,
+		Options:     options,
+		Selected:    l.value(f),
+		EmptyTitle:  f.EmptyTitle,
+		EmptyDetail: f.EmptyDetail,
+	}
+	if l.controlled() {
+		id, change := f.ID, l.onFieldChange
+		props.OnSelect = func(reference string) { change(id, reference) }
+	}
+
+	children := []ui.Node{productui.PositionPicker(props)}
+	if f.Help != "" {
+		children = append(children, html.P(html.Props{ID: f.ID + "-help", Class: "jn-help"}, html.Text(f.Help)))
+	}
+	if f.Error != "" {
+		children = append(children, html.P(html.Props{ID: f.ID + "-error", Class: "jn-error"},
+			RenderIcon(IconDanger, "jn-error-icon", nil), visuallyHidden(copy.Text("journey.severity_error")+": "), html.Text(f.Error)))
+	}
+	props2 := html.Props{Class: "jn-field", Data: map[string]string{"span": "full"}}
+	if f.Error != "" {
+		props2.Data["invalid"] = "true"
+	}
+	return html.Div(props2, children...)
+}
+
+// vacancyWindowText localizes the disclosed vacancy end. An empty date is
+// "open now" rather than an empty line: the absence of a known end is a
+// fact about the position, not missing data.
+func vacancyWindowText(copy productui.LocaleContext, endISO string) string {
+	if strings.TrimSpace(endISO) == "" {
+		return copy.Text("position_picker.open_now")
+	}
+	end, err := time.Parse("2006-01-02", endISO)
+	if err != nil {
+		return copy.Text("position_picker.open_now")
+	}
+	return copy.Text("position_picker.open_until", map[string]string{"date": copy.FormatDate(end)})
+}
+
+// vacancyReservationText mirrors productui's own exhaustive mapping: any
+// state other than the one the domain declares available falls back to the
+// non-revealing copy rather than claiming availability it cannot back up.
+func vacancyReservationText(copy productui.LocaleContext, state string) string {
+	if state == positionpicker.ReservationAvailable {
+		return copy.Text("position_picker.reservation_available")
+	}
+	return copy.Text("position_picker.reservation_unavailable")
+}
+
 // fieldNode renders one labelled control. Every control gets: a <label for>
 // bound to its id, a spelled-out "(required)" for assistive technology
 // beside the visual asterisk, aria-describedby listing its adornments, help
@@ -1107,6 +1256,9 @@ func formProps(l live, action string, onSubmit func(map[string]string), hidden m
 func fieldNode(l live, f Field, formDisabled bool) ui.Node {
 	if f.Kind == fieldKindHidden {
 		return html.HiddenInput(f.Name, f.Value)
+	}
+	if f.Kind == fieldKindPositionPicker {
+		return positionPickerField(l, f)
 	}
 
 	described := make([]string, 0, 4)
@@ -1256,6 +1408,7 @@ func detailView(p Page, v DetailView) ui.Node {
 		actionsSection(l, v.Actions),
 		stepperSectionLocale(p.Locale, v.Steps),
 		proposalDetailSectionLocale(p.Locale, v),
+		reviewCardsSectionLocale(p.Locale, v.Review),
 		html.Div(html.Props{Class: "jn-columns"},
 			html.Div(html.Props{Class: "jn-col"},
 				preflightSectionLocale(p.Locale, v),
@@ -1263,6 +1416,7 @@ func detailView(p Page, v DetailView) ui.Node {
 				outcomeSectionLocale(p.Locale, v.Ledger, v.PendingOutcome),
 			),
 			html.Aside(html.Props{Class: "jn-col jn-rail", Aria: map[string]string{"label": productui.ResolveProductLocale(p.Locale).Text("journey.actions_history")}},
+				notesSectionLocale(l, v.Notes),
 				timelineSectionLocale(p.Locale, v.Timeline),
 			),
 		),
@@ -1412,19 +1566,32 @@ func stepNodeLocale(locale string, index int, s Step) ui.Node {
 	if state == stepActive {
 		props.Aria = map[string]string{"current": "step"}
 	}
+	// The step a run stopped at gets its own glyph and says so in visible
+	// text. Completed steps have carried a check since this stepper shipped;
+	// a stopped step used to differ from an unstarted one by hue alone, with
+	// its status word audible to assistive technology and invisible to
+	// everyone else (UXLIVE-019).
 	var mark ui.Node
-	if state == stepDone {
+	switch state {
+	case stepDone:
 		mark = html.Span(html.Props{Class: "jn-stepmark", Aria: map[string]string{"hidden": "true"}}, RenderIcon(IconCheck, "jn-stepcheck", nil))
-	} else {
+	case stepFailed:
+		mark = html.Span(html.Props{Class: "jn-stepmark jn-stepdanger", Aria: map[string]string{"hidden": "true"}}, RenderIcon(IconDanger, "jn-stepcheck", nil))
+	default:
 		mark = html.Span(html.Props{Class: "jn-stepmark", Aria: map[string]string{"hidden": "true"}},
 			html.Text(strconv.Itoa(index+1)))
+	}
+	stateWord := stepStateWordLocale(locale, state)
+	var status ui.Node = visuallyHidden(" — " + stateWord)
+	if state == stepFailed {
+		status = html.Span(html.Props{Class: "jn-stepstate"}, html.Text(stateWord))
 	}
 	return html.Li(props,
 		mark,
 		html.Div(html.Props{Class: "jn-stepbody"},
 			html.P(html.Props{Class: "jn-steplabel"},
 				html.Text(s.Label),
-				visuallyHidden(" — "+stepStateWordLocale(locale, state)),
+				status,
 			),
 			htmlIf(s.Detail != "", func() ui.Node {
 				return html.P(html.Props{Class: "jn-stepdetail"}, html.Text(s.Detail))
@@ -1508,18 +1675,22 @@ func factsListWithClass(facts []Fact, class string) ui.Node {
 func comparisonTableLocale(locale string, rows []ComparisonRow) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
 	return html.Div(html.Props{Class: "jn-tablewrap"},
-		html.Table(html.Props{Class: "jn-table"},
+		// The explicit table roles restate the native ones so assistive
+		// technology keeps the table when the phone layout (REV-091-02,
+		// typed_journey_review.go) restyles rows as stacked blocks, which
+		// otherwise drops table semantics in some browsers.
+		html.Table(html.Props{Class: "jn-table jn-compare", Role: "table"},
 			html.Caption(html.Props{Class: "jn-visually-hidden"},
 				html.Text(copy.Text("journey.comparison_caption"))),
-			html.Thead(html.Props{},
-				html.Tr(html.Props{},
-					html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_attribute"))),
-					html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_current"))),
-					html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_proposed"))),
-					html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_change"))),
+			html.Thead(html.Props{Role: "rowgroup"},
+				html.Tr(html.Props{Role: "row"},
+					html.Th(html.Props{Role: "columnheader", Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_attribute"))),
+					html.Th(html.Props{Role: "columnheader", Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_current"))),
+					html.Th(html.Props{Role: "columnheader", Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_proposed"))),
+					html.Th(html.Props{Role: "columnheader", Raw: map[string]any{"scope": "col"}}, html.Text(copy.Text("journey.table_change"))),
 				),
 			),
-			html.Tbody(html.Props{}, html.Map(rows, func(r ComparisonRow) ui.Node { return comparisonRowLocale(locale, r) })...),
+			html.Tbody(html.Props{Role: "rowgroup"}, html.Map(rows, func(r ComparisonRow) ui.Node { return comparisonRowLocale(locale, r) })...),
 		),
 	)
 }
@@ -1530,7 +1701,7 @@ func comparisonRow(r ComparisonRow) ui.Node {
 
 func comparisonRowLocale(locale string, r ComparisonRow) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
-	props := html.Props{}
+	props := html.Props{Role: "row"}
 	if r.Changed {
 		props.DataAttr = html.DataAttribute{Name: "changed", Value: "true"}
 	}
@@ -1551,10 +1722,10 @@ func comparisonRowLocale(locale string, r ComparisonRow) ui.Node {
 		change = append(change, html.Span(html.Props{Class: "jn-muted"}, html.Text(copy.Text("journey.table_unchanged"))))
 	}
 	return html.Tr(props,
-		html.Th(html.Props{Raw: map[string]any{"scope": "row"}}, html.Text(r.Label)),
-		html.Td(html.Props{Class: "jn-num", Dir: "auto"}, html.Text(r.Current)),
-		html.Td(html.Props{Class: "jn-num jn-proposed", Dir: "auto"}, html.Text(r.Proposed)),
-		html.Td(html.Props{Class: "jn-num jn-change"}, change...),
+		html.Th(html.Props{Role: "rowheader", Raw: map[string]any{"scope": "row"}}, html.Text(r.Label)),
+		html.Td(html.Props{Class: "jn-num", Role: "cell", Dir: "auto"}, html.Text(r.Current)),
+		html.Td(html.Props{Class: "jn-num jn-proposed", Role: "cell", Dir: "auto"}, html.Text(r.Proposed)),
+		html.Td(html.Props{Class: "jn-num jn-change", Role: "cell"}, change...),
 	)
 }
 
@@ -1997,20 +2168,61 @@ func outcomeSectionLocale(locale string, l *LedgerCard, pending string) ui.Node 
 			RenderIcon(IconClock, "jn-quiet-icon", nil),
 			html.Text(pending))
 	} else {
-		body = factsList([]Fact{
-			{Label: copy.Text("journey.outcome_result"), Value: copy.Text("journey.outcome_recorded"), Tone: toneSuccess},
-			{Label: copy.Text("journey.compare_effective"), Value: l.EffectiveAt, Tone: toneSuccess},
-			{Label: copy.Text("journey.outcome_recorded_at"), Value: l.RecordedAt},
-		})
+		body = factsList(outcomeFacts(locale, l))
 	}
 	return html.Section(html.Props{Class: "jn-panel", Aria: map[string]string{"labelledby": "outcome-heading"}},
 		html.Div(html.Props{Class: "jn-sectionhead"},
 			html.H2(html.Props{ID: "outcome-heading"},
 				RenderIcon(IconLedger, "jn-headicon", nil), html.Text(heading)),
-			htmlIf(l != nil, func() ui.Node { return chip(toneSuccess, copy.Text("journey.stage_recorded")) }),
+			htmlIf(l != nil, func() ui.Node {
+				label, tone := outcomeChip(locale, l)
+				return chip(tone, label)
+			}),
 		),
 		body,
 	)
+}
+
+// outcomeTone is the tone a terminal record is presented in. A record that
+// recorded no promotion is never success, whatever else is unknown about it.
+func outcomeTone(l *LedgerCard) string {
+	if strings.TrimSpace(l.StatusTone) != "" {
+		return toneOf(l.StatusTone)
+	}
+	if l.Recorded {
+		return toneSuccess
+	}
+	return toneWarning
+}
+
+// outcomeChip is the panel head's status chip: the terminal outcome's own
+// label and tone, not a standing claim that something was recorded.
+func outcomeChip(locale string, l *LedgerCard) (label, tone string) {
+	copy := productui.ResolveProductLocale(locale)
+	label = strings.TrimSpace(l.StatusLabel)
+	if label == "" {
+		label = copy.Text("journey.stage_recorded")
+		if !l.Recorded {
+			label = copy.Text("journey.outcome_not_recorded")
+		}
+	}
+	return label, outcomeTone(l)
+}
+
+// outcomeFacts states what the terminal record says. A run that recorded a
+// refusal says so and carries no effective date, because nothing took
+// effect on one (UXLIVE-001).
+func outcomeFacts(locale string, l *LedgerCard) []Fact {
+	copy := productui.ResolveProductLocale(locale)
+	result := copy.Text("journey.outcome_recorded")
+	if !l.Recorded {
+		result = copy.Text("journey.outcome_not_recorded")
+	}
+	facts := []Fact{{Label: copy.Text("journey.outcome_result"), Value: result, Tone: outcomeTone(l)}}
+	if l.Recorded {
+		facts = append(facts, Fact{Label: copy.Text("journey.compare_effective"), Value: l.EffectiveAt, Tone: toneSuccess})
+	}
+	return append(facts, Fact{Label: copy.Text("journey.outcome_recorded_at"), Value: l.RecordedAt})
 }
 
 func evidenceSection(evidence []string) ui.Node {
@@ -2044,14 +2256,50 @@ func actionsSection(l live, actions []Action) ui.Node {
 		return nil
 	}
 	copy := productui.ResolveProductLocale(l.locale)
-	return html.Section(html.Props{Aria: map[string]string{"labelledby": "actions-heading"}},
+	shared := sharedDisabledReason(actions)
+	l.sharedBlocked = shared
+	children := []ui.Node{
 		html.Div(html.Props{Class: "jn-sectionhead"},
 			html.H2(html.Props{ID: "actions-heading"}, html.Text(copy.Text("journey.actions_heading"))),
 		),
-		html.Div(html.Props{Class: "jn-actions"}, html.Map(actions, func(a Action) ui.Node {
+	}
+	if shared != "" {
+		children = append(children, html.P(html.Props{ID: sharedBlockedID, Class: "jn-blocked"},
+			RenderIcon(IconDanger, "jn-blocked-icon", nil), html.Text(shared)))
+	}
+	return html.Section(html.Props{Aria: map[string]string{"labelledby": "actions-heading"}},
+		append(children, html.Div(html.Props{Class: "jn-actions"}, html.Map(actions, func(a Action) ui.Node {
 			return actionCard(l, a)
-		})...),
+		})...))...,
 	)
+}
+
+// sharedBlockedID names the one section-level reason element every action
+// points at when they all share a reason.
+const sharedBlockedID = "actions-blocked"
+
+// sharedDisabledReason is the reason every action in the section is refused
+// for, when there is more than one action and they all give the same one.
+// Repeating it under each card said the same sentence three times and
+// buried whatever the reader could still do (UXLIVE-017).
+func sharedDisabledReason(actions []Action) string {
+	if len(actions) < 2 {
+		return ""
+	}
+	reason := ""
+	for _, a := range actions {
+		if !a.Disabled || strings.TrimSpace(a.DisabledReason) == "" {
+			return ""
+		}
+		if reason == "" {
+			reason = a.DisabledReason
+			continue
+		}
+		if a.DisabledReason != reason {
+			return ""
+		}
+	}
+	return reason
 }
 
 // actionCard renders one governed operation as its own self-contained
@@ -2060,6 +2308,7 @@ func actionsSection(l live, actions []Action) ui.Node {
 // three independent submissions and no ambient state decides which one
 // fires.
 func actionCard(l live, a Action) ui.Node {
+	sharedReason := l.sharedBlocked
 	copy := productui.ResolveProductLocale(l.locale)
 	variant := a.Variant
 	switch variant {
@@ -2067,7 +2316,12 @@ func actionCard(l live, a Action) ui.Node {
 	default:
 		variant = "secondary"
 	}
+	// When every action is refused for the same reason the section states it
+	// once and each control points at that one statement (UXLIVE-017).
 	reasonID := "action-" + a.ID + "-blocked"
+	if sharedReason != "" {
+		reasonID = sharedBlockedID
+	}
 
 	children := []ui.Node{
 		html.H3(html.Props{}, html.Text(a.Label)),
@@ -2098,7 +2352,24 @@ func actionCard(l live, a Action) ui.Node {
 	} else if a.OnSubmit != nil {
 		btn.OnClick = clickHandler(a.OnSubmit, l.collect(a.Hidden, a.Fields))
 	}
-	submit := html.Button(btn, html.Text(a.Label))
+	// A control keeps one name across its states. Offered, an action with a
+	// confirmation is reached through its review trigger ("Review and
+	// withdraw"); refused, the plain button used to fall back to the bare
+	// label ("Withdraw"), renaming the same control (UXLIVE-017).
+	submitLabel := a.Label
+	if a.Disabled && (len(a.Confirmation) > 0 || a.ConfirmationNote != "") {
+		_, reviewLabel := actionConfirmationCopy(l.locale, a)
+		if strings.TrimSpace(reviewLabel) != "" {
+			submitLabel = reviewLabel
+		}
+	}
+	submitProps := btn
+	if !a.Disabled && (len(a.Confirmation) > 0 || a.ConfirmationNote != "") && variant != "danger" {
+		// Inside the review the committing button is the dialog's one primary
+		// action; styled like Cancel beside it, the two read as equals.
+		submitProps.DataAttr = html.DataAttribute{Name: "variant", Value: "primary"}
+	}
+	submit := html.Button(submitProps, html.Text(submitLabel))
 	if !a.Disabled && (len(a.Confirmation) > 0 || a.ConfirmationNote != "") {
 		confirmTitle, reviewLabel := actionConfirmationCopy(l.locale, a)
 		children = append(children, ui.CreateElement(reviewSurface, reviewSurfaceProps{
@@ -2115,6 +2386,7 @@ func actionCard(l live, a Action) ui.Node {
 			Busy:         busy,
 			BusyLabel:    a.BusyLabel,
 			DismissLabel: copy.Text("journey.action_cancel_review"),
+			CancelLabel:  copy.Text("journey.action_cancel"),
 		}))
 	} else {
 		for _, f := range a.Fields {
@@ -2122,7 +2394,7 @@ func actionCard(l live, a Action) ui.Node {
 		}
 		children = append(children, submit)
 	}
-	if a.Disabled && a.DisabledReason != "" {
+	if a.Disabled && a.DisabledReason != "" && sharedReason == "" {
 		children = append(children, html.P(html.Props{ID: reasonID, Class: "jn-blocked"},
 			RenderIcon(IconWarning, "jn-blocked-icon", nil), html.Text(a.DisabledReason)))
 	}

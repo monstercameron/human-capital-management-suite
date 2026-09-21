@@ -73,8 +73,21 @@ func TestSharedEngineEnvelopePinsContextPropagatesUnknownAndReplaysDeterministic
 		if res.ResultDigest == "" || res.ExplanationDigest == "" {
 			t.Fatal("result carries no canonical digests")
 		}
+		explanation, err := Explain(res)
+		if err != nil {
+			t.Fatalf("Explain: %v", err)
+		}
+		if explanation.ResultDigest != res.ResultDigest || explanation.ExplanationDigest != res.ExplanationDigest {
+			t.Fatalf("explanation identity = %+v, want result digests", explanation)
+		}
 		if res.EffectCount != 0 {
 			t.Fatalf("EffectCount = %d, want zero: engines have no effect channel", res.EffectCount)
+		}
+	})
+
+	t.Run("RED: incomplete result cannot be explained", func(t *testing.T) {
+		if _, err := Explain(Result{}); !errors.Is(err, ErrContextIncomplete) {
+			t.Fatalf("Explain(empty) = %v, want ErrContextIncomplete", err)
 		}
 	})
 

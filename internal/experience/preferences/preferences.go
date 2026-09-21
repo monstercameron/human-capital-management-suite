@@ -58,6 +58,9 @@ type User struct {
 	FavoritePages    []string                    `json:"favorite_pages,omitempty"`
 	Tables           map[string]TablePreferences `json:"tables,omitempty"`
 	WorkflowUses     map[string]int64            `json:"workflow_uses,omitempty"`
+	// Density is this principal's own layout density. Empty inherits the
+	// organization's Theme.Density; see NormalizeUserDensity (REV-092-01).
+	Density string `json:"density,omitempty"`
 }
 
 // Theme is organization-wide customer branding. It is intentionally separate
@@ -183,6 +186,7 @@ func NormalizeUser(value User) User {
 	if value.WorkflowUses == nil {
 		value.WorkflowUses = map[string]int64{}
 	}
+	value.Density = NormalizeUserDensity(value.Density)
 	return value
 }
 

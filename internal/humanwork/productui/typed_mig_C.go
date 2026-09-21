@@ -35,7 +35,7 @@ func declareuxReviewRefinementsStyles() {
 	declareGlobal(".side-stack .summary-scope",
 		gwccss.Raw("margin", "0"),
 		gwccss.Raw("padding", "0 22px"),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".side-stack .facts>div",
 		gwccss.Raw("padding-block", "10px"),
@@ -69,6 +69,8 @@ func declareuxReviewRefinementsStyles() {
 	)
 	declareGlobal(".home-continuity-summary>p",
 		gwccss.Raw("margin", "0"), gwccss.Raw("padding", "0 18px 18px"),
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("line-height", "1.5"),
 	)
 	declareGlobal(".settings-overview-grid",
 		gwccss.Raw("align-items", "start"),
@@ -115,18 +117,38 @@ func declareuxReviewRefinementsStyles() {
 	declareGlobal(".jn-embedded .jn-journey-technical>summary",
 		gwccss.W(gwccss.RawLength("max-content")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("list-style", "none"),
+		gwccss.Display.InlineFlex,
+		gwccss.Items.Center,
+		gwccss.Raw("gap", "0.375rem"),
 	)
 	declareGlobal(".jn-embedded .jn-journey-technical>summary::-webkit-details-marker",
 		gwccss.Display.None,
 	)
-	declareGlobal(".jn-embedded .jn-journey-technical>summary:after",
-		gwccss.Raw("content", "\" +\""),
+	// The open/closed marker is drawn rather than written. It used to be
+	// content:" +" / " −", and CSS-generated text is part of the accessible
+	// name: a screen reader read the control as "Technical details plus".
+	// The state it was spelling out is already carried natively by
+	// details/summary, so the glyph is decoration and is now shaped from
+	// borders on empty content, which announces nothing.
+	//
+	// The borders are physical on purpose. This is a chevron pointing down,
+	// and down is the same direction in every writing mode; naming logical
+	// edges here would flip which corner is drawn without changing what the
+	// mark is supposed to mean.
+	declareGlobal(".jn-embedded .jn-journey-technical>summary::after",
+		gwccss.Raw("content", "\"\""),
+		gwccss.Raw("inline-size", "0.375rem"),
+		gwccss.Raw("block-size", "0.375rem"),
+		gwccss.Raw("border-right", "1.5px solid currentColor"),
+		gwccss.Raw("border-bottom", "1.5px solid currentColor"),
+		gwccss.Raw("transform", "translateY(-0.125rem) rotate(45deg)"),
+		gwccss.Raw("transition", "transform var(--hcm-motion-fast,.15s) ease"),
 	)
-	declareGlobal(".jn-embedded .jn-journey-technical[open]>summary:after",
-		gwccss.Raw("content", "\" −\""),
+	declareGlobal(".jn-embedded .jn-journey-technical[open]>summary::after",
+		gwccss.Raw("transform", "translateY(0.0625rem) rotate(-135deg)"),
 	)
 	declareGlobal(".jn-embedded .jn-journey-technical .jn-meta",
 		gwccss.Raw("margin-top", "8px"),
@@ -147,10 +169,10 @@ func declareuxReviewRefinementsStyles() {
 		mediaRule(gwccss.MinW(1191), gwccss.MaxWidth(gwccss.Px(198))),
 	)
 	declareGlobal(".loading-progress",
-		mediaRule(gwccss.MinW(1191), gwccss.Left(gwccss.Px(270))),
+		mediaRule(gwccss.MinW(1191), gwccss.Raw("inset-inline-start", "270px")),
 	)
 	declareGlobal(".app-shell.nav-collapsed .loading-progress",
-		mediaRule(gwccss.MinW(1191), gwccss.Left(gwccss.Px(72))),
+		mediaRule(gwccss.MinW(1191), gwccss.Raw("inset-inline-start", "72px")),
 	)
 	declareGlobal(".history-filter-controls",
 		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
@@ -175,19 +197,19 @@ func loadingLayoutOffsetsStylesheet() string {
 
 func declareloadingLayoutOffsetsStyles() {
 	declareGlobal(".app-shell .loading-progress",
-		gwccss.Left(gwccss.Px(232)),
+		gwccss.Raw("inset-inline-start", "232px"),
 	)
 	declareGlobal(".app-shell.nav-collapsed .loading-progress",
-		gwccss.Left(gwccss.Px(72)),
+		gwccss.Raw("inset-inline-start", "72px"),
 	)
 	declareGlobal(".app-shell .loading-progress",
-		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Left(gwccss.Px(210))),
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Raw("inset-inline-start", "210px")),
 	)
 	declareGlobal(".app-shell.nav-collapsed .loading-progress",
-		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Left(gwccss.Px(72))),
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.Raw("inset-inline-start", "72px")),
 	)
 	declareGlobal(".app-shell .loading-progress,.app-shell.nav-collapsed .loading-progress",
-		mediaRule(gwccss.MaxW(760), gwccss.Top(gwccss.Zero), gwccss.Left(gwccss.Zero)),
+		mediaRule(gwccss.MaxW(760), gwccss.Top(gwccss.Zero), gwccss.Raw("inset-inline-start", "0")),
 	)
 }
 
@@ -207,8 +229,8 @@ func declareloadingProxyStylesStyles() {
 		gwccss.Position.Fixed,
 		gwccss.ZIndex(30),
 		gwccss.Top(gwccss.Px(79)),
-		gwccss.Left(gwccss.RawLength("var(--hcm-navigation-width,232px)")),
-		gwccss.Right(gwccss.Zero),
+		gwccss.Raw("inset-inline-start", "var(--hcm-navigation-width,232px)"),
+		gwccss.Raw("inset-inline-end", "0"),
 		gwccss.H(gwccss.Px(3)),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.Bg(gwccss.Var("surface-muted")),
@@ -274,7 +296,9 @@ func declareloadingProxyStylesStyles() {
 		gwccss.Raw("flex", "none"),
 		gwccss.W(gwccss.Px(88)),
 		gwccss.H(gwccss.Px(27)),
-		gwccss.Rounded(gwccss.Px(999)),
+		// The shape of what it stands in for: statuses and row actions carry
+		// the status radius, not a full pill.
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-status")),
 	)
 	declareGlobal(".loading-avatar",
 		gwccss.Raw("flex", "none"),
@@ -419,11 +443,8 @@ func declareloadingProxyStylesStyles() {
 	declareGlobal(".loading-metrics",
 		mediaRule(gwccss.MaxW(990), gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))))),
 	)
-	declareGlobal(".loading-detail-proxy",
-		mediaRule(gwccss.MaxW(990), gwccss.Display.None),
-	)
 	declareGlobal(".loading-progress",
-		mediaRule(gwccss.MaxW(760), gwccss.Top(gwccss.Zero), gwccss.Left(gwccss.Zero)),
+		mediaRule(gwccss.MaxW(760), gwccss.Top(gwccss.Zero), gwccss.Raw("inset-inline-start", "0")),
 	)
 	declareGlobal(".loading-toolbar",
 		mediaRule(gwccss.MaxW(760), gwccss.Items.Stretch, gwccss.FlexDir.Col),
@@ -516,7 +537,7 @@ func declarebrandLogoStylesStyles() {
 	declareGlobal(".appearance-preview-logo .wordmark-mark",
 		gwccss.W(gwccss.Px(26)),
 		gwccss.H(gwccss.Px(26)),
-		gwccss.FontSize(gwccss.Rem(.7)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
 	declareGlobal(".appearance-brand-logo-field",
 		gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),

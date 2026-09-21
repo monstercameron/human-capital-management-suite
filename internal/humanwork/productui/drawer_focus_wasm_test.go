@@ -7,12 +7,17 @@ import (
 	"testing"
 )
 
-// TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose proves the drawer's
-// focus containment: opening moves focus inside, Tab and Shift+Tab wrap at
-// the dialog's own boundary instead of escaping it, and tearing the binding
-// down (the drawer closing) returns focus to whatever had it before —  the
-// trigger, in every real path.
-func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
+// drawerTrapFixture is a stand-in document holding a trigger outside a dialog
+// with two visible focusable children and one hidden one. modal sets the
+// dialog's aria-modal, which is what decides whether Tab wraps.
+type drawerTrapFixture struct {
+	doc, trigger, first, last, outside js.Value
+	handlers                           map[string]js.Value
+	focused                            *js.Value
+}
+
+func newDrawerTrapFixture(t *testing.T, modal bool) drawerTrapFixture {
+	t.Helper()
 	global := js.Global()
 	previousDoc := global.Get("document")
 	doc := global.Get("Object").New()
@@ -21,6 +26,7 @@ func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
 	first := global.Get("Object").New()
 	last := global.Get("Object").New()
 	hidden := global.Get("Object").New()
+	outside := global.Get("Object").New()
 	dialog := global.Get("Object").New()
 
 	focused := trigger
@@ -32,6 +38,7 @@ func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
 	first.Set("focus", focusOf(first))
 	last.Set("focus", focusOf(last))
 	hidden.Set("focus", focusOf(hidden))
+	outside.Set("focus", focusOf(outside))
 	visibleRects := global.Get("Object").New()
 	visibleRects.Set("length", 1)
 	hiddenRects := global.Get("Object").New()
@@ -57,6 +64,12 @@ func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
 
 	handlers := map[string]js.Value{}
 	dialog.Set("querySelectorAll", js.FuncOf(func(js.Value, []js.Value) any { return list }))
+	dialog.Set("getAttribute", js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if modal && args[0].String() == "aria-modal" {
+			return "true"
+		}
+		return js.Null()
+	}))
 	dialog.Set("addEventListener", js.FuncOf(func(_ js.Value, args []js.Value) any {
 		handlers[args[0].String()] = args[1]
 		return nil
@@ -81,43 +94,95 @@ func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
 		global.Set("document", previousDoc)
 		itemOf.Release()
 	})
+	return drawerTrapFixture{doc: doc, trigger: trigger, first: first, last: last, outside: outside, handlers: handlers, focused: &focused}
+}
 
+// tab presses Tab (or Shift+Tab) with focus on active and reports whether the
+// trap intercepted it.
+func (f drawerTrapFixture) tab(shift bool, active js.Value) bool {
+	f.doc.Set("activeElement", active)
+	event := js.Global().Get("Object").New()
+	event.Set("key", "Tab")
+	event.Set("shiftKey", shift)
+	prevented := false
+	event.Set("preventDefault", js.FuncOf(func(js.Value, []js.Value) any { prevented = true; return nil }))
+	f.handlers["keydown"].Invoke(event)
+	return prevented
+}
+
+// TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose proves the modal
+// drawer's focus containment: opening moves focus inside, Tab and Shift+Tab
+// wrap at the dialog's own boundary instead of escaping it, and tearing the
+// binding down (the drawer closing) returns focus to whatever had it before
+// -- the trigger, in every real path.
+func TestDrawerFocusTrapWrapsTabAndRestoresFocusOnClose(t *testing.T) {
+	f := newDrawerTrapFixture(t, true)
 	cleanup := bindDrawerFocusTrap("workspace-navigation", "nav-drawer-trigger")
 	if cleanup == nil {
 		t.Fatal("binding onto a real dialog returned no cleanup")
 	}
-	if !focused.Equal(first) {
+	if !f.focused.Equal(f.first) {
 		t.Fatal("opening the drawer did not move focus to its first focusable child")
 	}
-
-	tab := func(shift bool, active js.Value) {
-		doc.Set("activeElement", active)
-		event := global.Get("Object").New()
-		event.Set("key", "Tab")
-		event.Set("shiftKey", shift)
-		prevented := false
-		event.Set("preventDefault", js.FuncOf(func(js.Value, []js.Value) any { prevented = true; return nil }))
-		handlers["keydown"].Invoke(event)
-		if !prevented {
-			t.Fatalf("Tab (shift=%v) from the boundary was not intercepted", shift)
-		}
-	}
-	tab(false, last)
-	if !focused.Equal(first) {
+	if !f.tab(false, f.last) || !f.focused.Equal(f.first) {
 		t.Fatal("Tab past the last focusable item did not wrap to the first")
 	}
-	tab(true, first)
-	if !focused.Equal(last) {
+	if !f.tab(true, f.first) || !f.focused.Equal(f.last) {
 		t.Fatal("Shift+Tab past the first focusable item did not wrap to the last")
 	}
 
-	doc.Set("activeElement", last)
+	f.doc.Set("activeElement", f.last)
 	cleanup()
-	if !focused.Equal(trigger) {
+	if !f.focused.Equal(f.trigger) {
 		t.Fatal("closing the drawer did not restore focus to the trigger")
 	}
-	if len(handlers) != 0 {
+	if len(f.handlers) != 0 {
 		t.Fatal("cleanup left a live keydown listener")
+	}
+}
+
+// TestNonModalPopoverLetsTabLeave: Start an action and Page utilities are
+// non-modal. Tab from their last item has to leave them -- that is what lets
+// usePopoverFocusDismissal close them when the reader tabs away -- where the
+// trap used to wrap it back to the first item.
+func TestNonModalPopoverLetsTabLeave(t *testing.T) {
+	f := newDrawerTrapFixture(t, false)
+	cleanup := bindDrawerFocusTrap("utility-drawer-dialog", "utility-drawer-trigger")
+	if !f.focused.Equal(f.first) {
+		t.Fatal("opening the popover did not move focus to its first item")
+	}
+	if f.tab(false, f.last) {
+		t.Fatal("Tab from the last item of a non-modal popover was trapped")
+	}
+	if f.tab(true, f.first) {
+		t.Fatal("Shift+Tab from the first item of a non-modal popover was trapped")
+	}
+	cleanup()
+}
+
+// TestClosingDoesNotPullFocusBackFromWhereTheReaderMovedIt: when the popover
+// closes because focus left it, focus is already where the reader put it.
+// Restoring to the trigger then would undo the move. A close from inside
+// (Escape, the close button) or one that dropped focus to the body still
+// restores.
+func TestClosingDoesNotPullFocusBackFromWhereTheReaderMovedIt(t *testing.T) {
+	f := newDrawerTrapFixture(t, false)
+	cleanup := bindDrawerFocusTrap("utility-drawer-dialog", "utility-drawer-trigger")
+	f.outside.Call("focus")
+	f.doc.Set("activeElement", f.outside)
+	cleanup()
+	if !f.focused.Equal(f.outside) {
+		t.Fatal("closing the popover pulled focus away from the control the reader moved to")
+	}
+
+	body := js.Global().Get("Object").New()
+	f.doc.Set("body", body)
+	f.doc.Set("activeElement", f.trigger)
+	cleanup = bindDrawerFocusTrap("utility-drawer-dialog", "utility-drawer-trigger")
+	f.doc.Set("activeElement", body)
+	cleanup()
+	if !f.focused.Equal(f.trigger) {
+		t.Fatal("focus dropped to the body when the popover hid was not given back")
 	}
 }
 

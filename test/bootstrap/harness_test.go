@@ -172,6 +172,7 @@ func newCell(t *testing.T) *cell {
 
 	composed, err := app.NewCell(app.CellConfig{
 		Store:       store,
+		RoleAccess:  bootstrapTestRoleAccess(t, pool, testTenant),
 		Verifier:    verifier,
 		Audience:    testAudience,
 		MaxDeadline: 30 * time.Second,

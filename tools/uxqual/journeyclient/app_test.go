@@ -623,6 +623,11 @@ func TestStartingAnotherPromotionOpensTheEmployeesActiveJourney(t *testing.T) {
 	if h.svc.called("ProposePromotion") != 0 {
 		t.Fatal("opening an active journey proposed another promotion")
 	}
+	// The reader asked for a new proposal and got an existing journey; the
+	// page says why instead of silently swapping one for the other.
+	if p.Notice == nil || p.Notice.TitleKey != "journey.notice_existing_title" || p.Notice.Tone != toneInfo {
+		t.Fatalf("redirect to the active journey explained nothing: notice = %+v", p.Notice)
+	}
 }
 
 func TestBlockedPromotionIsStillAnActiveConflict(t *testing.T) {
@@ -1427,6 +1432,59 @@ func TestEditingARefusedProposalFieldClearsItsInlineErrorImmediately(t *testing.
 	}
 	if p.Notice != nil {
 		t.Fatalf("resolved one-field refusal left notice %+v", p.Notice)
+	}
+}
+
+// TestProposalReviewFactsFollowEveryEdit: the review dialog repeats the pay
+// and date about to be submitted. Typing a new amount after the page (or a
+// refusal) was projected left the dialog showing the old amount, so a reader
+// confirmed a figure other than the one the form sent.
+func TestProposalReviewFactsFollowEveryEdit(t *testing.T) {
+	h := newHarness(t)
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+
+	p := h.store.Page()
+	p.OnFieldChange(FieldBase, "97000")
+	p = h.store.Page()
+	p.OnFieldChange(FieldEffective, "2027-01-04")
+	facts := h.store.Page().Proposal.Form.Confirmation
+	var pay, date string
+	for _, fact := range facts {
+		switch fact.Label {
+		case "Base pay":
+			pay = fact.Value
+		case "Effective date":
+			date = fact.Value
+		}
+	}
+	if !strings.Contains(pay, "97,000.00") {
+		t.Errorf("review base pay = %q after typing 97000; facts %+v", pay, facts)
+	}
+	if !strings.Contains(date, "2027") {
+		t.Errorf("review effective date = %q after choosing 2027-01-04; facts %+v", date, facts)
+	}
+}
+
+// TestOverlongBusinessReasonIsNamedBeforeSubmission: the transport refuses a
+// string over its byte bound before the handler runs, and that refusal
+// read "Enter a clear business reason" to someone who had written a long one.
+func TestOverlongBusinessReasonIsNamedBeforeSubmission(t *testing.T) {
+	h := newHarness(t)
+	h.app.Start(context.Background(), ProposalHref("omar-reyes"))
+	h.awaitPage(t, "the focused proposal", proposalFor("omar-reyes"))
+	h.app.Submit(ActionPropose, map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NameBase: "98000.00", NameEffective: "2026-12-01",
+		NameReason: strings.Repeat("Promotion rationale. ", 300),
+	})
+	p := h.store.Page()
+	if h.svc.called("ProposePromotion") != 0 {
+		t.Fatal("an over-long reason was sent for the transport to refuse")
+	}
+	reason, ok := fieldByID(p.Proposal.Form.Fields, FieldReason)
+	if !ok || !strings.Contains(reason.Error, "too long") {
+		t.Fatalf("reason field = %+v, want the too-long message", reason)
 	}
 }
 

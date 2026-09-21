@@ -248,7 +248,13 @@ func TestTodo_DB_002_Integration(t *testing.T) {
 
 	var constraintDef string
 	if err := db.SQL.QueryRow(
-		`SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'ledger_stream_kind_allowed'`,
+		`SELECT pg_get_constraintdef(con.oid)
+		 FROM pg_constraint con
+		 JOIN pg_class rel ON rel.oid = con.conrelid
+		 JOIN pg_namespace ns ON ns.oid = rel.relnamespace
+		 WHERE ns.nspname = current_schema()
+		   AND rel.relname = 'ledger_stream'
+		   AND con.conname = 'ledger_stream_kind_allowed'`,
 	).Scan(&constraintDef); err != nil {
 		t.Fatalf("query live stream_kind constraint: %v", err)
 	}

@@ -127,17 +127,12 @@ func pickTwoTenantsInDifferentPartitions(t *testing.T, ctx context.Context, db *
 		insertLedgerEvent(t, db, tid, streamKey, schemaRef, authorityRef, 1, fmt.Sprintf("probe-idem-%d", i))
 
 		part := partitionOf(t, ctx, db.Conn, tid)
-		if existing, ok := byPartition[part]; ok && existing != tid {
-			return existing, tid
+		for otherPart, existing := range byPartition {
+			if otherPart != part {
+				return existing, tid
+			}
 		}
 		byPartition[part] = tid
-		if len(byPartition) >= 2 {
-			var picked []uuid.UUID
-			for _, v := range byPartition {
-				picked = append(picked, v)
-			}
-			return picked[0], picked[1]
-		}
 	}
 	t.Fatal("pickTwoTenantsInDifferentPartitions: no two of 40 probe tenants landed in different ledger_event partitions")
 	return uuid.Nil, uuid.Nil

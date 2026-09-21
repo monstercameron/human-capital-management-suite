@@ -8,6 +8,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportjourney "github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
+	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -15,6 +16,38 @@ type promotionRouteVerifier struct{}
 
 func (promotionRouteVerifier) Verify(context.Context, trust.Credential) (*trust.Principal, error) {
 	return nil, trust.ErrInvalidCredential
+}
+
+func TestTodo_WF_UI_005_DraftAuthoringRoutesAreMountedWithTypedFactories(t *testing.T) {
+	h, err := NewHandler(Options{
+		Config:   transport.Config{Verifier: promotionRouteVerifier{}},
+		Workflow: &transportworkflow.Dependencies{},
+	})
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	for _, procedure := range []string{
+		transportworkflow.CreateWorkflowDraftProcedure,
+		transportworkflow.GetWorkflowDraftProcedure,
+		transportworkflow.InsertWorkflowPaletteEntryProcedure,
+		transportworkflow.UpdateWorkflowDraftNodeProcedure,
+		transportworkflow.ApplyWorkflowTemplateOverlayProcedure,
+		transportworkflow.MoveWorkflowDraftNodeProcedure,
+		transportworkflow.NavigateWorkflowDraftHistoryProcedure,
+	} {
+		t.Run(procedure, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, procedure, nil)
+			req.Header.Set("Content-Type", "application/proto")
+			res := httptest.NewRecorder()
+			h.ServeHTTP(res, req)
+			if res.Code == http.StatusNotFound {
+				t.Fatalf("draft authoring route %s returned 404", procedure)
+			}
+			if _, ok := requestFactories[procedure]; !ok {
+				t.Fatalf("draft authoring route %s has no strict-decoding request factory", procedure)
+			}
+		})
+	}
 }
 
 func TestHandler_Smoke(t *testing.T) {

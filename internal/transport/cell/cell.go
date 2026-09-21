@@ -63,7 +63,7 @@ import (
 // UNAVAILABLE, matching every other optional transportadmin.Dependencies
 // port a caller does not wire.
 func NewGRPCServer(c *app.Cell, opts ...grpc.ServerOption) (*grpc.Server, error) {
-	return NewGRPCServerWithWorkflowInspectorAndOperations(c, nil, nil, nil, nil, opts...)
+	return NewGRPCServerWithWorkflowInspectorAndOperations(c, nil, nil, nil, nil, transporthumanwork.WritePorts{}, opts...)
 }
 
 // NewGRPCServerWithWorkflowInspector is [NewGRPCServer] plus ADMIN-008's
@@ -80,7 +80,7 @@ func NewGRPCServer(c *app.Cell, opts ...grpc.ServerOption) (*grpc.Server, error)
 func NewGRPCServerWithWorkflowInspector(
 	c *app.Cell, instances app.WorkflowInstanceReader, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
-	return NewGRPCServerWithWorkflowInspectorAndOperations(c, instances, nil, nil, nil, opts...)
+	return NewGRPCServerWithWorkflowInspectorAndOperations(c, instances, nil, nil, nil, transporthumanwork.WritePorts{}, opts...)
 }
 
 // NewGRPCServerWithWorkflowInspectorAndOperations is
@@ -91,17 +91,18 @@ func NewGRPCServerWithWorkflowInspector(
 func NewGRPCServerWithWorkflowInspectorAndOperations(
 	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store,
-	cursorKey []byte, opts ...grpc.ServerOption,
+	cursorKey []byte, workWrites transporthumanwork.WritePorts, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
 	}
-	if c.Telemetry != nil {
-		opts = append(opts,
-			grpc.ChainUnaryInterceptor(otelmw.UnaryServerInterceptor(c.Telemetry)),
-			grpc.ChainStreamInterceptor(otelmw.StreamServerInterceptor(c.Telemetry)),
-		)
-	}
+	// Always chained: with no Telemetry provider the interceptors still put
+	// the request and correlation ids into the logging context, so every log
+	// line a call writes carries them; only the span is skipped.
+	opts = append(opts,
+		grpc.ChainUnaryInterceptor(otelmw.UnaryServerInterceptor(c.Telemetry)),
+		grpc.ChainStreamInterceptor(otelmw.StreamServerInterceptor(c.Telemetry)),
+	)
 	srv, err := grpcserver.NewServer(grpcserver.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service, ServerOptions: opts,
 	})
@@ -133,7 +134,8 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// reason to hold an opinion about it.
 	transportjourney.Register(srv, transportjourney.Dependencies{
 		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
-		CursorKey: append([]byte(nil), cursorKey...),
+		CursorKey:     append([]byte(nil), cursorKey...),
+		Invalidations: journeyInvalidations(c),
 	})
 	// The workflow transport consumes its string-ID reader port. The existing
 	// application reader remains owned by AdminService; this adapter supplies
@@ -146,6 +148,8 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// posture the workflow inspector takes.
 	transporthumanwork.Register(srv, transporthumanwork.Dependencies{
 		Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...),
+		Claims: workWrites.Claims, Completions: workWrites.Completions,
+		Decisions: workWrites.Decisions, Idempotency: workWrites.Idempotency,
 	})
 	transportoperations.Register(srv, transportoperations.Dependencies{Store: operationStore})
 	transporthealth.Register(srv, transporthealth.Dependencies{})
@@ -168,9 +172,9 @@ func NewEdgeHandler(c *app.Cell, opts ...connect.HandlerOption) (http.Handler, e
 func NewEdgeHandlerWithDependencies(
 	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store,
-	cursorKey []byte, opts ...connect.HandlerOption,
+	cursorKey []byte, workWrites transporthumanwork.WritePorts, opts ...connect.HandlerOption,
 ) (http.Handler, error) {
-	return buildEdgeHandlerWithDependencies(c, nil, instances, workQueue, operationStore, cursorKey, opts...)
+	return buildEdgeHandlerWithDependencies(c, nil, instances, workQueue, operationStore, cursorKey, workWrites, opts...)
 }
 
 // buildEdgeHandler is the one edge composition both [NewEdgeHandler] and
@@ -178,24 +182,24 @@ func NewEdgeHandlerWithDependencies(
 // mounted, which is exactly what NewEdgeHandler has always built; a non-nil
 // one adds [TunnelPath] to the same mux and changes nothing else.
 func buildEdgeHandler(c *app.Cell, grpcServer *grpc.Server, opts ...connect.HandlerOption) (http.Handler, error) {
-	return buildEdgeHandlerWithDependencies(c, grpcServer, nil, nil, nil, nil, opts...)
+	return buildEdgeHandlerWithDependencies(c, grpcServer, nil, nil, nil, nil, transporthumanwork.WritePorts{}, opts...)
 }
 
-func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader, operationStore transportoperations.Store, cursorKey []byte, opts ...connect.HandlerOption) (http.Handler, error) {
+func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader, operationStore transportoperations.Store, cursorKey []byte, workWrites transporthumanwork.WritePorts, opts ...connect.HandlerOption) (http.Handler, error) {
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
 	}
-	if c.Telemetry != nil {
-		opts = append(opts, connect.WithInterceptors(otelmw.NewConnectInterceptor(c.Telemetry)))
-	}
+	opts = append(opts, connect.WithInterceptors(otelmw.NewConnectInterceptor(c.Telemetry)))
 	rpc, err := edge.NewHandler(edge.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
 		Journey: &transportjourney.Dependencies{
 			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
 			CursorKey: append([]byte(nil), cursorKey...),
 		},
-		Workflow:   workflowDependenciesRef(c, instances, cursorKey),
-		Work:       &transporthumanwork.Dependencies{Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...)},
+		Workflow: workflowDependenciesRef(c, instances, cursorKey),
+		Work: &transporthumanwork.Dependencies{Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...),
+			Claims: workWrites.Claims, Completions: workWrites.Completions,
+			Decisions: workWrites.Decisions, Idempotency: workWrites.Idempotency},
 		Operations: &transportoperations.Dependencies{Store: operationStore},
 		Health:     transporthealth.New(transporthealth.Dependencies{}), HandlerOptions: opts,
 	})
@@ -215,6 +219,7 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 			Now:             c.Config.Now,
 			DevBrowserLogin: c.DevBrowserLogin(),
 			DevPersonas:     c.DevPersonas(),
+			DevDirectory:    c.DevDirectory(),
 			RoleAccess:      c.RoleAccess,
 			Preferences:     c.Preferences,
 			PublicOrigin:    c.PublicOrigin(),

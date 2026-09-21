@@ -56,9 +56,19 @@ func composeWorkflowControl(db dbport.Beginner, tenantUUID func(values.TenantId)
 	if err != nil {
 		return nil, nil, fmt.Errorf("app: compile promotion simulation plan for workflow control: %w", err)
 	}
+	// Instances pinned to the frozen 1.0.0 plan stay cancellable and
+	// controllable after 1.1.0 is activated.
+	frozen, err := promotionexec.CompileV1_0()
+	if err != nil {
+		return nil, nil, fmt.Errorf("app: compile the frozen promotion plan for workflow control: %w", err)
+	}
+	frozenSimulation, err := promotionexec.CompileSimulationV1_0()
+	if err != nil {
+		return nil, nil, fmt.Errorf("app: compile the frozen promotion simulation plan for workflow control: %w", err)
+	}
 	authority := workflowcontrol.JITAuthority{Grants: truststore.New(db), TenantIDs: ids, Clock: now}
 	journal := &operatorjournal.Journal{DB: db, TenantIDs: operatorjournal.TenantIDs(ids)}
-	ctrl, err := workflowcontrol.New(db, journal, workflowcontrol.NewPlanSet(plan, simulation), authority, now,
+	ctrl, err := workflowcontrol.New(db, journal, workflowcontrol.NewPlanSet(plan, simulation, frozen, frozenSimulation), authority, now,
 		workflowcontrol.WithPreflightSimulation(), workflowcontrol.WithRecorder(recorder))
 	if err != nil {
 		return nil, nil, fmt.Errorf("app: compose workflow control: %w", err)

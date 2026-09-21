@@ -390,3 +390,65 @@ func TestTodo_PROMO_005_TerminalFailureRollsBackDomainChanges(t *testing.T) {
 		}
 	}
 }
+
+// TestTodo_PROMO_EXEC_007_CommitComplete is the commit-side proof for the
+// executable promotion path: one transaction produces every local successor
+// and both declared outbox legs.
+func TestTodo_PROMO_EXEC_007_CommitComplete(t *testing.T) {
+	f := newFixture(t)
+	receipt, err := commitCommand(t, f, promotioncommit.Writer{}, f.command(t))
+	if err != nil {
+		t.Fatalf("commit promotion: %v", err)
+	}
+	if receipt.AssignmentRowID == "" || receipt.OccupancyRowID == "" || receipt.BasePayRowID == "" || receipt.BudgetRowID == "" || len(receipt.OutboxIDs) != 2 {
+		t.Fatalf("incomplete commit receipt: %+v", receipt)
+	}
+	ctx := context.Background()
+	checks := []struct {
+		table, column, want string
+		id                  uuid.UUID
+	}{
+		{"assignment", "job_code", "ENG-MGR1", f.assignment},
+		{"position_occupancy", "worker_ref::text", f.worker.String(), f.occupancy},
+		{"compensation_component", "amount::text", "180000.0000", f.baseID},
+		{"budget_reservation", "status", "COMMITTED", f.reservation},
+	}
+	for _, check := range checks {
+		var got string
+		query := fmt.Sprintf("SELECT %s FROM %s WHERE tenant_id=$1 AND entity_id=$2 AND superseded_at IS NULL", check.column, check.table)
+		if err := f.db.Conn.QueryRow(ctx, query, f.tenant, check.id).Scan(&got); err != nil {
+			t.Fatalf("read %s: %v", check.table, err)
+		}
+		if got != check.want {
+			t.Errorf("%s.%s = %q, want %q", check.table, check.column, got, check.want)
+		}
+	}
+}
+
+// TestTodo_PROMO_EXEC_007_CommitComplete_Recovery proves a participant
+// failure rolls back the whole local transaction and a resumed attempt can
+// commit the same command without duplicate successor rows.
+func TestTodo_PROMO_EXEC_007_CommitComplete_Recovery(t *testing.T) {
+	f := newFixture(t)
+	fail := promotioncommit.Writer{Failpoint: func(stage string) error {
+		if stage == domaincommit.ParticipantOccupancy {
+			return errors.New("injected occupancy failure")
+		}
+		return nil
+	}}
+	if _, err := commitCommand(t, f, fail, f.command(t)); err == nil {
+		t.Fatal("failed commit returned nil")
+	}
+	for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0} {
+		var got int
+		if err := f.db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id=$1", table), f.tenant).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Errorf("%s rows after rollback = %d, want %d", table, got, want)
+		}
+	}
+	if _, err := commitCommand(t, f, promotioncommit.Writer{}, f.command(t)); err != nil {
+		t.Fatalf("recovered commit: %v", err)
+	}
+}

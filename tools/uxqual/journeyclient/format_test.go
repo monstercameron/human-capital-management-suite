@@ -42,7 +42,7 @@ func TestTimeOfTreatsTheProto3ZeroAsUnset(t *testing.T) {
 
 func TestFormatTimeIsAbsoluteAndUTC(t *testing.T) {
 	ts := atUTC(t, time.RFC3339, "2026-09-03T14:05:09Z")
-	if got, want := formatTime(ts), "2026-09-03 14:05 UTC"; got != want {
+	if got, want := formatTime(ts), "3 Sep 2026, 14:05 UTC"; got != want {
 		t.Errorf("formatTime = %q, want %q", got, want)
 	}
 	if got := formatTime(fakeTimestamp{}); got != "" {
@@ -224,13 +224,13 @@ func TestTodo_UXAUDIT_006_I18N_DetailMoneyAndDates(t *testing.T) {
 	if got, want := formatDateLocale("de-DE", "2026-09-03"), "03.09.2026"; got != want {
 		t.Errorf("German effective date = %q, want %q", got, want)
 	}
-	if got := formatTimeLocale("de-DE", ts); got != "03.09.2026 14:05 UTC" {
+	if got := formatTimeLocale("de-DE", ts); got != "03.09.2026, 14:05 UTC" {
 		t.Errorf("German audit time = %q", got)
 	}
 	if got, ok := amountDeltaLocale("de-DE", "USD", "93000.00", "98000.00"); !ok || got != "+5.000,00\u00a0USD" {
 		t.Errorf("German exact delta = (%q, %v)", got, ok)
 	}
-	if got, ok := percentDeltaLocale("de-DE", "93000.00", "98000.00"); !ok || got != "+5,4%" {
+	if got, ok := percentDeltaLocale("de-DE", "93000.00", "98000.00"); !ok || got != "+5,4\u00a0%" {
 		t.Errorf("German exact percent = (%q, %v)", got, ok)
 	}
 	if got := formatAmountLocale("ar", "USD", "1234.50"); got == "" || got == "USD 1,234.50" {

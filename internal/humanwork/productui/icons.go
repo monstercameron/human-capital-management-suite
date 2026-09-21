@@ -31,8 +31,11 @@ var registeredIcons = []IconDefinition{
 	{Name: "privacy", Path: "M6 10V7a6 6 0 0 1 12 0v3M5 10h14v11H5zM12 14v3"},
 	{Name: "launch", Path: "M5 19 19 5M9 5h10v10"},
 	{Name: "check", Path: "M20 6 9 17l-5-5"},
+	{Name: "plus", Path: "M12 5v14M5 12h14"},
 	{Name: "history-back", Path: "M20 12H4M10 18l-6-6 6-6"},
 	{Name: "history-forward", Path: "M4 12h16M14 6l6 6-6 6"},
+	{Name: "move-up", Path: "m6 15 6-6 6 6"},
+	{Name: "move-down", Path: "m6 9 6 6 6-6"},
 }
 
 const fallbackIconPath = "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"

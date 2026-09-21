@@ -12,7 +12,9 @@ import (
 
 func scope() ds.Scope {
 	now := time.Unix(100, 0).UTC()
-	return ds.Scope{TenantID: "tenant", SubjectID: "operator", CaseID: "case-1", Purpose: ds.PurposeSupport, Resources: []string{"incident:123"}, Actions: []ds.UIAction{ds.ActionViewSummary, ds.ActionViewEvidence}, IssuedAt: now, ExpiresAt: now.Add(5 * time.Minute)}
+	scope := ds.Scope{TenantID: "tenant", SubjectID: "operator", CaseID: "case-1", Purpose: ds.PurposeSupport, Resources: []string{"incident:123"}, Actions: []ds.UIAction{ds.ActionViewSummary, ds.ActionViewEvidence}, IssuedAt: now, ExpiresAt: now.Add(5 * time.Minute)}
+	scope.Approval = ds.MintApproval(scope, "approval-1")
+	return scope
 }
 
 func TestADMIN006RegistryExact(t *testing.T) {
@@ -45,11 +47,13 @@ func TestADMIN006JITScopeAndExpiry(t *testing.T) {
 	}
 	bad := scope()
 	bad.ExpiresAt = bad.IssuedAt.Add(16 * time.Minute)
+	bad.Approval = ds.MintApproval(bad, "approval-1")
 	if _, err := ds.New(bad); !errors.Is(err, ds.ErrInvalidScope) {
 		t.Fatalf("long TTL = %v", err)
 	}
 	bad = scope()
 	bad.Actions = []ds.UIAction{"delete_user"}
+	bad.Approval = ds.MintApproval(bad, "approval-1")
 	if _, err := ds.New(bad); !errors.Is(err, ds.ErrActionDenied) {
 		t.Fatalf("unsafe action = %v", err)
 	}
@@ -93,6 +97,7 @@ func TestADMIN006JITScopeRequiredFieldsMatrix(t *testing.T) {
 func TestADMIN006TTLAndExpiryBoundaries(t *testing.T) {
 	base := scope()
 	base.ExpiresAt = base.IssuedAt.Add(ds.MaxTTL)
+	base.Approval = ds.MintApproval(base, "approval-1")
 	if _, err := ds.New(base); err != nil {
 		t.Fatalf("maximum TTL rejected: %v", err)
 	}
@@ -164,7 +169,9 @@ func TestADMIN006EvidenceDigestBoundIsEnforced(t *testing.T) {
 }
 
 func TestADMIN006NewDefaultsAndBoundaryErrors(t *testing.T) {
-	s, err := ds.New(ds.Scope{TenantID: "tenant", SubjectID: "subject", CaseID: "case", Purpose: ds.PurposeSupport, Resources: []string{"incident:1"}, Actions: []ds.UIAction{ds.ActionViewSummary}})
+	bare := ds.Scope{TenantID: "tenant", SubjectID: "subject", CaseID: "case", Purpose: ds.PurposeSupport, Resources: []string{"incident:1"}, Actions: []ds.UIAction{ds.ActionViewSummary}}
+	bare.Approval = ds.MintApproval(bare, "approval-1")
+	s, err := ds.New(bare)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,6 +189,7 @@ func TestADMIN006NewDefaultsAndBoundaryErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			in := scope()
 			tc.mutate(&in)
+			in.Approval = ds.MintApproval(in, "approval-1")
 			if _, err := ds.New(in); !errors.Is(err, ds.ErrInvalidScope) {
 				t.Fatalf("New=%v", err)
 			}

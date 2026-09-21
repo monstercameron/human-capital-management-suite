@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -50,7 +51,16 @@ func (promoux012NoExecutor) ResumeTimer(context.Context, app.ExecutionTimerResum
 func promoux012Engine(t *testing.T) (workspace.JourneyEngine, func(subject string) context.Context) {
 	t.Helper()
 	db := pgtest.New(t)
-	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{"search_path": db.Schema})
+	poolURL, err := url.Parse(db.URL)
+	if err != nil {
+		t.Fatalf("parse pool URL: %v", err)
+	}
+	poolParams := poolURL.Query()
+	// Keep the fixture bounded so concurrent journey projections exercise
+	// connection release before nested directory/simulation reads.
+	poolParams.Set("pool_max_conns", "4")
+	poolURL.RawQuery = poolParams.Encode()
+	pool, err := pgxadapter.NewPool(context.Background(), poolURL.String(), map[string]string{"search_path": db.Schema})
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
 	}
@@ -101,7 +111,7 @@ func promoux012Propose(t *testing.T, engine workspace.JourneyEngine, ctx context
 	t.Helper()
 	proposed, err := engine.Propose(ctx, workspace.ProposalInput{
 		WorkerRef: worker, TargetJobCode: "OPS-HRBP3", TargetGrade: "P3",
-		ProposedBase: "98000.00", EffectiveDate: effective, BusinessReason: "promoux012_fixture",
+		ProposedBase: "98000.00", EffectiveDate: effective, BusinessReason: "promoux012 fixture",
 	})
 	if err != nil {
 		t.Fatalf("Propose(%s, %s): %v", worker, effective, err)

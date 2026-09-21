@@ -27,8 +27,8 @@ import (
 // RED: the generated connect-go backend differs from the generated native
 // gRPC backend in presence, typed errors, authenticated context, deadlines,
 // idempotency or response digest, for any of the 14 public methods of
-// IntentService and RegistryService — including the four REFUSED_P1A
-// methods (SubmitIntent, CancelIntent, SupersedeIntent, ExecuteIntent), which must refuse
+// IntentService and RegistryService — including ExecuteIntent, the remaining
+// REFUSED_P1A method, which must refuse
 // a caller-selected authority identically to every SERVED method rather
 // than being treated as a special case.
 //
@@ -221,7 +221,7 @@ func TestTodo_PROTO_006(t *testing.T) {
 		}
 	})
 
-	t.Run("refusal of caller-selected authority, for every method including the four REFUSED_P1A methods", func(t *testing.T) {
+	t.Run("refusal of caller-selected authority, for every method including REFUSED_P1A", func(t *testing.T) {
 		var refusedP1A, served int
 		for _, tc := range cases {
 			t.Run(tc.Name, func(t *testing.T) {
@@ -252,11 +252,11 @@ func TestTodo_PROTO_006(t *testing.T) {
 				}
 			})
 		}
-		if refusedP1A != 4 {
-			t.Errorf("found %d REFUSED_P1A methods, want exactly 4 (SubmitIntent, CancelIntent, SupersedeIntent, ExecuteIntent)", refusedP1A)
+		if refusedP1A != 1 {
+			t.Errorf("found %d REFUSED_P1A methods, want ExecuteIntent only", refusedP1A)
 		}
-		if served != len(cases)-4 {
-			t.Errorf("found %d SERVED methods, want %d", served, len(cases)-3)
+		if served != len(cases)-1 {
+			t.Errorf("found %d SERVED methods, want %d", served, len(cases)-1)
 		}
 	})
 }
@@ -423,7 +423,7 @@ func TestTodo_PROTO_006_Integration(t *testing.T) {
 }
 
 // TestTodo_PROTO_006_Conformance checks the manifest-to-generated-client
-// cross-join: exactly 14 methods, exactly 4 of them REFUSED_P1A, and the
+// cross-join: exactly 14 methods, ExecuteIntent REFUSED_P1A, and the
 // generated procedure set matches the manifest's grpc_procedure column
 // exactly.
 func TestTodo_PROTO_006_Conformance(t *testing.T) {
@@ -453,7 +453,7 @@ func TestTodo_PROTO_006_Conformance(t *testing.T) {
 			t.Errorf("%s has an invalid disposition %q", e.EndpointID, e.Disposition)
 		}
 	}
-	want := map[string]bool{"SubmitIntent": true, "CancelIntent": true, "SupersedeIntent": true, "ExecuteIntent": true}
+	want := map[string]bool{"ExecuteIntent": true}
 	if len(refused) != len(want) {
 		t.Fatalf("REFUSED_P1A methods = %v, want %v", refused, want)
 	}

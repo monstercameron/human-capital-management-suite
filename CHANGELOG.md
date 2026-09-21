@@ -1,5 +1,91 @@
 # Changelog
 
+## 2026-09-21 (Promotion PR merge-gate repair)
+
+- Repaired the serve role's graceful cancellation so the external-process smoke can stop cleanly, and made the promotion invalidation integration wait for all authorized subscriptions rather than counting an unrelated viewer.
+- Bound safety revision writes to a transaction, moved admin ledger operations and workflow-draft reads behind application ports, and instrumented workflow designer operations with bounded telemetry.
+- Refreshed derived endpoint, coverage and architecture evidence against the current source, corrected stale platform-policy tests and repository links, and retained fail-closed checks for generated runtime scripts.
+- Reconciled the signed California-to-P1A-to-P1B selection chain, added indexes for referenced foreign keys, and restored the qualified x/text ownership boundary. New exact, expiring records track legacy skip and evidence-freshness debt without asserting missing proof.
+- Classified live P1A test evidence from exact structured Go events, preserving fail-closed behavior while distinguishing a Windows post-pass cleanup error from a failed test.
+- Released read-only journey-note retry transactions before resolving author display names, preventing pool starvation under concurrent idempotent submissions.
+
+## 2026-09-20 (Promotion execution PR verification and CI reconciliation)
+
+- Reconciled the promotion/provider-integration topic branch with the repository-wide quality gates: static analysis, architecture and planning policy, transactional cleanup boundaries, Linux clean-checkout behavior, the external serve smoke and concurrent-package race execution.
+- The authority-free external-process smoke now opts out of execution/scheduler roles explicitly, uses deterministic request bytes, and proves Create, exact idempotent replay, Get and deterministic zero-effect Simulate against the certified corpus.
+- Deferred leave preview relations now use preview-only names, preventing their generated schema and storage disposition from colliding with the live leave tables while preserving a pinned source digest.
+- Linux CI now uses portable fake executables in clean-checkout tests, runs shared-PostgreSQL race packages with bounded package concurrency, and measures UX wall-clock budgets only outside race instrumentation; functional, fault and security invalidation tests remain in the race set.
+- Topic branches now run one pull-request check set instead of duplicate push and pull-request workflows. Root quality/policy, race and coverage lanes run in parallel with isolated PostgreSQL containers, while the existing required `Go tests (root module)` check remains as a fail-closed fan-in for branch protection.
+- The exhaustive coverage and race lanes are deterministically partitioned across four isolated runners apiece; every shard remains mandatory through the same fail-closed fan-in, cutting validation latency without reducing the package set.
+- CICD-001 now verifies the architecture manifest's seven real command roots, replacing the stale forbidden `cmd/admin` expectation with the shipped `cmd/hcmctl` and `cmd/frontenddev` roots.
+- The root coverage gate now honors its documented generated-code exclusion for nested `generated` directories and parses Go 1.26's bare coverage summaries for no-test executables. Three thin, library-backed command wrappers carry explicit expiring coverage exceptions instead of being misreported as missing package results.
+- Controlled data-plane deletion is tenant-fenced behind explicit security-definer functions, replacing broad application-role table deletes for role assignments, conflict fences, job trace pruning and workflow-draft cleanup.
+
+## 2026-09-19 (Workflow designer promotion parity)
+
+- Completed `WF-UI-005`: the role-gated Go/WASM workflow editor now receives a tenant-filtered registry palette of blocks, fragments and templates, with searchable domain groups, effect/reversal badges, durable collapsible-fragment insertion and optimistic edit fencing.
+- The Promotion template no longer approximates the executable workflow. It stores the canonical `promotionexec.Definition()` byte-for-byte, preserves its start node, 25 nodes, 72 routed outcomes and payroll/access simulator waits, and displays an exact-match claim only after the client verifies the server-issued template digest.
+- Creating a newer immutable Promotion version now hydrates that same canonical source definition only when the tenant-authorized template is cryptographically bound to the selected publication's compiled-plan digest. The stored successor bytes compile back to the published plan, while the prior publication remains read-only.
+- Completed `WF-UI-006`: the shared node inspector renders typed parameters, records reasoned template overlays, keeps mandatory control phases locked in both the browser and edit kernel, and preserves the selected node across route refreshes.
+- Completed `WF-UI-007`: authors can route compiler-declared outcomes and bind typed inputs only to assignable outputs from strict dominators. The shared compiler analysis drives both the picker and mutation guard; optimistic fencing, browser-safe gRPC methods and accessible native forms carry the behavior through the Go/WASM product.
+- Completed `WF-UI-009`: the visual graph and accessible outline now share revision-fenced configure and move commands, with exact cross-view draft identity, keyboard-only add/move/connect/bind/configure flows and a polished 320px outline. Idempotent edits compare canonical definition identity across PostgreSQL jsonb round trips and clear their loading state only after the authoritative reload completes.
+- Focused palette, security, durable-edit, transport, controller, product-client and rendered parity suites pass; the live Codex-browser pass verified the exact draft topology and palette interactions in the product shell.
+
+## 2026-09-19 (UI/UX backlog: live-audit follow-ups and review gaps)
+
+- Product UI (`UXLIVE-027`..`UXLIVE-033`): Journeys, Insights and Home now count one server-computed journey population. The saved My Work tab had been narrowing every page's list. Home gains an operational summary with linked counts and lists of problems, recent requests and completed requests. The Journeys tracker gets URL-backed search, filters, sorting and grouping, cards read "Promotion for <name>" with a copyable request reference, and People rows carry one real action each. The router owns scroll restoration, and global search keeps every keystroke.
+- Review gaps (`REV-090-01/02`, `REV-091-01..03`, `REV-092-01`, `REV-093-01`, `REV-095-01..05`):
+  - failed page reads show a visible retry;
+  - `ListJourneys` reads in a fixed number of batched statements;
+  - one refusal mapper;
+  - the review and pay-guardrail cards are wired into the request page;
+  - an invalidation stream refreshes counts after every committed transition;
+  - a per-person density setting;
+  - a server-resolved access preview with honest administrator scope;
+  - client-side required-field errors in a usable confirm dialog;
+  - token-shaped reasons are refused at submit;
+  - the person launcher shows its own empty-state text;
+  - the People filter is kept in Organization's URL;
+  - the filter strip no longer wraps or clips.
+- Fixed while verifying live:
+  - the confirm dialog rendered off-screen;
+  - the WASM client linked the server workspace package, producing about 12,500 CSP violations per page load (now blocked by `TestWasmClientDoesNotLinkServerPackages`);
+  - unhandled "Transition was skipped" page errors;
+  - unkeyed shell children re-mounted the heading and lost focus and scroll;
+  - Home, History and the person page read the viewer's work instead of the requests they can see;
+  - English dates were numeric;
+  - the "organization default" density radio submitted "on";
+  - the Organization search had browser-default padding;
+  - "Access scope: Not reported" was shown for everyone;
+  - on phones the Proposal table broke words mid-token.
+- API: `JourneyService` gains `PreviewRoleAccess` and `WatchPromotionInvalidations`, plus the `population`, `promotion_review` and `density` fields. The OpenAPI document is regenerated.
+- Docs: 19 todos ticked with evidence, the registry is regenerated, and the coverage inventory has rows for 59 new files.
+
+Left open: `REV-018-01/02` and the visual workflow designer (`WF-UI-*`) are feature work, not fixes, and were not attempted.
+
+## 2026-09-19 (Journey notes, provider integrations and journey logging)
+
+- Data: the provider receipt store and migration `00313`, and the outbox consumer's retry outcomes (`FailAfter`, `Defer`, `Abandon`).
+- Journey notes: the append-only note engine with idempotency keys, completing the spine from the earlier checkpoint.
+- Connectivity: payroll (API key) and identity/access (OAuth2 client credentials) provider simulators under `tools/integrationsim`, plus the OAuth2 client, backoff and circuit breaker, delivery, receipt verification and provider telemetry packages.
+- Workflow: promotion workflow 1.1.0 waits for the payroll and access confirmations after the commit, with 1.0 kept servable for pinned runs; `WF_RUN_016` updated for the new graph.
+- Observability: per-operation journey business events keyed to the intent's correlation id; request and correlation ids on every log line without an OTel exporter; engine log lines written on the request path and joined to the run's correlation id.
+- Product UI: journey notes in the WASM client.
+- Docs: devlog follow-up in `planning/devlog/2026-09-18-promoexec-uxlive-landing.md`; coverage inventory rows for the new files; archdoc and storage manifests regenerated.
+
+Left open: outbox delivery to the providers and receipt intake are not wired, so live 1.1.0 runs park on the payroll wait.
+
+## 2026-09-18 (Promotion execute, live UI findings and market-rate landing round)
+
+- Engine acknowledgement and signal groundwork (unclaimed; toward `PROMO-EXEC-005`/`PROMO-EXEC-007`): the journey service grows `AcknowledgeJourney`, `JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT` and `JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT` with regenerated bindings, the engine acknowledges through a durable signal subscription with expiry and resume (`internal/data/signals`, scheduler/signal workloads, timer and ready redelivery), commit compensation holds (`promotionexec` compensate node, `promotionsteps`/`execution` hold), WF-COMP-007 resolver/timeout/compensation fingerprint bindings, and `test/workflow` plus `test/tunnel` coverage for the parked, acknowledged, expired and compensated paths. The client vocabularies were completed to match (`StagePresentation`, next-step codes, product catalog in three locales).
+- Domain (`PROMO-EXEC-001`, `PROMO-EXEC-006`): the standard serve profile composes the executing cell by default (engine, authority and scheduler on; digest still required) with the refusing cell kept behind `-execution-authority=false`, and every propose path auto-selects the OPEN catalog vacancy for position-less proposals. Suites green in-tree.
+- Data: the tenant-scoped position directory with per-position occupancy (`internal/data/positionfacts`), execution-evidence transaction recording (`evidencestore`), and the new `budgetfacts`/`compfacts` fact packages land with their stores green.
+- Rewards (`HIPERF-001`): the governed `hcmnext.rewards.market_rate` port with a static stub table and an off-by-default egress-HTTP skeleton; the execute graph is untouched.
+- Product UI (`UXLIVE-001`..`UXLIVE-026`): recorded-outcome wording, history-derived stage tracker, position display, prefilled edit form, failure retry, governed-repair projection, scope counts, brand copy, identifier treatment, request references, vacancy picker propose form, pay-guidance copy, immutable asset caching with Cache Storage fallback, presence rules, one vocabulary for dates, shared action reasons, counted work filters, visible stage states, focus return, grouped row menus, cold-load journey links, person-page states, organization width, shell scroll lock and started-fact intervention availability. The workspace WASM bundle and manifest rebuild with the tree.
+- Docs: `planning/todos.md` gains the 38 `PROMO-EXEC`/`UXLIVE`/`HIPERF` entries (29 ticked with evidence, 9 left open), the registry regenerates from markdown, and the archdoc inventory regenerates for the new packages.
+
+Left open with no named tests in the tree: `PROMO-EXEC-002/003/004/005/007` and `HIPERF-002/003/004/005`; their groundwork above is committed without ticks.
+
 ## 2026-09-17 (In-flight landing round, todos stay open)
 
 - Preserved lane work without marking anything complete: search propagation, benefits eligibility, clock observations, garnishment intake, metric compilation, promotion-path store, knowledge RAG/resolve, settlement submit (`SEARCH-002`, `BEN-003`, `CLOCK-003`, `GARN-001`, `METRIC-001`, `PERSIST-JOBARCH-002`, `KNOW-003/004`, `SETTLE-004`); abuse investigation and pseudonym rate-limit/re-identification (`ABUSE-006`, `ANON-006/008`); polish/density suites, the access-preview harness and its workspace test (`UIPOLISH-002/003/005/006`, `UXSCAN-008`). All packages green in-tree; each todo still needs its evidence and review. Noted flake: `TestTodo_PROMOUX_011_ProductRefreshPublishesOnlyNewestSequence` failed once under the hook and passed four consecutive reruns — needs a GOV-020 quarantine record, not silent retries.

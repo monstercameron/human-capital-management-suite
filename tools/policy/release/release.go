@@ -51,15 +51,16 @@ type BinaryInput struct {
 // Options configures Build. Paths other than Out are relative to root unless
 // absolute. PolicyReports uses the keys in RequiredPolicyReports.
 type Options struct {
-	Out             string
-	Version         string
-	VersionFile     string
-	Binaries        []BinaryInput
-	SBOMPath        string
-	ProvenancePath  string
-	P1AEvidencePath string
-	PolicyReports   map[string]string
-	KeyPath         string
+	Out                 string
+	Version             string
+	VersionFile         string
+	Binaries            []BinaryInput
+	SBOMPath            string
+	ProvenancePath      string
+	P1AEvidencePath     string
+	PolicyReports       map[string]string
+	ProductGateEvidence map[string]string
+	KeyPath             string
 }
 
 // Artifact is one immutable file covered by a bundle manifest.
@@ -75,6 +76,7 @@ type Manifest struct {
 	SchemaVersion int                     `json:"schema_version"`
 	Version       string                  `json:"version"`
 	Artifacts     []Artifact              `json:"artifacts"`
+	ProductGate   *ProductGateRecord      `json:"product_gate,omitempty"`
 	Signature     *gateevidence.Signature `json:"signature,omitempty"`
 }
 
@@ -152,7 +154,7 @@ func Build(root string, opts Options) (Manifest, error) {
 	if err := writeBundleFiles(stage, version, inputs); err != nil {
 		return Manifest{}, err
 	}
-	manifest, err := manifestFor(stage, version)
+	manifest, err := manifestFor(stage, version, inputs.gate)
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -241,6 +243,9 @@ func VerifyBundle(bundle string, opts VerifyOptions) (Verification, error) {
 	if err := verifyProvenanceInBundle(bundle, manifest, trusted); err != nil {
 		return Verification{}, err
 	}
+	if err := VerifyProductGateRecord(manifest.ProductGate); err != nil {
+		return Verification{}, err
+	}
 	digest, err = manifest.CanonicalDigest()
 	if err != nil {
 		return Verification{}, err
@@ -260,10 +265,11 @@ func Verify(bundle string) error {
 
 func (m Manifest) CanonicalDigest() (string, error) {
 	payload := struct {
-		SchemaVersion int        `json:"schema_version"`
-		Version       string     `json:"version"`
-		Artifacts     []Artifact `json:"artifacts"`
-	}{m.SchemaVersion, m.Version, m.Artifacts}
+		SchemaVersion int                `json:"schema_version"`
+		Version       string             `json:"version"`
+		Artifacts     []Artifact         `json:"artifacts"`
+		ProductGate   *ProductGateRecord `json:"product_gate,omitempty"`
+	}{m.SchemaVersion, m.Version, m.Artifacts, m.ProductGate}
 	b, err := json.Marshal(payload)
 	if err != nil {
 		return "", fmt.Errorf("release: marshal canonical manifest: %w", err)
@@ -278,10 +284,25 @@ type normalizedInputSet struct {
 	p1a        string
 	policies   map[string]string
 	binaries   []BinaryInput
+	gate       ProductGateRecord
+	gateJSON   []byte
 }
 
 func normalizedInputs(root string, opts Options) (normalizedInputSet, error) {
+	// The product-slice release gate decides the bundle before any artifact
+	// is copied: a bundle missing one of the eight gate proofs is refused.
+	decision, evidence, err := AdmitProductGate(opts.ProductGateEvidence)
+	if err != nil {
+		return normalizedInputSet{}, err
+	}
+	record := SealProductGate(decision, evidence)
+	gateJSON, err := MarshalProductGate(record)
+	if err != nil {
+		return normalizedInputSet{}, err
+	}
 	set := normalizedInputSet{
+		gate:       record,
+		gateJSON:   gateJSON,
 		sbom:       rooted(root, defaultString(opts.SBOMPath, "definitions/supply-chain/sbom.cdx.json")),
 		provenance: rooted(root, defaultString(opts.ProvenancePath, "definitions/supply-chain/provenance.json")),
 		p1a:        rooted(root, defaultString(opts.P1AEvidencePath, "definitions/planning/gates/p1a-evidence-report.json")),
@@ -360,10 +381,13 @@ func writeBundleFiles(stage, version string, inputs normalizedInputSet) error {
 			return fmt.Errorf("release: copy %s policy report: %w", name, err)
 		}
 	}
+	if err := writeText(filepath.Join(stage, filepath.FromSlash(ProductGateFileName)), string(inputs.gateJSON)); err != nil {
+		return fmt.Errorf("release: write product-gate report: %w", err)
+	}
 	return nil
 }
 
-func manifestFor(stage, version string) (Manifest, error) {
+func manifestFor(stage, version string, gate ProductGateRecord) (Manifest, error) {
 	var artifacts []Artifact
 	err := filepath.WalkDir(stage, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -391,7 +415,7 @@ func manifestFor(stage, version string) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("release: hash bundle artifacts: %w", err)
 	}
 	sort.Slice(artifacts, func(i, j int) bool { return artifacts[i].Path < artifacts[j].Path })
-	return Manifest{SchemaVersion: SchemaVersion, Version: version, Artifacts: artifacts}, nil
+	return Manifest{SchemaVersion: SchemaVersion, Version: version, Artifacts: artifacts, ProductGate: &gate}, nil
 }
 
 func verifyFiles(bundle string, artifacts []Artifact) error {
@@ -527,7 +551,7 @@ func requireBundleArtifacts(artifacts []Artifact) error {
 	for _, artifact := range artifacts {
 		present[artifact.Path] = true
 	}
-	required := []string{"version.txt", "binaries.sha256", "sbom.cdx.json", "provenance.json", "p1a-evidence-report.json"}
+	required := []string{"version.txt", "binaries.sha256", "sbom.cdx.json", "provenance.json", "p1a-evidence-report.json", ProductGateFileName}
 	for _, name := range RequiredPolicyReports {
 		required = append(required, "policy/"+name+".json")
 	}

@@ -107,6 +107,23 @@ func TestTodo_WEB_030_Browser(t *testing.T) {
 	}
 }
 
+func TestTodo_WF_UI_006_SelectedNodeSurvivesWorkflowEditorReload(t *testing.T) {
+	state, err := ParseState("/workspace/app/admin/workflows", "draft=draft-42&node=await_payroll_confirmation&locale=en-US")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Request.WorkflowDraftID != "draft-42" || state.Request.WorkflowNodeID != "await_payroll_confirmation" {
+		t.Fatalf("workflow editor selection route = %+v", state.Request)
+	}
+	if got, want := CanonicalHref(state), "/workspace/app/admin/workflows?draft=draft-42&locale=en-US&node=await_payroll_confirmation"; got != want {
+		t.Fatalf("canonical selected-node route = %q, want %q", got, want)
+	}
+	view := productui.ApplyRequest(productui.NewView(productui.PageWorkflowDesigner, "", "", ""), state.Request)
+	if view.SelectedWorkflowNodeID != "await_payroll_confirmation" {
+		t.Fatalf("selected workflow node = %q", view.SelectedWorkflowNodeID)
+	}
+}
+
 func TestTodo_WEB_030_Conformance(t *testing.T) {
 	for name, query := range map[string]string{
 		"duplicate":         "nav=collapsed&nav=expanded",
@@ -179,9 +196,19 @@ func TestTodo_WEB_030_Security(t *testing.T) {
 		t.Fatalf("cross-session resume did not reauthorize and fail closed: calls=%d/%d view=%+v err=%v", journeyCalls.Load(), workerCalls.Load(), view, err)
 	}
 	serviceType := reflect.TypeOf(Service{})
+	explicitWorkflowMutations := map[string]bool{
+		"CreateWorkflowDraft":          true,
+		"InsertWorkflowPaletteEntry":   true,
+		"UpdateWorkflowDraftNode":      true,
+		"SetWorkflowDraftOutcome":      true,
+		"BindWorkflowDraftInput":       true,
+		"MoveWorkflowDraftNode":        true,
+		"NavigateWorkflowDraftHistory": true,
+		"ApplyWorkflowTemplateOverlay": true,
+	}
 	for index := 0; index < serviceType.NumField(); index++ {
 		name := serviceType.Field(index).Name
-		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") {
+		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") && !explicitWorkflowMutations[name] {
 			t.Fatalf("route projection acquired mutation capability %q", name)
 		}
 	}

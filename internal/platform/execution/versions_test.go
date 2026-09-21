@@ -49,17 +49,19 @@ func TestTodo_WF_COMP_006_ServeBootNeverApproves(t *testing.T) {
 	if len(registry.approvals) != 0 || len(registry.activated) != 0 {
 		t.Fatalf("composition recorded approvals %+v and activations %v, want none", registry.approvals, registry.activated)
 	}
-	for _, workflowID := range []string{prototype.ApprovalWorkflowID, promotionexec.WorkflowID} {
+	// The executable promotion ships 1.0.0 (frozen) and 1.1.0 side by side.
+	for workflowID, want := range map[string]int{prototype.ApprovalWorkflowID: 1, promotionexec.WorkflowID: 2} {
 		versions, err := registry.List(workflowID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(versions) != 1 {
-			t.Fatalf("%s: %d published versions after two compositions, want 1", workflowID, len(versions))
+		if len(versions) != want {
+			t.Fatalf("%s: %d published versions after two compositions, want %d", workflowID, len(versions), want)
 		}
-		v := versions[0]
-		if v.Status != version.StatusDraft || len(v.Approvals) != 0 || len(v.FixtureRefs) == 0 || v.ToolVersions["go"] == "" || v.PublishedBy != versionPublisher {
-			t.Fatalf("%s published as %+v, want an unapproved DRAFT declaring fixtures and tool versions", workflowID, v)
+		for _, v := range versions {
+			if v.Status != version.StatusDraft || len(v.Approvals) != 0 || len(v.FixtureRefs) == 0 || v.ToolVersions["go"] == "" || v.PublishedBy != versionPublisher {
+				t.Fatalf("%s published as %+v, want an unapproved DRAFT declaring fixtures and tool versions", workflowID, v)
+			}
 		}
 		if _, found, err := registry.GetActiveForWorkflow(workflowID); err != nil || found {
 			t.Fatalf("%s has an ACTIVE version after composition (%v)", workflowID, err)
@@ -84,6 +86,20 @@ func TestComposeVersionsWithoutARegistryActivatesOnFixtureRuns(t *testing.T) {
 		if err != nil || !found || len(active.Approvals) != 1 || active.Approvals[0].ApprovedBy != unitCompositionApprover {
 			t.Fatalf("%s = %+v (found %v, %v), want ACTIVE on the unit-composition fixture run", workflowID, active, found, err)
 		}
+	}
+	// The current promotion execute version is the active one; the frozen
+	// 1.0.0 was superseded by it and still resolves by its pin.
+	active, _, _ := store.GetActiveForWorkflow(promotionexec.WorkflowID)
+	if active.SemanticVersion != promotionexec.SemanticVersion {
+		t.Fatalf("active promotion execute = %s, want %s", active.SemanticVersion, promotionexec.SemanticVersion)
+	}
+	frozen, err := promotionexec.CompileV1_0()
+	if err != nil {
+		t.Fatal(err)
+	}
+	superseded, found, err := store.GetByDigest(frozen.Digest())
+	if err != nil || !found || !superseded.QuarantinedBySupersession() {
+		t.Fatalf("execute 1.0.0 = %+v (found %v, %v), want quarantined by supersession", superseded, found, err)
 	}
 	registry := version.NewRegistry()
 	published, err := PublishShippedVersions(registry, at)

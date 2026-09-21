@@ -19,6 +19,7 @@ FAIL
 FAIL	github.com/monstercameron/human-capital-management-suite/internal/domains/access	1.203s
 FAIL	github.com/monstercameron/human-capital-management-suite/internal/broken	[build failed]
 ok  	github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes	0.100s	coverage: [no statements]
+	github.com/monstercameron/human-capital-management-suite/tools/gen/example/cmd/example		coverage: 0.0% of statements
 go: unlinkat C:\Users\x\AppData\Local\Temp\go-build1\b001\sod.test.exe: Access is denied.
 FAIL
 `
@@ -32,6 +33,7 @@ func TestParseGoTestOutput_ClassifiesEveryPackageLineAndIgnoresNoise(t *testing.
 		Module + "/internal/domains/access":         {Status: "fail"},
 		Module + "/internal/broken":                 {Status: "fail"},
 		Module + "/internal/engines/canonicalbytes": {Status: "ok", HasCoverage: false},
+		Module + "/tools/gen/example/cmd/example":   {Status: "ok", Coverage: 0, HasCoverage: true},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("parsed %d results, want %d: %+v", len(got), len(want), got)
@@ -143,13 +145,13 @@ func TestLoadConfig_ReadsTheCheckedInPolicy(t *testing.T) {
 
 func TestPackagesFromFiles_KeepsOnlyExistingMeasurableGoDirs(t *testing.T) {
 	root := t.TempDir()
-	for _, d := range []string{"internal/a", "internal/b/testdata", "gen/go/x", "src/blocks/go/y", ".gotmp/z"} {
+	for _, d := range []string{"internal/a", "internal/b/testdata", "internal/generated/x", "gen/go/x", "src/blocks/go/y", ".gotmp/z"} {
 		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(d)), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
 	got := packagesFromFiles(root, []string{
-		"internal/a/a.go", "internal/a/a_test.go", "internal/b/testdata/fx.go", "gen/go/x/x.pb.go",
+		"internal/a/a.go", "internal/a/a_test.go", "internal/b/testdata/fx.go", "internal/generated/x/models_generated.go", "gen/go/x/x.pb.go",
 		"src/blocks/go/y/y.go", ".gotmp/z/z.go", "internal/missing/m.go", "README.md", "internal\\a\\b.go",
 	})
 	if len(got) != 1 || got[0] != "./internal/a" {
@@ -174,7 +176,7 @@ func TestAllPackages_ListsMeasurablePackagesFromARelativeRoot(t *testing.T) {
 	seen := map[string]bool{}
 	for _, p := range pkgs {
 		seen[p] = true
-		if strings.Contains(p, "/testdata/") || strings.HasPrefix(p, "./gen/") || strings.HasPrefix(p, "./src/blocks/go") {
+		if strings.Contains(p, "/generated/") || strings.Contains(p, "/testdata/") || strings.HasPrefix(p, "./gen/") || strings.HasPrefix(p, "./src/blocks/go") {
 			t.Fatalf("excluded directory listed: %s", p)
 		}
 	}

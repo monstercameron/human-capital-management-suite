@@ -69,6 +69,11 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 	}
 	defer func() { retErr = releasing(retErr, release) }()
 
+	// OBS-024: a Resume that just advanced from a completed work item is
+	// either an APPROVAL_COMPLETED or a TASK_SUBMITTED event, decided from
+	// the pinned plan's own node type for the node the advancement names —
+	// never from a caller-asserted kind. The entry is recorded by advanceOnce
+	// on the advance transaction itself, so it commits beside the outcome.
 	advanced, created, evidenceIDs, timers, err := d.advanceOnce(ctx, run, req.ExpectedInstanceVersion, at, 1,
 		func(ctx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
 			item, loadErr := d.opts.Items.Load(ctx, ex, req.Start.TenantID, req.WorkItemID)
@@ -80,6 +85,19 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 			// on work items), so this path always advances unlinked.
 			outcome, refs, driftErr := checkWorkItemDrift(req, selection, item)
 			return outcome, refs, nil, driftErr
+		},
+		func(advanced runtime.AdvanceReceipt) (string, string, bool) {
+			node, ok := selection.Plan.Node(advanced.NodeID)
+			if !ok {
+				return "", "", false
+			}
+			switch node.Type {
+			case workflow.StepApproval:
+				return EvidenceKindApprovalCompleted, req.WorkItemID.String(), true
+			case workflow.StepTask:
+				return EvidenceKindTaskSubmitted, req.WorkItemID.String(), true
+			}
+			return "", "", false
 		})
 	if err != nil {
 		settled := d.settlePause(ctx, run, at, err)
@@ -87,30 +105,6 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 			return paused, nil
 		}
 		return Result{}, settled
-	}
-
-	// OBS-024: a Resume that just advanced from a completed work item is
-	// either an APPROVAL_COMPLETED or a TASK_SUBMITTED event, decided from
-	// the pinned plan's own node type for the node the advancement names —
-	// never from a caller-asserted kind.
-	if node, ok := selection.Plan.Node(advanced.NodeID); ok {
-		var kind string
-		switch node.Type {
-		case workflow.StepApproval:
-			kind = EvidenceKindApprovalCompleted
-		case workflow.StepTask:
-			kind = EvidenceKindTaskSubmitted
-		}
-		if kind != "" {
-			evidenceID, evErr := d.opts.Evidence.RecordExecutionEvidence(ctx, req.Start.TenantID, kind,
-				req.InstanceID.String(), advanced.NodeID, req.WorkItemID.String(), advanced.OutputDigest, at)
-			if evErr != nil {
-				return Result{}, fmt.Errorf("workflow execute: record %s evidence: %w", kind, evErr)
-			}
-			if evidenceID != "" {
-				evidenceIDs = append(evidenceIDs, evidenceID)
-			}
-		}
 	}
 
 	result := Result{
@@ -152,8 +146,9 @@ func validateResumeConfig(ctx context.Context, req ResumeRequest, items WorkItem
 	return resolvePinnedPlan(ctx, req.Start, "resume")
 }
 
-// resolvePinnedPlan resolves the exact ACTIVE published version a resume must
-// advance against, and refuses anything that is not it. It is shared by
+// resolvePinnedPlan resolves the exact published version a resume must
+// advance against -- the ACTIVE one, or the superseded one the instance
+// pinned ([servesPinnedInstance]) -- and refuses anything that is not it. It is shared by
 // [Driver.Resume] and [Driver.ResumeTimer] so that "which plan may a parked
 // instance advance on" is answered in one place rather than two.
 func resolvePinnedPlan(ctx context.Context, start runtime.StartRequest, what string) (runtime.WorkflowSelection, error) {
@@ -174,10 +169,28 @@ func resolvePinnedPlan(ctx context.Context, start runtime.StartRequest, what str
 	if err != nil {
 		return runtime.WorkflowSelection{}, fmt.Errorf("workflow execute: resolve %s version: %w", what, err)
 	}
-	if published.Status != version.StatusActive || published.CompiledPlanDigest != selection.Plan.Digest() {
+	if !servesPinnedInstance(start, published, selection) {
 		return runtime.WorkflowSelection{}, invalid("%s plan is not the exact active published version", what)
 	}
 	return selection, nil
+}
+
+// servesPinnedInstance reports whether a live instance may keep advancing on
+// published: the version is ACTIVE and is the resolver's plan, or it is the
+// exact version the instance pinned ([runtime.StartRequest.PinnedCompiledPlanDigest])
+// and is QUARANTINED only because a later activation superseded it. A
+// governed quarantine is not a supersession and is refused here; its
+// live-instance disposition (PAUSE, BLOCK, CONTINUE) is enforced in the
+// advance transaction by applyQuarantine.
+func servesPinnedInstance(start runtime.StartRequest, published version.CompiledVersion, selection runtime.WorkflowSelection) bool {
+	if published.CompiledPlanDigest != selection.Plan.Digest() {
+		return false
+	}
+	if published.Status == version.StatusActive {
+		return true
+	}
+	return start.PinnedCompiledPlanDigest != "" && start.PinnedCompiledPlanDigest == published.CompiledPlanDigest &&
+		published.QuarantinedBySupersession()
 }
 
 // checkWorkItemDrift compares the durable row [WorkItemReader] loaded --

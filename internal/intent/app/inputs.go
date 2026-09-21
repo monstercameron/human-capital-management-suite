@@ -156,6 +156,20 @@ func (f *FixtureInputs) BindPositionReader(reader position.PositionFacts) {
 	}
 }
 
+// BindBands replaces the pay-band catalog this resolver evaluates against.
+//
+// [NewFixtureInputs] composes the compiled-in catalog, because a resolver
+// built without a database has nothing else to read. [NewCell] calls this with
+// the cell's own database-backed catalog (internal/data/bandfacts) so the
+// simulation that has to certify a promotion prices it against the tenant's
+// own stored bands rather than a process-local map. A nil catalog is ignored,
+// so a cell that composed none keeps the one this type loaded for itself.
+func (f *FixtureInputs) BindBands(bands rewards.PayBandCatalog) {
+	if bands != nil {
+		f.bands = bands
+	}
+}
+
 // BindPinnedManager gives this resolver the approval-frozen manager read
 // (WF-RUN-034). A promotion's manager is material: it is pinned in the
 // proposal revision an approval binds, so every later re-simulation of that

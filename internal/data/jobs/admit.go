@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/admission"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/drain"
 )
 
 var (
@@ -102,6 +103,9 @@ type AdmissionReceipt struct {
 // per-operation retry budgets, keeping the cell and tenant counters
 // under one mutex. It is safe for concurrent use.
 type Scheduler struct {
+	// Drainer optionally fences new leases when admission sheds work. It is
+	// nil for schedulers whose workload does not expose a drain lifecycle.
+	Drainer     *drain.Drainer
 	mu          sync.Mutex
 	policy      SchedulerPolicy
 	definitions map[string]string
@@ -223,6 +227,12 @@ func (s *Scheduler) Admit(request AdmissionRequest) (AdmissionReceipt, error) {
 		s.tenantUsed[tenant] += request.EstimatedCost
 	case admission.Queue:
 		s.pending[tenant] += request.EstimatedCost
+	case admission.Degrade, admission.Reject:
+		if s.Drainer != nil {
+			// A fence already raised by an earlier pressure decision is the
+			// desired steady state, so Begin's wrong-state result is benign.
+			_, _ = s.Drainer.Begin()
+		}
 	}
 	s.sequence++
 	receipt := sealReceipt(AdmissionReceipt{

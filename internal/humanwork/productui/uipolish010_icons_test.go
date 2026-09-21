@@ -261,7 +261,7 @@ func TestTodo_UIPOLISH_010_DisclosureGlyphs(t *testing.T) {
 		"context switcher":     ui.CreateElement(ContextSwitcher, web038Fixture()),
 		"delegation selector":  ui.CreateElement(DelegationSelector, web055Fixture()),
 		"sensitive details":    ui.CreateElement(SensitiveDetails, SensitiveDetailsProps{I18nProps: I18nProps{Locale: locale}, Title: "Private details", Description: "Hidden by default"}),
-		"people workflow menu": ui.CreateElement(PeopleRow, PeopleRowProps{I18nProps: I18nProps{Locale: locale}, Name: "Jane Doe", QuickActions: []PeopleQuickActionProps{{Label: "Promotion", Href: "/workspace/app/journeys?mode=new"}}}),
+		"people workflow menu": ui.CreateElement(PeopleRow, PeopleRowProps{I18nProps: I18nProps{Locale: locale}, Name: "Jane Doe", QuickActions: []PeopleQuickActionProps{{Label: "Promotion", Href: "/workspace/app/journeys?mode=new"}, {Label: "Transfer", Href: "/workspace/app/journeys?mode=transfer"}}}), // two actions: one is offered directly, without a menu (UXLIVE-033)
 	}
 	classes := map[string]string{
 		"context switcher":     "context-switcher-chevron",

@@ -17,8 +17,9 @@ import (
 // but call the generated client and format its result - it decides nothing
 // about an HCM domain rule.
 type parsedCommand struct {
-	global globalFlags
-	run    func(ctx context.Context, client adminv1.AdminServiceClient) (string, error)
+	global        globalFlags
+	run           func(ctx context.Context, client adminv1.AdminServiceClient) (string, error)
+	runOnboarding func(ctx context.Context, client adminv1.OnboardingServiceClient) (string, error)
 }
 
 // newSubFlagSet builds a subcommand's own flag set, sharing
@@ -55,6 +56,10 @@ func parseArgs(args []string) (parsedCommand, error) {
 		return parseWorkerState(*g, subArgs)
 	case "instance":
 		return parseInstance(*g, subArgs)
+	case "onboarding":
+		return parseOnboarding(*g, subArgs)
+	case "explorer":
+		return parseExplorer(*g, subArgs)
 	default:
 		return parsedCommand{}, fmt.Errorf("hcmctl: unknown subcommand %q", name)
 	}

@@ -15,9 +15,10 @@ var RequiredCommands = []string{
 	"cmd/hcmnext",
 	"cmd/worker",
 	"cmd/projector",
-	"cmd/scheduler",
-	"cmd/admin",
 	"cmd/migrate",
+	"cmd/hcmctl",
+	"cmd/scheduler",
+	"cmd/frontenddev",
 }
 
 // Pipeline describes the observable inputs of the clean-checkout gate.

@@ -84,7 +84,12 @@ family_rules:
     replacement_strategy: >-
       OBS-002 decides the OTel SDK adoption explicitly; until then these are
       transitive-only.
-    allowed_import_roots: [internal/platform/telemetry/otel, internal/transport/otelmw]
+    allowed_import_roots:
+      [
+        internal/platform/telemetry/otel,
+        internal/transport/otelmw,
+        internal/connectivity/providertelemetry,
+      ]
 
 # Exact classification for every module in go.mod's require block.
 modules:
@@ -151,6 +156,13 @@ modules:
         internal/resource,
         internal/operations/reconcile,
         internal/engines/wire/digest,
+        internal/application,
+        internal/domains/leave,
+        internal/domains/promotion,
+        internal/platform/devclock,
+        internal/platform/execution,
+        internal/transport,
+        tools/uxqual/journeyclient,
         cmd,
         test,
       ]
@@ -319,7 +331,7 @@ modules:
     semantic_owner: platform-foundation
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: [tools]
+    allowed_import_roots: [tools, internal/workflow/version]
     direct_import_expected: true
     upgrade_sla: Best-effort.
     exposure: go.mod parsing (golang.org/x/mod/modfile) used only by tools/policy governance checks; never the production request path.
@@ -331,7 +343,14 @@ modules:
     semantic_owner: experience-and-transport
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: [internal/transport, tools/uxqual/forms, tools/uxqual/qual]
+    allowed_import_roots:
+      [
+        internal/transport,
+        tools/uxqual/forms,
+        tools/uxqual/qual,
+        tools/uxqual/hydration,
+        tools/uxqual/wcag,
+      ]
     direct_import_expected: true
     upgrade_sla: Tracks google.golang.org/grpc's own pin; security patch within 7 days.
     exposure: >-
@@ -372,7 +391,16 @@ modules:
     license_owner: platform-foundation
     security_owner: platform-foundation
     allowed_import_roots:
-      [internal/engines/wire/canonical, internal/kernel/values, internal/intent]
+      [
+        internal/engines/wire/canonical,
+        internal/kernel/values,
+        internal/intent,
+        internal/domains/people,
+        internal/experience/i18n,
+        internal/humanwork/productui,
+        internal/i18n,
+        tools/uxqual/forms,
+      ]
     direct_import_expected: true
     upgrade_sla: Best-effort.
     exposure: >-
@@ -453,6 +481,7 @@ modules:
         cmd,
         tools/uxqual/journeyclient,
         tools/uxqual/cmd/journeywasm,
+        tools/uxqual/productclient,
       ]
     direct_import_expected: true
     upgrade_sla: Minor within 90 days; security patch within 7 days.
@@ -566,7 +595,12 @@ modules:
     semantic_owner: platform-foundation
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: []
+    allowed_import_roots:
+      [
+        internal/platform/telemetry/otel,
+        internal/transport/otelmw,
+        internal/connectivity/providertelemetry,
+      ]
     direct_import_expected: false
     upgrade_sla: Tracks google.golang.org/grpc's transitive pin; security patch within 14 days.
     exposure: >-
@@ -580,7 +614,13 @@ modules:
     semantic_owner: platform-foundation
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: [internal/platform/telemetry/otel, internal/intent/app]
+    allowed_import_roots:
+      [
+        internal/platform/telemetry/otel,
+        internal/transport/otelmw,
+        internal/connectivity/providertelemetry,
+        internal/intent/app,
+      ]
     direct_import_expected: true
     upgrade_sla: Tracks google.golang.org/grpc's transitive pin; security patch within 14 days.
     exposure: >-
@@ -608,7 +648,7 @@ modules:
     semantic_owner: platform-foundation
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: []
+    allowed_import_roots: [internal/platform/telemetry/otel]
     direct_import_expected: false
     upgrade_sla: Tracks google.golang.org/grpc's transitive pin; security patch within 14 days.
     exposure: >-
@@ -826,6 +866,7 @@ modules:
         cmd,
         tools/uxqual/journeyclient,
         tools/uxqual/cmd/journeywasm,
+        tools/uxqual/productclient,
       ]
     direct_import_expected: true
     upgrade_sla: Minor within 60 days; security patch within 7 days.
@@ -862,6 +903,7 @@ modules:
         tools/gen,
         tools/uxqual/journeyclient,
         tools/uxqual/cmd/journeywasm,
+        tools/uxqual/productclient,
         tools/quality/bufprotovalidatekit,
       ]
     direct_import_expected: true

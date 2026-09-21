@@ -127,6 +127,10 @@ const (
 	// JourneyStageRepairRequired: the workflow requires governed repair before
 	// it can reach a consistent terminal state.
 	JourneyStageRepairRequired JourneyStage = "REPAIR_REQUIRED"
+	// JourneyStageAwaitingAcknowledgement: downstream effects reconciled and
+	// the workflow is parked on the employee acknowledgement gate before the
+	// promotion may complete.
+	JourneyStageAwaitingAcknowledgement JourneyStage = "AWAITING_ACKNOWLEDGEMENT"
 )
 
 // Manager relationship dispositions are the closed, authorization-safe
@@ -256,6 +260,11 @@ const (
 	JourneyNextStepRepair             JourneyNextStep = "REPAIR"
 	JourneyNextStepAwaitEffectiveDate JourneyNextStep = "AWAIT_EFFECTIVE_DATE"
 	JourneyNextStepSystemProcessing   JourneyNextStep = "SYSTEM_PROCESSING"
+	// JourneyNextStepAwaitAcknowledgement: the workflow is parked on the
+	// employee acknowledgement gate; a person must record the verified
+	// acknowledgement, but no role class on the journey names whose job it
+	// is (the attester must not be the initiator).
+	JourneyNextStepAwaitAcknowledgement JourneyNextStep = "AWAIT_ACKNOWLEDGEMENT"
 
 	JourneyStepOwnerProposer JourneyStepOwner = "PROPOSER"
 	JourneyStepOwnerApprover JourneyStepOwner = "APPROVER"
@@ -445,12 +454,33 @@ type JourneyDetail struct {
 	// must not reconstruct either from roles or principal identifiers.
 	DiagnosticsAvailable bool
 	CanDecide            bool
+
+	// Notes are the journey's free-standing notes, oldest first (see
+	// [JourneyNoteEngine]).
+	Notes []JourneyNote
+
+	// Review is the reporting-line impact and compensation guardrail a
+	// reviewer checks (REV-091-02); nil when the engine produced none.
+	Review *JourneyPromotionReview
 }
 
 // Decision is the approver's answer.
 type Decision struct {
 	Approve bool
 	Reason  string
+}
+
+// Acknowledgement records that the employee's promotion acknowledgement was
+// verified (signed document or HRIS record seen) and may release the
+// acknowledgement gate. The caller is the attester: the engine binds the
+// authenticated principal and the current time into the signal payload, so
+// the durable receipt names who verified what and when. EvidenceRef points at
+// the verified artifact (document or HRIS record) when there is one; Note
+// carries anything else the attester states. Both travel verbatim into the
+// signal payload.
+type Acknowledgement struct {
+	EvidenceRef string
+	Note        string
 }
 
 // ---------------------------------------------------------------------------
@@ -472,6 +502,14 @@ const (
 	// in an eligible wait (for example, waiting on approval or on its
 	// effective-date safe point).
 	JourneyInterventionCancel JourneyInterventionKind = "CANCEL"
+	// JourneyInterventionRepair is the governed repair a journey stopped in
+	// REPAIR_REQUIRED names as its own next step (UXLIVE-006). It is the one
+	// kind here that is not a CancelIntent composition: it is the operator
+	// repair door, with its own JIT authority, dual control and simulation
+	// requirements, and this port only previews it. A journey that names a
+	// repair as its next step and offers no way to ask about it strands both
+	// the run and its subject, which is what this kind exists to stop.
+	JourneyInterventionRepair JourneyInterventionKind = "REPAIR"
 )
 
 // JourneyInterventionOutcome is the shared, closed disposition an
@@ -487,6 +525,12 @@ const (
 	InterventionDenied           JourneyInterventionOutcome = "DENIED"
 	InterventionTooLate          JourneyInterventionOutcome = "TOO_LATE"
 	InterventionRepairRequired   JourneyInterventionOutcome = "REPAIR_REQUIRED"
+	// InterventionIndeterminate is the governed repair's admission-fence
+	// answer: the corrective effect may or may not have reached the external
+	// system, and the fence could not establish which. It is deliberately
+	// neither APPLIED nor DENIED, because the one thing a reader must not be
+	// told here is that the state is known.
+	InterventionIndeterminate JourneyInterventionOutcome = "INDETERMINATE"
 )
 
 // EditProposalInput carries the corrected fields for an unstarted or
@@ -518,6 +562,18 @@ type JourneyInterventionPreview struct {
 	// so a caller can confirm with RequestIntervention without a second
 	// read.
 	CurrentGovernanceVersion uint64
+	// RequiresDualControl and RequiresSimulation are the governed door's own
+	// requirements for this kind, read from the operator policy rather than
+	// restated by a client. A page that named a governed action without them
+	// would be describing a lighter action than the one that exists.
+	RequiresDualControl bool
+	RequiresSimulation  bool
+	// AuthorityRoleRefs names the JIT roles whose grant may authorize this
+	// kind. It is the "who can act" half of a refusal: a viewer who may not
+	// act is told which authority is needed rather than only that they lack
+	// it. Which roles a kind requires is policy, identical for every caller,
+	// so naming them discloses nothing about who holds them.
+	AuthorityRoleRefs []string
 }
 
 // JourneyInterventionRequest is one typed WITHDRAW or CANCEL request's
@@ -595,6 +651,29 @@ type WorkerSummary struct {
 	Location   string
 	PayZone    string
 
+	// The employment facts the worker object page shows beside the
+	// placement. EmploymentType is REGULAR or FIXED_TERM, TimeType FULL_TIME
+	// or PART_TIME, WorkArrangement ON_SITE, HYBRID or REMOTE; Company,
+	// BusinessUnit and CostCenter are recorded names and codes.
+	//
+	// They are empty on a corpus worker, which asserts no such facts, and
+	// that emptiness is itself the answer: the object page reports the field
+	// as unreported rather than inventing one.
+	EmploymentType  string
+	TimeType        string
+	Company         string
+	BusinessUnit    string
+	CostCenter      string
+	WorkArrangement string
+	// LifecycleStatus and WorkerType are the journey_worker
+	// vocabulary tokens for this worker (ACTIVE, TERMINATED or
+	// ON_LEAVE; EMPLOYEE, CONTRACTOR, INTERN or TEMPORARY),
+	// empty on a corpus worker, which asserts neither. The
+	// listing row is their authority; consumers interpret them
+	// through the shared productui vocabulary, never ad hoc.
+	LifecycleStatus string
+	WorkerType      string
+
 	// BasePay, Currency and BonusTarget are the declared compensation
 	// baseline the promotion simulation reads for this worker. They are
 	// empty on a corpus worker, whose baseline comes from the ported legacy
@@ -602,6 +681,11 @@ type WorkerSummary struct {
 	BasePay     string
 	Currency    string
 	BonusTarget string
+	// PayBasis is the basis that baseline is stated on (ANNUAL_SALARY or
+	// HOURLY_RATE). It is part of the compensation disclosure, not separate
+	// from it: a basis disclosed beside a withheld amount would still narrow
+	// the amount.
+	PayBasis string
 
 	// HireDate is ISO-8601 (YYYY-MM-DD).
 	HireDate string
@@ -686,6 +770,42 @@ type WorkforceOptions struct {
 	// Currency is the one currency the catalog is denominated in. A created
 	// worker's baseline is carried in it.
 	Currency string
+	// PositionVacancies are the positions the cell has proved are authorized,
+	// real and still open at the read coordinate (UXLIVE-011). Before this
+	// the target position was a free-text box whose own help text predicted
+	// the request would be blocked; a form cannot offer a governed choice it
+	// has not been given. An empty list is a real answer -- "no vacancy this
+	// viewer may target" -- and is never the same as "type one in".
+	PositionVacancies []PositionVacancyOption
+}
+
+// PositionVacancyOption is one position a promotion proposal may target.
+//
+// Reference is the only field a proposal binds to: it is the server-issued
+// position revision reference (position.RevisionRef), never a raw position
+// id, so a value that did not come from this list cannot be made to decode
+// as one. Everything else is presentation or narrowing.
+type PositionVacancyOption struct {
+	Reference    string
+	Title        string
+	Organization string
+	Manager      string
+	Location     string
+	// JobCode and OrgUnit are the position's own governed codes, published
+	// so a form can narrow the list to the role being proposed without
+	// asking the cell again on every keystroke. They narrow what is shown;
+	// they never widen what may be chosen, because every option in the list
+	// was already proved authorized and open.
+	JobCode string
+	OrgUnit string
+	// VacancyEndISO is the earliest date the position is known to stop being
+	// open, as yyyy-mm-dd, or empty when no end is known. A proposer who
+	// cannot see this could choose an effective date the position will not
+	// actually be open for.
+	VacancyEndISO string
+	// ReservationState is the disclosed state of the position's capacity.
+	// It is stated rather than implied by the option's mere presence.
+	ReservationState string
 }
 
 type WorkforcePlacementOption struct {
@@ -712,10 +832,11 @@ type PromotionPathOption struct {
 //
 // Every method runs on behalf of the principal in ctx (the same admission
 // the workspace and the API share) and refuses under the same policy the
-// RPC surfaces would. Propose, Execute and Decide are the only writes, and
-// each is one of the engine's own governed operations: CreateIntent +
-// SimulateIntent, ExecuteIntent behind the P1B authority gate, and the
-// WorkItem claim/complete plus the driver's Resume.
+// RPC surfaces would. Propose, Execute, Decide and Acknowledge are the only
+// writes, and each is one of the engine's own governed operations:
+// CreateIntent + SimulateIntent, ExecuteIntent behind the P1B authority gate,
+// the WorkItem claim/complete plus the driver's Resume, and the attested
+// acknowledgement signal plus the driver's signal Resume.
 type JourneyEngine interface {
 	// ListJourneys returns every promotion journey in the caller's tenant,
 	// newest first.
@@ -733,6 +854,13 @@ type JourneyEngine interface {
 	// approver with the given decision, resumes the driver, and returns the
 	// journey at its resulting stage.
 	Decide(ctx context.Context, intentID string, d Decision) (JourneyDetail, error)
+	// Acknowledge records the employee's verified promotion acknowledgement
+	// against a journey parked on its acknowledgement gate, receives the
+	// correlated signal into the durable signal store, resumes the driver
+	// from the matched receipt, and returns the journey at its resulting
+	// stage. The caller is the attester and must not be the journey's
+	// initiator; a journey with no open acknowledgement wait is refused.
+	Acknowledge(ctx context.Context, intentID string, ack Acknowledgement) (JourneyDetail, error)
 
 	// EditProposal corrects an unstarted or not-yet-approved proposal
 	// (PROMOUX-013). It is [intent.SupersedeOriginal] scoped to journeys: the

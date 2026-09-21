@@ -40,8 +40,8 @@ func TestWireMethodsCoverEveryRegisteredService(t *testing.T) {
 	want := map[string]int{
 		"hcmnext.intents.v1.IntentService":    10,
 		"hcmnext.registry.v1.RegistryService": 4,
-		"hcmnext.admin.v1.AdminService":       6,
-		"hcmnext.journey.v1.JourneyService":   25, // 24 unary + WatchJourney
+		"hcmnext.admin.v1.AdminService":       17,
+		"hcmnext.journey.v1.JourneyService":   29, // 27 unary + WatchJourney + WatchPromotionInvalidations
 	}
 	for service, n := range want {
 		if perService[service] != n {
@@ -102,8 +102,8 @@ func TestWireMethodsMarkTheStreamingMethod(t *testing.T) {
 			streaming++
 		}
 	}
-	if streaming != 1 {
-		t.Errorf("the four registered services declare %d streaming methods, pinned 1", streaming)
+	if streaming != 2 {
+		t.Errorf("the four registered services declare %d streaming methods, pinned 2 (WatchJourney, WatchPromotionInvalidations)", streaming)
 	}
 }
 

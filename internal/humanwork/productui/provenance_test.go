@@ -52,7 +52,7 @@ func TestTodo_WEB_022(t *testing.T) {
 		`<section`, `aria-labelledby="` + stableProvenanceID("intent-42-provenance") + `-heading"`, `<dl class="provenance-item-list">`, `<dt class="provenance-item-name">`, `<dd class="provenance-item-value">`,
 		`data-provenance-kind="source-authority"`, `data-provenance-kind="authority-system"`, `data-provenance-kind="evidence-source"`, `data-provenance-kind="lineage-completeness"`,
 		`Source authority`, `Local authoritative source`, `Authority system`, `Workforce service`, `Evidence source`, `Journey ledger`, `Lineage completeness`, `Partial lineage`,
-		`Source version`, `v17`, `Effective at`, `09/01/2026 · 00:00 UTC`, `Recorded at`, `09/06/2026 · 12:30 UTC`, `datetime="2026-09-06T12:30:00Z"`,
+		`Source version`, `v17`, `Effective at`, `1 Sep 2026 · 00:00 UTC`, `Recorded at`, `6 Sep 2026 · 12:30 UTC`, `datetime="2026-09-06T12:30:00Z"`,
 		`does not grant access, permission, or action authority`, `aria-hidden="true"`,
 	} {
 		if !strings.Contains(markup, want) {

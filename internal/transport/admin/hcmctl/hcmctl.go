@@ -4,8 +4,11 @@
 // exactly one method per invocation, and prints the typed response. It
 // contains no business or store logic of any kind: every fact it prints
 // came back from the server on the wire, and every write this package could
-// conceivably attempt does not exist, because AdminService publishes no
-// mutating method (internal/operations/admin, internal/transport/admin).
+// conceivably attempt against workforce data does not exist, because
+// AdminService publishes no mutating method (internal/operations/admin,
+// internal/transport/admin). The onboarding subcommand advances a
+// tenant-scoped onboarding run through the generated OnboardingService,
+// which requires the operator role and records every transition.
 //
 // Semantic owner: experience-and-transport. Phase: P1A. Todos: SVC-011,
 // ADMIN-001.
@@ -109,6 +112,16 @@ func Main(args []string, stdout, stderr io.Writer, dial Dialer) int {
 	client := adminv1.NewAdminServiceClient(conn)
 	ctx = metadata.AppendToOutgoingContext(ctx, transport.AuthorizationMetadataKey, "Bearer "+token)
 
+	if cmd.runOnboarding != nil {
+		onboardClient := adminv1.NewOnboardingServiceClient(conn)
+		result, err := cmd.runOnboarding(ctx, onboardClient)
+		if err != nil {
+			fmt.Fprintln(stderr, redactError(err))
+			return 1
+		}
+		fmt.Fprint(stdout, result)
+		return 0
+	}
 	result, err := cmd.run(ctx, client)
 	if err != nil {
 		fmt.Fprintln(stderr, redactError(err))
@@ -178,6 +191,8 @@ subcommands:
   explain-transaction    governed read-only transaction chronology
   worker-state           governed read-only worker/employment/assignment facts
   instance <id>          governed read-only workflow execution inspector
+  onboarding             operator onboarding-pipeline runs (REV-036-01)
+  explorer               ledger/provenance explorer and AuthZ simulator (REV-037-01)
 
 global flags: -addr -token -timeout -mint -mint-key -mint-issuer -mint-audience
               -mint-tenant -mint-subject -mint-roles -mint-purpose -mint-ttl`

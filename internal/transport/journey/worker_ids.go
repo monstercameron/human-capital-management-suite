@@ -12,8 +12,12 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
-func (s *server) workerIDStore(principal *trust.Principal, requestID string) (workerids.Store, error) {
-	if !principal.HasRole("comp_admin") {
+// workerIDStore authorizes worker identifier administration from the
+// principal's server-side role set: a revoked administrator whose durable
+// assignment no longer holds comp_admin is refused even while the credential
+// still signs it.
+func (s *server) workerIDStore(ctx context.Context, principal *trust.Principal, requestID string) (workerids.Store, error) {
+	if !s.hasEffectiveRole(ctx, principal, "comp_admin") {
 		return nil, envelope.New(envelope.CodePermissionDenied, "journey.worker_ids.role_required", "worker identifier policy requires the compensation administrator role").WithCorrelation(requestID).WithEvidence(evidence(principal))
 	}
 	if s.deps.WorkerIDs == nil {
@@ -42,7 +46,7 @@ func (s *server) GetWorkerIDPolicy(ctx context.Context, _ *journeyv1.GetWorkerID
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	store, dependencyErr := s.workerIDStore(principal, inv.RequestID())
+	store, dependencyErr := s.workerIDStore(ctx, principal, inv.RequestID())
 	if dependencyErr != nil {
 		return nil, dependencyErr
 	}
@@ -61,7 +65,7 @@ func (s *server) SaveWorkerIDPolicy(ctx context.Context, req *journeyv1.SaveWork
 	if err := s.requirePageAction(ctx, principal, inv, "worker-ids", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	store, dependencyErr := s.workerIDStore(principal, inv.RequestID())
+	store, dependencyErr := s.workerIDStore(ctx, principal, inv.RequestID())
 	if dependencyErr != nil {
 		return nil, dependencyErr
 	}

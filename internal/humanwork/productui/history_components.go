@@ -259,7 +259,15 @@ func WorkflowHistoryFilter(props WorkflowHistoryFilterProps) ui.Node {
 			html.Option(html.Props{Value: "rejected", Selected: outcome == "rejected"}, ui.Text(props.Text("history.rejected"))),
 			html.Option(html.Props{Value: "failed", Selected: outcome == "failed"}, ui.Text(props.Text("history.failed"))),
 		),
-		html.Select(yearSelectProps, yearOptions...),
+	)
+	// A year filter whose only entry is "any year" cannot filter anything.
+	// The person select beside it is already conditional for the same
+	// reason; this one used to render empty on every profile that had no
+	// recorded outcomes yet (UXLIVE-014).
+	if len(props.Years) > 0 {
+		controls = append(controls, html.Select(yearSelectProps, yearOptions...))
+	}
+	controls = append(controls,
 		html.Button(html.Props{Class: "button secondary", Type: "submit"}, ui.Text(props.Text("history.apply"))),
 	)
 	children := []ui.Node{

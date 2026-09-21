@@ -12,7 +12,7 @@ func TestTodo_UIPOLISH_007_HistoryLocalizesColumnsAndRecordedOutcome(t *testing.
 		locale, outcome, effective, closed string
 		columns                            []string
 	}{
-		{"en-US", "Recorded", "2026-12-01", "1 Dec 2026 · 12:00 UTC", []string{"Employee", "Change", "Closed", "Outcome"}},
+		{"en-US", "Recorded", "1 Dec 2026", "1 Dec 2026 · 12:00 UTC", []string{"Employee", "Change", "Closed", "Outcome"}},
 		{"de-DE", "Erfasst", "01.12.2026", "01.12.2026 · 07:00 EST", []string{"Mitarbeitende", "Änderung", "Geschlossen", "Ergebnis"}},
 		{"ar", "مسجل", "١ ديسمبر ٢٠٢٦", "١ ديسمبر ٢٠٢٦ · \u2066٠٧:٠٠ EST\u2069", []string{"الموظف", "التغيير", "أُغلق", "النتيجة"}},
 	} {

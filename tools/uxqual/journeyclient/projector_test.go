@@ -372,7 +372,7 @@ func TestListPageCards(t *testing.T) {
 		Stage:         "AWAITING_APPROVAL",
 		StageLabel:    "Awaiting approval",
 		StageTone:     toneWarning,
-		Updated:       "2026-05-12 09:12 UTC",
+		Updated:       "12 May 2026, 09:12 UTC",
 		InstanceID:    testInstanceID,
 	}
 	// JourneyCard carries an OnOpen callback, so the comparison is field by
@@ -485,7 +485,10 @@ func TestProposalFormShape(t *testing.T) {
 		{FieldWorker, NameWorker, kindSelect, "", true},
 		{FieldJobCode, NameJobCode, kindSelect, "", true},
 		{FieldGrade, NameGrade, kindSelect, "", true},
-		{FieldPosition, NamePosition, kindText, "", false},
+		// UXLIVE-011 replaced the free-text target position with the
+		// governed picker. The kind is what this line is protecting: a text
+		// box here is the defect, not a stylistic choice.
+		{FieldPosition, NamePosition, kindPositionPicker, "", false},
 		{FieldBase, NameBase, kindNumber, "", true},
 		{FieldEffective, NameEffective, kindDate, "2026-12-01", true},
 		{FieldReason, NameReason, kindTextarea, "", true},
@@ -628,11 +631,11 @@ func TestDetailPageStepTimesComeFromTheTimeline(t *testing.T) {
 	p := DetailPage(testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
 	steps := p.Detail.Steps
 	want := []string{
-		"2026-05-12 08:58 UTC", // INTENT_CREATED
-		"2026-05-12 10:02 UTC", // the finance WORK_ITEM transition
-		"",                     // the legacy fixture has no separate manager work item
-		"1 Jun 2026",           // immutable proposal effective date
-		"2026-05-12 10:04 UTC", // LEDGER_RECORDED
+		"12 May 2026, 08:58 UTC", // INTENT_CREATED
+		"12 May 2026, 10:02 UTC", // the finance WORK_ITEM transition
+		"",                       // the legacy fixture has no separate manager work item
+		"1 Jun 2026",             // immutable proposal effective date
+		"12 May 2026, 10:04 UTC", // LEDGER_RECORDED
 	}
 	for i, w := range want {
 		if steps[i].At != w {
@@ -664,14 +667,29 @@ func findAction(t *testing.T, actions []journey.Action, id string) journey.Actio
 // lifecycle actions that vary by stage.
 var wantInterventionIDs = []string{ActionWithdraw, ActionCancel, ActionEditProposal}
 
+// wantOfferedInterventions is how many interventions an eligible stage
+// shows: Withdraw before approvals start or Cancel after, never both, plus
+// Edit. The stop that cannot apply is omitted while its alternative is on
+// the page (UXLIVE-014, UXLIVE-017).
+const wantOfferedInterventions = 2
+
+func hasAction(actions []journey.Action, id string) bool {
+	for _, action := range actions {
+		if action.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func TestDetailPageActionsPerStage(t *testing.T) {
 	cfg := testConfig()
 
 	t.Run("proposed offers execution", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != 1+len(wantInterventionIDs) {
-			t.Fatalf("actions = %d, want %d (execute plus the three interventions)", len(actions), 1+len(wantInterventionIDs))
+		if len(actions) != 1+wantOfferedInterventions {
+			t.Fatalf("actions = %d, want %d (execute, withdraw and edit)", len(actions), 1+wantOfferedInterventions)
 		}
 		a := findAction(t, actions, ActionExecute)
 		if a.Variant != "primary" || a.Disabled {
@@ -692,8 +710,8 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		if w := findAction(t, actions, ActionWithdraw); w.Disabled {
 			t.Errorf("Withdraw is disabled on an unstarted proposal: %+v", w)
 		}
-		if c := findAction(t, actions, ActionCancel); !c.Disabled || c.DisabledReason == "" {
-			t.Errorf("Cancel is offered (or offers no reason) on an unstarted proposal: %+v", c)
+		if hasAction(actions, ActionCancel) {
+			t.Errorf("Cancel renders on an unstarted proposal beside the Withdraw that applies: %+v", actions)
 		}
 		if e := findAction(t, actions, ActionEditProposal); e.Disabled {
 			t.Errorf("EditProposal is disabled on an unstarted (still correctable) proposal: %+v", e)
@@ -703,8 +721,8 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 	t.Run("blocked explains refusal without a fake action", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != len(wantInterventionIDs) {
-			t.Fatalf("blocked journey should show intervention availability, not Start: %+v", actions)
+		if len(actions) != wantOfferedInterventions {
+			t.Fatalf("blocked journey should show the applicable interventions, not Start: %+v", actions)
 		}
 		if p.Detail.PendingOutcome == "" || p.Detail.JourneysLink.Href == "" {
 			t.Fatal("blocked journey lacks its explanation or escape route")
@@ -714,8 +732,8 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 	t.Run("awaiting approval offers both decisions", func(t *testing.T) {
 		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL), nil, nil)
 		actions := p.Detail.Actions
-		if len(actions) != 2+len(wantInterventionIDs) {
-			t.Fatalf("actions = %d, want %d (approve, reject, plus the three interventions)", len(actions), 2+len(wantInterventionIDs))
+		if len(actions) != 2+wantOfferedInterventions {
+			t.Fatalf("actions = %d, want %d (approve, reject, cancel and edit)", len(actions), 2+wantOfferedInterventions)
 		}
 		approve := findAction(t, actions, ActionApprove)
 		reject := findAction(t, actions, ActionReject)
@@ -746,8 +764,8 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		// offered live, Cancel and Edit are (this is exactly the
 		// EditInvalidatesAMidFlightApproval scenario PROMOUX-013's own
 		// integration test proved end to end against real PostgreSQL).
-		if w := findAction(t, actions, ActionWithdraw); !w.Disabled || w.DisabledReason == "" {
-			t.Errorf("Withdraw is offered (or offers no reason) once approval has started: %+v", w)
+		if hasAction(actions, ActionWithdraw) {
+			t.Errorf("Withdraw renders once approval has started, beside the Cancel that applies: %+v", actions)
 		}
 		if c := findAction(t, actions, ActionCancel); c.Disabled {
 			t.Errorf("Cancel is disabled during an eligible wait: %+v", c)
@@ -765,7 +783,7 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		if !approve.Disabled || approve.Label != "Preparing approval" {
 			t.Fatalf("approve before durable routing = %+v", approve)
 		}
-		if len(actions) != 1+len(wantInterventionIDs) {
+		if len(actions) != 1+wantOfferedInterventions {
 			t.Fatalf("actions before durable routing = %+v", actions)
 		}
 	})
@@ -790,11 +808,30 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 					}
 				}
 			}
-			if len(actions) != len(wantInterventionIDs) {
-				t.Fatalf("actions = %+v, want exactly the three interventions", actions)
+			// UXLIVE-006 added a fourth action at REPAIR_REQUIRED, and only
+			// there: the governed repair that stage names as its own next
+			// step. Before it, this stage's Actions section offered nothing
+			// about the repair it was waiting on, which is the finding. The
+			// other two stages in this loop still offer exactly three.
+			want := wantOfferedInterventions
+			if stage == journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED {
+				want++
+				repair := findAction(t, actions, ActionRepair)
+				if !repair.Disabled || repair.DisabledReason == "" {
+					t.Errorf("the governed repair is offered (or offers no reason) at %s: %+v", stageOf(stage), repair)
+				}
+			} else {
+				for _, a := range actions {
+					if a.ID == ActionRepair {
+						t.Errorf("stage %s names a governed repair it is not waiting on", stageOf(stage))
+					}
+				}
 			}
-			if w := findAction(t, actions, ActionWithdraw); !w.Disabled || w.DisabledReason == "" {
-				t.Errorf("Withdraw is offered (or offers no reason) at %s: %+v", stageOf(stage), w)
+			if len(actions) != want {
+				t.Fatalf("actions = %+v, want %d", actions, want)
+			}
+			if hasAction(actions, ActionWithdraw) {
+				t.Errorf("Withdraw renders at %s beside the Cancel that applies: %+v", stageOf(stage), actions)
 			}
 			if c := findAction(t, actions, ActionCancel); c.Disabled {
 				t.Errorf("Cancel is disabled during an eligible wait at %s: %+v", stageOf(stage), c)
@@ -997,7 +1034,7 @@ func TestDetailPageSections(t *testing.T) {
 	if w.Owner != testApprover {
 		t.Errorf("work item owner = %q, want the routed owner %q", w.Owner, testApprover)
 	}
-	if w.Completed != testApprover+", 2026-05-12 10:02 UTC" {
+	if w.Completed != testApprover+", 12 May 2026, 10:02 UTC" {
 		t.Errorf("work item completion = %q", w.Completed)
 	}
 	if w.Tone != toneSuccess {
@@ -1007,7 +1044,7 @@ func TestDetailPageSections(t *testing.T) {
 	if d.Ledger == nil {
 		t.Fatal("the ledger fact is missing from a completed journey")
 	}
-	if d.Ledger.Sequence != "4" || d.Ledger.EffectiveAt != "1 Jun 2026" || d.Ledger.RecordedAt != "2026-05-12 10:04 UTC" {
+	if d.Ledger.Sequence != "4" || d.Ledger.EffectiveAt != "1 Jun 2026" || d.Ledger.RecordedAt != "12 May 2026, 10:04 UTC" {
 		t.Errorf("ledger card = %+v", *d.Ledger)
 	}
 
@@ -1019,7 +1056,7 @@ func TestDetailPageSections(t *testing.T) {
 		t.Fatal("the effective window is missing")
 	}
 	if d.EffectiveWindow.Start != "12 May 2026" || d.EffectiveWindow.EffectiveDate != "1 Jun 2026" ||
-		d.EffectiveWindow.KnownAt != "2026-05-12 09:12 UTC" {
+		d.EffectiveWindow.KnownAt != "12 May 2026, 09:12 UTC" {
 		t.Errorf("effective window = %+v", *d.EffectiveWindow)
 	}
 
@@ -1061,7 +1098,7 @@ func TestTodo_UXAUDIT_006_I18N_PromotionDetailBusinessProjection(t *testing.T) {
 			if got := page.Detail.Timeline[0].Title; got != tc.recorded {
 				t.Errorf("recorded history title = %q, want %q", got, tc.recorded)
 			}
-			if got := page.Detail.Timeline[0].At; got == "2026-05-12 10:04 UTC" || got == "" {
+			if got := page.Detail.Timeline[0].At; got == "12 May 2026, 10:04 UTC" || got == "" {
 				t.Errorf("history time not localized: %q", got)
 			}
 			if page.Detail.Ledger == nil || page.Detail.Ledger.EffectiveAt != tc.date {
@@ -1083,7 +1120,7 @@ func TestTimelineIsNewestFirstAndToned(t *testing.T) {
 	if events[len(events)-1].Title != "Promotion requested" {
 		t.Errorf("oldest entry = %+v, want the proposal", events[len(events)-1])
 	}
-	if events[0].At != "2026-05-12 10:04 UTC" {
+	if events[0].At != "12 May 2026, 10:04 UTC" {
 		t.Errorf("newest entry time = %q", events[0].At)
 	}
 
@@ -1146,13 +1183,14 @@ func TestDetailPageApprovalActionsForEveryApprovalStage(t *testing.T) {
 		t.Run(stageOf(stage), func(t *testing.T) {
 			p := DetailPage(testConfig(), testDetail(t, stage), nil, nil)
 			actions := p.Detail.Actions
-			if len(actions) != 2+len(wantInterventionIDs) {
-				t.Fatalf("actions = %d, want approve, reject, plus the three interventions", len(actions))
+			if len(actions) != 2+wantOfferedInterventions {
+				t.Fatalf("actions = %d, want approve, reject, cancel and edit", len(actions))
 			}
-			findAction(t, actions, ActionApprove)
-			findAction(t, actions, ActionReject)
-			for _, id := range wantInterventionIDs {
+			for _, id := range []string{ActionApprove, ActionReject, ActionCancel, ActionEditProposal} {
 				findAction(t, actions, id)
+			}
+			if hasAction(actions, ActionWithdraw) {
+				t.Fatalf("Withdraw renders at %s once approvals have started", stageOf(stage))
 			}
 		})
 	}
@@ -1170,6 +1208,25 @@ func TestTimelineTonesARefusal(t *testing.T) {
 		if e.Tone != toneDanger {
 			t.Errorf("entry %q tone = %q, want danger", e.Title, e.Tone)
 		}
+	}
+}
+
+// TestFailedJourneyHistoryDoesNotClaimTheOutcomeWasRecorded: every terminal
+// route writes a ledger fact, including an invalidated approval. Under a
+// Failed status the history said "Promotion recorded -- the approved
+// promotion outcome was recorded", in success tone.
+func TestFailedJourneyHistoryDoesNotClaimTheOutcomeWasRecorded(t *testing.T) {
+	in := []*journeyv1.TimelineEvent{{Kind: eventLedgerRecorded, Title: "Promotion outcome recorded"}}
+	for _, stage := range []string{stageFailed, stageRejected} {
+		events := endedTimeline("en-US", timelineLocale("en-US", in), stage)
+		if len(events) != 1 || events[0].Title != "Request ended" || events[0].Tone != toneDanger ||
+			strings.Contains(events[0].Detail, "approved") {
+			t.Errorf("%s history = %+v", stage, events)
+		}
+	}
+	events := endedTimeline("en-US", timelineLocale("en-US", in), stageCompleted)
+	if len(events) != 1 || events[0].Title != "Promotion recorded" || events[0].Tone != toneSuccess {
+		t.Errorf("completed history = %+v, want the recorded promotion kept", events)
 	}
 }
 
@@ -1612,11 +1669,12 @@ func TestProposalPageOffersOnlyPublishedNextRolesAndExplainsTheirRules(t *testin
 
 func TestTodo_UXAUDIT_006_PromotionFormLocale(t *testing.T) {
 	cases := []struct {
-		locale, title, role, grade, rule string
+		locale, title, role, grade, rule, minimum, maximum string
 	}{
-		{"en-US", "Promote Omar Reyes", "Next role", "Target grade", "For this role, base pay must increase"},
-		{"de-DE", "Omar Reyes befördern", "Nächste Rolle", "Zielstufe", "Für diese Rolle muss das Grundgehalt"},
-		{"ar", "ترقية Omar Reyes", "الوظيفة التالية", "الدرجة المستهدفة", "يجب أن يرتفع الأجر الأساسي"},
+		{"en-US", "Promote Omar Reyes", "Next role", "Target grade", "For this role, base pay must increase", "5.00%", "15.00%"},
+		// The percentages follow the locale, as the pay amounts beside them do.
+		{"de-DE", "Omar Reyes befördern", "Nächste Rolle", "Zielstufe", "Für diese Rolle muss das Grundgehalt", "5,00 %", "15,00 %"},
+		{"ar", "ترقية Omar Reyes", "الوظيفة التالية", "الدرجة المستهدفة", "يجب أن يرتفع الأجر الأساسي", "٥٫٠٠٪", "١٥٫٠٠٪"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.locale, func(t *testing.T) {
@@ -1629,7 +1687,7 @@ func TestTodo_UXAUDIT_006_PromotionFormLocale(t *testing.T) {
 			role, _ := fieldByID(p.Proposal.Form.Fields, FieldJobCode)
 			grade, _ := fieldByID(p.Proposal.Form.Fields, FieldGrade)
 			base, _ := fieldByID(p.Proposal.Form.Fields, FieldBase)
-			if role.Label != tc.role || grade.Label != tc.grade || !strings.Contains(base.Help, tc.rule) || !strings.Contains(base.Help, "5.00%") || !strings.Contains(base.Help, "15.00%") {
+			if role.Label != tc.role || grade.Label != tc.grade || !strings.Contains(base.Help, tc.rule) || !strings.Contains(base.Help, tc.minimum) || !strings.Contains(base.Help, tc.maximum) {
 				t.Fatalf("localized form = role %q, grade %q, rule %q", role.Label, grade.Label, base.Help)
 			}
 			for _, forbidden := range []string{"promotion-rules@", "professional-benefit-eligibility@", "ladder edge", "⟦"} {

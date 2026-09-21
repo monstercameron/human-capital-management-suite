@@ -69,7 +69,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport/productquery"
 )
 
 // Region is one of the exactly five independently invalidated presentation
@@ -288,54 +287,28 @@ func NewSubscriberSequencer() *SubscriberSequencer {
 	return &SubscriberSequencer{next: make(map[string]uint64)}
 }
 
-// EmitForSubscriber authorizes req for one subscriber's one region and, only
-// when at least one item survives authorization, mints that subscriber's
-// next contiguous local sequence number. It never reads req.SourceSequence
-// or req.Watermark as the delivered value -- those fields (and the
-// tenant-wide position that should populate them, from
-// internal/data/promotioninvalidation.NextSequence) are used only to satisfy
-// productquery.EmitInvalidation's own ordering-sanity validation on the way
-// in; the message this function returns always carries this subscriber's own
-// counter instead.
-//
-// A transition that authorizes nothing for this subscriber (ok == false)
-// never advances the counter: the next message this subscriber does receive
-// picks up exactly where the last one left off, with no reserved-but-unsent
-// number in between for them to notice.
-func (s *SubscriberSequencer) EmitForSubscriber(subscriberKey string, region Region, req productquery.InvalidationRequest) (productquery.InvalidationMessage, bool, error) {
+// Advance mints the next private sequence only after the caller has admitted
+// an item for this subscriber. The transport owns authorization and message
+// assembly; this domain type never imports the transport layer.
+func (s *SubscriberSequencer) Advance(subscriberKey string, region Region) (local, watermark uint64, err error) {
 	if s == nil {
-		return productquery.InvalidationMessage{}, false, fmt.Errorf("%w: nil sequencer", ErrInvalidTransition)
+		return 0, 0, fmt.Errorf("%w: nil sequencer", ErrInvalidTransition)
 	}
 	if subscriberKey == "" {
-		return productquery.InvalidationMessage{}, false, fmt.Errorf("%w: empty subscriber key", ErrInvalidTransition)
+		return 0, 0, fmt.Errorf("%w: empty subscriber key", ErrInvalidTransition)
 	}
 	projection, err := region.Projection()
 	if err != nil {
-		return productquery.InvalidationMessage{}, false, err
-	}
-	req.Projection = projection
-
-	message, ok, err := productquery.EmitInvalidation(req)
-	if err != nil || !ok {
-		return productquery.InvalidationMessage{}, false, err
+		return 0, 0, err
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	key := subscriberKey + "\x00" + projection
-	watermark := s.next[key]
-	local := watermark + 1
+	watermark = s.next[key]
+	local = watermark + 1
 	s.next[key] = local
-	message.SourceSequence = local
-	message.Watermark = watermark
-	if err := message.Validate(); err != nil {
-		// Unreachable in practice (local always advances watermark by
-		// exactly one, so Watermark <= SourceSequence always holds), but a
-		// scheme built to prevent one class of malformed message should not
-		// hand back one of its own construction without checking it.
-		return productquery.InvalidationMessage{}, false, err
-	}
-	return message, true, nil
+	return local, watermark, nil
 }
 
 // Snapshot returns the current per-(subscriber, projection) local sequence

@@ -17,21 +17,36 @@ import (
 	"unicode/utf8"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Service is the read-only portion of JourneyService needed by the product
-// shell. Writes stay on the dedicated journey workflow surface.
+// Service is the bounded RPC surface needed by the product shell. Most pages
+// consume reads; workflow authoring adds only its explicit draft mutations.
 type Service struct {
-	ListJourneys      func(context.Context, *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error)
-	ListWorkers       func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error)
-	GetPreferences    func(context.Context, *journeyv1.GetProductPreferencesRequest) (*journeyv1.GetProductPreferencesResponse, error)
-	GetWorkerIDPolicy func(context.Context, *journeyv1.GetWorkerIDPolicyRequest) (*journeyv1.GetWorkerIDPolicyResponse, error)
-	GetRoleAccess     func(context.Context, *journeyv1.GetRoleAccessRequest) (*journeyv1.GetRoleAccessResponse, error)
+	ListJourneys                 func(context.Context, *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error)
+	ListWorkers                  func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error)
+	GetPreferences               func(context.Context, *journeyv1.GetProductPreferencesRequest) (*journeyv1.GetProductPreferencesResponse, error)
+	GetWorkerIDPolicy            func(context.Context, *journeyv1.GetWorkerIDPolicyRequest) (*journeyv1.GetWorkerIDPolicyResponse, error)
+	GetRoleAccess                func(context.Context, *journeyv1.GetRoleAccessRequest) (*journeyv1.GetRoleAccessResponse, error)
+	ListWorkflowPublications     func(context.Context, *workflowv1.ListWorkflowPublicationsRequest) (*workflowv1.ListWorkflowPublicationsResponse, error)
+	GetWorkflowDefinitionView    func(context.Context, *workflowv1.GetWorkflowDefinitionViewRequest) (*workflowv1.GetWorkflowDefinitionViewResponse, error)
+	ListWorkflowBlocks           func(context.Context, *workflowv1.ListWorkflowBlocksRequest) (*workflowv1.ListWorkflowBlocksResponse, error)
+	CreateWorkflowDraft          func(context.Context, *workflowv1.CreateWorkflowDraftRequest) (*workflowv1.CreateWorkflowDraftResponse, error)
+	GetWorkflowDraft             func(context.Context, *workflowv1.GetWorkflowDraftRequest) (*workflowv1.GetWorkflowDraftResponse, error)
+	InsertWorkflowPaletteEntry   func(context.Context, *workflowv1.InsertWorkflowPaletteEntryRequest) (*workflowv1.InsertWorkflowPaletteEntryResponse, error)
+	UpdateWorkflowDraftNode      func(context.Context, *workflowv1.UpdateWorkflowDraftNodeRequest) (*workflowv1.UpdateWorkflowDraftNodeResponse, error)
+	SetWorkflowDraftOutcome      func(context.Context, *workflowv1.SetWorkflowDraftOutcomeRequest) (*workflowv1.SetWorkflowDraftOutcomeResponse, error)
+	BindWorkflowDraftInput       func(context.Context, *workflowv1.BindWorkflowDraftInputRequest) (*workflowv1.BindWorkflowDraftInputResponse, error)
+	MoveWorkflowDraftNode        func(context.Context, *workflowv1.MoveWorkflowDraftNodeRequest) (*workflowv1.MoveWorkflowDraftNodeResponse, error)
+	NavigateWorkflowDraftHistory func(context.Context, *workflowv1.NavigateWorkflowDraftHistoryRequest) (*workflowv1.NavigateWorkflowDraftHistoryResponse, error)
+	ApplyWorkflowTemplateOverlay func(context.Context, *workflowv1.ApplyWorkflowTemplateOverlayRequest) (*workflowv1.ApplyWorkflowTemplateOverlayResponse, error)
 }
 
 // Session contains display facts from the server-admitted configuration
@@ -177,15 +192,21 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		HistoryPerson: routeValue(values, "history_person"), HistoryYear: routeValue(values, "history_year"), HistorySort: routeValue(values, "history_sort"), HistoryDirection: routeValue(values, "history_dir"), HistoryPage: historyPage, HistoryPageSize: historyPageSize,
 		WorkFilter: routeValue(values, "filter"), NavCollapsed: routeValue(values, "nav") == "collapsed",
 		JourneyID: routeValue(values, "journey"), JourneyWorker: routeValue(values, "worker"), JourneyMode: routeValue(values, "mode"),
+		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"),
 		MenuQuery: routeValue(values, "menu_q"), FavoritePages: parseFavoritePages(routeValue(values, "favorites")),
 	}}
 	if routeProfile.StateProfile().Journeys {
+		state.Request.JourneyList = productui.JourneyListFilterFromValues(values)
 		if state.Request.JourneyID != "" {
 			state.Request.Mode = ""
 			state.Request.JourneyMode = ""
 			state.Request.JourneyWorker = ""
+			state.Request.JourneyList = productui.JourneyListFilter{}
 			delete(state.Provided, "mode")
 			delete(state.Provided, "worker")
+			for _, key := range productui.JourneyListRouteKeys() {
+				delete(state.Provided, key)
+			}
 		} else if state.Request.JourneyMode != "" && state.Request.JourneyMode != "new" {
 			return State{}, errors.New("productclient: route state is malformed")
 		}
@@ -257,6 +278,19 @@ func ResolvedCanonicalHref(state State, view productui.View) string {
 			resolved.Request.PeoplePageSize = view.PeoplePageSize
 		}
 	}
+	if profile := routeProfileFor(state.Page); profile.CarriesDirectoryQuery && !state.Provided["q"] && strings.TrimSpace(view.Query) != "" {
+		// REV-095-04: a search carried in from the People directory is
+		// written into this page's own address, so the filtered browse is
+		// shareable, reloads the same and is reversible with Back. Provided
+		// is copied: the parsed state belongs to the caller.
+		provided := make(map[string]bool, len(state.Provided)+1)
+		for key, value := range state.Provided {
+			provided[key] = value
+		}
+		provided["q"] = true
+		resolved.Provided = provided
+		resolved.Request.Query = strings.TrimSpace(view.Query)
+	}
 	if profile := routeProfileFor(state.Page); profile.Roles && state.Provided["role_page"] {
 		resolved.Request.RolePage = view.RolePage
 	}
@@ -277,46 +311,6 @@ func routeProfileFor(page productui.PageID) productui.RouteStateProfile {
 		return productui.RouteStateProfile{}
 	}
 	return routeProfile.StateProfile()
-}
-
-func setPeopleRouteValues(values url.Values, state State) {
-	request := state.Request
-	setProvidedRouteValue(values, state, "q", request.Query)
-	setProvidedRouteInt(values, state, "page", request.PeoplePage)
-	setProvidedRouteInt(values, state, "page_size", request.PeoplePageSize)
-	setProvidedRouteValue(values, state, "team", request.PeopleTeam)
-	setProvidedRouteValue(values, state, "location", request.PeopleLocation)
-	eligibleValue := ""
-	if request.PeopleEligibleOnly {
-		eligibleValue = "1"
-	}
-	setProvidedRouteValue(values, state, "eligible", eligibleValue)
-	setProvidedRouteValue(values, state, "sort", request.PeopleSort)
-	setProvidedRouteValue(values, state, "dir", request.PeopleDirection)
-}
-
-func setHistoryRouteValues(values url.Values, state State) {
-	request := state.Request
-	setProvidedRouteValue(values, state, "history_q", request.HistoryQuery)
-	setProvidedRouteValue(values, state, "outcome", request.HistoryOutcome)
-	setProvidedRouteValue(values, state, "history_person", request.HistoryPerson)
-	setProvidedRouteValue(values, state, "history_year", request.HistoryYear)
-	setProvidedRouteValue(values, state, "history_sort", request.HistorySort)
-	setProvidedRouteValue(values, state, "history_dir", request.HistoryDirection)
-	setProvidedRouteInt(values, state, "history_page", request.HistoryPage)
-	setProvidedRouteInt(values, state, "history_page_size", request.HistoryPageSize)
-}
-
-func setProvidedRouteValue(values url.Values, state State, key, value string) {
-	if state.Provided[key] {
-		values.Set(key, value)
-	}
-}
-
-func setProvidedRouteInt(values url.Values, state State, key string, value int) {
-	if state.Provided[key] {
-		values.Set(key, strconv.Itoa(value))
-	}
 }
 
 func parseFavoritePages(raw string) []productui.PageID {
@@ -349,8 +343,9 @@ func LoadWithBaseline(ctx context.Context, service Service, session Session, sta
 }
 
 type pageDataRequirements struct {
-	journeys bool
-	workers  bool
+	journeys  bool
+	workers   bool
+	workflows bool
 }
 
 func requirementsForPage(page productui.PageID) pageDataRequirements {
@@ -359,15 +354,29 @@ func requirementsForPage(page productui.PageID) pageDataRequirements {
 		return pageDataRequirements{}
 	}
 	requirements := dataProfile.Requirements()
-	return pageDataRequirements{journeys: requirements.Journeys, workers: requirements.Workers}
+	return pageDataRequirements{journeys: requirements.Journeys, workers: requirements.Workers, workflows: page == productui.PageWorkflowDesigner}
 }
 
 func load(ctx context.Context, service Service, session Session, state State, baseline *productui.View) (productui.View, error) {
 	view := LoadingView(session, state)
-	requirements := pageDataRequirements{journeys: true, workers: true}
+	requirements := pageDataRequirements{journeys: true, workers: true, workflows: state.Page == productui.PageWorkflowDesigner}
 	if baseline != nil && baselineMatchesSession(*baseline, view) {
 		requirements = requirementsForPage(state.Page)
 		seedBaselineProjection(&view, *baseline)
+		if state.Page == productui.PageWorkflowDesigner {
+			// A route names either one mutable draft or one immutable
+			// publication/run. Never carry the other route's leaf projection
+			// across navigation: doing so made a published URL render the last
+			// mutable draft until a hard reload.
+			if strings.TrimSpace(state.Request.WorkflowDraftID) == "" {
+				view.WorkflowDraft = nil
+				view.SelectedWorkflowDraftID = ""
+			} else {
+				view.WorkflowView = nil
+				view.SelectedWorkflowID = ""
+				view.SelectedWorkflowRunID = ""
+			}
+		}
 		// Work filters are applied destructively to the route projection. Never
 		// mistake a filtered previous page for the complete shell dataset.
 		if baselineRoute, _, ok := productui.PageProfiles(baseline.Page); ok && baselineRoute.StateProfile().Work && baseline.WorkFilter != "" {
@@ -380,13 +389,24 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	var preferencesResponse *journeyv1.GetProductPreferencesResponse
 	var workerIDResponse *journeyv1.GetWorkerIDPolicyResponse
 	var roleAccessResponse *journeyv1.GetRoleAccessResponse
+	var workflowCatalogResponse *workflowv1.ListWorkflowPublicationsResponse
+	var workflowBlocksResponse *workflowv1.ListWorkflowBlocksResponse
+	var workflowDraftResponse *workflowv1.GetWorkflowDraftResponse
 	var journeysErr, workersErr, preferencesErr error
 	var workerIDErr error
 	var roleAccessErr error
+	var workflowCatalogErr error
+	var workflowBlocksErr error
+	var workflowDraftErr error
 	var reads sync.WaitGroup
 	if !requirements.journeys {
 		// The authorized baseline already supplies shell counts/search records.
-	} else if session.EnforceRoleVisibility && !productui.PageVisible(productui.PageJourneys, session.Roles) {
+	} else if session.EnforceRoleVisibility && !productui.PageVisible(productui.PageJourneys, session.Roles) &&
+		!productui.PageVisible(productui.PageWork, session.Roles) {
+		// The journey list backs My Work as well as Journeys, and the server
+		// admits either page's grant. Skipping it for everyone without the
+		// Journeys page left a finance approver's My Work empty: the review
+		// routed to them never appeared anywhere they could reach.
 		journeysResponse = &journeyv1.ListJourneysResponse{}
 	} else if service.ListJourneys == nil {
 		journeysErr = errors.New("JourneyService.ListJourneys is not connected")
@@ -452,7 +472,55 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 			}()
 		}
 	}
+	if requirements.workflows {
+		if service.ListWorkflowPublications == nil {
+			workflowCatalogErr = errors.New("WorkflowService.ListWorkflowPublications is not connected")
+		} else {
+			reads.Add(1)
+			go func() {
+				defer reads.Done()
+				workflowCatalogResponse, workflowCatalogErr = service.ListWorkflowPublications(ctx, &workflowv1.ListWorkflowPublicationsRequest{})
+				if workflowCatalogErr != nil {
+					workflowCatalogErr = fmt.Errorf("list workflow publications: %w", workflowCatalogErr)
+				}
+			}()
+		}
+		if service.ListWorkflowBlocks == nil {
+			workflowBlocksErr = errors.New("WorkflowService.ListWorkflowBlocks is not connected")
+		} else {
+			reads.Add(1)
+			go func() {
+				defer reads.Done()
+				workflowBlocksResponse, workflowBlocksErr = service.ListWorkflowBlocks(ctx, &workflowv1.ListWorkflowBlocksRequest{})
+				if workflowBlocksErr != nil {
+					workflowBlocksErr = fmt.Errorf("list workflow blocks: %w", workflowBlocksErr)
+				}
+			}()
+		}
+		if draftID := strings.TrimSpace(state.Request.WorkflowDraftID); draftID != "" {
+			if service.GetWorkflowDraft == nil {
+				workflowDraftErr = errors.New("WorkflowService.GetWorkflowDraft is not connected")
+			} else {
+				reads.Add(1)
+				go func() {
+					defer reads.Done()
+					workflowDraftResponse, workflowDraftErr = service.GetWorkflowDraft(ctx, &workflowv1.GetWorkflowDraftRequest{DraftId: draftID})
+					if workflowDraftErr != nil {
+						workflowDraftErr = fmt.Errorf("get workflow draft: %w", workflowDraftErr)
+					}
+				}()
+			}
+		}
+	}
 	reads.Wait()
+	directoryDenied := false
+	if workersErr != nil && status.Code(errors.Unwrap(workersErr)) == codes.PermissionDenied {
+		// A role without the People directory (a finance approver on My
+		// Work) is refused the workforce read by design. That is an empty
+		// directory for this viewer, not a failed page: it fails closed to no
+		// records, and the rest of the page still loads.
+		workersErr, workersResponse, directoryDenied = nil, &journeyv1.ListWorkersResponse{}, true
+	}
 	if roleAccessErr != nil {
 		failures = append(failures, roleAccessErr)
 	}
@@ -471,15 +539,63 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	if workerIDResponse != nil {
 		view.WorkerIDPolicy = projectWorkerIDPolicy(workerIDResponse.GetPolicy(), workerIDResponse.GetPreviews())
 	}
+	if workflowCatalogErr != nil {
+		failures = append(failures, workflowCatalogErr)
+		view.PublishedWorkflows, view.WorkflowView = nil, nil
+	} else if requirements.workflows {
+		view.PublishedWorkflows = projectWorkflowCatalog(workflowCatalogResponse.GetPublications())
+		workflowID := strings.TrimSpace(state.Request.WorkflowID)
+		instanceID := strings.TrimSpace(state.Request.WorkflowRunID)
+		if workflowID == "" && instanceID == "" && len(view.PublishedWorkflows) > 0 {
+			workflowID = view.PublishedWorkflows[0].WorkflowID
+		}
+		if workflowID != "" || instanceID != "" {
+			if service.GetWorkflowDefinitionView == nil {
+				failures = append(failures, errors.New("WorkflowService.GetWorkflowDefinitionView is not connected"))
+			} else {
+				response, readErr := service.GetWorkflowDefinitionView(ctx, &workflowv1.GetWorkflowDefinitionViewRequest{WorkflowId: workflowID, InstanceId: instanceID})
+				if readErr != nil {
+					failures = append(failures, fmt.Errorf("get workflow definition view: %w", readErr))
+				} else if projected, projectionErr := projectWorkflowView(response.GetView()); projectionErr != nil {
+					failures = append(failures, projectionErr)
+				} else {
+					view.WorkflowView = &projected
+					view.SelectedWorkflowID = projected.WorkflowID
+					view.SelectedWorkflowRunID = projected.InstanceID
+				}
+			}
+		}
+	}
+	if workflowBlocksErr != nil {
+		failures = append(failures, workflowBlocksErr)
+		view.WorkflowPalette = nil
+	} else if requirements.workflows {
+		view.WorkflowPalette = projectWorkflowPalette(workflowBlocksResponse.GetEntries())
+	}
+	if workflowDraftErr != nil {
+		failures = append(failures, workflowDraftErr)
+		view.WorkflowDraft = nil
+	} else if requirements.workflows && workflowDraftResponse != nil {
+		projected, projectionErr := projectWorkflowDraft(workflowDraftResponse.GetDraft())
+		if projectionErr != nil {
+			failures = append(failures, projectionErr)
+		} else {
+			view.WorkflowDraft = &projected
+			view.SelectedWorkflowDraftID = projected.DraftID
+		}
+	}
 
 	if journeysErr != nil {
 		failures = append(failures, journeysErr)
 		// A required authorization/read refresh fails closed. Retaining an
 		// older projection here could outlive a server-side access revocation.
 		view.Work = nil
+		view.JourneyPopulation = nil
 	} else if requirements.journeys {
 		var projectionErr error
 		view.Work, projectionErr = projectJourneys(journeysResponse.GetJourneys())
+		// UXLIVE-027: the server's summary of exactly these journeys.
+		view.JourneyPopulation = projectPopulation(journeysResponse.GetPopulation())
 		if projectionErr != nil {
 			failures = append(failures, projectionErr)
 		}
@@ -523,6 +639,9 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	view.Viewer = projectViewerProfile(session, view.People)
+	if directoryDenied {
+		bindViewerToRoutedWork(&view.Viewer, session, view.Work)
+	}
 	photosByWorker := make(map[string]string, len(view.People))
 	for _, person := range view.People {
 		photosByWorker[person.ID] = person.PhotoURL
@@ -539,6 +658,13 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	view = productui.ApplyRequest(view, state.Request)
+	if view.WorkflowView != nil {
+		// An absent selector deliberately resolves to the server's preferred
+		// publication without rewriting the address. Preserve that resolved
+		// identity after ApplyRequest applies the empty query value.
+		view.SelectedWorkflowID = view.WorkflowView.WorkflowID
+		view.SelectedWorkflowRunID = view.WorkflowView.InstanceID
+	}
 	for index := range view.Work {
 		view.Work[index].Href = productui.JourneyDetailHref(view, view.Work[index].ID)
 	}
@@ -588,6 +714,7 @@ func baselineMatchesSession(baseline, current productui.View) bool {
 
 func seedBaselineProjection(view *productui.View, baseline productui.View) {
 	view.Work = baseline.Work
+	view.JourneyPopulation = baseline.JourneyPopulation
 	view.People = baseline.People
 	view.Viewer = baseline.Viewer
 	view.WorkflowUses = baseline.WorkflowUses
@@ -598,6 +725,12 @@ func seedBaselineProjection(view *productui.View, baseline productui.View) {
 	view.OrganizationVisibility = baseline.OrganizationVisibility
 	view.StoredPreferences = baseline.StoredPreferences
 	view.NavigationGroupOpen = baseline.NavigationGroupOpen
+	view.PublishedWorkflows = baseline.PublishedWorkflows
+	view.WorkflowView = baseline.WorkflowView
+	view.SelectedWorkflowID = baseline.SelectedWorkflowID
+	view.SelectedWorkflowRunID = baseline.SelectedWorkflowRunID
+	view.WorkflowDraft = baseline.WorkflowDraft
+	view.SelectedWorkflowDraftID = baseline.SelectedWorkflowDraftID
 	view.Source = baseline.Source
 }
 
@@ -659,6 +792,26 @@ func projectViewerProfile(session Session, people []productui.Person) productui.
 	return fallback
 }
 
+// bindViewerToRoutedWork binds a viewer the directory could not resolve --
+// because their role may not read it -- to the worker identity the server
+// routed work to. The join is the server's assignee principal against the
+// authenticated principal, both stable identifiers, never a display name.
+// An account no work is routed to (an unbound operator) stays unbound, so
+// UXAUDIT-017's "unbound viewers see no assignments" still holds; without
+// this a finance approver's own review never reached their My Work.
+func bindViewerToRoutedWork(viewer *productui.ViewerProfile, session Session, work []productui.WorkItem) {
+	principal := normalizedIdentity(session.Principal)
+	if viewer == nil || viewer.PersonID != "" || principal == "" {
+		return
+	}
+	for _, item := range work {
+		if normalizedIdentity(item.AssigneeRef) == principal {
+			viewer.PersonID = item.AssigneeRef
+			return
+		}
+	}
+}
+
 func viewerProfileFromPerson(person productui.Person) productui.ViewerProfile {
 	return productui.ViewerProfile{PersonID: person.ID, Name: person.Name, Initials: person.Initials, PhotoURL: person.PhotoURL, Role: person.Role}
 }
@@ -682,7 +835,8 @@ func applyPreferences(view *productui.View, state *State, response *journeyv1.Ge
 		for key, open := range user.GetNavigationGroups() {
 			view.NavigationGroupOpen[productui.PageID(key)] = open
 		}
-		stored := productui.StoredUserPreferences{Version: user.GetVersion(), Locale: user.GetLocale(), Accessibility: view.Accessibility, NavCollapsed: user.GetNavCollapsed(), NavigationGroups: view.NavigationGroupOpen, WorkflowUses: user.GetWorkflowUses(), Tables: map[string]productui.StoredTablePreferences{}}
+		stored := productui.StoredUserPreferences{Version: user.GetVersion(), Locale: user.GetLocale(), Accessibility: view.Accessibility, NavCollapsed: user.GetNavCollapsed(), NavigationGroups: view.NavigationGroupOpen, WorkflowUses: user.GetWorkflowUses(), Tables: map[string]productui.StoredTablePreferences{},
+			Density: productui.NormalizePersonalDensity(user.GetDensity())}
 		for _, page := range user.GetFavoritePages() {
 			stored.FavoritePages = append(stored.FavoritePages, productui.PageID(page))
 		}
@@ -704,7 +858,13 @@ func applyPreferences(view *productui.View, state *State, response *journeyv1.Ge
 		}
 		applyTableDefaults(request, state.Provided, user.GetTables()["people"], false)
 		applyTableDefaults(request, state.Provided, user.GetTables()["history"], true)
-		applyWorkTableDefaults(request, state.Provided, user.GetTables()["work"])
+		// UXLIVE-027: the saved My Work tab is My Work's own default. Applied on
+		// every route it narrowed Home, Insights and History to that tab (a
+		// saved "tracked" left Rafael's Home and Insights at zero beside nine
+		// visible journeys), so it is adopted only where the tab exists.
+		if routeProfile, _, ok := productui.PageProfiles(state.Page); ok && routeProfile.StateProfile().Work {
+			applyWorkTableDefaults(request, state.Provided, user.GetTables()["work"])
+		}
 	}
 	if theme := response.GetTheme(); theme != nil {
 		view.AppearanceVersion = theme.GetVersion()
@@ -930,7 +1090,12 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 			Team: orgUnitLabel(worker.GetOrgUnit()), Manager: managerName, ManagerID: workerIDByRef[managerRef], ManagerRelationship: managerState, ManagerWorkerRef: managerRef, Location: worker.GetLocation(), WorkerNumber: worker.GetWorkerNumber(),
 			JobCode: worker.GetJobCode(), Grade: worker.GetGrade(), PositionID: worker.GetPositionId(),
 			PayZone: worker.GetPayZone(), BasePay: basePay,
+			EmploymentType: worker.GetEmploymentType(), TimeType: worker.GetTimeType(),
+			Company: worker.GetCompany(), BusinessUnit: worker.GetBusinessUnit(),
+			CostCenter: worker.GetCostCenter(), WorkArrangement: worker.GetWorkArrangement(),
+			PayBasis:    worker.GetPayBasis(),
 			BonusTarget: worker.GetBonusTarget(), HireDate: worker.GetHireDate(), Source: worker.GetSource(),
+			LifecycleStatus: worker.GetLifecycleStatus(), WorkerType: worker.GetWorkerType(),
 			CreatedAt: timestampLabel(worker.GetCreatedAt()),
 		})
 	}
@@ -1079,6 +1244,8 @@ func journeyStageKey(stage journeyv1.JourneyStage) string {
 		return "journey.stage_observing_effects"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
 		return "journey.stage_repair_required"
+	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT:
+		return "journey.stage_awaiting_acknowledgement"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED:
 		return "journey.stage_completed"
 	case journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED:

@@ -114,7 +114,7 @@ func navigationInteractionRefinementsStylesheet() string {
 
 func declarenavigationInteractionRefinementsStyles() {
 	declareGlobal(".sidebar",
-		mediaRule(gwccss.MinW(761), gwccss.CustomLength("hcm-nav-content-inset", gwccss.Px(14)), gwccss.CustomLength("hcm-nav-rail-shift", gwccss.Px(10)), gwccss.Raw("overflow", "hidden"), gwccss.Raw("padding-inline-end", "0"), gwccss.Raw("padding-right", "0")),
+		mediaRule(gwccss.MinW(761), gwccss.CustomLength("hcm-nav-content-inset", gwccss.Px(14)), gwccss.CustomLength("hcm-nav-rail-shift", gwccss.Px(10)), gwccss.Raw("overflow", "hidden"), gwccss.Raw("padding-inline-end", "0"), gwccss.Raw("padding-inline-end", "0")),
 	)
 	declareGlobal(".sidebar.collapsed",
 		mediaRule(gwccss.MinW(761), gwccss.CustomLength("hcm-nav-content-inset", gwccss.Px(9)), gwccss.CustomLength("hcm-nav-rail-shift", gwccss.Px(7)), gwccss.Raw("padding-inline-end", "0"), gwccss.Raw("padding-right", "0")),
@@ -130,6 +130,13 @@ func declarenavigationInteractionRefinementsStyles() {
 	)
 	declareGlobal(".primary-nav>ul,.nav-bottom",
 		mediaRule(gwccss.MinW(761), gwccss.Raw("padding-inline-end", "var(--hcm-nav-content-inset)")),
+	)
+	// The primary list is widened by the rail shift so its scrollbar sits at
+	// the sidebar's edge, then inset; the bottom nav (Help, Settings) is not
+	// widened, so the same inset ended its active highlight 10px short of
+	// every item above it. It takes the inset less the shift instead.
+	declareGlobal(".nav-bottom",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("padding-inline-end", "calc(var(--hcm-nav-content-inset) - var(--hcm-nav-rail-shift))")),
 	)
 	declareGlobal(".primary-nav::-webkit-scrollbar",
 		mediaRule(gwccss.MinW(761), gwccss.W(gwccss.VarLength("hcm-nav-scrollbar-size-rail"))),
@@ -228,7 +235,7 @@ func declarecollectionControlStylesStyles() {
 	declareGlobal(".people-workflow-unavailable-reason",
 		gwccss.Margin(gwccss.Zero),
 		gwccss.Padding(gwccss.Px(8)),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.LineHeight(gwccss.Num(1.45)),
 		gwccss.TextColor(gwccss.Var("ink")),
 	)
@@ -237,8 +244,8 @@ func declarecollectionControlStylesStyles() {
 		gwccss.PaddingY(gwccss.Px(10)), gwccss.PaddingX(gwccss.Px(11)),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 	)
 	declareGlobal(".people-workflow-option:hover,.people-workflow-option:focus",
@@ -257,8 +264,8 @@ func declarecollectionControlStylesStyles() {
 		gwccss.Items.Center,
 		gwccss.Gap(gwccss.Px(8)),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("white-space", "nowrap"),
 	)
 	declareGlobal(".page-size-control select",
@@ -269,6 +276,9 @@ func declarecollectionControlStylesStyles() {
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
+		// A pager control is compact: its value sits with the 13px range and
+		// page labels around it, not at a form field's 16px.
+		gwccss.FontSize(gwccss.Rem(0.875)),
 	)
 	declareGlobal(".page-size-apply",
 		gwccss.MinHeight(gwccss.Px(44)),
@@ -318,8 +328,8 @@ func declarenavigationSearchStylesStyles() {
 		gwccss.Raw("margin-top", "3px"),
 		gwccss.Raw("overflow", "hidden"),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "450"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "400"),
 		gwccss.LineHeight(gwccss.Num(1.28)),
 		gwccss.Raw("-webkit-box-orient", "vertical"),
 		gwccss.Raw("-webkit-line-clamp", "2"),
@@ -359,6 +369,13 @@ func declarepeopleSortFilterStylesStyles() {
 		gwccss.MinHeight(gwccss.Px(44)),
 		gwccss.Raw("white-space", "nowrap"),
 	)
+	// A filter choice reads at the size of the fields beside it (14px ink),
+	// not as a 12px muted caption under them.
+	declareGlobal(".people-filter .people-eligible-filter-label",
+		gwccss.FontSize(gwccss.Rem(0.875)),
+		gwccss.Raw("font-weight", "500"),
+		gwccss.TextColor(gwccss.Var("ink")),
+	)
 	declareGlobal(".people-filter input[type=checkbox]",
 		gwccss.W(gwccss.Px(18)), gwccss.H(gwccss.Px(18)),
 		gwccss.MinHeight(gwccss.Zero), gwccss.Padding(gwccss.Zero),
@@ -391,8 +408,10 @@ func declarepeopleSortFilterStylesStyles() {
 	declareGlobal(".people-sort:hover,.people-sort.active",
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
+	// One weight for every sort header (the active one is marked by its
+	// color and arrow): turning bold widened it and shifted the row.
 	declareGlobal(".people-sort.active",
-		gwccss.Raw("font-weight", "750"),
+		gwccss.Raw("font-weight", "600"),
 	)
 	declareGlobal(".people-filter-control",
 		mediaRule(gwccss.MaxW(1120), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(176)), gwccss.Fr(1)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(154)), gwccss.Fr(.9)), gwccss.TrackLen(gwccss.RawLength("auto")))),
@@ -422,7 +441,7 @@ func declarepeopleSortFilterStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(8)), gwccss.Raw("overflow-x", "auto"), gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(12))),
 	)
 	declareGlobal(".people-sort-label",
-		mediaRule(gwccss.MaxW(760), gwccss.Display.Block, gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "700")),
+		mediaRule(gwccss.MaxW(760), gwccss.Display.Block, gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "700")),
 	)
 	declareGlobal(".people-columns>span",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("flex", "none")),
@@ -455,7 +474,7 @@ func declarepeopleQuickActionStylesStyles() {
 		gwccss.TextUnderlineOffset(gwccss.Ems(.16)),
 	)
 	declareGlobal(".people-action-heading",
-		gwccss.Raw("text-align", "right"),
+		gwccss.Raw("text-align", "end"),
 	)
 	declareGlobal(".people-row-actions",
 		gwccss.Display.Flex,
@@ -471,7 +490,7 @@ func declarepeopleQuickActionStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(8)), gwccss.Raw("overflow-x", "auto"), gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(12))),
 	)
 	declareGlobal(".people-sort-label",
-		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "700")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "700")),
 	)
 	declareGlobal(".people-columns>span",
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("flex", "none")),
@@ -495,7 +514,7 @@ func declarepeopleQuickActionStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "flex!important"), gwccss.Raw("grid-column", "auto!important"), gwccss.Raw("justify-content", "space-between"), gwccss.Gap(gwccss.Px(18)), gwccss.MinWidth(gwccss.Zero)),
 	)
 	declareGlobal(".people-row>.people-cell:before",
-		mediaRule(gwccss.MaxW(1050), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "650")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "600")),
 	)
 	declareGlobal(".people-row-actions",
 		mediaRule(gwccss.MaxW(1050), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1)))),
@@ -938,7 +957,7 @@ func declaredataTableStylesStyles() {
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.FontSize(gwccss.Rem(.75)),
+		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("font-weight", "700"),
 		gwccss.Raw("box-shadow", "0 10px 26px color-mix(in srgb,var(--ink) 16%,transparent)"),
 	)
@@ -961,7 +980,7 @@ func declaredataTableStylesStyles() {
 	)
 	declareGlobal(".data-table-scroll.is-busy .data-table-body",
 		gwccss.OpacityNum(gwccss.Num(.64)),
-		gwccss.Raw("transition", "opacity var(--hcm-motion-duration-fast) var(--hcm-motion-easing)"),
+		gwccss.Raw("transition", "opacity var(--hcm-motion-fast) var(--hcm-motion-easing)"),
 	)
 	declareGlobal(":root[data-hcm-motion-preference=\"reduce\"] .data-table-scroll.is-busy .data-table-body,:root[data-hcm-motion-preference=\"limited\"] .data-table-scroll.is-busy .data-table-body",
 		gwccss.Raw("transition", "none"),
@@ -981,7 +1000,7 @@ func declaredataTableStylesStyles() {
 		gwccss.Raw("border-collapse", "separate"),
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.TextColor(gwccss.Var("ink")),
-		gwccss.FontSize(gwccss.Rem(.8125)),
+		gwccss.FontSize(gwccss.Rem(0.8125)),
 	)
 	declareGlobal(".data-table-head,.data-table .data-table-row",
 		gwccss.Raw("display", "table-row"),
@@ -996,9 +1015,9 @@ func declaredataTableStylesStyles() {
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.TextColor(gwccss.Var("muted")),
-		gwccss.FontSize(gwccss.Rem(.75)),
-		gwccss.Raw("font-weight", "650"),
-		gwccss.Raw("text-align", "left"),
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("text-align", "start"),
 		gwccss.Raw("white-space", "nowrap"),
 		gwccss.Raw("box-shadow", "0 8px 14px color-mix(in srgb,var(--ink) 6%,transparent)"),
 	)
@@ -1024,7 +1043,7 @@ func declaredataTableStylesStyles() {
 		gwccss.MinWidth(gwccss.Rem(20)),
 	)
 	declareGlobal(".data-table th.align-end,.data-table td.align-end",
-		gwccss.Raw("text-align", "right"),
+		gwccss.Raw("text-align", "end"),
 	)
 	declareGlobal(".data-table-sort",
 		gwccss.Display.Flex,
@@ -1038,14 +1057,25 @@ func declaredataTableStylesStyles() {
 		gwccss.TextColor(gwccss.Var("accent")),
 	)
 	declareGlobal(".data-table-sort.active",
-		gwccss.Raw("font-weight", "750"),
+		gwccss.Raw("font-weight", "600"),
+	)
+	// An unsorted column says it can be sorted when the pointer reaches it:
+	// a faint up-down mark, decorative (the header's aria-sort carries state).
+	declareGlobal(".data-table-sort:not(.active)::after",
+		gwccss.Raw("content", `"\2195" / ""`),
+		gwccss.Raw("margin-inline-start", "4px"),
+		gwccss.Raw("opacity", "0"),
+		gwccss.Raw("transition", "opacity var(--hcm-motion-fast,.15s) ease"),
+	)
+	declareGlobal(".data-table-sort:not(.active):hover::after,.data-table-sort:not(.active):focus-visible::after",
+		gwccss.Raw("opacity", ".55"),
 	)
 	declareGlobal(".data-table-cell",
 		gwccss.MinWidth(gwccss.Px(110)),
 		gwccss.PaddingY(gwccss.Px(11)), gwccss.PaddingX(gwccss.Px(14)),
 		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Var("surface")),
-		gwccss.Raw("text-align", "left"),
+		gwccss.Raw("text-align", "start"),
 		gwccss.Raw("vertical-align", "middle"),
 	)
 	declareGlobal(".data-table-row-header",
@@ -1086,10 +1116,10 @@ func declaredataTableStylesStyles() {
 		gwccss.Display.Flex,
 	)
 	declareGlobal(".people-table .people-action-heading",
-		gwccss.Raw("text-align", "right"),
+		gwccss.Raw("text-align", "end"),
 	)
 	declareGlobal(".data-table-scroll:focus-visible",
-		gwccss.Raw("outline", "2px solid var(--accent)"),
+		gwccss.Raw("outline", "var(--hcm-focus-ring-width) solid var(--hcm-color-focus)"),
 		gwccss.OutlineOffset(gwccss.Px(-2)),
 	)
 	declareGlobal(".data-table-scroll",
@@ -1098,8 +1128,11 @@ func declaredataTableStylesStyles() {
 	declareGlobal(".data-table",
 		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block),
 	)
+	// Below 1050px the header is a "Sort by" block. It is opaque and ruled
+	// underneath, which separates it from rows scrolling under it; a drop
+	// shadow drawn at rest too made it a card floating inside the card.
 	declareGlobal(".data-table thead",
-		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Position.Sticky, gwccss.Top(gwccss.Zero), gwccss.ZIndex(5), gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(12)), gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")), gwccss.Bg(gwccss.Var("surface-subtle")), gwccss.Raw("box-shadow", "0 8px 14px color-mix(in srgb,var(--ink) 6%,transparent)"), gwccss.Raw("overflow-x", "auto"), gwccss.Raw("overscroll-behavior-inline", "contain")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Position.Sticky, gwccss.Top(gwccss.Zero), gwccss.ZIndex(5), gwccss.PaddingY(gwccss.Px(8)), gwccss.PaddingX(gwccss.Px(12)), gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")), gwccss.Bg(gwccss.Var("surface-subtle")), gwccss.Raw("box-shadow", "none"), gwccss.Raw("overflow-x", "auto"), gwccss.Raw("overscroll-behavior-inline", "contain")),
 	)
 	declareGlobal(".data-table-head",
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "flex!important"), gwccss.Items.Center, gwccss.Gap(gwccss.Px(8))),
@@ -1126,7 +1159,7 @@ func declaredataTableStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "flex!important"), gwccss.MinWidth(gwccss.RawLength("0!important")), gwccss.Padding(gwccss.Px(3)), gwccss.Raw("border", "0"), gwccss.Raw("background", "transparent!important"), gwccss.Raw("justify-content", "space-between"), gwccss.Gap(gwccss.Px(18)), gwccss.Raw("text-align", "start")),
 	)
 	declareGlobal(".data-table .data-table-cell:not(.data-table-row-header):not(.people-row-actions):before",
-		mediaRule(gwccss.MaxW(1050), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "650")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Raw("content", "attr(data-label)"), gwccss.Raw("flex", "none"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "600")),
 	)
 	declareGlobal(".data-table .data-table-row-header",
 		mediaRule(gwccss.MaxW(1050), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))), gwccss.Raw("justify-content", "flex-start")),
@@ -1135,7 +1168,7 @@ func declaredataTableStylesStyles() {
 		mediaRule(gwccss.MaxW(1050), gwccss.Raw("display", "flex!important"), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))), gwccss.Raw("justify-content", "flex-end")),
 	)
 	declareGlobal(".data-table-sort-label",
-		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Raw("padding", "8px 12px 0"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(.75)), gwccss.Raw("font-weight", "700")),
+		mediaRule(gwccss.MaxW(1050), gwccss.Display.Block, gwccss.Raw("padding", "8px 12px 0"), gwccss.TextColor(gwccss.Var("muted")), gwccss.FontSize(gwccss.Rem(0.75)), gwccss.Raw("font-weight", "700")),
 	)
 	declareGlobal(".data-table .data-table-row",
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),

@@ -10,6 +10,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/reasontext"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 )
@@ -70,8 +71,11 @@ const (
 	// three typed interventions. Withdraw and Cancel are the same governed
 	// capability at different stages (see actions' own doc comment);
 	// EditProposal is Cancel-then-repropose.
-	ActionWithdraw     = "withdraw"
-	ActionCancel       = "cancel"
+	ActionWithdraw = "withdraw"
+	ActionCancel   = "cancel"
+	// ActionRepair is UXLIVE-006's governed repair. It is presented, never
+	// submitted from here: see repairAction.
+	ActionRepair       = "repair"
 	ActionEditProposal = "edit-proposal"
 )
 
@@ -224,6 +228,9 @@ const (
 	kindSelect   = "select"
 	kindTextarea = "textarea"
 	kindHidden   = "hidden"
+	// kindPositionPicker is UXLIVE-011's governed position choice; the
+	// renderer draws it with productui.PositionPicker.
+	kindPositionPicker = "positionpicker"
 
 	// Worker provenance, as workspace.WorkerSource* carries it on the wire.
 	sourceCorpus  = "CORPUS"
@@ -335,6 +342,8 @@ func StagePresentation(stage journeyv1.JourneyStage) (label, tone string) {
 		return "Checking downstream effects", toneNeutral
 	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
 		return "Needs repair", toneDanger
+	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT:
+		return "Awaiting acknowledgement", toneWarning
 	case journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED:
 		return "Rejected", toneNeutral
 	case journeyv1.JourneyStage_JOURNEY_STAGE_FAILED:
@@ -419,6 +428,9 @@ type ListData struct {
 	// id. The projector only binds them to controls; it never interprets raw
 	// server failures.
 	ProposalErrors map[string]string
+	// Filter is the list route's search, status, date range, sort and
+	// grouping (UXLIVE-031), from the address.
+	Filter productui.JourneyListFilter
 }
 
 // ListPage projects the journeys overview: the workforce, the journeys and
@@ -426,17 +438,28 @@ type ListData struct {
 func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[string]string) journey.Page {
 	copy := productui.ResolveProductLocale(cfg.Locale)
 	p := chrome(cfg, copy.Text("journey.list_title")+" · "+Brand, notice, values, false)
-	cards := make([]journey.JourneyCard, 0, len(data.Journeys))
+	// UXLIVE-031: the address narrows and orders the already-authorized
+	// answer; it never adds a record or decides who may see one.
+	filter := productui.NormalizeJourneyListFilter(data.Filter)
+	visible := filterJourneys(data.Journeys, filter)
+	total := 0
 	for _, j := range data.Journeys {
-		if j == nil {
-			continue
+		if j != nil {
+			total++
 		}
+	}
+	cards := make([]journey.JourneyCard, 0, len(visible))
+	for _, j := range visible {
 		cards = append(cards, card(cfg, j))
 	}
 	// UXAUDIT-017: Journeys is a lifecycle tracker grouped by subject and
-	// status, not the flat list this loop just built in server-recency
-	// order.
-	cards = groupJourneyCards(cards)
+	// status, not the flat list this loop just built in recency order. The
+	// reader may instead group by status or not at all.
+	var groups []journey.JourneySubjectGroup
+	if filter.Group == "" {
+		cards = groupJourneyCards(cards)
+		groups = journeySubjectGroups(cards)
+	}
 	form := ProposalForm(values, data.Workers, data.SelectedRef, data.Options)
 	applyProposalErrors(&form, data.ProposalErrors)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "create") {
@@ -445,9 +468,17 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 	}
 	applyProposalCurrency(&form, workerCurrency(findWorker(data.Workers, data.SelectedRef), data.Options))
 	localizeProposalForm(&form, copy, false, nil, nil)
+	listWorker := values[FieldWorker]
+	if listWorker == "" {
+		listWorker = data.SelectedRef
+	}
+	form.Confirmation = draftConfirmation(cfg.Locale, values, findWorker(data.Workers, listWorker), data.Options)
+	form.ConfirmationNote = copy.Text("journey.form_submit_help")
 	p.List = &journey.ListView{
 		Journeys: cards,
-		Groups:   journeySubjectGroups(cards),
+		Groups:   groups,
+		Grouping: filter.Group,
+		Filter:   listFilterView(copy, data, len(cards), total),
 		Empty:    copy.Text("journey.list_empty"),
 		Form:     form,
 		People:   PeopleView(cfg, data, values),
@@ -491,6 +522,8 @@ func ProposalPage(cfg Config, data ListData, notice *journey.Notice, values map[
 	}
 	path := selectedPromotionPath(data.Options, worker, values[FieldJobCode], values[FieldGrade])
 	localizeProposalForm(&form, copy, true, path, proposalPayRangeFor(worker, data.Options, path))
+	form.Confirmation = draftConfirmation(cfg.Locale, values, worker, data.Options)
+	form.ConfirmationNote = copy.Text("journey.form_submit_help")
 	p.Proposal = &journey.ProposalView{
 		Subject:         promotionSubject(worker, data.Options, copy),
 		Form:            form,
@@ -500,6 +533,80 @@ func ProposalPage(cfg Config, data ListData, notice *journey.Notice, values map[
 		EngineAvailable: true,
 	}
 	return p
+}
+
+// positionField builds UXLIVE-011's governed target-position control.
+//
+// The list is narrowed to the role being proposed when one has been chosen,
+// and is the whole authorized set when none has. Narrowing here is
+// presentation only: every option in it was already proved authorized, real
+// and open by the cell, so hiding some of them can refuse a choice but can
+// never admit one. When the chosen role has no open position the picker
+// renders empty and says why -- which is the answer, not a prompt to type
+// something.
+//
+// The selected value is carried as the server-issued reference and nothing
+// else. A stored value that is no longer on offer is dropped rather than
+// resubmitted: the position it named may have been filled since, and the
+// proposal would be refused on exactly that ground.
+func positionField(selected string, options *journeyv1.WorkforceOptions, jobCode string) journey.Field {
+	vacancies := make([]journey.VacancyOption, 0, len(options.GetPositionVacancies()))
+	offered := map[string]bool{}
+	for _, vacancy := range options.GetPositionVacancies() {
+		if reference := strings.TrimSpace(vacancy.GetReference()); reference == "" {
+			continue
+		}
+		if jobCode != "" && vacancy.GetJobCode() != "" && vacancy.GetJobCode() != jobCode {
+			continue
+		}
+		offered[vacancy.GetReference()] = true
+		vacancies = append(vacancies, journey.VacancyOption{
+			Reference:        vacancy.GetReference(),
+			Title:            vacancy.GetTitle(),
+			Organization:     vacancy.GetOrganization(),
+			Manager:          vacancy.GetManager(),
+			Location:         vacancy.GetLocation(),
+			JobCode:          vacancy.GetJobCode(),
+			OrgUnit:          vacancy.GetOrgUnit(),
+			VacancyEndISO:    vacancy.GetVacancyEnd(),
+			ReservationState: vacancy.GetReservationState(),
+		})
+	}
+	if !offered[selected] {
+		selected = ""
+	}
+	return journey.Field{
+		ID: FieldPosition, Name: NamePosition, Kind: kindPositionPicker,
+		Value: selected, Vacancies: vacancies,
+	}
+}
+
+// narrowVacanciesToRoles keeps only the open positions whose role is one of
+// the employee's published next roles. Before a role is chosen, the picker
+// otherwise listed every open position in the tenant (54 in the demo) for a
+// person with a single possible next role, and any of the others would be
+// refused as incompatible. A vacancy that names no role is kept: nothing
+// says it is incompatible.
+func narrowVacanciesToRoles(fields []journey.Field, jobCodes []string) {
+	allowed := make(map[string]bool, len(jobCodes))
+	for _, code := range jobCodes {
+		allowed[code] = true
+	}
+	for i := range fields {
+		if fields[i].ID != FieldPosition {
+			continue
+		}
+		kept := fields[i].Vacancies[:0:0]
+		for _, vacancy := range fields[i].Vacancies {
+			if vacancy.JobCode == "" || allowed[vacancy.JobCode] {
+				kept = append(kept, vacancy)
+			}
+		}
+		fields[i].Vacancies = kept
+		if !slices.ContainsFunc(kept, func(v journey.VacancyOption) bool { return v.Reference == fields[i].Value }) {
+			fields[i].Value = ""
+		}
+	}
 }
 
 func localizeProposalForm(form *journey.ProposalForm, copy productui.LocaleContext, focused bool, path *journeyv1.PromotionPathOption, payRange *proposalPayRange) {
@@ -527,6 +634,7 @@ func localizeProposalForm(form *journey.ProposalForm, copy productui.LocaleConte
 			}
 		case FieldPosition:
 			field.Label, field.Help = copy.Text("journey.form_position"), copy.Text("journey.form_position_help")
+			field.EmptyTitle, field.EmptyDetail = copy.Text("journey.form_position_none"), copy.Text("journey.form_position_none_help")
 		case FieldBase:
 			field.Label, field.Help = copy.Text("journey.form_base"), copy.Text("journey.form_base_help")
 			field.Suffix = copy.Text("journey.form_base_year")
@@ -608,13 +716,19 @@ func nonEmpty(value, fallback string) string {
 func card(cfg Config, j *journeyv1.Journey) journey.JourneyCard {
 	stage := stageOf(j.GetStage())
 	return journey.JourneyCard{
-		IntentID:              j.GetIntentId(),
-		Href:                  DetailHref(j.GetIntentId()),
-		WorkerName:            j.GetWorkerName(),
-		WorkerRef:             j.GetWorkerRef(),
-		Headline:              headline(j.GetCurrent().GetJobCode(), j.GetCurrent().GetGrade(), j.GetTarget().GetJobCode(), j.GetTarget().GetGrade()),
-		PayLine:               payLineLocale(cfg.Locale, j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()),
-		EffectiveDate:         formatDateLocale(cfg.Locale, j.GetEffectiveDate()),
+		IntentID:      j.GetIntentId(),
+		Href:          DetailHref(j.GetIntentId()),
+		WorkerName:    j.GetWorkerName(),
+		WorkerRef:     j.GetWorkerRef(),
+		Headline:      headline(j.GetCurrent().GetJobCode(), j.GetCurrent().GetGrade(), j.GetTarget().GetJobCode(), j.GetTarget().GetGrade()),
+		PayLine:       payLineLocale(cfg.Locale, j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()),
+		EffectiveDate: formatDateLocale(cfg.Locale, j.GetEffectiveDate()),
+		Edit: journey.EditDefaults{
+			JobCode:      j.GetTarget().GetJobCode(),
+			Grade:        j.GetTarget().GetGrade(),
+			Base:         j.GetProposedBase(),
+			EffectiveISO: j.GetEffectiveDate(),
+		},
 		Stage:                 stage,
 		StageLabel:            stageLabelLocale(cfg.Locale, stage),
 		Group:                 journeyGroup(stage),
@@ -807,10 +921,12 @@ func ProposalForm(values map[string]string, workers []*journeyv1.Worker, selecte
 				ID: FieldGrade, Name: NameGrade, Kind: kindSelect, Required: true,
 				Value: values[FieldGrade], Options: stringOptions("Select target grade", grades, values[FieldGrade]),
 			},
-			{
-				ID: FieldPosition, Name: NamePosition, Kind: kindText,
-				Value: values[FieldPosition],
-			},
+			// UXLIVE-011: a governed choice, never a text box. The list is
+			// whatever the cell proved is authorized, real and still open
+			// (WorkforceOptions.position_vacancies); an empty list renders
+			// the picker's own no-vacancy state, which is why there is no
+			// free-text fallback to fall back to.
+			positionField(values[FieldPosition], options, values[FieldJobCode]),
 			{
 				ID: FieldBase, Name: NameBase, Kind: kindNumber,
 				Required: true, Value: values[FieldBase], Step: "0.01", Min: "0", Placeholder: "0.00",
@@ -850,6 +966,9 @@ func focusedProposalForm(values map[string]string, selectedRef string, options *
 	}
 	form.Fields[1].Options = promotionJobOptions(options, worker, jobCodes, values[FieldJobCode])
 	form.Fields[2].Options = stringOptions("Select target grade", grades, values[FieldGrade])
+	if worker != nil && values[FieldJobCode] == "" {
+		narrowVacanciesToRoles(form.Fields, jobCodes)
+	}
 	path := selectedPromotionPath(options, worker, values[FieldJobCode], values[FieldGrade])
 	localizeProposalForm(&form, productui.ResolveProductLocale(""), true, path, proposalPayRangeFor(worker, options, path))
 	form.Action = ProposalHref(selectedRef)
@@ -958,8 +1077,8 @@ func promotionPathRuleHelpLocale(path *journeyv1.PromotionPathOption, copy produ
 	if path == nil {
 		return ""
 	}
-	minimum := fractionPercentLabel(path.GetMinimumBaseIncrease())
-	maximum := fractionPercentLabel(path.GetMaximumBaseIncrease())
+	minimum := fractionPercentLabelLocale(copy, path.GetMinimumBaseIncrease())
+	maximum := fractionPercentLabelLocale(copy, path.GetMaximumBaseIncrease())
 	help := copy.Text("journey.form_base_rule_unavailable")
 	if minimum != "" && maximum != "" {
 		help = copy.Text("journey.form_base_rule", map[string]string{"minimum": minimum, "maximum": maximum})
@@ -981,6 +1100,17 @@ func fractionPercentLabel(fraction string) string {
 		return strings.TrimSpace(fraction)
 	}
 	return percent.String() + "%"
+}
+
+// fractionPercentLabelLocale is fractionPercentLabel with the locale's
+// decimal separator and percent sign ("5,00 %" in German, not "5.00%").
+func fractionPercentLabelLocale(copy productui.LocaleContext, fraction string) string {
+	label := fractionPercentLabel(fraction)
+	number, ok := strings.CutSuffix(label, "%")
+	if !ok || number == "" {
+		return label
+	}
+	return copy.FormatNumber(number, 2) + copy.PercentSign()
 }
 
 func sortedKeys(values map[string]struct{}) []string {
@@ -1409,7 +1539,7 @@ func valueOr(values map[string]string, id, fallback string) string {
 // before PROMOUX-013, and any embedding that has not wired the two extra
 // reads) still gets a working detail page, exactly as before.
 func DetailPage(cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string) journey.Page {
-	return DetailPageWithInterventions(cfg, detail, notice, values, nil, nil)
+	return DetailPageWithInterventions(cfg, detail, notice, values, nil, nil, nil)
 }
 
 // DetailPageWithInterventions is DetailPage plus PROMOUX-013's two typed-
@@ -1421,7 +1551,7 @@ func DetailPage(cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Not
 // server's own worded preview would supply.
 func DetailPageWithInterventions(
 	cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string,
-	withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse,
+	withdrawPreview, cancelPreview, repairPreview *journeyv1.PreviewJourneyInterventionResponse,
 ) journey.Page {
 	copy := productui.ResolveProductLocale(cfg.Locale)
 	if detail == nil {
@@ -1439,7 +1569,7 @@ func DetailPageWithInterventions(
 		title = name + " · " + copy.Text("journey.detail_title") + " · " + Brand
 	}
 	p := chrome(cfg, title, notice, values, true)
-	detailActions := actionsLocale(cfg.Locale, head, detail.GetApprover(), detail.GetWorkItems(), withdrawPreview, cancelPreview)
+	detailActions := actionsLocale(cfg.Locale, head, detail.GetApprover(), detail.GetWorkItems(), withdrawPreview, cancelPreview, repairPreview)
 	if approvalStage(head.Stage) && !detail.GetCanDecide() {
 		allowed := detailActions[:0]
 		for _, action := range detailActions {
@@ -1459,18 +1589,20 @@ func DetailPageWithInterventions(
 		JourneysLink:    journey.NavLink{Label: copy.Text("journey.all_link"), Href: ListHref()},
 		Steps:           stepsLocale(cfg.Locale, head.Stage, detail.GetTimeline(), summary.GetEffectiveDate()),
 		Proposal:        proposalFactsLocale(cfg.Locale, detail),
-		Comparison:      comparisonLocale(cfg.Locale, summary),
+		Comparison:      reviewComparison(cfg.Locale, comparisonLocale(cfg.Locale, summary), detail),
 		Findings:        findingsLocale(cfg.Locale, detail.GetFindings()),
 		WaitExplanation: waitExplanationFacts(detail.GetFindings()),
 		Engine:          engineFacts(detail.GetInstance()),
 		Nodes:           nodes(detail.GetNodes()),
 		WorkItems:       workItems(detail.GetWorkItems()),
-		Ledger:          ledgerLocale(cfg.Locale, detail.GetLedger(), summary.GetEffectiveDate()),
+		Ledger:          ledgerLocale(cfg.Locale, detail.GetLedger(), summary.GetEffectiveDate(), head),
 		PendingOutcome:  pendingOutcomeLocale(cfg.Locale, head.Stage, head.EffectiveDate),
 		Evidence:        detail.GetEvidenceIds(),
-		Timeline:        timelineLocale(cfg.Locale, detail.GetTimeline()),
+		Timeline:        endedTimeline(cfg.Locale, timelineLocale(cfg.Locale, detail.GetTimeline()), head.Stage),
+		Notes:           notesViewLocale(cfg.Locale, detail.GetNotes(), values[FieldNoteBody], noteComposerState{}, DetailHref(summary.GetIntentId())),
 		Actions:         detailActions,
 		EffectiveWindow: effectiveWindowLocale(cfg.Locale, summary),
+		Review:          reviewCards(cfg.Locale, detail),
 	}
 	// PayBand and Budget stay nil: the detail carries no band and no
 	// envelope, and a gauge drawn from numbers the engine did not send would
@@ -1544,15 +1676,128 @@ func steps(stage string, events []*journeyv1.TimelineEvent, effectiveDate string
 	return stepsLocale("en-US", stage, events, effectiveDate)
 }
 
-func stepsLocale(locale, stage string, events []*journeyv1.TimelineEvent, effectiveDate string) []journey.Step {
-	copy := productui.ResolveProductLocale(locale)
+// workItemCompleted reports whether a work-item timeline event records that
+// item completing. The engine composes the title for a reader -- "Finance
+// review completed", "Manager review cancelled" -- while some producers
+// carry the bare transition state, so both shapes are accepted. Matching
+// only the bare state is how the live page came to show a completed
+// approval as never started (UXLIVE-002).
+func workItemCompleted(title string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(title))
+	return upper == "COMPLETED" || strings.HasSuffix(upper, " COMPLETED")
+}
+
+// completedSteps reads the run's own history for the steps it proves
+// finished. A step is complete only when the engine recorded the event that
+// completes it; silence is never completion (UXLIVE-002).
+//
+// The two approval steps are the first two distinct work items in the same
+// order stepTimesLocale takes their timestamps from, so a step's state and
+// its time always describe the same item.
+func completedSteps(stage string, events []*journeyv1.TimelineEvent) [5]bool {
+	var done [5]bool
+	items := make([]string, 0, 2)
+	completed := make(map[string]bool, 2)
+	started, recorded := false, false
+	for _, e := range events {
+		if e == nil {
+			continue
+		}
+		switch e.GetKind() {
+		case eventInstanceStarted:
+			started = true
+		case eventLedgerRecorded:
+			recorded = true
+		case eventWorkItem:
+			ref := strings.TrimSpace(e.GetRef())
+			if ref == "" {
+				continue
+			}
+			if slices.Index(items, ref) < 0 && len(items) < 2 {
+				items = append(items, ref)
+			}
+			if workItemCompleted(e.GetTitle()) {
+				completed[ref] = true
+			}
+		}
+	}
+	// Starting the approval workflow is what completes the proposal: the
+	// engine refuses to start one whose checks did not pass.
+	done[0] = started
+	for i, ref := range items {
+		done[i+1] = completed[ref]
+	}
+	// A terminal record exists for every terminal outcome, so the
+	// effective-date wait and the recording are complete only when the
+	// record is a recorded promotion.
+	done[3] = recorded && recordedPromotion(stage)
+	done[4] = done[3]
+	return done
+}
+
+// stoppedStage reports the terminal stages that stopped a run short of
+// recording its promotion. Only those mark a failed step, and they mark the
+// first step the run did not complete -- a run stops once, wherever it got
+// to (UXLIVE-002). This is deliberately not journeyGroup's issue bucket:
+// that bucket also catches an unknown stage, which has no known position.
+func stoppedStage(stage string) bool {
+	switch stage {
+	case stageBlocked, stageFailed, stageRejected, stageRepairRequired:
+		return true
+	default:
+		return false
+	}
+}
+
+// stepStatesFor is the stepper's shape for one run. The stage table supplies
+// the shape of the stages where the run's position is unambiguous; anything
+// the recorded history proves complete overrides it, and an outcome that
+// stopped the run marks the first step it did not complete rather than
+// assuming it stopped at the proposal (UXLIVE-002).
+func stepStatesFor(stage string, events []*journeyv1.TimelineEvent) [5]string {
 	states, ok := stepStates[stage]
 	if !ok {
-		states = [5]string{stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming}
+		// A stage this projection does not know is schema drift. Showing
+		// nothing is the honest answer; reading progress into an unknown
+		// lifecycle would be a guess with a confident face.
+		return [5]string{stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming, stepUpcoming}
 	}
+	done := completedSteps(stage, events)
+	for i := range states {
+		if done[i] {
+			states[i] = stepDone
+		}
+	}
+	if !stoppedStage(stage) {
+		return states
+	}
+	marked := false
+	for i := range states {
+		if done[i] {
+			continue
+		}
+		if !marked {
+			states[i] = stepFailed
+			marked = true
+			continue
+		}
+		states[i] = stepUpcoming
+	}
+	return states
+}
+
+func stepsLocale(locale, stage string, events []*journeyv1.TimelineEvent, effectiveDate string) []journey.Step {
+	copy := productui.ResolveProductLocale(locale)
+	states := stepStatesFor(stage, events)
 	at := stepTimesLocale(locale, events)
 	if states[3] == stepActive || states[3] == stepDone {
 		at[3] = formatDateLocale(locale, effectiveDate)
+	}
+	// A step that did not happen carries no time. The recording step used to
+	// borrow the terminal record's timestamp even when nothing was recorded,
+	// which read as a completed step captioned "Not started".
+	if states[4] != stepDone {
+		at[4] = ""
 	}
 	out := make([]journey.Step, 0, len(stepIDs))
 	for i := range stepIDs {
@@ -1602,12 +1847,23 @@ func stepTimesLocale(locale string, events []*journeyv1.TimelineEvent) [5]string
 	return at
 }
 
+// tokenShaped reports whether a stored free-text value is a machine token
+// rather than prose. It is [reasontext.TokenShaped], the same rule the
+// proposal write path refuses on (REV-095-02), so display and admission
+// cannot disagree about what a token looks like.
+func tokenShaped(value string) bool { return reasontext.TokenShaped(value) }
+
 func proposalFactsLocale(locale string, detail *journeyv1.JourneyDetail) []journey.Fact {
 	copy := productui.ResolveProductLocale(locale)
 	j := detail.GetJourney()
 	facts := []journey.Fact{}
 	if v := j.GetBusinessReason(); v != "" {
-		facts = append(facts, journey.Fact{Label: copy.Text("journey.business_reason"), Value: v})
+		// A business reason is prose an approver reads. Some stored values
+		// are machine tokens (`promotion_into_senior_hrbp_fix_verify`), and
+		// printing one as a sentence mislabels an identifier as a reason;
+		// it is shown in the identifier treatment instead, so a reader can
+		// see what it is rather than trying to read it (UXLIVE-009).
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.business_reason"), Value: v, Mono: tokenShaped(v)})
 	}
 	if v := j.GetWorkerRef(); v != "" {
 		facts = append(facts, journey.Fact{Label: "Worker", Value: v, Mono: true})
@@ -1698,8 +1954,15 @@ func findingsLocale(locale string, in []*journeyv1.Finding) []journey.Finding {
 		message := strings.TrimSpace(f.GetMessage())
 		// This server-authored finding has a stable semantic code. Localize
 		// that code rather than parsing or translating its English prose.
-		if strings.TrimSpace(f.GetCode()) == "promotion.budget_authority_observation_only" {
+		switch strings.TrimSpace(f.GetCode()) {
+		case "promotion.budget_authority_observation_only":
 			message = productui.ResolveProductLocale(locale).Text("journey.finding_budget_observation")
+		case "compensation.increase_over_ten_percent":
+			// The engine's prose ("annualized increase of 18.5185% exceeds
+			// the 10.0000% review threshold") is lower-case, four-decimal
+			// and English-only; the comparison above already states the
+			// percentage in the reader's locale.
+			message = productui.ResolveProductLocale(locale).Text("journey.finding_increase_threshold")
 		}
 		out = append(out, journey.Finding{
 			Severity: severityOf(f.GetSeverity()),
@@ -1918,7 +2181,20 @@ func whoWhen(who, when string) string {
 	return who + ", " + when
 }
 
-func ledgerLocale(locale string, l *journeyv1.LedgerEvent, proposalEffectiveDate string) *journey.LedgerCard {
+// recordedPromotion reports whether a terminal record on this stage is a
+// recorded promotion. The engine writes a terminal record for every terminal
+// outcome, including the ones that recorded a refusal, so the record's
+// existence is not the question -- the stage it closed on is (UXLIVE-001).
+func recordedPromotion(stage string) bool {
+	switch stage {
+	case stageRecorded, stageCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+func ledgerLocale(locale string, l *journeyv1.LedgerEvent, proposalEffectiveDate string, head journey.JourneyCard) *journey.LedgerCard {
 	if l == nil {
 		return nil
 	}
@@ -1934,6 +2210,9 @@ func ledgerLocale(locale string, l *journeyv1.LedgerEvent, proposalEffectiveDate
 		IdempotencyKey: l.GetIdempotencyKey(),
 		RecordedAt:     formatTimeLocale(locale, l.GetRecordedAt()),
 		EffectiveAt:    effectiveAt,
+		Recorded:       recordedPromotion(head.Stage),
+		StatusLabel:    head.StageLabel,
+		StatusTone:     head.StageTone,
 	}
 }
 
@@ -2043,6 +2322,27 @@ func timelineDetailLocale(locale string, e *journeyv1.TimelineEvent) string {
 	}
 }
 
+// endedTimeline relabels the outcome entry of a journey that ended without
+// the promotion. The END node writes one ledger fact on every terminal route
+// (invalidated, rejected, cancelled as well as completed), and the history
+// called each of them "Promotion recorded -- the approved promotion outcome
+// was recorded", in success tone, directly under a Failed status.
+func endedTimeline(locale string, events []journey.TimelineEvent, stage string) []journey.TimelineEvent {
+	if stage != stageFailed && stage != stageRejected {
+		return events
+	}
+	copy := productui.ResolveProductLocale(locale)
+	recorded := copy.Text("journey.timeline_recorded")
+	for i := range events {
+		if events[i].Title == recorded {
+			events[i].Title = copy.Text("journey.timeline_ended")
+			events[i].Detail = copy.Text("journey.timeline_ended_detail")
+			events[i].Tone = toneDanger
+		}
+	}
+	return events
+}
+
 func collapseTimeline(events []journey.TimelineEvent) []journey.TimelineEvent {
 	out := make([]journey.TimelineEvent, 0, len(events))
 	for _, event := range events {
@@ -2115,7 +2415,7 @@ func effectiveWindowLocale(locale string, j *journeyv1.Journey) *journey.Effecti
 	}
 }
 
-func actionsLocale(locale string, head journey.JourneyCard, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
+func actionsLocale(locale string, head journey.JourneyCard, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview, repairPreview *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
 	copy := productui.ResolveProductLocale(locale)
 	href := DetailHref(head.IntentID)
 	confirm := actionConfirmationLocale(locale, head)
@@ -2195,7 +2495,7 @@ func actionsLocale(locale string, head journey.JourneyCard, approver string, wor
 		// would be inventing a fact.
 		return out
 	}
-	return interventionActions(out, head, withdrawPreview, cancelPreview)
+	return interventionActionsLocale(locale, out, head, withdrawPreview, cancelPreview, repairPreview)
 }
 
 // PROMOUX-013's own reason references (internal/intent/app/journey_
@@ -2210,7 +2510,22 @@ const (
 	reasonAlreadyStarted   = "journey.intervention.unavailable.already_started"
 	reasonNotYetStarted    = "journey.intervention.unavailable.not_yet_started"
 	reasonAlreadyCommitted = "journey.intervention.unavailable.already_committed"
+
+	// UXLIVE-006's repair references, from internal/intent/app/
+	// journey_repair.go, kept in agreement with it by the same inspection
+	// this file's other four rely on.
+	reasonRepairNotRequired       = "journey.repair.unavailable.not_required"
+	reasonRepairDoorUnavailable   = "journey.repair.unavailable.door_unavailable"
+	reasonRepairAuthorityRequired = "journey.repair.unavailable.operator_authority_required"
+	reasonRepairPlanRequired      = "journey.repair.unavailable.plan_required"
 )
+
+// journeyStarted reports whether this journey's approval workflow began.
+// The card carries the instance id, which the contract documents as empty
+// before execution, so the page knows this without a second read.
+func journeyStarted(head journey.JourneyCard) bool {
+	return strings.TrimSpace(head.InstanceID) != ""
+}
 
 // InterventionAvailability mirrors internal/intent/app's own
 // interventionUnavailableAtStage: a pure function of the stage this page was
@@ -2231,9 +2546,12 @@ const (
 // (TestTodo_PROMOUX_013_ClientServerAvailabilityAgreement). Nothing in this
 // package's own production code calls it any differently than the
 // unexported form did.
-func InterventionAvailability(kind string, stage string) (reasonRef string, available bool) {
+func InterventionAvailability(kind string, stage string, started bool) (reasonRef string, available bool) {
 	terminal := stage == stageCompleted || stage == stageRejected || stage == stageFailed || stage == stageRecorded
-	unstarted := stage == stageProposed || stage == stageBlocked
+	// BLOCKED is reachable from a proposal that never started and from a run
+	// whose approvals are recorded; only the run itself can say which
+	// (UXLIVE-026).
+	unstarted := stage == stageProposed || (stage == stageBlocked && !started)
 	committed := stage == stageExecuted || stage == stageObservingEffects
 	if terminal {
 		return reasonAlreadyTerminal, false
@@ -2254,24 +2572,111 @@ func InterventionAvailability(kind string, stage string) (reasonRef string, avai
 	return "", true
 }
 
+// repairAction appends UXLIVE-006's governed repair to a repair-required
+// journey.
+//
+// It is always disabled, and that is the finding, not a shortcut: the
+// corrective effect runs against an authored, simulated repair plan through
+// the operator repair door, under a JIT grant with dual control -- none of
+// which a promotion page holds or should mint. What the page owes the reader
+// is the thing it had been withholding: that the repair exists, what it
+// demands, who may authorize it, and what its fence can and cannot
+// establish. A button that always refused would be the defect UXLIVE-011
+// removed from the target-position field, in a new place.
+//
+// The reason comes from the server's own preview whenever it answered,
+// because only the server knows whether this viewer holds the grant. Without
+// it the page still says the true, viewer-independent part -- the journey is
+// waiting on a governed repair -- rather than guessing at authority.
+func repairAction(base []journey.Action, head journey.JourneyCard, preview *journeyv1.PreviewJourneyInterventionResponse, href string) []journey.Action {
+	if head.Stage != stageRepairRequired {
+		return base
+	}
+	description := repairDescription(preview)
+	reason := interventionReasonText(reasonRepairPlanRequired)
+	if ref := strings.TrimSpace(preview.GetUnavailableReasonRef()); ref != "" {
+		reason = interventionReasonText(ref)
+	} else if preview == nil {
+		reason = "This journey is waiting on a governed repair. Whether you may authorize one has not been answered yet."
+	}
+	return append(base, journey.Action{
+		ID: ActionRepair, Label: "Governed repair", Variant: "secondary",
+		Description: description, Action: href, Hidden: map[string]string{},
+		Disabled: true, DisabledReason: reason,
+	})
+}
+
+// repairDescription states what the repair does and what the door demands.
+// The requirements are the server's, read off the preview: a page that
+// restated them from memory could describe a lighter action than the one
+// that exists. When the preview has not answered, the requirements are left
+// unstated rather than assumed -- an understated governed action is worse
+// than a silent one.
+func repairDescription(preview *journeyv1.PreviewJourneyInterventionResponse) string {
+	description := strings.TrimSpace(preview.GetConsequenceSummary())
+	if description == "" {
+		description = "This journey stopped in a state only a governed repair can resolve."
+	}
+	requirements := []string{}
+	if preview.GetRequiresDualControl() {
+		requirements = append(requirements, "a second approver distinct from whoever runs it")
+	}
+	if preview.GetRequiresSimulation() {
+		requirements = append(requirements, "a simulation over exactly this scope")
+	}
+	if roles := preview.GetAuthorityRoleRefs(); len(roles) > 0 {
+		requirements = append(requirements, "a current "+strings.Join(roles, " or ")+" grant")
+	}
+	if len(requirements) == 0 {
+		return description
+	}
+	return description + " It requires " + joinRequirements(requirements) + "."
+}
+
+// joinRequirements reads a list the way a person would say it.
+func joinRequirements(items []string) string {
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	case 2:
+		return items[0] + " and " + items[1]
+	default:
+		return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
+	}
+}
+
 // interventionReasonText is the one place a reason reference becomes prose.
 // It is total (every reference this package can produce has an entry) and
 // pure (the same reference always renders the same sentence), which is what
 // makes the disclosure-by-value property checkable: two differently-staged
 // journeys that happen to share a reference render byte-identical text.
 func interventionReasonText(ref string) string {
+	return interventionReasonTextLocale("en-US", ref)
+}
+
+func interventionReasonTextLocale(locale, ref string) string {
+	key := "journey.iv_why_other"
 	switch ref {
 	case reasonAlreadyTerminal:
-		return "This proposal has already reached a terminal outcome. There is nothing left to withdraw, cancel or edit."
+		key = "journey.iv_why_terminal"
 	case reasonAlreadyStarted:
-		return "This proposal has already started its approval workflow. Use Cancel instead of Withdraw."
+		key = "journey.iv_why_started"
 	case reasonNotYetStarted:
-		return "This proposal has not started its approval workflow yet. Use Withdraw instead of Cancel."
+		key = "journey.iv_why_not_started"
 	case reasonAlreadyCommitted:
-		return "The governed execution has already run. This can no longer be cancelled or edited."
-	default:
-		return "This action is not available for this proposal right now."
+		key = "journey.iv_why_committed"
+	case reasonRepairNotRequired:
+		key = "journey.iv_why_repair_not_required"
+	case reasonRepairDoorUnavailable:
+		key = "journey.iv_why_repair_door"
+	case reasonRepairAuthorityRequired:
+		key = "journey.iv_why_repair_authority"
+	case reasonRepairPlanRequired:
+		key = "journey.iv_why_repair_plan"
 	}
+	return productui.ResolveProductLocale(locale).Text(key)
 }
 
 // interventionActions appends PROMOUX-013's Withdraw, Cancel and EditProposal
@@ -2286,45 +2691,74 @@ func interventionReasonText(ref string) string {
 // same reused reviewSurface component and a shorter fact list, because the
 // facts required to identify what will be stopped -- the employee, the
 // change, the effective date -- never depended on that call succeeding.
-func interventionActions(base []journey.Action, head journey.JourneyCard, withdraw, cancel *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
-	href := DetailHref(head.IntentID)
-	facts := actionConfirmation(head)
+func interventionActions(base []journey.Action, head journey.JourneyCard, withdraw, cancel, repair *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
+	return interventionActionsLocale("en-US", base, head, withdraw, cancel, repair)
+}
 
-	appendOne := func(kind, actionID, label, variant, description string, preview *journeyv1.PreviewJourneyInterventionResponse, reasonField, reasonName string, extraFields []journey.Field) {
-		reasonRef, available := InterventionAvailability(kind, head.Stage)
+// interventionActionsLocale is interventionActions in the reader's locale.
+// The server's worded consequence preview is English prose, so another
+// locale shows the catalog's own description of the action instead.
+func interventionActionsLocale(locale string, base []journey.Action, head journey.JourneyCard, withdraw, cancel, repair *journeyv1.PreviewJourneyInterventionResponse) []journey.Action {
+	copy := productui.ResolveProductLocale(locale)
+	english := copy.Resolved == productui.DefaultProductLocale
+	href := DetailHref(head.IntentID)
+	facts := actionConfirmationLocale(locale, head)
+
+	appendOne := func(kind, actionID, label, variant, description, review, confirm string, preview *journeyv1.PreviewJourneyInterventionResponse, reasonField, reasonName string, extraFields []journey.Field) {
+		reasonRef, available := InterventionAvailability(kind, head.Stage, journeyStarted(head))
+		if !available && interventionSupersededByAlternative(kind, reasonRef, head) {
+			// Withdraw once approvals have started, or Cancel before they
+			// have, cannot apply and its alternative is offered beside it:
+			// render nothing rather than a refused control saying "use the
+			// other one" (UXLIVE-014, UXLIVE-017).
+			return
+		}
 		if !available {
 			base = append(base, journey.Action{
 				ID: actionID, Label: label, Variant: variant, Description: description,
 				Action: href, Hidden: map[string]string{}, Disabled: true,
-				DisabledReason: interventionReasonText(reasonRef),
+				DisabledReason: interventionReasonTextLocale(locale, reasonRef),
 			})
 			return
 		}
 		note := ""
-		if preview != nil {
+		if preview != nil && english {
 			note = preview.GetConsequenceSummary()
 		}
 		if note == "" {
 			note = description
 		}
 		fields := append([]journey.Field{{
-			ID: reasonField, Name: reasonName, Label: "Reason", Kind: kindTextarea, Required: true,
-			Placeholder: "Why is this being done?",
-			Help:        "Required. Retained as evidence on the governed record.",
+			ID: reasonField, Name: reasonName, Label: copy.Text("journey.iv_reason"), Kind: kindTextarea, Required: true,
+			Placeholder: copy.Text("journey.iv_reason_placeholder"),
+			Help:        copy.Text("journey.iv_reason_help"),
 		}}, extraFields...)
 		base = append(base, journey.Action{
 			ID: actionID, Label: label, Variant: variant, Description: description,
 			Action: href, Hidden: map[string]string{}, Fields: fields,
 			Confirmation:     facts,
 			ConfirmationNote: note,
+			ReviewLabel:      review,
+			ConfirmTitle:     confirm,
 		})
 	}
 
-	appendOne(ActionWithdraw, ActionWithdraw, "Withdraw", "secondary",
-		"Stops this proposal before any approval has been recorded. No business effect has occurred.",
+	// UXLIVE-006: the repair a REPAIR_REQUIRED journey names as its own next
+	// step, presented on that journey and only on it.
+	//
+	// That is a deliberate departure from the convention the three actions
+	// below follow ("always render, disabled, naming why"). That convention
+	// exists so a viewer cannot tell an omitted action from a denied one --
+	// but "this journey does not need repair" is already on the page, in the
+	// stage chip, for every reader. Rendering a disabled repair on every
+	// healthy journey would add noise without adding an answer.
+	base = repairAction(base, head, repair, href)
+
+	appendOne(ActionWithdraw, ActionWithdraw, copy.Text("journey.iv_withdraw"), "secondary",
+		copy.Text("journey.iv_withdraw_desc"), copy.Text("journey.iv_withdraw_review"), copy.Text("journey.iv_withdraw_confirm"),
 		withdraw, FieldWithdrawReason, NameInterventionReason, nil)
-	appendOne(ActionCancel, ActionCancel, "Request cancellation", "secondary",
-		"Asks the engine to stop at its next safe point. If the safe point has already passed, the promotion completes instead.",
+	appendOne(ActionCancel, ActionCancel, copy.Text("journey.iv_cancel"), "secondary",
+		copy.Text("journey.iv_cancel_desc"), copy.Text("journey.iv_cancel_review"), copy.Text("journey.iv_cancel_confirm"),
 		cancel, FieldCancelReason, NameInterventionReason, nil)
 
 	// EditProposal has no PreviewJourneyIntervention kind of its own (it is
@@ -2332,8 +2766,8 @@ func interventionActions(base []journey.Action, head journey.JourneyCard, withdr
 	// CANCEL is, and its refusal reason is whichever of the two actually
 	// applies -- "already terminal" is checked first because it is the
 	// strongest, most specific fact when it holds.
-	withdrawRef, withdrawOK := InterventionAvailability(ActionWithdraw, head.Stage)
-	cancelRef, cancelOK := InterventionAvailability(ActionCancel, head.Stage)
+	withdrawRef, withdrawOK := InterventionAvailability(ActionWithdraw, head.Stage, journeyStarted(head))
+	cancelRef, cancelOK := InterventionAvailability(ActionCancel, head.Stage, journeyStarted(head))
 	editAvailable := withdrawOK || cancelOK
 	if !editAvailable {
 		editRef := withdrawRef
@@ -2341,35 +2775,32 @@ func interventionActions(base []journey.Action, head journey.JourneyCard, withdr
 			editRef = cancelRef
 		}
 		base = append(base, journey.Action{
-			ID: ActionEditProposal, Label: "Edit proposal", Variant: "secondary",
-			Description: "Corrects the target role, base pay, effective date or business reason.",
+			ID: ActionEditProposal, Label: copy.Text("journey.iv_edit"), Variant: "secondary",
+			Description: copy.Text("journey.iv_edit_desc"),
 			Action:      href, Hidden: map[string]string{}, Disabled: true,
-			DisabledReason: interventionReasonText(editRef),
+			DisabledReason: interventionReasonTextLocale(locale, editRef),
 		})
 	} else {
 		base = append(base, journey.Action{
-			ID: ActionEditProposal, Label: "Edit proposal", Variant: "secondary",
-			Description: "Corrects the target role, base pay, effective date or business reason. " +
-				"This cancels the current proposal and creates a corrected successor; any recorded approval no longer applies.",
-			Action: href, Hidden: map[string]string{},
+			ID: ActionEditProposal, Label: copy.Text("journey.iv_edit"), Variant: "secondary",
+			Description: copy.Text("journey.iv_edit_desc") + " " + copy.Text("journey.iv_edit_successor"),
+			Action:      href, Hidden: map[string]string{},
 			Fields: []journey.Field{
-				{ID: FieldEditJobCode, Name: NameEditJobCode, Label: "Target job code", Kind: kindText, Value: head.Headline, Required: true},
-				{ID: FieldEditGrade, Name: NameEditGrade, Label: "Target grade", Kind: kindText, Required: true},
-				{ID: FieldEditBase, Name: NameEditBase, Label: "Proposed base pay", Kind: kindText, Value: head.PayLine, Required: true},
-				{ID: FieldEditEffective, Name: NameEditEffective, Label: "Effective date", Kind: kindDate, Value: head.EffectiveDate, Required: true},
-				{ID: FieldEditBusinessReason, Name: NameEditBusinessReason, Label: "Business reason", Kind: kindTextarea, Required: true},
-				{ID: FieldEditReason, Name: NameEditReason, Label: "Reason for this edit", Kind: kindTextarea, Required: true,
-					Help: "Required. Retained as evidence on the governed record."},
+				{ID: FieldEditJobCode, Name: NameEditJobCode, Label: copy.Text("journey.iv_edit_job"), Kind: kindText, Value: head.Edit.JobCode, Required: true},
+				{ID: FieldEditGrade, Name: NameEditGrade, Label: copy.Text("journey.form_grade"), Kind: kindText, Value: head.Edit.Grade, Required: true},
+				{ID: FieldEditBase, Name: NameEditBase, Label: copy.Text("journey.form_base"), Kind: kindText, Value: head.Edit.Base, Required: true},
+				{ID: FieldEditEffective, Name: NameEditEffective, Label: copy.Text("journey.form_effective"), Kind: kindDate, Value: head.Edit.EffectiveISO, Required: true},
+				{ID: FieldEditBusinessReason, Name: NameEditBusinessReason, Label: copy.Text("journey.form_reason"), Kind: kindTextarea, Required: true},
+				{ID: FieldEditReason, Name: NameEditReason, Label: copy.Text("journey.iv_edit_reason"), Kind: kindTextarea, Required: true,
+					Help: copy.Text("journey.iv_reason_help")},
 			},
 			Confirmation:     facts,
-			ConfirmationNote: "Editing cancels this proposal and creates a corrected successor. Any recorded approval is left with the original and does not carry over.",
+			ConfirmationNote: copy.Text("journey.iv_edit_note"),
+			ReviewLabel:      copy.Text("journey.iv_edit_review"),
+			ConfirmTitle:     copy.Text("journey.iv_edit_confirm"),
 		})
 	}
 	return base
-}
-
-func actionConfirmation(head journey.JourneyCard) []journey.Fact {
-	return actionConfirmationLocale("en-US", head)
 }
 
 func actionConfirmationLocale(locale string, head journey.JourneyCard) []journey.Fact {
@@ -2400,23 +2831,47 @@ func actionConfirmationLocale(locale string, head journey.JourneyCard) []journey
 // yet (no job code chosen, no worker resolved) simply omits that fact
 // rather than printing an empty or placeholder value.
 func proposalConfirmation(worker *journeyv1.Worker, options *journeyv1.WorkforceOptions, jobCode, grade, base, effective string) []journey.Fact {
-	name, currentJob, currentGrade, currency := "Employee", "", "", ""
+	return proposalConfirmationLocale("en-US", worker, options, jobCode, grade, base, effective)
+}
+
+// proposalConfirmationLocale is proposalConfirmation in the reader's locale,
+// with the labels Approve and Reject already use. An amount entered with
+// more precision than the currency has is shown as typed: rounding it here
+// had the reader confirm "USD 150,000.56" for an entry of 150000.555.
+func proposalConfirmationLocale(locale string, worker *journeyv1.Worker, options *journeyv1.WorkforceOptions, jobCode, grade, base, effective string) []journey.Fact {
+	copy := productui.ResolveProductLocale(locale)
+	employee := copy.Text("journey.action_employee")
+	name, currentJob, currentGrade, currency := employee, "", "", ""
 	if worker != nil {
 		name = nonEmpty(workerName(worker), name)
 		currentJob, currentGrade = worker.GetJobCode(), worker.GetGrade()
 		currency = workerCurrency(worker, options)
 	}
-	facts := []journey.Fact{{Label: "Employee", Value: name}}
+	facts := []journey.Fact{{Label: employee, Value: name}}
 	if placement := headline(currentJob, currentGrade, jobCode, grade); placement != "" {
-		facts = append(facts, journey.Fact{Label: "Placement", Value: placement})
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_placement"), Value: placement})
 	}
-	if pay := formatAmount(currency, base); pay != "" {
-		facts = append(facts, journey.Fact{Label: "Base pay", Value: pay})
+	pay := formatAmountLocale(locale, currency, base)
+	if _, frac, _ := strings.Cut(strings.TrimRight(strings.TrimSpace(base), "0"), "."); len(frac) > 2 {
+		pay = strings.TrimSpace(currency + " " + strings.TrimSpace(base))
 	}
-	if date := formatDate(effective); date != "" {
-		facts = append(facts, journey.Fact{Label: "Effective date", Value: date})
+	if pay != "" {
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_base"), Value: pay})
+	}
+	if date := formatDateLocale(locale, effective); date != "" {
+		facts = append(facts, journey.Fact{Label: copy.Text("journey.action_effective"), Value: date})
 	}
 	return facts
+}
+
+// draftConfirmation is proposalConfirmationLocale over a proposal form's
+// current values, defaulting the effective date the same way the form does.
+func draftConfirmation(locale string, values map[string]string, worker *journeyv1.Worker, options *journeyv1.WorkforceOptions) []journey.Fact {
+	effective := values[FieldEffective]
+	if effective == "" {
+		effective = DefaultEffectiveDate(time.Now())
+	}
+	return proposalConfirmationLocale(locale, worker, options, values[FieldJobCode], values[FieldGrade], values[FieldBase], effective)
 }
 
 func hasActionableApproval(items []*journeyv1.WorkItem) bool {
@@ -2468,4 +2923,23 @@ func stringOptions(prompt string, values []string, selected string) []journey.Op
 		}
 	}
 	return out
+}
+
+// interventionSupersededByAlternative reports whether a refused Withdraw or
+// Cancel is refused only because the other one is the applicable stop for
+// this stage, and that other one is available. Such a control is omitted;
+// refusals with no alternative (terminal, already committed) still render
+// with their reason.
+func interventionSupersededByAlternative(kind, reasonRef string, head journey.JourneyCard) bool {
+	alternative := ""
+	switch {
+	case kind == ActionWithdraw && reasonRef == reasonAlreadyStarted:
+		alternative = ActionCancel
+	case kind == ActionCancel && reasonRef == reasonNotYetStarted:
+		alternative = ActionWithdraw
+	default:
+		return false
+	}
+	_, available := InterventionAvailability(alternative, head.Stage, journeyStarted(head))
+	return available
 }

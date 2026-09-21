@@ -33,6 +33,11 @@ type PageRequest struct {
 	JourneyID          string
 	JourneyWorker      string
 	JourneyMode        string
+	JourneyList        JourneyListFilter
+	WorkflowID         string
+	WorkflowRunID      string
+	WorkflowDraftID    string
+	WorkflowNodeID     string
 	NavCollapsed       bool
 	MenuQuery          string
 	FavoritePages      []PageID
@@ -86,6 +91,11 @@ func ApplyRequest(view View, request PageRequest) View {
 	view.JourneyID = strings.TrimSpace(request.JourneyID)
 	view.JourneyWorker = strings.TrimSpace(request.JourneyWorker)
 	view.JourneyMode = strings.TrimSpace(request.JourneyMode)
+	view.JourneyList = NormalizeJourneyListFilter(request.JourneyList)
+	view.SelectedWorkflowID = strings.TrimSpace(request.WorkflowID)
+	view.SelectedWorkflowRunID = strings.TrimSpace(request.WorkflowRunID)
+	view.SelectedWorkflowDraftID = strings.TrimSpace(request.WorkflowDraftID)
+	view.SelectedWorkflowNodeID = strings.TrimSpace(request.WorkflowNodeID)
 	view.NavCollapsed = request.NavCollapsed
 	view.MenuQuery = strings.TrimSpace(request.MenuQuery)
 	view.FavoritePages = authorizedFavoritePages(view.Navigation, request.FavoritePages)
@@ -98,7 +108,9 @@ func ApplyRequest(view View, request PageRequest) View {
 			view.SelectedPerson = ""
 		}
 	}
-	if filter := strings.TrimSpace(request.WorkFilter); filter != "" {
+	// The work tab narrows only My Work's own list; every other page keeps
+	// the full authorized population (UXLIVE-027).
+	if filter := strings.TrimSpace(request.WorkFilter); filter != "" && stateProfile.Work {
 		view.WorkFilter = filter
 		view.Work = filterWork(view.Work, filter)
 	}
@@ -128,6 +140,12 @@ func isOrganizationRoute(page PageID) bool {
 }
 
 func authorizedFavoritePages(navigation []NavItem, requested []PageID) []PageID {
+	// Every link on a page asks for the shell's address state, and most
+	// viewers have no favourites at all; walking the navigation tree for an
+	// empty request was pure cost on every statefulHref call.
+	if len(requested) == 0 {
+		return nil
+	}
 	allowed := make(map[PageID]bool)
 	var collect func([]NavItem)
 	collect = func(items []NavItem) {

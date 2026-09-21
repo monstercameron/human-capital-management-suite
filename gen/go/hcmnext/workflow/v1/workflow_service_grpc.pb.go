@@ -19,12 +19,25 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	WorkflowService_GetWorkflow_FullMethodName        = "/hcmnext.workflow.v1.WorkflowService/GetWorkflow"
-	WorkflowService_ListNodeExecutions_FullMethodName = "/hcmnext.workflow.v1.WorkflowService/ListNodeExecutions"
-	WorkflowService_PauseWorkflow_FullMethodName      = "/hcmnext.workflow.v1.WorkflowService/PauseWorkflow"
-	WorkflowService_ResumeWorkflow_FullMethodName     = "/hcmnext.workflow.v1.WorkflowService/ResumeWorkflow"
-	WorkflowService_CancelWorkflow_FullMethodName     = "/hcmnext.workflow.v1.WorkflowService/CancelWorkflow"
-	WorkflowService_RetryNode_FullMethodName          = "/hcmnext.workflow.v1.WorkflowService/RetryNode"
+	WorkflowService_ListWorkflowPublications_FullMethodName     = "/hcmnext.workflow.v1.WorkflowService/ListWorkflowPublications"
+	WorkflowService_GetWorkflowDefinitionView_FullMethodName    = "/hcmnext.workflow.v1.WorkflowService/GetWorkflowDefinitionView"
+	WorkflowService_CompileWorkflowDraft_FullMethodName         = "/hcmnext.workflow.v1.WorkflowService/CompileWorkflowDraft"
+	WorkflowService_ListWorkflowBlocks_FullMethodName           = "/hcmnext.workflow.v1.WorkflowService/ListWorkflowBlocks"
+	WorkflowService_CreateWorkflowDraft_FullMethodName          = "/hcmnext.workflow.v1.WorkflowService/CreateWorkflowDraft"
+	WorkflowService_GetWorkflowDraft_FullMethodName             = "/hcmnext.workflow.v1.WorkflowService/GetWorkflowDraft"
+	WorkflowService_InsertWorkflowPaletteEntry_FullMethodName   = "/hcmnext.workflow.v1.WorkflowService/InsertWorkflowPaletteEntry"
+	WorkflowService_UpdateWorkflowDraftNode_FullMethodName      = "/hcmnext.workflow.v1.WorkflowService/UpdateWorkflowDraftNode"
+	WorkflowService_SetWorkflowDraftOutcome_FullMethodName      = "/hcmnext.workflow.v1.WorkflowService/SetWorkflowDraftOutcome"
+	WorkflowService_BindWorkflowDraftInput_FullMethodName       = "/hcmnext.workflow.v1.WorkflowService/BindWorkflowDraftInput"
+	WorkflowService_MoveWorkflowDraftNode_FullMethodName        = "/hcmnext.workflow.v1.WorkflowService/MoveWorkflowDraftNode"
+	WorkflowService_NavigateWorkflowDraftHistory_FullMethodName = "/hcmnext.workflow.v1.WorkflowService/NavigateWorkflowDraftHistory"
+	WorkflowService_ApplyWorkflowTemplateOverlay_FullMethodName = "/hcmnext.workflow.v1.WorkflowService/ApplyWorkflowTemplateOverlay"
+	WorkflowService_GetWorkflow_FullMethodName                  = "/hcmnext.workflow.v1.WorkflowService/GetWorkflow"
+	WorkflowService_ListNodeExecutions_FullMethodName           = "/hcmnext.workflow.v1.WorkflowService/ListNodeExecutions"
+	WorkflowService_PauseWorkflow_FullMethodName                = "/hcmnext.workflow.v1.WorkflowService/PauseWorkflow"
+	WorkflowService_ResumeWorkflow_FullMethodName               = "/hcmnext.workflow.v1.WorkflowService/ResumeWorkflow"
+	WorkflowService_CancelWorkflow_FullMethodName               = "/hcmnext.workflow.v1.WorkflowService/CancelWorkflow"
+	WorkflowService_RetryNode_FullMethodName                    = "/hcmnext.workflow.v1.WorkflowService/RetryNode"
 )
 
 // WorkflowServiceClient is the client API for WorkflowService service.
@@ -44,6 +57,47 @@ const (
 // and performs no transition. Governance refusals return a receipt whose
 // outcome is DENIED, TOO_LATE or REPAIR_REQUIRED rather than an error.
 type WorkflowServiceClient interface {
+	// Authorized catalog for the read-only workflow designer.
+	ListWorkflowPublications(ctx context.Context, in *ListWorkflowPublicationsRequest, opts ...grpc.CallOption) (*ListWorkflowPublicationsResponse, error)
+	// Renders one immutable publication and, when instance_id is supplied,
+	// overlays the authorized inspector projection for that exact run.
+	GetWorkflowDefinitionView(ctx context.Context, in *GetWorkflowDefinitionViewRequest, opts ...grpc.CallOption) (*GetWorkflowDefinitionViewResponse, error)
+	// Compiles the caller's latest stored draft through the publication
+	// compiler and returns graph-addressable diagnostics plus effect/unwind
+	// summaries. Capability resolution is intersected with the tenant allow
+	// list before the global registry is consulted.
+	CompileWorkflowDraft(ctx context.Context, in *CompileWorkflowDraftRequest, opts ...grpc.CallOption) (*CompileWorkflowDraftResponse, error)
+	// Lists the closed-kernel blocks and only those registry-backed blocks,
+	// fragments, and templates admitted by the caller tenant's allow list.
+	ListWorkflowBlocks(ctx context.Context, in *ListWorkflowBlocksRequest, opts ...grpc.CallOption) (*ListWorkflowBlocksResponse, error)
+	// Creates an author-owned durable draft, optionally from one exact
+	// authorized template. Tenant and author are always taken from trusted
+	// request context.
+	CreateWorkflowDraft(ctx context.Context, in *CreateWorkflowDraftRequest, opts ...grpc.CallOption) (*CreateWorkflowDraftResponse, error)
+	// Restores one author-owned durable draft without exposing document bytes.
+	GetWorkflowDraft(ctx context.Context, in *GetWorkflowDraftRequest, opts ...grpc.CallOption) (*GetWorkflowDraftResponse, error)
+	// Inserts one exact server-resolved block, fragment, or template under an
+	// optimistic revision fence. Fragments retain their collapsible group.
+	InsertWorkflowPaletteEntry(ctx context.Context, in *InsertWorkflowPaletteEntryRequest, opts ...grpc.CallOption) (*InsertWorkflowPaletteEntryResponse, error)
+	// Applies a typed, server-validated parameter form to one node under the
+	// same optimistic revision fence as every other draft command.
+	UpdateWorkflowDraftNode(ctx context.Context, in *UpdateWorkflowDraftNodeRequest, opts ...grpc.CallOption) (*UpdateWorkflowDraftNodeResponse, error)
+	// Connects one compiler-declared outcome port to a draft node. Ordinary
+	// outcomes replace their continuation while declared fan-out ports append.
+	SetWorkflowDraftOutcome(ctx context.Context, in *SetWorkflowDraftOutcomeRequest, opts ...grpc.CallOption) (*SetWorkflowDraftOutcomeResponse, error)
+	// Binds one typed input to an assignable output from a node that strictly
+	// dominates the target according to the workflow compiler's graph model.
+	BindWorkflowDraftInput(ctx context.Context, in *BindWorkflowDraftInputRequest, opts ...grpc.CallOption) (*BindWorkflowDraftInputResponse, error)
+	// Moves a node one position in the shared graph/outline presentation order.
+	// Edges remain the only execution-flow authority.
+	MoveWorkflowDraftNode(ctx context.Context, in *MoveWorkflowDraftNodeRequest, opts ...grpc.CallOption) (*MoveWorkflowDraftNodeResponse, error)
+	// Restores the adjacent durable snapshot while advancing the optimistic
+	// draft revision. Every authoring surface, including agents, shares this
+	// same artifact and history.
+	NavigateWorkflowDraftHistory(ctx context.Context, in *NavigateWorkflowDraftHistoryRequest, opts ...grpc.CallOption) (*NavigateWorkflowDraftHistoryResponse, error)
+	// Records an add, justified omission, or justified replacement overlay.
+	// Mandatory template phases are immutable through this operation.
+	ApplyWorkflowTemplateOverlay(ctx context.Context, in *ApplyWorkflowTemplateOverlayRequest, opts ...grpc.CallOption) (*ApplyWorkflowTemplateOverlayResponse, error)
 	// P1A disposition: IMPLEMENT. Authorized runtime/business/completion
 	// dimensions read (read-only inspector).
 	GetWorkflow(ctx context.Context, in *GetWorkflowRequest, opts ...grpc.CallOption) (*GetWorkflowResponse, error)
@@ -72,6 +126,136 @@ type workflowServiceClient struct {
 
 func NewWorkflowServiceClient(cc grpc.ClientConnInterface) WorkflowServiceClient {
 	return &workflowServiceClient{cc}
+}
+
+func (c *workflowServiceClient) ListWorkflowPublications(ctx context.Context, in *ListWorkflowPublicationsRequest, opts ...grpc.CallOption) (*ListWorkflowPublicationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWorkflowPublicationsResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_ListWorkflowPublications_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) GetWorkflowDefinitionView(ctx context.Context, in *GetWorkflowDefinitionViewRequest, opts ...grpc.CallOption) (*GetWorkflowDefinitionViewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowDefinitionViewResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_GetWorkflowDefinitionView_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) CompileWorkflowDraft(ctx context.Context, in *CompileWorkflowDraftRequest, opts ...grpc.CallOption) (*CompileWorkflowDraftResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CompileWorkflowDraftResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_CompileWorkflowDraft_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) ListWorkflowBlocks(ctx context.Context, in *ListWorkflowBlocksRequest, opts ...grpc.CallOption) (*ListWorkflowBlocksResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWorkflowBlocksResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_ListWorkflowBlocks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) CreateWorkflowDraft(ctx context.Context, in *CreateWorkflowDraftRequest, opts ...grpc.CallOption) (*CreateWorkflowDraftResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateWorkflowDraftResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_CreateWorkflowDraft_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) GetWorkflowDraft(ctx context.Context, in *GetWorkflowDraftRequest, opts ...grpc.CallOption) (*GetWorkflowDraftResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowDraftResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_GetWorkflowDraft_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) InsertWorkflowPaletteEntry(ctx context.Context, in *InsertWorkflowPaletteEntryRequest, opts ...grpc.CallOption) (*InsertWorkflowPaletteEntryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InsertWorkflowPaletteEntryResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_InsertWorkflowPaletteEntry_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) UpdateWorkflowDraftNode(ctx context.Context, in *UpdateWorkflowDraftNodeRequest, opts ...grpc.CallOption) (*UpdateWorkflowDraftNodeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateWorkflowDraftNodeResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_UpdateWorkflowDraftNode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) SetWorkflowDraftOutcome(ctx context.Context, in *SetWorkflowDraftOutcomeRequest, opts ...grpc.CallOption) (*SetWorkflowDraftOutcomeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetWorkflowDraftOutcomeResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_SetWorkflowDraftOutcome_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) BindWorkflowDraftInput(ctx context.Context, in *BindWorkflowDraftInputRequest, opts ...grpc.CallOption) (*BindWorkflowDraftInputResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BindWorkflowDraftInputResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_BindWorkflowDraftInput_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) MoveWorkflowDraftNode(ctx context.Context, in *MoveWorkflowDraftNodeRequest, opts ...grpc.CallOption) (*MoveWorkflowDraftNodeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MoveWorkflowDraftNodeResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_MoveWorkflowDraftNode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) NavigateWorkflowDraftHistory(ctx context.Context, in *NavigateWorkflowDraftHistoryRequest, opts ...grpc.CallOption) (*NavigateWorkflowDraftHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NavigateWorkflowDraftHistoryResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_NavigateWorkflowDraftHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) ApplyWorkflowTemplateOverlay(ctx context.Context, in *ApplyWorkflowTemplateOverlayRequest, opts ...grpc.CallOption) (*ApplyWorkflowTemplateOverlayResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApplyWorkflowTemplateOverlayResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_ApplyWorkflowTemplateOverlay_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *workflowServiceClient) GetWorkflow(ctx context.Context, in *GetWorkflowRequest, opts ...grpc.CallOption) (*GetWorkflowResponse, error) {
@@ -151,6 +335,47 @@ func (c *workflowServiceClient) RetryNode(ctx context.Context, in *RetryNodeRequ
 // and performs no transition. Governance refusals return a receipt whose
 // outcome is DENIED, TOO_LATE or REPAIR_REQUIRED rather than an error.
 type WorkflowServiceServer interface {
+	// Authorized catalog for the read-only workflow designer.
+	ListWorkflowPublications(context.Context, *ListWorkflowPublicationsRequest) (*ListWorkflowPublicationsResponse, error)
+	// Renders one immutable publication and, when instance_id is supplied,
+	// overlays the authorized inspector projection for that exact run.
+	GetWorkflowDefinitionView(context.Context, *GetWorkflowDefinitionViewRequest) (*GetWorkflowDefinitionViewResponse, error)
+	// Compiles the caller's latest stored draft through the publication
+	// compiler and returns graph-addressable diagnostics plus effect/unwind
+	// summaries. Capability resolution is intersected with the tenant allow
+	// list before the global registry is consulted.
+	CompileWorkflowDraft(context.Context, *CompileWorkflowDraftRequest) (*CompileWorkflowDraftResponse, error)
+	// Lists the closed-kernel blocks and only those registry-backed blocks,
+	// fragments, and templates admitted by the caller tenant's allow list.
+	ListWorkflowBlocks(context.Context, *ListWorkflowBlocksRequest) (*ListWorkflowBlocksResponse, error)
+	// Creates an author-owned durable draft, optionally from one exact
+	// authorized template. Tenant and author are always taken from trusted
+	// request context.
+	CreateWorkflowDraft(context.Context, *CreateWorkflowDraftRequest) (*CreateWorkflowDraftResponse, error)
+	// Restores one author-owned durable draft without exposing document bytes.
+	GetWorkflowDraft(context.Context, *GetWorkflowDraftRequest) (*GetWorkflowDraftResponse, error)
+	// Inserts one exact server-resolved block, fragment, or template under an
+	// optimistic revision fence. Fragments retain their collapsible group.
+	InsertWorkflowPaletteEntry(context.Context, *InsertWorkflowPaletteEntryRequest) (*InsertWorkflowPaletteEntryResponse, error)
+	// Applies a typed, server-validated parameter form to one node under the
+	// same optimistic revision fence as every other draft command.
+	UpdateWorkflowDraftNode(context.Context, *UpdateWorkflowDraftNodeRequest) (*UpdateWorkflowDraftNodeResponse, error)
+	// Connects one compiler-declared outcome port to a draft node. Ordinary
+	// outcomes replace their continuation while declared fan-out ports append.
+	SetWorkflowDraftOutcome(context.Context, *SetWorkflowDraftOutcomeRequest) (*SetWorkflowDraftOutcomeResponse, error)
+	// Binds one typed input to an assignable output from a node that strictly
+	// dominates the target according to the workflow compiler's graph model.
+	BindWorkflowDraftInput(context.Context, *BindWorkflowDraftInputRequest) (*BindWorkflowDraftInputResponse, error)
+	// Moves a node one position in the shared graph/outline presentation order.
+	// Edges remain the only execution-flow authority.
+	MoveWorkflowDraftNode(context.Context, *MoveWorkflowDraftNodeRequest) (*MoveWorkflowDraftNodeResponse, error)
+	// Restores the adjacent durable snapshot while advancing the optimistic
+	// draft revision. Every authoring surface, including agents, shares this
+	// same artifact and history.
+	NavigateWorkflowDraftHistory(context.Context, *NavigateWorkflowDraftHistoryRequest) (*NavigateWorkflowDraftHistoryResponse, error)
+	// Records an add, justified omission, or justified replacement overlay.
+	// Mandatory template phases are immutable through this operation.
+	ApplyWorkflowTemplateOverlay(context.Context, *ApplyWorkflowTemplateOverlayRequest) (*ApplyWorkflowTemplateOverlayResponse, error)
 	// P1A disposition: IMPLEMENT. Authorized runtime/business/completion
 	// dimensions read (read-only inspector).
 	GetWorkflow(context.Context, *GetWorkflowRequest) (*GetWorkflowResponse, error)
@@ -181,6 +406,45 @@ type WorkflowServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedWorkflowServiceServer struct{}
 
+func (UnimplementedWorkflowServiceServer) ListWorkflowPublications(context.Context, *ListWorkflowPublicationsRequest) (*ListWorkflowPublicationsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWorkflowPublications not implemented")
+}
+func (UnimplementedWorkflowServiceServer) GetWorkflowDefinitionView(context.Context, *GetWorkflowDefinitionViewRequest) (*GetWorkflowDefinitionViewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflowDefinitionView not implemented")
+}
+func (UnimplementedWorkflowServiceServer) CompileWorkflowDraft(context.Context, *CompileWorkflowDraftRequest) (*CompileWorkflowDraftResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CompileWorkflowDraft not implemented")
+}
+func (UnimplementedWorkflowServiceServer) ListWorkflowBlocks(context.Context, *ListWorkflowBlocksRequest) (*ListWorkflowBlocksResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWorkflowBlocks not implemented")
+}
+func (UnimplementedWorkflowServiceServer) CreateWorkflowDraft(context.Context, *CreateWorkflowDraftRequest) (*CreateWorkflowDraftResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateWorkflowDraft not implemented")
+}
+func (UnimplementedWorkflowServiceServer) GetWorkflowDraft(context.Context, *GetWorkflowDraftRequest) (*GetWorkflowDraftResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflowDraft not implemented")
+}
+func (UnimplementedWorkflowServiceServer) InsertWorkflowPaletteEntry(context.Context, *InsertWorkflowPaletteEntryRequest) (*InsertWorkflowPaletteEntryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InsertWorkflowPaletteEntry not implemented")
+}
+func (UnimplementedWorkflowServiceServer) UpdateWorkflowDraftNode(context.Context, *UpdateWorkflowDraftNodeRequest) (*UpdateWorkflowDraftNodeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateWorkflowDraftNode not implemented")
+}
+func (UnimplementedWorkflowServiceServer) SetWorkflowDraftOutcome(context.Context, *SetWorkflowDraftOutcomeRequest) (*SetWorkflowDraftOutcomeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetWorkflowDraftOutcome not implemented")
+}
+func (UnimplementedWorkflowServiceServer) BindWorkflowDraftInput(context.Context, *BindWorkflowDraftInputRequest) (*BindWorkflowDraftInputResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BindWorkflowDraftInput not implemented")
+}
+func (UnimplementedWorkflowServiceServer) MoveWorkflowDraftNode(context.Context, *MoveWorkflowDraftNodeRequest) (*MoveWorkflowDraftNodeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MoveWorkflowDraftNode not implemented")
+}
+func (UnimplementedWorkflowServiceServer) NavigateWorkflowDraftHistory(context.Context, *NavigateWorkflowDraftHistoryRequest) (*NavigateWorkflowDraftHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method NavigateWorkflowDraftHistory not implemented")
+}
+func (UnimplementedWorkflowServiceServer) ApplyWorkflowTemplateOverlay(context.Context, *ApplyWorkflowTemplateOverlayRequest) (*ApplyWorkflowTemplateOverlayResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ApplyWorkflowTemplateOverlay not implemented")
+}
 func (UnimplementedWorkflowServiceServer) GetWorkflow(context.Context, *GetWorkflowRequest) (*GetWorkflowResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetWorkflow not implemented")
 }
@@ -218,6 +482,240 @@ func RegisterWorkflowServiceServer(s grpc.ServiceRegistrar, srv WorkflowServiceS
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&WorkflowService_ServiceDesc, srv)
+}
+
+func _WorkflowService_ListWorkflowPublications_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWorkflowPublicationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).ListWorkflowPublications(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_ListWorkflowPublications_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).ListWorkflowPublications(ctx, req.(*ListWorkflowPublicationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_GetWorkflowDefinitionView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowDefinitionViewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).GetWorkflowDefinitionView(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_GetWorkflowDefinitionView_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).GetWorkflowDefinitionView(ctx, req.(*GetWorkflowDefinitionViewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_CompileWorkflowDraft_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompileWorkflowDraftRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).CompileWorkflowDraft(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_CompileWorkflowDraft_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).CompileWorkflowDraft(ctx, req.(*CompileWorkflowDraftRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_ListWorkflowBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWorkflowBlocksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).ListWorkflowBlocks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_ListWorkflowBlocks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).ListWorkflowBlocks(ctx, req.(*ListWorkflowBlocksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_CreateWorkflowDraft_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateWorkflowDraftRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).CreateWorkflowDraft(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_CreateWorkflowDraft_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).CreateWorkflowDraft(ctx, req.(*CreateWorkflowDraftRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_GetWorkflowDraft_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowDraftRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).GetWorkflowDraft(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_GetWorkflowDraft_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).GetWorkflowDraft(ctx, req.(*GetWorkflowDraftRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_InsertWorkflowPaletteEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InsertWorkflowPaletteEntryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).InsertWorkflowPaletteEntry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_InsertWorkflowPaletteEntry_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).InsertWorkflowPaletteEntry(ctx, req.(*InsertWorkflowPaletteEntryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_UpdateWorkflowDraftNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateWorkflowDraftNodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).UpdateWorkflowDraftNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_UpdateWorkflowDraftNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).UpdateWorkflowDraftNode(ctx, req.(*UpdateWorkflowDraftNodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_SetWorkflowDraftOutcome_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetWorkflowDraftOutcomeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).SetWorkflowDraftOutcome(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_SetWorkflowDraftOutcome_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).SetWorkflowDraftOutcome(ctx, req.(*SetWorkflowDraftOutcomeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_BindWorkflowDraftInput_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BindWorkflowDraftInputRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).BindWorkflowDraftInput(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_BindWorkflowDraftInput_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).BindWorkflowDraftInput(ctx, req.(*BindWorkflowDraftInputRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_MoveWorkflowDraftNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MoveWorkflowDraftNodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).MoveWorkflowDraftNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_MoveWorkflowDraftNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).MoveWorkflowDraftNode(ctx, req.(*MoveWorkflowDraftNodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_NavigateWorkflowDraftHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NavigateWorkflowDraftHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).NavigateWorkflowDraftHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_NavigateWorkflowDraftHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).NavigateWorkflowDraftHistory(ctx, req.(*NavigateWorkflowDraftHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_ApplyWorkflowTemplateOverlay_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplyWorkflowTemplateOverlayRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).ApplyWorkflowTemplateOverlay(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_ApplyWorkflowTemplateOverlay_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).ApplyWorkflowTemplateOverlay(ctx, req.(*ApplyWorkflowTemplateOverlayRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _WorkflowService_GetWorkflow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -335,6 +833,58 @@ var WorkflowService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "hcmnext.workflow.v1.WorkflowService",
 	HandlerType: (*WorkflowServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListWorkflowPublications",
+			Handler:    _WorkflowService_ListWorkflowPublications_Handler,
+		},
+		{
+			MethodName: "GetWorkflowDefinitionView",
+			Handler:    _WorkflowService_GetWorkflowDefinitionView_Handler,
+		},
+		{
+			MethodName: "CompileWorkflowDraft",
+			Handler:    _WorkflowService_CompileWorkflowDraft_Handler,
+		},
+		{
+			MethodName: "ListWorkflowBlocks",
+			Handler:    _WorkflowService_ListWorkflowBlocks_Handler,
+		},
+		{
+			MethodName: "CreateWorkflowDraft",
+			Handler:    _WorkflowService_CreateWorkflowDraft_Handler,
+		},
+		{
+			MethodName: "GetWorkflowDraft",
+			Handler:    _WorkflowService_GetWorkflowDraft_Handler,
+		},
+		{
+			MethodName: "InsertWorkflowPaletteEntry",
+			Handler:    _WorkflowService_InsertWorkflowPaletteEntry_Handler,
+		},
+		{
+			MethodName: "UpdateWorkflowDraftNode",
+			Handler:    _WorkflowService_UpdateWorkflowDraftNode_Handler,
+		},
+		{
+			MethodName: "SetWorkflowDraftOutcome",
+			Handler:    _WorkflowService_SetWorkflowDraftOutcome_Handler,
+		},
+		{
+			MethodName: "BindWorkflowDraftInput",
+			Handler:    _WorkflowService_BindWorkflowDraftInput_Handler,
+		},
+		{
+			MethodName: "MoveWorkflowDraftNode",
+			Handler:    _WorkflowService_MoveWorkflowDraftNode_Handler,
+		},
+		{
+			MethodName: "NavigateWorkflowDraftHistory",
+			Handler:    _WorkflowService_NavigateWorkflowDraftHistory_Handler,
+		},
+		{
+			MethodName: "ApplyWorkflowTemplateOverlay",
+			Handler:    _WorkflowService_ApplyWorkflowTemplateOverlay_Handler,
+		},
 		{
 			MethodName: "GetWorkflow",
 			Handler:    _WorkflowService_GetWorkflow_Handler,

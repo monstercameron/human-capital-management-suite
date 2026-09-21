@@ -91,7 +91,13 @@ func TestTodo_WEB_113_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(builder.String()))
 	got := hex.EncodeToString(digest[:])
-	const want = "444075ef949583fcedb4c96e2dfb8f793500ccbf177d38cbcc493fa3c890a732"
+	// Re-pinned 2026-09-19: hire_date and record_created now read in the
+	// reader's locale (localizedRecordDate) instead of as raw ISO keys; the
+	// names, order and every other value are unchanged.
+	// Date-vocabulary re-pin: the en-US hire date reads "1 Jun 2021", not
+	// "06/01/2021"; substituting the numeric form back reproduces the
+	// previous pin 299166fc... exactly.
+	const want = "42a32eca21cb1dc71cc67dad74a939a101674425535c4c71b069624b6806af0a"
 	if got != want {
 		t.Fatalf("overview digest = %s, want %s", got, want)
 	}

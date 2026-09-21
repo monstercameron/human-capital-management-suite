@@ -92,6 +92,7 @@ func newCursorCell(t *testing.T, engine workspace.JourneyEngine) *cell {
 
 	composed, err := app.NewCell(app.CellConfig{
 		Store:       store,
+		RoleAccess:  bootstrapTestRoleAccess(t, pool, testTenant),
 		Verifier:    verifier,
 		Audience:    testAudience,
 		MaxDeadline: 30 * time.Second,
@@ -112,6 +113,7 @@ func newCursorCell(t *testing.T, engine workspace.JourneyEngine) *cell {
 	}
 	transportjourney.Register(grpcServer, transportjourney.Dependencies{
 		Engine:       engine,
+		RoleAccess:   composed.RoleAccess,
 		PollInterval: tunnelWatchPoll,
 		CursorKey:    tunnelCursorKey,
 		CursorTTL:    5 * time.Minute,

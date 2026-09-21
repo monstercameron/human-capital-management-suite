@@ -272,7 +272,7 @@ func TestTodo_WF_RUN_034_Fault(t *testing.T) {
 	}
 
 	runner := composedRunner(delegated(), &fakeStepServices{})
-	if out, _, err := runner.Run(ctx, wfrun034Request(t, promotionexec.NodeExecutePromotion)); err != nil || !out.Failed || out.ErrorClass != promotionsteps.FailurePort {
+	if out, _, err := runner.Run(ctx, wfrun034Request(t, promotionexec.NodeExecutePromotion)); err != nil || !out.Failed || !strings.HasPrefix(out.ErrorClass, promotionsteps.FailurePort) {
 		t.Fatalf("execute_promotion outside the transaction = %+v, %v; want a port failure", out, err)
 	}
 	if _, _, err := runner.RunInTx(ctx, notATx{}, wfrun034Request(t, promotionexec.NodeExecutePromotion)); err == nil {

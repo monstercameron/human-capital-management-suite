@@ -191,7 +191,7 @@ func (e *journeyEngine) routeAbandonedApproval(
 		return err
 	}
 	result, err := e.svc.executor.Resume(ctx, ExecutionResumeRequest{
-		Start: start, InstanceID: done.instance.InstanceID, ExpectedInstanceVersion: done.instance.InstanceVersion,
+		Start: pinnedStart(start, done.instance), InstanceID: done.instance.InstanceID, ExpectedInstanceVersion: done.instance.InstanceVersion,
 		WorkItem: done.item, Outcome: done.outcome,
 	})
 	if err != nil {

@@ -131,8 +131,13 @@ func TestWorkforceOptionsAreDerivedFromTheCatalogAndTheCorpus(t *testing.T) {
 	for _, edge := range demoEdges {
 		found := false
 		for _, path := range options.PromotionPaths[len(paths):] {
+			// The published kind is the edge's own: a step inside the
+			// source's organization unit is UPWARD, a move into another one
+			// is CROSS_FAMILY. Asserting the edge's kind rather than a fixed
+			// "UPWARD" is what keeps this test honest now that a job
+			// publishes several targets of different kinds.
 			if path.SourceJobCode == edge.SourceJobCode && path.SourceGrade == edge.SourceGrade &&
-				path.TargetJobCode == edge.TargetJobCode && path.TargetGrade == edge.TargetGrade && path.Kind == "UPWARD" {
+				path.TargetJobCode == edge.TargetJobCode && path.TargetGrade == edge.TargetGrade && path.Kind == edge.Kind {
 				found = true
 				break
 			}

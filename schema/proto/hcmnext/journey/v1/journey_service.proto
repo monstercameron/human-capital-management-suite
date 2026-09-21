@@ -125,6 +125,17 @@ service JourneyService {
   // not by this service.
   rpc DecideJourney(DecideJourneyRequest) returns (DecideJourneyResponse);
 
+  // AcknowledgeJourney records the employee's verified promotion
+  // acknowledgement against a journey parked on its acknowledgement gate.
+  // Effect class: governed write through the durable signal store and the
+  // caller-driven execution driver - workspace.JourneyEngine.Acknowledge
+  // receives the correlated signal and resumes the driver from the matched
+  // receipt, which runs the instance to its COMPLETE terminal and records
+  // the one ledger fact the END node raises. The caller is the attester and
+  // must not be the journey's initiator; a journey with no open
+  // acknowledgement wait is refused FAILED_PRECONDITION.
+  rpc AcknowledgeJourney(AcknowledgeJourneyRequest) returns (AcknowledgeJourneyResponse);
+
   // EditProposal corrects an unstarted or not-yet-approved promotion
   // proposal (PROMOUX-013). Effect class: governed write through the intent
   // service - it is workspace.JourneyEngine.EditProposal, which is
@@ -178,6 +189,16 @@ service JourneyService {
   // losing caller's request never touches durable state at all.
   rpc RequestJourneyIntervention(RequestJourneyInterventionRequest) returns (RequestJourneyInterventionResponse);
 
+  // AddJourneyNote appends one note to a journey. Effect class: append-only
+  // experience write. Anyone the journey detail admits may add a note, at any
+  // stage and after the journey has closed; a note is not a decision, carries
+  // no authority and changes nothing about the journey. Notes are never
+  // edited or removed. A retry with the same idempotency_key returns the note
+  // the first call recorded; the same key with different content is refused.
+  // The response carries the recorded note and the journey detail read in
+  // the same call, with the new note in JourneyDetail.notes.
+  rpc AddJourneyNote(AddJourneyNoteRequest) returns (AddJourneyNoteResponse);
+
   // WatchJourney is a server-streaming change feed over the same read
   // InspectJourney performs. Effect class: READ_ONLY.
   //
@@ -200,6 +221,29 @@ service JourneyService {
   // would be. The request's own gRPC deadline and the server's deadline cap
   // still apply and still win whenever they are shorter than the ceiling.
   rpc WatchJourney(WatchJourneyRequest) returns (stream WatchJourneyResponse);
+
+  // WatchPromotionInvalidations is a server-streaming feed of promotion
+  // invalidation hints for the caller's own authorized view (REV-091-03,
+  // PROMOUX-011). Effect class: READ_ONLY.
+  //
+  // Every committed promotion transition (propose, edit, execute, decide,
+  // acknowledge, withdraw or cancel, and a timer- or signal-driven
+  // completion) is filtered by the caller's own authority before anything
+  // is sent: the journey must be visible to the caller through the same
+  // engine read InspectJourney performs, and the hint must pass the product
+  // query invalidation authorization check. A transition the caller may not
+  // see is never sent and never consumes a sequence number, so the numbers a
+  // caller receives are contiguous and reveal nothing about what was
+  // filtered out. A hint carries no display data: the client re-reads the
+  // affected summaries through the ordinary authorized RPCs.
+  //
+  // The stream is refused PERMISSION_DENIED for a caller who may view
+  // neither Journeys nor My Work, ends with PERMISSION_DENIED if that access
+  // is withdrawn while it is open, ends with ABORTED when the caller stops
+  // reading for long enough that hints were dropped (the client reconnects
+  // and re-reads), and ends with OK at the same fifteen-minute ceiling
+  // WatchJourney uses.
+  rpc WatchPromotionInvalidations(WatchPromotionInvalidationsRequest) returns (stream WatchPromotionInvalidationsResponse);
 
   // ListWorkers returns every employee a journey can be proposed for --
   // the release's fixed corpus population and the tenant's own created one,
@@ -263,6 +307,15 @@ service JourneyService {
   rpc SaveRoleOrganizationVisibility(SaveRoleOrganizationVisibilityRequest) returns (SaveRoleOrganizationVisibilityResponse);
   rpc SaveRolePagePermission(SaveRolePagePermissionRequest) returns (SaveRolePagePermissionResponse);
   rpc SaveRoleFeaturePermission(SaveRoleFeaturePermissionRequest) returns (SaveRoleFeaturePermissionResponse);
+
+  // PreviewRoleAccess resolves, without saving anything, what a role would
+  // reveal under a proposed organization visibility policy compared with
+  // its saved policy. It reads the durable role store and the governed
+  // workforce's unit names; it returns unit names and counts, never a worker
+  // record. Administrator roles report their directory-wide override rather
+  // than the stored policy. Only HCM administrators may call it. Effect
+  // class: READ_ONLY.
+  rpc PreviewRoleAccess(PreviewRoleAccessRequest) returns (PreviewRoleAccessResponse);
 
   // RecordWorkflowUse increments the authenticated user's usage count for a
   // workflow so launchers can rank real frequent actions rather than hardcode
@@ -330,6 +383,10 @@ enum JourneyStage {
   // JOURNEY_STAGE_REPAIR_REQUIRED: the workflow requires governed repair
   // before it can reach a consistent terminal state.
   JOURNEY_STAGE_REPAIR_REQUIRED = 15;
+  // JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT: downstream effects reconciled
+  // and the workflow is parked on the employee acknowledgement gate before
+  // the promotion may complete.
+  JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT = 16;
 }
 
 // Placement is one side (current or target) of the placement change
@@ -484,6 +541,10 @@ enum JourneyNextStep {
   JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE = 8;
   // JOURNEY_NEXT_STEP_SYSTEM_PROCESSING: the workflow is processing.
   JOURNEY_NEXT_STEP_SYSTEM_PROCESSING = 9;
+  // JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT: the workflow is parked on the
+  // employee acknowledgement gate; a person must record the verified
+  // acknowledgement, but no role class on the journey names whose job it is.
+  JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT = 10;
 }
 
 // JourneyStepOwner is the role class that holds a journey's next step.
@@ -671,6 +732,98 @@ message JourneyDetail {
   // Clients must not infer them from locally held role strings.
   bool diagnostics_available = 13;
   bool can_decide = 14;
+  // notes are the journey's free-standing notes, oldest first.
+  repeated JourneyNote notes = 15;
+  // promotion_review is the reviewer's view of what the promotion changes
+  // in the reporting line and the compensation guardrail it must respect
+  // (REV-091-02). It is unset when the engine produced no review for this
+  // viewer. Pay figures inside it are populated only when the engine's own
+  // compensation authorization admitted this viewer.
+  JourneyPromotionReview promotion_review = 16;
+}
+
+// JourneyPromotionReview is PROMOUX-005's management impact and PROMOUX-006's
+// compensation guardrail for one journey, as server-computed facts. Clients
+// localize and render them; they never recompute a range or a cycle verdict.
+message JourneyPromotionReview {
+  // target_manager_evaluated is true when a target manager was resolved,
+  // disclosed to this viewer and checked for reporting cycles. When false,
+  // the three manager fields below are empty/zero.
+  bool target_manager_evaluated = 1;
+  // target_manager_display_name is the manager's display name.
+  string target_manager_display_name = 2;
+  // affected_direct_reports counts the workers who would newly report to
+  // the promoted worker.
+  int32 affected_direct_reports = 3;
+  // cycle_safe is true only when every proposed reporting edge was
+  // certified free of a cycle.
+  bool cycle_safe = 4;
+  JourneyCompensationGuardrail compensation_guardrail = 5;
+  // manager_unchanged is true when the request names no new manager, so the
+  // worker keeps their current reporting line.
+  bool manager_unchanged = 6;
+  // The position titles and organization name are presentation labels
+  // resolved from the position directory; empty when unresolved. Clients
+  // never fall back to printing a position identifier.
+  string current_position_title = 7;
+  string target_position_title = 8;
+  string target_organization_name = 9;
+}
+
+// JourneyCompensationGuardrail is promotion.CompensationGuardrail on the wire.
+// When status is UNAVAILABLE every amount field is empty: an unauthorized or
+// unresolved guardrail never carries a figure a viewer could infer pay from.
+message JourneyCompensationGuardrail {
+  enum Status {
+    // STATUS_UNSPECIFIED is never sent.
+    STATUS_UNSPECIFIED = 0;
+    STATUS_AVAILABLE = 1;
+    STATUS_UNAVAILABLE = 2;
+  }
+  Status status = 1;
+  // unavailable_reason is NOT_AUTHORIZED or BAND_UNRESOLVED when status is
+  // UNAVAILABLE; empty means an unspecified reason.
+  string unavailable_reason = 2;
+  // The amounts are exact decimal strings in currency, annualized.
+  string current_annualized = 3;
+  string minimum_annualized = 4;
+  string maximum_annualized = 5;
+  // permitted_increase_fraction is an exact decimal fraction (0.18 = 18%).
+  string permitted_increase_fraction = 6;
+  // band_position is BELOW_MINIMUM, IN_BAND or ABOVE_MAXIMUM.
+  string band_position = 7;
+  string currency = 8;
+  // effective_date_basis is the ISO-8601 date the band was resolved as of.
+  string effective_date_basis = 9;
+}
+
+// JourneyNote is one append-only note on a journey. The author is disclosed
+// by display name only; the principal identifier stays on the server.
+message JourneyNote {
+  string note_id = 1;
+  // author_display is the author's display name, empty when it cannot be
+  // resolved for this viewer.
+  string author_display = 2;
+  // authored_by_viewer is true when the calling principal wrote the note.
+  bool authored_by_viewer = 3;
+  string body = 4;
+  // stage is the journey stage when the note was written.
+  JourneyStage stage = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message AddJourneyNoteRequest {
+  string intent_id = 1;
+  // body is 1 to 2000 characters after trimming surrounding whitespace.
+  string body = 2;
+  // idempotency_key identifies this one submission; required, at most 128
+  // characters.
+  string idempotency_key = 3;
+}
+
+message AddJourneyNoteResponse {
+  JourneyNote note = 1;
+  JourneyDetail detail = 2;
 }
 
 message ListJourneysRequest {
@@ -689,6 +842,41 @@ message ListJourneysResponse {
   repeated Journey journeys = 1;
   hcmnext.common.v1.PageResponse page = 2;
   int32 total_count = 3;
+  // population is the server's one count of the caller's authorized journey
+  // set, computed from exactly the journeys in this response (UXLIVE-027).
+  // Every summary surface (Home, Insights, Journeys) reads its totals here
+  // instead of recounting the collection.
+  JourneyPopulationSummary population = 4;
+}
+
+// JourneyPopulationSummary is the authorization-filtered journey summary
+// projection: totals, status buckets and freshness, computed once by the
+// server over the viewer's visible journeys.
+message JourneyPopulationSummary {
+  // total is every visible journey; total = active + closed.
+  int32 total = 1;
+  int32 active = 2;
+  int32 closed = 3;
+  // needs_action counts open journeys whose next step the viewer holds.
+  int32 needs_action = 4;
+  // tracking counts open journeys the viewer initiated, whoever holds the
+  // next step.
+  int32 tracking = 5;
+  // exceptions counts journeys stopped on an exception: blocked, failed or
+  // requiring repair.
+  int32 exceptions = 6;
+  // stages is one bucket per stage present, in stage order.
+  repeated JourneyStageCount stages = 7;
+  // latest_update is the most recent durable change across the set; unset
+  // when the set is empty.
+  google.protobuf.Timestamp latest_update = 8;
+  // computed_at is when the server computed this summary.
+  google.protobuf.Timestamp computed_at = 9;
+}
+
+message JourneyStageCount {
+  JourneyStage stage = 1;
+  int32 count = 2;
 }
 
 // ProposeJourneyRequest is what the manager fills in
@@ -842,6 +1030,19 @@ message DecideJourneyResponse {
   JourneyDetail detail = 1;
 }
 
+message AcknowledgeJourneyRequest {
+  string intent_id = 1;
+  // evidence_ref points at the verified artifact (signed document or HRIS
+  // record) when there is one; note carries anything else the attester
+  // states. Both travel verbatim into the signal payload.
+  string evidence_ref = 2;
+  string note = 3;
+}
+
+message AcknowledgeJourneyResponse {
+  JourneyDetail detail = 1;
+}
+
 // JourneyInterventionKind is the closed set of typed interventions
 // PROMOUX-013 adds beyond Execute and Decide. Both kinds run the same
 // underlying governed capability (CancelIntent); the kind exists so the
@@ -857,6 +1058,14 @@ enum JourneyInterventionKind {
   // journey is in an eligible wait (for example, waiting on approval or on
   // its effective-date safe point).
   JOURNEY_INTERVENTION_KIND_CANCEL = 2;
+  // JOURNEY_INTERVENTION_KIND_REPAIR: the governed repair a journey stopped
+  // in REPAIR_REQUIRED names as its next step. Unlike the two above it is
+  // not a CancelIntent composition: it is the operator repair door
+  // (internal/intent/operator/workflowcontrol.RepairController), with its
+  // own JIT authority, dual control and simulation requirements. Previewing
+  // it is what this service offers; the corrective effect itself is driven
+  // through that door against an authored repair plan.
+  JOURNEY_INTERVENTION_KIND_REPAIR = 3;
 }
 
 // EditProposalRequest carries the corrected fields for an unstarted or
@@ -913,6 +1122,18 @@ message PreviewJourneyInterventionResponse {
   // client can confirm the intervention with RequestJourneyIntervention
   // without a second read.
   uint64 current_governance_version = 5;
+  // requires_dual_control and requires_simulation are the governed door's
+  // own requirements for this kind, read from the operator policy rather
+  // than restated by a client. A page that named a governed action without
+  // them would be describing a lighter action than the one that exists.
+  bool requires_dual_control = 6;
+  bool requires_simulation = 7;
+  // authority_role_refs names the JIT roles whose grant may authorize this
+  // kind. It is the "who can act" half of a refusal: a viewer who may not
+  // act is told which authority is needed, not merely that they lack it.
+  // The roles a kind requires are policy, identical for every caller, so
+  // naming them discloses nothing about who holds them.
+  repeated string authority_role_refs = 8;
 }
 
 message RequestJourneyInterventionRequest {
@@ -987,6 +1208,28 @@ message WatchJourneyResponse {
   uint64 sequence = 4;
 }
 
+message WatchPromotionInvalidationsRequest {
+  // region names the presentation region the hints are for: SHELL_COUNT,
+  // JOURNEYS, MY_WORK, PERSON or DETAIL
+  // (internal/domains/promotion.Region). Any other value is refused
+  // INVALID_ARGUMENT.
+  string region = 1;
+  // after_sequence is the last sequence this client committed on a previous
+  // stream. The new stream numbers its messages from the one after it, so
+  // the client's own ordering continues across reconnects. It numbers the
+  // caller's own hints only and grants nothing. Zero starts at one.
+  uint64 after_sequence = 2;
+}
+
+message WatchPromotionInvalidationsResponse {
+  // invalidation is one canonical product-query invalidation message
+  // (internal/transport/productquery.InvalidationMessage, JSON): tenant,
+  // projection, the caller's own contiguous source_sequence and watermark,
+  // and the authorized subjects with their new revisions. Never display
+  // data.
+  bytes invalidation = 1;
+}
+
 // Worker is one employee as the worker list shows them
 // (workspace.WorkerSummary).
 //
@@ -1041,6 +1284,42 @@ message Worker {
   // Authorization-safe reporting relationship used by organization views.
   // It is always present in ListWorkers responses; UNSPECIFIED fails closed.
   ManagerRelationshipProjection manager_relationship = 22;
+  // The employment facts the worker object page shows beside the placement
+  // fields above. They are recorded facts about the worker's own employment,
+  // the same class as org_unit and location, and are disclosed under the same
+  // ruling; nothing here is compensation or identity.
+  //
+  // employment_type is REGULAR or FIXED_TERM -- a different question from
+  // worker type, since a fixed-term worker is still an employee. time_type is
+  // FULL_TIME or PART_TIME and always agrees with the worker's FTE.
+  // work_arrangement is ON_SITE, HYBRID or REMOTE.
+  //
+  // Each is empty when nobody asserts it -- a corpus worker asserts none of
+  // them -- so that the reader can tell an unreported fact from a blank one.
+  string employment_type = 23;
+  string time_type = 24;
+  // company is the employing legal entity, business_unit the unit's parent
+  // line, and cost_center the charge code the placement is booked to.
+  string company = 25;
+  string business_unit = 26;
+  string cost_center = 27;
+  string work_arrangement = 28;
+  // pay_basis is the recorded basis of the baseline above -- ANNUAL_SALARY or
+  // HOURLY_RATE -- and is what the pay frequency a reader sees is derived
+  // from. It travels beside base_pay and currency because a rate without its
+  // basis is not an amount anybody can interpret, and it is withheld with
+  // them: a basis disclosed while the amount is not would still narrow the
+  // amount.
+  string pay_basis = 29;
+  // lifecycle_status is the journey_worker lifecycle token for
+  // this worker — ACTIVE, TERMINATED or ON_LEAVE — and
+  // worker_type the employment worker-type token — EMPLOYEE,
+  // CONTRACTOR, INTERN or TEMPORARY. Both travel beside the
+  // employment facts above under the same disclosure ruling, and
+  // both are empty when nobody asserted them: a corpus worker
+  // asserts neither, and an unreported fact stays unreported.
+  string lifecycle_status = 30;
+  string worker_type = 31;
 }
 
 // WorkforceOptions is the closed set of placements a created worker may be
@@ -1067,6 +1346,37 @@ message WorkforceOptions {
   // edges. A pay band proves a target can be paid; only one of these edges
   // proves it is a permitted next role for a particular current profile.
   repeated PromotionPathOption promotion_paths = 8;
+  // position_vacancies are the positions the cell has proved are real,
+  // authorized and still open at the read coordinate. The parallel
+  // positions list above is every position id the observed population
+  // occupies, which is the opposite of a vacancy; it stays for
+  // worker-creation controls. An empty list means "no vacancy this caller
+  // may target", which is an answer, not an invitation to type one in.
+  repeated PositionVacancyOption position_vacancies = 9;
+}
+
+// PositionVacancyOption is one position a promotion proposal may target.
+//
+// reference is the only field a proposal binds to: it is the server-issued
+// position revision reference, never a raw position id, so a value that did
+// not come from this list cannot be made to decode as one.
+message PositionVacancyOption {
+  string reference = 1;
+  string title = 2;
+  string organization = 3;
+  string manager = 4;
+  string location = 5;
+  // job_code and org_unit are the position's own governed codes, published
+  // so a form can narrow the list to the role being proposed. They narrow
+  // what is shown; they never widen what may be chosen.
+  string job_code = 6;
+  string org_unit = 7;
+  // vacancy_end is the earliest date the position is known to stop being
+  // open, as yyyy-mm-dd, or empty when no end is known.
+  string vacancy_end = 8;
+  // reservation_state is the disclosed state of the position's capacity,
+  // stated rather than implied by the option's mere presence.
+  string reservation_state = 9;
 }
 
 // WorkforcePlacementOption is one exact compensation-catalog scope. It is
@@ -1165,6 +1475,10 @@ message UserPreferences {
   repeated string favorite_pages = 6;
   map<string, TablePreferences> tables = 7;
   map<string, int64> workflow_uses = 8;
+  // density is this person's own layout density (compact, comfortable or
+  // spacious). Empty means "use the organization's appearance density"
+  // (REV-092-01); it never changes what anyone else sees.
+  string density = 9;
 }
 
 message CustomerTheme {
@@ -1263,6 +1577,29 @@ message SaveRolePagePermissionRequest { RolePagePermission permission = 1; }
 message SaveRolePagePermissionResponse { RolePagePermission permission = 1; }
 message SaveRoleFeaturePermissionRequest { RoleFeaturePermission permission = 1; }
 message SaveRoleFeaturePermissionResponse { RoleFeaturePermission permission = 1; }
+message PreviewRoleAccessRequest { RoleOrganizationVisibilityPolicy proposed = 1; }
+message RoleAccessScope {
+  string mode = 1;
+  repeated string organization_units = 2;
+  // relative is true when the scope depends on each viewer's own unit.
+  bool relative = 3;
+}
+message PreviewRoleAccessResponse {
+  string role_id = 1;
+  string role_name = 2;
+  repeated string explicit_roles = 3;
+  // inherited_roles are other active roles the role's saved holders carry.
+  repeated string inherited_roles = 4;
+  // administrator_override is true for hcm_admin and comp_admin, whose
+  // holders see every unit before any visibility policy runs.
+  bool administrator_override = 5;
+  RoleAccessScope current = 6;
+  RoleAccessScope proposed = 7;
+  repeated string added_units = 8;
+  repeated string removed_units = 9;
+  int32 holder_count = 10;
+  int32 overridden_holder_count = 11;
+}
 message RecordWorkflowUseRequest { string workflow_id = 1; }
 message RecordWorkflowUseResponse { UserPreferences user = 1; }
 

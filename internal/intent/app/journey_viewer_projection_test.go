@@ -5,9 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 )
 
 // TestTodo_PROMOUX_012 is the server half of the PRIMARY: the engine resolves
@@ -21,8 +23,8 @@ func TestTodo_PROMOUX_012(t *testing.T) {
 			}
 			stage := workspace.JourneyStage(strings.TrimPrefix(name, "JOURNEY_STAGE_"))
 			transition := journeyStageTransition(stage)
-			_, unavailable := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage)
-			reason, _ := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage)
+			_, unavailable := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage, false)
+			reason, _ := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage, false)
 			terminal := unavailable && reason == reasonInterventionAlreadyTerminal
 			if journeyStageClosed(stage) != terminal {
 				t.Errorf("%s: closed = %t, the intervention rule's terminal = %t", stage, journeyStageClosed(stage), terminal)
@@ -85,6 +87,9 @@ func TestTodo_PROMOUX_012(t *testing.T) {
 		{"repair names no owner, so an initiator only tracks it", workspace.JourneyStageRepairRequired, true, nil,
 			workspace.JourneyViewerProjection{Relationships: rel(workspace.JourneyViewerInitiator), Responsibility: workspace.JourneyResponsibilityTracking,
 				NextStep: workspace.JourneyNextStepRepair, AwaitsPerson: true}},
+		{"acknowledgement names no owner, so an initiator only tracks it", workspace.JourneyStageAwaitingAcknowledgement, true, nil,
+			workspace.JourneyViewerProjection{Relationships: rel(workspace.JourneyViewerInitiator), Responsibility: workspace.JourneyResponsibilityTracking,
+				NextStep: workspace.JourneyNextStepAwaitAcknowledgement, AwaitsPerson: true}},
 		{"initiator and assignee at once, relationships sorted", workspace.JourneyStageReapproval, true, holds,
 			workspace.JourneyViewerProjection{Relationships: rel(workspace.JourneyViewerAssignee, workspace.JourneyViewerInitiator), Responsibility: workspace.JourneyResponsibilityActionRequired,
 				NextStep: workspace.JourneyNextStepReapprovalDecision, NextStepOwner: workspace.JourneyStepOwnerApprover, AwaitsPerson: true}},
@@ -129,4 +134,26 @@ func TestTodo_PROMOUX_012(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestAClosedRequestWithNoRunIsNotStillProposed: a withdrawn draft has no
+// workflow instance, and its stage was derived from the simulation alone,
+// which still mints a revision -- so it read PROPOSED forever.
+func TestAClosedRequestWithNoRunIsNotStillProposed(t *testing.T) {
+	for _, state := range []lifecycle.RequestState{lifecycle.RequestCancelled, lifecycle.RequestWithdrawn,
+		lifecycle.RequestSuperseded, lifecycle.RequestRejected, lifecycle.RequestClosed} {
+		if !requestEndedBeforeExecution(state) {
+			t.Errorf("request state %v is not treated as ended", state)
+		}
+	}
+	for _, state := range []intentsv1.RequestState{intentsv1.RequestState_REQUEST_STATE_CANCELLED,
+		intentsv1.RequestState_REQUEST_STATE_WITHDRAWN, intentsv1.RequestState_REQUEST_STATE_SUPERSEDED,
+		intentsv1.RequestState_REQUEST_STATE_REJECTED, intentsv1.RequestState_REQUEST_STATE_CLOSED} {
+		if !requestProtoEndedBeforeExecution(state) {
+			t.Errorf("wire request state %v is not treated as ended", state)
+		}
+	}
+	if requestEndedBeforeExecution(lifecycle.RequestDraft) || requestProtoEndedBeforeExecution(intentsv1.RequestState_REQUEST_STATE_SIMULATED) {
+		t.Error("an open request is treated as ended")
+	}
 }

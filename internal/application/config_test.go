@@ -54,12 +54,16 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 	if declared[FieldDevHMACKey].Default != "" {
 		t.Error("the signing key has a default; a listener with a default signing key is one anyone can forge against")
 	}
-	if declared[FieldExecutionAuthority].Default != "false" {
-		t.Errorf("-%s defaults to %q, want false: P1B must be opt-in",
+	if declared[FieldExecutionAuthority].Default != "true" {
+		t.Errorf("-%s defaults to %q, want true: promotions run through the execution engine unless opted out",
 			FieldExecutionAuthority, declared[FieldExecutionAuthority].Default)
 	}
-	if declared[FieldWorkflowPlan].Default != WorkflowPlanPrototype {
-		t.Errorf("-%s defaults to %q, want %q", FieldWorkflowPlan, declared[FieldWorkflowPlan].Default, WorkflowPlanPrototype)
+	if declared[FieldWorkflowPlan].Default != WorkflowPlanExecute {
+		t.Errorf("-%s defaults to %q, want %q", FieldWorkflowPlan, declared[FieldWorkflowPlan].Default, WorkflowPlanExecute)
+	}
+	if declared[FieldScheduler].Default != "true" {
+		t.Errorf("-%s defaults to %q, want true: the execute plan's durable WAITs need the dispatcher",
+			FieldScheduler, declared[FieldScheduler].Default)
 	}
 	if declared[FieldOTelExporter].Default != OTelExporterNone {
 		t.Errorf("-%s defaults to %q, want %q", FieldOTelExporter, declared[FieldOTelExporter].Default, OTelExporterNone)
@@ -102,8 +106,8 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:abc",
 		ExecutionAuthorityRole: "promo_op", ExecutionApprover: "principal:approver",
 		ExecutionManagerApprover: "principal:manager-approver",
-		WorkflowPlan:             WorkflowPlanExecute,
-		ExecutionRetry:           true, ExecutionRetryVersion: "retry-v1",
+		WorkflowPlan:             WorkflowPlanExecute, Scheduler: true,
+		ExecutionRetry: true, ExecutionRetryVersion: "retry-v1",
 		ExecutionRetryMaxAttempts: 3, ExecutionRetryResolutionAttempts: 4,
 		LegalEvidenceIssuerKeys: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 		TimerTzdbVersion:        "2026b", TimerCalendarVersion: "2026.2", HealthAddr: "127.0.0.1:9",
@@ -121,8 +125,11 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 // parse the flag accepts: an absolute http(s) origin, canonicalized to
 // lowercase scheme://host so every consumer binds the same authority.
 func TestServeConfigPublicOriginIsCanonicalizedAndValidated(t *testing.T) {
+	// The engine defaults need a tenant and an authority digest to
+	// validate; the assertions below are about the origin parse.
 	cfg, err := ServeConfigFromValues(parseServe(t,
-		"-database-url=postgres://x", "-dev-hmac-key="+testDevKey))
+		"-database-url=postgres://x", "-dev-hmac-key="+testDevKey,
+		"-tenant=acme", "-execution-authority-digest=sha256:abc"))
 	if err != nil {
 		t.Fatalf("ServeConfigFromValues: %v", err)
 	}
@@ -135,6 +142,7 @@ func TestServeConfigPublicOriginIsCanonicalizedAndValidated(t *testing.T) {
 
 	cfg, err = ServeConfigFromValues(parseServe(t,
 		"-database-url=postgres://x", "-dev-hmac-key="+testDevKey,
+		"-tenant=acme", "-execution-authority-digest=sha256:abc",
 		"-public-origin=https://HCM.Example.com:443"))
 	if err != nil {
 		t.Fatalf("ServeConfigFromValues: %v", err)
@@ -302,7 +310,10 @@ func TestHealthAddrOfResolvesTheFlagAheadOfBootstrap(t *testing.T) {
 // together, both may be cleared together, and naming only one is refused
 // because a timer promise pins both.
 func TestServeConfigTimerDatasetIsAllOrNothing(t *testing.T) {
-	defaults, err := ServeConfigFromValues(parseServe(t, "-database-url=postgres://x", "-dev-hmac-key="+testDevKey))
+	// The engine defaults need a tenant and an authority digest to
+	// validate; the timer assertions below are about the dataset pair.
+	defaults, err := ServeConfigFromValues(parseServe(t, "-database-url=postgres://x", "-dev-hmac-key="+testDevKey,
+		"-tenant=acme", "-execution-authority-digest=sha256:abc"))
 	if err != nil {
 		t.Fatalf("ServeConfigFromValues: %v", err)
 	}
@@ -372,6 +383,17 @@ func TestServeConfigValidateRejectsAConfigurationAListenerMustNotStartOn(t *test
 			c.ExecutionAuthorityRole = "r"
 		}, FieldExecutionApprover},
 		{"unknown workflow plan", func(c *ServeConfig) { c.WorkflowPlan = "other" }, FieldWorkflowPlan},
+		{"scheduler without tenant", func(c *ServeConfig) {
+			c.Scheduler = true
+			c.ExecutionAuthority = true
+			c.ExecutionAuthorityDigest = "d"
+			c.ExecutionAuthorityRole = "r"
+			c.ExecutionApprover = "a"
+		}, FieldTenant},
+		{"scheduler without authority", func(c *ServeConfig) {
+			c.Scheduler = true
+			c.Tenant = "acme"
+		}, FieldExecutionAuthority},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -409,16 +431,25 @@ func TestValidateServeValuesReportsTheMissingDatabaseURLFirst(t *testing.T) {
 		t.Errorf("short key failure = %v, want it to name -%s", err, FieldDevHMACKey)
 	}
 
+	// The engine is on by default, so the defaults need a tenant for the
+	// scheduler and an authority digest for the execution authority before
+	// a listener may start.
 	values = parseServe(t, "-database-url=postgres://x", "-dev-hmac-key="+testDevKey)
+	if err := ValidateServeValues(values); err == nil {
+		t.Error("ValidateServeValues accepted the engine defaults with no tenant or authority digest")
+	}
+	values = parseServe(t, "-database-url=postgres://x", "-dev-hmac-key="+testDevKey,
+		"-tenant=acme", "-execution-authority-digest=sha256:abc")
 	if err := ValidateServeValues(values); err != nil {
-		t.Errorf("ValidateServeValues on the defaults plus a URL and a key: %v", err)
+		t.Errorf("ValidateServeValues on the defaults plus a URL, a key, a tenant and a digest: %v", err)
 	}
 }
 
-// TestServeConfigDefaultsComposeTheP1ACell proves the defaults alone describe
-// the shipped P1A cell: workspace on, migrations on, telemetry off and the
-// P1B execution authority off.
-func TestServeConfigDefaultsComposeTheP1ACell(t *testing.T) {
+// TestServeConfigDefaultsComposeTheExecutingCell proves the defaults alone
+// describe the shipped executing cell: workspace on, migrations on,
+// telemetry off, and the promotion execution engine on (authority, execute
+// plan and scheduler), with only the loopback dev login off.
+func TestServeConfigDefaultsComposeTheExecutingCell(t *testing.T) {
 	cfg, err := ServeConfigFromValues(parseServe(t,
 		"-database-url=postgres://x", "-dev-hmac-key="+testDevKey))
 	if err != nil {
@@ -427,15 +458,20 @@ func TestServeConfigDefaultsComposeTheP1ACell(t *testing.T) {
 	if !cfg.Migrate || !cfg.Workspace {
 		t.Errorf("defaults = migrate %t workspace %t, want both on", cfg.Migrate, cfg.Workspace)
 	}
-	if cfg.DevBrowserLogin || cfg.ExecutionAuthority {
-		t.Errorf("defaults = dev-browser-login %t execution-authority %t, want both off",
-			cfg.DevBrowserLogin, cfg.ExecutionAuthority)
+	if cfg.DevBrowserLogin {
+		t.Errorf("defaults = dev-browser-login %t, want off", cfg.DevBrowserLogin)
+	}
+	if !cfg.ExecutionAuthority {
+		t.Error("default execution-authority = false, want on: promotions run through the engine unless opted out")
+	}
+	if !cfg.Scheduler {
+		t.Error("default scheduler = false, want on: the execute plan's durable WAITs need the dispatcher")
 	}
 	if cfg.OTelExporter != OTelExporterNone {
 		t.Errorf("default exporter = %q, want %q", cfg.OTelExporter, OTelExporterNone)
 	}
-	if cfg.WorkflowPlan != WorkflowPlanPrototype {
-		t.Errorf("default workflow plan = %q, want %q", cfg.WorkflowPlan, WorkflowPlanPrototype)
+	if cfg.WorkflowPlan != WorkflowPlanExecute {
+		t.Errorf("default workflow plan = %q, want %q", cfg.WorkflowPlan, WorkflowPlanExecute)
 	}
 	if cfg.Issuer != DefaultIssuer || cfg.Audience != DefaultAudience {
 		t.Errorf("default issuer/audience = %q/%q, want %q/%q",

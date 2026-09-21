@@ -2,6 +2,7 @@ package productui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -33,8 +34,12 @@ type WorkCollectionProps struct {
 }
 
 type WorkTabProps struct {
-	Label    string
-	Href     string
+	Label string
+	Href  string
+	// Count is how much work this filter holds, already formatted for the
+	// viewer's locale. A filter strip without it forces a reader to open
+	// every filter in turn to find their work (UXLIVE-018).
+	Count    string
 	Active   bool
 	Navigate func(string)
 }
@@ -169,10 +174,6 @@ func WorkPage(props WorkPageProps) ui.Node {
 }
 
 func WorkCollection(props WorkCollectionProps) ui.Node {
-	tabs := make([]ui.Node, 0, len(props.Tabs))
-	for _, item := range props.Tabs {
-		tabs = append(tabs, ui.CreateElement(WorkTab, item))
-	}
 	rows := make([]ui.Node, 0, len(props.Rows))
 	for _, item := range props.Rows {
 		item.I18nProps = props.I18nProps
@@ -209,8 +210,10 @@ func WorkCollection(props WorkCollectionProps) ui.Node {
 		Title: props.Title, Description: props.Description,
 		Trailing: html.Span(html.Props{Class: "count"}, ui.Text(props.CountLabel)),
 	})}
-	if len(tabs) > 0 {
-		children = append(children, html.Nav(html.Props{Class: "tabs", Aria: map[string]string{"label": props.Text("work.filter_label")}}, tabs...))
+	if len(props.Tabs) > 0 {
+		// REV-095-05: one line at every width, with an explicit More control
+		// for the filters that do not fit.
+		children = append(children, workFilterStrip(props))
 	}
 	children = append(children, html.Ul(html.Props{Class: "work-rows", Raw: map[string]any{"role": "list"}}, rows...))
 	if len(foot) > 0 {
@@ -221,13 +224,20 @@ func WorkCollection(props WorkCollectionProps) ui.Node {
 
 func WorkTab(props WorkTabProps) ui.Node {
 	class := "tab"
-	action := ActionLinkProps{Label: props.Label, Href: props.Href, Class: class, Navigate: props.Navigate}
+	children := []ui.Node{ui.Text(props.Label)}
+	if strings.TrimSpace(props.Count) != "" {
+		// The count is inside the link so it is announced with the filter it
+		// belongs to, not as a loose number beside it.
+		children = append(children, html.Span(html.Props{Class: "work-tab-count"}, ui.Text(props.Count)))
+	}
 	if props.Active {
 		class += " active"
-		return softwareLink(props.Navigate, html.Props{Class: class, Aria: map[string]string{"current": "page"}}, props.Href, ui.Text(props.Label))
+		return softwareLink(props.Navigate, html.Props{Class: class, Aria: map[string]string{"current": "page"}}, props.Href, children...)
 	}
-	action.Class = class
-	return ui.CreateElement(ActionLink, action)
+	if props.Navigate != nil || strings.TrimSpace(props.Count) != "" {
+		return softwareLink(props.Navigate, html.Props{Class: class}, props.Href, children...)
+	}
+	return ui.CreateElement(ActionLink, ActionLinkProps{Label: props.Label, Href: props.Href, Class: class, Navigate: props.Navigate})
 }
 
 func WorkRow(props WorkRowProps) ui.Node {

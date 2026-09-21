@@ -75,9 +75,9 @@ func TestTodo_ALIGN_001(t *testing.T) {
 
 	t.Run("RED: unauthorized package (outside the Phase 1 allowlist)", func(t *testing.T) {
 		s := validFixtureSlice()
-		s.Packages = []string{"github.com/monstercameron/human-capital-management-suite/internal/domains/payroll"}
+		s.Packages = []string{"github.com/monstercameron/human-capital-management-suite/internal/domains/garnishment"}
 		violations := s.Validate(reg)
-		assertHasViolation(t, violations, "packages", "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll")
+		assertHasViolation(t, violations, "packages", "github.com/monstercameron/human-capital-management-suite/internal/domains/garnishment")
 	})
 
 	t.Run("RED: stale/unrecoverable todo proof", func(t *testing.T) {

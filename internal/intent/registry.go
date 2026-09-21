@@ -41,6 +41,11 @@ type Registry struct {
 	order       []Ref
 	knownSchema map[string]bool
 	knownCap    map[string]bool
+	// catalog is the publication context definitions were compiled
+	// against. PublishManaged reuses it so a managed publish enforces
+	// exactly the same schema, capability, policy and lifecycle rules as
+	// the original compilation.
+	catalog Catalog
 }
 
 // NewRegistry compiles definitions and policies into an immutable registry.
@@ -62,6 +67,7 @@ func NewRegistry(profile RegistryProfile, defs []Definition, policies []Negative
 		policies:    make(map[string]NegativeStatePolicy, len(policies)),
 		knownSchema: map[string]bool{},
 		knownCap:    map[string]bool{},
+		catalog:     catalog,
 	}
 	for _, s := range catalog.Schemas {
 		if err := s.Validate(); err != nil {

@@ -65,7 +65,10 @@ func TestTodo_PROMOUX_011_ProductRefreshPublishesOnlyNewestSequence(t *testing.T
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(applied) != 2 || applied[1] != "worker-2" || got.People[0].ID != "worker-2" {
+	// Depending on scheduling, the older response may publish before the
+	// newer read completes or be suppressed after the newer response wins.
+	// Both are correct; the observable final projection must always be newest.
+	if len(applied) == 0 || len(applied) > 2 || applied[len(applied)-1] != "worker-2" || got.People[0].ID != "worker-2" {
 		t.Fatalf("applied=%v final=%q, want newest projection", applied, got.People[0].ID)
 	}
 }

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -131,8 +132,19 @@ func (m *memLifecycleStore) LoadIntent(_ context.Context, tenant, intentID strin
 	return rec, nil
 }
 
-func (m *memLifecycleStore) ListIntents(context.Context, string, int32, string) (IntentPage, error) {
-	return IntentPage{}, nil
+// ListIntents returns every record of tenant in identifier order, as the
+// PostgreSQL store does, in one page.
+func (m *memLifecycleStore) ListIntents(_ context.Context, tenant string, _ int32, _ string) (IntentPage, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	page := IntentPage{}
+	for _, rec := range m.byKey {
+		if rec.Tenant == tenant {
+			page.Records = append(page.Records, rec)
+		}
+	}
+	sort.Slice(page.Records, func(i, j int) bool { return page.Records[i].IntentID < page.Records[j].IntentID })
+	return page, nil
 }
 
 func (m *memLifecycleStore) Timeline(context.Context, string, string) ([]TimelineEntry, error) {

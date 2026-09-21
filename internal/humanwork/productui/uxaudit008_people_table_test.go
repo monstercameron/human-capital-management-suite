@@ -151,8 +151,9 @@ func TestTodo_UXAUDIT_008(t *testing.T) {
 			t.Fatal(err)
 		}
 		reason := ResolveProductLocale("").Text("workflow.no_promotion_path")
-		short := ResolveProductLocale("").Text("people.workflows_unavailable_short")
-		if !strings.Contains(doc, `class="people-availability-badge muted"`) {
+		short := ResolveProductLocale("").Text("people.workflows_quiet")
+		// UXLIVE-033: the compact badge is now quiet text beside an info button.
+		if !strings.Contains(doc, `class="people-reason-trigger"`) {
 			t.Fatalf("unavailable row did not render the compact badge: %s", doc)
 		}
 		if !strings.Contains(doc, `title="`+reason+`"`) {
@@ -197,7 +198,7 @@ func TestTodo_UXAUDIT_008_Browser(t *testing.T) {
 	// Half the rows carry the compact badge (every second worker was seeded
 	// ineligible); none of them repeat the reason as flowing row content --
 	// it lives in the title attribute and the visually-hidden span only.
-	if got := strings.Count(doc, `class="people-availability-badge muted"`); got != 10 {
+	if got := strings.Count(doc, `class="people-reason-trigger"`); got != 10 {
 		t.Fatalf("compact badge count = %d, want 10 (half of 20 seeded rows)", got)
 	}
 }

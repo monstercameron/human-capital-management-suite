@@ -223,6 +223,13 @@ func NewReadinessRequirement(r ReadinessRequirement) (ReadinessRequirement, erro
 	return r, nil
 }
 
+// Compile validates and canonicalizes a readiness requirement into the exact
+// immutable form consumed by Evaluate. It is the engine-contract counterpart
+// to Evaluate; NewReadinessRequirement remains the descriptive constructor.
+func Compile(r ReadinessRequirement) (ReadinessRequirement, error) {
+	return NewReadinessRequirement(r)
+}
+
 func (r ReadinessRequirement) Canonical() []byte {
 	if r.Validate() != nil {
 		return nil

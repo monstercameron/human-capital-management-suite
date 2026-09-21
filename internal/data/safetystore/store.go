@@ -18,11 +18,10 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
-// Executor is the driver-free database capability used by this adapter.
-type Executor interface {
-	dbport.Execer
-	dbport.Querier
-}
+// Executor is the caller-owned transaction capability. A bare connection
+// cannot satisfy it: revision checks and inserts must share tenant-scoped
+// transaction state.
+type Executor = dbport.Tx
 
 // ErrorCode is stable machine-readable classification for store refusals.
 type ErrorCode string
@@ -74,7 +73,7 @@ type Store struct {
 }
 
 // New binds an executor and tenant to a safety repository.
-func New(ex Executor, tenantID uuid.UUID) Store {
+func New(ex dbport.Tx, tenantID uuid.UUID) Store {
 	return Store{Executor: ex, TenantID: tenantID}
 }
 

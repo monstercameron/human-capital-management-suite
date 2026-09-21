@@ -18,10 +18,9 @@ func JourneyFragment(request productui.PageRequest) string {
 	if strings.EqualFold(strings.TrimSpace(request.JourneyMode), "new") {
 		return journeyclient.ProposalHref(worker)
 	}
-	if worker != "" {
-		return journeyclient.WorkerHref(worker)
-	}
-	return journeyclient.ListHref()
+	// UXLIVE-031: the tracker's filter travels in the product address and
+	// is handed to the live client as the same state in its own spelling.
+	return journeyclient.ListFilterHref(worker, request.JourneyList)
 }
 
 // ProductJourneyHref translates a navigation emitted by the live journey
@@ -71,6 +70,7 @@ func ProductJourneyHref(fragment, currentQuery string) string {
 		if route.WorkerRef != "" {
 			values.Set("worker", route.WorkerRef)
 		}
+		route.Filter.SetValues(values)
 	}
 	href := productui.Path(productui.PageJourneys)
 	if query := values.Encode(); query != "" {

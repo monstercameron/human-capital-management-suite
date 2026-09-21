@@ -31,6 +31,7 @@ var (
 	ErrProxyBypass    = errors.New("egress: request attempts to bypass the centralized proxy")
 	ErrDLPRefused     = errors.New("egress: DLP refused the outbound request")
 	ErrTLSRequired    = errors.New("egress: HTTPS and TLS are required")
+	ErrUnsafeMethod   = errors.New("egress: HTTP method is not allowed through the gateway")
 )
 
 // Resolver is the small DNS port used for deterministic address validation.
@@ -57,6 +58,10 @@ type Config struct {
 	TLSConfig    *tls.Config
 	Now          func() time.Time
 	MaxRedirects int
+	// AllowCONNECT opts into CONNECT tunneling. It defaults off: CONNECT
+	// bypasses the repository-method guarantees, so enabling it is an
+	// explicit, auditable gateway decision, and TRACE/TRACK stay refused.
+	AllowCONNECT bool
 }
 
 type Gateway struct {
@@ -68,6 +73,7 @@ type Gateway struct {
 	resolver     Resolver
 	now          func() time.Time
 	maxRedirects int
+	allowCONNECT bool
 	receipts     *dlp.ReceiptLog
 }
 
@@ -109,7 +115,7 @@ func New(cfg Config) (*Gateway, error) {
 	if transport == nil {
 		transport = &http.Transport{Proxy: http.ProxyURL(cfg.ProxyURL), TLSClientConfig: cfg.TLSConfig}
 	}
-	return &Gateway{outbound: cfg.Outbound, dlp: cfg.DLP, inspector: cfg.Inspector, proxy: cfg.ProxyURL, transport: transport, resolver: cfg.Resolver, now: cfg.Now, maxRedirects: cfg.MaxRedirects, receipts: dlp.NewReceiptLog()}, nil
+	return &Gateway{outbound: cfg.Outbound, dlp: cfg.DLP, inspector: cfg.Inspector, proxy: cfg.ProxyURL, transport: transport, resolver: cfg.Resolver, now: cfg.Now, maxRedirects: cfg.MaxRedirects, allowCONNECT: cfg.AllowCONNECT, receipts: dlp.NewReceiptLog()}, nil
 }
 
 // Do authorizes, resolves, and sends each hop through the configured proxy.
@@ -117,6 +123,9 @@ func New(cfg Config) (*Gateway, error) {
 func (g *Gateway) Do(ctx context.Context, in Request) (Result, error) {
 	if g == nil {
 		return Result{}, ErrInvalidGateway
+	}
+	if !allowedEgressMethod(in.Method, g.allowCONNECT) {
+		return Result{}, fmt.Errorf("%w: %s", ErrUnsafeMethod, in.Method)
 	}
 	if err := validateRequest(in); err != nil {
 		return Result{}, err
@@ -247,6 +256,21 @@ func (g *Gateway) resolve(ctx context.Context, host string) ([]netip.Addr, error
 		}
 	}
 	return answers, nil
+}
+
+// allowedEgressMethod reports whether method may reach the proxy. Only
+// the repository methods pass; CONNECT additionally requires the
+// gateway's explicit opt-in, and TRACE, TRACK and anything else never
+// pass, opt-in or not.
+func allowedEgressMethod(method string, allowCONNECT bool) bool {
+	switch method {
+	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead:
+		return true
+	case http.MethodConnect:
+		return allowCONNECT
+	default:
+		return false
+	}
 }
 
 func validateRequest(in Request) error {

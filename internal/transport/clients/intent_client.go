@@ -48,9 +48,7 @@ func ProceduresIntentService() []string {
 // DecodeConnectError), so calling code does not depend on which backend it
 // was built with.
 type IntentClient interface {
-	// CancelIntent calls hcmnext.intents.v1.IntentService.CancelIntent. The method exists
-	// on the wire for P1B forward compatibility; every P1A invocation is
-	// refused (disposition REFUSED_P1A), identically on both backends.
+	// CancelIntent calls hcmnext.intents.v1.IntentService.CancelIntent.
 	CancelIntent(ctx context.Context, req *intentsv1.CancelIntentRequest, opts ...CallOption) (*intentsv1.CancelIntentResponse, error)
 	// CreateIntent calls hcmnext.intents.v1.IntentService.CreateIntent.
 	CreateIntent(ctx context.Context, req *intentsv1.CreateIntentRequest, opts ...CallOption) (*intentsv1.CreateIntentResponse, error)
@@ -68,13 +66,9 @@ type IntentClient interface {
 	ListIntents(ctx context.Context, req *intentsv1.ListIntentsRequest, opts ...CallOption) (*intentsv1.ListIntentsResponse, error)
 	// SimulateIntent calls hcmnext.intents.v1.IntentService.SimulateIntent.
 	SimulateIntent(ctx context.Context, req *intentsv1.SimulateIntentRequest, opts ...CallOption) (*intentsv1.SimulateIntentResponse, error)
-	// SubmitIntent calls hcmnext.intents.v1.IntentService.SubmitIntent. The method exists
-	// on the wire for P1B forward compatibility; every P1A invocation is
-	// refused (disposition REFUSED_P1A), identically on both backends.
+	// SubmitIntent calls hcmnext.intents.v1.IntentService.SubmitIntent.
 	SubmitIntent(ctx context.Context, req *intentsv1.SubmitIntentRequest, opts ...CallOption) (*intentsv1.SubmitIntentResponse, error)
-	// SupersedeIntent calls hcmnext.intents.v1.IntentService.SupersedeIntent. The method exists
-	// on the wire for P1B forward compatibility; every P1A invocation is
-	// refused (disposition REFUSED_P1A), identically on both backends.
+	// SupersedeIntent calls hcmnext.intents.v1.IntentService.SupersedeIntent.
 	SupersedeIntent(ctx context.Context, req *intentsv1.SupersedeIntentRequest, opts ...CallOption) (*intentsv1.SupersedeIntentResponse, error)
 }
 

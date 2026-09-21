@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -420,6 +421,13 @@ func DetectFlakes(ctx context.Context, root, packageName string, runs int) (Flak
 			var exitErr *exec.ExitError
 			if errors.As(err, &exitErr) {
 				outcome.ExitCode = exitErr.ExitCode()
+				// Windows can report an unlink failure after the package
+				// already passed. Preserve the raw exit and output, but judge
+				// the test result by its explicit package summary only when
+				// the cleanup diagnostic is the sole additional output.
+				if cleanupOnlyExit(outcome.Output, runtime.GOOS == "windows") {
+					outcome.Passed = true
+				}
 			} else {
 				return FlakeReport{}, fmt.Errorf("testhygiene: run %d: %w", run, err)
 			}
@@ -436,6 +444,28 @@ func DetectFlakes(ctx context.Context, root, packageName string, runs int) (Flak
 		}
 	}
 	return report, nil
+}
+
+func cleanupOnlyExit(output string, windows bool) bool {
+	if !windows {
+		return false
+	}
+	foundPass, foundCleanup := false, false
+	for line := range strings.SplitSeq(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "ok "):
+			foundPass = true
+		case strings.HasPrefix(line, "go: unlinkat ") && strings.Contains(line, "go-build") && strings.HasSuffix(strings.ToLower(line), ".test.exe: access is denied."):
+			foundCleanup = true
+		default:
+			return false
+		}
+	}
+	return foundPass && foundCleanup
 }
 
 // RunFlakeDetector is an explicit compatibility spelling for callers that

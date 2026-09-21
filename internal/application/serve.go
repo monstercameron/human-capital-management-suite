@@ -44,9 +44,12 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	kernelvalues "github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
+	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint"
+	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/streaming"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -284,6 +287,17 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			if err := roleAccess.BootstrapLocalDevPersonaPermissions(ctx, kernelvalues.TenantId(cfg.Tenant)); err != nil {
 				return nil, fmt.Errorf("bootstrap local development personas: %w", err)
 			}
+			// The role catalog exists now, so every seeded worker can be given
+			// the durable role set migrations/00238 provides for. This adds
+			// rows only: no grant or gating rule changes.
+			assigned, err := bootstrapLocalDevRoleAssignments(ctx, in.Pool, cfg.Tenant)
+			if err != nil {
+				return nil, err
+			}
+			if assigned.Workers > 0 {
+				logger.Info("hcmnext.local_dev_role_assignments_ready",
+					"tenant", cfg.Tenant, "workers", assigned.Workers, "assignments", assigned.Assignments)
+			}
 		}
 	}
 	cellConfig := app.CellConfig{
@@ -293,9 +307,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		Audience:         cfg.Audience,
 		MaxDeadline:      cfg.MaxDeadline,
 		Logger:           transport.LoggerFunc(RequestLogger(logger)),
+		EventLogger:      eventLogger(logger),
 		Workspace:        &workspaceEnabled,
 		DevBrowserLogin:  cfg.DevBrowserLogin,
-		DevPersonas:      composeDevPersonas(verifier, cfg, options.Now),
+		DevPersonas:      append(composeDevPersonas(verifier, cfg, options.Now), composeDevEmployeePersonas(verifier, cfg, options.Now)...),
+		DevDirectory:     composeDevDirectory(cfg),
 		PublicOrigin:     cfg.PublicOrigin,
 		Evidence:         evidence,
 		Telemetry:        telemetryProvider,
@@ -315,7 +331,18 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		Preferences:          preferencestore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)),
 		RoleAccess:           roleAccess,
 		WorkerIDs:            workerIDs,
+		// REV-096-01: the promotion routing predicate's production reader. A
+		// subject's most recently finalized calibration is resolved from the
+		// tenant's own performance rows; a subject with none, or a rating that
+		// does not validate, is a miss and stays on the plan's own digest.
+		PerformanceRatings: composeCalibratedRatings(in.Pool),
+		// The plan this cell executes, so a top-band subject can be pinned to
+		// the variant at all. The pin still requires a configured
+		// HighPerformerVariantDigest, which stays empty until the variant is
+		// registered with the execution authority.
+		PromotionPlan: cfg.WorkflowPlan,
 	}
+	cellConfig.WorkflowCapabilityPolicy, cellConfig.WorkflowPaletteExtensions = localDevelopmentWorkflowAuthoring(cfg)
 	graph.add(ComponentPresentationPrefs, KindAdapter, cellConfig.Preferences, ComponentDatabasePool)
 	graph.add(ComponentRoleAccess, KindAdapter, cellConfig.RoleAccess, ComponentDatabasePool)
 	graph.add(ComponentPayBandCatalog, KindPort, cellConfig.Bands)
@@ -323,13 +350,26 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if cfg.ExecutionAuthority {
 		composeExecution := options.ComposeExecution
 		if composeExecution == nil {
-			composeExecution = ComposeExecutionAuthority
+			composeExecution = composeExecutionAuthorityWith(options.ProviderReceipts)
 		}
 		if err := composeExecution(&cellConfig, in.Pool, evidence, cfg); err != nil {
 			return nil, fmt.Errorf("compose the P1B execution authority: %w", err)
 		}
 		logger.Info("hcmnext.execution_authority_enabled",
 			"role", cfg.ExecutionAuthorityRole, "cell_id", cfg.CellID)
+		// A local-development cell is left able to run the reference promotion
+		// end to end, the same guarantee the workforce seed gives. Any other
+		// profile keeps the governed CLI release path.
+		released, err := bootstrapLocalDevWorkflowVersions(ctx, cfg, cellConfig.ExecutionVersions, options.Now)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range released {
+			logger.Info("hcmnext.local_dev_workflow_version_ready",
+				"tenant", cfg.Tenant, "workflow", v.WorkflowID, "semantic_version", v.SemanticVersion,
+				"status", string(v.Status), "approved_by", platformexecution.DevReleaseApprover,
+				"command", "hcmnext workflow-version bootstrap-dev")
+		}
 	}
 	graph.add(ComponentExecutionAuthority, KindGovernance, cellConfig.ExecutionAuthority, ComponentConfig, ComponentDatabasePool, ComponentEvidenceSink)
 	graph.add(ComponentProposalExecutor, KindWorkflow, cellConfig.Executor, ComponentExecutionAuthority)
@@ -399,15 +439,24 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	operationStore := operationStoreAdapter{store: operationstore.New(in.Pool,
 		func(tenant string) string { return pgstore.TenantID(tenant).String() })}
 
+	// PROMO-EXEC-004: the WorkService write surface is driven by the
+	// application-owned adapters over this composition's pool, with one
+	// ENDPOINT-004 coordinator per composed server.
+	workWrites := newServedWorkQueueWrites(in.Pool, options.Now)
+	workWritePorts := transporthumanwork.WritePorts{
+		Claims: workWrites, Completions: workWrites, Decisions: workWrites,
+		Idempotency: endpoint.NewCoordinator(),
+	}
+
 	grpcServer, err := transportcell.NewGRPCServerWithWorkflowInspectorAndOperations(
-		cell, workflowInstanceReader, workQueueReader, operationStore, []byte(cfg.DevHMACKey))
+		cell, workflowInstanceReader, workQueueReader, operationStore, []byte(cfg.DevHMACKey), workWritePorts)
 	if err != nil {
 		return nil, err
 	}
 	graph.add(ComponentGRPCSurface, KindTransport, grpcServer, ComponentCell, ComponentWorkflowInstanceRead)
 
 	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnelAndDependencies(
-		cell, grpcServer, workflowInstanceReader, workQueueReader, operationStore, []byte(cfg.DevHMACKey))
+		cell, grpcServer, workflowInstanceReader, workQueueReader, operationStore, []byte(cfg.DevHMACKey), workWritePorts)
 	if err != nil {
 		return nil, err
 	}
@@ -449,20 +498,57 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	workloads := []bootstrap.Workload{
 		{
 			Name: workloadNameGRPC,
-			Run: func(context.Context) error {
-				if err := grpcServer.Serve(grpcListener); err != nil && !errors.Is(err, net.ErrClosed) {
-					return err
+			Run: func(ctx context.Context) error {
+				finished := make(chan error, 1)
+				go func() { finished <- grpcServer.Serve(grpcListener) }()
+				select {
+				case err := <-finished:
+					if err != nil && !errors.Is(err, net.ErrClosed) {
+						return err
+					}
+					return nil
+				case <-ctx.Done():
+					// Bootstrap drains workloads before running its ordered
+					// shutdown steps. Serve ignores context, so quiesce the
+					// listener here; the later step remains an idempotent guard.
+					stopped := make(chan struct{})
+					go func() { grpcServer.GracefulStop(); close(stopped) }()
+					select {
+					case <-stopped:
+					case <-time.After(ShutdownGrace / 2):
+						grpcServer.Stop()
+						<-stopped
+					}
+					if err := <-finished; err != nil && !errors.Is(err, net.ErrClosed) {
+						return err
+					}
+					return nil
 				}
-				return nil
 			},
 		},
 		{
 			Name: workloadNameHTTP,
-			Run: func(context.Context) error {
-				if err := httpServer.Serve(httpListener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					return err
+			Run: func(ctx context.Context) error {
+				finished := make(chan error, 1)
+				go func() { finished <- httpServer.Serve(httpListener) }()
+				select {
+				case err := <-finished:
+					if err != nil && !errors.Is(err, http.ErrServerClosed) {
+						return err
+					}
+					return nil
+				case <-ctx.Done():
+					shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), ShutdownGrace/2)
+					defer cancel()
+					if err := httpServer.Shutdown(shutdownCtx); err != nil {
+						_ = httpServer.Close()
+						return err
+					}
+					if err := <-finished; err != nil && !errors.Is(err, http.ErrServerClosed) {
+						return err
+					}
+					return nil
 				}
-				return nil
 			},
 		},
 	}

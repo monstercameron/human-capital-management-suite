@@ -102,7 +102,12 @@ func TestTodo_WEB_032_Conformance(t *testing.T) {
 		t.Fatalf("missing SRI token: %q", manifest.Assets[0].Integrity)
 	}
 	for name, source := range map[string]string{"journey": journeyLoaderSource, "workspace": loaderSource} {
-		for _, required := range []string{PathAssetManifest, PathWasmExec, "o(s.integrity)", "o(a.integrity)", `authorization:"Bearer "+(j.bearer||"")`, `credentials:"same-origin"`} {
+		// The executable fetches went through a caching helper for UXLIVE-013,
+		// so they now name their integrity as an argument rather than at the
+		// call site. What this test is actually protecting is unchanged: every
+		// executable byte is requested through o(), which is the only thing
+		// that carries the bearer token and the SRI pin.
+		for _, required := range []string{PathAssetManifest, PathWasmExec, "k(u,i)", "return fetch(u,o(i))", ",s.integrity)", ",a.integrity)", `authorization:"Bearer "+(j.bearer||"")`, `credentials:"same-origin"`} {
 			if !strings.Contains(source, required) {
 				t.Errorf("%s loader does not authenticate and integrity-pin %q", name, required)
 			}

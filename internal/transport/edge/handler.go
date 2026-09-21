@@ -104,8 +104,25 @@ func NewHandler(opts Options) (http.Handler, error) {
 	}
 	if opts.Workflow != nil {
 		h := transportworkflow.NewHandler(*opts.Workflow, handlerOptions...)
-		mux.Handle(transportworkflow.GetWorkflowProcedure, h)
-		mux.Handle(transportworkflow.ListNodeExecutionsProcedure, h)
+		for _, proc := range []string{
+			transportworkflow.GetWorkflowProcedure,
+			transportworkflow.ListNodeExecutionsProcedure,
+			transportworkflow.ListWorkflowPublicationsProcedure,
+			transportworkflow.GetWorkflowDefinitionViewProcedure,
+			transportworkflow.CompileWorkflowDraftProcedure,
+			transportworkflow.ListWorkflowBlocksProcedure,
+			transportworkflow.CreateWorkflowDraftProcedure,
+			transportworkflow.GetWorkflowDraftProcedure,
+			transportworkflow.InsertWorkflowPaletteEntryProcedure,
+			transportworkflow.UpdateWorkflowDraftNodeProcedure,
+			transportworkflow.SetWorkflowDraftOutcomeProcedure,
+			transportworkflow.BindWorkflowDraftInputProcedure,
+			transportworkflow.MoveWorkflowDraftNodeProcedure,
+			transportworkflow.NavigateWorkflowDraftHistoryProcedure,
+			transportworkflow.ApplyWorkflowTemplateOverlayProcedure,
+		} {
+			mux.Handle(proc, h)
+		}
 		for _, proc := range []string{transportworkflow.PauseWorkflowProcedure, transportworkflow.ResumeWorkflowProcedure, transportworkflow.CancelWorkflowProcedure, transportworkflow.RetryNodeProcedure} {
 			mux.Handle(proc, h)
 		}

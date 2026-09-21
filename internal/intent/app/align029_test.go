@@ -101,7 +101,13 @@ func TestTodo_ALIGN_029_Golden(t *testing.T) {
 	}
 	sort.Strings(lines)
 	want := strings.Join([]string{
-		"approve_finance=FINANCE_APPROVAL", "approve_manager=MANAGER_APPROVAL", "end_blocked=BLOCKED", "end_cancelled=FAILED",
+		"acknowledge_release=AWAITING_ACKNOWLEDGEMENT",
+		"approve_finance=FINANCE_APPROVAL", "approve_manager=MANAGER_APPROVAL",
+		// Promotion 1.1.0: the provider-confirmation waits sit between the
+		// commit and its observations.
+		"await_access_confirmation=OBSERVING_EFFECTS", "await_payroll_confirmation=OBSERVING_EFFECTS",
+		"compensate_budget_hold=REPAIR_REQUIRED",
+		"end_blocked=BLOCKED", "end_cancelled=FAILED",
 		"end_complete=RECORDED", "end_expired=FAILED", "end_invalidated=FAILED", "end_rejected=REJECTED",
 		"end_repair_plan=REPAIR_REQUIRED", "evaluate_band=PROPOSED", "execute_promotion=EXECUTED",
 		"observe_access=OBSERVING_EFFECTS", "observe_payroll=OBSERVING_EFFECTS", "observe_reconciliation=OBSERVING_EFFECTS",

@@ -86,6 +86,16 @@ func TestAlternates(t *testing.T) {
 	}
 }
 
+func TestWindowsCleanupOnlyDoesNotHideFailedTests(t *testing.T) {
+	pass := "ok  \texample.com/flaky/flaky\t0.1s\ngo: unlinkat C:\\Temp\\go-build1\\b001\\flaky.test.exe: Access is denied.\n"
+	if !cleanupOnlyExit(pass, true) || cleanupOnlyExit(pass, false) {
+		t.Fatal("Windows-only cleanup after an explicit package pass was misclassified")
+	}
+	if cleanupOnlyExit("--- FAIL: TestAlternates\nFAIL\texample.com/flaky/flaky\n"+pass, true) {
+		t.Fatal("a failed test must not be hidden behind a later cleanup complaint")
+	}
+}
+
 func TestTodo_GOV_020_Golden(t *testing.T) {
 	if PackageStateWrite == SleepWait || SleepWait == ParallelFixture || ParallelFixture == WallClockRead {
 		t.Fatal("risk kinds must be distinct")

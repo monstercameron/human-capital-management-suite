@@ -16,7 +16,7 @@ func dispositionFixture() (ProductSliceDefinition, []SliceElementDisposition) {
 	}
 	var elements []SliceElementDisposition
 	for _, ref := range slice.elementRefs() {
-		elements = append(elements, SliceElementDisposition{ElementRef: ref, Disposition: DispositionCore, ReasonCode: "DEFAULT_SCOPE"})
+		elements = append(elements, SliceElementDisposition{ElementRef: ref, Disposition: DispositionCoreRequired, ReasonCode: "DEFAULT_SCOPE"})
 	}
 	return slice, elements
 }
@@ -24,8 +24,8 @@ func dispositionFixture() (ProductSliceDefinition, []SliceElementDisposition) {
 // TestTodo_ALIGN_002 proves the vocabulary and the per-element contract are
 // closed, reasoned, and detached from mutable caller slices.
 func TestTodo_ALIGN_002(t *testing.T) {
-	if len(DefaultProductDispositionVocabulary()) != 5 {
-		t.Fatalf("vocabulary length=%d, want 5", len(DefaultProductDispositionVocabulary()))
+	if len(DefaultProductDispositionVocabulary()) != 6 {
+		t.Fatalf("vocabulary length=%d, want 6", len(DefaultProductDispositionVocabulary()))
 	}
 	slice, elements := dispositionFixture()
 	set, err := NewDispositionSet(slice, elements...)
@@ -46,7 +46,7 @@ func TestTodo_ALIGN_002(t *testing.T) {
 
 func TestTodo_ALIGN_002_Property(t *testing.T) {
 	_, elements := dispositionFixture()
-	for _, disposition := range []ProductDisposition{DispositionCore, DispositionOptional, DispositionDeferred, DispositionExcluded, DispositionPartnerOnly} {
+	for _, disposition := range []ProductDisposition{DispositionCoreRequired, DispositionDomainPackDefault, DispositionAvailableNotEnabled, DispositionCustomerDefined, DispositionDeferred, DispositionProhibited} {
 		candidate := elements[0]
 		candidate.Disposition = disposition
 		if err := candidate.Validate(); err != nil {
@@ -66,7 +66,7 @@ func TestTodo_ALIGN_002_Property(t *testing.T) {
 }
 
 func TestTodo_ALIGN_002_Golden(t *testing.T) {
-	const want = "sha256:cf94ee5a46bd738db34a9a37206d5058f555c7cac02196b3cd273879d1323f92"
+	const want = "sha256:fec4134a620f0818e1c6896be98ba27bc89acc240e891f9166a3457a0c398946"
 	if DispositionVocabularyDigest() != want || DefaultDispositionVocabularyDigest != want {
 		t.Fatalf("vocabulary digest=%q constant=%q want=%q", DispositionVocabularyDigest(), DefaultDispositionVocabularyDigest, want)
 	}

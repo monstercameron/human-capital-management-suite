@@ -273,11 +273,13 @@ func TestTodo_WF_RUN_035_Recovery(t *testing.T) {
 	if !ok {
 		t.Fatalf("serve composed %T as the workflow version store, want the durable registry", first.ExecutionVersions)
 	}
-	if a, tr, d := counts(); a != 0 || tr != 0 || d != 2 {
-		t.Fatalf("boot wrote %d approvals and %d transitions with %d drafts; want no governance writes and both shipped versions DRAFT", a, tr, d)
+	// Three shipped versions: the prototype and promotion execute 1.0.0
+	// (frozen) and 1.1.0.
+	if a, tr, d := counts(); a != 0 || tr != 0 || d != 3 {
+		t.Fatalf("boot wrote %d approvals and %d transitions with %d drafts; want no governance writes and all three shipped versions DRAFT", a, tr, d)
 	}
 	compose()
-	if a, tr, d := counts(); a != 0 || tr != 0 || d != 2 {
+	if a, tr, d := counts(); a != 0 || tr != 0 || d != 3 {
 		t.Fatalf("a second boot wrote %d approvals, %d transitions, %d drafts", a, tr, d)
 	}
 
@@ -286,6 +288,13 @@ func TestTodo_WF_RUN_035_Recovery(t *testing.T) {
 		t.Fatalf("BootstrapDevVersions: %v", err)
 	}
 	for _, v := range active {
+		// Promotion execute 1.0.0 is activated and then superseded by 1.1.0.
+		if v.QuarantinedBySupersession() {
+			if len(v.Approvals) != 2 || v.Approvals[0].ApprovedBy == v.PublishedBy {
+				t.Fatalf("superseded %s %s history %+v, want one activation and its supersession", v.WorkflowID, v.SemanticVersion, v.Approvals)
+			}
+			continue
+		}
 		if v.Status != version.StatusActive || len(v.Approvals) != 1 || v.Approvals[0].ApprovedBy == v.PublishedBy {
 			t.Fatalf("%s = %s with history %+v, want ACTIVE on one approval by someone other than %s", v.WorkflowID, v.Status, v.Approvals, v.PublishedBy)
 		}

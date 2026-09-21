@@ -8,7 +8,7 @@
 // bounded size/cardinality with explicit truncation markers.
 //
 // Scope note: the full OBS-009 contract is owned by
-// internal/operations/telemetry (event/attribute registries, OpenTelemetry
+// internal/platform/telemetry (event/attribute registries, OpenTelemetry
 // export, trace propagation, privacy policy compiled from the telemetry
 // schema). This package is a smaller platform-layer building block that
 // implements the envelope shape and the redaction/cardinality mechanics in

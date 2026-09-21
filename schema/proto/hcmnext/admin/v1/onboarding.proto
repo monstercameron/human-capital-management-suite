@@ -1,0 +1,261 @@
+﻿syntax = "proto3";
+
+package hcmnext.admin.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1;adminv1";
+
+import "google/protobuf/timestamp.proto";
+
+// OnboardingService is REV-036-01's generated operator surface for the
+// onboarding pipeline (internal/connectivity/onboarding). Unlike
+// AdminService, which is READ_ONLY/PURE by charter, these methods advance a
+// tenant-scoped onboarding run: they require the operator role and every
+// transition is recorded on the run the application registry owns.
+service OnboardingService {
+  rpc PublishOnboardingManifest(PublishOnboardingManifestRequest) returns (PublishOnboardingManifestResponse);
+  rpc RunOnboardingPreflight(RunOnboardingPreflightRequest) returns (RunOnboardingPreflightResponse);
+  rpc StartOnboardingExtraction(StartOnboardingExtractionRequest) returns (StartOnboardingExtractionResponse);
+  rpc GetOnboardingRun(GetOnboardingRunRequest) returns (GetOnboardingRunResponse);
+  rpc ReviewOnboardingAdjudication(ReviewOnboardingAdjudicationRequest) returns (ReviewOnboardingAdjudicationResponse);
+  rpc ExecuteOnboardingCutover(ExecuteOnboardingCutoverRequest) returns (ExecuteOnboardingCutoverResponse);
+  rpc AbortOnboardingRun(AbortOnboardingRunRequest) returns (AbortOnboardingRunResponse);
+  rpc ReportOnboardingReconciliation(ReportOnboardingReconciliationRequest) returns (ReportOnboardingReconciliationResponse);
+}
+
+message OnboardingReferencePin {
+  string name = 1;
+  string version = 2;
+  string digest = 3;
+}
+
+message OnboardingBudget {
+  uint64 max_pages = 1;
+  uint64 max_records = 2;
+  uint64 max_bytes = 3;
+  int64 max_wall_time_seconds = 4;
+}
+
+message OnboardingFieldAllowEntry {
+  string object = 1;
+  repeated string fields = 2;
+}
+
+message OnboardingManifest {
+  string manifest_id = 1;
+  string tenant_id = 2;
+  string owner_ref = 3;
+  string source_authority_ref = 4;
+  string classification = 5;
+  string residency = 6;
+  string retention_policy = 7;
+  string rollback_policy = 8;
+  string idempotency_key = 9;
+  string connector_id = 10;
+  string connector_version = 11;
+  string connection_id = 12;
+  repeated string objects = 13;
+  map<string, string> schema_version_pins = 14;
+  repeated OnboardingFieldAllowEntry field_allow_list = 15;
+  repeated OnboardingReferencePin reference_pins = 16;
+  OnboardingBudget budget = 17;
+  google.protobuf.Timestamp created_at = 18;
+  string created_by = 19;
+  map<string, int64> expected_population = 20;
+}
+
+message PublishOnboardingManifestRequest {
+  OnboardingManifest manifest = 1;
+  string signer_key_id = 2;
+  string signature = 3;
+  string digest = 4;
+}
+
+message PublishOnboardingManifestResponse {
+  string run_id = 1;
+  string manifest_digest = 2;
+}
+
+message RunOnboardingPreflightRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+}
+
+message RunOnboardingPreflightResponse {
+  bool passed = 1;
+  string reason = 2;
+  google.protobuf.Timestamp checked_at = 3;
+}
+
+message StartOnboardingExtractionRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+  string mode = 3;
+  int32 max_pages_per_run = 4;
+  int32 max_runs_per_object = 5;
+  int32 page_size = 6;
+}
+
+message OnboardingObjectOutcome {
+  string object = 1;
+  string status = 2;
+  bool snapshot_changed = 3;
+  int64 pages = 4;
+  int64 records = 5;
+}
+
+message StartOnboardingExtractionResponse {
+  string run_id = 1;
+  string state = 2;
+  repeated OnboardingObjectOutcome outcomes = 3;
+}
+
+message GetOnboardingRunRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+}
+
+message OnboardingAdjudicationView {
+  string object = 1;
+  string external_id = 2;
+  string outcome = 3;
+  string canonical_id = 4;
+  repeated string candidates = 5;
+}
+
+message GetOnboardingRunResponse {
+  string run_id = 1;
+  string tenant_id = 2;
+  string state = 3;
+  string manifest_digest = 4;
+  bool preflight_passed = 5;
+  int32 objects_extracted = 6;
+  repeated OnboardingAdjudicationView adjudications = 7;
+  string cutover_outcome = 8;
+  string cutover_failed_gate = 9;
+  string reconciliation_digest = 10;
+  string aborted_reason = 11;
+}
+
+message OnboardingCrosswalkEntry {
+  string object = 1;
+  string external_id = 2;
+  string canonical_id = 3;
+  bool exact = 4;
+}
+
+message OnboardingCrosswalkSnapshot {
+  string name = 1;
+  string version = 2;
+  string digest = 3;
+  repeated OnboardingCrosswalkEntry entries = 4;
+}
+
+message OnboardingAdjudicationScope {
+  string object = 1;
+  OnboardingReferencePin pin = 2;
+  OnboardingCrosswalkSnapshot snapshot = 3;
+  repeated string external_ids = 4;
+}
+
+message ReviewOnboardingAdjudicationRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+  repeated OnboardingAdjudicationScope scopes = 3;
+}
+
+message ReviewOnboardingAdjudicationResponse {
+  repeated OnboardingAdjudicationView adjudications = 1;
+}
+
+message OnboardingFreeze {
+  string token = 1;
+  string source_version = 2;
+  google.protobuf.Timestamp frozen_at = 3;
+}
+
+message OnboardingDelta {
+  string base_version = 1;
+  string through_version = 2;
+  string commit_digest = 3;
+  bool complete = 4;
+  int32 failed = 5;
+  int32 pending = 6;
+}
+
+message OnboardingCutoverEvidence {
+  string tenant = 1;
+  string domain = 2;
+  string source_authority = 3;
+  string target_authority = 4;
+  OnboardingFreeze freeze = 5;
+  string current_source_version = 6;
+  int32 source_writes_since_freeze = 7;
+  repeated string target_writers = 8;
+  string cutover_writer = 9;
+  uint64 prior_epoch = 10;
+  uint64 current_epoch = 11;
+  OnboardingDelta delta = 12;
+  int32 validation_errors = 13;
+  string simulation_digest = 14;
+  bool simulation_zero_effect = 15;
+  string approved_simulation_digest = 16;
+  string approved_by = 17;
+  string requested_by = 18;
+  int64 replication_lag_seconds = 19;
+  int64 max_replication_lag_seconds = 20;
+  int32 reconciliation_mismatches = 21;
+  google.protobuf.Timestamp decided_at = 22;
+}
+
+message ExecuteOnboardingCutoverRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+  OnboardingCutoverEvidence evidence = 3;
+}
+
+message ExecuteOnboardingCutoverResponse {
+  string outcome = 1;
+  string failed_gate = 2;
+  string reason = 3;
+  string epoch_digest = 4;
+  string authority = 5;
+}
+
+message AbortOnboardingRunRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+  string reason = 3;
+}
+
+message AbortOnboardingRunResponse {
+  string state = 1;
+}
+
+message OnboardingSourceRow {
+  string row_id = 1;
+  string subject_id = 2;
+  string effective_date = 3;
+  map<string, string> fields = 4;
+}
+
+message OnboardingTargetRecord {
+  string subject_id = 1;
+  string effective_date = 2;
+  map<string, string> fields = 3;
+  repeated string ledger_event_refs = 4;
+  map<string, string> observed = 5;
+  repeated string irreversible_effects = 6;
+}
+
+message ReportOnboardingReconciliationRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+  string import_id = 3;
+  repeated OnboardingSourceRow source = 4;
+  repeated OnboardingTargetRecord target = 5;
+}
+
+message ReportOnboardingReconciliationResponse {
+  string digest = 1;
+  map<string, int32> counts = 2;
+}

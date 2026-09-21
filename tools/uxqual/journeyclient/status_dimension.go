@@ -42,6 +42,11 @@ const (
 	// NextStepSystemProcessing: REVALIDATION, EXECUTED, OBSERVING_EFFECTS --
 	// the workflow itself is working; no person holds the step.
 	NextStepSystemProcessing NextStep = "system_processing"
+	// NextStepAwaitAcknowledgement: AWAITING_ACKNOWLEDGEMENT -- downstream
+	// effects reconciled; a person must record the verified
+	// acknowledgement, but no role class on the journey names whose job it
+	// is (the attester must not be the initiator).
+	NextStepAwaitAcknowledgement NextStep = "await_acknowledgement"
 )
 
 // StageActor is the role class a stage says the journey is waiting on. It is
@@ -78,15 +83,16 @@ type StatusDimension struct {
 // The product My Work page localizes the same codes through its own message
 // catalog (internal/humanwork/productui "work.next_step.<code>").
 var nextStepLabels = map[NextStep]string{
-	NextStepStartApproval:      "Start approval",
-	NextStepCorrectProposal:    "Correct the proposal",
-	NextStepApprovalDecision:   "Approval decision",
-	NextStepManagerDecision:    "Manager decision",
-	NextStepFinanceDecision:    "Finance decision",
-	NextStepReapprovalDecision: "Approval decision again",
-	NextStepRepair:             "Governed repair",
-	NextStepAwaitEffectiveDate: "Wait for the effective date",
-	NextStepSystemProcessing:   "Workflow processing",
+	NextStepStartApproval:        "Start approval",
+	NextStepCorrectProposal:      "Correct the proposal",
+	NextStepApprovalDecision:     "Approval decision",
+	NextStepManagerDecision:      "Manager decision",
+	NextStepFinanceDecision:      "Finance decision",
+	NextStepReapprovalDecision:   "Approval decision again",
+	NextStepRepair:               "Governed repair",
+	NextStepAwaitEffectiveDate:   "Wait for the effective date",
+	NextStepSystemProcessing:     "Workflow processing",
+	NextStepAwaitAcknowledgement: "Await acknowledgement",
 }
 
 // NextStepLabel is code's English wording, or "" for NextStepNone and any
@@ -116,15 +122,16 @@ func JourneyStatusDimension(j *journeyv1.Journey) StatusDimension {
 func JourneyClosed(j *journeyv1.Journey) bool { return j.GetViewer().GetClosed() }
 
 var nextStepCodes = map[journeyv1.JourneyNextStep]NextStep{
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_START_APPROVAL:       NextStepStartApproval,
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_CORRECT_PROPOSAL:     NextStepCorrectProposal,
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_APPROVAL_DECISION:    NextStepApprovalDecision,
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_MANAGER_DECISION:     NextStepManagerDecision,
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_FINANCE_DECISION:     NextStepFinanceDecision,
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REAPPROVAL_DECISION:  NextStepReapprovalDecision,
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REPAIR:               NextStepRepair,
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE: NextStepAwaitEffectiveDate,
-	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_SYSTEM_PROCESSING:    NextStepSystemProcessing,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_START_APPROVAL:        NextStepStartApproval,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_CORRECT_PROPOSAL:      NextStepCorrectProposal,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_APPROVAL_DECISION:     NextStepApprovalDecision,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_MANAGER_DECISION:      NextStepManagerDecision,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_FINANCE_DECISION:      NextStepFinanceDecision,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REAPPROVAL_DECISION:   NextStepReapprovalDecision,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_REPAIR:                NextStepRepair,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_EFFECTIVE_DATE:  NextStepAwaitEffectiveDate,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_SYSTEM_PROCESSING:     NextStepSystemProcessing,
+	journeyv1.JourneyNextStep_JOURNEY_NEXT_STEP_AWAIT_ACKNOWLEDGEMENT: NextStepAwaitAcknowledgement,
 }
 
 var stageActorCodes = map[journeyv1.JourneyStepOwner]StageActor{

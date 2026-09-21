@@ -3,6 +3,8 @@ package workforce
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
 	"strings"
 	"time"
 
@@ -40,6 +42,42 @@ const (
 	// AuthorityPolicy is the authority-by-field decision that granted it.
 	AuthorityPolicy = "people.source_authority/2026.1"
 )
+
+// The closed employment vocabularies migrations/00316 declares on
+// journey_worker. They are tokens, not display text: the object page
+// translates them, so a locale change is not a data migration.
+const (
+	// EmploymentTypeRegular is an open-ended employment relationship;
+	// EmploymentTypeFixedTerm is one with an agreed end. Neither says
+	// anything about worker_type: a fixed-term worker is still an EMPLOYEE.
+	EmploymentTypeRegular   = "REGULAR"
+	EmploymentTypeFixedTerm = "FIXED_TERM"
+
+	// TimeTypeFullTime accompanies an FTE of exactly 1; TimeTypePartTime
+	// accompanies any smaller allocation. [WorkerRow.Validate] refuses a row
+	// where the token and the FTE disagree.
+	TimeTypeFullTime = "FULL_TIME"
+	TimeTypePartTime = "PART_TIME"
+
+	// Where the work is performed, relative to a company site.
+	WorkArrangementOnSite = "ON_SITE"
+	WorkArrangementHybrid = "HYBRID"
+	WorkArrangementRemote = "REMOTE"
+)
+
+// fteIsFullTime reports whether a decimal FTE text is exactly 1, and whether
+// it was a number at all.
+//
+// It parses through math/big rather than a float so that "1.0000" and "1" are
+// both exactly one and "0.9999" is not almost one: the same exact-decimal rule
+// the rest of this package holds for money.
+func fteIsFullTime(fte string) (bool, bool) {
+	value, ok := new(big.Rat).SetString(strings.TrimSpace(fte))
+	if !ok {
+		return false, false
+	}
+	return value.Cmp(big.NewRat(1, 1)) == 0, true
+}
 
 // DateLayout is the ISO-8601 calendar-date layout every date-valued field on
 // [WorkerRow] is carried in. Dates are strings and not time.Time because a
@@ -84,6 +122,27 @@ type WorkerRow struct {
 	PayZone                string
 	FTE                    string
 	ManagerRelationshipRef string
+
+	// EmploymentType and TimeType are the closed employment vocabularies
+	// migrations/00316 declares: REGULAR or FIXED_TERM, FULL_TIME or
+	// PART_TIME. EmploymentType is a different question from WorkerType --
+	// a fixed-term worker is still an EMPLOYEE -- and TimeType must agree
+	// with FTE, which [WorkerRow.Validate] checks rather than leaving the
+	// page to notice a full-time token beside a fractional allocation.
+	//
+	// Company, BusinessUnit and CostCenter are recorded names and codes:
+	// the employing legal entity, the unit's parent line, and the cost
+	// center the placement is charged to. WorkArrangement is ON_SITE,
+	// HYBRID or REMOTE.
+	//
+	// All six are optional. Empty means nobody asserted the fact, which the
+	// object page renders as unreported rather than as a blank answer.
+	EmploymentType  string
+	TimeType        string
+	Company         string
+	BusinessUnit    string
+	CostCenter      string
+	WorkArrangement string
 
 	// ProfilePhotoOriginalRef is the private retained upload reference;
 	// ProfilePhotoProxyRef is the same-origin, display-safe derivative. Both
@@ -175,6 +234,42 @@ func (w WorkerRow) Validate() error {
 	}
 	if (w.ProfilePhotoOriginalRef == "") != (w.ProfilePhotoProxyRef == "") {
 		return fmt.Errorf("%w: profile photo original and proxy references must be set together", ErrInvalidRow)
+	}
+	for _, f := range []struct {
+		name, value string
+		allowed     []string
+	}{
+		{"employment_type", w.EmploymentType, []string{EmploymentTypeRegular, EmploymentTypeFixedTerm}},
+		{"time_type", w.TimeType, []string{TimeTypeFullTime, TimeTypePartTime}},
+		{"work_arrangement", w.WorkArrangement, []string{WorkArrangementOnSite, WorkArrangementHybrid, WorkArrangementRemote}},
+	} {
+		if f.value == "" {
+			continue
+		}
+		if !slices.Contains(f.allowed, f.value) {
+			return fmt.Errorf("%w: %s %q is not one of %s", ErrInvalidRow, f.name, f.value, strings.Join(f.allowed, ", "))
+		}
+	}
+	// A full-time token beside a fractional allocation is the kind of
+	// contradiction a reader of the object page has no way to resolve, so it
+	// is refused at the boundary rather than rendered.
+	if w.TimeType != "" {
+		fullTime, ok := fteIsFullTime(w.FTE)
+		if !ok {
+			return fmt.Errorf("%w: fte %q is not a decimal number", ErrInvalidRow, w.FTE)
+		}
+		if fullTime != (w.TimeType == TimeTypeFullTime) {
+			return fmt.Errorf("%w: time_type %s contradicts fte %s", ErrInvalidRow, w.TimeType, w.FTE)
+		}
+	}
+	for _, f := range []struct{ name, value string }{
+		{"company", w.Company},
+		{"business_unit", w.BusinessUnit},
+		{"cost_center", w.CostCenter},
+	} {
+		if f.value != "" && strings.TrimSpace(f.value) == "" {
+			return fmt.Errorf("%w: %s is blank padding rather than a value", ErrInvalidRow, f.name)
+		}
 	}
 	if w.KnownAt.After(w.RecordedAt) {
 		return fmt.Errorf("%w: known_at %s is after recorded_at %s",

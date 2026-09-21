@@ -10,11 +10,12 @@ import (
 
 // RED for WEB-094: the page-validation findings panel. Every
 // validate step verdicts alone, but the studio has no single
-// validation view: authors run six validators and merge reasons
+// validation view: authors run seven validators and merge reasons
 // by hand, and a failure in one step hides the rest. The
 // lifecycle needs a pure panel running the whole draft
 // composition chain — purpose, floorplan, regions, widgets,
-// actions, ceiling — reporting every step with an overall gate.
+// content safety, actions, ceiling — reporting every step with an
+// overall gate.
 // Rendering the panel stays out: no studio surface hosts it
 // yet, and the report is the panel's content model.
 func TestTodo_WEB_094(t *testing.T) {
@@ -40,7 +41,7 @@ func TestTodo_WEB_094(t *testing.T) {
 			t.Fatalf("step %q fails: %+v", finding.Step, finding)
 		}
 	}
-	if !reflect.DeepEqual(steps, []string{"purpose", "floorplan", "regions", "widgets", "actions", "ceiling"}) {
+	if !reflect.DeepEqual(steps, []string{"purpose", "floorplan", "regions", "widgets", "content-safety", "actions", "ceiling"}) {
 		t.Fatalf("panel steps = %q", steps)
 	}
 
@@ -55,8 +56,8 @@ func TestTodo_WEB_094(t *testing.T) {
 	if panel.Compatible {
 		t.Fatal("broken composition panel passes")
 	}
-	if len(panel.Findings) != 6 {
-		t.Fatalf("panel lists %d steps, want 6", len(panel.Findings))
+	if len(panel.Findings) != 7 {
+		t.Fatalf("panel lists %d steps, want 7", len(panel.Findings))
 	}
 	byStep := map[string]ValidationFinding{}
 	for _, finding := range panel.Findings {
@@ -129,7 +130,7 @@ func TestTodo_WEB_094_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(builder.String()))
 	got := hex.EncodeToString(digest[:])
-	const want = "afe1a8de4ca92e378423a9a62635118ec7bde5664b2e94466dbb96cba509db1f"
+	const want = "f7938ce7f27153f693923297e4f33a5e91a015cfbc49719bf5bdbfcb2648a701"
 	if got != want {
 		t.Fatalf("panel digest = %s, want %s", got, want)
 	}
@@ -167,14 +168,14 @@ func TestTodo_WEB_094_Conformance(t *testing.T) {
 	if report.Page != "" {
 		t.Fatalf("empty draft panel names page %q", report.Page)
 	}
-	if report.Compatible || len(report.Findings) != 6 {
+	if report.Compatible || len(report.Findings) != 7 {
 		t.Fatalf("empty draft panel = (%t, %d steps)", report.Compatible, len(report.Findings))
 	}
 	steps := []string{}
 	for _, finding := range report.Findings {
 		steps = append(steps, finding.Step)
 	}
-	if !reflect.DeepEqual(steps, []string{"purpose", "floorplan", "regions", "widgets", "actions", "ceiling"}) {
+	if !reflect.DeepEqual(steps, []string{"purpose", "floorplan", "regions", "widgets", "content-safety", "actions", "ceiling"}) {
 		t.Fatalf("panel steps = %q, want flow order", steps)
 	}
 	// Purpose fails but widgets still run on an empty draft.

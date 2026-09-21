@@ -121,6 +121,13 @@ type ListView struct {
 	// built before this field existed, or one whose projector never sets
 	// it, renders exactly as it always has.
 	Groups []JourneySubjectGroup
+	// Grouping is the reader's chosen grouping when it is not the default
+	// person grouping (UXLIVE-031): "status" renders the lifecycle groups,
+	// "none" one flat list. Empty keeps the existing behaviour.
+	Grouping string
+	// Filter is the tracker's search, filter, sort and grouping form and
+	// its result statement. Nil renders no filter, exactly as before.
+	Filter *JourneyFilterView
 	// Empty is shown instead of the list when there are no journeys.
 	Empty string
 	Form  ProposalForm
@@ -291,6 +298,17 @@ const (
 	JourneyGroupClosed  JourneyGroup = "closed"
 )
 
+// EditDefaults is one proposal's own current values, in the types the
+// governed edit form submits.
+type EditDefaults struct {
+	JobCode string
+	Grade   string
+	// Base is decimal text with no currency, separators or delta.
+	Base string
+	// EffectiveISO is yyyy-mm-dd, which is what a date input accepts.
+	EffectiveISO string
+}
+
 type JourneyCard struct {
 	IntentID   string
 	Href       string
@@ -307,6 +325,14 @@ type JourneyCard struct {
 	// Group is a semantic lifecycle bucket resolved by the projector, not
 	// inferred from localized status copy by the renderer.
 	Group JourneyGroup
+	// Edit is the proposal's own current values, in the types a correction
+	// form submits: a job code, a grade, a decimal base and an ISO date.
+	// The display strings beside them (Headline, PayLine, EffectiveDate) are
+	// sentences about those values and are not interchangeable with them --
+	// prefilling the edit form from those sentences is how it came to open
+	// with "WRK-CO2 · P2 → WRK-MGR · M2" in a job-code field (UXLIVE-004).
+	// A value the journey does not carry stays empty.
+	Edit EditDefaults
 	// StageTone is one of neutral, info, warning, success, danger.
 	StageTone string
 	// NextStep is the display wording of the single next step the stage names
@@ -373,12 +399,29 @@ type Option struct {
 	Selected bool
 }
 
+// VacancyOption is one position a promotion may target, as the form offers
+// it. Reference is the only value that leaves the browser: it is the
+// server-issued position revision reference, so a value the server did not
+// publish cannot be submitted as one.
+type VacancyOption struct {
+	Reference        string
+	Title            string
+	Organization     string
+	Manager          string
+	Location         string
+	JobCode          string
+	OrgUnit          string
+	VacancyEndISO    string
+	ReservationState string
+}
+
 // Field is one form control.
 type Field struct {
 	ID    string
 	Name  string
 	Label string
-	// Kind is one of text, number, date, select, textarea, hidden.
+	// Kind is one of text, number, date, select, textarea, hidden,
+	// positionpicker.
 	Kind        string
 	Value       string
 	Placeholder string
@@ -386,6 +429,16 @@ type Field struct {
 	Error       string
 	Required    bool
 	Options     []Option
+	// Vacancies is the governed choice set for a positionpicker field
+	// (UXLIVE-011). It is the whole control: a position that is not in this
+	// list cannot be chosen, and an empty list renders the explicit
+	// no-vacancy state rather than falling back to a text box.
+	Vacancies []VacancyOption
+	// EmptyTitle and EmptyDetail are what a positionpicker says when it has
+	// nothing to offer. They are required for that kind, because an empty
+	// picker that says nothing is indistinguishable from a broken one.
+	EmptyTitle  string
+	EmptyDetail string
 	// Prefix and Suffix are short adornments (e.g. currency code).
 	Prefix string
 	Suffix string
@@ -461,6 +514,54 @@ type DetailView struct {
 	PayBand         *PayBand
 	Budget          *Budget
 	EffectiveWindow *EffectiveWindow
+
+	// Notes is the journey's notes panel; nil renders no panel.
+	Notes *NotesView
+
+	// Review is REV-091-02's reporting-line and pay-range cards, already
+	// localized by the client from the server's authorized projection; nil
+	// renders no section.
+	Review *ReviewCards
+}
+
+// NotesView is the free-standing, append-only notes on one journey and, when
+// the viewer may add one, the composer.
+type NotesView struct {
+	Notes []NoteEntry
+	// Composer is nil when the viewer cannot add notes.
+	Composer *NoteComposer
+}
+
+// NoteEntry is one note as a reader sees it. Every string is already
+// localized and formatted by the client.
+type NoteEntry struct {
+	ID       string
+	Author   string
+	Initials string
+	// Own marks the viewer's own note.
+	Own bool
+	// Stage names the stage the note was written at ("Finance review").
+	Stage string
+	// At is the formatted time; ISO is the machine-readable one for <time>.
+	At   string
+	ISO  string
+	Body string
+}
+
+// NoteComposer is the add-a-note form. Field is the controlled textarea (its
+// Value, Error and label); MaxRunes drives the visible character count.
+type NoteComposer struct {
+	Field    Field
+	MaxRunes int
+	Busy     bool
+	// Revision changes each time a note is recorded. The textarea is keyed
+	// by it: a browser keeps what was typed into a textarea regardless of
+	// its text content, so remounting it is what empties the box.
+	Revision int
+	// Status is a transient confirmation ("Note added"), announced politely.
+	Status   string
+	Action   string
+	OnSubmit func(values map[string]string)
 }
 
 // PayBand is the target grade's pay range with the current and proposed
@@ -581,6 +682,20 @@ type LedgerCard struct {
 	IdempotencyKey string
 	RecordedAt     string
 	EffectiveAt    string
+	// Recorded reports whether the terminal record this card describes
+	// actually recorded the promotion. A terminal record exists for every
+	// terminal outcome, including the ones that recorded a refusal
+	// (UXLIVE-001), so its presence alone never means the employee record
+	// changed. Only a recorded promotion shows EffectiveAt, because only a
+	// recorded promotion has a date on which anything took effect.
+	Recorded bool
+	// StatusLabel is the terminal outcome's own display wording, localized
+	// by the projector -- the same label the hero chip carries. Empty falls
+	// back to the recorded/not-recorded wording.
+	StatusLabel string
+	// StatusTone is one of neutral, info, warning, success, danger. Empty
+	// falls back to success when Recorded and warning when not.
+	StatusTone string
 }
 
 // TimelineEvent is one chronological entry.

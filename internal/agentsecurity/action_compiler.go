@@ -5,59 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"sort"
 	"strings"
-	"sync"
 )
-
-// IntentDefinition is one discoverable definition the compiler may target.
-// Only registered definitions exist: model output can never invent one.
-type IntentDefinition struct {
-	ID                 string
-	Version            string
-	RequiresReview     bool
-	RequiresSimulation bool
-	MaxBulk            int
-}
-
-// DefinitionRegistry is the discoverable definition catalog.
-type DefinitionRegistry struct {
-	mu          sync.Mutex
-	definitions map[string]IntentDefinition
-}
-
-// NewDefinitionRegistry starts an empty catalog.
-func NewDefinitionRegistry() *DefinitionRegistry {
-	return &DefinitionRegistry{definitions: make(map[string]IntentDefinition)}
-}
-
-// Register publishes one definition. Duplicates and hollow entries refuse.
-func (r *DefinitionRegistry) Register(definition IntentDefinition) error {
-	if r == nil {
-		return refusal(RefusalInvalid, "definitions", "nil registry")
-	}
-	if strings.TrimSpace(definition.ID) == "" || strings.TrimSpace(definition.Version) == "" {
-		return refusal(RefusalInvalid, "definition", "definition id and version are required")
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if _, dup := r.definitions[definition.ID]; dup {
-		return refusal(RefusalInvalid, "definition", "definition is already registered")
-	}
-	r.definitions[definition.ID] = definition
-	return nil
-}
-
-// Lookup resolves one registered definition.
-func (r *DefinitionRegistry) Lookup(id string) (IntentDefinition, bool) {
-	if r == nil {
-		return IntentDefinition{}, false
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	definition, ok := r.definitions[id]
-	return definition, ok
-}
 
 // Attribution binds the compiled draft to its exact agent provenance.
 type Attribution struct {
@@ -100,7 +51,7 @@ type DraftIntent struct {
 	Receipt            string
 }
 
-func draftIntentDigest(definition IntentDefinition, action ProposedAction, attribution Attribution, tool string, version uint32) string {
+func draftIntentDigest(definition CatalogDefinition, action ProposedAction, attribution Attribution, tool string, version uint32) string {
 	keys := make([]string, 0, len(action.Arguments))
 	for key := range action.Arguments {
 		keys = append(keys, key)
@@ -132,17 +83,19 @@ func draftIntentDigest(definition IntentDefinition, action ProposedAction, attri
 // branding never changes authority semantics. The compiler owns no
 // execution port, so compiled output can never execute a write.
 type ActionCompiler struct {
-	definitions *DefinitionRegistry
-	owners      *OwnerRegistry
+	catalog DefinitionCatalog
+	owners  *OwnerRegistry
 }
 
 // NewActionCompiler binds the compiler to its definition catalog and its
-// draft-ingestion owners.
-func NewActionCompiler(definitions *DefinitionRegistry, owners *OwnerRegistry) (*ActionCompiler, error) {
-	if definitions == nil || owners == nil {
+// draft-ingestion owners. The catalog is the live, versioned definition
+// catalog behind the DefinitionCatalog read port: the compiler never keeps a
+// private stand-in registry.
+func NewActionCompiler(catalog DefinitionCatalog, owners *OwnerRegistry) (*ActionCompiler, error) {
+	if catalog == nil || owners == nil {
 		return nil, refusal(RefusalInvalid, "compiler", "definition catalog and draft owners are required")
 	}
-	return &ActionCompiler{definitions: definitions, owners: owners}, nil
+	return &ActionCompiler{catalog: catalog, owners: owners}, nil
 }
 
 // CompileAction validates agent output through draft ingestion and emits
@@ -158,9 +111,12 @@ func (c *ActionCompiler) CompileAction(ctx context.Context, admission Admission,
 		return DraftIntent{}, err
 	}
 	_ = draft
-	definition, ok := c.definitions.Lookup(action.DefinitionID)
-	if !ok {
-		return DraftIntent{}, refusal(RefusalCapability, "definition", "definition is not discoverable")
+	definition, err := c.catalog.LookupDefinition(ctx, action.DefinitionID)
+	if err != nil {
+		if errors.Is(err, ErrUnknownDefinition) {
+			return DraftIntent{}, refusal(RefusalCapability, "definition", "definition is not discoverable")
+		}
+		return DraftIntent{}, err
 	}
 	if strings.TrimSpace(action.Uncertainty) == "" {
 		return DraftIntent{}, refusal(RefusalOutput, "uncertainty", "proposed action hides its uncertainty")

@@ -108,8 +108,8 @@ func TestLoadPackageAllowlistIncludesPromotionPackages(t *testing.T) {
 			t.Errorf("package %q not found in the live Phase 1 allowlist", want)
 		}
 	}
-	if allowlist["github.com/monstercameron/human-capital-management-suite/internal/domains/payroll"] {
-		t.Error("a DB-016-deferred package unexpectedly resolved into the Phase 1 allowlist")
+	if allowlist["github.com/monstercameron/human-capital-management-suite/internal/domains/garnishment"] {
+		t.Error("a deferred product-line package unexpectedly resolved into the Phase 1 allowlist")
 	}
 }
 

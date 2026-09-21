@@ -6,6 +6,7 @@ import (
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	adminpolicy "github.com/monstercameron/human-capital-management-suite/internal/operations/admin"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
@@ -17,8 +18,28 @@ func (s *server) roleAccessStore(principal *trust.Principal, requestID string) (
 	return s.deps.RoleAccess, nil
 }
 
-func requireRoleAdministrator(principal *trust.Principal, requestID string) error {
-	if principal.HasRole("hcm_admin") || principal.HasRole("comp_admin") {
+// requireRoleAdministrator authorizes role administration from the
+// principal's server-side role set, never the credential: a revoked
+// administrator whose durable assignment no longer holds an administrator
+// role is refused even while the credential still signs one. A principal
+// with no durable assignment resolves through the admitted credential roles.
+//
+// Separation of duties (RBAC-RT-009): the platform operator duty and the
+// HCM administrator duty never mix in one call. A principal acting under
+// operator authority ([adminpolicy.OperatorRole] in the resolved set) is
+// refused HCM role administration even when the same set also names an
+// administrator role: operator authority is granted only through durable,
+// reviewable operator bindings ([adminpolicy.AuthorizeOperator]), never
+// through this gate, so holding both duties at once authorizes neither
+// here. The refusal carries the same code and reason as any other
+// non-administrator: the wire does not distinguish why administration was
+// refused.
+func (s *server) requireRoleAdministrator(ctx context.Context, principal *trust.Principal, requestID string) error {
+	roles := s.effectiveRoles(ctx, principal)
+	if roleaccess.ContainsRole(roles, adminpolicy.OperatorRole) {
+		return envelope.New(envelope.CodePermissionDenied, "journey.role_access.role_required", "role administration requires the HCM administrator role").WithCorrelation(requestID).WithEvidence(evidence(principal))
+	}
+	if isAdministratorRoleSet(roles) {
 		return nil
 	}
 	return envelope.New(envelope.CodePermissionDenied, "journey.role_access.role_required", "role administration requires the HCM administrator role").WithCorrelation(requestID).WithEvidence(evidence(principal))
@@ -42,7 +63,7 @@ func (s *server) GetRoleAccess(ctx context.Context, _ *journeyv1.GetRoleAccessRe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := requireRoleAdministrator(principal, inv.RequestID()); err != nil {
+	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
 		return nil, err
 	}
 	store, err := s.roleAccessStore(principal, inv.RequestID())
@@ -84,7 +105,7 @@ func (s *server) SaveAccessRole(ctx context.Context, req *journeyv1.SaveAccessRo
 	if err := s.requirePageAction(ctx, principal, inv, "roles", action); err != nil {
 		return nil, err
 	}
-	if err := requireRoleAdministrator(principal, inv.RequestID()); err != nil {
+	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
 		return nil, err
 	}
 	if req.GetRole() == nil {
@@ -109,7 +130,7 @@ func (s *server) SaveWorkerRoleAssignment(ctx context.Context, req *journeyv1.Sa
 	if err := s.requirePageAction(ctx, principal, inv, "roles", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if err := requireRoleAdministrator(principal, inv.RequestID()); err != nil {
+	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
 		return nil, err
 	}
 	if req.GetAssignment() == nil {
@@ -123,6 +144,9 @@ func (s *server) SaveWorkerRoleAssignment(ctx context.Context, req *journeyv1.Sa
 	if err != nil {
 		return nil, roleAccessError(err, principal, inv.RequestID(), "save_assignment")
 	}
+	// The subject's durable assignment just changed: drop the cached role
+	// set so the next check resolves the new one.
+	s.roleResolver().Invalidate(principal.Tenant(), assignment.WorkerRef)
 	return &journeyv1.SaveWorkerRoleAssignmentResponse{Assignment: toWorkerRoleAssignment(assignment)}, nil
 }
 
@@ -134,7 +158,7 @@ func (s *server) SaveRoleOrganizationVisibility(ctx context.Context, req *journe
 	if err := s.requirePageAction(ctx, principal, inv, "organization-visibility", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if err := requireRoleAdministrator(principal, inv.RequestID()); err != nil {
+	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
 		return nil, err
 	}
 	if req.GetPolicy() == nil {
@@ -159,7 +183,7 @@ func (s *server) SaveRolePagePermission(ctx context.Context, req *journeyv1.Save
 	if err := s.requirePageAction(ctx, principal, inv, "roles", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if err := requireRoleAdministrator(principal, inv.RequestID()); err != nil {
+	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
 		return nil, err
 	}
 	if req.GetPermission() == nil {
@@ -184,7 +208,7 @@ func (s *server) SaveRoleFeaturePermission(ctx context.Context, req *journeyv1.S
 	if err := s.requireFeatureAction(ctx, principal, inv, "roles", "feature_access", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if err := requireRoleAdministrator(principal, inv.RequestID()); err != nil {
+	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
 		return nil, err
 	}
 	if req.GetPermission() == nil {

@@ -1,0 +1,8 @@
+ALIGN-033 append-only-history internal/data/ledger append+read+stale-head postgres
+ALIGN-034 half-open-intervals internal/data/bitemporal between-window postgres
+ALIGN-035 exact-money internal/kernel/values numeric-roundtrip postgres
+ALIGN-036 optimistic-concurrency internal/data/ledger expected-head-cas postgres
+ALIGN-037 atomic-ledger-outbox internal/data/outbox commit-rollback postgres
+ALIGN-038 storage-classification internal/trust/dataclass closed-vocabulary
+ALIGN-039 retention-disposition internal/governance/records hold-freeze
+ALIGN-040 rebuild-from-chronology internal/data/rebuild shadow-promote postgres

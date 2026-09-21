@@ -73,20 +73,25 @@ func TestTodo_PROMOUX_013_Browser(t *testing.T) {
 
 	t.Run("an unavailable intervention reuses the identical disabled-reason structure Execute already used at BLOCKED", func(t *testing.T) {
 		out := mustRender(t, DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil))
-		// Execute's own BLOCKED-stage disabled reason uses id="action-<id>-blocked"
-		// and aria-describedby wired to it (components.go's actionCard). The
+		// Execute's own BLOCKED-stage disabled reason is a reason paragraph
+		// with aria-describedby wired to it (components.go's actionCard). The
 		// three interventions must use the identical mechanism, not a new one.
+		//
+		// When every action in the section is refused for the same reason,
+		// that reason is stated once at section level and each control points
+		// at it (UXLIVE-017), so the id each control names is the section's
+		// rather than its own card's. What this asserts is unchanged: every
+		// disabled control is associated with a reason that exists.
 		for _, id := range []string{"withdraw", "cancel", "edit-proposal"} {
-			reasonID := "action-" + id + "-blocked"
-			if !strings.Contains(out, `id="`+reasonID+`"`) {
-				t.Fatalf("disabled action %q has no reason paragraph with the reused id %q:\n%s", id, reasonID, out)
+			btn := regexp.MustCompile(`<button[^>]*aria-describedby="([a-z-]+)"[^>]*>` + actionLabelPattern(id) + `<`).FindStringSubmatch(out)
+			if btn == nil {
+				t.Fatalf("disabled action %q's own button is not wired to a reason via aria-describedby:\n%s", id, out)
 			}
-			btn := regexp.MustCompile(`<button[^>]*aria-describedby="` + reasonID + `"[^>]*>`).FindString(out)
-			if btn == "" {
-				t.Fatalf("disabled action %q's own button is not wired to its reason via aria-describedby:\n%s", id, out)
+			if !strings.Contains(out, `id="`+btn[1]+`"`) {
+				t.Fatalf("disabled action %q points at reason %q, which the document does not contain:\n%s", id, btn[1], out)
 			}
-			if !strings.Contains(btn, "disabled") {
-				t.Fatalf("disabled action %q's button is missing the disabled attribute: %s", id, btn)
+			if !strings.Contains(btn[0], "disabled") {
+				t.Fatalf("disabled action %q's button is missing the disabled attribute: %s", id, btn[0])
 			}
 		}
 	})
@@ -114,17 +119,23 @@ func TestTodo_PROMOUX_013_Accessibility(t *testing.T) {
 		}
 	})
 
-	t.Run("withdraw's disabled reason at an eligible-wait stage is a real, associated explanation", func(t *testing.T) {
-		reasonID := "action-withdraw-blocked"
-		tag := regexp.MustCompile(`(?s)<p[^>]*id="` + reasonID + `"[^>]*>.*?</p>`).FindString(out)
+	t.Run("withdraw is omitted at an eligible-wait stage, where Cancel applies", func(t *testing.T) {
+		if strings.Contains(out, `id="action-withdraw-blocked"`) || strings.Contains(out, interventionReasonText(reasonAlreadyStarted)) {
+			t.Fatalf("a refused Withdraw still renders beside the Cancel that applies:\n%s", out)
+		}
+	})
+
+	t.Run("a refusal with no alternative is a real, associated explanation", func(t *testing.T) {
+		committed := mustRender(t, DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED), nil, nil))
+		tag := regexp.MustCompile(`(?s)<p[^>]*id="[^"]*blocked"[^>]*>.*?</p>`).FindString(committed)
 		if tag == "" {
-			t.Fatalf("no disabled-reason paragraph for Withdraw:\n%s", out)
+			t.Fatalf("no disabled-reason paragraph once execution has committed:\n%s", committed)
 		}
 		if !strings.Contains(tag, `class="jn-blocked"`) {
 			t.Errorf("Withdraw's disabled reason lost the jn-blocked treatment every other blocked action uses: %s", tag)
 		}
-		if !strings.Contains(tag, interventionReasonText(reasonAlreadyStarted)) {
-			t.Errorf("Withdraw's disabled reason does not contain the expected already-started text: %s", tag)
+		if !strings.Contains(tag, interventionReasonText(reasonAlreadyStarted)) && !strings.Contains(tag, interventionReasonText(reasonAlreadyCommitted)) {
+			t.Errorf("the disabled reason does not state why the stop cannot apply: %s", tag)
 		}
 	})
 }
@@ -156,7 +167,7 @@ func TestTodo_PROMOUX_013_I18N(t *testing.T) {
 			detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
 			p := DetailPageWithInterventions(testConfig(), detail, nil, nil,
 				&journeyv1.PreviewJourneyInterventionResponse{Available: true, ConsequenceSummary: tc.summary},
-				nil,
+				nil, nil,
 			)
 			out, err := journey.RenderToString(p)
 			if err != nil {
@@ -181,7 +192,10 @@ func TestTodo_PROMOUX_013_I18N(t *testing.T) {
 		other.Journey.CorrelationId = "cor_DIFFERENT"
 		different := mustRender(t, DetailPage(testConfig(), other, nil, nil))
 
-		reasonID := "action-cancel-blocked"
+		// The reason the Cancel control points at, wherever it is stated:
+		// per card when reasons differ, once per section when they do not
+		// (UXLIVE-017).
+		reasonID := "actions-blocked"
 		pattern := regexp.MustCompile(`(?s)<p[^>]*id="` + reasonID + `"[^>]*>(.*?)</p>`)
 		want := pattern.FindStringSubmatch(omar)
 		got := pattern.FindStringSubmatch(different)
@@ -192,4 +206,19 @@ func TestTodo_PROMOUX_013_I18N(t *testing.T) {
 			t.Fatalf("the disabled reason text differs across two journeys sharing the same terminal stage: %q vs %q -- presence alone must never leak more than the stage does", want[1], got[1])
 		}
 	})
+}
+
+// actionLabelPattern is one intervention control's visible label, so a
+// button can be found by the action it performs rather than by the id of the
+// element that explains why it is refused.
+func actionLabelPattern(id string) string {
+	switch id {
+	case "withdraw":
+		return "Withdraw"
+	case "cancel":
+		return "Request cancellation"
+	case "edit-proposal":
+		return "Edit proposal"
+	}
+	return id
 }

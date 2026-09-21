@@ -64,6 +64,7 @@ type promoux015Harness struct {
 	t          *testing.T
 	cfg        ServeConfig
 	pool       *pgxadapter.Pool
+	poolLabel  string
 	composed   *App
 	client     journeyv1.JourneyServiceClient
 	tokens     map[string]string
@@ -72,6 +73,9 @@ type promoux015Harness struct {
 	effective  string
 	// subject is the created worker every promotion here is about.
 	subject string
+	// receipts is the provider-receipt reader composed for the promotion
+	// 1.1.0 observations; confirmProviders records the providers' answers.
+	receipts *fakeProviderReceipts
 }
 
 // promoux015Compose composes and starts the serve role the local-dev profile
@@ -87,7 +91,10 @@ func promoux015Compose(t *testing.T) *promoux015Harness {
 func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 	t.Helper()
 	db := pgtest.New(t)
-	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{"search_path": db.Schema})
+	poolLabel := "promoux015-" + db.Schema
+	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{
+		"search_path": db.Schema, "application_name": poolLabel,
+	})
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
 	}
@@ -105,6 +112,10 @@ func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("configuration: %v", err)
+	}
+	receipts := newFakeProviderReceipts()
+	if options.ProviderReceipts == nil {
+		options.ProviderReceipts = receipts
 	}
 	composed, err := ComposeServe(context.Background(), ServeInput{Config: cfg, Pool: pool, Identity: "promoux015-separation", Options: options})
 	if err != nil {
@@ -130,8 +141,8 @@ func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 		t.Fatalf("verifier: %v", err)
 	}
 	h := &promoux015Harness{
-		t: t, cfg: cfg, pool: pool, composed: composed, verifier: verifier,
-		tokens: map[string]string{}, principals: map[string]*trust.Principal{},
+		t: t, cfg: cfg, pool: pool, poolLabel: poolLabel, composed: composed, verifier: verifier,
+		tokens: map[string]string{}, principals: map[string]*trust.Principal{}, receipts: receipts,
 		effective: time.Now().UTC().AddDate(0, 1, 0).Format(time.DateOnly),
 	}
 	for _, persona := range composeDevPersonas(verifier, cfg, time.Now) {
@@ -551,9 +562,35 @@ func TestPromotionPublishedPathsAreAllProposable(t *testing.T) {
 		t.Fatalf("LegacyScenarios: %v", err)
 	}
 	corpusBase := map[string]string{scenarios.Worker: scenarios.Scenarios[0].CurrentAmount, "jane-doe": fixtures.JanePromotionBase}
+	// A worker is proposed for at most once: PROMOUX-002's active-promotion
+	// guard refuses a second open proposal for the same subject, so reusing
+	// one would test the guard rather than the ladder.
+	//
+	// The property is therefore per source profile, not per path. A profile
+	// now publishes several targets (a designer's principal rung and their
+	// director, an engineer's staff and management steps) and a job code held
+	// by two workers cannot supply a fresh subject for four paths, so the
+	// second path from an already-proven profile is the same population
+	// again. And a profile nobody holds is a legitimate catalog state: the
+	// catalog publishes unstaffed rungs precisely so a promotion has
+	// somewhere to go, and a target job with open vacancies needs no
+	// incumbent.
+	//
+	// What must hold is that every profile somebody does hold is proposable
+	// along the paths the catalog lists for it.
+	holders := map[string]bool{}
+	for _, candidate := range listed.GetWorkers() {
+		holders[candidate.GetJobCode()+"/"+candidate.GetGrade()] = true
+	}
 	used := map[string]bool{}
-	demoProposed := 0
+	exercised := map[string]bool{}
+	demoProposed, unstaffed := 0, 0
 	for _, path := range paths {
+		profile := path.GetSourceJobCode() + "/" + path.GetSourceGrade()
+		if !holders[profile] {
+			unstaffed++
+			continue
+		}
 		var worker *journeyv1.Worker
 		base := ""
 		for _, candidate := range listed.GetWorkers() {
@@ -570,11 +607,15 @@ func TestPromotionPublishedPathsAreAllProposable(t *testing.T) {
 			}
 		}
 		if worker == nil {
-			t.Errorf("published path %s %s/%s -> %s/%s has no listed worker holding its source profile", path.GetPathRef(),
+			if exercised[profile] {
+				continue
+			}
+			t.Errorf("published path %s %s/%s -> %s/%s is held by a listed worker with no readable base pay", path.GetPathRef(),
 				path.GetSourceJobCode(), path.GetSourceGrade(), path.GetTargetJobCode(), path.GetTargetGrade())
 			continue
 		}
 		used[worker.GetWorkerRef()] = true
+		exercised[profile] = true
 		current, _ := new(big.Rat).SetString(base)
 		increase := big.NewRat(10, 100)
 		if minimum := path.GetMinimumBaseIncrease(); minimum != "" {
@@ -597,4 +638,15 @@ func TestPromotionPublishedPathsAreAllProposable(t *testing.T) {
 	if demoProposed == 0 {
 		t.Fatal("no demo ladder path was proposed; the fixture lacks the population the drift defect was found on")
 	}
+	if len(exercised) == 0 {
+		t.Fatal("no source profile was exercised at all; every published path was skipped")
+	}
+	// The skipped paths must be the unstaffed minority, not the catalog. A
+	// seed that quietly stopped staffing its workers would otherwise pass
+	// this test by proposing nothing.
+	if unstaffed >= len(paths) {
+		t.Fatalf("every one of the %d published paths starts from a profile nobody holds", len(paths))
+	}
+	t.Logf("proposed %d demo paths across %d source profiles; %d of %d published paths start from an unstaffed rung",
+		demoProposed, len(exercised), unstaffed, len(paths))
 }

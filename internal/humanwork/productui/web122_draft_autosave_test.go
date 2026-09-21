@@ -85,7 +85,10 @@ func TestTodo_WEB_122_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(builder.String()))
 	got := hex.EncodeToString(digest[:])
-	const want = "7e8301334c2cec48f26aa15d91f2dd67c0a62fafd70803b1e4de05d843054a8d"
+	// Date-vocabulary re-pin: the saved-at date reads "7 Sep 2026", not
+	// "09/07/2026"; substituting the numeric form back reproduces the
+	// previous pin 7e830133... exactly.
+	const want = "131271297e83d907d932326cfd4d5b0047ea5103dab84cf6a215b9467caac474"
 	if got != want {
 		t.Fatalf("autosave digest = %s, want %s", got, want)
 	}

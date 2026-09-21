@@ -61,7 +61,12 @@ func TestTodo_WEB_047(t *testing.T) {
 func TestTodo_WEB_047_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(MobileShellStylesheet()))
 	got := hex.EncodeToString(digest[:])
-	const want = "7e60e773f2671541115c3a8f3093d3fc9572d681a996af860abcb026cf19a4b8"
+	// Re-pinned 2026-09-18: two rules added at <=430px -- collapsed search
+	// and the icon-only header triggers are drawn borderless with a hover
+	// tint, like the menu, notification and profile icons beside them (the
+	// tint is the shell's --hcm-hover-surface token). Inspected: nothing else
+	// in the layer changed.
+	const want = "4a14410c74f4c81d0ec8fdcc68b1bbee4a4987a3e99e0a8229bfa4afd0914ebe"
 	if got != want {
 		t.Fatalf("mobile shell stylesheet golden digest = %s, want %s", got, want)
 	}

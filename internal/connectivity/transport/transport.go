@@ -81,7 +81,16 @@ func (l Limits) withDefaults() Limits {
 
 // DestinationTrust is an explicit outbound allowlist. An empty host allowlist
 // is fail-closed; private and link-local literals are never accepted.
-type DestinationTrust struct{ Schemes, Hosts []string }
+//
+// AllowLoopback is an explicit opt-in for local development and test
+// simulators: when true, loopback addresses (127.0.0.0/8 and ::1) are
+// admitted, provided the host is also on the allowlist. Private, link-local,
+// multicast and unspecified addresses stay refused either way. The zero value
+// refuses loopback, so production configurations are unaffected.
+type DestinationTrust struct {
+	Schemes, Hosts []string
+	AllowLoopback  bool
+}
 
 func (d DestinationTrust) Validate(raw string) error {
 	u, err := url.Parse(raw)
@@ -92,7 +101,7 @@ func (d DestinationTrust) Validate(raw string) error {
 		return errors.New("destination is not trusted")
 	}
 	h := net.ParseIP(u.Hostname())
-	if h != nil && (h.IsPrivate() || h.IsLoopback() || h.IsLinkLocalUnicast() || h.IsUnspecified()) {
+	if h != nil && (h.IsPrivate() || (h.IsLoopback() && !d.AllowLoopback) || h.IsLinkLocalUnicast() || h.IsUnspecified()) {
 		return errors.New("private destination")
 	}
 	return nil

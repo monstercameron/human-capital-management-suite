@@ -37,6 +37,16 @@ type AccessPreview struct {
 	// contract does not explain.
 	CurrentUnits  []string
 	ProposedUnits []string
+	// RemovedUnits names every currently visible unit the proposal would
+	// hide. Naming them is what makes a narrowing change explicit rather
+	// than a silent replacement (REV-093-01).
+	RemovedUnits []string
+	// Unrestricted marks the administrator override: hcm_admin and
+	// comp_admin see every unit before any visibility policy runs, so their
+	// current and proposed scope must be the same unrestricted set. A
+	// preview that narrows an unrestricted role would misreport what the
+	// directory actually releases.
+	Unrestricted bool
 	// WithheldNote accounts for facts that stay hidden, when any do.
 	WithheldNote string
 	// NextAction is the task-specific next step. It is required whenever
@@ -59,10 +69,19 @@ func (p AccessPreview) Validate() error {
 	}
 	current := unitSet(p.CurrentUnits)
 	proposed := unitSet(p.ProposedUnits)
+	removed := unitSet(p.RemovedUnits)
 	for unit := range current {
-		if !proposed[unit] {
+		if !proposed[unit] && !removed[unit] {
 			return fmt.Errorf("%w: proposed scope drops visible unit %q", ErrAccessPreviewInvalid, unit)
 		}
+	}
+	for unit := range removed {
+		if !current[unit] || proposed[unit] {
+			return fmt.Errorf("%w: removed unit %q is not a unit the proposal hides", ErrAccessPreviewInvalid, unit)
+		}
+	}
+	if p.Unrestricted && (len(removed) > 0 || len(current) != len(proposed)) {
+		return fmt.Errorf("%w: an administrator override cannot be narrowed", ErrAccessPreviewInvalid)
 	}
 	additions := false
 	for unit := range proposed {
@@ -71,7 +90,7 @@ func (p AccessPreview) Validate() error {
 			break
 		}
 	}
-	if additions && strings.TrimSpace(p.NextAction) == "" {
+	if (additions || len(removed) > 0) && strings.TrimSpace(p.NextAction) == "" {
 		return fmt.Errorf("%w: an additive change needs a next action", ErrAccessPreviewInvalid)
 	}
 	return nil
@@ -98,6 +117,12 @@ func (p AccessPreview) Explain() string {
 	lines = append(lines, "Effective scope: "+strings.TrimSpace(p.EffectiveScope)+".")
 	lines = append(lines, "Currently visible: "+namedList(p.CurrentUnits, "none")+".")
 	lines = append(lines, "Newly visible: "+namedList(difference(p.ProposedUnits, p.CurrentUnits), "none")+".")
+	if len(sortedUnits(p.RemovedUnits)) > 0 {
+		lines = append(lines, "No longer visible: "+namedList(p.RemovedUnits, "none")+".")
+	}
+	if p.Unrestricted {
+		lines = append(lines, "Administrator override: this role sees every organization unit whatever its visibility setting.")
+	}
 	if note := strings.TrimSpace(p.WithheldNote); note != "" {
 		lines = append(lines, "Withheld: "+note)
 	}

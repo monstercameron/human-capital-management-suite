@@ -320,7 +320,7 @@ func (s *Store) SaveAssignment(ctx context.Context, tenant values.TenantId, acto
 			}
 			assignment.Version++
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM worker_access_role_assignment WHERE tenant_id=$1 AND worker_ref=$2`, tenantID, assignment.WorkerRef); err != nil {
+		if _, err := tx.Exec(ctx, `SELECT hcmnext_replace_worker_role_assignments($1,$2)`, tenantID, assignment.WorkerRef); err != nil {
 			return err
 		}
 		for _, roleID := range assignment.RoleIDs {

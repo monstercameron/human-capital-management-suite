@@ -23,6 +23,9 @@ import (
 
 func startPromotionEdge(t testing.TB, deps journey.Dependencies) *httptest.Server {
 	t.Helper()
+	if deps.RoleAccess == nil {
+		deps.RoleAccess = defaultFixtureRoleAccess()
+	}
 	h, err := edge.NewHandler(edge.Options{Config: transport.Config{Verifier: fakeVerifier{}}, Journey: &deps})
 	if err != nil {
 		t.Fatalf("edge.NewHandler: %v", err)

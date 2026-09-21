@@ -36,6 +36,11 @@ type TransientPopoverProps struct {
 	DescriptionID string
 	Trigger       []ui.Node
 	Children      []ui.Node
+	// Group joins this disclosure to a set that may have at most one member
+	// open. It becomes the native <details name>, so the browser closes
+	// whichever sibling was open when this one opens -- two row menus in a
+	// dense table used to stay open together and overlap (UXLIVE-021).
+	Group string
 }
 
 // TransientPopover preserves native details/summary behavior as the
@@ -60,10 +65,14 @@ func TransientPopover(props TransientPopoverProps) ui.Node {
 		}
 		triggerProps.Raw["aria-describedby"] = props.DescriptionID
 	}
-	return html.Details(html.Props{Class: rootClass, Data: map[string]string{
+	rootProps := html.Props{Class: rootClass, Data: map[string]string{
 		"hcm-transient-popover": kind,
 		"hcm-popover-grace-ms":  transientPopoverGraceMilliseconds,
-	}},
+	}}
+	if group := strings.TrimSpace(props.Group); group != "" {
+		rootProps.Raw = map[string]any{"name": group}
+	}
+	return html.Details(rootProps,
 		html.Summary(triggerProps, props.Trigger...),
 		ui.CreateElement(PopoverSurface, PopoverSurfaceProps{Class: props.PanelClass, Children: props.Children}),
 	)

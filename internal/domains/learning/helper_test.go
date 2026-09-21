@@ -1,9 +1,6 @@
 package learning
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -64,12 +61,3 @@ func competentLearner() LearnerEvidence {
 }
 
 func dueAt() time.Time { return time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC) }
-
-func readGolden(t *testing.T, name string) string {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("testdata", name))
-	if err != nil {
-		t.Fatalf("read golden %s: %v", name, err)
-	}
-	return strings.TrimSpace(string(raw))
-}

@@ -49,19 +49,18 @@
 // no longer carries. Left empty, localhost and direct-VPS deployments derive
 // everything from the request itself, which is the default.
 //
-// -execution-authority=true composes this cell with the P1B execution
-// authority gate (internal/intent/app.ExecutionAuthority) and the real
+// The execution engine is on by default: this cell is composed with the
+// execution authority (internal/intent/app.ExecutionAuthority) and the
 // caller-driven promotion approval driver (internal/platform/execution.
-// NewPromotionExecution): IntentService.ExecuteIntent then runs the
-// promote_worker workflow for an approved proposal instead of refusing it,
-// for a caller who additionally holds -execution-authority-role.
-// -execution-authority-digest names the signed P1B authority amendment this
-// process asserts (carried through as evidence, never verified here), and
-// -execution-authority-approver names who the workflow's one approval
-// WorkItem is routed to. Every one of the four is off/empty by default:
-// with no -execution-authority, this cell is byte-for-byte the P1A cell of
-// today (planning/next-steps.md "P1B exists only after a signed Gate A
-// PROCEED").
+// NewPromotionExecution), so IntentService.ExecuteIntent runs the
+// promote_worker workflow for an approved proposal through the engine for
+// a caller who additionally holds -execution-authority-role.
+// -execution-authority-digest names the authority amendment this process
+// asserts (carried through as evidence, never verified here) and stays
+// required; -execution-authority-approver names who the workflow's
+// approval WorkItem is routed to. -execution-authority=false opts back
+// out to the refusing cell (then -scheduler must also be false), and
+// -workflow-plan=prototype simulates promotions without effects.
 //
 // Process lifecycle is not this command's business and is not implemented
 // here: configuration precedence, the build banner, signal handling, the

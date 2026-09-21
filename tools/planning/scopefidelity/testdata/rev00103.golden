@@ -1,0 +1,3 @@
+fixture-workflow.yml|MISSING_ALLOWLIST_REF|workflow references no governance allowlist "definitions/planning/known-defects.yaml"
+fixture-workflow.yml|MISSING_GATE_STEP|workflow invokes none of the live-backlog governance binaries "tools/planning/cmd/plancheck, todogovernance"
+fixture-workflow.yml|MISSING_LIVE_TARGET|workflow scans no live backlog target "planning/todos.md"

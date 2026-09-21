@@ -13,11 +13,13 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/seed"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 )
@@ -150,6 +152,15 @@ func New(ctx context.Context, cfg Config) (*Sandbox, error) {
 		// Telemetry is left nil: a sandbox cell publishes no spans or
 		// metrics to anything, so there is no exporter seam left for a real
 		// collector to be configured onto.
+	}
+
+	// Serve resolves only ACTIVE compiled versions from the durable registry
+	// and never self-approves. A sandbox is a development environment, so it
+	// publishes, approves and activates the shipped versions exactly as
+	// `hcmnext workflow-version bootstrap-dev` does for a development
+	// database; without it every EXECUTE is refused as "not configured".
+	if _, err := platformexecution.BootstrapDevVersions(context.Background(), workflowversionstore.Store{DB: cfg.Pool}, now()); err != nil {
+		return nil, fmt.Errorf("sandbox: activate the shipped workflow versions: %w", err)
 	}
 
 	if err := application.ComposeExecutionAuthority(&cellConfig, cfg.Pool, evidence, application.ServeConfig{

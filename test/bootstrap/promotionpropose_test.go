@@ -152,7 +152,7 @@ func (c *promotionCell) promotionProposeRequest(clientRequestID string) *journey
 		DesiredPositionId:       c.targetPosition,
 		DesiredBasePay:          "98000.00",
 		EffectiveDate:           "2026-06-01",
-		Reason:                  "promotion_into_senior_hrbp",
+		Reason:                  "Promotion into the senior HRBP role",
 		ExpectedSubjectRevision: app.PromotionSubjectRevision("omar-reyes"),
 		ClientRequestId:         clientRequestID,
 	}
@@ -164,7 +164,7 @@ func promotionProposeRequest(clientRequestID string) *journeyv1.ProposePromotion
 	return &journeyv1.ProposePromotionRequest{
 		SubjectWorkerRef: "omar-reyes", DesiredJobCode: "OPS-HRBP3", DesiredGrade: "P3",
 		DesiredBasePay: "98000.00", EffectiveDate: "2026-06-01",
-		Reason: "promotion_into_senior_hrbp", ExpectedSubjectRevision: app.PromotionSubjectRevision("omar-reyes"),
+		Reason: "Promotion into the senior HRBP role", ExpectedSubjectRevision: app.PromotionSubjectRevision("omar-reyes"),
 		ClientRequestId: clientRequestID,
 	}
 }

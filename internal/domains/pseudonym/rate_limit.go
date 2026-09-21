@@ -179,18 +179,20 @@ func (l *ScopeLimiter) deny(code LimitCode, bucket string, now time.Time, reason
 
 // Check admits or rejects one anonymous submission. Duplicate payloads,
 // bursts, stale proofs and replayed nonces are rejected; every rejection
-// opens a false-positive review.
+// opens a false-positive review and therefore publishes an ABUSE-001 denial
+// signal (see DenialSignals). Only a call without a reference instant is
+// returned without a review: it has no instant to bind either record to.
 func (l *ScopeLimiter) Check(now time.Time, blindedToken, payloadDigest string, proof SubmissionProof) error {
-	if strings.TrimSpace(blindedToken) == "" || strings.TrimSpace(payloadDigest) == "" {
-		return &LimitRejection{Scope: l.policy.Scope, Code: LimitRejected, Reason: "token and payload digest are required"}
-	}
-	if strings.TrimSpace(proof.Nonce) == "" || proof.IssuedAt.IsZero() {
-		return &LimitRejection{Scope: l.policy.Scope, Code: LimitRejected, Reason: "submission proof is required"}
-	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if now.IsZero() {
 		return &LimitRejection{Scope: l.policy.Scope, Code: LimitRejected, Reason: "reference time is required"}
+	}
+	if strings.TrimSpace(blindedToken) == "" || strings.TrimSpace(payloadDigest) == "" {
+		return l.deny(LimitRejected, l.BucketKey(l.policy.Scope, blindedToken), now, "token and payload digest are required")
+	}
+	if strings.TrimSpace(proof.Nonce) == "" || proof.IssuedAt.IsZero() {
+		return l.deny(LimitRejected, l.BucketKey(l.policy.Scope, blindedToken), now, "submission proof is required")
 	}
 	l.prune(now)
 	bucket := l.BucketKey(l.policy.Scope, blindedToken)

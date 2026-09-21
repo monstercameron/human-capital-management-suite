@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-const chunkSchemaVersion = 1
-
 var (
 	// ErrChunkRejected is the KNOW-004 seeded-defect sentinel. Uncited,
 	// stale, injected or invalidated knowledge presented for RAG publication
@@ -18,18 +16,10 @@ var (
 	ErrChunkRejected = errors.New("KNOW_004_REJECTED")
 )
 
-// hostileMarkers are instruction-smuggling shapes that can never publish.
-// Matching is case-insensitive substring evidence, never an LLM judgment.
-var hostileMarkers = []string{
-	"ignore previous instructions",
-	"disregard policy",
-	"disregard previous",
-	"system:",
-	"exfiltrate",
-	"forward this",
-	"send this answer to",
-	"bypass review",
-}
+// Instruction-taint screening lives in taint.go: both this gate and the
+// KNOW-006 freshness gate share one injectable detector
+// (DetectInstructionTaint) that reuses the agentsecurity contract. The
+// markers below moved there so the two gates cannot disagree.
 
 // audienceRank orders chunk audiences from widest to narrowest. A chunk may
 // narrow but never broaden the source article audience.
@@ -86,19 +76,18 @@ func chunkReject(field, state, version, reason string) error {
 	return &ChunkRejection{Field: field, State: state, Version: version, Reason: reason}
 }
 
-func hostile(text string) bool {
-	lowered := strings.ToLower(text)
-	for _, marker := range hostileMarkers {
-		if strings.Contains(lowered, marker) {
-			return true
-		}
-	}
-	return false
+// PublishChunk validates and freezes one RAG derivative. It is pure: chunks
+// are values, and publication persists nothing by itself. Instruction-taint
+// screening runs the shared default detector; use PublishChunkWithDetector
+// to inject one.
+func PublishChunk(req ChunkRequest) (Chunk, error) {
+	return PublishChunkWithDetector(req, DetectInstructionTaint)
 }
 
-// PublishChunk validates and freezes one RAG derivative. It is pure: chunks
-// are values, and publication persists nothing by itself.
-func PublishChunk(req ChunkRequest) (Chunk, error) {
+// PublishChunkWithDetector validates and freezes one RAG derivative with an
+// injectable instruction-taint detector. A nil detector selects the shared
+// default; a failing detector fails closed and the chunk is refused.
+func PublishChunkWithDetector(req ChunkRequest, detect InstructionDetector) (Chunk, error) {
 	const version = "knowledge-chunk/v1"
 	if strings.TrimSpace(req.TenantID) == "" || strings.TrimSpace(req.ChunkRef) == "" {
 		return Chunk{}, chunkReject("chunk.identity", "MISSING", version, "chunk needs tenant and chunk reference")
@@ -136,7 +125,12 @@ func PublishChunk(req ChunkRequest) (Chunk, error) {
 			return Chunk{}, chunkReject("article.effective", "STALE", version, "article is past its effective window")
 		}
 	}
-	if hostile(req.Text) {
+	detector := defaultDetector(detect)
+	tainted, err := detector(req.Text)
+	if err != nil {
+		return Chunk{}, chunkReject("chunk.text", "HOSTILE", version, "instruction-taint detector failure: "+err.Error())
+	}
+	if tainted {
 		return Chunk{}, chunkReject("chunk.text", "HOSTILE", version, "chunk carries an instruction-smuggling marker")
 	}
 	want, ok := audienceRank[strings.ToUpper(req.Audience)]

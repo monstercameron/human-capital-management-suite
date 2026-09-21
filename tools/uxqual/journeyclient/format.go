@@ -22,7 +22,10 @@ import (
 // conversion. Legacy English detail dates use a short month; other locales
 // use the shared product formatter so their date order is not inferred here.
 const (
-	timeLayout = "2006-01-02 15:04"
+	// One date vocabulary: an instant reads in the same date form as a
+	// civil date, with its clock and zone after it, rather than switching to
+	// a machine date beside a human one (UXLIVE-016).
+	timeLayout = "2 Jan 2006, 15:04"
 	dateLayout = "2 Jan 2006"
 	isoDate    = "2006-01-02"
 )
@@ -72,7 +75,7 @@ func formatTimeLocale(locale string, ts protoTimestamp) string {
 	if !ok {
 		return ""
 	}
-	return copy.FormatDate(t) + " " + t.Format("15:04") + " UTC"
+	return copy.FormatDate(t) + ", " + t.Format("15:04") + " UTC"
 }
 
 // formatTimeOr renders one instant, or fallback when it is unset. The
@@ -295,7 +298,8 @@ func percentDeltaLocale(locale, from, to string) (string, bool) {
 	if strings.HasPrefix(decimal, "+") || strings.HasPrefix(decimal, "-") {
 		sign, decimal = decimal[:1], decimal[1:]
 	}
-	return sign + productui.ResolveProductLocale(locale).FormatNumber(decimal, 1) + "%", true
+	resolved := productui.ResolveProductLocale(locale)
+	return sign + resolved.FormatNumber(decimal, 1) + resolved.PercentSign(), true
 }
 
 // signedAmount puts the sign in front of the currency code rather than in

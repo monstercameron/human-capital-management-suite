@@ -3,6 +3,7 @@ package promotionsteps
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,14 +107,21 @@ func (f reconciliationFake) Reconcile(context.Context, execute.StepRequest) (Rec
 }
 
 func TestPromotionStepsCoverEveryNodeOfTheCompiledPlan(t *testing.T) {
-	plan, err := promotionexec.Compile()
-	if err != nil {
-		t.Fatalf("promotionexec.Compile: %v", err)
-	}
-	runner := New(Config{})
-	for _, node := range plan.Nodes {
-		if !runner.HandlesNode(node.ID) {
-			t.Errorf("runner has no dispatch case for compiled node %s", node.ID)
+	// Both served versions: the 1.1.0 plan and the frozen 1.0.0 plan live
+	// instances stay pinned to.
+	for name, compile := range map[string]func() (*workflow.CompiledWorkflow, error){
+		"1.1.0": func() (*workflow.CompiledWorkflow, error) { return promotionexec.Compile() },
+		"1.0.0": func() (*workflow.CompiledWorkflow, error) { return promotionexec.CompileV1_0() },
+	} {
+		plan, err := compile()
+		if err != nil {
+			t.Fatalf("%s: compile: %v", name, err)
+		}
+		runner := New(Config{})
+		for _, node := range plan.Nodes {
+			if !runner.HandlesNode(node.ID) {
+				t.Errorf("%s: runner has no dispatch case for compiled node %s", name, node.ID)
+			}
 		}
 	}
 }
@@ -131,6 +139,7 @@ func TestPromotionStepsDispatchesTypedOutcomes(t *testing.T) {
 		ObservePayroll:        observationFake{},
 		ObserveAccess:         observationFake{},
 		ObserveReconciliation: reconciliationFake{},
+		CompensateHold:        holdReleaseFake{},
 	})
 	plan, err := promotionexec.Compile()
 	if err != nil {
@@ -148,6 +157,14 @@ func TestPromotionStepsDispatchesTypedOutcomes(t *testing.T) {
 		case promotionexec.NodeApproveFinance, promotionexec.NodeApproveManager, promotionexec.NodeReapproval:
 			if runErr != nil || out.Await != frontier.AwaitWorkItem {
 				t.Errorf("%s = outcome=%+v err=%v, want WORK_ITEM_REQUIRED", node.ID, out, runErr)
+			}
+		case promotionexec.NodeCompensateHold:
+			if runErr != nil || out.Failed || out.Outcome != "COMPENSATED" || out.OutputDigest == "" {
+				t.Errorf("%s = %+v err=%v, want typed COMPENSATED output", node.ID, out, runErr)
+			}
+		case promotionexec.NodeAcknowledgeRelease, promotionexec.NodeAwaitPayrollConfirmation, promotionexec.NodeAwaitAccessConfirmation:
+			if runErr != nil || out.Await != frontier.AwaitSignal || out.AwaitRef != node.ID || out.Outcome != "" {
+				t.Errorf("%s = %+v err=%v, want driver-owned SIGNAL park with no outcome", node.ID, out, runErr)
 			}
 		case promotionexec.NodeEndComplete, promotionexec.NodeEndRepairPlan,
 			promotionexec.NodeEndRejected, promotionexec.NodeEndInvalidated,
@@ -231,7 +248,7 @@ func TestPromotionStepsPortFailuresAreTypedAndNodeNamed(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Run error = %v, want typed outcome", err)
 			}
-			if out.NodeID != tc.node || !out.Failed || out.ErrorClass != FailurePort {
+			if out.NodeID != tc.node || !out.Failed || !strings.HasPrefix(out.ErrorClass, FailurePort) {
 				t.Fatalf("outcome = %+v, want node-named %s failure", out, FailurePort)
 			}
 		})

@@ -4,7 +4,7 @@ package logging
 // case-insensitively) whose values are always replaced with redactedValue.
 // It is a narrow, name-based default for this scoped platform logger, not
 // the owned content classifier the structured-logging spec assigns to
-// internal/operations/telemetry (which classifies by data shape and
+// internal/platform/telemetry (which classifies by data shape and
 // business meaning, not just key name). Callers add to this set with
 // WithDeniedKeys.
 func defaultDeniedKeys() map[string]struct{} {

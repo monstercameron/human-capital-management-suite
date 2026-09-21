@@ -1,5 +1,237 @@
 [
   {
+    "test_name": "FuzzTodo_INTG_019",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/connectivity/syncjob",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/connectivity/syncjob/syncjob_fuzz_test.go:19",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestDevBootHold",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/data/pgtest",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/data/pgtest/zz_devboot_test.go:16",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "BenchmarkTodo_PERFOPT_001",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/data/pgxadapter/perfopt001_benchmark_test.go:33",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_ALIGN_037_Fuzz",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/data/productdurability",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/data/productdurability/align037_test.go:178",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_ALIGN_040_Fuzz",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/data/productdurability",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/data/productdurability/align040_test.go:181,184",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestTodo_OUTCOME_001_Golden",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/domains/intelligence/outcome001_test.go:110",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestTodo_FILING_001_Golden",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll/filing",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/domains/payroll/filing/filingpkg001_test.go:130",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_CONF_019",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/domains/people",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/domains/people/legalname_test.go:222",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestTodo_RECRUIT_004_Golden",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/domains/recruiting",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/domains/recruiting/ats004_test.go:175",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestTodo_SETTLE_006_Golden",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/domains/settlement",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/domains/settlement/reversal006_test.go:116",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_RULE_004",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/engines/rules",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/engines/rules/reevaluate_test.go:218,224",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestTodo_REPRO_001_Golden",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/engines/search",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/engines/search/repro001_test.go:102",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_PRIV_011",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/governance/records",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/governance/records/priv011_matrix_test.go:173",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestProductTextResolutionDistinguishesFallbackAndUnknown",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/humanwork/productui/i18n_audit_test.go:69",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestAssignedJourneyDetailAdmitsOnlyTheDetail",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/humanwork/workspace/product_shell_test.go:387",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestRegistryHandsOutDeepCopies",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/intent",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/intent/registry_test.go:1064",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestTodo_ALIGN_055_Integration",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/operations/releaseevidence",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/operations/releaseevidence/skew_test.go:141",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestTodo_PROMOUX_014_Security",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/platform/devclock",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/platform/devclock/promoux014_security_test.go:39",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_ALIGN_062_Fuzz",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/transport/conformance",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/transport/conformance/align062_test.go:205",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_ALIGN_019_Fuzz",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/transport/productquery",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/transport/productquery/align019_test.go:155",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestTodo_ALIGN_020_Security",
+    "package": "github.com/monstercameron/human-capital-management-suite/internal/transport/productquery",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: internal/transport/productquery/align020_test.go:111",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestGateClosureCompilesRealManifestGraph",
+    "package": "github.com/monstercameron/human-capital-management-suite/tools/planning/gateevidence",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: tools/planning/gateevidence/gateclosure_test.go:12",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_ALIGN_005_Fuzz",
+    "package": "github.com/monstercameron/human-capital-management-suite/tools/planning/productslice",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: tools/planning/productslice/align005_test.go:159,165",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_ALIGN_006_Fuzz",
+    "package": "github.com/monstercameron/human-capital-management-suite/tools/planning/productslice",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: tools/planning/productslice/align006_test.go:155,161",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "FuzzTodo_ALIGN_007_Fuzz",
+    "package": "github.com/monstercameron/human-capital-management-suite/tools/planning/productslice",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: tools/planning/productslice/align007_test.go:168,174",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestWindowsCleanupError_RejectsAdditionalFatalOutput",
+    "package": "github.com/monstercameron/human-capital-management-suite/tools/quality/covergate",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: tools/quality/covergate/covergate_test.go:257",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestScannerFindsNestedModuleCommandsAndRejectsSymlink",
+    "package": "github.com/monstercameron/human-capital-management-suite/tools/quality/decomposition",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: tools/quality/decomposition/decomposition_test.go:133",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestWasmClientDoesNotLinkServerPackages",
+    "package": "github.com/monstercameron/human-capital-management-suite/tools/uxqual/cmd/journeywasm",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: tools/uxqual/cmd/journeywasm/wasm_dependency_boundary_native_test.go:26",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
+    "test_name": "TestFinanceApproverMyWorkLoadsWithoutTheDirectory",
+    "package": "github.com/monstercameron/human-capital-management-suite/tools/uxqual/productclient",
+    "first_seen": "2026-09-21",
+    "evidence_ref": "GOV-020: tools/uxqual/productclient/client_test.go:471",
+    "owner": "test-maintainers",
+    "expiry": "2026-12-31"
+  },
+  {
     "test_name": "TestTodo_UX_002_Integration",
     "package": "github.com/monstercameron/human-capital-management-suite/test/workspace",
     "first_seen": "2026-09-05",

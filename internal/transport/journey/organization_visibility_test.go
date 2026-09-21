@@ -124,6 +124,14 @@ func TestListWorkersUsesDurableEmployeeRolesAndAdditiveRolePolicies(t *testing.T
 			{RoleID: "finance_partner", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance"}},
 			{RoleID: "executive_partner", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Executive"}},
 		},
+		PagePermissions: []roleaccess.PagePermission{
+			{RoleID: "finance_partner", PageID: "people", View: true},
+			{RoleID: "executive_partner", PageID: "people", View: true},
+		},
+		FeaturePermissions: []roleaccess.FeaturePermission{
+			{RoleID: "finance_partner", PageID: "people", FeatureID: "directory", View: true},
+			{RoleID: "executive_partner", PageID: "people", FeatureID: "directory", View: true},
+		},
 	}}
 	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine, RoleAccess: access}))
 	response, err := client.ListWorkers(testContext(t), &journeyv1.ListWorkersRequest{})
@@ -142,7 +150,15 @@ func TestListWorkersDefaultsAnUnconfiguredActiveRoleToOwnUnit(t *testing.T) {
 		{WorkerRef: "peer", OrgUnit: "People"},
 		{WorkerRef: "outside", OrgUnit: "Finance"},
 	}
-	access := &roleAccessSpy{snapshot: roleaccess.Snapshot{Roles: roleaccess.DefaultRoles()}}
+	access := &roleAccessSpy{snapshot: roleaccess.Snapshot{
+		Roles: roleaccess.DefaultRoles(),
+		PagePermissions: []roleaccess.PagePermission{
+			{RoleID: "intent_author", PageID: "people", View: true},
+		},
+		FeaturePermissions: []roleaccess.FeaturePermission{
+			{RoleID: "intent_author", PageID: "people", FeatureID: "directory", View: true},
+		},
+	}}
 	client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine, RoleAccess: access}))
 	response, err := client.ListWorkers(testContext(t), &journeyv1.ListWorkersRequest{})
 	if err != nil {

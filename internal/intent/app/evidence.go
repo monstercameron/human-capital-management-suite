@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -80,6 +81,17 @@ func (s *MemoryEvidenceSink) RecordInvocation(_ context.Context, evt capability.
 
 // RecordExecutionEvidence implements [EvidenceStore].
 func (s *MemoryEvidenceSink) RecordExecutionEvidence(_ context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (string, error) {
+	return s.record(ExecutionEvidenceOf(kind, instanceID, nodeID, refID, digest, occurredAt), tenantID), nil
+}
+
+// RecordExecutionEvidenceTx records on the caller's transaction the way the
+// workflow driver's atomic half (internal/workflow/execute.ExecutionEvidenceTx,
+// satisfied here structurally because this package must not import the
+// driver) requires. Memory has no transactions, so tx is only witnessed,
+// never used: the entry joins the caller's unit of work by sharing its fate
+// in the test, exactly as the durable store shares the advance transaction's
+// fate in production.
+func (s *MemoryEvidenceSink) RecordExecutionEvidenceTx(_ context.Context, _ dbport.Tx, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (string, error) {
 	return s.record(ExecutionEvidenceOf(kind, instanceID, nodeID, refID, digest, occurredAt), tenantID), nil
 }
 

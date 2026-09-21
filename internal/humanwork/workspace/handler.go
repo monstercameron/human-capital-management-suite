@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/forms"
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )
 
@@ -68,6 +70,14 @@ type Options struct {
 	// an opaque ID and the handler selects the credential from this immutable
 	// server-owned collection. Empty preserves the pasted-token fallback.
 	DevPersonas []DevPersona
+	// DevDirectory supplies the seeded demo org chart the dev-only sign-in
+	// page offers, so a tester can pick exactly the employee they need
+	// (dev_directory.go, login_directory.go). Nil renders no directory at
+	// all, which is what a production-shaped composition supplies: this is a
+	// narrow, separately stubbable port precisely so the sign-in page - which
+	// runs before any credential exists - never reads workforce data through
+	// the Cell.
+	DevDirectory DevDirectory
 	// Journey is the live engine the Promotion journey page reads and acts
 	// through (journey_port.go). Nil means the journey routes answer that
 	// execution is not composed on this cell.
@@ -106,8 +116,12 @@ type Handler struct {
 	// devBrowserLogin mirrors Options.DevBrowserLogin.
 	devBrowserLogin bool
 	devPersonas     map[string]DevPersona
-	roleAccess      roleaccess.Store
-	preferences     preferences.Store
+	// directory mirrors Options.DevDirectory. It is read only by the
+	// dev-only sign-in page, and only when devBrowserLogin registered that
+	// route at all.
+	directory   DevDirectory
+	roleAccess  roleaccess.Store
+	preferences preferences.Store
 	// publicScheme and publicAuthority are Options.PublicOrigin resolved:
 	// its scheme and its sanitized host[:port]. Empty means the shell
 	// derives both from each request.
@@ -172,6 +186,15 @@ func NewHandler(opts Options) (*Handler, error) {
 			personas[persona.ID] = persona
 		}
 	}
+	// The directory is a dev-only affordance of the dev-only sign-in page.
+	// Refusing it outright when the browser login is off means the surface
+	// cannot exist on a production-shaped cell even if a composition supplies
+	// one by mistake, rather than merely going unrendered because no route
+	// happens to reach it.
+	directory := opts.DevDirectory
+	if !opts.DevBrowserLogin {
+		directory = nil
+	}
 	publicScheme, publicAuthority, err := parsePublicOrigin(opts.PublicOrigin)
 	if err != nil {
 		return nil, err
@@ -189,6 +212,7 @@ func NewHandler(opts Options) (*Handler, error) {
 		assetManifestETag: `"` + assetManifestDigest + `"`,
 		devBrowserLogin:   opts.DevBrowserLogin,
 		devPersonas:       personas,
+		directory:         directory,
 		roleAccess:        opts.RoleAccess,
 		preferences:       opts.Preferences,
 		publicScheme:      publicScheme,
@@ -438,7 +462,16 @@ func (h *Handler) serveAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", metadata.ContentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "private, max-age=0, must-revalidate")
+	// A request that names the exact bytes it wants can be answered once and
+	// kept: the address changes whenever the bytes do, so a stored copy can
+	// never be stale. Without this the bundle was re-transferred on every
+	// navigation (UXLIVE-013). The cache stays private: this is an
+	// authenticated asset and no shared cache may keep it.
+	if contentAddressed(r, metadata.SHA256) {
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "private, max-age=0, must-revalidate")
+	}
 	w.Header().Set("Vary", "Accept-Encoding")
 	if encoding != "" {
 		w.Header().Set("Content-Encoding", encoding)
@@ -455,9 +488,29 @@ func (h *Handler) serveAsset(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
+	// The bytes are already whole in memory, so the length is known. Writing
+	// the header before the body suppresses Go's own sniffing and the
+	// response would otherwise go out chunked, which leaves a browser
+	// deciding whether to store a multi-megabyte entry without knowing how
+	// large it will be.
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 }
+
+// contentAddressed reports whether the request names the asset's own digest,
+// which makes its address unique to these bytes.
+func contentAddressed(r *http.Request, sha256Hex string) bool {
+	if strings.TrimSpace(sha256Hex) == "" {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(r.URL.Query().Get(assetVersionQueryKey)), sha256Hex)
+}
+
+// assetVersionQueryKey is the parameter the loader stamps an asset address
+// with. It is presentation only: the bytes served never depend on it, and a
+// wrong or absent value simply falls back to revalidation.
+const assetVersionQueryKey = "v"
 
 func encodingOrIdentity(encoding string) string {
 	if encoding == "" {
@@ -543,9 +596,11 @@ const maxLoginFormBytes = 8 << 10
 const paramLoginToken = "token"
 const paramLoginPersona = "persona"
 
-// serveLoginForm renders the plain, accessible sign-in form.
+// serveLoginForm renders the plain, accessible sign-in form. The employee
+// search is a native GET, so its whole state is the request's own query.
 func (h *Handler) serveLoginForm(w http.ResponseWriter, r *http.Request) {
-	h.writeLoginPage(w, http.StatusOK, "")
+	query := r.URL.Query()
+	h.writeLoginPageQuery(w, http.StatusOK, "", query.Get(paramDirectoryQuery), query.Get(paramDirectoryRole))
 }
 
 // serveLoginSubmit verifies a pasted credential with the same trust.Verifier
@@ -668,6 +723,14 @@ func normalizeBearerInput(raw string) string {
 // writeLoginPage renders the sign-in form, optionally over a refusal banner.
 // It never includes the value that was submitted.
 func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem string) {
+	h.writeLoginPageQuery(w, status, problem, "", "")
+}
+
+// writeLoginPageQuery is writeLoginPage with the employee directory's two
+// filters. A refusal re-renders the page with neither set: the submitted
+// persona is never echoed, and neither is anything else the failed request
+// carried.
+func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem, directoryQuery, directoryRole string) {
 	var banner string
 	if problem != "" {
 		banner = `<div class="status-banner" data-status="failed" role="alert">` + html.EscapeString(problem) + ` <a href="#credential-sign-in">Use a bearer credential</a></div>`
@@ -710,8 +773,9 @@ func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem stri
 <div class="login-brand"><span class="login-mark" aria-hidden="true">H</span><strong>HarborCare</strong></div>
 <p class="persona-access">Local development</p><h1>Choose a workspace persona</h1>
 <p class="login-intro">Each persona starts a signed server session with different permissions. Production deployments use the configured enterprise identity provider.</p>
-<div class="persona-grid">` + personaForms.String() + `</div>
-` + banner + credentialForm + `
+<h2 id="quick-pick-heading">Quick picks</h2><p class="login-intro">The fixed identities the reference promotion is wired to: a proposer, a manager approver, a finance approver, and the employee.</p>
+<div class="persona-grid" role="group" aria-labelledby="quick-pick-heading">` + personaForms.String() + `</div>
+` + banner + h.loginDirectorySection(directoryQuery, directoryRole) + credentialForm + `
 </section></main>
 </body>
 </html>
@@ -825,21 +889,65 @@ func (h *Handler) loginPersonaCopy(persona DevPersona) (string, string) {
 		return "Workspace member", "Access is temporarily unavailable. Try again later."
 	}
 	labels := admittedDestinationLabelsForAccess(access)
-	title := "Workspace member"
-	if access.can(productui.PageAdmin, roleaccess.ActionView) {
-		title = "HCM administrator"
-	} else if access.can(productui.PagePeople, roleaccess.ActionView) {
-		title = "Hiring manager"
-	} else if access.can(productui.PageMyself, roleaccess.ActionView) {
-		title = "Individual contributor"
-	}
+	title := personaAccessTitle(access)
 	if len(labels) == 0 {
 		return title, "No workspace product area beyond Help and Settings is available to this role yet."
 	}
-	if title == "Individual contributor" && access.can(productui.PageMyself, roleaccess.ActionView) {
+	switch title {
+	case "Individual contributor":
 		return title, "View your employment profile. Reaches " + joinWithAnd(labels) + "."
+	case "Finance partner":
+		return title, "Decide the finance approvals routed to you. Reaches " + joinWithAnd(labels) + "."
+	case "HR partner":
+		return title, "Support your assigned units and the workers in them. Reaches " + joinWithAnd(labels) + "."
 	}
 	return title, "Reaches " + joinWithAnd(labels) + "."
+}
+
+// personaAccessTitle names what a resolved credential IS, in one phrase.
+//
+// Capability alone cannot name it. The ladder used to be purely
+// capability-shaped - Admin, else People, else Myself - and a finance partner
+// (no Admin, no People, yes Myself) fell through to "Individual contributor",
+// rendering the same label and the same "View your employment profile" copy as
+// a worker_self persona holding a strictly smaller credential. Two different
+// authorizations read as the same thing, which is the defect UXAUDIT-014
+// named in different clothes. An HR partner would have collided the same way
+// with "Hiring manager".
+//
+// So a role whose whole point is a distinct job names itself - but only when
+// the resolved policy still admits the destination that name implies. The
+// label is therefore never a claim the credential cannot back: an HR partner
+// whose tenant has revoked People, or a finance partner without My Work,
+// falls through to the capability ladder rather than keeping a title it can
+// no longer act on. Role hints still add no grants; they only choose among
+// names for grants access already holds.
+//
+// Roles come from access, not from the signed credential directly, so a
+// durable per-worker assignment that narrows a broad token narrows the label
+// with it (TestTodo_UXAUDIT_014_Security_DurablePolicy).
+func personaAccessTitle(access productAccess) string {
+	holds := func(role string) bool {
+		for _, held := range access.roles {
+			if held == role {
+				return true
+			}
+		}
+		return false
+	}
+	switch {
+	case access.can(productui.PageAdmin, roleaccess.ActionView):
+		return "HCM administrator"
+	case holds("hr_partner") && access.can(productui.PagePeople, roleaccess.ActionView):
+		return "HR partner"
+	case holds("finance_partner") && access.can(productui.PageWork, roleaccess.ActionView):
+		return "Finance partner"
+	case access.can(productui.PagePeople, roleaccess.ActionView):
+		return "Hiring manager"
+	case access.can(productui.PageMyself, roleaccess.ActionView):
+		return "Individual contributor"
+	}
+	return "Workspace member"
 }
 
 // admittedDestinationLabelsForAccess uses the same resolved tenant permission
@@ -958,22 +1066,37 @@ func writeRedirect(w http.ResponseWriter, r *http.Request, target string, status
 //
 // It carries the same stylesheet the workspace does, so the policy's
 // style-src hash covers it and a refusal does not arrive as unstyled text
-// under a policy that then blocks its own page's CSS.
+// under a policy that then blocks its own page's CSS. That means the whole of
+// gwc.Stylesheet(), which is what stylesheetHash hashes: it inlined only the
+// token layer, the bytes never matched, and the browser blocked the page's
+// only stylesheet -- every 404 and refusal rendered as bare serif text.
+//
+// The tone follows who can act on it. A refusal the reader can resolve --
+// a page their role does not grant, a route that does not exist, a
+// submission to correct -- is an amber notice; red is kept for the server
+// failing. And every problem page offers the way back to the workspace:
+// a refusal with no link out was a dead end the reader could only escape
+// with the browser's Back button.
 func (h *Handler) writeProblem(w http.ResponseWriter, status int, title, detail string) {
+	tone := "failed"
+	if status < http.StatusInternalServerError {
+		tone = "needs_review"
+	}
 	doc := `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>` + html.EscapeString(title) + `</title>
-<style>` + tokens.WorkspaceCSS() + `</style>
+<style>` + gwc.Stylesheet() + `</style>
 </head>
 <body>
 <div class="workspace">
 <header class="workspace-header"><h1>` + html.EscapeString(title) + `</h1></header>
 <main id="main-content">
 <section>
-<div class="status-banner" data-status="failed" role="status">` + html.EscapeString(detail) + `</div>
+<div class="status-banner" data-status="` + tone + `" role="status">` + html.EscapeString(detail) + `</div>
+<p class="actions"><a href="` + PathProductPrefix + `">Back to the workspace</a></p>
 </section>
 </main>
 </div>

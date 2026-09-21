@@ -88,9 +88,13 @@ func PageIdentityHeader(view View) ui.Node {
 
 // PageHeading renders a stable product page title from resolved narrow props.
 func PageHeading(props PageHeadingProps) ui.Node {
+	// Keyed: the breadcrumb trail is absent while a destination loads and
+	// present once it resolves. Unkeyed, that shifted the title block's
+	// position, so the reconciler replaced the <h1> the router had just
+	// focused and focus fell to <body> (UXLIVE-028).
 	children := []ui.Node{
-		props.Trail,
-		html.Div(html.Props{}, html.H1(html.Props{ID: "page-title", Raw: map[string]any{"tabindex": "-1"}}, ui.Text(props.Identity.Title)), html.P(html.Props{Class: "subtitle"}, ui.Text(props.Identity.Subtitle))),
+		html.WithKey(props.Trail, "page-trail"),
+		html.Div(html.Props{Key: "page-title-block"}, html.H1(html.Props{ID: "page-title", Raw: map[string]any{"tabindex": "-1"}}, ui.Text(props.Identity.Title)), html.P(html.Props{Class: "subtitle"}, ui.Text(props.Identity.Subtitle))),
 	}
 	return html.Div(html.Props{Class: "page-head", Data: map[string]string{"hcm-page": string(props.Identity.Page)}}, children...)
 }

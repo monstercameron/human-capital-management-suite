@@ -87,6 +87,8 @@ func stageToProto(s workspace.JourneyStage) journeyv1.JourneyStage {
 		return journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED
 	case workspace.JourneyStageRepairRequired:
 		return journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED
+	case workspace.JourneyStageAwaitingAcknowledgement:
+		return journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT
 	default:
 		return journeyv1.JourneyStage_JOURNEY_STAGE_UNSPECIFIED
 	}
@@ -127,6 +129,8 @@ func JourneyStageFromProto(s journeyv1.JourneyStage) (workspace.JourneyStage, er
 		return workspace.JourneyStageRecorded, nil
 	case journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED:
 		return workspace.JourneyStageRepairRequired, nil
+	case journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_ACKNOWLEDGEMENT:
+		return workspace.JourneyStageAwaitingAcknowledgement, nil
 	default:
 		return "", errUnknownJourneyStage
 	}
@@ -152,6 +156,8 @@ func fromInterventionKind(k journeyv1.JourneyInterventionKind) workspace.Journey
 		return workspace.JourneyInterventionWithdraw
 	case journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL:
 		return workspace.JourneyInterventionCancel
+	case journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_REPAIR:
+		return workspace.JourneyInterventionRepair
 	default:
 		return ""
 	}
@@ -172,6 +178,8 @@ func toInterventionOutcome(o workspace.JourneyInterventionOutcome) commonv1.Inte
 		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_TOO_LATE
 	case workspace.InterventionRepairRequired:
 		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_REPAIR_REQUIRED
+	case workspace.InterventionIndeterminate:
+		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_INDETERMINATE
 	default:
 		return commonv1.InterventionOutcome_INTERVENTION_OUTCOME_UNSPECIFIED
 	}
@@ -185,6 +193,9 @@ func toInterventionPreview(p workspace.JourneyInterventionPreview) *journeyv1.Pr
 		ConsequenceSummary:       p.ConsequenceSummary,
 		LikelyOutcome:            toInterventionOutcome(p.LikelyOutcome),
 		CurrentGovernanceVersion: p.CurrentGovernanceVersion,
+		RequiresDualControl:      p.RequiresDualControl,
+		RequiresSimulation:       p.RequiresSimulation,
+		AuthorityRoleRefs:        append([]string(nil), p.AuthorityRoleRefs...),
 	}
 }
 
@@ -459,7 +470,25 @@ func toDetail(d workspace.JourneyDetail, diagAuthorized bool) *journeyv1.Journey
 	for _, e := range d.Timeline {
 		out.Timeline = append(out.Timeline, toTimelineEvent(e))
 	}
+	for _, n := range d.Notes {
+		out.Notes = append(out.Notes, toJourneyNote(n))
+	}
+	out.PromotionReview = toPromotionReview(d.Review)
 	out.DetailDigest = detailDigest(out)
+	return out
+}
+
+// toJourneyNote projects one note. The author's principal identifier
+// (AuthorRef) is deliberately not on the wire: a reader is shown a display
+// name and whether the note is their own, never another person's principal.
+func toJourneyNote(n workspace.JourneyNote) *journeyv1.JourneyNote {
+	out := &journeyv1.JourneyNote{
+		NoteId: n.NoteID, AuthorDisplay: n.AuthorDisplay, AuthoredByViewer: n.AuthoredByViewer,
+		Body: n.Body, Stage: stageToProto(n.Stage),
+	}
+	if !n.CreatedAt.IsZero() {
+		out.CreatedAt = timestamppb.New(n.CreatedAt)
+	}
 	return out
 }
 
@@ -521,9 +550,18 @@ func toWorker(w workspace.WorkerSummary) *journeyv1.Worker {
 		PositionId:          w.PositionID,
 		Location:            w.Location,
 		PayZone:             w.PayZone,
+		EmploymentType:      w.EmploymentType,
+		TimeType:            w.TimeType,
+		Company:             w.Company,
+		BusinessUnit:        w.BusinessUnit,
+		CostCenter:          w.CostCenter,
+		WorkArrangement:     w.WorkArrangement,
 		BasePay:             w.BasePay,
 		Currency:            w.Currency,
 		BonusTarget:         w.BonusTarget,
+		PayBasis:            w.PayBasis,
+		LifecycleStatus:     w.LifecycleStatus,
+		WorkerType:          w.WorkerType,
 		HireDate:            w.HireDate,
 		Source:              w.Source,
 		CreatedAt:           toTimestamp(w.CreatedAt),
@@ -567,9 +605,18 @@ func fromWorker(w *journeyv1.Worker) workspace.WorkerSummary {
 		PositionID:         w.GetPositionId(),
 		Location:           w.GetLocation(),
 		PayZone:            w.GetPayZone(),
+		EmploymentType:     w.GetEmploymentType(),
+		TimeType:           w.GetTimeType(),
+		Company:            w.GetCompany(),
+		BusinessUnit:       w.GetBusinessUnit(),
+		CostCenter:         w.GetCostCenter(),
+		WorkArrangement:    w.GetWorkArrangement(),
 		BasePay:            w.GetBasePay(),
 		Currency:           w.GetCurrency(),
 		BonusTarget:        w.GetBonusTarget(),
+		PayBasis:           w.GetPayBasis(),
+		LifecycleStatus:    w.GetLifecycleStatus(),
+		WorkerType:         w.GetWorkerType(),
 		HireDate:           w.GetHireDate(),
 		Source:             w.GetSource(),
 		CreatedAt:          fromTimestamp(w.GetCreatedAt()),
@@ -639,6 +686,17 @@ func toWorkforceOptions(o workspace.WorkforceOptions) *journeyv1.WorkforceOption
 			BenefitRuleRefs:       append([]string(nil), path.BenefitRuleRefs...),
 		})
 	}
+	// UXLIVE-011: the vacancy list crosses whole. Reference is the one field
+	// a proposal binds to, and it is carried verbatim -- this transport
+	// never mints, shortens or re-derives it.
+	for _, vacancy := range o.PositionVacancies {
+		out.PositionVacancies = append(out.PositionVacancies, &journeyv1.PositionVacancyOption{
+			Reference: vacancy.Reference, Title: vacancy.Title,
+			Organization: vacancy.Organization, Manager: vacancy.Manager,
+			Location: vacancy.Location, JobCode: vacancy.JobCode, OrgUnit: vacancy.OrgUnit,
+			VacancyEnd: vacancy.VacancyEndISO, ReservationState: vacancy.ReservationState,
+		})
+	}
 	return out
 }
 
@@ -671,6 +729,14 @@ func fromWorkforceOptions(o *journeyv1.WorkforceOptions) workspace.WorkforceOpti
 			MaximumBaseIncrease:   path.GetMaximumBaseIncrease(),
 			CompensationPolicyRef: path.GetCompensationPolicyRef(),
 			BenefitRuleRefs:       append([]string(nil), path.GetBenefitRuleRefs()...),
+		})
+	}
+	for _, vacancy := range o.GetPositionVacancies() {
+		out.PositionVacancies = append(out.PositionVacancies, workspace.PositionVacancyOption{
+			Reference: vacancy.GetReference(), Title: vacancy.GetTitle(),
+			Organization: vacancy.GetOrganization(), Manager: vacancy.GetManager(),
+			Location: vacancy.GetLocation(), JobCode: vacancy.GetJobCode(), OrgUnit: vacancy.GetOrgUnit(),
+			VacancyEndISO: vacancy.GetVacancyEnd(), ReservationState: vacancy.GetReservationState(),
 		})
 	}
 	return out

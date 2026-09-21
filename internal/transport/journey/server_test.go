@@ -153,6 +153,24 @@ func TestJourneyServiceRPCsForwardToTheEnginePort(t *testing.T) {
 		}
 	})
 
+	t.Run("AcknowledgeJourney", func(t *testing.T) {
+		resp, err := client.AcknowledgeJourney(authorizedContext(t), &journeyv1.AcknowledgeJourneyRequest{
+			IntentId:    fixtureIntentID,
+			EvidenceRef: "hris:signature:abc123",
+			Note:        "signed copy on file",
+		})
+		if err != nil {
+			t.Fatalf("AcknowledgeJourney: %v", err)
+		}
+		assertDetailIsWhole(t, resp.GetDetail())
+		engine.mu.Lock()
+		ack := engine.lastAcknowledgement
+		engine.mu.Unlock()
+		if ack.EvidenceRef != "hris:signature:abc123" || ack.Note != "signed copy on file" {
+			t.Fatalf("the engine saw acknowledgement %+v, want the stated evidence and note", ack)
+		}
+	})
+
 	t.Run("WatchJourney emits immediately when the client holds nothing", func(t *testing.T) {
 		stream, err := client.WatchJourney(authorizedContext(t), &journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID})
 		if err != nil {
@@ -246,6 +264,7 @@ func TestJourneyServiceErrorMapping(t *testing.T) {
 			engine.inspectErr = tc.err
 			engine.executeErr = tc.err
 			engine.decideErr = tc.err
+			engine.acknowledgeErr = tc.err
 			client := dialJourneyClient(startTestServer(t, journey.Dependencies{Engine: engine}))
 			ctx := testContext(t)
 
@@ -268,6 +287,10 @@ func TestJourneyServiceErrorMapping(t *testing.T) {
 				},
 				"DecideJourney": func() error {
 					_, err := client.DecideJourney(ctx, &journeyv1.DecideJourneyRequest{IntentId: fixtureIntentID})
+					return err
+				},
+				"AcknowledgeJourney": func() error {
+					_, err := client.AcknowledgeJourney(ctx, &journeyv1.AcknowledgeJourneyRequest{IntentId: fixtureIntentID})
 					return err
 				},
 				// WatchJourney is the streaming member of the table: the
@@ -439,6 +462,8 @@ func TestJourneyServiceSecurity(t *testing.T) {
 		assertOwnedCode(t, err, envelope.CodeUnauthenticated)
 		_, err = client.DecideJourney(ctx, &journeyv1.DecideJourneyRequest{IntentId: fixtureIntentID})
 		assertOwnedCode(t, err, envelope.CodeUnauthenticated)
+		_, err = client.AcknowledgeJourney(ctx, &journeyv1.AcknowledgeJourneyRequest{IntentId: fixtureIntentID})
+		assertOwnedCode(t, err, envelope.CodeUnauthenticated)
 		engine.mu.Lock()
 		touched := engine.proposeCalls + engine.executeCalls + engine.decideCalls
 		engine.mu.Unlock()
@@ -488,13 +513,13 @@ func TestJourneyServicePublishesTwentyUnaryMethodsAndOneServerStream(t *testing.
 
 	wantUnary := map[string]bool{
 		"ListJourneys": true, "ProposeJourney": true, "ProposePromotion": true,
-		"InspectJourney": true, "ExecuteJourney": true, "DecideJourney": true,
+		"InspectJourney": true, "ExecuteJourney": true, "DecideJourney": true, "AcknowledgeJourney": true,
 		"EditProposal": true, "PreviewJourneyIntervention": true, "RequestJourneyIntervention": true,
-		"ListWorkers": true, "CreateWorker": true,
+		"AddJourneyNote": true, "ListWorkers": true, "CreateWorker": true,
 		"GetProductPreferences": true, "SaveUserPreferences": true,
 		"SaveTenantAppearance": true, "SaveOrganizationVisibility": true, "RecordWorkflowUse": true,
 		"GetRoleAccess": true, "SaveAccessRole": true, "SaveWorkerRoleAssignment": true, "SaveRoleOrganizationVisibility": true, "SaveRolePagePermission": true, "SaveRoleFeaturePermission": true,
-		"GetWorkerIDPolicy": true, "SaveWorkerIDPolicy": true,
+		"GetWorkerIDPolicy": true, "SaveWorkerIDPolicy": true, "PreviewRoleAccess": true,
 	}
 	if len(desc.Methods) != len(wantUnary) {
 		names := make([]string, 0, len(desc.Methods))
@@ -513,8 +538,14 @@ func TestJourneyServicePublishesTwentyUnaryMethodsAndOneServerStream(t *testing.
 		t.Fatalf("missing unary methods: %v", wantUnary)
 	}
 
-	if len(desc.Streams) != 1 {
-		t.Fatalf("service publishes %d streaming methods, want exactly 1: %+v", len(desc.Streams), desc.Streams)
+	// REV-091-03 adds WatchPromotionInvalidations beside WatchJourney.
+	if len(desc.Streams) != 2 {
+		t.Fatalf("service publishes %d streaming methods, want exactly 2: %+v", len(desc.Streams), desc.Streams)
+	}
+	for _, stream := range desc.Streams[1:] {
+		if stream.StreamName != "WatchPromotionInvalidations" || !stream.ServerStreams || stream.ClientStreams {
+			t.Fatalf("unexpected second streaming method %+v, want the server stream WatchPromotionInvalidations", stream)
+		}
 	}
 	watch := desc.Streams[0]
 	if watch.StreamName != "WatchJourney" {

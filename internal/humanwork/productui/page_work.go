@@ -2,6 +2,7 @@ package productui
 
 import (
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -91,6 +92,9 @@ func trackedRequestsFor(view View, items []WorkItem) TrackedRequestsProps {
 }
 
 func workCollectionProps(view View, options workCollectionOptions) WorkCollectionProps {
+	// Every surface that shows this strip names the same filters, and each
+	// states how much work it holds, so a viewer can see where their work is
+	// without opening each one (UXLIVE-018).
 	tabs := []WorkTabProps{
 		workTabProps(view, "", view.Locale.Text("work.all")),
 		workTabProps(view, "review", view.Locale.Text("work.awaiting")),
@@ -100,9 +104,7 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 		// work they must do.
 		workTabProps(view, "tracked", view.Locale.Text("work.tracked")),
 	}
-	if options.ListDetail {
-		tabs = append(tabs, WorkTabProps{Label: view.Locale.Text("work.past"), Href: statefulHref(view, PageHistory), Navigate: view.Navigate})
-	}
+	tabs = append(tabs, WorkTabProps{Label: view.Locale.Text("work.past"), Href: statefulHref(view, PageHistory), Navigate: view.Navigate})
 	items := view.Work
 	if view.WorkFilter == "" {
 		// PROMOUX-012: the default view is the viewer's actionable work only;
@@ -183,7 +185,15 @@ func selectedOpenWork(view View) WorkItem {
 }
 
 func workTabProps(view View, filter, label string) WorkTabProps {
-	return WorkTabProps{Label: label, Href: workFilterHref(view, filter), Active: view.WorkFilter == filter, Navigate: view.Navigate}
+	// The count is this filter's own projection of the viewer's work, taken
+	// from the same function that builds the list it links to, so the number
+	// and the page behind it can never disagree.
+	count := len(FilterWorkCollection(view.Work, ParseWorkCollectionFilter(filter)))
+	return WorkTabProps{
+		Label: label, Href: workFilterHref(view, filter),
+		Count:  view.Locale.FormatNumber(strconv.Itoa(count), 0),
+		Active: view.WorkFilter == filter, Navigate: view.Navigate,
+	}
 }
 
 // workFilterHref is a My Work address that always states its filter. My Work
@@ -271,6 +281,7 @@ var (
 	knownWorkNextSteps = map[string]bool{
 		"start_approval": true, "correct_proposal": true, "approval_decision": true, "manager_decision": true,
 		"finance_decision": true, "reapproval_decision": true, "repair": true, "await_effective_date": true, "system_processing": true,
+		"await_acknowledgement": true,
 	}
 	knownWorkActors = map[string]bool{"proposer": true, "approver": true, "manager": true, "finance": true, "system": true}
 )
@@ -367,5 +378,21 @@ func percentage(locale LocaleContext, value string) string {
 	if point := strings.IndexByte(decimal, '.'); point >= 0 {
 		fraction = len(decimal) - point - 1
 	}
-	return locale.FormatNumber(decimal, fraction) + "%"
+	return locale.FormatNumber(decimal, fraction) + percentSuffix(locale)
+}
+
+func percentSuffix(locale LocaleContext) string { return locale.PercentSign() }
+
+// PercentSign is the percent sign as the locale writes it after a number:
+// German sets a no-break space before it ("12,5 %"), Arabic uses its own
+// sign ("١٢٫٥٪"), English attaches the plain sign ("12.5%").
+func (c LocaleContext) PercentSign() string {
+	switch language, _, _ := strings.Cut(c.normalized().Resolved, "-"); language {
+	case "de":
+		return "\u00a0%"
+	case "ar":
+		return "\u066a"
+	default:
+		return "%"
+	}
 }

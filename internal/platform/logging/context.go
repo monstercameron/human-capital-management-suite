@@ -92,7 +92,7 @@ func PrincipalRef(ctx context.Context) (string, bool) {
 // that look like a raw identity rather than an opaque reference. It is a
 // narrow heuristic (no "@", no embedded whitespace, bounded length) scoped
 // to this package; the owned classifier for identity-shaped data lives in
-// internal/operations/telemetry per the structured-logging spec.
+// internal/platform/telemetry per the structured-logging spec.
 func ValidatePrincipalRef(ref string) error {
 	if ref == "" {
 		return fmt.Errorf("%w: empty", ErrRawIdentity)

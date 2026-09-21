@@ -4,12 +4,16 @@
 // # The shipped definition
 //
 // [Definition] is the promotion reference,
-// hcmnext.workflows.promotion.execute v1: snapshot and compensation
-// simulation, band evaluation and the raise threshold, finance-partner and
-// current-manager approvals, the effective-date WAIT resolved in
-// America/New_York ([EffectiveDateZoneID]), revalidation with a
-// re-approval loop, promotion execution, three observations (payroll,
-// access, reconciliation) and typed terminals. [Compile] projects the two
+// hcmnext.workflows.promotion.execute 1.1.0 (definition version 2): snapshot
+// and compensation simulation, band evaluation and the raise threshold,
+// finance-partner and current-manager approvals, the effective-date WAIT
+// resolved in America/New_York ([EffectiveDateZoneID]), revalidation with a
+// re-approval loop, promotion execution, a SIGNAL wait for each provider's
+// confirmation (payroll, then identity) before its observation, the
+// reconciliation observation, the acknowledgement gate and typed terminals.
+// [DefinitionV1_0] is the frozen 1.0.0 graph without the provider waits;
+// instances pinned to it keep resuming on it ([CompileV1_0]).
+// [HasProviderWaits] tells a step runner which of the two a plan is. [Compile] projects the two
 // aliases the kernel compiler does not admit (FIRED and
 // REAPPROVED/WITHDRAWN) onto the fixed WAIT and TASK route vocabulary
 // before calling workflow.Compile; [CompileSimulation] compiles the same

@@ -97,7 +97,7 @@ tables:
       partitions: []
       notes: 'Preview of TimecardRevision: the immutable calculated-totals snapshot a payroll cutoff binds to (rewards-payroll-workforce.md ## Time, attendance and scheduling).'
       disposition: DRAFT
-    - table: leave_request
+    - table: leave_request_preview
       migration: 004_leave.sql
       owner_package: internal/domains/leave
       plane: DATA
@@ -111,7 +111,7 @@ tables:
       partitions: []
       notes: 'Preview of LeaveRequest (rewards-payroll-workforce.md ## Leave, absence and accommodation; DB-023): one row per worker leave request and its current disposition.'
       disposition: CONFORMANCE
-    - table: leave_record
+    - table: leave_record_preview
       migration: 004_leave.sql
       owner_package: internal/domains/leave
       plane: DATA

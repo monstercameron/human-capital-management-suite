@@ -100,6 +100,16 @@ func (s Store) List(workflowID string) (out []version.CompiledVersion, err error
 	return out, err
 }
 
+// ListAll implements [version.CatalogStore]. It is intentionally a catalog
+// read rather than part of the runtime's narrow exact-pin Store contract.
+func (s Store) ListAll() (out []version.CompiledVersion, err error) {
+	err = s.tx(context.Background(), func(b bound) error {
+		out, err = b.ListAll()
+		return err
+	})
+	return out, err
+}
+
 // Approval is one durable activation approval.
 type Approval struct {
 	ApprovalID         uuid.UUID
@@ -392,6 +402,26 @@ func (b bound) List(workflowID string) ([]version.CompiledVersion, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("workflowversionstore: list versions: %w", err)
+	}
+	return out, nil
+}
+
+func (b bound) ListAll() ([]version.CompiledVersion, error) {
+	rows, err := b.ex.Query(b.ctx, selectVersion+` ORDER BY workflow_id, published_at, compiled_plan_digest`)
+	if err != nil {
+		return nil, fmt.Errorf("workflowversionstore: list catalog: %w", err)
+	}
+	defer rows.Close()
+	var out []version.CompiledVersion
+	for rows.Next() {
+		v, err := b.scan(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("workflowversionstore: list catalog: %w", err)
 	}
 	return out, nil
 }

@@ -43,6 +43,9 @@ func useScrollRestoration(id string, enabled bool) {
 // that does not itself depend on being called from inside a component.
 func bindScrollRestoration(id string) func() {
 	doc := js.Global().Get("document")
+	if !doc.Truthy() || doc.Get("getElementById").Type() != js.TypeFunction {
+		return nil
+	}
 	element := doc.Call("getElementById", id)
 	if !element.Truthy() {
 		return nil

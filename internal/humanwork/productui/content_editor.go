@@ -30,8 +30,9 @@ type ContentVerdict struct {
 // form. The markup sniff is deliberately conservative tag-open
 // grammar — `<` plus a letter, slash, bang, or query refuses,
 // bare angle brackets pass — and anything deeper (entities,
-// URLs, origins) stays with the content-safety gates at
-// publication. Classification, ceiling, and version checks stay
+// URLs, origins) stays with the content-safety validation step
+// at publication (ValidateContentSafety, folded into
+// ValidateComposition). Classification, ceiling, and version checks stay
 // in their own validate steps.
 func EditBindingContent(composition PageComposition, registry WidgetRegistry, edit ContentEdit) ContentVerdict {
 	edited := PageComposition{

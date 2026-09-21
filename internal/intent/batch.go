@@ -135,7 +135,17 @@ func CompileBatch(spec BatchSpec) (Batch, error) {
 		}
 		excluded[id] = true
 	}
-	subjects := append([]string(nil), spec.Snapshot.SubjectIDList()...)
+	// REV-038-02: subjects arrive through a popscale session, not a direct
+	// membership read, so the batch compiler inherits the scale-safe
+	// engine's page bound, count-consistency validation and
+	// non-distinguishing protected/empty responses. The session serves the
+	// snapshot's own order once; the compiler still sorts its working copy,
+	// so child identities and digests are unchanged for consistent
+	// snapshots.
+	subjects, err := popscaleSubjects(spec.Snapshot, spec.PartitionSize)
+	if err != nil {
+		return Batch{}, err
+	}
 	sort.Strings(subjects)
 	batch := Batch{Definition: spec.DefinitionID, Scope: spec.PopulationScope, Snapshot: spec.Snapshot.Digest}
 	sum := sha256.Sum256([]byte("intent-batch-id\x00" + batchDigest(spec, nil)))

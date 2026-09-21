@@ -13,6 +13,7 @@ import (
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/streaming"
@@ -43,7 +44,7 @@ func TestComposedHTTPHandlerUsesOperationStore(t *testing.T) {
 	h, err := NewEdgeHandlerWithDependencies(&app.Cell{
 		Config:    transporttest.Config(verifier, func() time.Time { return now }, "cell-composition", nil),
 		Discovery: &manifest.DiscoveryDocument{},
-	}, nil, nil, store, []byte("cell-composition-cursor-key"))
+	}, nil, nil, store, []byte("cell-composition-cursor-key"), transporthumanwork.WritePorts{})
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithDependencies: %v", err)
 	}
@@ -85,7 +86,7 @@ func TestComposedHTTPHandlerUsesWorkflowReader(t *testing.T) {
 	h, err := NewEdgeHandlerWithDependencies(&app.Cell{
 		Config:    transporttest.Config(verifier, func() time.Time { return now }, "cell-workflow-composition", nil),
 		Discovery: &manifest.DiscoveryDocument{},
-	}, reader, nil, nil, []byte("cell-workflow-cursor-key"))
+	}, reader, nil, nil, []byte("cell-workflow-cursor-key"), transporthumanwork.WritePorts{})
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithDependencies: %v", err)
 	}

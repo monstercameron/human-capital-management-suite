@@ -329,6 +329,6 @@ func (s *Store) Release(ctx context.Context, tx dbport.Tx, tenant, id string, fe
 	if _, err := tx.Exec(ctx, `UPDATE conflict_write_intent SET status='RELEASED' WHERE tenant_id=$1::uuid AND intent_id=$2`, tenant, id); err != nil {
 		return err
 	}
-	_, err := tx.Exec(ctx, `DELETE FROM conflict_scope_fence WHERE tenant_id=$1::uuid AND intent_id=$2 AND fence=$3`, tenant, id, fence)
+	_, err := tx.Exec(ctx, `SELECT hcmnext_release_conflict_scope_fence($1::uuid,$2,$3)`, tenant, id, fence)
 	return err
 }

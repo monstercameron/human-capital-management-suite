@@ -212,6 +212,25 @@ func TestDefaultRunGoTestExecutesRealGoTest(t *testing.T) {
 	}
 }
 
+func TestClassifyGoTestRunRequiresNamedPassAndRejectsOtherFailures(t *testing.T) {
+	pass := "{\"Action\":\"pass\",\"Test\":\"TestCleanPackageProbe\"}\n{\"Action\":\"pass\"}\n"
+	if got := classifyGoTestRun(pass, true, "TestCleanPackageProbe", false); got != "PASS" {
+		t.Fatalf("named package pass = %q", got)
+	}
+	for _, output := range []string{"{\"Action\":\"pass\"}\n", pass + "{\"Action\":\"fail\"}\n"} {
+		if got := classifyGoTestRun(output, true, "TestCleanPackageProbe", false); got != "FAIL" {
+			t.Fatalf("incomplete/failed run = %q", got)
+		}
+	}
+	cleanup := pass + "go: unlinkat C:\\Temp\\go-build1\\b001\\cleanpkg.test.exe: Access is denied.\n"
+	if got := classifyGoTestRun(cleanup, false, "TestCleanPackageProbe", true); got != "PASS" {
+		t.Fatalf("Windows post-pass cleanup = %q", got)
+	}
+	if got := classifyGoTestRun(cleanup, false, "TestCleanPackageProbe", false); got != "FAIL" {
+		t.Fatalf("non-Windows error = %q", got)
+	}
+}
+
 func requireVerdict(t *testing.T, report *Report, test string, want Verdict) {
 	t.Helper()
 	for _, f := range report.Findings {

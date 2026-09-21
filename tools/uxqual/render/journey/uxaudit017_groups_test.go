@@ -20,7 +20,9 @@ func TestTodo_UXAUDIT_017_JourneysGroupByLifecycleWithoutLosingSubjects(t *testi
 			t.Fatal(err)
 		}
 		for _, subject := range []string{"Closed Worker", "Review Worker A", "Waiting Worker", "Review Worker B"} {
-			if strings.Count(markup, subject) != 1 {
+			// The subject is the visible task label of exactly one card; the
+			// same link's accessible name repeats it by design (UXLIVE-032).
+			if strings.Count(markup, subject+"</a>") != 1 {
 				t.Fatalf("%s subject %q omitted or duplicated", locale, subject)
 			}
 		}

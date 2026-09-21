@@ -48,11 +48,15 @@ func TestTodo_EP_WF_001_Integration(t *testing.T) {
 	if reader == nil {
 		t.Fatal("newWorkflowReader returned nil for a configured source")
 	}
-	record, err := reader.ReadWorkflowInstance(t.Context(), tenant.String(), instanceID.String())
+	// The caller addresses the record by tenant key, and the projection
+	// carries that key back: the inspector confines the record against the
+	// caller's own tenant, so projecting the storage uuid would fail its
+	// own check on every served read.
+	record, err := reader.ReadWorkflowInstance(t.Context(), "tenant-key-a", instanceID.String())
 	if err != nil {
 		t.Fatalf("ReadWorkflowInstance: %v", err)
 	}
-	if record.Instance.InstanceID != instanceID.String() || record.Instance.TenantID != tenant.String() || record.Instance.InstanceVersion != 9 {
+	if record.Instance.InstanceID != instanceID.String() || record.Instance.TenantID != "tenant-key-a" || record.Instance.InstanceVersion != 9 {
 		t.Fatalf("instance projection = %+v", record.Instance)
 	}
 	if got := record.Instance.VariableRevisionHead; got != "4" {

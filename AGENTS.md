@@ -29,14 +29,14 @@ Four gates hold the project on track. All of them run in the pre-commit hook (`.
 
 | Gate           | Command                                                        | Rule                                                                                |
 | -------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Format         | `npm run format:check`, `gofmt -l`                             | Every tracked file is formatted. `gofmt -w` only files you created or edited.       |
+| Format         | `npm run format:check`, `npm run check:go`                     | Every tracked file is formatted. `gofmt -w` only files you created or edited.       |
 | Lint           | `npm run lint`, `npm run check:code-style`, `go vet`           | No lint findings, no vet findings, house code-style rules hold.                     |
 | Unit tests     | `npm run check:coverage:staged`, `npm run test`                | Every package holding a staged Go file passes `go test`; the vitest suites pass.    |
 | Coverage floor | `npm run check:coverage:staged` (CI: `npm run check:coverage`) | Every gated package covers at least 70% of statements; no package is without tests. |
 
 The coverage policy is `definitions/toolchain/coverage-gate.yaml`. A package below the floor either gets tests or an exception naming its exact path, kind, owner, reason and expiry; prefixes and wildcards are refused, and an expired exception waives nothing. The gate judges by `go test` result lines, so the Windows "unlinkat ... Access is denied" exit is not a failure.
 
-The hook also runs the drift, API, substrate-coverage, engine-coverage and race-policy gates, the nested-module tests and the build. Never bypass it: no `--no-verify`, ever. If the hook is red because of another session's half-written file, wait for that file to compile; do not edit it.
+The hook also runs typecheck and the drift, API, substrate-coverage, engine-coverage, race-policy and decomposition gates, the nested-module tests and the build. Never bypass it: no `--no-verify`, ever. If the hook is red because of another session's half-written file, wait for that file to compile; do not edit it.
 
 Root `go test ./...` is not a gate on the development machine: every data package starts an embedded PostgreSQL and the full run takes hours. Test one package at a time with `go test -count=1 ./<pkg>/`; CI runs the whole module with the race detector.
 
@@ -95,8 +95,8 @@ stage that owns the defect; the defect is fixed at the source, never bypassed, n
    truncation or console diagnostics. Record the widths, states and suites run.
 10. **Commit gates.** Tick the todo with its evidence line, update `CHANGELOG.md` and the current `planning/devlog/` entry (the commits, the defects found,
     the decisions taken; what was verified and what was left partial, in plain prose), then commit in its group through the full pre-commit hook: format,
-    lint, unit tests, coverage floor, drift, API, substrate and engine coverage, race policy, nested-module tests and build.
-11. **Pull request.** Push the topic branch and open a PR naming the todos closed and their evidence. A PR never contains scratch directories, credentials or
+    lint, typecheck, unit tests, coverage floor, drift, API, substrate and engine coverage, race policy, decomposition, nested-module tests and build.
+11. **Pull request.** Push the topic branch (`git push origin <branch>`, topic branches only — never main or master, never force-push or delete; see Git discipline) and open a PR naming the todos closed and their evidence. A PR never contains scratch directories, credentials or
     files outside the change.
 12. **CI gate.** `.github/workflows/tests.yml` runs the full module with the race detector plus every hook gate. Green is required before merge. Red returns to
     step 5 on the same branch; CI re-runs.
@@ -114,7 +114,8 @@ Work is delivered by coding lanes (Codex "Luna" subagents) coordinated by an orc
 
 - Commit only when asked, in groups by area (data, trust, domain, operations, transport, policy, docs), each through the full hook.
 - The orchestrator owns git; lanes never run git. Work happens on topic branches named `<area>/<todo-id>-<slug>` using the same areas.
-- Push only topic branches, only to open or update a PR. Merge into main only through a PR whose CI is green.
+- Batch velocity: when the user asks to complete several todos at once, stay on the current branch and commit in area groups, one refined message per group naming the todos closed and their evidence; do not mint a topic branch per todo.
+- Push only topic branches with an explicit `git push origin <branch>`, only to open or update a PR — never main or master, never force-push or delete; the agent settings deny those pushes. Merge into main only through a PR whose CI is green.
 - Never push to main. Never `git stash`, `git reset --hard`, `git commit --amend`, `git rebase` or force-push. Never `--no-verify`.
 - Every commit ends with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
 - Update `CHANGELOG.md` and the current `planning/devlog/` entry with the commits, the defects found and the decisions taken. Devlog updates say what was verified and what was left partial, in plain prose.

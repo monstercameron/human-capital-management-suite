@@ -23,6 +23,12 @@ var ErrDecisionInvalid = errors.New("authz: decision fails evidence validation")
 // it is all handed in.
 type Request struct {
 	Principal *trust.Principal
+	// EffectiveRoles is the principal's server-resolved role set, from
+	// durable assignments. When non-nil it governs the scope and field
+	// stages instead of the principal's credential roles; a non-nil empty
+	// set authorizes nothing. Nil keeps the legacy credential-role
+	// behavior for callers with no role store.
+	EffectiveRoles []string
 	// Purpose is the declared purpose of use. An empty value falls back to
 	// the principal's default purpose.
 	Purpose string
@@ -126,9 +132,10 @@ func evaluate(req Request) (Decision, error) {
 	var scope AuthorizationScope
 	if subjectDisclosable {
 		scope, err = ResolveAuthorizationScope(req.Principal, ScopeInput{
-			Subject:       req.Subject,
-			EffectiveAt:   req.EffectiveAt,
-			Relationships: req.Relationships,
+			Subject:        req.Subject,
+			EffectiveAt:    req.EffectiveAt,
+			Relationships:  req.Relationships,
+			EffectiveRoles: req.EffectiveRoles,
 		})
 		if err != nil {
 			return Decision{}, err
@@ -142,7 +149,7 @@ func evaluate(req Request) (Decision, error) {
 
 	var fieldDecision FieldDecision
 	if subjectDisclosable {
-		fieldDecision, err = ResolveFields(req.Principal, purpose, req.Fields, tenantDecision.MandatoryDenies)
+		fieldDecision, err = ResolveFieldsWithRoles(req.Principal, effectiveRolesOf(req.Principal, req.EffectiveRoles), purpose, req.Fields, tenantDecision.MandatoryDenies)
 		if err != nil {
 			return Decision{}, err
 		}
@@ -305,6 +312,12 @@ func canonicalRequestDigest(req Request, purpose string) string {
 	}
 
 	write("principal", req.Principal.Fingerprint())
+	roles := slices.Clone(effectiveRolesOf(req.Principal, req.EffectiveRoles))
+	slices.Sort(roles)
+	fmt.Fprintf(h, "effective_roles[%d]:", len(roles))
+	for _, r := range roles {
+		write("effective_role", r)
+	}
 	write("purpose", purpose)
 	write("effective_at", req.EffectiveAt.String())
 	write("subject", req.Subject.String())

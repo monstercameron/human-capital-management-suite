@@ -105,7 +105,7 @@ func (d *Driver) InvalidateApproval(ctx context.Context, req ApprovalInvalidatio
 		func(ctx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
 			outcome, refs, invErr := invalidateApprovalSlots(ctx, ex, req, invalidator, meta, at, &out)
 			return outcome, refs, nil, invErr
-		})
+		}, nil)
 	if err != nil {
 		settled := d.settlePause(ctx, run, at, err)
 		if paused, ok := pausedResult(settled, Result{}); ok {

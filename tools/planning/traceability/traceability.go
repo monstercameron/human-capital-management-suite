@@ -31,8 +31,9 @@ func (o Orphan) String() string {
 }
 
 var (
-	tickRe = regexp.MustCompile("`([^`]*)`")
-	nameRe = regexp.MustCompile(`^(Test|Fuzz|Benchmark)[A-Za-z0-9_]*$`)
+	tickRe          = regexp.MustCompile("`([^`]*)`")
+	nameRe          = regexp.MustCompile(`^(Test|Fuzz|Benchmark)[A-Za-z0-9_]*$`)
+	matrixVariantRe = regexp.MustCompile(`^(TestTodo_.+_[0-9]+)_(Property|Golden|Fault|Security|Conformance|Recovery|Mutation|Race|Integration)$`)
 )
 
 // ExtractEvidenceTestNames extracts every Test/Fuzz/Benchmark function name
@@ -96,6 +97,13 @@ func ExtractEvidenceTestNames(evidence string) []string {
 
 			if nameRe.MatchString(part) {
 				names = append(names, part)
+				// Evidence may introduce a matrix with its first variant
+				// (`TestTodo_ID_Property`, `_Golden`, ...). Subsequent
+				// shorthand belongs to the todo root, not to Property.
+				if match := matrixVariantRe.FindStringSubmatch(part); match != nil {
+					lastBase = match[1]
+					continue
+				}
 				// Only a "Test..." name can become (or extend) the root
 				// that later "_suffix" shorthand tokens attach to - a
 				// sibling "FuzzTodo_..."/"BenchmarkTodo_..." entry never
@@ -191,9 +199,11 @@ func ScanTestNames(root string) (map[string]bool, error) {
 }
 
 // CheckTraceability returns an Orphan for every completed (Done) todo whose
-// Evidence field is empty, names no recognizable test, or names a test that
-// does not exist in existingTests. Todos that are not Done are ignored:
-// their evidence, if any, may legitimately describe remaining/future work.
+// Evidence field is empty, names no recognizable test, or names no test that
+// exists in existingTests. Evidence often names one top-level test followed
+// by shorthand subtest labels, so one resolved top-level function satisfies
+// the crosswalk. Todos that are not Done are ignored: their evidence, if any,
+// may legitimately describe remaining/future work.
 func CheckTraceability(todos []todoregistry.Todo, existingTests map[string]bool) []Orphan {
 	var orphans []Orphan
 
@@ -212,10 +222,15 @@ func CheckTraceability(todos []todoregistry.Todo, existingTests map[string]bool)
 			continue
 		}
 
+		resolved := false
 		for _, n := range names {
-			if !existingTests[n] {
-				orphans = append(orphans, Orphan{ID: td.ID, Reason: fmt.Sprintf("Evidence names %s, which does not exist in the repository", n)})
+			if existingTests[n] {
+				resolved = true
+				break
 			}
+		}
+		if !resolved {
+			orphans = append(orphans, Orphan{ID: td.ID, Reason: fmt.Sprintf("Evidence names no repository test; first unresolved name is %s", names[0])})
 		}
 	}
 

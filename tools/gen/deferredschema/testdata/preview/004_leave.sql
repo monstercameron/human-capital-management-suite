@@ -9,7 +9,7 @@
 
 -- +goose Up
 
-CREATE TABLE IF NOT EXISTS leave_request (
+CREATE TABLE IF NOT EXISTS leave_request_preview (
     tenant_id                tenant_ref   NOT NULL REFERENCES tenant (tenant_id),
     request_id               uuid         NOT NULL,
     request_key              semantic_key NOT NULL,
@@ -21,22 +21,22 @@ CREATE TABLE IF NOT EXISTS leave_request (
     recorded_at              timestamptz  NOT NULL DEFAULT now(),
 
     PRIMARY KEY (tenant_id, request_id),
-    CONSTRAINT leave_request_key_unique UNIQUE (tenant_id, request_key),
-    CONSTRAINT leave_request_status_check CHECK (status IN ('SUBMITTED', 'APPROVED', 'DENIED', 'ACTIVE', 'RETURNED', 'CANCELLED')),
-    CONSTRAINT leave_request_knowledge_order CHECK (known_at <= recorded_at)
+    CONSTRAINT leave_request_preview_key_unique UNIQUE (tenant_id, request_key),
+    CONSTRAINT leave_request_preview_status_check CHECK (status IN ('SUBMITTED', 'APPROVED', 'DENIED', 'ACTIVE', 'RETURNED', 'CANCELLED')),
+    CONSTRAINT leave_request_preview_knowledge_order CHECK (known_at <= recorded_at)
 );
 
-CREATE INDEX IF NOT EXISTS leave_request_recorded
-    ON leave_request (tenant_id, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS leave_request_preview_recorded
+    ON leave_request_preview (tenant_id, recorded_at DESC);
 
-ALTER TABLE leave_request ENABLE ROW LEVEL SECURITY;
-ALTER TABLE leave_request FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON leave_request
+ALTER TABLE leave_request_preview ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leave_request_preview FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON leave_request_preview
     USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
     WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
-GRANT SELECT, INSERT, UPDATE ON leave_request TO hcmnext_app;
+GRANT SELECT, INSERT, UPDATE ON leave_request_preview TO hcmnext_app;
 
-CREATE TABLE IF NOT EXISTS leave_record (
+CREATE TABLE IF NOT EXISTS leave_record_preview (
     tenant_id                tenant_ref   NOT NULL REFERENCES tenant (tenant_id),
     record_id                uuid         NOT NULL,
     request_id               uuid         NOT NULL,
@@ -47,37 +47,37 @@ CREATE TABLE IF NOT EXISTS leave_record (
     recorded_at              timestamptz  NOT NULL DEFAULT now(),
 
     PRIMARY KEY (tenant_id, record_id),
-    CONSTRAINT leave_record_revision_positive CHECK (revision_sequence >= 1),
-    CONSTRAINT leave_record_requested_hours_check CHECK (requested_hours > 0),
-    CONSTRAINT leave_record_knowledge_order CHECK (known_at <= recorded_at),
-    FOREIGN KEY (tenant_id, request_id) REFERENCES leave_request (tenant_id, request_id)
+    CONSTRAINT leave_record_preview_revision_positive CHECK (revision_sequence >= 1),
+    CONSTRAINT leave_record_preview_requested_hours_check CHECK (requested_hours > 0),
+    CONSTRAINT leave_record_preview_knowledge_order CHECK (known_at <= recorded_at),
+    FOREIGN KEY (tenant_id, request_id) REFERENCES leave_request_preview (tenant_id, request_id)
 );
 
-CREATE INDEX IF NOT EXISTS leave_record_recorded
-    ON leave_record (tenant_id, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS leave_record_preview_recorded
+    ON leave_record_preview (tenant_id, recorded_at DESC);
 
-CREATE OR REPLACE TRIGGER leave_record_append_only
-    BEFORE UPDATE OR DELETE ON leave_record
+CREATE OR REPLACE TRIGGER leave_record_preview_append_only
+    BEFORE UPDATE OR DELETE ON leave_record_preview
     FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
 
-REVOKE UPDATE, DELETE ON leave_record FROM PUBLIC;
+REVOKE UPDATE, DELETE ON leave_record_preview FROM PUBLIC;
 
-ALTER TABLE leave_record ENABLE ROW LEVEL SECURITY;
-ALTER TABLE leave_record FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON leave_record
+ALTER TABLE leave_record_preview ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leave_record_preview FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON leave_record_preview
     USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
     WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
-GRANT SELECT, INSERT ON leave_record TO hcmnext_app;
+GRANT SELECT, INSERT ON leave_record_preview TO hcmnext_app;
 
 -- +goose Down
-REVOKE ALL ON leave_record FROM hcmnext_app;
-DROP POLICY tenant_isolation ON leave_record;
-ALTER TABLE leave_record NO FORCE ROW LEVEL SECURITY;
-ALTER TABLE leave_record DISABLE ROW LEVEL SECURITY;
-DROP TABLE leave_record;
+REVOKE ALL ON leave_record_preview FROM hcmnext_app;
+DROP POLICY tenant_isolation ON leave_record_preview;
+ALTER TABLE leave_record_preview NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE leave_record_preview DISABLE ROW LEVEL SECURITY;
+DROP TABLE leave_record_preview;
 
-REVOKE ALL ON leave_request FROM hcmnext_app;
-DROP POLICY tenant_isolation ON leave_request;
-ALTER TABLE leave_request NO FORCE ROW LEVEL SECURITY;
-ALTER TABLE leave_request DISABLE ROW LEVEL SECURITY;
-DROP TABLE leave_request;
+REVOKE ALL ON leave_request_preview FROM hcmnext_app;
+DROP POLICY tenant_isolation ON leave_request_preview;
+ALTER TABLE leave_request_preview NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE leave_request_preview DISABLE ROW LEVEL SECURITY;
+DROP TABLE leave_request_preview;

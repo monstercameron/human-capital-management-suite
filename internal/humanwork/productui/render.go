@@ -12,7 +12,7 @@ import (
 // authorized presentation model. Feature pages never construct document
 // chrome, and the shell never owns domain presentation logic.
 func Render(view View) (string, error) {
-	appearance := NormalizeCustomerTheme(view.Appearance)
+	appearance := view.EffectiveAppearance()
 	if err := ValidateCustomerTheme(appearance); err != nil {
 		return "", fmt.Errorf("productui: appearance: %w", err)
 	}
@@ -87,7 +87,7 @@ func document(title string, appearance CustomerTheme, accessibility Accessibilit
 	}
 	root += `>`
 	brand := escapeTitle(appearance.BrandName)
-	return "<!doctype html>" + root + "<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"light dark\"><meta name=\"application-name\" content=\"" + brand + "\"><title>" + escapeTitle(title) + " · " + brand + "</title><style>" + stylesheet + "</style></head><body>" + body + "</body></html>"
+	return "<!doctype html>" + root + "<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"" + escapeTitle(ColorSchemeContent(attributes["data-hcm-color-mode"])) + "\"><meta name=\"application-name\" content=\"" + brand + "\"><title>" + escapeTitle(title) + " · " + brand + "</title><style>" + stylesheet + "</style></head><body>" + body + "</body></html>"
 }
 
 var titleEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&#34;")

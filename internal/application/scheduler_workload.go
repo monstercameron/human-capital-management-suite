@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/schedule"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	executionscheduler "github.com/monstercameron/human-capital-management-suite/internal/platform/execution/scheduler"
@@ -73,7 +74,8 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 	// the queue fence, and the generic dispatcher routes any it reaches first.
 	signals, err := executionscheduler.NewSignalDispatcher(executionscheduler.SignalDispatcherConfig{
 		DB: pool, Resumer: signalResumer(claimTenant.String(), cfg.Tenant, cell.ResumeMatchedSignal),
-		Clock: now, Logger: logger,
+		Expirer: signalExpirer(claimTenant.String(), cfg.Tenant, cell.ResumeExpiredSignal),
+		Clock:   now, Logger: logger,
 	})
 	if err != nil {
 		return bootstrap.Workload{}, err
@@ -84,6 +86,34 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 		func(ctx context.Context, instanceID string, expectedVersion int64) (app.ExecutionResult, error) {
 			return cell.RedeliverReady(ctx, instanceID, expectedVersion)
 		})
+	if err != nil {
+		return bootstrap.Workload{}, err
+	}
+	// REV-035-01: the scheduler replica also sweeps activated schedule
+	// triggers into dispatch on every tick. The registry starts empty and is
+	// the publication seam a durable trigger store will feed; the dispatcher
+	// names intents deterministically from trigger digest and occurrence key
+	// so every replica sweeping the same publication converges on the same
+	// intent identities. The sweep runs beside the timer loop and never fails
+	// the tick: per-trigger failures become quarantined dead letters.
+	triggerDispatcher, err := schedule.NewDispatcher(schedule.DispatchPolicy{MaxAge: time.Hour, Clock: now})
+	if err != nil {
+		return bootstrap.Workload{}, err
+	}
+	triggerQuarantine, err := schedule.NewQuarantineStore(schedule.QuarantinePolicy{MaxAttempts: 5, Clock: now})
+	if err != nil {
+		return bootstrap.Workload{}, err
+	}
+	triggerSweep, err := NewTriggerSweeper(TriggerSweepConfig{
+		Registry:    schedule.NewRegistry(),
+		Dispatcher:  triggerDispatcher,
+		Quarantine:  triggerQuarantine,
+		Lookback:    time.Hour,
+		Misfire:     schedule.MisfireConfig{Policy: schedule.MisfireCatchUpOnce, Grace: time.Hour, MaxCatchUp: 1},
+		Zone:        values.ZoneRef{ID: "UTC", TzdbVersion: "UTC"},
+		LeaderID:    identity,
+		TargetScope: []string{"tenant:" + cfg.Tenant},
+	})
 	if err != nil {
 		return bootstrap.Workload{}, err
 	}
@@ -104,6 +134,7 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 		return bootstrap.Workload{}, err
 	}
 	return bootstrap.Workload{Name: workloadNameScheduler, Run: func(ctx context.Context) error {
+		go triggerSweep.Run(ctx, executionscheduler.DefaultPollInterval)
 		return runner.Run(ctx, executionscheduler.DefaultPollInterval)
 	}}, nil
 }
@@ -112,6 +143,14 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 // scheduler: every claim it serves and every lease, timer and runtime
 // operation beneath it becomes a span and a structured log line. Without a
 // telemetry provider it still logs refusals and failures.
+// eventLogger is the process's structured logger when it is one, so the
+// journey engine's business events share the JSON envelope (and its
+// context-carried request and correlation ids) with every other line.
+func eventLogger(logger bootstrap.Logger) *slog.Logger {
+	slogger, _ := logger.(*slog.Logger)
+	return slogger
+}
+
 func schedulerRecorder(provider *hcmotel.Provider, logger bootstrap.Logger, now func() time.Time) observe.Recorder {
 	slogger, _ := logger.(*slog.Logger)
 	return execution.NewObserveRecorder(provider, slogger, now)

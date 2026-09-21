@@ -22,21 +22,31 @@ import (
 type publishedPromotionPath struct {
 	Option workspace.PromotionPathOption
 	// bounds is the job-architecture edge whose published minimum and maximum
-	// base increase apply. It is nil for a demo ladder edge, which publishes
-	// no bounds: its only published rule is its UPWARD kind, and the gate
-	// enforces exactly that ([allowsBaseIncrease]).
+	// base increase apply. It is nil for a demo ladder edge, whose bounds the
+	// gate reads from the demo ladder itself for the worker's org unit; the
+	// option still carries them so a form can state the range.
 	bounds *fixtures.PromotionPathScope
 }
 
 // publishedPromotionPaths returns the fixed corpus's validated
-// job-architecture paths followed by the demo company's ladder, in that
-// order, which is the order ListWorkers has always published them in.
+// job-architecture paths followed by the demo company's authored ladder, in
+// that order, which is the order ListWorkers has always published them in.
+//
+// It is the compiled-in reading. A served surface that can read the tenant's
+// own published ladder passes it to [publishedPromotionPathsFrom] instead.
 func publishedPromotionPaths() ([]publishedPromotionPath, error) {
+	return publishedPromotionPathsFrom(demoworkforce.PromotionPaths())
+}
+
+// publishedPromotionPathsFrom publishes the fixed corpus's paths followed by
+// the given company ladder. A job may publish several targets; the order the
+// ladder arrives in is preserved, so the nearest step a role can take stays
+// the first option offered for it.
+func publishedPromotionPathsFrom(edges []demoworkforce.PromotionPathEdge) ([]publishedPromotionPath, error) {
 	paths, err := fixtures.PromotionPaths()
 	if err != nil {
 		return nil, fmt.Errorf("app: journey: read the published promotion paths: %w", err)
 	}
-	edges := demoworkforce.PromotionPaths()
 	out := make([]publishedPromotionPath, 0, len(paths)+len(edges))
 	for i := range paths {
 		scope := paths[i]
@@ -58,12 +68,21 @@ func publishedPromotionPaths() ([]publishedPromotionPath, error) {
 		out = append(out, publishedPromotionPath{Option: option, bounds: &scope})
 	}
 	for _, edge := range edges {
+		kind := edge.Kind
+		if kind == "" {
+			kind = demoworkforce.PromotionKindUpward
+		}
 		out = append(out, publishedPromotionPath{Option: workspace.PromotionPathOption{
-			PathRef:       "demoworkforce:" + edge.OrgUnit + ":" + edge.SourceJobCode + "->" + edge.TargetJobCode,
-			Revision:      "1",
+			PathRef:       demoworkforce.PromotionPathRef(edge.OrgUnit, edge.SourceJobCode, edge.TargetJobCode),
+			Revision:      demoworkforce.PromotionPathRevision,
 			SourceJobCode: edge.SourceJobCode, SourceGrade: edge.SourceGrade,
 			TargetJobCode: edge.TargetJobCode, TargetGrade: edge.TargetGrade,
-			TargetTitle: edge.TargetTitle, Kind: "UPWARD",
+			TargetTitle: edge.TargetTitle, Kind: kind,
+			// The ladder gate enforces these bounds for a worker's own org
+			// unit (validatePublishedPromotionPath). Leaving them off the
+			// option left the form saying "no exact range is available"
+			// while the gate refused amounts outside a range it knew.
+			MinimumBaseIncrease: edge.MinimumBaseIncrease, MaximumBaseIncrease: edge.MaximumBaseIncrease,
 		}})
 	}
 	return out, nil

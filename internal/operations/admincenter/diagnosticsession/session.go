@@ -1,6 +1,9 @@
 package diagnosticsession
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,9 +19,10 @@ const (
 )
 
 var (
-	ErrInvalidScope = errors.New("diagnostic session: invalid JIT scope")
-	ErrExpired      = errors.New("diagnostic session: expired")
-	ErrActionDenied = errors.New("diagnostic session: UI action is not allowlisted")
+	ErrInvalidScope    = errors.New("diagnostic session: invalid JIT scope")
+	ErrExpired         = errors.New("diagnostic session: expired")
+	ErrActionDenied    = errors.New("diagnostic session: UI action is not allowlisted")
+	ErrInvalidApproval = errors.New("diagnostic session: customer approval is invalid")
 )
 
 // Scope is the complete JIT grant. An empty resource or action set is denied
@@ -33,6 +37,70 @@ type Scope struct {
 	Actions   []UIAction
 	IssuedAt  time.Time
 	ExpiresAt time.Time
+	Approval  CustomerApproval
+}
+
+// CustomerApproval is the customer consent bound to one scope. The digest
+// binds the approval to the exact tenant, subject, case, purpose, resources,
+// actions and window it was granted for: transplanting an approval onto a
+// different scope fails validation, so consent cannot be forged by copying
+// an approval reference.
+type CustomerApproval struct {
+	Reference   string
+	ScopeDigest string
+}
+
+// ScopeDigest computes the hex SHA-256 over the canonical scope fields. The
+// approval itself is excluded: it is what the digest authenticates.
+func ScopeDigest(scope Scope) string {
+	var b strings.Builder
+	b.WriteString(scope.TenantID)
+	b.WriteByte(0)
+	b.WriteString(scope.SubjectID)
+	b.WriteByte(0)
+	b.WriteString(scope.CaseID)
+	b.WriteByte(0)
+	b.WriteString(scope.Purpose)
+	b.WriteByte(0)
+	for _, resource := range scope.Resources {
+		b.WriteString(resource)
+		b.WriteByte(0)
+	}
+	for _, action := range scope.Actions {
+		b.WriteString(string(action))
+		b.WriteByte(0)
+	}
+	b.WriteString(scope.IssuedAt.UTC().Format(time.RFC3339Nano))
+	b.WriteByte(0)
+	b.WriteString(scope.ExpiresAt.UTC().Format(time.RFC3339Nano))
+	sum := sha256.Sum256([]byte(b.String()))
+	return hex.EncodeToString(sum[:])
+}
+
+// MintApproval binds a customer reference to a scope.
+// bindConsent seals the customer reference to the exact grant: the stored
+// digest covers the canonical scope digest plus the reference, so a consent
+// minted for one ticket cannot be retargeted to another.
+func bindConsent(scope Scope, reference string) string {
+	sum := sha256.Sum256([]byte(ScopeDigest(scope) + "\x00" + reference))
+	return hex.EncodeToString(sum[:])
+}
+
+// MintApproval binds a customer reference to a scope.
+func MintApproval(scope Scope, reference string) CustomerApproval {
+	return CustomerApproval{Reference: reference, ScopeDigest: bindConsent(scope, reference)}
+}
+
+// ValidFor reports whether the approval binds this exact scope.
+func (a CustomerApproval) ValidFor(scope Scope) bool {
+	if a.Reference == "" || a.ScopeDigest == "" {
+		return false
+	}
+	want := bindConsent(scope, a.Reference)
+	if len(a.ScopeDigest) != len(want) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(a.ScopeDigest), []byte(want)) == 1
 }
 
 // Session is an immutable-at-the-boundary diagnostic session handle.
@@ -41,6 +109,15 @@ type Session struct{ scope Scope }
 func New(scope Scope) (Session, error) {
 	if strings.TrimSpace(scope.TenantID) == "" || strings.TrimSpace(scope.SubjectID) == "" || strings.TrimSpace(scope.CaseID) == "" || scope.Purpose != PurposeSupport || len(scope.Resources) == 0 || len(scope.Actions) == 0 {
 		return Session{}, ErrInvalidScope
+	}
+	// Consent is checked before the server fills in defaults: the approval
+	// binds exactly the grant the customer signed, with an unspecified
+	// window meaning server defaults apply.
+	if strings.TrimSpace(scope.Approval.Reference) == "" {
+		return Session{}, fmt.Errorf("%w: customer approval reference is required", ErrInvalidApproval)
+	}
+	if !scope.Approval.ValidFor(scope) {
+		return Session{}, fmt.Errorf("%w: approval does not bind this scope", ErrInvalidApproval)
 	}
 	if scope.IssuedAt.IsZero() {
 		scope.IssuedAt = time.Now().UTC()

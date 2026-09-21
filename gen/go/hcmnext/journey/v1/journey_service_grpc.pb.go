@@ -25,10 +25,13 @@ const (
 	JourneyService_InspectJourney_FullMethodName                 = "/hcmnext.journey.v1.JourneyService/InspectJourney"
 	JourneyService_ExecuteJourney_FullMethodName                 = "/hcmnext.journey.v1.JourneyService/ExecuteJourney"
 	JourneyService_DecideJourney_FullMethodName                  = "/hcmnext.journey.v1.JourneyService/DecideJourney"
+	JourneyService_AcknowledgeJourney_FullMethodName             = "/hcmnext.journey.v1.JourneyService/AcknowledgeJourney"
 	JourneyService_EditProposal_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/EditProposal"
 	JourneyService_PreviewJourneyIntervention_FullMethodName     = "/hcmnext.journey.v1.JourneyService/PreviewJourneyIntervention"
 	JourneyService_RequestJourneyIntervention_FullMethodName     = "/hcmnext.journey.v1.JourneyService/RequestJourneyIntervention"
+	JourneyService_AddJourneyNote_FullMethodName                 = "/hcmnext.journey.v1.JourneyService/AddJourneyNote"
 	JourneyService_WatchJourney_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/WatchJourney"
+	JourneyService_WatchPromotionInvalidations_FullMethodName    = "/hcmnext.journey.v1.JourneyService/WatchPromotionInvalidations"
 	JourneyService_ListWorkers_FullMethodName                    = "/hcmnext.journey.v1.JourneyService/ListWorkers"
 	JourneyService_CreateWorker_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/CreateWorker"
 	JourneyService_GetProductPreferences_FullMethodName          = "/hcmnext.journey.v1.JourneyService/GetProductPreferences"
@@ -41,6 +44,7 @@ const (
 	JourneyService_SaveRoleOrganizationVisibility_FullMethodName = "/hcmnext.journey.v1.JourneyService/SaveRoleOrganizationVisibility"
 	JourneyService_SaveRolePagePermission_FullMethodName         = "/hcmnext.journey.v1.JourneyService/SaveRolePagePermission"
 	JourneyService_SaveRoleFeaturePermission_FullMethodName      = "/hcmnext.journey.v1.JourneyService/SaveRoleFeaturePermission"
+	JourneyService_PreviewRoleAccess_FullMethodName              = "/hcmnext.journey.v1.JourneyService/PreviewRoleAccess"
 	JourneyService_RecordWorkflowUse_FullMethodName              = "/hcmnext.journey.v1.JourneyService/RecordWorkflowUse"
 	JourneyService_GetWorkerIDPolicy_FullMethodName              = "/hcmnext.journey.v1.JourneyService/GetWorkerIDPolicy"
 	JourneyService_SaveWorkerIDPolicy_FullMethodName             = "/hcmnext.journey.v1.JourneyService/SaveWorkerIDPolicy"
@@ -162,6 +166,16 @@ type JourneyServiceClient interface {
 	// is not the routed approver is refused PERMISSION_DENIED by the engine,
 	// not by this service.
 	DecideJourney(ctx context.Context, in *DecideJourneyRequest, opts ...grpc.CallOption) (*DecideJourneyResponse, error)
+	// AcknowledgeJourney records the employee's verified promotion
+	// acknowledgement against a journey parked on its acknowledgement gate.
+	// Effect class: governed write through the durable signal store and the
+	// caller-driven execution driver - workspace.JourneyEngine.Acknowledge
+	// receives the correlated signal and resumes the driver from the matched
+	// receipt, which runs the instance to its COMPLETE terminal and records
+	// the one ledger fact the END node raises. The caller is the attester and
+	// must not be the journey's initiator; a journey with no open
+	// acknowledgement wait is refused FAILED_PRECONDITION.
+	AcknowledgeJourney(ctx context.Context, in *AcknowledgeJourneyRequest, opts ...grpc.CallOption) (*AcknowledgeJourneyResponse, error)
 	// EditProposal corrects an unstarted or not-yet-approved promotion
 	// proposal (PROMOUX-013). Effect class: governed write through the intent
 	// service - it is workspace.JourneyEngine.EditProposal, which is
@@ -212,6 +226,15 @@ type JourneyServiceClient interface {
 	// SupersedeIntent already use - so no partial domain write is possible: a
 	// losing caller's request never touches durable state at all.
 	RequestJourneyIntervention(ctx context.Context, in *RequestJourneyInterventionRequest, opts ...grpc.CallOption) (*RequestJourneyInterventionResponse, error)
+	// AddJourneyNote appends one note to a journey. Effect class: append-only
+	// experience write. Anyone the journey detail admits may add a note, at any
+	// stage and after the journey has closed; a note is not a decision, carries
+	// no authority and changes nothing about the journey. Notes are never
+	// edited or removed. A retry with the same idempotency_key returns the note
+	// the first call recorded; the same key with different content is refused.
+	// The response carries the recorded note and the journey detail read in
+	// the same call, with the new note in JourneyDetail.notes.
+	AddJourneyNote(ctx context.Context, in *AddJourneyNoteRequest, opts ...grpc.CallOption) (*AddJourneyNoteResponse, error)
 	// WatchJourney is a server-streaming change feed over the same read
 	// InspectJourney performs. Effect class: READ_ONLY.
 	//
@@ -234,6 +257,28 @@ type JourneyServiceClient interface {
 	// would be. The request's own gRPC deadline and the server's deadline cap
 	// still apply and still win whenever they are shorter than the ceiling.
 	WatchJourney(ctx context.Context, in *WatchJourneyRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WatchJourneyResponse], error)
+	// WatchPromotionInvalidations is a server-streaming feed of promotion
+	// invalidation hints for the caller's own authorized view (REV-091-03,
+	// PROMOUX-011). Effect class: READ_ONLY.
+	//
+	// Every committed promotion transition (propose, edit, execute, decide,
+	// acknowledge, withdraw or cancel, and a timer- or signal-driven
+	// completion) is filtered by the caller's own authority before anything
+	// is sent: the journey must be visible to the caller through the same
+	// engine read InspectJourney performs, and the hint must pass the product
+	// query invalidation authorization check. A transition the caller may not
+	// see is never sent and never consumes a sequence number, so the numbers a
+	// caller receives are contiguous and reveal nothing about what was
+	// filtered out. A hint carries no display data: the client re-reads the
+	// affected summaries through the ordinary authorized RPCs.
+	//
+	// The stream is refused PERMISSION_DENIED for a caller who may view
+	// neither Journeys nor My Work, ends with PERMISSION_DENIED if that access
+	// is withdrawn while it is open, ends with ABORTED when the caller stops
+	// reading for long enough that hints were dropped (the client reconnects
+	// and re-reads), and ends with OK at the same fifteen-minute ceiling
+	// WatchJourney uses.
+	WatchPromotionInvalidations(ctx context.Context, in *WatchPromotionInvalidationsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WatchPromotionInvalidationsResponse], error)
 	// ListWorkers returns every employee a journey can be proposed for --
 	// the release's fixed corpus population and the tenant's own created one,
 	// newest created first -- together with the closed set of placements a new
@@ -290,6 +335,14 @@ type JourneyServiceClient interface {
 	SaveRoleOrganizationVisibility(ctx context.Context, in *SaveRoleOrganizationVisibilityRequest, opts ...grpc.CallOption) (*SaveRoleOrganizationVisibilityResponse, error)
 	SaveRolePagePermission(ctx context.Context, in *SaveRolePagePermissionRequest, opts ...grpc.CallOption) (*SaveRolePagePermissionResponse, error)
 	SaveRoleFeaturePermission(ctx context.Context, in *SaveRoleFeaturePermissionRequest, opts ...grpc.CallOption) (*SaveRoleFeaturePermissionResponse, error)
+	// PreviewRoleAccess resolves, without saving anything, what a role would
+	// reveal under a proposed organization visibility policy compared with
+	// its saved policy. It reads the durable role store and the governed
+	// workforce's unit names; it returns unit names and counts, never a worker
+	// record. Administrator roles report their directory-wide override rather
+	// than the stored policy. Only HCM administrators may call it. Effect
+	// class: READ_ONLY.
+	PreviewRoleAccess(ctx context.Context, in *PreviewRoleAccessRequest, opts ...grpc.CallOption) (*PreviewRoleAccessResponse, error)
 	// RecordWorkflowUse increments the authenticated user's usage count for a
 	// workflow so launchers can rank real frequent actions rather than hardcode
 	// a single action. It grants no authority to run the named workflow.
@@ -370,6 +423,16 @@ func (c *journeyServiceClient) DecideJourney(ctx context.Context, in *DecideJour
 	return out, nil
 }
 
+func (c *journeyServiceClient) AcknowledgeJourney(ctx context.Context, in *AcknowledgeJourneyRequest, opts ...grpc.CallOption) (*AcknowledgeJourneyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AcknowledgeJourneyResponse)
+	err := c.cc.Invoke(ctx, JourneyService_AcknowledgeJourney_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *journeyServiceClient) EditProposal(ctx context.Context, in *EditProposalRequest, opts ...grpc.CallOption) (*EditProposalResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(EditProposalResponse)
@@ -400,6 +463,16 @@ func (c *journeyServiceClient) RequestJourneyIntervention(ctx context.Context, i
 	return out, nil
 }
 
+func (c *journeyServiceClient) AddJourneyNote(ctx context.Context, in *AddJourneyNoteRequest, opts ...grpc.CallOption) (*AddJourneyNoteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddJourneyNoteResponse)
+	err := c.cc.Invoke(ctx, JourneyService_AddJourneyNote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *journeyServiceClient) WatchJourney(ctx context.Context, in *WatchJourneyRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WatchJourneyResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &JourneyService_ServiceDesc.Streams[0], JourneyService_WatchJourney_FullMethodName, cOpts...)
@@ -418,6 +491,25 @@ func (c *journeyServiceClient) WatchJourney(ctx context.Context, in *WatchJourne
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type JourneyService_WatchJourneyClient = grpc.ServerStreamingClient[WatchJourneyResponse]
+
+func (c *journeyServiceClient) WatchPromotionInvalidations(ctx context.Context, in *WatchPromotionInvalidationsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WatchPromotionInvalidationsResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &JourneyService_ServiceDesc.Streams[1], JourneyService_WatchPromotionInvalidations_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchPromotionInvalidationsRequest, WatchPromotionInvalidationsResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type JourneyService_WatchPromotionInvalidationsClient = grpc.ServerStreamingClient[WatchPromotionInvalidationsResponse]
 
 func (c *journeyServiceClient) ListWorkers(ctx context.Context, in *ListWorkersRequest, opts ...grpc.CallOption) (*ListWorkersResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -533,6 +625,16 @@ func (c *journeyServiceClient) SaveRoleFeaturePermission(ctx context.Context, in
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SaveRoleFeaturePermissionResponse)
 	err := c.cc.Invoke(ctx, JourneyService_SaveRoleFeaturePermission_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) PreviewRoleAccess(ctx context.Context, in *PreviewRoleAccessRequest, opts ...grpc.CallOption) (*PreviewRoleAccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PreviewRoleAccessResponse)
+	err := c.cc.Invoke(ctx, JourneyService_PreviewRoleAccess_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -685,6 +787,16 @@ type JourneyServiceServer interface {
 	// is not the routed approver is refused PERMISSION_DENIED by the engine,
 	// not by this service.
 	DecideJourney(context.Context, *DecideJourneyRequest) (*DecideJourneyResponse, error)
+	// AcknowledgeJourney records the employee's verified promotion
+	// acknowledgement against a journey parked on its acknowledgement gate.
+	// Effect class: governed write through the durable signal store and the
+	// caller-driven execution driver - workspace.JourneyEngine.Acknowledge
+	// receives the correlated signal and resumes the driver from the matched
+	// receipt, which runs the instance to its COMPLETE terminal and records
+	// the one ledger fact the END node raises. The caller is the attester and
+	// must not be the journey's initiator; a journey with no open
+	// acknowledgement wait is refused FAILED_PRECONDITION.
+	AcknowledgeJourney(context.Context, *AcknowledgeJourneyRequest) (*AcknowledgeJourneyResponse, error)
 	// EditProposal corrects an unstarted or not-yet-approved promotion
 	// proposal (PROMOUX-013). Effect class: governed write through the intent
 	// service - it is workspace.JourneyEngine.EditProposal, which is
@@ -735,6 +847,15 @@ type JourneyServiceServer interface {
 	// SupersedeIntent already use - so no partial domain write is possible: a
 	// losing caller's request never touches durable state at all.
 	RequestJourneyIntervention(context.Context, *RequestJourneyInterventionRequest) (*RequestJourneyInterventionResponse, error)
+	// AddJourneyNote appends one note to a journey. Effect class: append-only
+	// experience write. Anyone the journey detail admits may add a note, at any
+	// stage and after the journey has closed; a note is not a decision, carries
+	// no authority and changes nothing about the journey. Notes are never
+	// edited or removed. A retry with the same idempotency_key returns the note
+	// the first call recorded; the same key with different content is refused.
+	// The response carries the recorded note and the journey detail read in
+	// the same call, with the new note in JourneyDetail.notes.
+	AddJourneyNote(context.Context, *AddJourneyNoteRequest) (*AddJourneyNoteResponse, error)
 	// WatchJourney is a server-streaming change feed over the same read
 	// InspectJourney performs. Effect class: READ_ONLY.
 	//
@@ -757,6 +878,28 @@ type JourneyServiceServer interface {
 	// would be. The request's own gRPC deadline and the server's deadline cap
 	// still apply and still win whenever they are shorter than the ceiling.
 	WatchJourney(*WatchJourneyRequest, grpc.ServerStreamingServer[WatchJourneyResponse]) error
+	// WatchPromotionInvalidations is a server-streaming feed of promotion
+	// invalidation hints for the caller's own authorized view (REV-091-03,
+	// PROMOUX-011). Effect class: READ_ONLY.
+	//
+	// Every committed promotion transition (propose, edit, execute, decide,
+	// acknowledge, withdraw or cancel, and a timer- or signal-driven
+	// completion) is filtered by the caller's own authority before anything
+	// is sent: the journey must be visible to the caller through the same
+	// engine read InspectJourney performs, and the hint must pass the product
+	// query invalidation authorization check. A transition the caller may not
+	// see is never sent and never consumes a sequence number, so the numbers a
+	// caller receives are contiguous and reveal nothing about what was
+	// filtered out. A hint carries no display data: the client re-reads the
+	// affected summaries through the ordinary authorized RPCs.
+	//
+	// The stream is refused PERMISSION_DENIED for a caller who may view
+	// neither Journeys nor My Work, ends with PERMISSION_DENIED if that access
+	// is withdrawn while it is open, ends with ABORTED when the caller stops
+	// reading for long enough that hints were dropped (the client reconnects
+	// and re-reads), and ends with OK at the same fifteen-minute ceiling
+	// WatchJourney uses.
+	WatchPromotionInvalidations(*WatchPromotionInvalidationsRequest, grpc.ServerStreamingServer[WatchPromotionInvalidationsResponse]) error
 	// ListWorkers returns every employee a journey can be proposed for --
 	// the release's fixed corpus population and the tenant's own created one,
 	// newest created first -- together with the closed set of placements a new
@@ -813,6 +956,14 @@ type JourneyServiceServer interface {
 	SaveRoleOrganizationVisibility(context.Context, *SaveRoleOrganizationVisibilityRequest) (*SaveRoleOrganizationVisibilityResponse, error)
 	SaveRolePagePermission(context.Context, *SaveRolePagePermissionRequest) (*SaveRolePagePermissionResponse, error)
 	SaveRoleFeaturePermission(context.Context, *SaveRoleFeaturePermissionRequest) (*SaveRoleFeaturePermissionResponse, error)
+	// PreviewRoleAccess resolves, without saving anything, what a role would
+	// reveal under a proposed organization visibility policy compared with
+	// its saved policy. It reads the durable role store and the governed
+	// workforce's unit names; it returns unit names and counts, never a worker
+	// record. Administrator roles report their directory-wide override rather
+	// than the stored policy. Only HCM administrators may call it. Effect
+	// class: READ_ONLY.
+	PreviewRoleAccess(context.Context, *PreviewRoleAccessRequest) (*PreviewRoleAccessResponse, error)
 	// RecordWorkflowUse increments the authenticated user's usage count for a
 	// workflow so launchers can rank real frequent actions rather than hardcode
 	// a single action. It grants no authority to run the named workflow.
@@ -851,6 +1002,9 @@ func (UnimplementedJourneyServiceServer) ExecuteJourney(context.Context, *Execut
 func (UnimplementedJourneyServiceServer) DecideJourney(context.Context, *DecideJourneyRequest) (*DecideJourneyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DecideJourney not implemented")
 }
+func (UnimplementedJourneyServiceServer) AcknowledgeJourney(context.Context, *AcknowledgeJourneyRequest) (*AcknowledgeJourneyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AcknowledgeJourney not implemented")
+}
 func (UnimplementedJourneyServiceServer) EditProposal(context.Context, *EditProposalRequest) (*EditProposalResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method EditProposal not implemented")
 }
@@ -860,8 +1014,14 @@ func (UnimplementedJourneyServiceServer) PreviewJourneyIntervention(context.Cont
 func (UnimplementedJourneyServiceServer) RequestJourneyIntervention(context.Context, *RequestJourneyInterventionRequest) (*RequestJourneyInterventionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RequestJourneyIntervention not implemented")
 }
+func (UnimplementedJourneyServiceServer) AddJourneyNote(context.Context, *AddJourneyNoteRequest) (*AddJourneyNoteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AddJourneyNote not implemented")
+}
 func (UnimplementedJourneyServiceServer) WatchJourney(*WatchJourneyRequest, grpc.ServerStreamingServer[WatchJourneyResponse]) error {
 	return status.Error(codes.Unimplemented, "method WatchJourney not implemented")
+}
+func (UnimplementedJourneyServiceServer) WatchPromotionInvalidations(*WatchPromotionInvalidationsRequest, grpc.ServerStreamingServer[WatchPromotionInvalidationsResponse]) error {
+	return status.Error(codes.Unimplemented, "method WatchPromotionInvalidations not implemented")
 }
 func (UnimplementedJourneyServiceServer) ListWorkers(context.Context, *ListWorkersRequest) (*ListWorkersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListWorkers not implemented")
@@ -898,6 +1058,9 @@ func (UnimplementedJourneyServiceServer) SaveRolePagePermission(context.Context,
 }
 func (UnimplementedJourneyServiceServer) SaveRoleFeaturePermission(context.Context, *SaveRoleFeaturePermissionRequest) (*SaveRoleFeaturePermissionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SaveRoleFeaturePermission not implemented")
+}
+func (UnimplementedJourneyServiceServer) PreviewRoleAccess(context.Context, *PreviewRoleAccessRequest) (*PreviewRoleAccessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PreviewRoleAccess not implemented")
 }
 func (UnimplementedJourneyServiceServer) RecordWorkflowUse(context.Context, *RecordWorkflowUseRequest) (*RecordWorkflowUseResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RecordWorkflowUse not implemented")
@@ -1037,6 +1200,24 @@ func _JourneyService_DecideJourney_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JourneyService_AcknowledgeJourney_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcknowledgeJourneyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).AcknowledgeJourney(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_AcknowledgeJourney_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).AcknowledgeJourney(ctx, req.(*AcknowledgeJourneyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _JourneyService_EditProposal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(EditProposalRequest)
 	if err := dec(in); err != nil {
@@ -1091,6 +1272,24 @@ func _JourneyService_RequestJourneyIntervention_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JourneyService_AddJourneyNote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddJourneyNoteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).AddJourneyNote(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_AddJourneyNote_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).AddJourneyNote(ctx, req.(*AddJourneyNoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _JourneyService_WatchJourney_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(WatchJourneyRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -1101,6 +1300,17 @@ func _JourneyService_WatchJourney_Handler(srv interface{}, stream grpc.ServerStr
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type JourneyService_WatchJourneyServer = grpc.ServerStreamingServer[WatchJourneyResponse]
+
+func _JourneyService_WatchPromotionInvalidations_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchPromotionInvalidationsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(JourneyServiceServer).WatchPromotionInvalidations(m, &grpc.GenericServerStream[WatchPromotionInvalidationsRequest, WatchPromotionInvalidationsResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type JourneyService_WatchPromotionInvalidationsServer = grpc.ServerStreamingServer[WatchPromotionInvalidationsResponse]
 
 func _JourneyService_ListWorkers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListWorkersRequest)
@@ -1318,6 +1528,24 @@ func _JourneyService_SaveRoleFeaturePermission_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JourneyService_PreviewRoleAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreviewRoleAccessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).PreviewRoleAccess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_PreviewRoleAccess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).PreviewRoleAccess(ctx, req.(*PreviewRoleAccessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _JourneyService_RecordWorkflowUse_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RecordWorkflowUseRequest)
 	if err := dec(in); err != nil {
@@ -1404,6 +1632,10 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _JourneyService_DecideJourney_Handler,
 		},
 		{
+			MethodName: "AcknowledgeJourney",
+			Handler:    _JourneyService_AcknowledgeJourney_Handler,
+		},
+		{
 			MethodName: "EditProposal",
 			Handler:    _JourneyService_EditProposal_Handler,
 		},
@@ -1414,6 +1646,10 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestJourneyIntervention",
 			Handler:    _JourneyService_RequestJourneyIntervention_Handler,
+		},
+		{
+			MethodName: "AddJourneyNote",
+			Handler:    _JourneyService_AddJourneyNote_Handler,
 		},
 		{
 			MethodName: "ListWorkers",
@@ -1464,6 +1700,10 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _JourneyService_SaveRoleFeaturePermission_Handler,
 		},
 		{
+			MethodName: "PreviewRoleAccess",
+			Handler:    _JourneyService_PreviewRoleAccess_Handler,
+		},
+		{
 			MethodName: "RecordWorkflowUse",
 			Handler:    _JourneyService_RecordWorkflowUse_Handler,
 		},
@@ -1480,6 +1720,11 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "WatchJourney",
 			Handler:       _JourneyService_WatchJourney_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WatchPromotionInvalidations",
+			Handler:       _JourneyService_WatchPromotionInvalidations_Handler,
 			ServerStreams: true,
 		},
 	},

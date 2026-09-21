@@ -194,6 +194,7 @@ const (
 	actionPropose       = "propose"
 	actionProposeFor    = "propose-for"
 	actionCreateWorker  = "create-worker"
+	actionFilterList    = "filter-journeys"
 	selectWorkerHrefPre = "#/journeys?worker="
 )
 
@@ -275,6 +276,19 @@ func Wire(s *Store, p Page, nav func(href string), submit func(actionID string, 
 		}
 		if submit != nil {
 			p.List.Form.OnSubmit = func(values map[string]string) { submit(actionPropose, values) }
+		}
+		if filter := p.List.Filter; filter != nil {
+			// UXLIVE-031: copy before binding so the caller's view is not
+			// mutated through the shared pointer.
+			wired := *filter
+			if submit != nil {
+				wired.OnSubmit = func(values map[string]string) { submit(actionFilterList, values) }
+			}
+			if nav != nil && wired.ClearHref != "" {
+				href := wired.ClearHref
+				wired.OnClear = func() { nav(href) }
+			}
+			p.List.Filter = &wired
 		}
 		wirePeople(p.List.People, nav, submit, o)
 	}

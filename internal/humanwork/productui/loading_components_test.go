@@ -16,7 +16,7 @@ func TestLoadingProxyUsesPageShapedAccessibleShells(t *testing.T) {
 		PagePeople:       "loading-table-layout",
 		PageHistory:      "loading-table-layout",
 		PagePerson:       "loading-profile-layout",
-		PageOrganization: "loading-analysis-layout",
+		PageOrganization: "loading-table-layout",
 		PageInsights:     "loading-analysis-layout",
 		PageSettings:     "loading-settings-layout",
 		PageAppearance:   "loading-settings-layout",
@@ -96,8 +96,8 @@ func TestLoadingProxyMotionHonorsExplicitAndOperatingSystemPreferences(t *testin
 		`@media (prefers-reduced-motion:no-preference)`,
 		`animation-name:hcm-shimmer-`,
 		`@media (forced-colors:active){.loading-block,.loading-progress`,
-		`.app-shell.nav-collapsed .loading-progress{left:72px;}`,
-		`@media (max-width:760px){.app-shell .loading-progress,.app-shell.nav-collapsed .loading-progress{left:0;top:0;}`,
+		`.app-shell.nav-collapsed .loading-progress{inset-inline-start:72px;}`,
+		`@media (max-width:760px){.app-shell .loading-progress,.app-shell.nav-collapsed .loading-progress{inset-inline-start:0;top:0;}`,
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("loading motion contract missing %q", want)
@@ -197,6 +197,24 @@ func TestPeopleCollectionRefreshScopesBusyStateToDirectory(t *testing.T) {
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("people directory refresh styling missing %q", want)
+		}
+	}
+}
+
+// TestWorkFamilyProxyIsOneColumn: Home, My Work and Journeys render one
+// column, so their proxy reserves one. A second, detail-shaped panel beside
+// the list collapsed away on every navigation once the data arrived.
+func TestWorkFamilyProxyIsOneColumn(t *testing.T) {
+	for _, page := range []PageID{PageHome, PageWork, PageJourneys} {
+		if geometry := LoadingProxyGeometry(page); geometry.Columns != 1 {
+			t.Errorf("%s: proxy reserves %d columns; the page renders one", page, geometry.Columns)
+		}
+		out, err := ui.RenderToString(LoadingProxy(LoadingProxyProps{Page: page}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(out, "loading-two-column") {
+			t.Errorf("%s: proxy still draws a two-column body", page)
 		}
 	}
 }

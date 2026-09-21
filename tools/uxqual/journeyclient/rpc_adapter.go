@@ -9,6 +9,7 @@ import (
 	"time"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -110,6 +111,23 @@ func NewRPCAdapter(conn grpc.ClientConnInterface, cfg RPCAdapterConfig) *RPCAdap
 	return adapter
 }
 
+// newWorkflowRPCAdapter applies the identical bounded browser-call policy to
+// WorkflowService without broadening the JourneyService adapter's admitted
+// method set. A generated client can therefore share the tunnel while each
+// adapter still rejects calls outside its own descriptor.
+func newWorkflowRPCAdapter(conn grpc.ClientConnInterface, cfg RPCAdapterConfig) *RPCAdapter {
+	cfg = normalizeRPCAdapterConfig(cfg)
+	methods, err := canonicalWorkflowRPCMethods()
+	adapter := &RPCAdapter{conn: conn, cfg: cfg, methods: methods}
+	if err != nil {
+		adapter.contractErr = status.Error(codes.Internal, "browser RPC generated contract is inconsistent")
+	}
+	if cfg.Bearer != "" {
+		adapter.configErr = validateRPCBearer(cfg.Bearer)
+	}
+	return adapter
+}
+
 // canonicalRPCMethods cross-checks the protoc and protoc-gen-go-grpc views of
 // the service. A method is admitted only when both generated descriptors name
 // the same complete set and agree about its stream shape. Keeping the result
@@ -121,6 +139,14 @@ func canonicalRPCMethods() (map[string]rpcMethod, error) {
 		return nil, fmt.Errorf("protobuf JourneyService descriptor is missing")
 	}
 	return buildRPCMethods(service, journeyv1.JourneyService_ServiceDesc)
+}
+
+func canonicalWorkflowRPCMethods() (map[string]rpcMethod, error) {
+	service := workflowv1.File_hcmnext_workflow_v1_workflow_service_proto.Services().ByName("WorkflowService")
+	if service == nil {
+		return nil, fmt.Errorf("protobuf WorkflowService descriptor is missing")
+	}
+	return buildRPCMethods(service, workflowv1.WorkflowService_ServiceDesc)
 }
 
 func buildRPCMethods(service protoreflect.ServiceDescriptor, grpcService grpc.ServiceDesc) (map[string]rpcMethod, error) {

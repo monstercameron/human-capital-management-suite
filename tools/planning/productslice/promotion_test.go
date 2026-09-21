@@ -80,9 +80,9 @@ func TestTodo_ALIGN_001_Security(t *testing.T) {
 
 	t.Run("package outside the live Phase 1 allowlist is refused", func(t *testing.T) {
 		s := PromotionSliceDefinition()
-		s.Packages = append(s.Packages, "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll")
+		s.Packages = append(s.Packages, "github.com/monstercameron/human-capital-management-suite/internal/domains/garnishment")
 		violations := s.Validate(reg)
-		assertHasViolation(t, violations, "packages", "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll")
+		assertHasViolation(t, violations, "packages", "github.com/monstercameron/human-capital-management-suite/internal/domains/garnishment")
 	})
 
 	t.Run("capability never published by the BOOTSTRAP registry is refused", func(t *testing.T) {

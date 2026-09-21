@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "rev034-proceed",
+  "verdict": "PROCEED",
+  "classes": {
+    "source": true,
+    "toolchain": true,
+    "artifact": true,
+    "schema": true,
+    "config": true,
+    "test": true,
+    "conformance": true,
+    "rollout": true,
+    "rollback": true,
+    "owner": true,
+    "blocker": true
+  },
+  "evaluated_at": "2026-09-12T12:00:00Z",
+  "signature": {
+    "algorithm": "ed25519",
+    "public_key": "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b",
+    "value": "53ef18b7504f79249c474b53cd5fbfaf7090ccb961f801f811990eb37035dc596840e8dba007a07cb42a6118db9f450b737e650546b73382021b2447ab5b6701",
+    "key_fixture": ""
+  }
+}

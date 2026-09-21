@@ -144,6 +144,11 @@ type PeopleQuickActionProps struct {
 	AccessibleLabel string
 	Href            string
 	Frequent        bool
+	// WorkflowID is the catalogue workflow this action belongs to.
+	WorkflowID string
+	// Continuation marks an action that continues the person's active
+	// request rather than starting a new workflow (UXLIVE-033).
+	Continuation bool
 }
 
 // PeoplePaginationProps is a fully resolved page window.
@@ -396,50 +401,39 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 	if props.WorkerNumber != "" {
 		identity = append(identity, html.Small(html.Props{Class: "muted"}, ui.Text(props.WorkerNumber)))
 	}
-	actions := make([]ui.Node, 0, len(props.QuickActions))
-	for _, action := range props.QuickActions {
-		label := action.Label
-		if action.Frequent {
-			label += " · " + props.Text("people.frequent")
+	// UXLIVE-033: the projection already decided what this viewer may do
+	// for this person; the row only chooses how to present it, and it always
+	// presents exactly one control so every row has the same shape: an
+	// active request is continued directly, a single workflow is started
+	// directly, several share the menu, and none is quiet text with an info
+	// button that explains why.
+	cellChildren := []ui.Node{peopleUnavailableAction(props, identityLabel)}
+	switch PersonWorkflowPresentationFor(props.QuickActions) {
+	case PersonWorkflowContinue, PersonWorkflowDirect:
+		cellChildren = []ui.Node{peopleDirectAction(props, props.QuickActions[0])}
+	case PersonWorkflowMenu:
+		actions := make([]ui.Node, 0, len(props.QuickActions))
+		for _, action := range props.QuickActions {
+			label := action.Label
+			if action.Frequent {
+				label += " · " + props.Text("people.frequent")
+			}
+			accessibleLabel := strings.TrimSpace(action.AccessibleLabel)
+			if accessibleLabel == "" {
+				accessibleLabel = label
+			}
+			actions = append(actions, html.Li(html.Props{}, softwareLink(props.Navigate, html.Props{
+				Class: "people-workflow-option",
+				Aria:  map[string]string{"label": accessibleLabel},
+				Raw:   map[string]any{"title": accessibleLabel},
+			}, action.Href, ui.Text(label))))
 		}
-		accessibleLabel := strings.TrimSpace(action.AccessibleLabel)
-		if accessibleLabel == "" {
-			accessibleLabel = label
-		}
-		actions = append(actions, html.Li(html.Props{}, softwareLink(props.Navigate, html.Props{
-			Class: "people-workflow-option",
-			Aria:  map[string]string{"label": accessibleLabel},
-			Raw:   map[string]any{"title": accessibleLabel},
-		}, action.Href, ui.Text(label))))
-	}
-	// Keep the server-resolved reason available without repeating its full
-	// paragraph across a dense directory. The same shared popover handles
-	// unavailable information and executable row actions.
-	noWorkflowsLabel := props.WorkflowsUnavailableReason
-	unavailableAriaKey := "people.workflow_unavailable_reason_aria"
-	if noWorkflowsLabel == "" {
-		noWorkflowsLabel = props.Text("people.no_workflows")
-		unavailableAriaKey = "people.workflow_unavailable_generic_aria"
-	}
-	// The short disclosure keeps dense rows scannable while giving pointer,
-	// keyboard, and touch users the same server-projected explanation.
-	workflowMenu := ui.Node(ui.CreateElement(TransientPopover, TransientPopoverProps{
-		Kind: "people-workflows", Class: "people-workflow-menu people-unavailable-menu",
-		TriggerClass:  "people-availability-badge muted",
-		Title:         noWorkflowsLabel,
-		DescriptionID: "people-unavailable-" + props.ID,
-		Label:         props.Text(unavailableAriaKey, map[string]string{"name": identityLabel, "reason": noWorkflowsLabel}),
-		Trigger:       []ui.Node{ui.Text(props.Text("people.workflows_unavailable_short")), productIcon("expand", "people-workflow-chevron")},
-		PanelClass:    "people-workflow-options",
-		Children:      []ui.Node{html.P(html.Props{ID: "people-unavailable-" + props.ID, Class: "people-workflow-unavailable-reason"}, ui.Text(noWorkflowsLabel))},
-	}))
-	if len(actions) > 0 {
-		workflowMenu = ui.CreateElement(TransientPopover, TransientPopoverProps{
-			Kind: "people-workflows", Class: "people-workflow-menu", TriggerClass: "button secondary people-row-action",
+		cellChildren = []ui.Node{ui.CreateElement(TransientPopover, TransientPopoverProps{
+			Kind: "people-workflows", Group: "people-workflows", Class: "people-workflow-menu", TriggerClass: "button secondary people-row-action",
 			Label:   props.Text("people.workflows_aria", map[string]string{"name": identityLabel}),
 			Trigger: []ui.Node{ui.Text(props.Text("people.workflows")), productIcon("expand", "people-workflow-chevron")}, PanelClass: "people-workflow-options",
 			Children: []ui.Node{html.Ul(html.Props{Class: "people-workflow-options-list"}, actions...)},
-		})
+		})}
 	}
 	return DataTableRowProps{ID: props.ID, Class: "people-row-item people-row", Cells: []DataTableCellProps{
 		{ColumnID: peopleSortName, RowHeader: true, Children: []ui.Node{softwareLink(props.Navigate, html.Props{Class: "person-cell people-person-link"}, props.Href,
@@ -448,7 +442,7 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 		{ColumnID: peopleSortTeam, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Team)},
 		{ColumnID: peopleSortManager, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Manager)},
 		{ColumnID: peopleSortLocation, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Location)},
-		{ColumnID: "actions", Class: "people-row-actions", Children: []ui.Node{workflowMenu}},
+		{ColumnID: "actions", Class: "people-row-actions", Children: cellChildren},
 	}}
 }
 

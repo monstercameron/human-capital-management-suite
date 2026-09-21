@@ -2,11 +2,13 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 )
@@ -41,6 +43,24 @@ func (a capabilityEvidenceAdapter) RecordExecutionEvidence(
 		return tenanted.RecordExecutionEvidence(ctx, tenantID, kind, instanceID, nodeID, refID, digest, occurredAt)
 	}
 	return a.sink.RecordInvocation(ctx, app.ExecutionEvidenceOf(kind, instanceID, nodeID, refID, digest, occurredAt))
+}
+
+var _ execute.ExecutionEvidenceTx = capabilityEvidenceAdapter{}
+
+// RecordExecutionEvidenceTx forwards the in-transaction recording to the
+// wrapped sink when it joins transactions itself (the durable store, the
+// in-memory double). A plain capability sink has no transaction to join, so
+// the advance is refused rather than split across two transactions.
+func (a capabilityEvidenceAdapter) RecordExecutionEvidenceTx(
+	ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time,
+) (string, error) {
+	if occurredAt.IsZero() {
+		occurredAt = a.now()
+	}
+	if tenanted, ok := a.sink.(execute.ExecutionEvidenceTx); ok {
+		return tenanted.RecordExecutionEvidenceTx(ctx, tx, tenantID, kind, instanceID, nodeID, refID, digest, occurredAt)
+	}
+	return "", fmt.Errorf("%w: capability sink %T", execute.ErrEvidenceNotTransactional, a.sink)
 }
 
 // NewCapabilityEvidenceAdapter builds an [execute.ExecutionEvidence] over

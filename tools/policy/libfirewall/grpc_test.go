@@ -41,6 +41,7 @@ func TestGRPCBackendQualification(t *testing.T) {
 		{"wire canonical byte engine may reflect protobuf", mod + "/internal/engines/wire/canonical", "google.golang.org/protobuf/reflect/protoreflect", false},
 		{"wire digest registry may reflect protobuf", mod + "/internal/engines/wire/digest", "google.golang.org/protobuf/proto", false},
 		{"client generator may inspect protobuf descriptors", mod + "/tools/gen/clients", "google.golang.org/protobuf/reflect/protoregistry", false},
+		{"product client may map grpc status", mod + "/tools/uxqual/productclient", "google.golang.org/grpc/status", false},
 		{"cmd may import grpc to wire the server", mod + "/cmd/hcmnext", "google.golang.org/grpc", false},
 		{"cmd may import connect to wire the edge", mod + "/cmd/hcmnext", "connectrpc.com/connect", false},
 		{"internal/intent (not protomap) importing protobuf is forbidden", mod + "/internal/intent", "google.golang.org/protobuf/types/known/structpb", true},
@@ -70,7 +71,7 @@ func TestGRPCBackendQualification(t *testing.T) {
 // protobuf_grpc section is a visible diff.
 func TestTodo_LIB_003_Golden(t *testing.T) {
 	cfg := loadFirewallConfig(t)
-	want := []string{"gen", "internal/transport", "internal/intent/protomap", "internal/engines/wire", "tools/gen", "tools/quality/bufprotovalidatekit", "tools/uxqual/journeyclient", "tools/uxqual/cmd/journeywasm", "cmd"}
+	want := []string{"gen", "internal/transport", "internal/intent/protomap", "internal/engines/wire", "tools/gen", "tools/quality/bufprotovalidatekit", "tools/uxqual/journeyclient", "tools/uxqual/cmd/journeywasm", "tools/uxqual/productclient", "cmd"}
 	got := cfg.ProtobufGRPC.AllowedImportRoots
 	if len(got) != len(want) {
 		t.Fatalf("protobuf_grpc.allowed_import_roots = %v, want %v", got, want)

@@ -59,12 +59,13 @@ type PersonProfileCompositionProps struct {
 // PersonHeroProps contains only the identity facts shown by the hero.
 type PersonHeroProps struct {
 	I18nProps
-	Initials   string
-	PhotoURL   string
-	Name       string
-	Role       string
-	NameStatus WorkerFactStatus
-	RoleStatus WorkerFactStatus
+	StatusLabel string
+	Initials    string
+	PhotoURL    string
+	Name        string
+	Role        string
+	NameStatus  WorkerFactStatus
+	RoleStatus  WorkerFactStatus
 }
 
 // EmploymentDetailsProps is an ordered set of labelled facts.
@@ -93,6 +94,9 @@ type ProfileFactProps struct {
 	Label  string
 	Value  string
 	Status WorkerFactStatus
+	// Code marks a machine identifier (a UUID, a record key): it is set as
+	// code rather than as a bold name, which broke it mid-string.
+	Code bool
 }
 
 // WorkflowLauncherProps owns the workflow search and filtered cards.
@@ -104,6 +108,9 @@ type WorkflowLauncherProps struct {
 	HideCount         bool
 	TotalCount        int
 	UnavailableDetail string
+	// UnavailableAction is the direct way forward the empty state offers,
+	// such as opening the active promotion that blocks a new one.
+	UnavailableAction ActionLinkProps
 	Filter            WorkflowFilterProps
 	Workflows         []WorkflowCardProps
 }
@@ -178,9 +185,32 @@ func PersonProfileComposition(props PersonProfileCompositionProps) ui.Node {
 			activeHref[item.Href] = true
 		}
 		available := make([]WorkflowCardProps, 0, len(profile.Workflows.Workflows))
+		resumeDetail := ""
+		var resume WorkflowCardProps
 		for _, card := range profile.Workflows.Workflows {
 			if !activeHref[card.Href] {
 				available = append(available, card)
+			} else if resumeDetail == "" {
+				resumeDetail, resume = card.Description, card
+			}
+		}
+		// A card moved to the active list is no longer one the launcher
+		// holds. When that leaves it empty, its own card's reason explains
+		// the empty state rather than the generic unavailable sentence the
+		// catalog reserves for a launcher with no card at all (REV-095-03).
+		if removed := len(profile.Workflows.Workflows) - len(available); removed > 0 {
+			profile.Workflows.TotalCount = max(0, profile.Workflows.TotalCount-removed)
+			if len(available) == 0 && profile.Workflows.UnavailableDetail == "" {
+				profile.Workflows.UnavailableDetail = resumeDetail
+			}
+			// The reason names the active promotion; it links straight to it
+			// rather than sending the reader to find it below (UXLIVE-027).
+			if len(available) == 0 {
+				label := resume.ActionLabel
+				if label == "" {
+					label = resume.Name
+				}
+				profile.Workflows.UnavailableAction = ActionLinkProps{Label: label, Href: resume.Href, Class: "button secondary", Navigate: resume.Navigate}
 			}
 		}
 		profile.Workflows.Workflows = available
@@ -217,6 +247,16 @@ func PersonUnavailable(props PersonUnavailableProps) ui.Node {
 	})
 }
 
+// personStatusBadge renders the distinct lifecycle mark beside the
+// identity facts: nothing for an active employee, the terminated,
+// on-leave or contingent label otherwise.
+func personStatusBadge(label string) ui.Node {
+	if strings.TrimSpace(label) == "" {
+		return ui.Fragment()
+	}
+	return html.Span(html.Props{Class: "status person-status-badge", Raw: map[string]any{"role": "status"}}, ui.Text(label))
+}
+
 // PersonProfileHeader renders the employee identity without raw record metadata.
 func PersonProfileHeader(props PersonHeroProps) ui.Node {
 	return html.Section(html.Props{Class: "surface person-hero", Aria: map[string]string{"label": props.Text("person.summary")}},
@@ -226,6 +266,7 @@ func PersonProfileHeader(props PersonHeroProps) ui.Node {
 				html.Span(html.Props{Class: "eyebrow"}, ui.Text(props.Text("person.worker_profile"))),
 				html.H2(html.Props{}, ui.Text(props.Name)),
 				html.P(html.Props{Class: "muted"}, ui.Text(props.Role)),
+				personStatusBadge(props.StatusLabel),
 			),
 		),
 	)
@@ -331,8 +372,15 @@ func ProfileFact(props ProfileFactProps) ui.Node {
 	}
 	return html.Div(html.Props{Class: "profile-fact", Data: map[string]string{"fact-status": string(props.Status)}},
 		html.Tag("dt", html.Props{}, ui.Text(props.Label)),
-		html.Tag("dd", html.Props{}, children...),
+		html.Tag("dd", factValueProps(props.Code), children...),
 	)
+}
+
+func factValueProps(code bool) html.Props {
+	if code {
+		return html.Props{Class: "profile-fact-code"}
+	}
+	return html.Props{}
 }
 
 // ActiveWorkflows renders already-open work for this employee before the
@@ -373,16 +421,26 @@ func WorkflowLauncher(props WorkflowLauncherProps) ui.Node {
 	}
 	if len(results) == 0 {
 		title, detail := props.Text("workflow.none"), props.Text("workflow.none_detail")
-		if props.TotalCount == 0 {
+		// "No matching workflows / try a name" answers a search. With an
+		// empty filter box nothing was searched, and the sentence read as a
+		// contradiction of the active-workflow list below it (UXLIVE-023).
+		if props.TotalCount == 0 || strings.TrimSpace(props.Filter.Query) == "" {
 			title, detail = props.Text("workflow.unavailable"), props.Text("workflow.unavailable_detail")
 			if props.UnavailableDetail != "" {
 				detail = props.UnavailableDetail
 			}
 		}
-		results = append(results, html.Div(html.Props{Class: "workflow-empty", Raw: map[string]any{"role": "status"}},
+		empty := []ui.Node{
 			html.Strong(html.Props{}, ui.Text(title)),
 			html.P(html.Props{Class: "muted"}, ui.Text(detail)),
-		))
+		}
+		if props.UnavailableAction.Href != "" {
+			// The launcher is empty because a promotion is already running:
+			// say that, rather than "no workflows available" (UXLIVE-027).
+			empty[0] = html.Strong(html.Props{}, ui.Text(props.Text("workflow.promotion_in_progress_title")))
+			empty = append(empty, ui.CreateElement(ActionLink, props.UnavailableAction))
+		}
+		results = append(results, html.Div(html.Props{Class: "workflow-empty", Raw: map[string]any{"role": "status"}}, empty...))
 	}
 	headingText := props.Heading
 	if headingText == "" {

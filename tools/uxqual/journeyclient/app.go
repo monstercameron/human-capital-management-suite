@@ -50,6 +50,9 @@ type App struct {
 	store *journey.Store
 	now   func() time.Time
 
+	// listFilter debounces the tracker's live search (UXLIVE-031).
+	listFilter listFilterDebounce
+
 	// Async runs one unit of client work. It defaults to `go f()`; a test
 	// sets it to run f inline so an assertion follows the call.
 	Async func(func())
@@ -101,6 +104,12 @@ type App struct {
 	// PROMOUX-013's report for that known staleness window.
 	withdrawPreview *journeyv1.PreviewJourneyInterventionResponse
 	cancelPreview   *journeyv1.PreviewJourneyInterventionResponse
+	// repairPreview is UXLIVE-006's governed repair preview, read on the
+	// same load. Unlike the two above it is never "available": the answer a
+	// repair-required journey needs is what the door demands and who may
+	// open it, and that answer only exists on the server, which is why the
+	// page cannot compute it the way it computes withdraw and cancel.
+	repairPreview *journeyv1.PreviewJourneyInterventionResponse
 	// workerErrors are the last CreateWorker refusal's field violations,
 	// keyed by request field name. They are cleared by the next attempt, so
 	// a form never shows an error the reader has already answered.
@@ -111,6 +120,9 @@ type App struct {
 	proposalErrors        map[string]string
 	proposalCorrections   map[string]proposalCorrection
 	proposalFocusRevision uint64
+	// editErrors are the edit-proposal dialog's client-side required-field
+	// messages, keyed by field id (REV-095-01; edit_validation.go).
+	editErrors map[string]string
 	// proposalAttemptID is minted once for one exact form payload and retained
 	// across transport retries. Changing an input starts a new semantic request;
 	// a timeout/retry of unchanged input remains the same request.
@@ -125,7 +137,23 @@ type App struct {
 	// navigation and reload the page (taking the notice the write was made
 	// to show with it). See [App.selectWorker].
 	applied string
+	// arrivalNotice explains a redirect the reader did not ask for: opening
+	// a new proposal for someone whose promotion is already in progress
+	// lands on that journey, and loadDetail shows this once when it does.
+	arrivalNotice *journey.Notice
+	// note is the notes composer's state; noteAttempt* hold the idempotency
+	// key minted for one (journey, text) so a retried submission is the
+	// same note (see addNote).
+	note              noteComposerState
+	noteAttemptKey    string
+	noteAttemptIntent string
+	noteAttemptBody   string
 }
+
+// maxReasonBytes mirrors the transport's structural bound on any one string
+// field (internal/transport/validate.go maxStringFieldBytes), restated here
+// because this module does not import internal/.
+const maxReasonBytes = 4096
 
 // New returns a client over cfg, svc and store. now is the clock the form's
 // default effective date is computed from; nil means time.Now.
@@ -320,14 +348,21 @@ func (a *App) OnHashChange(hash string) {
 	}
 	previous := a.route
 	a.route = route
+	if route.IntentID != previous.IntentID || route.Kind != previous.Kind {
+		a.editErrors = nil
+	}
 	resetProposal := route.Kind == RouteProposal &&
 		(previous.Kind != RouteProposal || previous.WorkerRef != route.WorkerRef)
-	if route.Kind == RouteList && previous.Kind == RouteList && a.listLoaded && route.WorkerRef != previous.WorkerRef {
-		// Only the selection changed, and the answers it selects from are
-		// already in hand. Re-reading the whole tenant to move a highlight
-		// would be a round trip the reader can see.
+	if route.Kind == RouteList && previous.Kind == RouteList && a.listLoaded && (route.WorkerRef != previous.WorkerRef || route.Filter != previous.Filter) {
+		// Only the selection or the list filter changed, and the answers
+		// they select from are already in hand. Re-reading the whole tenant
+		// to move a highlight or narrow a list would be a round trip the
+		// reader can see (UXLIVE-031).
 		a.mu.Unlock()
-		a.selectValue(route.WorkerRef)
+		if route.WorkerRef != previous.WorkerRef {
+			a.selectValue(route.WorkerRef)
+		}
+		a.syncListFilterValues(route.Filter)
 		a.show(nil)
 		a.detailPublishMu.Unlock()
 		return
@@ -355,6 +390,9 @@ func (a *App) OnHashChange(hash string) {
 	if route.Kind == RouteDetail {
 		a.loadDetail(ctx, generation, route.IntentID)
 		return
+	}
+	if route.Kind == RouteList {
+		a.syncListFilterValues(route.Filter)
 	}
 	a.loadList(ctx, generation)
 }
@@ -384,9 +422,10 @@ func (a *App) Navigate(href string) {
 // the hashchange it provokes is recognised as this client's own.
 func (a *App) selectWorker(ref string) {
 	ref = strings.TrimSpace(ref)
-	href := WorkerHref(ref)
-
 	a.mu.Lock()
+	// Picking a person keeps the list's filter: the selection is a
+	// highlight within the narrowed list, not a reset of it (UXLIVE-031).
+	href := ListFilterHref(ref, a.route.Filter)
 	if a.route.Kind != RouteList {
 		// Nothing on the detail view selects an employee, but a stray
 		// selection there is a route change rather than a re-projection:
@@ -550,6 +589,10 @@ func (a *App) Submit(actionID string, values map[string]string) {
 		a.intervene(ctx, generation, route.IntentID, journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL, values[NameInterventionReason])
 	case ActionEditProposal:
 		a.editProposal(ctx, generation, route.IntentID, values)
+	case ActionAddNote:
+		a.addNote(ctx, generation, route.IntentID, values[NameNoteBody])
+	case ActionFilterList:
+		a.Navigate(ListFilterHref(route.WorkerRef, ListFilterFromForm(values)))
 	default:
 		// An action id the projection does not emit is a projection bug, and
 		// the reader should see that their click did nothing rather than
@@ -619,6 +662,13 @@ func (a *App) loadList(ctx context.Context, generation int) {
 			a.mu.Unlock()
 			if proposalRoute {
 				if existing := activeJourneyID(journeys.GetJourneys(), findWorker(workers.GetWorkers(), selected)); existing != "" {
+					copy := a.localeCopy()
+					a.mu.Lock()
+					a.arrivalNotice = &journey.Notice{
+						Tone: toneInfo, Title: copy.Text("journey.notice_existing_title"), Detail: copy.Text("journey.notice_existing_detail"),
+						TitleKey: "journey.notice_existing_title", MessageKey: "journey.notice_existing_detail",
+					}
+					a.mu.Unlock()
 					a.Navigate(DetailHref(existing))
 					return
 				}
@@ -675,12 +725,17 @@ func (a *App) loadDetail(ctx context.Context, generation int, intentID string) {
 		if a.stale(generation) {
 			return
 		}
+		// Taken once, answer or refusal, so it cannot attach to a later load.
+		a.mu.Lock()
+		arrival := a.arrivalNotice
+		a.arrivalNotice = nil
+		a.mu.Unlock()
 		if err != nil {
 			a.showCurrent(generation, routeReadNotice(err))
 			return
 		}
 		a.loadInterventionPreviews(ctx, generation, intentID)
-		a.applyDetail(generation, resp.GetDetail(), nil)
+		a.applyDetail(generation, resp.GetDetail(), arrival)
 		a.startWatch(generation, intentID, resp.GetDetail().GetDetailDigest())
 	})
 }
@@ -699,10 +754,10 @@ func (a *App) loadInterventionPreviews(ctx context.Context, generation int, inte
 		return
 	}
 	var (
-		wg               sync.WaitGroup
-		withdraw, cancel *journeyv1.PreviewJourneyInterventionResponse
+		wg                       sync.WaitGroup
+		withdraw, cancel, repair *journeyv1.PreviewJourneyInterventionResponse
 	)
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		resp, err := a.svc.PreviewJourneyIntervention(ctx, &journeyv1.PreviewJourneyInterventionRequest{
@@ -721,6 +776,15 @@ func (a *App) loadInterventionPreviews(ctx context.Context, generation int, inte
 			cancel = resp
 		}
 	}()
+	go func() {
+		defer wg.Done()
+		resp, err := a.svc.PreviewJourneyIntervention(ctx, &journeyv1.PreviewJourneyInterventionRequest{
+			IntentId: intentID, Kind: journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_REPAIR,
+		})
+		if err == nil {
+			repair = resp
+		}
+	}()
 	wg.Wait()
 	if a.stale(generation) {
 		return
@@ -728,6 +792,7 @@ func (a *App) loadInterventionPreviews(ctx context.Context, generation int, inte
 	a.mu.Lock()
 	a.withdrawPreview = withdraw
 	a.cancelPreview = cancel
+	a.repairPreview = repair
 	a.mu.Unlock()
 }
 
@@ -820,6 +885,18 @@ func (a *App) propose(ctx context.Context, generation int, values map[string]str
 		a.proposalFocusRevision++
 		a.mu.Unlock()
 		a.show(keyedNotice(toneWarning, "journey.required_fields_title", "journey.required_fields_detail"))
+		return
+	}
+	if len(reason) > maxReasonBytes {
+		// The transport refuses any string over its byte bound before the
+		// handler runs, and that refusal came back as "Enter a clear business
+		// reason", which is no help to someone who wrote a long one.
+		a.mu.Lock()
+		a.proposalErrors = map[string]string{FieldReason: copy.Text("journey.field_reason_too_long")}
+		a.proposalCorrections = map[string]proposalCorrection{FieldReason: {key: "journey.field_reason_too_long"}}
+		a.proposalFocusRevision++
+		a.mu.Unlock()
+		a.show(keyedNotice(toneWarning, "journey.error_invalid_title", "journey.error_invalid_detail"))
 		return
 	}
 	if !a.proposalTargetIsGoverned(worker, jobCode, grade) {
@@ -1153,14 +1230,14 @@ func (a *App) intervene(ctx context.Context, generation int, intentID string, ki
 	}
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
-		a.show(refusal("Say why", "A withdrawal or cancellation is retained as evidence on the governed record, so it needs a reason."))
+		a.show(keyedNotice(toneWarning, "journey.iv_need_reason_title", "journey.iv_need_reason_detail"))
 		return
 	}
-	verb := "Withdrawing"
+	busyKey := "journey.iv_busy_withdraw"
 	if kind == journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL {
-		verb = "Requesting cancellation for"
+		busyKey = "journey.iv_busy_cancel"
 	}
-	a.show(busy("", verb+" this proposal."))
+	a.show(busy(busyKey, productui.ResolveProductLocale("").Text(busyKey)))
 	a.runTask(ctx, taskmux.Spec{Key: "journey:intervene:" + intentID, Priority: taskmux.Interactive, Duplicate: taskmux.KeepExisting}, func(ctx context.Context) {
 		resp, err := a.svc.RequestJourneyIntervention(ctx, &journeyv1.RequestJourneyInterventionRequest{
 			IntentId: intentID, Kind: kind, Reason: reason,
@@ -1174,7 +1251,7 @@ func (a *App) intervene(ctx context.Context, generation int, intentID string, ki
 			a.show(NoticeFromError(err))
 			return
 		}
-		a.show(interventionNotice(resp.GetOutcome(), resp.GetRetainedEvidenceRef()))
+		a.show(interventionNotice(kind, resp.GetOutcome(), resp.GetRetainedEvidenceRef()))
 		a.reloadDetail(ctx, generation, intentID)
 	})
 }
@@ -1184,23 +1261,31 @@ func (a *App) intervene(ctx context.Context, generation int, intentID string, ki
 // actually deferred to a safe point that has not been reached yet, which
 // would be exactly RED's own falsification concern restated for this
 // surface.
-func interventionNotice(outcome commonv1.InterventionOutcome, evidenceRef string) *journey.Notice {
-	suffix := ""
-	if evidenceRef != "" {
-		suffix = " Evidence: " + evidenceRef + "."
-	}
+func interventionNotice(kind journeyv1.JourneyInterventionKind, outcome commonv1.InterventionOutcome, evidenceRef string) *journey.Notice {
+	var notice *journey.Notice
 	switch outcome {
 	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_APPLIED:
-		return &journey.Notice{Tone: toneSuccess, Title: "Stopped", Detail: "The proposal was cancelled." + suffix}
+		// A withdrawal and a cancellation are one governed call, but the
+		// reader asked for one of them; "The proposal was cancelled" answered
+		// a withdrawal with the other word.
+		if kind == journeyv1.JourneyInterventionKind_JOURNEY_INTERVENTION_KIND_CANCEL {
+			notice = keyedNotice(toneSuccess, "journey.iv_cancelled_title", "journey.iv_cancelled_detail")
+		} else {
+			notice = keyedNotice(toneSuccess, "journey.iv_withdrawn_title", "journey.iv_withdrawn_detail")
+		}
 	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_PENDING_SAFE_POINT:
-		return &journey.Notice{Tone: toneInfo, Title: "Cancellation requested", Detail: "The workflow has not reached a safe point yet; nothing has changed. It will be evaluated again as the workflow proceeds." + suffix}
+		notice = keyedNotice(toneInfo, "journey.iv_pending_title", "journey.iv_pending_detail")
 	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_TOO_LATE:
-		return &journey.Notice{Tone: toneWarning, Title: "Too late", Detail: "The business effect already committed before this request reached the engine. This cannot be reversed." + suffix}
+		notice = keyedNotice(toneWarning, "journey.iv_too_late_title", "journey.iv_too_late_detail")
 	case commonv1.InterventionOutcome_INTERVENTION_OUTCOME_REPAIR_REQUIRED:
-		return &journey.Notice{Tone: toneDanger, Title: "Repair required", Detail: "The workflow reached neither a clean stop nor a completion. Governed repair is required." + suffix}
+		notice = keyedNotice(toneDanger, "journey.iv_repair_title", "journey.iv_repair_detail")
 	default:
-		return &journey.Notice{Tone: toneWarning, Title: "Outcome unclear", Detail: "The engine did not report a recognized outcome for this request." + suffix}
+		notice = keyedNotice(toneWarning, "journey.iv_unclear_title", "journey.iv_unclear_detail")
 	}
+	// The evidence id is an opaque reference for support, not part of the
+	// sentence: it goes in the notice's closed support disclosure.
+	notice.SupportReference = evidenceRef
+	return notice
 }
 
 // editProposal runs PROMOUX-013's EditProposal: it cancels the original and
@@ -1212,9 +1297,20 @@ func (a *App) editProposal(ctx context.Context, generation int, intentID string,
 	if intentID == "" {
 		return
 	}
+	a.mu.Lock()
+	a.editErrors = nil
+	a.mu.Unlock()
+	// REV-095-01: every Required field of the projected dialog is checked
+	// here, before any request, and refused field by field.
+	if errs, validated := a.editProposalMissing(values); validated {
+		if len(errs) > 0 {
+			a.refuseEditProposal(errs)
+			return
+		}
+	}
 	reason := strings.TrimSpace(values[NameEditReason])
 	if reason == "" {
-		a.show(refusal("Say why", "An edit is retained as evidence on the governed record, so it needs a reason."))
+		a.show(keyedNotice(toneWarning, "journey.iv_need_reason_title", "journey.iv_edit_need_reason_detail"))
 		return
 	}
 	missing := make([]string, 0, 5)
@@ -1396,7 +1492,7 @@ func (a *App) show(notice *journey.Notice) {
 	a.mu.Lock()
 	cfg := a.cfg
 	route, detail := a.route, a.detail
-	withdrawPreview, cancelPreview := a.withdrawPreview, a.cancelPreview
+	withdrawPreview, cancelPreview, repairPreview := a.withdrawPreview, a.cancelPreview, a.repairPreview
 	data := ListData{
 		Journeys:       a.list,
 		Workers:        a.workers,
@@ -1404,14 +1500,17 @@ func (a *App) show(notice *journey.Notice) {
 		SelectedRef:    a.route.WorkerRef,
 		WorkerErrors:   a.workerErrors,
 		ProposalErrors: a.proposalErrors,
+		Filter:         a.route.Filter,
 	}
 	focusRevision := a.proposalFocusRevision
+	editErrors := a.editErrors
+	noteState := a.note
 	a.mu.Unlock()
 
 	values := a.store.Values()
 	var page journey.Page
 	if route.Kind == RouteDetail && detail.GetJourney().GetIntentId() == route.IntentID {
-		page = DetailPageWithInterventions(cfg, detail, notice, values, withdrawPreview, cancelPreview)
+		page = DetailPageWithInterventions(cfg, detail, notice, values, withdrawPreview, cancelPreview, repairPreview)
 	} else if route.Kind == RouteDetail {
 		// The route names a journey whose answer has not arrived (or whose
 		// answer was a refusal). The chrome, the notice and the navigation
@@ -1424,6 +1523,13 @@ func (a *App) show(notice *journey.Notice) {
 	}
 	if len(data.ProposalErrors) > 0 {
 		page.FocusInvalidRevision = focusRevision
+	}
+	if route.Kind == RouteDetail && len(editErrors) > 0 {
+		applyEditErrors(&page, editErrors)
+		page.FocusInvalidRevision = focusRevision
+	}
+	if page.Detail != nil && page.Detail.Notes != nil && route.Kind == RouteDetail && detail.GetJourney().GetIntentId() == route.IntentID {
+		page.Detail.Notes = notesViewLocale(cfg.Locale, detail.GetNotes(), values[FieldNoteBody], noteState, DetailHref(route.IntentID))
 	}
 	a.store.Set(a.wire(page))
 }
@@ -1444,8 +1550,21 @@ func (a *App) wire(p journey.Page) journey.Page {
 	// store remains the one controlled-input authority; this small wrapper
 	// only prevents a stale grade from surviving a new job selection.
 	p.OnFieldChange = func(fieldID, value string) {
+		if a.applyListFilterField(fieldID, value) {
+			return
+		}
+		if fieldID == FieldNoteBody {
+			a.editNoteDraft(value)
+			return
+		}
+		a.clearEditFieldError(fieldID)
 		if fieldID != FieldJobCode {
 			a.setProposalValue(fieldID, value)
+			if fieldID == FieldGrade {
+				// The grade picks the published path, which sets the pay
+				// range the base-pay help states; re-project so it follows.
+				a.show(a.store.Page().Notice)
+			}
 			return
 		}
 		a.clearProposalFieldError(fieldID)
@@ -1483,6 +1602,9 @@ func (a *App) wire(p journey.Page) journey.Page {
 		href := p.List.People.DirectoryLink.Href
 		p.List.People.DirectoryLink.OnNavigate = func() { a.NavigateProduct(href) }
 	}
+	if p.Detail != nil && p.Detail.Notes != nil && p.Detail.Notes.Composer != nil {
+		p.Detail.Notes.Composer.OnSubmit = func(values map[string]string) { a.Submit(ActionAddNote, values) }
+	}
 	if p.Detail != nil && strings.HasPrefix(p.Detail.JourneysLink.Href, "#") {
 		href := p.Detail.JourneysLink.Href
 		p.Detail.JourneysLink.OnNavigate = func() { a.Navigate(href) }
@@ -1505,12 +1627,17 @@ func (a *App) setProposalValue(fieldID, value string) {
 		delete(a.proposalCorrections, fieldID)
 	}
 	remaining := len(a.proposalErrors)
+	workers, options, routeWorker, locale := a.workers, a.options, a.route.WorkerRef, a.cfg.Locale
 	a.mu.Unlock()
 	a.store.Update(func(page *journey.Page) {
 		if page.Values == nil {
 			page.Values = map[string]string{}
 		}
 		page.Values[fieldID] = value
+		// The review dialog repeats the pay, grade and date being submitted,
+		// so it is rebuilt from the same values on every edit. Left as
+		// projected, it showed the amount from before the last edit (or none
+		// at all when the pay was typed after the page loaded).
 		if page.Proposal != nil {
 			for i := range page.Proposal.Form.Fields {
 				if page.Proposal.Form.Fields[i].ID == fieldID {
@@ -1518,6 +1645,7 @@ func (a *App) setProposalValue(fieldID, value string) {
 					page.Proposal.Form.Fields[i].Error = ""
 				}
 			}
+			page.Proposal.Form.Confirmation = draftConfirmation(locale, page.Values, findWorker(workers, routeWorker), options)
 		}
 		if page.List != nil {
 			for i := range page.List.Form.Fields {
@@ -1526,6 +1654,11 @@ func (a *App) setProposalValue(fieldID, value string) {
 					page.List.Form.Fields[i].Error = ""
 				}
 			}
+			ref := page.Values[FieldWorker]
+			if ref == "" {
+				ref = routeWorker
+			}
+			page.List.Form.Confirmation = draftConfirmation(locale, page.Values, findWorker(workers, ref), options)
 		}
 		if remaining == 0 && page.Notice != nil && (page.Notice.TitleKey == "journey.error_invalid_title" || page.Notice.TitleKey == "journey.required_fields_title") {
 			page.Notice = nil
@@ -1613,6 +1746,12 @@ func noticeFromError(err error, copy productui.LocaleContext) *journey.Notice {
 	}
 	st := status.Convert(err)
 	key := refusalCopyKey(st.Code())
+	// A few refusals share a transport code with conditions that read nothing
+	// like them. Where the server names one of those owned reasons, its own
+	// catalog entry wins over the code's generic one.
+	if reasonKey, ok := reasonCopyKey(refusalReasonRef(err)); ok {
+		key = reasonKey
+	}
 	detailKey := key + "_detail"
 	if st.Code() == codes.InvalidArgument && len(proposalFieldErrorsLocale(err, copy)) == 0 {
 		detailKey = "journey.error_invalid_unlinked_detail"
@@ -1647,24 +1786,28 @@ func safeProposalFieldErrorLocale(path string, copy productui.LocaleContext) (fi
 }
 
 func proposalFieldErrorKey(path string) (fieldID, key string) {
-	switch strings.TrimSpace(path) {
-	case "subject_worker_ref", "worker_ref":
-		return FieldWorker, "journey.field_worker_error"
-	case "desired_job_code", "target_job_code", "job_code":
-		return FieldJobCode, "journey.field_job_error"
-	case "desired_grade", "target_grade", "grade":
-		return FieldGrade, "journey.field_grade_error"
-	case "desired_position_id", "target_position_id", "position_id":
-		return FieldPosition, "journey.field_position_error"
-	case "desired_base_pay", "proposed_base", "proposed_base_pay", "base_pay":
-		return FieldBase, "journey.field_base_error"
-	case "effective_date":
-		return FieldEffective, "journey.field_effective_error"
-	case "reason", "business_reason":
-		return FieldReason, "journey.field_reason_error"
-	default:
-		return "", ""
+	// REV-091-01: the field table lives with the refusal mapper in productui.
+	field, key := productui.PromotionRefusalField(path)
+	return proposalFormFieldID(field), key
+}
+
+// ReasonNoActiveWorkflowVersion is the owned reason the intent service
+// attaches when no published version of the workflow has been approved and
+// activated. It is a FAILED_PRECONDITION like several others, but the only
+// thing that resolves it is an operator releasing a version, so it carries
+// its own copy rather than the generic "review the current status" line.
+const ReasonNoActiveWorkflowVersion = "workflow.no_active_version"
+
+// reasonCopyKey maps the small, closed set of owned reasons whose corrective
+// state the transport code alone does not express. An unknown reason is not
+// copy: it falls back to the code's entry, so a server that adds a reason
+// tomorrow cannot put an unreviewed string on the page.
+func reasonCopyKey(reason string) (string, bool) {
+	switch reason {
+	case ReasonNoActiveWorkflowVersion:
+		return "journey.error_no_active_workflow_version", true
 	}
+	return "", false
 }
 
 // refusalCopyKey keeps transport codes out of ordinary copy while retaining

@@ -126,14 +126,16 @@ type Segment struct {
 
 // PutSegments records the tiling entitlement segments for a record revision.
 func (s Store) PutSegments(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, recordID uuid.UUID, recordRevision int64, segments []Segment) error {
+	statements := make([]dbport.Statement, 0, len(segments))
 	for _, segment := range segments {
-		_, err := tx.Exec(ctx, `INSERT INTO leave_entitlement_segment
+		statements = append(statements, dbport.Statement{SQL: `INSERT INTO leave_entitlement_segment
 			(tenant_id, record_id, record_revision, start_day, end_day, kind, hours, programs)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-			tenant, recordID, recordRevision, segment.StartDay, segment.EndDay, segment.Kind, segment.Hours, segment.Programs)
-		if err != nil {
-			return fmt.Errorf("leavestore: put segment: %w", err)
-		}
+			Args: []any{tenant, recordID, recordRevision, segment.StartDay, segment.EndDay, segment.Kind, segment.Hours, segment.Programs},
+		})
+	}
+	if _, err := dbport.ExecAll(ctx, tx, statements); err != nil {
+		return fmt.Errorf("leavestore: put segment: %w", err)
 	}
 	return nil
 }

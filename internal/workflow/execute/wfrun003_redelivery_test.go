@@ -14,6 +14,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	datalogger "github.com/monstercameron/human-capital-management-suite/internal/ledger"
+	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
@@ -175,7 +176,9 @@ type redeliveryHarness struct {
 
 func newRedeliveryHarness(t *testing.T, key string) redeliveryHarness {
 	t.Helper()
-	f := newPromotionFixture(t, key)
+	// The frozen 1.0.0 graph: the drain after the core commit dispatches the
+	// READY payroll observation (see newPromotionFixtureV1_0).
+	f := newPromotionFixtureV1_0(t, key)
 	f.db.Exec(t, `INSERT INTO payload_schema (tenant_id, schema_ref, schema_id, schema_version, message_full_name, wire_format, canonicalization_profile)
 		VALUES ($1, $2, 'hcmnext.test.wfrun003.effect', 1, 'hcmnext.test.wfrun003.effect', 'PROTOBUF', 'LEDGER_EVENT')`, f.tenantID, wfrun003EffectSchema)
 	h := redeliveryHarness{f: f, crash: &atomic.Bool{}, performs: &atomic.Int32{}, clock: &atomic.Pointer[time.Time]{}}
@@ -213,6 +216,11 @@ func (h redeliveryHarness) driver(t *testing.T, conn dbport.Beginner, holder lea
 		Instrumentation: crashingInstrumentation{crash: h.crash, boundary: boundary},
 		Leases:          driverLeaser{holder: holder, ttl: driverTTL},
 		FenceVerifier:   lease.Fenced{},
+		// The shipped graph ends at the acknowledge_release SIGNAL node, so
+		// a drain that survives the crash parks there. The served
+		// subscriber opens that wait durably inside the advancement
+		// transaction, exactly as the served composition wires it.
+		Signals: platformexecution.SignalSubscriptions{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -289,6 +297,23 @@ func (h redeliveryHarness) durable(t *testing.T, instanceID uuid.UUID) durable {
 			h.f.tenantID, instanceID, promotionexec.NodeExecutePromotion),
 		ledgerFacts: h.count(t, `SELECT count(*) FROM ledger_event WHERE tenant_id = $1`, h.f.tenantID),
 	}
+}
+
+// openSubscriptions counts the OPEN signal subscriptions for nodeID: the
+// durable proof a drain that survived the crash parked on the signal wait
+// instead of losing the tail of the graph.
+func (h redeliveryHarness) openSubscriptions(t *testing.T, instanceID uuid.UUID, nodeID string) int {
+	t.Helper()
+	return h.count(t, `SELECT count(*) FROM workflow_signal_subscription WHERE tenant_id = $1 AND instance_id = $2 AND node_id = $3 AND subscription_state = 'OPEN'`,
+		h.f.tenantID, instanceID, nodeID)
+}
+
+// signalContinuations counts the persisted continuation records for nodeID:
+// the scheduler's wake-up path back to the parked wait.
+func (h redeliveryHarness) signalContinuations(t *testing.T, instanceID uuid.UUID, nodeID string) int {
+	t.Helper()
+	return h.count(t, `SELECT count(*) FROM workflow_continuation WHERE tenant_id = $1 AND instance_id = $2 AND target_node_id = $3`,
+		h.f.tenantID, instanceID, nodeID)
 }
 
 func (h redeliveryHarness) latestStatus(t *testing.T, instanceID uuid.UUID, nodeID string) string {
@@ -374,13 +399,27 @@ func TestTodo_WF_RUN_003_Redelivery(t *testing.T) {
 				t.Fatalf("Sweep = %+v, %v; want exactly one redelivery", receipt, err)
 			}
 
+			// The redelivered drain replays the committed effect instead of
+			// re-performing it and parks on the shipped graph's SIGNAL tail:
+			// the instance is still RUNNING with the acknowledgement node
+			// WAITING, its wait is open, its continuation is durable, and no
+			// terminal fact exists because no terminal ran.
 			after := instanceByTenant(t, h.f)
-			if after.RuntimeStatus != runtime.InstanceCompleted {
-				t.Fatalf("instance after redelivery = %s, want COMPLETED: work was lost", after.RuntimeStatus)
+			if after.RuntimeStatus != runtime.InstanceRunning {
+				t.Fatalf("instance after redelivery = %s, want RUNNING: work was lost", after.RuntimeStatus)
 			}
-			want := durable{effects: 1, stepRecords: 1, promotionReceipts: 1, ledgerFacts: 1}
+			if got := h.latestStatus(t, inst.InstanceID, promotionexec.NodeAcknowledgeRelease); got != string(runtime.NodeWaiting) {
+				t.Fatalf("acknowledge_release after redelivery = %s, want WAITING", got)
+			}
+			if n := h.openSubscriptions(t, inst.InstanceID, promotionexec.NodeAcknowledgeRelease); n != 1 {
+				t.Fatalf("open acknowledge_release subscriptions = %d, want 1: the park was not durable", n)
+			}
+			if n := h.signalContinuations(t, inst.InstanceID, promotionexec.NodeAcknowledgeRelease); n != 1 {
+				t.Fatalf("acknowledge_release continuations = %d, want 1", n)
+			}
+			want := durable{effects: 1, stepRecords: 1, promotionReceipts: 1}
 			if got := h.durable(t, inst.InstanceID); got != want {
-				t.Fatalf("durable evidence after redelivery = %+v, want %+v (exactly one effect, record, advancement and fact)", got, want)
+				t.Fatalf("durable evidence after redelivery = %+v, want %+v (exactly one effect, record and advancement; no terminal fact before the wait clears)", got, want)
 			}
 			if n := h.performs.Load(); n != 1 {
 				t.Fatalf("execute_promotion effect performed %d times across the death and the redelivery, want 1", n)
@@ -450,7 +489,7 @@ func TestTodo_WF_RUN_003_RedeliveryFence(t *testing.T) {
 	if err != nil || receipt.Count(wfrecover.SweepRedelivered) != 1 {
 		t.Fatalf("Sweep after sweeper A's claim lapsed = %+v, %v", receipt, err)
 	}
-	if got, want := h.durable(t, inst.InstanceID), (durable{effects: 1, stepRecords: 1, promotionReceipts: 1, ledgerFacts: 1}); got != want || h.performs.Load() != 1 {
+	if got, want := h.durable(t, inst.InstanceID), (durable{effects: 1, stepRecords: 1, promotionReceipts: 1}); got != want || h.performs.Load() != 1 {
 		t.Fatalf("after the second takeover durable = %+v (performs %d), want %+v once", got, h.performs.Load(), want)
 	}
 	if final := h.latestLease(t, inst.InstanceID); final.state != "RELEASED" || final.holder != sweepHolderB.HolderID() || final.token != dead.token+2 {
@@ -503,11 +542,14 @@ func TestTodo_WF_RUN_003_RedeliveryRace(t *testing.T) {
 	if redelivered != 1 {
 		t.Fatalf("concurrent sweepers redelivered %d times (%+v), want exactly 1", redelivered, receipts)
 	}
-	if got, want := h.durable(t, inst.InstanceID), (durable{effects: 1, stepRecords: 1, promotionReceipts: 1, ledgerFacts: 1}); got != want || h.performs.Load() != 1 {
+	if got, want := h.durable(t, inst.InstanceID), (durable{effects: 1, stepRecords: 1, promotionReceipts: 1}); got != want || h.performs.Load() != 1 {
 		t.Fatalf("durable after the race = %+v (performs %d), want %+v", got, h.performs.Load(), want)
 	}
-	if status := instanceByTenant(t, h.f).RuntimeStatus; status != runtime.InstanceCompleted {
-		t.Fatalf("instance after the race = %s, want COMPLETED", status)
+	if status := instanceByTenant(t, h.f).RuntimeStatus; status != runtime.InstanceRunning {
+		t.Fatalf("instance after the race = %s, want RUNNING", status)
+	}
+	if got := h.latestStatus(t, inst.InstanceID, promotionexec.NodeAcknowledgeRelease); got != string(runtime.NodeWaiting) {
+		t.Fatalf("acknowledge_release after the race = %s, want WAITING", got)
 	}
 }
 
@@ -531,15 +573,19 @@ func TestRedeliverReadyRefusesWhatIsNotLostWork(t *testing.T) {
 		t.Fatalf("a refused redelivery performed the effect %d times", h.performs.Load())
 	}
 
-	// A healthy redelivery of the READY frontier completes the instance; a
-	// second one has nothing READY left and is refused stale.
+	// A healthy redelivery of the READY frontier drains the graph and parks
+	// on the shipped SIGNAL tail; a second one has nothing READY left and is
+	// refused stale.
 	result, err := d.RedeliverReady(ctx, execute.RedeliverRequest{Start: h.f.start, InstanceID: inst.InstanceID, ExpectedInstanceVersion: inst.InstanceVersion})
-	if err != nil || result.Status != execute.StatusComplete {
-		t.Fatalf("RedeliverReady = %+v, %v; want COMPLETE", result, err)
+	if err != nil || result.Status != execute.StatusParked {
+		t.Fatalf("RedeliverReady = %+v, %v; want PARKED on acknowledge_release", result, err)
 	}
 	done := instanceByTenant(t, h.f)
+	if done.RuntimeStatus != runtime.InstanceRunning {
+		t.Fatalf("instance after redelivery = %s, want RUNNING", done.RuntimeStatus)
+	}
 	if _, err := d.RedeliverReady(ctx, execute.RedeliverRequest{Start: h.f.start, InstanceID: inst.InstanceID, ExpectedInstanceVersion: done.InstanceVersion}); !errors.Is(err, execute.ErrRedeliveryStale) {
-		t.Fatalf("redelivering a completed instance = %v, want ErrRedeliveryStale", err)
+		t.Fatalf("redelivering a parked instance = %v, want ErrRedeliveryStale", err)
 	}
 	if h.performs.Load() != 1 {
 		t.Fatalf("effect performed %d times, want 1", h.performs.Load())

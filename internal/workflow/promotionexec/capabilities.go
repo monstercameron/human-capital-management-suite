@@ -27,7 +27,7 @@ func GovernedReadDefinitions() []capability.Definition {
 	resolver := capabilities(workflow.ModeExecute)
 	out := make([]capability.Definition, 0, 4)
 	for _, id := range []string{capRevalidate, capObservePayroll, capObserveAccess, capObserveRecon} {
-		record, _ := resolver.Lookup(capability.Key{ID: id, Version: Version})
+		record, _ := resolver.Lookup(capability.Key{ID: id, Version: 1})
 		def := record.Definition
 		def.RiskClass = Definition().RiskClass
 		out = append(out, def)

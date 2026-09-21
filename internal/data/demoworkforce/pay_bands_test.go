@@ -2,15 +2,15 @@ package demoworkforce
 
 import "testing"
 
-func TestPayBandSpecsAreExactAndCoverEveryStaffedRole(t *testing.T) {
+func TestPayBandSpecsAreExactAndCoverEveryPublishedRole(t *testing.T) {
 	specs, err := PayBandSpecs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := 0
-	for _, group := range staffing {
-		want += len(group.Roles) * len(PayZones())
-	}
+	// Every role the company publishes, staffed or not: an unstaffed
+	// promotion target still has to be priced in every pay zone, or the band
+	// lookup that governs the move into it finds nothing.
+	want := len(allRoles()) * len(PayZones())
 	if len(specs) != want {
 		t.Fatalf("got %d band specs, want %d", len(specs), want)
 	}

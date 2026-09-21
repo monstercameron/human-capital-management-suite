@@ -34,7 +34,10 @@ func TestTodo_PROMOUX_013(t *testing.T) {
 		}
 		for _, stage := range allStages {
 			t.Run("Withdraw/"+string(stage), func(t *testing.T) {
-				reason, unavailable := interventionUnavailableAtStage(workspace.JourneyInterventionWithdraw, stage)
+				// A journey that never started its workflow. BLOCKED is
+				// reachable both ways, so the started fact is what decides
+				// there (UXLIVE-026); this row is the unstarted one.
+				reason, unavailable := interventionUnavailableAtStage(workspace.JourneyInterventionWithdraw, stage, false)
 				wantUnavailable := stage != workspace.JourneyStageProposed && stage != workspace.JourneyStageBlocked
 				if unavailable != wantUnavailable {
 					t.Fatalf("WITHDRAW at %s: unavailable=%v, want %v", stage, unavailable, wantUnavailable)
@@ -47,7 +50,7 @@ func TestTodo_PROMOUX_013(t *testing.T) {
 				}
 			})
 			t.Run("Cancel/"+string(stage), func(t *testing.T) {
-				reason, unavailable := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage)
+				reason, unavailable := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, stage, false)
 				unstarted := stage == workspace.JourneyStageProposed || stage == workspace.JourneyStageBlocked
 				committed := stage == workspace.JourneyStageExecuted || stage == workspace.JourneyStageObservingEffects
 				wantUnavailable := terminal[stage] || unstarted || committed
@@ -59,11 +62,11 @@ func TestTodo_PROMOUX_013(t *testing.T) {
 				}
 			})
 		}
-		// The same stage must always produce the same reason -- called twice
-		// to prove the answer is a pure function of (kind, stage), never
-		// incidental to call order or anything else.
-		r1, _ := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, workspace.JourneyStageProposed)
-		r2, _ := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, workspace.JourneyStageProposed)
+		// The same inputs must always produce the same reason -- called twice
+		// to prove the answer is a pure function of (kind, stage, started),
+		// never incidental to call order or anything else.
+		r1, _ := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, workspace.JourneyStageProposed, false)
+		r2, _ := interventionUnavailableAtStage(workspace.JourneyInterventionCancel, workspace.JourneyStageProposed, false)
 		if r1 != r2 {
 			t.Fatalf("interventionUnavailableAtStage is not stable across calls: %q then %q", r1, r2)
 		}

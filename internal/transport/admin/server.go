@@ -4,16 +4,22 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
+
 	"google.golang.org/grpc"
 
 	adminv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/onboarding"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	adminpolicy "github.com/monstercameron/human-capital-management-suite/internal/operations/admin"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/explorer"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/onboardingruns"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/config/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
@@ -94,6 +100,22 @@ type Dependencies struct {
 	// leaves GetWorkflowInstance UNAVAILABLE, matching every other optional
 	// Dependencies port.
 	WorkflowInstances app.WorkflowInstanceReader
+	// Onboarding backs the OnboardingService run lifecycle (REV-036-01): the
+	// application-side operator registry a run moves through. Nil leaves
+	// every onboarding RPC UNAVAILABLE, matching every other optional port.
+	Onboarding onboardingruns.OnboardingOperator
+	// OnboardingCutoverSigner signs approved cutover epochs for
+	// ExecuteOnboardingCutover. Nil leaves that RPC UNAVAILABLE.
+	OnboardingCutoverSigner onboarding.CutoverSigner
+	// The composition root supplies read-only explorer operations, keeping
+	// storage adapters and hash-chain mechanics outside transport.
+	ListLedgerStream  func(context.Context, uuid.UUID, string) (explorer.StreamListingView, error)
+	VerifyLedgerChain func(context.Context, uuid.UUID, string) (explorer.ChainView, error)
+	// ConfigPromotions backs the connector/config operations center
+	// (REV-037-02): the promotion registry inspect/test/redrive/reconcile/
+	// diff/simulate/promote/rollback run against. Nil leaves those RPCs
+	// UNAVAILABLE.
+	ConfigPromotions *promotion.Registry
 }
 
 // server adapts [Dependencies] to the generated adminv1.AdminServiceServer

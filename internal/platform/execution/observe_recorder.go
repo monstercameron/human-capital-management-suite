@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
@@ -43,6 +44,17 @@ func (r *ObserveRecorder) Start(ctx context.Context, name string, attrs observe.
 	op := &recordedOperation{rec: r, name: name, attrs: map[string]string{}, started: r.clock()}
 	for k, v := range attrs {
 		op.attrs[k] = v
+	}
+	// One run's correlation id joins every engine line to the request that
+	// started it. An operation that names one puts it into the logging
+	// context -- replacing the current request's own, so a later approval's
+	// engine lines join the run rather than that approval request (its
+	// request_id still names the request) -- and every nested operation
+	// inherits it; one that does not inherits the enclosing operation's.
+	if id := op.attrs[observe.KeyCorrelation]; id != "" {
+		ctx = logging.WithCorrelationID(ctx, id)
+	} else if id, ok := logging.CorrelationID(ctx); ok {
+		op.attrs[observe.KeyCorrelation] = id
 	}
 	if r.provider != nil {
 		ctx, op.span = r.provider.StartExecutionSpan(ctx, tracerName, "hcmnext."+name, op.attrs)

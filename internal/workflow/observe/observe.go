@@ -55,6 +55,10 @@ const (
 	KeyCode        = "code"
 	KeyMode        = "execution_mode"
 	KeyDisposition = "disposition"
+	// KeyCorrelation is the business correlation id an instance carries
+	// from the request that started it, so every engine log line of one run
+	// can be joined to that request and to the intent.
+	KeyCorrelation = "correlation_id"
 )
 
 // Attrs is a bounded set of string attributes.
@@ -102,6 +106,8 @@ func fieldKey(name string) (string, bool) {
 		return KeyCode, true
 	case "Disposition":
 		return KeyDisposition, true
+	case "CorrelationID":
+		return KeyCorrelation, true
 	}
 	return "", false
 }

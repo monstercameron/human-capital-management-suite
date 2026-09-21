@@ -25,6 +25,17 @@ const (
 	AdminService_ExplainTransaction_FullMethodName     = "/hcmnext.admin.v1.AdminService/ExplainTransaction"
 	AdminService_GetWorkerState_FullMethodName         = "/hcmnext.admin.v1.AdminService/GetWorkerState"
 	AdminService_GetWorkflowInstance_FullMethodName    = "/hcmnext.admin.v1.AdminService/GetWorkflowInstance"
+	AdminService_ListLedgerEvents_FullMethodName       = "/hcmnext.admin.v1.AdminService/ListLedgerEvents"
+	AdminService_GetChainVerification_FullMethodName   = "/hcmnext.admin.v1.AdminService/GetChainVerification"
+	AdminService_SimulateAuthorization_FullMethodName  = "/hcmnext.admin.v1.AdminService/SimulateAuthorization"
+	AdminService_ConfigInspect_FullMethodName          = "/hcmnext.admin.v1.AdminService/ConfigInspect"
+	AdminService_ConfigTest_FullMethodName             = "/hcmnext.admin.v1.AdminService/ConfigTest"
+	AdminService_ConfigRedrive_FullMethodName          = "/hcmnext.admin.v1.AdminService/ConfigRedrive"
+	AdminService_ConfigReconcile_FullMethodName        = "/hcmnext.admin.v1.AdminService/ConfigReconcile"
+	AdminService_ConfigDiff_FullMethodName             = "/hcmnext.admin.v1.AdminService/ConfigDiff"
+	AdminService_ConfigSimulate_FullMethodName         = "/hcmnext.admin.v1.AdminService/ConfigSimulate"
+	AdminService_ConfigPromote_FullMethodName          = "/hcmnext.admin.v1.AdminService/ConfigPromote"
+	AdminService_ConfigRollback_FullMethodName         = "/hcmnext.admin.v1.AdminService/ConfigRollback"
 )
 
 // AdminServiceClient is the client API for AdminService service.
@@ -116,6 +127,17 @@ type AdminServiceClient interface {
 	// (REDACTED), so an empty governance or work-item reference is never
 	// silently indistinguishable from an unrecorded one.
 	GetWorkflowInstance(ctx context.Context, in *GetWorkflowInstanceRequest, opts ...grpc.CallOption) (*GetWorkflowInstanceResponse, error)
+	ListLedgerEvents(ctx context.Context, in *ListLedgerEventsRequest, opts ...grpc.CallOption) (*ListLedgerEventsResponse, error)
+	GetChainVerification(ctx context.Context, in *GetChainVerificationRequest, opts ...grpc.CallOption) (*GetChainVerificationResponse, error)
+	SimulateAuthorization(ctx context.Context, in *SimulateAuthorizationRequest, opts ...grpc.CallOption) (*SimulateAuthorizationResponse, error)
+	ConfigInspect(ctx context.Context, in *ConfigInspectRequest, opts ...grpc.CallOption) (*ConfigInspectResponse, error)
+	ConfigTest(ctx context.Context, in *ConfigTestRequest, opts ...grpc.CallOption) (*ConfigTestResponse, error)
+	ConfigRedrive(ctx context.Context, in *ConfigRedriveRequest, opts ...grpc.CallOption) (*ConfigRedriveResponse, error)
+	ConfigReconcile(ctx context.Context, in *ConfigReconcileRequest, opts ...grpc.CallOption) (*ConfigReconcileResponse, error)
+	ConfigDiff(ctx context.Context, in *ConfigDiffRequest, opts ...grpc.CallOption) (*ConfigDiffResponse, error)
+	ConfigSimulate(ctx context.Context, in *ConfigSimulateRequest, opts ...grpc.CallOption) (*ConfigSimulateResponse, error)
+	ConfigPromote(ctx context.Context, in *ConfigPromoteRequest, opts ...grpc.CallOption) (*ConfigPromoteResponse, error)
+	ConfigRollback(ctx context.Context, in *ConfigRollbackRequest, opts ...grpc.CallOption) (*ConfigRollbackResponse, error)
 }
 
 type adminServiceClient struct {
@@ -180,6 +202,116 @@ func (c *adminServiceClient) GetWorkflowInstance(ctx context.Context, in *GetWor
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetWorkflowInstanceResponse)
 	err := c.cc.Invoke(ctx, AdminService_GetWorkflowInstance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ListLedgerEvents(ctx context.Context, in *ListLedgerEventsRequest, opts ...grpc.CallOption) (*ListLedgerEventsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListLedgerEventsResponse)
+	err := c.cc.Invoke(ctx, AdminService_ListLedgerEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) GetChainVerification(ctx context.Context, in *GetChainVerificationRequest, opts ...grpc.CallOption) (*GetChainVerificationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChainVerificationResponse)
+	err := c.cc.Invoke(ctx, AdminService_GetChainVerification_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) SimulateAuthorization(ctx context.Context, in *SimulateAuthorizationRequest, opts ...grpc.CallOption) (*SimulateAuthorizationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SimulateAuthorizationResponse)
+	err := c.cc.Invoke(ctx, AdminService_SimulateAuthorization_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ConfigInspect(ctx context.Context, in *ConfigInspectRequest, opts ...grpc.CallOption) (*ConfigInspectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigInspectResponse)
+	err := c.cc.Invoke(ctx, AdminService_ConfigInspect_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ConfigTest(ctx context.Context, in *ConfigTestRequest, opts ...grpc.CallOption) (*ConfigTestResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigTestResponse)
+	err := c.cc.Invoke(ctx, AdminService_ConfigTest_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ConfigRedrive(ctx context.Context, in *ConfigRedriveRequest, opts ...grpc.CallOption) (*ConfigRedriveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigRedriveResponse)
+	err := c.cc.Invoke(ctx, AdminService_ConfigRedrive_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ConfigReconcile(ctx context.Context, in *ConfigReconcileRequest, opts ...grpc.CallOption) (*ConfigReconcileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigReconcileResponse)
+	err := c.cc.Invoke(ctx, AdminService_ConfigReconcile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ConfigDiff(ctx context.Context, in *ConfigDiffRequest, opts ...grpc.CallOption) (*ConfigDiffResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigDiffResponse)
+	err := c.cc.Invoke(ctx, AdminService_ConfigDiff_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ConfigSimulate(ctx context.Context, in *ConfigSimulateRequest, opts ...grpc.CallOption) (*ConfigSimulateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigSimulateResponse)
+	err := c.cc.Invoke(ctx, AdminService_ConfigSimulate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ConfigPromote(ctx context.Context, in *ConfigPromoteRequest, opts ...grpc.CallOption) (*ConfigPromoteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigPromoteResponse)
+	err := c.cc.Invoke(ctx, AdminService_ConfigPromote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *adminServiceClient) ConfigRollback(ctx context.Context, in *ConfigRollbackRequest, opts ...grpc.CallOption) (*ConfigRollbackResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigRollbackResponse)
+	err := c.cc.Invoke(ctx, AdminService_ConfigRollback_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -275,6 +407,17 @@ type AdminServiceServer interface {
 	// (REDACTED), so an empty governance or work-item reference is never
 	// silently indistinguishable from an unrecorded one.
 	GetWorkflowInstance(context.Context, *GetWorkflowInstanceRequest) (*GetWorkflowInstanceResponse, error)
+	ListLedgerEvents(context.Context, *ListLedgerEventsRequest) (*ListLedgerEventsResponse, error)
+	GetChainVerification(context.Context, *GetChainVerificationRequest) (*GetChainVerificationResponse, error)
+	SimulateAuthorization(context.Context, *SimulateAuthorizationRequest) (*SimulateAuthorizationResponse, error)
+	ConfigInspect(context.Context, *ConfigInspectRequest) (*ConfigInspectResponse, error)
+	ConfigTest(context.Context, *ConfigTestRequest) (*ConfigTestResponse, error)
+	ConfigRedrive(context.Context, *ConfigRedriveRequest) (*ConfigRedriveResponse, error)
+	ConfigReconcile(context.Context, *ConfigReconcileRequest) (*ConfigReconcileResponse, error)
+	ConfigDiff(context.Context, *ConfigDiffRequest) (*ConfigDiffResponse, error)
+	ConfigSimulate(context.Context, *ConfigSimulateRequest) (*ConfigSimulateResponse, error)
+	ConfigPromote(context.Context, *ConfigPromoteRequest) (*ConfigPromoteResponse, error)
+	ConfigRollback(context.Context, *ConfigRollbackRequest) (*ConfigRollbackResponse, error)
 	mustEmbedUnimplementedAdminServiceServer()
 }
 
@@ -302,6 +445,39 @@ func (UnimplementedAdminServiceServer) GetWorkerState(context.Context, *GetWorke
 }
 func (UnimplementedAdminServiceServer) GetWorkflowInstance(context.Context, *GetWorkflowInstanceRequest) (*GetWorkflowInstanceResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetWorkflowInstance not implemented")
+}
+func (UnimplementedAdminServiceServer) ListLedgerEvents(context.Context, *ListLedgerEventsRequest) (*ListLedgerEventsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListLedgerEvents not implemented")
+}
+func (UnimplementedAdminServiceServer) GetChainVerification(context.Context, *GetChainVerificationRequest) (*GetChainVerificationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChainVerification not implemented")
+}
+func (UnimplementedAdminServiceServer) SimulateAuthorization(context.Context, *SimulateAuthorizationRequest) (*SimulateAuthorizationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SimulateAuthorization not implemented")
+}
+func (UnimplementedAdminServiceServer) ConfigInspect(context.Context, *ConfigInspectRequest) (*ConfigInspectResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigInspect not implemented")
+}
+func (UnimplementedAdminServiceServer) ConfigTest(context.Context, *ConfigTestRequest) (*ConfigTestResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigTest not implemented")
+}
+func (UnimplementedAdminServiceServer) ConfigRedrive(context.Context, *ConfigRedriveRequest) (*ConfigRedriveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigRedrive not implemented")
+}
+func (UnimplementedAdminServiceServer) ConfigReconcile(context.Context, *ConfigReconcileRequest) (*ConfigReconcileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigReconcile not implemented")
+}
+func (UnimplementedAdminServiceServer) ConfigDiff(context.Context, *ConfigDiffRequest) (*ConfigDiffResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigDiff not implemented")
+}
+func (UnimplementedAdminServiceServer) ConfigSimulate(context.Context, *ConfigSimulateRequest) (*ConfigSimulateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigSimulate not implemented")
+}
+func (UnimplementedAdminServiceServer) ConfigPromote(context.Context, *ConfigPromoteRequest) (*ConfigPromoteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigPromote not implemented")
+}
+func (UnimplementedAdminServiceServer) ConfigRollback(context.Context, *ConfigRollbackRequest) (*ConfigRollbackResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigRollback not implemented")
 }
 func (UnimplementedAdminServiceServer) mustEmbedUnimplementedAdminServiceServer() {}
 func (UnimplementedAdminServiceServer) testEmbeddedByValue()                      {}
@@ -432,6 +608,204 @@ func _AdminService_GetWorkflowInstance_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AdminService_ListLedgerEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListLedgerEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ListLedgerEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ListLedgerEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ListLedgerEvents(ctx, req.(*ListLedgerEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_GetChainVerification_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetChainVerificationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).GetChainVerification(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_GetChainVerification_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).GetChainVerification(ctx, req.(*GetChainVerificationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_SimulateAuthorization_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SimulateAuthorizationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).SimulateAuthorization(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_SimulateAuthorization_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).SimulateAuthorization(ctx, req.(*SimulateAuthorizationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ConfigInspect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigInspectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ConfigInspect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ConfigInspect_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ConfigInspect(ctx, req.(*ConfigInspectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ConfigTest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigTestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ConfigTest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ConfigTest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ConfigTest(ctx, req.(*ConfigTestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ConfigRedrive_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigRedriveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ConfigRedrive(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ConfigRedrive_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ConfigRedrive(ctx, req.(*ConfigRedriveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ConfigReconcile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigReconcileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ConfigReconcile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ConfigReconcile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ConfigReconcile(ctx, req.(*ConfigReconcileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ConfigDiff_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigDiffRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ConfigDiff(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ConfigDiff_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ConfigDiff(ctx, req.(*ConfigDiffRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ConfigSimulate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigSimulateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ConfigSimulate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ConfigSimulate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ConfigSimulate(ctx, req.(*ConfigSimulateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ConfigPromote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigPromoteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ConfigPromote(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ConfigPromote_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ConfigPromote(ctx, req.(*ConfigPromoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AdminService_ConfigRollback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigRollbackRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AdminServiceServer).ConfigRollback(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AdminService_ConfigRollback_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AdminServiceServer).ConfigRollback(ctx, req.(*ConfigRollbackRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AdminService_ServiceDesc is the grpc.ServiceDesc for AdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -462,6 +836,50 @@ var AdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetWorkflowInstance",
 			Handler:    _AdminService_GetWorkflowInstance_Handler,
+		},
+		{
+			MethodName: "ListLedgerEvents",
+			Handler:    _AdminService_ListLedgerEvents_Handler,
+		},
+		{
+			MethodName: "GetChainVerification",
+			Handler:    _AdminService_GetChainVerification_Handler,
+		},
+		{
+			MethodName: "SimulateAuthorization",
+			Handler:    _AdminService_SimulateAuthorization_Handler,
+		},
+		{
+			MethodName: "ConfigInspect",
+			Handler:    _AdminService_ConfigInspect_Handler,
+		},
+		{
+			MethodName: "ConfigTest",
+			Handler:    _AdminService_ConfigTest_Handler,
+		},
+		{
+			MethodName: "ConfigRedrive",
+			Handler:    _AdminService_ConfigRedrive_Handler,
+		},
+		{
+			MethodName: "ConfigReconcile",
+			Handler:    _AdminService_ConfigReconcile_Handler,
+		},
+		{
+			MethodName: "ConfigDiff",
+			Handler:    _AdminService_ConfigDiff_Handler,
+		},
+		{
+			MethodName: "ConfigSimulate",
+			Handler:    _AdminService_ConfigSimulate_Handler,
+		},
+		{
+			MethodName: "ConfigPromote",
+			Handler:    _AdminService_ConfigPromote_Handler,
+		},
+		{
+			MethodName: "ConfigRollback",
+			Handler:    _AdminService_ConfigRollback_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

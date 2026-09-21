@@ -199,6 +199,27 @@ address | person | organization | file attachment | acknowledgement
 
 Repeated groups, conditional visibility, requiredness, and validation compile into deterministic rules. Arbitrary browser/server code is prohibited.
 
+### Form Registry (Gate C)
+
+The Promotion-specific form todos `FORM-001`–`FORM-003` were retired on
+2026-09-02 because Phase 1 needs only a typed reason field. The 2026-09-19
+review of twenty HR workflows found that nine of them (hire, compensation
+change, transfer, personal data change, life-event enrollment, timesheets,
+requisitions, open enrollment, leave intake) cannot collect their input
+without a form. The form engine returns at Gate C as a registry, not as a
+separate platform:
+
+- A `FormDefinition` is a registry entry of kind `FORM` stored in the tenant
+  definition store, published through the shared lifecycle below and pinned by
+  digest.
+- A workflow `TASK` binds it through `form_ref`; the compiler checks that the
+  answer schema is assignable to the node's declared output (`WF-EXT-013`).
+- The same `TASK` spec carries a subject set, for worksheet and calibration
+  forms over many subjects, and an assurance level, for step-up
+  re-authentication on bank or identity changes.
+- Rendering stays schema-driven in GoWebComponents; a new form never needs new
+  page code.
+
 ### Render and Submission
 
 ```text
@@ -289,6 +310,13 @@ status
 ### Expression Subset
 
 The language supports typed boolean/arithmetic/string/date operations, null-safe comparisons, bounded collection predicates, reference-data lookups, and named pure functions. It excludes network/database access, filesystem access, time/randomness without explicit inputs, unbounded loops, recursion, dynamic code loading, and agent/model calls.
+
+Named pure functions come from a versioned, costed function library that is
+itself a registry (`WF-EXT-016`). The first additions the workflow review
+requires are list membership, date-interval overlap and business-day
+arithmetic against a pinned calendar. Executing Manager Change through the
+generic engine (`WF-EXT-008`) is the "second workflow family" that the phase
+table below names as the trigger for this language.
 
 ```text
 inputs + reference snapshots + rule version
@@ -409,6 +437,8 @@ Use Protobuf for contracts, PostgreSQL for durable state/versioning, SchemaFlux 
 | Expression language and formula rules        | **OUT**                   | **OUT** until a second workflow family        |
 | Customer-authored arbitrary formulas         | **OUT**                   | **OUT**                                       |
 | Case/service-catalog specialization          | **OUT**                   | **OUT**                                       |
+| Form registry bound to `TASK.form_ref`       | **OUT**                   | **OUT** (Gate C, `WF-EXT-013`)                |
+| Expression function library registry         | **OUT**                   | **OUT** (Gate C, `WF-EXT-016`)                |
 
 ## Phase 1 Acceptance Contract
 

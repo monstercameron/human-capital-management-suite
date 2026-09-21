@@ -15,6 +15,9 @@ func TestErrors_Smoke(t *testing.T) {
 	if CodeMissingSemanticVersion == "" {
 		t.Fatalf("CodeMissingSemanticVersion is empty")
 	}
+	if CodeInvalidSemanticVersion == "" || CodeSemanticVersionConflict == "" || CodeVersionNotNewer == "" {
+		t.Fatalf("semantic version refusal codes are empty")
+	}
 	if CodeCompilationRejected == "" {
 		t.Fatalf("CodeCompilationRejected is empty")
 	}

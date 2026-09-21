@@ -13,7 +13,9 @@ func TestTodo_ADMIN_006(t *testing.T) {
 		t.Fatalf("registry missing controls: %+v", r)
 	}
 	now := time.Unix(100, 0).UTC()
-	s, err := ds.New(ds.Scope{TenantID: "t", SubjectID: "s", CaseID: "c", Purpose: ds.PurposeSupport, Resources: []string{"incident:1"}, Actions: []ds.UIAction{ds.ActionViewEvidence}, IssuedAt: now, ExpiresAt: now.Add(time.Minute)})
+	scope := ds.Scope{TenantID: "t", SubjectID: "s", CaseID: "c", Purpose: ds.PurposeSupport, Resources: []string{"incident:1"}, Actions: []ds.UIAction{ds.ActionViewEvidence}, IssuedAt: now, ExpiresAt: now.Add(time.Minute)}
+	scope.Approval = ds.MintApproval(scope, "approval-1")
+	s, err := ds.New(scope)
 	if err != nil || s.Validate(now.Add(30*time.Second)) != nil || !s.AllowsResource("incident:1") {
 		t.Fatalf("bounded scope rejected: %v", err)
 	}
@@ -26,7 +28,18 @@ func TestTodo_ADMIN_006(t *testing.T) {
 func TestTodo_ADMIN_006_Security(t *testing.T) {
 	now := time.Unix(100, 0).UTC()
 	base := ds.Scope{TenantID: "t", SubjectID: "s", CaseID: "c", Purpose: ds.PurposeSupport, Resources: []string{"incident:1"}, Actions: []ds.UIAction{ds.ActionViewSummary}, IssuedAt: now, ExpiresAt: now.Add(time.Minute)}
-	for name, s := range map[string]ds.Scope{"missing tenant": func() ds.Scope { x := base; x.TenantID = ""; return x }(), "unsafe action": func() ds.Scope { x := base; x.Actions = []ds.UIAction{"delete"}; return x }(), "overlong ttl": func() ds.Scope { x := base; x.ExpiresAt = now.Add(ds.MaxTTL + time.Nanosecond); return x }()} {
+	base.Approval = ds.MintApproval(base, "approval-1")
+	for name, s := range map[string]ds.Scope{"missing tenant": func() ds.Scope { x := base; x.TenantID = ""; return x }(), "unsafe action": func() ds.Scope {
+		x := base
+		x.Actions = []ds.UIAction{"delete"}
+		x.Approval = ds.MintApproval(x, "approval-1")
+		return x
+	}(), "overlong ttl": func() ds.Scope {
+		x := base
+		x.ExpiresAt = now.Add(ds.MaxTTL + time.Nanosecond)
+		x.Approval = ds.MintApproval(x, "approval-1")
+		return x
+	}()} {
 		t.Run(name, func(t *testing.T) {
 			_, err := ds.New(s)
 			if !errors.Is(err, ds.ErrInvalidScope) && !errors.Is(err, ds.ErrActionDenied) {

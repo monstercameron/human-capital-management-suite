@@ -484,7 +484,7 @@ const PageJourneyDiagnostics = "journey-diagnostics"
 // important read-only case: it can view Insights but cannot create, update, or
 // delete reports there.
 func DefaultPagePermissions() []PagePermission {
-	pages := []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "studio", "help", "settings", PageJourneyDiagnostics}
+	pages := []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "workflow-designer", "studio", "help", "settings", PageJourneyDiagnostics}
 	result := make([]PagePermission, 0, len(pages)*2+64)
 	grant := func(role, page string, create, update, delete bool) {
 		result = append(result, PagePermission{RoleID: role, PageID: page, View: true, Create: create, Update: update, Delete: delete})
@@ -513,6 +513,7 @@ func DefaultPagePermissions() []PagePermission {
 		grant("intent_author", page, page == "journeys", page == "settings", false)
 		grant("promotion_operator", page, false, page == "journeys" || page == "work" || page == "settings", false)
 	}
+	grant("intent_author", "workflow-designer", true, true, false)
 	grant("promotion_operator", PageJourneyDiagnostics, false, false, false)
 	return result
 }

@@ -57,13 +57,16 @@ type RequiredSignals struct {
 
 // DefaultRequiredSignals returns the required-signal set derived from the
 // P1A cell's own metric catalog, plus the log events that name the same
-// lifecycle transitions. Deriving RequiredMetrics from MetricCatalog()
-// keeps the two lists from drifting: a metric added to the catalog is
-// required for completeness by construction.
+// lifecycle transitions. Deriving RequiredMetrics from P1ACellMetrics
+// keeps the two lists from drifting: a metric added to the cell's core
+// catalog is required for completeness by construction. The event-driven
+// ProviderIntegrationMetrics are deliberately not required: a cell with no
+// provider traffic emits none of them, and that silence is not missing
+// telemetry.
 func DefaultRequiredSignals() RequiredSignals {
 	return RequiredSignals{
 		Version:         1,
-		RequiredMetrics: sortedNames(MetricCatalog()),
+		RequiredMetrics: sortedNames(P1ACellMetrics),
 		RequiredLogEvents: []string{
 			"intent.created",
 			"intent.simulated",

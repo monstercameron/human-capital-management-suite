@@ -62,14 +62,53 @@ var requestFactories = map[string]func() proto.Message{
 	transportjourney.ProposeIntoManagementProcedure: func() proto.Message { return &journeyv1.ProposePromotionRequest{} },
 	transportworkflow.GetWorkflowProcedure:          func() proto.Message { return &workflowv1.GetWorkflowRequest{} },
 	transportworkflow.ListNodeExecutionsProcedure:   func() proto.Message { return &workflowv1.ListNodeExecutionsRequest{} },
-	transportworkflow.PauseWorkflowProcedure:        func() proto.Message { return &workflowv1.PauseWorkflowRequest{} },
-	transportworkflow.ResumeWorkflowProcedure:       func() proto.Message { return &workflowv1.ResumeWorkflowRequest{} },
-	transportworkflow.CancelWorkflowProcedure:       func() proto.Message { return &workflowv1.CancelWorkflowRequest{} },
-	transportworkflow.RetryNodeProcedure:            func() proto.Message { return &workflowv1.RetryNodeRequest{} },
-	transporthumanwork.ListWorkItemsProcedure:       func() proto.Message { return &humanworkv1.ListWorkItemsRequest{} },
-	transporthumanwork.GetWorkItemProcedure:         func() proto.Message { return &humanworkv1.GetWorkItemRequest{} },
-	transportoperations.GetOperationProcedure:       func() proto.Message { return &evidencev1.GetOperationRequest{} },
-	transportoperations.CancelOperationProcedure:    func() proto.Message { return &evidencev1.CancelOperationRequest{} },
+	transportworkflow.ListWorkflowPublicationsProcedure: func() proto.Message {
+		return &workflowv1.ListWorkflowPublicationsRequest{}
+	},
+	transportworkflow.GetWorkflowDefinitionViewProcedure: func() proto.Message {
+		return &workflowv1.GetWorkflowDefinitionViewRequest{}
+	},
+	transportworkflow.CompileWorkflowDraftProcedure: func() proto.Message {
+		return &workflowv1.CompileWorkflowDraftRequest{}
+	},
+	transportworkflow.ListWorkflowBlocksProcedure: func() proto.Message {
+		return &workflowv1.ListWorkflowBlocksRequest{}
+	},
+	transportworkflow.CreateWorkflowDraftProcedure: func() proto.Message {
+		return &workflowv1.CreateWorkflowDraftRequest{}
+	},
+	transportworkflow.GetWorkflowDraftProcedure: func() proto.Message {
+		return &workflowv1.GetWorkflowDraftRequest{}
+	},
+	transportworkflow.InsertWorkflowPaletteEntryProcedure: func() proto.Message {
+		return &workflowv1.InsertWorkflowPaletteEntryRequest{}
+	},
+	transportworkflow.UpdateWorkflowDraftNodeProcedure: func() proto.Message {
+		return &workflowv1.UpdateWorkflowDraftNodeRequest{}
+	},
+	transportworkflow.SetWorkflowDraftOutcomeProcedure: func() proto.Message {
+		return &workflowv1.SetWorkflowDraftOutcomeRequest{}
+	},
+	transportworkflow.BindWorkflowDraftInputProcedure: func() proto.Message {
+		return &workflowv1.BindWorkflowDraftInputRequest{}
+	},
+	transportworkflow.MoveWorkflowDraftNodeProcedure: func() proto.Message {
+		return &workflowv1.MoveWorkflowDraftNodeRequest{}
+	},
+	transportworkflow.NavigateWorkflowDraftHistoryProcedure: func() proto.Message {
+		return &workflowv1.NavigateWorkflowDraftHistoryRequest{}
+	},
+	transportworkflow.ApplyWorkflowTemplateOverlayProcedure: func() proto.Message {
+		return &workflowv1.ApplyWorkflowTemplateOverlayRequest{}
+	},
+	transportworkflow.PauseWorkflowProcedure:     func() proto.Message { return &workflowv1.PauseWorkflowRequest{} },
+	transportworkflow.ResumeWorkflowProcedure:    func() proto.Message { return &workflowv1.ResumeWorkflowRequest{} },
+	transportworkflow.CancelWorkflowProcedure:    func() proto.Message { return &workflowv1.CancelWorkflowRequest{} },
+	transportworkflow.RetryNodeProcedure:         func() proto.Message { return &workflowv1.RetryNodeRequest{} },
+	transporthumanwork.ListWorkItemsProcedure:    func() proto.Message { return &humanworkv1.ListWorkItemsRequest{} },
+	transporthumanwork.GetWorkItemProcedure:      func() proto.Message { return &humanworkv1.GetWorkItemRequest{} },
+	transportoperations.GetOperationProcedure:    func() proto.Message { return &evidencev1.GetOperationRequest{} },
+	transportoperations.CancelOperationProcedure: func() proto.Message { return &evidencev1.CancelOperationRequest{} },
 }
 
 // Procedures returns every procedure path this edge publishes.

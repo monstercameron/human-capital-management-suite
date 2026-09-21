@@ -72,7 +72,7 @@ sources:
     version_minor: 0
     vocabulary_version: 2
     review_status: UNREVIEWED
-    content_digest: ae83ff798089b3c2a3ad0b9a236aa3ba37822bbe2c8d600ac7908815c8bcb92b
+    content_digest: 8845ba6f1620918fc54fa7f7295c8788e218d0045f59332946f46a63a0f4c7e4
 
 # Qualified legal owner/reviewer. Deliberately empty - see the header
 # comment above and doc.go.
@@ -271,5 +271,5 @@ stop_reselect_thresholds:
 signature:
   algorithm: ed25519
   public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
-  value: "cc10031f01c252b3dbeb351e33291e19f76d3ba71f6c3e63aa72b859edd06d07331c37ecac733011c7ebd6502a0e168201e9e974ff3f72027d7957d6a33f2400"
+  value: "d8e1de9b91c778ca3f50ea6906478d6488ba658e623bf5ef01968253796bf128195307f7b562c79fdc8da14caa8209e23b6775cfa2aed66917878ff981afac0a"
   key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml
