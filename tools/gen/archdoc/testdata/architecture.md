@@ -3,9 +3,9 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: 8ce70bcc71839e1e9b17cd3c83d8fd3eed8813cc4d9c33f11a0bd24951975131
-- Package count: 882
-- Within-module edge count: 2313
+- Source graph: 878571ba5f2fce275cf60b372a8bdef35eb30ed78e8b13028a03230778b4dc2c
+- Package count: 883
+- Within-module edge count: 2314
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
@@ -797,6 +797,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/gen/schemaflux/sources`
 - `github.com/monstercameron/human-capital-management-suite/tools/gen/schemafluxsql`
 - `github.com/monstercameron/human-capital-management-suite/tools/gen/storagemanifest`
+- `github.com/monstercameron/human-capital-management-suite/tools/gen/storagemanifest/cmd/storagemanifest`
 - `github.com/monstercameron/human-capital-management-suite/tools/integrationsim/cmd/iamsim`
 - `github.com/monstercameron/human-capital-management-suite/tools/integrationsim/cmd/payrollsim`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/atomicity`
@@ -1040,4 +1041,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`b7ecfa58708393cb69b2556847b858a9f489e2cdabf4d76c6ac6d0aa3585d660`
+`c3022767f9d61bf841f462fa2a3ba84a42cab08a453f3809f9df28769ec431c5`

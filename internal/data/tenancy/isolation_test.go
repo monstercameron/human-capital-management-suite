@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -182,6 +183,44 @@ func TestTodo_DB_017_Security(t *testing.T) {
 		defer func() { _ = tx.Rollback(ctx) }()
 		if _, err := tx.Exec(ctx, `DELETE FROM authority_assignment WHERE tenant_id = $1`, tenantA); err == nil {
 			t.Fatal("hcmnext_app deleted a row; this data plane grants no DELETE at all")
+		}
+	})
+
+	t.Run("controlled cleanup functions are usable only for the selected tenant", func(t *testing.T) {
+		allowed := []struct {
+			name string
+			sql  string
+			args func(uuid.UUID) []any
+		}{
+			{name: "worker role assignments", sql: `SELECT hcmnext_replace_worker_role_assignments($1,$2)`, args: func(tenant uuid.UUID) []any { return []any{tenant, "worker:none"} }},
+			{name: "conflict scope fence", sql: `SELECT hcmnext_release_conflict_scope_fence($1,$2,$3)`, args: func(tenant uuid.UUID) []any { return []any{tenant, "intent:none", int64(1)} }},
+			{name: "job trace links", sql: `SELECT hcmnext_prune_expired_job_trace_links($1,$2,$3)`, args: func(tenant uuid.UUID) []any { return []any{tenant, time.Now().UTC(), 1} }},
+			{name: "draft redo history", sql: `SELECT hcmnext_discard_workflow_draft_redo($1,$2,$3)`, args: func(tenant uuid.UUID) []any { return []any{tenant, uuid.New(), int64(1)} }},
+			{name: "expired drafts", sql: `SELECT hcmnext_purge_expired_workflow_drafts($1,$2)`, args: func(tenant uuid.UUID) []any { return []any{tenant, time.Now().UTC()} }},
+		}
+
+		for _, operation := range allowed {
+			t.Run(operation.name, func(t *testing.T) {
+				conn := appRoleConn(t, db)
+				tx := scopedTx(t, ctx, conn, tenantA)
+				var affected int64
+				if err := tx.QueryRow(ctx, operation.sql, operation.args(tenantA)...).Scan(&affected); err != nil {
+					t.Fatalf("selected-tenant operation failed: %v", err)
+				}
+				if affected != 0 {
+					t.Fatalf("empty selected-tenant operation affected %d rows, want 0", affected)
+				}
+				if err := tx.Commit(ctx); err != nil {
+					t.Fatalf("commit selected-tenant operation: %v", err)
+				}
+
+				conn = appRoleConn(t, db)
+				tx = scopedTx(t, ctx, conn, tenantA)
+				defer func() { _ = tx.Rollback(ctx) }()
+				if err := tx.QueryRow(ctx, operation.sql, operation.args(uuid.New())...).Scan(&affected); err == nil {
+					t.Fatal("controlled operation accepted a tenant other than the selected tenant")
+				}
+			})
 		}
 	})
 }

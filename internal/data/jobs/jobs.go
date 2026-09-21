@@ -1004,31 +1004,9 @@ func (s CheckpointStore) PruneExpiredTraceLinks(ctx context.Context, ex Executor
 		return 0, invalid("limit", "must be between 1 and 1000")
 	}
 	var affected int64
-	err := ex.QueryRow(ctx, `
-		WITH candidates AS (
-			SELECT 'run' AS kind, run_id AS owner_id, 0::bigint AS sequence, trace_link_expires_at AS expires_at
-			FROM job_run WHERE tenant_id = $1 AND trace_link_expires_at <= $2
-			UNION ALL
-			SELECT 'partition', partition_id, 0::bigint, trace_link_expires_at
-			FROM job_partition WHERE tenant_id = $1 AND trace_link_expires_at <= $2
-			UNION ALL
-			SELECT 'checkpoint', partition_id, checkpoint_sequence, expires_at
-			FROM job_checkpoint_trace_link WHERE tenant_id = $1 AND expires_at <= $2
-			ORDER BY expires_at, kind, owner_id, sequence
-			LIMIT $3
-		), pruned_runs AS (
-			UPDATE job_run r SET trace_id=NULL, trace_span_id=NULL, trace_flags=NULL, trace_state=NULL, trace_link_expires_at=NULL
-			FROM candidates c WHERE c.kind='run' AND r.tenant_id=$1 AND r.run_id=c.owner_id
-				AND r.trace_link_expires_at <= $2 AND r.trace_link_expires_at = c.expires_at RETURNING 1
-		), pruned_partitions AS (
-			UPDATE job_partition p SET trace_id=NULL, trace_span_id=NULL, trace_flags=NULL, trace_state=NULL, trace_link_expires_at=NULL
-			FROM candidates c WHERE c.kind='partition' AND p.tenant_id=$1 AND p.partition_id=c.owner_id
-				AND p.trace_link_expires_at <= $2 AND p.trace_link_expires_at = c.expires_at RETURNING 1
-		), pruned_checkpoints AS (
-			DELETE FROM job_checkpoint_trace_link l USING candidates c
-			WHERE c.kind='checkpoint' AND l.tenant_id=$1 AND l.partition_id=c.owner_id AND l.checkpoint_sequence=c.sequence RETURNING 1
-		)
-		SELECT (SELECT count(*) FROM pruned_runs) + (SELECT count(*) FROM pruned_partitions) + (SELECT count(*) FROM pruned_checkpoints)`, tenantID, before.UTC(), limit).Scan(&affected)
+	err := ex.QueryRow(ctx,
+		`SELECT hcmnext_prune_expired_job_trace_links($1,$2,$3)`,
+		tenantID, before.UTC(), limit).Scan(&affected)
 	if err != nil {
 		return 0, fmt.Errorf("jobs: prune expired trace links: %w", err)
 	}

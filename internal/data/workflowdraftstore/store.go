@@ -143,8 +143,9 @@ func (parseStore *Store) Save(parseContext context.Context, parseTenant values.T
 				return fmt.Errorf("workflowdraftstore: lock draft history: %w", parseLockErr)
 			}
 			if parsePosition < parseLength {
-				if _, parseDeleteErr := parseTx.Exec(parseContext, `DELETE FROM workflow_designer_draft_history
-					WHERE tenant_id=$1 AND draft_id=$2 AND history_position>$3`, parseTenantID, parseRequest.DraftID, parsePosition); parseDeleteErr != nil {
+				if _, parseDeleteErr := parseTx.Exec(parseContext,
+					`SELECT hcmnext_discard_workflow_draft_redo($1,$2,$3)`,
+					parseTenantID, parseRequest.DraftID, parsePosition); parseDeleteErr != nil {
 					return fmt.Errorf("workflowdraftstore: discard redo history: %w", parseDeleteErr)
 				}
 			}
@@ -286,8 +287,9 @@ func (parseStore *Store) PurgeExpired(parseContext context.Context, parseTenant 
 	var parseRemoved int64
 	parseErr := parseStore.withTenant(parseContext, parseTenant, func(parseTx dbport.Tx, parseTenantID uuid.UUID) error {
 		var parseDeleteErr error
-		parseRemoved, parseDeleteErr = parseTx.Exec(parseContext,
-			`DELETE FROM workflow_designer_draft WHERE tenant_id=$1 AND expires_at <= $2`, parseTenantID, parseAt.UTC())
+		parseDeleteErr = parseTx.QueryRow(parseContext,
+			`SELECT hcmnext_purge_expired_workflow_drafts($1,$2)`,
+			parseTenantID, parseAt.UTC()).Scan(&parseRemoved)
 		if parseDeleteErr != nil {
 			return fmt.Errorf("workflowdraftstore: purge expired drafts: %w", parseDeleteErr)
 		}
