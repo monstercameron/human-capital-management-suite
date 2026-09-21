@@ -101,7 +101,7 @@ func TestTodo_NEXT_004_Integration(t *testing.T) {
 			created.GetIntentId(), first.GetIntentId(), second.GetIntentId())
 	}
 	if first.GetMaterialProposalDigest().GetDigest() == "" {
-		t.Fatal("SimulateIntent returned no material proposal digest")
+		t.Fatalf("SimulateIntent returned no material proposal digest: %v", first)
 	}
 	if first.GetMaterialProposalDigest().GetDigest() != second.GetMaterialProposalDigest().GetDigest() {
 		t.Fatalf("simulation digest drifted across identical calls:\n first %s\nsecond %s",
@@ -209,6 +209,8 @@ func startServe(t *testing.T, binary, databaseURL, grpcAddr, httpAddr string) *s
 		"-audience="+serveAudience,
 		"-tenant="+serveTenant,
 		"-cell-id=serve-smoke-cell",
+		"-execution-authority=false",
+		"-scheduler=false",
 		"-workspace=false",
 		"-otel-exporter=none",
 	)
@@ -409,7 +411,11 @@ func promotionRequest(t *testing.T, idempotencyKey string) *intentsv1.CreateInte
 	}
 	payload := mustStruct(t, map[string]any{
 		"worker_ref": "omar-reyes", "known_at": "2026-05-15",
-		"target":         map[string]any{"job_code": "OPS-HRBP3", "grade": "P3", "org_unit": "people-ops", "position_id": "POS-HRBP-301", "pay_zone": "US-EAST"},
+		// This authority-free API smoke uses the compiled corpus rather than
+		// the development workspace's PostgreSQL workforce. A position id
+		// would therefore claim a durable Position-domain fact the process did
+		// not compose; leaving it absent exercises the certified corpus vector.
+		"target":         map[string]any{"job_code": "OPS-HRBP3", "grade": "P3", "org_unit": "people-ops", "pay_zone": "US-EAST"},
 		"effective_date": "2026-06-01", "evaluation_date": "2026-05-15", "business_reason": "promotion_into_senior_hrbp",
 		"current":  map[string]any{"base": "93000.00", "currency": "USD", "pay_basis": "ANNUAL_SALARY", "bonus_target": "0.0500", "effective_date": "2026-06-01", "revision_stream": "rewards.package.omar", "revision_sequence": "11"},
 		"proposed": map[string]any{"base": "98000.00", "currency": "USD", "pay_basis": "ANNUAL_SALARY", "bonus_target": "0.0500", "effective_date": "2026-06-01", "revision_stream": "rewards.package.omar", "revision_sequence": "11"},
@@ -420,7 +426,6 @@ func promotionRequest(t *testing.T, idempotencyKey string) *intentsv1.CreateInte
 		Definition:     &intentsv1.DefinitionReference{IntentTypeId: promotion.IntentType, Version: 1},
 		Subjects: []*intentsv1.SubjectReference{
 			{SubjectKind: "EMPLOYMENT", SubjectId: worker.Id, AuthorityDomain: "PEOPLE"},
-			{SubjectKind: "POSITION", SubjectId: "POS-HRBP-301", AuthorityDomain: "POSITION"},
 		},
 		Request: &intentsv1.TypedPayload{Schema: &intentsv1.SchemaReference{
 			SchemaId: "hcmnext.people.v1.PromoteWorkerRequest", Version: 1, ProtobufFullName: "hcmnext.people.v1.PromoteWorkerRequest",
@@ -435,7 +440,7 @@ func mustStruct(t *testing.T, fields map[string]any) []byte {
 	if err != nil {
 		t.Fatalf("encode request payload: %v", err)
 	}
-	wire, err := proto.Marshal(value)
+	wire, err := (proto.MarshalOptions{Deterministic: true}).Marshal(value)
 	if err != nil {
 		t.Fatalf("marshal request payload: %v", err)
 	}

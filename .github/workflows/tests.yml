@@ -197,13 +197,17 @@ jobs:
       #
       # xargs, not $(cat ...), so a future list too long for one argv becomes
       # several `go test` invocations rather than a truncation; xargs still
-      # exits nonzero if any of them fails.
+      # exits nonzero if any of them fails. Limit package concurrency because
+      # the selected packages share the job's PostgreSQL service; unbounded
+      # package fan-out creates database contention rather than useful race
+      # coverage. The longer per-package deadline accounts for detector
+      # instrumentation without relaxing the job's 120-minute outer bound.
       - name: Run the race detector over every concurrent package (TOOL-012)
         run: |
           mkdir -p .artifacts
           go run ./tools/policy/racepolicy/cmd/racepolicy -root . -list > .artifacts/race-packages.txt
           echo "racing $(wc -l < .artifacts/race-packages.txt) concurrent package(s)"
-          xargs -a .artifacts/race-packages.txt go test -race -count=1
+          xargs -a .artifacts/race-packages.txt go test -race -count=1 -p=2 -timeout=30m
       # This is also the full-suite sweep with the detector off: covergate
       # -all shells out to `go test -count=1 -cover` over every measurable
       # package (everything except gen/, src/blocks/go, testdata and dot

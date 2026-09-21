@@ -5,15 +5,21 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-func fakeToolPath(t *testing.T, name, body string) string {
+func fakeToolPath(t *testing.T, name, windowsBody, posixBody string) string {
 	t.Helper()
 	dir := t.TempDir()
-	script := "@echo off\r\n" + body + "\r\n"
-	if err := os.WriteFile(filepath.Join(dir, name+".cmd"), []byte(script), 0o755); err != nil {
+	path := filepath.Join(dir, name)
+	script := "#!/bin/sh\n" + posixBody + "\n"
+	if runtime.GOOS == "windows" {
+		path += ".cmd"
+		script = "@echo off\r\n" + windowsBody + "\r\n"
+	}
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -22,7 +28,7 @@ func fakeToolPath(t *testing.T, name, body string) string {
 
 func fakeGitWithPaths(t *testing.T, paths ...string) {
 	t.Helper()
-	dir := fakeToolPath(t, "git", `type "%~dp0paths.bin"`)
+	dir := fakeToolPath(t, "git", `type "%~dp0paths.bin"`, `cat "$(dirname "$0")/paths.bin"`)
 	data := []byte(strings.Join(paths, "\x00") + "\x00")
 	if err := os.WriteFile(filepath.Join(dir, "paths.bin"), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -55,7 +61,7 @@ func TestExportTrackedTree_UsesTrackedPathsAndCopiesState(t *testing.T) {
 
 func TestExportTrackedTree_ReturnsGitError(t *testing.T) {
 	root, destination := t.TempDir(), t.TempDir()
-	fakeToolPath(t, "git", "exit /b 9")
+	fakeToolPath(t, "git", "exit /b 9", "exit 9")
 	if _, err := ExportTrackedTree(root, destination); err == nil || !strings.Contains(err.Error(), "git ls-files") {
 		t.Fatalf("ExportTrackedTree error=%v, want git ls-files error", err)
 	}
@@ -128,7 +134,7 @@ func TestEvaluateAndCheck_ReportGapsAndRunCommands(t *testing.T) {
 	writeFixture(t, root, "go.mod", "module example.com/fixture\n\ngo 1.26.3\n")
 	writeFixture(t, root, "main.go", "package main\nfunc main() {}\n")
 	fakeGitWithPaths(t, "go.mod", "main.go")
-	fakeToolPath(t, "go", "exit /b 0")
+	fakeToolPath(t, "go", "exit /b 0", "exit 0")
 	report, err := Evaluate(root)
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +154,7 @@ func TestEvaluateAndCheck_ReportGapsAndRunCommands(t *testing.T) {
 		t.Fatalf("Check error=%v, want new gap error", err)
 	}
 
-	fakeToolPath(t, "go", `if "%1"=="fail" exit /b 7`)
+	fakeToolPath(t, "go", `if "%1"=="fail" exit /b 7`, `[ "$1" = "fail" ] && exit 7; exit 0`)
 	passed := runCommand(root, Command{Name: "ok", Args: []string{"ok"}})
 	if !passed.Passed || passed.ExitCode != 0 || passed.Name != "ok" || passed.Args[0] != "ok" {
 		t.Fatalf("successful runCommand=%+v", passed)

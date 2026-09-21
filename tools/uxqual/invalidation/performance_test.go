@@ -1,3 +1,10 @@
+//go:build !race
+
+// Wall-clock budgets describe production behavior. Race instrumentation adds
+// synchronization and allocation overhead that makes those measurements
+// intentionally unrepresentative; the ordinary coverage sweep still runs
+// this latency test, benchmark, and fuzz seed.
+
 package invalidation
 
 import (
