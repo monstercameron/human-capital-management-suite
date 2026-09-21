@@ -71,7 +71,7 @@ func TestTodo_MSRC_006_Conformance(t *testing.T) {
 	wantDomains := []string{"payroll", "benefits", "time", "leave", "recruiting", "talent", "learning", "case", "access", "regulatory"}
 	wantTables := [][]string{
 		{"payroll_run", "payroll_ledger_entry"}, {"benefit_election", "benefit_election_revision"},
-		{"timecard", "timecard_revision"}, {"leave_request", "leave_record"},
+		{"timecard", "timecard_revision"}, {"leave_request_preview", "leave_record_preview"},
 		{"requisition", "requisition_revision"}, {"performance_review", "performance_review_revision"},
 		{"learning_enrollment", "learning_completion"}, {"hr_case", "case_transition"},
 		{"access_grant", "access_operation"}, {"government_filing", "filing_submission_attempt"},

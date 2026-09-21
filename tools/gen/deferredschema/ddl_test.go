@@ -51,7 +51,7 @@ func TestUpSQLExtractsOnlyUpBody(t *testing.T) {
 	if strings.Contains(up, "-- +goose Down") {
 		t.Fatal("UpSQL leaked the Down section")
 	}
-	if !strings.Contains(up, "CREATE TABLE IF NOT EXISTS leave_request") {
+	if !strings.Contains(up, "CREATE TABLE IF NOT EXISTS leave_request_preview") {
 		t.Fatal("UpSQL dropped the Up section's own content")
 	}
 }

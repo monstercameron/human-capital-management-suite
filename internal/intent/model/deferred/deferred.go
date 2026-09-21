@@ -18,7 +18,7 @@ import (
 // DB016PreviewDigest is the digest of the complete, generated DB-016 preview
 // set: the ten migration previews and storage-disposition.deferred.yaml.
 // The golden test cross-checks this value against tools/gen/deferredschema.
-const DB016PreviewDigest = "sha256:e1aae06f9c86326f97b8e5daccab110be4075881f8f7f63f0e3dc99a772850f6"
+const DB016PreviewDigest = "sha256:d7ebdf78cecd22a8a6a19aec97cc1cb81208e60b3ca7fa2bfb72fc11e527c1a4"
 
 // ErrWriteAuthority classifies a deferred source that would expose a
 // production mutation capability.
@@ -157,7 +157,7 @@ func Sources() []DomainSource {
 		{Domain: "payroll", Entities: entities("PayrollRun", "payroll_run", "PayrollLedgerEntry", "payroll_ledger_entry"), SourceSystem: SourcePayrollProcessor, Authority: AuthorityExternalMastered, AuthorityRef: "authority.payroll_external/v1", PreviewDigest: DB016PreviewDigest},
 		{Domain: "benefits", Entities: entities("BenefitElection", "benefit_election", "BenefitElectionRevision", "benefit_election_revision"), SourceSystem: SourceBenefitsAdministrator, Authority: AuthorityExternalMastered, AuthorityRef: "authority.benefits_external/v1", PreviewDigest: DB016PreviewDigest},
 		{Domain: "time", Entities: entities("Timecard", "timecard", "TimecardRevision", "timecard_revision"), SourceSystem: SourceTimekeepingSystem, Authority: AuthorityExternalMastered, AuthorityRef: "authority.time_external/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "leave", Entities: entities("LeaveRequest", "leave_request", "LeaveRecord", "leave_record"), SourceSystem: SourceLeavePlatform, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.leave_native_deferred/v1", PreviewDigest: DB016PreviewDigest},
+		{Domain: "leave", Entities: entities("LeaveRequest", "leave_request_preview", "LeaveRecord", "leave_record_preview"), SourceSystem: SourceLeavePlatform, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.leave_native_deferred/v1", PreviewDigest: DB016PreviewDigest},
 		{Domain: "recruiting", Entities: entities("Requisition", "requisition", "RequisitionRevision", "requisition_revision"), SourceSystem: SourceApplicantTracking, Authority: AuthorityExternalMastered, AuthorityRef: "authority.recruiting_external/v1", PreviewDigest: DB016PreviewDigest},
 		{Domain: "talent", Entities: entities("PerformanceReview", "performance_review", "PerformanceReviewRevision", "performance_review_revision"), SourceSystem: SourceTalentPlatform, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.talent_native_deferred/v1", PreviewDigest: DB016PreviewDigest},
 		{Domain: "learning", Entities: entities("LearningEnrollment", "learning_enrollment", "LearningCompletion", "learning_completion"), SourceSystem: SourceLearningManagement, Authority: AuthorityExternalMastered, AuthorityRef: "authority.learning_external/v1", PreviewDigest: DB016PreviewDigest},

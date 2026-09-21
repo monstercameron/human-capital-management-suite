@@ -11,7 +11,7 @@ import (
 // domains.go, ddl.go or disposition.go that alters a single byte of the
 // preview set must update this constant deliberately, in the same change
 // that also regenerates testdata/preview.
-const pinnedPreviewDigest = "sha256:e1aae06f9c86326f97b8e5daccab110be4075881f8f7f63f0e3dc99a772850f6"
+const pinnedPreviewDigest = "sha256:d7ebdf78cecd22a8a6a19aec97cc1cb81208e60b3ca7fa2bfb72fc11e527c1a4"
 
 // TestTodo_DB_016_Golden pins Generate's digest and proves the checked-in
 // testdata/preview files are byte-identical to what Generate produces today,

@@ -240,7 +240,7 @@ func leaveDomain() Domain {
 		Disposition:       "CONFORMANCE",
 		DispositionReason: "DB-023 already funds a dependency-tracked 'materialize the Leave domain state' todo (Depends: DB-004, DB-005, DB-007, LEAVE-002, BAL-001, MODEL-025), so this preview is proven against a named future authority gate rather than pure exploratory vocabulary.",
 		Head: TableSpec{
-			Table:          "leave_request",
+			Table:          "leave_request_preview",
 			IDColumn:       "request_id",
 			KeyColumn:      "request_key",
 			DataRole:       "AGGREGATE",
@@ -256,9 +256,9 @@ func leaveDomain() Domain {
 			Notes: "Preview of LeaveRequest (rewards-payroll-workforce.md ## Leave, absence and accommodation; DB-023): one row per worker leave request and its current disposition.",
 		},
 		Evidence: TableSpec{
-			Table:          "leave_record",
+			Table:          "leave_record_preview",
 			IDColumn:       "record_id",
-			ParentTable:    "leave_request",
+			ParentTable:    "leave_request_preview",
 			ParentIDColumn: "request_id",
 			AppendOnly:     true,
 			DataRole:       "AGGREGATE",
