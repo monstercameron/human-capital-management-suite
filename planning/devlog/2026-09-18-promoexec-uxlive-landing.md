@@ -340,3 +340,17 @@ Seven commit groups are prepared (`data`, `connectivity`, `workflow`, `api`, `do
 - The seeders verify existing rows rather than overwrite them, and `journey_worker` is append-only, so any change to the plan requires recreating the database rather than re-running the seed.
 - `.artifacts/uxcheck/` holds the verification tooling (`rebuild.sh` with a build lock and the stripped-binary flags, `shots.mjs`, `probe.mjs`, `propose.mjs`, `runjourney.mjs`, `loginshot.mjs`, `q.exe`, `mkdb.exe`). It was deleted once mid-session by an over-broad temp sweep and recreated; sweeps should stay inside `.artifacts/tmp`.
 - Two resource traps recurred: orphaned embedded PostgreSQL instances (44 at one point, which is what makes the latency gates fail) and the Go build cache reaching 96 GB. Trimming cache entries untouched for 12 hours freed 57 GB.
+
+## Follow-up, 2026-09-20 (PR #55 root-gate reconciliation)
+
+The provider-integration topic branch was brought back through the current root gates rather than merged on the strength of its earlier partial checks. Six implementation commits now separate static-analysis cleanup, concurrent error-path hardening, planning and architecture reconciliation, controlled data-plane deletion, portable CI verification and deferred-schema isolation.
+
+The failures fixed during the final CI pass were real and independent:
+
+- deferred leave preview tables reused the live `leave_request` and `leave_record` names, so the generator's preview and disposition checks collided with the migrated schema; the preview relations now carry `_preview` names and a newly pinned digest;
+- the external `NEXT-004` process smoke inherited the production execution-authority defaults and supplied a fictional Position-domain identifier to a corpus-only cell; it now opts out of execution and scheduling explicitly, sends the certified position-less corpus vector, deterministically marshals its payload, and passes Create, retry, Get and repeated Simulate;
+- clean-checkout's fake `git` and `go` tools were Windows-only `.cmd` scripts, so Linux CI invoked the real tools from an empty fixture repository; the test helpers now emit native batch or POSIX executables;
+- UX latency assertions were running inside the Go race detector, where instrumentation invalidated their wall-clock budgets; the default coverage sweep still measures those budgets while the race sweep retains the functional, recovery, security and fault tests;
+- the race job started hundreds of PostgreSQL-backed packages at default package fan-out, converting resource contention into ten-minute package timeouts; the job now uses two-package concurrency and a 30-minute per-package ceiling inside its unchanged 120-minute outer bound.
+
+Focused suites for deferred schema/model, clean checkout, invalidation, race policy and the external serve process pass. Both resulting commits also completed the repository's full pre-commit chain: formatting, TypeScript checks, ESLint, root and legacy Go formatting/vet, coverage, race policy, decomposition, drift/API/substrate/engine gates, all Vitest suites, legacy Go tests and workspace builds.

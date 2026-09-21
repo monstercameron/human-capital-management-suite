@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-20 (Promotion execution PR verification and CI reconciliation)
+
+- Reconciled the promotion/provider-integration topic branch with the repository-wide quality gates: static analysis, architecture and planning policy, transactional cleanup boundaries, Linux clean-checkout behavior, the external serve smoke and concurrent-package race execution.
+- The authority-free external-process smoke now opts out of execution/scheduler roles explicitly, uses deterministic request bytes, and proves Create, exact idempotent replay, Get and deterministic zero-effect Simulate against the certified corpus.
+- Deferred leave preview relations now use preview-only names, preventing their generated schema and storage disposition from colliding with the live leave tables while preserving a pinned source digest.
+- Linux CI now uses portable fake executables in clean-checkout tests, runs shared-PostgreSQL race packages with bounded package concurrency, and measures UX wall-clock budgets only outside race instrumentation; functional, fault and security invalidation tests remain in the race set.
+- Controlled data-plane deletion is tenant-fenced behind explicit security-definer functions, replacing broad application-role table deletes for role assignments, conflict fences, job trace pruning and workflow-draft cleanup.
+
 ## 2026-09-19 (Workflow designer promotion parity)
 
 - Completed `WF-UI-005`: the role-gated Go/WASM workflow editor now receives a tenant-filtered registry palette of blocks, fragments and templates, with searchable domain groups, effect/reversal badges, durable collapsible-fragment insertion and optimistic edit fencing.
