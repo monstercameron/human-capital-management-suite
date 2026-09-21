@@ -23,14 +23,14 @@ func TestTodo_CICD_001(t *testing.T) {
 // TestTodo_CICD_001_Golden pins the exact command matrix and stable finding
 // codes used in CI annotations.
 func TestTodo_CICD_001_Golden(t *testing.T) {
-	want := []string{"cmd/hcmnext", "cmd/worker", "cmd/projector", "cmd/scheduler", "cmd/admin", "cmd/migrate"}
+	want := []string{"cmd/hcmnext", "cmd/worker", "cmd/projector", "cmd/migrate", "cmd/hcmctl", "cmd/scheduler", "cmd/frontenddev"}
 	if !reflect.DeepEqual(cicd.RequiredCommands, want) {
 		t.Fatalf("required command matrix = %v, want %v", cicd.RequiredCommands, want)
 	}
 	p := cicd.CleanPipeline()
 	p.Commands = []string{"cmd/hcmnext", "cmd/hcmnext", "cmd/unknown"}
 	got := cicd.Check(p)
-	wantCodes := []string{"duplicate-command", "missing-command", "missing-command", "missing-command", "missing-command", "missing-command", "unknown-command"}
+	wantCodes := []string{"duplicate-command", "missing-command", "missing-command", "missing-command", "missing-command", "missing-command", "missing-command", "unknown-command"}
 	if len(got) != len(wantCodes) {
 		t.Fatalf("findings = %v, want codes %v", got, wantCodes)
 	}

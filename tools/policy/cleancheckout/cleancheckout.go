@@ -127,7 +127,7 @@ type Report struct {
 	NewGaps        []Finding     `json:"new_gaps,omitempty"`
 }
 
-// RequiredCommandPackages returns the six composition roots required by
+// RequiredCommandPackages returns the seven approved composition roots required by
 // CICD-001, copied from the existing quality contract.
 func RequiredCommandPackages() []string {
 	return append([]string(nil), cicd.RequiredCommands...)
