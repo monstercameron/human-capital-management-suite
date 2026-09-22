@@ -16,8 +16,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/workreview"
 	evidence "github.com/monstercameron/human-capital-management-suite/internal/evidence"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	delivery "github.com/monstercameron/human-capital-management-suite/internal/operations/messagingdelivery"
 )
 
@@ -50,7 +50,7 @@ type TraceInput struct {
 	LoopID            string
 	LoopTask          string
 	LoopPolicy        string
-	Finding           workitem.Finding
+	Finding           workreview.Finding
 	Resume            EvidenceRef
 	Determination     DeterminationInput
 	Notice            delivery.NoticeRequirement

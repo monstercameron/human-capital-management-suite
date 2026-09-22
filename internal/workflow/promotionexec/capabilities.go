@@ -2,7 +2,6 @@ package promotionexec
 
 import (
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
-	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
 
 // Capability identities the executable graph invokes, exported for the
@@ -24,7 +23,7 @@ const (
 // observations. They are the same records [Compile] resolves, completed with
 // the plan's risk class so a capability registry accepts them.
 func GovernedReadDefinitions() []capability.Definition {
-	resolver := capabilities(workflow.ModeExecute)
+	resolver := capabilities()
 	out := make([]capability.Definition, 0, 4)
 	for _, id := range []string{capRevalidate, capObservePayroll, capObserveAccess, capObserveRecon} {
 		record, _ := resolver.Lookup(capability.Key{ID: id, Version: 1})

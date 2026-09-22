@@ -73,6 +73,31 @@ func inputDigest(in PromotionApprovalInput) (string, error) {
 	return "sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
+// NewApprovedPlan freezes the approval-time record for one decision the
+// caller just evaluated: it re-resolves the tier and matched row against
+// table so the stored record always cites the exact version it was decided
+// against, and mints the input digest ReevaluatePromotionApproval later
+// reproduces to prove the stored inputs were not tampered with. An empty
+// approval digest is not an approval at all and is refused outright.
+func NewApprovedPlan(table Table, in PromotionApprovalInput, approvalDigest string) (ApprovedPlan, error) {
+	if strings.TrimSpace(approvalDigest) == "" {
+		return ApprovedPlan{}, ErrPlanNotApproved
+	}
+	decision, err := EvaluatePromotionApproval(table, in)
+	if err != nil {
+		return ApprovedPlan{}, err
+	}
+	digest, err := inputDigest(in)
+	if err != nil {
+		return ApprovedPlan{}, err
+	}
+	return ApprovedPlan{
+		Input: in, InputDigest: digest, Tier: decision.Tier, MatchedRowID: decision.MatchedRowID,
+		TableID: decision.TableID, TableVersion: decision.TableVersion, TableDigest: decision.TableDigest,
+		ApprovalDigest: approvalDigest,
+	}, nil
+}
+
 // ReevaluatePromotionApproval re-runs the approval rules for one approved
 // plan against the current table and inputs.
 func ReevaluatePromotionApproval(table Table, approved ApprovedPlan, current PromotionApprovalInput) (Reevaluation, error) {

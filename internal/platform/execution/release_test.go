@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/hireexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/releasefixture"
@@ -198,11 +199,13 @@ func TestTodo_WF_COMP_006_BootstrapDev(t *testing.T) {
 	// The prototype and promotion execute 1.1.0 end ACTIVE; the frozen
 	// promotion execute 1.0.0 was activated first and then superseded, so it
 	// stands QUARANTINED by supersession, still serving its pinned instances.
-	if len(out) != 3 {
-		t.Fatalf("bootstrap returned %d versions, want prototype, execute 1.0.0 and 1.1.0", len(out))
+	// Local development also releases the reference new-hire workflow
+	// (WF-HIRE-001), which ends ACTIVE beside them.
+	if len(out) != 4 {
+		t.Fatalf("bootstrap returned %d versions, want prototype, execute 1.0.0 and 1.1.0, and new hire", len(out))
 	}
-	wantStatus := []version.ActivationStatus{version.StatusActive, version.StatusQuarantined, version.StatusActive}
-	wantSemver := []string{"1.0.0", promotionexec.SemanticVersionV1_0, promotionexec.SemanticVersion}
+	wantStatus := []version.ActivationStatus{version.StatusActive, version.StatusQuarantined, version.StatusActive, version.StatusActive}
+	wantSemver := []string{"1.0.0", promotionexec.SemanticVersionV1_0, promotionexec.SemanticVersion, hireexec.SemanticVersion}
 	for i, v := range out {
 		if v.Status != wantStatus[i] || v.SemanticVersion != wantSemver[i] || v.Approvals[0].ApprovedBy != DevReleaseApprover {
 			t.Fatalf("%s %s bootstrapped to %s by %+v, want %s", v.WorkflowID, v.SemanticVersion, v.Status, v.Approvals, wantStatus[i])
@@ -221,10 +224,14 @@ func TestTodo_WF_COMP_006_BootstrapDev(t *testing.T) {
 		}
 		return n
 	}
-	// Three approvals with reports; four transitions: prototype ACTIVE,
-	// execute 1.0.0 ACTIVE, 1.0.0 QUARANTINED by supersession, 1.1.0 ACTIVE.
-	if n := counts(); n != 7 {
-		t.Fatalf("bootstrap wrote %d approvals with reports plus transitions, want 3 + 4", n)
+	// Four approvals with reports; five transitions: prototype ACTIVE,
+	// execute 1.0.0 ACTIVE, 1.0.0 QUARANTINED by supersession, 1.1.0 ACTIVE,
+	// new hire ACTIVE.
+	if n := counts(); n != 9 {
+		t.Fatalf("bootstrap wrote %d approvals with reports plus transitions, want 4 + 5", n)
+	}
+	if active, found, err := store.GetActiveForWorkflow(hireexec.WorkflowID); err != nil || !found || active.SemanticVersion != hireexec.SemanticVersion {
+		t.Fatalf("active new hire = %s (found %t, %v), want %s", active.SemanticVersion, found, err, hireexec.SemanticVersion)
 	}
 	quarantined := out[0]
 	if _, err := store.Quarantine(ctx, workflowversionstore.QuarantineDeclaration{

@@ -9,8 +9,9 @@ import (
 
 // TestSharedGraphIsTheExecuteGraph proves the variant seam hands out the
 // exact current execute graph: the shared nodes and edges equal the
-// published definition's, and the shared mode projection keeps the EXECUTE
-// digest while the SIMULATE projection stays zero-effect.
+// published definition's, and compiling the shared graph reproduces the
+// published EXECUTE and SIMULATE digests, so a variant starts from the plan
+// it claims to extend.
 func TestSharedGraphIsTheExecuteGraph(t *testing.T) {
 	def := Definition()
 	nodes, edges := SharedGraph()
@@ -29,30 +30,31 @@ func TestSharedGraphIsTheExecuteGraph(t *testing.T) {
 			t.Fatal("SharedGraph aliases node backing arrays across calls")
 		}
 	}
-	projected := ProjectMode(Definition(), workflow.ModeExecute)
+	shared := Definition()
+	shared.Nodes, shared.Edges = SharedGraph()
 	compiled, err := Compile()
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
-	recompiled, err := Compile(projected)
+	recompiled, err := Compile(shared)
 	if err != nil {
-		t.Fatalf("Compile(ProjectMode EXECUTE): %v", err)
+		t.Fatalf("Compile(SharedGraph): %v", err)
 	}
 	if recompiled.Digest() != compiled.Digest() {
-		t.Fatalf("projected digest = %q, want the execute %q", recompiled.Digest(), compiled.Digest())
+		t.Fatalf("shared-graph digest = %q, want the execute %q", recompiled.Digest(), compiled.Digest())
 	}
 	wantSim, err := CompileSimulation()
 	if err != nil {
 		t.Fatalf("CompileSimulation: %v", err)
 	}
-	simulated, err := CompileSimulation(ProjectMode(Definition(), workflow.ModeSimulate))
+	simulated, err := CompileSimulation(shared)
 	if err != nil {
-		t.Fatalf("CompileSimulation(ProjectMode SIMULATE): %v", err)
+		t.Fatalf("CompileSimulation(SharedGraph): %v", err)
 	}
 	if simulated.Digest() != wantSim.Digest() {
-		t.Fatalf("projected simulation digest = %q, want %q", simulated.Digest(), wantSim.Digest())
+		t.Fatalf("shared-graph simulation digest = %q, want %q", simulated.Digest(), wantSim.Digest())
 	}
 	if !simulated.Effects.ZeroEffect {
-		t.Fatalf("projected simulation effects = %+v, want zero effects", simulated.Effects)
+		t.Fatalf("shared-graph simulation effects = %+v, want zero effects", simulated.Effects)
 	}
 }

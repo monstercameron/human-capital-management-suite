@@ -436,9 +436,16 @@ func TestPromotionStepPortsComposition(t *testing.T) {
 
 	runner := promotionStepRunner{plan: PLAN_EXECUTE}
 	prototypeRunner := promotionStepRunner{plan: PLAN_PROTOTYPE}
-	execNode := workflow.CompiledNode{ID: promotionexec.NodeExecutePromotion}
-	if !runner.RunsInTransaction(execNode) || runner.RunsInTransaction(workflow.CompiledNode{ID: promotionexec.NodeSnapshotWorker}) || prototypeRunner.RunsInTransaction(execNode) {
-		t.Fatal("only the executable plan's execute_promotion runs in the advance transaction")
+	// WF-EXT-002: the transactional claim derives from the compiled
+	// EffectRole, so the fixtures carry the roles the compiler assigns
+	// (execute_promotion is AUTHORITATIVE_CORE, compensate_budget_hold is
+	// DOWNSTREAM_EFFECT); a bare node id claims nothing.
+	execNode := workflow.CompiledNode{ID: promotionexec.NodeExecutePromotion, EffectRole: workflow.RoleAuthoritativeCore}
+	compensateNode := workflow.CompiledNode{ID: promotionexec.NodeCompensateHold, EffectRole: workflow.RoleDownstreamEffect}
+	if !runner.RunsInTransaction(execNode) || !runner.RunsInTransaction(compensateNode) ||
+		runner.RunsInTransaction(workflow.CompiledNode{ID: promotionexec.NodeSnapshotWorker}) ||
+		prototypeRunner.RunsInTransaction(execNode) || prototypeRunner.RunsInTransaction(compensateNode) {
+		t.Fatal("the executable plan's execute_promotion and compensate_budget_hold run in the advance transaction, nothing else does")
 	}
 	if _, _, err := (promotionStepRunner{plan: PLAN_EXECUTE, ports: &promotionStepPorts{}}).RunInTx(context.Background(), &scriptTx{}, execute.StepRequest{}); err == nil {
 		t.Fatal("RunInTx accepted a request naming no node")

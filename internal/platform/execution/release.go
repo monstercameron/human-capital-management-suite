@@ -91,6 +91,7 @@ func ShippedFixtures() releasefixture.Suite {
 		FixtureExecuteCompileV1_1:  executeV1_1.compileFixture,
 		FixtureExecuteGraphV1_1:    executeV1_1.graphFixture,
 		FixtureExecuteApprovals:    executeApprovalsFixture,
+		FixtureHireCompile:         hireCompileFixture,
 	}
 }
 
@@ -238,6 +239,13 @@ func BootstrapDevVersions(ctx context.Context, registry VersionRegistry, at time
 	if err != nil {
 		return nil, err
 	}
+	// Local development also releases the reference workflows, which run
+	// through the driver but are not served (WF-HIRE-001).
+	reference, err := PublishReferenceVersions(registry, at)
+	if err != nil {
+		return nil, err
+	}
+	published = append(published, reference...)
 	suite := ShippedFixtures()
 	out := make([]version.CompiledVersion, 0, len(published))
 	for _, v := range published {

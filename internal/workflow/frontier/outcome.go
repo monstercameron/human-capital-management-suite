@@ -81,6 +81,22 @@ type NodeOutcome struct {
 	// Terminal is the END handler's reported terminal. It is ignored for every
 	// other step type.
 	Terminal TerminalResult `json:"terminal,omitzero"`
+
+	// Outputs is the node's typed output (WF-EXT-004), or nil when the step
+	// runner reports none -- every step runner before WF-EXT-004. It is a
+	// pointer, not a bare slice, so NodeOutcome stays comparable with ==:
+	// existing callers compare outcomes directly (internal/workflow/execute's
+	// signals and retry tests among them), and two nil pointers compare equal
+	// exactly the way two absent-Outputs outcomes always have.
+	//
+	// It is tagged json:"-" and must stay that way: a typed value may carry
+	// personal data, and this type's own OutputDigest field is what a
+	// receipt, a continuation record or a log is allowed to carry.
+	// internal/workflow/execute records Outputs as a durable
+	// runtime.NodeOutputArtifact inside the advancement transaction and never
+	// lets it reach this package's own digesting or persistence -- this
+	// package still reads and writes only OutputDigest, exactly as before.
+	Outputs *workflow.OutputDocument `json:"-"`
 }
 
 // awaitAdmitted reports whether a step type may raise this awaiting-work

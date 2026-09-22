@@ -21,6 +21,7 @@ package time
 import (
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders"
 )
 
 // Workflow identity.
@@ -122,16 +123,6 @@ func str(brand string) workflow.ValueType {
 func plainStr() workflow.ValueType { return workflow.ValueType{Kind: workflow.KindString} }
 func boolean() workflow.ValueType  { return workflow.ValueType{Kind: workflow.KindBool} }
 
-func fromInput(path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceWorkflowInput, Path: path}
-}
-func fromNode(nodeID, path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: nodeID, Path: path}
-}
-func constant(value string, t workflow.ValueType) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceConstant, Constant: value, Type: t}
-}
-
 func bootstrapCapabilitySchema(id, slot string) workflow.SchemaRef {
 	return workflow.SchemaRef{
 		SchemaID:         id + "." + slot + "/v1",
@@ -168,32 +159,6 @@ func terminalGovernance(obligations, approvals []string) workflow.NodeGovernance
 		ApprovalRequirements:  approvals,
 		RevalidationBoundary:  workflow.RevalidatePreClosure,
 		DataAccessManifestRef: dataAccessManifest,
-	}
-}
-
-func terminalInputs(extra ...workflow.Field) []workflow.Field {
-	base := []workflow.Field{
-		{Path: "punch_id", Type: str("TimePunchID")},
-		{Path: "terminal_code", Type: plainStr()},
-	}
-	return append(base, extra...)
-}
-
-func terminalMappings(code string, extra ...workflow.Mapping) []workflow.Mapping {
-	base := []workflow.Mapping{
-		{Target: "punch_id", Source: fromInput("punch_id")},
-		{Target: "terminal_code", Source: constant(code, plainStr())},
-	}
-	return append(base, extra...)
-}
-
-func completion(request, execution, business, consistency, obligation string) map[string]string {
-	return map[string]string{
-		"RequestState":     request,
-		"ExecutionState":   execution,
-		"BusinessState":    business,
-		"ConsistencyState": consistency,
-		"ObligationState":  obligation,
 	}
 }
 
@@ -310,10 +275,10 @@ func nodes() []workflow.Node {
 				{Path: "tzdb_version", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "punch_id", Source: fromInput("punch_id")},
-				{Target: "device_id", Source: fromInput("device_id")},
-				{Target: "reported_clock_skew_seconds", Source: fromInput("reported_clock_skew_seconds")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "punch_id", Source: builders.FromInput("punch_id")},
+				{Target: "device_id", Source: builders.FromInput("device_id")},
+				{Target: "reported_clock_skew_seconds", Source: builders.FromInput("reported_clock_skew_seconds")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadDeviceAndClockContext, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -335,9 +300,9 @@ func nodes() []workflow.Node {
 				{Path: "proposal_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "punch_id", Source: fromInput("punch_id")},
-				{Target: "timezone_id", Source: fromNode(NodeReadDeviceAndClockContext, "timezone_id")},
-				{Target: "tzdb_version", Source: fromNode(NodeReadDeviceAndClockContext, "tzdb_version")},
+				{Target: "punch_id", Source: builders.FromInput("punch_id")},
+				{Target: "timezone_id", Source: builders.FromNode(NodeReadDeviceAndClockContext, "timezone_id")},
+				{Target: "tzdb_version", Source: builders.FromNode(NodeReadDeviceAndClockContext, "tzdb_version")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformBuildPunchProposal, Version: 1,
@@ -370,13 +335,13 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "route_key", Type: plainStr()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "duplicate_punch_detected", Source: fromNode(NodeReadDeviceAndClockContext, "duplicate_punch_detected")},
-				{Target: "post_lock_edit_attempted", Source: fromNode(NodeReadDeviceAndClockContext, "post_lock_edit_attempted")},
-				{Target: "timecard_reopened_stale", Source: fromNode(NodeReadDeviceAndClockContext, "timecard_reopened_stale")},
-				{Target: "shared_device_spoof_suspected", Source: fromNode(NodeReadDeviceAndClockContext, "shared_device_spoof_suspected")},
-				{Target: "offline_replay_detected", Source: fromNode(NodeReadDeviceAndClockContext, "offline_replay_detected")},
-				{Target: "dst_fold_ambiguous", Source: fromNode(NodeReadDeviceAndClockContext, "dst_fold_ambiguous")},
-				{Target: "clock_skew_within_tolerance", Source: fromNode(NodeReadDeviceAndClockContext, "clock_skew_within_tolerance")},
+				{Target: "duplicate_punch_detected", Source: builders.FromNode(NodeReadDeviceAndClockContext, "duplicate_punch_detected")},
+				{Target: "post_lock_edit_attempted", Source: builders.FromNode(NodeReadDeviceAndClockContext, "post_lock_edit_attempted")},
+				{Target: "timecard_reopened_stale", Source: builders.FromNode(NodeReadDeviceAndClockContext, "timecard_reopened_stale")},
+				{Target: "shared_device_spoof_suspected", Source: builders.FromNode(NodeReadDeviceAndClockContext, "shared_device_spoof_suspected")},
+				{Target: "offline_replay_detected", Source: builders.FromNode(NodeReadDeviceAndClockContext, "offline_replay_detected")},
+				{Target: "dst_fold_ambiguous", Source: builders.FromNode(NodeReadDeviceAndClockContext, "dst_fold_ambiguous")},
+				{Target: "clock_skew_within_tolerance", Source: builders.FromNode(NodeReadDeviceAndClockContext, "clock_skew_within_tolerance")},
 			},
 			Decision: &workflow.DecisionSpec{
 				EvaluatorRef: "engines.rules.time_classify_punch_integrity", EvaluatorVersion: 1,
@@ -411,8 +376,8 @@ func nodes() []workflow.Node {
 				{Path: "bridge_state", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "punch_id", Source: fromInput("punch_id")},
-				{Target: "proposal_digest", Source: fromNode(NodeBuildPunchProposal, "proposal_digest")},
+				{Target: "punch_id", Source: builders.FromInput("punch_id")},
+				{Target: "proposal_digest", Source: builders.FromNode(NodeBuildPunchProposal, "proposal_digest")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapObservePayrollBridge, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -430,11 +395,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndAcceptedBridgeConfirmed,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_ACCEPTED_BRIDGE_CONFIRMED"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_ACCEPTED_BRIDGE_CONFIRMED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_ACCEPTED_BRIDGE_CONFIRMED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping: builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{
 					ObligationAttestation, ObligationCutoff, ObligationBridgeIntegrity, ObligationRecordsRetention,
 				},
@@ -447,11 +412,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndBridgeDegradedRepair,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_BRIDGE_INGESTION_DEGRADED"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_BRIDGE_INGESTION_DEGRADED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_BRIDGE_INGESTION_DEGRADED", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationBridgeIntegrity, ObligationRecordsRetention},
 				RepairRefs:                []string{repairRef},
 			},
@@ -460,11 +425,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndReviewClockSkew,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_REVIEW_CLOCK_SKEW"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_REVIEW_CLOCK_SKEW"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_REVIEW_CLOCK_SKEW", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("SIMULATED", "NOT_PLANNED", "NOT_ACHIEVED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_ACHIEVED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationCorrection, ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationCorrection, ObligationRecordsRetention}, nil),
@@ -472,11 +437,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndReviewDSTFold,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_REVIEW_DST_FOLD"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_REVIEW_DST_FOLD"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_REVIEW_DST_FOLD", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("SIMULATED", "NOT_PLANNED", "NOT_ACHIEVED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_ACHIEVED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationCorrection, ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationCorrection, ObligationRecordsRetention}, nil),
@@ -484,11 +449,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndReviewOfflineReplay,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_REVIEW_OFFLINE_REPLAY"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_REVIEW_OFFLINE_REPLAY"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_REVIEW_OFFLINE_REPLAY", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("SIMULATED", "NOT_PLANNED", "NOT_ACHIEVED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_ACHIEVED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationCorrection, ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationCorrection, ObligationRecordsRetention}, nil),
@@ -496,11 +461,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndReviewSpoofSuspected,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_REVIEW_SPOOF_SUSPECTED"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_REVIEW_SPOOF_SUSPECTED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_REVIEW_SPOOF_SUSPECTED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("SIMULATED", "NOT_PLANNED", "NOT_ACHIEVED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_ACHIEVED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationCorrection, ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationCorrection, ObligationRecordsRetention}, nil),
@@ -508,44 +473,44 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndRejectedPostLockEdit,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_REJECTED_POST_LOCK_EDIT"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_REJECTED_POST_LOCK_EDIT"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_REJECTED_POST_LOCK_EDIT", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndRejectedStaleReopen,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_REJECTED_STALE_REOPEN"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_REJECTED_STALE_REOPEN"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_REJECTED_STALE_REOPEN", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndDuplicatePunch,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_DUPLICATE"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_DUPLICATE"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_DUPLICATE", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndUnknown,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TIME_PUNCH_SIMULATION_UNKNOWN"),
+			Inputs:        builders.TerminalInputs("punch_id", "TimePunchID"),
+			InputMappings: builders.TerminalMappings("punch_id", "TIME_PUNCH_SIMULATION_UNKNOWN"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TIME_PUNCH_SIMULATION_UNKNOWN", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),

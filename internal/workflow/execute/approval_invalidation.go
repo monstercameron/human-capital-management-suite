@@ -118,7 +118,7 @@ func (d *Driver) InvalidateApproval(ctx context.Context, req ApprovalInvalidatio
 		InstanceVersion: advanced.NewInstanceVersion, Frontier: append([]string(nil), advanced.Frontier...),
 		EvidenceIDs: evidenceIDs,
 	}
-	result, err := d.finishApprovalDrain(ctx, run, base, advanced)
+	result, err := d.continueAfterAdvance(ctx, run, base, advanced)
 	if err != nil {
 		return ApprovalInvalidationResult{}, err
 	}

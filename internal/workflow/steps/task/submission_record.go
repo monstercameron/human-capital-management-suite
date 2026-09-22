@@ -5,7 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
 
 // submissionWire is WORK-010's JSON encoding of one [Submission], minted for
@@ -81,6 +86,68 @@ func submissionBody(s Submission) (json.RawMessage, error) {
 		return nil, fmt.Errorf("%w: encode task submission body: %v", ErrInvalidSubmission, err)
 	}
 	return raw, nil
+}
+
+// EncodeSubmission encodes s as the JSON body [RecordDecision] stores for a
+// TASK decision row. It is the inverse of [DecodeSubmission]: a body it
+// produced always decodes back to a submission with the same digest.
+func EncodeSubmission(s Submission) (json.RawMessage, error) {
+	return submissionBody(s)
+}
+
+// DecodeSubmission decodes a work_item_decision body recorded by [Submit]
+// back into its immutable [Submission] and verifies the content still
+// matches its minted digest. A row whose bytes were altered after recording,
+// or whose evidence refs no longer satisfy [validateSubmission] (a missing
+// accessibility or accommodation acknowledgement, a malformed payload
+// digest), is refused with [ErrInvalidSubmission].
+func DecodeSubmission(body json.RawMessage) (Submission, error) {
+	var w submissionWire
+	if err := json.Unmarshal(body, &w); err != nil {
+		return Submission{}, fmt.Errorf("%w: decode task submission body: %v", ErrInvalidSubmission, err)
+	}
+	instanceID, err := uuid.Parse(w.WorkflowInstanceID)
+	if err != nil {
+		return Submission{}, fmt.Errorf("%w: workflow instance identity %q: %v", ErrInvalidSubmission, w.WorkflowInstanceID, err)
+	}
+	workItemID, err := uuid.Parse(w.WorkItemID)
+	if err != nil {
+		return Submission{}, fmt.Errorf("%w: work item identity %q: %v", ErrInvalidSubmission, w.WorkItemID, err)
+	}
+	claimID, err := uuid.Parse(w.ClaimID)
+	if err != nil {
+		return Submission{}, fmt.Errorf("%w: claim identity %q: %v", ErrInvalidSubmission, w.ClaimID, err)
+	}
+	var claimExpiresAt, submittedAt values.Instant
+	if err := claimExpiresAt.UnmarshalText([]byte(w.ClaimExpiresAt)); err != nil {
+		return Submission{}, fmt.Errorf("%w: claim expiry %q: %v", ErrInvalidSubmission, w.ClaimExpiresAt, err)
+	}
+	if err := submittedAt.UnmarshalText([]byte(w.SubmittedAt)); err != nil {
+		return Submission{}, fmt.Errorf("%w: submission time %q: %v", ErrInvalidSubmission, w.SubmittedAt, err)
+	}
+	s := Submission{
+		WorkflowInstanceID: instanceID, NodeID: w.NodeID, WorkItemID: workItemID, ItemVersion: w.ItemVersion,
+		CompletedBy: w.CompletedBy, CandidateVia: humanwork.CandidateSource(w.CandidateVia), DelegationID: w.DelegationID,
+		ClaimID: claimID, ClaimExpiresAt: claimExpiresAt, SubmittedAt: submittedAt,
+		OutputSchema: workflow.SchemaRef{
+			SchemaID: w.OutputSchema.SchemaID, Version: w.OutputSchema.Version,
+			ProtobufFullName: w.OutputSchema.ProtobufFullName,
+		},
+		CanonicalPayloadDigest:   w.CanonicalPayloadDigest,
+		FormDefinition:           w.FormDefinition,
+		RenderContextDigest:      w.RenderContextDigest,
+		ValidationEvidenceRef:    w.ValidationEvidenceRef,
+		AccessibilityEvidenceRef: w.AccessibilityEvidenceRef,
+		AccommodationEvidenceRef: w.AccommodationEvidenceRef,
+	}
+	s.digest = computeSubmissionDigest(s)
+	if s.digest == "" {
+		return Submission{}, ErrInvalidSubmission
+	}
+	if err := s.Verify(); err != nil {
+		return Submission{}, err
+	}
+	return s, nil
 }
 
 // recordSubmission appends sub's full content as the work item's

@@ -103,6 +103,11 @@ type promotionStepPorts struct {
 
 	mu       sync.RWMutex
 	services PromotionStepServices
+	// servedComp is the WF-REV-002 served compensation. When set (every
+	// NewPromotionExecution composition sets it), the COMPENSATE node runs
+	// through the shared compensate executor; when nil the legacy direct
+	// release runs, which keeps port-level tests hermetic.
+	servedComp *ServedCompensation
 }
 
 // BindStepServices binds the application's governed step services to the
@@ -541,6 +546,12 @@ func (p *promotionStepPorts) ReleaseHold(ctx context.Context, req execute.StepRe
 	if !ok {
 		return promotionsteps.HoldReleaseResult{}, fmt.Errorf("platform execution: compensate_budget_hold runs only inside the advance transaction")
 	}
+	// WF-REV-002: the served composition runs its COMPENSATE nodes through
+	// the shared compensate executor. The transaction gate above still
+	// applies: the executor's capability refuses without it.
+	if p.servedComp != nil {
+		return p.servedComp.ReleaseHoldViaExecutor(ctx, req)
+	}
 	proposalDigest := req.Proposal.Revision.MaterialDigest.Digest
 	if strings.TrimSpace(proposalDigest) == "" {
 		return promotionsteps.HoldReleaseResult{}, fmt.Errorf("platform execution: compensate_budget_hold needs the proposal material digest")
@@ -849,13 +860,17 @@ func reconcile(payroll, access, occupied observation) observation {
 }
 
 // promotionStepRunner runs the composed promotion graph. The prototype plan
-// parks on APPROVAL and completes on END; the executable plan runs
-// promotionsteps for every node, with execute_promotion inside the advance
-// transaction.
+// parks on APPROVAL and completes on END; the executable plan dispatches
+// capability nodes through the registration's capability-keyed step table
+// and every other node through promotionsteps, with the authoritative core
+// and its downstream compensation inside the advance transaction.
 type promotionStepRunner struct {
 	plan           PromotionPlan
 	effectiveDates *sync.Map
 	ports          *promotionStepPorts
+	// capabilities is the WF-EXT-002 capability-keyed step table: capability
+	// id to handler. Nil (not empty) keeps the legacy node-id runner path.
+	capabilities map[string]StepHandler
 }
 
 var _ execute.TransactionalStepRunner = promotionStepRunner{}
@@ -872,13 +887,30 @@ func (r promotionStepRunner) Run(ctx context.Context, req execute.StepRequest) (
 			r.effectiveDates.Store(req.InstanceID.String(), date)
 		}
 	}
+	if handler, ok := dispatchCapability(r.capabilities, req.Node); ok {
+		return handler.Run(ctx, r.ports.runner(), req)
+	}
 	return r.ports.runner().Run(ctx, req)
 }
 
-// RunsInTransaction implements execute.TransactionalStepRunner: only the
-// executable plan's governed core commit runs inside the advance transaction.
+// RunsInTransaction implements execute.TransactionalStepRunner: the claim
+// derives from the compiled node's effect role (WF-EXT-002), never a
+// node-id list. The authoritative core commit and a downstream-effect
+// compensation both run inside the advance transaction; the compensation
+// port refuses to run without the step transaction, so unless the driver
+// claims a DOWNSTREAM_EFFECT node here the served path can never release
+// the hold it was built to unwind. Derived updates settle through the
+// effect-role policy instead, and reads never enter the transaction.
 func (r promotionStepRunner) RunsInTransaction(node workflow.CompiledNode) bool {
-	return r.plan == PLAN_EXECUTE && node.ID == promotionexec.NodeExecutePromotion
+	if r.plan != PLAN_EXECUTE {
+		return false
+	}
+	switch node.EffectRole {
+	case workflow.RoleAuthoritativeCore, workflow.RoleDownstreamEffect:
+		return true
+	default:
+		return false
+	}
 }
 
 // RunInTx implements execute.TransactionalStepRunner.

@@ -57,7 +57,7 @@ func (r *ObserveRecorder) Start(ctx context.Context, name string, attrs observe.
 		op.attrs[observe.KeyCorrelation] = id
 	}
 	if r.provider != nil {
-		ctx, op.span = r.provider.StartExecutionSpan(ctx, tracerName, "hcmnext."+name, op.attrs)
+		ctx, op.span = r.provider.StartExecutionSpan(ctx, tracerName, "hcmnext."+name, operationSpanAttributes(op.attrs))
 		op.hasSpan = true
 	}
 	op.ctx = ctx
@@ -77,14 +77,17 @@ type recordedOperation struct {
 	ended bool
 }
 
-// Set implements observe.Operation. Attributes set after Start reach the log
-// line; the span keeps the attributes it was opened with plus its outcome.
+// Set implements observe.Operation. Final attributes reach both the log and
+// the policy-filtered span when End closes the operation.
 func (o *recordedOperation) Set(key, value string) {
 	if value == "" {
 		return
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if o.ended {
+		return
+	}
 	o.attrs[key] = value
 }
 
@@ -104,6 +107,11 @@ func (o *recordedOperation) End(outcome string, err error) {
 
 	failed := outcome == observe.OutcomeFailure
 	if o.hasSpan {
+		spanAttrs := operationSpanAttributes(attrs)
+		if code := observe.ErrorCode(err); code != "" {
+			spanAttrs["error_type"] = code
+		}
+		o.span.SetAttributes(spanAttrs)
 		o.span.End(outcome, failed)
 	}
 	level := slog.LevelDebug
@@ -135,4 +143,22 @@ func (o *recordedOperation) End(outcome string, err error) {
 		fields = append(fields, slog.String("trace_id", id))
 	}
 	o.rec.logger.LogAttrs(o.ctx, level, o.name, fields...)
+}
+
+// Use the existing trace vocabulary; raw engine field names are retained in
+// logs. The provider still decides which attributes may leave the process.
+func operationSpanAttributes(attrs map[string]string) map[string]string {
+	out := make(map[string]string, len(attrs))
+	for key, value := range attrs {
+		switch key {
+		case observe.KeyInstance:
+			key = "logical_operation_id"
+		case observe.KeyAttempt:
+			key = "attempt_id"
+		case observe.KeyCode:
+			key = "terminal_code"
+		}
+		out[key] = value
+	}
+	return out
 }

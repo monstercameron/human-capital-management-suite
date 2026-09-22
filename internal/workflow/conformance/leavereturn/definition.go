@@ -19,6 +19,7 @@ package leavereturn
 import (
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders"
 )
 
 // Workflow identity.
@@ -112,16 +113,6 @@ func plainStr() workflow.ValueType  { return workflow.ValueType{Kind: workflow.K
 func boolean() workflow.ValueType   { return workflow.ValueType{Kind: workflow.KindBool} }
 func localDate() workflow.ValueType { return workflow.ValueType{Kind: workflow.KindLocalDate} }
 
-func fromInput(path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceWorkflowInput, Path: path}
-}
-func fromNode(nodeID, path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: nodeID, Path: path}
-}
-func constant(value string, t workflow.ValueType) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceConstant, Constant: value, Type: t}
-}
-
 func bootstrapCapabilitySchema(id, slot string) workflow.SchemaRef {
 	return workflow.SchemaRef{
 		SchemaID:         id + "." + slot + "/v1",
@@ -158,32 +149,6 @@ func terminalGovernance(obligations, approvals []string) workflow.NodeGovernance
 		ApprovalRequirements:  approvals,
 		RevalidationBoundary:  workflow.RevalidatePreClosure,
 		DataAccessManifestRef: dataAccessManifest,
-	}
-}
-
-func terminalInputs(extra ...workflow.Field) []workflow.Field {
-	base := []workflow.Field{
-		{Path: "worker_id", Type: str("WorkerID")},
-		{Path: "terminal_code", Type: plainStr()},
-	}
-	return append(base, extra...)
-}
-
-func terminalMappings(code string, extra ...workflow.Mapping) []workflow.Mapping {
-	base := []workflow.Mapping{
-		{Target: "worker_id", Source: fromInput("worker_id")},
-		{Target: "terminal_code", Source: constant(code, plainStr())},
-	}
-	return append(base, extra...)
-}
-
-func completion(request, execution, business, consistency, obligation string) map[string]string {
-	return map[string]string{
-		"RequestState":     request,
-		"ExecutionState":   execution,
-		"BusinessState":    business,
-		"ConsistencyState": consistency,
-		"ObligationState":  obligation,
 	}
 }
 
@@ -287,9 +252,9 @@ func nodes() []workflow.Node {
 				{Path: "current_manager_id", Type: str("WorkerID")},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "employment_id", Source: fromInput("employment_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "employment_id", Source: builders.FromInput("employment_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadEmploymentAuthority, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -313,9 +278,9 @@ func nodes() []workflow.Node {
 				{Path: "jurisdiction", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "employment_id", Source: fromInput("employment_id")},
-				{Target: "leave_type", Source: fromInput("leave_type")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "employment_id", Source: builders.FromInput("employment_id")},
+				{Target: "leave_type", Source: builders.FromInput("leave_type")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			RequiredContext: []workflow.ContextRequirement{{
 				Kind:                  "LegalContext",
@@ -345,9 +310,9 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "route_key", Type: plainStr()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "reviewer_role", Source: fromInput("reviewer_role")},
-				{Target: "medical_sealed", Source: fromInput("medical_sealed")},
-				{Target: "manager_determined_eligibility", Source: fromInput("manager_determined_eligibility")},
+				{Target: "reviewer_role", Source: builders.FromInput("reviewer_role")},
+				{Target: "medical_sealed", Source: builders.FromInput("medical_sealed")},
+				{Target: "manager_determined_eligibility", Source: builders.FromInput("manager_determined_eligibility")},
 			},
 			Decision: &workflow.DecisionSpec{
 				EvaluatorRef: "engines.rules.leave_evidence_review", EvaluatorVersion: 1,
@@ -379,10 +344,10 @@ func nodes() []workflow.Node {
 				{Path: "proposal_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "employment_id", Source: fromInput("employment_id")},
-				{Target: "program_ids", Source: fromNode(NodeResolveLeavePrograms, "program_ids")},
-				{Target: "jurisdiction", Source: fromNode(NodeResolveLeavePrograms, "jurisdiction")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "employment_id", Source: builders.FromInput("employment_id")},
+				{Target: "program_ids", Source: builders.FromNode(NodeResolveLeavePrograms, "program_ids")},
+				{Target: "jurisdiction", Source: builders.FromNode(NodeResolveLeavePrograms, "jurisdiction")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformBuildProposal, Version: 1,
@@ -413,9 +378,9 @@ func nodes() []workflow.Node {
 				{Path: "benefits_state", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "employment_id", Source: fromInput("employment_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "employment_id", Source: builders.FromInput("employment_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapObserveBenefits, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -444,8 +409,8 @@ func nodes() []workflow.Node {
 				{Path: "employment_active", Type: boolean()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "employment_id", Source: fromInput("employment_id")},
-				{Target: "proposal_digest", Source: fromNode(NodeBuildLeaveProposal, "proposal_digest")},
+				{Target: "employment_id", Source: builders.FromInput("employment_id")},
+				{Target: "proposal_digest", Source: builders.FromNode(NodeBuildLeaveProposal, "proposal_digest")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapResolveReadiness, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -465,9 +430,9 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "route_key", Type: plainStr()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "readiness_state", Source: fromNode(NodeResolveReadiness, "readiness_state")},
-				{Target: "employment_active", Source: fromNode(NodeResolveReadiness, "employment_active")},
-				{Target: "return_requested", Source: fromInput("return_requested")},
+				{Target: "readiness_state", Source: builders.FromNode(NodeResolveReadiness, "readiness_state")},
+				{Target: "employment_active", Source: builders.FromNode(NodeResolveReadiness, "employment_active")},
+				{Target: "return_requested", Source: builders.FromInput("return_requested")},
 			},
 			Decision: &workflow.DecisionSpec{
 				EvaluatorRef: "engines.rules.leave_readiness_return", EvaluatorVersion: 1,
@@ -487,11 +452,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndPendingObligations,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("LEAVE_SIMULATION_PENDING_OBLIGATIONS"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "LEAVE_SIMULATION_PENDING_OBLIGATIONS"),
 			End: &workflow.EndSpec{
 				TerminalCode: "LEAVE_SIMULATION_PENDING_OBLIGATIONS", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping: builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{
 					ObligationPayrollEffect, ObligationBenefitsRecovery, ObligationNoticeEvidence, ObligationRecordsRetention,
 				},
@@ -504,11 +469,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndDegradedRepair,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("LEAVE_SIMULATION_DEGRADED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "LEAVE_SIMULATION_DEGRADED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "LEAVE_SIMULATION_DEGRADED", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationBenefitsRecovery, ObligationRecordsRetention},
 				RepairRefs:                []string{repairRef},
 			},
@@ -517,55 +482,55 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndReturnBlockedNotReady,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("LEAVE_RETURN_BLOCKED_NOT_READY"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "LEAVE_RETURN_BLOCKED_NOT_READY"),
 			End: &workflow.EndSpec{
 				TerminalCode: "LEAVE_RETURN_BLOCKED_NOT_READY", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndCompartmentBreach,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("LEAVE_COMPARTMENT_BREACH_BLOCKED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "LEAVE_COMPARTMENT_BREACH_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "LEAVE_COMPARTMENT_BREACH_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndManagerEligibility,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("LEAVE_MANAGER_ELIGIBILITY_BLOCKED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "LEAVE_MANAGER_ELIGIBILITY_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "LEAVE_MANAGER_ELIGIBILITY_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndRejectedInvalid,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("LEAVE_REJECTED_INVALID_REQUEST"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "LEAVE_REJECTED_INVALID_REQUEST"),
 			End: &workflow.EndSpec{
 				TerminalCode: "LEAVE_REJECTED_INVALID_REQUEST", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndUnknown,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("LEAVE_SIMULATION_UNKNOWN"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "LEAVE_SIMULATION_UNKNOWN"),
 			End: &workflow.EndSpec{
 				TerminalCode: "LEAVE_SIMULATION_UNKNOWN", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),

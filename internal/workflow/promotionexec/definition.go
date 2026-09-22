@@ -304,6 +304,9 @@ func promotionNodes(providerWaits bool) []workflow.Node {
 			InputMappings: []workflow.Mapping{{Target: "effective_date", Source: input("effective_date")}},
 			Wait:          &workflow.WaitSpec{WakeKind: workflow.WaitWakeAtLocalDate, WakeLocalDate: "FROM_WORKFLOW_INPUT:effective_date", Disambiguation: "REJECT_GAP", ZoneID: EffectiveDateZoneID, ZoneTzdbVersion: "2026a", CalendarRef: "us-federal", CalendarVersion: "2026.1", ReferenceUpdatePolicy: "REVIEW_REQUIRED"},
 			Governance:    nonCapabilityGovernance(nil, workflow.RevalidatePreExecution),
+			// The timer resolves FIRED; the kernel WAIT vocabulary carries
+			// SUCCEEDED. The compiler canonicalizes the alias (WF-EXT-003).
+			OutcomeAliases: map[string]string{"FIRED": "SUCCEEDED"},
 		},
 		{
 			ID: NodeRevalidate, Type: workflow.StepCapability,
@@ -325,11 +328,16 @@ func promotionNodes(providerWaits bool) []workflow.Node {
 		},
 		{
 			ID: NodeReapproval, Type: workflow.StepTask, DeclaredEffect: capability.EffectPure,
-			InputSchema: schema("ReapprovalTaskInput"), OutputSchema: schema("ReapprovalTaskResult"),
+			InputSchema: schema("ReapprovalTaskInput"), OutputSchema: ReapprovalOutputSchema(),
 			Inputs:        []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "proposal_digest", Type: plainString()}},
 			InputMappings: []workflow.Mapping{{Target: "worker_id", Source: output(NodeSnapshotWorker, "worker_id")}, {Target: "proposal_digest", Source: output(NodeSimulateCompensation, "proposal_digest")}},
 			Metadata:      map[string]string{"assignee": "HRBusinessPartnerFor(worker)", "documented_outcome_reapproved": "REAPPROVED", "documented_outcome_withdrawn": "WITHDRAWN"},
 			Governance:    nonCapabilityGovernance(nil, workflow.RevalidatePreExecution),
+			// The task documents REAPPROVED and WITHDRAWN; the kernel TASK
+			// vocabulary carries SUCCEEDED and CANCELLED. INVALIDATED has no
+			// kernel continuation, so its edge is dropped. The compiler
+			// canonicalizes all three (WF-EXT-003).
+			OutcomeAliases: map[string]string{"REAPPROVED": "SUCCEEDED", "WITHDRAWN": "CANCELLED", "INVALIDATED": ""},
 		},
 		{
 			// WF-RUN-037: the promotion commit is the authoritative core. Its
@@ -344,6 +352,9 @@ func promotionNodes(providerWaits bool) []workflow.Node {
 			Capability:    &workflow.CapabilityRef{ID: capExecute, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:people.write"}, IdempotencyKeyMapping: "proposal_digest", EffectBinding: "promotion.core_commit"},
 			FailureRoute:  NodeEndRepairPlan,
 			Governance:    invocation([]string{ApprovalFinance, ApprovalManager}, workflow.RevalidatePreEffect),
+			// The core commit simulates as a read. The compiler derives the
+			// SIMULATE projection from this overlay (WF-EXT-003).
+			ModeOverlay: &workflow.ModeOverlay{SimulateEffect: capability.EffectReadOnly},
 		},
 		{
 			// The bounded automatic correction: when a downstream
@@ -363,6 +374,9 @@ func promotionNodes(providerWaits bool) []workflow.Node {
 			Capability:    &workflow.CapabilityRef{ID: capReleaseHold, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:rewards.write"}, IdempotencyKeyMapping: "proposal_digest", EffectBinding: "promotion.compensation.hold_release"},
 			FailureRoute:  NodeEndRepairPlan,
 			Governance:    invocation([]string{ApprovalFinance, ApprovalManager}, workflow.RevalidatePreEffect),
+			// The hold release simulates as a read. The compiler derives the
+			// SIMULATE projection from this overlay (WF-EXT-003).
+			ModeOverlay: &workflow.ModeOverlay{SimulateEffect: capability.EffectReadOnly},
 		},
 		{
 			// The acknowledgement gate: reconciliation may verify every
@@ -391,9 +405,9 @@ func promotionNodes(providerWaits bool) []workflow.Node {
 			FailureRoute: NodeEndRepairPlan,
 			Governance:   nonCapabilityGovernance(nil, workflow.RevalidatePreExecution),
 		},
-		observationNode(NodeObservePayroll, capObservePayroll, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "expected_promotion_state", Type: plainString()}}, []workflow.Field{{Path: "payroll_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: output(NodeExecutePromotion, "worker_id")}, {Target: "expected_promotion_state", Source: output(NodeExecutePromotion, "promotion_state")}}, "payroll.authority", "expected_promotion_state"),
-		observationNode(NodeObserveAccess, capObserveAccess, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "expected_access_state", Type: plainString()}}, []workflow.Field{{Path: "access_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: input("worker_id")}, {Target: "expected_access_state", Source: output(NodeObservePayroll, "payroll_state")}}, "access.authority", "expected_access_state"),
-		observationNode(NodeObserveReconciliation, capObserveRecon, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "payroll_state", Type: plainString()}, {Path: "access_state", Type: plainString()}}, []workflow.Field{{Path: "reconciliation_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: input("worker_id")}, {Target: "payroll_state", Source: output(NodeObservePayroll, "payroll_state")}, {Target: "access_state", Source: output(NodeObserveAccess, "access_state")}}, "reconciliation.authority", "payroll_state"),
+		observationNode(NodeObservePayroll, capObservePayroll, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "expected_promotion_state", Type: plainString()}}, []workflow.Field{{Path: "payroll_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: output(NodeExecutePromotion, "worker_id")}, {Target: "expected_promotion_state", Source: output(NodeExecutePromotion, "promotion_state")}}, "payroll.authority", "expected_promotion_state", nil),
+		observationNode(NodeObserveAccess, capObserveAccess, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "expected_access_state", Type: plainString()}}, []workflow.Field{{Path: "access_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: input("worker_id")}, {Target: "expected_access_state", Source: output(NodeObservePayroll, "payroll_state")}}, "access.authority", "expected_access_state", nil),
+		observationNode(NodeObserveReconciliation, capObserveRecon, []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "payroll_state", Type: plainString()}, {Path: "access_state", Type: plainString()}}, []workflow.Field{{Path: "reconciliation_state", Type: plainString()}, {Path: "source_watermark", Type: plainString()}}, []workflow.Mapping{{Target: "worker_id", Source: input("worker_id")}, {Target: "payroll_state", Source: output(NodeObservePayroll, "payroll_state")}, {Target: "access_state", Source: output(NodeObserveAccess, "access_state")}}, "reconciliation.authority", "payroll_state", reconciliationAliases),
 		terminalNode(NodeEndComplete, "PROMOTION_COMPLETE", workflow.RuntimeCompleted, completion("APPROVED", "COMMITTED", "COMPLETED", "CONSISTENT", "SATISFIED"), false),
 		terminalNode(NodeEndRepairPlan, "PROMOTION_REPAIR_REQUIRED", workflow.RuntimeRepairRequired, completion("APPROVED", "REPAIR_REQUIRED", "UNKNOWN", "DEGRADED", "PENDING"), true),
 		terminalNode(NodeEndRejected, "PROMOTION_REJECTED", workflow.RuntimeCompleted, completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"), false),
@@ -451,12 +465,19 @@ func providerWaitNode(id, schemaStem, output, eventType, payloadSchema, source s
 	}
 }
 
-func observationNode(id, capID string, inputs, outputs []workflow.Field, mappings []workflow.Mapping, authority, expected string) workflow.Node {
+// reconciliationAliases are the business outcomes the reconciliation
+// observation judges (CONSISTENT, DEGRADED) mapped onto the kernel OBSERVE
+// vocabulary (PASS, PARTIAL). The compiler canonicalizes them (WF-EXT-003).
+var reconciliationAliases = map[string]string{"CONSISTENT": "PASS", "DEGRADED": "PARTIAL"}
+
+func observationNode(id, capID string, inputs, outputs []workflow.Field, mappings []workflow.Mapping, authority, expected string, aliases map[string]string) workflow.Node {
 	return workflow.Node{
 		ID: id, Type: workflow.StepObserve, InputSchema: capabilitySchema(capID, "request"), OutputSchema: capabilitySchema(capID, "response"), Inputs: inputs, Outputs: outputs, InputMappings: mappings,
 		Capability: &workflow.CapabilityRef{ID: capID, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:observation.read"}},
 		Observe:    &workflow.ObserveSpec{EvidenceKind: workflow.EvidenceAuthoritativeRead, SourceAuthority: authority, ExpectedStateFields: []string{expected}, RequiredWatermarks: []string{authority + ".stream_head"}, MaxAgeSeconds: 300, ComparisonProfile: "comparison.promotion." + id + "/v1", RetryExhaustionRoute: NodeEndRepairPlan},
 		Retry:      &workflow.RetryPolicy{MaxAttempts: 2, BackoffRef: observationRetryBackoff}, Governance: invocation(nil, workflow.RevalidatePreClosure),
+		// Business outcome aliases the compiler canonicalizes (WF-EXT-003).
+		OutcomeAliases: aliases,
 	}
 }
 
@@ -559,73 +580,26 @@ func capabilityRecord(id, owner string, effect capability.EffectClass, scope str
 	return capability.Record{Definition: capability.Definition{ID: id, Version: 1, OwnerDomain: owner, RequestSchema: capability.SchemaRef{SchemaID: id + ".request/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, ResponseSchema: capability.SchemaRef{SchemaID: id + ".response/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, ErrorSchema: capability.SchemaRef{SchemaID: id + ".error/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, EffectClass: effect, IdempotencyPolicyRef: "idempotency.promotion." + owner + ".v1", AuthZScopeRef: scope, LegalBasisRef: "legal.promotion.execution/v1", EntitlementRef: "entitlement.promotion.execution/v1", SLOClassRef: "slo.promotion.execution/v1", TestRef: "conformance:" + id + "/v1"}, Status: capability.StatusActive, Digest: "sha256:promotionexec-" + owner}
 }
 
-func capabilities(mode workflow.ExecutionMode) workflow.CapabilityResolver {
-	promotionEffect := capability.EffectInternalMutation
-	releaseEffect := capability.EffectInternalMutation
-	if mode == workflow.ModeSimulate {
-		promotionEffect = capability.EffectReadOnly
-		releaseEffect = capability.EffectReadOnly
-	}
+// capabilities resolves the capability versions the graph binds. One table
+// serves both modes: the compiler derives the SIMULATE projection from each
+// write node's declared mode overlay (WF-EXT-003), so the table states the
+// executable truth and never a second hand-maintained simulation copy.
+func capabilities() workflow.CapabilityResolver {
 	return staticCapabilities{
 		{ID: capSnapshotWorker, Version: 1}: capabilityRecord(capSnapshotWorker, "people", capability.EffectReadOnly, "scope:people.read"),
 		{ID: capSimulate, Version: 1}:       capabilityRecord(capSimulate, "rewards", capability.EffectReadOnly, "scope:rewards.read"),
 		{ID: capEvaluateBand, Version: 1}:   capabilityRecord(capEvaluateBand, "rewards", capability.EffectReadOnly, "scope:rewards.read"),
 		{ID: capRevalidate, Version: 1}:     capabilityRecord(capRevalidate, "governance", capability.EffectReadOnly, "scope:governance.read"),
-		{ID: capExecute, Version: 1}:        capabilityRecord(capExecute, "people", promotionEffect, "scope:people.write"),
+		{ID: capExecute, Version: 1}:        capabilityRecord(capExecute, "people", capability.EffectInternalMutation, "scope:people.write"),
 		{ID: capObservePayroll, Version: 1}: capabilityRecord(capObservePayroll, "payroll", capability.EffectReadOnly, "scope:observation.read"),
 		{ID: capObserveAccess, Version: 1}:  capabilityRecord(capObserveAccess, "access", capability.EffectReadOnly, "scope:observation.read"),
 		{ID: capObserveRecon, Version: 1}:   capabilityRecord(capObserveRecon, "reconciliation", capability.EffectReadOnly, "scope:observation.read"),
-		{ID: capReleaseHold, Version: 1}:    capabilityRecord(capReleaseHold, "rewards", releaseEffect, "scope:rewards.write"),
+		{ID: capReleaseHold, Version: 1}:    capabilityRecord(capReleaseHold, "rewards", capability.EffectInternalMutation, "scope:rewards.write"),
 	}
 }
 
-func compilerDefinition(def workflow.Definition, mode workflow.ExecutionMode) workflow.Definition {
-	return ProjectMode(def, mode)
-}
-
-func canonicalEdges(edges []workflow.Edge, nodes []workflow.Node) []workflow.Edge {
-	types := map[string]workflow.StepType{}
-	for _, n := range nodes {
-		types[n.ID] = n.Type
-	}
-	seen := map[string]bool{}
-	out := make([]workflow.Edge, 0, len(edges))
-	for _, edge := range edges {
-		key := edge.RouteKey
-		switch types[edge.From] {
-		case workflow.StepWait:
-			if key == "FIRED" {
-				key = "SUCCEEDED"
-			}
-		case workflow.StepTask:
-			switch key {
-			case "REAPPROVED":
-				key = "SUCCEEDED"
-			case "WITHDRAWN":
-				key = "CANCELLED"
-			case "INVALIDATED":
-				continue
-			}
-		case workflow.StepObserve:
-			switch key {
-			case "CONSISTENT":
-				key = "PASS"
-			case "DEGRADED":
-				key = "PARTIAL"
-			}
-		}
-		edge.RouteKey = key
-		dedupe := edge.From + "\x00" + edge.To + "\x00" + edge.RouteKey
-		if seen[dedupe] {
-			continue
-		}
-		seen[dedupe] = true
-		out = append(out, edge)
-	}
-	return out
-}
-
-// Compile compiles the EXECUTE projection through the workflow compiler.
+// Compile compiles the EXECUTE projection through the workflow compiler,
+// which canonicalizes the nodes' declared outcome aliases (WF-EXT-003).
 // An optional definition is accepted for mutation tests and callers that want
 // to pin a draft before publication.
 func Compile(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, error) {
@@ -633,17 +607,19 @@ func Compile(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, er
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return workflow.Compile(compilerDefinition(def, workflow.ModeExecute), workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities(workflow.ModeExecute)})
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities()})
 }
 
 // CompileSimulation compiles the zero-effect SIMULATE projection while
 // retaining the same graph and typed dataflow as the executable definition.
+// The compiler derives it from each write node's declared mode overlay
+// (WF-EXT-003).
 func CompileSimulation(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, error) {
 	def := Definition()
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return workflow.Compile(compilerDefinition(def, workflow.ModeSimulate), workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities(workflow.ModeSimulate)})
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities(), SimulateProjection: true})
 }
 
 // NodeOrder returns the deterministic documented order used by the package's

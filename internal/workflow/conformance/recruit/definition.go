@@ -2,6 +2,7 @@ package recruit
 
 import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders"
 )
 
 // Workflow identity.
@@ -108,16 +109,6 @@ func plainStr() workflow.ValueType  { return workflow.ValueType{Kind: workflow.K
 func boolean() workflow.ValueType   { return workflow.ValueType{Kind: workflow.KindBool} }
 func localDate() workflow.ValueType { return workflow.ValueType{Kind: workflow.KindLocalDate} }
 
-func fromInput(path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceWorkflowInput, Path: path}
-}
-func fromNode(nodeID, path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: nodeID, Path: path}
-}
-func constant(value string, t workflow.ValueType) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceConstant, Constant: value, Type: t}
-}
-
 func bootstrapCapabilitySchema(id, slot string) workflow.SchemaRef {
 	return workflow.SchemaRef{
 		SchemaID:         id + "." + slot + "/v1",
@@ -154,32 +145,6 @@ func terminalGovernance(obligations, approvals []string) workflow.NodeGovernance
 		ApprovalRequirements:  approvals,
 		RevalidationBoundary:  workflow.RevalidatePreClosure,
 		DataAccessManifestRef: dataAccessManifest,
-	}
-}
-
-func terminalInputs(extra ...workflow.Field) []workflow.Field {
-	base := []workflow.Field{
-		{Path: "candidate_id", Type: str("CandidateID")},
-		{Path: "terminal_code", Type: plainStr()},
-	}
-	return append(base, extra...)
-}
-
-func terminalMappings(code string, extra ...workflow.Mapping) []workflow.Mapping {
-	base := []workflow.Mapping{
-		{Target: "candidate_id", Source: fromInput("candidate_id")},
-		{Target: "terminal_code", Source: constant(code, plainStr())},
-	}
-	return append(base, extra...)
-}
-
-func completion(request, execution, business, consistency, obligation string) map[string]string {
-	return map[string]string{
-		"RequestState":     request,
-		"ExecutionState":   execution,
-		"BusinessState":    business,
-		"ConsistencyState": consistency,
-		"ObligationState":  obligation,
 	}
 }
 
@@ -283,7 +248,7 @@ func nodes() []workflow.Node {
 				{Path: "duplicate_person", Type: boolean()},
 			},
 			[]workflow.Mapping{
-				{Target: "candidate_id", Source: fromInput("candidate_id")},
+				{Target: "candidate_id", Source: builders.FromInput("candidate_id")},
 			},
 		),
 		capabilityNode(NodeReadCapacity, CapReadCapacity,
@@ -297,8 +262,8 @@ func nodes() []workflow.Node {
 				{Path: "budget_available", Type: boolean()},
 			},
 			[]workflow.Mapping{
-				{Target: "target_position_id", Source: fromInput("target_position_id")},
-				{Target: "start_date", Source: fromInput("start_date")},
+				{Target: "target_position_id", Source: builders.FromInput("target_position_id")},
+				{Target: "start_date", Source: builders.FromInput("start_date")},
 			},
 		),
 		capabilityNode(NodeVerifyOffer, CapVerifyOffer,
@@ -312,8 +277,8 @@ func nodes() []workflow.Node {
 				{Path: "offer_accepted", Type: boolean()},
 			},
 			[]workflow.Mapping{
-				{Target: "offer_id", Source: fromInput("offer_id")},
-				{Target: "candidate_id", Source: fromInput("candidate_id")},
+				{Target: "offer_id", Source: builders.FromInput("offer_id")},
+				{Target: "candidate_id", Source: builders.FromInput("candidate_id")},
 			},
 		),
 		{
@@ -329,8 +294,8 @@ func nodes() []workflow.Node {
 				{Path: "offer_state", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "offer_id", Source: fromInput("offer_id")},
-				{Target: "start_date", Source: fromInput("start_date")},
+				{Target: "offer_id", Source: builders.FromInput("offer_id")},
+				{Target: "start_date", Source: builders.FromInput("start_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapObserveOffer, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -356,8 +321,8 @@ func nodes() []workflow.Node {
 				{Path: "work_auth_evidence_refs", Type: plainStr()},
 			},
 			[]workflow.Mapping{
-				{Target: "candidate_id", Source: fromInput("candidate_id")},
-				{Target: "start_date", Source: fromInput("start_date")},
+				{Target: "candidate_id", Source: builders.FromInput("candidate_id")},
+				{Target: "start_date", Source: builders.FromInput("start_date")},
 			},
 		),
 		capabilityNode(NodeCheckReadiness, CapCheckReadiness,
@@ -374,8 +339,8 @@ func nodes() []workflow.Node {
 				{Path: "all_ready", Type: boolean()},
 			},
 			[]workflow.Mapping{
-				{Target: "candidate_id", Source: fromInput("candidate_id")},
-				{Target: "start_date", Source: fromInput("start_date")},
+				{Target: "candidate_id", Source: builders.FromInput("candidate_id")},
+				{Target: "start_date", Source: builders.FromInput("start_date")},
 			},
 		),
 		{
@@ -396,13 +361,13 @@ func nodes() []workflow.Node {
 				{Path: "proposal_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "candidate_id", Source: fromInput("candidate_id")},
-				{Target: "offer_id", Source: fromInput("offer_id")},
-				{Target: "target_position_id", Source: fromInput("target_position_id")},
-				{Target: "person_id", Source: fromNode(NodeReadPerson, "person_id")},
-				{Target: "offer_state", Source: fromNode(NodeObserveOffer, "offer_state")},
-				{Target: "work_auth_evidence_refs", Source: fromNode(NodeVerifyWorkAuth, "work_auth_evidence_refs")},
-				{Target: "start_date", Source: fromInput("start_date")},
+				{Target: "candidate_id", Source: builders.FromInput("candidate_id")},
+				{Target: "offer_id", Source: builders.FromInput("offer_id")},
+				{Target: "target_position_id", Source: builders.FromInput("target_position_id")},
+				{Target: "person_id", Source: builders.FromNode(NodeReadPerson, "person_id")},
+				{Target: "offer_state", Source: builders.FromNode(NodeObserveOffer, "offer_state")},
+				{Target: "work_auth_evidence_refs", Source: builders.FromNode(NodeVerifyWorkAuth, "work_auth_evidence_refs")},
+				{Target: "start_date", Source: builders.FromInput("start_date")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformHireProposal, Version: 1,
@@ -436,14 +401,14 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "route_key", Type: plainStr()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "duplicate_person", Source: fromNode(NodeReadPerson, "duplicate_person")},
-				{Target: "offer_approved", Source: fromNode(NodeVerifyOffer, "offer_approved")},
-				{Target: "offer_accepted", Source: fromNode(NodeVerifyOffer, "offer_accepted")},
-				{Target: "position_available", Source: fromNode(NodeReadCapacity, "position_available")},
-				{Target: "budget_available", Source: fromNode(NodeReadCapacity, "budget_available")},
-				{Target: "work_auth_valid", Source: fromNode(NodeVerifyWorkAuth, "work_auth_valid")},
-				{Target: "all_ready", Source: fromNode(NodeCheckReadiness, "all_ready")},
-				{Target: "proposal_digest", Source: fromNode(NodeBuildProposal, "proposal_digest")},
+				{Target: "duplicate_person", Source: builders.FromNode(NodeReadPerson, "duplicate_person")},
+				{Target: "offer_approved", Source: builders.FromNode(NodeVerifyOffer, "offer_approved")},
+				{Target: "offer_accepted", Source: builders.FromNode(NodeVerifyOffer, "offer_accepted")},
+				{Target: "position_available", Source: builders.FromNode(NodeReadCapacity, "position_available")},
+				{Target: "budget_available", Source: builders.FromNode(NodeReadCapacity, "budget_available")},
+				{Target: "work_auth_valid", Source: builders.FromNode(NodeVerifyWorkAuth, "work_auth_valid")},
+				{Target: "all_ready", Source: builders.FromNode(NodeCheckReadiness, "all_ready")},
+				{Target: "proposal_digest", Source: builders.FromNode(NodeBuildProposal, "proposal_digest")},
 			},
 			Decision: &workflow.DecisionSpec{
 				EvaluatorRef: "engines.rules.recruit_hire_route", EvaluatorVersion: 1,
@@ -464,32 +429,32 @@ func nodes() []workflow.Node {
 			},
 		},
 		endNode(NodeEndHired, TerminalHired, workflow.RuntimeCompleted,
-			completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
+			builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
 			[]string{ObligationPositionHold, ObligationEmployment, ObligationEvidence},
 			[]string{ApprovalHiringManager, ApprovalHRBP}, nil),
 		endNode(NodeEndDuplicate, TerminalDuplicate, workflow.RuntimeCompleted,
-			completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+			builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 			[]string{ObligationEvidence}, nil, nil),
 		endNode(NodeEndOffer, TerminalOffer, workflow.RuntimeCompleted,
-			completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+			builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 			[]string{ObligationEvidence}, nil, nil),
 		endNode(NodeEndOfferExpired, TerminalOfferExpired, workflow.RuntimeCompleted,
-			completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+			builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 			[]string{ObligationEvidence}, nil, nil),
 		endNode(NodeEndCapacity, TerminalCapacity, workflow.RuntimeCompleted,
-			completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+			builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 			[]string{ObligationEvidence}, nil, nil),
 		endNode(NodeEndAuth, TerminalWorkAuth, workflow.RuntimeCompleted,
-			completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+			builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 			[]string{ObligationEvidence}, nil, nil),
 		endNode(NodeEndDegraded, TerminalDegraded, workflow.RuntimeBlocked,
-			completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+			builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 			[]string{ObligationEmployment, ObligationEvidence}, nil, []string{repairRef}),
 		endNode(NodeEndRefused, TerminalRefused, workflow.RuntimeBlocked,
-			completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+			builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 			[]string{ObligationEvidence}, nil, nil),
 		endNode(NodeEndUnknown, TerminalUnknown, workflow.RuntimeBlocked,
-			completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+			builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 			[]string{ObligationEvidence}, nil, nil),
 	}
 }
@@ -498,8 +463,8 @@ func endNode(id, code string, status workflow.RuntimeStatus, completion map[stri
 	return workflow.Node{
 		ID:            id,
 		Type:          workflow.StepEnd,
-		Inputs:        terminalInputs(),
-		InputMappings: terminalMappings(code),
+		Inputs:        builders.TerminalInputs("candidate_id", "CandidateID"),
+		InputMappings: builders.TerminalMappings("candidate_id", code),
 		End: &workflow.EndSpec{
 			TerminalCode: code, RuntimeStatus: status,
 			CompletionMapping:         completion,

@@ -213,6 +213,9 @@ func validateNodeShape(n *Node, c *collector) {
 		c.add(CodeInvalidDefinition, Location{NodeID: n.ID, Field: "retry"},
 			"a retry policy declares a bounded max_attempts")
 	}
+
+	checkOutcomeAliases(n, conf, c)
+	checkModeOverlay(n, c)
 }
 
 func validateApprovalRequirements(def *Definition, c *collector) {

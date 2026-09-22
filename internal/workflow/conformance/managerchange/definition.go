@@ -11,6 +11,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders"
 )
 
 const (
@@ -49,18 +50,6 @@ func branded(brand string) workflow.ValueType {
 func plainString() workflow.ValueType { return workflow.ValueType{Kind: workflow.KindString} }
 func boolean() workflow.ValueType     { return workflow.ValueType{Kind: workflow.KindBool} }
 func localDate() workflow.ValueType   { return workflow.ValueType{Kind: workflow.KindLocalDate} }
-
-func input(path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceWorkflowInput, Path: path}
-}
-
-func node(nodeID, path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: nodeID, Path: path}
-}
-
-func constant(value string, typ workflow.ValueType) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceConstant, Constant: value, Type: typ}
-}
 
 func schema(name string) workflow.SchemaRef {
 	return workflow.SchemaRef{
@@ -119,27 +108,6 @@ func terminalGovernance() workflow.NodeGovernance {
 	}
 }
 
-func terminalInputs() []workflow.Field {
-	return []workflow.Field{
-		{Path: "worker_id", Type: branded("WorkerID")},
-		{Path: "terminal_code", Type: plainString()},
-	}
-}
-
-func terminalMappings(code string) []workflow.Mapping {
-	return []workflow.Mapping{
-		{Target: "worker_id", Source: input("worker_id")},
-		{Target: "terminal_code", Source: constant(code, plainString())},
-	}
-}
-
-func completion(request, execution, business, consistency, obligation string) map[string]string {
-	return map[string]string{
-		"RequestState": request, "ExecutionState": execution, "BusinessState": business,
-		"ConsistencyState": consistency, "ObligationState": obligation,
-	}
-}
-
 // ReferenceDefinition returns the P1A Manager Change reference definition.
 // It declares only simulation and has no mutating node.
 func ReferenceDefinition() workflow.Definition {
@@ -189,7 +157,7 @@ func nodes() []workflow.Node {
 				{Path: "current_manager_id", Type: branded("WorkerID")},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: input("worker_id")}, {Target: "effective_date", Source: input("effective_date")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")}, {Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{ID: CapabilityWorker, Version: 1, OperationMode: workflow.ModeSimulate, AuthorityScopes: []string{"scope:people.read"}},
 			Governance: governance(workflow.RevalidatePreExecution),
@@ -205,7 +173,7 @@ func nodes() []workflow.Node {
 				{Path: "management_eligible", Type: boolean()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "proposed_manager_id", Source: input("proposed_manager_id")}, {Target: "effective_date", Source: input("effective_date")},
+				{Target: "proposed_manager_id", Source: builders.FromInput("proposed_manager_id")}, {Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{ID: CapabilityManager, Version: 1, OperationMode: workflow.ModeSimulate, AuthorityScopes: []string{"scope:people.read"}},
 			Governance: governance(workflow.RevalidatePreExecution),
@@ -220,12 +188,12 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "validation_status", Type: plainString()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: node(NodeReadWorker, "worker_id")},
-				{Target: "current_manager_id", Source: node(NodeReadWorker, "current_manager_id")},
-				{Target: "proposed_manager_id", Source: node(NodeReadManager, "proposed_manager_id")},
-				{Target: "worker_active", Source: node(NodeReadWorker, "employment_active")},
-				{Target: "proposed_manager_active", Source: node(NodeReadManager, "employment_active")},
-				{Target: "management_eligible", Source: node(NodeReadManager, "management_eligible")},
+				{Target: "worker_id", Source: builders.FromNode(NodeReadWorker, "worker_id")},
+				{Target: "current_manager_id", Source: builders.FromNode(NodeReadWorker, "current_manager_id")},
+				{Target: "proposed_manager_id", Source: builders.FromNode(NodeReadManager, "proposed_manager_id")},
+				{Target: "worker_active", Source: builders.FromNode(NodeReadWorker, "employment_active")},
+				{Target: "proposed_manager_active", Source: builders.FromNode(NodeReadManager, "employment_active")},
+				{Target: "management_eligible", Source: builders.FromNode(NodeReadManager, "management_eligible")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformValidate, Version: 1, NormalizationProfile: "hcmnext.canonical.manager_change_validation/v1",
@@ -244,11 +212,11 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "proposal_digest", Type: plainString()}, {Path: "write_boundary", Type: plainString()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: node(NodeReadWorker, "worker_id")},
-				{Target: "current_manager_id", Source: node(NodeReadWorker, "current_manager_id")},
-				{Target: "proposed_manager_id", Source: node(NodeReadManager, "proposed_manager_id")},
-				{Target: "effective_date", Source: input("effective_date")},
-				{Target: "validation_status", Source: node(NodeValidate, "validation_status")},
+				{Target: "worker_id", Source: builders.FromNode(NodeReadWorker, "worker_id")},
+				{Target: "current_manager_id", Source: builders.FromNode(NodeReadWorker, "current_manager_id")},
+				{Target: "proposed_manager_id", Source: builders.FromNode(NodeReadManager, "proposed_manager_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
+				{Target: "validation_status", Source: builders.FromNode(NodeValidate, "validation_status")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformSimulate, Version: 1, NormalizationProfile: "hcmnext.canonical.manager_change_simulation/v1",
@@ -258,13 +226,13 @@ func nodes() []workflow.Node {
 			Governance: governance(workflow.RevalidateNone),
 		},
 		{
-			ID: NodeEndComplete, Type: workflow.StepEnd, Inputs: terminalInputs(), InputMappings: terminalMappings("SIMULATION_COMPLETE"),
-			End:        &workflow.EndSpec{TerminalCode: "SIMULATION_COMPLETE", RuntimeStatus: workflow.RuntimeCompleted, CompletionMapping: completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "NOT_APPLICABLE", "SATISFIED")},
+			ID: NodeEndComplete, Type: workflow.StepEnd, Inputs: builders.TerminalInputs("worker_id", "WorkerID"), InputMappings: builders.TerminalMappings("worker_id", "SIMULATION_COMPLETE"),
+			End:        &workflow.EndSpec{TerminalCode: "SIMULATION_COMPLETE", RuntimeStatus: workflow.RuntimeCompleted, CompletionMapping: builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "NOT_APPLICABLE", "SATISFIED")},
 			Governance: terminalGovernance(),
 		},
 		{
-			ID: NodeEndRejected, Type: workflow.StepEnd, Inputs: terminalInputs(), InputMappings: terminalMappings("SIMULATION_REJECTED"),
-			End:        &workflow.EndSpec{TerminalCode: "SIMULATION_REJECTED", RuntimeStatus: workflow.RuntimeCompleted, CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE")},
+			ID: NodeEndRejected, Type: workflow.StepEnd, Inputs: builders.TerminalInputs("worker_id", "WorkerID"), InputMappings: builders.TerminalMappings("worker_id", "SIMULATION_REJECTED"),
+			End:        &workflow.EndSpec{TerminalCode: "SIMULATION_REJECTED", RuntimeStatus: workflow.RuntimeCompleted, CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE")},
 			Governance: terminalGovernance(),
 		},
 	}

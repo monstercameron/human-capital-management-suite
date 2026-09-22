@@ -129,8 +129,8 @@ func TestFencedRunsVerifyBeforeStepsAndLeaseAroundTheRun(t *testing.T) {
 	if _, err := New(Options{DB: oneBeginner{&memoryTx{}}, Steps: noStepRunner{}, FenceVerifier: &fakeVerifier{}}); err == nil {
 		t.Fatal("a verifier with neither a fence nor leases was accepted")
 	}
-	if f, ok := fenceFromContext(WithFence(ctx, runtime.Fence{})); ok || f.ResourceID != "" {
-		t.Fatal("an empty fence on the context was treated as held")
+	if f, ok := fenceFromContext(WithFence(ctx, runtime.Fence{})); !ok || f.ResourceID != "" {
+		t.Fatal("an explicitly supplied empty fence must remain visible for validation")
 	}
 	d = scn.driver(t)
 	if _, _, err := d.acquireInstanceLease(ctx, uuid.Nil, uuid.New()); err != nil {

@@ -11,9 +11,8 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotioncommit"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
-	"github.com/monstercameron/human-capital-management-suite/internal/intent"
-	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
@@ -32,28 +31,11 @@ func TestTerminal_NoPanic(t *testing.T) {
 	}()
 }
 
-func TestDeriveEffectiveAtUsesTheProposalInterval(t *testing.T) {
-	wanted := time.Date(2026, 12, 1, 5, 0, 0, 0, time.UTC)
-	interval, err := values.NewOpenInstantInterval(values.NewInstant(wanted))
-	if err != nil {
-		t.Fatal(err)
-	}
-	revision := intent.ProposalRevision{EffectiveTime: interval}
-	recorded := time.Date(2026, 9, 5, 20, 41, 0, 0, time.UTC)
-	if got := deriveEffectiveAt(revision, recorded); !got.Equal(wanted) {
-		t.Fatalf("deriveEffectiveAt = %s, want proposal effective instant %s", got, wanted)
-	}
-}
-
-func TestDeriveEffectiveAtFallsBackToRecordedAtWithoutAnInterval(t *testing.T) {
-	recorded := time.Date(2026, 9, 5, 20, 41, 0, 123, time.FixedZone("local", -4*60*60))
-	if got := deriveEffectiveAt(intent.ProposalRevision{}, recorded); !got.Equal(recorded.UTC()) || got.Location() != time.UTC {
-		t.Fatalf("deriveEffectiveAt = %s (%s), want UTC fallback %s", got, got.Location(), recorded.UTC())
-	}
-}
-
-// registerInTx runs one ensurePayloadSchema in its own tenant-scoped
-// transaction on conn and commits it, returning the first failure.
+// registerInTx runs one EnsureOutcomeSchema in its own tenant-scoped
+// transaction on conn and commits it, returning the first failure. The
+// registration itself lives in the promotion settlement capability; this
+// helper exercises it through the same tenant-scoped path the terminal
+// effect uses.
 func registerInTx(ctx context.Context, conn *pgxadapter.Conn, tenantID uuid.UUID, schemaRef string, gate <-chan struct{}) error {
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -66,7 +48,7 @@ func registerInTx(ctx context.Context, conn *pgxadapter.Conn, tenantID uuid.UUID
 	if gate != nil {
 		<-gate
 	}
-	if err := ensurePayloadSchema(ctx, tx, tenantID, schemaRef); err != nil {
+	if err := promotioncommit.EnsureOutcomeSchema(ctx, tx, tenantID, schemaRef); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

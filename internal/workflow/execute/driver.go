@@ -63,6 +63,11 @@ type Options struct {
 	// once a caller actually calls Resume (WF-RUN-028); Execute never reads
 	// it.
 	Items WorkItemReader
+	// Tasks, when set, verifies a served TASK resume through the certified
+	// internal/workflow/steps/task contract before the advance commits
+	// (REV-008-01; see [TaskResumePolicy]). Nil keeps the historical
+	// drift-checked behavior exactly.
+	Tasks *TaskResumePolicy
 	// Currency revalidates the pinned proposal, its approval and its control
 	// snapshots before every advancement this driver attempts, including the
 	// one that reaches a terminal write (WF-RUN-029). Nil runs no currency
@@ -211,6 +216,13 @@ func (d *Driver) observed(ctx context.Context) context.Context {
 // all proposal-alignment assertions runtime.Start validates.
 type ExecuteRequest struct {
 	Start runtime.StartRequest
+	// Inputs is the run's typed workflow-input document (WF-EXT-004): the
+	// declared workflow input fields the compiled plan's WORKFLOW_INPUT
+	// mappings resolve against on the durable path, exactly once, for the
+	// life of the instance. Nil means the run supplies none -- every plan
+	// before WF-EXT-004, and Promotion today, which rebuilds its own inputs
+	// from the pinned proposal rather than from this document.
+	Inputs []workflow.TypedOutput
 }
 
 // Result is either COMPLETE or PARKED on the WorkItems returned here. Every
@@ -238,7 +250,8 @@ type Result struct {
 }
 
 // Execute resolves the workflow once, starts it atomically, then drains its
-// READY continuations. It returns as soon as human work is durably created.
+// READY continuations. It parks only after eligible work has drained; a human
+// approval blocks its own successors, not independent branches.
 func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (ret0 Result, retErr error) {
 	ctx, obsOp := observe.Begin(d.observed(ctx), "workflow.execute.execute", req)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
@@ -283,7 +296,7 @@ func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (ret0 Result, 
 			return Result{}, invalid("WorkflowResolver returned no workflow id or plan")
 		}
 		startReq.Resolver = fixedResolver{selection: selection}
-		started, err = d.startOnce(ctx, startReq, false, nil, nil)
+		started, err = d.startOnce(ctx, startReq, false, nil, nil, req.Inputs)
 		if err != nil {
 			return Result{}, err
 		}
@@ -296,7 +309,7 @@ func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (ret0 Result, 
 		// won the authoritative retry is the one used to drain READY work.
 		err := transactioncommit.RetryClosure(ctx, *startRetry, func(ctx context.Context) error {
 			var err error
-			started, err = d.startOnce(ctx, startReq, true, transactionalResolver, &selection)
+			started, err = d.startOnce(ctx, startReq, true, transactionalResolver, &selection, req.Inputs)
 			return err
 		})
 		if err != nil {
@@ -374,7 +387,7 @@ func (r transactionalResolver) ResolveWorkflow(ctx context.Context, req runtime.
 	return selection, err
 }
 
-func (d *Driver) startOnce(ctx context.Context, req runtime.StartRequest, serializable bool, resolver TransactionalWorkflowResolver, selection *runtime.WorkflowSelection) (runtime.StartReceipt, error) {
+func (d *Driver) startOnce(ctx context.Context, req runtime.StartRequest, serializable bool, resolver TransactionalWorkflowResolver, selection *runtime.WorkflowSelection, inputs []workflow.TypedOutput) (runtime.StartReceipt, error) {
 	var tx dbport.Tx
 	var err error
 	if serializable {
@@ -403,6 +416,33 @@ func (d *Driver) startOnce(ctx context.Context, req runtime.StartRequest, serial
 	started, err := runtime.Start(ctx, tx, req)
 	if err != nil {
 		return runtime.StartReceipt{}, err
+	}
+	// WF-EXT-004: record the run's typed workflow-input document, inside this
+	// same transaction, so a WORKFLOW_INPUT mapping has something durable to
+	// resolve against on every later advancement of this instance.
+	// runtime.RecordWorkflowInputs's own idempotent-insert-then-read-back rule
+	// covers both branches Start can take here: on a freshly created
+	// instance it inserts; on an idempotent replay under the same start
+	// idempotency key it compares the resupplied document against the one
+	// already recorded, a no-op when identical and
+	// runtime.CodeWorkflowInputConflict when not. A run that supplies no
+	// Inputs skips this entirely, so it behaves exactly as it did before
+	// WF-EXT-004.
+	if len(inputs) > 0 {
+		plan, perr := d.planForInputs(ctx, req, selection)
+		if perr != nil {
+			return runtime.StartReceipt{}, perr
+		}
+		if verr := validateWorkflowInputDocument(plan, inputs); verr != nil {
+			return runtime.StartReceipt{}, verr
+		}
+		artifact := runtime.WorkflowInputArtifact{
+			TenantID: req.TenantID, InstanceID: started.InstanceID, PlanDigest: plan.Digest(),
+			Inputs: artifactValuesOf(inputs), RecordedAt: req.CreatedAt,
+		}
+		if _, rerr := runtime.RecordWorkflowInputs(ctx, tx, artifact); rerr != nil {
+			return runtime.StartReceipt{}, rerr
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		if !serializable {
@@ -470,6 +510,18 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 			CorrelationID: run.start.CorrelationID, RecordedAt: at,
 			TraceID: run.traceID, Context: run.executionContext(),
 		}
+		// WF-EXT-004: resolve this node's compiled mappings against the
+		// durable data plane before dispatch, so req.Inputs is either the
+		// step runner's complete typed input set or the run never dispatches
+		// the step at all -- a resolution failure fails the attempt the same
+		// way a step runner error does, never with partial inputs.
+		if len(node.Mappings) > 0 {
+			resolved, rerr := d.resolveNodeInputs(ctx, run, node)
+			if rerr != nil {
+				return Result{}, rerr
+			}
+			req.Inputs = resolved
+		}
 		inputs, err := d.stepInputs(ctx, run, req, attempt)
 		if err != nil {
 			return Result{}, err
@@ -494,30 +546,17 @@ func (d *Driver) drainReady(ctx context.Context, run runContext, result Result, 
 			return result, nil
 		}
 
-		parked := false
-		for _, rec := range advanced.Continuations {
-			switch rec.Kind {
-			case frontier.IntentReady:
-				if retryParked(timers, rec.TargetNodeID) {
-					parked = true
-					continue
-				}
-				ready = append(ready, rec.TargetNodeID)
-			case frontier.IntentWorkItemRequired, frontier.IntentTimerRequired, frontier.IntentSignalSubscriptionRequired:
-				// A durable timer parks this driver exactly as human work
-				// does: it has nothing left to run, and a caller with its own
-				// clock reading decides when the instance moves again.
-				parked = true
-			}
-		}
+		next, parked := readyAndParked(advanced.Continuations, timers...)
+		ready = append(ready, next...)
 		sort.Strings(ready)
-		if parked {
+		// Waiting on one branch must not strand independent runnable work.
+		if parked && len(ready) == 0 {
 			result.Status = StatusParked
 			return result, nil
 		}
 	}
 
-	return Result{}, fmt.Errorf("%w: instance %s is not terminal and has no READY continuation or WorkItem", ErrNoProgress, run.instanceID)
+	return d.parkWaitingFrontier(ctx, run, result)
 }
 
 // prepareReadyAttempt closes the retry gap between frontier's READY intent
@@ -626,6 +665,9 @@ func (d *Driver) stepInputs(ctx context.Context, run runContext, req StepRequest
 			if err == nil {
 				outcome, err = check(outcome)
 			}
+			if err == nil {
+				outcome, err = d.recordOutcomeOutputs(nodeCtx, ex, req, attempt, outcome)
+			}
 			end(nodeSpan, outcome, err)
 			if err != nil {
 				return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, nil, fmt.Errorf("workflow execute: run node %s in transaction: %w", nodeID, err)
@@ -652,8 +694,16 @@ func (d *Driver) stepInputs(ctx context.Context, run runContext, req StepRequest
 	if err != nil {
 		return nil, err
 	}
-	return func(context.Context, runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
-		return outcome, refs, nil, nil
+	// WF-EXT-004: this closure runs inside the advancement transaction
+	// (Driver.advanceOnce calls inputs(advCtx, tx)), which is the only place
+	// a node not claimed through [TransactionalStepRunner] can still record
+	// its typed outputs atomically with its outcome.
+	return func(recCtx context.Context, ex runtime.Executor) (frontier.NodeOutcome, runtime.GovernanceRefs, *runtime.CausalMetadata, error) {
+		recorded, rerr := d.recordOutcomeOutputs(recCtx, ex, req, attempt, outcome)
+		if rerr != nil {
+			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, nil, rerr
+		}
+		return recorded, refs, nil, nil
 	}, nil
 }
 
@@ -678,7 +728,7 @@ func (d *Driver) advanceOnce(
 	attempt int,
 	inputs advanceInputsFunc,
 	evidence AdvanceEvidence,
-) (runtime.AdvanceReceipt, []workitem.WorkItem, []string, []TimerHandle, error) {
+) (retReceipt runtime.AdvanceReceipt, retItems []workitem.WorkItem, retEvidence []string, retTimers []TimerHandle, retErr error) {
 	// The advancement's own node id is not known until inputs(...) runs
 	// inside the transaction below (Resume derives it from the durable
 	// WorkItem it loads there), so the OBS-023 advance span opens with only
@@ -702,7 +752,7 @@ func (d *Driver) advanceOnce(
 		fence.At = at
 		// WF-RUN-036: verify before any in-transaction step runs, so a
 		// superseded holder writes no domain effect.
-		if err := d.verifyFence(advCtx, tx, run.start.TenantID, *fence); err != nil {
+		if err := d.verifyFence(advCtx, tx, run.start.TenantID, run.instanceID, *fence); err != nil {
 			advSpan.End(OutcomeFailure, err)
 			return runtime.AdvanceReceipt{}, nil, nil, nil, err
 		}
@@ -718,6 +768,14 @@ func (d *Driver) advanceOnce(
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
 
+	// A blocked currency verdict commits a status transition. Isolate input
+	// writes so that commit cannot also publish a refused step's effects.
+	if d.opts.Currency != nil {
+		if _, err := tx.Exec(advCtx, "SAVEPOINT workflow_currency_guard"); err != nil {
+			advSpan.End(OutcomeFailure, err)
+			return runtime.AdvanceReceipt{}, nil, nil, nil, fmt.Errorf("workflow execute: open currency savepoint: %w", err)
+		}
+	}
 	outcome, refs, causal, err := inputs(advCtx, tx)
 	if errors.Is(err, errCommitWithoutAdvance) {
 		// WF-STEP-018: the inputs' own writes (a vote short of quorum) are
@@ -753,10 +811,10 @@ func (d *Driver) advanceOnce(
 				At:         at,
 			})
 			defer func() {
-				if err != nil {
+				if retErr != nil {
 					resumeOutcome = OutcomeFailure
 				}
-				resumeSpan.End(resumeOutcome, err)
+				resumeSpan.End(resumeOutcome, retErr)
 			}()
 		}
 	}
@@ -792,6 +850,10 @@ func (d *Driver) advanceOnce(
 			return runtime.AdvanceReceipt{}, nil, nil, nil, cerr
 		}
 		if verdict.Blocked {
+			if _, err := tx.Exec(advCtx, "ROLLBACK TO SAVEPOINT workflow_currency_guard"); err != nil {
+				advSpan.End(OutcomeFailure, err)
+				return runtime.AdvanceReceipt{}, nil, nil, nil, fmt.Errorf("workflow execute: discard blocked step effects: %w", err)
+			}
 			if err := blockInstance(advCtx, tx, run.start.TenantID, run.instanceID, verdict); err != nil {
 				advSpan.End(OutcomeFailure, err)
 				return runtime.AdvanceReceipt{}, nil, nil, nil, err
@@ -804,6 +866,10 @@ func (d *Driver) advanceOnce(
 				ErrCurrencyBlocked, verdict.Reason, strings.Join(verdict.Explanation, "; "))
 			advSpan.End(OutcomeDenied, blockedErr)
 			return runtime.AdvanceReceipt{}, nil, nil, nil, blockedErr
+		}
+		if _, err := tx.Exec(advCtx, "RELEASE SAVEPOINT workflow_currency_guard"); err != nil {
+			advSpan.End(OutcomeFailure, err)
+			return runtime.AdvanceReceipt{}, nil, nil, nil, fmt.Errorf("workflow execute: release currency savepoint: %w", err)
 		}
 	}
 
@@ -829,7 +895,7 @@ func (d *Driver) advanceOnce(
 		TenantID: run.start.TenantID, InstanceID: run.instanceID,
 		ExpectedInstanceVersion: expectedVersion, Attempt: attempt,
 		Plan: run.selection.Plan, Outcome: outcome, Refs: refs,
-		RecordedAt: at, Sink: sink, TraceID: run.traceID,
+		RecordedAt: at, Sink: sink, TraceID: d.opts.Instrumentation.TraceID(advCtx),
 		ExecutionContextDigest: run.executionContext().Digest(),
 	}
 	if causalSpan, ok := advSpan.(CausalSpan); ok {
@@ -896,9 +962,6 @@ func (d *Driver) advanceOnce(
 	}
 	if commitErr := tx.Commit(advCtx); commitErr != nil {
 		advSpan.End(OutcomeFailure, commitErr)
-		// The commit error binds to the if scope, so publish it through
-		// the function-scoped err the deferred resume-span End reads;
-		// otherwise the span would close FAILURE with a nil error.
 		resumeOutcome = OutcomeFailure
 		err = fmt.Errorf("workflow execute: commit advance of %s: %w", outcome.NodeID, commitErr)
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err

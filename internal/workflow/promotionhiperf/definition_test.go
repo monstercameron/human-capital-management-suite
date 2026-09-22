@@ -190,7 +190,7 @@ func TestVariantCapabilityBindings(t *testing.T) {
 			t.Fatalf("CapabilityIDs = %v, missing execute capability %s", ids, id)
 		}
 	}
-	resolver := capabilities(workflow.ModeExecute)
+	resolver := capabilities()
 	for _, id := range ids {
 		record, ok := resolver.Lookup(capability.Key{ID: id, Version: 1})
 		if !ok {
@@ -203,11 +203,27 @@ func TestVariantCapabilityBindings(t *testing.T) {
 	if _, ok := resolver.Lookup(capability.Key{ID: "hcmnext.rewards.no_such_capability", Version: 1}); ok {
 		t.Fatal("variant resolver answers an unknown capability")
 	}
-	simResolver := capabilities(workflow.ModeSimulate)
+	// One table serves both modes: the compiler derives the SIMULATE
+	// projection from each write node's declared mode overlay (WF-EXT-003),
+	// so the promote and release records stay writes here and compile to
+	// reads only under the projection.
 	for _, id := range []string{"hcmnext.people.promote_worker", "hcmnext.rewards.release_compensation_budget"} {
-		record, ok := simResolver.Lookup(capability.Key{ID: id, Version: 1})
-		if !ok || record.Definition.EffectClass.IsWrite() {
-			t.Fatalf("simulate record %s = %+v, want read-only", id, record.Definition)
+		record, ok := resolver.Lookup(capability.Key{ID: id, Version: 1})
+		if !ok || !record.Definition.EffectClass.IsWrite() {
+			t.Fatalf("execute record %s = %+v, want the executable write", id, record.Definition)
+		}
+	}
+	sim, err := CompileSimulation()
+	if err != nil {
+		t.Fatalf("CompileSimulation: %v", err)
+	}
+	for _, id := range []string{promotionexec.NodeExecutePromotion, promotionexec.NodeCompensateHold} {
+		node, ok := sim.Node(id)
+		if !ok || node.EffectClass.IsWrite() || node.EffectRole != "" {
+			t.Fatalf("simulate node %s = %+v, want a role-free read", id, node)
+		}
+		if node.Capability == nil || node.Capability.OperationMode != workflow.ModeSimulate {
+			t.Fatalf("simulate node %s capability = %+v, want SIMULATE mode", id, node.Capability)
 		}
 	}
 }

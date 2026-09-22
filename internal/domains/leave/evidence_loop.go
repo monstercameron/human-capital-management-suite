@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/workreview"
 )
 
 // Loop states: the closed review-loop vocabulary.
@@ -79,8 +79,8 @@ func OpenLoop(loopID, taskID, reviewerRole, policy string) (ReviewLoop, error) {
 // creates exactly one minimal-disclosure worker message and one durable
 // signal subscription. Repeated requests return the identical message,
 // never duplicates.
-func RequestMoreInfo(loop ReviewLoop, finding workitem.Finding) (ReviewLoop, error) {
-	if finding.Verdict != workitem.ReviewMoreInfo {
+func RequestMoreInfo(loop ReviewLoop, finding workreview.Finding) (ReviewLoop, error) {
+	if finding.Verdict != workreview.ReviewMoreInfo {
 		loop.State = LoopClosed
 		loop.Digest = loopDigest(loop)
 		return loop, nil

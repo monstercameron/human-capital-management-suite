@@ -12,7 +12,11 @@
 //     succeeded write is a produced effect (compensable when the node binds a
 //     published compensation, irreversible otherwise); a write still in
 //     flight, or a finished attempt that recorded an effect reference without
-//     succeeding, is ambiguous; a node the plan does not declare is ambiguous;
+//     succeeding, is unconfirmed, so the request's observer resolves it
+//     before the verdict when one is composed (confirmed produced is judged
+//     by its declared undo contract, confirmed absent needs no verdict,
+//     and only what stays unknown is ambiguous); a node the plan does not
+//     declare is ambiguous;
 //   - every child workflow instance linked to the instance
 //     (workflow_child_link), judged recursively the same way and reported
 //     through subworkflow.PropagateCancellation.
@@ -74,11 +78,42 @@ var (
 const (
 	ReasonEffectCompensation  = "EFFECT_COMPENSATION"
 	ReasonEffectIrreversible  = "EFFECT_IRREVERSIBLE"
+	ReasonEffectCorrection    = "EFFECT_CORRECTION"
 	ReasonEffectAmbiguous     = "EFFECT_AMBIGUOUS"
 	ReasonNodeUndeclared      = "NODE_UNDECLARED"
 	ReasonChildNotCancellable = "CHILD_NOT_CANCELLABLE"
 	ReasonChildRepair         = "CHILD_REPAIR_REQUIRED"
 )
+
+// ObservedEffect is what bounded observation of one unconfirmed effect
+// found. Produced reports the effect was confirmed produced (it is judged
+// by its declared undo contract) or confirmed never produced (it needs no
+// verdict: nothing committed).
+type ObservedEffect struct {
+	Produced bool
+}
+
+// ObserveEffectRequest asks the observer to resolve one unconfirmed effect.
+type ObserveEffectRequest struct {
+	TenantID   uuid.UUID
+	InstanceID uuid.UUID
+	NodeID     string
+	Attempt    int
+	// EffectID is the judged effect, "nodeID#attempt".
+	EffectID string
+	Status   runtime.NodeStatus
+	// EffectRefs are the effect references the unconfirmed attempt recorded.
+	EffectRefs []string
+}
+
+// EffectObserver resolves one unconfirmed effect before the cancellation
+// verdict. It is called at most once per unconfirmed effect; any error,
+// including a timeout, leaves exactly that effect unresolved. It must bound
+// itself (the caller's context carries the deadline): cancellation never
+// waits out an observer, it repairs the effect the observer could not read.
+type EffectObserver interface {
+	ObserveEffect(ctx context.Context, ex Executor, req ObserveEffectRequest) (ObservedEffect, error)
+}
 
 // maxChildDepth bounds child recursion; a deeper tree is not guessed at.
 const maxChildDepth = 8
@@ -103,7 +138,14 @@ type Request struct {
 	ExpectedInstanceVersion int64
 	Plan                    *workflow.CompiledWorkflow
 	// Plans resolves child plans; nil resolves only children pinned to Plan.
-	Plans       PlanResolver
+	Plans PlanResolver
+	// Observer resolves every unconfirmed effect before the verdict. Nil
+	// observes nothing: unconfirmed effects stay ambiguous and need repair,
+	// as before. When composed, an effect the observer confirms produced is
+	// judged by its declared undo contract, one confirmed never produced
+	// needs no verdict, and only an effect the observer cannot resolve
+	// stays unresolved: its siblings are still decided.
+	Observer    EffectObserver
 	Reason      string
 	RequestedBy string
 	RecordedAt  time.Time
@@ -160,7 +202,7 @@ func (o Outcome) Blocking() (Reason, bool) {
 	case workflow.RepairRequired:
 		codes = []string{ReasonEffectAmbiguous, ReasonNodeUndeclared, ReasonChildRepair}
 	case workflow.CannotCancel:
-		codes = []string{ReasonChildNotCancellable, ReasonEffectIrreversible}
+		codes = []string{ReasonChildNotCancellable, ReasonEffectIrreversible, ReasonEffectCorrection}
 	case workflow.CompensationRequired:
 		codes = []string{ReasonEffectCompensation}
 	}
@@ -211,6 +253,14 @@ func Decide(ctx context.Context, ex Executor, req Request) (ret0 Outcome, retErr
 
 type decider struct{ req Request }
 
+// pendingObservation is one unconfirmed effect awaiting the verdict: the
+// observer request that resolves it and the ambiguous record carrying its
+// declared undo contract.
+type pendingObservation struct {
+	req ObserveEffectRequest
+	rec workflow.EffectRecord
+}
+
 // judged is one instance's facts and verdict, before anything is written.
 type judged struct {
 	inst         runtime.Instance
@@ -230,6 +280,14 @@ func (d decider) judge(ctx context.Context, ex Executor, inst runtime.Instance, 
 		return nil, err
 	}
 	var effects []workflow.EffectRecord
+	// observable names every unconfirmed effect whose undo contract the
+	// plan declares, so the observer resolves exactly what a confirmed
+	// produced verdict can judge. An effect no node declares stays
+	// ambiguous without observation: producing it cannot be judged.
+	// Reasons for observed effects are recorded after the verdict (below),
+	// never before: only the observed outcome tells whether the effect
+	// compensates, keeps, or needs no verdict at all.
+	observable := make(map[string]pendingObservation)
 	for _, n := range nodes {
 		id := n.NodeID + "#" + strconv.Itoa(n.Attempt)
 		cn, ok := plan.Node(n.NodeID)
@@ -251,6 +309,14 @@ func (d decider) judge(ctx context.Context, ex Executor, inst runtime.Instance, 
 			continue
 		}
 		effects = append(effects, rec)
+		if !settled && d.req.Observer != nil {
+			observable[id] = pendingObservation{
+				req: ObserveEffectRequest{TenantID: inst.TenantID, InstanceID: inst.InstanceID,
+					NodeID: n.NodeID, Attempt: n.Attempt, EffectID: id, Status: n.Status, EffectRefs: n.Refs.EffectRefs},
+				rec: rec,
+			}
+			continue
+		}
 		j.addEffectReason(rec, n.NodeID, "")
 	}
 
@@ -268,17 +334,58 @@ func (d decider) judge(ctx context.Context, ex Executor, inst runtime.Instance, 
 		effects = append(effects, childEffects...)
 	}
 
+	var observe workflow.ObserveEffect
+	if d.req.Observer != nil {
+		observer := d.req.Observer
+		observe = func(id string) (workflow.EffectObservation, error) {
+			target, ok := observable[id]
+			if !ok {
+				return workflow.EffectObservation{}, fmt.Errorf("workflow cancellation: no declared execution for unconfirmed effect %s", id)
+			}
+			obs, err := observer.ObserveEffect(ctx, ex, target.req)
+			if err != nil {
+				return workflow.EffectObservation{}, err
+			}
+			return workflow.EffectObservation{Produced: obs.Produced}, nil
+		}
+	}
 	j.outcome, err = workflow.DecideCancellation(workflow.CancellationRequest{
 		RunID:    inst.InstanceID.String(),
 		Revision: plan.Digest() + "#v" + strconv.FormatInt(inst.InstanceVersion, 10),
 		Phase:    phaseOf(inst),
 		Children: children,
 		Effects:  effects,
+		Observe:  observe,
 	})
 	if err != nil {
 		return nil, err
 	}
+	j.observeReasons(observable)
 	return j, nil
+}
+
+// observeReasons records the reasons for effects the observer resolved,
+// from the verdict each received: a confirmed produced effect is judged by
+// its declared contract exactly as a settled one, a confirmed absent
+// effect committed nothing and needs no reason, and only an effect the
+// observer could not resolve keeps its ambiguity.
+func (j *judged) observeReasons(observable map[string]pendingObservation) {
+	for _, e := range j.outcome.Effects {
+		pending, ok := observable[e.ID]
+		if !ok {
+			continue
+		}
+		switch {
+		case e.Verdict == "":
+			// Confirmed never produced: nothing committed, nothing owed.
+		case e.Verdict == workflow.EffectUnresolved:
+			j.addEffectReason(pending.rec, pending.req.NodeID, "")
+		default:
+			resolved := pending.rec
+			resolved.Ambiguous = false
+			j.addEffectReason(resolved, pending.req.NodeID, "")
+		}
+	}
 }
 
 func (j *judged) addEffectReason(rec workflow.EffectRecord, nodeID, prefix string) {
@@ -289,6 +396,13 @@ func (j *judged) addEffectReason(rec workflow.EffectRecord, nodeID, prefix strin
 	case rec.Compensation != "":
 		j.reasons = append(j.reasons, Reason{Code: ReasonEffectCompensation, NodeID: nodeID, Ref: prefix + rec.ID})
 		j.compensation = append(j.compensation, prefix+rec.ID+"="+rec.Compensation)
+	case rec.Correction != "":
+		// Kept with a forward correction path: the verdict carries the
+		// correction for its owner to drive, and the run is refused while
+		// the effect stands. No compensation obligation: discharge owns
+		// only COMPENSATE verdicts. (No compiled node binds a correction
+		// yet; the reversal contracts of WF-REV-006 will.)
+		j.reasons = append(j.reasons, Reason{Code: ReasonEffectCorrection, NodeID: nodeID, Ref: prefix + rec.ID})
 	default:
 		j.reasons = append(j.reasons, Reason{Code: ReasonEffectIrreversible, NodeID: nodeID, Ref: prefix + rec.ID})
 	}

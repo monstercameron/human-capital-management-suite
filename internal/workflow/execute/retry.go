@@ -476,7 +476,7 @@ func (d *Driver) resumeRetryBackoff(ctx context.Context, run runContext, req Res
 		if fence := d.currentFence(ctx); fence != nil {
 			stamped := *fence
 			stamped.At = at
-			if err := d.verifyFence(ctx, ex, tenantID, stamped); err != nil {
+			if err := d.verifyFence(ctx, ex, tenantID, req.InstanceID, stamped); err != nil {
 				return err
 			}
 		}

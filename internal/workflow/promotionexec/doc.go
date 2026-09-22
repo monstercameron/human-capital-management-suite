@@ -13,11 +13,13 @@
 // reconciliation observation, the acknowledgement gate and typed terminals.
 // [DefinitionV1_0] is the frozen 1.0.0 graph without the provider waits;
 // instances pinned to it keep resuming on it ([CompileV1_0]).
-// [HasProviderWaits] tells a step runner which of the two a plan is. [Compile] projects the two
-// aliases the kernel compiler does not admit (FIRED and
-// REAPPROVED/WITHDRAWN) onto the fixed WAIT and TASK route vocabulary
-// before calling workflow.Compile; [CompileSimulation] compiles the same
-// graph for the simulate profile. [NodeOrder] and [CapabilityIDs] enumerate
+// [HasProviderWaits] tells a step runner which of the two a plan is.
+// [Compile] compiles the EXECUTE projection: the workflow compiler
+// canonicalizes the nodes' declared outcome aliases (FIRED, REAPPROVED,
+// WITHDRAWN, CONSISTENT) onto the fixed WAIT, TASK and OBSERVE route
+// vocabulary. [CompileSimulation] compiles the same graph for the simulate
+// profile, derived from each write node's declared mode overlay.
+// [NodeOrder] and [CapabilityIDs] enumerate
 // the graph so callers and tests name nodes and capabilities without
 // re-listing them.
 //

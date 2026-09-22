@@ -787,15 +787,11 @@ func (s *simulation) compensationEffect(change BasePayChange, band BandFinding) 
 		},
 	}
 	return s.effect(EffectCompensationRevision, in, effectShape{
-		participant:          "rewards.compensation",
-		destination:          "rewards.compensation/" + s.snap.Subject.Id,
-		storageClass:         "LOCAL_EVENT_STREAM",
-		local:                simassign.LocalAuthority(in.Entry.Authority),
-		reversibility:        simassign.Reversible,
-		compensationRef:      "rewards.compensation.supersede",
-		compensationStrategy: "SUPERSEDING_REVISION",
-		observationRef:       "observe.rewards.compensation_effective",
-		changes:              changes,
+		participant:  "rewards.compensation",
+		destination:  "rewards.compensation/" + s.snap.Subject.Id,
+		storageClass: "LOCAL_EVENT_STREAM",
+		local:        simassign.LocalAuthority(in.Entry.Authority),
+		changes:      changes,
 		sources: []string{
 			promosnapshot.InputPayBandPositionCurrent,
 			promosnapshot.InputPayBandPositionDesired,
@@ -823,15 +819,11 @@ func (s *simulation) budgetEffect(plan BudgetPlan) (simassign.ProposedEffect, er
 		},
 	}
 	return s.effect(EffectBudgetReservation, in, effectShape{
-		participant:          "budget.compensation_pool",
-		destination:          "budget.compensation_pool/" + plan.Scope + "@" + plan.Period,
-		storageClass:         "EXTERNAL_AUTHORITY",
-		local:                simassign.LocalAuthority(in.Entry.Authority),
-		reversibility:        simassign.Compensatable,
-		compensationRef:      budget.ReleaseCompensationBudgetIntentType,
-		compensationStrategy: "RELEASE_RESERVATION",
-		observationRef:       "observe.budget.reservation_confirmed",
-		changes:              changes,
+		participant:  "budget.compensation_pool",
+		destination:  "budget.compensation_pool/" + plan.Scope + "@" + plan.Period,
+		storageClass: "EXTERNAL_AUTHORITY",
+		local:        simassign.LocalAuthority(in.Entry.Authority),
+		changes:      changes,
 		sources: []string{
 			promosnapshot.InputBudgetAvailability,
 			promosnapshot.InputPayBandPositionCurrent,
@@ -840,18 +832,18 @@ func (s *simulation) budgetEffect(plan BudgetPlan) (simassign.ProposedEffect, er
 	})
 }
 
-// effectShape is the per-kind declaration the shared constructor fills in.
+// effectShape is the per-simulation remainder of an effect: everything the
+// undo contract does not declare. The reversal (reversibility class,
+// compensation and observation) comes from simassign's single declaration
+// ([simassign.ReversalFor]), never from a per-effect literal, so the proposal
+// and the cancellation verdict cannot disagree about how an effect is undone.
 type effectShape struct {
-	participant          string
-	destination          string
-	storageClass         string
-	local                bool
-	reversibility        simassign.Reversibility
-	compensationRef      string
-	compensationStrategy string
-	observationRef       string
-	changes              []simassign.FieldChange
-	sources              []string
+	participant  string
+	destination  string
+	storageClass string
+	local        bool
+	changes      []simassign.FieldChange
+	sources      []string
 }
 
 // effect builds one proposed effect, binding it to the input that supplied its
@@ -859,6 +851,10 @@ type effectShape struct {
 func (s *simulation) effect(
 	kind simassign.EffectKind, baseline promosnapshot.Input, shape effectShape,
 ) (simassign.ProposedEffect, error) {
+	rev, ok := simassign.ReversalFor(kind)
+	if !ok {
+		return simassign.ProposedEffect{}, fmt.Errorf("%w: effect kind %q declares no reversal", simassign.ErrEffectIncomplete, kind)
+	}
 	idempotency, err := canonicalbytes.New("hcmnext.domains.promotion.simcomp.Idempotency", schemaVersion).
 		String("snapshot_digest", s.snap.Digest).
 		String("kind", string(kind)).
@@ -875,10 +871,10 @@ func (s *simulation) effect(
 		DestinationRef:       shape.destination,
 		StorageClass:         shape.storageClass,
 		Local:                shape.local,
-		Reversibility:        shape.reversibility,
-		CompensationRef:      shape.compensationRef,
-		CompensationStrategy: shape.compensationStrategy,
-		ObservationRef:       shape.observationRef,
+		Reversibility:        rev.Reversibility,
+		CompensationRef:      rev.CompensationRef,
+		CompensationStrategy: rev.CompensationStrategy,
+		ObservationRef:       rev.ObservationRef,
 		IdempotencyKey:       idempotency,
 		Subject:              baseline.Subject,
 		ResourceKey:          baseline.ResourceKey,

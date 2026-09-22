@@ -7,13 +7,17 @@
 //     compiled workflow/pin a start request binds is looked up in a small
 //     ordered table the composition root supplies, never a graph a business
 //     service embeds.
-//   - [LedgerTerminalWriter], an execute.TerminalWriter that performs the
-//     one governed business write a workflow instance's COMPLETE
-//     continuation raises -- the promotion outcome appended to the ledger
-//     through internal/data/outbox.Commit (one ledger event, one projection
-//     advance, one outbox message) inside the same transaction
-//     internal/workflow/execute's own continuation sink already wraps in
-//     internal/transaction/idempotency.Guard.
+//   - [LedgerTerminalWriter], an execute.TerminalWriter for a workflow
+//     instance's COMPLETE continuation: it reads the instance's own
+//     completed work-item decisions and invokes the promotion settlement
+//     capability (internal/data/promotioncommit.Settler), which owns the
+//     governed business writes -- the promotion outcome ledger event,
+//     projection checkpoint and outbox message, the payload-schema
+//     registration and the admission-guard and budget-hold releases --
+//     inside the same transaction internal/workflow/execute's own
+//     continuation sink already wraps in
+//     internal/transaction/idempotency.Guard. The writer records only the
+//     capability's typed result.
 //
 // Neither type owns a workflow graph, a clock, a goroutine or a retry loop:
 // every instant is the caller's own RecordedAt, and every write happens

@@ -168,23 +168,26 @@ func invocation() workflow.NodeGovernance {
 	}
 }
 
-// Compile compiles the EXECUTE projection of the variant graph.
+// Compile compiles the EXECUTE projection of the variant graph. Outcome
+// aliases travel on the shared execute nodes, so the workflow compiler
+// canonicalizes them (WF-EXT-003).
 func Compile(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, error) {
 	def := Definition()
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return workflow.Compile(promotionexec.ProjectMode(def, workflow.ModeExecute), workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities(workflow.ModeExecute)})
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities()})
 }
 
 // CompileSimulation compiles the zero-effect SIMULATE projection of the
-// variant graph.
+// variant graph, derived from each write node's declared mode overlay
+// (WF-EXT-003).
 func CompileSimulation(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, error) {
 	def := Definition()
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return workflow.Compile(promotionexec.ProjectMode(def, workflow.ModeSimulate), workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities(workflow.ModeSimulate)})
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities(), SimulateProjection: true})
 }
 
 // CapabilityIDs returns the exact capability identities the variant graph
@@ -213,24 +216,21 @@ func capabilityRecord(id, owner string, effect capability.EffectClass, scope str
 	return capability.Record{Definition: capability.Definition{ID: id, Version: 1, OwnerDomain: owner, RequestSchema: capability.SchemaRef{SchemaID: id + ".request/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, ResponseSchema: capability.SchemaRef{SchemaID: id + ".response/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, ErrorSchema: capability.SchemaRef{SchemaID: id + ".error/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, EffectClass: effect, IdempotencyPolicyRef: "idempotency.promotion." + owner + ".v1", AuthZScopeRef: scope, LegalBasisRef: "legal.promotion.execution/v1", EntitlementRef: "entitlement.promotion.execution/v1", SLOClassRef: "slo.promotion.execution/v1", TestRef: "conformance:" + id + "/v1"}, Status: capability.StatusActive, Digest: "sha256:promotionhiperf-" + owner}
 }
 
-func capabilities(mode workflow.ExecutionMode) workflow.CapabilityResolver {
-	promotionEffect := capability.EffectInternalMutation
-	releaseEffect := capability.EffectInternalMutation
-	if mode == workflow.ModeSimulate {
-		promotionEffect = capability.EffectReadOnly
-		releaseEffect = capability.EffectReadOnly
-	}
+// capabilities resolves the capability versions the variant graph binds. One
+// table serves both modes: the compiler derives the SIMULATE projection from
+// each write node's declared mode overlay (WF-EXT-003).
+func capabilities() workflow.CapabilityResolver {
 	return staticCapabilities{
 		{ID: "hcmnext.people.explain_worker_state", Version: 1}:         capabilityRecord("hcmnext.people.explain_worker_state", "people", capability.EffectReadOnly, "scope:people.read"),
 		{ID: "hcmnext.rewards.simulate_compensation", Version: 1}:       capabilityRecord("hcmnext.rewards.simulate_compensation", "rewards", capability.EffectReadOnly, "scope:rewards.read"),
 		{ID: "hcmnext.rewards.evaluate_pay_band_position", Version: 1}:  capabilityRecord("hcmnext.rewards.evaluate_pay_band_position", "rewards", capability.EffectReadOnly, "scope:rewards.read"),
 		{ID: CapabilityMarketRate, Version: 1}:                          capabilityRecord(CapabilityMarketRate, "rewards", capability.EffectReadOnly, "scope:rewards.read"),
 		{ID: "internal/governance/revalidate", Version: 1}:              capabilityRecord("internal/governance/revalidate", "governance", capability.EffectReadOnly, "scope:governance.read"),
-		{ID: "hcmnext.people.promote_worker", Version: 1}:               capabilityRecord("hcmnext.people.promote_worker", "people", promotionEffect, "scope:people.write"),
+		{ID: "hcmnext.people.promote_worker", Version: 1}:               capabilityRecord("hcmnext.people.promote_worker", "people", capability.EffectInternalMutation, "scope:people.write"),
 		{ID: "hcmnext.payroll.observe_promotion", Version: 1}:           capabilityRecord("hcmnext.payroll.observe_promotion", "payroll", capability.EffectReadOnly, "scope:observation.read"),
 		{ID: "hcmnext.access.observe_promotion", Version: 1}:            capabilityRecord("hcmnext.access.observe_promotion", "access", capability.EffectReadOnly, "scope:observation.read"),
 		{ID: "hcmnext.reconciliation.observe_promotion", Version: 1}:    capabilityRecord("hcmnext.reconciliation.observe_promotion", "reconciliation", capability.EffectReadOnly, "scope:observation.read"),
-		{ID: "hcmnext.rewards.release_compensation_budget", Version: 1}: capabilityRecord("hcmnext.rewards.release_compensation_budget", "rewards", releaseEffect, "scope:rewards.write"),
+		{ID: "hcmnext.rewards.release_compensation_budget", Version: 1}: capabilityRecord("hcmnext.rewards.release_compensation_budget", "rewards", capability.EffectInternalMutation, "scope:rewards.write"),
 	}
 }
 

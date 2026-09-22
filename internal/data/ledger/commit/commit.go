@@ -15,6 +15,7 @@ import (
 	datalogger "github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projection/critical"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/provenance"
 )
 
@@ -33,6 +34,11 @@ type Request struct {
 	Provenance provenance.PublishRequest
 	Failpoint  Failpoint
 	RecordedAt time.Time
+	// CriticalMapper decodes IntentInstance/ProposalRevision events for the
+	// critical projection. Nil selects critical.ProtoMapper, the one decode
+	// path the projection and RevisionStore.Materialize share. It is ignored
+	// for events whose schema is not a critical schema.
+	CriticalMapper critical.Mapper
 }
 
 // Receipt names every durable result produced by Commit. OutboxIDs includes
@@ -40,6 +46,7 @@ type Request struct {
 type Receipt struct {
 	Ledger                datalogger.AppendReceipt
 	Projection            projection.ApplyResult
+	Critical              critical.ApplyResult
 	Outbox                outbox.Record
 	Provenance            provenance.Record
 	OutboxIDs             []uuid.UUID
@@ -51,11 +58,42 @@ type Appender interface {
 	Append(context.Context, dbport.Tx, datalogger.AppendRequest) (datalogger.AppendReceipt, error)
 }
 
-// Commit appends the event, advances the critical checkpoint, enqueues the
-// business effect, and records/publishes the provenance root in one caller-
-// owned PostgreSQL transaction. The savepoint makes a failed composition
-// atomic even when the caller keeps the outer transaction open to inspect or
-// roll it back.
+// isCriticalSchema reports whether the event carries a payload the
+// critical projection owns. Only those events reach critical.Apply; every
+// other schema keeps the previous checkpoint-only behavior untouched.
+func isCriticalSchema(schemaRef string) bool {
+	return schemaRef == critical.SchemaRefIntentInstance ||
+		schemaRef == critical.SchemaRefProposalRevision
+}
+
+func criticalMapperFor(req Request) critical.Mapper {
+	if req.CriticalMapper != nil {
+		return req.CriticalMapper
+	}
+	return critical.ProtoMapper{}
+}
+
+// applyCritical projects the just-appended event into intent_instance or
+// proposal_revision in the same transaction, under the critical
+// checkpoint's CAS guard. A replayed sequence is a no-op; a stale version
+// or a conflicting revision fails the whole commit through the savepoint.
+func applyCritical(ctx context.Context, tx dbport.Tx, req Request, ledgerReceipt datalogger.AppendReceipt) (critical.ApplyResult, error) {
+	return critical.Apply(ctx, tx, criticalMapperFor(req), critical.ApplyRequest{
+		Tenant:    req.Append.Tenant,
+		StreamKey: req.Append.StreamKey,
+		Sequence:  ledgerReceipt.Sequence,
+		Digest:    ledgerReceipt.Digest,
+		SchemaRef: req.Append.SchemaRef,
+		Payload:   req.Append.Payload,
+	})
+}
+
+// Commit appends the event, advances the caller's checkpoint plus the
+// critical intent/proposal projection when the event is a critical one,
+// enqueues the business effect, and records/publishes the provenance root
+// in one caller-owned PostgreSQL transaction. The savepoint makes a failed
+// composition atomic even when the caller keeps the outer transaction open
+// to inspect or roll it back.
 func Commit(ctx context.Context, tx dbport.Tx, appender Appender, req Request) (receipt Receipt, err error) {
 	if tx == nil {
 		return Receipt{}, errors.New("ledger commit: transaction is required")
@@ -87,15 +125,35 @@ func Commit(ctx context.Context, tx dbport.Tx, appender Appender, req Request) (
 		return Receipt{}, err
 	}
 
-	receipt.Projection, err = projection.Apply(ctx, tx, projection.ApplyRequest{
-		Tenant:         req.Append.Tenant,
-		ProjectionName: req.Projection,
-		StreamKey:      req.Append.StreamKey,
-		Sequence:       receipt.Ledger.Sequence,
-		Digest:         receipt.Ledger.Digest,
-	})
-	if err != nil {
-		return Receipt{}, fmt.Errorf("ledger commit: apply critical projection: %w", err)
+	if req.Projection == critical.ProjectionName {
+		// The caller's checkpoint is the critical checkpoint: critical.Apply
+		// already advances it CAS-guarded, so a second generic advance would
+		// turn the row write into a replay no-op. Do it once and derive both
+		// receipts from the one application.
+		criticalRes, applyErr := applyCritical(ctx, tx, req, receipt.Ledger)
+		if applyErr != nil {
+			return Receipt{}, fmt.Errorf("ledger commit: apply critical projection: %w", applyErr)
+		}
+		receipt.Projection = projection.ApplyResult{Checkpoint: criticalRes.Checkpoint, Applied: criticalRes.Applied}
+		receipt.Critical = criticalRes
+	} else {
+		receipt.Projection, err = projection.Apply(ctx, tx, projection.ApplyRequest{
+			Tenant:         req.Append.Tenant,
+			ProjectionName: req.Projection,
+			StreamKey:      req.Append.StreamKey,
+			Sequence:       receipt.Ledger.Sequence,
+			Digest:         receipt.Ledger.Digest,
+		})
+		if err != nil {
+			return Receipt{}, fmt.Errorf("ledger commit: apply critical projection: %w", err)
+		}
+		if isCriticalSchema(req.Append.SchemaRef) {
+			criticalRes, applyErr := applyCritical(ctx, tx, req, receipt.Ledger)
+			if applyErr != nil {
+				return Receipt{}, fmt.Errorf("ledger commit: apply critical projection: %w", applyErr)
+			}
+			receipt.Critical = criticalRes
+		}
 	}
 	if err = fail(req.Failpoint, "after-projection"); err != nil {
 		return Receipt{}, err

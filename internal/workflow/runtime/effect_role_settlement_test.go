@@ -38,6 +38,7 @@ func rolePlan(t *testing.T, role workflow.EffectRole) *workflow.CompiledWorkflow
 		Inputs: []workflow.Field{core.Inputs[0]}, Outputs: []workflow.Field{core.Outputs[0]},
 		InputMappings: []workflow.Mapping{{Target: "worker_id", Source: workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: promotionexec.NodeExecutePromotion, Path: "worker_id"}}},
 		Capability:    &ref, DeclaredEffect: core.DeclaredEffect, EffectRole: role,
+		ModeOverlay:  core.ModeOverlay,
 		FailureRoute: promotionexec.NodeEndRepairPlan, Governance: core.Governance,
 	})
 	for i := range def.Edges {

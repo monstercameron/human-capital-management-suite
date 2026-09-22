@@ -68,6 +68,13 @@ type StepRequest struct {
 	// instance receives the same value, and the advancement refuses when it
 	// no longer digests to what the instance pinned.
 	Context runtime.ExecutionContext
+	// Inputs is the node's compiled mappings resolved against the durable
+	// data plane (WF-EXT-004): WORKFLOW_INPUT, NODE_OUTPUT, CONTEXT and
+	// CONSTANT sources, keyed by target field path. It is nil when the run
+	// supplied no input document ([ExecuteRequest.Inputs] was empty), which
+	// is every plan and every existing StepRunner before WF-EXT-004 -- such a
+	// runner keeps building its own inputs exactly as it always has.
+	Inputs map[string]workflow.TypedValue
 }
 
 // StepRunner executes one READY node and returns only its typed outcome and

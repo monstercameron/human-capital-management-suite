@@ -25,7 +25,7 @@ func WithFence(ctx context.Context, fence runtime.Fence) context.Context {
 
 func fenceFromContext(ctx context.Context) (runtime.Fence, bool) {
 	fence, ok := ctx.Value(fenceContextKey{}).(runtime.Fence)
-	return fence, ok && fence.ResourceID != ""
+	return fence, ok
 }
 
 // InstanceLeaser acquires and releases the WORKFLOW_INSTANCE lease a
@@ -53,9 +53,12 @@ func (d *Driver) currentFence(ctx context.Context) *runtime.Fence {
 // verifyFence checks the fence against the durable lease inside tx before the
 // advancement runs any in-transaction step or reads workflow state, so a
 // superseded holder never writes a domain effect.
-func (d *Driver) verifyFence(ctx context.Context, tx runtime.Executor, tenantID uuid.UUID, fence runtime.Fence) error {
+func (d *Driver) verifyFence(ctx context.Context, tx runtime.Executor, tenantID, instanceID uuid.UUID, fence runtime.Fence) error {
 	if d.opts.FenceVerifier == nil {
 		return invalid("advancement presents a lease fence but the driver has no FenceVerifier")
+	}
+	if err := fence.ValidateForInstance(instanceID); err != nil {
+		return fmt.Errorf("%w: %w", ErrFenceRefused, err)
 	}
 	if err := d.opts.FenceVerifier.VerifyFence(ctx, tx, tenantID, fence); err != nil {
 		return fmt.Errorf("%w: %w", ErrFenceRefused, err)
@@ -68,7 +71,17 @@ func (d *Driver) verifyFence(ctx context.Context, tx runtime.Executor, tenantID 
 // configured it changes nothing and release is a no-op.
 func (d *Driver) acquireInstanceLease(ctx context.Context, tenantID, instanceID uuid.UUID) (context.Context, func() error, error) {
 	noop := func() error { return nil }
-	if _, held := fenceFromContext(ctx); held || d.opts.Leases == nil {
+	if fence := d.currentFence(ctx); fence != nil {
+		if d.opts.FenceVerifier == nil {
+			return ctx, noop, invalid("advancement presents a lease fence but the driver has no FenceVerifier")
+		}
+		fence.At = d.opts.Clock().UTC()
+		if err := fence.ValidateForInstance(instanceID); err != nil {
+			return ctx, noop, fmt.Errorf("%w: %w", ErrFenceRefused, err)
+		}
+		return ctx, noop, nil
+	}
+	if d.opts.Leases == nil {
 		return ctx, noop, nil
 	}
 	if tenantID == uuid.Nil || instanceID == uuid.Nil {
@@ -78,7 +91,10 @@ func (d *Driver) acquireInstanceLease(ctx context.Context, tenantID, instanceID 
 	if err := d.inTenantTx(ctx, tenantID, func(tx runtime.Executor) error {
 		var err error
 		fence, err = d.opts.Leases.AcquireInstance(ctx, tx, tenantID, instanceID, d.opts.Clock().UTC())
-		return err
+		if err != nil {
+			return err
+		}
+		return fence.ValidateForInstance(instanceID)
 	}); err != nil {
 		return ctx, noop, fmt.Errorf("%w: acquire instance lease: %w", ErrFenceRefused, err)
 	}

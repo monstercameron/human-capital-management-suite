@@ -22,6 +22,7 @@ package benefits
 import (
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders"
 )
 
 // Workflow identity.
@@ -118,16 +119,6 @@ func plainStr() workflow.ValueType  { return workflow.ValueType{Kind: workflow.K
 func boolean() workflow.ValueType   { return workflow.ValueType{Kind: workflow.KindBool} }
 func localDate() workflow.ValueType { return workflow.ValueType{Kind: workflow.KindLocalDate} }
 
-func fromInput(path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceWorkflowInput, Path: path}
-}
-func fromNode(nodeID, path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: nodeID, Path: path}
-}
-func constant(value string, t workflow.ValueType) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceConstant, Constant: value, Type: t}
-}
-
 func bootstrapCapabilitySchema(id, slot string) workflow.SchemaRef {
 	return workflow.SchemaRef{
 		SchemaID:         id + "." + slot + "/v1",
@@ -164,32 +155,6 @@ func terminalGovernance(obligations, approvals []string) workflow.NodeGovernance
 		ApprovalRequirements:  approvals,
 		RevalidationBoundary:  workflow.RevalidatePreClosure,
 		DataAccessManifestRef: dataAccessManifest,
-	}
-}
-
-func terminalInputs(extra ...workflow.Field) []workflow.Field {
-	base := []workflow.Field{
-		{Path: "worker_id", Type: str("WorkerID")},
-		{Path: "terminal_code", Type: plainStr()},
-	}
-	return append(base, extra...)
-}
-
-func terminalMappings(code string, extra ...workflow.Mapping) []workflow.Mapping {
-	base := []workflow.Mapping{
-		{Target: "worker_id", Source: fromInput("worker_id")},
-		{Target: "terminal_code", Source: constant(code, plainStr())},
-	}
-	return append(base, extra...)
-}
-
-func completion(request, execution, business, consistency, obligation string) map[string]string {
-	return map[string]string{
-		"RequestState":     request,
-		"ExecutionState":   execution,
-		"BusinessState":    business,
-		"ConsistencyState": consistency,
-		"ObligationState":  obligation,
 	}
 }
 
@@ -303,10 +268,10 @@ func nodes() []workflow.Node {
 				{Path: "eligibility_watermark", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "life_event_id", Source: fromInput("life_event_id")},
-				{Target: "plan_id", Source: fromInput("plan_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "life_event_id", Source: builders.FromInput("life_event_id")},
+				{Target: "plan_id", Source: builders.FromInput("plan_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadEligibilityFacts, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -328,9 +293,9 @@ func nodes() []workflow.Node {
 				{Path: "eligibility_trace_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "plan_id", Source: fromInput("plan_id")},
-				{Target: "eligibility_watermark", Source: fromNode(NodeReadEligibilityFacts, "eligibility_watermark")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "plan_id", Source: builders.FromInput("plan_id")},
+				{Target: "eligibility_watermark", Source: builders.FromNode(NodeReadEligibilityFacts, "eligibility_watermark")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformBuildEligibilityTrace, Version: 1,
@@ -363,11 +328,11 @@ func nodes() []workflow.Node {
 				{Path: "election_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "plan_id", Source: fromInput("plan_id")},
-				{Target: "prior_election_digest", Source: fromInput("prior_election_digest")},
-				{Target: "eligibility_trace_digest", Source: fromNode(NodeBuildEligibilityTrace, "eligibility_trace_digest")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "plan_id", Source: builders.FromInput("plan_id")},
+				{Target: "prior_election_digest", Source: builders.FromInput("prior_election_digest")},
+				{Target: "eligibility_trace_digest", Source: builders.FromNode(NodeBuildEligibilityTrace, "eligibility_trace_digest")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformBuildElectionProposal, Version: 1,
@@ -397,10 +362,10 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "route_key", Type: plainStr()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "fact_disputed", Source: fromNode(NodeReadEligibilityFacts, "fact_disputed")},
-				{Target: "enrollment_window_expired", Source: fromNode(NodeReadEligibilityFacts, "enrollment_window_expired")},
-				{Target: "life_event_duplicate", Source: fromNode(NodeReadEligibilityFacts, "life_event_duplicate")},
-				{Target: "election_overlap_detected", Source: fromNode(NodeReadEligibilityFacts, "election_overlap_detected")},
+				{Target: "fact_disputed", Source: builders.FromNode(NodeReadEligibilityFacts, "fact_disputed")},
+				{Target: "enrollment_window_expired", Source: builders.FromNode(NodeReadEligibilityFacts, "enrollment_window_expired")},
+				{Target: "life_event_duplicate", Source: builders.FromNode(NodeReadEligibilityFacts, "life_event_duplicate")},
+				{Target: "election_overlap_detected", Source: builders.FromNode(NodeReadEligibilityFacts, "election_overlap_detected")},
 			},
 			Decision: &workflow.DecisionSpec{
 				EvaluatorRef: "engines.rules.benefits_eligibility_and_election", EvaluatorVersion: 1,
@@ -432,8 +397,8 @@ func nodes() []workflow.Node {
 				{Path: "carrier_state", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "election_digest", Source: fromNode(NodeBuildElectionProposal, "election_digest")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "election_digest", Source: builders.FromNode(NodeBuildElectionProposal, "election_digest")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapObserveCarrierReconciliation, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -461,8 +426,8 @@ func nodes() []workflow.Node {
 				{Path: "deduction_state", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "election_digest", Source: fromNode(NodeBuildElectionProposal, "election_digest")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "election_digest", Source: builders.FromNode(NodeBuildElectionProposal, "election_digest")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapObserveDeductionReconciliation, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -480,11 +445,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndPendingObligations,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("BENEFITS_SIMULATION_PENDING_OBLIGATIONS"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "BENEFITS_SIMULATION_PENDING_OBLIGATIONS"),
 			End: &workflow.EndSpec{
 				TerminalCode: "BENEFITS_SIMULATION_PENDING_OBLIGATIONS", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping: builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{
 					ObligationEligibilityTrace, ObligationElectionRevision, ObligationCarrierReconciliation,
 					ObligationDeductionReconciliation, ObligationRecordsRetention,
@@ -498,55 +463,55 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndDisputedFactBlocked,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("BENEFITS_DISPUTED_FACT_BLOCKED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "BENEFITS_DISPUTED_FACT_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "BENEFITS_DISPUTED_FACT_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndExpiredWindowBlocked,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("BENEFITS_EXPIRED_WINDOW_BLOCKED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "BENEFITS_EXPIRED_WINDOW_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "BENEFITS_EXPIRED_WINDOW_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndDuplicateLifeEventBlocked,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("BENEFITS_DUPLICATE_LIFE_EVENT_BLOCKED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "BENEFITS_DUPLICATE_LIFE_EVENT_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "BENEFITS_DUPLICATE_LIFE_EVENT_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndOverlappingElectionBlocked,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("BENEFITS_OVERLAPPING_ELECTION_BLOCKED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "BENEFITS_OVERLAPPING_ELECTION_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "BENEFITS_OVERLAPPING_ELECTION_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
 		},
 		{
 			ID:            NodeEndCarrierDegradedRepair,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("BENEFITS_CARRIER_RECONCILIATION_DEGRADED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "BENEFITS_CARRIER_RECONCILIATION_DEGRADED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "BENEFITS_CARRIER_RECONCILIATION_DEGRADED", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationCarrierReconciliation, ObligationRecordsRetention},
 				RepairRefs:                []string{repairRef},
 			},
@@ -555,11 +520,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndDeductionDegradedRepair,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("BENEFITS_DEDUCTION_RECONCILIATION_DEGRADED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "BENEFITS_DEDUCTION_RECONCILIATION_DEGRADED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "BENEFITS_DEDUCTION_RECONCILIATION_DEGRADED", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationDeductionReconciliation, ObligationRecordsRetention},
 				RepairRefs:                []string{repairRef},
 			},
@@ -568,11 +533,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndUnknown,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("BENEFITS_SIMULATION_UNKNOWN"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "BENEFITS_SIMULATION_UNKNOWN"),
 			End: &workflow.EndSpec{
 				TerminalCode: "BENEFITS_SIMULATION_UNKNOWN", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),

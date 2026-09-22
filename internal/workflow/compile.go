@@ -33,6 +33,14 @@ type Options struct {
 	// were before it existed, and refuses every reference kind only a
 	// resolver can check with [CodeReferenceResolverRequired].
 	References ReferenceResolver
+	// SimulateProjection compiles the zero-effect SIMULATE projection
+	// (WF-EXT-003): outcome aliases are canonicalized as always, and every
+	// node whose declared effect class writes is suppressed through its own
+	// [Node.ModeOverlay] — effect class, cleared effect role and SIMULATE
+	// operation mode — with its capability record following. A write without
+	// a suppressing overlay is [CodeMutationInSimulation]. False compiles the
+	// definition as authored.
+	SimulateProjection bool
 	// CompilerVersion overrides [CompilerVersion] for tests that need to prove
 	// the compiler identity is material to the digest.
 	CompilerVersion string
@@ -337,18 +345,29 @@ func (p *CompiledWorkflow) Verify() error {
 // Compile turns a draft definition into an immutable compiled plan, or reports
 // every diagnostic that prevented it. A plan is produced only when the
 // diagnostic set is empty: there is no partially valid publication.
+//
+// The compiler canonicalizes every node's declared outcome aliases before
+// any route check runs, and derives the SIMULATE projection from declared
+// effect classes when [Options.SimulateProjection] asks for it (WF-EXT-003).
+// Neither rewrites the caller's definition: both work on copies.
 func Compile(def Definition, opts Options) (*CompiledWorkflow, error) {
 	c := &collector{}
 
+	def.Edges = canonicalizeEdges(&def)
 	validateShape(&def, opts, c)
 	records := resolveCapabilities(&def, opts, c)
+	overlaid := map[string]bool{}
+	if opts.SimulateProjection {
+		overlaid = projectSimulate(&def, records, c)
+		downgradeSimulateRecords(&def, overlaid, records)
+	}
 	refs := resolveReferences(&def, opts, c)
 	g := analyzeGraph(&def, c)
 	if g.sound {
 		checkMappings(&def, g, c)
 	}
 	checkSteps(&def, g, records, c)
-	effects := analyzeEffects(&def, g, records, opts, c)
+	effects := analyzeEffects(&def, g, records, opts, overlaid, c)
 	effects.NodesByRole = analyzeEffectRoles(g, records, c)
 	governance := analyzeGovernance(&def, g, records, c)
 	concurrency := analyzeConcurrency(&def, g, records, c)

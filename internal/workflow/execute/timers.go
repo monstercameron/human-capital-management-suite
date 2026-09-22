@@ -2,7 +2,6 @@ package execute
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -184,19 +183,7 @@ func (d *Driver) ResumeTimer(ctx context.Context, req ResumeTimerRequest) (ret0 
 		Frontier:        append([]string(nil), advanced.Frontier...),
 		EvidenceIDs:     evidenceIDs,
 	}
-	if advanced.Complete {
-		result.Status = StatusComplete
-		return result, nil
-	}
-	ready, parked := readyAndParked(advanced.Continuations, timers...)
-	if parked {
-		result.Status = StatusParked
-		return result, nil
-	}
-	if len(ready) == 0 {
-		return Result{}, fmt.Errorf("%w: resumed instance %s has no READY continuation", ErrNoProgress, req.InstanceID)
-	}
-	return d.drainReady(ctx, run, result, ready)
+	return d.continueAfterAdvance(ctx, run, result, advanced)
 }
 
 // validateResumeTimerConfig checks everything ResumeTimer can check before it

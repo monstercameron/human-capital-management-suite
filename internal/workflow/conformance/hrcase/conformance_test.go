@@ -8,6 +8,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/simulate"
 )
 
@@ -429,7 +430,7 @@ func hiddenEffectDefinition() workflow.Definition {
 				Inputs:  []workflow.Field{{Path: "case_id", Type: str("CaseID")}},
 				Outputs: []workflow.Field{{Path: "case_id", Type: str("CaseID")}},
 				InputMappings: []workflow.Mapping{
-					{Target: "case_id", Source: fromInput("case_id")},
+					{Target: "case_id", Source: builders.FromInput("case_id")},
 				},
 				Capability: &workflow.CapabilityRef{ID: hiddenCapRead, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:hrcase.assignment.read"}},
 				Governance: governedInvocation(nil, nil),
@@ -440,7 +441,7 @@ func hiddenEffectDefinition() workflow.Definition {
 				Inputs:  []workflow.Field{{Path: "case_id", Type: str("CaseID")}},
 				Outputs: []workflow.Field{{Path: "submission_id", Type: plainStr()}},
 				InputMappings: []workflow.Mapping{
-					{Target: "case_id", Source: fromNode(hiddenNodeRead, "case_id")},
+					{Target: "case_id", Source: builders.FromNode(hiddenNodeRead, "case_id")},
 				},
 				Capability:   &workflow.CapabilityRef{ID: hiddenCapWrite, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:hrcase.records.write"}, IdempotencyKeyMapping: "case_id", EffectBinding: "hrcase.hidden_effect"},
 				Retry:        &workflow.RetryPolicy{MaxAttempts: 3, BackoffRef: "policy.retry.effect.bounded/v1"},
@@ -459,7 +460,7 @@ func hiddenEffectDefinition() workflow.Definition {
 				Inputs:  []workflow.Field{{Path: "case_id", Type: str("CaseID")}},
 				Outputs: []workflow.Field{{Path: "observed_status", Type: plainStr()}},
 				InputMappings: []workflow.Mapping{
-					{Target: "case_id", Source: fromNode(hiddenNodeRead, "case_id")},
+					{Target: "case_id", Source: builders.FromNode(hiddenNodeRead, "case_id")},
 				},
 				Capability: &workflow.CapabilityRef{ID: hiddenCapObserve, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:hrcase.records.read"}},
 				Observe: &workflow.ObserveSpec{
@@ -473,20 +474,20 @@ func hiddenEffectDefinition() workflow.Definition {
 			},
 			{
 				ID: hiddenNodeCommit, Type: workflow.StepEnd,
-				Inputs: terminalInputs(), InputMappings: terminalMappings("COMMITTED"),
+				Inputs: builders.TerminalInputs("case_id", "CaseID"), InputMappings: builders.TerminalMappings("case_id", "COMMITTED"),
 				End: &workflow.EndSpec{
 					TerminalCode: "COMMITTED", RuntimeStatus: workflow.RuntimeCompleted,
-					CompletionMapping: completion("APPROVED", "COMMITTED", "COMPLETED", "CONSISTENT", "SATISFIED"),
+					CompletionMapping: builders.Completion("APPROVED", "COMMITTED", "COMPLETED", "CONSISTENT", "SATISFIED"),
 					CommitReceiptRef:  "receipt.fixture/v1",
 				},
 				Governance: terminalGovernance(nil, nil),
 			},
 			{
 				ID: hiddenNodeDegraded, Type: workflow.StepEnd,
-				Inputs: terminalInputs(), InputMappings: terminalMappings("COMMITTED_DEGRADED"),
+				Inputs: builders.TerminalInputs("case_id", "CaseID"), InputMappings: builders.TerminalMappings("case_id", "COMMITTED_DEGRADED"),
 				End: &workflow.EndSpec{
 					TerminalCode: "COMMITTED_DEGRADED", RuntimeStatus: workflow.RuntimeCompleted,
-					CompletionMapping: completion("APPROVED", "COMMITTED", "COMPLETED", "DEGRADED", "SATISFIED"),
+					CompletionMapping: builders.Completion("APPROVED", "COMMITTED", "COMPLETED", "DEGRADED", "SATISFIED"),
 					CommitReceiptRef:  "receipt.fixture/v1",
 					RepairRefs:        []string{"repair.fixture/v1"},
 				},
@@ -494,10 +495,10 @@ func hiddenEffectDefinition() workflow.Definition {
 			},
 			{
 				ID: hiddenNodeRepair, Type: workflow.StepEnd,
-				Inputs: terminalInputs(), InputMappings: terminalMappings("REPAIR_REQUIRED"),
+				Inputs: builders.TerminalInputs("case_id", "CaseID"), InputMappings: builders.TerminalMappings("case_id", "REPAIR_REQUIRED"),
 				End: &workflow.EndSpec{
 					TerminalCode: "REPAIR_REQUIRED", RuntimeStatus: workflow.RuntimeRepairRequired,
-					CompletionMapping: completion("APPROVED", "REPAIR_REQUIRED", "UNKNOWN", "UNKNOWN", "PENDING"),
+					CompletionMapping: builders.Completion("APPROVED", "REPAIR_REQUIRED", "UNKNOWN", "UNKNOWN", "PENDING"),
 					RepairRefs:        []string{"repair.fixture/v1"},
 				},
 				Governance: terminalGovernance(nil, nil),

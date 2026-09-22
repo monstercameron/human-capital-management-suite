@@ -33,7 +33,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
@@ -227,9 +226,21 @@ type PromotionExecution struct {
 	// one this composition created when none was.
 	Evidence app.EvidenceStore
 	Plan     PromotionPlan
+	// Registrations is the WF-EXT-002 workflow list this composition
+	// serves: the prototype approval alone, or the prototype approval,
+	// both execute versions and the high-performer variant.
+	Registrations []WorkflowRegistration
 	// steps is the executable plan's promotionsteps adapter; see
 	// [PromotionExecution.BindStepServices].
 	steps *promotionStepPorts
+	// driver is the composed caller-driven workflow driver, retained so
+	// the served cell can resolve governed cancellations through it
+	// ([PromotionExecution.CancelGoverned], WF-REV-002).
+	driver *execute.Driver
+	// Compensation is the served cell's single compensate executor
+	// (WF-REV-002): it serves COMPENSATE nodes, cancellation-driven
+	// compensation and the governed cancel compensator from one instance.
+	Compensation *ServedCompensation
 }
 
 // PromotionPlan selects which published promotion workflow the execution
@@ -323,29 +334,28 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		return nil, fmt.Errorf("platform execution: finance and manager approvers must be distinct for the execute plan")
 	}
 
-	prototypePlan, err := prototype.CompileApproval()
+	// WF-EXT-002: the served workflows compose from the registration list,
+	// not the two-plan switch. Under PLAN_EXECUTE one cell serves the
+	// prototype approval, both execute versions and the high-performer
+	// variant; under PLAN_PROTOTYPE only the approval registration serves.
+	pinned, err := ComposeWorkflowRegistrations(selected)
 	if err != nil {
-		return nil, fmt.Errorf("platform execution: compile the promotion approval workflow: %w", err)
+		return nil, err
 	}
-	executePlan, err := promotionexec.Compile()
-	if err != nil {
-		return nil, fmt.Errorf("platform execution: compile the promotion execute workflow: %w", err)
-	}
-	executePlanV1_0, err := promotionexec.CompileV1_0()
-	if err != nil {
-		return nil, fmt.Errorf("platform execution: compile the frozen promotion execute workflow 1.0.0: %w", err)
+	resolver := ResolverForRegistrations(pinned)
+	selectedPlan := pinned[0].Plan
+	if selected == PLAN_EXECUTE {
+		for _, p := range pinned {
+			if p.Registration.Name == RegistrationPromotionExecute {
+				selectedPlan = p.Plan
+			}
+		}
 	}
 	versions, err := composeVersions(cfg, clock())
 	if err != nil {
 		return nil, err
 	}
 
-	selectedPlan := prototypePlan
-	selectedWorkflowID := prototypePlan.WorkflowID
-	if selected == PLAN_EXECUTE {
-		selectedPlan = executePlan
-		selectedWorkflowID = executePlan.WorkflowID
-	}
 	effectiveDates := &sync.Map{}
 	// WF-RUN-034: the executable plan's governed steps; the application binds
 	// its gateway-invoking services after composing the cell.
@@ -355,15 +365,6 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	}
 	if steps.cellID == "" {
 		steps.cellID = "cell-local"
-	}
-
-	resolver := effects.PolicyResolver{Entries: []effects.PolicyEntry{{
-		WorkflowID: selectedWorkflowID,
-		Pin:        version.Pin{CompiledPlanDigest: selectedPlan.Digest()},
-		Plan:       selectedPlan,
-	}}}
-	if selected == PLAN_EXECUTE {
-		resolver = promotionExecuteResolver(executePlan, executePlanV1_0)
 	}
 
 	// OBS-023: no spans/logs at all unless a composition root supplies a
@@ -396,14 +397,22 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	}
 	evidence := capabilityEvidenceAdapter{sink: evidenceSink, now: clock}
 
+	// WF-EXT-002: the executable plan dispatches capability nodes through
+	// the registrations' capability-keyed step table; the prototype plan
+	// keeps the legacy runner path.
+	stepRunner := promotionStepRunner{plan: selected, effectiveDates: effectiveDates, ports: steps}
+	if selected == PLAN_EXECUTE {
+		stepRunner.capabilities = capabilityDispatch(pinned)
+	}
+
 	options := execute.Options{
 		DB:            cfg.DB,
 		StartRetry:    startRetry,
 		StartRetryFor: startRetryFor,
 		ConflictFence: cfg.ConflictFence,
-		Steps:         promotionStepRunner{plan: selected, effectiveDates: effectiveDates, ports: steps},
-		WorkItems:     promotionWorkItems{approver: approver, managerApprover: managerApprover, financePartner: cfg.FinancePartnerPrincipalID, managers: managerFallback{base: cfg.Managers, fallback: managerApprover}, plan: selected},
-		Terminal:      cfg.Terminal,
+		Steps:         stepRunner,
+		WorkItems:     WithWorkNotifications(promotionWorkItems{approver: approver, managerApprover: managerApprover, financePartner: cfg.FinancePartnerPrincipalID, managers: managerFallback{base: cfg.Managers, fallback: managerApprover}, plan: selected}),
+		Terminal:      WithRequesterStatusTerminal(cfg.Terminal),
 		Guard:         guard,
 		Retention:     retention,
 		Clock:         clock,
@@ -414,7 +423,17 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		// here (and none may import github.com/google/uuid directly --
 		// tools/policy/libfirewall's semantic firewall reserves that import
 		// to internal/humanwork and the other roots it names).
-		Items:           workitem.Store{},
+		Items: workitem.Store{},
+		// REV-008-01: the served reapproval TASK node resumes through the
+		// certified task contract: the typed outcome must bind the stored
+		// completion digest, and a recorded submission must satisfy the
+		// reapproval schema and acknowledgement checks before the advance
+		// commits. The default decision loader reads the recorded
+		// submission in the advancement's own transaction.
+		Tasks: &execute.TaskResumePolicy{
+			NodeFor:   promotionexec.ReapprovalTaskContract,
+			Validator: promotionexec.ReapprovalTaskValidator,
+		},
 		Instrumentation: instrumentation,
 		Recorder:        recorder,
 		Evidence:        evidence,
@@ -463,18 +482,35 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		return nil, fmt.Errorf("platform execution: build the promotion execution driver: %w", err)
 	}
 
+	registrations := make([]WorkflowRegistration, 0, len(pinned))
+	for _, p := range pinned {
+		registrations = append(registrations, p.Registration)
+	}
+	// WF-REV-002: the served cell composes the compensate executor. It is
+	// built after the step ports so the COMPENSATE node path can delegate
+	// to it, and before the return so every served composition carries it.
+	servedComp, err := ComposeServedCompensation(ServedCompensationOptions{
+		Clock: clock, AuthorityDigest: cfg.AuthorityDigest, DB: cfg.DB,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("platform execution: compose the served compensation: %w", err)
+	}
+	steps.servedComp = servedComp
 	return &PromotionExecution{
 		Executor: executeDriverAdapter{driver: driver, steps: steps, plan: selected},
 		Resolver: resolver,
 		Versions: versions,
 		Authority: &app.ExecutionAuthority{
 			AuthorityDigest:     cfg.AuthorityDigest,
-			AdmittedIntentTypes: map[string]bool{promotion.IntentType: true},
+			AdmittedIntentTypes: UnionAdmittedIntentTypes(pinned),
 			RequiredRole:        role,
 		},
-		Evidence: evidenceSink,
-		Plan:     selected,
-		steps:    steps,
+		Evidence:      evidenceSink,
+		Plan:          selected,
+		Registrations: registrations,
+		steps:         steps,
+		driver:        driver,
+		Compensation:  servedComp,
 	}, nil
 }
 
@@ -752,7 +788,7 @@ func (f promotionWorkItems) createExecuteTask(ctx context.Context, ex workitem.E
 	}
 	item, err := workitem.NewWorkItem(workitem.NewWorkItemInput{
 		TenantID: req.Continuation.TenantID, WorkItemID: req.WorkItemID,
-		Kind: workitem.KindTask, WorkType: "task.promotion.reapproval/v1", CorrelationID: req.CorrelationID,
+		Kind: workitem.KindTask, WorkType: promotionexec.ReapprovalWorkType, CorrelationID: req.CorrelationID,
 		WorkflowInstanceID: req.Continuation.InstanceID, NodeID: req.Continuation.TargetNodeID,
 		ProposalRef: req.Proposal.Revision.MaterialDigest.Digest, SubjectRefs: req.SubjectRefs,
 		PolicyRouteRef: "route.promotion.hr_business_partner/v1", Visibility: workitem.VisibilityAssigneeOnly,
@@ -769,7 +805,7 @@ func (f promotionWorkItems) createExecuteTask(ctx context.Context, ex workitem.E
 		return workitem.WorkItem{}, err
 	}
 	resolution := humanwork.Resolution{
-		RequirementID: "task.promotion.reapproval/v1", RequirementRevision: 1, Outcome: humanwork.OutcomeResolved,
+		RequirementID: promotionexec.ReapprovalWorkType, RequirementRevision: 1, Outcome: humanwork.OutcomeResolved,
 		Candidates: []humanwork.Candidate{{PrincipalID: approver, Via: humanwork.SourceDirect, TermRef: "term:execution-authority-approver"}},
 		ResolvedAt: values.NewInstant(req.CreatedAt), EffectiveAt: values.NewInstant(req.CreatedAt), DirectoryVersion: "directory.execution-authority/1",
 		ExpressionDigest: "sha256:0000000000000000000000000000000000000000000000000000000000000000", RequirementDigest: "sha256:0000000000000000000000000000000000000000000000000000000000000000", QuorumRequired: 1,

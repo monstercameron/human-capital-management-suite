@@ -25,6 +25,7 @@ package talent
 import (
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders"
 )
 
 // Workflow identity.
@@ -127,16 +128,6 @@ func plainStr() workflow.ValueType  { return workflow.ValueType{Kind: workflow.K
 func boolean() workflow.ValueType   { return workflow.ValueType{Kind: workflow.KindBool} }
 func localDate() workflow.ValueType { return workflow.ValueType{Kind: workflow.KindLocalDate} }
 
-func fromInput(path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceWorkflowInput, Path: path}
-}
-func fromNode(nodeID, path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: nodeID, Path: path}
-}
-func constant(value string, t workflow.ValueType) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceConstant, Constant: value, Type: t}
-}
-
 func bootstrapCapabilitySchema(id, slot string) workflow.SchemaRef {
 	return workflow.SchemaRef{
 		SchemaID:         id + "." + slot + "/v1",
@@ -173,32 +164,6 @@ func terminalGovernance(obligations, approvals []string) workflow.NodeGovernance
 		ApprovalRequirements:  approvals,
 		RevalidationBoundary:  workflow.RevalidatePreClosure,
 		DataAccessManifestRef: dataAccessManifest,
-	}
-}
-
-func terminalInputs(extra ...workflow.Field) []workflow.Field {
-	base := []workflow.Field{
-		{Path: "worker_id", Type: str("WorkerID")},
-		{Path: "terminal_code", Type: plainStr()},
-	}
-	return append(base, extra...)
-}
-
-func terminalMappings(code string, extra ...workflow.Mapping) []workflow.Mapping {
-	base := []workflow.Mapping{
-		{Target: "worker_id", Source: fromInput("worker_id")},
-		{Target: "terminal_code", Source: constant(code, plainStr())},
-	}
-	return append(base, extra...)
-}
-
-func completion(request, execution, business, consistency, obligation string) map[string]string {
-	return map[string]string{
-		"RequestState":     request,
-		"ExecutionState":   execution,
-		"BusinessState":    business,
-		"ConsistencyState": consistency,
-		"ObligationState":  obligation,
 	}
 }
 
@@ -310,9 +275,9 @@ func nodes() []workflow.Node {
 				{Path: "population_watermark", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "review_cycle_id", Source: fromInput("review_cycle_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "review_cycle_id", Source: builders.FromInput("review_cycle_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadPopulation, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -335,9 +300,9 @@ func nodes() []workflow.Node {
 				{Path: "rating_provenance", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "review_cycle_id", Source: fromInput("review_cycle_id")},
-				{Target: "rating_author_id", Source: fromInput("rating_author_id")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "review_cycle_id", Source: builders.FromInput("review_cycle_id")},
+				{Target: "rating_author_id", Source: builders.FromInput("rating_author_id")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadRatingClaim, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -364,8 +329,8 @@ func nodes() []workflow.Node {
 				{Path: "inference_provenance", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "review_cycle_id", Source: fromInput("review_cycle_id")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "review_cycle_id", Source: builders.FromInput("review_cycle_id")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadModelInference, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -388,9 +353,9 @@ func nodes() []workflow.Node {
 				{Path: "calibration_status", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "review_cycle_id", Source: fromInput("review_cycle_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "review_cycle_id", Source: builders.FromInput("review_cycle_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			RequiredContext: []workflow.ContextRequirement{{
 				Kind:                  "PolicyContext",
@@ -427,12 +392,12 @@ func nodes() []workflow.Node {
 				{Path: "footprint_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "population_active", Source: fromNode(NodeReadPopulation, "population_active")},
-				{Target: "rating_author_id", Source: fromInput("rating_author_id")},
-				{Target: "rater_id", Source: fromNode(NodeReadPopulation, "rater_id")},
-				{Target: "rating_value", Source: fromNode(NodeReadRatingClaim, "rating_value")},
-				{Target: "calibration_adjusted_rating", Source: fromNode(NodeResolveCalibrationCommittee, "calibration_adjusted_rating")},
-				{Target: "calibration_status", Source: fromNode(NodeResolveCalibrationCommittee, "calibration_status")},
+				{Target: "population_active", Source: builders.FromNode(NodeReadPopulation, "population_active")},
+				{Target: "rating_author_id", Source: builders.FromInput("rating_author_id")},
+				{Target: "rater_id", Source: builders.FromNode(NodeReadPopulation, "rater_id")},
+				{Target: "rating_value", Source: builders.FromNode(NodeReadRatingClaim, "rating_value")},
+				{Target: "calibration_adjusted_rating", Source: builders.FromNode(NodeResolveCalibrationCommittee, "calibration_adjusted_rating")},
+				{Target: "calibration_status", Source: builders.FromNode(NodeResolveCalibrationCommittee, "calibration_status")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformCalibrationFootprint, Version: 1,
@@ -469,18 +434,18 @@ func nodes() []workflow.Node {
 				{Path: "proposal_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "review_cycle_id", Source: fromInput("review_cycle_id")},
-				{Target: "footprint_digest", Source: fromNode(NodeComputeCalibrationFootprint, "footprint_digest")},
-				{Target: "rating_value", Source: fromNode(NodeReadRatingClaim, "rating_value")},
-				{Target: "calibration_adjusted_rating", Source: fromNode(NodeResolveCalibrationCommittee, "calibration_adjusted_rating")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "review_cycle_id", Source: builders.FromInput("review_cycle_id")},
+				{Target: "footprint_digest", Source: builders.FromNode(NodeComputeCalibrationFootprint, "footprint_digest")},
+				{Target: "rating_value", Source: builders.FromNode(NodeReadRatingClaim, "rating_value")},
+				{Target: "calibration_adjusted_rating", Source: builders.FromNode(NodeResolveCalibrationCommittee, "calibration_adjusted_rating")},
 				// The model recommendation flows into the PROPOSAL, never into
 				// the DECISION: this is the only InputMappings reference to
 				// NodeReadModelInference in the whole definition.
-				{Target: "inference_recommendation", Source: fromNode(NodeReadModelInference, "inference_recommendation")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
-				{Target: "is_correction", Source: fromInput("is_correction")},
-				{Target: "prior_assessment_digest", Source: fromInput("prior_assessment_digest")},
+				{Target: "inference_recommendation", Source: builders.FromNode(NodeReadModelInference, "inference_recommendation")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
+				{Target: "is_correction", Source: builders.FromInput("is_correction")},
+				{Target: "prior_assessment_digest", Source: builders.FromInput("prior_assessment_digest")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformBuildProposal, Version: 1,
@@ -511,11 +476,11 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "route_key", Type: plainStr()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "population_active", Source: fromNode(NodeReadPopulation, "population_active")},
-				{Target: "authority_mismatch", Source: fromNode(NodeComputeCalibrationFootprint, "authority_mismatch")},
-				{Target: "calibration_conflict", Source: fromNode(NodeComputeCalibrationFootprint, "calibration_conflict")},
-				{Target: "is_correction", Source: fromInput("is_correction")},
-				{Target: "prior_assessment_digest", Source: fromInput("prior_assessment_digest")},
+				{Target: "population_active", Source: builders.FromNode(NodeReadPopulation, "population_active")},
+				{Target: "authority_mismatch", Source: builders.FromNode(NodeComputeCalibrationFootprint, "authority_mismatch")},
+				{Target: "calibration_conflict", Source: builders.FromNode(NodeComputeCalibrationFootprint, "calibration_conflict")},
+				{Target: "is_correction", Source: builders.FromInput("is_correction")},
+				{Target: "prior_assessment_digest", Source: builders.FromInput("prior_assessment_digest")},
 			},
 			Decision: &workflow.DecisionSpec{
 				EvaluatorRef: "engines.rules.talent_calibration_and_correction", EvaluatorVersion: 1,
@@ -548,9 +513,9 @@ func nodes() []workflow.Node {
 				{Path: "calibration_record_state", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "worker_id", Source: fromInput("worker_id")},
-				{Target: "review_cycle_id", Source: fromInput("review_cycle_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "worker_id", Source: builders.FromInput("worker_id")},
+				{Target: "review_cycle_id", Source: builders.FromInput("review_cycle_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapObserveCalibrationRecord, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -568,11 +533,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndPendingApprovals,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TALENT_CALIBRATION_PENDING_APPROVALS"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "TALENT_CALIBRATION_PENDING_APPROVALS"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TALENT_CALIBRATION_PENDING_APPROVALS", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping: builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{
 					ObligationProvenanceRetention, ObligationCalibrationRecord, ObligationEvidenceRetention,
 				},
@@ -585,11 +550,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndStalePopulation,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TALENT_CALIBRATION_STALE_POPULATION_UNKNOWN"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "TALENT_CALIBRATION_STALE_POPULATION_UNKNOWN"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TALENT_CALIBRATION_STALE_POPULATION_UNKNOWN", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationEvidenceRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationEvidenceRetention}, nil),
@@ -597,30 +562,30 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndUnauthorizedRating,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TALENT_CALIBRATION_UNAUTHORIZED_RATING_BLOCKED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "TALENT_CALIBRATION_UNAUTHORIZED_RATING_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TALENT_CALIBRATION_UNAUTHORIZED_RATING_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationEvidenceRetention}, nil),
 		},
 		{
 			ID:            NodeEndCalibrationConflict,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TALENT_CALIBRATION_CONFLICT_BLOCKED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "TALENT_CALIBRATION_CONFLICT_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TALENT_CALIBRATION_CONFLICT_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
+				CompletionMapping: builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "NOT_APPLICABLE"),
 			},
 			Governance: terminalGovernance([]string{ObligationEvidenceRetention}, nil),
 		},
 		{
 			ID:            NodeEndRevisionCreated,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TALENT_CALIBRATION_REVISION_CREATED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "TALENT_CALIBRATION_REVISION_CREATED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TALENT_CALIBRATION_REVISION_CREATED", RuntimeStatus: workflow.RuntimeCompleted,
 				// A correction never mutates or resurrects the prior
@@ -630,7 +595,7 @@ func nodes() []workflow.Node {
 				// mutation" reinstatement path), never SIMULATED, and the
 				// prior assessment digest is named as an outstanding
 				// obligation to preserve.
-				CompletionMapping:         completion("SUPERSEDED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping:         builders.Completion("SUPERSEDED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationPriorAssessmentPreserved, ObligationEvidenceRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationPriorAssessmentPreserved, ObligationEvidenceRetention}, nil),
@@ -638,11 +603,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndDegradedRepair,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TALENT_CALIBRATION_SIMULATION_DEGRADED"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "TALENT_CALIBRATION_SIMULATION_DEGRADED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TALENT_CALIBRATION_SIMULATION_DEGRADED", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationCalibrationRecord, ObligationEvidenceRetention},
 				RepairRefs:                []string{repairRef},
 			},
@@ -651,11 +616,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndUnknown,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("TALENT_CALIBRATION_SIMULATION_UNKNOWN"),
+			Inputs:        builders.TerminalInputs("worker_id", "WorkerID"),
+			InputMappings: builders.TerminalMappings("worker_id", "TALENT_CALIBRATION_SIMULATION_UNKNOWN"),
 			End: &workflow.EndSpec{
 				TerminalCode: "TALENT_CALIBRATION_SIMULATION_UNKNOWN", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationEvidenceRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationEvidenceRetention}, nil),

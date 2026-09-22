@@ -199,7 +199,7 @@ func (d *Driver) CompleteApproval(ctx context.Context, req ApprovalCompletionReq
 		InstanceVersion: advanced.NewInstanceVersion, Frontier: append([]string(nil), advanced.Frontier...),
 		EvidenceIDs: evidenceIDs,
 	}
-	result, err := d.finishApprovalDrain(ctx, run, base, advanced)
+	result, err := d.continueAfterAdvance(ctx, run, base, advanced)
 	if err != nil {
 		return ApprovalCompletionResult{}, err
 	}
@@ -492,22 +492,6 @@ func (d *Driver) replayApprovalCompletion(ctx context.Context, run runContext, i
 		Resolution:   stepapproval.Resolution{Digest: node.OutputArtifactRef},
 		AuthorityRef: node.Refs.AuthorizationDecisionID, Replay: true,
 	}, nil
-}
-
-func (d *Driver) finishApprovalDrain(ctx context.Context, run runContext, result Result, advanced runtime.AdvanceReceipt) (Result, error) {
-	if advanced.Complete {
-		result.Status = StatusComplete
-		return result, nil
-	}
-	ready, parked := readyAndParked(advanced.Continuations, result.Timers...)
-	if parked {
-		result.Status = StatusParked
-		return result, nil
-	}
-	if len(ready) == 0 {
-		return Result{}, fmt.Errorf("%w: completed approval has no READY continuation", ErrNoProgress)
-	}
-	return d.drainReady(ctx, run, result, ready)
 }
 
 func sameDigestReference(a, b digest.Reference) bool {

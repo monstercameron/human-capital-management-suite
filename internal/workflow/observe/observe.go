@@ -324,15 +324,43 @@ func Finish(op Operation, err error, refused func(error) bool) error {
 
 // Refused is the default governed-refusal classifier: an error carrying a
 // workflow code is a refusal (a stale fence, an illegal transition, a held
-// lease) unless that code reports a storage failure; an uncoded error or a
-// context error is a failure.
+// lease) unless its error chain reports a storage failure or cancellation;
+// an uncoded error is a failure. Joined storage failures take precedence.
 func Refused(err error) bool {
+	if err == nil || (reflect.ValueOf(err).Kind() == reflect.Pointer && reflect.ValueOf(err).IsNil()) {
+		return false
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || hasStorageFailure(err) {
+		return false
+	}
 	var c coded
 	if !errors.As(err, &c) {
 		return false
 	}
 	code := c.ErrorCode()
 	return code != "" && !strings.Contains(code, "STORAGE")
+}
+
+// A refusal wrapper must not hide a technical failure in its cause or in a
+// joined cleanup error. errors.As alone finds only the first coded error.
+func hasStorageFailure(err error) bool {
+	if err == nil || (reflect.ValueOf(err).Kind() == reflect.Pointer && reflect.ValueOf(err).IsNil()) {
+		return false
+	}
+	if c, ok := err.(coded); ok && strings.Contains(c.ErrorCode(), "STORAGE") {
+		return true
+	}
+	switch e := err.(type) {
+	case interface{ Unwrap() []error }:
+		for _, cause := range e.Unwrap() {
+			if hasStorageFailure(cause) {
+				return true
+			}
+		}
+	case interface{ Unwrap() error }:
+		return hasStorageFailure(e.Unwrap())
+	}
+	return false
 }
 
 // Done ends op with [Finish] using the default [Refused] classifier and

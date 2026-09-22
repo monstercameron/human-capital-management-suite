@@ -96,12 +96,22 @@ func insertFragment(definition workflow.Definition, entry designerpalette.Entry)
 	groupID := nextGroupID(safeID(entry.Name), definition.Nodes)
 	remap := make(map[string]string, len(entry.Expansion.Nodes))
 	seen := make(map[string]bool, len(entry.Expansion.Nodes))
+	// safeID is lossy: it folds every non-alphanumeric run to "_", so distinct
+	// fragment node ids such as "a-b" and "a_b" can remap onto one id. Left
+	// undetected that silently merges two nodes and reroutes the second one's
+	// edges and mappings onto the first.
+	taken := make(map[string]bool, len(entry.Expansion.Nodes))
 	for _, node := range entry.Expansion.Nodes {
 		if strings.TrimSpace(node.ID) == "" || seen[node.ID] {
 			return Result{}, ErrInvalid
 		}
 		seen[node.ID] = true
-		remap[node.ID] = groupID + "__" + safeID(node.ID)
+		remapped := groupID + "__" + safeID(node.ID)
+		if taken[remapped] {
+			return Result{}, ErrInvalid
+		}
+		taken[remapped] = true
+		remap[node.ID] = remapped
 	}
 	for _, edge := range entry.Expansion.Edges {
 		if remap[edge.From] == "" || remap[edge.To] == "" || strings.TrimSpace(edge.RouteKey) == "" {

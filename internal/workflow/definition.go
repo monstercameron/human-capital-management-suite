@@ -618,6 +618,20 @@ type Node struct {
 	TimeoutPolicy   *VersionedRef `json:"timeout_policy,omitempty"`
 	CompensationRef *VersionedRef `json:"compensation_ref,omitempty"`
 
+	// OutcomeAliases maps a business outcome name this node's outgoing edges
+	// use to the kernel route key it canonicalizes to (WF-EXT-003). A WAIT
+	// declared as FIRED, a TASK documented as REAPPROVED or WITHDRAWN, or an
+	// OBSERVE judged CONSISTENT stays readable on the authored graph; the
+	// compiler rewrites the edge to the step type's fixed conformance outcome
+	// before any route check runs. An alias target of "" drops the edge: the
+	// business outcome has no kernel continuation.
+	OutcomeAliases map[string]string `json:"outcome_aliases,omitempty"`
+	// ModeOverlay declares how this node projects onto SIMULATE (WF-EXT-003).
+	// A write-effect node that declares SIMULATE support carries one; the
+	// compiler applies it when the SIMULATE projection is requested. A node
+	// that mutates nothing declares none.
+	ModeOverlay *ModeOverlay `json:"mode_overlay,omitempty"`
+
 	Retry *RetryPolicy `json:"retry,omitempty"`
 	// FailureRoute names the node reached when the step fails outside its
 	// declared outcome routes.
@@ -627,6 +641,27 @@ type Node struct {
 	SafePointRequested bool              `json:"safe_point_requested,omitempty"`
 	Governance         NodeGovernance    `json:"governance"`
 	Metadata           map[string]string `json:"metadata,omitempty"`
+}
+
+// ModeOverlay declares one write-effect node's projection onto SIMULATE
+// (WF-EXT-003). The compiler derives the SIMULATE projection from declared
+// effect classes: a node whose declared class writes must carry an overlay
+// naming the read it becomes, and the compiler applies it — effect class,
+// cleared effect role and SIMULATE operation mode — when the projection is
+// requested. The overlay never invents a new behavior; it only suppresses
+// the declared mutation to a read.
+type ModeOverlay struct {
+	// SimulateEffect is the effect class this node carries in the SIMULATE
+	// projection. It is PURE or READ_ONLY; anything else is a declaration
+	// that the mutation cannot be suppressed.
+	SimulateEffect capability.EffectClass `json:"simulate_effect"`
+}
+
+// suppresses reports whether the overlay declares a genuine suppression to
+// a read. A nil overlay, an empty target or a write target suppresses
+// nothing: the node's mutation stands.
+func (o *ModeOverlay) suppresses() bool {
+	return o != nil && (o.SimulateEffect == capability.EffectPure || o.SimulateEffect == capability.EffectReadOnly)
 }
 
 // Definition is one draft workflow definition version. Publishing it produces

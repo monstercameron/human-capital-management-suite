@@ -1,5 +1,5 @@
-// REV-042-01 RED: custom-object event kinds must be subscribable and match a
-// real custom-object outbox entry end to end over digests only.
+// REV-046-03 RED: ExpireCredentials must authorize and expire by each
+// credential's own Tenant, never a hardcoded tenant literal.
 package learning
 
 import (

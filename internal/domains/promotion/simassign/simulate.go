@@ -790,16 +790,12 @@ func (s *simulation) assignmentEffect(chain ChainProjection) (ProposedEffect, []
 		local = local && LocalAuthority(chainIn.Entry.Authority)
 	}
 	effect, err := s.effect(EffectAssignmentRevision, in, effectShape{
-		participant:          "people.assignment",
-		destination:          "people.assignment/" + s.snap.Subject.Id,
-		storageClass:         "LOCAL_EVENT_STREAM",
-		local:                local,
-		reversibility:        Reversible,
-		compensationRef:      "people.assignment.supersede",
-		compensationStrategy: "SUPERSEDING_REVISION",
-		observationRef:       "observe.people.assignment_effective",
-		changes:              changes,
-		sources:              sources,
+		participant:  "people.assignment",
+		destination:  "people.assignment/" + s.snap.Subject.Id,
+		storageClass: "LOCAL_EVENT_STREAM",
+		local:        local,
+		changes:      changes,
+		sources:      sources,
 	})
 	return effect, nil, err
 }
@@ -831,16 +827,12 @@ func (s *simulation) managerEffect(chain ChainProjection) (ProposedEffect, error
 		},
 	}
 	return s.effect(EffectManagerRelationship, in, effectShape{
-		participant:          "org.manager_relationship",
-		destination:          "org.manager_relationship/" + s.snap.Subject.Id,
-		storageClass:         "LOCAL_EVENT_STREAM",
-		local:                LocalAuthority(in.Entry.Authority),
-		reversibility:        Reversible,
-		compensationRef:      "org.manager_relationship.supersede",
-		compensationStrategy: "SUPERSEDING_REVISION",
-		observationRef:       "observe.org.manager_chain_current",
-		changes:              changes,
-		sources:              []string{promosnapshot.InputManagerChain, promosnapshot.InputCurrentPlacement},
+		participant:  "org.manager_relationship",
+		destination:  "org.manager_relationship/" + s.snap.Subject.Id,
+		storageClass: "LOCAL_EVENT_STREAM",
+		local:        LocalAuthority(in.Entry.Authority),
+		changes:      changes,
+		sources:      []string{promosnapshot.InputManagerChain, promosnapshot.InputCurrentPlacement},
 	})
 }
 
@@ -885,36 +877,36 @@ func (s *simulation) occupancyEffect(occupancy OccupancyProjection) (ProposedEff
 		sources = append(sources, promosnapshot.InputTargetPositionVacancy)
 	}
 	return s.effect(EffectPositionOccupancy, in, effectShape{
-		participant:          "position.occupancy",
-		destination:          "position.occupancy/" + s.snap.TargetPosition.Id,
-		storageClass:         "LOCAL_EVENT_STREAM",
-		local:                LocalAuthority(in.Entry.Authority),
-		reversibility:        Compensatable,
-		compensationRef:      "position.reservation.release",
-		compensationStrategy: "RELEASE_RESERVATION",
-		observationRef:       "observe.position.occupancy_consumed",
-		changes:              changes,
-		sources:              sources,
+		participant:  "position.occupancy",
+		destination:  "position.occupancy/" + s.snap.TargetPosition.Id,
+		storageClass: "LOCAL_EVENT_STREAM",
+		local:        LocalAuthority(in.Entry.Authority),
+		changes:      changes,
+		sources:      sources,
 	})
 }
 
-// effectShape is the per-kind declaration the shared constructor fills in.
+// effectShape is the per-simulation remainder of an effect: everything the
+// undo contract does not declare. The reversal (reversibility class,
+// compensation and observation) comes from the single declaration
+// ([ReversalFor]), never from a per-effect literal, so the proposal and the
+// cancellation verdict cannot disagree about how an effect is undone.
 type effectShape struct {
-	participant          string
-	destination          string
-	storageClass         string
-	local                bool
-	reversibility        Reversibility
-	compensationRef      string
-	compensationStrategy string
-	observationRef       string
-	changes              []FieldChange
-	sources              []string
+	participant  string
+	destination  string
+	storageClass string
+	local        bool
+	changes      []FieldChange
+	sources      []string
 }
 
 // effect builds one proposed effect, binding it to the input that supplied its
 // baseline and minting its deterministic identity and idempotency key.
 func (s *simulation) effect(kind EffectKind, baseline promosnapshot.Input, shape effectShape) (ProposedEffect, error) {
+	rev, ok := ReversalFor(kind)
+	if !ok {
+		return ProposedEffect{}, fmt.Errorf("%w: effect kind %q declares no reversal", ErrEffectIncomplete, kind)
+	}
 	idempotency, err := canonicalbytes.New("hcmnext.domains.promotion.simassign.Idempotency", schemaVersion).
 		String("snapshot_digest", s.snap.Digest).
 		String("kind", string(kind)).
@@ -931,10 +923,10 @@ func (s *simulation) effect(kind EffectKind, baseline promosnapshot.Input, shape
 		DestinationRef:       shape.destination,
 		StorageClass:         shape.storageClass,
 		Local:                shape.local,
-		Reversibility:        shape.reversibility,
-		CompensationRef:      shape.compensationRef,
-		CompensationStrategy: shape.compensationStrategy,
-		ObservationRef:       shape.observationRef,
+		Reversibility:        rev.Reversibility,
+		CompensationRef:      rev.CompensationRef,
+		CompensationStrategy: rev.CompensationStrategy,
+		ObservationRef:       rev.ObservationRef,
 		IdempotencyKey:       idempotency,
 		Subject:              baseline.Subject,
 		ResourceKey:          baseline.ResourceKey,

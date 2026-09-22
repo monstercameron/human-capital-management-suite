@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projection/critical"
 )
 
 // The reads and the one parent-row write WF-RUN-027's durable approval facts
@@ -124,29 +126,38 @@ func (s RevisionStore) Load(ctx context.Context, ex Executor, tenantID, intentID
 // Materialize inserts the revision row unless it is already stored, and
 // reports whether this call is the one that created it.
 //
-// It never overwrites: proposal_revision carries migration 00004's append-only
-// trigger, so "already stored" is the only other outcome an insert can have,
-// and a caller re-executing the same simulated revision must be able to tell
-// the two apart without inspecting a driver error.
+// It is a thin call into critical.InsertProposalRevision, the single
+// CAS-guarded proposal_revision writer the ledger-commit projection shares:
+// an identical second write is an idempotent no-op, while a second write
+// with a different proposal digest is a conflict rather than a silently
+// ignored overwrite. proposal_revision carries migration 00004's append-only
+// trigger, so those are the only outcomes an insert can have, and a caller
+// re-executing the same simulated revision can tell the two apart without
+// inspecting a driver error.
 func (s RevisionStore) Materialize(ctx context.Context, ex Executor, in Revision) (bool, error) {
 	if err := in.Validate(); err != nil {
 		return false, err
 	}
-	affected, err := ex.Exec(ctx, `
-		INSERT INTO proposal_revision (
-			tenant_id, intent_id, revision,
-			proposal_digest, material_digest, schema_ref, payload,
-			produced_by, produced_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		ON CONFLICT (tenant_id, intent_id, revision) DO NOTHING`,
-		in.TenantID, in.IntentID, int64(in.Revision),
-		in.ProposalDigest, in.MaterialDigest, in.SchemaRef, in.Payload,
-		in.ProducedBy, in.ProducedAt.UTC())
+	if in.Revision > uint64(1<<63-1) {
+		return false, invalid("revision", "value exceeds PostgreSQL bigint range")
+	}
+	created, err := critical.InsertProposalRevision(ctx, ex, critical.ProposalRevisionRow{
+		Tenant:          in.TenantID,
+		IntentID:        in.IntentID,
+		Revision:        int64(in.Revision),
+		ProposalDigest:  in.ProposalDigest,
+		MaterialDigest:  in.MaterialDigest,
+		DigestAlgorithm: "sha256",
+		SchemaRef:       in.SchemaRef,
+		Payload:         in.Payload,
+		ProducedBy:      in.ProducedBy,
+		ProducedAt:      in.ProducedAt.UTC(),
+	})
 	if err != nil {
 		return false, fmt.Errorf("intentcontrol: materialize proposal revision %s/%d: %w",
 			in.IntentID, in.Revision, err)
 	}
-	return affected == 1, nil
+	return created, nil
 }
 
 // MaterialDigestOf reads back the material digest one stored revision carries,

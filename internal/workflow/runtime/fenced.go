@@ -23,10 +23,8 @@ const (
 	CodeFenceRefused = "FENCE_REFUSED"
 )
 
-// Fence is the lease grant an advancement presents. It is a plain value this
-// package compares nothing about itself: [FenceVerifier] owns the comparison,
-// because the lease line lives in internal/workflow/lease and this package
-// deliberately does not depend on it.
+// Fence is the lease grant an advancement presents. ValidateForInstance checks
+// its resource binding; FenceVerifier checks the grant against durable storage.
 type Fence struct {
 	ResourceKind string
 	ResourceID   string
@@ -40,9 +38,14 @@ type Fence struct {
 	At time.Time
 }
 
-func (f Fence) validate(instanceID uuid.UUID) error {
+// ValidateForInstance checks shape and resource binding before any step runs.
+// A valid grant for another instance or a queue does not protect this instance.
+// Durable token, holder, tenant and expiry checks remain the verifier's job.
+func (f Fence) ValidateForInstance(instanceID uuid.UUID) error {
 	id := instanceID.String()
 	switch {
+	case instanceID == uuid.Nil:
+		return refuse(CodeFenceRequired, id, "", "fence requires a nonzero workflow instance")
 	case f.ResourceKind == "" || f.ResourceID == "":
 		return refuse(CodeFenceRequired, id, "", "fence names no resource kind and id")
 	case f.LeaseID == uuid.Nil:
@@ -54,6 +57,8 @@ func (f Fence) validate(instanceID uuid.UUID) error {
 	case f.At.IsZero():
 		return refuse(CodeFenceRequired, id, "",
 			"fence carries no instant; a holder past its own lease window cannot be refused without one")
+	case f.ResourceKind != "WORKFLOW_INSTANCE" || f.ResourceID != id:
+		return refuse(CodeFenceRefused, id, "", "fence does not protect the requested workflow instance")
 	}
 	return nil
 }
@@ -97,7 +102,7 @@ func AdvanceFenced(ctx context.Context, tx Executor, req FencedAdvanceRequest) (
 		return AdvanceReceipt{}, refuse(CodeFenceRequired, req.Request.InstanceID.String(), req.Request.Outcome.NodeID,
 			"no fence verifier supplied; a fenced advancement cannot check its own fence")
 	}
-	if err := req.Fence.validate(req.Request.InstanceID); err != nil {
+	if err := req.Fence.ValidateForInstance(req.Request.InstanceID); err != nil {
 		return AdvanceReceipt{}, err
 	}
 	if err := req.Verifier.VerifyFence(ctx, tx, req.Request.TenantID, req.Fence); err != nil {

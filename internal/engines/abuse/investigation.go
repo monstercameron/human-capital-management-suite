@@ -59,6 +59,11 @@ func (o DispositionOutcome) Valid() bool {
 }
 
 // OpenRequest opens one compartmented investigation over a review signal.
+// Clock is the injected source of "now" for every timestamp the lifecycle
+// records after opening (transfers, fallback disposition time,
+// corrections). A nil Clock reads the wall clock in UTC, matching the
+// sibling convention (internal/domains/subscription, pseudonym, balance:
+// variadic or nil clock with a wall default) so tests can pin time.
 type OpenRequest struct {
 	ID           string
 	Tenant       string
@@ -67,6 +72,7 @@ type OpenRequest struct {
 	Investigator string
 	EvidenceRefs []string
 	OpenedAt     time.Time
+	Clock        func() time.Time
 }
 
 // DispositionRequest closes the evidence question. DecidedBy must differ
@@ -120,6 +126,19 @@ type Investigation struct {
 	Consequence  string
 	Version      int
 	Digest       string
+	// clock is the injected "now" from OpenRequest. It stays unexported so
+	// a zero-value Investigation still works: now() falls back to the wall
+	// clock when no clock was injected.
+	clock func() time.Time
+}
+
+// now reports the investigation's clock time, or the wall clock in UTC
+// when the investigation was built without an injected clock.
+func (i Investigation) now() time.Time {
+	if i.clock != nil {
+		return i.clock().UTC()
+	}
+	return time.Now().UTC()
 }
 
 // RequiresHumanDecision always reports true: investigation never authorizes
@@ -156,10 +175,15 @@ func OpenInvestigation(req OpenRequest) (Investigation, error) {
 	if req.Investigator == req.Finding.Evidence.Principal && req.Finding.Evidence.Principal != "" {
 		return Investigation{}, fmt.Errorf("%w: the finding subject cannot investigate itself", ErrInvestigationRejected)
 	}
+	clock := req.Clock
+	if clock == nil {
+		clock = func() time.Time { return time.Now().UTC() }
+	}
 	return Investigation{
 		ID: req.ID, Tenant: req.Tenant, Compartment: req.Compartment, Finding: req.Finding,
 		State: InvestigationOpen, Investigator: req.Investigator,
 		EvidenceRefs: append([]string(nil), req.EvidenceRefs...), Version: 1,
+		clock: clock,
 	}.refresh(), nil
 }
 
@@ -185,7 +209,7 @@ func (i Investigation) Transfer(to, reason, by string) (Investigation, error) {
 	if strings.TrimSpace(to) == "" || strings.TrimSpace(reason) == "" {
 		return Investigation{}, fmt.Errorf("%w: transfer needs a compartment and a reason", ErrInvestigationRejected)
 	}
-	i.Trail = append(i.Trail, Transfer{From: i.Compartment, To: to, Reason: reason, By: by, At: time.Now().UTC()})
+	i.Trail = append(i.Trail, Transfer{From: i.Compartment, To: to, Reason: reason, By: by, At: i.now()})
 	i.Compartment = to
 	i.Version++
 	return i.refresh(), nil
@@ -208,7 +232,7 @@ func (i Investigation) Disposition(req DispositionRequest) (Investigation, error
 	}
 	at := req.DecidedAt
 	if at.IsZero() {
-		at = time.Now().UTC()
+		at = i.now()
 	}
 	i.Result = &Disposition{Outcome: req.Outcome, Reason: req.Reason, DecidedBy: req.DecidedBy, DecidedAt: at}
 	i.State = InvestigationState(req.Outcome)
@@ -222,7 +246,7 @@ func (i Investigation) Correct(note, by string) (Investigation, error) {
 	if strings.TrimSpace(note) == "" || strings.TrimSpace(by) == "" {
 		return Investigation{}, fmt.Errorf("%w: correction needs a note and an author", ErrInvestigationRejected)
 	}
-	i.Corrections = append(i.Corrections, Correction{Note: note, Corrected: by, At: time.Now().UTC()})
+	i.Corrections = append(i.Corrections, Correction{Note: note, Corrected: by, At: i.now()})
 	i.Version++
 	return i.refresh(), nil
 }

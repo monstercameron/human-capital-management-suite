@@ -261,8 +261,11 @@ type WorkspacePublicationProposal struct {
 
 // ProposeWorkspacePublication admits a DRAFT candidate into the publication
 // workflow. Published architecture is never edited in place, so proposing a
-// non-draft profile is refused with ErrWorkspaceDirectPublish.
-func ProposeWorkspacePublication(viewer WorkspaceViewer, arch, candidate ArchitectureRevision, profileID string) (WorkspacePublicationProposal, error) {
+// non-draft profile is refused with ErrWorkspaceDirectPublish. The optional
+// clock stamps RequestedAt; a nil or absent clock reads the wall clock in
+// UTC, matching the sibling convention (subscription, pseudonym, balance)
+// so tests can pin time.
+func ProposeWorkspacePublication(viewer WorkspaceViewer, arch, candidate ArchitectureRevision, profileID string, now ...func() time.Time) (WorkspacePublicationProposal, error) {
 	if strings.TrimSpace(viewer.PrincipalID) == "" {
 		return WorkspacePublicationProposal{}, ErrWorkspaceViewerUnauthorized
 	}
@@ -285,9 +288,13 @@ func ProposeWorkspacePublication(viewer WorkspaceViewer, arch, candidate Archite
 	if profile.Lifecycle != LifecycleDraft {
 		return WorkspacePublicationProposal{}, fmt.Errorf("%w: profile %s is %s", ErrWorkspaceDirectPublish, profileID, profile.Lifecycle)
 	}
+	clock := func() time.Time { return time.Now().UTC() }
+	if len(now) > 0 && now[0] != nil {
+		clock = now[0]
+	}
 	return WorkspacePublicationProposal{
 		ArchitectureID: arch.ID, ProfileID: profileID,
 		CandidateDigest: candidate.computedDigest(),
-		RequestedBy:     viewer.PrincipalID, RequestedAt: time.Now().UTC(),
+		RequestedBy:     viewer.PrincipalID, RequestedAt: clock().UTC(),
 	}, nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
@@ -84,7 +85,18 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 			// persists it on timer, job, outbox and signal envelopes, not
 			// on work items), so this path always advances unlinked.
 			outcome, refs, driftErr := checkWorkItemDrift(req, selection, item)
-			return outcome, refs, nil, driftErr
+			if driftErr != nil {
+				return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, nil, driftErr
+			}
+			// REV-008-01: a served TASK node resumes through the certified
+			// task contract, not the drift check alone.
+			if node, ok := selection.Plan.Node(item.NodeID); ok && node.Type == workflow.StepTask && d.opts.Tasks != nil {
+				outcome, refs, driftErr = d.checkTaskResume(ctx, ex, req, selection, node, item, outcome, refs, values.NewInstant(at))
+				if driftErr != nil {
+					return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, nil, driftErr
+				}
+			}
+			return outcome, refs, nil, nil
 		},
 		func(advanced runtime.AdvanceReceipt) (string, string, bool) {
 			node, ok := selection.Plan.Node(advanced.NodeID)
@@ -115,19 +127,7 @@ func (d *Driver) Resume(ctx context.Context, req ResumeRequest) (ret0 Result, re
 		Frontier:        append([]string(nil), advanced.Frontier...),
 		EvidenceIDs:     evidenceIDs,
 	}
-	if advanced.Complete {
-		result.Status = StatusComplete
-		return result, nil
-	}
-	ready, parked := readyAndParked(advanced.Continuations, timers...)
-	if parked {
-		result.Status = StatusParked
-		return result, nil
-	}
-	if len(ready) == 0 {
-		return Result{}, fmt.Errorf("%w: resumed instance %s has no READY continuation", ErrNoProgress, req.InstanceID)
-	}
-	return d.drainReady(ctx, run, result, ready)
+	return d.continueAfterAdvance(ctx, run, result, advanced)
 }
 
 // validateResumeConfig checks everything Resume can check before it ever

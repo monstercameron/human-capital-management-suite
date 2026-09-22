@@ -188,16 +188,34 @@ func upsertIntentInstance(ctx context.Context, tx dbport.Tx, row IntentInstanceR
 	return nil
 }
 
-// insertProposalRevision inserts one immutable proposal_revision row. A
-// second attempt at the same (tenant, intent, revision) is a no-op only when
-// it carries the identical proposal digest; any difference is
-// [ErrProposalRevisionConflict] rather than a silently ignored write.
-func insertProposalRevision(ctx context.Context, tx dbport.Tx, row ProposalRevisionRow) error {
+// Writer is the minimal database capability the shared proposal_revision
+// writer needs. Both dbport.Tx and intentcontrol.Executor satisfy it, which
+// is what makes RevisionStore.Materialize a thin call into this package's
+// single CAS-guarded insert rather than a second writer with its own SQL.
+type Writer interface {
+	Exec(ctx context.Context, sql string, args ...any) (rowsAffected int64, err error)
+	QueryRow(ctx context.Context, sql string, args ...any) dbport.Row
+}
+
+// InsertProposalRevision inserts one immutable proposal_revision row and
+// reports whether this call created it. A second attempt at the same
+// (tenant, intent, revision) is a no-op only when it carries the identical
+// proposal digest; any difference is [ErrProposalRevisionConflict] rather
+// than a silently ignored write. An empty DigestAlgorithm defaults to
+// "sha256" to match the column default. This is the single writer both
+// [Apply] and intentcontrol.RevisionStore.Materialize share.
+func InsertProposalRevision(ctx context.Context, ex Writer, row ProposalRevisionRow) (bool, error) {
+	if row.DigestAlgorithm == "" {
+		row.DigestAlgorithm = "sha256"
+	}
+	if !row.ProducedAt.IsZero() {
+		row.ProducedAt = row.ProducedAt.UTC()
+	}
 	var artifactRef *string
 	if row.ArtifactRef != "" {
 		artifactRef = &row.ArtifactRef
 	}
-	affected, err := tx.Exec(ctx, `
+	affected, err := ex.Exec(ctx, `
 		INSERT INTO proposal_revision (
 			tenant_id, intent_id, revision, proposal_digest, material_digest,
 			digest_algorithm, schema_ref, payload, artifact_ref, produced_by, produced_at)
@@ -206,22 +224,31 @@ func insertProposalRevision(ctx context.Context, tx dbport.Tx, row ProposalRevis
 		row.Tenant, row.IntentID, row.Revision, row.ProposalDigest, row.MaterialDigest,
 		row.DigestAlgorithm, row.SchemaRef, row.Payload, artifactRef, row.ProducedBy, row.ProducedAt)
 	if err != nil {
-		return fmt.Errorf("critical: project proposal_revision %s/%d: %w", row.IntentID, row.Revision, err)
+		return false, fmt.Errorf("critical: project proposal_revision %s/%d: %w", row.IntentID, row.Revision, err)
 	}
 	if affected == 1 {
-		return nil
+		return true, nil
 	}
 
 	var storedDigest string
-	err = tx.QueryRow(ctx, `
+	err = ex.QueryRow(ctx, `
 		SELECT proposal_digest FROM proposal_revision
 		WHERE tenant_id = $1 AND intent_id = $2 AND revision = $3`,
 		row.Tenant, row.IntentID, row.Revision).Scan(&storedDigest)
 	if err != nil {
-		return fmt.Errorf("critical: read existing proposal_revision %s/%d: %w", row.IntentID, row.Revision, err)
+		return false, fmt.Errorf("critical: read existing proposal_revision %s/%d: %w", row.IntentID, row.Revision, err)
 	}
 	if storedDigest != row.ProposalDigest {
-		return ErrProposalRevisionConflict{IntentID: row.IntentID, Revision: row.Revision}
+		return false, ErrProposalRevisionConflict{IntentID: row.IntentID, Revision: row.Revision}
 	}
-	return nil
+	return false, nil
+}
+
+// insertProposalRevision inserts one immutable proposal_revision row. A
+// second attempt at the same (tenant, intent, revision) is a no-op only when
+// it carries the identical proposal digest; any difference is
+// [ErrProposalRevisionConflict] rather than a silently ignored write.
+func insertProposalRevision(ctx context.Context, tx dbport.Tx, row ProposalRevisionRow) error {
+	_, err := InsertProposalRevision(ctx, tx, row)
+	return err
 }

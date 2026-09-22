@@ -8,22 +8,13 @@ import (
 
 // effectClassOf returns the node's effect class. A bound capability manifest
 // is the source of effect truth; only a node with no capability falls back to
-// the author's declaration, and then to the step type's own nature.
+// the author's declaration, and then to the step type's own nature
+// ([declaredEffectClass]).
 func effectClassOf(n *Node, records map[string]capability.Record) capability.EffectClass {
 	if rec, ok := records[n.ID]; ok {
 		return rec.Definition.EffectClass
 	}
-	if n.DeclaredEffect != "" {
-		return n.DeclaredEffect
-	}
-	switch n.Type {
-	case StepDecision, StepTransform, StepEnd, StepWait, StepSignal:
-		return capability.EffectPure
-	case StepObserve:
-		return capability.EffectReadOnly
-	default:
-		return capability.EffectInternalMutation
-	}
+	return declaredEffectClass(n)
 }
 
 // allowedModesFor returns the execution modes a node with this effect class
@@ -83,6 +74,7 @@ func analyzeEffects(
 	g *graph,
 	records map[string]capability.Record,
 	opts Options,
+	overlaid map[string]bool,
 	c *collector,
 ) EffectSummary {
 	summary := EffectSummary{
@@ -99,6 +91,16 @@ func analyzeEffects(
 			c.add(CodeEffectDeclarationConflict, loc,
 				"effect class %q is not one of the five declared classes", string(class))
 			continue
+		}
+		// An overlay on a node that mutates nothing is a declaration without a
+		// subject. The resolved class decides: the manifest is the source of
+		// effect truth, so a read-by-manifest capability needs no overlay
+		// even when its step type defaults to a write (WF-EXT-003). Nodes the
+		// SIMULATE projection suppressed read as reads by design and are not
+		// dead declarations.
+		if n.ModeOverlay != nil && !class.IsWrite() && !overlaid[id] {
+			c.add(CodeInvalidDefinition, Location{NodeID: id, Field: "mode_overlay"},
+				"a SIMULATE overlay on %s resolves to %s, which mutates nothing; only a write effect declares one", n.Type, class)
 		}
 		summary.NodesByClass[string(class)] = append(summary.NodesByClass[string(class)], id)
 
@@ -131,7 +133,12 @@ func analyzeEffects(
 		checkEffectObservation(g, n, class, c)
 
 		modes := allowedModesFor(class)
-		if def.declaresMode(ModeSimulate) && !modeAllowed(modes, ModeSimulate) {
+		// A write with a suppressing mode overlay declares SIMULATE support
+		// honestly: the SIMULATE projection applies the overlay, so the
+		// EXECUTE compilation has nothing to refuse (WF-EXT-003). The
+		// projection pass owns SIMULATE-mode diagnostics and reports a write
+		// it cannot suppress itself.
+		if def.declaresMode(ModeSimulate) && !opts.SimulateProjection && !modeAllowed(modes, ModeSimulate) && !n.ModeOverlay.suppresses() {
 			c.add(CodeMutationInSimulation, loc,
 				"definition declares SIMULATE support but %s carries %s, which cannot be suppressed",
 				n.Type, class)

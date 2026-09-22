@@ -56,6 +56,7 @@ func legDefinition(t *testing.T, role workflow.EffectRole) workflow.Definition {
 			{Target: "proposal_digest", Source: workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: promotionexec.NodeSimulateCompensation, Path: "proposal_digest"}},
 		},
 		Capability: &capRef, DeclaredEffect: core.DeclaredEffect, EffectRole: role,
+		ModeOverlay:  core.ModeOverlay,
 		FailureRoute: promotionexec.NodeEndRepairPlan, Governance: core.Governance,
 	}
 	def.Nodes = append(def.Nodes, leg)

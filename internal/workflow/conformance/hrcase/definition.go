@@ -24,6 +24,7 @@ package hrcase
 import (
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders"
 )
 
 // Workflow identity.
@@ -133,16 +134,6 @@ func plainStr() workflow.ValueType  { return workflow.ValueType{Kind: workflow.K
 func boolean() workflow.ValueType   { return workflow.ValueType{Kind: workflow.KindBool} }
 func localDate() workflow.ValueType { return workflow.ValueType{Kind: workflow.KindLocalDate} }
 
-func fromInput(path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceWorkflowInput, Path: path}
-}
-func fromNode(nodeID, path string) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: nodeID, Path: path}
-}
-func constant(value string, t workflow.ValueType) workflow.Source {
-	return workflow.Source{Kind: workflow.SourceConstant, Constant: value, Type: t}
-}
-
 func bootstrapCapabilitySchema(id, slot string) workflow.SchemaRef {
 	return workflow.SchemaRef{
 		SchemaID:         id + "." + slot + "/v1",
@@ -179,32 +170,6 @@ func terminalGovernance(obligations, approvals []string) workflow.NodeGovernance
 		ApprovalRequirements:  approvals,
 		RevalidationBoundary:  workflow.RevalidatePreClosure,
 		DataAccessManifestRef: dataAccessManifest,
-	}
-}
-
-func terminalInputs(extra ...workflow.Field) []workflow.Field {
-	base := []workflow.Field{
-		{Path: "case_id", Type: str("CaseID")},
-		{Path: "terminal_code", Type: plainStr()},
-	}
-	return append(base, extra...)
-}
-
-func terminalMappings(code string, extra ...workflow.Mapping) []workflow.Mapping {
-	base := []workflow.Mapping{
-		{Target: "case_id", Source: fromInput("case_id")},
-		{Target: "terminal_code", Source: constant(code, plainStr())},
-	}
-	return append(base, extra...)
-}
-
-func completion(request, execution, business, consistency, obligation string) map[string]string {
-	return map[string]string{
-		"RequestState":     request,
-		"ExecutionState":   execution,
-		"BusinessState":    business,
-		"ConsistencyState": consistency,
-		"ObligationState":  obligation,
 	}
 }
 
@@ -332,10 +297,10 @@ func nodes() []workflow.Node {
 				{Path: "subject_relationship_scope", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_id", Source: fromInput("case_id")},
-				{Target: "subject_worker_id", Source: fromInput("subject_worker_id")},
-				{Target: "investigator_id", Source: fromInput("investigator_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "case_id", Source: builders.FromInput("case_id")},
+				{Target: "subject_worker_id", Source: builders.FromInput("subject_worker_id")},
+				{Target: "investigator_id", Source: builders.FromInput("investigator_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadCaseAssignment, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -360,8 +325,8 @@ func nodes() []workflow.Node {
 				{Path: "participant_purpose_scope", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_id", Source: fromInput("case_id")},
-				{Target: "requester_id", Source: fromInput("requester_id")},
+				{Target: "case_id", Source: builders.FromInput("case_id")},
+				{Target: "requester_id", Source: builders.FromInput("requester_id")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadParticipantAuthz, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -385,8 +350,8 @@ func nodes() []workflow.Node {
 				{Path: "retaliation_signal_detected", Type: boolean()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_id", Source: fromInput("case_id")},
-				{Target: "subject_worker_id", Source: fromInput("subject_worker_id")},
+				{Target: "case_id", Source: builders.FromInput("case_id")},
+				{Target: "subject_worker_id", Source: builders.FromInput("subject_worker_id")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapReadRetaliationSignal, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -408,8 +373,8 @@ func nodes() []workflow.Node {
 				{Path: "legal_hold_active", Type: boolean()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_id", Source: fromInput("case_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "case_id", Source: builders.FromInput("case_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			RequiredContext: []workflow.ContextRequirement{{
 				Kind:                  "LegalContext",
@@ -444,11 +409,11 @@ func nodes() []workflow.Node {
 				{Path: "footprint_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_active", Source: fromNode(NodeReadCaseAssignment, "case_active")},
-				{Target: "investigator_authority_scope", Source: fromNode(NodeReadCaseAssignment, "investigator_authority_scope")},
-				{Target: "subject_relationship_scope", Source: fromNode(NodeReadCaseAssignment, "subject_relationship_scope")},
-				{Target: "investigator_id", Source: fromInput("investigator_id")},
-				{Target: "subject_worker_id", Source: fromInput("subject_worker_id")},
+				{Target: "case_active", Source: builders.FromNode(NodeReadCaseAssignment, "case_active")},
+				{Target: "investigator_authority_scope", Source: builders.FromNode(NodeReadCaseAssignment, "investigator_authority_scope")},
+				{Target: "subject_relationship_scope", Source: builders.FromNode(NodeReadCaseAssignment, "subject_relationship_scope")},
+				{Target: "investigator_id", Source: builders.FromInput("investigator_id")},
+				{Target: "subject_worker_id", Source: builders.FromInput("subject_worker_id")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformCaseFootprint, Version: 1,
@@ -480,10 +445,10 @@ func nodes() []workflow.Node {
 				{Path: "proposal_digest", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_id", Source: fromInput("case_id")},
-				{Target: "footprint_digest", Source: fromNode(NodeComputeCaseFootprint, "footprint_digest")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
-				{Target: "finding_summary", Source: fromInput("finding_summary")},
+				{Target: "case_id", Source: builders.FromInput("case_id")},
+				{Target: "footprint_digest", Source: builders.FromNode(NodeComputeCaseFootprint, "footprint_digest")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
+				{Target: "finding_summary", Source: builders.FromInput("finding_summary")},
 			},
 			Transform: &workflow.TransformSpec{
 				TransformRef: TransformBuildProposal, Version: 1,
@@ -518,14 +483,14 @@ func nodes() []workflow.Node {
 			},
 			Outputs: []workflow.Field{{Path: "route_key", Type: plainStr()}},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_active", Source: fromNode(NodeReadCaseAssignment, "case_active")},
-				{Target: "participant_authorized", Source: fromNode(NodeReadParticipantAuthz, "participant_authorized")},
-				{Target: "investigator_conflict", Source: fromNode(NodeComputeCaseFootprint, "investigator_conflict")},
-				{Target: "matter_wall_active", Source: fromNode(NodeResolveMatterWallAndHold, "matter_wall_active")},
-				{Target: "legal_hold_active", Source: fromNode(NodeResolveMatterWallAndHold, "legal_hold_active")},
-				{Target: "retaliation_signal_detected", Source: fromNode(NodeReadRetaliationSignal, "retaliation_signal_detected")},
-				{Target: "appeal_requested", Source: fromInput("appeal_requested")},
-				{Target: "case_already_disposed", Source: fromInput("case_already_disposed")},
+				{Target: "case_active", Source: builders.FromNode(NodeReadCaseAssignment, "case_active")},
+				{Target: "participant_authorized", Source: builders.FromNode(NodeReadParticipantAuthz, "participant_authorized")},
+				{Target: "investigator_conflict", Source: builders.FromNode(NodeComputeCaseFootprint, "investigator_conflict")},
+				{Target: "matter_wall_active", Source: builders.FromNode(NodeResolveMatterWallAndHold, "matter_wall_active")},
+				{Target: "legal_hold_active", Source: builders.FromNode(NodeResolveMatterWallAndHold, "legal_hold_active")},
+				{Target: "retaliation_signal_detected", Source: builders.FromNode(NodeReadRetaliationSignal, "retaliation_signal_detected")},
+				{Target: "appeal_requested", Source: builders.FromInput("appeal_requested")},
+				{Target: "case_already_disposed", Source: builders.FromInput("case_already_disposed")},
 			},
 			Decision: &workflow.DecisionSpec{
 				EvaluatorRef: "engines.rules.hrcase_case_disposition", EvaluatorVersion: 1,
@@ -560,8 +525,8 @@ func nodes() []workflow.Node {
 				{Path: "custody_state", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_id", Source: fromInput("case_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "case_id", Source: builders.FromInput("case_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapObserveRecordCustody, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -595,8 +560,8 @@ func nodes() []workflow.Node {
 				{Path: "custody_state", Type: plainStr()},
 			},
 			InputMappings: []workflow.Mapping{
-				{Target: "case_id", Source: fromInput("case_id")},
-				{Target: "effective_date", Source: fromInput("effective_date")},
+				{Target: "case_id", Source: builders.FromInput("case_id")},
+				{Target: "effective_date", Source: builders.FromInput("effective_date")},
 			},
 			Capability: &workflow.CapabilityRef{
 				ID: CapObserveRecordCustody, Version: 1, OperationMode: workflow.ModeSimulate,
@@ -614,11 +579,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndPendingDisposition,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_SIMULATION_PENDING_DISPOSITION"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_SIMULATION_PENDING_DISPOSITION"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_SIMULATION_PENDING_DISPOSITION", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping: builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{
 					ObligationEvidenceCustody, ObligationSLATracking, ObligationFindingRecord, ObligationRecordsRetention,
 				},
@@ -631,11 +596,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndRetaliationEscalationPending,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_RETALIATION_ESCALATION_PENDING"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_RETALIATION_ESCALATION_PENDING"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_RETALIATION_ESCALATION_PENDING", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping: completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
+				CompletionMapping: builders.Completion("SIMULATED", "NOT_PLANNED", "NOT_STARTED", "PENDING_OBSERVATION", "PENDING"),
 				OutstandingObligationRefs: []string{
 					ObligationEvidenceCustody, ObligationSLATracking, ObligationFindingRecord,
 					ObligationRecordsRetention, ObligationRetaliationEscalat,
@@ -649,11 +614,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndUnauthorizedParticipant,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_UNAUTHORIZED_PARTICIPANT_BLOCKED"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_UNAUTHORIZED_PARTICIPANT_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_UNAUTHORIZED_PARTICIPANT_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+				CompletionMapping:         builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
@@ -661,11 +626,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndInvestigatorConflictBlocked,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_INVESTIGATOR_CONFLICT_BLOCKED"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_INVESTIGATOR_CONFLICT_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_INVESTIGATOR_CONFLICT_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+				CompletionMapping:         builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
@@ -673,11 +638,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndMatterWallBreachBlocked,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_MATTER_WALL_BREACH_BLOCKED"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_MATTER_WALL_BREACH_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_MATTER_WALL_BREACH_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+				CompletionMapping:         builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
@@ -685,11 +650,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndLegalHoldRaceBlocked,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_LEGAL_HOLD_RACE_BLOCKED"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_LEGAL_HOLD_RACE_BLOCKED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_LEGAL_HOLD_RACE_BLOCKED", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+				CompletionMapping:         builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
@@ -697,11 +662,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndAlreadyDisposedInvalid,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_ALREADY_DISPOSED_INVALID"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_ALREADY_DISPOSED_INVALID"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_ALREADY_DISPOSED_INVALID", RuntimeStatus: workflow.RuntimeCompleted,
-				CompletionMapping:         completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+				CompletionMapping:         builders.Completion("REJECTED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
@@ -709,8 +674,8 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndAppealRequiresReopen,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_APPEAL_REQUIRES_REOPEN"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_APPEAL_REQUIRES_REOPEN"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_APPEAL_REQUIRES_REOPEN", RuntimeStatus: workflow.RuntimeCompleted,
 				// An appeal reaching an already-disposed case never mutates
@@ -718,7 +683,7 @@ func nodes() []workflow.Node {
 				// superseded, and what must be handled is a distinct reopen
 				// intent (the REFACTOR clause), never a resurrected
 				// ChangeRequest against this one.
-				CompletionMapping:         completion("SUPERSEDED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
+				CompletionMapping:         builders.Completion("SUPERSEDED", "NOT_PLANNED", "NOT_ACHIEVED", "NOT_APPLICABLE", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),
@@ -726,11 +691,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndDegradedRepair,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_SIMULATION_DEGRADED"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_SIMULATION_DEGRADED"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_SIMULATION_DEGRADED", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationEvidenceCustody, ObligationRecordsRetention},
 				RepairRefs:                []string{repairRef},
 			},
@@ -739,11 +704,11 @@ func nodes() []workflow.Node {
 		{
 			ID:            NodeEndUnknown,
 			Type:          workflow.StepEnd,
-			Inputs:        terminalInputs(),
-			InputMappings: terminalMappings("HRCASE_SIMULATION_UNKNOWN"),
+			Inputs:        builders.TerminalInputs("case_id", "CaseID"),
+			InputMappings: builders.TerminalMappings("case_id", "HRCASE_SIMULATION_UNKNOWN"),
 			End: &workflow.EndSpec{
 				TerminalCode: "HRCASE_SIMULATION_UNKNOWN", RuntimeStatus: workflow.RuntimeBlocked,
-				CompletionMapping:         completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
+				CompletionMapping:         builders.Completion("SIMULATED", "BLOCKED", "UNKNOWN", "UNKNOWN", "PENDING"),
 				OutstandingObligationRefs: []string{ObligationRecordsRetention},
 			},
 			Governance: terminalGovernance([]string{ObligationRecordsRetention}, nil),

@@ -53,6 +53,24 @@ var executionUninstrumentedByDesign = map[string]string{
 
 	// The loop: every Tick it runs is instrumented and a failed tick is logged.
 	"scheduler/scheduler.go Scheduler.Run": "poll loop over the instrumented Tick; logs tick failures",
+
+	// WF-REV-002: the served compensation composes the compensate executor
+	// into the instrumented advance, discharge and governed transactions.
+	// Its entry points and compensate-port adapters run inside the caller's
+	// span and open none of their own.
+	"compensate_serve.go PromotionExecution.CancelGoverned":         "delegates to the instrumented driver with the served compensator",
+	"compensate_serve.go ServedCompensation.Compensate":             "discharge port inside the instrumented discharge transaction",
+	"compensate_serve.go ServedCompensation.Discharge":              "drains through the instrumented discharge transaction",
+	"compensate_serve.go ServedCompensation.ReleaseHoldViaExecutor": "COMPENSATE node inside the instrumented advance transaction",
+	"compensate_serve.go WithCompensationIntent":                    "context key helper; no operation",
+	"compensate_serve.go recordingLedger.AppendCompensation":        "ledger port inside the caller's span",
+	"compensate_serve.go servedAuthorizer.Authorize":                "authorizer port inside the caller's span",
+	"compensate_serve.go servedHoldCapability.Compensate":           "capability port inside the caller's span",
+	"compensate_serve.go servedHoldCapability.Manifest":             "capability manifest read; no operation",
+	"compensate_serve.go servedHoldObserver.ObserveCompensation":    "observer port inside the caller's span",
+	"compensate_serve.go servedOperations.Complete":                 "operation port inside the caller's span",
+	"compensate_serve.go servedOperations.RecordEffect":             "operation port inside the caller's span",
+	"compensate_serve.go servedOperations.Reserve":                  "operation port inside the caller's span",
 }
 
 // TestExecutionHostOperationsAreInstrumented holds the execution host to the

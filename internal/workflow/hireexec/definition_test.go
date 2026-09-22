@@ -1,0 +1,136 @@
+package hireexec
+
+import (
+	"reflect"
+	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+)
+
+// TestTodo_WF_HIRE_001 compiles the definition and proves its compiled shape:
+// identity, start node, the full node set, exactly one AUTHORITATIVE_CORE
+// node, every declared END reachable from the start, and a plan digest that
+// is stable across two independent compiles of the same definition.
+func TestTodo_WF_HIRE_001(t *testing.T) {
+	def := Definition()
+	plan, err := Compile()
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	if plan.WorkflowID != WorkflowID || plan.Version != Version {
+		t.Fatalf("identity = %s/%d, want %s/%d", plan.WorkflowID, plan.Version, WorkflowID, Version)
+	}
+	if plan.Phase != workflow.PhaseP1B || plan.TerminalProfile != workflow.TerminalProfileExecute {
+		t.Fatalf("phase/profile = %s/%s, want P1B/EXECUTE", plan.Phase, plan.TerminalProfile)
+	}
+	if plan.StartNodeID != NodePrepareHire {
+		t.Fatalf("start node = %s, want %s", plan.StartNodeID, NodePrepareHire)
+	}
+
+	wantNodes := map[string]bool{}
+	for _, n := range def.Nodes {
+		wantNodes[n.ID] = true
+	}
+	gotNodes := map[string]bool{}
+	for _, n := range plan.Nodes {
+		gotNodes[n.ID] = true
+	}
+	if !reflect.DeepEqual(gotNodes, wantNodes) {
+		t.Fatalf("compiled node set = %v, want %v", gotNodes, wantNodes)
+	}
+
+	cores := plan.NodesWithRole(workflow.RoleAuthoritativeCore)
+	if len(cores) != 1 || cores[0] != NodeCommitHire {
+		t.Fatalf("authoritative-core nodes = %v, want exactly [%s]", cores, NodeCommitHire)
+	}
+
+	ends := []string{
+		NodeEndHired, NodeEndOfferRejected, NodeEndOfferWithdrawn, NodeEndBackgroundCheckExpired,
+		NodeEndCancelled, NodeEndExpired, NodeEndInvalidated, NodeEndFailed,
+	}
+	reachable := map[string]bool{}
+	for _, id := range plan.Reachability.Order {
+		reachable[id] = true
+	}
+	for _, id := range ends {
+		if !reachable[id] {
+			t.Errorf("terminal %s is not reachable from the start node", id)
+		}
+	}
+
+	plan2, err := Compile()
+	if err != nil {
+		t.Fatalf("second Compile: %v", err)
+	}
+	if plan.Digest() != plan2.Digest() {
+		t.Fatalf("plan digest is not stable across compiles: %q vs %q", plan.Digest(), plan2.Digest())
+	}
+}
+
+// hireSuccessRoute names, for each non-terminal node on the documented main
+// path, the route key its success outcome takes.
+var hireSuccessRoute = map[string]string{
+	NodePrepareHire:             string(workflow.OutcomeSucceeded),
+	NodeApproveOffer:            "APPROVED",
+	NodeAwaitBackgroundCheck:    string(workflow.OutcomeSucceeded),
+	NodeEvaluateBackgroundCheck: RouteBackgroundCheckClear,
+	NodeCollectNewHireForms:     string(workflow.OutcomeSucceeded),
+	NodeProvisionITAccess:       string(workflow.OutcomeSucceeded),
+	NodeProvisionWorkspace:      string(workflow.OutcomeSucceeded),
+	NodeEnrollPayroll:           string(workflow.OutcomeSucceeded),
+	NodeAwaitStartDate:          string(workflow.OutcomeSucceeded),
+	NodeCommitHire:              string(workflow.OutcomeSucceeded),
+}
+
+// TestTodo_WF_HIRE_001_Golden walks the definition's own edges from the start
+// node to end_hired, following each node's documented success route, and
+// pins the exact ordered path against [NodeOrder]. A route silently
+// re-plumbed to a different node changes this list, which is the point.
+func TestTodo_WF_HIRE_001_Golden(t *testing.T) {
+	def := Definition()
+	byFrom := map[string][]workflow.Edge{}
+	for _, e := range def.Edges {
+		byFrom[e.From] = append(byFrom[e.From], e)
+	}
+
+	var got []string
+	node := def.StartNodeID
+	for {
+		got = append(got, node)
+		if node == NodeEndHired {
+			break
+		}
+		route, ok := hireSuccessRoute[node]
+		if !ok {
+			t.Fatalf("no documented success route for node %s", node)
+		}
+		next := ""
+		for _, e := range byFrom[node] {
+			if e.RouteKey == route {
+				next = e.To
+				break
+			}
+		}
+		if next == "" {
+			t.Fatalf("no edge for %s on route %q", node, route)
+		}
+		node = next
+	}
+
+	want := NodeOrder()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("main path = %v, want %v", got, want)
+	}
+}
+
+// A publisher recompiles with CompileOptions; it must reproduce Compile's plan.
+func TestCompileOptionsReproduceTheCompiledPlan(t *testing.T) {
+	plan, err := Compile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := workflow.Compile(Definition(), CompileOptions())
+	if err != nil || again.Digest() != plan.Digest() {
+		t.Fatalf("CompileOptions plan = %v, %v; want digest %s", again, err, plan.Digest())
+	}
+}

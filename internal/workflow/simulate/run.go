@@ -450,60 +450,63 @@ func (r *run) contextVerdict(node workflow.CompiledNode) (string, error) {
 	return "", nil
 }
 
-// resolveInputs turns the node's compiled mappings into typed values.
+// resolveInputs turns the node's compiled mappings into typed values, through
+// the one resolver (WF-EXT-004) this package now shares with the durable
+// EXECUTE path: [workflow.ResolveMappings] reads WORKFLOW_INPUT, NODE_OUTPUT
+// and CONTEXT sources through [mappingSourceAdapter], which is nothing but a
+// read-only view over this run's own inputs and recorded node outputs.
 func (r *run) resolveInputs(node workflow.CompiledNode) (Bag, error) {
-	out := make(Bag, len(node.Mappings))
-	for _, m := range node.Mappings {
-		v, err := r.resolveMapping(node, m)
-		if err != nil {
-			return nil, err
+	resolved, err := workflow.ResolveMappings(node, mappingSourceAdapter{r: r})
+	if err != nil {
+		var merr *workflow.MappingError
+		if errors.As(err, &merr) {
+			return nil, wrap(CodeUnresolvedSource, node.ID, merr, "%s", merr.Detail)
 		}
-		out[m.Target] = v
+		return nil, wrap(CodeUnresolvedSource, node.ID, err, "resolve node inputs")
+	}
+	out := make(Bag, len(resolved))
+	for target, v := range resolved {
+		out[target] = Value{Type: v.Type, Text: v.Text}
 	}
 	return out, nil
 }
 
-func (r *run) resolveMapping(node workflow.CompiledNode, m workflow.CompiledMapping) (Value, error) {
-	switch m.SourceKind {
-	case workflow.SourceWorkflowInput:
-		v, ok := r.inputs.Values[m.SourcePath]
-		if !ok {
-			return Value{}, refuse(CodeUnresolvedSource, node.ID,
-				"input mapping %q reads workflow input %q, which was not supplied", m.Target, m.SourcePath)
-		}
-		return v, nil
-	case workflow.SourceNodeOutput:
-		produced, ok := r.outputs[m.SourceNode]
-		if !ok {
-			return Value{}, refuse(CodeUnresolvedSource, node.ID,
-				"input mapping %q reads node %q, which has not run", m.Target, m.SourceNode)
-		}
-		v, ok := produced[m.SourcePath]
-		if !ok {
-			return Value{}, refuse(CodeUnresolvedSource, node.ID,
-				"input mapping %q reads %s.%s, which that node did not produce",
-				m.Target, m.SourceNode, m.SourcePath)
-		}
-		return v, nil
-	case workflow.SourceContext:
-		snapshot, ok := r.inputs.Context[m.SourceCtx]
-		if !ok {
-			return Value{}, refuse(CodeUnresolvedSource, node.ID,
-				"input mapping %q reads context %s, which was not supplied", m.Target, m.SourceCtx)
-		}
-		v, ok := snapshot[m.SourcePath]
-		if !ok {
-			return Value{}, refuse(CodeUnresolvedSource, node.ID,
-				"input mapping %q reads context %s.%s, which was not supplied",
-				m.Target, m.SourceCtx, m.SourcePath)
-		}
-		return v, nil
-	case workflow.SourceConstant:
-		return Value{Type: m.TargetType, Text: m.Constant}, nil
-	default:
-		return Value{}, refuse(CodeUnresolvedSource, node.ID,
-			"input mapping %q declares source kind %q", m.Target, m.SourceKind)
+// mappingSourceAdapter satisfies [workflow.MappingSource] over one run's
+// in-memory inputs and recorded node outputs. [simulate.Value] and
+// [workflow.TypedValue] hold the identical (Type, Text) shape by design, so
+// the adapter only ever relabels a lookup -- it never converts a value.
+type mappingSourceAdapter struct{ r *run }
+
+func (a mappingSourceAdapter) WorkflowInput(path string) (workflow.TypedValue, bool) {
+	v, ok := a.r.inputs.Values[path]
+	if !ok {
+		return workflow.TypedValue{}, false
 	}
+	return workflow.TypedValue{Type: v.Type, Text: v.Text}, true
+}
+
+func (a mappingSourceAdapter) NodeOutput(nodeID, path string) (workflow.TypedValue, bool, bool) {
+	produced, nodeProduced := a.r.outputs[nodeID]
+	if !nodeProduced {
+		return workflow.TypedValue{}, false, false
+	}
+	v, ok := produced[path]
+	if !ok {
+		return workflow.TypedValue{}, true, false
+	}
+	return workflow.TypedValue{Type: v.Type, Text: v.Text}, true, true
+}
+
+func (a mappingSourceAdapter) Context(kind, path string) (workflow.TypedValue, bool) {
+	snapshot, ok := a.r.inputs.Context[kind]
+	if !ok {
+		return workflow.TypedValue{}, false
+	}
+	v, ok := snapshot[path]
+	if !ok {
+		return workflow.TypedValue{}, false
+	}
+	return workflow.TypedValue{Type: v.Type, Text: v.Text}, true
 }
 
 // mint assembles the receipt once the walk has reached a terminal, checking
