@@ -117,7 +117,7 @@ func ResolveDirectoryDisclosureWithRoles(principal *trust.Principal, roles []str
 	}
 
 	roles = directoryRoleAlias(roles)
-	held := rolesOf(roles)
+	held := RolesForKind(principal.SubjectKind(), roles)
 	heldSet := make(map[RoleID]struct{}, len(held))
 	for _, r := range held {
 		heldSet[r] = struct{}{}
@@ -126,7 +126,7 @@ func ResolveDirectoryDisclosureWithRoles(principal *trust.Principal, roles []str
 	_, isManager := heldSet[RoleManager]
 	_, isHRPartner := heldSet[RoleHRPartner]
 
-	fields, err := resolveFields(roles, principal.AuthorizesPurpose, purpose, directoryCompensationFields, nil)
+	fields, err := resolveFields(principal.SubjectKind(), roles, principal.AuthorizesPurpose, purpose, directoryCompensationFields, nil)
 	if err != nil {
 		return DirectoryDisclosure{}, err
 	}

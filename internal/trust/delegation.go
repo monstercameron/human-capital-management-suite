@@ -215,6 +215,55 @@ func EvaluateDelegation(req DelegationRequest) (EffectiveAuthority, error) {
 	return e, nil
 }
 
+// NarrowToCurrentAuthority re-intersects evaluated effective authority with
+// the delegate's current authority snapshot at time at. Evaluating a grant
+// once is not enough: when the delegator's authority shrinks afterwards — a
+// role revoked, a purpose withdrawn — the effective authority must shrink
+// with it, never stay at the stale, wider grant. The result carries the
+// original chain and attribution with the narrowed sets and window, and a
+// fresh decision id naming exactly this narrowing.
+//
+// It fails closed: a tenant mismatch, an evaluation outside the narrowed
+// window, or an empty capability, resource or purpose intersection refuses
+// with the same sentinels [EvaluateDelegation] uses. An empty field
+// intersection is not a refusal — fields narrow disclosure, never authority.
+func NarrowToCurrentAuthority(eff EffectiveAuthority, current AuthorityScope, at time.Time) (EffectiveAuthority, error) {
+	if at.IsZero() {
+		return EffectiveAuthority{}, fmt.Errorf("%w: evaluation time", ErrInvalidDelegation)
+	}
+	if eff.Tenant != current.Tenant {
+		return EffectiveAuthority{}, ErrDelegationTenant
+	}
+	if eff.OrganizationScopeID != current.OrganizationScopeID {
+		return EffectiveAuthority{}, ErrDelegationExpanded
+	}
+	capabilities := intersect(eff.Capabilities, current.Capabilities)
+	resources := intersect(eff.Resources, current.Resources)
+	fields := intersect(eff.Fields, current.Fields)
+	purposes := intersect(eff.Purposes, current.Purposes)
+	if len(capabilities) == 0 || len(resources) == 0 || len(purposes) == 0 {
+		return EffectiveAuthority{}, ErrDelegationExpanded
+	}
+	if len(fields) == 0 {
+		fields = nil
+	}
+	nb := maxTime(eff.NotBefore, current.NotBefore)
+	exp := minTime(eff.ExpiresAt, current.ExpiresAt)
+	if !exp.After(nb) || at.Before(nb) || !at.Before(exp) {
+		return EffectiveAuthority{}, ErrDelegationExpired
+	}
+	narrowed := eff
+	narrowed.Capabilities = capabilities
+	narrowed.Resources = resources
+	narrowed.Fields = fields
+	narrowed.Purposes = purposes
+	narrowed.Assurance = minAssurance(eff.Assurance, current.Assurance)
+	narrowed.NotBefore = nb
+	narrowed.ExpiresAt = exp
+	narrowed.DecisionID = delegationDecisionID(narrowed)
+	return narrowed, nil
+}
+
 func printableSet(set []string) bool {
 	for _, s := range set {
 		if !printableASCII(s, 1, 200) {

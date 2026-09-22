@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -323,12 +324,21 @@ func (m *PersistentManager) Validate(ctx context.Context, id ID, claim Claim) (R
 		return sr.Record(), fmt.Errorf("%w: %s", ErrSessionNotActive, sr.Status)
 	}
 	if claim.Tenant != "" && claim.Tenant != sr.Tenant {
-		_ = m.store.RecordEvidence(ctx, id, EvidenceDenied, ReasonTenantMismatch, now)
-		return sr.Record(), fmt.Errorf("%w: session is %q, claim is %q", ErrTenantMismatch, sr.Tenant, claim.Tenant)
+		denied := fmt.Errorf("%w: session is %q, claim is %q", ErrTenantMismatch, sr.Tenant, claim.Tenant)
+		if evErr := m.store.RecordEvidence(ctx, id, EvidenceDenied, ReasonTenantMismatch, now); evErr != nil {
+			// The denial stands even when its audit row cannot be
+			// written: the caller is still refused, and the evidence
+			// failure travels with the denial instead of vanishing.
+			return sr.Record(), errors.Join(denied, fmt.Errorf("session: record denial evidence: %w", evErr))
+		}
+		return sr.Record(), denied
 	}
 	if claim.Assurance != trust.AssuranceUnspecified && claim.Assurance != sr.Assurance {
-		_ = m.store.RecordEvidence(ctx, id, EvidenceDenied, ReasonAssuranceMismatch, now)
-		return sr.Record(), fmt.Errorf("%w: session is %s, claim is %s", ErrAssuranceMismatch, sr.Assurance, claim.Assurance)
+		denied := fmt.Errorf("%w: session is %s, claim is %s", ErrAssuranceMismatch, sr.Assurance, claim.Assurance)
+		if evErr := m.store.RecordEvidence(ctx, id, EvidenceDenied, ReasonAssuranceMismatch, now); evErr != nil {
+			return sr.Record(), errors.Join(denied, fmt.Errorf("session: record denial evidence: %w", evErr))
+		}
+		return sr.Record(), denied
 	}
 	touched, err := m.store.Touch(ctx, id, now)
 	if err != nil {

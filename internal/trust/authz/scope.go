@@ -190,7 +190,7 @@ func ResolveAuthorizationScope(principal *trust.Principal, req ScopeInput) (Auth
 		return AuthorizationScope{}, fmt.Errorf("%w: subject: %v", ErrInvalidPolicyInput, err)
 	}
 
-	held := rolesOf(effectiveRolesOf(principal, req.EffectiveRoles))
+	held := RolesForKind(principal.SubjectKind(), effectiveRolesOf(principal, req.EffectiveRoles))
 	heldSet := make(map[RoleID]struct{}, len(held))
 	for _, r := range held {
 		heldSet[r] = struct{}{}

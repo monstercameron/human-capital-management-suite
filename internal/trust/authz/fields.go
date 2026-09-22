@@ -52,7 +52,7 @@ func ResolveFields(principal *trust.Principal, purpose string, fields []FieldID,
 	if principal == nil {
 		return FieldDecision{}, fmt.Errorf("%w: nil principal", ErrInvalidPolicyInput)
 	}
-	return resolveFields(principal.Roles(), principal.AuthorizesPurpose, purpose, fields, mandatoryDenies)
+	return resolveFields(principal.SubjectKind(), principal.Roles(), principal.AuthorizesPurpose, purpose, fields, mandatoryDenies)
 }
 
 // ResolveFieldsWithRoles is [ResolveFields] over an explicit server-resolved
@@ -66,14 +66,14 @@ func ResolveFieldsWithRoles(principal *trust.Principal, roles []string, purpose 
 	if roles == nil {
 		roles = principal.Roles()
 	}
-	return resolveFields(roles, principal.AuthorizesPurpose, purpose, fields, mandatoryDenies)
+	return resolveFields(principal.SubjectKind(), roles, principal.AuthorizesPurpose, purpose, fields, mandatoryDenies)
 }
 
 // resolveFields is [ResolveFields] over an explicit role set instead of the
 // principal's own. The directory decision point resolves with an aliased set
 // (a legacy administrator token acting under its mapped template), so the
 // grant loop lives here and both callers share it.
-func resolveFields(roles []string, authorizes func(string) bool, purpose string, fields []FieldID, mandatoryDenies []string) (FieldDecision, error) {
+func resolveFields(kind trust.SubjectKind, roles []string, authorizes func(string) bool, purpose string, fields []FieldID, mandatoryDenies []string) (FieldDecision, error) {
 	if authorizes == nil {
 		return FieldDecision{}, fmt.Errorf("%w: nil purpose authorizer", ErrInvalidPolicyInput)
 	}
@@ -84,7 +84,7 @@ func resolveFields(roles []string, authorizes func(string) bool, purpose string,
 		Rulings:       make(map[FieldID]FieldRuling, len(fields)),
 	}
 
-	held := rolesOf(roles)
+	held := RolesForKind(kind, roles)
 	crossTenantMandatoryDeny := slices.Contains(mandatoryDenies, mandatoryDenyCrossTenantSensitive)
 
 	for _, f := range fields {
@@ -111,6 +111,9 @@ func ruleField(authorizes func(string) bool, purpose string, f FieldID, held []R
 	best := FieldRuling{Effect: EffectDenied, RuleID: "p1a.field.deny_default", Reason: "no_grant_for_domain"}
 	for _, role := range held {
 		domains, ok := PolicyTable[role]
+		if !ok {
+			domains, ok = MachinePolicyTable[role]
+		}
 		if !ok {
 			continue
 		}

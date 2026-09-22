@@ -3,6 +3,8 @@ package authz
 import (
 	"errors"
 	"slices"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 // PolicyVersion is the version fingerprint of the compiled-in P1A bootstrap
@@ -103,24 +105,115 @@ const (
 // (matched rule IDs) to be deterministic across runs with the same input.
 var roleEvaluationOrder = []RoleID{RoleWorkerSelf, RoleManager, RoleHRPartner, RoleCompAdmin, RolePayrollManager, RoleAuditor, RoleFinancePartner}
 
-// rolesOf returns the subset of principal's roles this policy table
-// recognizes, in [roleEvaluationOrder]. [roleEvaluationOrder] is the closed
-// set of role tokens the bootstrap policy recognizes; a principal role
-// outside it grants nothing here — unknown roles are inert rather than
-// errors, because a principal legitimately holds roles other packages
-// define.
-func rolesOf(roles []string) []RoleID {
+// The machine bootstrap role templates. Humans never match them and machines
+// never match the human templates above: see [RolesForKind]. Both templates
+// grant least privilege by construction — every domain absent from
+// [MachinePolicyTable] is denied, exactly as for the human table — and the
+// grants cover only non-sensitive baseline domains. A machine that needs a
+// sensitive domain holds no grant until policy classifies one for it.
+const (
+	// RoleMachineObserver is the first-party service observer: it reads
+	// worker identity and contact facts and nothing else.
+	RoleMachineObserver RoleID = "machine_observer"
+	// RoleIntegrationSync is the third-party integration sync identity: it
+	// reads worker identity facts and nothing else, and it holds no
+	// capability scope (see [GrantedCapabilityScopes]).
+	RoleIntegrationSync RoleID = "integration_sync"
+)
+
+// MachinePolicyVersion is the version fingerprint of the compiled-in machine
+// bootstrap policy table. It changes whenever [MachinePolicyTable] changes,
+// so a recorded decision can always be replayed against the policy that
+// produced it. It is separate from [PolicyVersion] because the machine table
+// has its own lifecycle: the human table is frozen, this one grows as
+// INTAPI-001 registers machine clients.
+const MachinePolicyVersion = "authz.p1a.machine.v1"
+
+// MachinePolicyTable is the compiled-in least-privilege authorization policy
+// for machine subject kinds: for each machine role template, the purpose-bound
+// grant over each data domain it may touch. A role/domain pair absent from
+// the table has no grant, which is deny-by-default.
+var MachinePolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
+	RoleMachineObserver: {
+		DomainCore:    {RuleID: "p1a.machine_observer.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainContact: {RuleID: "p1a.machine_observer.contact", AnyPurpose: true, Effect: EffectAllow},
+	},
+	RoleIntegrationSync: {
+		DomainCore: {RuleID: "p1a.integration_sync.core", AnyPurpose: true, Effect: EffectAllow},
+	},
+}
+
+// machineCapabilityScopes is the capability scope each machine template
+// grants. It is deliberately narrower than the field grants above: a scope
+// reaches a whole capability, so a template holds a scope only for
+// capabilities whose every classified data domain it is also granted. The
+// observer reads worker identity through the people capabilities; the sync
+// identity holds no capability scope at all until INTAPI-001 registers
+// machine clients with explicit scope grants.
+var machineCapabilityScopes = map[RoleID][]string{
+	RoleMachineObserver: {"scope:people.read"},
+}
+
+// GrantedCapabilityScopes returns the sorted, de-duplicated capability scopes
+// the kind-gated role set grants. It never contains a wildcard: every grant
+// names its exact scope. Humans resolve no scope here — a human capability
+// call is authorized by purpose, with field policy enforced at intent
+// resolution — while machines resolve only what their least-privilege
+// template names, which is empty until INTAPI-001 grants more.
+func GrantedCapabilityScopes(kind trust.SubjectKind, roles []string) []string {
+	var out []string
+	for _, role := range RolesForKind(kind, roles) {
+		out = append(out, machineCapabilityScopes[role]...)
+	}
+	return dedupeSorted(out)
+}
+
+// RolesForKind returns the subset of roles that grants authority for a
+// principal of kind, in fixed evaluation order. Human principals match the
+// human bootstrap templates (with the legacy hcm_admin alias); service and
+// integration principals match only their least-privilege machine templates;
+// agents and unspecified kinds match nothing — an agent acts only through a
+// server-verified delegation. A role naming a template of another kind
+// grants nothing: a token-claimed human role never authorizes a machine,
+// and a machine role never authorizes a human.
+func RolesForKind(kind trust.SubjectKind, roles []string) []RoleID {
 	held := make(map[RoleID]struct{}, len(roles))
 	for _, r := range roles {
 		held[RoleID(r)] = struct{}{}
 	}
-	out := make([]RoleID, 0, len(roleEvaluationOrder))
-	for _, r := range roleEvaluationOrder {
-		if _, ok := held[r]; ok {
-			out = append(out, r)
+	switch kind {
+	case trust.SubjectKindHuman:
+		if _, ok := held[RoleID("hcm_admin")]; ok {
+			held[RoleCompAdmin] = struct{}{}
 		}
+		out := make([]RoleID, 0, len(roleEvaluationOrder))
+		for _, r := range roleEvaluationOrder {
+			if _, ok := held[r]; ok {
+				out = append(out, r)
+			}
+		}
+		return out
+	case trust.SubjectKindService:
+		if _, ok := held[RoleMachineObserver]; ok {
+			return []RoleID{RoleMachineObserver}
+		}
+		return nil
+	case trust.SubjectKindIntegration:
+		if _, ok := held[RoleIntegrationSync]; ok {
+			return []RoleID{RoleIntegrationSync}
+		}
+		return nil
+	default:
+		return nil
 	}
-	return out
+}
+
+// rolesOf is the human-kind entry of [RolesForKind], kept for the callers
+// that resolve without a subject kind at hand. New call sites must prefer
+// [RolesForKind]: a role outside the caller's kind grants nothing, and only
+// RolesForKind enforces that.
+func rolesOf(roles []string) []RoleID {
+	return RolesForKind(trust.SubjectKindHuman, roles)
 }
 
 // DataDomain is a stable business data domain, not a physical table. One
