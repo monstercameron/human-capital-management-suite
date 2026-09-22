@@ -14,11 +14,11 @@ var (
 	// fixed instant and a local-date wake condition; exactly one is legal.
 	ErrConflictingWakeCondition = errors.New("wait: instant and local-date wake conditions are mutually exclusive")
 	// ErrInvalidRequirement says Resolve was called with a TimerRequirement
-	// that was never produced by ComputeTimerRequirement (no digest).
-	ErrInvalidRequirement = errors.New("wait: requirement has no digest; it was not produced by ComputeTimerRequirement")
+	// with a missing or mismatched content digest.
+	ErrInvalidRequirement = errors.New("wait: requirement content digest is missing or invalid")
 	// ErrDigestMismatch says a prior resolution was supplied for a different
-	// requirement than the one being resolved.
-	ErrDigestMismatch = errors.New("wait: prior resolution belongs to a different requirement")
+	// requirement or its own content digest does not match.
+	ErrDigestMismatch = errors.New("wait: prior resolution binding or content digest does not match")
 	// ErrNowRequired says Resolve was called for a WAKE event without a valid
 	// caller-supplied "now".
 	ErrNowRequired = errors.New("wait: a WAKE event requires a valid caller-supplied instant")

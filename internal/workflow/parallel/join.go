@@ -65,6 +65,13 @@ func (p JoinPlan) validate(total int) error {
 		if len(p.RequiredID) == 0 {
 			return fmt.Errorf("%w: required set is empty", ErrJoinPlan)
 		}
+		seen := make(map[string]bool, len(p.RequiredID))
+		for _, id := range p.RequiredID {
+			if strings.TrimSpace(id) == "" || seen[id] {
+				return fmt.Errorf("%w: required branch identities must be unique and non-empty", ErrJoinPlan)
+			}
+			seen[id] = true
+		}
 	default:
 		return fmt.Errorf("%w: unknown strategy %q", ErrJoinPlan, p.Strategy)
 	}
@@ -83,6 +90,9 @@ func Join(plan JoinPlan, results []BranchResult) (JoinOutcome, error) {
 	}
 	byID := make(map[string]BranchResult, len(results))
 	for _, result := range results {
+		if _, exists := byID[result.BranchID]; strings.TrimSpace(result.BranchID) == "" || exists {
+			return JoinOutcome{}, fmt.Errorf("%w: branch identities must be unique and non-empty", ErrJoinPlan)
+		}
 		switch result.Outcome {
 		case OutcomeSucceeded, OutcomeFailed, OutcomeCancelled, OutcomeUnknown:
 		default:
@@ -107,22 +117,28 @@ func Join(plan JoinPlan, results []BranchResult) (JoinOutcome, error) {
 		}
 	}
 	if plan.Strategy == JoinRequiredSet {
+		requiredFailed, requiredUnknown := false, false
 		for _, id := range plan.RequiredID {
 			result, ok := byID[id]
 			if !ok {
 				return JoinOutcome{}, fmt.Errorf("%w: required branch %s", ErrJoinMissing, id)
 			}
-			// Unknown required branches stay unknown: never coerced false.
-			if result.Outcome == OutcomeUnknown {
-				outcome.Verdict = JoinUnknown
-				sort.Strings(outcome.Unknown)
-				return outcome, nil
+			switch result.Outcome {
+			case OutcomeUnknown:
+				requiredUnknown = true
+			case OutcomeFailed, OutcomeCancelled:
+				requiredFailed = true
 			}
-			if result.Outcome != OutcomeSucceeded {
+		}
+		// Check every required member before reducing. A known mandatory
+		// failure dominates uncertainty, as in ALL, regardless of input order.
+		if requiredFailed || requiredUnknown {
+			outcome.Verdict = JoinUnknown
+			if requiredFailed {
 				outcome.Verdict = JoinFailed
-				sort.Strings(outcome.Unknown)
-				return outcome, nil
 			}
+			sort.Strings(outcome.Unknown)
+			return outcome, nil
 		}
 		outcome.Verdict = JoinSucceeded
 		if failed+cancelled+unknown > 0 {

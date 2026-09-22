@@ -70,7 +70,9 @@ type Result struct {
 }
 
 // matchedPrior finds, among prior (every previously recorded LogEntry for
-// this subscription), an entry sharing sig's IdempotencyKey. It returns
+// this subscription), an accepted entry sharing sig's IdempotencyKey. Refusals
+// are audit evidence only: they cannot claim an identity or prove a prior
+// continuation. It returns
 // ok=false when sig.IdempotencyKey is empty, since an empty key carries no
 // idempotency identity to deduplicate against.
 func matchedPrior(prior []LogEntry, sig Signal) (LogEntry, bool) {
@@ -78,7 +80,7 @@ func matchedPrior(prior []LogEntry, sig Signal) (LogEntry, bool) {
 		return LogEntry{}, false
 	}
 	for _, e := range prior {
-		if e.Signal.IdempotencyKey == sig.IdempotencyKey {
+		if e.Status.Accepted() && e.Signal.IdempotencyKey == sig.IdempotencyKey {
 			return e, true
 		}
 	}

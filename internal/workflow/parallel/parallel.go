@@ -83,10 +83,13 @@ func validate(spec Spec) error {
 	if spec.FailurePolicy != FailFast && spec.FailurePolicy != CollectAll {
 		return fmt.Errorf("%w: %q", ErrUndefinedPropagation, spec.FailurePolicy)
 	}
+	if spec.Budget < 0 {
+		return fmt.Errorf("%w: negative budget", ErrBudgetExceeded)
+	}
 	seenID := make(map[string]bool, len(spec.Branches))
 	seenKey := make(map[string]bool, len(spec.Branches))
 	claimed := make(map[string]string, len(spec.Branches))
-	total := 0
+	remaining := spec.Budget
 	for _, branch := range spec.Branches {
 		if strings.TrimSpace(branch.ID) == "" || seenID[branch.ID] {
 			return fmt.Errorf("%w: branch identities must be unique and non-empty", ErrUnbounded)
@@ -105,16 +108,16 @@ func validate(spec Spec) error {
 		if branch.Cost < 0 {
 			return fmt.Errorf("%w: negative branch cost", ErrBudgetExceeded)
 		}
-		total += branch.Cost
+		if branch.Cost > remaining {
+			return fmt.Errorf("%w: branch cost %d over remaining budget %d", ErrBudgetExceeded, branch.Cost, remaining)
+		}
+		remaining -= branch.Cost
 		for _, key := range branch.Writes {
 			if owner, dup := claimed[key]; dup {
 				return fmt.Errorf("%w: key %q claimed by %s and %s", ErrWriteConflict, key, owner, branch.ID)
 			}
 			claimed[key] = branch.ID
 		}
-	}
-	if total > spec.Budget {
-		return fmt.Errorf("%w: cost %d over budget %d", ErrBudgetExceeded, total, spec.Budget)
 	}
 	return nil
 }

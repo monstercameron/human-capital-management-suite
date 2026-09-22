@@ -95,8 +95,8 @@ func newResolution(requirementDigest string, outcome Outcome, now values.Instant
 // caller-supplied WakeEvent, it returns exactly one of FIRED,
 // TIMER_REVIEW_REQUIRED, SUPERSEDED or CANCELLED.
 //
-//   - A requirement with no digest was never produced by
-//     ComputeTimerRequirement and is refused outright.
+//   - A requirement with a missing or mismatched content digest is refused
+//     outright before either resolving or replaying it.
 //   - event.Prior, when set, is replayed verbatim (exactly-once dedup) — a
 //     duplicate wake for an already-resolved requirement never recomputes.
 //   - A requirement with ReviewRequired set always resolves to
@@ -108,12 +108,15 @@ func newResolution(requirementDigest string, outcome Outcome, now values.Instant
 //   - EventWake requires a valid "now" and refuses an early wake (now before
 //     fire_at) rather than firing ahead of schedule.
 func Resolve(req TimerRequirement, now values.Instant, event WakeEvent) (Resolution, error) {
-	if req.Digest == "" {
+	if req.Digest == "" || computeRequirementDigest(req) != req.Digest {
 		return Resolution{}, ErrInvalidRequirement
 	}
 	if event.Prior != nil {
 		if event.Prior.RequirementDigest != req.Digest {
 			return Resolution{}, fmt.Errorf("%w: requirement=%s prior=%s", ErrDigestMismatch, req.Digest, event.Prior.RequirementDigest)
+		}
+		if event.Prior.Digest == "" || computeResolutionDigest(*event.Prior) != event.Prior.Digest {
+			return Resolution{}, fmt.Errorf("%w: prior resolution content", ErrDigestMismatch)
 		}
 		return *event.Prior, nil
 	}
