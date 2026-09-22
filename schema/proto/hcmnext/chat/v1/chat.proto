@@ -1,0 +1,269 @@
+syntax = "proto3";
+
+package hcmnext.chat.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1;chatv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum ConversationKind {
+  CONVERSATION_KIND_UNSPECIFIED = 0;
+  CONVERSATION_KIND_PUBLIC_CHANNEL = 1;
+  CONVERSATION_KIND_PRIVATE_CHANNEL = 2;
+  CONVERSATION_KIND_DIRECT = 3;
+  CONVERSATION_KIND_GROUP = 4;
+}
+
+enum MembershipRole {
+  MEMBERSHIP_ROLE_UNSPECIFIED = 0;
+  MEMBERSHIP_ROLE_MEMBER = 1;
+  MEMBERSHIP_ROLE_MANAGER = 2;
+}
+
+enum ReadHistoryFrom {
+  READ_HISTORY_FROM_UNSPECIFIED = 0;
+  READ_HISTORY_FROM_NONE = 1;
+  READ_HISTORY_FROM_JOIN = 2;
+  READ_HISTORY_FROM_FULL = 3;
+}
+
+// Principal is the acting principal as chat projects it outward. It is never
+// caller-settable on a request: every request message below carries a
+// deprecated principal field only so existing clients keep compiling, and the
+// transport refuses a populated one rather than silently ignoring it.
+message Principal {
+  string tenant_id = 1;
+  string subject_id = 2;
+  repeated string roles = 3;
+  repeated string qualifications = 4;
+}
+
+enum ReferenceKind {
+  REFERENCE_KIND_UNSPECIFIED = 0;
+  REFERENCE_KIND_PERSON_MENTION = 1;
+  REFERENCE_KIND_AGENT_MENTION = 2;
+  REFERENCE_KIND_CONVERSATION_REFERENCE = 3;
+  // REFERENCE_KIND_MEDIA attaches a chatmedia artifact to a post. The bytes
+  // never travel in the post: id is the artifact id and a reader fetches the
+  // content through the media grant and download flow.
+  REFERENCE_KIND_MEDIA = 4;
+}
+
+message Reference {
+  ReferenceKind kind = 1;
+  string tenant_id = 2;
+  string id = 3;
+  string display = 4;
+  string conversation_id = 5;
+  // The remaining fields describe a REFERENCE_KIND_MEDIA attachment and are
+  // empty on every other kind. They are a rendering snapshot: a client sizes
+  // and labels the attachment before it spends a round trip on the bytes, and
+  // the media service remains the authority on all of them.
+  string content_type = 6;
+  uint64 byte_size = 7;
+  uint32 width = 8;
+  uint32 height = 9;
+}
+
+message SourceAttribution {
+  string tenant_id = 1;
+  string conversation_id = 2;
+  string post_id = 3;
+  uint64 post_revision = 4;
+  string original_author_id = 5;
+}
+
+message Conversation {
+  string id = 1;
+  string tenant_id = 2;
+  ConversationKind kind = 3;
+  string name = 4;
+  string owner_id = 5;
+  uint64 revision = 6;
+  bool archived = 7;
+  // joined says whether the caller holds an active membership. It is only
+  // meaningful on a discoverable listing, where a row may be a channel the
+  // caller can join rather than one it is already in.
+  bool joined = 8;
+  // member_count and last_activity_at are derived server-side so a channel
+  // directory or a conversation header can describe a room without a second
+  // round trip per row. member_count counts active memberships;
+  // last_activity_at is the creation time of the newest post that has not been
+  // tombstoned, and is unset for a conversation with no such post. Both are
+  // ignored on a request message: only the server computes them.
+  uint32 member_count = 9;
+  google.protobuf.Timestamp last_activity_at = 10;
+}
+
+message MemberRef {
+  string tenant_id = 1;
+  string subject_id = 2;
+}
+
+message Membership {
+  string conversation_id = 1;
+  string home_tenant_id = 2;
+  string subject_id = 3;
+  MembershipRole role = 4;
+  google.protobuf.Timestamp joined_at = 5;
+  google.protobuf.Timestamp left_at = 6;
+  ReadHistoryFrom history_visibility = 7;
+  uint64 revision = 8;
+}
+
+message Post {
+  string id = 1;
+  string conversation_id = 2;
+  string tenant_id = 3;
+  string author_id = 4;
+  string body = 5;
+  uint64 sequence = 6;
+  uint64 revision = 7;
+  string parent_id = 8;
+  bool deleted = 9;
+  google.protobuf.Timestamp created_at = 10;
+  repeated Reference references = 11;
+  SourceAttribution source_attribution = 12;
+  string author_home_tenant_id = 13;
+}
+
+message Reaction {
+  string conversation_id = 1;
+  string post_id = 2;
+  string tenant_id = 3;
+  string subject_id = 4;
+  string emoji = 5;
+  google.protobuf.Timestamp created_at = 6;
+  string home_tenant_id = 7;
+}
+
+message Pin {
+  string conversation_id = 1;
+  string post_id = 2;
+  string tenant_id = 3;
+  string pinned_by = 4;
+  uint64 revision = 5;
+  google.protobuf.Timestamp created_at = 6;
+  string pinned_by_home_tenant_id = 7;
+}
+
+message ReadState {
+  string conversation_id = 1;
+  string tenant_id = 2;
+  string subject_id = 3;
+  uint64 last_read_sequence = 4;
+  uint64 revision = 5;
+  string home_tenant_id = 6;
+}
+
+message NotificationPreferences {
+  string conversation_id = 1;
+  string tenant_id = 2;
+  string subject_id = 3;
+  bool muted = 4;
+  bool mentions_only = 5;
+  uint64 revision = 6;
+  string home_tenant_id = 7;
+}
+
+message CreateConversationRequest {
+  Principal principal = 1 [deprecated = true];
+  string tenant_id = 2;
+  ConversationKind kind = 3;
+  string name = 4;
+  string owner_id = 5;
+  repeated MemberRef members = 6;
+  string idempotency_key = 7;
+}
+message CreateConversationResponse { Conversation conversation = 1; }
+
+// include_discoverable adds the tenant's public channels the caller has not
+// joined, each still filtered by the discovery policy, so a client can offer a
+// channel directory instead of only the rooms the caller is already in.
+message ListConversationsRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string cursor = 3; uint32 page_size = 4; bool include_discoverable = 5; }
+message ListConversationsResponse { repeated Conversation conversations = 1; string next_cursor = 2; }
+message GetConversationRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; }
+message GetConversationResponse { Conversation conversation = 1; }
+message UpdateConversationRequest { Principal principal = 1 [deprecated = true]; Conversation conversation = 2; uint64 expected_revision = 3; }
+message UpdateConversationResponse { Conversation conversation = 1; }
+
+message ListMembershipsRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string cursor = 4; uint32 page_size = 5; }
+message ListMembershipsResponse { repeated Membership memberships = 1; string next_cursor = 2; }
+message AddMembershipRequest { Principal principal = 1 [deprecated = true]; Membership membership = 2; }
+message AddMembershipResponse { Membership membership = 1; }
+message RemoveMembershipRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string subject_id = 4; uint64 expected_revision = 5; string home_tenant_id = 6; }
+message RemoveMembershipResponse { Membership membership = 1; }
+
+message SendPostRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string body = 4; string parent_id = 5; string idempotency_key = 6; repeated Reference references = 7; SourceAttribution source_attribution = 8 [deprecated = true]; }
+message SendPostResponse { Post post = 1; }
+// descending pages backward instead of forward, so a client can open a
+// conversation at its newest posts and walk older. before_sequence is the
+// exclusive upper edge of a backward page; left unset, a backward page starts at
+// the newest post. Both are ignored on a forward page, and next_cursor on a
+// backward page carries the next before_sequence.
+message ListPostsRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; uint64 after_sequence = 4; uint32 page_size = 5; string cursor = 6; bool descending = 7; uint64 before_sequence = 8; }
+message ListPostsResponse { repeated Post posts = 1; string next_cursor = 2; }
+message EditPostRequest { Principal principal = 1 [deprecated = true]; Post post = 2; uint64 expected_revision = 3; string body = 4; }
+message EditPostResponse { Post post = 1; }
+message DeletePostRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; uint64 expected_revision = 5; }
+message DeletePostResponse { Post post = 1; }
+
+message SearchRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string query = 3; string conversation_id = 4; string author_id = 5; string cursor = 6; uint32 page_size = 7; }
+message SearchResult { Post post = 1; }
+message SearchResponse { repeated SearchResult results = 1; string next_cursor = 2; }
+message UpdateReadStateRequest { Principal principal = 1 [deprecated = true]; ReadState state = 2; uint64 expected_revision = 3; }
+message UpdateReadStateResponse { ReadState state = 1; }
+message GetReadStateRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; }
+message GetReadStateResponse { ReadState state = 1; }
+message UpdatePreferencesRequest { Principal principal = 1 [deprecated = true]; NotificationPreferences preferences = 2; uint64 expected_revision = 3; }
+message UpdatePreferencesResponse { NotificationPreferences preferences = 1; }
+message GetPreferencesRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; }
+message GetPreferencesResponse { NotificationPreferences preferences = 1; }
+message AddReactionRequest { Principal principal = 1 [deprecated = true]; Reaction reaction = 2; }
+message AddReactionResponse { Reaction reaction = 1; }
+message RemoveReactionRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; string emoji = 5; }
+message RemoveReactionResponse {}
+message ListReactionsRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; uint32 page_size = 5; string cursor = 6; }
+message ListReactionsResponse { repeated Reaction reactions = 1; string next_cursor = 2; }
+message PinPostRequest { Principal principal = 1 [deprecated = true]; Pin pin = 2; }
+message PinPostResponse { Pin pin = 1; }
+message UnpinPostRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; uint64 expected_revision = 5; }
+message UnpinPostResponse {}
+message ListPinsRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; }
+message ListPinsResponse { repeated Pin pins = 1; }
+
+message ReferenceCandidate { Reference reference = 1; bool eligible = 2; }
+message ResolveReferencesRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; ReferenceKind kind = 4; string query = 5; }
+message ResolveReferencesResponse { repeated ReferenceCandidate candidates = 1; }
+message ConversationLink { string url = 1; string tenant_id = 2; string conversation_id = 3; string post_id = 4; }
+message CreateShareLinkRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; }
+message CreateShareLinkResponse { ConversationLink link = 1; }
+message ResolveShareLinkRequest { Principal principal = 1 [deprecated = true]; string token = 2; }
+message ResolveShareLinkResponse { Conversation conversation = 1; Post post = 2; }
+message ForwardPostRequest {
+  Principal principal = 1 [deprecated = true];
+  string source_tenant_id = 2;
+  string source_conversation_id = 3;
+  string source_post_id = 4;
+  string destination_tenant_id = 5;
+  string destination_conversation_id = 6;
+  string idempotency_key = 7;
+  // Deprecated: the forwarded post's attribution is derived server-side from
+  // the source post. A populated value is refused, not overwritten.
+  SourceAttribution source_attribution = 8 [deprecated = true];
+}
+message ForwardPostResponse { Post post = 1; }
+
+enum ConversationEventKind {
+  CONVERSATION_EVENT_KIND_UNSPECIFIED = 0;
+  CONVERSATION_EVENT_KIND_POST_CREATED = 1;
+  CONVERSATION_EVENT_KIND_POST_EDITED = 2;
+  CONVERSATION_EVENT_KIND_POST_DELETED = 3;
+  CONVERSATION_EVENT_KIND_MEMBERSHIP_CHANGED = 4;
+  CONVERSATION_EVENT_KIND_CONVERSATION_UPDATED = 5;
+  CONVERSATION_EVENT_KIND_REACTION_CHANGED = 6;
+  CONVERSATION_EVENT_KIND_PIN_CHANGED = 7;
+}
+message ConversationEvent { ConversationEventKind kind = 1; uint64 sequence = 2; uint64 revision = 3; Post post = 4; Membership membership = 5; Conversation conversation = 6; Reaction reaction = 7; Pin pin = 8; bool removed = 9; }
+message WatchConversationRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; uint64 after_sequence = 4; string resume_cursor = 5; }
+message WatchConversationResponse { ConversationEvent event = 1; string resume_cursor = 2; }

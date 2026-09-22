@@ -1,0 +1,22 @@
+{
+  "pilot_owner": "collaboration-platform-oncall",
+  "cohorts": ["design-partner-alpha", "design-partner-beta"],
+  "required_metrics": [
+    "weekly_active_users",
+    "messages_per_active_user",
+    "send_commit_p95_ms",
+    "watch_delivery_p99_ms",
+    "workflow_admission_p99_ms",
+    "workflow_timer_lateness_ms",
+    "queue_age_ms",
+    "chat_cost_per_active_user"
+  ],
+  "kill_switch": "chat.rollout.tenant.disable",
+  "rollback_plan": "disable-chat-cell-and-drain-chat-workers",
+  "workflow_regression_budget_percent": 5,
+  "evidence": {
+    "signed_workflow_baseline": false,
+    "observed_employee_pilot": false,
+    "incident_drill": false
+  }
+}

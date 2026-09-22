@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package hcmnext.chat.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1;chatv1";
+
+service ChatExtensionsService {
+  rpc GetCounts(GetCountsRequest) returns (GetCountsResponse);
+  rpc GetThreadFollow(GetThreadFollowRequest) returns (GetThreadFollowResponse);
+  rpc PutThreadFollow(PutThreadFollowRequest) returns (PutThreadFollowResponse);
+  rpc GetSidebar(GetSidebarRequest) returns (GetSidebarResponse);
+  rpc PutSidebar(PutSidebarRequest) returns (PutSidebarResponse);
+  rpc GetQuietHours(GetQuietHoursRequest) returns (GetQuietHoursResponse);
+  rpc PutQuietHours(PutQuietHoursRequest) returns (PutQuietHoursResponse);
+  rpc InstallApp(InstallAppRequest) returns (InstallAppResponse);
+  rpc ListApps(ListAppsRequest) returns (ListAppsResponse);
+  rpc ChangeAppStatus(ChangeAppStatusRequest) returns (ChangeAppStatusResponse);
+  rpc InvokeApp(InvokeAppRequest) returns (InvokeAppResponse);
+  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse);
+  rpc ProposeAgentIntent(ProposeAgentIntentRequest) returns (ProposeAgentIntentResponse);
+  rpc ReportAbuse(ReportAbuseRequest) returns (ReportAbuseResponse);
+  rpc ModerateAbuse(ModerateAbuseRequest) returns (ModerateAbuseResponse);
+  rpc IssueEventCursor(IssueEventCursorRequest) returns (IssueEventCursorResponse);
+  rpc PullAppEvents(PullAppEventsRequest) returns (PullAppEventsResponse);
+  rpc ProposeCompanyGrant(ProposeCompanyGrantRequest) returns (ProposeCompanyGrantResponse);
+  rpc AcceptCompanyGrant(AcceptCompanyGrantRequest) returns (AcceptCompanyGrantResponse);
+  rpc RevokeCompanyGrant(RevokeCompanyGrantRequest) returns (RevokeCompanyGrantResponse);
+  rpc SetChannelPolicy(SetChannelPolicyRequest) returns (SetChannelPolicyResponse);
+}
+
+message ChatCounts { string tenant_id = 1; string conversation_id = 2; string subject_id = 3; string home_tenant_id = 4; uint64 unread_count = 5; uint64 mention_count = 6; }
+// GetCountsRequest addresses one conversation in one host tenant. The reader
+// is always the authenticated principal, so subject_id is deprecated and a
+// populated value is refused rather than ignored.
+message GetCountsRequest { string tenant_id = 1; string conversation_id = 2; string subject_id = 3 [deprecated = true]; }
+message GetCountsResponse { ChatCounts counts = 1; }
+message ThreadFollow { string tenant_id = 1; string conversation_id = 2; string subject_id = 3; string home_tenant_id = 4; string root_post_id = 5; bool followed = 6; uint64 revision = 7; }
+// GetThreadFollowRequest reads the authenticated principal's own follow row;
+// subject_id is deprecated for the same reason as on GetCountsRequest.
+message GetThreadFollowRequest { string tenant_id = 1; string conversation_id = 2; string root_post_id = 3; string subject_id = 4 [deprecated = true]; }
+message GetThreadFollowResponse { ThreadFollow follow = 1; }
+message PutThreadFollowRequest { ThreadFollow follow = 1; uint64 expected_revision = 2; }
+message PutThreadFollowResponse { ThreadFollow follow = 1; }
+message SidebarState { string tenant_id = 1; string subject_id = 2; string home_tenant_id = 3; string layout_json = 4; uint64 revision = 5; }
+// GetSidebarRequest carries no addressing at all: sidebar state is per
+// principal, and both fields are derived server-side.
+message GetSidebarRequest { string tenant_id = 1 [deprecated = true]; string subject_id = 2 [deprecated = true]; }
+message GetSidebarResponse { SidebarState sidebar = 1; }
+message PutSidebarRequest { SidebarState sidebar = 1; uint64 expected_revision = 2; }
+message PutSidebarResponse { SidebarState sidebar = 1; }
+message QuietHours { string tenant_id = 1; string subject_id = 2; string home_tenant_id = 3; string timezone = 4; uint32 start_minute = 5; uint32 end_minute = 6; bool enabled = 7; uint64 revision = 8; }
+// GetQuietHoursRequest carries no addressing; see GetSidebarRequest.
+message GetQuietHoursRequest { string tenant_id = 1 [deprecated = true]; string subject_id = 2 [deprecated = true]; }
+message GetQuietHoursResponse { QuietHours quiet_hours = 1; }
+message PutQuietHoursRequest { QuietHours quiet_hours = 1; uint64 expected_revision = 2; }
+message PutQuietHoursResponse { QuietHours quiet_hours = 1; }
+
+message InstallAppResponse { bytes json = 1; }
+message ListAppsResponse { bytes json = 1; }
+message ChangeAppStatusResponse { bytes json = 1; }
+message InvokeAppResponse { bytes json = 1; }
+message GetAgentResponse { bytes json = 1; }
+message ProposeAgentIntentResponse { bytes json = 1; }
+message ReportAbuseResponse { bytes json = 1; }
+message ModerateAbuseResponse { bytes json = 1; }
+message IssueEventCursorResponse { bytes json = 1; }
+message PullAppEventsResponse { bytes json = 1; }
+message ProposeCompanyGrantResponse { string grant_id = 1; }
+message AcceptCompanyGrantResponse { bool accepted = 1; }
+message RevokeCompanyGrantResponse { bool revoked = 1; }
+message SetChannelPolicyResponse { bool updated = 1; }
+message ListAppsRequest { string conversation_id = 1; }
+message InstallAppRequest { string conversation_id = 1; bytes manifest_json = 2; repeated string granted_scopes = 3; }
+message ChangeAppStatusRequest { string conversation_id = 1; string installation_id = 2; string status = 3; }
+message InvokeAppRequest { string conversation_id = 1; string installation_id = 2; string command = 3; string idempotency_key = 4; map<string,string> arguments = 5; }
+message GetAgentRequest { string conversation_id = 1; string installation_id = 2; }
+message ProposeAgentIntentRequest { string conversation_id = 1; string installation_id = 2; string intent_type = 3; string idempotency_key = 4; map<string,string> arguments = 5; repeated string evidence = 6; }
+message ReportAbuseRequest { string conversation_id = 1; string report_id = 2; string target_id = 3; string reason = 4; }
+message ModerateAbuseRequest { string conversation_id = 1; string case_id = 2; string action = 3; string target_id = 4; string reason = 5; string evidence_ref = 6; }
+message IssueEventCursorRequest { string conversation_id = 1; string installation_id = 2; int64 after_sequence = 3; }
+message PullAppEventsRequest { string conversation_id = 1; string cursor = 2; int32 limit = 3; }
+message ProposeCompanyGrantRequest { string host_tenant_id = 1; string consumer_tenant_id = 2; string conversation_id = 3; string classification = 4; string residency = 5; int64 expires_at_unix = 6; }
+message AcceptCompanyGrantRequest { string host_tenant_id = 1; string consumer_tenant_id = 2; string conversation_id = 3; string grant_id = 4; }
+message RevokeCompanyGrantRequest { string host_tenant_id = 1; string consumer_tenant_id = 2; string conversation_id = 3; string grant_id = 4; }
+message SetChannelPolicyRequest { string host_tenant_id = 1; string conversation_id = 2; repeated string required_roles = 3; repeated string qualifications = 4; repeated string allowed_principals = 5; repeated string allowed_tenants = 6; bool require_all_roles = 7; string classification = 8; string residency = 9; uint64 expected_revision = 10; }

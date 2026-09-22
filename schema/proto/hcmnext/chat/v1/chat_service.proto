@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package hcmnext.chat.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1;chatv1";
+
+import "hcmnext/chat/v1/chat.proto";
+
+service ConversationService {
+  rpc CreateConversation(CreateConversationRequest) returns (CreateConversationResponse);
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  rpc UpdateConversation(UpdateConversationRequest) returns (UpdateConversationResponse);
+  rpc ListMemberships(ListMembershipsRequest) returns (ListMembershipsResponse);
+  rpc AddMembership(AddMembershipRequest) returns (AddMembershipResponse);
+  rpc RemoveMembership(RemoveMembershipRequest) returns (RemoveMembershipResponse);
+  rpc SendPost(SendPostRequest) returns (SendPostResponse);
+  rpc ListPosts(ListPostsRequest) returns (ListPostsResponse);
+  rpc EditPost(EditPostRequest) returns (EditPostResponse);
+  rpc DeletePost(DeletePostRequest) returns (DeletePostResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc GetReadState(GetReadStateRequest) returns (GetReadStateResponse);
+  rpc UpdateReadState(UpdateReadStateRequest) returns (UpdateReadStateResponse);
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesResponse);
+  rpc UpdatePreferences(UpdatePreferencesRequest) returns (UpdatePreferencesResponse);
+  rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
+  rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
+  rpc ListReactions(ListReactionsRequest) returns (ListReactionsResponse);
+  rpc PinPost(PinPostRequest) returns (PinPostResponse);
+  rpc UnpinPost(UnpinPostRequest) returns (UnpinPostResponse);
+  rpc ListPins(ListPinsRequest) returns (ListPinsResponse);
+  // WatchConversation streams one conversation's events.
+  //
+  // ConversationEvent.sequence is numbered per conversation: consecutive events
+  // in one room carry consecutive sequences, so a client can tell a real gap
+  // from ordinary traffic elsewhere. It is deliberately not the same number as
+  // WatchConversationRequest.after_sequence or resume_cursor, which are opaque
+  // server stream positions spanning every conversation on the shard. A resuming
+  // client hands back the resume_cursor it was given, or an after_sequence this
+  // RPC gave it; it must never put a ConversationEvent.sequence into either.
+  rpc WatchConversation(WatchConversationRequest) returns (stream WatchConversationResponse);
+  rpc ResolveReferences(ResolveReferencesRequest) returns (ResolveReferencesResponse);
+  rpc CreateShareLink(CreateShareLinkRequest) returns (CreateShareLinkResponse);
+  rpc ResolveShareLink(ResolveShareLinkRequest) returns (ResolveShareLinkResponse);
+  rpc ForwardPost(ForwardPostRequest) returns (ForwardPostResponse);
+}

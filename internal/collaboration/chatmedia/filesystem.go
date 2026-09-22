@@ -1,0 +1,104 @@
+package chatmedia
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+)
+
+// FilesystemStore is a small durable local adapter. The metadata file is the
+// authority for state; content is always written below root and is returned
+// only after metadata says ADMITTED. Production object providers can implement
+// Store without changing the service.
+type FilesystemStore struct{ root string }
+
+func NewFilesystemStore(root string) (*FilesystemStore, error) {
+	if root == "" {
+		return nil, ErrInvalid
+	}
+	if err := os.MkdirAll(root, 0700); err != nil {
+		return nil, err
+	}
+	return &FilesystemStore{root: root}, nil
+}
+func (f *FilesystemStore) paths(id string) (string, string) {
+	return filepath.Join(f.root, id+".bytes"), filepath.Join(f.root, id+".json")
+}
+func (f *FilesystemStore) Quarantine(ctx context.Context, a Artifact) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if a.ArtifactID == "" || filepath.Base(a.ArtifactID) != a.ArtifactID {
+		return ErrInvalid
+	}
+	bp, mp := f.paths(a.ArtifactID)
+	if _, err := os.Stat(mp); err == nil {
+		return nil
+	}
+	if err := os.WriteFile(bp, a.Content, 0600); err != nil {
+		return err
+	}
+	b, _ := json.Marshal(a)
+	if err := os.WriteFile(mp, b, 0600); err != nil {
+		_ = os.Remove(bp)
+		return err
+	}
+	return nil
+}
+func (f *FilesystemStore) SetVerdict(ctx context.Context, id, tenant string, state ArtifactState, reason, scanner string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	_, mp := f.paths(id)
+	b, err := os.ReadFile(mp)
+	if err != nil {
+		return err
+	}
+	var a Artifact
+	if err = json.Unmarshal(b, &a); err != nil {
+		return err
+	}
+	if a.TenantID != tenant {
+		return ErrUnauthorized
+	}
+	a.State = state
+	a.Reason = reason
+	a.ScannerID = scanner
+	b, err = json.Marshal(a)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(mp, b, 0600)
+}
+func (f *FilesystemStore) Get(ctx context.Context, tenant, id string) (Artifact, error) {
+	if err := ctx.Err(); err != nil {
+		return Artifact{}, err
+	}
+	if filepath.Base(id) != id {
+		return Artifact{}, ErrInvalid
+	}
+	_, mp := f.paths(id)
+	b, err := os.ReadFile(mp)
+	if err != nil {
+		return Artifact{}, err
+	}
+	var a Artifact
+	if err = json.Unmarshal(b, &a); err != nil {
+		return Artifact{}, err
+	}
+	if a.TenantID != tenant {
+		return Artifact{}, ErrUnauthorized
+	}
+	if a.State != StateAdmitted {
+		return Artifact{}, ErrQuarantined
+	}
+	bp, _ := f.paths(id)
+	a.Content, err = os.ReadFile(bp)
+	if err != nil {
+		return Artifact{}, err
+	}
+	return a, nil
+}
+
+var _ Store = (*FilesystemStore)(nil)

@@ -1,0 +1,374 @@
+# Independent chat-database storage disposition (CHAT-003/004).
+#
+# Unlike definitions/storage/storage-disposition.yaml, this registry describes
+# the embedded migration trees used by the independent chat database and the
+# small core-owned route table. It is intentionally explicit because the core
+# storagemanifest generator scans only /migrations and cannot see these
+# schemas. CHAT-004 validation must apply the same tenant-isolation and
+# append-only checks to every row here and to any future chat table.
+
+version: 1
+module: github.com/monstercameron/human-capital-management-suite
+database: chat
+sources:
+  - internal/data/chatstore/migrations/00001_chat.sql
+  - internal/data/chatstore/migrations/00002_chat_records.sql
+  - internal/data/chatstore/migrations/00003_chat_authority.sql
+  - internal/data/chatstore/migrations/00004_chatapps.sql
+  - internal/data/chatstore/migrations/00005_chat_recipient_state.sql
+  - internal/data/chatstore/migrations/00006_chat_event_sequence.sql
+  - internal/data/chatstore/migrations/00007_chat_audit_immutable.sql
+  - internal/data/chatstore/migrations/00008_chat_sequence_and_outbox_retention.sql
+  - internal/data/chatroutestore/store.go
+
+defaults:
+  plane: CHAT_DATA
+  data_role: CONTROL
+  isolation_package: internal/data/tenancy
+  rls_policy: tenant_isolation
+  rls_required: true
+  retention_class: OPERATIONAL
+  encryption_class: PLATFORM_MANAGED
+
+tables:
+  - table: chat_conversation
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_membership
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_conversation_idempotency
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_post
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_post_revision
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_idempotency
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  # 00008 narrowed the forbid_mutation trigger on chat_outbox and
+  # chat_outbox_receipt to BEFORE UPDATE so bounded retention can DELETE
+  # published events (chatstore.PruneOutbox). Rows are still never rewritten,
+  # but because DELETE is permitted these two relations are no longer declared
+  # append_only.
+  - table: chat_outbox
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_outbox_receipt
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_outbox_cursor
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00008_chat_sequence_and_outbox_retention.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_preference
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_reaction
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_pin
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_cursor
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_thread_follow
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00005_chat_recipient_state.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_personal_sidebar
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00005_chat_recipient_state.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_quiet_hours
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00005_chat_recipient_state.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_record_inventory
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00002_chat_records.sql
+    owner_package: internal/data/chatrecordstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_audit_event
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00002_chat_records.sql
+    owner_package: internal/data/chatrecordstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_record_hold
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00002_chat_records.sql
+    owner_package: internal/data/chatrecordstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_record_export
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00002_chat_records.sql
+    owner_package: internal/data/chatrecordstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_moderation_report
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00002_chat_records.sql
+    owner_package: internal/data/chatrecordstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_moderation_action
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00002_chat_records.sql
+    owner_package: internal/data/chatrecordstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_channel_policy
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00003_chat_authority.sql
+    owner_package: internal/data/chatauthority
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_share_grant
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00003_chat_authority.sql
+    owner_package: internal/data/chatauthority
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_app_installation
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00004_chatapps.sql
+    owner_package: internal/data/chatappstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_app_event
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00004_chatapps.sql
+    owner_package: internal/data/chatappstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_app_event_seen
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00004_chatapps.sql
+    owner_package: internal/data/chatappstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_conversation_route
+    plane: CHAT_DATA
+    data_role: CONTROL
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatroutestore/store.go
+    owner_package: internal/data/chatroutestore
+    isolation_package: internal/data/tenancy
+    tenant_scoping_column: host_tenant_id
+    append_only: false

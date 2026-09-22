@@ -8,8 +8,13 @@
 //	migrate up      apply every pending migration
 //	migrate down    roll back the most recently applied migration
 //	migrate status  report the schema version, digest and per-migration state
+//	migrate chat up apply the independent chat database's migration set
+//	migrate chat status report the chat schema version and per-migration state
 //	migrate seed    load the deterministic Promotion fixture for -tenant
 //	migrate demo-people load HarborCare's demo workforce and processed photos
+//	migrate upgrade drive one rolling schema/binary upgrade through the
+//	durable upgrade journal (-upgrade-plan, -upgrade-rows, -journal-path,
+//	-required-watermark); re-running the same command resumes after a kill
 //
 // migrate is not a long-running server: process-roles.yaml marks it
 // "operator-invoked" with no readiness probe and "not applicable" drain, so
@@ -22,15 +27,19 @@
 // cmd/projector.
 //
 // The target server is HCMNEXT_DATABASE_URL, overridable with
-// -database-url.
+// -database-url. The chat subcommands target the independent chat database at
+// HCMNEXT_CHAT_DATABASE_URL, overridable with -chat-database-url, and refuse to
+// run when that resolves to the same database as the core DSN.
 package main
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
 )
 
@@ -41,9 +50,21 @@ const EnvDatabaseURL = "HCMNEXT_DATABASE_URL"
 const fieldTenant = "tenant"
 
 const (
+	fieldUpgradeJournal   = "journal-path"
+	fieldUpgradePlan      = "upgrade-plan"
+	fieldUpgradeRows      = "upgrade-rows"
+	fieldUpgradeWatermark = "required-watermark"
+)
+
+const (
 	fieldPhotoSource = "photo-source"
-	fieldAssetDir    = "asset-dir"
-	fieldOriginalDir = "original-dir"
+	// The chat seed's own flags. They live beside the other seed flags because
+	// bootstrap declares one flag set per role, not one per subcommand.
+	fieldChatSeedScale     = "scale"
+	fieldChatSeedReset     = "reset"
+	fieldChatSeedMediaRoot = "chat-media-root"
+	fieldAssetDir          = "asset-dir"
+	fieldOriginalDir       = "original-dir"
 )
 
 // migrationTimeout bounds one migrate invocation, matching the original
@@ -66,6 +87,14 @@ func splitCommand(args []string) (command string, rest []string) {
 	if len(args) == 0 {
 		return "", nil
 	}
+	// "chat" is a namespace, not an action: the chat schema lives on its own
+	// database with its own migration set, so its action is the second token.
+	if args[0] == "chat" {
+		if len(args) == 1 {
+			return chatCommandPrefix, nil
+		}
+		return chatCommandPrefix + args[1], args[2:]
+	}
 	return args[0], args[1:]
 }
 
@@ -82,12 +111,35 @@ func migrateConfigFields() []bootstrap.Field {
 			Secret: true,
 		},
 		{
+			Name:   fieldChatDatabaseURL,
+			Env:    EnvChatDatabaseURL,
+			Usage:  "PostgreSQL connection URL for the independent chat database (" + EnvChatDatabaseURL + " if unset)",
+			Kind:   bootstrap.KindString,
+			Secret: true,
+		},
+		{
 			Name:  fieldTenant,
 			Usage: "tenant slug to seed (required by seed and demo-people)",
 		},
 		{
 			Name:  fieldPhotoSource,
 			Usage: "directory containing generated hc-NNN.png source photos (required by demo-people)",
+		},
+		{
+			Name:    fieldChatSeedScale,
+			Usage:   "chat seed profile: small or full",
+			Default: "full",
+		},
+		{
+			Name:    fieldChatSeedReset,
+			Usage:   "chat seed: wipe and recreate the demo rooms instead of refusing when they exist",
+			Kind:    bootstrap.KindBool,
+			Default: "false",
+		},
+		{
+			Name:    fieldChatSeedMediaRoot,
+			Usage:   "chat seed: durable root for uploaded media bytes",
+			Default: defaultArtifactRootPath + "/chat-media",
 		},
 		{
 			Name:    fieldAssetDir,
@@ -98,6 +150,24 @@ func migrateConfigFields() []bootstrap.Field {
 			Name:    fieldOriginalDir,
 			Usage:   "non-public directory for byte-exact retained profile-photo originals",
 			Default: "demo-assets/profile-originals",
+		},
+		{
+			Name:  fieldUpgradeJournal,
+			Usage: "durable upgrade journal file for the upgrade subcommand (resume-aware)",
+		},
+		{
+			Name:  fieldUpgradePlan,
+			Usage: "JSON file carrying the schemaupgrade plan for the upgrade subcommand",
+		},
+		{
+			Name:  fieldUpgradeRows,
+			Usage: "JSON file carrying the source rows for the upgrade subcommand",
+		},
+		{
+			Name:    fieldUpgradeWatermark,
+			Usage:   "consumer adoption watermark the upgrade subcommand cuts over at",
+			Kind:    bootstrap.KindInt,
+			Default: "0",
 		},
 	}
 }
@@ -141,6 +211,53 @@ func spec(command string, rest []string) bootstrap.Spec {
 						return runSeedCommand(ctx, conn, deps.Values.String(fieldTenant), os.Stdout)
 					}
 
+					if action := chatSubcommand(command); action != "" || command == chatCommandPrefix {
+						if action == "seed" {
+							// The seeder needs the store's own pooled adapter,
+							// not the database/sql handle Goose migrates with.
+							store, storeErr := chatstore.New(ctx, chatstore.Config{DSN: deps.Values.String(fieldChatDatabaseURL)})
+							if storeErr != nil {
+								return storeErr
+							}
+							defer store.Close()
+							reset, resetErr := deps.Values.Bool(fieldChatSeedReset)
+							if resetErr != nil {
+								return resetErr
+							}
+							return runChatSeedCommand(ctx, store, chatSeedOptions{
+								Tenant:    deps.Values.String(fieldTenant),
+								Scale:     deps.Values.String(fieldChatSeedScale),
+								Reset:     reset,
+								MediaRoot: deps.Values.String(fieldChatSeedMediaRoot),
+								AssetDir:  deps.Values.String(fieldAssetDir),
+							}, os.Stdout)
+						}
+						db, err := openChatMigrateDB(ctx, deps.Values.String(fieldChatDatabaseURL))
+						if err != nil {
+							return err
+						}
+						defer func() { _ = db.Close() }()
+
+						return runChatMigrateCommand(ctx, action, db, os.Stdout)
+					}
+
+					if command == "upgrade" {
+						watermark, err := deps.Values.Int(fieldUpgradeWatermark)
+						if err != nil {
+							return err
+						}
+						if watermark < 0 {
+							return fmt.Errorf("-%s must not be negative", fieldUpgradeWatermark)
+						}
+						return runUpgradeCommand(
+							deps.Values.String(fieldUpgradeJournal),
+							deps.Values.String(fieldUpgradePlan),
+							deps.Values.String(fieldUpgradeRows),
+							uint64(watermark),
+							os.Stdout,
+						)
+					}
+
 					db, err := openMigrateDB(ctx, url)
 					if err != nil {
 						return err
@@ -160,6 +277,11 @@ func spec(command string, rest []string) bootstrap.Spec {
 // matching the original command's own usage checks.
 func validateConfig(command string) func(*bootstrap.Values) error {
 	return func(v *bootstrap.Values) error {
+		if strings.HasPrefix(command, chatCommandPrefix) {
+			// The chat subcommands never touch the core database, so they are
+			// validated against the chat DSN alone plus the isolation rule.
+			return validateChatCommand(chatSubcommand(command), v.String(fieldChatDatabaseURL), v.String("database-url"))
+		}
 		switch command {
 		case "up", "down", "status":
 		case "seed":
@@ -173,10 +295,23 @@ func validateConfig(command string) func(*bootstrap.Values) error {
 			if v.String(fieldPhotoSource) == "" {
 				return fmt.Errorf("-%s is required for the demo-people subcommand", fieldPhotoSource)
 			}
+		case "upgrade":
+			if v.String(fieldUpgradeJournal) == "" {
+				return fmt.Errorf("-%s is required for the upgrade subcommand", fieldUpgradeJournal)
+			}
+			if v.String(fieldUpgradePlan) == "" {
+				return fmt.Errorf("-%s is required for the upgrade subcommand", fieldUpgradePlan)
+			}
+			if v.String(fieldUpgradeRows) == "" {
+				return fmt.Errorf("-%s is required for the upgrade subcommand", fieldUpgradeRows)
+			}
+			// The upgrade subcommand journals to a file and never opens a
+			// database, so it is validated without a database URL.
+			return nil
 		case "":
-			return fmt.Errorf("usage: migrate up|down|status|seed|demo-people")
+			return fmt.Errorf("usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status")
 		default:
-			return fmt.Errorf("unknown command %q; usage: migrate up|down|status|seed|demo-people", command)
+			return fmt.Errorf("unknown command %q; usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status", command)
 		}
 		if v.String("database-url") == "" {
 			return fmt.Errorf("%s is not set; pass -database-url or set the environment variable", EnvDatabaseURL)
