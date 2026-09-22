@@ -24,6 +24,19 @@ type ExecutionSpan struct {
 	ctx  context.Context
 }
 
+// SetAttributes adds identifiers learned after start through the same policy
+// filter as initial attributes. No raw SDK handle leaves this package.
+func (s ExecutionSpan) SetAttributes(attrs map[string]string) {
+	if s.span == nil {
+		return
+	}
+	kvs := make([]attribute.KeyValue, 0, len(attrs))
+	for key, value := range attrs {
+		kvs = append(kvs, attribute.String(key, value))
+	}
+	s.span.SetAttributes(kvs...)
+}
+
 // End sets the span's outcome attribute and status and ends it. failed marks
 // the span as an error span; outcome is recorded as a plain "outcome"
 // attribute (never a payload, principal or authority-bearing field —
