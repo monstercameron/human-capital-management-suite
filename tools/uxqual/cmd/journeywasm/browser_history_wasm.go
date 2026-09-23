@@ -20,6 +20,13 @@ const (
 )
 
 var productHistory *browserProductHistoryController
+var productHistoryControlsRefresh func()
+
+func refreshProductHistoryControls() {
+	if productHistoryControlsRefresh != nil {
+		productHistoryControlsRefresh()
+	}
+}
 
 // browserProductHistoryController annotates entries created by the software
 // router. The standard History API can move in both directions but cannot
@@ -88,6 +95,51 @@ func (controller *browserProductHistoryController) Navigate(navigate func(string
 	controller.maxIndex = controller.index
 	controller.replaceCurrentState(controller.index)
 	controller.writeMax()
+}
+
+// RecordSameRoutePush advances the app-level history controls after a
+// same-URL interaction adds a browser entry, such as selecting a chat room.
+// The router's route does not change, so Navigate cannot observe this push.
+func (controller *browserProductHistoryController) RecordSameRoutePush() {
+	if controller == nil || controller.id == "" {
+		return
+	}
+	history, historyOK := browserHistory()
+	if !historyOK {
+		return
+	}
+	state, stateOK := browserHistoryState(history)
+	id, index, valid := productHistoryState(state)
+	if !stateOK || !valid || id != controller.id || index >= productclient.MaxHistoryIndex {
+		return
+	}
+	clone, cloneOK := cloneBrowserHistoryState(state)
+	if !cloneOK {
+		return
+	}
+	index++
+	clone.Set(productHistoryIDField, controller.id)
+	clone.Set(productHistoryIndexField, index)
+	if !browserHistoryReplaceState(history, clone, browserLocationHref()) {
+		return
+	}
+	controller.index = index
+	controller.maxIndex = index
+	controller.writeMax()
+	refreshProductHistoryControls()
+}
+
+func cloneBrowserHistoryState(state js.Value) (clone js.Value, ok bool) {
+	defer func() {
+		if recover() != nil {
+			clone = js.Undefined()
+			ok = false
+		}
+	}()
+	if state.Type() != js.TypeObject && state.Type() != js.TypeNull {
+		return js.Undefined(), false
+	}
+	return js.Global().Get("Object").Call("assign", js.Global().Get("Object").New(), state), true
 }
 
 // ClaimSoftwareNavigation distinguishes a user-initiated software push from
