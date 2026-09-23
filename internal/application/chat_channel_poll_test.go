@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 )
 
 func TestChannelPollUnavailableWithoutConfiguredStore(t *testing.T) {
@@ -15,7 +14,7 @@ func TestChannelPollUnavailableWithoutConfiguredStore(t *testing.T) {
 	if _, err := service.ChannelPoll(context.Background(), principal, "", "channel"); !errors.Is(err, chat.ErrUnavailable) {
 		t.Fatalf("read without store = %v", err)
 	}
-	if _, err := service.MutateChannelPoll(context.Background(), principal, "", "channel", 1, chatstore.ChannelPollMutation{Operation: "CREATE"}); !errors.Is(err, chat.ErrUnavailable) {
+	if _, err := service.MutateChannelPoll(context.Background(), principal, "", "channel", 1, chat.ChannelPollMutation{Operation: "CREATE"}); !errors.Is(err, chat.ErrUnavailable) {
 		t.Fatalf("mutation without store = %v", err)
 	}
 }
