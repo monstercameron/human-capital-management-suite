@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	chat "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
@@ -131,6 +132,9 @@ func (s *Adapter) GetConversation(ctx context.Context, tenantID, id string) (cha
 	var rev, members int64
 	e = tx.QueryRow(ctx, getConversationRow, tenantID, id).Scan(&c.ID, &c.TenantID, &kind, &c.Name, &c.OwnerID, &rev, &life, &members, &c.LastActivityAt)
 	if e != nil {
+		if errors.Is(e, dbport.ErrNoRows) {
+			return chat.Conversation{}, chat.ErrNotFound
+		}
 		return c, e
 	}
 	c.Kind = chat.ConversationKind(kind)
@@ -505,6 +509,14 @@ const listPostsForward = listPostsSelect + ` AND p.sequence>$5 ORDER BY p.sequen
 
 const listPostsBackward = listPostsSelect + ` AND p.sequence<$5 ORDER BY p.sequence DESC LIMIT $6`
 
+// Machine readers use the named installation as their row-level admission
+// evidence. They see history only from installation time, and revocation or
+// scope removal takes effect before each page is returned.
+const listMachinePostsSelect = `SELECT p.id,p.tenant_id,p.conversation_id,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_app_installation i ON i.tenant_id=p.tenant_id AND i.conversation_id=p.conversation_id AND i.tenant_id=$3 AND i.app_id=$4 AND i.id=i.tenant_id||':'||i.conversation_id||':'||i.app_id AND i.status='ACTIVE' AND i.version>0 AND i.created_at<=now() AND 'chat.posts.read'=ANY(i.granted_scopes) WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND p.created_at>=i.created_at`
+
+const listMachinePostsForward = listMachinePostsSelect + ` AND p.sequence>$5 ORDER BY p.sequence LIMIT $6`
+const listMachinePostsBackward = listMachinePostsSelect + ` AND p.sequence<$5 ORDER BY p.sequence DESC LIMIT $6`
+
 func (s *Adapter) ListPosts(ctx context.Context, principal chat.Principal, t, cid string, after uint64, p chat.Page, w chat.PostWindow) (chat.ListPostsResponse, error) {
 	var out chat.ListPostsResponse
 	tx, err := s.pool.Begin(ctx)
@@ -548,8 +560,21 @@ func (s *Adapter) ListPosts(ctx context.Context, principal chat.Principal, t, ci
 		}
 	}
 	query, bound := listPostsForward, after
+	machine, identityErr := machineActor(ctx, principal.TenantID, principal.SubjectID)
+	if identityErr != nil {
+		return out, chat.ErrPermissionDenied
+	}
+	if machine {
+		if principal.TenantID != t {
+			return out, chat.ErrPermissionDenied
+		}
+		query = listMachinePostsForward
+	}
 	if w.Descending {
 		query, bound = listPostsBackward, before
+		if machine {
+			query = listMachinePostsBackward
+		}
 	}
 	rows, err := tx.Query(ctx, query, t, cid, principal.TenantID, principal.SubjectID, bound, limit+1)
 	if err != nil {
@@ -687,7 +712,7 @@ func (s *Adapter) revise(ctx context.Context, t, cid, id, home, author, body str
 	return p, tx.Commit(ctx)
 }
 func (s *Adapter) Search(ctx context.Context, r chat.SearchRequest) (chat.SearchResponse, error) {
-	if strings.TrimSpace(r.Query) == "" || r.Principal.SubjectID == "" {
+	if strings.TrimSpace(r.Query) == "" || len(r.Query) > 512 || r.Principal.SubjectID == "" || r.Page.PageSize > 50 || len(r.Page.Cursor) > 4096 || len(r.ChannelCursor) > 4096 {
 		return chat.SearchResponse{}, chat.ErrInvalidArgument
 	}
 	tx, err := s.pool.Begin(ctx)
@@ -699,44 +724,114 @@ func (s *Adapter) Search(ctx context.Context, r chat.SearchRequest) (chat.Search
 		return chat.SearchResponse{}, err
 	}
 	limit := int(r.Page.PageSize)
-	if limit <= 0 || limit > 200 {
-		limit = 200
+	if limit <= 0 {
+		limit = 20
 	}
-	cursor, err := decodeCursor(r.Page.Cursor)
-	if err != nil {
-		return chat.SearchResponse{}, chat.ErrInvalidArgument
+	messageBefore := time.Date(9999, 12, 31, 23, 59, 59, 999999999, time.UTC)
+	messageID := ""
+	if !r.SkipMessages && r.Page.Cursor != "" {
+		messageBefore, messageID, err = decodeSearchCursor(r.Page.Cursor)
+		if err != nil {
+			return chat.SearchResponse{}, chat.ErrInvalidArgument
+		}
 	}
-	// The predicate repeats the chat_post_search index expression exactly, so the
-	// GIN index serves it; the earlier ILIKE could not be indexed and scanned the
-	// tenant. The membership join bounds the candidate set to the caller's own
-	// conversations even when no conversation filter is supplied, so an
-	// unscoped query cannot read across the tenant.
-	rows, err := tx.Query(ctx, `SELECT p.id,p.tenant_id,p.conversation_id,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.member_id=$2 AND m.home_tenant_id=$3 AND m.state='active' WHERE p.tenant_id=$1 AND ($4='' OR p.conversation_id=$4) AND ($5='' OR p.author_id=$5) AND to_tsvector('simple', p.body) @@ plainto_tsquery('simple', $6) AND p.tombstoned=false AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at)) AND p.id>$7 ORDER BY p.id LIMIT $8`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, r.AuthorID, r.Query, cursor, limit+1)
-	if err != nil {
-		return chat.SearchResponse{}, err
+	channelCursor := ""
+	if !r.SkipChannels {
+		channelCursor, err = decodeCursor(r.ChannelCursor)
+		if err != nil {
+			return chat.SearchResponse{}, chat.ErrInvalidArgument
+		}
 	}
-	defer rows.Close()
 	var out chat.SearchResponse
-	for rows.Next() {
-		var x Post
-		if err = rows.Scan(&x.ID, &x.TenantID, &x.ConversationID, &x.AuthorID, &x.AuthorHomeTenantID, &x.Sequence, &x.Body, &x.Revision, &x.Tombstoned, &x.CreatedAt, &x.ParentID, &x.References, &x.SourceAttribution); err != nil {
+	if !r.SkipMessages {
+		// The predicate repeats the GIN index expression exactly. Active
+		// membership and history visibility filter before results or snippets.
+		rows, err := tx.Query(ctx, `SELECT p.id,p.tenant_id,p.conversation_id,c.name,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_conversation c ON c.tenant_id=p.tenant_id AND c.id=p.conversation_id JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.member_id=$2 AND m.home_tenant_id=$3 AND m.state='active' WHERE p.tenant_id=$1 AND ($4='' OR p.conversation_id=$4) AND ($5='' OR p.author_id=$5) AND to_tsvector('simple', p.body) @@ plainto_tsquery('simple', $6) AND p.tombstoned=false AND c.lifecycle='ACTIVE' AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at)) AND (p.created_at,p.id)<($7,$8) ORDER BY p.created_at DESC,p.id DESC LIMIT $9`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, r.AuthorID, r.Query, messageBefore, messageID, limit+1)
+		if err != nil {
+			return chat.SearchResponse{}, err
+		}
+		for rows.Next() {
+			var x Post
+			var conversationName string
+			if err = rows.Scan(&x.ID, &x.TenantID, &x.ConversationID, &conversationName, &x.AuthorID, &x.AuthorHomeTenantID, &x.Sequence, &x.Body, &x.Revision, &x.Tombstoned, &x.CreatedAt, &x.ParentID, &x.References, &x.SourceAttribution); err != nil {
+				rows.Close()
+				return out, err
+			}
+			p, err := chatPost(x)
+			if err != nil {
+				rows.Close()
+				return out, err
+			}
+			out.Results = append(out.Results, chat.SearchResult{Post: p, ConversationName: conversationName})
+		}
+		if err = rows.Err(); err != nil {
+			rows.Close()
 			return out, err
 		}
-		p, err := chatPost(x)
+		rows.Close()
+		if len(out.Results) > limit {
+			out.Results = out.Results[:limit]
+			out.NextCursor = encodeSearchCursor(out.Results[len(out.Results)-1].Post)
+		}
+	}
+	if !r.SkipChannels {
+		channelRows, err := tx.Query(ctx, `SELECT c.id,c.name,c.kind,(mine.member_id IS NOT NULL) FROM chat_conversation c LEFT JOIN chat_membership mine ON mine.tenant_id=c.tenant_id AND mine.conversation_id=c.id AND mine.member_id=$2 AND mine.home_tenant_id=$3 AND mine.state='active' WHERE c.tenant_id=$1 AND ($4='' OR c.id=$4) AND c.id>$5 AND c.lifecycle='ACTIVE' AND c.kind IN ('PUBLIC_CHANNEL','PRIVATE_CHANNEL') AND (mine.member_id IS NOT NULL OR c.kind='PUBLIC_CHANNEL') AND (to_tsvector('simple',c.name) @@ plainto_tsquery('simple',$6) OR lower(c.name) LIKE $7 ESCAPE E'\\') ORDER BY c.id LIMIT $8`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, channelCursor, r.Query, escapeLikePrefix(r.Query), limit+1)
 		if err != nil {
 			return out, err
 		}
-		out.Results = append(out.Results, chat.SearchResult{Post: p})
+		for channelRows.Next() {
+			var hit chat.ChannelSearchResult
+			var kind string
+			if err = channelRows.Scan(&hit.ConversationID, &hit.Name, &kind, &hit.Joined); err != nil {
+				channelRows.Close()
+				return out, err
+			}
+			hit.Kind = chat.ConversationKind(kind)
+			out.Channels = append(out.Channels, hit)
+		}
+		if err = channelRows.Err(); err != nil {
+			channelRows.Close()
+			return out, err
+		}
+		if len(out.Channels) > limit {
+			out.Channels = out.Channels[:limit]
+			out.ChannelNextCursor = encodeCursor(out.Channels[len(out.Channels)-1].ConversationID)
+		}
+		channelRows.Close()
 	}
-	if err = rows.Err(); err != nil {
-		return out, err
-	}
-	if len(out.Results) > limit {
-		out.Results = out.Results[:limit]
-		out.NextCursor = encodeCursor(out.Results[len(out.Results)-1].Post.ID)
-	}
+
 	return out, tx.Commit(ctx)
 }
+
+func escapeLikePrefix(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `%`, `\%`)
+	value = strings.ReplaceAll(value, `_`, `\_`)
+	return strings.ToLower(value) + "%"
+}
+
+func encodeSearchCursor(p chat.Post) string {
+	value := p.CreatedAt.UTC().Format(time.RFC3339Nano) + "\x00" + p.ID
+	return base64.RawURLEncoding.EncodeToString([]byte(value))
+}
+
+func decodeSearchCursor(cursor string) (time.Time, string, error) {
+	b, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil || len(b) > 2048 {
+		return time.Time{}, "", chat.ErrInvalidArgument
+	}
+	parts := strings.SplitN(string(b), "\x00", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		return time.Time{}, "", chat.ErrInvalidArgument
+	}
+	at, err := time.Parse(time.RFC3339Nano, parts[0])
+	if err != nil {
+		return time.Time{}, "", chat.ErrInvalidArgument
+	}
+	return at.UTC(), parts[1], nil
+}
+
 func (s *Adapter) GetReadState(ctx context.Context, t, cid, home, mid string) (chat.ReadState, error) {
 	x := chat.ReadState{TenantID: t, ConversationID: cid, HomeTenantID: home, SubjectID: mid, Revision: 1}
 	tx, err := s.pool.Begin(ctx)
@@ -1083,7 +1178,7 @@ func (s *Adapter) ListPins(ctx context.Context, t, cid string) ([]chat.Pin, erro
 	if err = tenant(ctx, tx, t); err != nil {
 		return nil, err
 	}
-	rows, err := tx.Query(ctx, `SELECT pin.conversation_id,pin.post_id,pin.tenant_id,pin.home_tenant_id,pin.member_id,pin.revision,pin.created_at FROM chat_pin pin JOIN chat_post post ON post.tenant_id=pin.tenant_id AND post.conversation_id=pin.conversation_id AND post.id=pin.post_id WHERE pin.tenant_id=$1 AND pin.conversation_id=$2 AND post.tombstoned=false ORDER BY pin.created_at,pin.post_id`, t, cid)
+	rows, err := tx.Query(ctx, `SELECT pin.conversation_id,pin.post_id,pin.tenant_id,pin.home_tenant_id,pin.member_id,pin.revision,pin.created_at FROM chat_pin pin JOIN chat_post post ON post.tenant_id=pin.tenant_id AND post.conversation_id=pin.conversation_id AND post.id=pin.post_id WHERE pin.tenant_id=$1 AND pin.conversation_id=$2 AND post.tombstoned=false ORDER BY pin.created_at DESC,pin.post_id DESC LIMIT 200`, t, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -1119,19 +1214,59 @@ func (s *Adapter) WatchWithErrors(ctx context.Context, r chat.WatchConversationR
 	if r.TenantID == "" || r.ConversationID == "" || r.Principal.SubjectID == "" || r.Principal.TenantID == "" {
 		return nil, nil, chat.ErrInvalidArgument
 	}
-	m, err := s.GetMembership(ctx, r.TenantID, r.ConversationID, r.Principal.TenantID, r.Principal.SubjectID)
-	if err != nil || m.LeftAt != nil {
+	machine, identityErr := machineActor(ctx, r.Principal.TenantID, r.Principal.SubjectID)
+	if identityErr != nil {
 		return nil, nil, chat.ErrPermissionDenied
 	}
+	if machine {
+		if _, err := s.MachineWatchEpoch(ctx, r.TenantID, r.ConversationID, r.Principal); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		m, err := s.GetMembership(ctx, r.TenantID, r.ConversationID, r.Principal.TenantID, r.Principal.SubjectID)
+		if err != nil || m.LeftAt != nil {
+			return nil, nil, chat.ErrPermissionDenied
+		}
+	}
 	after := int64(r.AfterSequence)
+	if r.AfterSequence > uint64(^uint64(0)>>1) {
+		return nil, nil, chat.ErrInvalidArgument
+	}
 	if r.ResumeCursor != "" {
-		after, err = strconv.ParseInt(r.ResumeCursor, 10, 64)
-		if err != nil || after < 0 {
+		parsed, err := strconv.ParseInt(r.ResumeCursor, 10, 64)
+		if err != nil || parsed < 0 {
 			return nil, nil, chat.ErrInvalidArgument
 		}
+		after = parsed
 	}
 	events, errs := s.watchFrom(ctx, r, after)
 	return events, errs, nil
+}
+
+// MachineWatchEpoch resolves the current installation revision without creating
+// a human membership. The caller must carry the verified machine identity.
+func (s *Adapter) MachineWatchEpoch(ctx context.Context, tenantID, conversationID string, principal chat.Principal) (uint64, error) {
+	machine, err := machineActor(ctx, principal.TenantID, principal.SubjectID)
+	if err != nil || !machine || tenantID != principal.TenantID || conversationID == "" {
+		return 0, chat.ErrPermissionDenied
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	if err := tenant(ctx, tx, tenantID); err != nil {
+		return 0, err
+	}
+	var revision int64
+	err = tx.QueryRow(ctx, `SELECT revision FROM chat_app_installation WHERE tenant_id=$1 AND conversation_id=$2 AND app_id=$3 AND id=tenant_id||':'||conversation_id||':'||app_id AND status='ACTIVE' AND version>0 AND created_at<=now() AND 'chat.posts.read'=ANY(granted_scopes)`, tenantID, conversationID, principal.SubjectID).Scan(&revision)
+	if errors.Is(err, dbport.ErrNoRows) || revision <= 0 && err == nil {
+		return 0, chat.ErrPermissionDenied
+	}
+	if err != nil {
+		return 0, fmt.Errorf("machine watch installation: %w: %w", chat.ErrUnavailable, err)
+	}
+	return uint64(revision), tx.Commit(ctx)
 }
 
 func (s *Adapter) watchFrom(ctx context.Context, r chat.WatchConversationRequest, after int64) (<-chan chat.WatchEvent, <-chan error) {
@@ -1151,6 +1286,15 @@ func (s *Adapter) watchFrom(ctx context.Context, r chat.WatchConversationRequest
 				return
 			}
 			for _, event := range events {
+				if machine, identityErr := machineActor(ctx, r.Principal.TenantID, r.Principal.SubjectID); identityErr != nil {
+					fail <- chat.ErrPermissionDenied
+					return
+				} else if machine {
+					if _, authErr := s.MachineWatchEpoch(ctx, r.TenantID, r.ConversationID, r.Principal); authErr != nil {
+						fail <- authErr
+						return
+					}
+				}
 				select {
 				case out <- event:
 				case <-ctx.Done():
@@ -1202,13 +1346,36 @@ func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest
 	}
 	var hist string
 	var joined time.Time
-	err = tx.QueryRow(ctx, `SELECT history_visibility,joined_at FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND state='active'`, r.TenantID, r.ConversationID, r.Principal.TenantID, r.Principal.SubjectID).Scan(&hist, &joined)
+	machine, identityErr := machineActor(ctx, r.Principal.TenantID, r.Principal.SubjectID)
+	if identityErr != nil {
+		return after, nil, false, chat.ErrPermissionDenied
+	}
+	if machine {
+		if r.Principal.TenantID != r.TenantID {
+			return after, nil, false, chat.ErrPermissionDenied
+		}
+		hist = string(chat.FromJoin)
+		err = tx.QueryRow(ctx, `SELECT created_at FROM chat_app_installation WHERE tenant_id=$1 AND conversation_id=$2 AND app_id=$3 AND id=tenant_id||':'||conversation_id||':'||app_id AND status='ACTIVE' AND version>0 AND created_at<=now() AND 'chat.posts.read'=ANY(granted_scopes)`, r.TenantID, r.ConversationID, r.Principal.SubjectID).Scan(&joined)
+	} else {
+		err = tx.QueryRow(ctx, `SELECT history_visibility,joined_at FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND state='active'`, r.TenantID, r.ConversationID, r.Principal.TenantID, r.Principal.SubjectID).Scan(&hist, &joined)
+	}
 	if err != nil {
+		if machine && !errors.Is(err, dbport.ErrNoRows) {
+			return after, nil, false, fmt.Errorf("machine watch installation: %w: %w", chat.ErrUnavailable, err)
+		}
 		return after, nil, false, chat.ErrPermissionDenied
 	}
 	// The filter uses the one payload key every chatstore producer writes; see
 	// the OutboxKey constants in store.go.
-	rows, err := tx.Query(ctx, `SELECT id,event_type,payload,created_at FROM chat_outbox WHERE tenant_id=$1 AND id>$2 AND payload->>'`+OutboxKeyConversationID+`'=$3 ORDER BY id LIMIT $4`, r.TenantID, after, r.ConversationID, limit)
+	query := `SELECT id,event_type,payload,created_at FROM chat_outbox WHERE tenant_id=$1 AND id>$2 AND payload->>'` + OutboxKeyConversationID + `'=$3 ORDER BY id LIMIT $4`
+	args := []any{r.TenantID, after, r.ConversationID, limit}
+	if machine {
+		// Filter before LIMIT. A newly installed agent must reach its first
+		// visible post even when thousands of older outbox rows exist.
+		query = `SELECT o.id,o.event_type,o.payload,o.created_at FROM chat_outbox o JOIN chat_post p ON p.id=(o.payload->>'` + OutboxKeyTargetID + `') AND p.tenant_id=o.tenant_id AND p.conversation_id=$3 AND p.created_at>=$5 WHERE o.tenant_id=$1 AND o.id>$2 AND o.payload->>'` + OutboxKeyConversationID + `'=$3 AND o.created_at>=$5 AND o.event_type IN ('post.created','post.edited','post.deleted') ORDER BY o.id LIMIT $4`
+		args = append(args, joined)
+	}
+	rows, err := tx.Query(ctx, query, args...)
 	if err != nil {
 		return after, nil, false, err
 	}
@@ -1226,6 +1393,12 @@ func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest
 		}
 		after = id
 		if hist != string(chat.FullHistory) && at.Before(joined) {
+			continue
+		}
+		// A machine installation with chat.posts.read grants access to post
+		// payloads only. Other event kinds contain membership and conversation
+		// metadata and require separate subscription authority.
+		if machine && kind != "post.created" && kind != "post.edited" && kind != "post.deleted" {
 			continue
 		}
 		event := chat.ConversationEvent{Sequence: uint64(id)}

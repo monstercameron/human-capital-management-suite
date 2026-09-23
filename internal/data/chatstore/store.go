@@ -17,6 +17,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 var (
@@ -29,6 +30,20 @@ var (
 	// cannot turn the fence off.
 	ErrNoRouteLease = errors.New("chat write requires a route lease")
 )
+
+// machineActor recognizes only an identity supplied by the trusted admission
+// context and bound to the same tenant and author. No request field can turn a
+// human membership query into an installation query.
+func machineActor(ctx context.Context, tenantID, authorID string) (bool, error) {
+	p, ok := trust.FromContext(ctx)
+	if !ok || p == nil || (p.SubjectKind() != trust.SubjectKindAgent && p.SubjectKind() != trust.SubjectKindIntegration) {
+		return false, nil
+	}
+	if p.Tenant().String() != tenantID || p.Subject() != authorID || !time.Now().UTC().Before(p.ExpiresAt()) {
+		return false, ErrNotMember
+	}
+	return true, nil
+}
 
 // routeStateActive is the only conversation route state that accepts writes.
 const routeStateActive = "ACTIVE"
@@ -298,6 +313,7 @@ func (s *Store) AddMember(ctx context.Context, tenantID string, m Membership) er
 }
 func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	var out Post
+	r.ClientKey = strings.TrimSpace(r.ClientKey)
 	if len(r.References) == 0 {
 		r.References = []byte("[]")
 	}
@@ -316,7 +332,19 @@ func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	if r.HomeTenantID == "" {
 		r.HomeTenantID = r.TenantID
 	}
-	if err = tx.QueryRow(ctx, `SELECT member_id FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND state='active' FOR UPDATE`, r.TenantID, r.ConversationID, r.HomeTenantID, r.AuthorID).Scan(&member); err != nil {
+	machine, identityErr := machineActor(ctx, r.HomeTenantID, r.AuthorID)
+	if identityErr != nil {
+		return out, identityErr
+	}
+	if machine {
+		if r.HomeTenantID != r.TenantID {
+			return out, ErrNotMember
+		}
+		err = tx.QueryRow(ctx, `SELECT id FROM chat_app_installation WHERE tenant_id=$1 AND conversation_id=$2 AND app_id=$3 AND id=$4 AND status='ACTIVE' AND version>0 AND created_at<=now() AND $5=ANY(granted_scopes) FOR UPDATE`, r.TenantID, r.ConversationID, r.AuthorID, r.TenantID+":"+r.ConversationID+":"+r.AuthorID, "chat.posts.write").Scan(&member)
+	} else {
+		err = tx.QueryRow(ctx, `SELECT member_id FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND state='active' FOR UPDATE`, r.TenantID, r.ConversationID, r.HomeTenantID, r.AuthorID).Scan(&member)
+	}
+	if err != nil {
 		return out, ErrNotMember
 	}
 	// The fence locks only this conversation row, which also gives each
@@ -346,7 +374,6 @@ func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	if err = tx.QueryRow(ctx, `UPDATE chat_conversation SET event_sequence=event_sequence+1,post_sequence=post_sequence+1 WHERE tenant_id=$1 AND id=$2 RETURNING event_sequence,settings_revision,post_sequence`, r.TenantID, r.ConversationID).Scan(&eventSequence, &policyRevision, &postSequence); err != nil {
 		return out, err
 	}
-	r.ClientKey = strings.TrimSpace(r.ClientKey)
 	// One statement, two clocks: COALESCE keeps the column default for every
 	// live send and honours an explicit historical stamp for the seeder.
 	err = tx.QueryRow(ctx, `INSERT INTO chat_post(id,tenant_id,conversation_id,author_id,author_home_tenant_id,sequence,body,parent_id,references_json,source_attribution,client_key,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$11,$6,$7,$8,$9,$10,COALESCE($12,now()),COALESCE($12,now())) RETURNING id,tenant_id,conversation_id,author_id,author_home_tenant_id,sequence,body,revision,tombstoned,created_at,updated_at,parent_id,references_json,source_attribution`, uuid.NewString(), r.TenantID, r.ConversationID, r.AuthorID, r.HomeTenantID, r.Body, r.ParentID, r.References, r.SourceAttribution, r.ClientKey, postSequence, createdAtArg(r.CreatedAt)).Scan(&out.ID, &out.TenantID, &out.ConversationID, &out.AuthorID, &out.AuthorHomeTenantID, &out.Sequence, &out.Body, &out.Revision, &out.Tombstoned, &out.CreatedAt, &out.UpdatedAt, &out.ParentID, &out.References, &out.SourceAttribution)

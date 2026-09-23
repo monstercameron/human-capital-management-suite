@@ -61,7 +61,7 @@ func TestTodo_CHAT_049_Recovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(snap.RawTables) != 26 || snap.Digest == "" {
+	if len(snap.RawTables) != 31 || snap.Digest == "" {
 		t.Fatalf("incomplete snapshot: %+v", snap)
 	}
 	if err := dst.Restore(ctx, snap); err != nil {

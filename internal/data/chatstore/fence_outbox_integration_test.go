@@ -290,7 +290,7 @@ func TestTodo_CHAT_025_OutboxPayloadHasOneSpelling(t *testing.T) {
 func TestTodo_CHAT_015_SearchUsesFullTextIndex(t *testing.T) {
 	s := adapterDB(t)
 	ctx := context.Background()
-	c := chat.Conversation{ID: "search", TenantID: "tenant-a", Kind: chat.PrivateChannel, OwnerID: "alice", Revision: 1}
+	c := chat.Conversation{ID: "search", TenantID: "tenant-a", Kind: chat.PrivateChannel, Name: "Benefits planning", OwnerID: "alice", Revision: 1}
 	m := chat.Membership{ConversationID: c.ID, TenantID: c.TenantID, HomeTenantID: c.TenantID, SubjectID: "alice", Role: chat.Manager, HistoryVisibility: chat.FullHistory}
 	if _, err := s.CreateConversation(ctx, c, []chat.Membership{m}, ""); err != nil {
 		t.Fatal(err)
@@ -314,6 +314,27 @@ func TestTodo_CHAT_015_SearchUsesFullTextIndex(t *testing.T) {
 	}
 	if got, err = s.Search(ctx, chat.SearchRequest{Principal: principal, TenantID: c.TenantID, Query: "plan quarterly"}); err != nil || len(got.Results) != 1 {
 		t.Fatalf("multi term=%+v %v", got, err)
+	}
+	if got, err = s.Search(ctx, chat.SearchRequest{Principal: principal, TenantID: c.TenantID, Query: "bene"}); err != nil || len(got.Channels) != 1 || got.Channels[0].Name != c.Name || !got.Channels[0].Joined {
+		t.Fatalf("partial channel prefix=%+v %v", got, err)
+	}
+	olderAt := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	newerAt := olderAt.Add(time.Hour)
+	older, err := s.SendPost(ctx, chat.SendPostRequest{Principal: principal, TenantID: c.TenantID, ConversationID: c.ID, IdempotencyKey: "older"}, chat.Post{AuthorID: "alice", Body: "chronology needle", CreatedAt: olderAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer, err := s.SendPost(ctx, chat.SendPostRequest{Principal: principal, TenantID: c.TenantID, ConversationID: c.ID, IdempotencyKey: "newer"}, chat.Post{AuthorID: "alice", Body: "chronology needle", CreatedAt: newerAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := s.Search(ctx, chat.SearchRequest{Principal: principal, TenantID: c.TenantID, Query: "chronology", Page: chat.Page{PageSize: 1}})
+	if err != nil || len(first.Results) != 1 || first.Results[0].Post.ID != newer.ID || first.NextCursor == "" {
+		t.Fatalf("newest search page=%+v %v", first, err)
+	}
+	second, err := s.Search(ctx, chat.SearchRequest{Principal: principal, TenantID: c.TenantID, Query: "chronology", Page: chat.Page{PageSize: 1, Cursor: first.NextCursor}})
+	if err != nil || len(second.Results) != 1 || second.Results[0].Post.ID != older.ID || second.NextCursor != "" {
+		t.Fatalf("older search page=%+v %v", second, err)
 	}
 	var plan strings.Builder
 	if err = s.RunTenantTx(ctx, c.TenantID, func(tx dbport.Tx) error {

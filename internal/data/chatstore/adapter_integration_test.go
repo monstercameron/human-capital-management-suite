@@ -9,12 +9,75 @@ import (
 	"time"
 
 	chat "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/pressly/goose/v3"
 )
 
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
+
+type forwardingAuthority struct{ store *Adapter }
+
+func (a forwardingAuthority) Authorize(ctx context.Context, p chat.Principal, c chat.Conversation, _ chatpolicy.Action, at time.Time) (chatpolicy.Input, error) {
+	in := chatpolicy.Input{Principal: chatpolicy.Principal{ID: p.SubjectID, Tenant: p.TenantID, Active: true, AuthorityRevision: 1}, Channel: chatpolicy.Channel{ID: c.ID, HostTenant: c.TenantID, Private: c.Kind != chat.PublicChannel, Enabled: true, Revision: c.Revision}, Now: at}
+	m, err := a.store.GetMembership(ctx, c.TenantID, c.ID, p.TenantID, p.SubjectID)
+	if err == nil && m.LeftAt == nil {
+		in.HasMembership = true
+		in.Membership = chatpolicy.Membership{ConversationID: c.ID, PrincipalID: p.SubjectID, Tenant: p.TenantID, State: chatpolicy.MembershipCurrent, Revision: m.Revision, JoinedAt: at.Add(-time.Hour)}
+	}
+	return in, nil
+}
+
+func TestTodo_CHAT_030_IntegrationPublicPrivateForwardAndRetry(t *testing.T) {
+	store := adapterDB(t)
+	ctx := context.Background()
+	principal := chat.Principal{TenantID: "tenant-a", SubjectID: "alice"}
+	for _, fixture := range []struct {
+		id, owner string
+		kind      chat.ConversationKind
+	}{
+		{"source", "alice", chat.PrivateChannel},
+		{"public", "alice", chat.PublicChannel},
+		{"private", "alice", chat.PrivateChannel},
+		{"denied", "bob", chat.PrivateChannel},
+	} {
+		c := chat.Conversation{ID: fixture.id, TenantID: principal.TenantID, Kind: fixture.kind, Name: fixture.id, OwnerID: fixture.owner, Revision: 1}
+		m := chat.Membership{ConversationID: c.ID, TenantID: c.TenantID, HomeTenantID: c.TenantID, SubjectID: fixture.owner, Role: chat.Manager, HistoryVisibility: chat.FullHistory}
+		if _, err := store.CreateConversation(ctx, c, []chat.Membership{m}, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	source, err := store.SendPost(ctx, chat.SendPostRequest{Principal: principal, TenantID: principal.TenantID, ConversationID: "source", IdempotencyKey: "original"}, chat.Post{AuthorID: "alice", Body: "share this"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := chat.NewService(store, func() time.Time { return time.Now().UTC() })
+	service.SetAuthority(forwardingAuthority{store: store})
+	for _, dest := range []string{"public", "private"} {
+		req := chat.ForwardPostRequest{Principal: principal, SourceTenantID: principal.TenantID, SourceConversationID: "source", SourcePostID: source.ID, DestinationTenantID: principal.TenantID, DestinationConversationID: dest, IdempotencyKey: "forward-" + dest}
+		first, err := service.ForwardPost(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		retry, err := service.ForwardPost(ctx, req)
+		if err != nil || retry.ID != first.ID {
+			t.Fatalf("%s retry = %+v, %v; want same post %s", dest, retry, err, first.ID)
+		}
+		posts, err := store.ListPosts(ctx, principal, principal.TenantID, dest, 0, chat.Page{PageSize: 10}, chat.PostWindow{})
+		if err != nil || len(posts.Posts) != 1 || posts.Posts[0].Body != "share this" || posts.Posts[0].SourceAttribution == nil || posts.Posts[0].SourceAttribution.PostID != source.ID {
+			t.Fatalf("%s posts = %+v, %v", dest, posts, err)
+		}
+	}
+	_, err = service.ForwardPost(ctx, chat.ForwardPostRequest{Principal: principal, SourceTenantID: principal.TenantID, SourceConversationID: "source", SourcePostID: source.ID, DestinationTenantID: principal.TenantID, DestinationConversationID: "denied", IdempotencyKey: "forward-denied"})
+	if !errors.Is(err, chat.ErrPermissionDenied) {
+		t.Fatalf("denied forward = %v", err)
+	}
+	posts, err := store.ListPosts(ctx, principal, principal.TenantID, "denied", 0, chat.Page{PageSize: 10}, chat.PostWindow{})
+	if err != nil || len(posts.Posts) != 0 {
+		t.Fatalf("denied destination posts = %+v, %v", posts, err)
+	}
+}
 
 func adapterDB(t *testing.T) *Adapter {
 	t.Helper()
@@ -190,7 +253,7 @@ func TestTodo_CHAT_010_Integration(t *testing.T) {
 func TestTodo_CHAT_015_Integration(t *testing.T) {
 	s := adapterDB(t)
 	ctx := context.Background()
-	c := chat.Conversation{ID: "c1", TenantID: "tenant-a", Kind: chat.PrivateChannel, Name: "secret", OwnerID: "alice", Revision: 1}
+	c := chat.Conversation{ID: "c1", TenantID: "tenant-a", Kind: chat.PrivateChannel, Name: "blue room", OwnerID: "alice", Revision: 1}
 	members := []chat.Membership{{ConversationID: c.ID, TenantID: c.TenantID, HomeTenantID: c.TenantID, SubjectID: "alice", Role: chat.Manager, HistoryVisibility: chat.FullHistory}}
 	if _, err := s.CreateConversation(ctx, c, members, ""); err != nil {
 		t.Fatal(err)
@@ -201,12 +264,12 @@ func TestTodo_CHAT_015_Integration(t *testing.T) {
 	}
 	search := chat.SearchRequest{Principal: chat.Principal{TenantID: c.TenantID, SubjectID: "alice"}, TenantID: c.TenantID, Query: "blue"}
 	results, err := s.Search(ctx, search)
-	if err != nil || len(results.Results) != 1 || results.Results[0].Post.ID != p.ID {
+	if err != nil || len(results.Results) != 1 || results.Results[0].Post.ID != p.ID || results.Results[0].ConversationName != c.Name || len(results.Channels) != 1 || results.Channels[0].ConversationID != c.ID {
 		t.Fatalf("member search=%+v %v", results, err)
 	}
 	search.Principal.SubjectID = "bob"
 	results, err = s.Search(ctx, search)
-	if err != nil || len(results.Results) != 0 {
+	if err != nil || len(results.Results) != 0 || len(results.Channels) != 0 {
 		t.Fatalf("nonmember search=%+v %v", results, err)
 	}
 	search.Principal.SubjectID = "alice"
@@ -226,6 +289,77 @@ func TestTodo_CHAT_015_Integration(t *testing.T) {
 	wrong, err := s.GetPost(ctx, c.TenantID, "other", p.ID)
 	if err == nil || wrong.ID != "" {
 		t.Fatalf("cross conversation=%+v %v", wrong, err)
+	}
+}
+
+func TestTodo_CHAT_021_CurrentRevisionHistoryAndTenantScope(t *testing.T) {
+	s := adapterDB(t)
+	ctx := context.Background()
+	principalA := chat.Principal{TenantID: "tenant-a", SubjectID: "same-user"}
+	writer := chat.Principal{TenantID: "tenant-a", SubjectID: "history-writer"}
+	channelA := chat.Conversation{ID: "search-current-a", TenantID: "tenant-a", Kind: chat.PrivateChannel, Name: "Current", OwnerID: writer.SubjectID, Revision: 1}
+	initialMember := chat.Membership{ConversationID: channelA.ID, TenantID: channelA.TenantID, HomeTenantID: writer.TenantID, SubjectID: writer.SubjectID, Role: chat.Manager, HistoryVisibility: chat.FullHistory}
+	if _, err := s.CreateConversation(ctx, channelA, []chat.Membership{initialMember}, ""); err != nil {
+		t.Fatal(err)
+	}
+	old, err := s.SendPost(ctx, chat.SendPostRequest{Principal: writer, TenantID: channelA.TenantID, ConversationID: channelA.ID, IdempotencyKey: "old"}, chat.Post{AuthorID: writer.SubjectID, Body: "tenant collision phrase", CreatedAt: time.Now().UTC().Add(-time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.PutMembership(ctx, principalA, chat.Membership{ConversationID: channelA.ID, TenantID: channelA.TenantID, HomeTenantID: principalA.TenantID, SubjectID: principalA.SubjectID, Role: chat.Manager, HistoryVisibility: chat.FromJoin}); err != nil {
+		t.Fatal(err)
+	}
+	current, err := s.SendPost(ctx, chat.SendPostRequest{Principal: principalA, TenantID: channelA.TenantID, ConversationID: channelA.ID, IdempotencyKey: "current"}, chat.Post{AuthorID: principalA.SubjectID, Body: "tenant collision phrase"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	channelB := chat.Conversation{ID: "search-current-b", TenantID: "tenant-b", Kind: chat.PrivateChannel, Name: "Other tenant", OwnerID: principalA.SubjectID, Revision: 1}
+	principalB := chat.Principal{TenantID: "tenant-b", SubjectID: principalA.SubjectID}
+	memberB := chat.Membership{ConversationID: channelB.ID, TenantID: channelB.TenantID, HomeTenantID: principalB.TenantID, SubjectID: principalB.SubjectID, Role: chat.Manager, HistoryVisibility: chat.FullHistory}
+	if _, err = s.CreateConversation(ctx, channelB, []chat.Membership{memberB}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.SendPost(ctx, chat.SendPostRequest{Principal: principalB, TenantID: channelB.TenantID, ConversationID: channelB.ID, IdempotencyKey: "foreign"}, chat.Post{AuthorID: principalB.SubjectID, Body: "tenant collision phrase"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Search(ctx, chat.SearchRequest{Principal: principalA, TenantID: channelA.TenantID, Query: "tenant collision"})
+	if err != nil || len(got.Results) != 1 || got.Results[0].Post.ID != current.ID || got.Results[0].Post.ID == old.ID {
+		t.Fatalf("from-join or tenant collision search=%+v %v", got, err)
+	}
+	if _, err = s.EditPost(ctx, chat.EditPostRequest{Principal: principalA, TenantID: channelA.TenantID, ConversationID: channelA.ID, PostID: current.ID, ExpectedRevision: 1, Body: "replacement wording"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.Search(ctx, chat.SearchRequest{Principal: principalA, TenantID: channelA.TenantID, Query: "collision"})
+	if err != nil || len(got.Results) != 0 {
+		t.Fatalf("search retained an edited revision: %+v %v", got, err)
+	}
+	got, err = s.Search(ctx, chat.SearchRequest{Principal: principalA, TenantID: channelA.TenantID, Query: "replacement"})
+	if err != nil || len(got.Results) != 1 || got.Results[0].Post.ID != current.ID {
+		t.Fatalf("edited current text search=%+v %v", got, err)
+	}
+	if _, err = s.DeletePost(ctx, chat.DeletePostRequest{Principal: principalA, TenantID: channelA.TenantID, ConversationID: channelA.ID, PostID: current.ID, ExpectedRevision: 2}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.Search(ctx, chat.SearchRequest{Principal: principalA, TenantID: channelA.TenantID, Query: "replacement"})
+	if err != nil || len(got.Results) != 0 {
+		t.Fatalf("search retained deleted text: %+v %v", got, err)
+	}
+}
+
+func TestTodo_CHAT_021_SearchReturnsDiscoverablePublicChannelAsUnjoined(t *testing.T) {
+	s := adapterDB(t)
+	ctx := context.Background()
+	alice := chat.Principal{TenantID: "tenant-a", SubjectID: "alice"}
+	bob := chat.Membership{ConversationID: "search-public", TenantID: "tenant-a", HomeTenantID: "tenant-a", SubjectID: "bob", Role: chat.Manager, HistoryVisibility: chat.FullHistory}
+	channel := chat.Conversation{ID: bob.ConversationID, TenantID: bob.TenantID, Kind: chat.PublicChannel, Name: "Benefits public", OwnerID: "bob", Revision: 1}
+	if _, err := s.CreateConversation(ctx, channel, []chat.Membership{bob}, ""); err != nil {
+		t.Fatal(err)
+	}
+	service := chat.NewService(s, time.Now)
+	service.SetAuthority(forwardingAuthority{store: s})
+	got, err := service.Search(ctx, chat.SearchRequest{Principal: alice, TenantID: alice.TenantID, Query: "bene", Page: chat.Page{PageSize: 5}})
+	if err != nil || len(got.Channels) != 1 || got.Channels[0].ConversationID != channel.ID || got.Channels[0].Joined {
+		t.Fatalf("unjoined public channel search=%+v %v", got, err)
 	}
 }
 
