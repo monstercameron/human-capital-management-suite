@@ -255,7 +255,13 @@ func build(ctx context.Context, deps bootstrap.Deps) (bootstrap.Runtime, error) 
 		}
 	}
 	if connectorRoleEnabled {
-		connectorJournalStore := operation.NewMemoryJournal(nil)
+		// REV-013-01: the journal is durable Postgres through
+		// connectivityopstore whenever the pool is configured; memory
+		// remains only the no-database dev fallback inside
+		// connectorJournalForPool. The ledger stays in-process: reservations
+		// live for one dispatch attempt, and crash safety comes from the
+		// durable queue claim the journal persists.
+		connectorJournalStore := connectorJournalForPool(pool)
 		connectorLedgerStore := operation.NewConnectorLedger(nil)
 		connector := connectorRoleFor(deps, connectorJournalStore, connectorLedgerStore, deps.Identity, lease)
 		workloads = append(workloads, bootstrap.Workload{

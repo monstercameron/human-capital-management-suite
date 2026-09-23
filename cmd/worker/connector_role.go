@@ -45,12 +45,15 @@ var ErrConnectorDeferred = errors.New("worker: connector operation deferred by f
 // operations that already have a durable journal row; Lease is the only way
 // to obtain a fenced claim; DispatchWithCredential is the only way to reach
 // a provider, and it independently requires both a bound credential lease
-// and a MachineLeaseAuthorizer. There is no path from an operation this
-// interface never listed or leased to a provider call.
+// and a MachineLeaseAuthorizer; Recover settles work a dead worker left
+// leased or sending, which List would otherwise skip forever. There is no
+// path from an operation this interface never listed or leased to a
+// provider call.
 type connectorJournal interface {
 	List(ctx context.Context, tenant string) ([]operation.Operation, error)
 	Lease(ctx context.Context, req operation.LeaseRequest) (operation.Lease, error)
 	DispatchWithCredential(ctx context.Context, req operation.CredentialDispatchRequest, authorizer operation.MachineLeaseAuthorizer) (operation.DispatchResult, error)
+	Recover(ctx context.Context, at time.Time) ([]operation.Operation, error)
 }
 
 // connectorLedger is the fair-scheduling capacity port.
@@ -262,9 +265,19 @@ func runConnectorLoop(ctx context.Context, logger bootstrap.Logger, tenants tena
 	}
 }
 
-// connectorSweep attempts every active tenant's queued connector operations
-// once and reports whether any tenant had work to attempt.
+// connectorSweep settles work a dead worker left leased or sending and then
+// attempts every active tenant's queued connector operations once, reporting
+// whether any tenant had work to attempt. Recovery runs first because the
+// dispatch below only lists QUEUED operations: without it an abandoned lease
+// would never become dispatchable again. A recovery failure is logged and
+// retried on the next pass; it never blocks healthy tenants from dispatching
+// on this one.
 func connectorSweep(ctx context.Context, logger bootstrap.Logger, tenants tenantLister, role connectorRole) (bool, error) {
+	if recovered, err := role.journal.Recover(ctx, role.clock()); err != nil {
+		logger.Error("worker.connector_recovery_failed", "error", err.Error())
+	} else if len(recovered) > 0 {
+		logger.Info("worker.connector_recovered", "operations", len(recovered))
+	}
 	ids, err := tenants.ActiveTenants(ctx)
 	if err != nil {
 		return false, fmt.Errorf("list tenants: %w", err)

@@ -200,6 +200,10 @@ func (s *spyConnectorJournal) DispatchWithCredential(ctx context.Context, req op
 	return s.real.DispatchWithCredential(ctx, req, authorizer)
 }
 
+func (s *spyConnectorJournal) Recover(ctx context.Context, at time.Time) ([]operation.Operation, error) {
+	return s.real.Recover(ctx, at)
+}
+
 // refusingLedger always refuses reservation, simulating exhausted fair
 // scheduling capacity for every candidate.
 type refusingLedger struct{}
