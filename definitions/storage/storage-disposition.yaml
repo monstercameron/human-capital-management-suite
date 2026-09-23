@@ -17,6 +17,14 @@
 # none of those exist as separate physical systems in this phase; when one is
 # introduced, it gets a row here the same way a table does.
 #
+# The native chat database is a separate physical system. Its embedded
+# migration tree lives under internal/data/chatstore/migrations and is applied
+# by the chat database owner, not by the core /migrations runner. Chat tables
+# therefore do not belong in this core registry; the chat storage owner must
+# maintain definitions/storage/chat-storage-disposition.yaml and test it
+# against that database independently. This exclusion is intentional and
+# prevents the generated core registry from claiming tables it cannot inspect.
+#
 # migrations/00010_artifacts.sql's content-addressed artifact tables
 # (artifact, artifact_reference_event, artifact_retrieval_refusal) are
 # deliberately excluded: that migration creates them in a separate PostgreSQL
@@ -37,7 +45,7 @@
 
 version: 1
 module: github.com/monstercameron/human-capital-management-suite
-source: migrations/00001_platform_control.sql .. migrations/00317_promotion_path_edge.sql
+source: migrations/00001_platform_control.sql .. migrations/00323_rev10203_permanent_immutability.sql
 
 disposition: >-
   Every row is either PERMANENT (an append-only historical or evidentiary
@@ -47,11 +55,12 @@ disposition: >-
   history), or REBUILDABLE (derived, resumable state that a documented
   rebuild_source can reconstruct from scratch with no loss of authoritative
   fact -- 00006's own comment calls projection_checkpoint and outbox exactly
-  this). No table in this phase carries column-level encryption beyond
-  whatever the deployment's disk/volume layer provides, so every
-  encryption_class is currently PLATFORM_MANAGED; a table gaining a
-  sensitive, individually-encrypted column moves to FIELD_LEVEL and that
-  change must land in the same commit as the schema change that requires it.
+  this). Only pseudonym_escrow_record carries column-level encryption
+  (its ciphertext bytea column, migrations/00096_identityprivacy.sql) and is
+  FIELD_LEVEL; every other table relies on the deployment's disk/volume
+  layer and stays PLATFORM_MANAGED. A table gaining a sensitive,
+  individually-encrypted column moves to FIELD_LEVEL and that change must
+  land in the same commit as the schema change that requires it.
 
 retention_classes:
   - name: PERMANENT
@@ -80,8 +89,8 @@ encryption_classes:
       column-level cryptography inside this table.
   - name: FIELD_LEVEL
     description: >-
-      Carries at least one individually encrypted column. Not used by any
-      table in this phase; reserved for when one is added.
+      Carries at least one individually encrypted column. Currently used only
+      by pseudonym_escrow_record (ciphertext bytea, 00096).
 
 # data_role classifies what part of the DATA plane architecture
 # (planning/specs/platform-plane-model.md) a table plays in: LEDGER (the
@@ -898,13 +907,14 @@ tables:
     data_role: REGISTRY
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
       DB-013: versioned legal rule pack bound to a jurisdiction with
       content_digest, body and validity interval; unique on (pack_key, version).
+      REV-102-03: sealed by 00323's forbid_mutation trigger (SELECT/INSERT only); new versions arrive by INSERT.
 
   - table: rule_evaluation
     migration: 00021_governance_authz_legal_evidence.sql
@@ -2520,7 +2530,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -2533,7 +2543,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -2637,7 +2647,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -2967,11 +2977,13 @@ tables:
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
     append_only: false
-    retention_class: PERMANENT
+    retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     rebuild_source: record_copy_event
     notes: >-
       DATA-018: live link from a records declaration to every material copy it covers, updated for serving decisions; rebuildable from record_copy_event.
+      REV-102-03: reclassified from PERMANENT to OPERATIONAL because the recordsmeta hold/disposition flow UPDATEs hold_state and disposition_state for
+      serving decisions; record_copy_event remains its append-only history.
   - table: record_copy_event
     migration: 00056_data_018_record_copy_links.sql
     owner_package: internal/data/recordsmeta
@@ -3465,7 +3477,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3479,11 +3491,13 @@ tables:
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
     append_only: false
-    retention_class: PERMANENT
+    retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
       PERSIST-PERFORMANCE-001: performance_rating_case (registered from the lane report; role and retention as reported).
+      REV-102-03: reclassified from PERMANENT to OPERATIONAL because the performancestore finalization CAS UPDATEs finalized and canonical_digest under
+      the finalize-only guard; performance_rating_event remains its append-only history.
   - table: performance_rating_event
     migration: 00108_performance.sql
     owner_package: internal/data/performancestore
@@ -3504,7 +3518,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3517,7 +3531,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3530,7 +3544,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3543,7 +3557,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3556,7 +3570,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3569,7 +3583,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3582,7 +3596,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3595,7 +3609,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3608,7 +3622,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3621,7 +3635,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3675,7 +3689,7 @@ tables:
     isolation_package: internal/data/tenancy
     append_only: false
     retention_class: PERMANENT
-    encryption_class: PLATFORM_MANAGED
+    encryption_class: FIELD_LEVEL
     rebuild_source: null
     notes: >-
       PERSIST-IDENTITYPRIVACY-001: pseudonym_escrow_record (registered from the lane report; role and retention as reported).
@@ -3839,7 +3853,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3852,7 +3866,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -3878,7 +3892,7 @@ tables:
     data_role: AGGREGATE
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
-    append_only: false
+    append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
@@ -4957,6 +4971,21 @@ tables:
     notes: >-
       WEB-241: mutable role CRUD grants for stable page-local feature IDs;
       the containing role_page_permission remains the outer authority boundary.
+  - table: access_role_revision
+    migration: 00327_role_access_revision_ledger.sql
+    owner_package: internal/data/roleaccessstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      RBAC-RT-021: append-only permission revision ledger; one row per role
+      per change with before/after images, written in the same transaction
+      as the permission change.
   - table: operation
     migration: 00261_operation_store.sql
     owner_package: internal/data/operationstore
@@ -5525,6 +5554,42 @@ tables:
       against, recorded once in the advancement transaction and re-digested on
       read; deterministic REPLAY recomputes the node from this row alone.
       INSERT once, forbid_mutation on UPDATE/DELETE, never granted either.
+  - table: workflow_input_artifact
+    migration: 00322_workflow_data_plane_artifacts.sql
+    owner_package: internal/workflow/runtime
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-EXT-004: the run's typed workflow-input document, recorded once at
+      start inside the same transaction as runtime.Start when the start
+      created the instance, and re-digested on read. The durable EXECUTE
+      driver resolves WORKFLOW_INPUT mappings against this row instead of the
+      caller reconstructing inputs from the pinned proposal.
+      INSERT once, forbid_mutation on UPDATE/DELETE, never granted either.
+  - table: workflow_node_output_artifact
+    migration: 00322_workflow_data_plane_artifacts.sql
+    owner_package: internal/workflow/runtime
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-EXT-004: each node attempt's typed output, recorded in the same
+      advancement transaction as its node execution and re-digested on read.
+      The durable EXECUTE driver resolves NODE_OUTPUT mappings against the
+      latest completed attempt's row here instead of only the digest
+      frontier.NodeOutcome.OutputDigest previously carried.
+      INSERT once, forbid_mutation on UPDATE/DELETE, never granted either.
   - table: workflow_execution_delegation
     migration: 00302_workflow_execution_delegation.sql
     owner_package: internal/workflow/runtime
@@ -5716,3 +5781,66 @@ tables:
       edge per (source profile, target profile), carrying the display
       projections the catalog publishes and the base-increase guardrails the
       ladder gate enforces. Append-only; a revision supersedes, never edits.
+  - table: machine_client
+    migration: 00324_machine_client_registry.sql
+    owner_package: internal/data/truststore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      Registered from migration 00324_machine_client_registry.sql: mutable
+      OAuth client-credentials registration (revocation, expiry, last use)
+      owned by internal/data/truststore; DELETE never granted.
+  - table: machine_client_key
+    migration: 00324_machine_client_registry.sql
+    owner_package: internal/data/truststore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      Registered from migration 00324_machine_client_registry.sql: rotating
+      client assertion keys (kid, alg, public JWK, validity window,
+      revocation) owned by internal/data/truststore; DELETE never granted.
+  - table: machine_token_use
+    migration: 00325_machine_token_use.sql
+    owner_package: internal/data/truststore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      Registered from migration 00325_machine_token_use.sql: write-once
+      single-use record for machine access-token identifiers owned by
+      internal/data/truststore; SELECT/INSERT only with forbid_mutation.
+  - table: idempotency_key
+    migration: 00326_idempotency_keys.sql
+    owner_package: internal/data/idempotencystore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      Registered from migration 00326_idempotency_keys.sql: claim/complete
+      lifecycle record for external-write idempotency keys owned by
+      internal/data/idempotencystore; one row per tenant, capability and
+      key with capability-specific expiry. Rows mutate once
+      (in_progress to completed) and expired rows are reclaimed, so
+      DELETE stays granted for reclaim and sweeps; no forbid_mutation.

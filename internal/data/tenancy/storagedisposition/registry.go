@@ -21,6 +21,7 @@ package storagedisposition
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"gopkg.in/yaml.v3"
@@ -188,6 +189,22 @@ func Validate(r *Registry) error {
 				return fmt.Errorf("storagedisposition: %s: rebuild_source %q is not LEDGER-role (got %s); a rebuild must trace to the fact stream",
 					e.Table, *e.RebuildSource, source.DataRole)
 			}
+		}
+	}
+	return nil
+}
+
+// ValidateOwnerPackages proves every entry's owner_package names a
+// directory that exists under moduleRoot (the repository root holding
+// go.mod). An owner that names nothing on disk is documentation, not
+// ownership: REV-102-07 found worker_id_reservation pointing at
+// internal/data/workerstore, which never existed.
+func ValidateOwnerPackages(r *Registry, moduleRoot string) error {
+	for _, e := range r.Tables {
+		dir := filepath.Join(moduleRoot, filepath.FromSlash(e.OwnerPackage))
+		info, err := os.Stat(dir)
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("storagedisposition: %s: owner_package %q is not a directory under %q", e.Table, e.OwnerPackage, moduleRoot)
 		}
 	}
 	return nil

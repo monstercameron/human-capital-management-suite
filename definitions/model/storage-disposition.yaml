@@ -169,6 +169,9 @@ migrationfiles:
   - 00318_workflow_designer_history.sql
   - 00319_controlled_data_plane_deletion.sql
   - 00320_referenced_foreign_key_indexes.sql
+  - 00321_inbox_feed_indexes.sql
+  - 00322_workflow_data_plane_artifacts.sql
+  - 00323_rev10203_permanent_immutability.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

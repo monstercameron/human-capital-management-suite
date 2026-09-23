@@ -1,0 +1,13 @@
+  - table: pseudonym_escrow_record
+    migration: 00096_identityprivacy.sql
+    owner_package: internal/data/identityprivacystore
+    plane: DATA
+    data_role: AGGREGATE
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: PERMANENT
+    encryption_class: FIELD_LEVEL
+    rebuild_source: null
+    notes: >-
+      PERSIST-IDENTITYPRIVACY-001: pseudonym_escrow_record (registered from the lane report; role and retention as reported).
