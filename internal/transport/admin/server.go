@@ -111,6 +111,25 @@ type Dependencies struct {
 	// storage adapters and hash-chain mechanics outside transport.
 	ListLedgerStream  func(context.Context, uuid.UUID, string) (explorer.StreamListingView, error)
 	VerifyLedgerChain func(context.Context, uuid.UUID, string) (explorer.ChainView, error)
+	// RecordLedgerCorrection records one governed business correction
+	// through internal/operations/explorer.RecordCorrection (which invokes
+	// internal/data/ledger/lineage.Append plus the correction's hash-chain
+	// link in one transaction). The composition root supplies the closure
+	// over its ledger handle and chain appender, exactly as it does for
+	// ListLedgerStream; nil leaves correction recording unconfigured,
+	// matching every other optional Dependencies port.
+	RecordLedgerCorrection func(context.Context, uuid.UUID, explorer.CorrectionRequest) (explorer.RecordCorrectionView, error)
+	// GetLedgerLineage walks one event's correction/supersession ancestry
+	// and descendants through internal/operations/explorer.Lineage. Nil
+	// leaves lineage walks unconfigured, matching every other optional
+	// Dependencies port.
+	GetLedgerLineage func(context.Context, uuid.UUID, explorer.EventRef) (explorer.LineageResultView, error)
+	// GetLedgerEffectiveCurrent resolves one event's current-effective
+	// truth through internal/operations/explorer.EffectiveCurrent (which
+	// reads via internal/data/ledger/lineage.EffectiveCurrent). Nil leaves
+	// effective-current reads unconfigured, matching every other optional
+	// Dependencies port.
+	GetLedgerEffectiveCurrent func(context.Context, uuid.UUID, explorer.EventRef) (explorer.EffectiveCurrentView, error)
 	// ConfigPromotions backs the connector/config operations center
 	// (REV-037-02): the promotion registry inspect/test/redrive/reconcile/
 	// diff/simulate/promote/rollback run against. Nil leaves those RPCs

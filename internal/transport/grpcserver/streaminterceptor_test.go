@@ -240,9 +240,19 @@ func TestStreamInterceptorHandsTheHandlerAnAdmittedStream(t *testing.T) {
 // the server, not by the client's ambition: a stream opened with no deadline
 // at all gets the configured cap, and one opened with a nearer deadline
 // keeps its own.
+//
+// The bound is MaxStreamDeadline, not MaxDeadline. A live feed is not a slow
+// request: capping a server stream at the unary request budget ended every chat
+// and journey watch at exactly thirty seconds, so the two caps are configured
+// and asserted separately.
 func TestStreamInterceptorCapsTheStreamDeadline(t *testing.T) {
 	const limit = 250 * time.Millisecond
-	f := newStreamFixture(t, func(cfg *transport.Config) { cfg.MaxDeadline = limit })
+	f := newStreamFixture(t, func(cfg *transport.Config) {
+		// The unary cap is set far shorter on purpose: a stream that took it
+		// would fail every assertion below.
+		cfg.MaxDeadline = limit / 25
+		cfg.MaxStreamDeadline = limit
+	})
 
 	t.Run("a stream with no deadline gets the cap", func(t *testing.T) {
 		var deadline time.Time

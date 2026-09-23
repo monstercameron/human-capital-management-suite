@@ -20,9 +20,15 @@ import (
 
 	"google.golang.org/grpc"
 
+	dataopsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/dataops/v1"
+	integrationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/integration/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	notificationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	registryv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	transportdataops "github.com/monstercameron/human-capital-management-suite/internal/transport/dataops"
+	transportintegration "github.com/monstercameron/human-capital-management-suite/internal/transport/integration"
+	transportnotification "github.com/monstercameron/human-capital-management-suite/internal/transport/notification"
 )
 
 // defaultMaxRecvMsgBytes bounds an inbound message. Bounded decoding is part
@@ -40,6 +46,15 @@ type Options struct {
 	// Registry is the discovery handler port. Optional: when nil the
 	// RegistryService is not registered.
 	Registry transport.RegistryHandler
+	// DataOps is the DataOps handler port. Optional: when nil the
+	// DataOpsService is not registered.
+	DataOps transport.DataOpsHandler
+	// Integration is the Integration handler port. Optional: when nil the
+	// IntegrationService is not registered.
+	Integration transport.IntegrationHandler
+	// Notifications is the notification feed handler port. Optional: when
+	// nil the NotificationService is not registered.
+	Notifications transport.NotificationHandler
 	// MaxRecvMsgBytes bounds an inbound message. Zero means 4 MiB.
 	MaxRecvMsgBytes int
 	// ServerOptions are appended after the options this package sets, so a
@@ -78,7 +93,7 @@ func NewServer(opts Options) (*grpc.Server, error) {
 	if opts.Config.Verifier == nil {
 		return nil, ErrNoVerifier
 	}
-	if opts.Intent == nil && opts.Registry == nil {
+	if opts.Intent == nil && opts.Registry == nil && opts.DataOps == nil && opts.Integration == nil && opts.Notifications == nil {
 		return nil, ErrNoHandlers
 	}
 
@@ -100,6 +115,15 @@ func NewServer(opts Options) (*grpc.Server, error) {
 	}
 	if opts.Registry != nil {
 		registryv1.RegisterRegistryServiceServer(srv, &registryService{handler: opts.Registry})
+	}
+	if opts.DataOps != nil {
+		dataopsv1.RegisterDataOpsServiceServer(srv, &transportdataops.Service{Handler: opts.DataOps})
+	}
+	if opts.Integration != nil {
+		integrationv1.RegisterIntegrationServiceServer(srv, &transportintegration.Service{Handler: opts.Integration})
+	}
+	if opts.Notifications != nil {
+		notificationv1.RegisterNotificationServiceServer(srv, &transportnotification.Service{Handler: opts.Notifications})
 	}
 	return srv, nil
 }

@@ -2,17 +2,32 @@ package hcmctl
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/devprofile"
 )
 
-// mintToken mints a short-lived development bearer token via
-// internal/trust.HMACVerifier.Issue for the JIT (-mint) flow. This is
+// mintToken mints a short-lived identity-only development Bearer [REDACTED] via
+// internal/trust.HMACVerifier.IssueIdentity for the JIT (-mint) flow. This is
 // authentication plumbing this codebase already owns, not business logic:
 // hcmctl invents no token format and no claim semantics of its own.
+//
+// The minted credential carries authentication identity alone -- subject,
+// tenant, session and the substantial assurance a loopback development mint
+// actually achieves. It never carries roles, organization scope, purposes or
+// delegation references: this issuer cannot mint authority outside itself,
+// and elevated operator access is issued server-side through approved JIT
+// grants only, never through a flag on this command. Development minting is
+// refused unless the local development profile is selected and the target
+// cell is loopback.
 func mintToken(g globalFlags) (string, error) {
+	if g.mintProfile != devprofile.Name {
+		return "", fmt.Errorf("hcmctl: -mint is a development convenience refused outside the %q profile", devprofile.Name)
+	}
+	if !devprofile.IsLoopbackAddress(g.addr) {
+		return "", fmt.Errorf("hcmctl: -mint requires a loopback -addr; %q is not one", g.addr)
+	}
 	if g.signingKey == "" {
 		return "", fmt.Errorf("hcmctl: -mint requires -mint-key")
 	}
@@ -30,23 +45,14 @@ func mintToken(g globalFlags) (string, error) {
 	}
 
 	now := time.Now()
-	var roles []string
-	for _, r := range strings.Split(g.roles, ",") {
-		if r = strings.TrimSpace(r); r != "" {
-			roles = append(roles, r)
-		}
-	}
-
-	token, err := verifier.Issue(trust.Claims{
+	token, err := verifier.IssueIdentity(trust.Claims{
 		Issuer:               g.issuer,
 		Audience:             g.audience,
 		Subject:              g.subject,
 		SubjectKind:          "human",
 		Tenant:               g.tenant,
-		Roles:                roles,
-		Purposes:             []string{g.purpose},
 		AuthenticationMethod: "bearer_token",
-		Assurance:            "high",
+		Assurance:            "substantial",
 		SessionRef:           "hcmctl-jit-session",
 		IssuedAtUnix:         now.Unix(),
 		ExpiresAtUnix:        now.Add(g.ttl).Unix(),

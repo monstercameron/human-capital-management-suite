@@ -3,7 +3,10 @@ package transport
 import (
 	"context"
 
+	dataopsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/dataops/v1"
+	integrationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/integration/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	notificationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	registryv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 )
 
@@ -44,4 +47,37 @@ type RegistryHandler interface {
 	GetIntentDefinition(ctx context.Context, req *registryv1.GetIntentDefinitionRequest) (*registryv1.GetIntentDefinitionResponse, error)
 	ListCapabilities(ctx context.Context, req *registryv1.ListCapabilitiesRequest) (*registryv1.ListCapabilitiesResponse, error)
 	GetCapability(ctx context.Context, req *registryv1.GetCapabilityRequest) (*registryv1.GetCapabilityResponse, error)
+}
+
+// DataOpsHandler is the port the DataOps service surface delegates to. The
+// application service that implements it owns every rule; the transport owns
+// none. The same contract as [IntentHandler] applies.
+type DataOpsHandler interface {
+	ExplainFieldHistory(ctx context.Context, req *dataopsv1.ExplainFieldHistoryRequest) (*dataopsv1.ExplainFieldHistoryResponse, error)
+	DiffRecord(ctx context.Context, req *dataopsv1.DiffRecordRequest) (*dataopsv1.DiffRecordResponse, error)
+	CreateRepairPlan(ctx context.Context, req *dataopsv1.CreateRepairPlanRequest) (*dataopsv1.CreateRepairPlanResponse, error)
+	SimulateRepair(ctx context.Context, req *dataopsv1.SimulateRepairRequest) (*dataopsv1.SimulateRepairResponse, error)
+}
+
+// IntegrationHandler is the port the Integration service surface delegates
+// to. The application service that implements it owns every rule; the
+// transport owns none. The same contract as [IntentHandler] applies.
+type IntegrationHandler interface {
+	ListConnectorDefinitions(ctx context.Context, req *integrationv1.ListConnectorDefinitionsRequest) (*integrationv1.ListConnectorDefinitionsResponse, error)
+	GetConnectorDefinition(ctx context.Context, req *integrationv1.GetConnectorDefinitionRequest) (*integrationv1.GetConnectorDefinitionResponse, error)
+	ListConnectorConnections(ctx context.Context, req *integrationv1.ListConnectorConnectionsRequest) (*integrationv1.ListConnectorConnectionsResponse, error)
+	GetConnectorConnection(ctx context.Context, req *integrationv1.GetConnectorConnectionRequest) (*integrationv1.GetConnectorConnectionResponse, error)
+	TestConnectorConnection(ctx context.Context, req *integrationv1.TestConnectorConnectionRequest) (*integrationv1.TestConnectorConnectionResponse, error)
+	ListExternalObservations(ctx context.Context, req *integrationv1.ListExternalObservationsRequest) (*integrationv1.ListExternalObservationsResponse, error)
+	GetExternalObservation(ctx context.Context, req *integrationv1.GetExternalObservationRequest) (*integrationv1.GetExternalObservationResponse, error)
+}
+
+// NotificationHandler is the port the recipient-owned notification feed
+// delegates to. The application service that implements it owns every rule;
+// the transport owns none. The same contract as [IntentHandler] applies.
+type NotificationHandler interface {
+	ListNotifications(ctx context.Context, req *notificationv1.ListNotificationsRequest) (*notificationv1.ListNotificationsResponse, error)
+	MarkNotificationRead(ctx context.Context, req *notificationv1.MarkNotificationReadRequest) (*notificationv1.MarkNotificationReadResponse, error)
+	ArchiveNotification(ctx context.Context, req *notificationv1.ArchiveNotificationRequest) (*notificationv1.ArchiveNotificationResponse, error)
+	PinNotification(ctx context.Context, req *notificationv1.PinNotificationRequest) (*notificationv1.PinNotificationResponse, error)
 }

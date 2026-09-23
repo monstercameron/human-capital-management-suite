@@ -23,6 +23,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/clients"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/grpcserver"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/otelmw"
@@ -110,8 +111,98 @@ type harness struct {
 
 	edgeURL      string
 	httpClient   *http.Client
-	edgeIntent   *edge.IntentClient
-	edgeRegistry *edge.RegistryClient
+	edgeIntent   *generatedIntentClient
+	edgeRegistry *generatedRegistryClient
+}
+
+// generatedIntentClient is a test-only calling-convention shim over the
+// canonical generated connect client (REV-003-01). The wire logic lives in
+// internal/transport/clients; this type preserves the connect.Request
+// convention so the interceptor tests exercise the generated backend without
+// rewriting every call site. Every method delegates to exactly one generated
+// method.
+type generatedIntentClient struct {
+	inner clients.IntentClient
+}
+
+// generatedRegistryClient is the RegistryService counterpart of
+// generatedIntentClient: same delegation, same test-only scope.
+type generatedRegistryClient struct {
+	inner clients.RegistryClient
+}
+
+func callThrough[Req, Res any](
+	ctx context.Context,
+	req *connect.Request[Req],
+	do func(context.Context, *Req, ...clients.CallOption) (*Res, error),
+) (*connect.Response[Res], error) {
+	var opts []clients.CallOption
+	for key, values := range req.Header() {
+		for _, value := range values {
+			opts = append(opts, clients.WithHeader(key, value))
+		}
+	}
+	res, err := do(ctx, req.Msg, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(res), nil
+}
+
+func (c *generatedIntentClient) CreateIntent(ctx context.Context, req *connect.Request[intentsv1.CreateIntentRequest]) (*connect.Response[intentsv1.CreateIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.CreateIntent)
+}
+
+func (c *generatedIntentClient) GetIntent(ctx context.Context, req *connect.Request[intentsv1.GetIntentRequest]) (*connect.Response[intentsv1.GetIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.GetIntent)
+}
+
+func (c *generatedIntentClient) ListIntents(ctx context.Context, req *connect.Request[intentsv1.ListIntentsRequest]) (*connect.Response[intentsv1.ListIntentsResponse], error) {
+	return callThrough(ctx, req, c.inner.ListIntents)
+}
+
+func (c *generatedIntentClient) SimulateIntent(ctx context.Context, req *connect.Request[intentsv1.SimulateIntentRequest]) (*connect.Response[intentsv1.SimulateIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.SimulateIntent)
+}
+
+func (c *generatedIntentClient) ExecuteIntent(ctx context.Context, req *connect.Request[intentsv1.ExecuteIntentRequest]) (*connect.Response[intentsv1.ExecuteIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.ExecuteIntent)
+}
+
+func (c *generatedIntentClient) SubmitIntent(ctx context.Context, req *connect.Request[intentsv1.SubmitIntentRequest]) (*connect.Response[intentsv1.SubmitIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.SubmitIntent)
+}
+
+func (c *generatedIntentClient) CancelIntent(ctx context.Context, req *connect.Request[intentsv1.CancelIntentRequest]) (*connect.Response[intentsv1.CancelIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.CancelIntent)
+}
+
+func (c *generatedIntentClient) SupersedeIntent(ctx context.Context, req *connect.Request[intentsv1.SupersedeIntentRequest]) (*connect.Response[intentsv1.SupersedeIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.SupersedeIntent)
+}
+
+func (c *generatedIntentClient) ExplainIntent(ctx context.Context, req *connect.Request[intentsv1.ExplainIntentRequest]) (*connect.Response[intentsv1.ExplainIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.ExplainIntent)
+}
+
+func (c *generatedIntentClient) ListIntentTimeline(ctx context.Context, req *connect.Request[intentsv1.ListIntentTimelineRequest]) (*connect.Response[intentsv1.ListIntentTimelineResponse], error) {
+	return callThrough(ctx, req, c.inner.ListIntentTimeline)
+}
+
+func (c *generatedRegistryClient) ListIntentDefinitions(ctx context.Context, req *connect.Request[registryv1.ListIntentDefinitionsRequest]) (*connect.Response[registryv1.ListIntentDefinitionsResponse], error) {
+	return callThrough(ctx, req, c.inner.ListIntentDefinitions)
+}
+
+func (c *generatedRegistryClient) GetIntentDefinition(ctx context.Context, req *connect.Request[registryv1.GetIntentDefinitionRequest]) (*connect.Response[registryv1.GetIntentDefinitionResponse], error) {
+	return callThrough(ctx, req, c.inner.GetIntentDefinition)
+}
+
+func (c *generatedRegistryClient) ListCapabilities(ctx context.Context, req *connect.Request[registryv1.ListCapabilitiesRequest]) (*connect.Response[registryv1.ListCapabilitiesResponse], error) {
+	return callThrough(ctx, req, c.inner.ListCapabilities)
+}
+
+func (c *generatedRegistryClient) GetCapability(ctx context.Context, req *connect.Request[registryv1.GetCapabilityRequest]) (*connect.Response[registryv1.GetCapabilityResponse], error) {
+	return callThrough(ctx, req, c.inner.GetCapability)
 }
 
 // newHarness builds the shared fixture. Every request goes through the real
@@ -187,8 +278,8 @@ func newHarness(t testing.TB) *harness {
 	t.Cleanup(httpServer.Close)
 	h.edgeURL = httpServer.URL
 	h.httpClient = httpServer.Client()
-	h.edgeIntent = edge.NewIntentClient(h.httpClient, h.edgeURL)
-	h.edgeRegistry = edge.NewRegistryClient(h.httpClient, h.edgeURL)
+	h.edgeIntent = &generatedIntentClient{inner: clients.NewIntentClientConnect(h.httpClient, h.edgeURL)}
+	h.edgeRegistry = &generatedRegistryClient{inner: clients.NewRegistryClientConnect(h.httpClient, h.edgeURL)}
 
 	return h
 }

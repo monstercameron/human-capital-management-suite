@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/transporttest"
 )
 
@@ -226,7 +227,13 @@ func TestTodo_OBS_002_TransportInterceptorsPropagateDeadline(t *testing.T) {
 			t.Fatal("edge SimulateIntent on the blocking scenario returned success; want deadline expiry")
 		}
 		var connectErr *connect.Error
-		if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeDeadlineExceeded {
+		var ownedErr *envelope.Error
+		switch {
+		case errors.As(err, &connectErr) && connectErr.Code() == connect.CodeDeadlineExceeded:
+			// Raw transport form.
+		case errors.As(err, &ownedErr) && ownedErr.Code() == envelope.CodeDeadlineExceeded:
+			// Canonical generated backend decodes into the owned error.
+		default:
 			t.Fatalf("edge SimulateIntent error = %v; want deadline_exceeded", err)
 		}
 	})
@@ -288,7 +295,13 @@ func TestTodo_OBS_002_TransportInterceptorsSetErrorSpanStatus(t *testing.T) {
 		t.Fatal("edge GetIntent(missing) returned success; want not_found")
 	}
 	var connectErr *connect.Error
-	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeNotFound {
+	var ownedErr *envelope.Error
+	switch {
+	case errors.As(err, &connectErr) && connectErr.Code() == connect.CodeNotFound:
+		// Raw transport form.
+	case errors.As(err, &ownedErr) && ownedErr.Code() == envelope.CodeNotFound:
+		// Canonical generated backend decodes into the owned error.
+	default:
 		t.Fatalf("edge GetIntent(missing) error = %v; want not_found", err)
 	}
 

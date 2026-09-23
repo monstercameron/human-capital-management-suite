@@ -101,6 +101,12 @@ type Config struct {
 	NewRequestID func() string
 	// MaxDeadline caps every request's deadline. Zero means 30 seconds.
 	MaxDeadline time.Duration
+	// MaxStreamDeadline caps a server-streaming call instead. A live feed is
+	// not a slow request: capping a watch at the unary deadline cut every chat
+	// and journey stream at exactly thirty seconds, which is a defect and not a
+	// budget. Zero means 15 minutes, matching the stream lifetime ceiling the
+	// streaming handlers declare for themselves.
+	MaxStreamDeadline time.Duration
 	// Validator performs strict structural validation. Nil means
 	// [DefaultValidator].
 	Validator Validator
@@ -111,6 +117,11 @@ type Config struct {
 
 // defaultMaxDeadline is the server-imposed deadline cap.
 const defaultMaxDeadline = 30 * time.Second
+
+// defaultMaxStreamDeadline is the server-imposed cap on a server-streaming
+// call. It matches the lifetime ceiling the streaming handlers declare, so the
+// transport bounds a live feed exactly once and at the same number.
+const defaultMaxStreamDeadline = 15 * time.Minute
 
 // now returns the configured clock reading.
 func (c Config) now() time.Time {
@@ -126,6 +137,14 @@ func (c Config) maxDeadline() time.Duration {
 		return c.MaxDeadline
 	}
 	return defaultMaxDeadline
+}
+
+// maxStreamDeadline returns the effective cap for a server-streaming call.
+func (c Config) maxStreamDeadline() time.Duration {
+	if c.MaxStreamDeadline > 0 {
+		return c.MaxStreamDeadline
+	}
+	return defaultMaxStreamDeadline
 }
 
 // validator returns the effective structural validator.
@@ -435,7 +454,18 @@ func printableASCII(s string) bool {
 // and a fixture that pins business time must not thereby cancel its own
 // requests.
 func CapDeadline(ctx context.Context, cfg Config) (context.Context, context.CancelFunc) {
-	limit := cfg.maxDeadline()
+	return capTo(ctx, cfg.maxDeadline())
+}
+
+// CapStreamDeadline is [CapDeadline] for a server-streaming call, which is
+// bounded by the stream lifetime ceiling rather than the unary request budget. A
+// watch is meant to stay open; cutting it at the unary cap ended every chat and
+// journey stream at exactly thirty seconds with DEADLINE_EXCEEDED.
+func CapStreamDeadline(ctx context.Context, cfg Config) (context.Context, context.CancelFunc) {
+	return capTo(ctx, cfg.maxStreamDeadline())
+}
+
+func capTo(ctx context.Context, limit time.Duration) (context.Context, context.CancelFunc) {
 	if deadline, ok := ctx.Deadline(); ok && !deadline.After(time.Now().Add(limit)) {
 		return ctx, func() {}
 	}

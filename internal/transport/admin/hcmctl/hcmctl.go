@@ -137,15 +137,14 @@ type globalFlags struct {
 	token   string
 	timeout time.Duration
 
-	mint       bool
-	signingKey string
-	issuer     string
-	audience   string
-	tenant     string
-	subject    string
-	roles      string
-	purpose    string
-	ttl        time.Duration
+	mint        bool
+	mintProfile string
+	signingKey  string
+	issuer      string
+	audience    string
+	tenant      string
+	subject     string
+	ttl         time.Duration
 }
 
 // resolveToken returns the bearer credential for this invocation: the
@@ -168,13 +167,12 @@ func newGlobalFlagSet() (*flag.FlagSet, *globalFlags) {
 	fs.StringVar(&g.token, "token", "", "bearer credential to present (mutually exclusive with -mint)")
 	fs.DurationVar(&g.timeout, "timeout", 15*time.Second, "per-invocation deadline")
 	fs.BoolVar(&g.mint, "mint", false, "mint a JIT development credential instead of using -token")
+	fs.StringVar(&g.mintProfile, "mint-profile", "", "must be local-dev: -mint is refused outside the local development profile")
 	fs.StringVar(&g.signingKey, "mint-key", "", "HMAC signing key for -mint (never printed)")
 	fs.StringVar(&g.issuer, "mint-issuer", "", "issuer claim for -mint")
 	fs.StringVar(&g.audience, "mint-audience", "", "audience claim for -mint")
 	fs.StringVar(&g.tenant, "mint-tenant", "", "tenant claim for -mint")
 	fs.StringVar(&g.subject, "mint-subject", "", "subject claim for -mint")
-	fs.StringVar(&g.roles, "mint-roles", "hcmnext.trust.role.operator", "comma-separated roles claim for -mint")
-	fs.StringVar(&g.purpose, "mint-purpose", "operator_diagnostics", "purpose claim for -mint")
 	fs.DurationVar(&g.ttl, "mint-ttl", 15*time.Minute, "validity window for -mint")
 	return fs, g
 }
@@ -194,6 +192,6 @@ subcommands:
   onboarding             operator onboarding-pipeline runs (REV-036-01)
   explorer               ledger/provenance explorer and AuthZ simulator (REV-037-01)
 
-global flags: -addr -token -timeout -mint -mint-key -mint-issuer -mint-audience
-              -mint-tenant -mint-subject -mint-roles -mint-purpose -mint-ttl`
+global flags: -addr -token -timeout -mint -mint-profile -mint-key -mint-issuer
+              -mint-audience -mint-tenant -mint-subject -mint-ttl`
 }

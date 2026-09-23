@@ -31,7 +31,7 @@ import (
 // composes its own *grpc.Server installs this rather than approximating it.
 func StreamInterceptor(cfg transport.Config) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		c, admitErr := admit(ss.Context(), cfg, info.FullMethod, nil)
+		c, admitErr := admit(ss.Context(), cfg, info.FullMethod, nil, true)
 		defer c.cancel()
 		if admitErr != nil {
 			return c.refuse(cfg, info.FullMethod, admitErr)

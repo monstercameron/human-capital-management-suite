@@ -50,13 +50,21 @@ type call struct {
 // whether the call is allowed to happen at all - the reserved-metadata
 // screen, correlation, authentication - is message-independent and runs
 // identically either way.
-func admit(ctx context.Context, cfg transport.Config, method string, message proto.Message) (call, *envelope.Error) {
+func admit(ctx context.Context, cfg transport.Config, method string, message proto.Message, streaming bool) (call, *envelope.Error) {
 	c := call{start: time.Now()}
 
 	// A server-capped deadline applies to every call, including one that
 	// arrived without any deadline at all. Cancellation propagates through
 	// the same context, so a caller that goes away stops the work.
-	c.ctx, c.cancel = transport.CapDeadline(ctx, cfg)
+	//
+	// A server-streaming call is capped by the stream ceiling instead of the
+	// unary request budget. It used to take the unary cap, which ended every
+	// live watch at exactly thirty seconds with DEADLINE_EXCEEDED.
+	if streaming {
+		c.ctx, c.cancel = transport.CapStreamDeadline(ctx, cfg)
+	} else {
+		c.ctx, c.cancel = transport.CapDeadline(ctx, cfg)
+	}
 
 	md, _ := metadata.FromIncomingContext(c.ctx)
 	admitted, inv, admitErr := transport.Admit(c.ctx, cfg, transport.AdmissionRequest{
@@ -109,7 +117,7 @@ func UnaryInterceptor(cfg transport.Config) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		message, _ := req.(proto.Message)
 
-		c, admitErr := admit(ctx, cfg, info.FullMethod, message)
+		c, admitErr := admit(ctx, cfg, info.FullMethod, message, false)
 		defer c.cancel()
 		if admitErr != nil {
 			return nil, c.refuse(cfg, info.FullMethod, admitErr)
