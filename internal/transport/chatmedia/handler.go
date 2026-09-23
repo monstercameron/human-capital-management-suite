@@ -135,6 +135,8 @@ func uploadStatus(err error) (int, string) {
 	switch {
 	case errors.Is(err, core.ErrScannerUnavailable):
 		return http.StatusServiceUnavailable, "media inspection is unavailable"
+	case errors.Is(err, core.ErrBusy):
+		return http.StatusTooManyRequests, "image processing is busy"
 	case errors.Is(err, core.ErrQuarantined):
 		return http.StatusUnprocessableEntity, "the artifact was not admitted"
 	case errors.Is(err, core.ErrUnsupported):
@@ -159,6 +161,8 @@ func readStatus(err error) (int, string) {
 		return http.StatusForbidden, "forbidden"
 	case errors.Is(err, core.ErrInvalid):
 		return http.StatusBadRequest, "invalid request"
+	case errors.Is(err, core.ErrUnsupported):
+		return http.StatusUnsupportedMediaType, "image rendition unavailable"
 	default:
 		// A grant is only ever minted for an artifact the store already
 		// produced, so an unclassified failure on a granted read is this
@@ -232,6 +236,9 @@ func (h Handler) upload(w http.ResponseWriter, r *http.Request) {
 	}
 	ref, err := h.Service.Upload(r.Context(), core.UploadRequest{TenantID: tenant, ConversationID: conv, PrincipalID: principal, Filename: filename, DeclaredType: declared, EvidenceID: r.Header.Get("Idempotency-Key"), Content: content, Transcript: transcript, AltText: altText})
 	if err != nil {
+		if errors.Is(err, core.ErrBusy) {
+			w.Header().Set("Retry-After", "1")
+		}
 		status, message := uploadStatus(err)
 		http.Error(w, message, status)
 		return
@@ -318,7 +325,7 @@ func (h Handler) get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid range", http.StatusRequestedRangeNotSatisfiable)
 		return
 	}
-	body, ref, err := h.Service.Open(r.Context(), core.AccessRequest{TenantID: tenant, ConversationID: conv, PrincipalID: principal, ArtifactID: id, Grant: grant}, start, end)
+	body, ref, err := h.Service.OpenVariant(r.Context(), core.AccessRequest{TenantID: tenant, ConversationID: conv, PrincipalID: principal, ArtifactID: id, Grant: grant}, r.URL.Query().Get("variant"), start, end)
 	if err != nil {
 		status, message := readStatus(err)
 		http.Error(w, message, status)
@@ -330,11 +337,12 @@ func (h Handler) get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	w.Header().Set("Accept-Ranges", "bytes")
+	actualEnd := ref.Size
+	if end != nil {
+		actualEnd = *end
+	}
+	w.Header().Set("Content-Length", strconv.FormatInt(actualEnd-start, 10))
 	if r.Header.Get("Range") != "" {
-		actualEnd := ref.Size
-		if end != nil {
-			actualEnd = *end
-		}
 		w.Header().Set("Content-Range", "bytes "+strconv.FormatInt(start, 10)+"-"+strconv.FormatInt(actualEnd-1, 10)+"/"+strconv.FormatInt(ref.Size, 10))
 		w.WriteHeader(http.StatusPartialContent)
 	}

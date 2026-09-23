@@ -66,7 +66,11 @@ func (transportChatFake) DeletePost(context.Context, chatcore.DeletePostRequest)
 	return chatcore.Post{ID: "p", ConversationID: "c", TenantID: "server", Deleted: true, CreatedAt: time.Now()}, nil
 }
 func (transportChatFake) Search(context.Context, chatcore.SearchRequest) (chatcore.SearchResponse, error) {
-	return chatcore.SearchResponse{Results: []chatcore.SearchResult{{Post: chatcore.Post{ID: "p", ConversationID: "c", TenantID: "server", CreatedAt: time.Now()}}}}, nil
+	return chatcore.SearchResponse{
+		Results:           []chatcore.SearchResult{{Post: chatcore.Post{ID: "p", ConversationID: "c", TenantID: "server", CreatedAt: time.Now()}, ConversationName: "Operations"}},
+		Channels:          []chatcore.ChannelSearchResult{{ConversationID: "c", Name: "Operations", Kind: chatcore.PublicChannel, Joined: true}},
+		ChannelNextCursor: "next-channel",
+	}, nil
 }
 func (transportChatFake) GetReadState(context.Context, chatcore.GetReadStateRequest) (chatcore.ReadState, error) {
 	return chatcore.ReadState{ConversationID: "c", TenantID: "server", SubjectID: "u"}, nil
@@ -94,7 +98,7 @@ func (transportChatFake) PinPost(context.Context, chatcore.PinPostRequest) (chat
 }
 func (transportChatFake) UnpinPost(context.Context, chatcore.UnpinPostRequest) error { return nil }
 func (transportChatFake) ListPins(context.Context, chatcore.ListPinsRequest) ([]chatcore.Pin, error) {
-	return []chatcore.Pin{{ConversationID: "c", PostID: "p", TenantID: "server", PinnedBy: "u"}}, nil
+	return []chatcore.Pin{{ConversationID: "c", PostID: "p", TenantID: "server", PinnedBy: "u", Post: &chatcore.Post{ID: "p", ConversationID: "c", TenantID: "server", AuthorID: "author", Body: "older pin", Sequence: 42, Revision: 3}}}, nil
 }
 func (transportChatFake) WatchConversation(context.Context, chatcore.WatchConversationRequest) (<-chan chatcore.WatchEvent, error) {
 	ch := make(chan chatcore.WatchEvent, 1)
@@ -208,8 +212,12 @@ func TestTodo_CHAT_009_GrpcHttpParity(t *testing.T) {
 	if _, err := s.DeletePost(ctx, &chatv1.DeletePostRequest{ConversationId: "c", PostId: "p"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Search(ctx, &chatv1.SearchRequest{ConversationId: "c", Query: "hello"}); err != nil {
+	search, err := s.Search(ctx, &chatv1.SearchRequest{ConversationId: "c", Query: "hello"})
+	if err != nil {
 		t.Fatal(err)
+	}
+	if len(search.GetResults()) != 1 || search.GetResults()[0].GetConversationName() != "Operations" || len(search.GetChannels()) != 1 || search.GetChannels()[0].GetKind() != "PUBLIC_CHANNEL" || !search.GetChannels()[0].GetJoined() || search.GetChannelNextCursor() != "next-channel" {
+		t.Fatalf("search response = %+v, want message and channel hits", search)
 	}
 	if _, err := s.GetReadState(ctx, &chatv1.GetReadStateRequest{ConversationId: "c"}); err != nil {
 		t.Fatal(err)
@@ -238,7 +246,7 @@ func TestTodo_CHAT_009_GrpcHttpParity(t *testing.T) {
 	if _, err := s.UnpinPost(ctx, &chatv1.UnpinPostRequest{ConversationId: "c", PostId: "p"}); err != nil {
 		t.Fatal(err)
 	}
-	if v, err := s.ListPins(ctx, &chatv1.ListPinsRequest{ConversationId: "c"}); err != nil || len(v.GetPins()) != 1 {
+	if v, err := s.ListPins(ctx, &chatv1.ListPinsRequest{ConversationId: "c"}); err != nil || len(v.GetPins()) != 1 || v.GetPins()[0].GetPost().GetBody() != "older pin" || v.GetPins()[0].GetPost().GetSequence() != 42 {
 		t.Fatalf("pins: %+v %v", v, err)
 	}
 	if v, err := s.SendPost(ctx, &chatv1.SendPostRequest{TenantId: "server", ConversationId: "c", Body: "ref", IdempotencyKey: "ref-key", References: []*chatv1.Reference{{Kind: chatv1.ReferenceKind_REFERENCE_KIND_PERSON_MENTION, TenantId: "home", Id: "u"}}}); err != nil || len(v.GetPost().GetReferences()) != 1 {

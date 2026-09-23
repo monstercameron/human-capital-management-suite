@@ -453,13 +453,16 @@ func (s *server) Search(c context.Context, r *chatv1.SearchRequest) (*chatv1.Sea
 	if e != nil {
 		return nil, e
 	}
-	v, e := s.deps.Service.Search(c, chatcore.SearchRequest{Principal: p, TenantID: r.GetTenantId(), Query: r.GetQuery(), ConversationID: r.GetConversationId(), AuthorID: r.GetAuthorId(), Page: page(r.GetCursor(), r.GetPageSize())})
+	v, e := s.deps.Service.Search(c, chatcore.SearchRequest{Principal: p, TenantID: r.GetTenantId(), Query: r.GetQuery(), ConversationID: r.GetConversationId(), AuthorID: r.GetAuthorId(), ChannelCursor: r.GetChannelCursor(), Page: page(r.GetCursor(), r.GetPageSize())})
 	if e != nil {
 		return nil, callErr(e)
 	}
-	o := &chatv1.SearchResponse{NextCursor: v.NextCursor}
+	o := &chatv1.SearchResponse{NextCursor: v.NextCursor, ChannelNextCursor: v.ChannelNextCursor}
 	for _, x := range v.Results {
-		o.Results = append(o.Results, &chatv1.SearchResult{Post: post(x.Post)})
+		o.Results = append(o.Results, &chatv1.SearchResult{Post: post(x.Post), ConversationName: x.ConversationName})
+	}
+	for _, x := range v.Channels {
+		o.Channels = append(o.Channels, &chatv1.ChannelSearchResult{ConversationId: x.ConversationID, Name: x.Name, Kind: string(x.Kind), Joined: x.Joined})
 	}
 	return o, nil
 }
@@ -695,6 +698,9 @@ func (s *server) watch(c context.Context, r *chatv1.WatchConversationRequest) (<
 	p, e := s.prep(c, r.GetPrincipal())
 	if e != nil {
 		return nil, nil, e
+	}
+	if verified, ok := trust.FromContext(c); ok && verified != nil && (verified.SubjectKind() == trust.SubjectKindAgent || verified.SubjectKind() == trust.SubjectKindIntegration) && r.GetAfterSequence() != 0 {
+		return nil, nil, callErr(chatcore.ErrInvalidArgument)
 	}
 	after, resume, e := watchStart(r.GetAfterSequence(), r.GetResumeCursor())
 	if e != nil {
@@ -971,7 +977,11 @@ func reactionIn(v *chatv1.Reaction) chatcore.Reaction {
 	return chatcore.Reaction{ConversationID: v.GetConversationId(), PostID: v.GetPostId(), TenantID: v.GetTenantId(), HomeTenantID: v.GetHomeTenantId(), SubjectID: v.GetSubjectId(), Emoji: v.GetEmoji(), CreatedAt: timeVal(v.GetCreatedAt())}
 }
 func pin(v chatcore.Pin) *chatv1.Pin {
-	return &chatv1.Pin{ConversationId: v.ConversationID, PostId: v.PostID, TenantId: v.TenantID, PinnedBy: v.PinnedBy, PinnedByHomeTenantId: v.PinnedByHomeTenantID, Revision: v.Revision, CreatedAt: tsp(v.CreatedAt)}
+	o := &chatv1.Pin{ConversationId: v.ConversationID, PostId: v.PostID, TenantId: v.TenantID, PinnedBy: v.PinnedBy, PinnedByHomeTenantId: v.PinnedByHomeTenantID, Revision: v.Revision, CreatedAt: tsp(v.CreatedAt)}
+	if v.Post != nil {
+		o.Post = post(*v.Post)
+	}
+	return o
 }
 func pinIn(v *chatv1.Pin) chatcore.Pin {
 	if v == nil {

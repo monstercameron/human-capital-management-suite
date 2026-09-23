@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -19,8 +22,16 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/asset/quarantine"
 )
 
-// pngBytes is a sniffable PNG header plus payload.
-func pngBytes(tail string) []byte { return []byte("\x89PNG\r\n\x1a\n" + tail) }
+// pngBytes encodes a distinct, decodable PNG for each test payload.
+func pngBytes(tail string) []byte {
+	im := image.NewNRGBA(image.Rect(0, 0, max(1, len(tail)), 1))
+	for x := range tail {
+		im.SetNRGBA(x, 0, color.NRGBA{R: tail[x], G: 80, B: 40, A: 255})
+	}
+	var out bytes.Buffer
+	_ = png.Encode(&out, im)
+	return out.Bytes()
+}
 
 // TestTodo_CHAT_036_UploadGrantDownloadRoundTrip is the round trip that was
 // unreachable: the protected read requires a grant token, and until the

@@ -17,7 +17,7 @@ import (
 func TestTodo_CHAT_036_QueryGrantLoadsMediaInAnImageTag(t *testing.T) {
 	now := time.Unix(100, 0)
 	h, s := testHandler(&now)
-	content := []byte("\x89PNG\r\n\x1a\nattachment-bytes")
+	content := pngBytes("attachment-bytes")
 	ref, err := s.Upload(context.Background(), core.UploadRequest{TenantID: "t", ConversationID: "c", PrincipalID: "p", DeclaredType: "image/png", Content: content, EvidenceID: "query-grant"})
 	if err != nil {
 		t.Fatal(err)
