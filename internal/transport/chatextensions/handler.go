@@ -14,7 +14,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecipient"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecords"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -53,18 +52,18 @@ type RetentionService interface {
 }
 
 type ChannelTodoService interface {
-	ChannelTodo(context.Context, chat.Principal, string, string) (chatstore.ChannelTodoList, error)
-	MutateChannelTodo(context.Context, chat.Principal, string, string, uint64, chatstore.ChannelTodoMutation) (chatstore.ChannelTodoList, error)
+	ChannelTodo(context.Context, chat.Principal, string, string) (chat.ChannelTodoList, error)
+	MutateChannelTodo(context.Context, chat.Principal, string, string, uint64, chat.ChannelTodoMutation) (chat.ChannelTodoList, error)
 }
 
 type ChannelWidgetService interface {
-	ChannelWidgets(context.Context, chat.Principal, string, string) (chatstore.ChannelWidgets, error)
-	MutateChannelWidget(context.Context, chat.Principal, string, string, uint64, chatstore.ChannelWidgetMutation) (chatstore.ChannelWidgets, error)
+	ChannelWidgets(context.Context, chat.Principal, string, string) (chat.ChannelWidgets, error)
+	MutateChannelWidget(context.Context, chat.Principal, string, string, uint64, chat.ChannelWidgetMutation) (chat.ChannelWidgets, error)
 }
 
 type ChannelPollService interface {
-	ChannelPoll(context.Context, chat.Principal, string, string) (chatstore.ChannelPoll, error)
-	MutateChannelPoll(context.Context, chat.Principal, string, string, uint64, chatstore.ChannelPollMutation) (chatstore.ChannelPoll, error)
+	ChannelPoll(context.Context, chat.Principal, string, string) (chat.ChannelPoll, error)
+	MutateChannelPoll(context.Context, chat.Principal, string, string, uint64, chat.ChannelPollMutation) (chat.ChannelPoll, error)
 }
 
 // PrincipalGrantService is the principal-carrying form of the four grant and

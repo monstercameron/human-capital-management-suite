@@ -6,7 +6,6 @@ import (
 
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 )
 
@@ -14,19 +13,19 @@ type todoService struct {
 	Service
 	principal          chat.Principal
 	host, conversation string
-	mutation           chatstore.ChannelTodoMutation
+	mutation           chat.ChannelTodoMutation
 	expected           uint64
 	err                error
 }
 
-func (s *todoService) ChannelTodo(_ context.Context, p chat.Principal, host, conversation string) (chatstore.ChannelTodoList, error) {
+func (s *todoService) ChannelTodo(_ context.Context, p chat.Principal, host, conversation string) (chat.ChannelTodoList, error) {
 	s.principal, s.host, s.conversation = p, host, conversation
-	return chatstore.ChannelTodoList{ConversationID: conversation, Revision: 1, Items: []chatstore.ChannelTodoItem{}}, s.err
+	return chat.ChannelTodoList{ConversationID: conversation, Revision: 1, Items: []chat.ChannelTodoItem{}}, s.err
 }
 
-func (s *todoService) MutateChannelTodo(_ context.Context, p chat.Principal, host, conversation string, expected uint64, mutation chatstore.ChannelTodoMutation) (chatstore.ChannelTodoList, error) {
+func (s *todoService) MutateChannelTodo(_ context.Context, p chat.Principal, host, conversation string, expected uint64, mutation chat.ChannelTodoMutation) (chat.ChannelTodoList, error) {
 	s.principal, s.host, s.conversation, s.expected, s.mutation = p, host, conversation, expected, mutation
-	return chatstore.ChannelTodoList{ConversationID: conversation, Revision: expected + 1, Items: []chatstore.ChannelTodoItem{{ID: "item", Text: mutation.Text, SourcePostID: mutation.SourcePostID, CreatedBy: p.SubjectID, CreatedByHomeTenantID: p.TenantID, Completed: true, CompletedBySubjectID: p.SubjectID, CompletedByHomeTenantID: p.TenantID, CompletedAtUnix: 123, CompletionMode: mutation.CompletionMode, SelectedCompleters: mutation.SelectedCompleters, CanToggle: true, CanManageCompletionPolicy: true}}}, s.err
+	return chat.ChannelTodoList{ConversationID: conversation, Revision: expected + 1, Items: []chat.ChannelTodoItem{{ID: "item", Text: mutation.Text, SourcePostID: mutation.SourcePostID, CreatedBy: p.SubjectID, CreatedByHomeTenantID: p.TenantID, Completed: true, CompletedBySubjectID: p.SubjectID, CompletedByHomeTenantID: p.TenantID, CompletedAtUnix: 123, CompletionMode: mutation.CompletionMode, SelectedCompleters: mutation.SelectedCompleters, CanToggle: true, CanManageCompletionPolicy: true}}}, s.err
 }
 
 func TestChannelTodoRPCBindsPrincipalAndFields(t *testing.T) {

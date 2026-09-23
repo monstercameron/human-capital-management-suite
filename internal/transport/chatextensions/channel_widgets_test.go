@@ -6,7 +6,6 @@ import (
 
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 )
 
 type widgetService struct {
@@ -14,16 +13,16 @@ type widgetService struct {
 	actor              chat.Principal
 	host, conversation string
 	expected           uint64
-	mutation           chatstore.ChannelWidgetMutation
+	mutation           chat.ChannelWidgetMutation
 }
 
-func (s *widgetService) ChannelWidgets(_ context.Context, p chat.Principal, host, conversation string) (chatstore.ChannelWidgets, error) {
+func (s *widgetService) ChannelWidgets(_ context.Context, p chat.Principal, host, conversation string) (chat.ChannelWidgets, error) {
 	s.actor, s.host, s.conversation = p, host, conversation
-	return chatstore.ChannelWidgets{Team: chatstore.ChannelTeamWidget{ConversationID: conversation, Revision: 1, Members: []chatstore.ChannelTeamMember{{HomeTenantID: "home", SubjectID: "admin", Role: "manager", RoleLabel: "Lead"}}}, Project: chatstore.ChannelProjectWidget{ConversationID: conversation, Revision: 1}}, nil
+	return chat.ChannelWidgets{Team: chat.ChannelTeamWidget{ConversationID: conversation, Revision: 1, Members: []chat.ChannelTeamMember{{HomeTenantID: "home", SubjectID: "admin", Role: "manager", RoleLabel: "Lead"}}}, Project: chat.ChannelProjectWidget{ConversationID: conversation, Revision: 1}}, nil
 }
-func (s *widgetService) MutateChannelWidget(_ context.Context, p chat.Principal, host, conversation string, expected uint64, m chatstore.ChannelWidgetMutation) (chatstore.ChannelWidgets, error) {
+func (s *widgetService) MutateChannelWidget(_ context.Context, p chat.Principal, host, conversation string, expected uint64, m chat.ChannelWidgetMutation) (chat.ChannelWidgets, error) {
 	s.actor, s.host, s.conversation, s.expected, s.mutation = p, host, conversation, expected, m
-	return chatstore.ChannelWidgets{Team: chatstore.ChannelTeamWidget{ConversationID: conversation, Revision: 1}, Project: chatstore.ChannelProjectWidget{ConversationID: conversation, Revision: expected + 1, Milestones: []chatstore.ChannelProjectMilestone{m.Milestone}}}, nil
+	return chat.ChannelWidgets{Team: chat.ChannelTeamWidget{ConversationID: conversation, Revision: 1}, Project: chat.ChannelProjectWidget{ConversationID: conversation, Revision: expected + 1, Milestones: []chat.ChannelProjectMilestone{m.Milestone}}}, nil
 }
 func TestChannelWidgetRPCBindsPrincipalAndFields(t *testing.T) {
 	svc := &widgetService{}

@@ -6,24 +6,23 @@ import (
 
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 )
 
 type pollService struct {
 	Service
 	principal chat.Principal
-	mutation  chatstore.ChannelPollMutation
+	mutation  chat.ChannelPollMutation
 	expected  uint64
 }
 
-func (s *pollService) ChannelPoll(_ context.Context, p chat.Principal, _, conversation string) (chatstore.ChannelPoll, error) {
+func (s *pollService) ChannelPoll(_ context.Context, p chat.Principal, _, conversation string) (chat.ChannelPoll, error) {
 	s.principal = p
-	return chatstore.ChannelPoll{ConversationID: conversation, Revision: 3, Question: "Lunch?", TotalVotes: 2, MyOptionID: "b", Options: []chatstore.ChannelPollOption{{ID: "a", Text: "Pizza", Count: 1}, {ID: "b", Text: "Sushi", Count: 1}}}, nil
+	return chat.ChannelPoll{ConversationID: conversation, Revision: 3, Question: "Lunch?", TotalVotes: 2, MyOptionID: "b", Options: []chat.ChannelPollOption{{ID: "a", Text: "Pizza", Count: 1}, {ID: "b", Text: "Sushi", Count: 1}}}, nil
 }
 
-func (s *pollService) MutateChannelPoll(_ context.Context, p chat.Principal, _, conversation string, expected uint64, mutation chatstore.ChannelPollMutation) (chatstore.ChannelPoll, error) {
+func (s *pollService) MutateChannelPoll(_ context.Context, p chat.Principal, _, conversation string, expected uint64, mutation chat.ChannelPollMutation) (chat.ChannelPoll, error) {
 	s.principal, s.expected, s.mutation = p, expected, mutation
-	return chatstore.ChannelPoll{ConversationID: conversation, Revision: expected + 1, Question: mutation.Question, MyOptionID: mutation.OptionID}, nil
+	return chat.ChannelPoll{ConversationID: conversation, Revision: expected + 1, Question: mutation.Question, MyOptionID: mutation.OptionID}, nil
 }
 
 func TestChannelPollRPCMapsCallerProjectionAndMutation(t *testing.T) {
