@@ -24,7 +24,8 @@ func peoplePage(view View) ui.Node {
 	window := paginatePeople(ordered, view.PeoplePage, view.PeoplePageSize)
 	filterActive := view.Query != "" || view.PeopleTeam != "" || view.PeopleLocation != "" || view.PeopleEligibleOnly
 	props := PeoplePageProps{
-		I18nProps: I18nProps{Locale: view.Locale},
+		I18nProps:     I18nProps{Locale: view.Locale},
+		ColumnChooser: peopleColumnChooserProps(view),
 		Summary: PeopleSummaryProps{
 			CountLabel: peopleCountLabel(view.Locale, filterActive, len(filtered), len(population)),
 			ScopeLabel: view.Locale.Text("people.scope"),
@@ -33,7 +34,7 @@ func peoplePage(view View) ui.Node {
 			Query: view.Query, Team: view.PeopleTeam, Location: view.PeopleLocation, EligibleOnly: view.PeopleEligibleOnly,
 			Teams:     peopleFilterOptions(peopleFacetOptions(population, func(person Person) string { return person.Team })),
 			Locations: peopleFilterOptions(peopleFacetOptions(population, func(person Person) string { return person.Location })),
-			Sort:      view.PeopleSort, Direction: view.PeopleDirection,
+			Sort:      view.PeopleSort, Direction: view.PeopleDirection, Columns: view.PeopleColumns,
 			PageSize: view.PeoplePageSize,
 			Action:   pageHref(PagePeople), ClearHref: peopleClearHref(view),
 			NavCollapsed: view.NavCollapsed, Navigate: view.Navigate,
@@ -98,6 +99,9 @@ func peopleDirectoryInputKey(props PeopleDirectoryProps) string {
 	}
 	for _, row := range props.Rows {
 		write(row.ID, row.Name, row.WorkerNumber, row.Role, row.Team, row.Manager, row.Location, row.PhotoURL, row.Href, row.WorkflowsUnavailableReason)
+		for _, value := range row.ExtraValues {
+			write(value)
+		}
 		for _, action := range row.QuickActions {
 			write(action.Label, action.AccessibleLabel, action.Href, strconv.FormatBool(action.Frequent))
 		}
@@ -128,25 +132,20 @@ func peopleFilterOptions(values []string) []PeopleFilterOption {
 func peopleSortColumns(view View) []PeopleSortColumnProps {
 	active := normalizePeopleSort(view.PeopleSort)
 	direction := normalizePeopleDirection(view.PeopleDirection)
-	columns := []struct {
-		field string
-		label string
-	}{
-		{peopleSortName, view.Locale.Text("people.column.person")},
-		{peopleSortRole, view.Locale.Text("people.column.role")},
-		{peopleSortTeam, view.Locale.Text("people.column.team")},
-		{peopleSortManager, view.Locale.Text("people.column.manager")},
-		{peopleSortLocation, view.Locale.Text("people.column.location")},
-	}
+	columns := peopleColumnDefinitions()
+	selected := "," + NormalizePeopleColumns(view.PeopleColumns) + ","
 	result := make([]PeopleSortColumnProps, 0, len(columns))
 	for _, column := range columns {
+		if !strings.Contains(selected, ","+column.ID+",") {
+			continue
+		}
 		nextDirection := peopleSortAscending
-		if active == column.field && direction == peopleSortAscending {
+		if active == column.ID && direction == peopleSortAscending {
 			nextDirection = peopleSortDescending
 		}
 		result = append(result, PeopleSortColumnProps{
-			ID: column.field, Label: column.label, Active: active == column.field, Descending: active == column.field && direction == peopleSortDescending,
-			Href: peopleDirectoryHref(view, 1, view.Query, view.PeopleTeam, view.PeopleLocation, view.PeopleEligibleOnly, column.field, nextDirection), Navigate: view.Navigate,
+			ID: column.ID, Label: view.Locale.Text(column.LabelKey), Active: active == column.ID, Descending: active == column.ID && direction == peopleSortDescending,
+			Href: peopleDirectoryHref(view, 1, view.Query, view.PeopleTeam, view.PeopleLocation, view.PeopleEligibleOnly, column.ID, nextDirection), Navigate: view.Navigate,
 		})
 	}
 	return result
@@ -166,8 +165,11 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 		if identity.WorkerNumberStatus == WorkerFactPresent {
 			workerNumber = identity.WorkerNumber
 		}
+		extra := extraPeopleValues(person)
+		extra[0] = workerNumber
 		rows = append(rows, PeopleRowProps{
-			ID: person.ID, Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Name, WorkerNumber: workerNumber, Role: identity.Role, Team: person.Team,
+			ExtraValues: extra,
+			ID:          person.ID, Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Name, WorkerNumber: workerNumber, Role: identity.Role, Team: person.Team,
 			Manager: person.Manager, Location: person.Location, Navigate: view.Navigate,
 			Href: peoplePersonHref(view, person.ID, window.Page), QuickActions: projection.Actions,
 			WorkflowsUnavailableReason: projection.Reason,
@@ -250,7 +252,7 @@ func peoplePaginationProps(view View, window peoplePageWindow) PeoplePaginationP
 		Next:     paginationLinkProps(view, view.Locale.Text("common.next"), window.Page+1, window.Page >= window.PageCount),
 		PageSize: pageSizeControlProps(view, PagePeople, "page_size", view.PeoplePageSize, map[string]string{
 			"q": view.Query, "team": view.PeopleTeam, "location": view.PeopleLocation, "eligible": eligibleQueryValue(view.PeopleEligibleOnly),
-			"sort": view.PeopleSort, "dir": view.PeopleDirection,
+			"sort": view.PeopleSort, "dir": view.PeopleDirection, "columns": view.PeopleColumns,
 		}),
 	}
 }
@@ -272,6 +274,7 @@ func peopleDirectoryHref(view View, page int, query, team, location string, elig
 		direction = ""
 	}
 	return statefulHref(view, PagePeople,
+		"columns", peopleColumnsQueryValue(view.PeopleColumns),
 		"q", strings.TrimSpace(query), "team", strings.TrimSpace(team), "location", strings.TrimSpace(location),
 		"eligible", eligibleQueryValue(eligibleOnly),
 		"sort", sortField, "dir", direction, "page", peoplePageValue(page), "page_size", pageSizeValue(view.PeoplePageSize))
@@ -297,6 +300,7 @@ func peoplePersonHref(view View, personID string, page int) string {
 		direction = ""
 	}
 	return statefulHref(view, PagePerson,
+		"columns", peopleColumnsQueryValue(view.PeopleColumns),
 		"person", personID, "q", view.Query, "team", view.PeopleTeam, "location", view.PeopleLocation,
 		"eligible", eligibleQueryValue(view.PeopleEligibleOnly),
 		"sort", sortField, "dir", direction, "page", peoplePageValue(page), "page_size", pageSizeValue(view.PeoplePageSize))

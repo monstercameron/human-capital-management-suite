@@ -15,10 +15,11 @@ const RefreshRegionPeopleDirectory = "people-directory"
 // surface. It contains presentation state only and no service or credential.
 type PeoplePageProps struct {
 	I18nProps
-	Summary   PeopleSummaryProps
-	Filter    PeopleFilterProps
-	Directory *PeopleDirectoryProps
-	Empty     PeopleEmptyStateProps
+	Summary       PeopleSummaryProps
+	Filter        PeopleFilterProps
+	ColumnChooser ColumnChooserProps
+	Directory     *PeopleDirectoryProps
+	Empty         PeopleEmptyStateProps
 }
 
 // PeopleSummaryProps contains the two already-formatted directory summary
@@ -33,16 +34,18 @@ type PeopleSummaryProps struct {
 // software navigation in the WASM client.
 type PeopleFilterProps struct {
 	I18nProps
-	Query        string
-	Team         string
-	Location     string
-	EligibleOnly bool
-	Teams        []PeopleFilterOption
-	Locations    []PeopleFilterOption
-	Sort         string
-	Direction    string
-	Action       string
-	ClearHref    string
+	Query         string
+	Team          string
+	Location      string
+	EligibleOnly  bool
+	Teams         []PeopleFilterOption
+	Locations     []PeopleFilterOption
+	Sort          string
+	Direction     string
+	Columns       string
+	ColumnChooser ColumnChooserProps
+	Action        string
+	ClearHref     string
 	// PageSize is carried through filter submissions so changing a filter
 	// does not silently reset a user's chosen table density. A zero value is
 	// treated as the default by the page adapter.
@@ -125,6 +128,7 @@ type PeopleRowProps struct {
 	Manager      string
 	Location     string
 	Href         string
+	ExtraValues  [6]string
 	QuickActions []PeopleQuickActionProps
 	Navigate     func(string)
 	// WorkflowsUnavailableReason is the server-provided explanation shown
@@ -195,6 +199,7 @@ type PeopleEmptyStateProps struct {
 // PeoplePage composes the independently testable People components.
 func PeoplePage(props PeoplePageProps) ui.Node {
 	props.Filter.I18nProps = props.I18nProps
+	props.Filter.ColumnChooser = props.ColumnChooser
 	props.Empty.I18nProps = props.I18nProps
 	children := []ui.Node{
 		ui.CreateElement(PeopleSummary, props.Summary),
@@ -271,7 +276,7 @@ func peopleFilterForm(props PeopleFilterProps, input ui.Node, teamProps, locatio
 			html.Div(html.Props{Class: "people-filter-actions"}, actions...),
 		),
 	}
-	for _, field := range []struct{ name, value string }{{"sort", props.Sort}, {"dir", props.Direction}} {
+	for _, field := range []struct{ name, value string }{{"sort", props.Sort}, {"dir", props.Direction}, {"columns", props.Columns}} {
 		if field.value != "" {
 			children = append(children, html.Tag("input", html.Props{Name: field.name, Value: field.value, Raw: map[string]any{"type": "hidden"}}))
 		}
@@ -285,7 +290,13 @@ func peopleFilterForm(props PeopleFilterProps, input ui.Node, teamProps, locatio
 	if props.NavCollapsed {
 		children = append(children, html.Tag("input", html.Props{Name: "nav", Value: "collapsed", Raw: map[string]any{"type": "hidden"}}))
 	}
-	return html.Form(formProps, children...)
+	if len(props.ColumnChooser.Options) == 0 {
+		return html.Form(formProps, children...)
+	}
+	return html.Section(html.Props{Class: "people-search-panel", Aria: map[string]string{"label": props.Text("people.find")}},
+		html.Form(formProps, children...),
+		ui.CreateElement(ColumnChooser, props.ColumnChooser),
+	)
 }
 
 // PeopleDirectory composes the table and its pager as one bordered surface.
@@ -435,7 +446,7 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 			Children: []ui.Node{html.Ul(html.Props{Class: "people-workflow-options-list"}, actions...)},
 		})}
 	}
-	return DataTableRowProps{ID: props.ID, Class: "people-row-item people-row", Cells: []DataTableCellProps{
+	row := DataTableRowProps{ID: props.ID, Class: "people-row-item people-row", Cells: []DataTableCellProps{
 		{ColumnID: peopleSortName, RowHeader: true, Children: []ui.Node{softwareLink(props.Navigate, html.Props{Class: "person-cell people-person-link"}, props.Href,
 			personAvatar(props.Name, props.Initials, props.PhotoURL, ""), html.Span(html.Props{Class: "people-identity"}, identity...))}},
 		{ColumnID: peopleSortRole, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Role)},
@@ -444,6 +455,10 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 		{ColumnID: peopleSortLocation, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Location)},
 		{ColumnID: "actions", Class: "people-row-actions", Children: cellChildren},
 	}}
+	for i, column := range peopleColumnDefinitions()[5:] {
+		row.Cells = append(row.Cells, DataTableCellProps{ColumnID: column.ID, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.ExtraValues[i])})
+	}
+	return row
 }
 
 // PeoplePagination renders the current range and resolved page actions.

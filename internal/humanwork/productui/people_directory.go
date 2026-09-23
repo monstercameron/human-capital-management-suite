@@ -19,6 +19,12 @@ const (
 	PeopleSortManager
 	// PeopleSortLocation orders by location.
 	PeopleSortLocation
+	PeopleSortWorkerNumber
+	PeopleSortJobCode
+	PeopleSortGrade
+	PeopleSortCompany
+	PeopleSortBusinessUnit
+	PeopleSortCostCenter
 )
 
 // PeopleSortDirection is the typed directory sort direction.
@@ -36,15 +42,10 @@ const (
 // sortKey resolves a typed field to the directory's sort
 // vocabulary.
 func (field PeopleSortField) sortKey() string {
-	switch field {
-	case PeopleSortRole:
-		return peopleSortRole
-	case PeopleSortTeam:
-		return peopleSortTeam
-	case PeopleSortManager:
-		return peopleSortManager
-	case PeopleSortLocation:
-		return peopleSortLocation
+	for _, column := range peopleColumnDefinitions() {
+		if column.Sort == field {
+			return column.ID
+		}
 	}
 	return peopleSortName
 }
@@ -54,17 +55,11 @@ func (field PeopleSortField) sortKey() string {
 // ascending defaults for empty and unrecognized values.
 func ParsePeopleSort(rawField, rawDirection string) (PeopleSortField, PeopleSortDirection) {
 	var field PeopleSortField
-	switch strings.ToLower(strings.TrimSpace(rawField)) {
-	case peopleSortRole:
-		field = PeopleSortRole
-	case peopleSortTeam:
-		field = PeopleSortTeam
-	case peopleSortManager:
-		field = PeopleSortManager
-	case peopleSortLocation:
-		field = PeopleSortLocation
-	default:
-		field = PeopleSortName
+	for _, column := range peopleColumnDefinitions() {
+		if column.ID == strings.ToLower(strings.TrimSpace(rawField)) {
+			field = column.Sort
+			break
+		}
 	}
 	direction := PeopleSortAscending
 	if strings.EqualFold(strings.TrimSpace(rawDirection), peopleSortDescending) {
