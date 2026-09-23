@@ -1009,6 +1009,38 @@ paths:
       x-hcmnext-rpc-kind: READ
       x-hcmnext-registered: false
       x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetChannelPoll:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetChannelPoll
+      operationId: ChatExtensionsService_GetChannelPoll
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetChannelPollRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetChannelPollResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
   /hcmnext.chat.v1.ChatExtensionsService/GetChannelTodoList:
     post:
       tags:
@@ -1383,6 +1415,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/hcmnext.chat.v1.ModerateAbuseResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/MutateChannelPoll:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: MutateChannelPoll
+      operationId: ChatExtensionsService_MutateChannelPoll
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.MutateChannelPollRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.MutateChannelPollResponse'
         default:
           description: Connect error. The HTTP status follows the edge's canonical error projection.
           content:
@@ -7707,6 +7771,39 @@ components:
         json:
           type: string
           format: byte
+    hcmnext.chat.v1.ChannelPoll:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelPoll`.
+      properties:
+        conversationId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ChannelPollOption'
+        myOptionId:
+          type: string
+        totalVotes:
+          type: integer
+          format: uint32
+          minimum: 0
+    hcmnext.chat.v1.ChannelPollOption:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelPollOption`.
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        voteCount:
+          type: integer
+          format: uint32
+          minimum: 0
     hcmnext.chat.v1.ChannelProjectMilestone:
       type: object
       description: Protobuf message `hcmnext.chat.v1.ChannelProjectMilestone`.
@@ -8101,6 +8198,20 @@ components:
         json:
           type: string
           format: byte
+    hcmnext.chat.v1.GetChannelPollRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetChannelPollRequest`.
+      properties:
+        conversationId:
+          type: string
+        hostTenantId:
+          type: string
+    hcmnext.chat.v1.GetChannelPollResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetChannelPollResponse`.
+      properties:
+        poll:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelPoll'
     hcmnext.chat.v1.GetChannelTodoListRequest:
       type: object
       description: Protobuf message `hcmnext.chat.v1.GetChannelTodoListRequest`.
@@ -8525,6 +8636,33 @@ components:
         json:
           type: string
           format: byte
+    hcmnext.chat.v1.MutateChannelPollRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.MutateChannelPollRequest`.
+      properties:
+        conversationId:
+          type: string
+        hostTenantId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        operation:
+          type: string
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        optionId:
+          type: string
+    hcmnext.chat.v1.MutateChannelPollResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.MutateChannelPollResponse`.
+      properties:
+        poll:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelPoll'
     hcmnext.chat.v1.MutateChannelTodoListRequest:
       type: object
       description: Protobuf message `hcmnext.chat.v1.MutateChannelTodoListRequest`.
