@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -155,6 +156,11 @@ type PrincipalSpec struct {
 	SessionRef string
 	// DelegationRefs reference active delegation grants, if any.
 	DelegationRefs []string
+	// Confirmation carries the token's sender-constraint coordinates (DPoP
+	// jkt, mTLS x5t#S256) when the credential is sender-constrained. Empty
+	// for bearer credentials. Enforcement points match proof material
+	// against it; it never authorizes by itself.
+	Confirmation map[string]string
 	// IssuedAt and ExpiresAt bound the credential's validity.
 	IssuedAt  time.Time
 	ExpiresAt time.Time
@@ -191,6 +197,7 @@ type Principal struct {
 	assurance            Assurance
 	sessionRef           string
 	delegationRefs       []string
+	confirmation         map[string]string
 	issuedAt             time.Time
 	expiresAt            time.Time
 	credentialDigest     string
@@ -243,6 +250,7 @@ func NewPrincipal(spec PrincipalSpec) (*Principal, error) {
 		assurance:            spec.Assurance,
 		sessionRef:           spec.SessionRef,
 		delegationRefs:       normalizeSet(spec.DelegationRefs),
+		confirmation:         cloneConfirmation(spec.Confirmation),
 		issuedAt:             spec.IssuedAt.UTC(),
 		expiresAt:            spec.ExpiresAt.UTC(),
 		credentialDigest:     spec.CredentialDigest,
@@ -305,6 +313,20 @@ func (p *Principal) SessionRef() string { return p.sessionRef }
 // DelegationRefs returns a copy of the active delegation references.
 func (p *Principal) DelegationRefs() []string { return slices.Clone(p.delegationRefs) }
 
+// Confirmation returns a copy of the token's sender-constraint coordinates,
+// or nil for a Bearer [REDACTED] Enforcement points match DPoP or mutual-TLS
+// proof material against it.
+func (p *Principal) Confirmation() map[string]string { return maps.Clone(p.confirmation) }
+
+// cloneConfirmation copies confirmation coordinates so the immutable
+// principal never aliases caller-owned maps.
+func cloneConfirmation(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	return maps.Clone(in)
+}
+
 // IssuedAt returns the credential issuance instant in UTC.
 func (p *Principal) IssuedAt() time.Time { return p.issuedAt }
 
@@ -347,6 +369,18 @@ func (p *Principal) computeFingerprint() string {
 		}
 		h.Write([]byte(";"))
 	}
+	writeMap := func(label string, vs map[string]string) {
+		keys := make([]string, 0, len(vs))
+		for k := range vs {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+		fmt.Fprintf(h, "%s{%d}:", label, len(keys))
+		for _, k := range keys {
+			write(k, vs[k])
+		}
+		h.Write([]byte(";"))
+	}
 	write("tenant", p.tenant.String())
 	write("subject", p.subject)
 	write("kind", p.subjectKind.String())
@@ -358,6 +392,7 @@ func (p *Principal) computeFingerprint() string {
 	write("assurance", p.assurance.String())
 	write("session", p.sessionRef)
 	writeSet("delegation", p.delegationRefs)
+	writeMap("confirmation", p.confirmation)
 	write("iat", strconv.FormatInt(p.issuedAt.Unix(), 10))
 	write("exp", strconv.FormatInt(p.expiresAt.Unix(), 10))
 	write("credential", p.credentialDigest)

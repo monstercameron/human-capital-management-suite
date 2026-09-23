@@ -24,6 +24,36 @@ import (
 // test/bootstrap do.
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
 
+func TestTodo_CHAT_043_DevMachineToken(t *testing.T) {
+	key := strings.Repeat("k", 32)
+	at := time.Now().UTC()
+	p, err := parseTokenArgs([]string{"-dev-hmac-key=" + key, "-tenant=tenant-a", "-subject=agent-a", "-subject-kind=agent", "-ttl=15m"}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := mintDevToken(p, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := trust.NewHMACVerifier(trust.HMACVerifierConfig{Key: []byte(key), Issuer: p.issuer, Audience: p.audience, Now: func() time.Time { return at }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := v.Verify(context.Background(), trust.Credential{Scheme: "Bearer", Token: token})
+	if err != nil || identity.SubjectKind() != trust.SubjectKindAgent || identity.Subject() != "agent-a" {
+		t.Fatalf("identity=%+v err=%v", identity, err)
+	}
+	if len(identity.Roles()) != 0 || len(identity.Purposes()) != 1 || identity.Purposes()[0] != "chat_integration" {
+		t.Fatalf("machine roles=%v purposes=%v", identity.Roles(), identity.Purposes())
+	}
+	if _, err := parseTokenArgs([]string{"-dev-hmac-key=" + key, "-tenant=tenant-a", "-subject=agent-a", "-subject-kind=agent"}, io.Discard); err == nil {
+		t.Fatal("long-lived machine credential accepted")
+	}
+	if _, err := parseTokenArgs([]string{"-dev-hmac-key=" + key, "-tenant=tenant-a", "-subject=agent-a", "-subject-kind=agent", "-ttl=15m", "-roles=comp_admin"}, io.Discard); err == nil {
+		t.Fatal("machine human role accepted")
+	}
+}
+
 // newTokenTestCell migrates a private schema and composes a real cell whose
 // Verifier is the HMAC verifier under key, issuer and audience - exactly the
 // shape "hcmnext serve" builds in buildServe. Tests in this file use it to

@@ -74,6 +74,13 @@ type HMACVerifierConfig struct {
 	MaxTokenBytes int
 }
 
+// MaxDevLifetime is the longest validity window a development token may
+// carry. Development tokens are contained by the local-dev profile, not by
+// short lifetimes, but a window above this ceiling is refused outright:
+// nothing mints a development credential that outlives a day. Machine
+// tokens carry their own fifteen-minute cap in the machine package.
+const MaxDevLifetime = 24 * time.Hour
+
 // HMACVerifier is the deterministic development and test [Verifier]: an
 // HMAC-SHA256 signed bearer token whose payload is a strict JSON [Claims].
 //
@@ -207,6 +214,13 @@ func (v *HMACVerifier) Verify(_ context.Context, cred Credential) (*Principal, e
 	}
 	if now.Before(issuedAt.Add(-v.leeway)) {
 		return nil, fmt.Errorf("%w: not valid until %s", ErrExpiredCredential, issuedAt.Format(time.RFC3339))
+	}
+	// INTAPI-002: development tokens are profile-contained, not
+	// lifetime-free. A window above the dev maximum is refused even when
+	// it has not expired yet; machine tokens carry their own
+	// fifteen-minute cap in the machine package.
+	if expiresAt.Sub(issuedAt) > MaxDevLifetime {
+		return nil, fmt.Errorf("%w: window exceeds %s", ErrExpiredCredential, MaxDevLifetime)
 	}
 
 	assurance, ok := parseAssurance(claims.Assurance)

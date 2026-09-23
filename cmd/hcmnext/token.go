@@ -40,6 +40,7 @@ type tokenParams struct {
 	audience string
 	tenant   string
 	subject  string
+	kind     string
 	roles    []string
 	purpose  string
 	orgScope string
@@ -69,6 +70,7 @@ func parseTokenArgs(args []string, stderr io.Writer) (tokenParams, error) {
 	audience := fs.String("audience", defaultAudience, "the audience to mint for; must match the target listener's -audience")
 	tenant := fs.String("tenant", "", "tenant slug the credential is issued for (required)")
 	subject := fs.String("subject", "", "opaque subject identifier the credential authenticates (required)")
+	kind := fs.String("subject-kind", "human", "authenticated actor kind: human, agent, or integration")
 	roles := fs.String("roles", defaultTokenRoles, "comma-separated role identifiers granted to the credential")
 	purpose := fs.String("purpose", defaultTokenPurpose, "purpose of processing the credential is authorized for")
 	orgScope := fs.String("org-scope", "", "organization scope the subject acts within; required to create intents (the kernel refuses an intent with no organization_scope_id)")
@@ -91,6 +93,24 @@ func parseTokenArgs(args []string, stderr io.Writer) (tokenParams, error) {
 	if *ttl <= 0 {
 		problems = append(problems, "-ttl must be positive")
 	}
+	if *kind != "human" && *kind != "agent" && *kind != "integration" {
+		problems = append(problems, "-subject-kind must be human, agent, or integration")
+	}
+	if *kind != "human" && *ttl > 15*time.Minute {
+		problems = append(problems, "machine credentials must live at most 15m; set -ttl")
+	}
+	if *kind != "human" {
+		fs.Visit(func(f *flag.Flag) {
+			if f.Name == "roles" && strings.TrimSpace(f.Value.String()) != "" {
+				problems = append(problems, "machine credentials cannot carry human roles")
+			}
+			if f.Name == "purpose" && f.Value.String() != "chat_integration" {
+				problems = append(problems, "machine credentials require chat_integration purpose")
+			}
+		})
+		*roles = ""
+		*purpose = "chat_integration"
+	}
 	if len(problems) > 0 {
 		return tokenParams{}, fmt.Errorf("hcmnext token: %s", strings.Join(problems, "; "))
 	}
@@ -101,6 +121,7 @@ func parseTokenArgs(args []string, stderr io.Writer) (tokenParams, error) {
 		audience: *audience,
 		tenant:   *tenant,
 		subject:  *subject,
+		kind:     *kind,
 		roles:    splitAndTrim(*roles),
 		purpose:  *purpose,
 		orgScope: strings.TrimSpace(*orgScope),
@@ -124,11 +145,13 @@ func splitAndTrim(s string) []string {
 // credential's validity window from now. It is the whole of what "hcmnext
 // token" does; everything else in this file is flag parsing and printing.
 //
-// The claims it fills in beyond p's own fields are fixed, not flagged,
-// because they describe how this CLI authenticated the operator running it,
-// not a choice the operator makes per credential: a human, at substantial
-// assurance, via a bearer token, in a session this CLI invocation itself is.
+// Assurance and authentication method are fixed by the development issuer.
+// Subject kind is explicit so a local agent can use its own short-lived
+// identity rather than borrowing a person's credential.
 func mintDevToken(p tokenParams, now time.Time) (string, error) {
+	if p.kind == "" {
+		p.kind = "human"
+	}
 	verifier, err := trust.NewHMACVerifier(trust.HMACVerifierConfig{
 		Key:      []byte(p.hmacKey),
 		Issuer:   p.issuer,
@@ -141,7 +164,7 @@ func mintDevToken(p tokenParams, now time.Time) (string, error) {
 		Issuer:               p.issuer,
 		Audience:             p.audience,
 		Subject:              p.subject,
-		SubjectKind:          "human",
+		SubjectKind:          p.kind,
 		Tenant:               p.tenant,
 		OrganizationScopeID:  p.orgScope,
 		Roles:                p.roles,
