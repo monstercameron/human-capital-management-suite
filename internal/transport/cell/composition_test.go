@@ -44,7 +44,7 @@ func TestComposedHTTPHandlerUsesOperationStore(t *testing.T) {
 	h, err := NewEdgeHandlerWithDependencies(&app.Cell{
 		Config:    transporttest.Config(verifier, func() time.Time { return now }, "cell-composition", nil),
 		Discovery: &manifest.DiscoveryDocument{},
-	}, nil, nil, store, []byte("cell-composition-cursor-key"), transporthumanwork.WritePorts{})
+	}, nil, nil, store, []byte("cell-composition-cursor-key"), nil, transporthumanwork.WritePorts{}, nil)
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithDependencies: %v", err)
 	}
@@ -83,10 +83,15 @@ func TestComposedHTTPHandlerUsesWorkflowReader(t *testing.T) {
 		TenantID: tenantID, InstanceID: instanceID, WorkflowID: "promotion", WorkflowVersion: 3,
 		RuntimeStatus: runtime.InstanceRunning, InstanceVersion: 9,
 	}}}
+	// RBAC-RT-004: the composed edge authorizes through the durable hook,
+	// so the fixture grants its subject the durable operator role; without
+	// it the composed call is refused before it reaches the reader.
 	h, err := NewEdgeHandlerWithDependencies(&app.Cell{
 		Config:    transporttest.Config(verifier, func() time.Time { return now }, "cell-workflow-composition", nil),
 		Discovery: &manifest.DiscoveryDocument{},
-	}, reader, nil, nil, []byte("cell-workflow-cursor-key"), transporthumanwork.WritePorts{})
+		RoleAccess: hookStore{snapshot: assignmentSnapshot(transporttest.Subject,
+			"hcmnext.trust.role.operator")},
+	}, reader, nil, nil, []byte("cell-workflow-cursor-key"), nil, transporthumanwork.WritePorts{}, nil)
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithDependencies: %v", err)
 	}

@@ -21,14 +21,60 @@ import (
 // TunnelPath is the edge route the gRPC-over-WebSocket bridge is mounted on.
 //
 // It is one path, not a subtree: a browser client dials exactly this address
-// and every canonical gRPC service registered on the shared *grpc.Server is
-// reachable through it by its own fully qualified method name. Nothing is
-// projected, renamed or re-published here.
-// TunnelPath sits under the workspace prefix on purpose: the dev-login
-// session cookie the browser presents on the upgrade is scoped to
-// RoutePrefix ("/workspace/"), and a WebSocket opened outside that path
-// would carry no credential at all.
+// and only the workspace services the page uses are reachable through it by
+// their own fully qualified method names. Nothing is projected, renamed or
+// re-published here; the operator surfaces on the bridged server's sibling
+// simply are not registered there. TunnelPath sits under the workspace
+// prefix on purpose: the dev-login session cookie the browser presents on
+// the upgrade is scoped to RoutePrefix ("/workspace/"), and a WebSocket
+// opened outside that path would carry no credential at all.
 const TunnelPath = "/workspace/grpc"
+
+// tunnelAllowedServices is the closed set of gRPC services the tunnel
+// bridges, keyed by fully qualified service name. Only the services the
+// workspace page itself calls are reachable: the intent and journey
+// surfaces the page renders, the workflow surface its authoring client
+// reads, and the work surface its queue pages read. Everything else on the
+// main server — AdminService, OnboardingService, RegistryService,
+// OperationsService, health, chat, evidence — stays on the direct gRPC
+// surface where operator and service credentials, not a browser session,
+// admit. The set is closed on purpose: a service joins it by an explicit
+// edit here plus a registration in [NewTunnelGRPCServer], and
+// TestTunnelServesOnlyWorkspaceServices fails if the two ever disagree.
+// Entries named false document a service that was deliberately kept off
+// the tunnel, so a reader never wonders whether it was forgotten.
+var tunnelAllowedServices = map[string]bool{
+	"hcmnext.intents.v1.IntentService":          true,
+	"hcmnext.journey.v1.JourneyService":         true,
+	"hcmnext.workflow.v1.WorkflowService":       true,
+	"hcmnext.humanwork.v1.WorkService":          true,
+	"hcmnext.admin.v1.AdminService":             false,
+	"hcmnext.admin.v1.OnboardingService":        false,
+	"hcmnext.registry.v1.RegistryService":       false,
+	"hcmnext.evidence.v1.OperationsService":     false,
+	"grpc.health.v1.Health":                     false,
+	"hcmnext.chat.v1.ConversationService":       true,
+	"hcmnext.chat.v1.ChatExtensionsService":     true,
+	"hcmnext.document.v1.DocumentService":       true,
+	"hcmnext.evidence.v1.EvidenceService":       false,
+	"hcmnext.dataops.v1.DataOpsService":         false,
+	"hcmnext.integration.v1.IntegrationService": false,
+}
+
+// tunnelAllowsService reports whether the tunnel bridges the gRPC method at
+// path ("/package.Service/Method"). Unknown services fail closed: only an
+// explicitly allowed workspace service passes.
+func tunnelAllowsService(path string) bool {
+	if len(path) == 0 || path[0] != '/' {
+		return false
+	}
+	rest := path[1:]
+	slash := strings.LastIndexByte(rest, '/')
+	if slash < 0 {
+		return false
+	}
+	return tunnelAllowedServices[rest[:slash]]
+}
 
 // tunnelSessionMaxLifetime bounds how long one tunnel session may outlive the
 // authorization its upgrade request was admitted under. A browser whose
@@ -56,10 +102,13 @@ const tunnelMaxConnectionsPerClient = 8
 // A browser cannot open the raw TCP connection native gRPC needs, so a
 // browser-resident GoWebComponents/WASM client would otherwise need an
 // HTTP/JSON projection of the business surface to talk to. The Promotion
-// journey page uses none: it dials this route and calls the canonical
-// services (hcmnext.intents.v1.IntentService, hcmnext.journey.v1.JourneyService)
+// journey page uses none: it dials this route and calls the workspace
+// services (IntentService, JourneyService, WorkflowService, WorkService)
 // over real gRPC frames carried on a WebSocket. There is exactly one
-// contract, and the page is a client of it.
+// contract, and the page is a client of it. The bridged server carries
+// only those services — [NewTunnelGRPCServer] builds it — so the operator
+// surfaces are unreachable here no matter what credential the socket
+// holds.
 //
 // # Admission, twice
 //
@@ -97,29 +146,34 @@ const tunnelMaxConnectionsPerClient = 8
 // publishing it there would make that list a list of two different things.
 // The tunnel is discovered the way it is reached: by the page shell that
 // hands its URL to the client (workspace.PathJourney's config island).
-func NewEdgeHandlerWithTunnel(c *app.Cell, grpcServer *grpc.Server, opts ...connect.HandlerOption) (http.Handler, error) {
-	return NewEdgeHandlerWithTunnelAndDependencies(c, grpcServer, nil, nil, nil, nil, transporthumanwork.WritePorts{}, opts...)
+func NewEdgeHandlerWithTunnel(c *app.Cell, tunnelServer *grpc.Server, opts ...connect.HandlerOption) (http.Handler, error) {
+	return NewEdgeHandlerWithTunnelAndDependencies(c, tunnelServer, nil, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil, opts...)
 }
 
 // NewEdgeHandlerWithTunnelAndDependencies is [NewEdgeHandlerWithTunnel] with
 // the durable workflow and operation dependencies used by the application
-// composition. The tunnel and HTTP edge therefore publish the same handlers.
+// composition. tunnelServer is the workspace-only server
+// [NewTunnelGRPCServer] builds: bridging the main server here would expose
+// every registered service, including the operator-only AdminService, to
+// the browser route.
 func NewEdgeHandlerWithTunnelAndDependencies(
-	c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader,
+	c *app.Cell, tunnelServer *grpc.Server, instances app.WorkflowInstanceReader,
 	workQueue app.WorkItemQueueReader,
-	operationStore transportoperations.Store, cursorKey []byte, workWrites transporthumanwork.WritePorts, opts ...connect.HandlerOption,
+	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
+	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds, opts ...connect.HandlerOption,
 ) (http.Handler, error) {
-	if grpcServer == nil {
+	if tunnelServer == nil {
 		return nil, fmt.Errorf("transport cell: a gRPC server is required to mount the tunnel")
 	}
-	return buildEdgeHandlerWithDependencies(c, grpcServer, instances, workQueue, operationStore, cursorKey, workWrites, opts...)
+	return buildEdgeHandlerWithDependencies(c, tunnelServer, instances, workQueue, operationStore, cursorKey, previousCursorKey, workWrites, thresholds, opts...)
 }
 
 // newTunnelHandler builds the bridge handler for one composed cell.
+// tunnelServer is the workspace-only server [NewTunnelGRPCServer] builds.
 // publicHost is the host[:port] of the cell's declared public origin, or
 // empty when the cell is reached directly.
-func newTunnelHandler(c *app.Cell, grpcServer *grpc.Server, publicHost string) (http.Handler, error) {
-	handler, err := grpctunnel.BuildBridgeHandler(grpcServer, grpctunnel.BridgeConfig{
+func newTunnelHandler(c *app.Cell, tunnelServer *grpc.Server, publicHost string) (http.Handler, error) {
+	handler, err := grpctunnel.BuildBridgeHandler(tunnelServer, grpctunnel.BridgeConfig{
 		CheckOrigin:             tunnelOriginCheck(publicHost),
 		Authorize:               tunnelAuthorizer(c.Config, c.DevBrowserLogin()),
 		SessionMaxLifetime:      tunnelSessionMaxLifetime,
@@ -141,17 +195,19 @@ func newTunnelHandler(c *app.Cell, grpcServer *grpc.Server, publicHost string) (
 //
 // It compares the Origin header's host to the request's own Host rather than
 // consulting a configured allowlist, because the only browser client of this
-// route is the page this same edge served. A request with no Origin header at
-// all is allowed: that is a non-browser client (a native Go client, a test,
-// a CLI), for which the header is absent by protocol rather than withheld,
-// and which is authenticated by [tunnelAuthorizer] like every other caller.
+// route is the page this same edge served. A request with no Origin header
+// at all is refused: browsers always send Origin on a WebSocket upgrade, so
+// a missing header positively identifies a client that is not a browser
+// holding the page — a native Go client, a test, a CLI — and those use the
+// direct gRPC surface, where the same credential admits them, instead of
+// borrowing the page's route.
 func sameOriginOnly(r *http.Request) bool {
 	if r == nil {
 		return false
 	}
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
-		return true
+		return false
 	}
 	parsed, err := url.Parse(origin)
 	if err != nil || parsed.Host == "" {

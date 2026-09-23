@@ -28,13 +28,16 @@ import (
 	// complete by matching the registered files against schema/proto.
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/capabilities/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/dataops/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/evidence/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/humanwork/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/integration/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 )

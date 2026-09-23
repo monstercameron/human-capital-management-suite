@@ -102,7 +102,7 @@ func TestSameOriginOnly(t *testing.T) {
 		origin string
 		want   bool
 	}{
-		{name: "absent origin is a non-browser client", host: "cell.test", origin: "", want: true},
+		{name: "absent origin is not a browser holding the page", host: "cell.test", origin: "", want: false},
 		{name: "same origin over http", host: "cell.test", origin: "http://cell.test", want: true},
 		{name: "same origin over https", host: "cell.test", origin: "https://cell.test", want: true},
 		{name: "same host and port", host: "cell.test:8080", origin: "http://cell.test:8080", want: true},
@@ -152,8 +152,8 @@ func TestTunnelOriginCheckAcceptsTheDeclaredPublicOrigin(t *testing.T) {
 	if check(upgrade("https://evil.example")) {
 		t.Fatal("an unrelated origin must not admit")
 	}
-	if !check(upgrade("")) {
-		t.Fatal("a non-browser client carries no Origin and admits as before")
+	if check(upgrade("")) {
+		t.Fatal("a client with no Origin is not a browser holding the page and must not admit")
 	}
 	if check(nil) {
 		t.Fatal("a nil request must not pass")

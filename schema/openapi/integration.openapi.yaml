@@ -1427,7 +1427,7 @@ paths:
       tags:
         - Work items
       summary: Claim a work item
-      description: Atomically claims the item for the caller, bound to its current version. The RPC exists but is reachable only over gRPC or the workspace tunnel and lacks durable claim and idempotency ports in production, so the HTTP operation is planned.
+      description: Atomically claims the item for the caller, bound to its current version. The RPC is served with durable claim and idempotency ports in production; the resource-style HTTP alias follows with INTAPI-007.
       parameters:
         - $ref: "#/components/parameters/X-Request-Id"
         - $ref: "#/components/parameters/Idempotency-Key"
@@ -1486,7 +1486,7 @@ paths:
         - oauth2:
             - work.act
       x-hcmnext-todo: REV-055-02
-      x-hcmnext-status: PLANNED
+      x-hcmnext-status: SERVED
       x-hcmnext-rpc: hcmnext.humanwork.v1.WorkService/ClaimWorkItem
       x-hcmnext-write-model: none
   /v1/work-items/{work_item_id}:release:
@@ -1495,7 +1495,7 @@ paths:
       tags:
         - Work items
       summary: Release a work item
-      description: Releases the caller's current claim. The RPC exists but is reachable only over gRPC or the workspace tunnel and lacks durable claim and idempotency ports in production, so the HTTP operation is planned.
+      description: Releases the caller's current claim. The RPC is served with durable claim and idempotency ports in production; the resource-style HTTP alias follows with INTAPI-007.
       parameters:
         - $ref: "#/components/parameters/X-Request-Id"
         - $ref: "#/components/parameters/Idempotency-Key"
@@ -1554,7 +1554,7 @@ paths:
         - oauth2:
             - work.act
       x-hcmnext-todo: REV-055-02
-      x-hcmnext-status: PLANNED
+      x-hcmnext-status: SERVED
       x-hcmnext-rpc: hcmnext.humanwork.v1.WorkService/ReleaseWorkItem
       x-hcmnext-write-model: none
   /v1/work-items/{work_item_id}:complete:
@@ -1563,7 +1563,7 @@ paths:
       tags:
         - Work items
       summary: Complete a work item
-      description: Completes a task with typed output bound to the task and proposal version. The RPC exists but is reachable only over gRPC or the workspace tunnel and lacks durable claim and idempotency ports in production, so the HTTP operation is planned.
+      description: Completes a task with typed output bound to the task and proposal version. The RPC is served with durable claim and idempotency ports in production; the resource-style HTTP alias follows with INTAPI-007.
       parameters:
         - $ref: "#/components/parameters/X-Request-Id"
         - $ref: "#/components/parameters/Idempotency-Key"
@@ -1622,7 +1622,7 @@ paths:
         - oauth2:
             - work.act
       x-hcmnext-todo: REV-055-02
-      x-hcmnext-status: PLANNED
+      x-hcmnext-status: SERVED
       x-hcmnext-rpc: hcmnext.humanwork.v1.WorkService/CompleteWorkItem
       x-hcmnext-write-model: none
   /v1/work-items/{work_item_id}:decideApproval:
@@ -1631,7 +1631,7 @@ paths:
       tags:
         - Work items
       summary: Decide an approval work item
-      description: Records an approve, reject, request-more-information or abstain decision bound to the exact proposal digest. The RPC exists but is reachable only over gRPC or the workspace tunnel and lacks durable claim and idempotency ports in production, so the HTTP operation is planned.
+      description: Records an approve, reject, request-more-information or abstain decision bound to the exact proposal digest. The RPC is served with durable claim and idempotency ports in production; the resource-style HTTP alias follows with INTAPI-007.
       parameters:
         - $ref: "#/components/parameters/X-Request-Id"
         - $ref: "#/components/parameters/Idempotency-Key"
@@ -1690,7 +1690,7 @@ paths:
         - oauth2:
             - work.act
       x-hcmnext-todo: REV-055-02
-      x-hcmnext-status: PLANNED
+      x-hcmnext-status: SERVED
       x-hcmnext-rpc: hcmnext.humanwork.v1.WorkService/DecideApproval
       x-hcmnext-write-model: none
   /v1/operations/{operation_id}:
@@ -10913,7 +10913,7 @@ paths:
       security:
         - oauth2:
             - clients.manage
-      x-hcmnext-todo: INTAPI-002
+      x-hcmnext-todo: INTAPI-001
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: b
   /v1/clients/{client_id}/keys:
@@ -11106,7 +11106,7 @@ paths:
       security:
         - oauth2:
             - clients.manage
-      x-hcmnext-todo: INTAPI-002
+      x-hcmnext-todo: INTAPI-001
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: b
   /oauth2/token:

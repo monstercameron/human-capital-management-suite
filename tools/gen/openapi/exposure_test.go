@@ -92,7 +92,7 @@ func mounted(t *testing.T, server *httptest.Server, path string) bool {
 // httpAliases against the served composition: of every declared procedure,
 // the cell's HTTP edge mounts exactly the listed ones, plus each alias.
 func TestHTTPExposedProceduresMatchTheCellEdge(t *testing.T) {
-	h, err := cell.NewEdgeHandlerWithDependencies(testCell(t), nil, nil, nil, []byte("intapi-008-cursor-key"), transporthumanwork.WritePorts{})
+	h, err := cell.NewEdgeHandlerWithDependencies(testCell(t), nil, nil, nil, []byte("intapi-008-cursor-key"), nil, transporthumanwork.WritePorts{}, nil)
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithDependencies: %v", err)
 	}

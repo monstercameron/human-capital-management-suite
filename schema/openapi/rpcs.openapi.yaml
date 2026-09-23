@@ -29,12 +29,21 @@ tags:
     description: 'OnboardingService is REV-036-01''s generated operator surface for the onboarding pipeline (internal/connectivity/onboarding). Unlike AdminService, which is READ_ONLY/PURE by charter, these methods advance a tenant-scoped onboarding run: they require the operator role and every transition is recorded on the run the application registry owns.'
     x-hcmnext-service: hcmnext.admin.v1.OnboardingService
     x-hcmnext-registered: false
+  - name: ChatExtensionsService
+    x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+    x-hcmnext-registered: false
+  - name: ConversationService
+    x-hcmnext-service: hcmnext.chat.v1.ConversationService
+    x-hcmnext-registered: false
   - name: DataOpsService
     description: |-
       DataOpsService is the P1A HRIS DataOps operator surface: cross-system diff, the effective-date debugger, and the repair recommendation/simulation pair (planning/specs/hris-admin-dataops.md "The P1A Slice and Its Product Test"; planning/next-steps.md "P1A").
 
       Total P1A disposition: every method below is IMPLEMENT. None of them writes a domain, employment, assignment, organization, position, compensation or budget fact, reserves anything, creates a WorkItem or timer, or causes a committed external effect (planning/next-steps.md "P1A" zero-effect ceiling); CreateRepairPlan produces a non-executable recommendation only and SimulateRepair performs a pure in-memory projection.
     x-hcmnext-service: hcmnext.dataops.v1.DataOpsService
+    x-hcmnext-registered: false
+  - name: DocumentService
+    x-hcmnext-service: hcmnext.document.v1.DocumentService
     x-hcmnext-registered: false
   - name: EvidenceService
     description: |-
@@ -79,6 +88,13 @@ tags:
       Fourteen methods are unary and WatchJourney is server-streaming. The stream is admitted exactly as the unary methods are: the shared trusted-request boundary is installed by grpcserver.NewServer as both grpc.ChainUnaryInterceptor(grpcserver.UnaryInterceptor) and grpc.ChainStreamInterceptor(grpcserver.StreamInterceptor), and the two interceptors run the same transport.Admit, the same deadline cap and the same envelope.Error projection over the same code. A streaming handler therefore sees an admitted trust.Principal and transport.Invocation in its context exactly as a unary one does.
     x-hcmnext-service: hcmnext.journey.v1.JourneyService
     x-hcmnext-registered: true
+  - name: NotificationService
+    description: |-
+      NotificationService is the standalone recipient-owned notification feed: paginated reads plus read/pin/archive CAS actions that never enumerate journeys and never approve work or resume a workflow. It exists because the browser feed riding ListJourneys forces journey enumeration for every bell poll; this service answers from the bounded inbox store instead.
+
+      Every message mirrors an inbox store type field for field. This service invents no HCM meaning of its own: the recipient and tenant come from the authenticated principal server-side, page cursors are HMAC-signed and bind principal, tenant and canonical filters with a short expiry, and every mutation compares the CAS version the caller read. A visibility-check failure fails the read outright rather than serving a partial list.
+    x-hcmnext-service: hcmnext.notification.v1.NotificationService
+    x-hcmnext-registered: false
   - name: RegistryService
     description: RegistryService is the authorized, tenant/phase-filtered discovery surface for immutable IntentDefinition and CapabilityDefinition descriptors. See planning/specs/http-grpc-endpoint-contract.md#initial-endpoint-inventory.
     x-hcmnext-service: hcmnext.registry.v1.RegistryService
@@ -897,6 +913,1741 @@ paths:
       x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: false
       x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/AcceptCompanyGrant:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: AcceptCompanyGrant
+      operationId: ChatExtensionsService_AcceptCompanyGrant
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.AcceptCompanyGrantRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.AcceptCompanyGrantResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/ChangeAppStatus:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: ChangeAppStatus
+      operationId: ChatExtensionsService_ChangeAppStatus
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ChangeAppStatusRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ChangeAppStatusResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetAgent:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetAgent
+      operationId: ChatExtensionsService_GetAgent
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetAgentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetAgentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetChannelTodoList:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetChannelTodoList
+      operationId: ChatExtensionsService_GetChannelTodoList
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetChannelTodoListRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetChannelTodoListResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetChannelWidgets:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetChannelWidgets
+      operationId: ChatExtensionsService_GetChannelWidgets
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetChannelWidgetsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetChannelWidgetsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetCounts:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetCounts
+      operationId: ChatExtensionsService_GetCounts
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetCountsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetCountsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetQuietHours:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetQuietHours
+      operationId: ChatExtensionsService_GetQuietHours
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetQuietHoursRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetQuietHoursResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetRetentionPolicy:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetRetentionPolicy
+      operationId: ChatExtensionsService_GetRetentionPolicy
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetRetentionPolicyRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetRetentionPolicyResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetSidebar:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetSidebar
+      operationId: ChatExtensionsService_GetSidebar
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetSidebarRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetSidebarResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/GetThreadFollow:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: GetThreadFollow
+      operationId: ChatExtensionsService_GetThreadFollow
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetThreadFollowRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetThreadFollowResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/InstallApp:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: InstallApp
+      operationId: ChatExtensionsService_InstallApp
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.InstallAppRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.InstallAppResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/InvokeApp:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: InvokeApp
+      operationId: ChatExtensionsService_InvokeApp
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.InvokeAppRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.InvokeAppResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/IssueEventCursor:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: IssueEventCursor
+      operationId: ChatExtensionsService_IssueEventCursor
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.IssueEventCursorRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.IssueEventCursorResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/ListApps:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: ListApps
+      operationId: ChatExtensionsService_ListApps
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ListAppsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ListAppsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/ModerateAbuse:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: ModerateAbuse
+      operationId: ChatExtensionsService_ModerateAbuse
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ModerateAbuseRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ModerateAbuseResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/MutateChannelTodoList:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: MutateChannelTodoList
+      operationId: ChatExtensionsService_MutateChannelTodoList
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.MutateChannelTodoListRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.MutateChannelTodoListResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/MutateChannelWidget:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: MutateChannelWidget
+      operationId: ChatExtensionsService_MutateChannelWidget
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.MutateChannelWidgetRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.MutateChannelWidgetResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/ProposeAgentIntent:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: ProposeAgentIntent
+      operationId: ChatExtensionsService_ProposeAgentIntent
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ProposeAgentIntentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ProposeAgentIntentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/ProposeCompanyGrant:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: ProposeCompanyGrant
+      operationId: ChatExtensionsService_ProposeCompanyGrant
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ProposeCompanyGrantRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ProposeCompanyGrantResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/PullAppEvents:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: PullAppEvents
+      operationId: ChatExtensionsService_PullAppEvents
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.PullAppEventsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.PullAppEventsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/PutQuietHours:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: PutQuietHours
+      operationId: ChatExtensionsService_PutQuietHours
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.PutQuietHoursRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.PutQuietHoursResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/PutRetentionPolicy:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: PutRetentionPolicy
+      operationId: ChatExtensionsService_PutRetentionPolicy
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.PutRetentionPolicyRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.PutRetentionPolicyResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/PutSidebar:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: PutSidebar
+      operationId: ChatExtensionsService_PutSidebar
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.PutSidebarRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.PutSidebarResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/PutThreadFollow:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: PutThreadFollow
+      operationId: ChatExtensionsService_PutThreadFollow
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.PutThreadFollowRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.PutThreadFollowResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/ReportAbuse:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: ReportAbuse
+      operationId: ChatExtensionsService_ReportAbuse
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ReportAbuseRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ReportAbuseResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/RevokeCompanyGrant:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: RevokeCompanyGrant
+      operationId: ChatExtensionsService_RevokeCompanyGrant
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.RevokeCompanyGrantRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.RevokeCompanyGrantResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ChatExtensionsService/SetChannelPolicy:
+    post:
+      tags:
+        - ChatExtensionsService
+      summary: SetChannelPolicy
+      operationId: ChatExtensionsService_SetChannelPolicy
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.SetChannelPolicyRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.SetChannelPolicyResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/AddMembership:
+    post:
+      tags:
+        - ConversationService
+      summary: AddMembership
+      operationId: ConversationService_AddMembership
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.AddMembershipRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.AddMembershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/AddReaction:
+    post:
+      tags:
+        - ConversationService
+      summary: AddReaction
+      operationId: ConversationService_AddReaction
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.AddReactionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.AddReactionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/CreateConversation:
+    post:
+      tags:
+        - ConversationService
+      summary: CreateConversation
+      operationId: ConversationService_CreateConversation
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.CreateConversationRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.CreateConversationResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/CreateShareLink:
+    post:
+      tags:
+        - ConversationService
+      summary: CreateShareLink
+      operationId: ConversationService_CreateShareLink
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.CreateShareLinkRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.CreateShareLinkResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/DeletePost:
+    post:
+      tags:
+        - ConversationService
+      summary: DeletePost
+      operationId: ConversationService_DeletePost
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.DeletePostRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.DeletePostResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: DELETE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/EditPost:
+    post:
+      tags:
+        - ConversationService
+      summary: EditPost
+      operationId: ConversationService_EditPost
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.EditPostRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.EditPostResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/ForwardPost:
+    post:
+      tags:
+        - ConversationService
+      summary: ForwardPost
+      operationId: ConversationService_ForwardPost
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ForwardPostRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ForwardPostResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/GetConversation:
+    post:
+      tags:
+        - ConversationService
+      summary: GetConversation
+      operationId: ConversationService_GetConversation
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetConversationRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetConversationResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/GetPreferences:
+    post:
+      tags:
+        - ConversationService
+      summary: GetPreferences
+      operationId: ConversationService_GetPreferences
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetPreferencesRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetPreferencesResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/GetReadState:
+    post:
+      tags:
+        - ConversationService
+      summary: GetReadState
+      operationId: ConversationService_GetReadState
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.GetReadStateRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.GetReadStateResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/ListConversations:
+    post:
+      tags:
+        - ConversationService
+      summary: ListConversations
+      operationId: ConversationService_ListConversations
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ListConversationsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ListConversationsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/ListMemberships:
+    post:
+      tags:
+        - ConversationService
+      summary: ListMemberships
+      operationId: ConversationService_ListMemberships
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ListMembershipsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ListMembershipsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/ListPins:
+    post:
+      tags:
+        - ConversationService
+      summary: ListPins
+      operationId: ConversationService_ListPins
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ListPinsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ListPinsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/ListPosts:
+    post:
+      tags:
+        - ConversationService
+      summary: ListPosts
+      operationId: ConversationService_ListPosts
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ListPostsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ListPostsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/ListReactions:
+    post:
+      tags:
+        - ConversationService
+      summary: ListReactions
+      operationId: ConversationService_ListReactions
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ListReactionsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ListReactionsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/PinPost:
+    post:
+      tags:
+        - ConversationService
+      summary: PinPost
+      operationId: ConversationService_PinPost
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.PinPostRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.PinPostResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/RemoveMembership:
+    post:
+      tags:
+        - ConversationService
+      summary: RemoveMembership
+      operationId: ConversationService_RemoveMembership
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.RemoveMembershipRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.RemoveMembershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/RemoveReaction:
+    post:
+      tags:
+        - ConversationService
+      summary: RemoveReaction
+      operationId: ConversationService_RemoveReaction
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.RemoveReactionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.RemoveReactionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/ResolveReferences:
+    post:
+      tags:
+        - ConversationService
+      summary: ResolveReferences
+      operationId: ConversationService_ResolveReferences
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ResolveReferencesRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ResolveReferencesResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/ResolveShareLink:
+    post:
+      tags:
+        - ConversationService
+      summary: ResolveShareLink
+      operationId: ConversationService_ResolveShareLink
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.ResolveShareLinkRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.ResolveShareLinkResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/Search:
+    post:
+      tags:
+        - ConversationService
+      summary: Search
+      operationId: ConversationService_Search
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.SearchRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.SearchResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/SendPost:
+    post:
+      tags:
+        - ConversationService
+      summary: SendPost
+      operationId: ConversationService_SendPost
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.SendPostRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.SendPostResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/UnpinPost:
+    post:
+      tags:
+        - ConversationService
+      summary: UnpinPost
+      operationId: ConversationService_UnpinPost
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.UnpinPostRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.UnpinPostResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/UpdateConversation:
+    post:
+      tags:
+        - ConversationService
+      summary: UpdateConversation
+      operationId: ConversationService_UpdateConversation
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.UpdateConversationRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.UpdateConversationResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/UpdatePreferences:
+    post:
+      tags:
+        - ConversationService
+      summary: UpdatePreferences
+      operationId: ConversationService_UpdatePreferences
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.UpdatePreferencesRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.UpdatePreferencesResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/UpdateReadState:
+    post:
+      tags:
+        - ConversationService
+      summary: UpdateReadState
+      operationId: ConversationService_UpdateReadState
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.UpdateReadStateRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.UpdateReadStateResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.chat.v1.ConversationService/WatchConversation:
+    post:
+      tags:
+        - ConversationService
+      summary: WatchConversation streams one conversation's events.
+      description: |-
+        gRPC / gRPC-Web only; not callable as Connect unary JSON.
+
+        WatchConversation streams one conversation's events.
+
+        ConversationEvent.sequence is numbered per conversation: consecutive events in one room carry consecutive sequences, so a client can tell a real gap from ordinary traffic elsewhere. It is deliberately not the same number as WatchConversationRequest.after_sequence or resume_cursor, which are opaque server stream positions spanning every conversation on the shard. A resuming client hands back the resume_cursor it was given, or an after_sequence this RPC gave it; it must never put a ConversationEvent.sequence into either.
+      operationId: ConversationService_WatchConversation
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.chat.v1.WatchConversationRequest'
+      responses:
+        "200":
+          description: Each message of the response stream.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.chat.v1.WatchConversationResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.chat.v1.ConversationService
+      x-hcmnext-rpc-kind: STREAM
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+      x-hcmnext-streaming: server
   /hcmnext.dataops.v1.DataOpsService/CreateRepairPlan:
     post:
       tags:
@@ -1026,6 +2777,230 @@ paths:
               schema:
                 $ref: '#/components/schemas/connect.Error'
       x-hcmnext-service: hcmnext.dataops.v1.DataOpsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/AddDocumentComment:
+    post:
+      tags:
+        - DocumentService
+      summary: AddDocumentComment
+      operationId: DocumentService_AddDocumentComment
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.AddDocumentCommentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.AddDocumentCommentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/CreateDocument:
+    post:
+      tags:
+        - DocumentService
+      summary: CreateDocument
+      operationId: DocumentService_CreateDocument
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.CreateDocumentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.CreateDocumentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/CreateDocumentVersion:
+    post:
+      tags:
+        - DocumentService
+      summary: CreateDocumentVersion
+      operationId: DocumentService_CreateDocumentVersion
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.CreateDocumentVersionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.CreateDocumentVersionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/GetDocument:
+    post:
+      tags:
+        - DocumentService
+      summary: GetDocument
+      operationId: DocumentService_GetDocument
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.GetDocumentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.GetDocumentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/ListDocumentComments:
+    post:
+      tags:
+        - DocumentService
+      summary: ListDocumentComments
+      operationId: DocumentService_ListDocumentComments
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.ListDocumentCommentsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.ListDocumentCommentsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/ListDocuments:
+    post:
+      tags:
+        - DocumentService
+      summary: ListDocuments
+      operationId: DocumentService_ListDocuments
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.ListDocumentsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.ListDocumentsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/ShareDocument:
+    post:
+      tags:
+        - DocumentService
+      summary: ShareDocument
+      operationId: DocumentService_ShareDocument
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.ShareDocumentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.ShareDocumentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
       x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: false
       x-hcmnext-http-exposed: false
@@ -1325,7 +3300,7 @@ paths:
       x-hcmnext-service: hcmnext.humanwork.v1.WorkService
       x-hcmnext-rpc-kind: READ
       x-hcmnext-registered: true
-      x-hcmnext-http-exposed: false
+      x-hcmnext-http-exposed: true
   /hcmnext.humanwork.v1.WorkService/GetWorkItem:
     post:
       tags:
@@ -2957,6 +4932,138 @@ paths:
       x-hcmnext-registered: true
       x-hcmnext-http-exposed: false
       x-hcmnext-streaming: server
+  /hcmnext.notification.v1.NotificationService/ArchiveNotification:
+    post:
+      tags:
+        - NotificationService
+      summary: ArchiveNotification moves a notice to or from the archive at the presented CAS version.
+      description: 'ArchiveNotification moves a notice to or from the archive at the presented CAS version. Effect class: STANDARD_WRITE.'
+      operationId: NotificationService_ArchiveNotification
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.notification.v1.ArchiveNotificationRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.notification.v1.ArchiveNotificationResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.notification.v1.NotificationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.notification.v1.NotificationService/ListNotifications:
+    post:
+      tags:
+        - NotificationService
+      summary: ListNotifications returns the caller's own notices, newest first, as a bounded keyset page.
+      description: 'ListNotifications returns the caller''s own notices, newest first, as a bounded keyset page. Effect class: READ_ONLY.'
+      operationId: NotificationService_ListNotifications
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.notification.v1.ListNotificationsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.notification.v1.ListNotificationsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.notification.v1.NotificationService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.notification.v1.NotificationService/MarkNotificationRead:
+    post:
+      tags:
+        - NotificationService
+      summary: MarkNotificationRead records a read at the presented CAS version.
+      description: 'MarkNotificationRead records a read at the presented CAS version. Reading a notice never approves work. Effect class: STANDARD_WRITE.'
+      operationId: NotificationService_MarkNotificationRead
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.notification.v1.MarkNotificationReadRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.notification.v1.MarkNotificationReadResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.notification.v1.NotificationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.notification.v1.NotificationService/PinNotification:
+    post:
+      tags:
+        - NotificationService
+      summary: PinNotification pins or unpins a notice at the presented CAS version.
+      description: 'PinNotification pins or unpins a notice at the presented CAS version. Effect class: STANDARD_WRITE.'
+      operationId: NotificationService_PinNotification
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.notification.v1.PinNotificationRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.notification.v1.PinNotificationResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.notification.v1.NotificationService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
   /hcmnext.registry.v1.RegistryService/GetCapability:
     post:
       tags:
@@ -3174,6 +5281,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/hcmnext.workflow.v1.CancelWorkflowResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workflow.v1.WorkflowService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workflow.v1.WorkflowService/ClearWorkflowDraftOutcome:
+    post:
+      tags:
+        - WorkflowService
+      summary: Disconnects a compiler-declared outcome port.
+      description: Disconnects a compiler-declared outcome port. Clearing a route that is already empty is a successful no-op that preserves the revision.
+      operationId: WorkflowService_ClearWorkflowDraftOutcome
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workflow.v1.ClearWorkflowDraftOutcomeRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workflow.v1.ClearWorkflowDraftOutcomeResponse'
         default:
           description: Connect error. The HTTP status follows the edge's canonical error projection.
           content:
@@ -3570,6 +5710,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/hcmnext.workflow.v1.PauseWorkflowResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workflow.v1.WorkflowService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workflow.v1.WorkflowService/RemoveWorkflowDraftNode:
+    post:
+      tags:
+        - WorkflowService
+      summary: Deletes one authored node together with every edge that touches it and every input mapping that read its output.
+      description: Deletes one authored node together with every edge that touches it and every input mapping that read its output. Locked template phases are immutable through this operation.
+      operationId: WorkflowService_RemoveWorkflowDraftNode
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workflow.v1.RemoveWorkflowDraftNodeRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workflow.v1.RemoveWorkflowDraftNodeResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workflow.v1.WorkflowService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workflow.v1.WorkflowService/RenameWorkflowDraft:
+    post:
+      tags:
+        - WorkflowService
+      summary: Renames the draft under the same optimistic revision fence as every other authoring command.
+      description: Renames the draft under the same optimistic revision fence as every other authoring command.
+      operationId: WorkflowService_RenameWorkflowDraft
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workflow.v1.RenameWorkflowDraftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workflow.v1.RenameWorkflowDraftResponse'
         default:
           description: Connect error. The HTTP status follows the edge's canonical error projection.
           content:
@@ -5438,6 +7644,1684 @@ components:
           minimum: 0
         protobufFullName:
           type: string
+    hcmnext.chat.v1.AcceptCompanyGrantRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.AcceptCompanyGrantRequest`.
+      properties:
+        hostTenantId:
+          type: string
+        consumerTenantId:
+          type: string
+        conversationId:
+          type: string
+        grantId:
+          type: string
+    hcmnext.chat.v1.AcceptCompanyGrantResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.AcceptCompanyGrantResponse`.
+      properties:
+        accepted:
+          type: boolean
+    hcmnext.chat.v1.AddMembershipRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.AddMembershipRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        membership:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Membership'
+    hcmnext.chat.v1.AddMembershipResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.AddMembershipResponse`.
+      properties:
+        membership:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Membership'
+    hcmnext.chat.v1.AddReactionRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.AddReactionRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        reaction:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Reaction'
+    hcmnext.chat.v1.AddReactionResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.AddReactionResponse`.
+      properties:
+        reaction:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Reaction'
+    hcmnext.chat.v1.ChangeAppStatusRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChangeAppStatusRequest`.
+      properties:
+        conversationId:
+          type: string
+        installationId:
+          type: string
+        status:
+          type: string
+    hcmnext.chat.v1.ChangeAppStatusResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChangeAppStatusResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.ChannelProjectMilestone:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelProjectMilestone`.
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        status:
+          type: string
+        ownerHomeTenantId:
+          type: string
+        ownerSubjectId:
+          type: string
+        dueDate:
+          type: string
+    hcmnext.chat.v1.ChannelProjectWidget:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelProjectWidget`.
+      properties:
+        conversationId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        pinned:
+          type: boolean
+        title:
+          type: string
+        summary:
+          type: string
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ChannelProjectMilestone'
+        canPin:
+          type: boolean
+    hcmnext.chat.v1.ChannelSearchResult:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelSearchResult`.
+      properties:
+        conversationId:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+        joined:
+          type: boolean
+    hcmnext.chat.v1.ChannelTeamMember:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelTeamMember`.
+      properties:
+        homeTenantId:
+          type: string
+        subjectId:
+          type: string
+        role:
+          type: string
+        roleLabel:
+          type: string
+    hcmnext.chat.v1.ChannelTeamWidget:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelTeamWidget`.
+      properties:
+        conversationId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        pinned:
+          type: boolean
+        purpose:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ChannelTeamMember'
+        canPin:
+          type: boolean
+    hcmnext.chat.v1.ChannelTodoItem:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelTodoItem`.
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        completed:
+          type: boolean
+        createdBy:
+          type: string
+        createdAtUnix:
+          type: string
+          format: int64
+        sourcePostId:
+          type: string
+        completedBySubjectId:
+          type: string
+        completedByHomeTenantId:
+          type: string
+        completedAtUnix:
+          type: string
+          format: int64
+        createdByHomeTenantId:
+          type: string
+        completionMode:
+          type: string
+        selectedCompleters:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ChannelTodoSelectedMember'
+        canToggle:
+          type: boolean
+        canManageCompletionPolicy:
+          type: boolean
+    hcmnext.chat.v1.ChannelTodoList:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelTodoList`.
+      properties:
+        conversationId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        pinned:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ChannelTodoItem'
+    hcmnext.chat.v1.ChannelTodoSelectedMember:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChannelTodoSelectedMember`.
+      properties:
+        homeTenantId:
+          type: string
+        subjectId:
+          type: string
+    hcmnext.chat.v1.ChatCounts:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChatCounts`.
+      properties:
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        subjectId:
+          type: string
+        homeTenantId:
+          type: string
+        unreadCount:
+          type: string
+          format: uint64
+        mentionCount:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.ChatRetentionPolicy:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ChatRetentionPolicy`.
+      properties:
+        conversationKind:
+          type: string
+        mode:
+          type: string
+        ageDays:
+          type: integer
+          format: uint32
+          minimum: 0
+        beforeDateUnix:
+          type: string
+          format: int64
+        budgetBytes:
+          type: string
+          format: int64
+        revision:
+          type: string
+          format: uint64
+        updatedBy:
+          type: string
+        updatedAtUnix:
+          type: string
+          format: int64
+    hcmnext.chat.v1.Conversation:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.Conversation`.
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ConversationKind'
+        name:
+          type: string
+        ownerId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        archived:
+          type: boolean
+        joined:
+          type: boolean
+        memberCount:
+          type: integer
+          format: uint32
+          minimum: 0
+        lastActivityAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.chat.v1.ConversationEvent:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ConversationEvent`.
+      properties:
+        kind:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ConversationEventKind'
+        sequence:
+          type: string
+          format: uint64
+        revision:
+          type: string
+          format: uint64
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+        membership:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Membership'
+        conversation:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Conversation'
+        reaction:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Reaction'
+        pin:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Pin'
+        removed:
+          type: boolean
+    hcmnext.chat.v1.ConversationEventKind:
+      type: string
+      description: Protobuf enum `hcmnext.chat.v1.ConversationEventKind`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - CONVERSATION_EVENT_KIND_UNSPECIFIED
+        - CONVERSATION_EVENT_KIND_POST_CREATED
+        - CONVERSATION_EVENT_KIND_POST_EDITED
+        - CONVERSATION_EVENT_KIND_POST_DELETED
+        - CONVERSATION_EVENT_KIND_MEMBERSHIP_CHANGED
+        - CONVERSATION_EVENT_KIND_CONVERSATION_UPDATED
+        - CONVERSATION_EVENT_KIND_REACTION_CHANGED
+        - CONVERSATION_EVENT_KIND_PIN_CHANGED
+    hcmnext.chat.v1.ConversationKind:
+      type: string
+      description: Protobuf enum `hcmnext.chat.v1.ConversationKind`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - CONVERSATION_KIND_UNSPECIFIED
+        - CONVERSATION_KIND_PUBLIC_CHANNEL
+        - CONVERSATION_KIND_PRIVATE_CHANNEL
+        - CONVERSATION_KIND_DIRECT
+        - CONVERSATION_KIND_GROUP
+    hcmnext.chat.v1.ConversationLink:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ConversationLink`.
+      properties:
+        url:
+          type: string
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        postId:
+          type: string
+    hcmnext.chat.v1.CreateConversationRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.CreateConversationRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ConversationKind'
+        name:
+          type: string
+        ownerId:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.MemberRef'
+        idempotencyKey:
+          type: string
+    hcmnext.chat.v1.CreateConversationResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.CreateConversationResponse`.
+      properties:
+        conversation:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Conversation'
+    hcmnext.chat.v1.CreateShareLinkRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.CreateShareLinkRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        postId:
+          type: string
+    hcmnext.chat.v1.CreateShareLinkResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.CreateShareLinkResponse`.
+      properties:
+        link:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ConversationLink'
+    hcmnext.chat.v1.DeletePostRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.DeletePostRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        postId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.DeletePostResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.DeletePostResponse`.
+      properties:
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+    hcmnext.chat.v1.EditPostRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.EditPostRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+        expectedRevision:
+          type: string
+          format: uint64
+        body:
+          type: string
+    hcmnext.chat.v1.EditPostResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.EditPostResponse`.
+      properties:
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+    hcmnext.chat.v1.ForwardPostRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ForwardPostRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        sourceTenantId:
+          type: string
+        sourceConversationId:
+          type: string
+        sourcePostId:
+          type: string
+        destinationTenantId:
+          type: string
+        destinationConversationId:
+          type: string
+        idempotencyKey:
+          type: string
+        sourceAttribution:
+          $ref: '#/components/schemas/hcmnext.chat.v1.SourceAttribution'
+    hcmnext.chat.v1.ForwardPostResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ForwardPostResponse`.
+      properties:
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+    hcmnext.chat.v1.GetAgentRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetAgentRequest`.
+      properties:
+        conversationId:
+          type: string
+        installationId:
+          type: string
+    hcmnext.chat.v1.GetAgentResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetAgentResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.GetChannelTodoListRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetChannelTodoListRequest`.
+      properties:
+        conversationId:
+          type: string
+        hostTenantId:
+          type: string
+    hcmnext.chat.v1.GetChannelTodoListResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetChannelTodoListResponse`.
+      properties:
+        list:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelTodoList'
+    hcmnext.chat.v1.GetChannelWidgetsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetChannelWidgetsRequest`.
+      properties:
+        conversationId:
+          type: string
+        hostTenantId:
+          type: string
+    hcmnext.chat.v1.GetChannelWidgetsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetChannelWidgetsResponse`.
+      properties:
+        team:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelTeamWidget'
+        project:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelProjectWidget'
+    hcmnext.chat.v1.GetConversationRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetConversationRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+    hcmnext.chat.v1.GetConversationResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetConversationResponse`.
+      properties:
+        conversation:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Conversation'
+    hcmnext.chat.v1.GetCountsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetCountsRequest`.
+      properties:
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        subjectId:
+          type: string
+    hcmnext.chat.v1.GetCountsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetCountsResponse`.
+      properties:
+        counts:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChatCounts'
+    hcmnext.chat.v1.GetPreferencesRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetPreferencesRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+    hcmnext.chat.v1.GetPreferencesResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetPreferencesResponse`.
+      properties:
+        preferences:
+          $ref: '#/components/schemas/hcmnext.chat.v1.NotificationPreferences'
+    hcmnext.chat.v1.GetQuietHoursRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetQuietHoursRequest`.
+      properties:
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+    hcmnext.chat.v1.GetQuietHoursResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetQuietHoursResponse`.
+      properties:
+        quietHours:
+          $ref: '#/components/schemas/hcmnext.chat.v1.QuietHours'
+    hcmnext.chat.v1.GetReadStateRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetReadStateRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+    hcmnext.chat.v1.GetReadStateResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetReadStateResponse`.
+      properties:
+        state:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ReadState'
+    hcmnext.chat.v1.GetRetentionPolicyRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetRetentionPolicyRequest`.
+      properties:
+        conversationKind:
+          type: string
+    hcmnext.chat.v1.GetRetentionPolicyResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetRetentionPolicyResponse`.
+      properties:
+        configured:
+          type: boolean
+        policy:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChatRetentionPolicy'
+    hcmnext.chat.v1.GetSidebarRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetSidebarRequest`.
+      properties:
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+    hcmnext.chat.v1.GetSidebarResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetSidebarResponse`.
+      properties:
+        sidebar:
+          $ref: '#/components/schemas/hcmnext.chat.v1.SidebarState'
+    hcmnext.chat.v1.GetThreadFollowRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetThreadFollowRequest`.
+      properties:
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        rootPostId:
+          type: string
+        subjectId:
+          type: string
+    hcmnext.chat.v1.GetThreadFollowResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.GetThreadFollowResponse`.
+      properties:
+        follow:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ThreadFollow'
+    hcmnext.chat.v1.InstallAppRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.InstallAppRequest`.
+      properties:
+        conversationId:
+          type: string
+        manifestJson:
+          type: string
+          format: byte
+        grantedScopes:
+          type: array
+          items:
+            type: string
+    hcmnext.chat.v1.InstallAppResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.InstallAppResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.InvokeAppRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.InvokeAppRequest`.
+      properties:
+        conversationId:
+          type: string
+        installationId:
+          type: string
+        command:
+          type: string
+        idempotencyKey:
+          type: string
+        arguments:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map keyed by string (JSON object keys are strings).
+    hcmnext.chat.v1.InvokeAppResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.InvokeAppResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.IssueEventCursorRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.IssueEventCursorRequest`.
+      properties:
+        conversationId:
+          type: string
+        installationId:
+          type: string
+        afterSequence:
+          type: string
+          format: int64
+    hcmnext.chat.v1.IssueEventCursorResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.IssueEventCursorResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.ListAppsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListAppsRequest`.
+      properties:
+        conversationId:
+          type: string
+    hcmnext.chat.v1.ListAppsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListAppsResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.ListConversationsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListConversationsRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        cursor:
+          type: string
+        pageSize:
+          type: integer
+          format: uint32
+          minimum: 0
+        includeDiscoverable:
+          type: boolean
+    hcmnext.chat.v1.ListConversationsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListConversationsResponse`.
+      properties:
+        conversations:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.Conversation'
+        nextCursor:
+          type: string
+    hcmnext.chat.v1.ListMembershipsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListMembershipsRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        cursor:
+          type: string
+        pageSize:
+          type: integer
+          format: uint32
+          minimum: 0
+    hcmnext.chat.v1.ListMembershipsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListMembershipsResponse`.
+      properties:
+        memberships:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.Membership'
+        nextCursor:
+          type: string
+    hcmnext.chat.v1.ListPinsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListPinsRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+    hcmnext.chat.v1.ListPinsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListPinsResponse`.
+      properties:
+        pins:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.Pin'
+    hcmnext.chat.v1.ListPostsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListPostsRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        afterSequence:
+          type: string
+          format: uint64
+        pageSize:
+          type: integer
+          format: uint32
+          minimum: 0
+        cursor:
+          type: string
+        descending:
+          type: boolean
+        beforeSequence:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.ListPostsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListPostsResponse`.
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+        nextCursor:
+          type: string
+    hcmnext.chat.v1.ListReactionsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListReactionsRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        postId:
+          type: string
+        pageSize:
+          type: integer
+          format: uint32
+          minimum: 0
+        cursor:
+          type: string
+    hcmnext.chat.v1.ListReactionsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ListReactionsResponse`.
+      properties:
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.Reaction'
+        nextCursor:
+          type: string
+    hcmnext.chat.v1.MemberRef:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.MemberRef`.
+      properties:
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+    hcmnext.chat.v1.Membership:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.Membership`.
+      properties:
+        conversationId:
+          type: string
+        homeTenantId:
+          type: string
+        subjectId:
+          type: string
+        role:
+          $ref: '#/components/schemas/hcmnext.chat.v1.MembershipRole'
+        joinedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        leftAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        historyVisibility:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ReadHistoryFrom'
+        revision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.MembershipRole:
+      type: string
+      description: Protobuf enum `hcmnext.chat.v1.MembershipRole`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - MEMBERSHIP_ROLE_UNSPECIFIED
+        - MEMBERSHIP_ROLE_MEMBER
+        - MEMBERSHIP_ROLE_MANAGER
+    hcmnext.chat.v1.ModerateAbuseRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ModerateAbuseRequest`.
+      properties:
+        conversationId:
+          type: string
+        caseId:
+          type: string
+        action:
+          type: string
+        targetId:
+          type: string
+        reason:
+          type: string
+        evidenceRef:
+          type: string
+    hcmnext.chat.v1.ModerateAbuseResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ModerateAbuseResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.MutateChannelTodoListRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.MutateChannelTodoListRequest`.
+      properties:
+        conversationId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        operation:
+          type: string
+        itemId:
+          type: string
+        text:
+          type: string
+        completed:
+          type: boolean
+        pinned:
+          type: boolean
+        hostTenantId:
+          type: string
+        sourcePostId:
+          type: string
+        completionMode:
+          type: string
+        selectedCompleters:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ChannelTodoSelectedMember'
+    hcmnext.chat.v1.MutateChannelTodoListResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.MutateChannelTodoListResponse`.
+      properties:
+        list:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelTodoList'
+    hcmnext.chat.v1.MutateChannelWidgetRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.MutateChannelWidgetRequest`.
+      properties:
+        conversationId:
+          type: string
+        hostTenantId:
+          type: string
+        kind:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        operation:
+          type: string
+        pinned:
+          type: boolean
+        purpose:
+          type: string
+        memberHomeTenantId:
+          type: string
+        memberSubjectId:
+          type: string
+        roleLabel:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        milestone:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelProjectMilestone'
+        milestoneId:
+          type: string
+    hcmnext.chat.v1.MutateChannelWidgetResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.MutateChannelWidgetResponse`.
+      properties:
+        team:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelTeamWidget'
+        project:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChannelProjectWidget'
+    hcmnext.chat.v1.NotificationPreferences:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.NotificationPreferences`.
+      properties:
+        conversationId:
+          type: string
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+        muted:
+          type: boolean
+        mentionsOnly:
+          type: boolean
+        revision:
+          type: string
+          format: uint64
+        homeTenantId:
+          type: string
+    hcmnext.chat.v1.Pin:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.Pin`.
+      properties:
+        conversationId:
+          type: string
+        postId:
+          type: string
+        tenantId:
+          type: string
+        pinnedBy:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        pinnedByHomeTenantId:
+          type: string
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+    hcmnext.chat.v1.PinPostRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PinPostRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        pin:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Pin'
+    hcmnext.chat.v1.PinPostResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PinPostResponse`.
+      properties:
+        pin:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Pin'
+    hcmnext.chat.v1.Post:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.Post`.
+      properties:
+        id:
+          type: string
+        conversationId:
+          type: string
+        tenantId:
+          type: string
+        authorId:
+          type: string
+        body:
+          type: string
+        sequence:
+          type: string
+          format: uint64
+        revision:
+          type: string
+          format: uint64
+        parentId:
+          type: string
+        deleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.Reference'
+        sourceAttribution:
+          $ref: '#/components/schemas/hcmnext.chat.v1.SourceAttribution'
+        authorHomeTenantId:
+          type: string
+    hcmnext.chat.v1.Principal:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.Principal`.
+      properties:
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        qualifications:
+          type: array
+          items:
+            type: string
+    hcmnext.chat.v1.ProposeAgentIntentRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ProposeAgentIntentRequest`.
+      properties:
+        conversationId:
+          type: string
+        installationId:
+          type: string
+        intentType:
+          type: string
+        idempotencyKey:
+          type: string
+        arguments:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map keyed by string (JSON object keys are strings).
+        evidence:
+          type: array
+          items:
+            type: string
+    hcmnext.chat.v1.ProposeAgentIntentResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ProposeAgentIntentResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.ProposeCompanyGrantRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ProposeCompanyGrantRequest`.
+      properties:
+        hostTenantId:
+          type: string
+        consumerTenantId:
+          type: string
+        conversationId:
+          type: string
+        classification:
+          type: string
+        residency:
+          type: string
+        expiresAtUnix:
+          type: string
+          format: int64
+    hcmnext.chat.v1.ProposeCompanyGrantResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ProposeCompanyGrantResponse`.
+      properties:
+        grantId:
+          type: string
+    hcmnext.chat.v1.PullAppEventsRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PullAppEventsRequest`.
+      properties:
+        conversationId:
+          type: string
+        cursor:
+          type: string
+        limit:
+          type: integer
+          format: int32
+    hcmnext.chat.v1.PullAppEventsResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PullAppEventsResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.PutQuietHoursRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PutQuietHoursRequest`.
+      properties:
+        quietHours:
+          $ref: '#/components/schemas/hcmnext.chat.v1.QuietHours'
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.PutQuietHoursResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PutQuietHoursResponse`.
+      properties:
+        quietHours:
+          $ref: '#/components/schemas/hcmnext.chat.v1.QuietHours'
+    hcmnext.chat.v1.PutRetentionPolicyRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PutRetentionPolicyRequest`.
+      properties:
+        policy:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChatRetentionPolicy'
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.PutRetentionPolicyResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PutRetentionPolicyResponse`.
+      properties:
+        policy:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ChatRetentionPolicy'
+    hcmnext.chat.v1.PutSidebarRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PutSidebarRequest`.
+      properties:
+        sidebar:
+          $ref: '#/components/schemas/hcmnext.chat.v1.SidebarState'
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.PutSidebarResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PutSidebarResponse`.
+      properties:
+        sidebar:
+          $ref: '#/components/schemas/hcmnext.chat.v1.SidebarState'
+    hcmnext.chat.v1.PutThreadFollowRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PutThreadFollowRequest`.
+      properties:
+        follow:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ThreadFollow'
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.PutThreadFollowResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.PutThreadFollowResponse`.
+      properties:
+        follow:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ThreadFollow'
+    hcmnext.chat.v1.QuietHours:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.QuietHours`.
+      properties:
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+        homeTenantId:
+          type: string
+        timezone:
+          type: string
+        startMinute:
+          type: integer
+          format: uint32
+          minimum: 0
+        endMinute:
+          type: integer
+          format: uint32
+          minimum: 0
+        enabled:
+          type: boolean
+        revision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.Reaction:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.Reaction`.
+      properties:
+        conversationId:
+          type: string
+        postId:
+          type: string
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+        emoji:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        homeTenantId:
+          type: string
+    hcmnext.chat.v1.ReadHistoryFrom:
+      type: string
+      description: Protobuf enum `hcmnext.chat.v1.ReadHistoryFrom`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - READ_HISTORY_FROM_UNSPECIFIED
+        - READ_HISTORY_FROM_NONE
+        - READ_HISTORY_FROM_JOIN
+        - READ_HISTORY_FROM_FULL
+    hcmnext.chat.v1.ReadState:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ReadState`.
+      properties:
+        conversationId:
+          type: string
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+        lastReadSequence:
+          type: string
+          format: uint64
+        revision:
+          type: string
+          format: uint64
+        homeTenantId:
+          type: string
+    hcmnext.chat.v1.Reference:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.Reference`.
+      properties:
+        kind:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ReferenceKind'
+        tenantId:
+          type: string
+        id:
+          type: string
+        display:
+          type: string
+        conversationId:
+          type: string
+        contentType:
+          type: string
+        byteSize:
+          type: string
+          format: uint64
+        width:
+          type: integer
+          format: uint32
+          minimum: 0
+        height:
+          type: integer
+          format: uint32
+          minimum: 0
+    hcmnext.chat.v1.ReferenceCandidate:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ReferenceCandidate`.
+      properties:
+        reference:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Reference'
+        eligible:
+          type: boolean
+    hcmnext.chat.v1.ReferenceKind:
+      type: string
+      description: Protobuf enum `hcmnext.chat.v1.ReferenceKind`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - REFERENCE_KIND_UNSPECIFIED
+        - REFERENCE_KIND_PERSON_MENTION
+        - REFERENCE_KIND_AGENT_MENTION
+        - REFERENCE_KIND_CONVERSATION_REFERENCE
+        - REFERENCE_KIND_MEDIA
+    hcmnext.chat.v1.RemoveMembershipRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.RemoveMembershipRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        subjectId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        homeTenantId:
+          type: string
+    hcmnext.chat.v1.RemoveMembershipResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.RemoveMembershipResponse`.
+      properties:
+        membership:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Membership'
+    hcmnext.chat.v1.RemoveReactionRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.RemoveReactionRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        postId:
+          type: string
+        emoji:
+          type: string
+    hcmnext.chat.v1.RemoveReactionResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.RemoveReactionResponse`.
+    hcmnext.chat.v1.ReportAbuseRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ReportAbuseRequest`.
+      properties:
+        conversationId:
+          type: string
+        reportId:
+          type: string
+        targetId:
+          type: string
+        reason:
+          type: string
+    hcmnext.chat.v1.ReportAbuseResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ReportAbuseResponse`.
+      properties:
+        json:
+          type: string
+          format: byte
+    hcmnext.chat.v1.ResolveReferencesRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ResolveReferencesRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ReferenceKind'
+        query:
+          type: string
+    hcmnext.chat.v1.ResolveReferencesResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ResolveReferencesResponse`.
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ReferenceCandidate'
+    hcmnext.chat.v1.ResolveShareLinkRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ResolveShareLinkRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        token:
+          type: string
+    hcmnext.chat.v1.ResolveShareLinkResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ResolveShareLinkResponse`.
+      properties:
+        conversation:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Conversation'
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+    hcmnext.chat.v1.RevokeCompanyGrantRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.RevokeCompanyGrantRequest`.
+      properties:
+        hostTenantId:
+          type: string
+        consumerTenantId:
+          type: string
+        conversationId:
+          type: string
+        grantId:
+          type: string
+    hcmnext.chat.v1.RevokeCompanyGrantResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.RevokeCompanyGrantResponse`.
+      properties:
+        revoked:
+          type: boolean
+    hcmnext.chat.v1.SearchRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SearchRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        query:
+          type: string
+        conversationId:
+          type: string
+        authorId:
+          type: string
+        cursor:
+          type: string
+        pageSize:
+          type: integer
+          format: uint32
+          minimum: 0
+        channelCursor:
+          type: string
+    hcmnext.chat.v1.SearchResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SearchResponse`.
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.SearchResult'
+        nextCursor:
+          type: string
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ChannelSearchResult'
+        channelNextCursor:
+          type: string
+    hcmnext.chat.v1.SearchResult:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SearchResult`.
+      properties:
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+        conversationName:
+          type: string
+    hcmnext.chat.v1.SendPostRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SendPostRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        body:
+          type: string
+        parentId:
+          type: string
+        idempotencyKey:
+          type: string
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.Reference'
+        sourceAttribution:
+          $ref: '#/components/schemas/hcmnext.chat.v1.SourceAttribution'
+    hcmnext.chat.v1.SendPostResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SendPostResponse`.
+      properties:
+        post:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+    hcmnext.chat.v1.SetChannelPolicyRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SetChannelPolicyRequest`.
+      properties:
+        hostTenantId:
+          type: string
+        conversationId:
+          type: string
+        requiredRoles:
+          type: array
+          items:
+            type: string
+        qualifications:
+          type: array
+          items:
+            type: string
+        allowedPrincipals:
+          type: array
+          items:
+            type: string
+        allowedTenants:
+          type: array
+          items:
+            type: string
+        requireAllRoles:
+          type: boolean
+        classification:
+          type: string
+        residency:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.SetChannelPolicyResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SetChannelPolicyResponse`.
+      properties:
+        updated:
+          type: boolean
+    hcmnext.chat.v1.SidebarState:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SidebarState`.
+      properties:
+        tenantId:
+          type: string
+        subjectId:
+          type: string
+        homeTenantId:
+          type: string
+        layoutJson:
+          type: string
+        revision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.SourceAttribution:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.SourceAttribution`.
+      properties:
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        postId:
+          type: string
+        postRevision:
+          type: string
+          format: uint64
+        originalAuthorId:
+          type: string
+    hcmnext.chat.v1.ThreadFollow:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.ThreadFollow`.
+      properties:
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        subjectId:
+          type: string
+        homeTenantId:
+          type: string
+        rootPostId:
+          type: string
+        followed:
+          type: boolean
+        revision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.UnpinPostRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.UnpinPostRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        postId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.UnpinPostResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.UnpinPostResponse`.
+    hcmnext.chat.v1.UpdateConversationRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.UpdateConversationRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        conversation:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Conversation'
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.UpdateConversationResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.UpdateConversationResponse`.
+      properties:
+        conversation:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Conversation'
+    hcmnext.chat.v1.UpdatePreferencesRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.UpdatePreferencesRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        preferences:
+          $ref: '#/components/schemas/hcmnext.chat.v1.NotificationPreferences'
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.UpdatePreferencesResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.UpdatePreferencesResponse`.
+      properties:
+        preferences:
+          $ref: '#/components/schemas/hcmnext.chat.v1.NotificationPreferences'
+    hcmnext.chat.v1.UpdateReadStateRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.UpdateReadStateRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        state:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ReadState'
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.chat.v1.UpdateReadStateResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.UpdateReadStateResponse`.
+      properties:
+        state:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ReadState'
+    hcmnext.chat.v1.WatchConversationRequest:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.WatchConversationRequest`.
+      properties:
+        principal:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Principal'
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        afterSequence:
+          type: string
+          format: uint64
+        resumeCursor:
+          type: string
+    hcmnext.chat.v1.WatchConversationResponse:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.WatchConversationResponse`.
+      properties:
+        event:
+          $ref: '#/components/schemas/hcmnext.chat.v1.ConversationEvent'
+        resumeCursor:
+          type: string
     hcmnext.common.v1.DisambiguationRule:
       type: string
       description: Protobuf enum `hcmnext.common.v1.DisambiguationRule`. The JSON mapping writes value names; parsers also accept the numeric value.
@@ -6397,6 +10281,174 @@ components:
         notApplicable:
           type: integer
           format: int32
+    hcmnext.document.v1.AddDocumentCommentRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.AddDocumentCommentRequest`.
+      properties:
+        documentId:
+          type: string
+        versionId:
+          type: string
+        body:
+          type: string
+    hcmnext.document.v1.AddDocumentCommentResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.AddDocumentCommentResponse`.
+      properties:
+        comment:
+          $ref: '#/components/schemas/hcmnext.document.v1.DocumentComment'
+    hcmnext.document.v1.CreateDocumentRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.CreateDocumentRequest`.
+      properties:
+        title:
+          type: string
+        markdown:
+          type: string
+    hcmnext.document.v1.CreateDocumentResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.CreateDocumentResponse`.
+      properties:
+        documentId:
+          type: string
+        versionId:
+          type: string
+    hcmnext.document.v1.CreateDocumentVersionRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.CreateDocumentVersionRequest`.
+      properties:
+        documentId:
+          type: string
+        baseVersionId:
+          type: string
+        title:
+          type: string
+        markdown:
+          type: string
+    hcmnext.document.v1.CreateDocumentVersionResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.CreateDocumentVersionResponse`.
+      properties:
+        versionId:
+          type: string
+    hcmnext.document.v1.DocumentComment:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.DocumentComment`.
+      properties:
+        id:
+          type: string
+        documentId:
+          type: string
+        versionId:
+          type: string
+        authorId:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.document.v1.DocumentSummary:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.DocumentSummary`.
+      properties:
+        documentId:
+          type: string
+        title:
+          type: string
+        ownerId:
+          type: string
+        versionId:
+          type: string
+        status:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        scopeKind:
+          type: string
+        scopeId:
+          type: string
+        reviewDueAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        sharingState:
+          type: string
+        canManageAccess:
+          type: boolean
+        canComment:
+          type: boolean
+        canEdit:
+          type: boolean
+    hcmnext.document.v1.GetDocumentRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.GetDocumentRequest`.
+      properties:
+        documentId:
+          type: string
+    hcmnext.document.v1.GetDocumentResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.GetDocumentResponse`.
+      properties:
+        document:
+          $ref: '#/components/schemas/hcmnext.document.v1.DocumentSummary'
+        markdown:
+          type: string
+        contentHash:
+          type: string
+    hcmnext.document.v1.ListDocumentCommentsRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.ListDocumentCommentsRequest`.
+      properties:
+        documentId:
+          type: string
+        versionId:
+          type: string
+    hcmnext.document.v1.ListDocumentCommentsResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.ListDocumentCommentsResponse`.
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.document.v1.DocumentComment'
+    hcmnext.document.v1.ListDocumentsRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.ListDocumentsRequest`.
+      properties:
+        pageSize:
+          type: integer
+          format: int32
+        pageToken:
+          type: string
+        query:
+          type: string
+        collection:
+          type: string
+    hcmnext.document.v1.ListDocumentsResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.ListDocumentsResponse`.
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.document.v1.DocumentSummary'
+        nextPageToken:
+          type: string
+    hcmnext.document.v1.ShareDocumentRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.ShareDocumentRequest`.
+      properties:
+        documentId:
+          type: string
+        recipientId:
+          type: string
+    hcmnext.document.v1.ShareDocumentResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.ShareDocumentResponse`.
     hcmnext.evidence.v1.AuthorityKind:
       type: string
       description: Protobuf enum `hcmnext.evidence.v1.AuthorityKind`. The JSON mapping writes value names; parsers also accept the numeric value.
@@ -7229,6 +11281,8 @@ components:
             $ref: '#/components/schemas/hcmnext.humanwork.v1.ThresholdRow'
         hitPolicy:
           $ref: '#/components/schemas/hcmnext.humanwork.v1.ThresholdHitPolicy'
+        versionRef:
+          type: string
     hcmnext.humanwork.v1.WorkItem:
       type: object
       description: Protobuf message `hcmnext.humanwork.v1.WorkItem`.
@@ -9619,6 +13673,12 @@ components:
           format: int32
         population:
           $ref: '#/components/schemas/hcmnext.journey.v1.JourneyPopulationSummary'
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.journey.v1.WorkflowNotification'
+        notificationsUnavailable:
+          type: boolean
     hcmnext.journey.v1.ListWorkersRequest:
       type: object
       description: Protobuf message `hcmnext.journey.v1.ListWorkersRequest`.
@@ -10402,6 +14462,28 @@ components:
           type: array
           items:
             type: string
+    hcmnext.journey.v1.WorkflowNotification:
+      type: object
+      description: Protobuf message `hcmnext.journey.v1.WorkflowNotification`.
+      properties:
+        notificationId:
+          type: string
+        journeyId:
+          type: string
+        workItemId:
+          type: string
+        workerName:
+          type: string
+        purpose:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        read:
+          type: boolean
     hcmnext.journey.v1.WorkforceOptions:
       type: object
       description: Protobuf message `hcmnext.journey.v1.WorkforceOptions`.
@@ -10452,6 +14534,111 @@ components:
           type: string
         currency:
           type: string
+    hcmnext.notification.v1.ArchiveNotificationRequest:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.ArchiveNotificationRequest`.
+      properties:
+        id:
+          type: string
+        archived:
+          type: boolean
+        expectedVersion:
+          type: string
+          format: uint64
+    hcmnext.notification.v1.ArchiveNotificationResponse:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.ArchiveNotificationResponse`.
+      properties:
+        notification:
+          $ref: '#/components/schemas/hcmnext.notification.v1.Notification'
+    hcmnext.notification.v1.ListNotificationsRequest:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.ListNotificationsRequest`.
+      properties:
+        pageSize:
+          type: integer
+          format: int32
+        cursor:
+          type: string
+        readState:
+          type: string
+        archived:
+          type: boolean
+        purpose:
+          type: string
+    hcmnext.notification.v1.ListNotificationsResponse:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.ListNotificationsResponse`.
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.notification.v1.Notification'
+        nextCursor:
+          type: string
+    hcmnext.notification.v1.MarkNotificationReadRequest:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.MarkNotificationReadRequest`.
+      properties:
+        id:
+          type: string
+        expectedVersion:
+          type: string
+          format: uint64
+    hcmnext.notification.v1.MarkNotificationReadResponse:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.MarkNotificationReadResponse`.
+      properties:
+        notification:
+          $ref: '#/components/schemas/hcmnext.notification.v1.Notification'
+    hcmnext.notification.v1.Notification:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.Notification`.
+      properties:
+        id:
+          type: string
+        readState:
+          type: string
+        archived:
+          type: boolean
+        pinned:
+          type: boolean
+        version:
+          type: string
+          format: uint64
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        stateChangedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        workflowInstanceId:
+          type: string
+        workItemId:
+          type: string
+        purpose:
+          type: string
+        correlationKey:
+          type: string
+    hcmnext.notification.v1.PinNotificationRequest:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.PinNotificationRequest`.
+      properties:
+        id:
+          type: string
+        pinned:
+          type: boolean
+        expectedVersion:
+          type: string
+          format: uint64
+    hcmnext.notification.v1.PinNotificationResponse:
+      type: object
+      description: Protobuf message `hcmnext.notification.v1.PinNotificationResponse`.
+      properties:
+        notification:
+          $ref: '#/components/schemas/hcmnext.notification.v1.Notification'
     hcmnext.registry.v1.GetCapabilityRequest:
       type: object
       description: Protobuf message `hcmnext.registry.v1.GetCapabilityRequest`.
@@ -10603,6 +14790,29 @@ components:
           $ref: '#/components/schemas/hcmnext.workflow.v1.WorkflowInstance'
         receipt:
           $ref: '#/components/schemas/hcmnext.workflow.v1.WorkflowControlReceipt'
+    hcmnext.workflow.v1.ClearWorkflowDraftOutcomeRequest:
+      type: object
+      description: Protobuf message `hcmnext.workflow.v1.ClearWorkflowDraftOutcomeRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        draftId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        fromNodeId:
+          type: string
+        routeKey:
+          type: string
+        toNodeId:
+          type: string
+    hcmnext.workflow.v1.ClearWorkflowDraftOutcomeResponse:
+      type: object
+      description: Protobuf message `hcmnext.workflow.v1.ClearWorkflowDraftOutcomeResponse`.
+      properties:
+        draft:
+          $ref: '#/components/schemas/hcmnext.workflow.v1.WorkflowDraftView'
     hcmnext.workflow.v1.CompileWorkflowDraftRequest:
       type: object
       description: Protobuf message `hcmnext.workflow.v1.CompileWorkflowDraftRequest`.
@@ -10909,6 +15119,44 @@ components:
           $ref: '#/components/schemas/hcmnext.workflow.v1.WorkflowInstance'
         receipt:
           $ref: '#/components/schemas/hcmnext.workflow.v1.WorkflowControlReceipt'
+    hcmnext.workflow.v1.RemoveWorkflowDraftNodeRequest:
+      type: object
+      description: Protobuf message `hcmnext.workflow.v1.RemoveWorkflowDraftNodeRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        draftId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        nodeId:
+          type: string
+    hcmnext.workflow.v1.RemoveWorkflowDraftNodeResponse:
+      type: object
+      description: Protobuf message `hcmnext.workflow.v1.RemoveWorkflowDraftNodeResponse`.
+      properties:
+        draft:
+          $ref: '#/components/schemas/hcmnext.workflow.v1.WorkflowDraftView'
+    hcmnext.workflow.v1.RenameWorkflowDraftRequest:
+      type: object
+      description: Protobuf message `hcmnext.workflow.v1.RenameWorkflowDraftRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        draftId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        name:
+          type: string
+    hcmnext.workflow.v1.RenameWorkflowDraftResponse:
+      type: object
+      description: Protobuf message `hcmnext.workflow.v1.RenameWorkflowDraftResponse`.
+      properties:
+        draft:
+          $ref: '#/components/schemas/hcmnext.workflow.v1.WorkflowDraftView'
     hcmnext.workflow.v1.ResumeWorkflowRequest:
       type: object
       description: Protobuf message `hcmnext.workflow.v1.ResumeWorkflowRequest`.
@@ -10948,6 +15196,8 @@ components:
           type: integer
           format: uint32
           minimum: 0
+        reasonRef:
+          type: string
     hcmnext.workflow.v1.RetryNodeResponse:
       type: object
       description: Protobuf message `hcmnext.workflow.v1.RetryNodeResponse`.

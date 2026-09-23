@@ -33,10 +33,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportadmin "github.com/monstercameron/human-capital-management-suite/internal/transport/admin"
+	transportextensions "github.com/monstercameron/human-capital-management-suite/internal/transport/chatextensions"
+	transportdocument "github.com/monstercameron/human-capital-management-suite/internal/transport/document"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/grpcserver"
@@ -63,7 +66,7 @@ import (
 // UNAVAILABLE, matching every other optional transportadmin.Dependencies
 // port a caller does not wire.
 func NewGRPCServer(c *app.Cell, opts ...grpc.ServerOption) (*grpc.Server, error) {
-	return NewGRPCServerWithWorkflowInspectorAndOperations(c, nil, nil, nil, nil, transporthumanwork.WritePorts{}, opts...)
+	return NewGRPCServerWithWorkflowInspectorAndOperations(c, nil, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil, opts...)
 }
 
 // NewGRPCServerWithWorkflowInspector is [NewGRPCServer] plus ADMIN-008's
@@ -80,7 +83,7 @@ func NewGRPCServer(c *app.Cell, opts ...grpc.ServerOption) (*grpc.Server, error)
 func NewGRPCServerWithWorkflowInspector(
 	c *app.Cell, instances app.WorkflowInstanceReader, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
-	return NewGRPCServerWithWorkflowInspectorAndOperations(c, instances, nil, nil, nil, transporthumanwork.WritePorts{}, opts...)
+	return NewGRPCServerWithWorkflowInspectorAndOperations(c, instances, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil, opts...)
 }
 
 // NewGRPCServerWithWorkflowInspectorAndOperations is
@@ -88,10 +91,17 @@ func NewGRPCServerWithWorkflowInspector(
 // the shared cursor-signing key used by both published transports. The
 // application root owns construction of these adapters; this package only
 // threads the already-composed ports into the listener-facing services.
+//
+// cursorKey signs new page and stream cursors; previousCursorKey is the
+// retired signing key, accepted for verification only while in-flight
+// cursors minted under it drain. thresholds resolves the read-only
+// decision table WorkService.GetThresholdTable serves; nil keeps that one
+// method UNAVAILABLE.
 func NewGRPCServerWithWorkflowInspectorAndOperations(
 	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store,
-	cursorKey []byte, workWrites transporthumanwork.WritePorts, opts ...grpc.ServerOption,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
@@ -134,13 +144,14 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// reason to hold an opinion about it.
 	transportjourney.Register(srv, transportjourney.Dependencies{
 		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
-		CursorKey:     append([]byte(nil), cursorKey...),
-		Invalidations: journeyInvalidations(c),
+		CursorKey:         append([]byte(nil), cursorKey...),
+		PreviousCursorKey: append([]byte(nil), previousCursorKey...),
+		Invalidations:     journeyInvalidations(c),
 	})
 	// The workflow transport consumes its string-ID reader port. The existing
 	// application reader remains owned by AdminService; this adapter supplies
 	// the same durable record without moving database access into transport.
-	workflowDeps := workflowDependencies(c, instances, cursorKey)
+	workflowDeps := workflowDependencies(c, instances, cursorKey, previousCursorKey)
 	transportworkflow.Register(srv, workflowDeps)
 	// WorkService (EP-WORK-001) publishes the queue read endpoints under the
 	// same interceptor chain and cursor key. A nil workQueue leaves the
@@ -148,11 +159,112 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// posture the workflow inspector takes.
 	transporthumanwork.Register(srv, transporthumanwork.Dependencies{
 		Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...),
+		PreviousCursorKey: append([]byte(nil), previousCursorKey...), Thresholds: thresholds,
 		Claims: workWrites.Claims, Completions: workWrites.Completions,
 		Decisions: workWrites.Decisions, Idempotency: workWrites.Idempotency,
+		Authorize: workAuthorizer(c.RoleAccess),
 	})
 	transportoperations.Register(srv, transportoperations.Dependencies{Store: operationStore})
 	transporthealth.Register(srv, transporthealth.Dependencies{})
+	return srv, nil
+}
+
+// NewGRPCServerWithWorkflowInspectorAndOperationsAndChat composes the
+// optional chat service on the same authenticated gRPC server.
+func NewGRPCServerWithWorkflowInspectorAndOperationsAndChat(
+	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
+	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds,
+	chatService chatcore.ConversationService, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	srv, err := NewGRPCServerWithWorkflowInspectorAndOperations(c, instances, workQueue, operationStore, cursorKey, previousCursorKey, workWrites, thresholds, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if chatService != nil {
+		RegisterChat(srv, chatService)
+	}
+	return srv, nil
+}
+
+// NewTunnelGRPCServer builds the workspace-only gRPC surface the tunnel
+// bridges. It registers exactly the services the workspace page uses —
+// IntentService, JourneyService, WorkflowService and WorkService — under
+// the same admission and telemetry interceptor chain as the main server,
+// and nothing else: the operator surfaces (AdminService,
+// OnboardingService), the registry, the operation store, health and chat
+// stay on the direct gRPC surface. [tunnelAllowedServices] names the set
+// and TestTunnelServesOnlyWorkspaceServices fails the build if this
+// constructor and that set ever disagree.
+//
+// The tunnel bridges this server, never the main one, so a method the page
+// has no business calling is UNIMPLEMENTED at the bridge before
+// authentication, authorization or any handler runs.
+func NewTunnelGRPCServer(
+	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServer(c, instances, workQueue, cursorKey, previousCursorKey, workWrites, thresholds, nil, nil, opts...)
+}
+
+// newTunnelGRPCServer is the one tunnel constructor. The two chat services
+// are members of [tunnelAllowedServices] and are always registered: with the
+// composed implementation when chat is enabled, with the generated
+// Unimplemented stubs otherwise, so a disabled product answers UNIMPLEMENTED
+// at the handler and the policy/constructor agreement holds in both modes.
+func newTunnelGRPCServer(
+	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocument(c, instances, workQueue, cursorKey, previousCursorKey,
+		workWrites, thresholds, chatService, extensions, nil, opts...)
+}
+
+func newTunnelGRPCServerWithDocument(
+	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	if c == nil {
+		return nil, fmt.Errorf("transport cell: application cell is required")
+	}
+	// The same chain as the main server: admission first, then the
+	// telemetry interceptors that put the request and correlation ids into
+	// the logging context. Mirrors
+	// NewGRPCServerWithWorkflowInspectorAndOperations; the two must stay
+	// identical or tunneled calls would observe and log differently from
+	// direct ones.
+	opts = append(opts,
+		grpc.ChainUnaryInterceptor(otelmw.UnaryServerInterceptor(c.Telemetry)),
+		grpc.ChainStreamInterceptor(otelmw.StreamServerInterceptor(c.Telemetry)),
+	)
+	srv, err := grpcserver.NewServer(grpcserver.Options{
+		Config: c.Config, Intent: c.Service, Registry: nil, ServerOptions: opts,
+	})
+	if err != nil {
+		return nil, err
+	}
+	transportjourney.Register(srv, transportjourney.Dependencies{
+		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+		CursorKey:         append([]byte(nil), cursorKey...),
+		PreviousCursorKey: append([]byte(nil), previousCursorKey...),
+		Invalidations:     journeyInvalidations(c),
+	})
+	transportworkflow.Register(srv, workflowDependencies(c, instances, cursorKey, previousCursorKey))
+	transporthumanwork.Register(srv, transporthumanwork.Dependencies{
+		Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...),
+		PreviousCursorKey: append([]byte(nil), previousCursorKey...), Thresholds: thresholds,
+		Claims: workWrites.Claims, Completions: workWrites.Completions,
+		Decisions: workWrites.Decisions, Idempotency: workWrites.Idempotency,
+		Authorize: workAuthorizer(c.RoleAccess),
+	})
+	registerTunnelChat(srv, chatService, extensions)
+	RegisterDocument(srv, documentService, cursorKey)
 	return srv, nil
 }
 
@@ -172,9 +284,26 @@ func NewEdgeHandler(c *app.Cell, opts ...connect.HandlerOption) (http.Handler, e
 func NewEdgeHandlerWithDependencies(
 	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store,
-	cursorKey []byte, workWrites transporthumanwork.WritePorts, opts ...connect.HandlerOption,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, opts ...connect.HandlerOption,
 ) (http.Handler, error) {
-	return buildEdgeHandlerWithDependencies(c, nil, instances, workQueue, operationStore, cursorKey, workWrites, opts...)
+	return buildEdgeHandlerWithDependencies(c, nil, instances, workQueue, operationStore, cursorKey, previousCursorKey, workWrites, thresholds, opts...)
+}
+
+// NewEdgeHandlerWithTunnelAndDependenciesAndChat overlays the optional chat
+// Connect projection on the canonical edge and leaves the tunnel and all
+// existing routes owned by the ordinary edge composition.
+func NewEdgeHandlerWithTunnelAndDependenciesAndChat(
+	c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
+	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds,
+	chatService chatcore.ConversationService, opts ...connect.HandlerOption,
+) (http.Handler, error) {
+	h, err := NewEdgeHandlerWithTunnelAndDependencies(c, grpcServer, instances, workQueue, operationStore, cursorKey, previousCursorKey, workWrites, thresholds, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return chatHTTPOverlay(h, c.Config, chatService), nil
 }
 
 // buildEdgeHandler is the one edge composition both [NewEdgeHandler] and
@@ -182,10 +311,10 @@ func NewEdgeHandlerWithDependencies(
 // mounted, which is exactly what NewEdgeHandler has always built; a non-nil
 // one adds [TunnelPath] to the same mux and changes nothing else.
 func buildEdgeHandler(c *app.Cell, grpcServer *grpc.Server, opts ...connect.HandlerOption) (http.Handler, error) {
-	return buildEdgeHandlerWithDependencies(c, grpcServer, nil, nil, nil, nil, transporthumanwork.WritePorts{}, opts...)
+	return buildEdgeHandlerWithDependencies(c, grpcServer, nil, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil, opts...)
 }
 
-func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader, operationStore transportoperations.Store, cursorKey []byte, workWrites transporthumanwork.WritePorts, opts ...connect.HandlerOption) (http.Handler, error) {
+func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader, operationStore transportoperations.Store, cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds, opts ...connect.HandlerOption) (http.Handler, error) {
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
 	}
@@ -194,12 +323,15 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
 		Journey: &transportjourney.Dependencies{
 			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
-			CursorKey: append([]byte(nil), cursorKey...),
+			CursorKey:         append([]byte(nil), cursorKey...),
+			PreviousCursorKey: append([]byte(nil), previousCursorKey...),
 		},
-		Workflow: workflowDependenciesRef(c, instances, cursorKey),
+		Workflow: workflowDependenciesRef(c, instances, cursorKey, previousCursorKey),
 		Work: &transporthumanwork.Dependencies{Queue: newWorkQueueReader(workQueue), CursorKey: append([]byte(nil), cursorKey...),
+			PreviousCursorKey: append([]byte(nil), previousCursorKey...), Thresholds: thresholds,
 			Claims: workWrites.Claims, Completions: workWrites.Completions,
-			Decisions: workWrites.Decisions, Idempotency: workWrites.Idempotency},
+			Decisions: workWrites.Decisions, Idempotency: workWrites.Idempotency,
+			Authorize: workAuthorizer(c.RoleAccess)},
 		Operations: &transportoperations.Dependencies{Store: operationStore},
 		Health:     transporthealth.New(transporthealth.Dependencies{}), HandlerOptions: opts,
 	})
