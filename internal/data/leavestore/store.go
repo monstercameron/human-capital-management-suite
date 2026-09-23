@@ -172,11 +172,15 @@ type Availability struct {
 // return the existing revision instead of a second row.
 func (s Store) AppendAvailability(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, availability Availability) (existed bool, err error) {
 	var clashes int
+	// FOR SHARE, not FOR UPDATE: leave_availability_revision is
+	// SELECT/INSERT-only (REV-102-03 revoked the stray UPDATE grant), and a
+	// share lock needs only the SELECT privilege while still blocking a
+	// concurrent writer from changing the clashing rows under this check.
 	err = tx.QueryRow(ctx, `SELECT count(*) FROM (
 			SELECT 1 FROM leave_availability_revision
 			WHERE tenant_id=$1 AND worker_ref=$2 AND state<>$3
 			AND effective_start<=$4 AND $5<=effective_end
-			FOR UPDATE
+			FOR SHARE
 		) clash`, tenant, availability.WorkerRef, availability.State, availability.EffectiveEnd, availability.EffectiveStart).Scan(&clashes)
 	if err != nil {
 		return false, fmt.Errorf("leavestore: overlap check: %w", err)

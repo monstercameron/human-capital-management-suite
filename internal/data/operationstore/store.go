@@ -216,11 +216,15 @@ func (s *Store) Cancel(ctx context.Context, tenant, operationID, idempotencyKey,
 		return Record{}, ErrNotCancellable
 	}
 	updatedAt := s.now().UTC()
+	fence, err := currentFence(ctx, tx, tenantUUID, operationID)
+	if err != nil {
+		return Record{}, err
+	}
 	affected, err := tx.Exec(ctx, `
 		UPDATE operation
 		SET state = $5, updated_at = $6, fence_token = fence_token + 1
 		WHERE tenant_id = $1 AND operation_id = $2 AND state = $3 AND fence_token = $4`,
-		tenantUUID, operationID, string(current.State), currentFence(ctx, tx, tenantUUID, operationID),
+		tenantUUID, operationID, string(current.State), fence,
 		string(StateCancellationRequested), updatedAt)
 	if err != nil {
 		return Record{}, fmt.Errorf("operationstore: cancel operation: %w", err)
@@ -272,13 +276,19 @@ func (s *Store) Transition(ctx context.Context, tenant, operationID string, expe
 	return record, nil
 }
 
-func currentFence(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, operationID string) uint64 {
+// currentFence reads the operation's fence token inside the caller's
+// transaction. A query failure is returned, never coerced to zero: a zero
+// fence would make Cancel's compare-and-swap miss and misreport a backend
+// failure as a concurrent modification (ErrFenced).
+func currentFence(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, operationID string) (uint64, error) {
 	var fence int64
-	_ = tx.QueryRow(ctx, `SELECT fence_token FROM operation WHERE tenant_id = $1 AND operation_id = $2`, tenant, operationID).Scan(&fence)
-	if fence < 0 {
-		return 0
+	if err := tx.QueryRow(ctx, `SELECT fence_token FROM operation WHERE tenant_id = $1 AND operation_id = $2`, tenant, operationID).Scan(&fence); err != nil {
+		return 0, fmt.Errorf("operationstore: read fence token: %w", err)
 	}
-	return uint64(fence)
+	if fence < 0 {
+		return 0, nil
+	}
+	return uint64(fence), nil
 }
 
 func readRecord(ctx context.Context, q dbport.Querier, tenant uuid.UUID, operationID string) (Record, error) {
