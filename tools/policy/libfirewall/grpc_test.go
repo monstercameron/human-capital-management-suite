@@ -71,7 +71,7 @@ func TestGRPCBackendQualification(t *testing.T) {
 // protobuf_grpc section is a visible diff.
 func TestTodo_LIB_003_Golden(t *testing.T) {
 	cfg := loadFirewallConfig(t)
-	want := []string{"gen", "internal/transport", "internal/intent/protomap", "internal/engines/wire", "tools/gen", "tools/quality/bufprotovalidatekit", "tools/uxqual/journeyclient", "tools/uxqual/cmd/journeywasm", "tools/uxqual/productclient", "cmd"}
+	want := []string{"gen", "schema/proto/gen", "internal/transport", "internal/intent/protomap", "internal/engines/wire", "tools/gen", "tools/quality/bufprotovalidatekit", "tools/uxqual/journeyclient", "tools/uxqual/cmd/journeywasm", "tools/uxqual/productclient", "cmd"}
 	got := cfg.ProtobufGRPC.AllowedImportRoots
 	if len(got) != len(want) {
 		t.Fatalf("protobuf_grpc.allowed_import_roots = %v, want %v", got, want)

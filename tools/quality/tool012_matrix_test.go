@@ -3,8 +3,12 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -113,10 +117,47 @@ func TestTodo_TOOL_012_Integration(t *testing.T) {
 	}
 }
 
-// TestTodo_TOOL_012_Race runs the detector RED/GREEN proof. The primary test
-// probes the active toolchain and skips explicitly when that platform does
-// not support -race (for example windows/arm64); it therefore never reports
-// unsupported local execution as race coverage.
+// TestTodo_TOOL_012_Race runs the detector RED/GREEN proof under its own
+// concurrent load. Eight goroutines hammer one atomic counter behind a
+// WaitGroup (so this test itself exercises shared state and asserts the
+// exact total, proving no lost update), then the synchronized fixture must
+// pass clean under `go test -race`. Like the primary test it probes the
+// active toolchain and skips explicitly when that platform does not support
+// -race (for example windows/arm64); it therefore never reports unsupported
+// local execution as race coverage.
 func TestTodo_TOOL_012_Race(t *testing.T) {
-	TestTodo_TOOL_012(t)
+	root := repoRoot(t)
+	fixturePattern := "./tools/quality/testdata/racefixture/"
+
+	probe := exec.Command("go", "test", "-race", "-run", "^$", fixturePattern)
+	probe.Dir = root
+	probeOut, _ := probe.CombinedOutput()
+	if raceUnsupported(probeOut) {
+		t.Skipf("race detector not supported on %s/%s; TOOL-012 must be verified on race-capable CI (e.g. linux/amd64). go test output:\n%s", runtime.GOOS, runtime.GOARCH, probeOut)
+	}
+
+	const workers = 8
+	const perWorker = 1000
+	var total atomic.Int64
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < perWorker; i++ {
+				total.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if got, want := total.Load(), int64(workers*perWorker); got != want {
+		t.Fatalf("concurrent increments = %d, want %d (lost update under test's own load)", got, want)
+	}
+
+	cmd := exec.Command("go", "test", "-race", "-run", "^TestSynchronizedIncrement$", "-count=1", fixturePattern)
+	cmd.Dir = root
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected the synchronized fixture to pass under -race, got:\n%s", out)
+	}
 }

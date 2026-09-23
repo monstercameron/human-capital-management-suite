@@ -20,18 +20,21 @@ module: github.com/monstercameron/human-capital-management-suite
 
 # LIB-003: Protobuf/grpc-go qualified as wire and RPC mechanics only.
 #
-# dependency-roles.yaml's google.golang.org/protobuf and .../grpc rows list
-# allowed_import_roots: [gen, internal/transport]. The LIB-003 assignment
-# additionally grants internal/intent/protomap as the one authored
-# Protobuf<->domain-type translation seam. Three other roots are specific
-# wire/codegen mechanics rather than business packages: tools/gen resolves
-# descriptors to emit clients; internal/engines/wire is the generic Protobuf
+# dependency-roles.yaml's google.golang.org/protobuf row carries the full
+# seam list (gen, schema/proto/gen, internal/transport,
+# internal/intent/protomap, internal/engines/wire, tools/gen,
+# tools/quality/bufprotovalidatekit, the
+# uxqual clients, cmd), and this file's protobuf_grpc.allowed_import_roots
+# mirrors it exactly so LIB-002 and LIB-003 agree. Beyond gen and
+# internal/transport, the extra roots are narrowly scoped mechanics rather
+# than business packages: internal/intent/protomap is the one authored
+# Protobuf<->domain-type translation seam; tools/gen resolves descriptors
+# to emit clients; internal/engines/wire is the generic Protobuf
 # canonical-byte engine and schema-reflection registry. It decides no HCM
 # policy and exposes no Protobuf type through a capability/domain port. The
 # narrower roots are intentional: internal/kernel/values, other tools, and
 # all data/application packages must reach the runtime through an owned
-# adapter instead. The same roots are recorded on the protobuf dependency-role
-# row so LIB-002 and LIB-003 agree.
+# adapter instead.
 protobuf_grpc:
   modules:
     - google.golang.org/protobuf
@@ -40,6 +43,7 @@ protobuf_grpc:
     - google.golang.org/genproto/googleapis/rpc
   allowed_import_roots:
     - gen
+    - schema/proto/gen
     - internal/transport
     - internal/intent/protomap
     - internal/engines/wire
@@ -54,10 +58,11 @@ protobuf_grpc:
 
 # LIB-004: pgx/v5 confined behind the PostgreSQL adapter boundary. The
 # leak-scan runs over dependency-roles.yaml's own pgx row
-# (allowed_import_roots: [internal/data, internal/ledger, migrations]) via
-# depmanifest, not a separate list here, so this file only needs to name the
-# concrete types that must never appear in an exported signature/alias
-# anywhere in the graph, even inside those allowed roots.
+# (allowed_import_roots: [internal/data, internal/ledger, migrations,
+# internal/platform/bootstrap, cmd/hcmnext, cmd/migrate]) via depmanifest,
+# not a separate list here, so this file only needs to name the concrete
+# types that must never appear in an exported signature/alias anywhere in
+# the graph, even inside those allowed roots.
 pgx_leak_types:
   - github.com/jackc/pgx/v5.Tx
   - github.com/jackc/pgx/v5.Rows
@@ -69,11 +74,13 @@ pgx_leak_types:
 apd_leak_types:
   - github.com/cockroachdb/apd/v3.Decimal
 
-# LIB-007: OpenTelemetry not imported by production code before OBS-002.
-# dependency-roles.yaml's go.opentelemetry.io/ family_rule already carries
-# allowed_import_roots: [] (transitive-only, "add an exact row when internal/
-# imports any of them directly" — that has not happened yet), so the
-# generic LIB-002 firewall already enforces "zero direct imports" today;
+# LIB-007: OpenTelemetry confined to the owned adapters admitted by OBS-002.
+# dependency-roles.yaml's go.opentelemetry.io/ family_rule carries
+# allowed_import_roots: [internal/platform/telemetry/otel,
+# internal/transport/otelmw, internal/connectivity/providertelemetry], and
+# exact rows pin the versions of the directly imported subpackages (otel,
+# otel/trace, otel/metric, the SDK and the OTLP/stdout exporters), so the
+# generic LIB-002 firewall enforces those roots on every direct import;
 # this entry only pins the module prefix for the AST leak-scan / reporting
 # so this file's tests read the family the same way dependency-roles.yaml
 # names it.
@@ -81,7 +88,8 @@ otel_module_prefix: go.opentelemetry.io/
 
 # LIB-008: goose confined to the SQL-first migration runner. Scan scope
 # comes from dependency-roles.yaml's goose row
-# (allowed_import_roots: [migrations, cmd]). marker_comment is the required
+# (allowed_import_roots: [migrations, cmd, internal/data/pgtest,
+# internal/data/schema]). marker_comment is the required
 # review marker on any hand-authored Go migration file (as opposed to a
 # goose embed/registration boilerplate file); its absence is what RED means
 # by "a Go migration lacking explicit need, idempotency and resumable

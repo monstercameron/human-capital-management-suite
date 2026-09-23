@@ -21,6 +21,7 @@ const (
 	RuleWorkflowDomainPersist   = "workflow-must-not-import-domain-persistence"
 	RuleTransportImportsStore   = "transport-must-not-import-store"
 	RuleBusinessConcreteAdapter = "business-must-not-import-concrete-adapter"
+	RuleLayerUpward             = "layer-must-not-import-upward"
 )
 
 // Layer is one ranked layer in the dependency policy.
@@ -218,6 +219,18 @@ func (p *Policy) CheckEdge(importerPath, importedPath string) *Violation {
 	if importerHasLayer && p.isBusinessLayer(importerLayer.Name) &&
 		matchesAny(p.ConcreteAdapterMarkers, importedRel) {
 		return &Violation{importerPath, importedPath, RuleBusinessConcreteAdapter}
+	}
+
+	// Rule: any edge to a higher-ranked layer is forbidden. This is the
+	// general form of the direction the named rules above pin for their
+	// exact cases: a package may import a layer with a lower-or-equal
+	// rank, never a higher one. It runs last so the named rules keep
+	// their stable citations where both match. Edges touching an
+	// unranked (port/adapter or unmodeled mesh) package stay out of the
+	// spine policy's scope.
+	if importerHasLayer && importedHasLayer &&
+		importedLayer.Rank > importerLayer.Rank {
+		return &Violation{importerPath, importedPath, RuleLayerUpward}
 	}
 
 	return nil

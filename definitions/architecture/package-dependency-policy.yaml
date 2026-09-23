@@ -1,11 +1,19 @@
 # Machine-readable package dependency policy (ARCH-GO-002).
 #
 # Consumed by tools/policy/depedge. Encodes the layer order
-# kernel <- engines <- domains <- capabilities <- workflow/application <- transport,
+# kernel <- engines <- domains <- capabilities <- workflow <- platform/humanwork/transport <- application,
 # with transaction/ledger/data modelled as ports/adapters rather than ranked
 # layers: business code depends on the port (the package itself, e.g.
 # internal/transaction or internal/data), never on a concrete adapter
 # subpackage underneath one.
+#
+# Roots the layout manifest declares outside this spine (intent,
+# governance, trust and its adapters, connectivity and messaging,
+# operations, the data-mesh evidence/documents/resource/contractarchive
+# roots, and the collaboration/experience/forms/a11y/i18n surfaces) stay
+# deliberately unranked: their mutual edges form a mesh no total order
+# models, and ranking any of them would trade real violations for waiver
+# noise. They are placed by repository-layout.yaml, not by rank.
 #
 # See planning/specs/platform-responsibility-boundaries.md and
 # planning/specs/platform-plane-model.md for the normative dependency
@@ -31,10 +39,14 @@ layers:
     rank: 1
     roots:
       - internal/engines
+      - internal/conformance
+      - internal/documentextract
   - name: domains
     rank: 2
     roots:
       - internal/domains
+      - internal/commercial
+      - internal/customobject
   - name: capabilities
     rank: 3
     roots:
@@ -43,10 +55,29 @@ layers:
     rank: 4
     roots:
       - internal/workflow
+  - name: platform
+    rank: 5
+    roots:
+      - internal/platform
+      - internal/effectgraph
+      - internal/flow
+      - internal/generated
+      - internal/performance
+      - internal/replan
+      - internal/store
+      - internal/configuration
+  - name: humanwork
+    rank: 5
+    roots:
+      - internal/humanwork
   - name: transport
     rank: 5
     roots:
       - internal/transport
+  - name: application
+    rank: 6
+    roots:
+      - internal/application
 
 # business_layers identifies which ranked layers are "business packages" for
 # the concrete-adapter rule: they may depend on a port, never on the
@@ -117,10 +148,164 @@ rules:
     description: >-
       A business_layers package may not import a path matched by
       concrete_adapter_markers; it depends on the port package instead.
+  - name: layer-must-not-import-upward
+    description: >-
+      Any package in a ranked layer may import a layer with a
+      lower-or-equal rank, never a higher one. This is the general form
+      of the direction the named rules pin for their exact cases; it runs
+      after them so their citations stay stable where both match.
 
 # Reviewed, narrow exceptions. Each entry names the exact importer/imported
 # pair (module-relative import paths) it waives, plus owner/rationale/expiry
-# per the ARCH-GO-002 GREEN clause. Empty until a real exception is needed;
-# widening scope always requires a new entry, never editing an existing one
-# in place beyond its expiry review.
-exceptions: []
+# per the ARCH-GO-002 GREEN clause. Widening scope always requires a new
+# entry, never editing an existing one in place beyond its expiry review.
+# Every entry below names a live-graph edge REV-101-02 verified and may not
+# move itself: workflow step adapters consume the human-work vocabulary
+# from packages this todo does not own, and the sandbox composer drives
+# the application root by design. The leave -> workitem edge is fixed,
+# not waived.
+exceptions:
+  - importer: internal/platform/sandbox
+    imported: internal/application
+    owner: platform-foundation
+    rationale: >-
+      The sandbox composer builds fenced Promotion tenants through the
+      application composition root (ComposeExecutionAuthority); the edge
+      is the designed composition direction for fenced tenants.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/cancellation
+    imported: internal/humanwork/workitem
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/execute
+    imported: internal/humanwork
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/execute
+    imported: internal/humanwork/workitem
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/execute/effects
+    imported: internal/humanwork/workitem
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/inspect
+    imported: internal/humanwork/workitem
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/migrate/artifacts
+    imported: internal/humanwork/workitem
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/promotionexec
+    imported: internal/humanwork
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/promotionexec
+    imported: internal/humanwork/approverclass
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/promotionexec
+    imported: internal/humanwork/workitem
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/prototype
+    imported: internal/humanwork
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/simulate
+    imported: internal/humanwork
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/simulate
+    imported: internal/platform/timeauth
+    owner: workflow-runtime
+    rationale: >-
+      The workflow simulator reads the platform time authority directly;
+      narrow waiver pending a below-domains extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/steps/approval
+    imported: internal/humanwork
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/steps/approval
+    imported: internal/humanwork/workitem
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/steps/task
+    imported: internal/humanwork
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/steps/task
+    imported: internal/humanwork/workitem
+    owner: workflow-runtime
+    rationale: >-
+      Workflow step adapters consume the human-work approval/work-item
+      vocabulary directly; narrow waiver pending a below-domains
+      extraction follow-up.
+    expiry: "2026-12-31"
+  - importer: internal/workflow/steps/task
+    imported: internal/humanwork/formcontinuity
+    owner: workflow-runtime
+    rationale: >-
+      The TASK intake boundary (REV-025-01) establishes alternate-channel
+      continuity records as submission evidence; the record keeps the
+      respondent's authority and grants the route no decision power.
+      Narrow waiver pending a below-domains extraction follow-up.
+    expiry: "2026-12-31"

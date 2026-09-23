@@ -65,7 +65,7 @@ internal_package_roots:
   - name: application
     owner: platform-foundation
     layer: application
-    phase: P1A
+    phase: deferred
     description: >-
       Single explicit application composition root (ARCH-GO-020). Builds
       registries, governance, workflows, engines, domains, ports/adapters and
@@ -139,6 +139,17 @@ internal_package_roots:
     layer: connectivity
     phase: P1A
     description: System integration connectors, APIs, webhooks, files, government gateways.
+  - name: collaboration
+    owner: experience-and-transport
+    layer: transport
+    phase: P1A
+    description: >-
+      Native chat collaboration contracts and policy adapters. Chat is a
+      GateC capability and remains deferred from the current release inventory
+      even when shared composition code can reach its contracts. The root is
+      separate from internal/transport and internal/humanwork so chat
+      semantics remain bounded while protocol and UI adapters stay in their
+      owning roots.
   - name: trust
     owner: governance-and-trust
     layer: trust

@@ -1,0 +1,7 @@
+internal/domains/leave -> internal/humanwork/workitem: layer-must-not-import-upward
+internal/domains/promotion -> internal/transport/productquery: layer-must-not-import-upward
+internal/humanwork/journeyinvalidation -> internal/transport/productquery: OK
+internal/platform/sandbox -> internal/application: layer-must-not-import-upward
+internal/transport/journey -> internal/domains/promotion: OK
+internal/workflow/execute -> internal/humanwork/workitem: layer-must-not-import-upward
+internal/workflow/simulate -> internal/platform/timeauth: layer-must-not-import-upward

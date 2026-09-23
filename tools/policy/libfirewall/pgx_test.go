@@ -28,8 +28,10 @@ func loadFirewallConfigAndRoles(t *testing.T) (*libfirewall.Config, *depmanifest
 
 // pgxOwningRoots returns dependency-roles.yaml's own allowed_import_roots
 // for pgx/v5 -- the scope TestPGXAdapterQualification's leak-scan runs
-// over. It deliberately reuses that manifest's row rather than a second,
-// possibly-drifting list in library-firewall.yaml.
+// over (currently the data and ledger adapters, the migration runner, the
+// bootstrap composer and the migrate commands). It deliberately reuses that
+// manifest's row rather than a second, possibly-drifting list in
+// library-firewall.yaml.
 func pgxOwningRoots(t *testing.T, roles *depmanifest.Manifest) []string {
 	t.Helper()
 	for _, row := range roles.Modules {
@@ -88,8 +90,8 @@ type ErrCode = pgx.Identifier
 
 // TestPGXAdapterQualification is the LIB-004 primary test. It has two
 // halves: (1) an import-root check, reusing dependency-roles.yaml's own pgx
-// row (allowed_import_roots) so a package outside internal/data/internal/
-// ledger/migrations can never import pgx at all; (2) a leak-scan over
+// row (allowed_import_roots) so a package outside that row's own allowed
+// roots can never import pgx at all; (2) a leak-scan over
 // synthetic source within an allowed root proving that even there, an
 // exported alias, field, or function signature naming pgx.Tx, pgx.Rows or
 // pgx.Conn directly is flagged, while an owned wrapper type is not.

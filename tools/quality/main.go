@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/tools/quality/decomposition"
+	"github.com/monstercameron/human-capital-management-suite/tools/quality/testhygiene"
 	"gopkg.in/yaml.v3"
 )
 
@@ -44,6 +45,9 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 && args[0] == "decomposition" {
 		return runDecomposition(args[1:], stdout, stderr)
+	}
+	if len(args) > 0 && args[0] == "testhygiene" {
+		return runTesthygiene(args[1:], stdout, stderr)
 	}
 	root, err := findRepoRoot()
 	if err != nil {
@@ -167,6 +171,50 @@ func runDecomposition(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintf(stdout, "quality decomposition: PASS: %s\n", decisionPath)
+	return 0
+}
+
+// runTesthygiene is the REV-103-03 hygiene lint. It scans root (default: the
+// repository root) for alias tests, _Race tests without concurrency and
+// Golden tests that skip, prints the deterministic report and exits non-zero
+// when any violation remains. It is an explicit subcommand rather than part
+// of the default quality run because the wider tree still carries
+// pre-existing violations owned by other todos; wiring it into the default
+// run happens once that backlog is cleared.
+func runTesthygiene(args []string, stdout, stderr io.Writer) int {
+	root := ""
+	for i := 0; i < len(args); i += 2 {
+		if i+1 >= len(args) {
+			fmt.Fprintln(stderr, "quality testhygiene: usage: [-root <dir>]")
+			return 2
+		}
+		switch args[i] {
+		case "-root":
+			root = args[i+1]
+		default:
+			fmt.Fprintln(stderr, "quality testhygiene: unknown option")
+			return 2
+		}
+	}
+	if root == "" {
+		var err error
+		root, err = findRepoRoot()
+		if err != nil {
+			fmt.Fprintf(stderr, "quality testhygiene: %v\n", err)
+			return 2
+		}
+	}
+	violations, err := testhygiene.CheckTree(root)
+	if err != nil {
+		fmt.Fprintf(stderr, "quality testhygiene: REJECTED: %v\n", err)
+		return 1
+	}
+	if len(violations) > 0 {
+		fmt.Fprint(stdout, testhygiene.FormatReport(violations))
+		fmt.Fprintf(stderr, "quality testhygiene: REJECTED: %d violation(s)\n", len(violations))
+		return 1
+	}
+	fmt.Fprintln(stdout, "quality testhygiene: PASS")
 	return 0
 }
 

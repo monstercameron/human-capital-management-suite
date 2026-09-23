@@ -78,12 +78,12 @@ family_rules:
     security_owner: platform-foundation
     upgrade_sla: Tracks google.golang.org/grpc's transitive pin; security patch within 14 days.
     exposure: >-
-      OpenTelemetry API, SDK and OTLP/stdout exporters. Imported only by
-      internal/platform/telemetry/otel (OBS-002); every other package reaches
-      telemetry through that adapter.
+      OpenTelemetry API, SDK and OTLP/stdout exporters. Direct imports are
+      admitted only inside the listed adapters (OBS-002); every other
+      package reaches telemetry through internal/platform/telemetry/otel.
     replacement_strategy: >-
-      OBS-002 decides the OTel SDK adoption explicitly; until then these are
-      transitive-only.
+      OBS-002 decides the OTel SDK adoption explicitly; the exact rows below
+      pin the adopted subpackages.
     allowed_import_roots:
       [
         internal/platform/telemetry/otel,
@@ -162,6 +162,8 @@ modules:
         internal/platform/devclock,
         internal/platform/execution,
         internal/transport,
+        internal/collaboration/chat,
+        internal/collaboration/chatroutingadapter,
         tools/uxqual/journeyclient,
         cmd,
         test,
@@ -175,6 +177,10 @@ modules:
       defining identity policy. internal/engines/wire/digest mints only the
       opaque string ID of a reviewed digest-migration evidence record; callers
       can inject NewID and no UUID type crosses the wire-engine API.
+      internal/collaboration/chat mints only opaque string IDs
+      (uuid.NewString) for conversations and posts the same way, and
+      internal/collaboration/chatroutingadapter derives deterministic
+      idempotency keys (uuid.NewSHA1) alongside fresh string IDs.
     replacement_strategy: A crypto/rand-backed hand-rolled UUID generator if this package's maintenance lapses; the kernel identity API is the seam.
 
   - path: github.com/jackc/pgpassfile
@@ -407,7 +413,10 @@ modules:
       In-process Unicode NFC normalization. internal/engines/wire/canonical,
       internal/kernel/values, and internal/intent's envelope validator use it
       solely to reject or canonicalize text before it reaches a stored
-      semantic contract; no x/text type crosses an owned API.
+      semantic contract; no x/text type crosses an owned API. The people,
+      i18n, experience, productui and forms roots stay admitted for
+      locale-aware seams; no package under those roots imports x/text
+      directly today.
     replacement_strategy: Tracks google.golang.org/grpc and github.com/jackc/pgx/v5.
 
   - path: golang.org/x/tools
@@ -508,6 +517,7 @@ modules:
         internal/humanwork/productui,
         internal/humanwork/uicomponents,
         internal/humanwork/workspace,
+        internal/humanwork/chatui,
       ]
     direct_import_expected: false
     upgrade_sla: Minor within 90 days; security patch within 14 days.
@@ -516,6 +526,8 @@ modules:
       UX-QUAL-001 as the selected renderer; the production UI packages import
       its html/ui/css subpackages as renderer mechanics only (markup, server
       components, typed CSS). No business semantics may come from it.
+      internal/humanwork/chatui imports only the html/ui subpackages to
+      render the chat workspace tree from owned types.
     replacement_strategy: Go html/template server-side rendering with progressive enhancement (UX-QUAL-001 fallback).
 
   - path: github.com/monstercameron/schemaflux
@@ -587,7 +599,7 @@ modules:
     exposure: >-
       OTel metric SDK imported by internal/platform/telemetry/otel (OBS-002). Exact row (in addition to the family rule) so the
       dependency-admission report has a pinned version.
-    replacement_strategy: OBS-002 decides OTel SDK adoption; transitive-only until then.
+    replacement_strategy: OBS-002 admits this subpackage inside its listed adapters.
 
   - path: go.opentelemetry.io/otel
     version: v1.46.0
@@ -626,7 +638,7 @@ modules:
     exposure: >-
       OTel trace API for span context propagation. Exact row (in addition to the family rule) so the
       dependency-admission report has a pinned version.
-    replacement_strategy: OBS-002 decides OTel SDK adoption; transitive-only until then.
+    replacement_strategy: OBS-002 admits this subpackage inside its listed adapters.
 
   - path: go.opentelemetry.io/otel/metric
     version: v1.46.0
@@ -640,7 +652,7 @@ modules:
     exposure: >-
       OTel metric API imported by internal/platform/telemetry/otel (OBS-002). Exact row (in addition to the family rule) so the
       dependency-admission report has a pinned version.
-    replacement_strategy: OBS-002 decides OTel SDK adoption; transitive-only until then.
+    replacement_strategy: OBS-002 admits this subpackage inside its listed adapters.
 
   - path: go.opentelemetry.io/otel/sdk
     version: v1.46.0
@@ -682,7 +694,7 @@ modules:
     exposure: >-
       OTLP HTTP trace exporter imported by internal/platform/telemetry/otel (OBS-002). Exact row (in addition to the family
       rule) so the dependency-admission report has a pinned version.
-    replacement_strategy: OBS-002 decides OTel SDK adoption; transitive-only until then.
+    replacement_strategy: OBS-002 admits this subpackage inside its listed adapters.
 
   - path: go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp
     version: v1.46.0
@@ -696,7 +708,7 @@ modules:
     exposure: >-
       OTLP HTTP metric exporter imported by internal/platform/telemetry/otel (OBS-002). Exact row (in addition to the family
       rule) so the dependency-admission report has a pinned version.
-    replacement_strategy: OBS-002 decides OTel SDK adoption; transitive-only until then.
+    replacement_strategy: OBS-002 admits this subpackage inside its listed adapters.
 
   - path: go.opentelemetry.io/otel/exporters/stdout/stdouttrace
     version: v1.46.0
@@ -710,7 +722,7 @@ modules:
     exposure: >-
       Stdout trace exporter imported by internal/platform/telemetry/otel (OBS-002). Exact row (in addition to the family
       rule) so the dependency-admission report has a pinned version.
-    replacement_strategy: OBS-002 decides OTel SDK adoption; transitive-only until then.
+    replacement_strategy: OBS-002 admits this subpackage inside its listed adapters.
 
   - path: go.opentelemetry.io/proto/otlp
     version: v1.11.0
@@ -862,6 +874,7 @@ modules:
       [
         internal/transport,
         gen,
+        schema/proto/gen,
         tools/gen,
         cmd,
         tools/uxqual/journeyclient,
@@ -874,6 +887,8 @@ modules:
       Terminates and originates all gRPC network traffic. Not PROJECT_CORE
       per the LIB-001 RED clause even though it carries the canonical
       contract; it remains a qualified, replaceable RPC mechanic.
+      schema/proto/gen holds protoc-generated service code that carries
+      the same wire traffic as gen/.
     replacement_strategy: grpc-gateway/connect-go is the qualified transport-edge fallback (TOOL-008); grpc-go itself has no realistic replacement as the canonical RPC runtime this release.
 
   - path: google.golang.org/grpc/cmd/protoc-gen-go-grpc
@@ -897,6 +912,7 @@ modules:
     allowed_import_roots:
       [
         gen,
+        schema/proto/gen,
         internal/transport,
         internal/intent/protomap,
         internal/engines/wire,
@@ -915,6 +931,8 @@ modules:
       (internal/engines/wire), and LIB-019's developer-only structural
       validation qualification kit; those packages do not own business rules
       or export wire values through domain and capability ports.
+      schema/proto/gen holds protoc-generated message code that is wire
+      encoding like gen/.
     replacement_strategy: No realistic replacement; Protobuf is the canonical wire contract per the Go technology constitution.
 
   - path: github.com/rogpeppe/go-internal
