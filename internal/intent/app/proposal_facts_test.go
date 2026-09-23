@@ -14,6 +14,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projection/critical"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/wire/digest"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -313,10 +314,12 @@ func TestExecutionDecisionRecordIsIdempotentAndRefusesADigestChange(t *testing.T
 	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
 		t.Fatalf("scope tenant: %v", err)
 	}
-	if err := drifted.record(ctx, tx); err == nil {
-		t.Fatal("recording a decision against a different material digest must be refused")
-	} else if !strings.Contains(err.Error(), "stored proposal revision") {
+	var conflict critical.ErrProposalRevisionConflict
+	if err := drifted.record(ctx, tx); !errors.As(err, &conflict) {
 		t.Fatalf("record(drifted) = %v, want an immutable stored-proposal mismatch", err)
+	}
+	if conflict.IntentID != intentID || conflict.Revision != 1 {
+		t.Fatalf("conflict = %+v, want the conflicting intent and revision", conflict)
 	}
 }
 

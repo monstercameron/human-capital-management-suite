@@ -17,6 +17,16 @@ import (
 // a new assignment is required when those server-side facts change.
 var ErrPromotionAuthorityStale = errors.New("app: promotion approval authority is stale")
 
+// promotionAuthorityError exposes a bounded diagnostic code, never identity
+// or credential contents. Callers retain errors.Is against the public sentinel.
+type promotionAuthorityError string
+
+func (e promotionAuthorityError) Error() string {
+	return ErrPromotionAuthorityStale.Error() + ": " + string(e)
+}
+func (e promotionAuthorityError) Unwrap() error     { return ErrPromotionAuthorityStale }
+func (e promotionAuthorityError) ErrorCode() string { return string(e) }
+
 // RevalidatePromotionApproverAuthority is the application boundary for the
 // promotionexec authority contract. It is intentionally pure: callers provide
 // the pinned binding and a fresh directory result, and no lifecycle or
@@ -35,7 +45,7 @@ func RevalidatePromotionApproverAuthority(binding promotionexec.ApprovalAuthorit
 // checks remain owned by workflow/steps/approval.Complete.
 func ValidatePromotionJourneyApprover(principal *trust.Principal, item workitem.WorkItem, approver string, at time.Time) error {
 	if principal == nil || strings.TrimSpace(approver) == "" || principal.Subject() != approver || at.IsZero() {
-		return fmt.Errorf("%w: verified approver identity is missing or does not match the routed principal", ErrPromotionAuthorityStale)
+		return promotionAuthorityError("APPROVER_IDENTITY_MISMATCH")
 	}
 	// This helper is intentionally a no-op for non-promotion approval nodes;
 	// the journey engine can be composed alongside other intent families.
@@ -43,13 +53,13 @@ func ValidatePromotionJourneyApprover(principal *trust.Principal, item workitem.
 		return nil
 	}
 	if at.Before(principal.IssuedAt()) || !at.Before(principal.ExpiresAt()) {
-		return fmt.Errorf("%w: authenticated approver credential is outside its validity window", ErrPromotionAuthorityStale)
-	}
-	if item.OrganizationScopeID != "" && item.OrganizationScopeID != principal.OrganizationScopeID() {
-		return fmt.Errorf("%w: approver credential is outside the routed organization scope", ErrPromotionAuthorityStale)
+		return promotionAuthorityError("APPROVER_CREDENTIAL_EXPIRED_OR_NOT_YET_VALID")
 	}
 	if _, ok := item.Assignment.Resolution.Authorizes(approver); !ok {
-		return fmt.Errorf("%w: approver is not in the server-resolved promotion candidate set", ErrPromotionAuthorityStale)
+		return promotionAuthorityError("APPROVER_NOT_ROUTED")
+	}
+	if item.OrganizationScopeID != "" && item.OrganizationScopeID != principal.OrganizationScopeID() {
+		return promotionAuthorityError("APPROVER_ORGANIZATION_SCOPE_MISMATCH")
 	}
 	return nil
 }

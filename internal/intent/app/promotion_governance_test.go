@@ -42,8 +42,12 @@ func TestGovernanceStandingAnswersTheDelegationsCurrentAuthority(t *testing.T) {
 		t.Fatal("standing carries no observation instant")
 	}
 
+	// RBAC-RT-003: intent creation needs a role granting the subject's data
+	// domain, so the revoked fixture keeps comp_admin (like the revocation
+	// fixture in TestPromotionStepServicesFailClosed) and drops only the
+	// promotion_operator delegation the standing reports on.
 	revoked := newStepHarness(t, stepRoleAccess{snapshot: roleaccess.Snapshot{Assignments: []roleaccess.Assignment{
-		{WorkerRef: h.call.Delegation.Subject, RoleIDs: []string{"intent_author"}},
+		{WorkerRef: h.call.Delegation.Subject, RoleIDs: []string{"intent_author", "comp_admin"}},
 	}}})
 	refused, err := revoked.services.GovernanceStanding(ctx, revoked.call)
 	if err != nil {

@@ -1,0 +1,39 @@
+{
+  "policy_version": "harborcare.policy/2026.1",
+  "source_system": "hcmnext.position",
+  "authority_policy": "harborcare.policy/2026.1",
+  "positions": [
+    {
+      "code": "POS-HRBP-301",
+      "id": "55555555-5555-4555-8555-555555555555",
+      "job_code": "OPS-HRBP3",
+      "org_unit": "people-ops",
+      "legal_entity": "HarborCare US Inc.",
+      "lifecycle": "OPEN",
+      "capacity_fte": "1.0000",
+      "capacity_heads": 1,
+      "effective_from": "2026-01-01",
+      "known_at": "2024-04-01T00:00:00Z",
+      "recorded_at": "2024-04-02T00:00:00Z",
+      "revision_stream": "position.POS-HRBP-301",
+      "revision_sequence": 5,
+      "evidence_ref": "evd_position_hrbp301_r5"
+    },
+    {
+      "code": "POS-HRBP-204",
+      "id": "66666666-6666-4666-8666-666666666666",
+      "job_code": "OPS-HRBP2",
+      "org_unit": "people-ops",
+      "legal_entity": "HarborCare US Inc.",
+      "lifecycle": "OPEN",
+      "capacity_fte": "1.0000",
+      "capacity_heads": 1,
+      "effective_from": "2026-01-01",
+      "known_at": "2024-04-01T00:00:00Z",
+      "recorded_at": "2024-04-02T00:00:00Z",
+      "revision_stream": "position.POS-HRBP-204",
+      "revision_sequence": 2,
+      "evidence_ref": "evd_position_hrbp204_r2"
+    }
+  ]
+}

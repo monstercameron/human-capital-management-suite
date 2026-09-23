@@ -218,6 +218,13 @@ type DomainCall struct {
 
 	// Baseline is the exact input state the kernel preflight evaluates.
 	Baseline intent.BaselineSnapshot
+	// Simulations are the zero-effect assignment and compensation sims a
+	// position-bound promotion resolves to, bound to the governed snapshot
+	// and one candidate digest. Nil for intents that carry no governed
+	// simulations; downstream stages assemble the sim contract from these
+	// plus the preflight findings, and commit executes against the
+	// snapshot digest they bind.
+	Simulations *PromotionSimulations
 
 	// ManagerWorkerID is the promotion subject's durable manager worker id
 	// (WF-RUN-034), resolved from the created worker's own recorded manager

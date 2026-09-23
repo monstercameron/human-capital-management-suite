@@ -1,0 +1,9 @@
+promotion input snapshot sha256:c278cf0404f2ce99c9ba5f6afda6fce4ea0358b9771e976721dc43cac1f70a1a for tenant harborcare-demo: subject eref:v1:harborcare-demo:worker:22222222-2222-4222-8222-222222222222 into position eref:v1:harborcare-demo:position:55555555-5555-4555-8555-555555555555, effective 2026-06-01, known at 2026-05-15T12:00:00Z, overall SATISFIED
+- promotion.subject_worker_facts (owner people, authority NATIVE_STATE, watermark rev:v1:people.worker.22222222:s17): DISCLOSED/SATISFIED
+- promotion.current_placement (owner people, authority NATIVE_STATE, watermark rev:v1:people.worker.22222222:s17): DISCLOSED/SATISFIED
+- promotion.manager_chain (owner org, authority NATIVE_STATE, watermark rev:v1:org.graph.harborcare-demo:s9): DISCLOSED/SATISFIED
+- promotion.target_position_capacity (owner position, authority NATIVE_STATE, watermark rev:v1:position.POS-HRBP-301:s5): DISCLOSED/SATISFIED
+- promotion.target_position_vacancy (owner position, authority NATIVE_STATE, watermark rev:v1:position.POS-HRBP-301:s5): ABSENT/SATISFIED [no date is known on which the position sits vacant with no successor]
+- promotion.pay_band_position_current (owner rewards, authority NATIVE_STATE, watermark rev:v1:rewards.package.omar-reyes:s1): DISCLOSED/SATISFIED
+- promotion.pay_band_position_desired (owner rewards, authority NATIVE_STATE, watermark rev:v1:rewards.band.BAND-OPS-P3-USEAST%402026.1:s1): DISCLOSED/SATISFIED
+- promotion.budget_availability (owner budget, authority EXTERNAL_OBSERVATION, watermark rev:v1:budget.pool.cost-center%3Apeople-ops.FY2026:s1): DISCLOSED/SATISFIED

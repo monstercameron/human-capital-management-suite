@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	promosnapshot "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/snapshot"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/repair"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -85,6 +86,10 @@ type FixtureInputs struct {
 	// pinnedManager answers the manager an intent's recorded proposal
 	// revision already pinned (WF-RUN-034). Nil until the cell binds it.
 	pinnedManager PinnedManagerReader
+	// budgetPools answers the compensation-pool observation the governed
+	// promotion snapshot reads. Nil until first use, when the corpus pool
+	// loads; tests override it to prove exhaustion and absence.
+	budgetPools *corpusBudgetFacts
 }
 
 var _ DomainInputs = (*FixtureInputs)(nil)
@@ -243,13 +248,16 @@ func (f *FixtureInputs) worker(ctx context.Context, tenant values.TenantId, ref 
 }
 
 // read performs the corpus read that pins the baseline: whether the worker
-// resolves at all, and the revision every fact was read at.
-func (f *FixtureInputs) read(ctx context.Context, tenant values.TenantId, worker values.EntityRef, asOf people.AsOf) (people.FactSet, error) {
+// resolves at all, and the revision every fact was read at. Extra fields
+// extend the projection for callers that simulate over them (a position-bound
+// promotion reads occupancy FTE); the baseline projection is unchanged.
+func (f *FixtureInputs) read(ctx context.Context, tenant values.TenantId, worker values.EntityRef, asOf people.AsOf, extra ...people.FieldID) (people.FactSet, error) {
+	fields := append(append([]people.FieldID(nil), promotion.RequiredWorkerFields()...), extra...)
 	return f.workers.WorkerFactsAt(ctx, people.FactQuery{
 		Tenant: tenant,
 		Worker: worker,
 		AsOf:   asOf,
-		Fields: promotion.RequiredWorkerFields(),
+		Fields: fields,
 	})
 }
 
@@ -322,11 +330,20 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 	// fields it cannot be answered without. A caller authorized to see the
 	// assignment but not the pay is refused here rather than handed a
 	// simulation with the money silently missing.
+	// REV-006-01: a position-bound proposal is baselined through the
+	// governed snapshot, which reads exactly
+	// promosnapshot.WorkerFactFields. Those fields join the authorized Read
+	// set so the snapshot's disclosure decision rules on every field it is
+	// asked for; the Gate is unchanged.
+	readFields := peopleFields(fieldSet)
+	if strings.TrimSpace(target.PositionID) != "" {
+		readFields = mergeFields(readFields, peopleFields(promosnapshot.WorkerFactFields()))
+	}
 	decision, err := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
 		Subject:       subject,
 		EvaluatedAt:   inst.CreatedAt,
 		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
-		Read:          peopleFields(fieldSet),
+		Read:          readFields,
 		Relationships: append(append([]authz.RelationshipFact{}, req.Relationships...), managerChainFacts(ctx, f.locate, req.Principal, subject)...),
 	})
 	if err != nil {
@@ -340,7 +357,13 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 		Authorization: peopleDecision(decision, fieldSet),
 	}
 
-	facts, err := f.read(ctx, inst.Tenant, subject, asOf)
+	// REV-006-01: the occupancy simulation reads the governed FTE, so a
+	// position-bound proposal projects it alongside the baseline fields.
+	var extraFields []people.FieldID
+	if strings.TrimSpace(target.PositionID) != "" {
+		extraFields = []people.FieldID{people.FieldFTE}
+	}
+	facts, err := f.read(ctx, inst.Tenant, subject, asOf, extraFields...)
 	if err != nil {
 		return DomainCall{}, fmt.Errorf("app: governed worker read: %w", err)
 	}
@@ -352,7 +375,40 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 	if proposed.Base.IsValue() {
 		present = append(present, "proposed_base_pay")
 	}
+	// REV-006-01: a position-bound proposal builds its baseline through
+	// the governed promotion snapshot, not the payload-pinned sides. The
+	// snapshot binds current pay, the manager chain, the target position
+	// revision and the budget pool observation to their digests; a refused
+	// build (unknown position, unresolvable chain, missing or exhausted
+	// pool) fails the resolve before any commit path can run.
 	baseline := baselineFor(inst, facts, subject, target, present)
+	var simulations *PromotionSimulations
+	if strings.TrimSpace(target.PositionID) != "" {
+		governed, snapErr := f.buildPromotionSnapshot(ctx, promotionSnapshotInput{
+			Subject:   subject,
+			Target:    promotionTargetPlacement{JobCode: target.JobCode, Grade: target.Grade, OrgUnit: target.OrgUnit, PositionID: target.PositionID, PayZone: target.PayZone},
+			Proposed:  proposed,
+			Effective: effective,
+			AsOf:      asOf,
+			Decision:  decision,
+			Facts:     facts,
+			Budget:    &promotionBudgetAuthority{Scope: budgetScopeOf(budget), Period: budgetPeriodOf(budget)},
+		})
+		if snapErr != nil {
+			return DomainCall{}, snapErr
+		}
+		baseline = governed.Snapshot.BaselineSnapshot()
+		simulated, simErr := runPromotionSims(governed, promotionSimInput{
+			Target:   promotionTargetPlacement{JobCode: target.JobCode, Grade: target.Grade, OrgUnit: target.OrgUnit, PositionID: target.PositionID, PayZone: target.PayZone},
+			AsOf:     asOf,
+			Decision: decision,
+			Facts:    facts,
+		})
+		if simErr != nil {
+			return DomainCall{}, simErr
+		}
+		simulations = simulated
+	}
 	if target.PositionID != "" && f.positionReader != nil {
 		selected, _, decodeErr := position.RevisionRef(target.PositionID).Decode()
 		if decodeErr == nil && selected.Tenant == inst.Tenant {
@@ -394,6 +450,7 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 			PositionReader: f.positionReader,
 		},
 		Baseline:        baseline,
+		Simulations:     simulations,
 		ManagerWorkerID: f.managerWorkerID(ctx, inst, workerRef),
 	}, nil
 }

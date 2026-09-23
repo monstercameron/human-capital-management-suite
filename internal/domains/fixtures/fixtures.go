@@ -44,6 +44,12 @@ const (
 	PercentScale  int32               = 4
 )
 
+// CorpusVersion pins the embedded corpus snapshot-build inputs depend on.
+// Promotion snapshots record it as the reference version their entries were
+// read against, so a corpus change re-identifies every snapshot built from
+// it rather than silently re-basing running proposals.
+const CorpusVersion = "harborcare.corpus/2026.1"
+
 //go:embed testdata/workers.json
 var workersJSON []byte
 
@@ -72,6 +78,12 @@ var legacyScenariosJSON []byte
 
 //go:embed testdata/job-architecture.json
 var jobArchitectureJSON []byte
+
+//go:embed testdata/org-graph.json
+var orgGraphJSON []byte
+
+//go:embed testdata/position-catalog.json
+var positionCatalogJSON []byte
 
 // workerFile is the on-disk shape of the worker corpus.
 type workerFile struct {
@@ -254,13 +266,15 @@ type LegacyScenarioSet struct {
 }
 
 var (
-	loadOnce   sync.Once
-	loadErr    error
-	workers    workerFile
-	bands      bandFile
-	demoBands  bandFile
-	scenarios  LegacyScenarioSet
-	jobCatalog jobArchitectureFile
+	loadOnce        sync.Once
+	loadErr         error
+	workers         workerFile
+	bands           bandFile
+	demoBands       bandFile
+	scenarios       LegacyScenarioSet
+	jobCatalog      jobArchitectureFile
+	orgGraph        orgGraphFile
+	positionCatalog positionCatalogFile
 )
 
 // load parses the embedded corpus exactly once.
@@ -287,6 +301,14 @@ func load() error {
 		}
 		if err := json.Unmarshal(jobArchitectureJSON, &jobCatalog); err != nil {
 			loadErr = fmt.Errorf("fixtures: job-architecture.json: %w", err)
+			return
+		}
+		if err := json.Unmarshal(orgGraphJSON, &orgGraph); err != nil {
+			loadErr = fmt.Errorf("fixtures: org-graph.json: %w", err)
+			return
+		}
+		if err := json.Unmarshal(positionCatalogJSON, &positionCatalog); err != nil {
+			loadErr = fmt.Errorf("fixtures: position-catalog.json: %w", err)
 		}
 	})
 	return loadErr
