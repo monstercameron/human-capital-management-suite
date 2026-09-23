@@ -14,8 +14,9 @@ import (
 // Operator, support, recovery and break-glass actions through governed
 // intents (INTENT-022). Every material mutation — database surgery,
 // workflow node manipulation, connector redrive, projection rebuild,
-// failover, quarantine, tenant suspension, key rotation, break-glass —
-// resolves a typed operational intent with just-in-time authority:
+// failover, quarantine, tenant suspension, key rotation, ledger correction,
+// break-glass — resolves a typed operational intent with just-in-time
+// authority:
 // a live grant, dual control where the blast radius demands it, a
 // simulation except in a declared emergency, and an idempotency key so
 // the action executes at most once. Emergency execution records its
@@ -44,6 +45,12 @@ const (
 	OperationTenantSuspension  OperationKind = "TENANT_SUSPENSION"
 	OperationKeyRotation       OperationKind = "KEY_ROTATION"
 	OperationBreakGlass        OperationKind = "BREAK_GLASS"
+	// OperationLedgerCorrection appends a business correction successor
+	// through correction.Append (REV-007-03). It stays single-operator:
+	// the ledger preserves the original event, so a correction adds
+	// truth without rewriting it, and JIT, simulation and idempotency
+	// still gate every execution.
+	OperationLedgerCorrection OperationKind = "LEDGER_CORRECTION"
 )
 
 // Valid reports whether k is a declared material mutation.
@@ -51,7 +58,8 @@ func (k OperationKind) Valid() bool {
 	switch k {
 	case OperationDBSurgery, OperationNodeManipulation, OperationConnectorRedrive,
 		OperationProjectionRebuild, OperationFailover, OperationQuarantine,
-		OperationTenantSuspension, OperationKeyRotation, OperationBreakGlass:
+		OperationTenantSuspension, OperationKeyRotation, OperationBreakGlass,
+		OperationLedgerCorrection:
 		return true
 	}
 	return false

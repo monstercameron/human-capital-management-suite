@@ -3,8 +3,9 @@
 // own read surfaces (planning/specs/transaction-ledger-reconciliation-and-repair.md
 // 8.5 "Transaction Ledger"; planning/specs/provenance-graph-and-lineage.md).
 //
-// Four read shapes are exposed, each a thin, redaction-applying wrapper over
-// an existing data-plane read port rather than a new query engine:
+// Four read shapes and one governed write shape are exposed, each a thin,
+// redaction-applying wrapper over an existing data-plane port rather than a
+// new query engine:
 //
 //   - [StreamListing] lists one stream's events (internal/data/ledger.Reader.ReadStream).
 //   - [EventDetail] reads one exact event plus its stream's hash-chain
@@ -12,12 +13,18 @@
 //     internal/data/ledger/hashchain.Digester.Verify).
 //   - [Lineage] walks correction/supersession ancestry
 //     (internal/data/ledger/lineage.Ancestors, .Descendants).
+//   - [EffectiveCurrent] resolves an event's current-effective truth
+//     (internal/data/ledger/lineage.EffectiveCurrent).
+//   - [RecordCorrection] records one governed business correction
+//     (internal/data/ledger/lineage.Append) plus its hash-chain link in the
+//     same transaction.
 //   - [BitemporalAsOf] / [BitemporalKnownAt] resolve business-time and
 //     knowledge-time reads (internal/data/bitemporal.AsOf, .KnownAt).
 //
-// This package performs no write of any kind and holds no state beyond a
-// caller-supplied *pgx connection/transaction: every function here is a
-// pure read followed by a pure redaction/rendering pass.
+// This package holds no state beyond a caller-supplied *pgx
+// connection/transaction: reads are a pure read followed by a pure
+// redaction/rendering pass, and the single write shape appends exactly one
+// ledger event plus its chain link, never an update or delete.
 //
 // # Authorization
 //
@@ -31,7 +38,10 @@
 // operator explorer that cannot show which event broke a chain, or when,
 // is not useful for the incident it exists to diagnose. [Lineage] carries
 // no payload at all ([lineage.Node] is identity-only) but still honors a
-// non-disclosable decision by refusing to walk it.
+// non-disclosable decision by refusing to walk it. [EffectiveCurrent]
+// withholds the same way, and [RecordCorrection] refuses the write outright
+// with [ErrCorrectionForbidden]: an operator who may not learn that a
+// subject exists may not author corrections about it either.
 //
 // [BitemporalAsOf] and [BitemporalKnownAt] take a
 // internal/data/bitemporal.Decision instead: that package already compiles
