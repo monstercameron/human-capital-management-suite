@@ -40,6 +40,13 @@ func instantInterval(t *testing.T) values.EffectiveInterval {
 
 func testPreparedPlan(t *testing.T) PreparedPlan {
 	t.Helper()
+	return testPreparedPlanFor(t, "proposal-1", "sha256:proposal", "plan-1", "idem-1")
+}
+
+// testPreparedPlanFor builds the same valid plan with a distinct proposal
+// identity, so two proposals can contend for one fenced head.
+func testPreparedPlanFor(t *testing.T, revision, proposalDigest, planID, idemKey string) PreparedPlan {
+	t.Helper()
 	tenant := values.TenantId("11111111-1111-4111-8111-111111111111")
 	key, err := values.NewResourceKey(tenant, values.Kind("assignment"), "worker-1", "assignment-1")
 	if err != nil {
@@ -53,21 +60,21 @@ func testPreparedPlan(t *testing.T) PreparedPlan {
 	iv := instantInterval(t)
 	pay1, _ := values.NewMoney("165000.00", "USD", 2, values.RoundingExactRequired)
 	pay2, _ := values.NewMoney("180000.00", "USD", 2, values.RoundingExactRequired)
-	p := people.PromotionMutation{Tenant: tenant, ProposalRevisionID: "proposal-1", ProposalDigest: "sha256:proposal", ActorPrincipalID: "principal", AuthorityDecision: "authority", WorkerID: "worker-1", AssignmentID: "assignment-1", ResourceKey: key, Subject: subject, Effective: iv, ExpectedRevision: rev, CurrentJobCode: "ENG-3", TargetJobCode: "ENG-MGR", CurrentLevel: "P3", TargetLevel: "M1"}
+	p := people.PromotionMutation{Tenant: tenant, ProposalRevisionID: revision, ProposalDigest: proposalDigest, ActorPrincipalID: "principal", AuthorityDecision: "authority", WorkerID: "worker-1", AssignmentID: "assignment-1", ResourceKey: key, Subject: subject, Effective: iv, ExpectedRevision: rev, CurrentJobCode: "ENG-3", TargetJobCode: "ENG-MGR", CurrentLevel: "P3", TargetLevel: "M1"}
 	orgRev, _ := values.NewSequenceRevision("org.manager_relationship/worker-1", 4)
-	o := org.ManagerMutation{Tenant: tenant, ProposalRevisionID: "proposal-1", ProposalDigest: "sha256:proposal", ActorPrincipalID: "principal", AuthorityDecision: "authority", WorkerID: "worker-1", AssignmentID: "assignment-1", ResourceKey: key, Subject: intent.SubjectReference{Kind: "worker", SubjectID: "worker-1", AuthorityDomain: "organization"}, Effective: iv, ExpectedRevision: orgRev, CurrentRelationshipID: "rel-old", TargetRelationshipID: "rel-new", CurrentManagerID: "manager-old", TargetManagerID: "manager-new"}
+	o := org.ManagerMutation{Tenant: tenant, ProposalRevisionID: revision, ProposalDigest: proposalDigest, ActorPrincipalID: "principal", AuthorityDecision: "authority", WorkerID: "worker-1", AssignmentID: "assignment-1", ResourceKey: key, Subject: intent.SubjectReference{Kind: "worker", SubjectID: "worker-1", AuthorityDomain: "organization"}, Effective: iv, ExpectedRevision: orgRev, CurrentRelationshipID: "rel-old", TargetRelationshipID: "rel-new", CurrentManagerID: "manager-old", TargetManagerID: "manager-new"}
 	cKey, _ := values.NewResourceKey(tenant, values.Kind("compensation_component"), "worker-1", "base-pay-1")
 	cRev, _ := values.NewSequenceRevision("rewards.compensation/worker-1", 9)
-	c := compensation.PromotionMutation{Tenant: tenant, ProposalRevisionID: "proposal-1", ProposalDigest: "sha256:proposal", ActorPrincipalID: "principal", AuthorityDecision: "authority", WorkerID: "worker-1", PackageID: "package-1", ComponentID: "base-pay-1", ResourceKey: cKey, Subject: intent.SubjectReference{Kind: "worker", SubjectID: "worker-1", AuthorityDomain: "compensation"}, Effective: iv, ExpectedRevision: cRev, CurrentBasePay: pay1, TargetBasePay: pay2}
+	c := compensation.PromotionMutation{Tenant: tenant, ProposalRevisionID: revision, ProposalDigest: proposalDigest, ActorPrincipalID: "principal", AuthorityDecision: "authority", WorkerID: "worker-1", PackageID: "package-1", ComponentID: "base-pay-1", ResourceKey: cKey, Subject: intent.SubjectReference{Kind: "worker", SubjectID: "worker-1", AuthorityDomain: "compensation"}, Effective: iv, ExpectedRevision: cRev, CurrentBasePay: pay1, TargetBasePay: pay2}
 	pw, _ := p.PlannedWrites()
 	ow, _ := o.PlannedWrites()
 	cw, _ := c.PlannedWrites()
 	writes := append(append(pw, ow...), cw...)
-	proposal := intent.ProposalRevision{ProposalRevisionID: "proposal-1", IntentID: "intent-1", Revision: 1, Tenant: tenant,
-		Subjects: []intent.SubjectReference{subject}, MaterialDigest: digest.Reference{ProfileID: "PROPOSAL", ProfileVersion: 1, SchemaID: "proposal", SchemaVersion: 1, AlgorithmID: "sha256", Digest: "sha256:proposal"},
+	proposal := intent.ProposalRevision{ProposalRevisionID: revision, IntentID: "intent-1", Revision: 1, Tenant: tenant,
+		Subjects: []intent.SubjectReference{subject}, MaterialDigest: digest.Reference{ProfileID: "PROPOSAL", ProfileVersion: 1, SchemaID: "proposal", SchemaVersion: 1, AlgorithmID: "sha256", Digest: proposalDigest},
 		Writes: writes, SourceBaselines: []intent.SourceBaseline{{StreamID: rev.Stream(), ExpectedRevision: rev}, {StreamID: orgRev.Stream(), ExpectedRevision: orgRev}, {StreamID: cRev.Stream(), ExpectedRevision: cRev}},
 		Effects: []intent.PlannedEffect{{EffectID: "payroll-1", Kind: "external", DestinationRef: "payroll", ObservationRef: "payroll-observation"}}}
-	governance, err := decision.Compose(decision.Inputs{ProposalRevisionDigest: "sha256:proposal", Context: decision.Context{Principal: "principal", Delegation: "none", Capability: "promotion.execute", Resource: "worker-1", Fields: []string{"assignment.job_code", "assignment.grade", "compensation.base_pay"}, CurrentOrganization: "org", TargetOrganization: "org", Purpose: "promotion", Risk: "low", Authority: "people", Legal: "legal:promotion"}, ControlSnapshot: decision.ControlSnapshot{Digest: "sha256:controls"}, Subdecisions: []decision.Subdecision{{ID: "promotion", Source: "promotion", State: decision.Allow}}})
+	governance, err := decision.Compose(decision.Inputs{ProposalRevisionDigest: proposalDigest, Context: decision.Context{Principal: "principal", Delegation: "none", Capability: "promotion.execute", Resource: "worker-1", Fields: []string{"assignment.job_code", "assignment.grade", "compensation.base_pay"}, CurrentOrganization: "org", TargetOrganization: "org", Purpose: "promotion", Risk: "low", Authority: "people", Legal: "legal:promotion"}, ControlSnapshot: decision.ControlSnapshot{Digest: "sha256:controls"}, Subdecisions: []decision.Subdecision{{ID: "promotion", Source: "promotion", State: decision.Allow}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,13 +82,13 @@ func testPreparedPlan(t *testing.T) PreparedPlan {
 	planInput, err := transactionplan.Prepare(t.Context(), heads, transactionplan.PrepareRequest{Proposal: proposal, GovernanceDecision: governance, Events: []transactionplan.PlannedEvent{
 		{StreamKey: rev.Stream(), EventType: "people.JobChanged", SchemaRef: "promotion.people/v1", Digest: "sha256:event1"}, {StreamKey: rev.Stream(), EventType: "people.LevelChanged", SchemaRef: "promotion.people/v1", Digest: "sha256:event2"},
 		{StreamKey: orgRev.Stream(), EventType: "org.ManagerChanged", SchemaRef: "promotion.org/v1", Digest: "sha256:event3"}, {StreamKey: orgRev.Stream(), EventType: "org.RelationshipChanged", SchemaRef: "promotion.org/v1", Digest: "sha256:event4"},
-		{StreamKey: cRev.Stream(), EventType: "compensation.BasePayChanged", SchemaRef: "promotion.compensation/v1", Digest: "sha256:event5"}}, OutboxEffects: []transactionplan.OutboxEffect{{EffectID: "payroll-1", DestinationRef: "payroll", SchemaRef: "promotion.payroll/v1", PayloadDigest: "sha256:payload", IdempotencyKey: "effect-1"}}, IdempotencyKey: "idem-1", Now: values.NewInstant(time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)), ExpiresAt: values.NewInstant(time.Date(2026, 9, 5, 13, 0, 0, 0, time.UTC)), PlanID: "plan-1"})
+		{StreamKey: cRev.Stream(), EventType: "compensation.BasePayChanged", SchemaRef: "promotion.compensation/v1", Digest: "sha256:event5"}}, OutboxEffects: []transactionplan.OutboxEffect{{EffectID: "payroll-1", DestinationRef: "payroll", SchemaRef: "promotion.payroll/v1", PayloadDigest: "sha256:payload", IdempotencyKey: "effect-1"}}, IdempotencyKey: idemKey, Now: values.NewInstant(time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)), ExpiresAt: values.NewInstant(time.Date(2026, 9, 5, 13, 0, 0, 0, time.UTC)), PlanID: planID})
 	if err != nil {
 		t.Fatal(err)
 	}
 	participants := []intent.PlanParticipant{{ParticipantID: ParticipantPeople, StreamID: "people.assignment/worker-1", StorageClass: "LOCAL_EVENT_STREAM", Local: true}, {ParticipantID: ParticipantOrganization, StreamID: "org.manager_relationship/worker-1", StorageClass: "LOCAL_EVENT_STREAM", Local: true}, {ParticipantID: ParticipantCompensation, StreamID: "rewards.compensation/worker-1", StorageClass: "LOCAL_EVENT_STREAM", Local: true}}
 	boundary := transaction.ConsistencyBoundary{BoundaryID: "promotion", Tenant: tenant, CellID: "cell", CoordinatorID: "coordinator", Admitted: []transaction.AdmissionSelector{{StorageClass: "LOCAL_EVENT_STREAM"}}, Isolation: transaction.IsolationSerializable, Protocol: transaction.CommitProtocolSingleDatabaseACID, CrossBoundaryDisposition: transaction.CrossBoundaryDispositionSplitIntoEffects, CoordinatorEpoch: 1, Version: 1}
-	res, err := transaction.ResolveConsistencyBoundary(boundary, intent.TransactionPlan{PlanID: "plan-1", Tenant: tenant, Participants: participants}, 1)
+	res, err := transaction.ResolveConsistencyBoundary(boundary, intent.TransactionPlan{PlanID: planID, Tenant: tenant, Participants: participants}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +106,7 @@ func TestTodo_PROMO_005(t *testing.T) {
 	if err := p.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	c := &Committer{Store: NewStore()}
+	c := &Committer{Store: NewStore(), Fence: allowReservations{}}
 	r, err := c.Commit(t.Context(), p)
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +126,7 @@ func TestTodo_PROMO_005(t *testing.T) {
 func TestTodo_PROMO_005_Fault(t *testing.T) {
 	for _, stage := range []string{"before-participants", ParticipantPeople, ParticipantOrganization, ParticipantCompensation, "outbox", "receipt", "after-commit"} {
 		t.Run(stage, func(t *testing.T) {
-			c := &Committer{Store: NewStore(), Failpoint: func(got string) error {
+			c := &Committer{Store: NewStore(), Fence: allowReservations{}, Failpoint: func(got string) error {
 				if got == stage {
 					return errors.New("crash")
 				}
@@ -140,7 +147,7 @@ func TestTodo_PROMO_005_Fault(t *testing.T) {
 }
 
 func TestTodo_PROMO_005_Race(t *testing.T) {
-	committer := &Committer{Store: NewStore()}
+	committer := &Committer{Store: NewStore(), Fence: allowReservations{}}
 	prepared := testPreparedPlan(t)
 	results := make(chan Receipt, 8)
 	errs := make(chan error, 8)

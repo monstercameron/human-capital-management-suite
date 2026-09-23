@@ -207,9 +207,14 @@ func (s *Store) put(key string, r Receipt) {
 // Committer stages all plan dimensions in memory and publishes one receipt at
 // the end. Its sequencing mirrors the real coordinator's participant, outbox
 // and receipt boundaries, making every crash point testable.
+//
+// Fence is the reservation evidence the commit refuses to proceed without: a
+// nil fence fails closed, so a committer that cannot prove fenced capacity
+// for the plan's exact proposal digest commits nothing.
 type Committer struct {
 	Store     *Store
 	Failpoint Failpoint
+	Fence     ReservationFence
 }
 
 func (c *Committer) Commit(ctx context.Context, prepared PreparedPlan) (Receipt, error) {
@@ -220,6 +225,12 @@ func (c *Committer) Commit(ctx context.Context, prepared PreparedPlan) (Receipt,
 		return Receipt{}, fmt.Errorf("%w: store is required", ErrInvalidPreparedPlan)
 	}
 	if err := prepared.Validate(); err != nil {
+		return Receipt{}, err
+	}
+	// The reservation check runs before the commit mutex: a commit with no
+	// fenced capacity fails fast instead of serializing behind the winner,
+	// and the fence's own stores serialize competing acquisitions.
+	if err := c.assertReservations(ctx, prepared); err != nil {
 		return Receipt{}, err
 	}
 	c.Store.commitMu.Lock()
