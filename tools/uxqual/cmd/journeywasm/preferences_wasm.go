@@ -246,7 +246,7 @@ func (c *serverPreferenceController) PersistView(view productui.View) {
 			user.Tables = map[string]*journeyv1.TablePreferences{}
 		}
 		if view.Page == productui.PagePeople {
-			user.Tables["people"] = &journeyv1.TablePreferences{PageSize: int32(view.PeoplePageSize), Filters: map[string]string{"query": view.Query, "team": view.PeopleTeam, "location": view.PeopleLocation}, Sort: view.PeopleSort, Direction: view.PeopleDirection}
+			user.Tables["people"] = &journeyv1.TablePreferences{PageSize: int32(view.PeoplePageSize), Filters: map[string]string{"query": view.Query, "team": view.PeopleTeam, "location": view.PeopleLocation, "columns": productui.NormalizePeopleColumns(view.PeopleColumns)}, Sort: view.PeopleSort, Direction: view.PeopleDirection}
 		}
 		if view.Page == productui.PageHistory || view.Page == productui.PagePerson {
 			user.Tables["history"] = &journeyv1.TablePreferences{PageSize: int32(view.HistoryPageSize), Filters: map[string]string{"query": view.HistoryQuery, "outcome": view.HistoryOutcome, "person": view.HistoryPerson, "year": view.HistoryYear}, Sort: view.HistorySort, Direction: view.HistoryDirection}

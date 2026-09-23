@@ -64,6 +64,7 @@ func start() error {
 	if err != nil {
 		return err
 	}
+	installChatMediaImageBridge(cfg)
 	if root := js.Global().Get("document").Get("documentElement"); root.Truthy() {
 		cfg.Locale = productui.ResolveProductLocale(root.Get("lang").String()).Resolved
 	}
@@ -73,7 +74,7 @@ func start() error {
 	}
 	service := newJourneyService(conn, cfg)
 	if isProductPath(currentPath()) {
-		return startProduct(context.Background(), cfg, service)
+		return startProduct(context.Background(), cfg, service, conn)
 	}
 
 	store := journey.NewStore(journey.Page{})

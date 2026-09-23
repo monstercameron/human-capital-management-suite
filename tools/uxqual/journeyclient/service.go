@@ -86,6 +86,9 @@ type WorkflowViewerService interface {
 	SetWorkflowDraftOutcome(context.Context, *workflowv1.SetWorkflowDraftOutcomeRequest) (*workflowv1.SetWorkflowDraftOutcomeResponse, error)
 	BindWorkflowDraftInput(context.Context, *workflowv1.BindWorkflowDraftInputRequest) (*workflowv1.BindWorkflowDraftInputResponse, error)
 	MoveWorkflowDraftNode(context.Context, *workflowv1.MoveWorkflowDraftNodeRequest) (*workflowv1.MoveWorkflowDraftNodeResponse, error)
+	RemoveWorkflowDraftNode(context.Context, *workflowv1.RemoveWorkflowDraftNodeRequest) (*workflowv1.RemoveWorkflowDraftNodeResponse, error)
+	ClearWorkflowDraftOutcome(context.Context, *workflowv1.ClearWorkflowDraftOutcomeRequest) (*workflowv1.ClearWorkflowDraftOutcomeResponse, error)
+	RenameWorkflowDraft(context.Context, *workflowv1.RenameWorkflowDraftRequest) (*workflowv1.RenameWorkflowDraftResponse, error)
 	NavigateWorkflowDraftHistory(context.Context, *workflowv1.NavigateWorkflowDraftHistoryRequest) (*workflowv1.NavigateWorkflowDraftHistoryResponse, error)
 	ApplyWorkflowTemplateOverlay(context.Context, *workflowv1.ApplyWorkflowTemplateOverlayRequest) (*workflowv1.ApplyWorkflowTemplateOverlayResponse, error)
 }
@@ -165,6 +168,18 @@ func (s *grpcService) BindWorkflowDraftInput(ctx context.Context, in *workflowv1
 
 func (s *grpcService) MoveWorkflowDraftNode(ctx context.Context, in *workflowv1.MoveWorkflowDraftNodeRequest) (*workflowv1.MoveWorkflowDraftNodeResponse, error) {
 	return s.workflow.MoveWorkflowDraftNode(ctx, in)
+}
+
+func (s *grpcService) RemoveWorkflowDraftNode(ctx context.Context, in *workflowv1.RemoveWorkflowDraftNodeRequest) (*workflowv1.RemoveWorkflowDraftNodeResponse, error) {
+	return s.workflow.RemoveWorkflowDraftNode(ctx, in)
+}
+
+func (s *grpcService) ClearWorkflowDraftOutcome(ctx context.Context, in *workflowv1.ClearWorkflowDraftOutcomeRequest) (*workflowv1.ClearWorkflowDraftOutcomeResponse, error) {
+	return s.workflow.ClearWorkflowDraftOutcome(ctx, in)
+}
+
+func (s *grpcService) RenameWorkflowDraft(ctx context.Context, in *workflowv1.RenameWorkflowDraftRequest) (*workflowv1.RenameWorkflowDraftResponse, error) {
+	return s.workflow.RenameWorkflowDraft(ctx, in)
 }
 
 func (s *grpcService) NavigateWorkflowDraftHistory(ctx context.Context, in *workflowv1.NavigateWorkflowDraftHistoryRequest) (*workflowv1.NavigateWorkflowDraftHistoryResponse, error) {

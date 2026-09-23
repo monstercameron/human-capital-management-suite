@@ -530,11 +530,29 @@ func declareJourneyMotion() {
 		gwccss.Position.Sticky,
 		gwccss.Bottom(gwccss.Zero),
 		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
 		gwccss.Gap(gwccss.Rem(.625)),
 		gwccss.Raw("justify-content", "flex-end"),
 		gwccss.PaddingY(gwccss.Rem(.625)),
 		gwccss.Raw("margin-top", ".125rem"),
 		gwccss.Bg(gwccss.Var("jn-surface")),
+	)
+	// As with shared popovers, flatten the open disclosure's anonymous box
+	// so the fixed overlay remains visible to accessibility, not only paint.
+	declareGlobal(`.jn-confirm[open]::details-content`,
+		gwccss.Raw("display", "contents"),
+		gwccss.Raw("content-visibility", "visible"),
+	)
+	declareGlobal(`.jn-confirm-actionbar>.jn-btn`,
+		gwccss.Raw("flex-shrink", "0"),
+		gwccss.Raw("max-width", "100%"),
+		gwccss.Raw("white-space", "normal"),
+	)
+	// Header close glyphs may be square; a labelled action-bar Cancel is not.
+	declareGlobal(`.jn-confirm-actionbar>.jn-confirm-cancel`,
+		gwccss.Raw("flex", "0 0 auto"),
+		gwccss.Raw("width", "auto"),
+		gwccss.PaddingY(gwccss.Rem(.625)), gwccss.PaddingX(gwccss.Rem(1)),
 	)
 	// The cancel control is deliberately ordered and styled to never
 	// outrank the final action beside it (RED: "makes Cancel the most

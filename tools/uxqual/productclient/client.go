@@ -13,9 +13,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
+	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
@@ -30,6 +32,10 @@ import (
 // Service is the bounded RPC surface needed by the product shell. Most pages
 // consume reads; workflow authoring adds only its explicit draft mutations.
 type Service struct {
+	ListDocuments                func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error)
+	GetDocument                  func(context.Context, *documentv1.GetDocumentRequest) (*documentv1.GetDocumentResponse, error)
+	ListDocumentComments         func(context.Context, *documentv1.ListDocumentCommentsRequest) (*documentv1.ListDocumentCommentsResponse, error)
+	ShareDocument                func(context.Context, *documentv1.ShareDocumentRequest) (*documentv1.ShareDocumentResponse, error)
 	ListJourneys                 func(context.Context, *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error)
 	ListWorkers                  func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error)
 	GetPreferences               func(context.Context, *journeyv1.GetProductPreferencesRequest) (*journeyv1.GetProductPreferencesResponse, error)
@@ -45,6 +51,9 @@ type Service struct {
 	SetWorkflowDraftOutcome      func(context.Context, *workflowv1.SetWorkflowDraftOutcomeRequest) (*workflowv1.SetWorkflowDraftOutcomeResponse, error)
 	BindWorkflowDraftInput       func(context.Context, *workflowv1.BindWorkflowDraftInputRequest) (*workflowv1.BindWorkflowDraftInputResponse, error)
 	MoveWorkflowDraftNode        func(context.Context, *workflowv1.MoveWorkflowDraftNodeRequest) (*workflowv1.MoveWorkflowDraftNodeResponse, error)
+	RemoveWorkflowDraftNode      func(context.Context, *workflowv1.RemoveWorkflowDraftNodeRequest) (*workflowv1.RemoveWorkflowDraftNodeResponse, error)
+	ClearWorkflowDraftOutcome    func(context.Context, *workflowv1.ClearWorkflowDraftOutcomeRequest) (*workflowv1.ClearWorkflowDraftOutcomeResponse, error)
+	RenameWorkflowDraft          func(context.Context, *workflowv1.RenameWorkflowDraftRequest) (*workflowv1.RenameWorkflowDraftResponse, error)
 	NavigateWorkflowDraftHistory func(context.Context, *workflowv1.NavigateWorkflowDraftHistoryRequest) (*workflowv1.NavigateWorkflowDraftHistoryResponse, error)
 	ApplyWorkflowTemplateOverlay func(context.Context, *workflowv1.ApplyWorkflowTemplateOverlayRequest) (*workflowv1.ApplyWorkflowTemplateOverlayResponse, error)
 }
@@ -187,12 +196,13 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		Page: page, Locale: routeValue(values, "locale"), Query: routeValue(values, "q"), RolePage: rolePage, Mode: routeValue(values, "mode"),
 		SelectedWork: routeValue(values, "selected"), SelectedPerson: routeValue(values, "person"),
 		PeoplePage: peoplePage, PeoplePageSize: peoplePageSize, PeopleTeam: routeValue(values, "team"), PeopleLocation: routeValue(values, "location"), PeopleEligibleOnly: routeValue(values, "eligible") == "1", PeopleSort: routeValue(values, "sort"), PeopleDirection: routeValue(values, "dir"),
+		PeopleColumns:    routeValue(values, "columns"),
 		OrganizationView: routeValue(values, "org_view"),
 		WorkflowQuery:    routeValue(values, "workflow_q"), HistoryQuery: routeValue(values, "history_q"), HistoryOutcome: routeValue(values, "outcome"),
 		HistoryPerson: routeValue(values, "history_person"), HistoryYear: routeValue(values, "history_year"), HistorySort: routeValue(values, "history_sort"), HistoryDirection: routeValue(values, "history_dir"), HistoryPage: historyPage, HistoryPageSize: historyPageSize,
 		WorkFilter: routeValue(values, "filter"), NavCollapsed: routeValue(values, "nav") == "collapsed",
 		JourneyID: routeValue(values, "journey"), JourneyWorker: routeValue(values, "worker"), JourneyMode: routeValue(values, "mode"),
-		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"),
+		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"), DocumentID: routeValue(values, "document"), DocumentQuery: routeValue(values, "docs_q"), DocumentCollection: routeValue(values, "collection"), DocumentPageToken: routeValue(values, "cursor"),
 		MenuQuery: routeValue(values, "menu_q"), FavoritePages: parseFavoritePages(routeValue(values, "favorites")),
 	}}
 	if routeProfile.StateProfile().Journeys {
@@ -302,6 +312,18 @@ func ResolvedCanonicalHref(state State, view productui.View) string {
 			resolved.Request.HistoryPageSize = view.HistoryPageSize
 		}
 	}
+	if state.Page == productui.PageDocs && state.Provided["cursor"] {
+		resolved.Request.DocumentPageToken = view.DocumentPageToken
+		if view.DocumentPageToken == "" {
+			provided := make(map[string]bool, len(resolved.Provided))
+			for key, value := range resolved.Provided {
+				if key != "cursor" {
+					provided[key] = value
+				}
+			}
+			resolved.Provided = provided
+		}
+	}
 	return CanonicalHref(resolved)
 }
 
@@ -346,6 +368,7 @@ type pageDataRequirements struct {
 	journeys  bool
 	workers   bool
 	workflows bool
+	documents bool
 }
 
 func requirementsForPage(page productui.PageID) pageDataRequirements {
@@ -354,15 +377,18 @@ func requirementsForPage(page productui.PageID) pageDataRequirements {
 		return pageDataRequirements{}
 	}
 	requirements := dataProfile.Requirements()
-	return pageDataRequirements{journeys: requirements.Journeys, workers: requirements.Workers, workflows: page == productui.PageWorkflowDesigner}
+	return pageDataRequirements{journeys: requirements.Journeys, workers: requirements.Workers, workflows: page == productui.PageWorkflowDesigner, documents: page == productui.PageDocs}
 }
 
 func load(ctx context.Context, service Service, session Session, state State, baseline *productui.View) (productui.View, error) {
 	view := LoadingView(session, state)
-	requirements := pageDataRequirements{journeys: true, workers: true, workflows: state.Page == productui.PageWorkflowDesigner}
+	requirements := pageDataRequirements{journeys: true, workers: true, workflows: state.Page == productui.PageWorkflowDesigner, documents: state.Page == productui.PageDocs}
 	if baseline != nil && baselineMatchesSession(*baseline, view) {
 		requirements = requirementsForPage(state.Page)
 		seedBaselineProjection(&view, *baseline)
+		if state.Page == productui.PageDocs && strings.TrimSpace(state.Request.DocumentID) == "" {
+			view.Document = nil
+		}
 		if state.Page == productui.PageWorkflowDesigner {
 			// A route names either one mutable draft or one immutable
 			// publication/run. Never carry the other route's leaf projection
@@ -392,13 +418,60 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	var workflowCatalogResponse *workflowv1.ListWorkflowPublicationsResponse
 	var workflowBlocksResponse *workflowv1.ListWorkflowBlocksResponse
 	var workflowDraftResponse *workflowv1.GetWorkflowDraftResponse
+	var documentsResponse *documentv1.ListDocumentsResponse
+	var documentResponse *documentv1.GetDocumentResponse
+	var documentCommentsResponse *documentv1.ListDocumentCommentsResponse
 	var journeysErr, workersErr, preferencesErr error
+	var documentsErr error
+	var documentCursorReset bool
+	var documentErr error
+	var documentCommentsErr error
 	var workerIDErr error
 	var roleAccessErr error
 	var workflowCatalogErr error
 	var workflowBlocksErr error
 	var workflowDraftErr error
 	var reads sync.WaitGroup
+	if requirements.documents {
+		if service.ListDocuments == nil {
+			documentsErr = errors.New("DocumentService.ListDocuments is not connected")
+		} else {
+			reads.Add(1)
+			go func() {
+				defer reads.Done()
+				request := &documentv1.ListDocumentsRequest{PageSize: 50, Query: state.Request.DocumentQuery, Collection: state.Request.DocumentCollection, PageToken: state.Request.DocumentPageToken}
+				documentsResponse, documentsErr = service.ListDocuments(ctx, request)
+				if documentsErr != nil && request.PageToken != "" && status.Code(documentsErr) == codes.InvalidArgument {
+					request.PageToken = ""
+					documentsResponse, documentsErr = service.ListDocuments(ctx, request)
+					if documentsErr == nil {
+						documentCursorReset = true
+					}
+				}
+				if documentsErr != nil {
+					documentsErr = fmt.Errorf("list documents: %w", documentsErr)
+				}
+			}()
+		}
+		if state.Request.DocumentID != "" {
+			if service.GetDocument == nil {
+				documentErr = errors.New("DocumentService.GetDocument is not connected")
+			} else {
+				reads.Add(1)
+				go func() {
+					defer reads.Done()
+					documentResponse, documentErr = service.GetDocument(ctx, &documentv1.GetDocumentRequest{DocumentId: state.Request.DocumentID})
+					if documentErr == nil && documentResponse != nil && documentResponse.GetDocument() != nil {
+						if service.ListDocumentComments == nil {
+							documentCommentsErr = errors.New("DocumentService.ListDocumentComments is not connected")
+						} else {
+							documentCommentsResponse, documentCommentsErr = service.ListDocumentComments(ctx, &documentv1.ListDocumentCommentsRequest{DocumentId: state.Request.DocumentID, VersionId: documentResponse.GetDocument().GetVersionId()})
+						}
+					}
+				}()
+			}
+		}
+	}
 	if !requirements.journeys {
 		// The authorized baseline already supplies shell counts/search records.
 	} else if session.EnforceRoleVisibility && !productui.PageVisible(productui.PageJourneys, session.Roles) &&
@@ -513,6 +586,24 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	reads.Wait()
+	if documentsErr != nil {
+		failures = append(failures, documentsErr)
+		view.Documents = nil
+		view.DocumentsReady = false
+	} else if requirements.documents && documentsResponse != nil {
+		view.Documents = projectDocuments(documentsResponse.GetDocuments())
+		view.DocumentsReady = true
+		view.DocumentNextPageToken = documentsResponse.GetNextPageToken()
+		if documentCursorReset {
+			view.DocumentPageToken = ""
+		}
+	}
+	if documentErr != nil {
+		failures = append(failures, documentErr)
+		view.Document = nil
+	} else if documentResponse != nil {
+		view.Document = projectDocument(documentResponse, documentCommentsResponse, documentCommentsErr != nil)
+	}
 	directoryDenied := false
 	if workersErr != nil && status.Code(errors.Unwrap(workersErr)) == codes.PermissionDenied {
 		// A role without the People directory (a finance approver on My
@@ -591,11 +682,24 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		// older projection here could outlive a server-side access revocation.
 		view.Work = nil
 		view.JourneyPopulation = nil
+		view.WorkflowNotifications = nil
+		view.NotificationsUnavailable = true
 	} else if requirements.journeys {
 		var projectionErr error
 		view.Work, projectionErr = projectJourneys(journeysResponse.GetJourneys())
 		// UXLIVE-027: the server's summary of exactly these journeys.
 		view.JourneyPopulation = projectPopulation(journeysResponse.GetPopulation())
+		view.NotificationsUnavailable = journeysResponse.GetNotificationsUnavailable()
+		view.WorkflowNotifications = nil
+		for _, notice := range journeysResponse.GetNotifications() {
+			if notice == nil {
+				continue
+			}
+			view.WorkflowNotifications = append(view.WorkflowNotifications, productui.WorkflowNotification{
+				ID: notice.GetNotificationId(), JourneyID: notice.GetJourneyId(), WorkerName: notice.GetWorkerName(),
+				Purpose: notice.GetPurpose(), Status: notice.GetStatus(),
+			})
+		}
 		if projectionErr != nil {
 			failures = append(failures, projectionErr)
 		}
@@ -639,6 +743,33 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	view.Viewer = projectViewerProfile(session, view.People)
+	ownerNames := make(map[string]string, len(view.People)+1)
+	for _, person := range view.People {
+		if person.ID != "" && person.Name != "" {
+			ownerNames[person.ID] = person.Name
+		}
+		if person.WorkerID != "" && person.Name != "" {
+			ownerNames[person.WorkerID] = person.Name
+		}
+	}
+	if view.Principal != "" && view.Viewer.Name != "" {
+		ownerNames[view.Principal] = view.Viewer.Name
+	}
+	for i := range view.Documents {
+		if name := ownerNames[view.Documents[i].OwnerID]; name != "" {
+			view.Documents[i].Owner = name
+		}
+	}
+	if view.Document != nil {
+		if name := ownerNames[view.Document.Summary.OwnerID]; name != "" {
+			view.Document.Summary.Owner = name
+		}
+		for index := range view.Document.Comments {
+			if name := ownerNames[view.Document.Comments[index].AuthorID]; name != "" {
+				view.Document.Comments[index].Author = name
+			}
+		}
+	}
 	if directoryDenied {
 		bindViewerToRoutedWork(&view.Viewer, session, view.Work)
 	}
@@ -696,6 +827,69 @@ func linkJourneyWorkers(work []productui.WorkItem, workers []*journeyv1.Worker, 
 	}
 }
 
+func projectDocuments(records []*documentv1.DocumentSummary) []productui.DocumentSummary {
+	projected := make([]productui.DocumentSummary, 0, len(records))
+	for _, record := range records {
+		if record == nil || strings.TrimSpace(record.GetDocumentId()) == "" || strings.TrimSpace(record.GetTitle()) == "" {
+			continue
+		}
+		item := productui.DocumentSummary{
+			ID: record.GetDocumentId(), Title: record.GetTitle(), Owner: record.GetOwnerId(), OwnerID: record.GetOwnerId(),
+			Version: record.GetVersionId(), VersionID: record.GetVersionId(), ScopeKind: record.GetScopeKind(), ScopeID: record.GetScopeId(),
+			Sharing: record.GetSharingState(), ReviewDue: documentTimestamp(record.GetReviewDueAt()), UpdatedAt: documentTimestamp(record.GetUpdatedAt()), CanComment: record.GetCanComment(), CanEdit: record.GetCanEdit(),
+			Status: productui.DocumentStatus(record.GetStatus()), CanManageAccess: record.GetCanManageAccess(),
+		}
+		if item.ScopeKind != "" {
+			item.Scope = item.ScopeKind
+			if item.ScopeID != "" {
+				item.Scope += ":" + item.ScopeID
+			}
+		}
+		projected = append(projected, item)
+	}
+	return projected
+}
+
+func projectDocument(response *documentv1.GetDocumentResponse, commentsResponse *documentv1.ListDocumentCommentsResponse, commentsUnavailable bool) *productui.DocumentDetail {
+	if response == nil || response.GetDocument() == nil {
+		return nil
+	}
+	summaries := projectDocuments([]*documentv1.DocumentSummary{response.GetDocument()})
+	if len(summaries) != 1 {
+		return nil
+	}
+	detail := &productui.DocumentDetail{Summary: summaries[0], Markdown: response.GetMarkdown(), ContentHash: response.GetContentHash(), CanComment: summaries[0].CanComment, CanEdit: summaries[0].CanEdit, CommentsUnavailable: commentsUnavailable}
+	if commentsResponse != nil {
+		detail.Comments = projectDocumentComments(commentsResponse.GetComments())
+	}
+	return detail
+}
+
+func projectDocumentComments(records []*documentv1.DocumentComment) []productui.DocumentComment {
+	comments := make([]productui.DocumentComment, 0, len(records))
+	for _, record := range records {
+		if record == nil || strings.TrimSpace(record.GetId()) == "" {
+			continue
+		}
+		comments = append(comments, productui.DocumentComment{ID: record.GetId(), AuthorID: record.GetAuthorId(), Body: record.GetBody(), CreatedAt: documentCommentTimestamp(record.GetCreatedAt()), VersionID: record.GetVersionId()})
+	}
+	return comments
+}
+
+func documentCommentTimestamp(value *timestamppb.Timestamp) string {
+	if value == nil || !value.IsValid() {
+		return ""
+	}
+	return value.AsTime().UTC().Format(time.RFC3339)
+}
+
+func documentTimestamp(value *timestamppb.Timestamp) string {
+	if value == nil || !value.IsValid() {
+		return ""
+	}
+	return value.AsTime().UTC().Format("2006-01-02")
+}
+
 func journeyWorkerMatches(ref string, worker *journeyv1.Worker, tenant string) bool {
 	if worker == nil || ref == "" {
 		return false
@@ -715,6 +909,8 @@ func baselineMatchesSession(baseline, current productui.View) bool {
 func seedBaselineProjection(view *productui.View, baseline productui.View) {
 	view.Work = baseline.Work
 	view.JourneyPopulation = baseline.JourneyPopulation
+	view.WorkflowNotifications = baseline.WorkflowNotifications
+	view.NotificationsUnavailable = baseline.NotificationsUnavailable
 	view.People = baseline.People
 	view.Viewer = baseline.Viewer
 	view.WorkflowUses = baseline.WorkflowUses
@@ -907,6 +1103,9 @@ func applyTableDefaults(request *productui.PageRequest, provided map[string]bool
 	}
 	if !provided["page_size"] {
 		request.PeoplePageSize = int(table.GetPageSize())
+	}
+	if !provided["columns"] {
+		request.PeopleColumns = table.GetFilters()["columns"]
 	}
 	if !provided["q"] {
 		request.Query = table.GetFilters()["query"]

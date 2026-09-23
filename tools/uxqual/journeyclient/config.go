@@ -76,6 +76,9 @@ type Config struct {
 	// LogoutPath is present only for the explicitly enabled local browser
 	// session. It is presentation metadata, never authentication input.
 	LogoutPath string `json:"logout_path,omitempty"`
+	// GiphyAPIKey is the optional public browser client key for the GIF picker.
+	// An empty value means no GIPHY requests are permitted by the UI.
+	GiphyAPIKey string `json:"giphy_api_key,omitempty"`
 }
 
 // LauncherAction mirrors the server-resolved presentation-safe action

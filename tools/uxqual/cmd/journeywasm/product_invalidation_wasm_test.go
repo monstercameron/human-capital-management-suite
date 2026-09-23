@@ -76,6 +76,18 @@ func TestTodo_REV_091_03_Browser(t *testing.T) {
 	startProductInvalidations(context.Background(), journeyclient.Config{Tenant: "acme"}, noLiveService{}, func(productui.PageID) bool { return false }, nil)
 }
 
+func TestChatRefreshKeepsMountedConversationQuiet(t *testing.T) {
+	oldRetry, oldQuiet := productRouteRetry, productQuietRefreshPending
+	t.Cleanup(func() { productRouteRetry, productQuietRefreshPending = oldRetry, oldQuiet })
+	productQuietRefreshPending = false
+	refreshes := 0
+	productRouteRetry = func() { refreshes++ }
+	refreshChatRoute()
+	if refreshes != 1 || !consumeProductQuietRefresh() || consumeProductQuietRefresh() {
+		t.Fatalf("chat refreshes = %d, quiet marker must be consumed once", refreshes)
+	}
+}
+
 // noLiveService is a journeyclient.Service value that offers no live
 // stream; embedding the interface keeps it a Service without implementing
 // any method, which is safe because startProductInvalidations must refuse it

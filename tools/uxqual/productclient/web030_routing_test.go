@@ -107,6 +107,28 @@ func TestTodo_WEB_030_Browser(t *testing.T) {
 	}
 }
 
+func TestTodo_HUB_032_DocumentRouteRoundTrips(t *testing.T) {
+	state, err := ParseState("/workspace/app/docs", "document=doc-42&nav=collapsed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Request.DocumentID != "doc-42" {
+		t.Fatalf("document route projection = %+v", state.Request)
+	}
+	href := CanonicalHref(state)
+	if want := "/workspace/app/docs?document=doc-42&nav=collapsed"; href != want {
+		t.Fatalf("canonical document route = %q, want %q", href, want)
+	}
+	parts := strings.SplitN(href, "?", 2)
+	roundTrip, err := ParseState(parts[0], parts[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roundTrip.Request.DocumentID != state.Request.DocumentID || !roundTrip.Request.NavCollapsed {
+		t.Fatalf("document route did not round trip: %+v", roundTrip.Request)
+	}
+}
+
 func TestTodo_WF_UI_006_SelectedNodeSurvivesWorkflowEditorReload(t *testing.T) {
 	state, err := ParseState("/workspace/app/admin/workflows", "draft=draft-42&node=await_payroll_confirmation&locale=en-US")
 	if err != nil {
@@ -196,19 +218,23 @@ func TestTodo_WEB_030_Security(t *testing.T) {
 		t.Fatalf("cross-session resume did not reauthorize and fail closed: calls=%d/%d view=%+v err=%v", journeyCalls.Load(), workerCalls.Load(), view, err)
 	}
 	serviceType := reflect.TypeOf(Service{})
-	explicitWorkflowMutations := map[string]bool{
+	explicitMutations := map[string]bool{
 		"CreateWorkflowDraft":          true,
 		"InsertWorkflowPaletteEntry":   true,
 		"UpdateWorkflowDraftNode":      true,
 		"SetWorkflowDraftOutcome":      true,
 		"BindWorkflowDraftInput":       true,
 		"MoveWorkflowDraftNode":        true,
+		"RemoveWorkflowDraftNode":      true,
+		"ClearWorkflowDraftOutcome":    true,
+		"RenameWorkflowDraft":          true,
 		"NavigateWorkflowDraftHistory": true,
 		"ApplyWorkflowTemplateOverlay": true,
+		"ShareDocument":                true,
 	}
 	for index := 0; index < serviceType.NumField(); index++ {
 		name := serviceType.Field(index).Name
-		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") && !explicitWorkflowMutations[name] {
+		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") && !explicitMutations[name] {
 			t.Fatalf("route projection acquired mutation capability %q", name)
 		}
 	}

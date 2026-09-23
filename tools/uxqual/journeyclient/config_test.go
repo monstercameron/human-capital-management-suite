@@ -27,6 +27,7 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 		}},
 		Purpose:      "promotion_review",
 		JourneysPath: workspace.PathJourney,
+		GiphyAPIKey:  "giphy-public-client-key",
 	})
 	if err != nil {
 		t.Fatalf("marshalling the shell's own config: %v", err)
@@ -59,6 +60,9 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 	}
 	if cfg.JourneysPath != workspace.PathJourney {
 		t.Errorf("JourneysPath = %q, want %q", cfg.JourneysPath, workspace.PathJourney)
+	}
+	if cfg.GiphyAPIKey != "giphy-public-client-key" {
+		t.Errorf("GiphyAPIKey = %q", cfg.GiphyAPIKey)
 	}
 }
 

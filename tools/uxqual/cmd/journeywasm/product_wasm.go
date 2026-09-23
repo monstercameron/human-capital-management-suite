@@ -13,12 +13,15 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/router"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/productclient"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/taskmux"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -51,7 +54,9 @@ func isProductPath(path string) bool {
 	return path == strings.TrimSpace(path) && strings.HasPrefix(path, productPathPrefix)
 }
 
-func startProduct(ctx context.Context, cfg journeyclient.Config, service journeyclient.Service) error {
+func startProduct(ctx context.Context, cfg journeyclient.Config, service journeyclient.Service, conn grpc.ClientConnInterface) error {
+	configureChatBrowser(conn, cfg)
+	configureChatRetention(conn)
 	// Finite RPC work shares a bounded lane. WatchJourney subscriptions stay
 	// outside it, so an open detail page cannot reduce navigation/click
 	// capacity. Four slots allow the independent projection reads and a user
@@ -64,6 +69,22 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		ListWorkers: func(ctx context.Context, request *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
 			return service.ListWorkers(ctx, request)
 		},
+	}
+	// Docs uses the same authenticated gRPC connection as the rest of the
+	// workspace. A disabled document service reports UNAVAILABLE server-side.
+	documentService := documentv1.NewDocumentServiceClient(conn)
+	createDocument := documentService.CreateDocument
+	liveService.ListDocuments = func(ctx context.Context, request *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+		return documentService.ListDocuments(chatRPCContext(ctx, cfg), request)
+	}
+	liveService.GetDocument = func(ctx context.Context, request *documentv1.GetDocumentRequest) (*documentv1.GetDocumentResponse, error) {
+		return documentService.GetDocument(chatRPCContext(ctx, cfg), request)
+	}
+	liveService.ListDocumentComments = func(ctx context.Context, request *documentv1.ListDocumentCommentsRequest) (*documentv1.ListDocumentCommentsResponse, error) {
+		return documentService.ListDocumentComments(chatRPCContext(ctx, cfg), request)
+	}
+	liveService.ShareDocument = func(ctx context.Context, request *documentv1.ShareDocumentRequest) (*documentv1.ShareDocumentResponse, error) {
+		return documentService.ShareDocument(chatRPCContext(ctx, cfg), request)
 	}
 	if preferenceService, ok := service.(journeyclient.PreferenceService); ok {
 		liveService.GetPreferences = preferenceService.GetProductPreferences
@@ -81,6 +102,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		liveService.SetWorkflowDraftOutcome = workflowService.SetWorkflowDraftOutcome
 		liveService.BindWorkflowDraftInput = workflowService.BindWorkflowDraftInput
 		liveService.MoveWorkflowDraftNode = workflowService.MoveWorkflowDraftNode
+		liveService.RemoveWorkflowDraftNode = workflowService.RemoveWorkflowDraftNode
+		liveService.ClearWorkflowDraftOutcome = workflowService.ClearWorkflowDraftOutcome
+		liveService.RenameWorkflowDraft = workflowService.RenameWorkflowDraft
 		liveService.NavigateWorkflowDraftHistory = workflowService.NavigateWorkflowDraftHistory
 		liveService.ApplyWorkflowTemplateOverlay = workflowService.ApplyWorkflowTemplateOverlay
 	}
@@ -157,6 +181,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// state so typing never reruns page loaders or refetches workforce data.
 	navigationDebounce := newNavigationDebouncerWithScheduler(browserReplaceURL, browserDebounceScheduler)
 	journeyStore := journey.NewStore(journey.Page{})
+	peopleColumnDraft := &productui.ColumnChooserDraft{}
 	bindActionableNoticeFocus(journeyStore)
 	journeyApp := journeyclient.New(cfg, service, journeyStore, time.Now)
 	journeyApp.FocusField = focusJourneyField
@@ -214,6 +239,8 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					browserReplaceURL(canonicalHref)
 				}
 				var view productui.View
+				var chatModel chatui.Model
+				var chatLoadErr error
 				var loadErr error
 				var baseline *productui.View
 				if lastResolvedProductView != nil {
@@ -232,6 +259,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						view, loadErr = productclient.LoadWithBaseline(taskCtx, liveService, session, state, *baseline)
 					} else {
 						view, loadErr = productclient.Load(taskCtx, liveService, session, state)
+					}
+					if loadErr == nil && state.Page == productui.PageChatSettings {
+						loadChatRetentionPolicy(taskCtx, cfg, &view)
 					}
 					return nil
 				})
@@ -254,7 +284,15 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					// state, start a journey read, or enqueue a preference write.
 					return nil, context.Canceled
 				}
+				if state.Page == productui.PageChat {
+					chatModel, chatLoadErr = loadChatProjection(loadCtx)
+					if chatLoadErr != nil && chatModel.Error == "" {
+						chatModel.State, chatModel.Error = chatui.StateError, chatLoadErr.Error()
+					}
+				}
 				resolvedHref := productclient.ResolvedCanonicalHref(state, view)
+				view.PeopleColumnDraft = peopleColumnDraft
+				view.Chat = chatModel
 				view.Navigate = navigateProduct
 				applyBrowserHistoryNavigation(&view)
 				view.NavigateDebounced = navigationDebounce.Schedule
@@ -295,6 +333,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						if err == nil {
 							navigateProduct(currentPath() + "?" + currentQuery())
 						}
+					})
+				}
+				view.SaveChatRetentionPolicy = func(policy productui.ChatRetentionPolicy) {
+					saveChatRetentionPolicy(cfg, policy, func() {
+						navigateProduct(currentProductHref())
 					})
 				}
 				view.SaveOrganizationVisibility = func(policy productui.OrganizationVisibilityPolicy) {
@@ -403,19 +446,55 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						})
 					}
 				}
-				if liveService.InsertWorkflowPaletteEntry != nil && view.WorkflowDraft != nil {
-					draft := *view.WorkflowDraft
-					view.InsertWorkflowPaletteEntry = func(entry productui.WorkflowPaletteItem) {
-						setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
-						workflowAuthoring.Insert(draft, entry, func(err error) {
-							if err != nil {
-								setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.save_failed"))
-								return
+				if createDocument != nil && view.Page == productui.PageDocs {
+					view.CreateDocument = func(request productui.DocumentCreateRequest, done func(error)) {
+						go func() {
+							response, err := createDocument(chatRPCContext(ctx, cfg), &documentv1.CreateDocumentRequest{Title: request.Title, Markdown: request.Markdown})
+							if err == nil && (response == nil || response.GetDocumentId() == "") {
+								err = errors.New("document create returned no document")
 							}
-							if !revalidateWorkflowDraft(productRouteRetry) {
-								setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.save_failed"))
+							done(err)
+							if err == nil {
+								productRouteRetry()
 							}
-						})
+						}()
+					}
+				}
+				if view.Page == productui.PageDocs {
+					view.AddDocumentComment = func(request productui.DocumentCommentCreateRequest, done func(error)) {
+						go func() {
+							_, err := documentService.AddDocumentComment(chatRPCContext(ctx, cfg), &documentv1.AddDocumentCommentRequest{DocumentId: request.DocumentID, VersionId: request.VersionID, Body: request.Body})
+							done(err)
+							if err == nil {
+								productRouteRetry()
+							}
+						}()
+					}
+					view.CreateDocumentVersion = func(request productui.DocumentEditRequest, done func(error)) {
+						go func() {
+							response, err := documentService.CreateDocumentVersion(chatRPCContext(ctx, cfg), &documentv1.CreateDocumentVersionRequest{DocumentId: request.DocumentID, BaseVersionId: request.BaseVersionID, Title: request.Title, Markdown: request.Markdown})
+							if err == nil && (response == nil || response.GetVersionId() == "") {
+								err = errors.New("document version create returned no version")
+							}
+							done(err)
+							if err == nil {
+								productRouteRetry()
+							}
+						}()
+					}
+				}
+				if liveService.ShareDocument != nil && view.Page == productui.PageDocs {
+					if origin := js.Global().Get("location").Get("origin").String(); strings.HasPrefix(origin, "http://") || strings.HasPrefix(origin, "https://") {
+						view.DocumentOrigin = origin
+					}
+					view.ShareDocument = func(request productui.DocumentShareRequest, done func(error)) {
+						go func() {
+							_, err := liveService.ShareDocument(chatRPCContext(ctx, cfg), &documentv1.ShareDocumentRequest{DocumentId: request.DocumentID, RecipientId: request.RecipientID})
+							done(err)
+							if err == nil {
+								productRouteRetry()
+							}
+						}()
 					}
 				}
 				if view.WorkflowDraft != nil {
@@ -433,48 +512,103 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						}
 						browserReplaceURL(currentPath() + "?" + values.Encode())
 					}
+					// Every edit ends the same way: reload the authoritative
+					// draft. A refused edit reloads too, because the refusal may
+					// be the first sign that this view is behind the server, and
+					// a control still showing the rejected choice would be lying.
 					complete := func(err error) {
 						if err != nil {
-							setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.save_failed"))
+							message := view.Locale.Text(workflowAuthoringErrorKey(err))
+							if !revalidateWorkflowDraft(productRouteRetry) {
+								setWorkflowAuthoringBusy(false, message)
+								return
+							}
+							setWorkflowAuthoringMessage(message)
 							return
 						}
 						if !revalidateWorkflowDraft(productRouteRetry) {
 							setWorkflowAuthoringBusy(false, view.Locale.Text("workflow_draft.save_failed"))
 						}
 					}
+					begin := func() {
+						setWorkflowAuthoringFlag("data-workflow-edited")
+						setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+					}
+					if liveService.InsertWorkflowPaletteEntry != nil {
+						view.InsertWorkflowPaletteEntry = func(entry productui.WorkflowPaletteItem) {
+							begin()
+							workflowAuthoring.InsertReporting(draft, entry, func(inserted []string, err error) {
+								if err == nil && len(inserted) > 0 {
+									selectWorkflowNodeInAddress(inserted[0])
+									setWorkflowAuthoringFlag("data-workflow-name-next")
+								}
+								complete(err)
+							})
+						}
+					}
+					if liveService.InsertWorkflowPaletteEntry != nil && liveService.SetWorkflowDraftOutcome != nil {
+						view.InsertWorkflowStepAfter = func(entry productui.WorkflowPaletteItem, from productui.WorkflowOutcomeChange) {
+							begin()
+							workflowAuthoring.InsertAfter(draft, entry, from, func(inserted []string, err error) {
+								if len(inserted) > 0 {
+									selectWorkflowNodeInAddress(inserted[0])
+									setWorkflowAuthoringFlag("data-workflow-name-next")
+								}
+								complete(err)
+							})
+						}
+					}
 					if liveService.UpdateWorkflowDraftNode != nil {
 						view.UpdateWorkflowDraftNode = func(change productui.WorkflowNodeParameterChange) {
-							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							begin()
 							workflowAuthoring.UpdateNode(draft, change, complete)
 						}
 					}
 					if liveService.SetWorkflowDraftOutcome != nil {
 						view.SetWorkflowDraftOutcome = func(change productui.WorkflowOutcomeChange) {
-							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							begin()
 							workflowAuthoring.SetOutcome(draft, change, complete)
+						}
+					}
+					if liveService.SetWorkflowDraftOutcome != nil {
+						view.SetWorkflowDraftOutcomes = func(changes []productui.WorkflowOutcomeChange) {
+							begin()
+							workflowAuthoring.SetOutcomes(draft, changes, complete)
+						}
+					}
+					if liveService.ClearWorkflowDraftOutcome != nil {
+						view.ClearWorkflowDraftOutcome = func(change productui.WorkflowOutcomeChange) {
+							begin()
+							workflowAuthoring.ClearOutcome(draft, change, complete)
 						}
 					}
 					if liveService.BindWorkflowDraftInput != nil {
 						view.BindWorkflowDraftInput = func(change productui.WorkflowInputBindingChange) {
-							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							begin()
 							workflowAuthoring.BindInput(draft, change, complete)
 						}
 					}
-					if liveService.MoveWorkflowDraftNode != nil {
-						view.MoveWorkflowDraftNode = func(change productui.WorkflowNodeMove) {
-							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
-							workflowAuthoring.MoveNode(draft, change, complete)
+					if liveService.RemoveWorkflowDraftNode != nil {
+						view.RemoveWorkflowDraftNode = func(nodeID string) {
+							begin()
+							workflowAuthoring.RemoveNode(draft, nodeID, complete)
+						}
+					}
+					if liveService.RenameWorkflowDraft != nil {
+						view.RenameWorkflowDraft = func(name string) {
+							begin()
+							workflowAuthoring.Rename(draft, name, complete)
 						}
 					}
 					if liveService.NavigateWorkflowDraftHistory != nil {
 						view.NavigateWorkflowDraftHistory = func(direction string) {
-							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							begin()
 							workflowAuthoring.NavigateHistory(draft, direction, complete)
 						}
 					}
 					if liveService.ApplyWorkflowTemplateOverlay != nil {
 						view.ApplyWorkflowOverlay = func(change productui.WorkflowTemplateOverlayChange) {
-							setWorkflowAuthoringBusy(true, view.Locale.Text("workflow_draft.saving_change"))
+							begin()
 							workflowAuthoring.ApplyOverlay(draft, change, complete)
 						}
 					}
@@ -513,9 +647,19 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				resolved.RefreshingRegion = ""
 				lastResolvedProductView = &resolved
 				lastProductRouteFailed = loadErr != nil
-				setActiveProductLayout(resolved, state.Page != productui.PageJourneys)
+				setActiveProductLayout(resolved, state.Page != productui.PageJourneys && !productui.PageOwnsHeading(state.Page))
 				if shouldSettleWorkflowAuthoringBusy(state.Page, loadErr) {
-					setWorkflowAuthoringBusy(false, "")
+					// An idle editor is a saved one and says so; a refusal held
+					// over from the edit that caused this reload takes its place.
+					message := takeWorkflowAuthoringMessage()
+					edited := takeWorkflowAuthoringFlag("data-workflow-edited")
+					if message == "" && edited && view.WorkflowDraft != nil {
+						message = view.Locale.Text("workflow_editor.saved_all")
+					}
+					setWorkflowAuthoringBusy(false, message)
+					if takeWorkflowAuthoringFlag("data-workflow-name-next") {
+						focusWorkflowStepName()
+					}
 				}
 				return attrs, nil
 			},
@@ -565,7 +709,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				}
 				applyThemeDocumentIdentity(productui.ResolveDocumentPageTitle(view), view.Appearance, view.Tenant)
 				applyLocaleDocumentIdentity(view.Locale)
-				showHeading := state.Page != productui.PageJourneys
+				showHeading := state.Page != productui.PageJourneys && !productui.PageOwnsHeading(state.Page)
 				if warmRefresh {
 					view.Loading = false
 					view.ContentLoading = false
@@ -576,7 +720,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						content.Props["key"] = productclient.CanonicalHref(state)
 						return content
 					}
-					return productui.BuildPageContent(view)
+					return warmProductRouteContent(view)
 				}
 				if contentTransition {
 					view.Loading = false
@@ -619,6 +763,13 @@ func navigateWorkflowDraft(navigate func(string), draftID string) {
 	}
 }
 
+// setWorkflowAuthoringBusy announces an edit in flight and fences the
+// editor while it is. The fence is one attribute on the page root, which the
+// stylesheet turns into controls the pointer cannot reach; it used to set
+// disabled on two button classes by hand, which left every inspector control
+// live during a save and fought the renderer for ownership of the attribute.
+// Focus is deliberately left where it is, so a keyboard author is still on
+// the control they changed when the reloaded draft arrives.
 func setWorkflowAuthoringBusy(busy bool, message string) {
 	document := js.Global().Get("document")
 	statusNode := document.Call("getElementById", "workflow-designer-status")
@@ -626,28 +777,76 @@ func setWorkflowAuthoringBusy(busy bool, message string) {
 		statusNode.Set("textContent", message)
 	}
 	page := document.Call("querySelector", ".workflow-designer-page")
-	if page.Truthy() {
-		if busy {
-			page.Call("setAttribute", "aria-busy", "true")
-		} else {
-			page.Call("removeAttribute", "aria-busy")
+	if !page.Truthy() {
+		return
+	}
+	if busy {
+		page.Call("setAttribute", "aria-busy", "true")
+		return
+	}
+	page.Call("removeAttribute", "aria-busy")
+}
+
+// setWorkflowAuthoringMessage holds a message for the reload that follows a
+// refused edit, so the explanation survives the re-render that clears the
+// busy state.
+func setWorkflowAuthoringMessage(message string) {
+	js.Global().Get("document").Get("documentElement").Call("setAttribute", "data-workflow-message", message)
+}
+
+// setWorkflowAuthoringFlag and takeWorkflowAuthoringFlag carry a one-shot fact
+// across the reload that follows an edit: that something was saved, or that
+// the step just added should have its name ready to type over.
+func setWorkflowAuthoringFlag(name string) {
+	js.Global().Get("document").Get("documentElement").Call("setAttribute", name, "1")
+}
+
+func takeWorkflowAuthoringFlag(name string) bool {
+	root := js.Global().Get("document").Get("documentElement")
+	set := root.Call("hasAttribute", name).Bool()
+	root.Call("removeAttribute", name)
+	return set
+}
+
+// focusWorkflowStepName puts the caret in the new step's name with the
+// generated name selected, so the first thing an author types replaces
+// "Task 1" with what the step is for.
+func focusWorkflowStepName() {
+	window := js.Global()
+	var focus js.Func
+	focus = js.FuncOf(func(js.Value, []js.Value) any {
+		focus.Release()
+		field := window.Get("document").Call("getElementById", "workflow-inspector-name")
+		if field.Truthy() {
+			options := map[string]any{"preventScroll": true}
+			field.Call("focus", options)
+			field.Call("select")
 		}
+		return nil
+	})
+	window.Call("requestAnimationFrame", focus)
+}
+
+func takeWorkflowAuthoringMessage() string {
+	root := js.Global().Get("document").Get("documentElement")
+	message := root.Call("getAttribute", "data-workflow-message")
+	root.Call("removeAttribute", "data-workflow-message")
+	if message.IsNull() || message.IsUndefined() {
+		return ""
 	}
-	selector := `.workflow-draft-create:not(:disabled),.workflow-palette-insert:not(:disabled)`
-	if !busy {
-		selector = `[data-authoring-busy-disabled="true"]`
+	return message.String()
+}
+
+// selectWorkflowNodeInAddress makes a step the address's selection without
+// navigating. The reload that follows an edit reads it back, which is how a
+// step the author just added arrives already selected.
+func selectWorkflowNodeInAddress(nodeID string) {
+	values, err := url.ParseQuery(currentQuery())
+	if err != nil || strings.TrimSpace(nodeID) == "" {
+		return
 	}
-	buttons := document.Call("querySelectorAll", selector)
-	for index := 0; index < buttons.Get("length").Int(); index++ {
-		button := buttons.Index(index)
-		if busy {
-			button.Call("setAttribute", "data-authoring-busy-disabled", "true")
-			button.Set("disabled", true)
-		} else {
-			button.Call("removeAttribute", "data-authoring-busy-disabled")
-			button.Set("disabled", false)
-		}
-	}
+	values.Set("node", strings.TrimSpace(nodeID))
+	browserReplaceURL(currentPath() + "?" + values.Encode())
 }
 
 // hydrateProductRouter resumes the server-rendered loading shell before the
@@ -760,6 +959,16 @@ func productRouteComponent(_ router.Attrs) *router.Element {
 	return ui.CreateElement(renderProductRoute, router.UseRouteData())
 }
 
+// A chat click revalidates this route. Its loading and resolved answers must
+// enter through the same component boundary, or the reconciler unmounts the
+// entire workspace (including every image and focused control) on each click.
+func warmProductRouteContent(view productui.View) *router.Element {
+	if view.Page == productui.PageChat {
+		return ui.CreateElement(renderProductRoute, router.Attrs{productViewKey: view})
+	}
+	return productui.BuildPageContent(view)
+}
+
 func renderProductRoute(data router.Attrs) ui.Node {
 	view, ok := data[productViewKey].(productui.View)
 	if !ok {
@@ -789,7 +998,7 @@ func renderProductRoute(data router.Attrs) ui.Node {
 	resolved.ContentLoading = false
 	resolved.Refreshing = false
 	lastResolvedProductView = &resolved
-	showHeading := view.Page != productui.PageJourneys
+	showHeading := view.Page != productui.PageJourneys && !productui.PageOwnsHeading(view.Page)
 	setActiveProductLayout(view, showHeading)
 	var result *router.Element
 	if view.Page == productui.PageJourneys {
@@ -834,12 +1043,28 @@ type productShellLayoutProps struct {
 }
 
 func renderProductShellLayout(props productShellLayoutProps) ui.Node {
+	historyControlsTick := ui.UseState(0)
+	ui.UseEffectOf(func() func() {
+		productHistoryControlsRefresh = func() {
+			historyControlsTick.Update(func(tick int) int { return tick + 1 })
+		}
+		return func() {
+			productHistoryControlsRefresh = nil
+		}
+	}, struct{}{})
 	view := props.View
+	if productHistory != nil {
+		view.HistoryNavigation = productHistory.Props(view.Locale)
+	}
 	if view.Page == "" {
 		view = productui.NewView(productui.PageHome, "", "", "")
 		view.Loading = true
 	}
-	return productui.BuildShell(view, props.Outlet, props.ShowHeading)
+	// A page that owns its heading never gets the shell's, not even on the
+	// very first client render before a route has resolved: the default
+	// layout flag is true, and a chat surface must not flash the document
+	// heading and subtitle it was designed without.
+	return productui.BuildShell(view, props.Outlet, props.ShowHeading && !productui.PageOwnsHeading(view.Page))
 }
 
 // focusProductRouteAfterNavigation restores the missing browser behavior of
