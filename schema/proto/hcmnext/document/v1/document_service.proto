@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package hcmnext.document.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1;documentv1";
+
+import "google/protobuf/timestamp.proto";
+
+service DocumentService {
+  rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
+  rpc CreateDocument(CreateDocumentRequest) returns (CreateDocumentResponse);
+  rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
+  rpc ShareDocument(ShareDocumentRequest) returns (ShareDocumentResponse);
+  rpc ListDocumentComments(ListDocumentCommentsRequest) returns (ListDocumentCommentsResponse);
+  rpc AddDocumentComment(AddDocumentCommentRequest) returns (AddDocumentCommentResponse);
+  rpc CreateDocumentVersion(CreateDocumentVersionRequest) returns (CreateDocumentVersionResponse);
+}
+
+message ListDocumentsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string query = 3;
+  string collection = 4;
+}
+
+message DocumentSummary {
+  string document_id = 1;
+  string title = 2;
+  string owner_id = 3;
+  string version_id = 4;
+  string status = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  string scope_kind = 7;
+  string scope_id = 8;
+  google.protobuf.Timestamp review_due_at = 9;
+  string sharing_state = 10;
+  bool can_manage_access = 11;
+  bool can_comment = 12;
+  bool can_edit = 13;
+}
+
+message ListDocumentsResponse {
+  repeated DocumentSummary documents = 1;
+  string next_page_token = 2;
+}
+
+message CreateDocumentRequest {
+  string title = 1;
+  string markdown = 2;
+}
+
+message CreateDocumentResponse {
+  string document_id = 1;
+  string version_id = 2;
+}
+
+message GetDocumentRequest {
+  string document_id = 1;
+}
+
+message GetDocumentResponse {
+  DocumentSummary document = 1;
+  string markdown = 2;
+  string content_hash = 3;
+}
+
+message ShareDocumentRequest {
+  string document_id = 1;
+  string recipient_id = 2;
+}
+
+message ShareDocumentResponse {}
+
+message DocumentComment {
+  string id = 1;
+  string document_id = 2;
+  string version_id = 3;
+  string author_id = 4;
+  string body = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message ListDocumentCommentsRequest {
+  string document_id = 1;
+  string version_id = 2;
+}
+
+message ListDocumentCommentsResponse {
+  repeated DocumentComment comments = 1;
+}
+
+message AddDocumentCommentRequest {
+  string document_id = 1;
+  string version_id = 2;
+  string body = 3;
+}
+
+message AddDocumentCommentResponse {
+  DocumentComment comment = 1;
+}
+
+message CreateDocumentVersionRequest {
+  string document_id = 1;
+  string base_version_id = 2;
+  string title = 3;
+  string markdown = 4;
+}
+
+message CreateDocumentVersionResponse {
+  string version_id = 1;
+}

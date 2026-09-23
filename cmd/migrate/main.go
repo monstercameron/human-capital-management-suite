@@ -10,6 +10,8 @@
 //	migrate status  report the schema version, digest and per-migration state
 //	migrate chat up apply the independent chat database's migration set
 //	migrate chat status report the chat schema version and per-migration state
+//	migrate document up apply the independent document database's migration set
+//	migrate document status report the document schema version
 //	migrate seed    load the deterministic Promotion fixture for -tenant
 //	migrate demo-people load HarborCare's demo workforce and processed photos
 //	migrate upgrade drive one rolling schema/binary upgrade through the
@@ -95,6 +97,12 @@ func splitCommand(args []string) (command string, rest []string) {
 		}
 		return chatCommandPrefix + args[1], args[2:]
 	}
+	if args[0] == "document" {
+		if len(args) == 1 {
+			return documentCommandPrefix, nil
+		}
+		return documentCommandPrefix + args[1], args[2:]
+	}
 	return args[0], args[1:]
 }
 
@@ -114,6 +122,13 @@ func migrateConfigFields() []bootstrap.Field {
 			Name:   fieldChatDatabaseURL,
 			Env:    EnvChatDatabaseURL,
 			Usage:  "PostgreSQL connection URL for the independent chat database (" + EnvChatDatabaseURL + " if unset)",
+			Kind:   bootstrap.KindString,
+			Secret: true,
+		},
+		{
+			Name:   fieldDocumentDatabaseURL,
+			Env:    EnvDocumentDatabaseURL,
+			Usage:  "PostgreSQL connection URL for the independent document database (" + EnvDocumentDatabaseURL + " if unset)",
 			Kind:   bootstrap.KindString,
 			Secret: true,
 		},
@@ -240,6 +255,14 @@ func spec(command string, rest []string) bootstrap.Spec {
 
 						return runChatMigrateCommand(ctx, action, db, os.Stdout)
 					}
+					if action := documentSubcommand(command); action != "" || command == documentCommandPrefix {
+						db, err := openDocumentMigrateDB(ctx, deps.Values.String(fieldDocumentDatabaseURL))
+						if err != nil {
+							return err
+						}
+						defer func() { _ = db.Close() }()
+						return runDocumentMigrateCommand(ctx, action, db, os.Stdout)
+					}
 
 					if command == "upgrade" {
 						watermark, err := deps.Values.Int(fieldUpgradeWatermark)
@@ -282,6 +305,9 @@ func validateConfig(command string) func(*bootstrap.Values) error {
 			// validated against the chat DSN alone plus the isolation rule.
 			return validateChatCommand(chatSubcommand(command), v.String(fieldChatDatabaseURL), v.String("database-url"))
 		}
+		if strings.HasPrefix(command, documentCommandPrefix) {
+			return validateDocumentCommand(documentSubcommand(command), v.String(fieldDocumentDatabaseURL), v.String("database-url"), v.String(fieldChatDatabaseURL))
+		}
 		switch command {
 		case "up", "down", "status":
 		case "seed":
@@ -309,9 +335,9 @@ func validateConfig(command string) func(*bootstrap.Values) error {
 			// database, so it is validated without a database URL.
 			return nil
 		case "":
-			return fmt.Errorf("usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status")
+			return fmt.Errorf("usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status|document up|document status")
 		default:
-			return fmt.Errorf("unknown command %q; usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status", command)
+			return fmt.Errorf("unknown command %q; usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status|document up|document status", command)
 		}
 		if v.String("database-url") == "" {
 			return fmt.Errorf("%s is not set; pass -database-url or set the environment variable", EnvDatabaseURL)
