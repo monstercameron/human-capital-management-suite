@@ -26,7 +26,49 @@ service ChatExtensionsService {
   rpc AcceptCompanyGrant(AcceptCompanyGrantRequest) returns (AcceptCompanyGrantResponse);
   rpc RevokeCompanyGrant(RevokeCompanyGrantRequest) returns (RevokeCompanyGrantResponse);
   rpc SetChannelPolicy(SetChannelPolicyRequest) returns (SetChannelPolicyResponse);
+  rpc GetRetentionPolicy(GetRetentionPolicyRequest) returns (GetRetentionPolicyResponse);
+  rpc PutRetentionPolicy(PutRetentionPolicyRequest) returns (PutRetentionPolicyResponse);
+  rpc GetChannelTodoList(GetChannelTodoListRequest) returns (GetChannelTodoListResponse);
+  rpc MutateChannelTodoList(MutateChannelTodoListRequest) returns (MutateChannelTodoListResponse);
+  rpc GetChannelWidgets(GetChannelWidgetsRequest) returns (GetChannelWidgetsResponse);
+  rpc MutateChannelWidget(MutateChannelWidgetRequest) returns (MutateChannelWidgetResponse);
+  rpc GetChannelPoll(GetChannelPollRequest) returns (GetChannelPollResponse);
+  rpc MutateChannelPoll(MutateChannelPollRequest) returns (MutateChannelPollResponse);
 }
+
+message ChannelPollOption { string id = 1; string text = 2; uint32 vote_count = 3; }
+message ChannelPoll { string conversation_id = 1; uint64 revision = 2; string question = 3; repeated ChannelPollOption options = 4; string my_option_id = 5; uint32 total_votes = 6; }
+message GetChannelPollRequest { string conversation_id = 1; string host_tenant_id = 2; }
+message GetChannelPollResponse { ChannelPoll poll = 1; }
+// operation is CREATE (question and 2-10 options) or VOTE (option_id).
+message MutateChannelPollRequest { string conversation_id = 1; string host_tenant_id = 2; uint64 expected_revision = 3; string operation = 4; string question = 5; repeated string options = 6; string option_id = 7; }
+message MutateChannelPollResponse { ChannelPoll poll = 1; }
+
+message ChannelTeamMember { string home_tenant_id = 1; string subject_id = 2; string role = 3; string role_label = 4; }
+message ChannelTeamWidget { string conversation_id = 1; uint64 revision = 2; bool pinned = 3; string purpose = 4; repeated ChannelTeamMember members = 5; bool can_pin = 6; }
+message ChannelProjectMilestone { string id = 1; string text = 2; string status = 3; string owner_home_tenant_id = 4; string owner_subject_id = 5; string due_date = 6; }
+message ChannelProjectWidget { string conversation_id = 1; uint64 revision = 2; bool pinned = 3; string title = 4; string summary = 5; repeated ChannelProjectMilestone milestones = 6; bool can_pin = 7; }
+message GetChannelWidgetsRequest { string conversation_id = 1; string host_tenant_id = 2; }
+message GetChannelWidgetsResponse { ChannelTeamWidget team = 1; ChannelProjectWidget project = 2; }
+// kind is TEAM or PROJECT. SET_PINNED requires a channel manager or owner.
+// Team operations: SET_PURPOSE, SET_ROLE_LABEL. Project operations:
+// SET_DETAILS, ADD_MILESTONE, UPDATE_MILESTONE, DELETE_MILESTONE.
+message MutateChannelWidgetRequest { string conversation_id = 1; string host_tenant_id = 2; string kind = 3; uint64 expected_revision = 4; string operation = 5; bool pinned = 6; string purpose = 7; string member_home_tenant_id = 8; string member_subject_id = 9; string role_label = 10; string title = 11; string summary = 12; ChannelProjectMilestone milestone = 13; string milestone_id = 14; }
+message MutateChannelWidgetResponse { ChannelTeamWidget team = 1; ChannelProjectWidget project = 2; }
+
+// The checklist is one shared widget per channel. All revisions are scoped to
+// the authenticated caller's host tenant and the named conversation.
+message ChannelTodoSelectedMember { string home_tenant_id = 1; string subject_id = 2; }
+message ChannelTodoItem { string id = 1; string text = 2; bool completed = 3; string created_by = 4; int64 created_at_unix = 5; string source_post_id = 6; string completed_by_subject_id = 7; string completed_by_home_tenant_id = 8; int64 completed_at_unix = 9; string created_by_home_tenant_id = 10; string completion_mode = 11; repeated ChannelTodoSelectedMember selected_completers = 12; bool can_toggle = 13; bool can_manage_completion_policy = 14; }
+message ChannelTodoList { string conversation_id = 1; uint64 revision = 2; bool pinned = 3; repeated ChannelTodoItem items = 4; }
+message GetChannelTodoListRequest { string conversation_id = 1; string host_tenant_id = 2; }
+message GetChannelTodoListResponse { ChannelTodoList list = 1; }
+// operation is ADD, SET_COMPLETED, DELETE, SET_PINNED, or SET_COMPLETION_POLICY.
+// item_id is required for SET_COMPLETED, DELETE and SET_COMPLETION_POLICY.
+// ADD may set completion_mode and selected_completers atomically; omitted mode
+// defaults to EVERYONE. Selected members are tenant-qualified current members.
+message MutateChannelTodoListRequest { string conversation_id = 1; uint64 expected_revision = 2; string operation = 3; string item_id = 4; string text = 5; bool completed = 6; bool pinned = 7; string host_tenant_id = 8; string source_post_id = 9; string completion_mode = 10; repeated ChannelTodoSelectedMember selected_completers = 11; }
+message MutateChannelTodoListResponse { ChannelTodoList list = 1; }
 
 message ChatCounts { string tenant_id = 1; string conversation_id = 2; string subject_id = 3; string home_tenant_id = 4; uint64 unread_count = 5; uint64 mention_count = 6; }
 // GetCountsRequest addresses one conversation in one host tenant. The reader
@@ -83,3 +125,10 @@ message ProposeCompanyGrantRequest { string host_tenant_id = 1; string consumer_
 message AcceptCompanyGrantRequest { string host_tenant_id = 1; string consumer_tenant_id = 2; string conversation_id = 3; string grant_id = 4; }
 message RevokeCompanyGrantRequest { string host_tenant_id = 1; string consumer_tenant_id = 2; string conversation_id = 3; string grant_id = 4; }
 message SetChannelPolicyRequest { string host_tenant_id = 1; string conversation_id = 2; repeated string required_roles = 3; repeated string qualifications = 4; repeated string allowed_principals = 5; repeated string allowed_tenants = 6; bool require_all_roles = 7; string classification = 8; string residency = 9; uint64 expected_revision = 10; }
+// Tenant identity comes from the verified credential. Kind is optional for an
+// age/date override; a disk budget is always tenant-wide.
+message ChatRetentionPolicy { string conversation_kind = 1; string mode = 2; uint32 age_days = 3; int64 before_date_unix = 4; int64 budget_bytes = 5; uint64 revision = 6; string updated_by = 7; int64 updated_at_unix = 8; }
+message GetRetentionPolicyRequest { string conversation_kind = 1; }
+message GetRetentionPolicyResponse { bool configured = 1; ChatRetentionPolicy policy = 2; }
+message PutRetentionPolicyRequest { ChatRetentionPolicy policy = 1; uint64 expected_revision = 2; }
+message PutRetentionPolicyResponse { ChatRetentionPolicy policy = 1; }

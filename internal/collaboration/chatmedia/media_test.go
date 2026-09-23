@@ -1,8 +1,13 @@
 package chatmedia
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
+	"image/gif"
+	"image/png"
 	"io"
 	"os"
 	"strings"
@@ -10,6 +15,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/asset/quarantine"
+	"golang.org/x/image/bmp"
 )
 
 type testScanner struct {
@@ -26,12 +32,18 @@ func (s *countingStore) Quarantine(ctx context.Context, a Artifact) error {
 	s.quarantines++
 	return s.inner.Quarantine(ctx, a)
 }
+func (s *countingStore) SetRenditions(ctx context.Context, id, tenant string, renditions map[string]Rendition) error {
+	return s.inner.SetRenditions(ctx, id, tenant, renditions)
+}
 func (s *countingStore) SetVerdict(ctx context.Context, id, tenant string, state ArtifactState, reason, scanner string) error {
 	s.verdicts++
 	return s.inner.SetVerdict(ctx, id, tenant, state, reason, scanner)
 }
 func (s *countingStore) Get(ctx context.Context, tenant, id string) (Artifact, error) {
 	return s.inner.Get(ctx, tenant, id)
+}
+func (s *countingStore) GetRendition(ctx context.Context, tenant, id, variant string) (Artifact, error) {
+	return s.inner.GetRendition(ctx, tenant, id, variant)
 }
 
 type countingScanner struct {
@@ -47,7 +59,23 @@ func (s *countingScanner) Scan(ctx context.Context, id string, r io.Reader) (qua
 func (s testScanner) Scan(context.Context, string, io.Reader) (quarantine.Verdict, error) {
 	return s.verdict, s.err
 }
-func pngBytes() []byte { return append([]byte("\x89PNG\r\n\x1a\n"), []byte("pixels")...) }
+func pngBytes() []byte {
+	var out bytes.Buffer
+	im := image.NewNRGBA(image.Rect(0, 0, 1, 1))
+	im.SetNRGBA(0, 0, color.NRGBA{R: 120, G: 80, B: 40, A: 255})
+	_ = png.Encode(&out, im)
+	return out.Bytes()
+}
+func bmpBytes() []byte {
+	var out bytes.Buffer
+	_ = bmp.Encode(&out, image.NewNRGBA(image.Rect(0, 0, 1, 1)))
+	return out.Bytes()
+}
+func gifBytes() []byte {
+	var out bytes.Buffer
+	_ = gif.Encode(&out, image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{color.Black}), nil)
+	return out.Bytes()
+}
 func makeService(scanner Scanner, auth Authorizer) *Service {
 	return New(Config{Store: NewMemoryStore(), Scanner: scanner, Authorize: auth, Now: func() time.Time { return time.Unix(100, 0) }})
 }
@@ -192,7 +220,7 @@ func TestTodo_CHAT_038_DigestScope(t *testing.T) {
 }
 func TestTodo_CHAT_038_Integration(t *testing.T) {
 	s := makeService(testScanner{verdict: quarantine.Verdict{Safe: true}}, func(context.Context, AccessRequest) error { return nil })
-	for typ, b := range map[string][]byte{"image/bmp": []byte("BMdata"), "image/gif": []byte("GIF89adata"), "video/mp4": []byte("\x00\x00\x00\x18ftypisomdata")} {
+	for typ, b := range map[string][]byte{"image/bmp": bmpBytes(), "image/gif": gifBytes(), "video/mp4": []byte("\x00\x00\x00\x18ftypisomdata")} {
 		if _, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: "c", PrincipalID: "p", DeclaredType: typ, Content: b, EvidenceID: typ}); err != nil {
 			t.Fatalf("%s: %v", typ, err)
 		}
@@ -271,7 +299,7 @@ func TestTodo_CHAT_036_FilesystemStoreLifecycle(t *testing.T) {
 }
 
 func TestTodo_CHAT_037_ScannerFailureAndAllFormats(t *testing.T) {
-	for typ, content := range map[string][]byte{"audio/mpeg": []byte("ID3x"), "audio/wav": []byte("RIFFxxxxWAVEx"), "image/bmp": []byte("BMx"), "image/png": pngBytes(), "image/gif": []byte("GIF87ax"), "video/mp4": []byte("\x00\x00\x00\x18ftypisomx")} {
+	for typ, content := range map[string][]byte{"audio/mpeg": []byte("ID3x"), "audio/wav": []byte("RIFFxxxxWAVEx"), "image/bmp": bmpBytes(), "image/png": pngBytes(), "image/gif": gifBytes(), "video/mp4": []byte("\x00\x00\x00\x18ftypisomx")} {
 		s := makeService(testScanner{verdict: quarantine.Verdict{Safe: true}}, func(context.Context, AccessRequest) error { return nil })
 		if _, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: typ, PrincipalID: "p", DeclaredType: typ, Content: content, EvidenceID: typ}); err != nil {
 			t.Fatalf("%s: %v", typ, err)

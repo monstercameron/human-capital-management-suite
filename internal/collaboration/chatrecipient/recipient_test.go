@@ -2,6 +2,7 @@ package chatrecipient
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -12,11 +13,12 @@ import (
 type conversations struct {
 	chat.ConversationService
 	allowed bool
+	denied  map[string]bool
 	prefs   chat.NotificationPreferences
 }
 
 func (c conversations) GetConversation(_ context.Context, r chat.GetConversationRequest) (chat.Conversation, error) {
-	if !c.allowed {
+	if !c.allowed || c.denied[r.TenantID+"/"+r.ConversationID] {
 		return chat.Conversation{}, chat.ErrPermissionDenied
 	}
 	return chat.Conversation{ID: r.ConversationID, TenantID: r.TenantID}, nil
@@ -29,6 +31,7 @@ type repo struct {
 	counts  Counts
 	follow  Follow
 	sidebar Sidebar
+	saved   Sidebar
 	quiet   QuietHours
 	calls   int
 }
@@ -49,6 +52,7 @@ func (r *repo) Sidebar(context.Context, string, string) (Sidebar, error) {
 }
 func (r *repo) PutSidebar(_ context.Context, _, _ string, x Sidebar, _ uint64) (Sidebar, error) {
 	r.calls++
+	r.saved = x
 	x.Revision = 2
 	return x, nil
 }
@@ -99,6 +103,58 @@ func TestTodo_CHAT_032(t *testing.T) {
 	s.Conversations = conversations{allowed: false}
 	if _, err = s.PutSidebar(context.Background(), p, layout, 2); !errors.Is(err, chat.ErrPermissionDenied) || db.calls != 1 {
 		t.Fatalf("foreign layout accepted: %v calls=%d", err, db.calls)
+	}
+}
+
+func TestTodo_CHAT_035_SecurityRevokedDraftIsNotReturnedOrSaved(t *testing.T) {
+	stored := Sidebar{Layout: []byte(`{"sections":[{"id":"direct","chats":[{"hostTenantId":"host","conversationId":"open"},{"hostTenantId":"host","conversationId":"revoked"}]}],"drafts":{"open":"keep me","revoked":"private text"},"filters":{"direct":"all"}}`), Revision: 7}
+	db := &repo{sidebar: stored}
+	p := chat.Principal{TenantID: "home", SubjectID: "alice"}
+	s := &Service{Conversations: conversations{allowed: true, denied: map[string]bool{"host/revoked": true}}, Repo: db}
+	got, err := s.Sidebar(context.Background(), p)
+	if err != nil || got.Revision != 7 {
+		t.Fatalf("sidebar read = %+v, %v", got, err)
+	}
+	var layout struct {
+		Drafts  map[string]string `json:"drafts"`
+		Filters map[string]string `json:"filters"`
+	}
+	if err := json.Unmarshal(got.Layout, &layout); err != nil || len(layout.Drafts) != 1 || layout.Drafts["open"] != "keep me" || layout.Filters["direct"] != "all" {
+		t.Fatalf("revoked draft leaked or allowed layout changed: %+v, %v", layout, err)
+	}
+	if _, err := s.PutSidebar(context.Background(), p, stored, 7); !errors.Is(err, chat.ErrPermissionDenied) || db.calls != 1 {
+		t.Fatalf("revoked room was saved: %v, calls=%d", err, db.calls)
+	}
+	valid := Sidebar{Layout: []byte(`{"sections":[{"id":"direct","chats":[{"hostTenantId":"host","conversationId":"open"}]}],"drafts":{"open":"keep me","revoked":"private text"}}`)}
+	if _, err := s.PutSidebar(context.Background(), p, valid, 7); !errors.Is(err, chat.ErrInvalidArgument) || db.calls != 1 {
+		t.Fatalf("orphan draft was saved: %v, calls=%d", err, db.calls)
+	}
+	valid.Layout = []byte(`{"sections":[{"id":"direct","chats":[{"hostTenantId":"host","conversationId":"open"}]}],"drafts":{"open":"keep me"}}`)
+	if _, err := s.PutSidebar(context.Background(), p, valid, 7); err != nil || db.calls != 2 || string(db.saved.Layout) != string(valid.Layout) {
+		t.Fatalf("authorized draft did not save: %v, calls=%d saved=%s", err, db.calls, db.saved.Layout)
+	}
+	db.sidebar = valid
+	got, err = s.Sidebar(context.Background(), p)
+	if err != nil || string(got.Layout) != string(valid.Layout) {
+		t.Fatalf("authorized draft changed on reload: %s, %v", got.Layout, err)
+	}
+}
+
+func TestTodo_CHAT_035_SecurityAmbiguousHostDraftIsDiscarded(t *testing.T) {
+	layout := Sidebar{Layout: []byte(`{"sections":[{"id":"direct","chats":[{"hostTenantId":"host-a","conversationId":"same"},{"hostTenantId":"host-b","conversationId":"same"}]}],"drafts":{"same":"private text"}}`)}
+	db := &repo{sidebar: layout}
+	s := &Service{Conversations: conversations{allowed: true}, Repo: db}
+	p := chat.Principal{TenantID: "home", SubjectID: "alice"}
+	got, err := s.Sidebar(context.Background(), p)
+	if err != nil || json.Valid(got.Layout) == false || string(got.Layout) == string(layout.Layout) {
+		t.Fatalf("ambiguous draft was returned: %s, %v", got.Layout, err)
+	}
+	var x sidebarLayout
+	if err := json.Unmarshal(got.Layout, &x); err != nil || len(x.Drafts) != 0 {
+		t.Fatalf("ambiguous draft leaked: %+v, %v", x.Drafts, err)
+	}
+	if _, err := s.PutSidebar(context.Background(), p, layout, 1); !errors.Is(err, chat.ErrInvalidArgument) || db.calls != 1 {
+		t.Fatalf("ambiguous draft was stored: %v, calls=%d", err, db.calls)
 	}
 }
 func TestTodo_CHAT_034(t *testing.T) {

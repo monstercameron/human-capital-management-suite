@@ -21,6 +21,1556 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ChannelPollOption struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	VoteCount     uint32                 `protobuf:"varint,3,opt,name=vote_count,json=voteCount,proto3" json:"vote_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChannelPollOption) Reset() {
+	*x = ChannelPollOption{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelPollOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelPollOption) ProtoMessage() {}
+
+func (x *ChannelPollOption) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelPollOption.ProtoReflect.Descriptor instead.
+func (*ChannelPollOption) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ChannelPollOption) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ChannelPollOption) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ChannelPollOption) GetVoteCount() uint32 {
+	if x != nil {
+		return x.VoteCount
+	}
+	return 0
+}
+
+type ChannelPoll struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	Revision       uint64                 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Question       string                 `protobuf:"bytes,3,opt,name=question,proto3" json:"question,omitempty"`
+	Options        []*ChannelPollOption   `protobuf:"bytes,4,rep,name=options,proto3" json:"options,omitempty"`
+	MyOptionId     string                 `protobuf:"bytes,5,opt,name=my_option_id,json=myOptionId,proto3" json:"my_option_id,omitempty"`
+	TotalVotes     uint32                 `protobuf:"varint,6,opt,name=total_votes,json=totalVotes,proto3" json:"total_votes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ChannelPoll) Reset() {
+	*x = ChannelPoll{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelPoll) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelPoll) ProtoMessage() {}
+
+func (x *ChannelPoll) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelPoll.ProtoReflect.Descriptor instead.
+func (*ChannelPoll) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ChannelPoll) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ChannelPoll) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ChannelPoll) GetQuestion() string {
+	if x != nil {
+		return x.Question
+	}
+	return ""
+}
+
+func (x *ChannelPoll) GetOptions() []*ChannelPollOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *ChannelPoll) GetMyOptionId() string {
+	if x != nil {
+		return x.MyOptionId
+	}
+	return ""
+}
+
+func (x *ChannelPoll) GetTotalVotes() uint32 {
+	if x != nil {
+		return x.TotalVotes
+	}
+	return 0
+}
+
+type GetChannelPollRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	HostTenantId   string                 `protobuf:"bytes,2,opt,name=host_tenant_id,json=hostTenantId,proto3" json:"host_tenant_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetChannelPollRequest) Reset() {
+	*x = GetChannelPollRequest{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChannelPollRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChannelPollRequest) ProtoMessage() {}
+
+func (x *GetChannelPollRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChannelPollRequest.ProtoReflect.Descriptor instead.
+func (*GetChannelPollRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetChannelPollRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *GetChannelPollRequest) GetHostTenantId() string {
+	if x != nil {
+		return x.HostTenantId
+	}
+	return ""
+}
+
+type GetChannelPollResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Poll          *ChannelPoll           `protobuf:"bytes,1,opt,name=poll,proto3" json:"poll,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChannelPollResponse) Reset() {
+	*x = GetChannelPollResponse{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChannelPollResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChannelPollResponse) ProtoMessage() {}
+
+func (x *GetChannelPollResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChannelPollResponse.ProtoReflect.Descriptor instead.
+func (*GetChannelPollResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetChannelPollResponse) GetPoll() *ChannelPoll {
+	if x != nil {
+		return x.Poll
+	}
+	return nil
+}
+
+// operation is CREATE (question and 2-10 options) or VOTE (option_id).
+type MutateChannelPollRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId   string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	HostTenantId     string                 `protobuf:"bytes,2,opt,name=host_tenant_id,json=hostTenantId,proto3" json:"host_tenant_id,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	Operation        string                 `protobuf:"bytes,4,opt,name=operation,proto3" json:"operation,omitempty"`
+	Question         string                 `protobuf:"bytes,5,opt,name=question,proto3" json:"question,omitempty"`
+	Options          []string               `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`
+	OptionId         string                 `protobuf:"bytes,7,opt,name=option_id,json=optionId,proto3" json:"option_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *MutateChannelPollRequest) Reset() {
+	*x = MutateChannelPollRequest{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutateChannelPollRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutateChannelPollRequest) ProtoMessage() {}
+
+func (x *MutateChannelPollRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutateChannelPollRequest.ProtoReflect.Descriptor instead.
+func (*MutateChannelPollRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *MutateChannelPollRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *MutateChannelPollRequest) GetHostTenantId() string {
+	if x != nil {
+		return x.HostTenantId
+	}
+	return ""
+}
+
+func (x *MutateChannelPollRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *MutateChannelPollRequest) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *MutateChannelPollRequest) GetQuestion() string {
+	if x != nil {
+		return x.Question
+	}
+	return ""
+}
+
+func (x *MutateChannelPollRequest) GetOptions() []string {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *MutateChannelPollRequest) GetOptionId() string {
+	if x != nil {
+		return x.OptionId
+	}
+	return ""
+}
+
+type MutateChannelPollResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Poll          *ChannelPoll           `protobuf:"bytes,1,opt,name=poll,proto3" json:"poll,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MutateChannelPollResponse) Reset() {
+	*x = MutateChannelPollResponse{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutateChannelPollResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutateChannelPollResponse) ProtoMessage() {}
+
+func (x *MutateChannelPollResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutateChannelPollResponse.ProtoReflect.Descriptor instead.
+func (*MutateChannelPollResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *MutateChannelPollResponse) GetPoll() *ChannelPoll {
+	if x != nil {
+		return x.Poll
+	}
+	return nil
+}
+
+type ChannelTeamMember struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HomeTenantId  string                 `protobuf:"bytes,1,opt,name=home_tenant_id,json=homeTenantId,proto3" json:"home_tenant_id,omitempty"`
+	SubjectId     string                 `protobuf:"bytes,2,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	RoleLabel     string                 `protobuf:"bytes,4,opt,name=role_label,json=roleLabel,proto3" json:"role_label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChannelTeamMember) Reset() {
+	*x = ChannelTeamMember{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelTeamMember) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelTeamMember) ProtoMessage() {}
+
+func (x *ChannelTeamMember) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelTeamMember.ProtoReflect.Descriptor instead.
+func (*ChannelTeamMember) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ChannelTeamMember) GetHomeTenantId() string {
+	if x != nil {
+		return x.HomeTenantId
+	}
+	return ""
+}
+
+func (x *ChannelTeamMember) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+func (x *ChannelTeamMember) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *ChannelTeamMember) GetRoleLabel() string {
+	if x != nil {
+		return x.RoleLabel
+	}
+	return ""
+}
+
+type ChannelTeamWidget struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	Revision       uint64                 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Pinned         bool                   `protobuf:"varint,3,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	Purpose        string                 `protobuf:"bytes,4,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Members        []*ChannelTeamMember   `protobuf:"bytes,5,rep,name=members,proto3" json:"members,omitempty"`
+	CanPin         bool                   `protobuf:"varint,6,opt,name=can_pin,json=canPin,proto3" json:"can_pin,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ChannelTeamWidget) Reset() {
+	*x = ChannelTeamWidget{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelTeamWidget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelTeamWidget) ProtoMessage() {}
+
+func (x *ChannelTeamWidget) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelTeamWidget.ProtoReflect.Descriptor instead.
+func (*ChannelTeamWidget) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ChannelTeamWidget) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ChannelTeamWidget) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ChannelTeamWidget) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *ChannelTeamWidget) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *ChannelTeamWidget) GetMembers() []*ChannelTeamMember {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
+func (x *ChannelTeamWidget) GetCanPin() bool {
+	if x != nil {
+		return x.CanPin
+	}
+	return false
+}
+
+type ChannelProjectMilestone struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Text              string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	Status            string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	OwnerHomeTenantId string                 `protobuf:"bytes,4,opt,name=owner_home_tenant_id,json=ownerHomeTenantId,proto3" json:"owner_home_tenant_id,omitempty"`
+	OwnerSubjectId    string                 `protobuf:"bytes,5,opt,name=owner_subject_id,json=ownerSubjectId,proto3" json:"owner_subject_id,omitempty"`
+	DueDate           string                 `protobuf:"bytes,6,opt,name=due_date,json=dueDate,proto3" json:"due_date,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ChannelProjectMilestone) Reset() {
+	*x = ChannelProjectMilestone{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelProjectMilestone) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelProjectMilestone) ProtoMessage() {}
+
+func (x *ChannelProjectMilestone) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelProjectMilestone.ProtoReflect.Descriptor instead.
+func (*ChannelProjectMilestone) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ChannelProjectMilestone) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ChannelProjectMilestone) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ChannelProjectMilestone) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ChannelProjectMilestone) GetOwnerHomeTenantId() string {
+	if x != nil {
+		return x.OwnerHomeTenantId
+	}
+	return ""
+}
+
+func (x *ChannelProjectMilestone) GetOwnerSubjectId() string {
+	if x != nil {
+		return x.OwnerSubjectId
+	}
+	return ""
+}
+
+func (x *ChannelProjectMilestone) GetDueDate() string {
+	if x != nil {
+		return x.DueDate
+	}
+	return ""
+}
+
+type ChannelProjectWidget struct {
+	state          protoimpl.MessageState     `protogen:"open.v1"`
+	ConversationId string                     `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	Revision       uint64                     `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Pinned         bool                       `protobuf:"varint,3,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	Title          string                     `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Summary        string                     `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	Milestones     []*ChannelProjectMilestone `protobuf:"bytes,6,rep,name=milestones,proto3" json:"milestones,omitempty"`
+	CanPin         bool                       `protobuf:"varint,7,opt,name=can_pin,json=canPin,proto3" json:"can_pin,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ChannelProjectWidget) Reset() {
+	*x = ChannelProjectWidget{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelProjectWidget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelProjectWidget) ProtoMessage() {}
+
+func (x *ChannelProjectWidget) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelProjectWidget.ProtoReflect.Descriptor instead.
+func (*ChannelProjectWidget) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ChannelProjectWidget) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ChannelProjectWidget) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ChannelProjectWidget) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *ChannelProjectWidget) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ChannelProjectWidget) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ChannelProjectWidget) GetMilestones() []*ChannelProjectMilestone {
+	if x != nil {
+		return x.Milestones
+	}
+	return nil
+}
+
+func (x *ChannelProjectWidget) GetCanPin() bool {
+	if x != nil {
+		return x.CanPin
+	}
+	return false
+}
+
+type GetChannelWidgetsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	HostTenantId   string                 `protobuf:"bytes,2,opt,name=host_tenant_id,json=hostTenantId,proto3" json:"host_tenant_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetChannelWidgetsRequest) Reset() {
+	*x = GetChannelWidgetsRequest{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChannelWidgetsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChannelWidgetsRequest) ProtoMessage() {}
+
+func (x *GetChannelWidgetsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChannelWidgetsRequest.ProtoReflect.Descriptor instead.
+func (*GetChannelWidgetsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetChannelWidgetsRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *GetChannelWidgetsRequest) GetHostTenantId() string {
+	if x != nil {
+		return x.HostTenantId
+	}
+	return ""
+}
+
+type GetChannelWidgetsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Team          *ChannelTeamWidget     `protobuf:"bytes,1,opt,name=team,proto3" json:"team,omitempty"`
+	Project       *ChannelProjectWidget  `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChannelWidgetsResponse) Reset() {
+	*x = GetChannelWidgetsResponse{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChannelWidgetsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChannelWidgetsResponse) ProtoMessage() {}
+
+func (x *GetChannelWidgetsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChannelWidgetsResponse.ProtoReflect.Descriptor instead.
+func (*GetChannelWidgetsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetChannelWidgetsResponse) GetTeam() *ChannelTeamWidget {
+	if x != nil {
+		return x.Team
+	}
+	return nil
+}
+
+func (x *GetChannelWidgetsResponse) GetProject() *ChannelProjectWidget {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+// kind is TEAM or PROJECT. SET_PINNED requires a channel manager or owner.
+// Team operations: SET_PURPOSE, SET_ROLE_LABEL. Project operations:
+// SET_DETAILS, ADD_MILESTONE, UPDATE_MILESTONE, DELETE_MILESTONE.
+type MutateChannelWidgetRequest struct {
+	state              protoimpl.MessageState   `protogen:"open.v1"`
+	ConversationId     string                   `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	HostTenantId       string                   `protobuf:"bytes,2,opt,name=host_tenant_id,json=hostTenantId,proto3" json:"host_tenant_id,omitempty"`
+	Kind               string                   `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	ExpectedRevision   uint64                   `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	Operation          string                   `protobuf:"bytes,5,opt,name=operation,proto3" json:"operation,omitempty"`
+	Pinned             bool                     `protobuf:"varint,6,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	Purpose            string                   `protobuf:"bytes,7,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	MemberHomeTenantId string                   `protobuf:"bytes,8,opt,name=member_home_tenant_id,json=memberHomeTenantId,proto3" json:"member_home_tenant_id,omitempty"`
+	MemberSubjectId    string                   `protobuf:"bytes,9,opt,name=member_subject_id,json=memberSubjectId,proto3" json:"member_subject_id,omitempty"`
+	RoleLabel          string                   `protobuf:"bytes,10,opt,name=role_label,json=roleLabel,proto3" json:"role_label,omitempty"`
+	Title              string                   `protobuf:"bytes,11,opt,name=title,proto3" json:"title,omitempty"`
+	Summary            string                   `protobuf:"bytes,12,opt,name=summary,proto3" json:"summary,omitempty"`
+	Milestone          *ChannelProjectMilestone `protobuf:"bytes,13,opt,name=milestone,proto3" json:"milestone,omitempty"`
+	MilestoneId        string                   `protobuf:"bytes,14,opt,name=milestone_id,json=milestoneId,proto3" json:"milestone_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *MutateChannelWidgetRequest) Reset() {
+	*x = MutateChannelWidgetRequest{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutateChannelWidgetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutateChannelWidgetRequest) ProtoMessage() {}
+
+func (x *MutateChannelWidgetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutateChannelWidgetRequest.ProtoReflect.Descriptor instead.
+func (*MutateChannelWidgetRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *MutateChannelWidgetRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetHostTenantId() string {
+	if x != nil {
+		return x.HostTenantId
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *MutateChannelWidgetRequest) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *MutateChannelWidgetRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetMemberHomeTenantId() string {
+	if x != nil {
+		return x.MemberHomeTenantId
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetMemberSubjectId() string {
+	if x != nil {
+		return x.MemberSubjectId
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetRoleLabel() string {
+	if x != nil {
+		return x.RoleLabel
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *MutateChannelWidgetRequest) GetMilestone() *ChannelProjectMilestone {
+	if x != nil {
+		return x.Milestone
+	}
+	return nil
+}
+
+func (x *MutateChannelWidgetRequest) GetMilestoneId() string {
+	if x != nil {
+		return x.MilestoneId
+	}
+	return ""
+}
+
+type MutateChannelWidgetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Team          *ChannelTeamWidget     `protobuf:"bytes,1,opt,name=team,proto3" json:"team,omitempty"`
+	Project       *ChannelProjectWidget  `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MutateChannelWidgetResponse) Reset() {
+	*x = MutateChannelWidgetResponse{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutateChannelWidgetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutateChannelWidgetResponse) ProtoMessage() {}
+
+func (x *MutateChannelWidgetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutateChannelWidgetResponse.ProtoReflect.Descriptor instead.
+func (*MutateChannelWidgetResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *MutateChannelWidgetResponse) GetTeam() *ChannelTeamWidget {
+	if x != nil {
+		return x.Team
+	}
+	return nil
+}
+
+func (x *MutateChannelWidgetResponse) GetProject() *ChannelProjectWidget {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+// The checklist is one shared widget per channel. All revisions are scoped to
+// the authenticated caller's host tenant and the named conversation.
+type ChannelTodoSelectedMember struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HomeTenantId  string                 `protobuf:"bytes,1,opt,name=home_tenant_id,json=homeTenantId,proto3" json:"home_tenant_id,omitempty"`
+	SubjectId     string                 `protobuf:"bytes,2,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChannelTodoSelectedMember) Reset() {
+	*x = ChannelTodoSelectedMember{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelTodoSelectedMember) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelTodoSelectedMember) ProtoMessage() {}
+
+func (x *ChannelTodoSelectedMember) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelTodoSelectedMember.ProtoReflect.Descriptor instead.
+func (*ChannelTodoSelectedMember) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ChannelTodoSelectedMember) GetHomeTenantId() string {
+	if x != nil {
+		return x.HomeTenantId
+	}
+	return ""
+}
+
+func (x *ChannelTodoSelectedMember) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+type ChannelTodoItem struct {
+	state                     protoimpl.MessageState       `protogen:"open.v1"`
+	Id                        string                       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Text                      string                       `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	Completed                 bool                         `protobuf:"varint,3,opt,name=completed,proto3" json:"completed,omitempty"`
+	CreatedBy                 string                       `protobuf:"bytes,4,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAtUnix             int64                        `protobuf:"varint,5,opt,name=created_at_unix,json=createdAtUnix,proto3" json:"created_at_unix,omitempty"`
+	SourcePostId              string                       `protobuf:"bytes,6,opt,name=source_post_id,json=sourcePostId,proto3" json:"source_post_id,omitempty"`
+	CompletedBySubjectId      string                       `protobuf:"bytes,7,opt,name=completed_by_subject_id,json=completedBySubjectId,proto3" json:"completed_by_subject_id,omitempty"`
+	CompletedByHomeTenantId   string                       `protobuf:"bytes,8,opt,name=completed_by_home_tenant_id,json=completedByHomeTenantId,proto3" json:"completed_by_home_tenant_id,omitempty"`
+	CompletedAtUnix           int64                        `protobuf:"varint,9,opt,name=completed_at_unix,json=completedAtUnix,proto3" json:"completed_at_unix,omitempty"`
+	CreatedByHomeTenantId     string                       `protobuf:"bytes,10,opt,name=created_by_home_tenant_id,json=createdByHomeTenantId,proto3" json:"created_by_home_tenant_id,omitempty"`
+	CompletionMode            string                       `protobuf:"bytes,11,opt,name=completion_mode,json=completionMode,proto3" json:"completion_mode,omitempty"`
+	SelectedCompleters        []*ChannelTodoSelectedMember `protobuf:"bytes,12,rep,name=selected_completers,json=selectedCompleters,proto3" json:"selected_completers,omitempty"`
+	CanToggle                 bool                         `protobuf:"varint,13,opt,name=can_toggle,json=canToggle,proto3" json:"can_toggle,omitempty"`
+	CanManageCompletionPolicy bool                         `protobuf:"varint,14,opt,name=can_manage_completion_policy,json=canManageCompletionPolicy,proto3" json:"can_manage_completion_policy,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *ChannelTodoItem) Reset() {
+	*x = ChannelTodoItem{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelTodoItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelTodoItem) ProtoMessage() {}
+
+func (x *ChannelTodoItem) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelTodoItem.ProtoReflect.Descriptor instead.
+func (*ChannelTodoItem) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ChannelTodoItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ChannelTodoItem) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ChannelTodoItem) GetCompleted() bool {
+	if x != nil {
+		return x.Completed
+	}
+	return false
+}
+
+func (x *ChannelTodoItem) GetCreatedBy() string {
+	if x != nil {
+		return x.CreatedBy
+	}
+	return ""
+}
+
+func (x *ChannelTodoItem) GetCreatedAtUnix() int64 {
+	if x != nil {
+		return x.CreatedAtUnix
+	}
+	return 0
+}
+
+func (x *ChannelTodoItem) GetSourcePostId() string {
+	if x != nil {
+		return x.SourcePostId
+	}
+	return ""
+}
+
+func (x *ChannelTodoItem) GetCompletedBySubjectId() string {
+	if x != nil {
+		return x.CompletedBySubjectId
+	}
+	return ""
+}
+
+func (x *ChannelTodoItem) GetCompletedByHomeTenantId() string {
+	if x != nil {
+		return x.CompletedByHomeTenantId
+	}
+	return ""
+}
+
+func (x *ChannelTodoItem) GetCompletedAtUnix() int64 {
+	if x != nil {
+		return x.CompletedAtUnix
+	}
+	return 0
+}
+
+func (x *ChannelTodoItem) GetCreatedByHomeTenantId() string {
+	if x != nil {
+		return x.CreatedByHomeTenantId
+	}
+	return ""
+}
+
+func (x *ChannelTodoItem) GetCompletionMode() string {
+	if x != nil {
+		return x.CompletionMode
+	}
+	return ""
+}
+
+func (x *ChannelTodoItem) GetSelectedCompleters() []*ChannelTodoSelectedMember {
+	if x != nil {
+		return x.SelectedCompleters
+	}
+	return nil
+}
+
+func (x *ChannelTodoItem) GetCanToggle() bool {
+	if x != nil {
+		return x.CanToggle
+	}
+	return false
+}
+
+func (x *ChannelTodoItem) GetCanManageCompletionPolicy() bool {
+	if x != nil {
+		return x.CanManageCompletionPolicy
+	}
+	return false
+}
+
+type ChannelTodoList struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	Revision       uint64                 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Pinned         bool                   `protobuf:"varint,3,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	Items          []*ChannelTodoItem     `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ChannelTodoList) Reset() {
+	*x = ChannelTodoList{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelTodoList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelTodoList) ProtoMessage() {}
+
+func (x *ChannelTodoList) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelTodoList.ProtoReflect.Descriptor instead.
+func (*ChannelTodoList) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ChannelTodoList) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ChannelTodoList) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ChannelTodoList) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *ChannelTodoList) GetItems() []*ChannelTodoItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type GetChannelTodoListRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	HostTenantId   string                 `protobuf:"bytes,2,opt,name=host_tenant_id,json=hostTenantId,proto3" json:"host_tenant_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetChannelTodoListRequest) Reset() {
+	*x = GetChannelTodoListRequest{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChannelTodoListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChannelTodoListRequest) ProtoMessage() {}
+
+func (x *GetChannelTodoListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChannelTodoListRequest.ProtoReflect.Descriptor instead.
+func (*GetChannelTodoListRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetChannelTodoListRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *GetChannelTodoListRequest) GetHostTenantId() string {
+	if x != nil {
+		return x.HostTenantId
+	}
+	return ""
+}
+
+type GetChannelTodoListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          *ChannelTodoList       `protobuf:"bytes,1,opt,name=list,proto3" json:"list,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChannelTodoListResponse) Reset() {
+	*x = GetChannelTodoListResponse{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChannelTodoListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChannelTodoListResponse) ProtoMessage() {}
+
+func (x *GetChannelTodoListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChannelTodoListResponse.ProtoReflect.Descriptor instead.
+func (*GetChannelTodoListResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetChannelTodoListResponse) GetList() *ChannelTodoList {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+// operation is ADD, SET_COMPLETED, DELETE, SET_PINNED, or SET_COMPLETION_POLICY.
+// item_id is required for SET_COMPLETED, DELETE and SET_COMPLETION_POLICY.
+// ADD may set completion_mode and selected_completers atomically; omitted mode
+// defaults to EVERYONE. Selected members are tenant-qualified current members.
+type MutateChannelTodoListRequest struct {
+	state              protoimpl.MessageState       `protogen:"open.v1"`
+	ConversationId     string                       `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	ExpectedRevision   uint64                       `protobuf:"varint,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	Operation          string                       `protobuf:"bytes,3,opt,name=operation,proto3" json:"operation,omitempty"`
+	ItemId             string                       `protobuf:"bytes,4,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	Text               string                       `protobuf:"bytes,5,opt,name=text,proto3" json:"text,omitempty"`
+	Completed          bool                         `protobuf:"varint,6,opt,name=completed,proto3" json:"completed,omitempty"`
+	Pinned             bool                         `protobuf:"varint,7,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	HostTenantId       string                       `protobuf:"bytes,8,opt,name=host_tenant_id,json=hostTenantId,proto3" json:"host_tenant_id,omitempty"`
+	SourcePostId       string                       `protobuf:"bytes,9,opt,name=source_post_id,json=sourcePostId,proto3" json:"source_post_id,omitempty"`
+	CompletionMode     string                       `protobuf:"bytes,10,opt,name=completion_mode,json=completionMode,proto3" json:"completion_mode,omitempty"`
+	SelectedCompleters []*ChannelTodoSelectedMember `protobuf:"bytes,11,rep,name=selected_completers,json=selectedCompleters,proto3" json:"selected_completers,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *MutateChannelTodoListRequest) Reset() {
+	*x = MutateChannelTodoListRequest{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutateChannelTodoListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutateChannelTodoListRequest) ProtoMessage() {}
+
+func (x *MutateChannelTodoListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutateChannelTodoListRequest.ProtoReflect.Descriptor instead.
+func (*MutateChannelTodoListRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *MutateChannelTodoListRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *MutateChannelTodoListRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *MutateChannelTodoListRequest) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *MutateChannelTodoListRequest) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+func (x *MutateChannelTodoListRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *MutateChannelTodoListRequest) GetCompleted() bool {
+	if x != nil {
+		return x.Completed
+	}
+	return false
+}
+
+func (x *MutateChannelTodoListRequest) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *MutateChannelTodoListRequest) GetHostTenantId() string {
+	if x != nil {
+		return x.HostTenantId
+	}
+	return ""
+}
+
+func (x *MutateChannelTodoListRequest) GetSourcePostId() string {
+	if x != nil {
+		return x.SourcePostId
+	}
+	return ""
+}
+
+func (x *MutateChannelTodoListRequest) GetCompletionMode() string {
+	if x != nil {
+		return x.CompletionMode
+	}
+	return ""
+}
+
+func (x *MutateChannelTodoListRequest) GetSelectedCompleters() []*ChannelTodoSelectedMember {
+	if x != nil {
+		return x.SelectedCompleters
+	}
+	return nil
+}
+
+type MutateChannelTodoListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          *ChannelTodoList       `protobuf:"bytes,1,opt,name=list,proto3" json:"list,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MutateChannelTodoListResponse) Reset() {
+	*x = MutateChannelTodoListResponse{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutateChannelTodoListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutateChannelTodoListResponse) ProtoMessage() {}
+
+func (x *MutateChannelTodoListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutateChannelTodoListResponse.ProtoReflect.Descriptor instead.
+func (*MutateChannelTodoListResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *MutateChannelTodoListResponse) GetList() *ChannelTodoList {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
 type ChatCounts struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -35,7 +1585,7 @@ type ChatCounts struct {
 
 func (x *ChatCounts) Reset() {
 	*x = ChatCounts{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[0]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +1597,7 @@ func (x *ChatCounts) String() string {
 func (*ChatCounts) ProtoMessage() {}
 
 func (x *ChatCounts) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[0]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +1610,7 @@ func (x *ChatCounts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatCounts.ProtoReflect.Descriptor instead.
 func (*ChatCounts) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{0}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ChatCounts) GetTenantId() string {
@@ -120,7 +1670,7 @@ type GetCountsRequest struct {
 
 func (x *GetCountsRequest) Reset() {
 	*x = GetCountsRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[1]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -132,7 +1682,7 @@ func (x *GetCountsRequest) String() string {
 func (*GetCountsRequest) ProtoMessage() {}
 
 func (x *GetCountsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[1]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -145,7 +1695,7 @@ func (x *GetCountsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCountsRequest.ProtoReflect.Descriptor instead.
 func (*GetCountsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{1}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetCountsRequest) GetTenantId() string {
@@ -179,7 +1729,7 @@ type GetCountsResponse struct {
 
 func (x *GetCountsResponse) Reset() {
 	*x = GetCountsResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[2]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -191,7 +1741,7 @@ func (x *GetCountsResponse) String() string {
 func (*GetCountsResponse) ProtoMessage() {}
 
 func (x *GetCountsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[2]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -204,7 +1754,7 @@ func (x *GetCountsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCountsResponse.ProtoReflect.Descriptor instead.
 func (*GetCountsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{2}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetCountsResponse) GetCounts() *ChatCounts {
@@ -229,7 +1779,7 @@ type ThreadFollow struct {
 
 func (x *ThreadFollow) Reset() {
 	*x = ThreadFollow{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[3]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -241,7 +1791,7 @@ func (x *ThreadFollow) String() string {
 func (*ThreadFollow) ProtoMessage() {}
 
 func (x *ThreadFollow) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[3]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -254,7 +1804,7 @@ func (x *ThreadFollow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThreadFollow.ProtoReflect.Descriptor instead.
 func (*ThreadFollow) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{3}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ThreadFollow) GetTenantId() string {
@@ -321,7 +1871,7 @@ type GetThreadFollowRequest struct {
 
 func (x *GetThreadFollowRequest) Reset() {
 	*x = GetThreadFollowRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[4]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -333,7 +1883,7 @@ func (x *GetThreadFollowRequest) String() string {
 func (*GetThreadFollowRequest) ProtoMessage() {}
 
 func (x *GetThreadFollowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[4]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -346,7 +1896,7 @@ func (x *GetThreadFollowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadFollowRequest.ProtoReflect.Descriptor instead.
 func (*GetThreadFollowRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{4}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetThreadFollowRequest) GetTenantId() string {
@@ -387,7 +1937,7 @@ type GetThreadFollowResponse struct {
 
 func (x *GetThreadFollowResponse) Reset() {
 	*x = GetThreadFollowResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[5]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +1949,7 @@ func (x *GetThreadFollowResponse) String() string {
 func (*GetThreadFollowResponse) ProtoMessage() {}
 
 func (x *GetThreadFollowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[5]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +1962,7 @@ func (x *GetThreadFollowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadFollowResponse.ProtoReflect.Descriptor instead.
 func (*GetThreadFollowResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{5}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetThreadFollowResponse) GetFollow() *ThreadFollow {
@@ -432,7 +1982,7 @@ type PutThreadFollowRequest struct {
 
 func (x *PutThreadFollowRequest) Reset() {
 	*x = PutThreadFollowRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[6]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -444,7 +1994,7 @@ func (x *PutThreadFollowRequest) String() string {
 func (*PutThreadFollowRequest) ProtoMessage() {}
 
 func (x *PutThreadFollowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[6]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -457,7 +2007,7 @@ func (x *PutThreadFollowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutThreadFollowRequest.ProtoReflect.Descriptor instead.
 func (*PutThreadFollowRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{6}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *PutThreadFollowRequest) GetFollow() *ThreadFollow {
@@ -483,7 +2033,7 @@ type PutThreadFollowResponse struct {
 
 func (x *PutThreadFollowResponse) Reset() {
 	*x = PutThreadFollowResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[7]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -495,7 +2045,7 @@ func (x *PutThreadFollowResponse) String() string {
 func (*PutThreadFollowResponse) ProtoMessage() {}
 
 func (x *PutThreadFollowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[7]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -508,7 +2058,7 @@ func (x *PutThreadFollowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutThreadFollowResponse.ProtoReflect.Descriptor instead.
 func (*PutThreadFollowResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{7}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PutThreadFollowResponse) GetFollow() *ThreadFollow {
@@ -531,7 +2081,7 @@ type SidebarState struct {
 
 func (x *SidebarState) Reset() {
 	*x = SidebarState{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[8]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +2093,7 @@ func (x *SidebarState) String() string {
 func (*SidebarState) ProtoMessage() {}
 
 func (x *SidebarState) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[8]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +2106,7 @@ func (x *SidebarState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SidebarState.ProtoReflect.Descriptor instead.
 func (*SidebarState) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{8}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SidebarState) GetTenantId() string {
@@ -608,7 +2158,7 @@ type GetSidebarRequest struct {
 
 func (x *GetSidebarRequest) Reset() {
 	*x = GetSidebarRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[9]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -620,7 +2170,7 @@ func (x *GetSidebarRequest) String() string {
 func (*GetSidebarRequest) ProtoMessage() {}
 
 func (x *GetSidebarRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[9]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -633,7 +2183,7 @@ func (x *GetSidebarRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSidebarRequest.ProtoReflect.Descriptor instead.
 func (*GetSidebarRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{9}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{30}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat_extensions.proto.
@@ -661,7 +2211,7 @@ type GetSidebarResponse struct {
 
 func (x *GetSidebarResponse) Reset() {
 	*x = GetSidebarResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[10]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -673,7 +2223,7 @@ func (x *GetSidebarResponse) String() string {
 func (*GetSidebarResponse) ProtoMessage() {}
 
 func (x *GetSidebarResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[10]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -686,7 +2236,7 @@ func (x *GetSidebarResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSidebarResponse.ProtoReflect.Descriptor instead.
 func (*GetSidebarResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{10}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetSidebarResponse) GetSidebar() *SidebarState {
@@ -706,7 +2256,7 @@ type PutSidebarRequest struct {
 
 func (x *PutSidebarRequest) Reset() {
 	*x = PutSidebarRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[11]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -718,7 +2268,7 @@ func (x *PutSidebarRequest) String() string {
 func (*PutSidebarRequest) ProtoMessage() {}
 
 func (x *PutSidebarRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[11]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -731,7 +2281,7 @@ func (x *PutSidebarRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutSidebarRequest.ProtoReflect.Descriptor instead.
 func (*PutSidebarRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{11}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *PutSidebarRequest) GetSidebar() *SidebarState {
@@ -757,7 +2307,7 @@ type PutSidebarResponse struct {
 
 func (x *PutSidebarResponse) Reset() {
 	*x = PutSidebarResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[12]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -769,7 +2319,7 @@ func (x *PutSidebarResponse) String() string {
 func (*PutSidebarResponse) ProtoMessage() {}
 
 func (x *PutSidebarResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[12]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -782,7 +2332,7 @@ func (x *PutSidebarResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutSidebarResponse.ProtoReflect.Descriptor instead.
 func (*PutSidebarResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{12}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *PutSidebarResponse) GetSidebar() *SidebarState {
@@ -808,7 +2358,7 @@ type QuietHours struct {
 
 func (x *QuietHours) Reset() {
 	*x = QuietHours{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[13]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -820,7 +2370,7 @@ func (x *QuietHours) String() string {
 func (*QuietHours) ProtoMessage() {}
 
 func (x *QuietHours) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[13]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -833,7 +2383,7 @@ func (x *QuietHours) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuietHours.ProtoReflect.Descriptor instead.
 func (*QuietHours) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{13}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *QuietHours) GetTenantId() string {
@@ -905,7 +2455,7 @@ type GetQuietHoursRequest struct {
 
 func (x *GetQuietHoursRequest) Reset() {
 	*x = GetQuietHoursRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[14]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +2467,7 @@ func (x *GetQuietHoursRequest) String() string {
 func (*GetQuietHoursRequest) ProtoMessage() {}
 
 func (x *GetQuietHoursRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[14]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +2480,7 @@ func (x *GetQuietHoursRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQuietHoursRequest.ProtoReflect.Descriptor instead.
 func (*GetQuietHoursRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{14}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{35}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat_extensions.proto.
@@ -958,7 +2508,7 @@ type GetQuietHoursResponse struct {
 
 func (x *GetQuietHoursResponse) Reset() {
 	*x = GetQuietHoursResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[15]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -970,7 +2520,7 @@ func (x *GetQuietHoursResponse) String() string {
 func (*GetQuietHoursResponse) ProtoMessage() {}
 
 func (x *GetQuietHoursResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[15]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -983,7 +2533,7 @@ func (x *GetQuietHoursResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQuietHoursResponse.ProtoReflect.Descriptor instead.
 func (*GetQuietHoursResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{15}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetQuietHoursResponse) GetQuietHours() *QuietHours {
@@ -1003,7 +2553,7 @@ type PutQuietHoursRequest struct {
 
 func (x *PutQuietHoursRequest) Reset() {
 	*x = PutQuietHoursRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[16]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1015,7 +2565,7 @@ func (x *PutQuietHoursRequest) String() string {
 func (*PutQuietHoursRequest) ProtoMessage() {}
 
 func (x *PutQuietHoursRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[16]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1028,7 +2578,7 @@ func (x *PutQuietHoursRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutQuietHoursRequest.ProtoReflect.Descriptor instead.
 func (*PutQuietHoursRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{16}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *PutQuietHoursRequest) GetQuietHours() *QuietHours {
@@ -1054,7 +2604,7 @@ type PutQuietHoursResponse struct {
 
 func (x *PutQuietHoursResponse) Reset() {
 	*x = PutQuietHoursResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[17]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1066,7 +2616,7 @@ func (x *PutQuietHoursResponse) String() string {
 func (*PutQuietHoursResponse) ProtoMessage() {}
 
 func (x *PutQuietHoursResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[17]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1079,7 +2629,7 @@ func (x *PutQuietHoursResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutQuietHoursResponse.ProtoReflect.Descriptor instead.
 func (*PutQuietHoursResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{17}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *PutQuietHoursResponse) GetQuietHours() *QuietHours {
@@ -1098,7 +2648,7 @@ type InstallAppResponse struct {
 
 func (x *InstallAppResponse) Reset() {
 	*x = InstallAppResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[18]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1110,7 +2660,7 @@ func (x *InstallAppResponse) String() string {
 func (*InstallAppResponse) ProtoMessage() {}
 
 func (x *InstallAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[18]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1123,7 +2673,7 @@ func (x *InstallAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallAppResponse.ProtoReflect.Descriptor instead.
 func (*InstallAppResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{18}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *InstallAppResponse) GetJson() []byte {
@@ -1142,7 +2692,7 @@ type ListAppsResponse struct {
 
 func (x *ListAppsResponse) Reset() {
 	*x = ListAppsResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[19]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1154,7 +2704,7 @@ func (x *ListAppsResponse) String() string {
 func (*ListAppsResponse) ProtoMessage() {}
 
 func (x *ListAppsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[19]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1167,7 +2717,7 @@ func (x *ListAppsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAppsResponse.ProtoReflect.Descriptor instead.
 func (*ListAppsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{19}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ListAppsResponse) GetJson() []byte {
@@ -1186,7 +2736,7 @@ type ChangeAppStatusResponse struct {
 
 func (x *ChangeAppStatusResponse) Reset() {
 	*x = ChangeAppStatusResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[20]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1198,7 +2748,7 @@ func (x *ChangeAppStatusResponse) String() string {
 func (*ChangeAppStatusResponse) ProtoMessage() {}
 
 func (x *ChangeAppStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[20]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1211,7 +2761,7 @@ func (x *ChangeAppStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeAppStatusResponse.ProtoReflect.Descriptor instead.
 func (*ChangeAppStatusResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{20}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ChangeAppStatusResponse) GetJson() []byte {
@@ -1230,7 +2780,7 @@ type InvokeAppResponse struct {
 
 func (x *InvokeAppResponse) Reset() {
 	*x = InvokeAppResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[21]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1242,7 +2792,7 @@ func (x *InvokeAppResponse) String() string {
 func (*InvokeAppResponse) ProtoMessage() {}
 
 func (x *InvokeAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[21]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1255,7 +2805,7 @@ func (x *InvokeAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeAppResponse.ProtoReflect.Descriptor instead.
 func (*InvokeAppResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{21}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *InvokeAppResponse) GetJson() []byte {
@@ -1274,7 +2824,7 @@ type GetAgentResponse struct {
 
 func (x *GetAgentResponse) Reset() {
 	*x = GetAgentResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[22]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +2836,7 @@ func (x *GetAgentResponse) String() string {
 func (*GetAgentResponse) ProtoMessage() {}
 
 func (x *GetAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[22]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1299,7 +2849,7 @@ func (x *GetAgentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAgentResponse.ProtoReflect.Descriptor instead.
 func (*GetAgentResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{22}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GetAgentResponse) GetJson() []byte {
@@ -1318,7 +2868,7 @@ type ProposeAgentIntentResponse struct {
 
 func (x *ProposeAgentIntentResponse) Reset() {
 	*x = ProposeAgentIntentResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[23]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1330,7 +2880,7 @@ func (x *ProposeAgentIntentResponse) String() string {
 func (*ProposeAgentIntentResponse) ProtoMessage() {}
 
 func (x *ProposeAgentIntentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[23]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1343,7 +2893,7 @@ func (x *ProposeAgentIntentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposeAgentIntentResponse.ProtoReflect.Descriptor instead.
 func (*ProposeAgentIntentResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{23}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ProposeAgentIntentResponse) GetJson() []byte {
@@ -1362,7 +2912,7 @@ type ReportAbuseResponse struct {
 
 func (x *ReportAbuseResponse) Reset() {
 	*x = ReportAbuseResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[24]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1374,7 +2924,7 @@ func (x *ReportAbuseResponse) String() string {
 func (*ReportAbuseResponse) ProtoMessage() {}
 
 func (x *ReportAbuseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[24]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1387,7 +2937,7 @@ func (x *ReportAbuseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportAbuseResponse.ProtoReflect.Descriptor instead.
 func (*ReportAbuseResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{24}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ReportAbuseResponse) GetJson() []byte {
@@ -1406,7 +2956,7 @@ type ModerateAbuseResponse struct {
 
 func (x *ModerateAbuseResponse) Reset() {
 	*x = ModerateAbuseResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[25]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1418,7 +2968,7 @@ func (x *ModerateAbuseResponse) String() string {
 func (*ModerateAbuseResponse) ProtoMessage() {}
 
 func (x *ModerateAbuseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[25]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1431,7 +2981,7 @@ func (x *ModerateAbuseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModerateAbuseResponse.ProtoReflect.Descriptor instead.
 func (*ModerateAbuseResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{25}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ModerateAbuseResponse) GetJson() []byte {
@@ -1450,7 +3000,7 @@ type IssueEventCursorResponse struct {
 
 func (x *IssueEventCursorResponse) Reset() {
 	*x = IssueEventCursorResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[26]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1462,7 +3012,7 @@ func (x *IssueEventCursorResponse) String() string {
 func (*IssueEventCursorResponse) ProtoMessage() {}
 
 func (x *IssueEventCursorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[26]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1475,7 +3025,7 @@ func (x *IssueEventCursorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueEventCursorResponse.ProtoReflect.Descriptor instead.
 func (*IssueEventCursorResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{26}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *IssueEventCursorResponse) GetJson() []byte {
@@ -1494,7 +3044,7 @@ type PullAppEventsResponse struct {
 
 func (x *PullAppEventsResponse) Reset() {
 	*x = PullAppEventsResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[27]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1506,7 +3056,7 @@ func (x *PullAppEventsResponse) String() string {
 func (*PullAppEventsResponse) ProtoMessage() {}
 
 func (x *PullAppEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[27]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1519,7 +3069,7 @@ func (x *PullAppEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullAppEventsResponse.ProtoReflect.Descriptor instead.
 func (*PullAppEventsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{27}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *PullAppEventsResponse) GetJson() []byte {
@@ -1538,7 +3088,7 @@ type ProposeCompanyGrantResponse struct {
 
 func (x *ProposeCompanyGrantResponse) Reset() {
 	*x = ProposeCompanyGrantResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[28]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1550,7 +3100,7 @@ func (x *ProposeCompanyGrantResponse) String() string {
 func (*ProposeCompanyGrantResponse) ProtoMessage() {}
 
 func (x *ProposeCompanyGrantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[28]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1563,7 +3113,7 @@ func (x *ProposeCompanyGrantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposeCompanyGrantResponse.ProtoReflect.Descriptor instead.
 func (*ProposeCompanyGrantResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{28}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ProposeCompanyGrantResponse) GetGrantId() string {
@@ -1582,7 +3132,7 @@ type AcceptCompanyGrantResponse struct {
 
 func (x *AcceptCompanyGrantResponse) Reset() {
 	*x = AcceptCompanyGrantResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[29]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1594,7 +3144,7 @@ func (x *AcceptCompanyGrantResponse) String() string {
 func (*AcceptCompanyGrantResponse) ProtoMessage() {}
 
 func (x *AcceptCompanyGrantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[29]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1607,7 +3157,7 @@ func (x *AcceptCompanyGrantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptCompanyGrantResponse.ProtoReflect.Descriptor instead.
 func (*AcceptCompanyGrantResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{29}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *AcceptCompanyGrantResponse) GetAccepted() bool {
@@ -1626,7 +3176,7 @@ type RevokeCompanyGrantResponse struct {
 
 func (x *RevokeCompanyGrantResponse) Reset() {
 	*x = RevokeCompanyGrantResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[30]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1638,7 +3188,7 @@ func (x *RevokeCompanyGrantResponse) String() string {
 func (*RevokeCompanyGrantResponse) ProtoMessage() {}
 
 func (x *RevokeCompanyGrantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[30]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1651,7 +3201,7 @@ func (x *RevokeCompanyGrantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeCompanyGrantResponse.ProtoReflect.Descriptor instead.
 func (*RevokeCompanyGrantResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{30}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *RevokeCompanyGrantResponse) GetRevoked() bool {
@@ -1670,7 +3220,7 @@ type SetChannelPolicyResponse struct {
 
 func (x *SetChannelPolicyResponse) Reset() {
 	*x = SetChannelPolicyResponse{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[31]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1682,7 +3232,7 @@ func (x *SetChannelPolicyResponse) String() string {
 func (*SetChannelPolicyResponse) ProtoMessage() {}
 
 func (x *SetChannelPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[31]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1695,7 +3245,7 @@ func (x *SetChannelPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetChannelPolicyResponse.ProtoReflect.Descriptor instead.
 func (*SetChannelPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{31}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *SetChannelPolicyResponse) GetUpdated() bool {
@@ -1714,7 +3264,7 @@ type ListAppsRequest struct {
 
 func (x *ListAppsRequest) Reset() {
 	*x = ListAppsRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[32]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1726,7 +3276,7 @@ func (x *ListAppsRequest) String() string {
 func (*ListAppsRequest) ProtoMessage() {}
 
 func (x *ListAppsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[32]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1739,7 +3289,7 @@ func (x *ListAppsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAppsRequest.ProtoReflect.Descriptor instead.
 func (*ListAppsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{32}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ListAppsRequest) GetConversationId() string {
@@ -1760,7 +3310,7 @@ type InstallAppRequest struct {
 
 func (x *InstallAppRequest) Reset() {
 	*x = InstallAppRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[33]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1772,7 +3322,7 @@ func (x *InstallAppRequest) String() string {
 func (*InstallAppRequest) ProtoMessage() {}
 
 func (x *InstallAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[33]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1785,7 +3335,7 @@ func (x *InstallAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallAppRequest.ProtoReflect.Descriptor instead.
 func (*InstallAppRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{33}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *InstallAppRequest) GetConversationId() string {
@@ -1820,7 +3370,7 @@ type ChangeAppStatusRequest struct {
 
 func (x *ChangeAppStatusRequest) Reset() {
 	*x = ChangeAppStatusRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[34]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1832,7 +3382,7 @@ func (x *ChangeAppStatusRequest) String() string {
 func (*ChangeAppStatusRequest) ProtoMessage() {}
 
 func (x *ChangeAppStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[34]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1845,7 +3395,7 @@ func (x *ChangeAppStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeAppStatusRequest.ProtoReflect.Descriptor instead.
 func (*ChangeAppStatusRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{34}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ChangeAppStatusRequest) GetConversationId() string {
@@ -1882,7 +3432,7 @@ type InvokeAppRequest struct {
 
 func (x *InvokeAppRequest) Reset() {
 	*x = InvokeAppRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[35]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1894,7 +3444,7 @@ func (x *InvokeAppRequest) String() string {
 func (*InvokeAppRequest) ProtoMessage() {}
 
 func (x *InvokeAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[35]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1907,7 +3457,7 @@ func (x *InvokeAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvokeAppRequest.ProtoReflect.Descriptor instead.
 func (*InvokeAppRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{35}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *InvokeAppRequest) GetConversationId() string {
@@ -1955,7 +3505,7 @@ type GetAgentRequest struct {
 
 func (x *GetAgentRequest) Reset() {
 	*x = GetAgentRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[36]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1967,7 +3517,7 @@ func (x *GetAgentRequest) String() string {
 func (*GetAgentRequest) ProtoMessage() {}
 
 func (x *GetAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[36]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1980,7 +3530,7 @@ func (x *GetAgentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAgentRequest.ProtoReflect.Descriptor instead.
 func (*GetAgentRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{36}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *GetAgentRequest) GetConversationId() string {
@@ -2011,7 +3561,7 @@ type ProposeAgentIntentRequest struct {
 
 func (x *ProposeAgentIntentRequest) Reset() {
 	*x = ProposeAgentIntentRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[37]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2023,7 +3573,7 @@ func (x *ProposeAgentIntentRequest) String() string {
 func (*ProposeAgentIntentRequest) ProtoMessage() {}
 
 func (x *ProposeAgentIntentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[37]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2036,7 +3586,7 @@ func (x *ProposeAgentIntentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposeAgentIntentRequest.ProtoReflect.Descriptor instead.
 func (*ProposeAgentIntentRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{37}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ProposeAgentIntentRequest) GetConversationId() string {
@@ -2093,7 +3643,7 @@ type ReportAbuseRequest struct {
 
 func (x *ReportAbuseRequest) Reset() {
 	*x = ReportAbuseRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[38]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2105,7 +3655,7 @@ func (x *ReportAbuseRequest) String() string {
 func (*ReportAbuseRequest) ProtoMessage() {}
 
 func (x *ReportAbuseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[38]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2118,7 +3668,7 @@ func (x *ReportAbuseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportAbuseRequest.ProtoReflect.Descriptor instead.
 func (*ReportAbuseRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{38}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ReportAbuseRequest) GetConversationId() string {
@@ -2163,7 +3713,7 @@ type ModerateAbuseRequest struct {
 
 func (x *ModerateAbuseRequest) Reset() {
 	*x = ModerateAbuseRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[39]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2175,7 +3725,7 @@ func (x *ModerateAbuseRequest) String() string {
 func (*ModerateAbuseRequest) ProtoMessage() {}
 
 func (x *ModerateAbuseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[39]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2188,7 +3738,7 @@ func (x *ModerateAbuseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModerateAbuseRequest.ProtoReflect.Descriptor instead.
 func (*ModerateAbuseRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{39}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ModerateAbuseRequest) GetConversationId() string {
@@ -2244,7 +3794,7 @@ type IssueEventCursorRequest struct {
 
 func (x *IssueEventCursorRequest) Reset() {
 	*x = IssueEventCursorRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[40]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2256,7 +3806,7 @@ func (x *IssueEventCursorRequest) String() string {
 func (*IssueEventCursorRequest) ProtoMessage() {}
 
 func (x *IssueEventCursorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[40]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2269,7 +3819,7 @@ func (x *IssueEventCursorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueEventCursorRequest.ProtoReflect.Descriptor instead.
 func (*IssueEventCursorRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{40}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *IssueEventCursorRequest) GetConversationId() string {
@@ -2304,7 +3854,7 @@ type PullAppEventsRequest struct {
 
 func (x *PullAppEventsRequest) Reset() {
 	*x = PullAppEventsRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[41]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2316,7 +3866,7 @@ func (x *PullAppEventsRequest) String() string {
 func (*PullAppEventsRequest) ProtoMessage() {}
 
 func (x *PullAppEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[41]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2329,7 +3879,7 @@ func (x *PullAppEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullAppEventsRequest.ProtoReflect.Descriptor instead.
 func (*PullAppEventsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{41}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *PullAppEventsRequest) GetConversationId() string {
@@ -2367,7 +3917,7 @@ type ProposeCompanyGrantRequest struct {
 
 func (x *ProposeCompanyGrantRequest) Reset() {
 	*x = ProposeCompanyGrantRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[42]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2379,7 +3929,7 @@ func (x *ProposeCompanyGrantRequest) String() string {
 func (*ProposeCompanyGrantRequest) ProtoMessage() {}
 
 func (x *ProposeCompanyGrantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[42]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2392,7 +3942,7 @@ func (x *ProposeCompanyGrantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposeCompanyGrantRequest.ProtoReflect.Descriptor instead.
 func (*ProposeCompanyGrantRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{42}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ProposeCompanyGrantRequest) GetHostTenantId() string {
@@ -2449,7 +3999,7 @@ type AcceptCompanyGrantRequest struct {
 
 func (x *AcceptCompanyGrantRequest) Reset() {
 	*x = AcceptCompanyGrantRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[43]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2461,7 +4011,7 @@ func (x *AcceptCompanyGrantRequest) String() string {
 func (*AcceptCompanyGrantRequest) ProtoMessage() {}
 
 func (x *AcceptCompanyGrantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[43]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2474,7 +4024,7 @@ func (x *AcceptCompanyGrantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptCompanyGrantRequest.ProtoReflect.Descriptor instead.
 func (*AcceptCompanyGrantRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{43}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *AcceptCompanyGrantRequest) GetHostTenantId() string {
@@ -2517,7 +4067,7 @@ type RevokeCompanyGrantRequest struct {
 
 func (x *RevokeCompanyGrantRequest) Reset() {
 	*x = RevokeCompanyGrantRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[44]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2529,7 +4079,7 @@ func (x *RevokeCompanyGrantRequest) String() string {
 func (*RevokeCompanyGrantRequest) ProtoMessage() {}
 
 func (x *RevokeCompanyGrantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[44]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2542,7 +4092,7 @@ func (x *RevokeCompanyGrantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeCompanyGrantRequest.ProtoReflect.Descriptor instead.
 func (*RevokeCompanyGrantRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{44}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *RevokeCompanyGrantRequest) GetHostTenantId() string {
@@ -2591,7 +4141,7 @@ type SetChannelPolicyRequest struct {
 
 func (x *SetChannelPolicyRequest) Reset() {
 	*x = SetChannelPolicyRequest{}
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[45]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2603,7 +4153,7 @@ func (x *SetChannelPolicyRequest) String() string {
 func (*SetChannelPolicyRequest) ProtoMessage() {}
 
 func (x *SetChannelPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[45]
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2616,7 +4166,7 @@ func (x *SetChannelPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetChannelPolicyRequest.ProtoReflect.Descriptor instead.
 func (*SetChannelPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{45}
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *SetChannelPolicyRequest) GetHostTenantId() string {
@@ -2689,11 +4239,438 @@ func (x *SetChannelPolicyRequest) GetExpectedRevision() uint64 {
 	return 0
 }
 
+// Tenant identity comes from the verified credential. Kind is optional for an
+// age/date override; a disk budget is always tenant-wide.
+type ChatRetentionPolicy struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ConversationKind string                 `protobuf:"bytes,1,opt,name=conversation_kind,json=conversationKind,proto3" json:"conversation_kind,omitempty"`
+	Mode             string                 `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	AgeDays          uint32                 `protobuf:"varint,3,opt,name=age_days,json=ageDays,proto3" json:"age_days,omitempty"`
+	BeforeDateUnix   int64                  `protobuf:"varint,4,opt,name=before_date_unix,json=beforeDateUnix,proto3" json:"before_date_unix,omitempty"`
+	BudgetBytes      int64                  `protobuf:"varint,5,opt,name=budget_bytes,json=budgetBytes,proto3" json:"budget_bytes,omitempty"`
+	Revision         uint64                 `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
+	UpdatedBy        string                 `protobuf:"bytes,7,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	UpdatedAtUnix    int64                  `protobuf:"varint,8,opt,name=updated_at_unix,json=updatedAtUnix,proto3" json:"updated_at_unix,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ChatRetentionPolicy) Reset() {
+	*x = ChatRetentionPolicy{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChatRetentionPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChatRetentionPolicy) ProtoMessage() {}
+
+func (x *ChatRetentionPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChatRetentionPolicy.ProtoReflect.Descriptor instead.
+func (*ChatRetentionPolicy) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *ChatRetentionPolicy) GetConversationKind() string {
+	if x != nil {
+		return x.ConversationKind
+	}
+	return ""
+}
+
+func (x *ChatRetentionPolicy) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *ChatRetentionPolicy) GetAgeDays() uint32 {
+	if x != nil {
+		return x.AgeDays
+	}
+	return 0
+}
+
+func (x *ChatRetentionPolicy) GetBeforeDateUnix() int64 {
+	if x != nil {
+		return x.BeforeDateUnix
+	}
+	return 0
+}
+
+func (x *ChatRetentionPolicy) GetBudgetBytes() int64 {
+	if x != nil {
+		return x.BudgetBytes
+	}
+	return 0
+}
+
+func (x *ChatRetentionPolicy) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ChatRetentionPolicy) GetUpdatedBy() string {
+	if x != nil {
+		return x.UpdatedBy
+	}
+	return ""
+}
+
+func (x *ChatRetentionPolicy) GetUpdatedAtUnix() int64 {
+	if x != nil {
+		return x.UpdatedAtUnix
+	}
+	return 0
+}
+
+type GetRetentionPolicyRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ConversationKind string                 `protobuf:"bytes,1,opt,name=conversation_kind,json=conversationKind,proto3" json:"conversation_kind,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetRetentionPolicyRequest) Reset() {
+	*x = GetRetentionPolicyRequest{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRetentionPolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRetentionPolicyRequest) ProtoMessage() {}
+
+func (x *GetRetentionPolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRetentionPolicyRequest.ProtoReflect.Descriptor instead.
+func (*GetRetentionPolicyRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *GetRetentionPolicyRequest) GetConversationKind() string {
+	if x != nil {
+		return x.ConversationKind
+	}
+	return ""
+}
+
+type GetRetentionPolicyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Configured    bool                   `protobuf:"varint,1,opt,name=configured,proto3" json:"configured,omitempty"`
+	Policy        *ChatRetentionPolicy   `protobuf:"bytes,2,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRetentionPolicyResponse) Reset() {
+	*x = GetRetentionPolicyResponse{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRetentionPolicyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRetentionPolicyResponse) ProtoMessage() {}
+
+func (x *GetRetentionPolicyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRetentionPolicyResponse.ProtoReflect.Descriptor instead.
+func (*GetRetentionPolicyResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *GetRetentionPolicyResponse) GetConfigured() bool {
+	if x != nil {
+		return x.Configured
+	}
+	return false
+}
+
+func (x *GetRetentionPolicyResponse) GetPolicy() *ChatRetentionPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+type PutRetentionPolicyRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Policy           *ChatRetentionPolicy   `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *PutRetentionPolicyRequest) Reset() {
+	*x = PutRetentionPolicyRequest{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutRetentionPolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutRetentionPolicyRequest) ProtoMessage() {}
+
+func (x *PutRetentionPolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutRetentionPolicyRequest.ProtoReflect.Descriptor instead.
+func (*PutRetentionPolicyRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *PutRetentionPolicyRequest) GetPolicy() *ChatRetentionPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+func (x *PutRetentionPolicyRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type PutRetentionPolicyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Policy        *ChatRetentionPolicy   `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PutRetentionPolicyResponse) Reset() {
+	*x = PutRetentionPolicyResponse{}
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutRetentionPolicyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutRetentionPolicyResponse) ProtoMessage() {}
+
+func (x *PutRetentionPolicyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_extensions_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutRetentionPolicyResponse.ProtoReflect.Descriptor instead.
+func (*PutRetentionPolicyResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *PutRetentionPolicyResponse) GetPolicy() *ChatRetentionPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
 var File_hcmnext_chat_v1_chat_extensions_proto protoreflect.FileDescriptor
 
 const file_hcmnext_chat_v1_chat_extensions_proto_rawDesc = "" +
 	"\n" +
-	"%hcmnext/chat/v1/chat_extensions.proto\x12\x0fhcmnext.chat.v1\"\xdf\x01\n" +
+	"%hcmnext/chat/v1/chat_extensions.proto\x12\x0fhcmnext.chat.v1\"V\n" +
+	"\x11ChannelPollOption\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12\x1d\n" +
+	"\n" +
+	"vote_count\x18\x03 \x01(\rR\tvoteCount\"\xef\x01\n" +
+	"\vChannelPoll\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x04R\brevision\x12\x1a\n" +
+	"\bquestion\x18\x03 \x01(\tR\bquestion\x12<\n" +
+	"\aoptions\x18\x04 \x03(\v2\".hcmnext.chat.v1.ChannelPollOptionR\aoptions\x12 \n" +
+	"\fmy_option_id\x18\x05 \x01(\tR\n" +
+	"myOptionId\x12\x1f\n" +
+	"\vtotal_votes\x18\x06 \x01(\rR\n" +
+	"totalVotes\"f\n" +
+	"\x15GetChannelPollRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12$\n" +
+	"\x0ehost_tenant_id\x18\x02 \x01(\tR\fhostTenantId\"J\n" +
+	"\x16GetChannelPollResponse\x120\n" +
+	"\x04poll\x18\x01 \x01(\v2\x1c.hcmnext.chat.v1.ChannelPollR\x04poll\"\x87\x02\n" +
+	"\x18MutateChannelPollRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12$\n" +
+	"\x0ehost_tenant_id\x18\x02 \x01(\tR\fhostTenantId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\x12\x1c\n" +
+	"\toperation\x18\x04 \x01(\tR\toperation\x12\x1a\n" +
+	"\bquestion\x18\x05 \x01(\tR\bquestion\x12\x18\n" +
+	"\aoptions\x18\x06 \x03(\tR\aoptions\x12\x1b\n" +
+	"\toption_id\x18\a \x01(\tR\boptionId\"M\n" +
+	"\x19MutateChannelPollResponse\x120\n" +
+	"\x04poll\x18\x01 \x01(\v2\x1c.hcmnext.chat.v1.ChannelPollR\x04poll\"\x8b\x01\n" +
+	"\x11ChannelTeamMember\x12$\n" +
+	"\x0ehome_tenant_id\x18\x01 \x01(\tR\fhomeTenantId\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x02 \x01(\tR\tsubjectId\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\x12\x1d\n" +
+	"\n" +
+	"role_label\x18\x04 \x01(\tR\troleLabel\"\xe1\x01\n" +
+	"\x11ChannelTeamWidget\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x04R\brevision\x12\x16\n" +
+	"\x06pinned\x18\x03 \x01(\bR\x06pinned\x12\x18\n" +
+	"\apurpose\x18\x04 \x01(\tR\apurpose\x12<\n" +
+	"\amembers\x18\x05 \x03(\v2\".hcmnext.chat.v1.ChannelTeamMemberR\amembers\x12\x17\n" +
+	"\acan_pin\x18\x06 \x01(\bR\x06canPin\"\xcb\x01\n" +
+	"\x17ChannelProjectMilestone\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12/\n" +
+	"\x14owner_home_tenant_id\x18\x04 \x01(\tR\x11ownerHomeTenantId\x12(\n" +
+	"\x10owner_subject_id\x18\x05 \x01(\tR\x0eownerSubjectId\x12\x19\n" +
+	"\bdue_date\x18\x06 \x01(\tR\adueDate\"\x86\x02\n" +
+	"\x14ChannelProjectWidget\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x04R\brevision\x12\x16\n" +
+	"\x06pinned\x18\x03 \x01(\bR\x06pinned\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
+	"\asummary\x18\x05 \x01(\tR\asummary\x12H\n" +
+	"\n" +
+	"milestones\x18\x06 \x03(\v2(.hcmnext.chat.v1.ChannelProjectMilestoneR\n" +
+	"milestones\x12\x17\n" +
+	"\acan_pin\x18\a \x01(\bR\x06canPin\"i\n" +
+	"\x18GetChannelWidgetsRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12$\n" +
+	"\x0ehost_tenant_id\x18\x02 \x01(\tR\fhostTenantId\"\x94\x01\n" +
+	"\x19GetChannelWidgetsResponse\x126\n" +
+	"\x04team\x18\x01 \x01(\v2\".hcmnext.chat.v1.ChannelTeamWidgetR\x04team\x12?\n" +
+	"\aproject\x18\x02 \x01(\v2%.hcmnext.chat.v1.ChannelProjectWidgetR\aproject\"\x95\x04\n" +
+	"\x1aMutateChannelWidgetRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12$\n" +
+	"\x0ehost_tenant_id\x18\x02 \x01(\tR\fhostTenantId\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x04R\x10expectedRevision\x12\x1c\n" +
+	"\toperation\x18\x05 \x01(\tR\toperation\x12\x16\n" +
+	"\x06pinned\x18\x06 \x01(\bR\x06pinned\x12\x18\n" +
+	"\apurpose\x18\a \x01(\tR\apurpose\x121\n" +
+	"\x15member_home_tenant_id\x18\b \x01(\tR\x12memberHomeTenantId\x12*\n" +
+	"\x11member_subject_id\x18\t \x01(\tR\x0fmemberSubjectId\x12\x1d\n" +
+	"\n" +
+	"role_label\x18\n" +
+	" \x01(\tR\troleLabel\x12\x14\n" +
+	"\x05title\x18\v \x01(\tR\x05title\x12\x18\n" +
+	"\asummary\x18\f \x01(\tR\asummary\x12F\n" +
+	"\tmilestone\x18\r \x01(\v2(.hcmnext.chat.v1.ChannelProjectMilestoneR\tmilestone\x12!\n" +
+	"\fmilestone_id\x18\x0e \x01(\tR\vmilestoneId\"\x96\x01\n" +
+	"\x1bMutateChannelWidgetResponse\x126\n" +
+	"\x04team\x18\x01 \x01(\v2\".hcmnext.chat.v1.ChannelTeamWidgetR\x04team\x12?\n" +
+	"\aproject\x18\x02 \x01(\v2%.hcmnext.chat.v1.ChannelProjectWidgetR\aproject\"`\n" +
+	"\x19ChannelTodoSelectedMember\x12$\n" +
+	"\x0ehome_tenant_id\x18\x01 \x01(\tR\fhomeTenantId\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x02 \x01(\tR\tsubjectId\"\x81\x05\n" +
+	"\x0fChannelTodoItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12\x1c\n" +
+	"\tcompleted\x18\x03 \x01(\bR\tcompleted\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\x04 \x01(\tR\tcreatedBy\x12&\n" +
+	"\x0fcreated_at_unix\x18\x05 \x01(\x03R\rcreatedAtUnix\x12$\n" +
+	"\x0esource_post_id\x18\x06 \x01(\tR\fsourcePostId\x125\n" +
+	"\x17completed_by_subject_id\x18\a \x01(\tR\x14completedBySubjectId\x12<\n" +
+	"\x1bcompleted_by_home_tenant_id\x18\b \x01(\tR\x17completedByHomeTenantId\x12*\n" +
+	"\x11completed_at_unix\x18\t \x01(\x03R\x0fcompletedAtUnix\x128\n" +
+	"\x19created_by_home_tenant_id\x18\n" +
+	" \x01(\tR\x15createdByHomeTenantId\x12'\n" +
+	"\x0fcompletion_mode\x18\v \x01(\tR\x0ecompletionMode\x12[\n" +
+	"\x13selected_completers\x18\f \x03(\v2*.hcmnext.chat.v1.ChannelTodoSelectedMemberR\x12selectedCompleters\x12\x1d\n" +
+	"\n" +
+	"can_toggle\x18\r \x01(\bR\tcanToggle\x12?\n" +
+	"\x1ccan_manage_completion_policy\x18\x0e \x01(\bR\x19canManageCompletionPolicy\"\xa6\x01\n" +
+	"\x0fChannelTodoList\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x04R\brevision\x12\x16\n" +
+	"\x06pinned\x18\x03 \x01(\bR\x06pinned\x126\n" +
+	"\x05items\x18\x04 \x03(\v2 .hcmnext.chat.v1.ChannelTodoItemR\x05items\"j\n" +
+	"\x19GetChannelTodoListRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12$\n" +
+	"\x0ehost_tenant_id\x18\x02 \x01(\tR\fhostTenantId\"R\n" +
+	"\x1aGetChannelTodoListResponse\x124\n" +
+	"\x04list\x18\x01 \x01(\v2 .hcmnext.chat.v1.ChannelTodoListR\x04list\"\xc7\x03\n" +
+	"\x1cMutateChannelTodoListRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12+\n" +
+	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12\x1c\n" +
+	"\toperation\x18\x03 \x01(\tR\toperation\x12\x17\n" +
+	"\aitem_id\x18\x04 \x01(\tR\x06itemId\x12\x12\n" +
+	"\x04text\x18\x05 \x01(\tR\x04text\x12\x1c\n" +
+	"\tcompleted\x18\x06 \x01(\bR\tcompleted\x12\x16\n" +
+	"\x06pinned\x18\a \x01(\bR\x06pinned\x12$\n" +
+	"\x0ehost_tenant_id\x18\b \x01(\tR\fhostTenantId\x12$\n" +
+	"\x0esource_post_id\x18\t \x01(\tR\fsourcePostId\x12'\n" +
+	"\x0fcompletion_mode\x18\n" +
+	" \x01(\tR\x0ecompletionMode\x12[\n" +
+	"\x13selected_completers\x18\v \x03(\v2*.hcmnext.chat.v1.ChannelTodoSelectedMemberR\x12selectedCompleters\"U\n" +
+	"\x1dMutateChannelTodoListResponse\x124\n" +
+	"\x04list\x18\x01 \x01(\v2 .hcmnext.chat.v1.ChannelTodoListR\x04list\"\xdf\x01\n" +
 	"\n" +
 	"ChatCounts\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
@@ -2888,7 +4865,29 @@ const file_hcmnext_chat_v1_chat_extensions_proto_rawDesc = "" +
 	"\x0eclassification\x18\b \x01(\tR\x0eclassification\x12\x1c\n" +
 	"\tresidency\x18\t \x01(\tR\tresidency\x12+\n" +
 	"\x11expected_revision\x18\n" +
-	" \x01(\x04R\x10expectedRevision2\x83\x10\n" +
+	" \x01(\x04R\x10expectedRevision\"\xa1\x02\n" +
+	"\x13ChatRetentionPolicy\x12+\n" +
+	"\x11conversation_kind\x18\x01 \x01(\tR\x10conversationKind\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x19\n" +
+	"\bage_days\x18\x03 \x01(\rR\aageDays\x12(\n" +
+	"\x10before_date_unix\x18\x04 \x01(\x03R\x0ebeforeDateUnix\x12!\n" +
+	"\fbudget_bytes\x18\x05 \x01(\x03R\vbudgetBytes\x12\x1a\n" +
+	"\brevision\x18\x06 \x01(\x04R\brevision\x12\x1d\n" +
+	"\n" +
+	"updated_by\x18\a \x01(\tR\tupdatedBy\x12&\n" +
+	"\x0fupdated_at_unix\x18\b \x01(\x03R\rupdatedAtUnix\"H\n" +
+	"\x19GetRetentionPolicyRequest\x12+\n" +
+	"\x11conversation_kind\x18\x01 \x01(\tR\x10conversationKind\"z\n" +
+	"\x1aGetRetentionPolicyResponse\x12\x1e\n" +
+	"\n" +
+	"configured\x18\x01 \x01(\bR\n" +
+	"configured\x12<\n" +
+	"\x06policy\x18\x02 \x01(\v2$.hcmnext.chat.v1.ChatRetentionPolicyR\x06policy\"\x86\x01\n" +
+	"\x19PutRetentionPolicyRequest\x12<\n" +
+	"\x06policy\x18\x01 \x01(\v2$.hcmnext.chat.v1.ChatRetentionPolicyR\x06policy\x12+\n" +
+	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\"Z\n" +
+	"\x1aPutRetentionPolicyResponse\x12<\n" +
+	"\x06policy\x18\x01 \x01(\v2$.hcmnext.chat.v1.ChatRetentionPolicyR\x06policy2\xf5\x16\n" +
 	"\x15ChatExtensionsService\x12R\n" +
 	"\tGetCounts\x12!.hcmnext.chat.v1.GetCountsRequest\x1a\".hcmnext.chat.v1.GetCountsResponse\x12d\n" +
 	"\x0fGetThreadFollow\x12'.hcmnext.chat.v1.GetThreadFollowRequest\x1a(.hcmnext.chat.v1.GetThreadFollowResponse\x12d\n" +
@@ -2913,7 +4912,15 @@ const file_hcmnext_chat_v1_chat_extensions_proto_rawDesc = "" +
 	"\x13ProposeCompanyGrant\x12+.hcmnext.chat.v1.ProposeCompanyGrantRequest\x1a,.hcmnext.chat.v1.ProposeCompanyGrantResponse\x12m\n" +
 	"\x12AcceptCompanyGrant\x12*.hcmnext.chat.v1.AcceptCompanyGrantRequest\x1a+.hcmnext.chat.v1.AcceptCompanyGrantResponse\x12m\n" +
 	"\x12RevokeCompanyGrant\x12*.hcmnext.chat.v1.RevokeCompanyGrantRequest\x1a+.hcmnext.chat.v1.RevokeCompanyGrantResponse\x12g\n" +
-	"\x10SetChannelPolicy\x12(.hcmnext.chat.v1.SetChannelPolicyRequest\x1a).hcmnext.chat.v1.SetChannelPolicyResponseBXZVgithub.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1;chatv1b\x06proto3"
+	"\x10SetChannelPolicy\x12(.hcmnext.chat.v1.SetChannelPolicyRequest\x1a).hcmnext.chat.v1.SetChannelPolicyResponse\x12m\n" +
+	"\x12GetRetentionPolicy\x12*.hcmnext.chat.v1.GetRetentionPolicyRequest\x1a+.hcmnext.chat.v1.GetRetentionPolicyResponse\x12m\n" +
+	"\x12PutRetentionPolicy\x12*.hcmnext.chat.v1.PutRetentionPolicyRequest\x1a+.hcmnext.chat.v1.PutRetentionPolicyResponse\x12m\n" +
+	"\x12GetChannelTodoList\x12*.hcmnext.chat.v1.GetChannelTodoListRequest\x1a+.hcmnext.chat.v1.GetChannelTodoListResponse\x12v\n" +
+	"\x15MutateChannelTodoList\x12-.hcmnext.chat.v1.MutateChannelTodoListRequest\x1a..hcmnext.chat.v1.MutateChannelTodoListResponse\x12j\n" +
+	"\x11GetChannelWidgets\x12).hcmnext.chat.v1.GetChannelWidgetsRequest\x1a*.hcmnext.chat.v1.GetChannelWidgetsResponse\x12p\n" +
+	"\x13MutateChannelWidget\x12+.hcmnext.chat.v1.MutateChannelWidgetRequest\x1a,.hcmnext.chat.v1.MutateChannelWidgetResponse\x12a\n" +
+	"\x0eGetChannelPoll\x12&.hcmnext.chat.v1.GetChannelPollRequest\x1a'.hcmnext.chat.v1.GetChannelPollResponse\x12j\n" +
+	"\x11MutateChannelPoll\x12).hcmnext.chat.v1.MutateChannelPollRequest\x1a*.hcmnext.chat.v1.MutateChannelPollResponseBXZVgithub.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1;chatv1b\x06proto3"
 
 var (
 	file_hcmnext_chat_v1_chat_extensions_proto_rawDescOnce sync.Once
@@ -2927,117 +4934,177 @@ func file_hcmnext_chat_v1_chat_extensions_proto_rawDescGZIP() []byte {
 	return file_hcmnext_chat_v1_chat_extensions_proto_rawDescData
 }
 
-var file_hcmnext_chat_v1_chat_extensions_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
+var file_hcmnext_chat_v1_chat_extensions_proto_msgTypes = make([]protoimpl.MessageInfo, 74)
 var file_hcmnext_chat_v1_chat_extensions_proto_goTypes = []any{
-	(*ChatCounts)(nil),                  // 0: hcmnext.chat.v1.ChatCounts
-	(*GetCountsRequest)(nil),            // 1: hcmnext.chat.v1.GetCountsRequest
-	(*GetCountsResponse)(nil),           // 2: hcmnext.chat.v1.GetCountsResponse
-	(*ThreadFollow)(nil),                // 3: hcmnext.chat.v1.ThreadFollow
-	(*GetThreadFollowRequest)(nil),      // 4: hcmnext.chat.v1.GetThreadFollowRequest
-	(*GetThreadFollowResponse)(nil),     // 5: hcmnext.chat.v1.GetThreadFollowResponse
-	(*PutThreadFollowRequest)(nil),      // 6: hcmnext.chat.v1.PutThreadFollowRequest
-	(*PutThreadFollowResponse)(nil),     // 7: hcmnext.chat.v1.PutThreadFollowResponse
-	(*SidebarState)(nil),                // 8: hcmnext.chat.v1.SidebarState
-	(*GetSidebarRequest)(nil),           // 9: hcmnext.chat.v1.GetSidebarRequest
-	(*GetSidebarResponse)(nil),          // 10: hcmnext.chat.v1.GetSidebarResponse
-	(*PutSidebarRequest)(nil),           // 11: hcmnext.chat.v1.PutSidebarRequest
-	(*PutSidebarResponse)(nil),          // 12: hcmnext.chat.v1.PutSidebarResponse
-	(*QuietHours)(nil),                  // 13: hcmnext.chat.v1.QuietHours
-	(*GetQuietHoursRequest)(nil),        // 14: hcmnext.chat.v1.GetQuietHoursRequest
-	(*GetQuietHoursResponse)(nil),       // 15: hcmnext.chat.v1.GetQuietHoursResponse
-	(*PutQuietHoursRequest)(nil),        // 16: hcmnext.chat.v1.PutQuietHoursRequest
-	(*PutQuietHoursResponse)(nil),       // 17: hcmnext.chat.v1.PutQuietHoursResponse
-	(*InstallAppResponse)(nil),          // 18: hcmnext.chat.v1.InstallAppResponse
-	(*ListAppsResponse)(nil),            // 19: hcmnext.chat.v1.ListAppsResponse
-	(*ChangeAppStatusResponse)(nil),     // 20: hcmnext.chat.v1.ChangeAppStatusResponse
-	(*InvokeAppResponse)(nil),           // 21: hcmnext.chat.v1.InvokeAppResponse
-	(*GetAgentResponse)(nil),            // 22: hcmnext.chat.v1.GetAgentResponse
-	(*ProposeAgentIntentResponse)(nil),  // 23: hcmnext.chat.v1.ProposeAgentIntentResponse
-	(*ReportAbuseResponse)(nil),         // 24: hcmnext.chat.v1.ReportAbuseResponse
-	(*ModerateAbuseResponse)(nil),       // 25: hcmnext.chat.v1.ModerateAbuseResponse
-	(*IssueEventCursorResponse)(nil),    // 26: hcmnext.chat.v1.IssueEventCursorResponse
-	(*PullAppEventsResponse)(nil),       // 27: hcmnext.chat.v1.PullAppEventsResponse
-	(*ProposeCompanyGrantResponse)(nil), // 28: hcmnext.chat.v1.ProposeCompanyGrantResponse
-	(*AcceptCompanyGrantResponse)(nil),  // 29: hcmnext.chat.v1.AcceptCompanyGrantResponse
-	(*RevokeCompanyGrantResponse)(nil),  // 30: hcmnext.chat.v1.RevokeCompanyGrantResponse
-	(*SetChannelPolicyResponse)(nil),    // 31: hcmnext.chat.v1.SetChannelPolicyResponse
-	(*ListAppsRequest)(nil),             // 32: hcmnext.chat.v1.ListAppsRequest
-	(*InstallAppRequest)(nil),           // 33: hcmnext.chat.v1.InstallAppRequest
-	(*ChangeAppStatusRequest)(nil),      // 34: hcmnext.chat.v1.ChangeAppStatusRequest
-	(*InvokeAppRequest)(nil),            // 35: hcmnext.chat.v1.InvokeAppRequest
-	(*GetAgentRequest)(nil),             // 36: hcmnext.chat.v1.GetAgentRequest
-	(*ProposeAgentIntentRequest)(nil),   // 37: hcmnext.chat.v1.ProposeAgentIntentRequest
-	(*ReportAbuseRequest)(nil),          // 38: hcmnext.chat.v1.ReportAbuseRequest
-	(*ModerateAbuseRequest)(nil),        // 39: hcmnext.chat.v1.ModerateAbuseRequest
-	(*IssueEventCursorRequest)(nil),     // 40: hcmnext.chat.v1.IssueEventCursorRequest
-	(*PullAppEventsRequest)(nil),        // 41: hcmnext.chat.v1.PullAppEventsRequest
-	(*ProposeCompanyGrantRequest)(nil),  // 42: hcmnext.chat.v1.ProposeCompanyGrantRequest
-	(*AcceptCompanyGrantRequest)(nil),   // 43: hcmnext.chat.v1.AcceptCompanyGrantRequest
-	(*RevokeCompanyGrantRequest)(nil),   // 44: hcmnext.chat.v1.RevokeCompanyGrantRequest
-	(*SetChannelPolicyRequest)(nil),     // 45: hcmnext.chat.v1.SetChannelPolicyRequest
-	nil,                                 // 46: hcmnext.chat.v1.InvokeAppRequest.ArgumentsEntry
-	nil,                                 // 47: hcmnext.chat.v1.ProposeAgentIntentRequest.ArgumentsEntry
+	(*ChannelPollOption)(nil),             // 0: hcmnext.chat.v1.ChannelPollOption
+	(*ChannelPoll)(nil),                   // 1: hcmnext.chat.v1.ChannelPoll
+	(*GetChannelPollRequest)(nil),         // 2: hcmnext.chat.v1.GetChannelPollRequest
+	(*GetChannelPollResponse)(nil),        // 3: hcmnext.chat.v1.GetChannelPollResponse
+	(*MutateChannelPollRequest)(nil),      // 4: hcmnext.chat.v1.MutateChannelPollRequest
+	(*MutateChannelPollResponse)(nil),     // 5: hcmnext.chat.v1.MutateChannelPollResponse
+	(*ChannelTeamMember)(nil),             // 6: hcmnext.chat.v1.ChannelTeamMember
+	(*ChannelTeamWidget)(nil),             // 7: hcmnext.chat.v1.ChannelTeamWidget
+	(*ChannelProjectMilestone)(nil),       // 8: hcmnext.chat.v1.ChannelProjectMilestone
+	(*ChannelProjectWidget)(nil),          // 9: hcmnext.chat.v1.ChannelProjectWidget
+	(*GetChannelWidgetsRequest)(nil),      // 10: hcmnext.chat.v1.GetChannelWidgetsRequest
+	(*GetChannelWidgetsResponse)(nil),     // 11: hcmnext.chat.v1.GetChannelWidgetsResponse
+	(*MutateChannelWidgetRequest)(nil),    // 12: hcmnext.chat.v1.MutateChannelWidgetRequest
+	(*MutateChannelWidgetResponse)(nil),   // 13: hcmnext.chat.v1.MutateChannelWidgetResponse
+	(*ChannelTodoSelectedMember)(nil),     // 14: hcmnext.chat.v1.ChannelTodoSelectedMember
+	(*ChannelTodoItem)(nil),               // 15: hcmnext.chat.v1.ChannelTodoItem
+	(*ChannelTodoList)(nil),               // 16: hcmnext.chat.v1.ChannelTodoList
+	(*GetChannelTodoListRequest)(nil),     // 17: hcmnext.chat.v1.GetChannelTodoListRequest
+	(*GetChannelTodoListResponse)(nil),    // 18: hcmnext.chat.v1.GetChannelTodoListResponse
+	(*MutateChannelTodoListRequest)(nil),  // 19: hcmnext.chat.v1.MutateChannelTodoListRequest
+	(*MutateChannelTodoListResponse)(nil), // 20: hcmnext.chat.v1.MutateChannelTodoListResponse
+	(*ChatCounts)(nil),                    // 21: hcmnext.chat.v1.ChatCounts
+	(*GetCountsRequest)(nil),              // 22: hcmnext.chat.v1.GetCountsRequest
+	(*GetCountsResponse)(nil),             // 23: hcmnext.chat.v1.GetCountsResponse
+	(*ThreadFollow)(nil),                  // 24: hcmnext.chat.v1.ThreadFollow
+	(*GetThreadFollowRequest)(nil),        // 25: hcmnext.chat.v1.GetThreadFollowRequest
+	(*GetThreadFollowResponse)(nil),       // 26: hcmnext.chat.v1.GetThreadFollowResponse
+	(*PutThreadFollowRequest)(nil),        // 27: hcmnext.chat.v1.PutThreadFollowRequest
+	(*PutThreadFollowResponse)(nil),       // 28: hcmnext.chat.v1.PutThreadFollowResponse
+	(*SidebarState)(nil),                  // 29: hcmnext.chat.v1.SidebarState
+	(*GetSidebarRequest)(nil),             // 30: hcmnext.chat.v1.GetSidebarRequest
+	(*GetSidebarResponse)(nil),            // 31: hcmnext.chat.v1.GetSidebarResponse
+	(*PutSidebarRequest)(nil),             // 32: hcmnext.chat.v1.PutSidebarRequest
+	(*PutSidebarResponse)(nil),            // 33: hcmnext.chat.v1.PutSidebarResponse
+	(*QuietHours)(nil),                    // 34: hcmnext.chat.v1.QuietHours
+	(*GetQuietHoursRequest)(nil),          // 35: hcmnext.chat.v1.GetQuietHoursRequest
+	(*GetQuietHoursResponse)(nil),         // 36: hcmnext.chat.v1.GetQuietHoursResponse
+	(*PutQuietHoursRequest)(nil),          // 37: hcmnext.chat.v1.PutQuietHoursRequest
+	(*PutQuietHoursResponse)(nil),         // 38: hcmnext.chat.v1.PutQuietHoursResponse
+	(*InstallAppResponse)(nil),            // 39: hcmnext.chat.v1.InstallAppResponse
+	(*ListAppsResponse)(nil),              // 40: hcmnext.chat.v1.ListAppsResponse
+	(*ChangeAppStatusResponse)(nil),       // 41: hcmnext.chat.v1.ChangeAppStatusResponse
+	(*InvokeAppResponse)(nil),             // 42: hcmnext.chat.v1.InvokeAppResponse
+	(*GetAgentResponse)(nil),              // 43: hcmnext.chat.v1.GetAgentResponse
+	(*ProposeAgentIntentResponse)(nil),    // 44: hcmnext.chat.v1.ProposeAgentIntentResponse
+	(*ReportAbuseResponse)(nil),           // 45: hcmnext.chat.v1.ReportAbuseResponse
+	(*ModerateAbuseResponse)(nil),         // 46: hcmnext.chat.v1.ModerateAbuseResponse
+	(*IssueEventCursorResponse)(nil),      // 47: hcmnext.chat.v1.IssueEventCursorResponse
+	(*PullAppEventsResponse)(nil),         // 48: hcmnext.chat.v1.PullAppEventsResponse
+	(*ProposeCompanyGrantResponse)(nil),   // 49: hcmnext.chat.v1.ProposeCompanyGrantResponse
+	(*AcceptCompanyGrantResponse)(nil),    // 50: hcmnext.chat.v1.AcceptCompanyGrantResponse
+	(*RevokeCompanyGrantResponse)(nil),    // 51: hcmnext.chat.v1.RevokeCompanyGrantResponse
+	(*SetChannelPolicyResponse)(nil),      // 52: hcmnext.chat.v1.SetChannelPolicyResponse
+	(*ListAppsRequest)(nil),               // 53: hcmnext.chat.v1.ListAppsRequest
+	(*InstallAppRequest)(nil),             // 54: hcmnext.chat.v1.InstallAppRequest
+	(*ChangeAppStatusRequest)(nil),        // 55: hcmnext.chat.v1.ChangeAppStatusRequest
+	(*InvokeAppRequest)(nil),              // 56: hcmnext.chat.v1.InvokeAppRequest
+	(*GetAgentRequest)(nil),               // 57: hcmnext.chat.v1.GetAgentRequest
+	(*ProposeAgentIntentRequest)(nil),     // 58: hcmnext.chat.v1.ProposeAgentIntentRequest
+	(*ReportAbuseRequest)(nil),            // 59: hcmnext.chat.v1.ReportAbuseRequest
+	(*ModerateAbuseRequest)(nil),          // 60: hcmnext.chat.v1.ModerateAbuseRequest
+	(*IssueEventCursorRequest)(nil),       // 61: hcmnext.chat.v1.IssueEventCursorRequest
+	(*PullAppEventsRequest)(nil),          // 62: hcmnext.chat.v1.PullAppEventsRequest
+	(*ProposeCompanyGrantRequest)(nil),    // 63: hcmnext.chat.v1.ProposeCompanyGrantRequest
+	(*AcceptCompanyGrantRequest)(nil),     // 64: hcmnext.chat.v1.AcceptCompanyGrantRequest
+	(*RevokeCompanyGrantRequest)(nil),     // 65: hcmnext.chat.v1.RevokeCompanyGrantRequest
+	(*SetChannelPolicyRequest)(nil),       // 66: hcmnext.chat.v1.SetChannelPolicyRequest
+	(*ChatRetentionPolicy)(nil),           // 67: hcmnext.chat.v1.ChatRetentionPolicy
+	(*GetRetentionPolicyRequest)(nil),     // 68: hcmnext.chat.v1.GetRetentionPolicyRequest
+	(*GetRetentionPolicyResponse)(nil),    // 69: hcmnext.chat.v1.GetRetentionPolicyResponse
+	(*PutRetentionPolicyRequest)(nil),     // 70: hcmnext.chat.v1.PutRetentionPolicyRequest
+	(*PutRetentionPolicyResponse)(nil),    // 71: hcmnext.chat.v1.PutRetentionPolicyResponse
+	nil,                                   // 72: hcmnext.chat.v1.InvokeAppRequest.ArgumentsEntry
+	nil,                                   // 73: hcmnext.chat.v1.ProposeAgentIntentRequest.ArgumentsEntry
 }
 var file_hcmnext_chat_v1_chat_extensions_proto_depIdxs = []int32{
-	0,  // 0: hcmnext.chat.v1.GetCountsResponse.counts:type_name -> hcmnext.chat.v1.ChatCounts
-	3,  // 1: hcmnext.chat.v1.GetThreadFollowResponse.follow:type_name -> hcmnext.chat.v1.ThreadFollow
-	3,  // 2: hcmnext.chat.v1.PutThreadFollowRequest.follow:type_name -> hcmnext.chat.v1.ThreadFollow
-	3,  // 3: hcmnext.chat.v1.PutThreadFollowResponse.follow:type_name -> hcmnext.chat.v1.ThreadFollow
-	8,  // 4: hcmnext.chat.v1.GetSidebarResponse.sidebar:type_name -> hcmnext.chat.v1.SidebarState
-	8,  // 5: hcmnext.chat.v1.PutSidebarRequest.sidebar:type_name -> hcmnext.chat.v1.SidebarState
-	8,  // 6: hcmnext.chat.v1.PutSidebarResponse.sidebar:type_name -> hcmnext.chat.v1.SidebarState
-	13, // 7: hcmnext.chat.v1.GetQuietHoursResponse.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
-	13, // 8: hcmnext.chat.v1.PutQuietHoursRequest.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
-	13, // 9: hcmnext.chat.v1.PutQuietHoursResponse.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
-	46, // 10: hcmnext.chat.v1.InvokeAppRequest.arguments:type_name -> hcmnext.chat.v1.InvokeAppRequest.ArgumentsEntry
-	47, // 11: hcmnext.chat.v1.ProposeAgentIntentRequest.arguments:type_name -> hcmnext.chat.v1.ProposeAgentIntentRequest.ArgumentsEntry
-	1,  // 12: hcmnext.chat.v1.ChatExtensionsService.GetCounts:input_type -> hcmnext.chat.v1.GetCountsRequest
-	4,  // 13: hcmnext.chat.v1.ChatExtensionsService.GetThreadFollow:input_type -> hcmnext.chat.v1.GetThreadFollowRequest
-	6,  // 14: hcmnext.chat.v1.ChatExtensionsService.PutThreadFollow:input_type -> hcmnext.chat.v1.PutThreadFollowRequest
-	9,  // 15: hcmnext.chat.v1.ChatExtensionsService.GetSidebar:input_type -> hcmnext.chat.v1.GetSidebarRequest
-	11, // 16: hcmnext.chat.v1.ChatExtensionsService.PutSidebar:input_type -> hcmnext.chat.v1.PutSidebarRequest
-	14, // 17: hcmnext.chat.v1.ChatExtensionsService.GetQuietHours:input_type -> hcmnext.chat.v1.GetQuietHoursRequest
-	16, // 18: hcmnext.chat.v1.ChatExtensionsService.PutQuietHours:input_type -> hcmnext.chat.v1.PutQuietHoursRequest
-	33, // 19: hcmnext.chat.v1.ChatExtensionsService.InstallApp:input_type -> hcmnext.chat.v1.InstallAppRequest
-	32, // 20: hcmnext.chat.v1.ChatExtensionsService.ListApps:input_type -> hcmnext.chat.v1.ListAppsRequest
-	34, // 21: hcmnext.chat.v1.ChatExtensionsService.ChangeAppStatus:input_type -> hcmnext.chat.v1.ChangeAppStatusRequest
-	35, // 22: hcmnext.chat.v1.ChatExtensionsService.InvokeApp:input_type -> hcmnext.chat.v1.InvokeAppRequest
-	36, // 23: hcmnext.chat.v1.ChatExtensionsService.GetAgent:input_type -> hcmnext.chat.v1.GetAgentRequest
-	37, // 24: hcmnext.chat.v1.ChatExtensionsService.ProposeAgentIntent:input_type -> hcmnext.chat.v1.ProposeAgentIntentRequest
-	38, // 25: hcmnext.chat.v1.ChatExtensionsService.ReportAbuse:input_type -> hcmnext.chat.v1.ReportAbuseRequest
-	39, // 26: hcmnext.chat.v1.ChatExtensionsService.ModerateAbuse:input_type -> hcmnext.chat.v1.ModerateAbuseRequest
-	40, // 27: hcmnext.chat.v1.ChatExtensionsService.IssueEventCursor:input_type -> hcmnext.chat.v1.IssueEventCursorRequest
-	41, // 28: hcmnext.chat.v1.ChatExtensionsService.PullAppEvents:input_type -> hcmnext.chat.v1.PullAppEventsRequest
-	42, // 29: hcmnext.chat.v1.ChatExtensionsService.ProposeCompanyGrant:input_type -> hcmnext.chat.v1.ProposeCompanyGrantRequest
-	43, // 30: hcmnext.chat.v1.ChatExtensionsService.AcceptCompanyGrant:input_type -> hcmnext.chat.v1.AcceptCompanyGrantRequest
-	44, // 31: hcmnext.chat.v1.ChatExtensionsService.RevokeCompanyGrant:input_type -> hcmnext.chat.v1.RevokeCompanyGrantRequest
-	45, // 32: hcmnext.chat.v1.ChatExtensionsService.SetChannelPolicy:input_type -> hcmnext.chat.v1.SetChannelPolicyRequest
-	2,  // 33: hcmnext.chat.v1.ChatExtensionsService.GetCounts:output_type -> hcmnext.chat.v1.GetCountsResponse
-	5,  // 34: hcmnext.chat.v1.ChatExtensionsService.GetThreadFollow:output_type -> hcmnext.chat.v1.GetThreadFollowResponse
-	7,  // 35: hcmnext.chat.v1.ChatExtensionsService.PutThreadFollow:output_type -> hcmnext.chat.v1.PutThreadFollowResponse
-	10, // 36: hcmnext.chat.v1.ChatExtensionsService.GetSidebar:output_type -> hcmnext.chat.v1.GetSidebarResponse
-	12, // 37: hcmnext.chat.v1.ChatExtensionsService.PutSidebar:output_type -> hcmnext.chat.v1.PutSidebarResponse
-	15, // 38: hcmnext.chat.v1.ChatExtensionsService.GetQuietHours:output_type -> hcmnext.chat.v1.GetQuietHoursResponse
-	17, // 39: hcmnext.chat.v1.ChatExtensionsService.PutQuietHours:output_type -> hcmnext.chat.v1.PutQuietHoursResponse
-	18, // 40: hcmnext.chat.v1.ChatExtensionsService.InstallApp:output_type -> hcmnext.chat.v1.InstallAppResponse
-	19, // 41: hcmnext.chat.v1.ChatExtensionsService.ListApps:output_type -> hcmnext.chat.v1.ListAppsResponse
-	20, // 42: hcmnext.chat.v1.ChatExtensionsService.ChangeAppStatus:output_type -> hcmnext.chat.v1.ChangeAppStatusResponse
-	21, // 43: hcmnext.chat.v1.ChatExtensionsService.InvokeApp:output_type -> hcmnext.chat.v1.InvokeAppResponse
-	22, // 44: hcmnext.chat.v1.ChatExtensionsService.GetAgent:output_type -> hcmnext.chat.v1.GetAgentResponse
-	23, // 45: hcmnext.chat.v1.ChatExtensionsService.ProposeAgentIntent:output_type -> hcmnext.chat.v1.ProposeAgentIntentResponse
-	24, // 46: hcmnext.chat.v1.ChatExtensionsService.ReportAbuse:output_type -> hcmnext.chat.v1.ReportAbuseResponse
-	25, // 47: hcmnext.chat.v1.ChatExtensionsService.ModerateAbuse:output_type -> hcmnext.chat.v1.ModerateAbuseResponse
-	26, // 48: hcmnext.chat.v1.ChatExtensionsService.IssueEventCursor:output_type -> hcmnext.chat.v1.IssueEventCursorResponse
-	27, // 49: hcmnext.chat.v1.ChatExtensionsService.PullAppEvents:output_type -> hcmnext.chat.v1.PullAppEventsResponse
-	28, // 50: hcmnext.chat.v1.ChatExtensionsService.ProposeCompanyGrant:output_type -> hcmnext.chat.v1.ProposeCompanyGrantResponse
-	29, // 51: hcmnext.chat.v1.ChatExtensionsService.AcceptCompanyGrant:output_type -> hcmnext.chat.v1.AcceptCompanyGrantResponse
-	30, // 52: hcmnext.chat.v1.ChatExtensionsService.RevokeCompanyGrant:output_type -> hcmnext.chat.v1.RevokeCompanyGrantResponse
-	31, // 53: hcmnext.chat.v1.ChatExtensionsService.SetChannelPolicy:output_type -> hcmnext.chat.v1.SetChannelPolicyResponse
-	33, // [33:54] is the sub-list for method output_type
-	12, // [12:33] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	0,  // 0: hcmnext.chat.v1.ChannelPoll.options:type_name -> hcmnext.chat.v1.ChannelPollOption
+	1,  // 1: hcmnext.chat.v1.GetChannelPollResponse.poll:type_name -> hcmnext.chat.v1.ChannelPoll
+	1,  // 2: hcmnext.chat.v1.MutateChannelPollResponse.poll:type_name -> hcmnext.chat.v1.ChannelPoll
+	6,  // 3: hcmnext.chat.v1.ChannelTeamWidget.members:type_name -> hcmnext.chat.v1.ChannelTeamMember
+	8,  // 4: hcmnext.chat.v1.ChannelProjectWidget.milestones:type_name -> hcmnext.chat.v1.ChannelProjectMilestone
+	7,  // 5: hcmnext.chat.v1.GetChannelWidgetsResponse.team:type_name -> hcmnext.chat.v1.ChannelTeamWidget
+	9,  // 6: hcmnext.chat.v1.GetChannelWidgetsResponse.project:type_name -> hcmnext.chat.v1.ChannelProjectWidget
+	8,  // 7: hcmnext.chat.v1.MutateChannelWidgetRequest.milestone:type_name -> hcmnext.chat.v1.ChannelProjectMilestone
+	7,  // 8: hcmnext.chat.v1.MutateChannelWidgetResponse.team:type_name -> hcmnext.chat.v1.ChannelTeamWidget
+	9,  // 9: hcmnext.chat.v1.MutateChannelWidgetResponse.project:type_name -> hcmnext.chat.v1.ChannelProjectWidget
+	14, // 10: hcmnext.chat.v1.ChannelTodoItem.selected_completers:type_name -> hcmnext.chat.v1.ChannelTodoSelectedMember
+	15, // 11: hcmnext.chat.v1.ChannelTodoList.items:type_name -> hcmnext.chat.v1.ChannelTodoItem
+	16, // 12: hcmnext.chat.v1.GetChannelTodoListResponse.list:type_name -> hcmnext.chat.v1.ChannelTodoList
+	14, // 13: hcmnext.chat.v1.MutateChannelTodoListRequest.selected_completers:type_name -> hcmnext.chat.v1.ChannelTodoSelectedMember
+	16, // 14: hcmnext.chat.v1.MutateChannelTodoListResponse.list:type_name -> hcmnext.chat.v1.ChannelTodoList
+	21, // 15: hcmnext.chat.v1.GetCountsResponse.counts:type_name -> hcmnext.chat.v1.ChatCounts
+	24, // 16: hcmnext.chat.v1.GetThreadFollowResponse.follow:type_name -> hcmnext.chat.v1.ThreadFollow
+	24, // 17: hcmnext.chat.v1.PutThreadFollowRequest.follow:type_name -> hcmnext.chat.v1.ThreadFollow
+	24, // 18: hcmnext.chat.v1.PutThreadFollowResponse.follow:type_name -> hcmnext.chat.v1.ThreadFollow
+	29, // 19: hcmnext.chat.v1.GetSidebarResponse.sidebar:type_name -> hcmnext.chat.v1.SidebarState
+	29, // 20: hcmnext.chat.v1.PutSidebarRequest.sidebar:type_name -> hcmnext.chat.v1.SidebarState
+	29, // 21: hcmnext.chat.v1.PutSidebarResponse.sidebar:type_name -> hcmnext.chat.v1.SidebarState
+	34, // 22: hcmnext.chat.v1.GetQuietHoursResponse.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
+	34, // 23: hcmnext.chat.v1.PutQuietHoursRequest.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
+	34, // 24: hcmnext.chat.v1.PutQuietHoursResponse.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
+	72, // 25: hcmnext.chat.v1.InvokeAppRequest.arguments:type_name -> hcmnext.chat.v1.InvokeAppRequest.ArgumentsEntry
+	73, // 26: hcmnext.chat.v1.ProposeAgentIntentRequest.arguments:type_name -> hcmnext.chat.v1.ProposeAgentIntentRequest.ArgumentsEntry
+	67, // 27: hcmnext.chat.v1.GetRetentionPolicyResponse.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
+	67, // 28: hcmnext.chat.v1.PutRetentionPolicyRequest.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
+	67, // 29: hcmnext.chat.v1.PutRetentionPolicyResponse.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
+	22, // 30: hcmnext.chat.v1.ChatExtensionsService.GetCounts:input_type -> hcmnext.chat.v1.GetCountsRequest
+	25, // 31: hcmnext.chat.v1.ChatExtensionsService.GetThreadFollow:input_type -> hcmnext.chat.v1.GetThreadFollowRequest
+	27, // 32: hcmnext.chat.v1.ChatExtensionsService.PutThreadFollow:input_type -> hcmnext.chat.v1.PutThreadFollowRequest
+	30, // 33: hcmnext.chat.v1.ChatExtensionsService.GetSidebar:input_type -> hcmnext.chat.v1.GetSidebarRequest
+	32, // 34: hcmnext.chat.v1.ChatExtensionsService.PutSidebar:input_type -> hcmnext.chat.v1.PutSidebarRequest
+	35, // 35: hcmnext.chat.v1.ChatExtensionsService.GetQuietHours:input_type -> hcmnext.chat.v1.GetQuietHoursRequest
+	37, // 36: hcmnext.chat.v1.ChatExtensionsService.PutQuietHours:input_type -> hcmnext.chat.v1.PutQuietHoursRequest
+	54, // 37: hcmnext.chat.v1.ChatExtensionsService.InstallApp:input_type -> hcmnext.chat.v1.InstallAppRequest
+	53, // 38: hcmnext.chat.v1.ChatExtensionsService.ListApps:input_type -> hcmnext.chat.v1.ListAppsRequest
+	55, // 39: hcmnext.chat.v1.ChatExtensionsService.ChangeAppStatus:input_type -> hcmnext.chat.v1.ChangeAppStatusRequest
+	56, // 40: hcmnext.chat.v1.ChatExtensionsService.InvokeApp:input_type -> hcmnext.chat.v1.InvokeAppRequest
+	57, // 41: hcmnext.chat.v1.ChatExtensionsService.GetAgent:input_type -> hcmnext.chat.v1.GetAgentRequest
+	58, // 42: hcmnext.chat.v1.ChatExtensionsService.ProposeAgentIntent:input_type -> hcmnext.chat.v1.ProposeAgentIntentRequest
+	59, // 43: hcmnext.chat.v1.ChatExtensionsService.ReportAbuse:input_type -> hcmnext.chat.v1.ReportAbuseRequest
+	60, // 44: hcmnext.chat.v1.ChatExtensionsService.ModerateAbuse:input_type -> hcmnext.chat.v1.ModerateAbuseRequest
+	61, // 45: hcmnext.chat.v1.ChatExtensionsService.IssueEventCursor:input_type -> hcmnext.chat.v1.IssueEventCursorRequest
+	62, // 46: hcmnext.chat.v1.ChatExtensionsService.PullAppEvents:input_type -> hcmnext.chat.v1.PullAppEventsRequest
+	63, // 47: hcmnext.chat.v1.ChatExtensionsService.ProposeCompanyGrant:input_type -> hcmnext.chat.v1.ProposeCompanyGrantRequest
+	64, // 48: hcmnext.chat.v1.ChatExtensionsService.AcceptCompanyGrant:input_type -> hcmnext.chat.v1.AcceptCompanyGrantRequest
+	65, // 49: hcmnext.chat.v1.ChatExtensionsService.RevokeCompanyGrant:input_type -> hcmnext.chat.v1.RevokeCompanyGrantRequest
+	66, // 50: hcmnext.chat.v1.ChatExtensionsService.SetChannelPolicy:input_type -> hcmnext.chat.v1.SetChannelPolicyRequest
+	68, // 51: hcmnext.chat.v1.ChatExtensionsService.GetRetentionPolicy:input_type -> hcmnext.chat.v1.GetRetentionPolicyRequest
+	70, // 52: hcmnext.chat.v1.ChatExtensionsService.PutRetentionPolicy:input_type -> hcmnext.chat.v1.PutRetentionPolicyRequest
+	17, // 53: hcmnext.chat.v1.ChatExtensionsService.GetChannelTodoList:input_type -> hcmnext.chat.v1.GetChannelTodoListRequest
+	19, // 54: hcmnext.chat.v1.ChatExtensionsService.MutateChannelTodoList:input_type -> hcmnext.chat.v1.MutateChannelTodoListRequest
+	10, // 55: hcmnext.chat.v1.ChatExtensionsService.GetChannelWidgets:input_type -> hcmnext.chat.v1.GetChannelWidgetsRequest
+	12, // 56: hcmnext.chat.v1.ChatExtensionsService.MutateChannelWidget:input_type -> hcmnext.chat.v1.MutateChannelWidgetRequest
+	2,  // 57: hcmnext.chat.v1.ChatExtensionsService.GetChannelPoll:input_type -> hcmnext.chat.v1.GetChannelPollRequest
+	4,  // 58: hcmnext.chat.v1.ChatExtensionsService.MutateChannelPoll:input_type -> hcmnext.chat.v1.MutateChannelPollRequest
+	23, // 59: hcmnext.chat.v1.ChatExtensionsService.GetCounts:output_type -> hcmnext.chat.v1.GetCountsResponse
+	26, // 60: hcmnext.chat.v1.ChatExtensionsService.GetThreadFollow:output_type -> hcmnext.chat.v1.GetThreadFollowResponse
+	28, // 61: hcmnext.chat.v1.ChatExtensionsService.PutThreadFollow:output_type -> hcmnext.chat.v1.PutThreadFollowResponse
+	31, // 62: hcmnext.chat.v1.ChatExtensionsService.GetSidebar:output_type -> hcmnext.chat.v1.GetSidebarResponse
+	33, // 63: hcmnext.chat.v1.ChatExtensionsService.PutSidebar:output_type -> hcmnext.chat.v1.PutSidebarResponse
+	36, // 64: hcmnext.chat.v1.ChatExtensionsService.GetQuietHours:output_type -> hcmnext.chat.v1.GetQuietHoursResponse
+	38, // 65: hcmnext.chat.v1.ChatExtensionsService.PutQuietHours:output_type -> hcmnext.chat.v1.PutQuietHoursResponse
+	39, // 66: hcmnext.chat.v1.ChatExtensionsService.InstallApp:output_type -> hcmnext.chat.v1.InstallAppResponse
+	40, // 67: hcmnext.chat.v1.ChatExtensionsService.ListApps:output_type -> hcmnext.chat.v1.ListAppsResponse
+	41, // 68: hcmnext.chat.v1.ChatExtensionsService.ChangeAppStatus:output_type -> hcmnext.chat.v1.ChangeAppStatusResponse
+	42, // 69: hcmnext.chat.v1.ChatExtensionsService.InvokeApp:output_type -> hcmnext.chat.v1.InvokeAppResponse
+	43, // 70: hcmnext.chat.v1.ChatExtensionsService.GetAgent:output_type -> hcmnext.chat.v1.GetAgentResponse
+	44, // 71: hcmnext.chat.v1.ChatExtensionsService.ProposeAgentIntent:output_type -> hcmnext.chat.v1.ProposeAgentIntentResponse
+	45, // 72: hcmnext.chat.v1.ChatExtensionsService.ReportAbuse:output_type -> hcmnext.chat.v1.ReportAbuseResponse
+	46, // 73: hcmnext.chat.v1.ChatExtensionsService.ModerateAbuse:output_type -> hcmnext.chat.v1.ModerateAbuseResponse
+	47, // 74: hcmnext.chat.v1.ChatExtensionsService.IssueEventCursor:output_type -> hcmnext.chat.v1.IssueEventCursorResponse
+	48, // 75: hcmnext.chat.v1.ChatExtensionsService.PullAppEvents:output_type -> hcmnext.chat.v1.PullAppEventsResponse
+	49, // 76: hcmnext.chat.v1.ChatExtensionsService.ProposeCompanyGrant:output_type -> hcmnext.chat.v1.ProposeCompanyGrantResponse
+	50, // 77: hcmnext.chat.v1.ChatExtensionsService.AcceptCompanyGrant:output_type -> hcmnext.chat.v1.AcceptCompanyGrantResponse
+	51, // 78: hcmnext.chat.v1.ChatExtensionsService.RevokeCompanyGrant:output_type -> hcmnext.chat.v1.RevokeCompanyGrantResponse
+	52, // 79: hcmnext.chat.v1.ChatExtensionsService.SetChannelPolicy:output_type -> hcmnext.chat.v1.SetChannelPolicyResponse
+	69, // 80: hcmnext.chat.v1.ChatExtensionsService.GetRetentionPolicy:output_type -> hcmnext.chat.v1.GetRetentionPolicyResponse
+	71, // 81: hcmnext.chat.v1.ChatExtensionsService.PutRetentionPolicy:output_type -> hcmnext.chat.v1.PutRetentionPolicyResponse
+	18, // 82: hcmnext.chat.v1.ChatExtensionsService.GetChannelTodoList:output_type -> hcmnext.chat.v1.GetChannelTodoListResponse
+	20, // 83: hcmnext.chat.v1.ChatExtensionsService.MutateChannelTodoList:output_type -> hcmnext.chat.v1.MutateChannelTodoListResponse
+	11, // 84: hcmnext.chat.v1.ChatExtensionsService.GetChannelWidgets:output_type -> hcmnext.chat.v1.GetChannelWidgetsResponse
+	13, // 85: hcmnext.chat.v1.ChatExtensionsService.MutateChannelWidget:output_type -> hcmnext.chat.v1.MutateChannelWidgetResponse
+	3,  // 86: hcmnext.chat.v1.ChatExtensionsService.GetChannelPoll:output_type -> hcmnext.chat.v1.GetChannelPollResponse
+	5,  // 87: hcmnext.chat.v1.ChatExtensionsService.MutateChannelPoll:output_type -> hcmnext.chat.v1.MutateChannelPollResponse
+	59, // [59:88] is the sub-list for method output_type
+	30, // [30:59] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_chat_v1_chat_extensions_proto_init() }
@@ -3051,7 +5118,7 @@ func file_hcmnext_chat_v1_chat_extensions_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_chat_v1_chat_extensions_proto_rawDesc), len(file_hcmnext_chat_v1_chat_extensions_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   48,
+			NumMessages:   74,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

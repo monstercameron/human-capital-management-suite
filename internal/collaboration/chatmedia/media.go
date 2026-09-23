@@ -4,6 +4,7 @@
 package chatmedia
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -23,12 +24,13 @@ import (
 type MediaType string
 
 const (
-	MediaMP3 MediaType = "audio/mpeg"
-	MediaWAV MediaType = "audio/wav"
-	MediaBMP MediaType = "image/bmp"
-	MediaPNG MediaType = "image/png"
-	MediaGIF MediaType = "image/gif"
-	MediaMP4 MediaType = "video/mp4"
+	MediaMP3  MediaType = "audio/mpeg"
+	MediaWAV  MediaType = "audio/wav"
+	MediaBMP  MediaType = "image/bmp"
+	MediaJPEG MediaType = "image/jpeg"
+	MediaPNG  MediaType = "image/png"
+	MediaGIF  MediaType = "image/gif"
+	MediaMP4  MediaType = "video/mp4"
 )
 
 var (
@@ -40,6 +42,7 @@ var (
 	ErrRevoked            = errors.New("chatmedia: grant revoked")
 	ErrRange              = errors.New("chatmedia: invalid range")
 	ErrEmbedDenied        = errors.New("chatmedia: embed denied")
+	ErrBusy               = errors.New("chatmedia: image processing busy")
 )
 
 type ArtifactState string
@@ -66,15 +69,32 @@ type UploadRequest struct {
 type Artifact struct {
 	Reference
 	Content                           []byte
+	Renditions                        map[string]Rendition
 	ScannerID, ScannerVersion, Reason string
 }
+
+// Rendition is a scanned image's smaller encoding. It inherits the source
+// artifact's identity and grant; it is never authorized separately.
+type Rendition struct {
+	MediaType MediaType
+	Content   []byte
+	Width     int
+	Height    int
+}
+
+const (
+	VariantThumbnail = "thumbnail"
+	VariantDisplay   = "display"
+)
 
 // Store is the durable seam. Implementations must keep quarantine bytes
 // inaccessible to readers until SetVerdict(ADMITTED).
 type Store interface {
 	Quarantine(context.Context, Artifact) error
+	SetRenditions(context.Context, string, string, map[string]Rendition) error
 	SetVerdict(context.Context, string, string, ArtifactState, string, string) error
 	Get(context.Context, string, string) (Artifact, error)
+	GetRendition(context.Context, string, string, string) (Artifact, error)
 }
 
 // Scanner reuses the owned malware-inspection contract.
@@ -95,16 +115,17 @@ type EmbedGrant struct {
 }
 
 type Service struct {
-	store     Store
-	scanner   Scanner
-	authorize Authorizer
-	now       func() time.Time
-	maxBytes  int64
-	retention time.Duration
-	mu        sync.RWMutex
-	grants    map[string]Grant
-	embeds    map[string]EmbedGrant
-	revoked   map[string]revocation
+	store      Store
+	scanner    Scanner
+	authorize  Authorizer
+	now        func() time.Time
+	maxBytes   int64
+	retention  time.Duration
+	imageSlots chan struct{}
+	mu         sync.RWMutex
+	grants     map[string]Grant
+	embeds     map[string]EmbedGrant
+	revoked    map[string]revocation
 }
 
 // revocation is one artifact's revocation counter with the time it last moved.
@@ -132,8 +153,9 @@ type Config struct {
 // Together they make the grant, embed and revocation maps bounded by live
 // traffic rather than by process uptime.
 const (
-	MaxGrantTTL      = 15 * time.Minute
-	DefaultRetention = time.Hour
+	MaxGrantTTL                   = 15 * time.Minute
+	DefaultRetention              = time.Hour
+	MaxConcurrentImageDerivations = 4
 )
 
 func New(cfg Config) *Service {
@@ -146,7 +168,7 @@ func New(cfg Config) *Service {
 	if cfg.Retention <= MaxGrantTTL {
 		cfg.Retention = DefaultRetention
 	}
-	return &Service{store: cfg.Store, scanner: cfg.Scanner, authorize: cfg.Authorize, now: cfg.Now, maxBytes: cfg.MaxBytes, retention: cfg.Retention, grants: map[string]Grant{}, embeds: map[string]EmbedGrant{}, revoked: map[string]revocation{}}
+	return &Service{store: cfg.Store, scanner: cfg.Scanner, authorize: cfg.Authorize, now: cfg.Now, maxBytes: cfg.MaxBytes, retention: cfg.Retention, imageSlots: make(chan struct{}, MaxConcurrentImageDerivations), grants: map[string]Grant{}, embeds: map[string]EmbedGrant{}, revoked: map[string]revocation{}}
 }
 
 // expireLocked drops grant, embed and revocation bookkeeping that can no longer
@@ -203,6 +225,16 @@ func (s *Service) Upload(ctx context.Context, req UploadRequest) (Reference, err
 	if err := s.authorize(ctx, AccessRequest{TenantID: req.TenantID, ConversationID: req.ConversationID, PrincipalID: req.PrincipalID, ArtifactID: id}); err != nil {
 		return Reference{}, ErrUnauthorized
 	}
+	if mt == MediaPNG || mt == MediaJPEG || mt == MediaBMP {
+		// Bound decoded image memory across all tenants. Refuse excess work
+		// before storing or copying another full upload into quarantine.
+		select {
+		case s.imageSlots <- struct{}{}:
+			defer func() { <-s.imageSlots }()
+		default:
+			return Reference{}, ErrBusy
+		}
+	}
 	ref := Reference{ArtifactID: id, TenantID: req.TenantID, ConversationID: req.ConversationID, MediaType: mt, Size: int64(len(req.Content)), State: StateQuarantined, Transcript: req.Transcript, AltText: req.AltText}
 	if err := s.store.Quarantine(ctx, Artifact{Reference: ref, Content: append([]byte(nil), req.Content...), Reason: "awaiting scanner verdict"}); err != nil {
 		return Reference{}, err
@@ -211,7 +243,7 @@ func (s *Service) Upload(ctx context.Context, req UploadRequest) (Reference, err
 		_ = s.store.SetVerdict(ctx, id, req.TenantID, StateRejected, "scanner unavailable", "")
 		return Reference{}, ErrScannerUnavailable
 	}
-	v, err := s.scanner.Scan(ctx, id, strings.NewReader(string(req.Content)))
+	v, err := s.scanner.Scan(ctx, id, bytes.NewReader(req.Content))
 	if err != nil {
 		_ = s.store.SetVerdict(ctx, id, req.TenantID, StateRejected, err.Error(), "")
 		return Reference{}, ErrScannerUnavailable
@@ -223,6 +255,17 @@ func (s *Service) Upload(ctx context.Context, req UploadRequest) (Reference, err
 		}
 		_ = s.store.SetVerdict(ctx, id, req.TenantID, StateRejected, reason, "")
 		return Reference{}, ErrQuarantined
+	}
+	if mt == MediaPNG || mt == MediaJPEG || mt == MediaBMP {
+		renditions, deriveErr := imageRenditions(req.Content, mt)
+		if deriveErr != nil {
+			_ = s.store.SetVerdict(ctx, id, req.TenantID, StateRejected, "image decode or rendition failed", "")
+			return Reference{}, deriveErr
+		}
+		if err := s.store.SetRenditions(ctx, id, req.TenantID, renditions); err != nil {
+			_ = s.store.SetVerdict(ctx, id, req.TenantID, StateRejected, "image rendition failed", "")
+			return Reference{}, err
+		}
 	}
 	if err := s.store.SetVerdict(ctx, id, req.TenantID, StateAdmitted, "", ""); err != nil {
 		return Reference{}, err
@@ -350,18 +393,33 @@ func (s *Service) CheckEmbed(ctx context.Context, g EmbedGrant, req AccessReques
 }
 
 func (s *Service) Open(ctx context.Context, req AccessRequest, start int64, end *int64) (io.ReadCloser, Reference, error) {
+	return s.OpenVariant(ctx, req, "", start, end)
+}
+
+// OpenVariant applies the original grant, current conversation authority and
+// revocation check to every rendition read. An empty variant serves the exact
+// uploaded bytes; GIF remains animated and is always served unchanged.
+func (s *Service) OpenVariant(ctx context.Context, req AccessRequest, variant string, start int64, end *int64) (io.ReadCloser, Reference, error) {
+	if variant != "" && variant != VariantThumbnail && variant != VariantDisplay {
+		return nil, Reference{}, ErrInvalid
+	}
 	g, err := s.check(ctx, req)
 	if err != nil {
 		return nil, Reference{}, err
 	}
-	a, err := s.store.Get(ctx, req.TenantID, req.ArtifactID)
+	var a Artifact
+	if variant == "" {
+		a, err = s.store.Get(ctx, req.TenantID, req.ArtifactID)
+	} else {
+		a, err = s.store.GetRendition(ctx, req.TenantID, req.ArtifactID, variant)
+	}
 	if err != nil {
 		return nil, Reference{}, err
 	}
 	if a.State != StateAdmitted {
 		return nil, Reference{}, ErrQuarantined
 	}
-	if start < 0 || start > a.Size || end != nil && (*end < start || *end > a.Size) {
+	if start < 0 || start >= a.Size || end != nil && (*end <= start || *end > a.Size) {
 		return nil, Reference{}, ErrRange
 	}
 	if a.ConversationID != req.ConversationID {
@@ -372,7 +430,7 @@ func (s *Service) Open(ctx context.Context, req AccessRequest, start int64, end 
 	if end == nil {
 		end = &a.Size
 	}
-	return io.NopCloser(strings.NewReader(string(data[start:*end]))), a.Reference, nil
+	return io.NopCloser(bytes.NewReader(data[start:*end])), a.Reference, nil
 }
 func (s *Service) check(ctx context.Context, req AccessRequest) (Grant, error) {
 	if s.authorize == nil {
@@ -399,6 +457,8 @@ func normalizeType(t string) (MediaType, bool) {
 		return MediaWAV, true
 	case string(MediaBMP), "bmp":
 		return MediaBMP, true
+	case string(MediaJPEG), "jpg", "jpeg":
+		return MediaJPEG, true
 	case string(MediaPNG), "png":
 		return MediaPNG, true
 	case string(MediaGIF), "gif":
@@ -418,6 +478,8 @@ func sniff(b []byte) MediaType {
 		return MediaWAV
 	case len(b) >= 2 && b[0] == 'B' && b[1] == 'M':
 		return MediaBMP
+	case len(b) >= 3 && b[0] == 0xff && b[1] == 0xd8 && b[2] == 0xff:
+		return MediaJPEG
 	case len(b) >= 8 && string(b[:8]) == "\x89PNG\r\n\x1a\n":
 		return MediaPNG
 	case len(b) >= 6 && (string(b[:6]) == "GIF87a" || string(b[:6]) == "GIF89a"):

@@ -34,6 +34,30 @@ func (m *MemoryStore) Quarantine(ctx context.Context, a Artifact) error {
 	m.values[a.ArtifactID] = a
 	return nil
 }
+func (m *MemoryStore) SetRenditions(ctx context.Context, id, tenant string, renditions map[string]Rendition) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	a, ok := m.values[id]
+	if !ok || a.TenantID != tenant {
+		return ErrUnauthorized
+	}
+	if a.State != StateQuarantined && a.State != StateAdmitted {
+		return ErrInvalid
+	}
+	if a.State == StateAdmitted && len(a.Renditions) != 0 {
+		return nil
+	}
+	a.Renditions = make(map[string]Rendition, len(renditions))
+	for key, rendition := range renditions {
+		rendition.Content = append([]byte(nil), rendition.Content...)
+		a.Renditions[key] = rendition
+	}
+	m.values[id] = a
+	return nil
+}
 func (m *MemoryStore) SetVerdict(ctx context.Context, id, tenant string, state ArtifactState, reason, scanner string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -46,6 +70,9 @@ func (m *MemoryStore) SetVerdict(ctx context.Context, id, tenant string, state A
 	a, ok := m.values[id]
 	if !ok || a.TenantID != tenant {
 		return ErrUnauthorized
+	}
+	if a.State == StateAdmitted {
+		return nil
 	}
 	a.State = state
 	a.Reason = reason
@@ -67,5 +94,34 @@ func (m *MemoryStore) Get(ctx context.Context, tenant, id string) (Artifact, err
 		return Artifact{}, ErrQuarantined
 	}
 	a.Content = append([]byte(nil), a.Content...)
+	a.Renditions = nil
+	return a, nil
+}
+
+func (m *MemoryStore) GetRendition(ctx context.Context, tenant, id, variant string) (Artifact, error) {
+	if err := ctx.Err(); err != nil {
+		return Artifact{}, err
+	}
+	m.mu.RLock()
+	a, ok := m.values[id]
+	m.mu.RUnlock()
+	if !ok || a.TenantID != tenant {
+		return Artifact{}, ErrUnauthorized
+	}
+	if a.State != StateAdmitted {
+		return Artifact{}, ErrQuarantined
+	}
+	if a.MediaType == MediaGIF {
+		a.Content = append([]byte(nil), a.Content...)
+		a.Renditions = nil
+		return a, nil
+	}
+	r, ok := a.Renditions[variant]
+	if !ok {
+		return Artifact{}, ErrUnsupported
+	}
+	a.Content = append([]byte(nil), r.Content...)
+	a.MediaType, a.Size = r.MediaType, int64(len(r.Content))
+	a.Renditions = nil
 	return a, nil
 }

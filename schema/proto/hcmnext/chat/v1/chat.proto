@@ -145,6 +145,8 @@ message Pin {
   uint64 revision = 5;
   google.protobuf.Timestamp created_at = 6;
   string pinned_by_home_tenant_id = 7;
+  // Present on ListPins only, after current post and history authorization.
+  Post post = 8;
 }
 
 message ReadState {
@@ -208,9 +210,15 @@ message EditPostResponse { Post post = 1; }
 message DeletePostRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; uint64 expected_revision = 5; }
 message DeletePostResponse { Post post = 1; }
 
-message SearchRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string query = 3; string conversation_id = 4; string author_id = 5; string cursor = 6; uint32 page_size = 7; }
-message SearchResult { Post post = 1; }
-message SearchResponse { repeated SearchResult results = 1; string next_cursor = 2; }
+message SearchRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string query = 3; string conversation_id = 4; string author_id = 5; string cursor = 6; uint32 page_size = 7; string channel_cursor = 8; }
+message SearchResult { Post post = 1; string conversation_name = 2; }
+message ChannelSearchResult { string conversation_id = 1; string name = 2; string kind = 3; bool joined = 4; }
+message SearchResponse {
+  repeated SearchResult results = 1;
+  string next_cursor = 2;
+  repeated ChannelSearchResult channels = 3;
+  string channel_next_cursor = 4;
+}
 message UpdateReadStateRequest { Principal principal = 1 [deprecated = true]; ReadState state = 2; uint64 expected_revision = 3; }
 message UpdateReadStateResponse { ReadState state = 1; }
 message GetReadStateRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; }

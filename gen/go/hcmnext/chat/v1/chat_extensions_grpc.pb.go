@@ -19,27 +19,35 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ChatExtensionsService_GetCounts_FullMethodName           = "/hcmnext.chat.v1.ChatExtensionsService/GetCounts"
-	ChatExtensionsService_GetThreadFollow_FullMethodName     = "/hcmnext.chat.v1.ChatExtensionsService/GetThreadFollow"
-	ChatExtensionsService_PutThreadFollow_FullMethodName     = "/hcmnext.chat.v1.ChatExtensionsService/PutThreadFollow"
-	ChatExtensionsService_GetSidebar_FullMethodName          = "/hcmnext.chat.v1.ChatExtensionsService/GetSidebar"
-	ChatExtensionsService_PutSidebar_FullMethodName          = "/hcmnext.chat.v1.ChatExtensionsService/PutSidebar"
-	ChatExtensionsService_GetQuietHours_FullMethodName       = "/hcmnext.chat.v1.ChatExtensionsService/GetQuietHours"
-	ChatExtensionsService_PutQuietHours_FullMethodName       = "/hcmnext.chat.v1.ChatExtensionsService/PutQuietHours"
-	ChatExtensionsService_InstallApp_FullMethodName          = "/hcmnext.chat.v1.ChatExtensionsService/InstallApp"
-	ChatExtensionsService_ListApps_FullMethodName            = "/hcmnext.chat.v1.ChatExtensionsService/ListApps"
-	ChatExtensionsService_ChangeAppStatus_FullMethodName     = "/hcmnext.chat.v1.ChatExtensionsService/ChangeAppStatus"
-	ChatExtensionsService_InvokeApp_FullMethodName           = "/hcmnext.chat.v1.ChatExtensionsService/InvokeApp"
-	ChatExtensionsService_GetAgent_FullMethodName            = "/hcmnext.chat.v1.ChatExtensionsService/GetAgent"
-	ChatExtensionsService_ProposeAgentIntent_FullMethodName  = "/hcmnext.chat.v1.ChatExtensionsService/ProposeAgentIntent"
-	ChatExtensionsService_ReportAbuse_FullMethodName         = "/hcmnext.chat.v1.ChatExtensionsService/ReportAbuse"
-	ChatExtensionsService_ModerateAbuse_FullMethodName       = "/hcmnext.chat.v1.ChatExtensionsService/ModerateAbuse"
-	ChatExtensionsService_IssueEventCursor_FullMethodName    = "/hcmnext.chat.v1.ChatExtensionsService/IssueEventCursor"
-	ChatExtensionsService_PullAppEvents_FullMethodName       = "/hcmnext.chat.v1.ChatExtensionsService/PullAppEvents"
-	ChatExtensionsService_ProposeCompanyGrant_FullMethodName = "/hcmnext.chat.v1.ChatExtensionsService/ProposeCompanyGrant"
-	ChatExtensionsService_AcceptCompanyGrant_FullMethodName  = "/hcmnext.chat.v1.ChatExtensionsService/AcceptCompanyGrant"
-	ChatExtensionsService_RevokeCompanyGrant_FullMethodName  = "/hcmnext.chat.v1.ChatExtensionsService/RevokeCompanyGrant"
-	ChatExtensionsService_SetChannelPolicy_FullMethodName    = "/hcmnext.chat.v1.ChatExtensionsService/SetChannelPolicy"
+	ChatExtensionsService_GetCounts_FullMethodName             = "/hcmnext.chat.v1.ChatExtensionsService/GetCounts"
+	ChatExtensionsService_GetThreadFollow_FullMethodName       = "/hcmnext.chat.v1.ChatExtensionsService/GetThreadFollow"
+	ChatExtensionsService_PutThreadFollow_FullMethodName       = "/hcmnext.chat.v1.ChatExtensionsService/PutThreadFollow"
+	ChatExtensionsService_GetSidebar_FullMethodName            = "/hcmnext.chat.v1.ChatExtensionsService/GetSidebar"
+	ChatExtensionsService_PutSidebar_FullMethodName            = "/hcmnext.chat.v1.ChatExtensionsService/PutSidebar"
+	ChatExtensionsService_GetQuietHours_FullMethodName         = "/hcmnext.chat.v1.ChatExtensionsService/GetQuietHours"
+	ChatExtensionsService_PutQuietHours_FullMethodName         = "/hcmnext.chat.v1.ChatExtensionsService/PutQuietHours"
+	ChatExtensionsService_InstallApp_FullMethodName            = "/hcmnext.chat.v1.ChatExtensionsService/InstallApp"
+	ChatExtensionsService_ListApps_FullMethodName              = "/hcmnext.chat.v1.ChatExtensionsService/ListApps"
+	ChatExtensionsService_ChangeAppStatus_FullMethodName       = "/hcmnext.chat.v1.ChatExtensionsService/ChangeAppStatus"
+	ChatExtensionsService_InvokeApp_FullMethodName             = "/hcmnext.chat.v1.ChatExtensionsService/InvokeApp"
+	ChatExtensionsService_GetAgent_FullMethodName              = "/hcmnext.chat.v1.ChatExtensionsService/GetAgent"
+	ChatExtensionsService_ProposeAgentIntent_FullMethodName    = "/hcmnext.chat.v1.ChatExtensionsService/ProposeAgentIntent"
+	ChatExtensionsService_ReportAbuse_FullMethodName           = "/hcmnext.chat.v1.ChatExtensionsService/ReportAbuse"
+	ChatExtensionsService_ModerateAbuse_FullMethodName         = "/hcmnext.chat.v1.ChatExtensionsService/ModerateAbuse"
+	ChatExtensionsService_IssueEventCursor_FullMethodName      = "/hcmnext.chat.v1.ChatExtensionsService/IssueEventCursor"
+	ChatExtensionsService_PullAppEvents_FullMethodName         = "/hcmnext.chat.v1.ChatExtensionsService/PullAppEvents"
+	ChatExtensionsService_ProposeCompanyGrant_FullMethodName   = "/hcmnext.chat.v1.ChatExtensionsService/ProposeCompanyGrant"
+	ChatExtensionsService_AcceptCompanyGrant_FullMethodName    = "/hcmnext.chat.v1.ChatExtensionsService/AcceptCompanyGrant"
+	ChatExtensionsService_RevokeCompanyGrant_FullMethodName    = "/hcmnext.chat.v1.ChatExtensionsService/RevokeCompanyGrant"
+	ChatExtensionsService_SetChannelPolicy_FullMethodName      = "/hcmnext.chat.v1.ChatExtensionsService/SetChannelPolicy"
+	ChatExtensionsService_GetRetentionPolicy_FullMethodName    = "/hcmnext.chat.v1.ChatExtensionsService/GetRetentionPolicy"
+	ChatExtensionsService_PutRetentionPolicy_FullMethodName    = "/hcmnext.chat.v1.ChatExtensionsService/PutRetentionPolicy"
+	ChatExtensionsService_GetChannelTodoList_FullMethodName    = "/hcmnext.chat.v1.ChatExtensionsService/GetChannelTodoList"
+	ChatExtensionsService_MutateChannelTodoList_FullMethodName = "/hcmnext.chat.v1.ChatExtensionsService/MutateChannelTodoList"
+	ChatExtensionsService_GetChannelWidgets_FullMethodName     = "/hcmnext.chat.v1.ChatExtensionsService/GetChannelWidgets"
+	ChatExtensionsService_MutateChannelWidget_FullMethodName   = "/hcmnext.chat.v1.ChatExtensionsService/MutateChannelWidget"
+	ChatExtensionsService_GetChannelPoll_FullMethodName        = "/hcmnext.chat.v1.ChatExtensionsService/GetChannelPoll"
+	ChatExtensionsService_MutateChannelPoll_FullMethodName     = "/hcmnext.chat.v1.ChatExtensionsService/MutateChannelPoll"
 )
 
 // ChatExtensionsServiceClient is the client API for ChatExtensionsService service.
@@ -67,6 +75,14 @@ type ChatExtensionsServiceClient interface {
 	AcceptCompanyGrant(ctx context.Context, in *AcceptCompanyGrantRequest, opts ...grpc.CallOption) (*AcceptCompanyGrantResponse, error)
 	RevokeCompanyGrant(ctx context.Context, in *RevokeCompanyGrantRequest, opts ...grpc.CallOption) (*RevokeCompanyGrantResponse, error)
 	SetChannelPolicy(ctx context.Context, in *SetChannelPolicyRequest, opts ...grpc.CallOption) (*SetChannelPolicyResponse, error)
+	GetRetentionPolicy(ctx context.Context, in *GetRetentionPolicyRequest, opts ...grpc.CallOption) (*GetRetentionPolicyResponse, error)
+	PutRetentionPolicy(ctx context.Context, in *PutRetentionPolicyRequest, opts ...grpc.CallOption) (*PutRetentionPolicyResponse, error)
+	GetChannelTodoList(ctx context.Context, in *GetChannelTodoListRequest, opts ...grpc.CallOption) (*GetChannelTodoListResponse, error)
+	MutateChannelTodoList(ctx context.Context, in *MutateChannelTodoListRequest, opts ...grpc.CallOption) (*MutateChannelTodoListResponse, error)
+	GetChannelWidgets(ctx context.Context, in *GetChannelWidgetsRequest, opts ...grpc.CallOption) (*GetChannelWidgetsResponse, error)
+	MutateChannelWidget(ctx context.Context, in *MutateChannelWidgetRequest, opts ...grpc.CallOption) (*MutateChannelWidgetResponse, error)
+	GetChannelPoll(ctx context.Context, in *GetChannelPollRequest, opts ...grpc.CallOption) (*GetChannelPollResponse, error)
+	MutateChannelPoll(ctx context.Context, in *MutateChannelPollRequest, opts ...grpc.CallOption) (*MutateChannelPollResponse, error)
 }
 
 type chatExtensionsServiceClient struct {
@@ -287,6 +303,86 @@ func (c *chatExtensionsServiceClient) SetChannelPolicy(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *chatExtensionsServiceClient) GetRetentionPolicy(ctx context.Context, in *GetRetentionPolicyRequest, opts ...grpc.CallOption) (*GetRetentionPolicyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetRetentionPolicyResponse)
+	err := c.cc.Invoke(ctx, ChatExtensionsService_GetRetentionPolicy_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatExtensionsServiceClient) PutRetentionPolicy(ctx context.Context, in *PutRetentionPolicyRequest, opts ...grpc.CallOption) (*PutRetentionPolicyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PutRetentionPolicyResponse)
+	err := c.cc.Invoke(ctx, ChatExtensionsService_PutRetentionPolicy_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatExtensionsServiceClient) GetChannelTodoList(ctx context.Context, in *GetChannelTodoListRequest, opts ...grpc.CallOption) (*GetChannelTodoListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChannelTodoListResponse)
+	err := c.cc.Invoke(ctx, ChatExtensionsService_GetChannelTodoList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatExtensionsServiceClient) MutateChannelTodoList(ctx context.Context, in *MutateChannelTodoListRequest, opts ...grpc.CallOption) (*MutateChannelTodoListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MutateChannelTodoListResponse)
+	err := c.cc.Invoke(ctx, ChatExtensionsService_MutateChannelTodoList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatExtensionsServiceClient) GetChannelWidgets(ctx context.Context, in *GetChannelWidgetsRequest, opts ...grpc.CallOption) (*GetChannelWidgetsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChannelWidgetsResponse)
+	err := c.cc.Invoke(ctx, ChatExtensionsService_GetChannelWidgets_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatExtensionsServiceClient) MutateChannelWidget(ctx context.Context, in *MutateChannelWidgetRequest, opts ...grpc.CallOption) (*MutateChannelWidgetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MutateChannelWidgetResponse)
+	err := c.cc.Invoke(ctx, ChatExtensionsService_MutateChannelWidget_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatExtensionsServiceClient) GetChannelPoll(ctx context.Context, in *GetChannelPollRequest, opts ...grpc.CallOption) (*GetChannelPollResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChannelPollResponse)
+	err := c.cc.Invoke(ctx, ChatExtensionsService_GetChannelPoll_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatExtensionsServiceClient) MutateChannelPoll(ctx context.Context, in *MutateChannelPollRequest, opts ...grpc.CallOption) (*MutateChannelPollResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MutateChannelPollResponse)
+	err := c.cc.Invoke(ctx, ChatExtensionsService_MutateChannelPoll_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChatExtensionsServiceServer is the server API for ChatExtensionsService service.
 // All implementations must embed UnimplementedChatExtensionsServiceServer
 // for forward compatibility.
@@ -312,6 +408,14 @@ type ChatExtensionsServiceServer interface {
 	AcceptCompanyGrant(context.Context, *AcceptCompanyGrantRequest) (*AcceptCompanyGrantResponse, error)
 	RevokeCompanyGrant(context.Context, *RevokeCompanyGrantRequest) (*RevokeCompanyGrantResponse, error)
 	SetChannelPolicy(context.Context, *SetChannelPolicyRequest) (*SetChannelPolicyResponse, error)
+	GetRetentionPolicy(context.Context, *GetRetentionPolicyRequest) (*GetRetentionPolicyResponse, error)
+	PutRetentionPolicy(context.Context, *PutRetentionPolicyRequest) (*PutRetentionPolicyResponse, error)
+	GetChannelTodoList(context.Context, *GetChannelTodoListRequest) (*GetChannelTodoListResponse, error)
+	MutateChannelTodoList(context.Context, *MutateChannelTodoListRequest) (*MutateChannelTodoListResponse, error)
+	GetChannelWidgets(context.Context, *GetChannelWidgetsRequest) (*GetChannelWidgetsResponse, error)
+	MutateChannelWidget(context.Context, *MutateChannelWidgetRequest) (*MutateChannelWidgetResponse, error)
+	GetChannelPoll(context.Context, *GetChannelPollRequest) (*GetChannelPollResponse, error)
+	MutateChannelPoll(context.Context, *MutateChannelPollRequest) (*MutateChannelPollResponse, error)
 	mustEmbedUnimplementedChatExtensionsServiceServer()
 }
 
@@ -384,6 +488,30 @@ func (UnimplementedChatExtensionsServiceServer) RevokeCompanyGrant(context.Conte
 }
 func (UnimplementedChatExtensionsServiceServer) SetChannelPolicy(context.Context, *SetChannelPolicyRequest) (*SetChannelPolicyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetChannelPolicy not implemented")
+}
+func (UnimplementedChatExtensionsServiceServer) GetRetentionPolicy(context.Context, *GetRetentionPolicyRequest) (*GetRetentionPolicyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetRetentionPolicy not implemented")
+}
+func (UnimplementedChatExtensionsServiceServer) PutRetentionPolicy(context.Context, *PutRetentionPolicyRequest) (*PutRetentionPolicyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PutRetentionPolicy not implemented")
+}
+func (UnimplementedChatExtensionsServiceServer) GetChannelTodoList(context.Context, *GetChannelTodoListRequest) (*GetChannelTodoListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChannelTodoList not implemented")
+}
+func (UnimplementedChatExtensionsServiceServer) MutateChannelTodoList(context.Context, *MutateChannelTodoListRequest) (*MutateChannelTodoListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MutateChannelTodoList not implemented")
+}
+func (UnimplementedChatExtensionsServiceServer) GetChannelWidgets(context.Context, *GetChannelWidgetsRequest) (*GetChannelWidgetsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChannelWidgets not implemented")
+}
+func (UnimplementedChatExtensionsServiceServer) MutateChannelWidget(context.Context, *MutateChannelWidgetRequest) (*MutateChannelWidgetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MutateChannelWidget not implemented")
+}
+func (UnimplementedChatExtensionsServiceServer) GetChannelPoll(context.Context, *GetChannelPollRequest) (*GetChannelPollResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChannelPoll not implemented")
+}
+func (UnimplementedChatExtensionsServiceServer) MutateChannelPoll(context.Context, *MutateChannelPollRequest) (*MutateChannelPollResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MutateChannelPoll not implemented")
 }
 func (UnimplementedChatExtensionsServiceServer) mustEmbedUnimplementedChatExtensionsServiceServer() {}
 func (UnimplementedChatExtensionsServiceServer) testEmbeddedByValue()                               {}
@@ -784,6 +912,150 @@ func _ChatExtensionsService_SetChannelPolicy_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChatExtensionsService_GetRetentionPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRetentionPolicyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatExtensionsServiceServer).GetRetentionPolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatExtensionsService_GetRetentionPolicy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatExtensionsServiceServer).GetRetentionPolicy(ctx, req.(*GetRetentionPolicyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatExtensionsService_PutRetentionPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PutRetentionPolicyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatExtensionsServiceServer).PutRetentionPolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatExtensionsService_PutRetentionPolicy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatExtensionsServiceServer).PutRetentionPolicy(ctx, req.(*PutRetentionPolicyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatExtensionsService_GetChannelTodoList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetChannelTodoListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatExtensionsServiceServer).GetChannelTodoList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatExtensionsService_GetChannelTodoList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatExtensionsServiceServer).GetChannelTodoList(ctx, req.(*GetChannelTodoListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatExtensionsService_MutateChannelTodoList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MutateChannelTodoListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatExtensionsServiceServer).MutateChannelTodoList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatExtensionsService_MutateChannelTodoList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatExtensionsServiceServer).MutateChannelTodoList(ctx, req.(*MutateChannelTodoListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatExtensionsService_GetChannelWidgets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetChannelWidgetsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatExtensionsServiceServer).GetChannelWidgets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatExtensionsService_GetChannelWidgets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatExtensionsServiceServer).GetChannelWidgets(ctx, req.(*GetChannelWidgetsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatExtensionsService_MutateChannelWidget_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MutateChannelWidgetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatExtensionsServiceServer).MutateChannelWidget(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatExtensionsService_MutateChannelWidget_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatExtensionsServiceServer).MutateChannelWidget(ctx, req.(*MutateChannelWidgetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatExtensionsService_GetChannelPoll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetChannelPollRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatExtensionsServiceServer).GetChannelPoll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatExtensionsService_GetChannelPoll_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatExtensionsServiceServer).GetChannelPoll(ctx, req.(*GetChannelPollRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatExtensionsService_MutateChannelPoll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MutateChannelPollRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatExtensionsServiceServer).MutateChannelPoll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatExtensionsService_MutateChannelPoll_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatExtensionsServiceServer).MutateChannelPoll(ctx, req.(*MutateChannelPollRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ChatExtensionsService_ServiceDesc is the grpc.ServiceDesc for ChatExtensionsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -874,6 +1146,38 @@ var ChatExtensionsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetChannelPolicy",
 			Handler:    _ChatExtensionsService_SetChannelPolicy_Handler,
+		},
+		{
+			MethodName: "GetRetentionPolicy",
+			Handler:    _ChatExtensionsService_GetRetentionPolicy_Handler,
+		},
+		{
+			MethodName: "PutRetentionPolicy",
+			Handler:    _ChatExtensionsService_PutRetentionPolicy_Handler,
+		},
+		{
+			MethodName: "GetChannelTodoList",
+			Handler:    _ChatExtensionsService_GetChannelTodoList_Handler,
+		},
+		{
+			MethodName: "MutateChannelTodoList",
+			Handler:    _ChatExtensionsService_MutateChannelTodoList_Handler,
+		},
+		{
+			MethodName: "GetChannelWidgets",
+			Handler:    _ChatExtensionsService_GetChannelWidgets_Handler,
+		},
+		{
+			MethodName: "MutateChannelWidget",
+			Handler:    _ChatExtensionsService_MutateChannelWidget_Handler,
+		},
+		{
+			MethodName: "GetChannelPoll",
+			Handler:    _ChatExtensionsService_GetChannelPoll_Handler,
+		},
+		{
+			MethodName: "MutateChannelPoll",
+			Handler:    _ChatExtensionsService_MutateChannelPoll_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

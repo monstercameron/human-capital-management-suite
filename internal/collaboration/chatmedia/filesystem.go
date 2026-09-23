@@ -39,12 +39,57 @@ func (f *FilesystemStore) Quarantine(ctx context.Context, a Artifact) error {
 	if err := os.WriteFile(bp, a.Content, 0600); err != nil {
 		return err
 	}
+	// Original bytes live in .bytes; metadata must not duplicate a 64 MiB
+	// upload as base64 in the JSON file.
+	a.Content = nil
 	b, _ := json.Marshal(a)
 	if err := os.WriteFile(mp, b, 0600); err != nil {
 		_ = os.Remove(bp)
 		return err
 	}
 	return nil
+}
+func (f *FilesystemStore) SetRenditions(ctx context.Context, id, tenant string, renditions map[string]Rendition) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if filepath.Base(id) != id {
+		return ErrInvalid
+	}
+	_, mp := f.paths(id)
+	b, err := os.ReadFile(mp)
+	if err != nil {
+		return err
+	}
+	var a Artifact
+	if err := json.Unmarshal(b, &a); err != nil {
+		return err
+	}
+	if a.TenantID != tenant {
+		return ErrUnauthorized
+	}
+	if a.State != StateQuarantined && a.State != StateAdmitted {
+		return ErrInvalid
+	}
+	if a.State == StateAdmitted && len(a.Renditions) != 0 {
+		return nil
+	}
+	a.Renditions = make(map[string]Rendition, len(renditions))
+	for variant, rendition := range renditions {
+		if variant != VariantThumbnail && variant != VariantDisplay {
+			return ErrInvalid
+		}
+		if err := os.WriteFile(filepath.Join(f.root, id+"."+variant), rendition.Content, 0600); err != nil {
+			return err
+		}
+		rendition.Content = nil
+		a.Renditions[variant] = rendition
+	}
+	b, err = json.Marshal(a)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(mp, b, 0600)
 }
 func (f *FilesystemStore) SetVerdict(ctx context.Context, id, tenant string, state ArtifactState, reason, scanner string) error {
 	if err := ctx.Err(); err != nil {
@@ -61,6 +106,9 @@ func (f *FilesystemStore) SetVerdict(ctx context.Context, id, tenant string, sta
 	}
 	if a.TenantID != tenant {
 		return ErrUnauthorized
+	}
+	if a.State == StateAdmitted {
+		return nil
 	}
 	a.State = state
 	a.Reason = reason
@@ -98,6 +146,45 @@ func (f *FilesystemStore) Get(ctx context.Context, tenant, id string) (Artifact,
 	if err != nil {
 		return Artifact{}, err
 	}
+	return a, nil
+}
+
+func (f *FilesystemStore) GetRendition(ctx context.Context, tenant, id, variant string) (Artifact, error) {
+	if err := ctx.Err(); err != nil {
+		return Artifact{}, err
+	}
+	if filepath.Base(id) != id || variant != VariantThumbnail && variant != VariantDisplay {
+		return Artifact{}, ErrInvalid
+	}
+	_, mp := f.paths(id)
+	b, err := os.ReadFile(mp)
+	if err != nil {
+		return Artifact{}, err
+	}
+	var a Artifact
+	if err := json.Unmarshal(b, &a); err != nil {
+		return Artifact{}, err
+	}
+	if a.TenantID != tenant {
+		return Artifact{}, ErrUnauthorized
+	}
+	if a.State != StateAdmitted {
+		return Artifact{}, ErrQuarantined
+	}
+	if a.MediaType == MediaGIF {
+		bp, _ := f.paths(id)
+		a.Content, err = os.ReadFile(bp)
+		return a, err
+	}
+	r, ok := a.Renditions[variant]
+	if !ok {
+		return Artifact{}, ErrUnsupported
+	}
+	a.Content, err = os.ReadFile(filepath.Join(f.root, id+"."+variant))
+	if err != nil {
+		return Artifact{}, err
+	}
+	a.MediaType, a.Size = r.MediaType, int64(len(a.Content))
 	return a, nil
 }
 

@@ -97,6 +97,8 @@ type Pin struct {
 	PinnedByHomeTenantID                       string
 	Revision                                   uint64
 	CreatedAt                                  time.Time
+	// Post is populated only by ListPins after current visibility checks.
+	Post *Post
 }
 type ReadState struct {
 	ConversationID, TenantID, SubjectID string
@@ -204,6 +206,8 @@ type DeletePostRequest struct {
 type SearchRequest struct {
 	Principal                                 Principal
 	TenantID, Query, ConversationID, AuthorID string
+	ChannelCursor                             string
+	SkipMessages, SkipChannels                bool
 	Page                                      Page
 }
 type UpdateReadStateRequest struct {
@@ -273,10 +277,21 @@ type ListPostsResponse struct {
 	Posts      []Post
 	NextCursor string
 }
-type SearchResult struct{ Post Post }
+type SearchResult struct {
+	Post             Post
+	ConversationName string
+}
+type ChannelSearchResult struct {
+	ConversationID string
+	Name           string
+	Kind           ConversationKind
+	Joined         bool
+}
 type SearchResponse struct {
-	Results    []SearchResult
-	NextCursor string
+	Results           []SearchResult
+	Channels          []ChannelSearchResult
+	NextCursor        string
+	ChannelNextCursor string
 }
 type ConversationEventKind string
 

@@ -2,6 +2,8 @@ package chat
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +11,15 @@ import (
 )
 
 type referenceAuthority struct{}
+
+type deniedReferenceAuthority struct{ action chatpolicy.Action }
+
+func (a deniedReferenceAuthority) Authorize(ctx context.Context, p Principal, c Conversation, action chatpolicy.Action, at time.Time) (chatpolicy.Input, error) {
+	if action == a.action {
+		return chatpolicy.Input{}, chatpolicy.ErrNotAuthorized
+	}
+	return referenceAuthority{}.Authorize(ctx, p, c, action, at)
+}
 
 func (referenceAuthority) Authorize(_ context.Context, p Principal, c Conversation, _ chatpolicy.Action, at time.Time) (chatpolicy.Input, error) {
 	if p.SubjectID == "other" {
@@ -86,6 +97,29 @@ func TestTodo_CHAT_029_SecurityMalformedJoinHistoryFailsClosed(t *testing.T) {
 	}
 }
 
+func TestTodo_CHAT_030_SecurityLinkResolveRechecksHistoryAndDeletion(t *testing.T) {
+	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1, HistoryVisibility: FullHistory}, post: Post{ID: "p1", TenantID: "t1", ConversationID: "c1", Body: "private contents", CreatedAt: time.Unix(20, 0).UTC()}}
+	s := NewService(f, func() time.Time { return time.Unix(40, 0).UTC() })
+	s.SetAuthority(referenceAuthority{})
+	link, err := s.CreateShareLink(context.Background(), principal(), "t1", "c1", "p1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := strings.TrimPrefix(link.URL, "/chat/share/")
+	if _, p, err := s.ResolveShareLink(context.Background(), principal(), token); err != nil || p == nil || p.Body != "private contents" {
+		t.Fatalf("authorized resolution = %+v, %v", p, err)
+	}
+	f.membership.HistoryVisibility = NoHistory
+	if _, p, err := s.ResolveShareLink(context.Background(), principal(), token); err != ErrNotFound || p != nil {
+		t.Fatalf("revoked history resolution = %+v, %v", p, err)
+	}
+	f.membership.HistoryVisibility = FullHistory
+	f.post.Deleted = true
+	if _, p, err := s.ResolveShareLink(context.Background(), principal(), token); err != ErrNotFound || p != nil {
+		t.Fatalf("deleted post resolution = %+v, %v", p, err)
+	}
+}
+
 func TestTodo_CHAT_030_IntegrationForwardUsesDurableSendPost(t *testing.T) {
 	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", TenantID: "t1", ConversationID: "c1", AuthorID: "u2", Body: "source", Revision: 3}}
 	s := NewService(f, func() time.Time { return time.Unix(20, 0).UTC() })
@@ -96,6 +130,23 @@ func TestTodo_CHAT_030_IntegrationForwardUsesDurableSendPost(t *testing.T) {
 	}
 	if f.mutations == 0 {
 		t.Fatal("forward did not reach durable SendPost")
+	}
+	if f.sent.Body != "source" || f.sent.SourceAttribution == nil || f.sent.SourceAttribution.PostID != "p1" || f.sent.SourceAttribution.PostRevision != 3 || f.sent.SourceAttribution.OriginalAuthorID != "u2" {
+		t.Fatalf("forwarded post = %+v, want source body and server-derived attribution", f.sent)
+	}
+}
+
+func TestTodo_CHAT_030_SecurityForwardRequiresBothGrants(t *testing.T) {
+	for _, action := range []chatpolicy.Action{chatpolicy.ActionRead, chatpolicy.ActionPost} {
+		t.Run(fmt.Sprint(action), func(t *testing.T) {
+			f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", TenantID: "t1", ConversationID: "c1", Body: "source", Revision: 1}}
+			s := NewService(f, func() time.Time { return time.Unix(20, 0).UTC() })
+			s.SetAuthority(deniedReferenceAuthority{action: action})
+			_, err := s.ForwardPost(context.Background(), ForwardPostRequest{Principal: principal(), SourceTenantID: "t1", SourceConversationID: "c1", SourcePostID: "p1", DestinationTenantID: "t1", DestinationConversationID: "c1", IdempotencyKey: "forward-denied"})
+			if err != ErrPermissionDenied || f.mutations != 0 {
+				t.Fatalf("forward err = %v, mutations = %d; want denied before write", err, f.mutations)
+			}
+		})
 	}
 }
 

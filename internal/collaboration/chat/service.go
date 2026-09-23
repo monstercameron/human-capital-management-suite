@@ -2,11 +2,13 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 // Clock is injected so authorization and mutation tests are deterministic.
@@ -330,7 +332,7 @@ func (s *Service) SendPost(ctx context.Context, r SendPostRequest) (Post, error)
 }
 
 func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource bool) (Post, error) {
-	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" || strings.TrimSpace(r.Body) == "" || r.IdempotencyKey == "" {
+	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" || strings.TrimSpace(r.Body) == "" || strings.TrimSpace(r.IdempotencyKey) == "" {
 		return Post{}, errOr(err, ErrInvalidArgument)
 	}
 	c, err := s.store.GetConversation(ctx, r.TenantID, r.ConversationID)
@@ -339,6 +341,21 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 	}
 	if err := s.authorize(ctx, r.Principal, c, chatpolicy.ActionPost); err != nil {
 		return Post{}, err
+	}
+	if r.ParentID != "" {
+		parent, parentErr := s.store.GetPost(ctx, r.TenantID, r.ConversationID, r.ParentID)
+		if parentErr != nil {
+			if errors.Is(parentErr, ErrNotFound) {
+				return Post{}, ErrInvalidArgument
+			}
+			if errors.Is(parentErr, ErrPermissionDenied) {
+				return Post{}, parentErr
+			}
+			return Post{}, ErrUnavailable
+		}
+		if parent.ID != r.ParentID || parent.ConversationID != r.ConversationID || parent.TenantID != r.TenantID || parent.Deleted {
+			return Post{}, ErrInvalidArgument
+		}
 	}
 	if r.SourceAttribution != nil && !trustedSource {
 		return Post{}, ErrPermissionDenied
@@ -426,18 +443,130 @@ func (s *Service) Search(ctx context.Context, r SearchRequest) (SearchResponse, 
 	if strings.TrimSpace(r.Query) == "" || len(r.Query) > 512 {
 		return SearchResponse{}, ErrInvalidArgument
 	}
+	if len(r.Page.Cursor) > 4096 || len(r.ChannelCursor) > 4096 {
+		return SearchResponse{}, ErrInvalidArgument
+	}
 	if err := validatePage(r.Page); err != nil {
 		return SearchResponse{}, err
 	}
-	if r.ConversationID == "" {
-		// A global search must be implemented by a store query that applies
-		// current membership to every hit. Until that port exists, fail closed.
+	if r.Page.PageSize > 50 {
 		return SearchResponse{}, ErrInvalidArgument
 	}
-	if _, err := s.GetConversation(ctx, GetConversationRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: r.ConversationID}); err != nil {
-		return SearchResponse{}, err
+	if r.ConversationID != "" {
+		if _, err := s.GetConversation(ctx, GetConversationRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: r.ConversationID}); err != nil {
+			return SearchResponse{}, err
+		}
 	}
-	return s.store.Search(ctx, r)
+	// The store limits message hits to active memberships and channel-name hits to
+	// active memberships or active public channels. Recheck current policy before
+	// exposing any hit so these candidates cannot bypass a visibility change.
+	// Cache each action's decision per channel within this request.
+	type visibilityKey struct {
+		conversationID string
+		action         chatpolicy.Action
+	}
+	visible := make(map[visibilityKey]bool)
+	check := func(id string, action chatpolicy.Action) (bool, error) {
+		key := visibilityKey{conversationID: id, action: action}
+		if ok, found := visible[key]; found {
+			return ok, nil
+		}
+		var e error
+		if action == chatpolicy.ActionDiscover {
+			var c Conversation
+			c, e = s.store.GetConversation(ctx, r.TenantID, id)
+			if e == nil {
+				e = s.authorize(ctx, r.Principal, c, action)
+			}
+		} else {
+			_, e = s.GetConversation(ctx, GetConversationRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: id})
+		}
+		if errors.Is(e, ErrPermissionDenied) || errors.Is(e, ErrNotFound) {
+			visible[key] = false
+			return false, nil
+		}
+		if e != nil {
+			return false, e
+		}
+		visible[key] = true
+		return true, nil
+	}
+	pageSize := int(r.Page.PageSize)
+	if pageSize == 0 {
+		pageSize = 20
+	}
+	const scanBudget = 200
+	out := SearchResponse{}
+	messageCursor := r.Page.Cursor
+	messageScanned := 0
+	for len(out.Results) < pageSize && messageScanned < scanBudget {
+		remaining := pageSize - len(out.Results)
+		if remaining > 50 {
+			remaining = 50
+		}
+		if remaining > scanBudget-messageScanned {
+			remaining = scanBudget - messageScanned
+		}
+		pageRequest := r
+		pageRequest.SkipChannels = true
+		pageRequest.Page.Cursor = messageCursor
+		pageRequest.Page.PageSize = uint32(remaining)
+		page, e := s.store.Search(ctx, pageRequest)
+		if e != nil {
+			return SearchResponse{}, e
+		}
+		messageScanned += len(page.Results)
+		for _, hit := range page.Results {
+			ok, checkErr := check(hit.Post.ConversationID, chatpolicy.ActionRead)
+			if checkErr != nil {
+				return SearchResponse{}, checkErr
+			}
+			if ok {
+				out.Results = append(out.Results, hit)
+			}
+		}
+		messageCursor = page.NextCursor
+		if messageCursor == "" {
+			break
+		}
+	}
+	out.NextCursor = messageCursor
+
+	channelCursor := r.ChannelCursor
+	channelScanned := 0
+	for len(out.Channels) < pageSize && channelScanned < scanBudget {
+		remaining := pageSize - len(out.Channels)
+		if remaining > 50 {
+			remaining = 50
+		}
+		if remaining > scanBudget-channelScanned {
+			remaining = scanBudget - channelScanned
+		}
+		pageRequest := r
+		pageRequest.SkipMessages = true
+		pageRequest.ChannelCursor = channelCursor
+		pageRequest.Page.PageSize = uint32(remaining)
+		page, e := s.store.Search(ctx, pageRequest)
+		if e != nil {
+			return SearchResponse{}, e
+		}
+		channelScanned += len(page.Channels)
+		for _, hit := range page.Channels {
+			ok, checkErr := check(hit.ConversationID, chatpolicy.ActionDiscover)
+			if checkErr != nil {
+				return SearchResponse{}, checkErr
+			}
+			if ok {
+				out.Channels = append(out.Channels, hit)
+			}
+		}
+		channelCursor = page.ChannelNextCursor
+		if channelCursor == "" {
+			break
+		}
+	}
+	out.ChannelNextCursor = channelCursor
+	return out, nil
 }
 func (s *Service) GetReadState(ctx context.Context, r GetReadStateRequest) (ReadState, error) {
 	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" {
@@ -579,11 +708,21 @@ func (s *Service) ListPins(ctx context.Context, r ListPinsRequest) ([]Pin, error
 	}
 	visible := make([]Pin, 0, len(pins))
 	for _, pin := range pins {
+		if len(visible) == 200 {
+			break
+		}
+		if pin.TenantID != r.TenantID || pin.ConversationID != r.ConversationID || pin.PostID == "" {
+			continue
+		}
 		post, getErr := s.store.GetPost(ctx, r.TenantID, r.ConversationID, pin.PostID)
 		if getErr != nil {
+			if errors.Is(getErr, ErrNotFound) {
+				continue
+			}
 			return nil, getErr
 		}
-		if !post.Deleted && s.postVisibleTo(ctx, r.Principal, c, post) {
+		if !post.Deleted && post.TenantID == r.TenantID && post.ConversationID == r.ConversationID && post.ID == pin.PostID && s.postVisibleTo(ctx, r.Principal, c, post) {
+			pin.Post = &post
 			visible = append(visible, pin)
 		}
 	}
@@ -592,6 +731,9 @@ func (s *Service) ListPins(ctx context.Context, r ListPinsRequest) ([]Pin, error
 func (s *Service) WatchConversation(ctx context.Context, r WatchConversationRequest) (<-chan WatchEvent, error) {
 	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" {
 		return nil, errOr(err, ErrInvalidArgument)
+	}
+	if machinePlainWatchOffset(ctx, r) {
+		return nil, ErrInvalidArgument
 	}
 	if _, err := s.GetConversation(ctx, GetConversationRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: r.ConversationID}); err != nil {
 		return nil, err
@@ -614,6 +756,9 @@ func (s *Service) WatchConversationWithErrors(ctx context.Context, r WatchConver
 	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" {
 		return nil, nil, errOr(err, ErrInvalidArgument)
 	}
+	if machinePlainWatchOffset(ctx, r) {
+		return nil, nil, ErrInvalidArgument
+	}
 	if _, err := s.GetConversation(ctx, GetConversationRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: r.ConversationID}); err != nil {
 		return nil, nil, err
 	}
@@ -625,20 +770,43 @@ func (s *Service) WatchConversationWithErrors(ctx context.Context, r WatchConver
 	return reporting.WatchWithErrors(ctx, r)
 }
 
+func machinePlainWatchOffset(ctx context.Context, r WatchConversationRequest) bool {
+	verified, ok := trust.FromContext(ctx)
+	return r.AfterSequence != 0 && ok && verified != nil && (verified.SubjectKind() == trust.SubjectKindAgent || verified.SubjectKind() == trust.SubjectKindIntegration)
+}
+
 func (s *Service) authorize(ctx context.Context, p Principal, c Conversation, action chatpolicy.Action) error {
 	if s.authority != nil {
 		in, err := s.authority.Authorize(ctx, p, c, action, s.now())
 		if err != nil {
-			return ErrPermissionDenied
+			if machineConversationPrincipal(ctx, p) && !errors.Is(err, ErrPermissionDenied) && !errors.Is(err, ErrNotFound) {
+				return ErrUnavailable
+			}
+			return conversationDenial(ctx, p)
 		}
 		if _, err = chatpolicy.Evaluate(action, in); err != nil {
-			return ErrPermissionDenied
+			return conversationDenial(ctx, p)
 		}
 		return nil
 	}
 	// Runtime composition must provide a current-authority source. Request
 	// claims and store membership rows are insufficient after revocation.
 	return ErrUnavailable
+}
+
+// Machine installations are not discoverable through a per-conversation
+// operation. An absent room and a room without this machine's grant therefore
+// have the same result across the canonical HTTP and gRPC service.
+func conversationDenial(ctx context.Context, p Principal) error {
+	if machineConversationPrincipal(ctx, p) {
+		return ErrNotFound
+	}
+	return ErrPermissionDenied
+}
+
+func machineConversationPrincipal(ctx context.Context, p Principal) bool {
+	verified, ok := trust.FromContext(ctx)
+	return ok && verified != nil && (verified.SubjectKind() == trust.SubjectKindAgent || verified.SubjectKind() == trust.SubjectKindIntegration) && verified.Subject() == p.SubjectID && verified.Tenant().String() == p.TenantID
 }
 
 func validatePrincipal(p Principal, tenant string) error {

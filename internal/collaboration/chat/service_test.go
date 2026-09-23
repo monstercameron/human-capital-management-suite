@@ -13,6 +13,7 @@ type fakeStore struct {
 	conversation Conversation
 	membership   Membership
 	post         Post
+	pins         []Pin
 	mutations    int
 	created      []Membership
 	// conversations is what a listing answers with; scope and window record what
@@ -23,9 +24,24 @@ type fakeStore struct {
 	window        PostWindow
 	put           Membership
 	sent          Post
+	search        SearchResponse
+	searchCalls   int
+	messagePages  map[string]SearchResponse
+	channelPages  map[string]SearchResponse
 }
 
 type verifiedAuthority struct{ store *fakeStore }
+type denyConversationAuthority struct {
+	base verifiedAuthority
+	deny string
+}
+
+func (a denyConversationAuthority) Authorize(ctx context.Context, p Principal, c Conversation, action chatpolicy.Action, now time.Time) (chatpolicy.Input, error) {
+	if c.ID == a.deny {
+		return chatpolicy.Input{}, ErrPermissionDenied
+	}
+	return a.base.Authorize(ctx, p, c, action, now)
+}
 
 func (a verifiedAuthority) Authorize(_ context.Context, p Principal, c Conversation, _ chatpolicy.Action, now time.Time) (chatpolicy.Input, error) {
 	if c.Kind != PublicChannel && (a.store.membership.SubjectID != p.SubjectID || a.store.membership.LeftAt != nil) {
@@ -56,8 +72,8 @@ func (f *fakeStore) ListConversations(_ context.Context, _ Principal, _ string, 
 	f.scope = scope
 	return ListConversationsResponse{Conversations: append([]Conversation(nil), f.conversations...)}, nil
 }
-func (f *fakeStore) GetConversation(context.Context, string, string) (Conversation, error) {
-	if f.conversation.ID == "" {
+func (f *fakeStore) GetConversation(_ context.Context, _, id string) (Conversation, error) {
+	if f.conversation.ID == "" || (id != "" && f.conversation.ID != id) {
 		return Conversation{}, ErrNotFound
 	}
 	return f.conversation, nil
@@ -112,9 +128,15 @@ func (f *fakeStore) DeletePost(context.Context, DeletePostRequest) (Post, error)
 	f.mutations++
 	return f.post, nil
 }
-func (f *fakeStore) Search(context.Context, SearchRequest) (SearchResponse, error) {
-	f.mutations++
-	return SearchResponse{}, nil
+func (f *fakeStore) Search(_ context.Context, r SearchRequest) (SearchResponse, error) {
+	f.searchCalls++
+	if r.SkipChannels && f.messagePages != nil {
+		return f.messagePages[r.Page.Cursor], nil
+	}
+	if r.SkipMessages && f.channelPages != nil {
+		return f.channelPages[r.ChannelCursor], nil
+	}
+	return f.search, nil
 }
 func (f *fakeStore) GetReadState(context.Context, string, string, string, string) (ReadState, error) {
 	return ReadState{}, nil
@@ -146,7 +168,7 @@ func (f *fakeStore) RemovePin(context.Context, Principal, string, string, string
 	f.mutations++
 	return nil
 }
-func (f *fakeStore) ListPins(context.Context, string, string) ([]Pin, error) { return nil, nil }
+func (f *fakeStore) ListPins(context.Context, string, string) ([]Pin, error) { return f.pins, nil }
 func (f *fakeStore) Watch(context.Context, WatchConversationRequest) (<-chan WatchEvent, error) {
 	ch := make(chan WatchEvent)
 	close(ch)
@@ -156,6 +178,27 @@ func (f *fakeStore) Watch(context.Context, WatchConversationRequest) (<-chan Wat
 func principal() Principal { return Principal{TenantID: "t1", SubjectID: "u1"} }
 func conversation() Conversation {
 	return Conversation{ID: "c1", TenantID: "t1", Kind: PrivateChannel, OwnerID: "u1", Revision: 1}
+}
+
+func TestTodo_CHAT_015_SelfDirectKeepsOnePrivateMember(t *testing.T) {
+	f := &fakeStore{}
+	s := newTestService(f, time.Now)
+	created, err := s.CreateConversation(context.Background(), CreateConversationRequest{
+		Principal: principal(), TenantID: "t1", Kind: Direct,
+		Members: []MemberRef{{TenantID: "t1", SubjectID: "u1"}},
+	})
+	if err != nil {
+		t.Fatalf("create self direct: %v", err)
+	}
+	if created.Kind != Direct || created.OwnerID != "u1" || len(f.created) != 1 || f.created[0].SubjectID != "u1" || f.created[0].HomeTenantID != "t1" || f.mutations != 1 {
+		t.Fatalf("self direct exposed another member: room=%+v members=%+v mutations=%d", created, f.created, f.mutations)
+	}
+	if err := s.ValidateCreate(context.Background(), CreateConversationRequest{
+		Principal: principal(), TenantID: "t1", Kind: Direct,
+		Members: []MemberRef{{TenantID: "t1", SubjectID: "u1"}, {TenantID: "t1", SubjectID: "u2"}},
+	}); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("direct with third participant = %v, want invalid argument", err)
+	}
 }
 
 func TestTodo_CHAT_013_ServiceAuthorizationBeforeMembershipMutation(t *testing.T) {
@@ -198,15 +241,68 @@ func TestTodo_CHAT_013_CreateValidatesOwnerAndInitialMembers(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_021_SearchRejectsUnscopedQuery(t *testing.T) {
-	f := &fakeStore{}
+func TestTodo_CHAT_021_SearchGlobalResultsRecheckConversationAuthorization(t *testing.T) {
+	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1"}}
+	f.search = SearchResponse{
+		Channels: []ChannelSearchResult{{ConversationID: "c1", Name: "Operations", Kind: PublicChannel}, {ConversationID: "private-secret", Name: "Secret", Kind: PrivateChannel}},
+		Results:  []SearchResult{{Post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", Body: "visible"}, ConversationName: "Operations"}, {Post: Post{ID: "p2", ConversationID: "private-secret", TenantID: "t1", Body: "secret"}, ConversationName: "Secret"}},
+	}
 	s := newTestService(f, time.Now)
-	_, err := s.Search(context.Background(), SearchRequest{Principal: principal(), TenantID: "t1", Query: "secret"})
+	got, err := s.Search(context.Background(), SearchRequest{Principal: principal(), TenantID: "t1", Query: "visible"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.searchCalls != 2 || len(got.Channels) != 1 || got.Channels[0].ConversationID != "c1" || len(got.Results) != 1 || got.Results[0].Post.ID != "p1" {
+		t.Fatalf("search results exposed unauthorized hits or dropped visible hits: calls=%d response=%+v", f.searchCalls, got)
+	}
+}
+
+func TestTodo_CHAT_021_SearchCapsPageSize(t *testing.T) {
+	f := &fakeStore{conversation: conversation()}
+	s := newTestService(f, time.Now)
+	_, err := s.Search(context.Background(), SearchRequest{Principal: principal(), TenantID: "t1", Query: "message", Page: Page{PageSize: 51}})
 	if !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("err = %v, want invalid argument", err)
 	}
-	if f.mutations != 0 {
-		t.Fatalf("store calls = %d, want 0", f.mutations)
+	if f.searchCalls != 0 {
+		t.Fatalf("store search calls = %d, want 0", f.searchCalls)
+	}
+}
+
+func TestTodo_CHAT_021_SearchRefillsAfterPolicyFilteredCandidates(t *testing.T) {
+	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1"}}
+	f.messagePages = map[string]SearchResponse{
+		"":             {Results: []SearchResult{{Post: Post{ID: "private", ConversationID: "restricted", TenantID: "t1", Body: "hidden"}}}, NextCursor: "message-next"},
+		"message-next": {Results: []SearchResult{{Post: Post{ID: "visible", ConversationID: "c1", TenantID: "t1", Body: "shown"}, ConversationName: "Operations"}}},
+	}
+	f.channelPages = map[string]SearchResponse{
+		"":             {Channels: []ChannelSearchResult{{ConversationID: "restricted", Name: "Restricted", Kind: PrivateChannel}}, ChannelNextCursor: "channel-next"},
+		"channel-next": {Channels: []ChannelSearchResult{{ConversationID: "c1", Name: "Operations", Kind: PrivateChannel, Joined: true}}},
+	}
+	s := newTestService(f, time.Now)
+	got, err := s.Search(context.Background(), SearchRequest{Principal: principal(), TenantID: "t1", Query: "message", Page: Page{PageSize: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 1 || got.Results[0].Post.ID != "visible" || len(got.Channels) != 1 || got.Channels[0].ConversationID != "c1" || f.searchCalls != 4 {
+		t.Fatalf("search failed to refill visible categories after denied candidates: calls=%d response=%+v", f.searchCalls, got)
+	}
+}
+
+func TestTodo_CHAT_021_SearchFiltersRevokedChannel(t *testing.T) {
+	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1"}}
+	f.search = SearchResponse{
+		Channels: []ChannelSearchResult{{ConversationID: "c1", Name: "Operations", Kind: PrivateChannel}},
+		Results:  []SearchResult{{Post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", Body: "private"}, ConversationName: "Operations"}},
+	}
+	s := newTestService(f, time.Now)
+	s.SetAuthority(denyConversationAuthority{base: verifiedAuthority{store: f}, deny: "c1"})
+	got, err := s.Search(context.Background(), SearchRequest{Principal: principal(), TenantID: "t1", Query: "private"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Channels) != 0 || len(got.Results) != 0 {
+		t.Fatalf("search returned hits from a currently denied channel: %+v", got)
 	}
 }
 
