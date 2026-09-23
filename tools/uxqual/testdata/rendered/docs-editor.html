@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en-US" dir="ltr">
+<head><meta charset="utf-8"><title>Guide</title><style>.doc-wrap{max-width:56rem;margin:0 auto;padding:1rem}.doc-field{display:block;margin:1rem 0}.doc-field textarea{width:100%;min-height:16rem}.doc-error{color:#7a1f1f}.doc-conflict{border:0.125rem solid #7a1f1f;padding:1rem;margin:1rem 0}.doc-compare{display:grid;grid-template-columns:1fr 1fr;gap:1rem}@media (max-width:40rem){.doc-compare{grid-template-columns:1fr}}label{font-weight:700}:focus-visible{outline:0.1875rem solid #1a56db;outline-offset:0.125rem}@media (prefers-reduced-motion:reduce){*{animation:none;transition:none}}</style></head>
+<body><div class="doc-wrap">
+<h1>Propose a candidate: Guide</h1>
+<div class="doc-conflict" role="alert"><strong>Base moved while you edited.</strong> <span>Expected docv-1, live now docv-2.</span></div>
+<form method="post" action="/docs/doc-1/candidates">
+<input type="hidden" name="base_version" value="docv-1">
+<input type="hidden" name="base_hash" value="9e1e">
+<label class="doc-field" for="markdown">Markdown body</label>
+<textarea id="markdown" name="markdown"># Guide
+
+New words.
+</textarea>
+
+<p><button type="submit">Submit candidate</button></p>
+</form>
+</div></body>
+</html>
