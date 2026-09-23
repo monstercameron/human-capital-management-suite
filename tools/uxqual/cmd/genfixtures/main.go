@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/docs"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/ssr"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/testdata"
@@ -44,4 +45,44 @@ func main() {
 	}
 	write("ssr.html", ssrDoc)
 	write("gwc.html", gwcDoc)
+
+	editorDoc, err := docs.RenderEditor(docs.EditorPage{
+		Locale: "en-US", Title: "Guide", DocumentID: "doc-1",
+		BaseVersionID: "docv-1", BaseHash: "9e1e",
+		Draft: "# Guide\n\nNew words.\n", Action: "/docs/doc-1/candidates",
+		Conflict: &docs.BaseConflict{ExpectedVersionID: "docv-1", LiveVersionID: "docv-2"},
+	})
+	if err != nil {
+		log.Fatalf("docs.RenderEditor: %v", err)
+	}
+	compareDoc, err := docs.RenderCompare(docs.ComparePage{
+		Locale: "en-US", Title: "Guide",
+		Base:  docs.CompareVersion{VersionID: "docv-1", ShortHash: "9e1e", Title: "Guide", BodyHTML: "<h1>Guide</h1>"},
+		Other: docs.CompareVersion{VersionID: "docv-2", ShortHash: "a71f", Title: "Guide", BodyHTML: "<h1>Guide</h1><p>More.</p>"},
+	})
+	if err != nil {
+		log.Fatalf("docs.RenderCompare: %v", err)
+	}
+	write("docs-editor.html", editorDoc)
+	write("docs-compare.html", compareDoc)
+
+	pickerDoc, err := docs.RenderPicker(docs.PickerPage{
+		Locale: "en-US", Title: "Guide",
+		Docs: []docs.PickerDoc{{ID: "doc-b", Title: "Bee"}, {ID: "doc-c", Title: "Sea"}},
+	})
+	if err != nil {
+		log.Fatalf("docs.RenderPicker: %v", err)
+	}
+	backlinksDoc, err := docs.RenderBacklinks(docs.BacklinksPage{
+		Locale: "en-US", Title: "Bee", TargetDocID: "doc-b",
+		Links: []docs.BacklinkEntry{
+			{SourceDocID: "doc-a", SourceTitle: "Ay", Label: "bee", State: "valid"},
+			{SourceDocID: "doc-x", Label: "bee", State: "stale", Restricted: true},
+		},
+	})
+	if err != nil {
+		log.Fatalf("docs.RenderBacklinks: %v", err)
+	}
+	write("docs-picker.html", pickerDoc)
+	write("docs-backlinks.html", backlinksDoc)
 }
