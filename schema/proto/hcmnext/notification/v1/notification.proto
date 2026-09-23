@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package hcmnext.notification.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1;notificationv1";
+
+import "google/protobuf/timestamp.proto";
+
+// Notification is one recipient-owned inbox notice: identifiers and state
+// only, never message content. The recipient, tenant and workflow visibility
+// are resolved server-side from the authenticated principal; the wire carries
+// no subject, no tenant and no workflow authority of its own.
+message Notification {
+  // id is the inbox record identifier (UUID string).
+  string id = 1;
+  // read_state is READ or UNREAD.
+  string read_state = 2;
+  bool archived = 3;
+  bool pinned = 4;
+  // version is the CAS revision: mutations must present the version they read.
+  uint64 version = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp state_changed_at = 7;
+  // workflow_instance_id and work_item_id are opaque references for follow-up
+  // reads; empty when the notice carries no workflow attention.
+  string workflow_instance_id = 8;
+  string work_item_id = 9;
+  // purpose is APPROVAL or TASK for workflow attention notices.
+  string purpose = 10;
+  string correlation_key = 11;
+}
+
+message ListNotificationsRequest {
+  int32 page_size = 1;
+  // cursor is an opaque signed page cursor from a previous response; empty
+  // starts at the newest notice.
+  string cursor = 2;
+  // read_state filters to READ or UNREAD; empty selects both.
+  string read_state = 3;
+  bool archived = 4;
+  // purpose filters to APPROVAL or TASK; empty selects both.
+  string purpose = 5;
+}
+
+message ListNotificationsResponse {
+  repeated Notification notifications = 1;
+  // next_cursor continues the traversal; empty means the feed is exhausted.
+  // Clients follow it even after an empty authorized page.
+  string next_cursor = 2;
+}
+
+message MarkNotificationReadRequest {
+  string id = 1;
+  uint64 expected_version = 2;
+}
+
+message MarkNotificationReadResponse {
+  Notification notification = 1;
+}
+
+message ArchiveNotificationRequest {
+  string id = 1;
+  bool archived = 2;
+  uint64 expected_version = 3;
+}
+
+message ArchiveNotificationResponse {
+  Notification notification = 1;
+}
+
+message PinNotificationRequest {
+  string id = 1;
+  bool pinned = 2;
+  uint64 expected_version = 3;
+}
+
+message PinNotificationResponse {
+  Notification notification = 1;
+}

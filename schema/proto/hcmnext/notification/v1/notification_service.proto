@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package hcmnext.notification.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1;notificationv1";
+
+import "hcmnext/notification/v1/notification.proto";
+
+// NotificationService is the standalone recipient-owned notification feed:
+// paginated reads plus read/pin/archive CAS actions that never enumerate
+// journeys and never approve work or resume a workflow. It exists because
+// the browser feed riding ListJourneys forces journey enumeration for every
+// bell poll; this service answers from the bounded inbox store instead.
+//
+// Every message mirrors an inbox store type field for field. This service
+// invents no HCM meaning of its own: the recipient and tenant come from the
+// authenticated principal server-side, page cursors are HMAC-signed and bind
+// principal, tenant and canonical filters with a short expiry, and every
+// mutation compares the CAS version the caller read. A visibility-check
+// failure fails the read outright rather than serving a partial list.
+service NotificationService {
+  // ListNotifications returns the caller's own notices, newest first, as a
+  // bounded keyset page. Effect class: READ_ONLY.
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  // MarkNotificationRead records a read at the presented CAS version.
+  // Reading a notice never approves work. Effect class: STANDARD_WRITE.
+  rpc MarkNotificationRead(MarkNotificationReadRequest) returns (MarkNotificationReadResponse);
+  // ArchiveNotification moves a notice to or from the archive at the
+  // presented CAS version. Effect class: STANDARD_WRITE.
+  rpc ArchiveNotification(ArchiveNotificationRequest) returns (ArchiveNotificationResponse);
+  // PinNotification pins or unpins a notice at the presented CAS version.
+  // Effect class: STANDARD_WRITE.
+  rpc PinNotification(PinNotificationRequest) returns (PinNotificationResponse);
+}

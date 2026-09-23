@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
@@ -338,6 +340,36 @@ func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequ
 	// UXLIVE-027: the one authorized population summary, over exactly the
 	// journeys above, so no page recounts or re-filters the collection.
 	resp.Population = toPopulation(workspace.SummarizeJourneys(summaries, s.deps.nowFunc()()))
+	if reader, ok := eng.(workspace.WorkflowNotificationReader); ok {
+		notices, err := reader.WorkflowNotifications(ctx, summaries)
+		if err != nil {
+			resp.NotificationsUnavailable = true
+			return resp, nil
+		}
+		for _, notice := range notices {
+			resp.Notifications = append(resp.Notifications, &journeyv1.WorkflowNotification{
+				NotificationId: notice.ID, JourneyId: notice.JourneyID, WorkItemId: notice.WorkItemID,
+				WorkerName: notice.WorkerName, Purpose: notice.Purpose, Status: notice.Status,
+				CreatedAt: timestamppb.New(notice.CreatedAt), Read: notice.Read,
+			})
+		}
+	}
+	if reader, ok := eng.(workspace.WorkflowStatusReader); ok && !resp.NotificationsUnavailable {
+		notices, err := reader.WorkflowStatusNotifications(ctx, summaries)
+		if err != nil {
+			resp.Notifications, resp.NotificationsUnavailable = nil, true
+			return resp, nil
+		}
+		for _, notice := range notices {
+			resp.Notifications = append(resp.Notifications, &journeyv1.WorkflowNotification{
+				NotificationId: notice.ID, JourneyId: notice.JourneyID, WorkerName: notice.WorkerName,
+				Purpose: notice.Purpose, Status: notice.Status, CreatedAt: timestamppb.New(notice.CreatedAt), Read: notice.Read,
+			})
+		}
+		sort.SliceStable(resp.Notifications, func(i, j int) bool {
+			return resp.Notifications[i].GetCreatedAt().AsTime().After(resp.Notifications[j].GetCreatedAt().AsTime())
+		})
+	}
 	return resp, nil
 }
 

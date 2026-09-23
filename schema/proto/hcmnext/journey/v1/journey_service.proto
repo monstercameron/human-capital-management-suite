@@ -847,6 +847,21 @@ message ListJourneysResponse {
   // Every summary surface (Home, Insights, Journeys) reads its totals here
   // instead of recounting the collection.
   JourneyPopulationSummary population = 4;
+  // Recipient-owned secure inbox notices, filtered by current journey access.
+  repeated WorkflowNotification notifications = 5;
+  // An inbox failure must not prevent users from reading or deciding work.
+  bool notifications_unavailable = 6;
+}
+
+message WorkflowNotification {
+  string notification_id = 1;
+  string journey_id = 2;
+  string work_item_id = 3;
+  string worker_name = 4;
+  string purpose = 5;
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  bool read = 8;
 }
 
 // JourneyPopulationSummary is the authorization-filtered journey summary
