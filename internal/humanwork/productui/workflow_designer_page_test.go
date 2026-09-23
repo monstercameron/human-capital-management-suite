@@ -69,8 +69,8 @@ func TestTodo_WF_UI_002_PageRendersCatalogAndSelectedWorkflow(t *testing.T) {
 		`workflow=promotion.approval`,
 		`id="workflow-designer-viewer-title"`,
 		`Promotion approval`,
-		`Workflow outline`,
-		`Published · read-only`,
+		`Exits`,
+		`Version 2026.9.0`,
 		`Create newer version`,
 		`name="semantic_version"`,
 	} {
@@ -196,8 +196,9 @@ func TestTodo_WF_UI_005_DesignerRendersDurableCollapsibleFragment(t *testing.T) 
 	view.WorkflowPalette = workflowPaletteFixture()
 	view.WorkflowDraft = &WorkflowDraftView{
 		DraftID: "draft-42", WorkflowID: "customer.workflow.42", Name: "Employee change", SemanticVersion: "0.2.0", Revision: 7,
-		Nodes:  []WorkflowDraftNode{{ID: "group_review_1__manager", StepType: "APPROVAL", GroupID: "group_review_1"}, {ID: "group_review_1__finance", StepType: "APPROVAL", GroupID: "group_review_1"}},
-		Groups: []WorkflowDraftGroup{{ID: "group_review_1", Name: "Promotion review", EntryID: "hcmnext.fragments.promotion_review", EntryVersion: 1, Collapsed: true, NodeIDs: []string{"group_review_1__manager", "group_review_1__finance"}}},
+		StartNodeID: "group_review_1__manager",
+		Nodes:       []WorkflowDraftNode{{ID: "group_review_1__manager", StepType: "APPROVAL", GroupID: "group_review_1"}, {ID: "group_review_1__finance", StepType: "APPROVAL", GroupID: "group_review_1"}},
+		Groups:      []WorkflowDraftGroup{{ID: "group_review_1", Name: "Promotion review", EntryID: "hcmnext.fragments.promotion_review", EntryVersion: 1, Collapsed: true, NodeIDs: []string{"group_review_1__manager", "group_review_1__finance"}}},
 	}
 	view.CreateWorkflowDraft = func(WorkflowDraftCreateRequest) {}
 	view.InsertWorkflowPaletteEntry = func(WorkflowPaletteItem) {}
@@ -205,51 +206,30 @@ func TestTodo_WF_UI_005_DesignerRendersDurableCollapsibleFragment(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`Draft · version 0.2.0`, `Employee change`, `Saved · revision 7`, `data-group-id="group_review_1"`, `<details`, `Promotion review`, `group_review_1__manager`} {
+	// An open draft is the editor and nothing else: the catalog of published
+	// workflows is one link away, not stacked above the work.
+	for _, want := range []string{`Draft 0.2.0`, `Employee change`, `data-group-id="group_review_1"`, `Promotion review`, `group_review_1__manager`, `class="workflow-designer-page editing"`} {
 		if !strings.Contains(markup, want) {
-			t.Fatalf("draft workspace missing %q:\n%s", want, markup)
+			t.Fatalf("draft editor missing %q:\n%s", want, markup)
 		}
 	}
-	assertWorkflowDraftGroupOpenState(t, markup, "group_review_1", false)
-
-	view.WorkflowDraft.Groups[0].Collapsed = false
-	expanded, err := ui.RenderToString(BuildPageContent(view))
-	if err != nil {
-		t.Fatal(err)
+	if strings.Contains(markup, "Published workflows") {
+		t.Fatal("the catalog is still stacked on the editor")
 	}
-	assertWorkflowDraftGroupOpenState(t, expanded, "group_review_1", true)
-}
-
-func assertWorkflowDraftGroupOpenState(t *testing.T, markup, groupID string, wantOpen bool) {
-	t.Helper()
-	needle := `data-group-id="` + groupID + `"`
-	groupAt := strings.Index(markup, needle)
-	if groupAt < 0 {
-		t.Fatalf("draft workspace missing group %q", groupID)
-	}
-	startAt := strings.LastIndex(markup[:groupAt], "<details")
-	endOffset := strings.Index(markup[groupAt:], ">")
-	if startAt < 0 || endOffset < 0 {
-		t.Fatalf("group %q is not rendered by a details element", groupID)
-	}
-	startTag := markup[startAt : groupAt+endOffset+1]
-	gotOpen := strings.Contains(startTag, " open")
-	if gotOpen != wantOpen {
-		t.Fatalf("group %q open state = %t, want %t: %s", groupID, gotOpen, wantOpen, startTag)
+	if got := strings.Count(markup, `data-group-id="group_review_1"`); got != 2 {
+		t.Fatalf("fragment membership shown on %d of 2 steps", got)
 	}
 }
 
 func TestTodo_WF_UI_002_PageResponsiveThemeAndLocales(t *testing.T) {
 	css := workflowDesignerStylesheet()
 	for _, want := range []string{
-		`grid-template-columns:minmax(15rem,19rem) minmax(0,1fr) minmax(15rem,18rem)`,
+		`grid-template-columns:minmax(14rem,18rem) minmax(0,1fr)`,
 		`@media (max-width:900px)`,
 		`@media (max-width:640px)`,
 		`var(--hcm-radius-control)`,
-		`var(--hcm-motion-fast)`,
 		`var(--soft)`,
-		`.workflow-designer-header .button-icon{inline-size:1rem;block-size:1rem;flex:none}`,
-		`.workflow-designer-header .button{align-self:flex-start}`,
+		`.workflow-designer-actions .button-icon{inline-size:1rem;block-size:1rem;flex:none}`,
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("workflow designer stylesheet missing %q", want)
@@ -278,21 +258,36 @@ func TestTodo_WF_UI_002_PageResponsiveThemeAndLocales(t *testing.T) {
 
 func TestTodo_WF_UI_005_DesignerComposesPaletteBesideGraph(t *testing.T) {
 	view := ApplyRoleVisibility(NewView(PageWorkflowDesigner, "HarborCare", "Avery", "author"), []string{"intent_author"})
-	projection := workflowViewerFixture()
-	view.WorkflowView = &projection
 	view.WorkflowPalette = workflowPaletteFixture()
+	view.WorkflowDraft = &WorkflowDraftView{DraftID: "draft-1", WorkflowID: "customer.workflow.1", Name: "New hire", SemanticVersion: "0.1.0", Revision: 1}
+	view.InsertWorkflowPaletteEntry = func(WorkflowPaletteItem) {}
 
 	markup, err := ui.RenderToString(BuildPageContent(view))
 	if err != nil {
-		t.Fatalf("render workflow designer with palette: %v", err)
+		t.Fatalf("render workflow editor with library: %v", err)
 	}
-	for _, want := range []string{"Published workflows", "Workflow map", "Block library", "Promotion review", `data-insert-mode="group"`} {
+	for _, want := range []string{"Add a step", "Promotion review", "Start with a first step", `class="workflow-editor-panes"`} {
 		if !strings.Contains(markup, want) {
-			t.Fatalf("workflow designer composition missing %q:\n%s", want, markup)
+			t.Fatalf("workflow editor composition missing %q:\n%s", want, markup)
 		}
 	}
-	if strings.Index(markup, "Block library") < strings.Index(markup, "Workflow map") {
-		t.Fatal("palette precedes the primary workflow workspace in reading order")
+	// The library comes first in reading order and the path follows it, so
+	// a keyboard author reaches "add" before the thing being added to.
+	if strings.Index(markup, "Add a step") > strings.Index(markup, "Start with a first step") {
+		t.Fatal("the step library follows the path in reading order")
+	}
+
+	// With no draft open the landing view offers the templates as ways to
+	// start, since the library itself only appears inside the editor.
+	landingMarkup, err := ui.RenderToString(WorkflowDesignerPage(WorkflowDesignerPageProps{
+		I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")}, Palette: workflowPaletteFixture(), BaseHref: Path(PageWorkflowDesigner),
+		CanCreate: true, OnCreate: func(WorkflowDraftCreateRequest) {},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(landingMarkup, "Use Promotion template") || strings.Contains(landingMarkup, "Add a step") {
+		t.Fatalf("landing view does not offer the template as a start:\n%s", landingMarkup)
 	}
 }
 

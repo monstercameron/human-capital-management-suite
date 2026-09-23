@@ -14,50 +14,42 @@ func TestTodo_WF_UI_002(t *testing.T) {
 	for _, want := range []string{
 		`id="promotion-workflow-title"`,
 		`aria-labelledby="promotion-workflow-title"`,
-		`aria-hidden="true" class="workflow-viewer-graph"`,
-		`class="workflow-viewer-outline"`,
+		`class="workflow-path"`,
 		`Promotion approval`,
 		`Publication</span><strong>Active`,
-		`Version</span><strong>v7 · 2026.9`,
+		`Version</span><strong>2026.9.0`,
 		`Run</span><strong>Waiting`,
-		`<path d="M4 12h16M14 6l6 6-6 6"></path>`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("workflow viewer missing %q:\n%s", want, markup)
 		}
 	}
 
-	// Every disclosed node is rendered once in the visual graph and once in
-	// the semantic outline. The shared projection prevents the two views from
-	// silently disagreeing.
+	// A published workflow is drawn once, by the same path the editor uses.
+	// The stage-column graph and the outline beside it rendered every node
+	// twice and could disagree with the editor about their order.
 	for _, node := range workflowViewerFixture().Nodes {
-		if got := strings.Count(markup, `data-node-id="`+node.ID+`"`); got != 2 {
-			t.Fatalf("node %q rendered %d times, want graph and outline", node.ID, got)
+		if got := strings.Count(markup, `data-node-id="`+node.ID+`"`); got != 1 {
+			t.Fatalf("node %q rendered %d times, want once", node.ID, got)
 		}
+	}
+	if strings.Contains(markup, "<button") {
+		t.Fatal("a read-only published workflow renders controls that do nothing")
 	}
 }
 
 func TestTodo_WF_UI_002_Browser(t *testing.T) {
-	css := workflowViewerStylesheet()
-	for _, want := range []string{
-		`@media (max-width:900px)`,
-		`.workflow-viewer-layout{grid-template-columns:1fr`,
-		`@media (max-width:640px)`,
-		`.workflow-viewer-graph{display:none`,
-		`.workflow-viewer-header{flex-direction:column`,
-		`@media (max-width:360px)`,
-	} {
+	// The viewer has no layout of its own to go wrong at narrow widths: it is
+	// the editor's path, whose stylesheet carries the breakpoints.
+	css := workflowEditorStylesheet()
+	for _, want := range []string{`@media (max-width:820px)`, `@media (max-width:420px)`, `.workflow-path{grid-template-columns:1fr}`} {
 		if !strings.Contains(css, want) {
-			t.Fatalf("responsive workflow viewer stylesheet missing %q:\n%s", want, css)
+			t.Fatalf("path stylesheet missing %q", want)
 		}
 	}
-	if strings.Contains(css, `.workflow-viewer-outline{display:none`) {
-		t.Fatal("mobile stylesheet must keep the semantic outline visible")
-	}
-
 	markup := renderWorkflowViewer(t, workflowViewerFixture(), DefaultProductLocale)
-	if !strings.Contains(markup, `The same steps and routes in reading order.`) {
-		t.Fatal("mobile-primary outline lacks a plain-language description")
+	if !strings.Contains(markup, `<ol`) || !strings.Contains(markup, `Prepare request`) {
+		t.Fatal("the published path is not an ordered, readable list")
 	}
 }
 
@@ -65,16 +57,16 @@ func TestTodo_WF_UI_002_LiveRunOverlay(t *testing.T) {
 	projection := workflowViewerFixture()
 	markup := renderWorkflowViewer(t, projection, DefaultProductLocale)
 
-	if got := strings.Count(markup, `data-node-id="manager_review" data-state="waiting"`); got != 2 {
-		t.Fatalf("live waiting state rendered %d times, want graph and outline", got)
+	if got := strings.Count(markup, `data-state="waiting"`); got != 1 {
+		t.Fatalf("live waiting state rendered %d times, want once", got)
 	}
-	if got := strings.Count(markup, `Current`); got < 2 {
-		t.Fatalf("current-node flag rendered %d times, want graph and outline", got)
+	if !strings.Contains(markup, `workflow-path-step current`) && !strings.Contains(markup, ` current`) {
+		t.Fatal("the step the run is waiting on is not marked current")
 	}
 	lowerMarkup := strings.ToLower(markup)
-	for _, route := range []string{"approved", "rejected"} {
+	for _, route := range []string{"approved", "rejected", "waiting", "completed"} {
 		if !strings.Contains(lowerMarkup, route) {
-			t.Fatalf("live workflow omitted route %q", route)
+			t.Fatalf("live workflow omitted %q", route)
 		}
 	}
 }
@@ -102,6 +94,11 @@ func TestTodo_WF_UI_002_RedactedRun(t *testing.T) {
 	if strings.Contains(markup, `WAITING`) {
 		t.Fatal("redacted viewer leaked raw runtime status")
 	}
+	for _, claimed := range []string{`data-state=`, "Not started", "Waiting"} {
+		if strings.Contains(markup, claimed) {
+			t.Fatalf("a run the viewer may not see still shows a per-step state %q", claimed)
+		}
+	}
 }
 
 func TestTodo_WF_UI_002_PartialRunEvidence(t *testing.T) {
@@ -113,7 +110,7 @@ func TestTodo_WF_UI_002_PartialRunEvidence(t *testing.T) {
 	markup := renderWorkflowViewer(t, projection, DefaultProductLocale)
 	if !strings.Contains(markup, `some run evidence could not be resolved`) ||
 		!strings.Contains(markup, `attempt 2 is not yet indexed`) ||
-		strings.Count(markup, `Evidence unavailable`) != 2 {
+		strings.Count(markup, `Evidence unavailable`) != 1 {
 		t.Fatalf("partial evidence state is incomplete:\n%s", markup)
 	}
 }
@@ -128,8 +125,8 @@ func TestTodo_WF_UI_002_EmptyDefinition(t *testing.T) {
 	if !strings.Contains(markup, `This workflow has no steps`) || !strings.Contains(markup, `role="status"`) {
 		t.Fatalf("empty workflow needs an announced empty state:\n%s", markup)
 	}
-	if strings.Contains(markup, `workflow-viewer-graph`) {
-		t.Fatal("empty workflow must not render an empty graph viewport")
+	if strings.Contains(markup, `class="workflow-path"`) {
+		t.Fatal("empty workflow must not render an empty path")
 	}
 }
 
@@ -138,8 +135,8 @@ func TestTodo_WF_UI_002_Locales(t *testing.T) {
 		locale string
 		wants  []string
 	}{
-		{locale: "de-DE", wants: []string{"Ablaufgliederung", "Genehmigung", "Genehmigt", "Veröffentlichung</span><strong>Aktiv"}},
-		{locale: "ar", wants: []string{"مخطط تفصيلي لسير العمل", "موافقة", "تمت الموافقة", "النشر</span><strong>نشط"}},
+		{locale: "de-DE", wants: []string{"Ausgänge", "Genehmigung", "Genehmigt", "Veröffentlichung</span><strong>Aktiv"}},
+		{locale: "ar", wants: []string{"المخارج", "موافقة", "تمت الموافقة", "النشر</span><strong>نشط"}},
 	} {
 		t.Run(test.locale, func(t *testing.T) {
 			markup := renderWorkflowViewer(t, workflowViewerFixture(), test.locale)
@@ -159,7 +156,7 @@ func TestTodo_WF_UI_002_Locales(t *testing.T) {
 }
 
 func TestTodo_WF_UI_002_ThemeContract(t *testing.T) {
-	css := workflowViewerStylesheet()
+	css := workflowViewerStylesheet() + workflowEditorStylesheet()
 	for _, token := range []string{"var(--surface)", "var(--canvas)", "var(--ink)", "var(--muted)", "var(--line)", "var(--accent)"} {
 		if !strings.Contains(css, token) {
 			t.Fatalf("workflow viewer does not consume theme token %q", token)
