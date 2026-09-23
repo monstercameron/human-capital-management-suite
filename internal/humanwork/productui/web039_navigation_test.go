@@ -105,7 +105,8 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// attention. Verified before re-pinning by substituting exactly those
 	// two old strings back into the new document, which reproduced the
 	// previous digest byte for byte.
-	const want = "76dbf1730f0cce2b9cfeeb09953d1f66b0b8aafaee7eddc204337ca66380bae7"
+	// NAAS-001 adds the localized empty inbox state before Open My Work.
+	const want = "4c2c2532c182c91851f329ad6eeb5ff683c2c93766c77e8ecd484fe081c4b8bf"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

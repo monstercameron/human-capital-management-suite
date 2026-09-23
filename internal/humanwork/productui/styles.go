@@ -1,6 +1,10 @@
 package productui
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
+)
 
 var (
 	defaultStylesheetOnce sync.Once
@@ -57,8 +61,13 @@ func stylesheetForTheme(theme Theme) string {
 func initPlatformStyles() {
 	platformStyles = baseStylesheet() + SemanticThemeStylesheet() + refinementsStylesheet() + componentRefinementsStylesheet() + responsiveGridFixStylesheet() + responsiveSafetyStylesheet() + collapsibleNavigationStylesheet() + NavigationEnhancementsStylesheet() + liveDataRefinementsStylesheet() + viewportShellStylesheet() + personProfileStylesheet() + peopleDirectoryStylesheet() + workflowHistoryStylesheet() + PhotoStylesheet() + profileDetailStylesheet() + historyTableStylesheet() + JourneyIntegrationStylesheet() + MotionStylesheet() + customerThemeStylesheet() + AppearanceStylesheet() + AppearanceSwatchStylesheet() + CustomerIdentityStylesheet() + brandLogoStylesStylesheet() + compactBrandStylesStylesheet() + AppearanceRobustnessStylesheet() + localeStylesStylesheet() + localePreferenceStylesStylesheet() + accessibilityStylesStylesheet() + accessibilityLayoutStylesStylesheet() + accessibilityReviewStylesStylesheet() + localePreferenceAccessibilityStylesStylesheet() + InteractionMotionStylesheet() + navigationPolishStylesStylesheet() + navigationScrollbarStylesStylesheet() + navigationViewportStylesStylesheet() + navigationViewportXStylesStylesheet() + colorModeControlStylesStylesheet() + surfaceTokenCoverageStylesheet() + legacySurfaceCoverageStylesheet() + loadingProxyStylesStylesheet() + loadingLayoutOffsetsStylesheet() + navigationSearchStylesStylesheet() + peopleSortFilterStylesStylesheet() + peopleQuickActionStylesStylesheet() + collectionControlStylesStylesheet() + uxReviewRefinementsStylesheet() + responsiveComponentStylesStylesheet() + peopleStickyHeaderStylesStylesheet() + dataTableStylesStylesheet() + GlobalSearchStylesheet() + historyNavigationStylesheet() + actionLauncherStylesheet() + PopoverStylesheet() + ViewerProfileStylesheet() + organizationMetadataStylesStylesheet() + organizationHierarchyStylesStylesheet() + organizationDisclosureStylesStylesheet() + organizationVisibilityStylesStylesheet() + roleAccessStylesStylesheet() + workerIDStylesStylesheet() + permissionBoundaryStylesheet() + validationStylesStylesheet() + statusPresentationStylesStylesheet() + provenancePresentationStylesStylesheet() + myselfStylesStylesheet() + networkTransitionStylesStylesheet() + navigationInteractionRefinementsStylesheet() + interactionThemeStylesStylesheet() + visualQARefinementsStylesheet() + peopleActionColumnStylesStylesheet() + BreadcrumbStylesheet() + UtilityDrawerStylesheet() + MobileShellStylesheet() + FederationEntryStylesheet() + SessionWarningStylesheet() + StepUpStylesheet() + AuthorityBannerStylesheet() + BreakGlassStylesheet() + PolicySimulationStylesheet() + SignedOutStylesheet() + DelegationSelectorStylesheet() + ContextSwitcherStylesheet() + uxaudit008TableDensityStylesheet() + scrollRegionStylesheet() + uipolish001TypographyStylesheet() + uipolish002SettingsStylesheet() + UIPolish004ScrollStylesheet() + UIPolish011MotionStylesheet() + uipolish008TableStylesheet() + peopleRowStateStylesheet() + workFilterStripStylesheet() + homeOperationalStylesheet() + asyncRegionFailureStylesheet() + roleAccessPreviewStylesheet()
 	platformStyles += workflowViewerStylesheet()
+	platformStyles += chatui.ScopedStylesheet() + chatShellStylesheet()
+	platformStyles += ChatRetentionStylesheet()
 	platformStyles += workflowDesignerStylesheet()
-	platformStyles += workflowPaletteStylesheet()
+	platformStyles += workflowEditorStylesheet()
+	platformStyles += columnChooserStylesheet()
+	platformStyles += docsStylesheet()
+	platformStyles += workflowNotificationStylesheet()
 	platformDarkStyles = darkModeStylesStylesheet()
 }
 

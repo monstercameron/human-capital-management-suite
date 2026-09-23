@@ -43,6 +43,14 @@ type PageDefinition struct {
 	// presents the destination as a first-class menu item.
 	Admitted            bool
 	NavigationPublished bool
+	// OwnsHeading marks a page that renders its own primary heading inside
+	// its content, so the shell must not add the page identity block above
+	// it (a second document h1). FullBleed additionally hands the page the
+	// whole main region — no frame padding, no width cap, no footer — and
+	// makes the page, not the shell, the scroll owner. Chat is the first such
+	// page: a messaging surface is an application, not a document.
+	OwnsHeading bool
+	FullBleed   bool
 	// Features is the stable, securable feature catalog for this page. Every
 	// page receives content and action features; product pages may declare
 	// finer-grained features through the central feature catalog.
@@ -51,6 +59,20 @@ type PageDefinition struct {
 
 const RoleHCMAdmin = "hcm_admin"
 
+// PageOwnsHeading reports whether the page renders its own primary heading,
+// so the shell leaves the page identity block out (see PageDefinition).
+func PageOwnsHeading(page PageID) bool {
+	module, ok := pageModuleFor(page)
+	return ok && module.Definition.OwnsHeading
+}
+
+// PageFullBleed reports whether the page takes the whole main region as an
+// application surface and owns its own scrolling (see PageDefinition).
+func PageFullBleed(page PageID) bool {
+	module, ok := pageModuleFor(page)
+	return ok && module.Definition.FullBleed
+}
+
 // PageVisible reports product-route access for server-admitted roles. An
 // empty role set receives only the safe shell baseline and cannot discover
 // workforce or administrative surfaces.
@@ -58,6 +80,9 @@ func PageVisible(page PageID, roles []string) bool {
 	module, ok := pageModuleFor(page)
 	if !ok {
 		return false
+	}
+	if page == PageDocs {
+		return hasAnyProductRole(roles, RoleHCMAdmin, "comp_admin", "manager", "hr_partner", "hiring_manager", "payroll_manager", "worker_self", "finance_partner", "intent_author", "promotion_operator")
 	}
 	if hasAnyProductRole(roles, RoleHCMAdmin, "comp_admin") {
 		return true
@@ -101,6 +126,8 @@ func buildRegisteredModules() []PageModule {
 		pageModule(PageDefinition{ID: PageMyself, Route: "/workspace/app/myself", Label: "Myself", Icon: "people", Title: "Myself", Subtitle: "Your employment, organization, payroll, and workflow information.", LabelKey: "page.myself.label", TitleKey: "page.myself.title", SubtitleKey: "page.myself.subtitle", SearchTerms: []string{"me", "my profile", "self service", "employment", "payroll", "compensation", "salary", "payslip", "personal information"}, PrimaryNav: true, Admitted: true, NavigationPublished: true, RenderOrder: 12}, myselfPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceWorkerFinance}, routeProfileFor("/workspace/app/myself"), dataProfileFor("/workspace/app/myself")),
 		pageModule(PageDefinition{ID: PageJourneys, Route: "/workspace/app/journeys", Label: "Journeys", Icon: "journeys", Title: "Journeys", Subtitle: "Start, follow, and complete governed employee workflows.", LabelKey: "page.journeys.label", TitleKey: "page.journeys.title", SubtitleKey: "page.journeys.subtitle", SearchTerms: []string{"workflow", "promotion", "request", "approval", "lifecycle"}, PrimaryNav: true, Admitted: true, NavigationPublished: true, RenderOrder: 15}, journeysPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceManager}, routeProfileFor("/workspace/app/journeys"), dataProfileFor("/workspace/app/journeys")),
 		pageModule(PageDefinition{ID: PageWorkflowDesigner, Route: "/workspace/app/admin/workflows", Label: "Workflow editor", Icon: "studio", Title: "Workflow Designer", Subtitle: "Review published workflow paths and build controlled workflow drafts.", LabelKey: "page.workflow_designer.label", TitleKey: "page.workflow_designer.title", SubtitleKey: "page.workflow_designer.subtitle", SearchTerms: []string{"workflow", "designer", "editor", "automation", "process", "blocks", "canvas", "drafts"}, PrimaryNav: true, Admitted: true, NavigationPublished: true, RenderOrder: 16}, workflowDesignerPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceWorkflowAuthor}, routeProfileFor("/workspace/app/admin/workflows"), dataProfileFor("/workspace/app/admin/workflows")),
+		pageModule(PageDefinition{ID: PageChat, Route: "/workspace/app/chat", Label: "Chat", Icon: "chat", Title: "Chat", Subtitle: "Talk with coworkers in authorized channels and conversations.", LabelKey: "page.chat.label", TitleKey: "page.chat.title", SubtitleKey: "page.chat.subtitle", SearchTerms: []string{"messages", "channels", "direct messages", "conversation", "collaboration"}, PrimaryNav: true, Admitted: true, NavigationPublished: true, OwnsHeading: true, FullBleed: true, RenderOrder: 18}, chatPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudiencePublic}, routeProfileFor("/workspace/app/chat"), dataProfileFor("/workspace/app/chat")),
+		pageModule(PageDefinition{ID: PageDocs, Route: "/workspace/app/docs", Label: "Docs", Icon: "help", Title: "Documents", Subtitle: "Browse documents you are authorized to read.", LabelKey: "page.docs.label", TitleKey: "page.docs.title", SubtitleKey: "page.docs.subtitle", SearchTerms: []string{"documents", "knowledge", "markdown", "team docs", "channel docs"}, PrimaryNav: true, Admitted: true, NavigationPublished: true, RenderOrder: 19}, docsPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceWorker}, routeProfileFor("/workspace/app/docs"), dataProfileFor("/workspace/app/docs")),
 		pageModule(PageDefinition{ID: PageWork, Route: "/workspace/app/work", Label: "My Work", Icon: "work", Title: "My Work", Subtitle: "Live promotion journeys that need attention.", LabelKey: "page.work.label", TitleKey: "page.work.title", SubtitleKey: "page.work.subtitle", SearchTerms: []string{"tasks", "inbox", "queue", "assigned", "pending", "approvals"}, PrimaryNav: true, Admitted: true, NavigationPublished: true, RenderOrder: 20}, workPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceManagerFinance}, routeProfileFor("/workspace/app/work"), dataProfileFor("/workspace/app/work")),
 		pageModule(PageDefinition{ID: PageHistory, Route: "/workspace/app/history", Label: "Work History", Icon: "history", Title: "Workflow History", Subtitle: "Review completed, rejected, and failed workflow records.", LabelKey: "page.history.label", TitleKey: "page.history.title", SubtitleKey: "page.history.subtitle", SearchTerms: []string{"past", "completed", "rejected", "failed", "audit", "records"}, ParentNav: PageWork, Admitted: true, NavigationPublished: true, RenderOrder: 25}, historyPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceManagerFinance}, routeProfileFor("/workspace/app/history"), dataProfileFor("/workspace/app/history")),
 		pageModule(PageDefinition{ID: PagePeople, Route: "/workspace/app/people", Label: "People", Icon: "people", Title: "People", Subtitle: "Find employees and start the work you are authorized to manage.", LabelKey: "page.people.label", TitleKey: "page.people.title", SubtitleKey: "page.people.subtitle", SearchTerms: []string{"employees", "workers", "directory", "profiles", "staff", "team", "colleagues"}, PrimaryNav: true, Admitted: true, NavigationPublished: true, RenderOrder: 30}, peoplePageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceManager}, routeProfileFor("/workspace/app/people"), dataProfileFor("/workspace/app/people")),
@@ -222,6 +249,7 @@ func buildRegisteredModules() []PageModule {
 		pageModule(PageDefinition{ID: PageAssistiveTech, Route: "/workspace/app/admin/assistive-tech", Label: "Assistive tech", Icon: "admin", Title: "Assistive-technology compatibility", Subtitle: "Qualify compatibility through the governed qualification service.", ParentNav: PageAdmin, LabelKey: "page.assistive_tech.label", TitleKey: "page.assistive_tech.title", SubtitleKey: "page.assistive_tech.subtitle", SearchTerms: []string{"assistive", "screen reader", "qualify", "a11y", "admin"}, RenderOrder: 171}, assistiveTechPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/assistive-tech"), dataProfileFor("/workspace/app/admin/assistive-tech")),
 		pageModule(PageDefinition{ID: PageDisasterRecovery, Route: "/workspace/app/admin/disaster-recovery", Label: "Disaster recovery", Icon: "admin", Title: "Frontend disaster recovery", Subtitle: "Prove recovery through the governed recovery service.", ParentNav: PageAdmin, LabelKey: "page.disaster_recovery.label", TitleKey: "page.disaster_recovery.title", SubtitleKey: "page.disaster_recovery.subtitle", SearchTerms: []string{"disaster", "recovery", "failover", "prove", "admin"}, RenderOrder: 172}, disasterRecoveryPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/disaster-recovery"), dataProfileFor("/workspace/app/admin/disaster-recovery")),
 		pageModule(PageDefinition{ID: PageReleaseGate, Route: "/workspace/app/admin/release-gate", Label: "Release gate", Icon: "admin", Title: "Production frontend release gate", Subtitle: "Gate the release through the governed release service.", ParentNav: PageAdmin, LabelKey: "page.release_gate.label", TitleKey: "page.release_gate.title", SubtitleKey: "page.release_gate.subtitle", SearchTerms: []string{"release", "gate", "production", "approve", "admin"}, RenderOrder: 173}, releaseGatePageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/release-gate"), dataProfileFor("/workspace/app/admin/release-gate")),
+		pageModule(PageDefinition{ID: PageChatSettings, Route: "/workspace/app/admin/chat-settings", Label: "Chat settings", Icon: "chat", Title: "Chat settings", Subtitle: "Manage tenant-wide chat retention settings.", LabelKey: "page.chat_settings.label", TitleKey: "page.chat_settings.title", SubtitleKey: "page.chat_settings.subtitle", SearchTerms: []string{"chat", "retention", "messages", "storage"}, ParentNav: PageAdmin, Admitted: true, RenderOrder: 174}, chatSettingsPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/chat-settings"), dataProfileFor("/workspace/app/admin/chat-settings")),
 	}
 	if err := ValidatePageModules(modules); err != nil {
 		panic(err)

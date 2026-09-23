@@ -8,6 +8,10 @@ type PageRequest struct {
 	Page               PageID
 	Locale             string
 	Query              string
+	DocumentID         string
+	DocumentQuery      string
+	DocumentCollection string
+	DocumentPageToken  string
 	RolePage           int
 	PeoplePage         int
 	PeoplePageSize     int
@@ -15,6 +19,7 @@ type PageRequest struct {
 	PeopleLocation     string
 	PeopleEligibleOnly bool
 	PeopleSort         string
+	PeopleColumns      string
 	PeopleDirection    string
 	OrganizationView   string
 	WorkflowQuery      string
@@ -49,6 +54,10 @@ type PageRequest struct {
 func ApplyRequest(view View, request PageRequest) View {
 	view = ApplyLocale(view, ResolveProductLocale(request.Locale))
 	view.Query = strings.TrimSpace(request.Query)
+	view.DocumentID = strings.TrimSpace(request.DocumentID)
+	view.DocumentQuery = strings.TrimSpace(request.DocumentQuery)
+	view.DocumentCollection = strings.TrimSpace(request.DocumentCollection)
+	view.DocumentPageToken = strings.TrimSpace(request.DocumentPageToken)
 	view.RolePage = request.RolePage
 	if view.RolePage < 1 {
 		view.RolePage = 1
@@ -62,6 +71,7 @@ func ApplyRequest(view View, request PageRequest) View {
 	view.PeopleLocation = strings.TrimSpace(request.PeopleLocation)
 	view.PeopleEligibleOnly = request.PeopleEligibleOnly
 	view.PeopleSort = normalizePeopleSort(request.PeopleSort)
+	view.PeopleColumns = NormalizePeopleColumns(request.PeopleColumns)
 	view.PeopleDirection = normalizePeopleDirection(request.PeopleDirection)
 	view.OrganizationView = normalizeOrganizationView(request.OrganizationView)
 	routeProfile, _, hasProfile := PageProfiles(view.Page)

@@ -1,6 +1,7 @@
 package productui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -29,5 +30,16 @@ func TestNotificationMenuPublishesItsTransientPopoverBehavior(t *testing.T) {
 		if !strings.Contains(doc, want) {
 			t.Errorf("locale menu did not use shared popover contract %q", want)
 		}
+	}
+}
+
+func TestTodo_NAAS_001_NotificationDisclosureAccessibility(t *testing.T) {
+	css := PopoverStylesheet()
+	rule := regexp.MustCompile(`\.popover-root\[open\]::details-content\{[^}]*\}`).FindString(css)
+	if !strings.Contains(rule, "display:contents") || !strings.Contains(rule, "content-visibility:visible") {
+		t.Fatal("floating notification text can disappear from the accessibility tree")
+	}
+	if strings.Contains(css, `.popover-root::details-content{display:contents`) {
+		t.Fatal("closed notifications must retain native hiding")
 	}
 }

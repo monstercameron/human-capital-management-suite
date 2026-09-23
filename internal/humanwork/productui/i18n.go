@@ -106,8 +106,9 @@ type ProductCatalogCoverageReport struct {
 // ProductCatalogKeys returns all reviewed English semantic keys in stable
 // order. The returned slice is independent and may be safely modified.
 func ProductCatalogKeys() []string {
-	keys := make([]string, 0, len(productMessages[DefaultProductLocale]))
-	for key := range productMessages[DefaultProductLocale] {
+	base := productCatalogMessages(DefaultProductLocale, productMessages[DefaultProductLocale])
+	keys := make([]string, 0, len(base))
+	for key := range base {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
@@ -253,7 +254,7 @@ func (c LocaleContext) Plural(key string, count int64) string {
 	return result.Text
 }
 
-var productMessages = map[string]map[string]localize.Message{
+var productMessages = withFeatureMessages(map[string]map[string]localize.Message{
 	"en-US": {
 		"workflow_viewer.publication_status":        {Text: "Publication"},
 		"workflow_viewer.version":                   {Text: "Version"},
@@ -563,6 +564,8 @@ var productMessages = map[string]map[string]localize.Message{
 		"home.action_promote": {Text: "Choose an employee to promote"}, "home.action_find": {Text: "Find an employee"}, "home.action_profile": {Text: "Open my profile"}, "home.action_time_off": {Text: "Request time off"}, "home.action_pay_statement": {Text: "View pay statement"},
 		"page.myself.label": {Text: "Myself"}, "page.myself.title": {Text: "Myself"}, "page.myself.subtitle": {Text: "Your employment, organization, payroll, and workflow information."},
 		"page.journeys.label": {Text: "Journeys"}, "page.journeys.title": {Text: "Journeys"}, "page.journeys.subtitle": {Text: "Start, follow, and complete governed employee workflows."},
+		"page.chat.label": {Text: "Chat"}, "page.chat.title": {Text: "Chat"}, "page.chat.subtitle": {Text: "Talk with coworkers in authorized channels and conversations."},
+		"page.docs.label": {Text: "Docs"}, "page.docs.title": {Text: "Documents"}, "page.docs.subtitle": {Text: "Browse documents you are authorized to read."},
 
 		"page.work.label": {Text: "My Work"}, "page.work.title": {Text: "My Work"}, "page.work.subtitle": {Text: "Decisions and tasks assigned to you. Track requests you can see in Journeys."},
 		"page.history.label": {Text: "Work History"}, "page.history.title": {Text: "Workflow History"}, "page.history.subtitle": {Text: "Review completed, rejected, and failed workflow records."},
@@ -853,6 +856,7 @@ var productMessages = map[string]map[string]localize.Message{
 		"worker_ids.format_title": {Text: "Number format"}, "worker_ids.format_help": {Text: "Rules apply to new workers only; existing identifiers never change."}, "worker_ids.prefix": {Text: "Prefix"}, "worker_ids.prefix_help": {Text: "Up to 12 letters or digits."}, "worker_ids.suffix": {Text: "Suffix"}, "worker_ids.suffix_help": {Text: "Optional employment or company marker."}, "worker_ids.separator": {Text: "Separator"}, "worker_ids.digits": {Text: "Maximum sequence digits"}, "worker_ids.digits_help": {Text: "One to twelve digits; allocation stops before overflow."}, "worker_ids.start": {Text: "Starting number"}, "worker_ids.start_help": {Text: "Used only before this organization issues its first number."}, "worker_ids.increment": {Text: "Increment"}, "worker_ids.increment_help": {Text: "The step between eligible sequence values."}, "worker_ids.padding": {Text: "Number width"}, "worker_ids.year": {Text: "Hire-year segment"}, "worker_ids.unit": {Text: "Organization-unit segment"}, "worker_ids.check": {Text: "Error-detection digit"}, "worker_ids.excluded": {Text: "Reserved numbers or ranges"}, "worker_ids.excluded_help": {Text: "Comma-separated values such as 13,100-199,666."}, "worker_ids.save": {Text: "Save worker ID rules"}, "worker_ids.status": {Text: "Changes are organization-wide and version checked."},
 		"worker_ids.saved": {Text: "Saved"}, "worker_ids.unsaved": {Text: "Unsaved changes"}, "worker_ids.no_unsaved": {Text: "No unsaved changes"}, "worker_ids.changes_to_apply": {Text: "Changes to apply"}, "worker_ids.change_identity": {Text: "Number prefix, suffix, or separator"}, "worker_ids.change_sequence": {Text: "Sequence allocation"}, "worker_ids.change_format": {Text: "Display format"}, "worker_ids.change_reserved": {Text: "Reserved numbers"},
 		"worker_ids.unique": {Text: "Atomic uniqueness"}, "worker_ids.preview": {Text: "Format preview"}, "worker_ids.preview_help": {Text: "Preview of your current inputs using the current year and CARE as a sample unit. No numbers are issued. Save to apply changes."}, "worker_ids.next": {Text: "Next sequence"}, "worker_ids.issued": {Text: "Numbers reserved"}, "worker_ids.non_reuse": {Text: "Reserved worker numbers are never reused. Failed or cancelled hiring workflows may intentionally leave gaps."},
+		"page.chat_settings.label": {Text: "Chat settings"}, "page.chat_settings.title": {Text: "Chat settings"}, "page.chat_settings.subtitle": {Text: "Manage tenant-wide chat retention settings."},
 		"page.appearance.label": {Text: "Brand & appearance"}, "page.appearance.title": {Text: "Brand & appearance"}, "page.appearance.subtitle": {Text: "Shape a consistent workspace identity with governed, accessible theme choices."},
 		"page.studio.label": {Text: "Experience Studio"}, "page.studio.title": {Text: "Experience Studio"}, "page.studio.subtitle": {Text: "Customer page configuration requires its governed service."},
 		"page.workflow_designer.label": {Text: "Workflow editor"}, "page.workflow_designer.title": {Text: "Workflow Designer"}, "page.workflow_designer.subtitle": {Text: "Review published workflow paths and build controlled workflow drafts."},
@@ -1209,19 +1213,20 @@ var productMessages = map[string]map[string]localize.Message{
 		"workflow.no_promotion_path":         {Text: "Für diese Person ist keine geeignete Beförderungsrolle veröffentlicht. Bitten Sie Ihre Personaladministration, die Laufbahn und das Gehaltsband zu prüfen."},
 		"workflow.promotion_active_conflict": {Text: "Für diese Person läuft bereits eine aktive Beförderung. Öffnen Sie diese, anstatt eine neue zu starten."},
 		"workflow.promotion_name":            {Text: "Beförderung"}, "workflow.promotion_category": {Text: "Karriere & Vergütung"}, "workflow.promotion_description": {Text: "Beantragen Sie eine Änderung von Stelle, Stufe, Position oder Vergütung."},
-		"workflow.promotion_withheld":  {Text: "Für das Starten einer Beförderung fehlt dieser Sitzung die Berechtigung."},
-		"help.choose_employee":         {Text: "Mitarbeitende auswählen und Workflow-Optionen prüfen"},
-		"help.review_requests":         {Text: "Beförderungsanträge und ihren Fortschritt prüfen"},
-		"help.past_decisions":          {Text: "Frühere Entscheidungen im Workflow-Verlauf ansehen"},
-		"help.account_settings":        {Text: "Konto und Einstellungen prüfen"},
-		"help.tasks":                   {Text: "Was möchten Sie tun?"},
-		"help.my_profile":              {Text: "Eigene Beschäftigungsdaten, Vergütung und Workflow-Verlauf ansehen"},
-		"help.organization":            {Text: "Sichtbare Organisation und Berichtslinien erkunden"},
-		"help.access_title":            {Text: "Benötigen Sie Zugriff oder eine Änderung Ihrer Daten?"},
-		"help.access_detail":           {Text: "Ihre zugewiesenen Rollen bestimmen, welche Seiten und Aktionen verfügbar sind. Wenn Sie eine Änderung benötigen und kein Workflow verfügbar ist, kontaktieren Sie Ihre Personaladministration über den üblichen Unternehmenskanal. Beschäftigungs- und Vergütungsdaten können hier nicht direkt bearbeitet werden. Supportanfragen können in diesem Arbeitsbereich nicht eingereicht werden."},
-		"help.promotion_title":         {Text: "Beförderung: Einrichtung und Unterstützung"},
-		"help.promotion_detail":        {Text: "Eine leere Auswahl für die Beförderungsrolle kann bedeuten, dass für die aktuelle Stelle und Stufe keine geeignete Folgestelle veröffentlicht ist. Bitten Sie Ihre Personaladministration, die Laufbahn und das Zielgehaltsband zu prüfen. Eine Änderung der Zugriffsrollen erstellt keinen Beförderungspfad. Supportanfragen können in diesem Arbeitsbereich nicht eingereicht werden."},
-		"page.help.subtitle":           {Text: "Finden Sie Ihren nächsten Schritt und erfahren Sie, welche Zugriffsrechte Sie haben."},
+		"workflow.promotion_withheld": {Text: "Für das Starten einer Beförderung fehlt dieser Sitzung die Berechtigung."},
+		"help.choose_employee":        {Text: "Mitarbeitende auswählen und Workflow-Optionen prüfen"},
+		"help.review_requests":        {Text: "Beförderungsanträge und ihren Fortschritt prüfen"},
+		"help.past_decisions":         {Text: "Frühere Entscheidungen im Workflow-Verlauf ansehen"},
+		"help.account_settings":       {Text: "Konto und Einstellungen prüfen"},
+		"help.tasks":                  {Text: "Was möchten Sie tun?"},
+		"help.my_profile":             {Text: "Eigene Beschäftigungsdaten, Vergütung und Workflow-Verlauf ansehen"},
+		"help.organization":           {Text: "Sichtbare Organisation und Berichtslinien erkunden"},
+		"help.access_title":           {Text: "Benötigen Sie Zugriff oder eine Änderung Ihrer Daten?"},
+		"help.access_detail":          {Text: "Ihre zugewiesenen Rollen bestimmen, welche Seiten und Aktionen verfügbar sind. Wenn Sie eine Änderung benötigen und kein Workflow verfügbar ist, kontaktieren Sie Ihre Personaladministration über den üblichen Unternehmenskanal. Beschäftigungs- und Vergütungsdaten können hier nicht direkt bearbeitet werden. Supportanfragen können in diesem Arbeitsbereich nicht eingereicht werden."},
+		"help.promotion_title":        {Text: "Beförderung: Einrichtung und Unterstützung"},
+		"help.promotion_detail":       {Text: "Eine leere Auswahl für die Beförderungsrolle kann bedeuten, dass für die aktuelle Stelle und Stufe keine geeignete Folgestelle veröffentlicht ist. Bitten Sie Ihre Personaladministration, die Laufbahn und das Zielgehaltsband zu prüfen. Eine Änderung der Zugriffsrollen erstellt keinen Beförderungspfad. Supportanfragen können in diesem Arbeitsbereich nicht eingereicht werden."},
+		"page.help.subtitle":          {Text: "Finden Sie Ihren nächsten Schritt und erfahren Sie, welche Zugriffsrechte Sie haben."},
+		"page.docs.label":             {Text: "Dokumente"}, "page.docs.title": {Text: "Dokumente"}, "page.docs.subtitle": {Text: "Dokumente durchsuchen, für die Sie eine Leseberechtigung haben."},
 		"roles.no_explicit_assignment": {Text: "Keine explizite Zuweisung"},
 		"roles.per_worker_guidance":    {Text: "Rollenänderungen werden pro Person gespeichert und vom Server geprüft."},
 		"context_switcher.single":      {Text: "Nur ein autorisierter Kontext ist verfügbar"}, "context_switcher.switching": {Text: "Arbeitsbereichskontext wird gewechselt…"}, "context_switcher.failed": {Text: "Arbeitsbereich konnte nicht gewechselt werden. Versuchen Sie es erneut."}, "context_switcher.switch_to": {Text: "Zu {tenant}, {acting} wechseln"}, "context_switcher.current_context": {Text: "{tenant}, {acting}, aktuell"}, "context_switcher.elevated": {Text: "Erweiterter Zugriff"},
@@ -1622,18 +1627,19 @@ var productMessages = map[string]map[string]localize.Message{
 		"promotion_review.target_manager": {Text: "يقدم التقارير إلى {manager}"}, "promotion_review.no_target_manager": {Text: "لم يتم تحديد مدير مستهدف"}, "promotion_review.manager_unchanged": {Text: "يحتفظ بالمدير الحالي"}, "promotion_review.manager_unchanged_named": {Text: "يستمر في تقديم التقارير إلى {manager}"}, "promotion_review.target_organization": {Text: "المؤسسة: {organization}"}, "promotion_review.target_position": {Text: "المنصب: {position}"}, "promotion_review.affected_direct_reports": {Plural: map[string]string{"one": "سيتأثر {count} مرؤوس مباشر", "other": "سيتأثر {count} من المرؤوسين المباشرين"}}, "promotion_review.no_affected_reports": {Text: "لا يوجد مرؤوسون مباشرون متأثرون"}, "promotion_review.cycle_safe": {Text: "لم يتم العثور على تعارضات في تسلسل الإدارة"}, "promotion_review.cycle_unsafe": {Text: "تعذر التأكد من خلو هذا التغيير من حلقة في تسلسل الإدارة"},
 		"compensation_guardrail.title": {Text: "الضوابط الإرشادية للتعويضات"}, "compensation_guardrail.current_pay": {Text: "الراتب الحالي"}, "compensation_guardrail.permitted_increase": {Text: "أكبر زيادة يسمح بها النطاق"}, "compensation_guardrail.minimum": {Text: "الحد الأدنى لهذا الدور"}, "compensation_guardrail.maximum": {Text: "الحد الأقصى لهذا الدور"}, "compensation_guardrail.band_position": {Text: "موضع الراتب الحالي ضمن النطاق"}, "compensation_guardrail.effective_date_basis": {Text: "النطاق ساري اعتبارًا من"}, "compensation_guardrail.band_position.below_minimum": {Text: "أقل من الحد الأدنى"}, "compensation_guardrail.band_position.in_band": {Text: "ضمن النطاق"}, "compensation_guardrail.band_position.above_maximum": {Text: "أعلى من الحد الأقصى"}, "compensation_guardrail.band_position.unspecified": {Text: "غير محدد"}, "compensation_guardrail.unavailable_action": {Text: "إدخال الراتب المقترح"}, "compensation_guardrail.review_unavailable.not_authorized": {Text: "لا تُعرض عليك تفاصيل الأجر."}, "compensation_guardrail.review_unavailable.band_unresolved": {Text: "لا يوجد نطاق راتب منشور لهذا الدور."}, "compensation_guardrail.unavailable_reason.not_authorized": {Text: "غير مصرح لك بعرض أو تحديد التعويضات لهذه الترقية."}, "compensation_guardrail.unavailable_reason.band_unresolved": {Text: "لا يوجد نطاق راتب منشور لهذا الدور بعد، لذا لا يمكن إدخال مبلغ."}, "compensation_guardrail.unavailable_reason.unspecified": {Text: "تفاصيل التعويضات غير متاحة لهذه الترقية."},
 		"promotion_validation.current_amount_invalid": {Text: "يجب أن يكون الراتب الأساسي الحالي مبلغًا صالحًا أكبر من صفر."}, "promotion_validation.proposed_amount_invalid": {Text: "يجب أن يكون الراتب الأساسي المقترح مبلغًا صالحًا أكبر من صفر."}, "promotion_validation.currency_required": {Text: "اختر عملة للراتب المقترح."}, "promotion_validation.pay_basis_required": {Text: "اختر كيفية قياس الراتب المقترح (سنويًا أو بالساعة على سبيل المثال)."}, "promotion_validation.currency_change_not_supported": {Text: "تغيير العملة أثناء الترقية غير مدعوم حاليًا. أبقِ العملة الحالية."}, "promotion_validation.not_a_raise": {Text: "يجب أن يكون الراتب الأساسي المقترح أعلى من الراتب الأساسي الحالي."}, "promotion_validation.business_reason_required": {Text: "أدخل سببًا تجاريًا لهذه الترقية."}, "promotion_validation.effective_date_required": {Text: "اختر تاريخ سريان صالحًا."}, "promotion_validation.effective_date_too_far_past": {Text: "اختر تاريخ سريان أقرب إلى اليوم."}, "promotion_validation.increase_over_threshold": {Text: "هذه الزيادة أكبر من المعتاد وستحتاج إلى مراجعة إضافية."}, "promotion_validation.subject_not_disclosable": {Text: "غير مصرح لك بعرض هذه الترقية أو اقتراحها."}, "promotion_validation.required_field_denied": {Text: "غير مصرح لك بعرض تفاصيل تحتاجها هذه الترقية."}, "promotion_validation.required_field_unavailable": {Text: "تعذّرت قراءة تفاصيل تحتاجها هذه الترقية. حاول مرة أخرى لاحقًا."}, "promotion_validation.worker_not_active": {Text: "حالة التوظيف الحالية لهذا الموظف لا تسمح بالترقية الآن."}, "promotion_validation.target_job_required": {Text: "اختر الوظيفة المستهدفة لهذه الترقية."}, "promotion_validation.target_grade_required": {Text: "اختر الدرجة المستهدفة لهذه الترقية."}, "promotion_validation.same_grade": {Text: "الدرجة المستهدفة مطابقة للدرجة الحالية. اختر درجة أعلى لتكون ترقية."}, "promotion_validation.effective_before_hire": {Text: "لا يمكن أن يسبق تاريخ السريان تاريخ التعيين."}, "promotion_validation.pay_band_not_found": {Text: "لا يوجد نطاق راتب منشور للدور المستهدف بعد."}, "promotion_validation.below_band_minimum": {Text: "يجب ألا يقل الراتب الأساسي المقترح عن {amount}، الحد الأدنى لهذا الدور."}, "promotion_validation.below_band_minimum_generic": {Text: "الراتب الأساسي المقترح أقل من الحد الأدنى لهذا الدور."}, "promotion_validation.above_band_maximum": {Text: "يجب ألا يزيد الراتب الأساسي المقترح عن {amount}، الحد الأقصى لهذا الدور."}, "promotion_validation.above_band_maximum_generic": {Text: "الراتب الأساسي المقترح أعلى من الحد الأقصى لهذا الدور."}, "promotion_validation.budget_authority_missing": {Text: "هذه الترقية تتطلب مرجع ميزانية القوى العاملة."}, "promotion_validation.budget_observation_only": {Text: "ميزانية القوى العاملة المعروضة هي ملاحظة وليست حجزًا."}, "promotion_validation.budget_observed_short": {Text: "قد لا تغطي ميزانية القوى العاملة الملاحَظة تكلفة هذه الترقية."}, "promotion_validation.target_manager_not_found": {Text: "اختر مديرًا مستهدفًا صالحًا لهذه الترقية."}, "promotion_validation.manager_relationship_cycle": {Text: "سيؤدي هذا التعيين إلى جعل الموظف مديرًا لمدير نفسه. اختر مديرًا آخر."}, "promotion_validation.manager_chain_unresolved": {Text: "تعذّر تحديد التسلسل الإداري للمدير المستهدف."}, "promotion_validation.target_position_not_found": {Text: "اختر منصبًا مستهدفًا صالحًا لهذه الترقية."}, "promotion_validation.target_position_incompatible": {Text: "المنصب المختار غير متوافق مع الوظيفة والدرجة المستهدفتين."}, "promotion_validation.target_position_not_effective": {Text: "المنصب المختار غير متاح في تاريخ السريان المحدد."}, "promotion_validation.target_position_at_capacity": {Text: "لم تعد هناك سعة متبقية في المنصب المختار."}, "promotion_validation.target_position_reservation_conflict": {Text: "تم للتو حجز المنصب المختار من قِبل طلب آخر. اختر منصبًا آخر."}, "promotion_validation.unrecognized_reason": {Text: "تحقق من هذه القيمة وحاول مرة أخرى."}, "promotion_validation.diagnostics_disclosure": {Text: "التشخيص"}, "promotion_validation.support_reference_label": {Text: "مرجع الدعم"},
-		"help.choose_employee":         {Text: "اختر موظفًا وراجع خيارات سير العمل"},
-		"help.review_requests":         {Text: "راجع طلبات الترقية وتقدمها"},
-		"help.past_decisions":          {Text: "راجع القرارات السابقة في سجل سير العمل"},
-		"help.account_settings":        {Text: "راجع حسابك وتفضيلاتك"},
-		"help.tasks":                   {Text: "ماذا تريد أن تفعل؟"},
-		"help.my_profile":              {Text: "اعرض بيانات توظيفك وراتبك وسجل سير العمل"},
-		"help.organization":            {Text: "استكشف المؤسسة وخطوط الإشراف المتاحة لك"},
-		"help.access_title":            {Text: "هل تحتاج إلى صلاحية وصول أو تعديل بياناتك؟"},
-		"help.access_detail":           {Text: "تحدد الأدوار المسندة إليك الصفحات والإجراءات المتاحة. إذا احتجت إلى تعديل ولم يتوفر سير عمل، فتواصل مع مسؤول الموارد البشرية عبر قناة التواصل المعتادة في شركتك. لا يمكن تعديل بيانات التوظيف والرواتب مباشرة هنا. لا يمكن إرسال تذاكر الدعم من مساحة العمل هذه."},
-		"help.promotion_title":         {Text: "إعداد الترقية والدعم"},
-		"help.promotion_detail":        {Text: "قد يعني فراغ قائمة أدوار الترقية عدم نشر وظيفة تالية مؤهلة لوظيفة الموظف ودرجته الحالية. اطلب من مسؤول الموارد البشرية مراجعة السلم الوظيفي ونطاق الراتب المستهدف. تغيير أدوار الوصول لا ينشئ مسار ترقية. لا يمكن إرسال تذاكر الدعم من مساحة العمل هذه."},
-		"page.help.subtitle":           {Text: "حدد خطوتك التالية وتعرف على صلاحيات الوصول المتاحة لك."},
+		"help.choose_employee":  {Text: "اختر موظفًا وراجع خيارات سير العمل"},
+		"help.review_requests":  {Text: "راجع طلبات الترقية وتقدمها"},
+		"help.past_decisions":   {Text: "راجع القرارات السابقة في سجل سير العمل"},
+		"help.account_settings": {Text: "راجع حسابك وتفضيلاتك"},
+		"help.tasks":            {Text: "ماذا تريد أن تفعل؟"},
+		"help.my_profile":       {Text: "اعرض بيانات توظيفك وراتبك وسجل سير العمل"},
+		"help.organization":     {Text: "استكشف المؤسسة وخطوط الإشراف المتاحة لك"},
+		"help.access_title":     {Text: "هل تحتاج إلى صلاحية وصول أو تعديل بياناتك؟"},
+		"help.access_detail":    {Text: "تحدد الأدوار المسندة إليك الصفحات والإجراءات المتاحة. إذا احتجت إلى تعديل ولم يتوفر سير عمل، فتواصل مع مسؤول الموارد البشرية عبر قناة التواصل المعتادة في شركتك. لا يمكن تعديل بيانات التوظيف والرواتب مباشرة هنا. لا يمكن إرسال تذاكر الدعم من مساحة العمل هذه."},
+		"help.promotion_title":  {Text: "إعداد الترقية والدعم"},
+		"help.promotion_detail": {Text: "قد يعني فراغ قائمة أدوار الترقية عدم نشر وظيفة تالية مؤهلة لوظيفة الموظف ودرجته الحالية. اطلب من مسؤول الموارد البشرية مراجعة السلم الوظيفي ونطاق الراتب المستهدف. تغيير أدوار الوصول لا ينشئ مسار ترقية. لا يمكن إرسال تذاكر الدعم من مساحة العمل هذه."},
+		"page.help.subtitle":    {Text: "حدد خطوتك التالية وتعرف على صلاحيات الوصول المتاحة لك."},
+		"page.docs.label":       {Text: "المستندات"}, "page.docs.title": {Text: "المستندات"}, "page.docs.subtitle": {Text: "تصفح المستندات المصرح لك بقراءتها."},
 		"roles.no_explicit_assignment": {Text: "لا يوجد تعيين صريح"},
 		"roles.per_worker_guidance":    {Text: "تُحفظ تغييرات الأدوار لكل موظف ويتحقق منها الخادم."},
 		"context_switcher.single":      {Text: "يتوفر سياق مصرح به واحد فقط"}, "context_switcher.switching": {Text: "جارٍ تبديل سياق مساحة العمل…"}, "context_switcher.failed": {Text: "تعذر تبديل مساحة العمل. حاول مرة أخرى."}, "context_switcher.switch_to": {Text: "التبديل إلى {tenant}، {acting}"}, "context_switcher.current_context": {Text: "{tenant}، {acting}، الحالي"}, "context_switcher.elevated": {Text: "وصول مرفوع الصلاحية"},
@@ -1799,6 +1805,23 @@ var productMessages = map[string]map[string]localize.Message{
 		"appearance.color_mode":   {Text: "نمط الألوان"}, "appearance.color_mode_help": {Text: "اتبع إعداد الجهاز أو اختر مساحة عمل فاتحة أو داكنة باستمرار."},
 		"appearance.color_mode_system": {Text: "استخدام إعداد النظام"}, "appearance.color_mode_system_help": {Text: "اتبع هذا الجهاز وحدّث تلقائيًا"}, "appearance.color_mode_light": {Text: "فاتح"}, "appearance.color_mode_light_help": {Text: "استخدم مساحة العمل الفاتحة للجميع"}, "appearance.color_mode_dark": {Text: "داكن"}, "appearance.color_mode_dark_help": {Text: "استخدم مساحة العمل الداكنة للجميع"},
 	},
+})
+
+// withFeatureMessages adds the English copy that features keep beside their
+// own components to the reviewed default catalog. It runs once, while the
+// catalog variable is being initialised, and a key defined twice is a
+// programming error rather than a silent override.
+func withFeatureMessages(catalog map[string]map[string]localize.Message) map[string]map[string]localize.Message {
+	base := catalog[DefaultProductLocale]
+	for _, feature := range []map[string]localize.Message{workflowEditorMessages(), workflowNotifyMessages(), chatMessages()} {
+		for key, message := range feature {
+			if _, exists := base[key]; exists {
+				panic("productui: duplicate catalog key " + key)
+			}
+			base[key] = message
+		}
+	}
+	return catalog
 }
 
 var productMessageRegistry = func() *localize.Registry {
@@ -1819,6 +1842,16 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 	messages := make(map[string]localize.Message, len(source))
 	for key, message := range source {
 		messages[key] = message
+	}
+	switch locale {
+	case "de-DE":
+		messages["page.chat_settings.label"] = localize.Message{Text: "Chat-Einstellungen"}
+		messages["page.chat_settings.title"] = localize.Message{Text: "Chat-Einstellungen"}
+		messages["page.chat_settings.subtitle"] = localize.Message{Text: "Verwalten Sie die mandantenweiten Einstellungen zur Chat-Aufbewahrung."}
+	case "ar":
+		messages["page.chat_settings.label"] = localize.Message{Text: "إعدادات الدردشة"}
+		messages["page.chat_settings.title"] = localize.Message{Text: "إعدادات الدردشة"}
+		messages["page.chat_settings.subtitle"] = localize.Message{Text: "أدر إعدادات الاحتفاظ برسائل الدردشة على مستوى المستأجر."}
 	}
 	for key, message := range messages {
 		if strings.HasSuffix(key, ".unavailable_detail") && key != "myself.unavailable_detail" {
@@ -1895,10 +1928,25 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 	for key, translated := range peoplePersonTranslations(locale) {
 		messages[key] = localize.Message{Text: translated}
 	}
+	for key, translated := range columnChooserTranslations(locale) {
+		messages[key] = localize.Message{Text: translated}
+	}
+	for key, translated := range workflowNotificationTranslations(locale) {
+		messages[key] = localize.Message{Text: translated}
+	}
 	for key, translated := range journeyTrackerTranslations(locale) {
 		messages[key] = localize.Message{Text: translated}
 	}
 	for key, translated := range homeOperationalTranslations(locale) {
+		messages[key] = localize.Message{Text: translated}
+	}
+	for key, translated := range workflowEditorTranslations(locale) {
+		messages[key] = translated
+	}
+	for key, translated := range workflowNotifyTranslations(locale) {
+		messages[key] = translated
+	}
+	for key, translated := range chatTranslations(locale) {
 		messages[key] = localize.Message{Text: translated}
 	}
 	switch locale {

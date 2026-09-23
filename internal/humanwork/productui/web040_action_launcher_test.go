@@ -186,7 +186,7 @@ func TestTodo_WEB_040(t *testing.T) {
 // so a per-worker action never embeds into a page's markup before the
 // viewer opens the control. UXSCAN-002 also clarifies the input's employee
 // search path; this digest pins that updated closed-state scaffold.
-const web040GoldenDigest = "5d96d8a51f4460c0b8670775f3eaedcbddea613fe54163f56bd57e709b24cb47"
+const web040GoldenDigest = "4a3368bdc360c19776ffe1d59d1696d280a4287c0f9049927adc6154d8222b2b"
 
 func TestTodo_WEB_040_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

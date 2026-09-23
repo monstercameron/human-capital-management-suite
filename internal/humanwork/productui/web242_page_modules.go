@@ -65,6 +65,7 @@ const (
 	RouteProfileRoles        RouteProfile = "roles"
 	RouteProfileStudio       RouteProfile = "studio"
 	RouteProfileWorkflow     RouteProfile = "workflow_designer"
+	RouteProfileDocs         RouteProfile = "docs"
 )
 
 // DataProfile identifies a reusable authorized dataset contract. It carries
@@ -140,12 +141,12 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.QueryKeys = []string{"history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
 	case RouteProfilePeople:
 		result.PeopleDirectory = true
-		result.QueryKeys = []string{"q", "page", "page_size", "team", "location", "eligible", "sort", "dir"}
+		result.QueryKeys = []string{"q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "columns"}
 	case RouteProfilePerson:
 		result.PeopleDirectory, result.Person = true, true
 		result.History, result.HistorySelectedPerson = true, true
 		result.WorkflowQuery = true
-		result.QueryKeys = []string{"person", "q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
+		result.QueryKeys = []string{"person", "q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "columns", "workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
 	case RouteProfileOrganization, RouteProfileOrgOutline:
 		result.Organization = true
 		result.CarriesDirectoryQuery = true
@@ -160,6 +161,8 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 	case RouteProfileWorkflow:
 		result.WorkflowDesigner = true
 		result.QueryKeys = []string{"workflow", "run", "draft", "node"}
+	case RouteProfileDocs:
+		result.QueryKeys = []string{"document", "docs_q", "collection", "cursor"}
 	}
 	result.QueryKeys = append(append([]string(nil), shellRouteStateKeys...), result.QueryKeys...)
 	return result
@@ -182,7 +185,7 @@ func (profile RouteProfile) ValidControlledValues(values url.Values) bool {
 		}
 		return value == ""
 	}
-	if !oneOf("sort", "name", "role", "team", "manager", "location") ||
+	if !oneOf("sort", peopleColumnIDs()...) ||
 		!oneOf("dir", "asc", "desc") || !oneOf("eligible", "1") ||
 		!oneOf("history_sort", "person", "change", "closed", "outcome") ||
 		!oneOf("history_dir", "asc", "desc") || !oneOf("outcome", "completed", "rejected", "failed") {
@@ -262,6 +265,7 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 		}
 		setProfileValue(values, provided, "eligible", eligible)
 		setProfileValue(values, provided, "sort", request.PeopleSort)
+		setProfileValue(values, provided, "columns", request.PeopleColumns)
 		setProfileValue(values, provided, "dir", request.PeopleDirection)
 		if spec.Person {
 			setProfileValue(values, provided, "person", request.SelectedPerson)
@@ -302,6 +306,12 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 		setProfileValue(values, provided, "draft", request.WorkflowDraftID)
 		setProfileValue(values, provided, "node", request.WorkflowNodeID)
 	}
+	if profile == RouteProfileDocs {
+		setProfileValue(values, provided, "document", request.DocumentID)
+		setProfileValue(values, provided, "docs_q", request.DocumentQuery)
+		setProfileValue(values, provided, "collection", request.DocumentCollection)
+		setProfileValue(values, provided, "cursor", request.DocumentPageToken)
+	}
 	return values
 }
 
@@ -333,6 +343,9 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 		}
 	}
 	if spec.PeopleDirectory {
+		if view.PeopleColumns != "" && view.PeopleColumns != defaultPeopleColumns {
+			values.Set("columns", NormalizePeopleColumns(view.PeopleColumns))
+		}
 		if view.Query != "" {
 			values.Set("q", view.Query)
 		}
@@ -428,6 +441,17 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 			values.Set("node", view.SelectedWorkflowNodeID)
 		}
 	}
+	if profile == RouteProfileDocs {
+		if view.DocumentQuery != "" {
+			values.Set("docs_q", view.DocumentQuery)
+		}
+		if view.DocumentCollection != "" {
+			values.Set("collection", view.DocumentCollection)
+		}
+		if view.DocumentPageToken != "" {
+			values.Set("cursor", view.DocumentPageToken)
+		}
+	}
 }
 
 // IdentityMatches reports whether warm content can remain visible while this
@@ -448,6 +472,9 @@ func (profile RouteProfile) IdentityMatches(view View, request PageRequest) bool
 		return false
 	}
 	if spec.WorkflowDesigner && !workflowDesignerIdentityMatches(view, request) {
+		return false
+	}
+	if profile == RouteProfileDocs && (!trimmedEqual(view.DocumentID, request.DocumentID) || !trimmedEqual(view.DocumentQuery, request.DocumentQuery) || !trimmedEqual(view.DocumentCollection, request.DocumentCollection) || !trimmedEqual(view.DocumentPageToken, request.DocumentPageToken)) {
 		return false
 	}
 	return true
@@ -496,6 +523,8 @@ func routeProfileFor(route string) RouteProfile {
 		return RouteProfileHome
 	case "/workspace/app/insights":
 		return RouteProfileInsights
+	case "/workspace/app/docs":
+		return RouteProfileDocs
 	case "/workspace/app/myself":
 		return RouteProfileMyself
 	case "/workspace/app/journeys":
@@ -729,7 +758,7 @@ func validRouteProfile(profile RouteProfile) bool {
 	case RouteProfileWorkspace, RouteProfileNested, RouteProfileSupport, RouteProfileAdmin, RouteProfilePublic,
 		RouteProfileHome, RouteProfileInsights, RouteProfileMyself, RouteProfileJourneys, RouteProfileWork,
 		RouteProfileHistory, RouteProfilePeople, RouteProfilePerson, RouteProfileOrganization, RouteProfileOrgOutline,
-		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow:
+		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow, RouteProfileDocs:
 		return true
 	default:
 		return false

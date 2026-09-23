@@ -17,7 +17,7 @@ var unpublishedAdminPages = []PageID{
 
 func TestTodo_UXAUDIT_005(t *testing.T) {
 	items := navigationForRoles(ResolveProductLocale("en-US"), []string{RoleHCMAdmin})
-	wantPrimary := []PageID{PageHome, PageMyself, PageJourneys, PageWorkflowDesigner, PageWork, PagePeople, PageOrganization, PageInsights, PageAdmin}
+	wantPrimary := []PageID{PageHome, PageMyself, PageJourneys, PageWorkflowDesigner, PageChat, PageWork, PagePeople, PageOrganization, PageInsights, PageAdmin}
 	if len(items) != len(wantPrimary) {
 		t.Fatalf("primary destinations = %d, want %d: %+v", len(items), len(wantPrimary), items)
 	}
@@ -50,7 +50,7 @@ func TestTodo_UXAUDIT_005_Golden(t *testing.T) {
 			actual.WriteString("  " + string(child.Page) + ":" + child.Label + "\n")
 		}
 	}
-	const want = "home:Home\nmyself:Myself\njourneys:Journeys\nworkflow-designer:Workflow editor\nwork:My Work\n  work:Work queue\n  history:Work History\npeople:People\norganization:Organization\ninsights:Insights\nadmin:Admin\n  admin:Admin overview\n  worker-ids:Worker IDs\n  roles:Roles & access\n  organization-visibility:Organization visibility\n  appearance:Brand & appearance\n"
+	const want = "home:Home\nmyself:Myself\njourneys:Journeys\nworkflow-designer:Workflow editor\nchat:Chat\nwork:My Work\n  work:Work queue\n  history:Work History\npeople:People\norganization:Organization\ninsights:Insights\nadmin:Admin\n  admin:Admin overview\n  worker-ids:Worker IDs\n  roles:Roles & access\n  organization-visibility:Organization visibility\n  appearance:Brand & appearance\n"
 	if actual.String() != want {
 		t.Fatalf("published navigation changed:\n%s", actual.String())
 	}

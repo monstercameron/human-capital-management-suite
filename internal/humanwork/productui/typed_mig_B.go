@@ -32,9 +32,13 @@ func declarenetworkTransitionStylesPre() {
 		gwccss.Raw("transform", "none"),
 		gwccss.Transition(gwccss.TransitionProps(gwccss.Prop("opacity"), gwccss.Prop("transform")), gwccss.VarDuration("hcm-motion-normal"), gwccss.Easing("var(--hcm-motion-easing)")),
 	)
+	// A refreshing stage keeps full opacity and no transform on purpose:
+	// either would make .main a stacking context, and a page that positions
+	// a fixed drawer or scrim inside it (chat's phone rail) would then paint
+	// under the app bar however high its own z-index.
 	declareGlobal(".network-stage-refreshing",
-		gwccss.OpacityNum(gwccss.Num(.985)),
-		gwccss.Transform(gwccss.TranslateY(gwccss.Px(1))),
+		gwccss.OpacityNum(gwccss.Num(1)),
+		gwccss.Raw("transform", "none"),
 	)
 	declareGlobal(".network-stage>.page-head,.network-stage>.home-grid,.network-stage>.workbench,.network-stage>.people-page,.network-stage>.person-page,.network-stage>.organization-page,.network-stage>.insights-grid,.network-stage>.admin-grid,.network-stage>.studio-page,.network-stage>.jn-embedded,.network-stage :where(.work-row,.people-row,.history-row,.status,.count),.network-stage .jn-embedded .jn-griditem",
 		gwccss.Raw("animation", "none"),

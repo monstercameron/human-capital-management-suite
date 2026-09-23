@@ -15,7 +15,14 @@ func TestRenderEveryAuthorizedProductPage(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			for _, want := range []string{"Human Capital Management Suite", `id="main-content"`, `aria-label="Main"`, "manager", "Workspace information"} {
+			wants := []string{"Human Capital Management Suite", `id="main-content"`, `aria-label="Main"`, "manager"}
+			if !definition.FullBleed {
+				// A full-bleed application page (chat) has no document
+				// footer beneath its composer; every framed page keeps the
+				// live-source statement.
+				wants = append(wants, "Workspace information")
+			}
+			for _, want := range wants {
 				if !strings.Contains(doc, want) {
 					t.Fatalf("document missing %q", want)
 				}

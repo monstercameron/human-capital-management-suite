@@ -1,31 +1,28 @@
 package workitem
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/workreview"
 )
 
-// Review verdicts: the closed typed-finding vocabulary. Free-form
-// eligibility or diagnosis never leaves the compartment.
+// Finding is the sealed restricted-review result the workflow may see.
+// The vocabulary lives in internal/engines/workreview (below the domain
+// layer) so domains and workflow can consume findings without importing
+// this store-owning package upward; this alias keeps every existing
+// importer compiling unchanged.
+type Finding = workreview.Finding
+
+// Review verdicts: aliases for the closed typed-finding vocabulary owned
+// by internal/engines/workreview.
 const (
-	ReviewSufficient   = "SUFFICIENT"
-	ReviewInsufficient = "INSUFFICIENT"
-	ReviewMoreInfo     = "MORE_INFORMATION_REQUIRED"
-	ReviewUnknown      = "UNKNOWN"
+	ReviewSufficient   = workreview.ReviewSufficient
+	ReviewInsufficient = workreview.ReviewInsufficient
+	ReviewMoreInfo     = workreview.ReviewMoreInfo
+	ReviewUnknown      = workreview.ReviewUnknown
 )
-
-// Safe reason codes: the only reasons a finding may carry. Sensitive
-// notes remain compartmented artifacts; the workflow sees only these.
-var safeReasons = map[string]bool{
-	"evidence-clear":         true,
-	"evidence-contradictory": true,
-	"evidence-partial":       true,
-	"evidence-unreadable":    true,
-}
 
 // ReviewTask is one restricted evidence-review task.
 type ReviewTask struct {
@@ -40,32 +37,6 @@ type ReviewTask struct {
 	Scope               []string
 	ReviewerRole        string
 	ExpiresTick         int64
-}
-
-// Finding is the minimum typed result the workflow may see. It binds
-// requirement and artifact versions, reviewed scope, safe reason, expiry
-// and evidence receipt — and nothing else. It is workflow input, never
-// legal eligibility by itself: the type carries no eligibility verdict.
-type Finding struct {
-	TaskID             string
-	Verdict            string
-	RequirementID      string
-	RequirementVersion string
-	ArtifactID         string
-	ArtifactVersion    string
-	Scope              []string
-	Reason             string
-	ExpiresTick        int64
-	EvidenceReceipt    string
-	Digest             string
-}
-
-func findingDigest(finding Finding) string {
-	scope := append([]string(nil), finding.Scope...)
-	sort.Strings(scope)
-	parts := []string{"workitem-finding", finding.TaskID, finding.Verdict, finding.RequirementID, finding.RequirementVersion, finding.ArtifactID, finding.ArtifactVersion, strings.Join(scope, ","), finding.Reason, fmt.Sprint(finding.ExpiresTick), finding.EvidenceReceipt}
-	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
-	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // Reviewer completes one restricted review behind the compartment policy.
@@ -123,12 +94,10 @@ func (reviewer *Reviewer) Complete(task ReviewTask, verdict, reason, evidenceRec
 	if nowTick > task.ExpiresTick {
 		return Finding{}, fmt.Errorf("workitem: review task %s expired", task.TaskID)
 	}
-	switch verdict {
-	case ReviewSufficient, ReviewInsufficient, ReviewMoreInfo, ReviewUnknown:
-	default:
+	if !workreview.ValidVerdict(verdict) {
 		return Finding{}, fmt.Errorf("workitem: verdict %q is not a typed finding", verdict)
 	}
-	if !safeReasons[reason] {
+	if !workreview.ValidReason(reason) {
 		return Finding{}, fmt.Errorf("workitem: reason %q exposes free-form detail", reason)
 	}
 	if task.ArtifactVersion != task.ArtifactCurrent || !task.ArtifactQuarantined {
@@ -147,15 +116,7 @@ func (reviewer *Reviewer) Complete(task ReviewTask, verdict, reason, evidenceRec
 		Scope: append([]string(nil), task.Scope...), Reason: reason,
 		ExpiresTick: task.ExpiresTick, EvidenceReceipt: evidenceReceipt,
 	}
-	finding.Digest = findingDigest(finding)
+	finding = workreview.Seal(finding)
 	reviewer.completed[task.TaskID] = finding
 	return finding, nil
-}
-
-// Verify recomputes the finding seal.
-func (finding Finding) Verify() error {
-	if finding.Digest == "" || findingDigest(finding) != finding.Digest {
-		return fmt.Errorf("workitem: finding seal is broken")
-	}
-	return nil
 }

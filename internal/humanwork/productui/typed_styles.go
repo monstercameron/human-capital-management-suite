@@ -508,6 +508,14 @@ func declarePopoverStyles() {
 	declareGlobal(".popover-root>summary::-webkit-details-marker",
 		gwccss.Display.None,
 	)
+	// The anonymous details-content box has zero height when its only child
+	// floats. Chromium can paint that panel while omitting its text from the
+	// accessibility tree. Flatten only the OPEN box; closed disclosures retain
+	// their native hiding and keyboard behavior.
+	declareGlobal(".popover-root[open]::details-content",
+		gwccss.Raw("display", "contents"),
+		gwccss.Raw("content-visibility", "visible"),
+	)
 	declareGlobal(".popover-surface",
 		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Rounded(gwccss.VarLength("hcm-radius-surface")),

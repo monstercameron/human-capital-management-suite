@@ -112,7 +112,7 @@ func TestNetworkTransitionsResolveAsOneRegionWithoutNestedFlicker(t *testing.T) 
 	css := Stylesheet()
 	for _, want := range []string{
 		`@starting-style{.network-stage-ready{opacity:0.94;`,
-		`.network-stage-refreshing{opacity:0.985;transform:translateY(1px);}`,
+		`.network-stage-refreshing{opacity:1;transform:none;}`,
 		`.network-stage :where(.work-row,.people-row,.history-row,.status,.count)`,
 		`:root[data-hcm-motion-preference="limited"] .network-stage-refreshing`,
 		`@media (prefers-reduced-motion:reduce){.network-stage,.network-slot`,

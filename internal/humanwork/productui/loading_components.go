@@ -6,6 +6,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 )
 
 // LoadingProxyProps describes the shape of an unresolved product surface.
@@ -182,6 +183,11 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 
 func loadingProxyBody(page PageID) ui.Node {
 	switch page {
+	// Chat is an application surface: its loading state is its own room
+	// (rail skeleton, timeline skeleton, composer) so the page never flashes
+	// a document-style placeholder while the client fetches.
+	case PageChat:
+		return chatui.Build(chatui.Model{State: chatui.StateLoading})
 	// Organization is a search field over one list of teams, which is this
 	// shape; it used to borrow Insights' metric cards and chart, none of which
 	// it has.

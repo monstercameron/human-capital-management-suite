@@ -34,7 +34,7 @@ func Render(view View) (string, error) {
 // Build returns the same component tree used by SSR tests and the browser
 // WASM client.
 func Build(view View) ui.Node {
-	return BuildShell(view, BuildPageContent(view), true)
+	return BuildShell(view, BuildPageContent(view), !PageOwnsHeading(view.Page))
 }
 
 // BuildPageContent renders only the feature-owned route body. Browser routers

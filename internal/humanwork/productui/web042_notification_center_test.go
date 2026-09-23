@@ -124,7 +124,8 @@ func renderNotificationSubtree(t *testing.T, view View) string {
 // web042GoldenDigest is pinned from the GREEN implementation run. PROMOUX-012
 // re-pinned it for the actionable-count copy; substituting the previous
 // "promotion journey is visible in this scope." back reproduces the old pin.
-const web042GoldenDigest = "ebac35e25515d9567478c535f386e443f1e8929b6962e30b55000f8f96186cf4"
+// NAAS-001 adds the localized empty inbox state before Open My Work.
+const web042GoldenDigest = "8074f1f620384865746a6529c49ed4fd6e659a6bcb12e3a25a3b009427d9af8e"
 
 func TestTodo_WEB_042_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(renderNotificationSubtree(t, testView(PageWork))))

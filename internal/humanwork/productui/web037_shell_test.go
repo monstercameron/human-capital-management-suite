@@ -141,7 +141,13 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// attention. Verified before re-pinning by substituting exactly those
 	// two old strings back into the new document, which reproduced the
 	// previous digest byte for byte.
-	const want = "20898b8341278494f197d9af00a7253701dc14136f7bd0fe0ef1e611b49eeb79"
+	// NAAS-001 adds the localized empty inbox state before Open My Work.
+	// CHAT re-pins: Chat joins the primary navigation between Workflow
+	// editor and My Work, and its nav glyph is now the registered "chat"
+	// icon path instead of the fallback circle. The chat page itself is
+	// full-bleed (PageDefinition.FullBleed) but this fixture renders Home,
+	// so nothing else in the shell document changed.
+	const want = "733f9dedf5ec9556e7c9de025720581ff84dba6ca77a3be133bd85f14378afe5"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

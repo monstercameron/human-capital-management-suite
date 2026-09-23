@@ -44,6 +44,10 @@ func adminPage(view View) ui.Node {
 			actionLabel: view.Locale.Text("admin.appearance_action"),
 		},
 		{
+			page: PageChatSettings, title: retentionCopy(view.Locale).settingsTitle, description: retentionCopy(view.Locale).settingsDescription, state: view.Locale.Text("admin.available"), tone: "positive",
+			actionLabel: retentionCopy(view.Locale).settingsAction,
+		},
+		{
 			page: PageJourneys, title: view.Locale.Text("admin.promotion_title"), description: view.Locale.Text("admin.promotion_description"), state: journeyState, tone: journeyTone, availability: journeyAvailability,
 			actionLabel: view.Locale.Text("admin.promotion_action"),
 		},

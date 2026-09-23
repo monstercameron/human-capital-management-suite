@@ -9,9 +9,9 @@ func TestPageVisibilityRoleMatrix(t *testing.T) {
 		allowed []PageID
 		denied  []PageID
 	}{
-		{name: "admin", roles: []string{RoleHCMAdmin}, allowed: []PageID{PageHome, PagePeople, PageAdmin, PageWorkerIDs, PageAppearance}},
+		{name: "admin", roles: []string{RoleHCMAdmin}, allowed: []PageID{PageHome, PagePeople, PageAdmin, PageChatSettings, PageWorkerIDs, PageAppearance}},
 		{name: "legacy comp admin", roles: []string{"comp_admin"}, allowed: []PageID{PageAdmin, PageOrganizationVisibility}},
-		{name: "hiring manager", roles: []string{"manager", "hiring_manager"}, allowed: []PageID{PageHome, PagePeople, PageJourneys, PageInsights}, denied: []PageID{PageAdmin, PageWorkerIDs}},
+		{name: "hiring manager", roles: []string{"manager", "hiring_manager"}, allowed: []PageID{PageHome, PagePeople, PageJourneys, PageInsights}, denied: []PageID{PageAdmin, PageChatSettings, PageWorkerIDs}},
 		{name: "payroll manager", roles: []string{"payroll_manager"}, allowed: []PageID{PageHome, PagePeople, PageWork, PageInsights}, denied: []PageID{PageAdmin, PageAppearance}},
 		{name: "individual contributor", roles: []string{"worker_self"}, allowed: []PageID{PageHome, PageMyself, PageOrganization, PageHelp, PageSettings}, denied: []PageID{PagePeople, PagePerson, PageJourneys, PageWork, PageInsights, PageAdmin}},
 		{name: "zero roles", roles: []string{}, allowed: []PageID{PageHome, PageHelp, PageSettings}, denied: []PageID{PageMyself, PageOrganization, PagePeople, PageJourneys, PageAdmin}},

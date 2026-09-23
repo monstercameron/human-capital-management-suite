@@ -549,7 +549,7 @@ func docsStylesheet() string {
 .docs-detail-header{display:grid;gap:var(--hcm-space-2)}
 .docs-detail-title-row{display:flex;align-items:center;justify-content:space-between;gap:var(--hcm-space-2);flex-wrap:wrap}.docs-detail-title-row h2{min-width:0;flex:1}
 .docs-detail-header h2{margin:0;overflow-wrap:anywhere}
-.docs-detail-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(18rem,22rem);align-items:start;gap:var(--hcm-space-3)}
+.docs-detail-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(18rem,26rem);align-items:start;gap:var(--hcm-space-3)}
 .docs-detail-content{min-width:0;display:grid;gap:var(--hcm-space-3)}
 .docs-detail-rail{min-width:0;display:grid;gap:var(--hcm-space-2);position:sticky;top:var(--hcm-space-2)}
 .docs-detail-meta{display:flex;flex-wrap:wrap;gap:var(--hcm-space-2) var(--hcm-space-3);margin:0;padding:0}

@@ -259,11 +259,17 @@ func normalizedPerson(person Person) personNormalizedIndex {
 }
 
 func buildPersonNormalizedIndex(person Person) personNormalizedIndex {
+	extra := extraPeopleValues(person)
+	for i := range extra {
+		extra[i] = normalizedSortText(extra[i])
+	}
 	return personNormalizedIndex{
 		ready: true,
+		extra: extra,
 		search: strings.ToLower(strings.Join([]string{
 			person.Name, person.Role, person.Team, person.Manager, person.Location,
 			person.WorkerNumber, person.JobCode, person.Grade, person.PositionID,
+			person.Company, person.BusinessUnit, person.CostCenter,
 		}, " ")),
 		name: normalizedSortText(person.Name), role: normalizedSortText(person.Role),
 		team: normalizedSortText(person.Team), manager: normalizedSortText(person.Manager),
@@ -272,6 +278,11 @@ func buildPersonNormalizedIndex(person Person) personNormalizedIndex {
 }
 
 func normalizedPeopleSortValue(index personNormalizedIndex, field string) string {
+	for i, column := range peopleColumnDefinitions()[5:] {
+		if field == column.ID {
+			return index.extra[i]
+		}
+	}
 	switch field {
 	case peopleSortRole:
 		return index.role
@@ -321,12 +332,8 @@ func peopleSortValue(person Person, field string) string {
 }
 
 func normalizePeopleSort(value string) string {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case peopleSortRole, peopleSortTeam, peopleSortManager, peopleSortLocation:
-		return strings.ToLower(strings.TrimSpace(value))
-	default:
-		return peopleSortName
-	}
+	field, _ := ParsePeopleSort(value, "")
+	return field.sortKey()
 }
 
 func normalizePeopleDirection(value string) string {

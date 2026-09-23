@@ -34,7 +34,10 @@ func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
 	} else if strings.TrimSpace(view.Tenant) == "" {
 		content = FederationEntryList(federationEntryProps(view))
 		showHeading = false
-	} else if view.LoadError != "" {
+	} else if view.LoadError != "" && !PageFullBleed(view.Page) {
+		// A full-bleed page (chat) owns the whole main region and reports its
+		// own load state; the shell's notice over it read as an alarm about
+		// content that was working underneath.
 		content = html.Div(html.Props{Class: "page-stack"},
 			unavailablePanelWithRetry(
 				view.Locale.Text("shell.live_unavailable"),
@@ -492,6 +495,12 @@ func notificationMenu(view View) ui.Node {
 		html.P(html.Props{}, ui.Text(view.Locale.Plural("shell.work_count", int64(open)))),
 	}
 	if navigationDestinationAuthorized(view, PageWork) {
+		children = append(children, ui.CreateElement(WorkflowNotificationList, WorkflowNotificationListProps{
+			I18nProps: I18nProps{Locale: view.Locale}, Items: view.WorkflowNotifications, Unavailable: view.NotificationsUnavailable,
+			Link: func(item WorkflowNotification) ActionLinkProps {
+				return ActionLinkProps{Href: JourneyDetailHref(view, item.JourneyID), Navigate: view.Navigate}
+			},
+		}))
 		children = append(children, appLink(view, html.Props{}, statefulHref(view, PageWork), ui.Text(view.Locale.Text("shell.open_work"))))
 	}
 	return ui.CreateElement(TransientPopover, TransientPopoverProps{
@@ -600,12 +609,19 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 	if showHeading {
 		children = append(children, html.WithKey(PageIdentityHeader(view), "page-identity"))
 	}
-	children = append(children, keyUnlessKeyed(page, "page-content"),
-		html.Footer(html.Props{Key: "page-footer", Class: "footer"},
-			html.Span(html.Props{Data: map[string]string{"hcm-brand-name": ""}}, ui.Text(NormalizeCustomerTheme(view.Appearance).BrandName)),
-			html.Span(html.Props{}, ui.Text(view.Locale.Text("shell.live_source"))),
-		),
-	)
+	// A full-bleed page (chat) is an application surface: it takes the whole
+	// main region, owns its scrolling and has no document footer beneath its
+	// composer. Every other page keeps the framed document layout.
+	fullBleed := PageFullBleed(view.Page) && !signedOutState(view) && strings.TrimSpace(view.Tenant) != ""
+	children = append(children, keyUnlessKeyed(page, "page-content"))
+	if !fullBleed {
+		children = append(children,
+			html.Footer(html.Props{Key: "page-footer", Class: "footer"},
+				html.Span(html.Props{Data: map[string]string{"hcm-brand-name": ""}}, ui.Text(NormalizeCustomerTheme(view.Appearance).BrandName)),
+				html.Span(html.Props{}, ui.Text(view.Locale.Text("shell.live_source"))),
+			),
+		)
+	}
 	// UIPOLISH-004: ".main-scroll" is the page's one scroll owner and must
 	// stay keyboard-reachable and named regardless of whether the page
 	// itself renders a heading -- a feature module using BuildEmbedded
@@ -632,6 +648,9 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 		stageClass = "main network-stage network-stage-refreshing"
 		stage = "refreshing"
 	}
+	if fullBleed {
+		stageClass += " page-full-bleed"
+	}
 	// overflow-x stays hidden here deliberately (UIPOLISH-004 RED names this
 	// explicitly): every region beneath the page shell that can genuinely
 	// need to scroll sideways already owns that scroll itself
@@ -643,8 +662,12 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 	// The main region's position is owned by the history router's one scroll
 	// policy (UXLIVE-028), keyed by history entry and resource; a second,
 	// per-element restore here could put an unrelated page's offset back.
+	scrollClass := "main-scroll"
+	if fullBleed {
+		scrollClass += " main-scroll-full-bleed"
+	}
 	return ui.CreateElement(ScrollRegion, ScrollRegionProps{
-		Tag: "main", ID: "main-content", Class: "main-scroll", Focusable: true, Aria: aria,
+		Tag: "main", ID: "main-content", Class: scrollClass, Focusable: true, Aria: aria,
 		Children: []ui.Node{html.Div(html.Props{Class: stageClass, Data: map[string]string{"network-state": stage}}, children...)},
 	})
 }

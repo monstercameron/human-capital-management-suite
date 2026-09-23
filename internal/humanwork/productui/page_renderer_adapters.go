@@ -18,6 +18,10 @@ type journeysPageModuleRenderer struct{}
 
 func (journeysPageModuleRenderer) Render(view View) ui.Node { return journeysPage(view) }
 
+type chatPageModuleRenderer struct{}
+
+func (chatPageModuleRenderer) Render(view View) ui.Node { return chatPage(view) }
+
 type workPageModuleRenderer struct{}
 
 func (workPageModuleRenderer) Render(view View) ui.Node { return workPage(view) }
@@ -143,6 +147,10 @@ func (insightsPageModuleRenderer) Render(view View) ui.Node { return insightsPag
 type adminPageModuleRenderer struct{}
 
 func (adminPageModuleRenderer) Render(view View) ui.Node { return adminPage(view) }
+
+type chatSettingsPageModuleRenderer struct{}
+
+func (chatSettingsPageModuleRenderer) Render(view View) ui.Node { return chatSettingsPage(view) }
 
 type workerIDsPageModuleRenderer struct{}
 
@@ -357,6 +365,10 @@ func (helpHubPageModuleRenderer) Render(view View) ui.Node { return helpHubPage(
 type knowledgeSearchPageModuleRenderer struct{}
 
 func (knowledgeSearchPageModuleRenderer) Render(view View) ui.Node { return knowledgeSearchPage(view) }
+
+type docsPageModuleRenderer struct{}
+
+func (docsPageModuleRenderer) Render(view View) ui.Node { return docsPage(view) }
 
 type hrServiceRequestPageModuleRenderer struct{}
 

@@ -3,6 +3,7 @@ package productui
 import (
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -15,6 +16,8 @@ const (
 	PageHome     PageID = "home"
 	PageMyself   PageID = "myself"
 	PageJourneys PageID = "journeys"
+	PageChat     PageID = "chat"
+	PageDocs     PageID = "docs"
 	PageWork     PageID = "work"
 	// PageJourneyDiagnostics is not a navigable route: it names PROMOUX-008's
 	// authorized diagnostics disclosure (raw identifiers such as a journey's
@@ -135,6 +138,7 @@ const (
 	PageOrganization            PageID = "organization"
 	PageInsights                PageID = "insights"
 	PageAdmin                   PageID = "admin"
+	PageChatSettings            PageID = "chat-settings"
 	PageWorkerIDs               PageID = "worker-ids"
 	PageRoles                   PageID = "roles"
 	PageOrganizationVisibility  PageID = "organization-visibility"
@@ -347,6 +351,7 @@ type personNormalizedIndex struct {
 	ready                    bool
 	search, name, role, team string
 	manager, location        string
+	extra                    [6]string
 }
 
 // ViewerProfile is the presentation identity associated with the admitted
@@ -461,24 +466,47 @@ type RoleFeaturePermission struct {
 // View is an already-authorized presentation projection. It contains no
 // credential or raw sensitive record and grants no action authority.
 type View struct {
-	Page              PageID
-	Title             string
-	Subtitle          string
-	Tenant            string
-	Principal         string
-	Viewer            ViewerProfile
-	Scope             string
-	Roles             []string
-	LogoutHref        string
-	Navigation        []NavItem
-	NavigationSupport []NavItem
+	Page      PageID
+	Title     string
+	Subtitle  string
+	Tenant    string
+	Principal string
+	Viewer    ViewerProfile
+	Scope     string
+	// Chat is the authenticated chat projection for this route. It is carried
+	// by the request-owned view so SSR never shares conversation state between
+	// principals.
+	Chat chatui.Model
+	// Documents contains only summaries authorized by the Knowledge service.
+	// The product renderer never discovers or grants access to documents.
+	Documents             []DocumentSummary
+	DocumentsReady        bool
+	DocumentQuery         string
+	DocumentCollection    string
+	DocumentPageToken     string
+	DocumentNextPageToken string
+	DocumentSearch        DocumentSearchProjection
+	DocumentReviews       []DocumentReviewProjection
+	Document              *DocumentDetail
+	DocumentID            string
+	DocumentOrigin        string
+	CreateDocument        func(DocumentCreateRequest, func(error))
+	ShareDocument         func(DocumentShareRequest, func(error))
+	AddDocumentComment    func(DocumentCommentCreateRequest, func(error))
+	CreateDocumentVersion func(DocumentEditRequest, func(error))
+	Roles                 []string
+	LogoutHref            string
+	Navigation            []NavItem
+	NavigationSupport     []NavItem
 	// NavigationProjection is nil only for isolated legacy/component previews.
 	// Once supplied, it owns discoverability and suppresses all registry
 	// fallback, including when its answer is empty or malformed.
-	NavigationProjection *AuthorizedNavigationProjection
-	Work                 []WorkItem
-	People               []Person
-	PersonWorkflows      []PersonWorkflow
+	NavigationProjection     *AuthorizedNavigationProjection
+	Work                     []WorkItem
+	WorkflowNotifications    []WorkflowNotification
+	NotificationsUnavailable bool
+	People                   []Person
+	PersonWorkflows          []PersonWorkflow
 	// JourneyPopulation is the server's authorized summary over exactly the
 	// journeys in Work (UXLIVE-027). Nil when no summary was read.
 	JourneyPopulation *JourneyPopulation
@@ -509,39 +537,46 @@ type View struct {
 	// PromotionAvailability resolves to PromotionEligible for the current
 	// viewer, so an authorized reader can find candidates without knowing
 	// their names in advance.
-	PeopleEligibleOnly     bool
-	PeopleSort             string
-	PeopleDirection        string
-	OrganizationView       string
-	WorkflowQuery          string
-	HistoryQuery           string
-	HistoryOutcome         string
-	HistoryPerson          string
-	HistoryYear            string
-	HistorySort            string
-	HistoryDirection       string
-	HistoryPage            int
-	HistoryPageSize        int
-	WorkflowUses           map[string]int64
-	PreferenceVersion      int64
-	AppearanceVersion      int64
-	WorkerIDPolicy         WorkerIDPolicy
-	WorkerIDValidation     ValidationState
-	OrganizationVisibility OrganizationVisibilityPolicy
-	AccessRoles            []AccessRole
-	RoleAssignments        []WorkerRoleAssignment
-	RoleVisibilityPolicies []OrganizationVisibilityPolicy
-	RolePagePermissions    []RolePagePermission
-	EffectivePermissions   []RolePagePermission
-	RoleFeaturePermissions []RoleFeaturePermission
-	EffectiveFeatures      []RoleFeaturePermission
-	StoredPreferences      StoredUserPreferences
-	Mode                   string
-	WorkFilter             string
-	JourneyID              string
-	JourneyWorker          string
-	JourneyMode            string
-	JourneyList            JourneyListFilter
+	PeopleEligibleOnly      bool
+	PeopleSort              string
+	PeopleColumns           string
+	PeopleColumnDraft       *ColumnChooserDraft
+	PeopleDirection         string
+	OrganizationView        string
+	WorkflowQuery           string
+	HistoryQuery            string
+	HistoryOutcome          string
+	HistoryPerson           string
+	HistoryYear             string
+	HistorySort             string
+	HistoryDirection        string
+	HistoryPage             int
+	HistoryPageSize         int
+	WorkflowUses            map[string]int64
+	PreferenceVersion       int64
+	AppearanceVersion       int64
+	WorkerIDPolicy          WorkerIDPolicy
+	ChatRetentionConfigured bool
+	ChatRetentionPolicy     ChatRetentionPolicy
+	ChatRetentionLoading    bool
+	ChatRetentionError      string
+	ChatRetentionNotice     string
+	WorkerIDValidation      ValidationState
+	OrganizationVisibility  OrganizationVisibilityPolicy
+	AccessRoles             []AccessRole
+	RoleAssignments         []WorkerRoleAssignment
+	RoleVisibilityPolicies  []OrganizationVisibilityPolicy
+	RolePagePermissions     []RolePagePermission
+	EffectivePermissions    []RolePagePermission
+	RoleFeaturePermissions  []RoleFeaturePermission
+	EffectiveFeatures       []RoleFeaturePermission
+	StoredPreferences       StoredUserPreferences
+	Mode                    string
+	WorkFilter              string
+	JourneyID               string
+	JourneyWorker           string
+	JourneyMode             string
+	JourneyList             JourneyListFilter
 	// PublishedWorkflows and WorkflowView are authorized, read-only
 	// projections for the workflow designer. The product layer never parses a
 	// draft or reconstructs runtime state from URLs; adapters populate these
@@ -567,6 +602,7 @@ type View struct {
 	SaveTheme                    func(CustomerTheme)
 	ResetTheme                   func()
 	SaveWorkerIDPolicy           func(WorkerIDPolicy)
+	SaveChatRetentionPolicy      func(ChatRetentionPolicy)
 	SaveOrganizationVisibility   func(OrganizationVisibilityPolicy)
 	SaveAccessRole               func(AccessRole)
 	SaveWorkerRoleAssignment     func(WorkerRoleAssignment)
@@ -584,6 +620,11 @@ type View struct {
 	SetWorkflowDraftOutcome      func(WorkflowOutcomeChange)
 	BindWorkflowDraftInput       func(WorkflowInputBindingChange)
 	MoveWorkflowDraftNode        func(WorkflowNodeMove)
+	ClearWorkflowDraftOutcome    func(WorkflowOutcomeChange)
+	RemoveWorkflowDraftNode      func(string)
+	InsertWorkflowStepAfter      func(WorkflowPaletteItem, WorkflowOutcomeChange)
+	SetWorkflowDraftOutcomes     func([]WorkflowOutcomeChange)
+	RenameWorkflowDraft          func(string)
 	ApplyWorkflowOverlay         func(WorkflowTemplateOverlayChange)
 	NavigateWorkflowDraftHistory func(string)
 	SelectWorkflowDraftNode      func(string)
@@ -651,6 +692,10 @@ type View struct {
 	// discovery surfaces admit only disclosable records and project
 	// their labels. Presentation never authors verdicts.
 	RecordVerdicts map[string]AuthorizedRecord
+}
+
+type DocumentCreateRequest struct {
+	Title, Markdown string
 }
 
 // Can reports whether the resolved role grants an operation on a page. An

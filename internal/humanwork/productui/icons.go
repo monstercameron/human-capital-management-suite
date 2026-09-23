@@ -36,6 +36,16 @@ var registeredIcons = []IconDefinition{
 	{Name: "history-forward", Path: "M4 12h16M14 6l6 6-6 6"},
 	{Name: "move-up", Path: "m6 15 6-6 6 6"},
 	{Name: "move-down", Path: "m6 9 6 6 6-6"},
+	{Name: "undo", Path: "M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"},
+	{Name: "redo", Path: "m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"},
+	{Name: "alert", Path: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"},
+	{Name: "edit", Path: "M4 20h4L19 9l-4-4L4 16zM14 6l4 4"},
+	{Name: "trash", Path: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"},
+	{Name: "chat", Path: "M4 5h16v11H9l-5 4V5zM8 9h8M8 12h5"},
+	// The Start an action launcher. It was unregistered and fell back to the
+	// generic ring, which at phone and tablet widths -- where the label is
+	// hidden -- left a bare circle that read as a stalled spinner.
+	{Name: "actions", Path: "M13 2 3 14h9l-1 8 10-12h-9l1-8z"},
 }
 
 const fallbackIconPath = "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"
