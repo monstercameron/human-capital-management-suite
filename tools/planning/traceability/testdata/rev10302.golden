@@ -1,0 +1,4 @@
+TICKED-001: MISSING_COMMAND: Evidence field names no go test, go vet, go run or go build command
+TICKED-001: MISSING_TEST: TEST TestMissing names no Test/Fuzz/Benchmark function in the repository
+TICKED-001: MISSING_MATRIX_TEST: TEST MATRIX GOLDEN=TestMissing_Golden names no Test/Fuzz/Benchmark function in the repository
+TICKED-002: MISSING_EVIDENCE: completed todo has no Evidence field

@@ -334,6 +334,7 @@ func ruleNames(policy *depedge.Policy) []string {
 		depedge.RuleWorkflowDomainPersist,
 		depedge.RuleTransportImportsStore,
 		depedge.RuleBusinessConcreteAdapter,
+		depedge.RuleLayerUpward,
 	}
 }
 

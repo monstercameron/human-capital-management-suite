@@ -3624,6 +3624,50 @@ or an explicit rejection and replacement decision.
 
 ---
 
+- [x] `WF-STEP-020` **[GATE_B][SOL_HIGH] Keep refused signals out of accepted-delivery deduplication.**
+  - **Depends:** `WF-STEP-006`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=prevent rejected external deliveries from suppressing legitimate workflow continuations`.
+  - **TEST:** `TestTodo_WF_STEP_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_STEP_020`; `SECURITY=TestTodo_WF_STEP_020_Security`.
+  - **RED:** invalid-signature or wrong-tenant deliveries poison the dedupe key; repeated late or out-of-order refusals become accepted duplicate evidence.
+  - **GREEN:** only accepted deliveries reserve continuation identities; corrected deliveries resume once, accepted conflicting bytes remain refused, and all refusals remain inspectable.
+  - **REFACTOR:** keep acceptance policy in the pure signal resolver, without changing persisted log bytes or adding transport policy.
+  - **Refs:** [SIGNAL step](workflows/_engine/step-types.md#6-signal), `internal/workflow/steps/signal/accept.go`, `internal/workflow/steps/signal/log.go`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_STEP_020` and `TestTodo_WF_STEP_020_Security`: both named tests failed before the fix across five cases (same/corrected payload after invalid signature, wrong tenant, late and out-of-order replay). `go test -count=1 -cover ./internal/workflow/steps/signal/` PASS (87.6%); `go vet ./internal/workflow/steps/signal/` PASS. No live provider or durable ingress behavior is claimed by this pure resolver regression.
+
+- [x] `WF-STEP-019` **[GATE_B][SOL_HIGH] Verify WAIT requirement and replay digests before resolving.**
+  - **Depends:** `WF-STEP-005`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=prevent altered timer evidence or replay records from advancing workflow waits`.
+  - **TEST:** `TestTodo_WF_STEP_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_STEP_019`; `MUTATION=TestTodo_WF_STEP_019_Mutation`.
+  - **RED:** changing a timer fire time, identity, review flag or evidence while retaining its digest is accepted; altered replay outcomes are returned unchanged.
+  - **GREEN:** recompute both content digests before use, reject mismatches with typed errors and empty resolutions, preserve legitimate exact replay and time boundaries.
+  - **REFACTOR:** reuse canonical digest functions; no clock reads, format changes or authentication claims for unkeyed digests.
+  - **Refs:** [WAIT step](workflows/_engine/step-types.md#5-wait), `internal/workflow/steps/wait/resolve.go`, `internal/workflow/steps/wait/digest.go`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_STEP_019_Mutation` reproduced twelve accepted corruptions before the fix; changed binding was already refused. Both named tests now pass, including unchanged replay without a new clock value, exact fire-time boundary and early-wake refusal. `go test -count=1 -cover ./internal/workflow/steps/wait/` PASS (88.3%); `go vet ./internal/workflow/steps/wait/` PASS. `go test -count=1 ./test/workflow/ -run '^TestPromotionWorkflow(CompletesEndToEnd|SurvivesRestartDuringApprovalAndWait|DuplicateTimerFireAndDuplicateResumeAreIdempotent)$'` PASS against embedded PostgreSQL. Digests detect changed content; they are not signatures or authorization.
+
+- [x] `WF-STEP-021` **[GATE_B][SOL_HIGH] Refuse ambiguous JOIN evidence and make required-set reduction order independent.**
+  - **Depends:** `WF-STEP-008`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=prevent duplicate or missing branch evidence from satisfying workflow joins`.
+  - **TEST:** `TestTodo_WF_STEP_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_STEP_021`; `MUTATION=TestTodo_WF_STEP_021_Mutation`.
+  - **RED:** duplicate branch IDs inflate quorum; empty IDs are counted; early unknown/failed required results hide missing required members or change the verdict when reordered.
+  - **GREEN:** refuse empty/duplicate branch and required IDs; validate required membership before reduction; known required failure dominates unknown consistently, while retaining all unknown dimensions.
+  - **REFACTOR:** preserve existing strategy versions and valid golden outputs; do not invent durable JOIN orchestration.
+  - **Refs:** [JOIN step](workflows/_engine/step-types.md#8-join), `internal/workflow/parallel/join.go`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_STEP_021` failed before the fix for duplicate/blank branch IDs across all five strategies and duplicate required IDs; `_Mutation` reproduced an unknown branch hiding a missing required member and now checks required/result order permutations. `go test -count=1 -cover ./internal/workflow/parallel/` PASS (93.2%, with WF-STEP-022); `go vet ./internal/workflow/parallel/` PASS. Existing golden results are unchanged; `go test -p 1 -count=1 ./internal/workflow/conformance/bulkack/ ./internal/workflow/conformance/leavereturn/` PASS. This closes the pure aggregation defect, not the separate durable multi-workflow orchestration backlog.
+
+- [x] `WF-STEP-022` **[GATE_B][SOL_HIGH] Enforce parallel cost budgets without integer overflow.**
+  - **Depends:** `WF-STEP-007`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=ensure bounded parallel execution cannot bypass admission with overflowing costs`.
+  - **TEST:** `TestTodo_WF_STEP_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_STEP_022`; `FAULT=TestTodo_WF_STEP_022_Fault`.
+  - **RED:** aggregate cost overflow admits over-budget work or a negative budget; branches execute before a refusal.
+  - **GREEN:** reject negative budgets and excess cost before addition or execution; exact maximum-integer and zero-cost boundaries remain valid; telemetry ends once with no branch spans on refusal.
+  - **REFACTOR:** subtract from validated remaining budget instead of overflowing an accumulator; no changed budget units or new dependencies.
+  - **Refs:** [PARALLEL step](workflows/_engine/step-types.md#7-parallel), `internal/workflow/parallel/parallel.go`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_STEP_022` reproduced three overflow variants executing branch work before the fix; `_Fault` reproduced missing error telemetry. Both pass after remaining-budget admission: no branch calls/spans on refusal, one ended failure operation, exact maximum integer and free-work boundaries accepted. `go test -count=1 -cover ./internal/workflow/parallel/` PASS (93.2%); `go vet ./internal/workflow/parallel/` PASS. Local goroutine tests run, but Windows/arm64 does not supply race-detector evidence.
+
 ## 8. Durable workflow runtime, recovery and intervention
 
 > **Disposition (2026-09-02):** P1B, after `WF-RUN-000` (the build-or-adopt decision) is recorded. P1A persists instances and nodes for simulate mode only, with no timers or leases. Replay, shadow, live migration and the full intervention taxonomy are DESIGN.
@@ -4019,6 +4063,28 @@ or an explicit rejection and replacement decision.
   - **Evidence (2026-09-06):** `TestTimerIDForAttempt_QualifiesLaterActivationsOnly`, `TestReadyWorkID_IsDerivedPerNodeAttempt` in `internal/workflow/timer`; `TestNextAttemptForNumbersARevisitAfterThePriorAttempt` in `internal/workflow/runtime`; `TestHighestAttemptAddressesTheOpenActivation` in `internal/workflow/execute`; `TestWaitAttemptNamesTheContinuationActivation` in `internal/platform/execution`; `go test -count=1 ./internal/workflow/timer/ ./internal/workflow/runtime/ ./internal/workflow/execute/ ./internal/platform/execution/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
 
 ---
+
+- [x] `WF-RUN-041` **[GATE_B][SOL_HIGH] Bind every execution fence to the instance it protects before running a step.**
+  - **Evidence (2026-09-21):** RED `TestTodo_WF_RUN_041` reached the verifier for foreign-instance and queue fences. GREEN `TestTodo_WF_RUN_041`, `_Integration`, `_Security` and `TestAcquiredForeignFenceRollsBackBeforeRunning` prove exact instance binding, malformed-fence refusal, no step/terminal writes, acquisition rollback and correlated refusal telemetry. `go test -count=1 -cover ./internal/workflow/runtime/` PASS (85.5%); `go test -count=1 -cover ./internal/workflow/execute/` PASS (82.2%); the acquired-fence and correlated-refusal tests also pass individually. Local main; Windows arm64, no local race detector; repository-wide commit gate remains blocked by a concurrent editor-test compile error.
+  - **Depends:** `WF-RUN-002`, `WF-RUN-036`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=a valid lease for a different resource must never authorize workflow advancement or a domain effect`.
+  - **TEST:** `TestTodo_WF_RUN_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_RUN_041`; `SECURITY=TestTodo_WF_RUN_041_Security`; `INTEGRATION=TestTodo_WF_RUN_041_Integration`.
+  - **RED:** a live lease for another instance or queue passes the lease verifier and returns an accepted advancement for the requested instance; the driver can run a step before discovering that its fence protects the wrong resource.
+  - **GREEN:** a shared value check returns FENCE_REFUSED for a different resource kind or instance and FENCE_REQUIRED for malformed identity before verification, step execution or runtime statements; caller-held, static and acquired fences use the same check. PostgreSQL tests prove foreign leases leave instance version, node state and continuations unchanged, and a matching live lease still advances. Refusals retain bounded telemetry with run correlation and no payload disclosure.
+  - **REFACTOR:** keep binding validation in runtime.Fence and durable lease validation in the existing verifier.
+  - **Refs:** `internal/workflow/runtime/fenced.go`, `internal/workflow/execute/fence.go`, `internal/workflow/lease/fenced.go`, [Workflow runtime](specs/workflow-runtime.md).
+
+- [x] `WF-RUN-042` **[GATE_B][SOL_HIGH] Discard transactional step writes when proposal revalidation blocks advancement.**
+  - **Evidence (2026-09-21):** RED `TestTodo_WF_RUN_042_Integration/superseded` committed one step effect despite returning ErrCurrencyBlocked. GREEN `TestTodo_WF_RUN_042_Integration` proves current proposals retain their effect, superseded proposals retain zero effects and persist BLOCKED; `TestTodo_WF_RUN_042` injects savepoint create/rollback/release failures and proves transaction rollback without advancement. `go test -count=1 -cover ./internal/workflow/execute/` PASS (82.2%) over embedded PostgreSQL. Local main; full repository commit gate remains blocked by a concurrent editor-test compile error.
+  - **Depends:** `WF-RUN-029`, `WF-RUN-025`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=persisting the BLOCKED status must not accidentally commit the domain writes from a refused step`.
+  - **TEST:** `TestTodo_WF_RUN_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_RUN_042`; `INTEGRATION=TestTodo_WF_RUN_042_Integration`.
+  - **RED:** advance inputs write inside the transaction, then the currency guard detects a superseded proposal and commits the BLOCKED state together with those earlier step writes.
+  - **GREEN:** guarded advancements isolate input and retry preparation writes behind a savepoint. A blocked verdict discards them before recording BLOCKED; current proposals still commit their step and advancement together, and savepoint failures return an error and roll back the entire transaction. Embedded PostgreSQL proves a blocked run retains no step effect while its status is durably BLOCKED.
+  - **REFACTOR:** preserve durable input validation before revalidation and use the existing caller transaction, without introducing a second effect store.
+  - **Refs:** `internal/workflow/execute/driver.go`, `internal/workflow/execute/currency_guard.go`, [Workflow runtime](specs/workflow-runtime.md).
 
 ## 9. Human work, approvals, forms and deterministic business rules
 
@@ -13927,6 +13993,50 @@ EXTERNAL_ONLY         observation/reference only; never silently persisted as tr
   - **REFACTOR:** keep shared mechanics in kernel/engines and this package as the sole owner of the stated HCM meaning, lifecycle and correction semantics.
   - **Refs:** [BusinessIntent partitions](specs/business-intent-catalog.md#vocabulary-list-non-normative), [model coverage](data/models/intent-coverage-matrix.md), [engine ownership](#businessintent-context-required-by-every-todo).
 
+### Served localization and customer-authored content
+
+The versioned i18n kernel above is implemented, while the served product still registers a build-time `productMessages` map. The following Gate C work does not enlarge the Gate B one-locale Promotion commitment; it makes the broader supported-language and customer-authored experience releasable.
+
+- [ ] `I18N-004` **[PHASE_2][SOL_HIGH] Serve activated, reviewed catalog revisions instead of only a build-time product-copy map.**
+  - **Depends:** `I18N-001`, `I18N-002`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the immutable catalog revision and legal-review rules cannot protect production copy while the running UI resolves only a compiled map`.
+  - **TEST:** `TestTodo_I18N_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_I18N_004`; `INTEGRATION=TestTodo_I18N_004_Integration`; `SECURITY=TestTodo_I18N_004_Security`; `RECOVERY=TestTodo_I18N_004_Recovery`.
+  - **RED:** `internal/humanwork/productui/i18n.go` registers `productMessages` at process startup; no served caller imports `internal/experience/i18n` or loads an activated revision. A served page returns the old label after a reviewed translation is published, and restart cannot recover a newly activated product catalog without a binary rebuild.
+  - **GREEN:** an authorized publisher stores immutable per-locale catalog revisions, validates meaning IDs and required legal review, and activates one qualified revision per tenant/product scope; the served resolver and Go/WASM client use the same activated version, expose its revision in rendered diagnostics, and invalidate only affected presentations. INTEGRATION publishes a changed ordinary label and observes it in the served page without rebuilding; SECURITY proves a tenant cannot publish or resolve another tenant's text or bypass legal review; RECOVERY reloads the same active revision after restart and a failed activation leaves the prior revision serving.
+  - **REFACTOR:** retain the reviewed build-time English catalog as a last-known-good source, not a second independently edited translation authority.
+  - **Refs:** `internal/experience/i18n`, `internal/experience/localize`, `internal/humanwork/productui/i18n.go`, `internal/humanwork/workspace/product_shell.go`, [frontend publication contract](specs/production-frontend-and-page-composition.md#responsive-accessible-and-localized-behavior).
+
+- [ ] `I18N-005` **[GATE_C][SOL_LOW] Resolve the saved user locale on the first server-rendered paint.**
+  - **Depends:** `WEB-043`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a saved German or Arabic preference should not first render English loading and recovery copy whenever the URL omits locale`.
+  - **TEST:** `TestTodo_I18N_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_I18N_005`; `INTEGRATION=TestTodo_I18N_005_Integration`; `BROWSER=TestTodo_I18N_005_Browser`; `SECURITY=TestTodo_I18N_005_Security`.
+  - **RED:** `product_shell.go` calls `ResolveProductLocale(query.Get("locale"))` before using the already-loaded `snapshot.User.Locale`, while `productclient.Load` applies that saved locale only after the browser starts; a direct visit without `?locale=` can serve `<html lang="en-US" dir="ltr">` and English loading copy to a user whose stored locale is `ar`.
+  - **GREEN:** after authentication the server resolves an explicit supported URL locale first, otherwise the same principal's stored locale, otherwise the documented English default; it emits matching `lang`, `dir`, catalog version, title and loading/error copy on first paint. INTEGRATION verifies two principals in one tenant receive different saved languages without leaking preferences, BROWSER proves hydration makes no language or direction flip, and SECURITY proves an unsupported or forged locale cannot change legal, payroll or authorization context.
+  - **REFACTOR:** share the locale-precedence rule with the Go/WASM client rather than maintaining competing server and browser branches.
+  - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/experience/preferences/preferences.go`, `tools/uxqual/productclient/client.go`, [personal presentation preferences](specs/production-frontend-and-page-composition.md#level-1-personal-presentation-preferences).
+
+- [ ] `I18N-006` **[PHASE_2][SOL_HIGH] Version localized presentation metadata for customer-authored workflows and pages.**
+  - **Depends:** `I18N-004`, `WF-EXT-018`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=new customer-authored journeys and pages need safe labels, instructions, decisions and recovery copy in their audience's languages without putting translation strings into executable authority`.
+  - **TEST:** `TestTodo_I18N_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_I18N_006`; `INTEGRATION=TestTodo_I18N_006_Integration`; `SECURITY=TestTodo_I18N_006_Security`; `GOLDEN=TestTodo_I18N_006_Golden`.
+  - **RED:** `workflow.Definition` has a single `Name` and nodes have untyped `Metadata`; `WF-EXT-018` proposes generic stage labels but no locale/version/reviewer binding. A rendered Manager Change run or customer page returns an untranslated raw label, can change its apparent meaning in place, or lacks localized refusal and next-action copy.
+  - **GREEN:** workflow and page presentation metadata use stable semantic keys bound to reviewed catalog revisions, typed parameters and explicit fallback policy; publishing checks required audience locales, accessible names, error/recovery states and legal-copy review, then pins the presentation version separately from the executable plan. INTEGRATION renders one customer-authored workflow and one page in en-US, de-DE and RTL Arabic without new Go page code; SECURITY proves a translation edit cannot change route, permission, approval, effect or legal scope; GOLDEN pins the rendered meaning and parameter shape across version upgrades.
+  - **REFACTOR:** reuse the product catalog and page publication gates instead of building a workflow-only translation store.
+  - **Refs:** `internal/workflow/definition.go`, `internal/humanwork/productui`, `internal/experience/i18n`, [customer-composed pages](specs/production-frontend-and-page-composition.md#level-3-customer-composed-pages), [generic journey presentation](#engine-compatibility-and-registries).
+
+- [ ] `I18N-007` **[PHASE_2][SOL_HIGH] Gate a product release on complete localized content in its published user journeys.**
+  - **Depends:** `I18N-004`, `I18N-005`, `I18N-006`, `I18N-003`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.DOCUMENTS,BI.WORK; DIRECT=none; WHY=page-key presence and a fallback count do not prove that a person can complete, refuse or recover a real task in a declared supported language`.
+  - **TEST:** `TestTodo_I18N_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_I18N_007`; `INTEGRATION=TestTodo_I18N_007_Integration`; `BROWSER=TestTodo_I18N_007_Browser`; `SECURITY=TestTodo_I18N_007_Security`; `GOLDEN=TestTodo_I18N_007_Golden`; `CONFORMANCE=TestTodo_I18N_007_Conformance`.
+  - **RED:** the page matrix permits German and Arabic English-key fallbacks, and `I18N-003` proves channel parity only in a detached fixture; release admission returns an accepted decision for a published task whose heading is localized but whose material review, refusal, acknowledgement, notification or document text falls back to English.
+  - **GREEN:** the release manifest declares supported locales and required user journeys; for each locale the gate renders ready, empty, loading, validation, refusal, success and recovery states plus the matching notification/document derivatives, returning a failed admission decision on missing required keys, unreviewed legal text, changed parameter meaning, wrong direction or unacknowledged fallback. BROWSER tests a pseudo-expanded long-text fixture and mixed-script RTL identifiers at 320 px and 200% zoom with keyboard and screen-reader names preserved; INTEGRATION proves a deliberate missing critical translation blocks publication while an explicitly scoped optional fallback remains visible in diagnostics and does not silently become a supported-language claim.
+  - **REFACTOR:** extend the existing i18n/accessibility and release gates rather than creating a separate screenshot-only approval process.
+  - **Refs:** `tools/uxqual/i18n`, `internal/humanwork/productui/i18n.go`, `internal/experience/i18nparity`, [frontend publication fixtures](specs/production-frontend-and-page-composition.md#responsive-accessible-and-localized-behavior).
+
 - [x] `LOCATION-001` **[PHASE_2][SOL_HIGH] Define canonical Address, WorkLocation and Worksite revision identities.**
   - **Evidence (2026-09-05):** `TestLocationModelSeparatesHomeAddressWorksiteTaxResidenceAndMailing` in `internal/domains/location` (canonical Address, WorkLocation and Worksite revision identities separating home address, worksite, tax residence and mailing, with overlap refusals and jurisdiction resolution; written by a codex GPT-5.6 Luna lane and verified independently); `go test -count=1 ./internal/domains/location/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
   - **Depends:** `MODEL-016`, `INTENT-CONF-001`, `ENGINE-COVERAGE-001`.
@@ -14527,6 +14637,17 @@ is an acceptable result.
   - **GREEN:** the driver propagates the transport span context into `StepRequest` and `AdvanceRequest.TraceID`, opens one child span per node run, advancement and terminal write with instance, node, attempt and terminal code attributes, emits one `log/slog` envelope line per advancement and terminal write, and records node durations; the in-memory exporter (OBS-015) proves the chain in tests.
   - **REFACTOR:** span and log names follow the OBS-012 topology; no engine package imports an exporter.
   - **Refs:** [telemetry contract](specs/structured-logging-and-opentelemetry.md), [review findings](devlog/2026-09-03-executable-prototype.md#9-review-findings-and-the-hardening-plan).
+
+- [x] `OBS-025` **[GATE_B][SOL_HIGH] Preserve workflow identity and failure classification in exported operation spans.**
+  - **Evidence (2026-09-21):** RED exporter tests lost instance/node/attempt attributes, fault tests misclassified nested storage/cancellation as refusals, and resume tests persisted the dispatcher trace and ended a failed cyclic lookup as SUCCESS. GREEN `TestTodo_OBS_025`, `_Fault`, `_Security`, `TestExecutionSpanLateAttributesRespectExportPolicy`, `TestResumeAdvancementPersistsActiveTrace` and `TestResumeSpanReportsCyclicLookupFailure` cover these regressions. `go test -count=1 -cover ./internal/platform/execution/` PASS (80.2%); `go test -count=1 -cover ./internal/workflow/observe/ ./internal/platform/telemetry/otel/ ./internal/connectivity/providertelemetry/` PASS (96.8%, 73.7%, 97.8%); full execute suite PASS and `go test -count=1 -run '^TestWorkflowEngineOperationsAreObservableEndToEnd$' ./internal/application/` PASS. Local main; no remote Collector or Linux race run claimed.
+  - **Depends:** `OBS-023`, `OBS-013`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=operators need the same durable workflow identity and honest failure outcome in traces and structured logs`.
+  - **TEST:** `TestTodo_OBS_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_OBS_025`; `FAULT=TestTodo_OBS_025_Fault`; `SECURITY=TestTodo_OBS_025_Security`; `REGRESSION=TestResumeAdvancementPersistsActiveTrace`.
+  - **RED:** exported operation spans drop instance and attempt attributes and never receive IDs learned at completion; an outer governed refusal masks a nested storage error or cancellation as a successful refusal span.
+  - **GREEN:** operation spans map engine identity to the existing canonical telemetry keys and receive policy-filtered final attributes before ending exactly once. In-memory exporters prove correlation and trace IDs join logs to spans, late instance/node/attempt IDs survive, and error messages and payloads never export. Resumed node records point to the active resume trace, not the earlier dispatcher trace. Nested storage failures and cancellation return FAILURE while genuine stale-fence refusals remain REFUSED.
+  - **REFACTOR:** keep redaction in the existing OTel provider and reuse the engine error classifier without adding exporter dependencies to workflow packages.
+  - **Refs:** `internal/workflow/observe`, `internal/platform/execution/observe_recorder.go`, `internal/platform/telemetry/otel/execution.go`, [telemetry contract](specs/structured-logging-and-opentelemetry.md).
 
 - [x] `OBS-024` **[GATE_B][SOL_HIGH] Record execution evidence for authority-gate refusals, approvals, submissions and terminal writes.**
   - **Evidence (2026-09-05):** `TestTodo_OBS_024` in `internal/platform/execution`, `internal/workflow/execute`, `test/bootstrap`, `test/workflow` (execution evidence rows are recorded for authority-gate refusals, approvals, submissions and terminals, proven on the promotion plan; written by a subagent and verified independently); `go test -count=1 ./internal/platform/execution/ ./internal/workflow/execute/ ./test/bootstrap/ ./test/workflow/` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
@@ -19953,6 +20074,17 @@ These items qualify the rendered production frontend against the design-token co
 
 ## 72. September 14 live-UI regression findings
 
+- [x] `UICOLS-001` **[PHASE_3][TERRA] Configure and persist searchable/sortable People directory columns.**
+  - **Depends:** `WEB-109`, `WEB-111`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE; DIRECT=none; WHY=let each user select useful authorized workforce facts without changing record authority`.
+  - **TEST:** `TestTodo_UICOLS_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_UICOLS_001`; `CONFORMANCE=TestTodo_UICOLS_001_Components`; `REGRESSION=TestTodo_UICOLS_001_Preferences`.
+  - **RED:** directory columns are fixed; job code, level, worker number and organization metadata cannot be selected or sorted.
+  - **GREEN:** shared accessible column chooser with Apply/reset; Person remains visible; allowlisted worker number, job code, level, company, business unit and cost center columns search/sort; stable ties and missing-last ordering; server-side per-user preference restoration with explicit URL precedence; desktop/mobile visual verification.
+  - **REFACTOR:** use the existing shared table, immutable search index, route profiles and gRPC preferences; no new sensitive fields or browser-only preference store.
+  - **Refs:** `internal/humanwork/productui`, `tools/uxqual/productclient`, `tools/uxqual/cmd/journeywasm/preferences_wasm.go`.
+  - **Evidence (2026-09-21):** `TestTodo_UICOLS_001`, `TestTodo_UICOLS_001_Components` and `TestTodo_UICOLS_001_Preferences`: `go test ./internal/humanwork/productui -count=1 -cover` passed (92.2%); `go test ./tools/uxqual/productclient -count=1 -cover` passed (87.3%). After final navigation refinements, `go test ./internal/humanwork/productui -run 'TestTodo_UICOLS|TestColumnChooser|TestPeople|TestSort|TestProductCatalogCoverage' -count=1`, `go test ./tools/uxqual/productclient -count=1`, and `go test ./tools/uxqual/cmd/journeywasm -run 'TestPeopleColumns|TestPeopleDirectory|TestTodo_UXLIVE_028' -count=1` pass; productui/productclient vet passes. Codex-browser checks on the real gRPC-backed page at desktop, 390px and 320px: selection/Apply, Job code sort, URL-free reload restoration, cost-center search (5 of 60), keyboard selection/Apply, reset retaining search and returning sort to name. Dark mode visually verified; en-US/de-DE/ar component copy tested. `BenchmarkPeopleConfiguredSort`: 10,000 pre-indexed records in approximately 6.8ms (local run, not browser latency). Live refresh initially discarded drafts and the raw surface token broke dark mode; both refined and retested. Light-mode visual inspection and the full commit hook were not run; overlapping staged changes were left untouched.
+
 These are specific, still-visible findings from a read-only Codex-browser pass of the production Go frontend at approximately 1280 × 720 in dark mode. They narrow the broader `UXAUDIT` and `UIPOLISH` work above; implement through the shared components and server-backed projections, not duplicate page-local UI. A checkbox requires the named test and a fresh live-browser check of the affected state.
 
 - [x] `UXSCAN-001` **[PHASE_3][TERRA] Disambiguate employee identity everywhere a person can be chosen or acted on.**
@@ -20195,7 +20327,8 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **Refs:** [execution modes](specs/workflow-runtime.md), `internal/intent/app`, `internal/data/demoworkforce`.
   - **Evidence (2026-09-17):** live demo: proposal auto-bound picker ref `eref:v1:...position:c1a6b1fe...` with clean preflight; revalidation reached VALID and `execute_promotion` ran (first time on a served run). Regression: 35 intent/app journey/propose tests green; `TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest`, `TestTodo_PROMO_EXEC_001_DefaultComposition`, `TestTodo_PROMO_EXEC_001_OptOutRefuses` green (`go test -count=1 -v -run 'TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest|TestTodo_PROMO_EXEC_001' ./internal/application/`); `go vet`/`gofmt` clean. Files: `internal/intent/app/journey.go`, `promotionpropose.go`, `promotion_target_position.go`.
 
-- [ ] `PROMO-EXEC-007` **[PHASE_3][SOL_HIGH] Land the commit: drive a staffed-worker's promotion through execute_promotion to end_complete.**
+- [x] `PROMO-EXEC-007` **[PHASE_3][SOL_HIGH] Land the commit: drive a staffed-worker's promotion through execute_promotion to end_complete.**
+  - **Evidence (2026-09-21):** `TestTodo_PROMO_EXEC_007_CommitComplete`, `TestTodo_PROMO_EXEC_007_CommitComplete_Recovery` in `internal/application` (served PROMOUX-015 composition: a created worker's promotion closes end_complete with the PROMOTION_COMPLETE terminal, terminal ledger fact and committed assignment, occupancy, pay and budget rows; the Recovery half pins the recorded failure cause); supporting `TestTodo_PROMO_EXEC_007_CommitComplete*` in `internal/data/promotioncommit`; `go test -count=1 -run 'TestTodo_PROMO_EXEC_007_CommitComplete' ./internal/application/` PASS (28.4s) and `go test -count=1 -run 'TestTodo_PROMO_EXEC_007_CommitComplete' ./internal/data/promotioncommit/` PASS (31.3s) on windows/arm64. No code change needed: the commit path landed under WF-RUN-034/PROMO-EXEC-006. Caveat: runs observed with another session's unrelated dirty `internal/platform/execution/promotion_steps.go` compensate-hold edit in tree; re-run at gate time.
   - **Depends:** `PROMO-EXEC-006`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=no test or live run has ever reached end_complete; the first real attempt fails the commit with PORT_FAILURE and the cause is not recorded anywhere queryable`.
   - **TEST:** `TestTodo_PROMO_EXEC_007_CommitComplete`.
@@ -20205,7 +20338,7 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **REFACTOR:** none planned.
   - **Refs:** [execution modes](specs/workflow-runtime.md), `internal/platform/execution`, `internal/data/promotioncommit`.
 
-- [ ] `PROMO-EXEC-002` **[PHASE_3][SOL_HIGH] Prove the promotion execute chain over the served tunnel surface.**
+- [x] `PROMO-EXEC-002` **[PHASE_3][SOL_HIGH] Prove the promotion execute chain over the served tunnel surface.**
   - **Depends:** `PROMO-EXEC-001`, `PROMOUX-015`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=the write path lives behind gRPC and the workspace tunnel, so port-level tests alone do not prove the served surface executes`.
   - **TEST:** `TestTodo_PROMO_EXEC_002_TunnelChain`.
@@ -20214,8 +20347,10 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **GREEN:** one tunnel session proposes a promotion, executes it, records finance and manager decisions, inspects stage transitions and reads the terminal outcome and ledger fact; unauthorized callers are refused over the same surface.
   - **REFACTOR:** the tunnel journey client helpers are shared with the existing propose-only tunnel test.
   - **Refs:** [execution modes](specs/workflow-runtime.md), `internal/transport/cell`, `test/tunnel`.
+  - **Evidence (2026-09-21):** `TestTodo_PROMO_EXEC_002_TunnelChain`, `_Security`, `_Integration` in `test/tunnel` (one tunnel session: propose, execute, finance/manager decisions, stage transitions, terminal outcome + ledger fact; unauthorized callers refused); `go test -count=1 -run '^TestTodo_PROMO_EXEC_002_TunnelChain' ./test/tunnel/` PASS (50.8s) on windows/arm64.
 
-- [ ] `PROMO-EXEC-003` **[PHASE_3][SOL_HIGH] Pin the workflow inspectors and ADMIN-008 to a live promotion execution.**
+- [x] `PROMO-EXEC-003` **[PHASE_3][SOL_HIGH] Pin the workflow inspectors and ADMIN-008 to a live promotion execution.**
+  - **Evidence (2026-09-21):** `TestTodo_PROMO_EXEC_003_LiveInspect`, `TestTodo_PROMO_EXEC_003_LiveInspect_Integration`, `TestTodo_PROMO_EXEC_003_LiveInspect_Security` in `internal/application` over the served PROMOUX-015 cell: live execute-mode instance returns EXECUTE mode, the effective-date wait, node executions with gateway evidence refs and driver-created approval work items with transitions on the operator view; cross-tenant and unauthorized reads refused; `go test -count=1 -run 'TestTodo_PROMO_EXEC_003_LiveInspect' ./internal/application/` PASS (39.5s) on windows/arm64. No code change needed. Same shared-tree caveat as PROMO-EXEC-007.
   - **Depends:** `PROMO-EXEC-001`, `ADMIN-008`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=inspector reads proven only on fixtures hide execute-only projection content on the operator surface`.
   - **TEST:** `TestTodo_PROMO_EXEC_003_LiveInspect`.
@@ -20225,7 +20360,7 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **REFACTOR:** the live-run fixture setup is shared with the served control tests.
   - **Refs:** [execution modes](specs/workflow-runtime.md), `internal/transport/workflow`, `internal/transport/admin`.
 
-- [ ] `PROMO-EXEC-004` **[PHASE_3][SOL_HIGH] Drive the work queue over a live promotion approval and prove the control branches.**
+- [x] `PROMO-EXEC-004` **[PHASE_3][SOL_HIGH] Drive the work queue over a live promotion approval and prove the control branches.**
   - **Depends:** `PROMO-EXEC-001`, `EP-WORK-001`, `WF-RUN-015`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=claim, decide and separation-of-duties on the real finance and manager items is what the served approval path actually exercises`.
   - **TEST:** `TestTodo_PROMO_EXEC_004_LiveWorkQueue`.
@@ -20234,8 +20369,9 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **GREEN:** over RPC against a live promotion, the finance item is listed, claimed and decided, separation-of-duties refuses a second decision by the same principal, and pause, resume, cancel and retry-node report their real outcome branches on the instance.
   - **REFACTOR:** work-queue assertions reuse the served promotion fixture from PROMO-EXEC-001.
   - **Refs:** [approval and human work kernel](specs/workflow-runtime.md), `internal/transport/humanwork`, `internal/transport/workflow`.
+  - **Evidence (2026-09-21):** `TestTodo_PROMO_EXEC_004_LiveWorkQueue`, `_Security`, `_Integration` in `internal/application` (new `promoexec004_test.go`: finance item listed/claimed/decided over RPC, SoD refuses second decision, pause/resume/cancel/retry-node report real branches); `go test -count=1 -run '^TestTodo_PROMO_EXEC_004_LiveWorkQueue' ./internal/application/` PASS (77.5s) on windows/arm64.
 
-- [ ] `PROMO-EXEC-005` **[PHASE_3][SOL_HIGH] Cover the async engine paths on a real promotion: sweep, START retry and the composed scheduler loop.**
+- [x] `PROMO-EXEC-005` **[PHASE_3][SOL_HIGH] Cover the async engine paths on a real promotion: sweep, START retry and the composed scheduler loop.**
   - **Depends:** `PROMO-EXEC-001`, `WF-RUN-020`, `WF-RUN-004`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=the default-on scheduler and sweep watch real promotions, so their promotion behavior must be proven on a promotion, not on generic fixtures`.
   - **TEST:** `TestTodo_PROMO_EXEC_005_AsyncEngine`.
@@ -20244,6 +20380,7 @@ A read-only review of [the workflow runtime spec](specs/workflow-runtime.md) aga
   - **GREEN:** a parked promotion left stuck is swept, a commit-aborted promotion start retries to exactly one instance, and the composed scheduler workload fires a due promotion timer and resumes it; a restarted run recovers without duplicating the resume.
   - **REFACTOR:** the sweep and scheduler cases share one parked-promotion fixture.
   - **Refs:** [timers and recovery](specs/workflow-runtime.md), `internal/workflow/progress`, `internal/platform/execution/scheduler`, `internal/application`.
+  - **Evidence (2026-09-21):** `TestTodo_PROMO_EXEC_005_AsyncEngine`, `_Security`, `_Recovery` in `internal/application` (new `promoexec005_test.go`) plus supporting `TestTodo_PROMO_EXEC_005_SweepParkedPromotion` in `internal/workflow/progress` (parked promotion swept, aborted start retries to exactly one instance, scheduler fires due timer and resumes, restart recovers without duplicate resume); `go test -count=1 -run '^TestTodo_PROMO_EXEC_005_AsyncEngine' ./internal/application/` PASS (41.0s) and SweepParkedPromotion PASS (24.0s) on windows/arm64.
 
 ## 74. September 17 live UI and UX audit findings
 
@@ -20981,7 +21118,7 @@ Placement is recorded in the [execution plan](execution-plan.md#recorded-placeme
 
 ### Engine: decouple the executable path from Promotion
 
-- [ ] `WF-EXT-001` **[GATE_B][SOL_HIGH] Run the budget-hold compensation inside the advance transaction it requires.**
+- [x] `WF-EXT-001` **[GATE_B][SOL_HIGH] Run the budget-hold compensation inside the advance transaction it requires.**
   - **Depends:** `WF-RUN-037`, `PROMO-EXEC-007`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.REWARDS,BI.WORK; DIRECT=none; WHY=a served promotion whose downstream observation fails can never release its budget hold, so the compensation route is dead code in production`.
   - **TEST:** `TestTodo_WF_EXT_001`.
@@ -20990,9 +21127,11 @@ Placement is recorded in the [execution plan](execution-plan.md#recorded-placeme
   - **GREEN:** the driver runs `compensate_budget_hold` inside the advance transaction; INTEGRATION drives a served promotion through a failed payroll observation and asserts the hold is released exactly once and the run reaches `end_repair_plan`; FAULT kills the process mid-compensation and asserts the release is not duplicated on resume.
   - **REFACTOR:** derive the transactional claim from the compiled node's effect role (`WF-EXT-002`) instead of a node-id list.
   - **Refs:** `internal/platform/execution/promotion_steps.go`, `internal/workflow/execute/driver.go`, `internal/platform/execution/promotionsteps`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_EXT_001`, `TestTodo_WF_EXT_001_Integration`, `TestTodo_WF_EXT_001_Fault` in `internal/platform/execution` (new `wf_ext_001_test.go`; fix in `promotion_steps.go`: `RunsInTransaction` claims `compensate_budget_hold` alongside `execute_promotion` on PLAN_EXECUTE); `go test -count=1 -run '^TestTodo_WF_EXT_001' ./internal/platform/execution/` PASS on windows/arm64.
 
-- [ ] `WF-EXT-002` **[GATE_B][SOL_HIGH] Replace the two-plan Promotion switch with workflow registrations and capability-keyed dispatch.**
+- [x] `WF-EXT-002` **[GATE_B][SOL_HIGH] Replace the two-plan Promotion switch with workflow registrations and capability-keyed dispatch.**
   - **Depends:** `WF-EXT-001`, `WF-RUN-040`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_EXT_002`, `TestTodo_WF_EXT_002_Golden` (prototype/execute digests byte-identical), `TestTodo_WF_EXT_002_Integration` in `internal/platform/execution` (new `registrations.go`: `WorkflowRegistration` list with capability-keyed dispatch, high-performer variant as third registration); `go test -count=1 -run '^TestTodo_WF_EXT_002' ./internal/platform/execution/` PASS (51.8s) on windows/arm64.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=a second executable workflow today means copying about six Promotion layers, and the high-performer variant is about to force the first copy`.
   - **TEST:** `TestTodo_WF_EXT_002`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_WF_EXT_002`; `GOLDEN=TestTodo_WF_EXT_002_Golden`; `INTEGRATION=TestTodo_WF_EXT_002_Integration`.
@@ -21020,6 +21159,7 @@ Placement is recorded in the [execution plan](execution-plan.md#recorded-placeme
   - **GREEN:** each node's typed output is stored as an immutable artifact bound to its attempt; the driver resolves `WORKFLOW_INPUT`, `NODE_OUTPUT`, `CONTEXT` and `CONSTANT` mappings before dispatch; RECOVERY proves a resumed run reads the same artifacts; PROPERTY proves a mapping never reads an output from a node that does not dominate it.
   - **REFACTOR:** share one mapping resolver between `simulate` and the durable path.
   - **Refs:** `internal/workflow/runtime`, `internal/workflow/simulate`, `internal/workflow/mapping.go`, `internal/workflow/frontier`.
+  - **Progress (2026-09-21):** implemented except CONTEXT sources. `workflow.ResolveMappings` is the one resolver, used by `simulate` and by the driver; migration `00322` adds append-only `workflow_input_artifact` and `workflow_node_output_artifact`; `ExecuteRequest.Inputs` is validated against the plan and recorded in the start transaction; `StepRequest.Inputs` carries the resolved mappings; a runner's `NodeOutcome.Outputs` (a pointer, tagged `json:"-"`, so the struct stays comparable and typed values never enter a receipt) is validated against the node's declared outputs and recorded in the advancement transaction. Runs that supply no input document behave as before. `TestTodo_WF_EXT_004`, `_Recovery`, `_Property` PASS in `internal/workflow/execute`; `internal/workflow`, `frontier`, `simulate` and the conformance families PASS; Promotion and New employee hire still complete end to end in `test/workflow`. Remaining: CONTEXT mappings cannot resolve on the durable path because `StartRequest.ResolvedContext` holds proof references, not typed values; no production runner reads `Inputs` yet (that is `WF-EXT-005`/`006`). Unrelated failures seen while verifying: two effect-role settlement tests in `internal/workflow/runtime` rejected by a compiler rule another session is editing (`MUTATION_IN_SIMULATION`). Not committed; remains unchecked.
 
 - [ ] `WF-EXT-005` **[GATE_C][SOL_HIGH] Execute CAPABILITY and OBSERVE nodes through the capability gateway with registry manifests.**
   - **Depends:** `WF-EXT-004`, `BIND-001`.
@@ -21476,7 +21616,7 @@ Defaults recorded here pending owner review:
 
 ### Partial reversal: make the executable Promotion path correct
 
-- [ ] `WF-REV-001` **[GATE_B][SOL_HIGH] Discharge a compensation obligation so a cancelling run can finish.**
+- [x] `WF-REV-001` **[GATE_B][SOL_HIGH] Discharge a compensation obligation so a cancelling run can finish.**
   - **Depends:** `WF-RUN-010`, `WF-EXT-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=a run whose cancellation needs compensation enters CANCELLING and nothing ever moves it to CANCELLED or REPAIR_REQUIRED`.
   - **TEST:** `TestTodo_WF_REV_001`.
@@ -21485,8 +21625,9 @@ Defaults recorded here pending owner review:
   - **GREEN:** a cancellation driver reads the recorded obligation, runs each compensation as its own durable node execution in reverse commit order, observes each result, and moves the instance to `CANCELLED` when every compensation succeeds or `REPAIR_REQUIRED` naming the remaining effects; RECOVERY resumes a half-discharged obligation without repeating a finished compensation; FAULT proves a failed compensation lands in `REPAIR_REQUIRED`, never back in `CANCELLING`.
   - **REFACTOR:** the driver reuses the execute driver's lease and fencing rather than a second loop.
   - **Refs:** `internal/workflow/cancellation`, `internal/workflow/cancel.go`, [cancellation contract](specs/workflow-runtime.md#pause-cancellation-and-propagation).
+  - **Evidence (2026-09-21):** `TestTodo_WF_REV_001`, `TestTodo_WF_REV_001_Recovery`, `TestTodo_WF_REV_001_Fault`, `TestTodo_WF_REV_001_Integration` in `internal/workflow/cancellation` (new `discharge.go` + `discharge_test.go`); `go test -count=1 -run '^TestTodo_WF_REV_001' ./internal/workflow/cancellation/` PASS on windows/arm64; dependency `WF-EXT-001` ticked same day.
 
-- [ ] `WF-REV-002` **[GATE_B][SOL_HIGH] Wire the compensate executor and the governed cancel compensator into the served path.**
+- [x] `WF-REV-002` **[GATE_B][SOL_HIGH] Wire the compensate executor and the governed cancel compensator into the served path.**
   - **Depends:** `WF-REV-001`, `TX-008`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=a complete compensation executor exists but only a golden manifest references it, so no compensation has ever run in production`.
   - **TEST:** `TestTodo_WF_REV_002`.
@@ -21495,8 +21636,9 @@ Defaults recorded here pending owner review:
   - **GREEN:** the served cell composes the compensate executor for COMPENSATE nodes and for cancellation-driven compensation, and passes it as the governed cancel compensator; INTEGRATION cancels a served promotion at each safe point and asserts the ledger carries one compensation event per reversed effect, each naming the event it counters.
   - **REFACTOR:** one executor instance serves both paths.
   - **Refs:** `internal/workflow/steps/compensate`, `internal/workflow/execute`, `internal/transaction/cancel`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_REV_002`, `TestTodo_WF_REV_002_Integration` (cancel at wait_effective_date/execute_promotion/compensate_budget_hold yields one COMPENSATED event each with OriginalHistoryRef; unknown refs land REPAIR_REQUIRED), `TestTodo_WF_REV_002_Golden` in `internal/platform/execution` (new `compensate_serve.go` + `wf_rev_002_test.go`); `go test -count=1 -run '^TestTodo_WF_REV_002' ./internal/platform/execution/` PASS (92.0s) on windows/arm64.
 
-- [ ] `WF-REV-003` **[GATE_B][SOL_HIGH] Make one reversibility declaration the source for proposals, plans and cancellation.**
+- [x] `WF-REV-003` **[GATE_B][SOL_HIGH] Make one reversibility declaration the source for proposals, plans and cancellation.**
   - **Depends:** `WF-REV-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.REWARDS,BI.WORK; DIRECT=none; WHY=the promotion proposal tells approvers the change is reversible while the workflow node declares it irreversible, and cancellation reads only the node`.
   - **TEST:** `TestTodo_WF_REV_003`.
@@ -21505,8 +21647,9 @@ Defaults recorded here pending owner review:
   - **GREEN:** proposal effect items, the compiled node's cancel class and `EffectRecord.Reversible` all derive from the same declaration; PROPERTY proves the proposal and the cancellation verdict can never disagree for any plan; GOLDEN pins the promotion effect items.
   - **REFACTOR:** delete the per-simulator reversibility strings.
   - **Refs:** `internal/workflow/cancel_semantics.go`, `internal/intent`, `internal/domains/promotion`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_REV_003`, `TestTodo_WF_REV_003_Property` (proposal and cancellation verdict never disagree), `TestTodo_WF_REV_003_Golden` in `internal/workflow` (new `wf_rev_003_test.go`; one 5-effect reversibility declaration, per-simulator literals deleted); `go test -count=1 -run '^TestTodo_WF_REV_003' ./internal/workflow/` PASS on windows/arm64.
 
-- [ ] `WF-REV-004` **[GATE_B][TERRA] Release the promotion budget hold on every cancel path.**
+- [x] `WF-REV-004` **[GATE_B][TERRA] Release the promotion budget hold on every cancel path.**
   - **Depends:** `WF-EXT-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.REWARDS; DIRECT=none; WHY=a promotion cancelled through CancelIntent rather than the journey screen keeps its compensation budget reserved`.
   - **TEST:** `TestTodo_WF_REV_004`.
@@ -21515,6 +21658,7 @@ Defaults recorded here pending owner review:
   - **GREEN:** every cancel path releases the hold exactly once through the same release capability; INTEGRATION cancels through each path and asserts the remaining budget.
   - **REFACTOR:** remove the best-effort journey-only release.
   - **Refs:** `internal/intent/app/journey_candidates.go`, `internal/intent/app/workflow_cancellation.go`, `internal/domains/budget`.
+  - **Evidence (2026-09-21):** `TestTodo_WF_REV_004`, `TestTodo_WF_REV_004_Integration` (6000+3000 holds block 2000 top-up on 10000 pool; both cancel paths release, top-up succeeds) in `internal/intent/app` (shared `releasePromotionAdmission`, `releasePromotionWindow` + call sites deleted); `go test -count=1 -run '^TestTodo_WF_REV_004' ./internal/intent/app/` PASS (46.0s) on windows/arm64.
 
 - [ ] `WF-REV-005` **[GATE_B][SOL_HIGH] Decide cancellation per effect and observe unknown effects before deciding.**
   - **Depends:** `WF-REV-001`, `WF-REV-003`.
@@ -22378,7 +22522,8 @@ Items `RBAC-RT-001`–`006`, `009` and `010` are Gate B, because they correct ac
   - **REFACTOR:** remove direct `HasRole` calls in favour of the resolved role set.
   - **Refs:** `internal/experience/roleaccess`, `internal/transport/journey/role_access.go`, `internal/intent/app/manager_chain_facts.go`.
 
-- [ ] `RBAC-RT-003` **[GATE_B][SOL_HIGH] Authorize intent reads and actions by subject and relationship, not tenant alone.**
+- [x] `RBAC-RT-003` **[GATE_B][SOL_HIGH] Authorize intent reads and actions by subject and relationship, not tenant alone.**
+  - **Evidence (2026-09-23):** `TestTodo_RBAC_RT_003`, `_Security`, `_Integration` in `internal/intent/app` + `TestRBACRuntime` suite cases G-02/G-03/G-05/G-06/G-08/G-09/G-11/K-04/K-05/K-06/F-08 in `internal/application` — all PASS `go test -count=1 -run 'TestTodo_RBAC_RT_003' ./internal/intent/app/` and `go test -count=1 -run 'TestRBACRuntime' ./internal/application/` on windows/arm64; dep `RBAC-RT-002` ticked. Implementation staged by owning session; uncommitted.
   - **Depends:** `RBAC-RT-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=any principal in a tenant can read, list, submit or cancel any intent, including proposals carrying pay`.
   - **TEST:** `TestTodo_RBAC_RT_003`.
@@ -22388,7 +22533,7 @@ Items `RBAC-RT-001`–`006`, `009` and `010` are Gate B, because they correct ac
   - **REFACTOR:** none.
   - **Refs:** `internal/transport/intent`, `internal/intent/app`.
 
-- [ ] `RBAC-RT-004` **[GATE_B][SOL_HIGH] Install authorization hooks on the Work and Workflow services.**
+- [x] `RBAC-RT-004` **[GATE_B][SOL_HIGH] Install authorization hooks on the Work and Workflow services.**
   - **Depends:** `RBAC-RT-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK; DIRECT=none; WHY=both services are composed with a nil authorize hook, so only item visibility rules and tenant matching stand between an outsider and workflow internals`.
   - **TEST:** `TestTodo_RBAC_RT_004`.
@@ -22397,8 +22542,10 @@ Items `RBAC-RT-001`–`006`, `009` and `010` are Gate B, because they correct ac
   - **GREEN:** both services authorize each call through the policy decision point by capability and scope; workflow reads require participation, supervision of the subject, or an operator role; the suite's outsider cases pass.
   - **REFACTOR:** none.
   - **Refs:** `internal/transport/humanwork`, `internal/transport/workflow`, `internal/transport/cell/cell.go`.
+  - **Evidence (2026-09-21):** `TestTodo_RBAC_RT_004`, `_Security`, `_Integration` across `internal/transport/humanwork`, `internal/transport/workflow`, `internal/transport/cell` (ctx-bearing nil=deny Authorize, strict assignment-only service auth, participation/supervision/operator reads with NOT_FOUND refusals; outsider cases pass; unwired supervision fails closed pending `RBAC-RT-007`); `go test -count=1 -run '^TestTodo_RBAC_RT_004' ./internal/transport/humanwork/ ./internal/transport/workflow/ ./internal/transport/cell/` PASS on windows/arm64.
 
-- [ ] `RBAC-RT-005` **[GATE_B][SOL_LOW] Replace the two conflicting diagnostics gates with one disclosure rule.**
+- [x] `RBAC-RT-005` **[GATE_B][SOL_LOW] Replace the two conflicting diagnostics gates with one disclosure rule.**
+  - **Evidence (2026-09-21):** `TestTodo_RBAC_RT_005`, `TestTodo_RBAC_RT_005_Security` in `internal/experience/roleaccess`; `TestTodo_RBAC_RT_005_HistoricalInspectionAdmitsOversight` in `internal/intent/app`; `TestTodo_RBAC_RT_005_Integration` in `internal/application`; suite cases H-04/H-06 pass and are removed from `rbacKnownGaps`; `go test -count=1 ./internal/experience/roleaccess/ ./internal/trust/authz/` PASS, `go test -count=1 ./internal/transport/journey/` PASS, `go test -count=1 ./internal/intent/app/` PASS, `go test -count=1 -run 'TestRBACRuntime|TestTodo_RBAC_RT_005' ./internal/application/` PASS on windows/arm64 (Go 1.26.3); uncommitted on local main.
   - **Depends:** `RBAC-RT-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS; DIRECT=none; WHY=journey inspection admits auditors but not operators while the diagnostics check admits operators but not auditors`.
   - **TEST:** `TestTodo_RBAC_RT_005`.
@@ -22408,7 +22555,8 @@ Items `RBAC-RT-001`–`006`, `009` and `010` are Gate B, because they correct ac
   - **REFACTOR:** delete the duplicated role list.
   - **Refs:** `internal/intent/app/journey_inspect.go`, `internal/transport/journey/diagnostics_access.go`.
 
-- [ ] `RBAC-RT-006` **[GATE_B][SOL_LOW] Make page and feature gates fail closed when permission data is missing.**
+- [x] `RBAC-RT-006` **[GATE_B][SOL_LOW] Make page and feature gates fail closed when permission data is missing.**
+  - **Evidence (2026-09-23):** `TestTodo_RBAC_RT_006`, `_Security`, `_Integration` in `internal/transport/journey` — all PASS `go test -count=1 -run 'TestTodo_RBAC_RT_006'` on windows/arm64; hardcoded audience fallback verified absent from `web242_page_modules.go`; dep `RBAC-RT-002` ticked. Implementation staged by owning session; uncommitted.
   - **Depends:** `RBAC-RT-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a missing role store or an empty permission table currently allows the action`.
   - **TEST:** `TestTodo_RBAC_RT_006`.
@@ -22429,7 +22577,8 @@ Items `RBAC-RT-001`–`006`, `009` and `010` are Gate B, because they correct ac
   - **REFACTOR:** none.
   - **Refs:** `internal/operations/admin/policy.go`, `internal/transport/journey/role_access.go`.
 
-- [ ] `RBAC-RT-010` **[GATE_B][SOL_HIGH] Carry only identity in the token and stop minting authority outside the issuer.**
+- [x] `RBAC-RT-010` **[GATE_B][SOL_HIGH] Carry only identity in the token and stop minting authority outside the issuer.**
+  - **Evidence (2026-09-22):** `TestTodo_RBAC_RT_010`, `_Security`, `_Integration` in `internal/trust` (IssueIdentity/VerifyIdentity, JIT-grant join, revocation ends elevation); `TestIdentityVerifierAdapter` (`HMACVerifier.IdentityVerifier` plugs identity-only semantics into `transport.Config.Verifier`); `TestTodo_RBAC_RT_010_Mint` in `internal/transport/admin/hcmctl` (identity-only mint, substantial assurance, `-mint-roles`/`-mint-purpose` removed, refused outside `local-dev` profile and against non-loopback cells); `TestTodo_RBAC_RT_010_Integration` in `internal/transport/journey` (cases A-03/A-05: other-tenant authority token refused Unauthenticated for `ListWorkers`/`GetRoleAccess`; identity token authorizes via durable assignment); `go test -count=1 ./internal/trust/ ./internal/transport/admin/hcmctl/ ./internal/transport/journey/` PASS, `go vet` clean, `gofmt` clean, windows/arm64 Go 1.26; coverage `internal/trust` 97.6%, `internal/transport/journey` 84.7%, `internal/transport/admin/hcmctl` 48.5% under its standing `below_floor` exception (was 37.1%); uncommitted.
   - **Depends:** `RBAC-RT-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=tenant, roles, organization scope, purposes, assurance and delegation references are accepted from a self-signed token and the operator tool mints high-assurance tokens with any roles`.
   - **TEST:** `TestTodo_RBAC_RT_010`.
@@ -22554,7 +22703,8 @@ The runtime suite `TestRBACRuntime` carries a case for each item, recorded as a 
   - **REFACTOR:** none.
   - **Refs:** `internal/experience/roleaccess/roleaccess.go`, `internal/data/roleaccessstore/store.go`.
 
-- [ ] `RBAC-RT-018` **[GATE_B][SOL_HIGH] Derive role-administration authority from stored grants and block self-escalation and lockout.**
+- [x] `RBAC-RT-018` **[GATE_B][SOL_HIGH] Derive role-administration authority from stored grants and block self-escalation and lockout.**
+  - **Evidence (2026-09-23):** `TestTodo_RBAC_RT_018`, `_Security`, `_Integration` in `internal/transport/journey` (stored-grant custom role administers, credential-without-grant refuses, self/over-grant/lockout refuse with distinct reasons, view-only duty refuses, cross-call readback) + `TestRBACRuntime` P4-01/P4-02/P4-03 passing with entries removed from `rbacKnownGaps` - all PASS `go test -count=1 ./internal/transport/journey/` (85.3% statements) and `go test -count=1 -run 'TestRBACRuntime' ./internal/application/` on windows/arm64; deps `RBAC-RT-002` ticked. Duty is the stored roles-page update grant through active roles (the suite's lockout op defines administrator-hood by roles:update rows; a universal feature_access requirement would break ticked RT-002 whose snapshot has no such rows); holding scopes to roles-page grants (super-admin latitude for workforce pages pinned by the committed round-trip test); lockout is grant-level (admitted fallback means assignment revocation cannot lock out). Uncommitted.
   - **Depends:** `RBAC-RT-002`, `RBAC-RT-017`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=role administration follows two login roles, so a role granted the roles page cannot administer, while an administrator can grant themselves anything or remove the last administrator`.
   - **TEST:** `TestTodo_RBAC_RT_018`.
@@ -22715,7 +22865,7 @@ Checked all 15 `WEDGE-*` items (lines 598-765). Every named PRIMARY and `TestTod
 
 Checked TOOL-001 through TOOL-020 and TOOL-026 (lines 769-1005 of `planning/todos.md`): all are ticked, all named tests exist (`TestGoWorkspacePolicy`, `TestGeneratorLockRejectsFloatingVersion`, `TestSchemaFluxOfflineFixture`, `TestContractCompatibility`, `TestGeneratedClientParity`, `TestGRPCBridgeUnaryParity`, `TestTodo_TOOL_009/011/012/013/016/018/019/020`, `TestEnvironmentIsolation`, `TestSweepStaleRuntimesRemovesOnlyOldDeadRuntimes`, `TestReleaseContainsNoLegacyRuntime`, `TestSBOMCompleteness`), and the CI-facing checks (race-coverage policy, dependency admission, API compatibility) are genuinely invoked from `.github/workflows/tests.yml`, not just present as unit tests. `go.mod` confirms the single-module, pinned-Go-1.26.3 layout TOOL-001 requires, with no `go.work`. The one substantive gap: TOOL-007's own evidence promised a follow-up ("delete the superseded hand-written `internal/transport/edge/client.go`") that was never done, and the generated client it was meant to replace (`internal/transport/clients`) is dead code — imported by nothing outside its own test files — while the hand-written client remains what the doc comments still describe as the live implementation. A second, narrower issue: TOOL-020's rolling-upgrade protocol package is not imported by any `cmd/*` binary or adapter anywhere in the tree, so its GREEN criterion ("old/new binaries interoperate") is unproven outside the isolated package tests.
 
-- [ ] `REV-003-01` **[GATE_C][TERRA] Delete the superseded hand-written edge client or make the generated capability clients the callers actually use.**
+- [x] `REV-003-01` **[GATE_C][TERRA] Delete the superseded hand-written edge client or make the generated capability clients the callers actually use.**
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=remove duplicate client implementations that drift out of sync with the canonical contract`.
   - **TEST:** `TestTodo_REV_003_01`.
@@ -22724,6 +22874,7 @@ Checked TOOL-001 through TOOL-020 and TOOL-026 (lines 769-1005 of `planning/todo
   - **GREEN:** exactly one `IntentClient`/`RegistryClient` implementation exists in the tree; it is either the generated one (with the hand-written duplicate deleted) or the plan is amended to record why both are kept, and `tools/gen/clients`'s drift check (`TestGeneratedClientsCurrent`) covers whichever one is canonical.
   - **REFACTOR:** fold any caller-side convenience helpers from the deleted file into the surviving package so no behavior is lost.
   - **Refs:** `internal/transport/edge/client.go`, `internal/transport/clients/intent_client.go`, `internal/transport/clients/registry_client.go`, `tools/gen/clients/write.go`.
+  - **Evidence (2026-09-21):** `TestTodo_REV_003_01`, `TestTodo_REV_003_01_Golden` (pins 14 generated procedures), `TestTodo_REV_003_01_Integration` (generated gRPC vs connect parity) in `internal/transport/clients`; hand-written `internal/transport/edge/client.go` + `client_test.go` deleted, test shims delegate to generated connect; `TestGeneratedClientsCurrent` drift check in `tools/gen/clients` PASS; `go test -count=1 -cover ./internal/transport/clients/` PASS 96.8%, `./tools/gen/clients/` PASS 71.3% on windows/arm64.
 
 - [ ] `REV-003-02` **[GATE_C][TERRA] Wire the schema/binary rolling-upgrade protocol into an actual adapter or binary before treating TOOL-020 as more than a protocol proof.**
   - **Depends:** none.
@@ -22750,7 +22901,8 @@ Checked all 30 `MODEL-*` items (lines 1517-1853: canonical identifiers, presence
   - **REFACTOR:** none.
   - **Refs:** `internal/domains/promotion/localcommit/localcommit.go`, `internal/domains/promotion/localcommit/localcommit_test.go`, [transaction plan](specs/transaction-plan-and-commit-coordinator.md).
 
-- [ ] `REV-004-02` **[GATE_C][SOL_HIGH] Wire governed retention, legal-hold and verified-deletion into a running service entry point.**
+- [x] `REV-004-02` **[GATE_C][SOL_HIGH] Wire governed retention, legal-hold and verified-deletion into a running service entry point.**
+  - **Evidence (2026-09-23):** `application.DispositionGate` in `internal/application/disposition.go` (thin adapter: `records.Simulate` → hold evaluation → `records.ExecuteDeletion` with HOLD_BLOCKED fail-closed and cross-tenant refusal) composed into the serve graph (`ComposeServe`, `ComponentDispositionGate`), exposed via `App.Disposition()`, driven by `hcmnext records-disposition`; `TestTodo_REV_004_02`, `_Golden`, `_Security`, `_Integration` (served composition: hold → HOLD_BLOCKED + persisted finding → release → complete certificate + ELIGIBLE report), `_Recovery` — all PASS `go test -count=1 -run 'TestTodo_REV_004_02' ./internal/application/` on windows/arm64; deps MODEL-026/027/028 ticked. Uncommitted.
   - **Depends:** `MODEL-026`, `MODEL-027`, `MODEL-028`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.ALL; DIRECT=none; WHY=give privacy deletion and retention obligations an operational entry point instead of leaving them library only`.
   - **TEST:** `TestTodo_REV_004_02`.
@@ -22764,7 +22916,8 @@ Checked all 30 `MODEL-*` items (lines 1517-1853: canonical identifiers, presence
 
 Checked CAP-001..003, INTENT-001..025, REPLAN-001..004, GOVERN-001..003, CONFLICT-001..003, APPROVAL-001..003 and TX-001..010 (lines 2762-3355): every referenced package/file exists and every named `TestTodo_*` function exists (sampled `CAP-001/002/003`, `INTENT-002/003/016/023`, `TX-004/006`, `CONFLICT-001/002` deeply; skimmed the rest). `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` confirms `internal/capability`, `internal/intent`, `internal/intent/approval`, `internal/intent/eventpolicy`, `internal/governance(/decision|/revalidate)`, `internal/transaction/{conflict,plan,commit,coordinator,idempotency,cancel}` and `internal/humanwork` are wired into running binaries, matching their ticks. The gap is a cluster of ticked GATE_B items that compile and pass their own unit tests but are never called from anywhere except their own `_test.go` files: `internal/replan`, `internal/engines/replan` (REPLAN-001–004), `internal/transaction/recovery` (TX-005) and `internal/transaction/correction` (TX-007), plus `internal/intent/analysis` (INTENT-020) and `internal/intent/surface` (INTENT-021). None of these appear in `go list -deps` for any of the four binaries or `cmd/hcmctl`, and a repo-wide grep for their exported entry points outside test files returns nothing. Most concretely, `internal/transaction/coordinator.Options.ResolveAmbiguous` — the exact hook TX-005's recovery resolver is meant to fill — is never set anywhere in production code, so a real commit-connection failure has no wired recovery path despite TX-004/TX-005 both being ticked complete.
 
-- [ ] `REV-007-01` **[GATE_B][SOL_HIGH] Wire the replan analysis, reuse and successor packages into the intent revalidation path.**
+- [x] `REV-007-01` **[GATE_B][SOL_HIGH] Wire the replan analysis, reuse and successor packages into the intent revalidation path.**
+  - **Evidence (2026-09-23):** `approval.ReplanOnDrift` in `internal/intent/approval/replan.go` (AnalyzeMaterialSubgraph → engines Compute over unordered-conflict diffs → EvaluateReuse on invalidated components → CreateSuccessor routed via new `RequiredRoute`, seal verified; unbound drift retained for review, unknown components fail closed to revalidation, quiet snapshots yield no successor); `TestTodo_REV_007_01`, `TestTodo_REV_007_01_Integration` (approval-seam only, bound input change → reapproval-routed successor preserving the original receipt) — all PASS `go test -count=1 ./internal/intent/approval/` on windows/arm64 (package 83.9% statements); dep none. Uncommitted.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_REV_007_01`.
@@ -22774,7 +22927,8 @@ Checked CAP-001..003, INTENT-001..025, REPLAN-001..004, GOVERN-001..003, CONFLIC
   - **REFACTOR:** none.
   - **Refs:** `internal/replan/analysis.go`, `internal/engines/replan/replan.go`, `internal/engines/replan/reuse.go`, `internal/intent/approval/successor.go`, [Change conflicts](specs/cross-workflow-conflict-and-write-intent.md).
 
-- [ ] `REV-007-02` **[GATE_B][SOL_HIGH] Wire the ambiguous-commit recovery resolver into the transaction coordinator's ResolveAmbiguous hook.**
+- [x] `REV-007-02` **[GATE_B][SOL_HIGH] Wire the ambiguous-commit recovery resolver into the transaction coordinator's ResolveAmbiguous hook.**
+  - **Evidence (2026-09-23):** `commit.AmbiguousResolver`/`WithAmbiguousRecovery` in `internal/transaction/commit/resolve_ambiguous.go` is the package's commit-coordinator construction setting `Options.ResolveAmbiguous` to a closure over `recovery.Resolve` (verified: no other production `CommitWithRetry`/`coordinator.New` construction exists); `TestTodo_REV_007_02`, `_Fault` (severed commit after durable pre-commit → recovered COMMITTED receipt, one attempt, no replay; unwired control reproduces bare `ErrCommitAmbiguous`), `_Recovery` (nothing durable → typed `ErrCommitAbsent` keeping the ambiguity classification) — all PASS `go test -count=1 -run 'TestTodo_REV_007_02' ./internal/transaction/commit/` on windows/arm64 against embedded PostgreSQL. Uncommitted.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_REV_007_02`.
@@ -22784,7 +22938,8 @@ Checked CAP-001..003, INTENT-001..025, REPLAN-001..004, GOVERN-001..003, CONFLIC
   - **REFACTOR:** none.
   - **Refs:** `internal/transaction/coordinator/coordinator.go`, `internal/transaction/recovery/resolver.go`, `internal/transaction/commit/boundary.go`, [Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md).
 
-- [ ] `REV-007-03` **[GATE_B][SOL_HIGH] Expose append-only business correction through a governed operator capability.**
+- [x] `REV-007-03` **[GATE_B][SOL_HIGH] Expose append-only business correction through a governed operator capability.**
+  - **Evidence (2026-09-23):** `OperationLedgerCorrection` kind in `internal/intent/operation.go` (valid, single-operator) + `operator.ExecuteLedgerCorrection` in `internal/intent/operator/correction.go` (re-authorizes through `AuthorizeOperatorAction`, binds stream/idempotency to the receipt, calls `correction.Append` in the caller's tx, observe-instrumented); `TestTodo_REV_007_03`, `_Security`, `_Integration` (governed intent to ledger row + obligation, exact retry replays with no duplicate) — all PASS `go test -count=1 ./internal/intent/ ./internal/intent/operator/` on windows/arm64 (operator 97.0% statements); dep none. Uncommitted.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ALL; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.
   - **TEST:** `TestTodo_REV_007_03`.
@@ -22832,7 +22987,7 @@ Reviewed `planning/todos.md` lines 3627-4021 (`WF-RUN-000` through `WF-RUN-033`,
   - **REFACTOR:** none.
   - **Refs:** `internal/workflow/migrate/migrate.go`, `internal/workflow/migrationpreview/preview.go`, `internal/transport/admin/hcmctl`, [Workflow migration](specs/workflow-runtime.md).
 
-- [ ] `REV-009-02` **[GATE_C][SOL_HIGH] Expose skip, satisfy, override, rewind, supersede and reconcile interventions through an operator-reachable surface.**
+- [x] `REV-009-02` **[GATE_C][SOL_HIGH] Expose skip, satisfy, override, rewind, supersede and reconcile interventions through an operator-reachable surface.**
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=an operator must be able to trigger every governed intervention kind the taxonomy defines and not only the four already wired to transport`.
   - **TEST:** `TestTodo_REV_009_02`.
@@ -22841,6 +22996,7 @@ Reviewed `planning/todos.md` lines 3627-4021 (`WF-RUN-000` through `WF-RUN-033`,
   - **GREEN:** a transport RPC or `hcmctl` command exists per remaining kind (or one generic `InterveneWorkflow(kind, ...)` endpoint covering all ten), each reachable end to end from the composed cell through `workflowcontrol.Controller`, and the six previously untriggerable kinds each have a passing integration test driving them from that surface.
   - **REFACTOR:** none.
   - **Refs:** `internal/workflow/intervention/intervention.go`, `internal/intent/operator/workflowcontrol/intervention.go`, `internal/transport/workflow/control.go`, [Intervention model](plan.md#16-strategic-decisions).
+  - **Evidence (2026-09-21):** `TestTodo_REV_009_02` in `internal/intent/operator/workflowcontrol` (six kinds operator-reachable end to end from the composed cell) plus `TestTodo_REV_009_02_Integration`, `TestTodo_REV_009_02_Fault` in `cmd/hcmnext`; `go test -count=1 -run '^TestTodo_REV_009_02$' ./internal/intent/operator/workflowcontrol/` PASS (43.0s) and Integration/Fault PASS (24.2s) on windows/arm64.
 
 - [ ] `REV-009-03` **[GATE_B][SOL_HIGH] Route the admin instance view and journey inspector through inspect.Load's full durable traversal.**
   - **Depends:** none.
@@ -22934,6 +23090,26 @@ Checked all 20 `INTG-*` items (lines 4613-4836): every Refs package exists (`int
   - **REFACTOR:** none.
   - **Refs:** `internal/connectivity/diagnostics/diagnostics.go`, `internal/connectivity/health/health.go`, `cmd/hcmctl`, [Connector test bench](specs/integration-platform.md), [incident management](specs/incident-management.md).
 
+- [ ] `REV-013-03` **[GATE_B][SOL_HIGH] Bind the connector worker to a governed credential source and one outbound provider writer.**
+  - **Depends:** `REV-013-01`, `SVC-008`, `INTG-013`, `TRUST-029`, `REV-016-01`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION; DIRECT=none; WHY=the running worker must be able to execute the Gate B pilot connector operation rather than always failing closed at placeholder credential and writer ports`.
+  - **TEST:** `TestTodo_REV_013_03`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_013_03`; `INTEGRATION=TestTodo_REV_013_03_Integration`; `SECURITY=TestTodo_REV_013_03_Security`; `RECOVERY=TestTodo_REV_013_03_Recovery`.
+  - **RED:** `cmd/worker/connector_role.go` composes `unconfiguredConnectorCredentialSource`, `unconfiguredConnectorWriter` and `unconfiguredMachineLeaseAuthorizer` for every destination; a journaled dispatch returns `worker: connector credential source is not configured`, leaves the operation without a provider-accepted receipt, and makes zero provider calls. The library-only dispatch tests do not prove the running process can reach a provider.
+  - **GREEN:** the worker composes one declared pilot destination with a destination-bound, revocable machine credential lease and a real outbound provider adapter behind the existing egress and DLP decisions; every other destination remains fail-closed. INTEGRATION starts the composed worker, sends one journaled operation to a recorded provider contract, and observes one durable attempt and receipt; SECURITY refuses wrong-tenant, wrong-destination, revoked and missing credentials before any provider call; RECOVERY restarts after dispatch ambiguity without a second write.
+  - **REFACTOR:** keep the provider-specific transport behind the existing writer port; broader vendor coverage stays in `WF-CAP-019`.
+  - **Refs:** `cmd/worker/connector_role.go`, `cmd/worker/main.go`, `internal/trust/lease`, `internal/connectivity/operation`, [Gate B execution plan](execution-plan.md#gate-b--limited-write-authority).
+
+- [ ] `REV-013-04` **[PHASE_3][SOL_HIGH] Wire verified provider receipts into served Promotion observation.**
+  - **Depends:** `REV-013-03`, `PROMO-EXEC-007`, `INTG-018`.
+  - **INTENT CONTEXT:** `ROLE=COMPOSITE; SETS=BI.REWARDS,BI.ACCESS,BI.INTEGRATION; DIRECT=none; WHY=a served promotion cannot reach an honest externally observed outcome while its provider receipt reader is nil and no production caller persists the signed receipt`.
+  - **TEST:** `TestTodo_REV_013_04`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_REV_013_04`; `INTEGRATION=TestTodo_REV_013_04_Integration`; `SECURITY=TestTodo_REV_013_04_Security`; `RECOVERY=TestTodo_REV_013_04_Recovery`.
+  - **RED:** `internal/application/serve.go` passes `Options.ProviderReceipts` into the Promotion executor, but `cmd/hcmnext` never sets `WithProviderReceipts`; `internal/data/providerreceipts.Store` has no non-test production caller. The provider observation therefore records `provider.reader=unconfigured` and cannot reconcile a real payroll or identity result.
+  - **GREEN:** authenticated provider callback or governed status-poll intake validates and durably records a tenant-scoped receipt; the served cell composes a transaction-aware reader over that store. INTEGRATION executes a promotion through the real application composition, records matching payroll and identity receipts, resumes observation and asserts the intended terminal outcome and evidence; SECURITY rejects forged, replayed, cross-tenant and mismatched-change receipts without advancing the run; RECOVERY repeats the observation after restart with no duplicate effect. Missing or conflicting provider evidence remains an open obligation or repair path, never a fabricated success.
+  - **REFACTOR:** keep receipt ingestion and reading behind provider-neutral ports so `WF-EXT-022` can reuse them for other workflows.
+  - **Refs:** `internal/application/options.go`, `internal/application/serve.go`, `internal/platform/execution/promotion_steps.go`, `internal/data/providerreceipts/store.go`, `internal/connectivity/providerreceipt`, [Gate B execution plan](execution-plan.md#gate-b--limited-write-authority).
+
 ### R006. Phase 1 People, organization, position, compensation and budget domains
 
 Checked that every Refs package for PEOPLE-001..004, ORG-001..003, POSITION-001..003, COMP-001..004, BUDGET-001/002, SNAPSHOT-001..003 and PROMO-001..013 exists and that all named `TestTodo_*` functions exist and are unique. `go list -deps ./cmd/hcmnext ./cmd/worker ./cmd/projector ./cmd/scheduler` shows the section's read/write execution path (people, org, position, rewards, compensation, promotion, promotion/commit, promotion/localcommit, platform/execution/promotionsteps, platform/execution/promotionterminal, data/promotioncommit) reachable from the served binaries, but the section's own governed _decision_ layer is not: `internal/domains/promotion/snapshot`, `simassign`, `simcomp`, `simcontract`, `trace`, `internal/domains/budget`, `internal/domains/organization` and `internal/workflow/conformance/managerchange` have zero non-test importers anywhere and are absent from every served binary's dependency closure. `internal/intent/app/inputs.go`'s `FixtureInputs` — confirmed by the repo's own PROMOUX-004 evidence text as "the production propose path" — never calls `snapshot.Build`, `simassign`, `simcomp` or `simcontract`, so the PROMO-001..004 pipeline these tickets describe as GREEN is exercised only by its own unit tests. The most important gap: `POSITION-003` and `BUDGET-002`'s fenced reservations are never called from any production path (only from their own tests), so `internal/domains/promotion/localcommit`'s invariant check trusts caller-supplied capacity/currency numbers with no concurrency fence, leaving the exact "two competing reservations win" race those tickets were written to close.
@@ -22981,6 +23157,93 @@ Checked `MSG-001`-`MSG-013` (todos.md:4197-4344) against the packages they cite:
   - **GREEN:** a concrete `Provider` implementation for one named transport (e.g. SMTP or one ESP) lives under `internal/operations/messagingdelivery` or an adapter package it imports, is registered in `cmd/worker` (or `cmd/scheduler`) startup wiring, and is exercised end to end by an integration test that drives `messaging.Fulfill` through it against a local or fake transport.
   - **REFACTOR:** keep the adapter behind the existing `Provider` interface; do not change `delivery.go`'s contract to accommodate it.
   - **Refs:** `internal/operations/messagingdelivery/delivery.go`, `internal/operations/messagingdelivery/email.go`, [Async delivery](specs/messaging-and-notification-plane.md), [integration platform](specs/integration-platform.md).
+
+#### Notifications as a Service (NaaS)
+
+The NaaS backlog is tracked in `NAAS-001`–`NAAS-005` below: durable notifications and approval presentation, approval-aware pause/resume, indexed storage and filtering, standalone gRPC/HTTP APIs, and high-volume capacity/rollout qualification. Progress evidence is recorded separately from completion; these items remain open until their remaining verification and delivery gates pass. External email delivery remains tracked by `REV-011-02` above rather than duplicated here.
+
+- [x] `NAAS-001` **[GATE_B][SOL_HIGH] Deliver durable in-app workflow approval/task notifications and expose the recipient's approval queue.**
+  - **Evidence (2026-09-23):** `TestTodo_NAAS_001` (PRIMARY in `internal/transport/journey` + `internal/humanwork/productui`, incl. `_NotificationDisclosureAccessibility`), `TestTodo_NAAS_001_Integration` + `_Security` in `test/bootstrap`, `TestTodo_NAAS_001_Integration/_Race/_Invalid/_StatusIntegration/_StatusInvalid` in `internal/data/inbox` — all PASS `go test -count=1 -run 'TestTodo_NAAS_001'` on windows/arm64; deps `MSG-002`, `MSG-005`, `WORK-001` ticked. Implementation staged by owning session; uncommitted.
+  - **Depends:** `MSG-002`, `MSG-005`, `WORK-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=deliver recipient-authorized workflow work notifications without granting approval authority`.
+  - **TEST:** `TestTodo_NAAS_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_NAAS_001`; `INTEGRATION=TestTodo_NAAS_001_Integration`; `SECURITY=TestTodo_NAAS_001_Security`; `CONFORMANCE=TestTodo_NAAS_001_Invalid`; `RACE=TestTodo_NAAS_001_Race`.
+  - **RED:** the notification bell only reports a count; routed workflow work items create no durable secure-inbox notification.
+  - **GREEN:** routing commits a deduplicated recipient inbox record in the work-item transaction; rollback leaves no notice. The server returns only recipient-owned notices whose workflow remains visible under current authorization. The bell presents workflow-specific approval/task links and current status, using shared UI components and localized copy. Reading a notice never approves work or implies external-channel delivery.
+  - **REFACTOR:** reuse audience resolution, messaging metadata, secure inbox, existing journey authorization and approval actions; no parallel approval engine or email provider in request threads.
+  - **Refs:** `internal/data/inbox`, `internal/domains/audience`, `internal/platform/execution`, `internal/intent/app`, `internal/humanwork/productui`, [Messaging spec](specs/messaging-and-notification-plane.md).
+  - **Verification follow-up (2026-09-21):** composed `go test ./test/bootstrap -run '^TestTodo_NAAS_001' -count=1 -timeout=10m` now passes after migrating the removed edge-client harness to the generated clients. Codex-browser testing found that floating content inside native details rendered visually but lost its accessible text; flattening only the open details-content box restores notification link names and review-field labels without replacing the shared components. Tab cycling and Escape/focus restoration were exercised; the notification panel fits 320px. The action-bar Cancel also needed its own text-button sizing instead of inheriting a square close-glyph rule. Remaining closure is full visual/theme checks and composed commit gates, not the old bootstrap compile blocker.
+  - **Progress (2026-09-21):** initial in-app publication, recipient/current-authorization projection, gRPC payload, localized bell links and current approval status implemented. Live browser test: Rafael started Adrian's request, Thomas received its finance notice, opened that exact request and recorded finance approval; the same notice reflects the decision and the workflow advances to manager review. `go test ./internal/humanwork/productui -cover -count=1`, `go test ./internal/data/inbox -cover -count=1`, `go test ./internal/intent/app -cover -count=1`, `go test ./internal/transport/journey -cover -count=1` and `go test ./tools/uxqual/productclient -cover -count=1` passed the initial slice. The latest full inbox suite passes at 81.5% including new requester-status isolation, rollback, archive, invalid-input and retry/read-state regressions (`go test ./internal/data/inbox -count=1 -cover -timeout=10m`). This does not close `REV-011-01` or `REV-011-02`; no external delivery, historical backfill, reassignment publication or inbox read/archive controls are claimed.
+
+- [x] `NAAS-002` **[GATE_B][SOL_HIGH] Drain eligible workflow continuations without bypassing pending approval phases.**
+  - **Evidence (2026-09-23):** `TestTodo_NAAS_002`, `_Recovery`, `_Security`, `_Rejection` in `internal/workflow/execute` + `TestTodo_NAAS_002_ManagerScope` in `internal/intent/app` — all PASS `go test -count=1 -run 'TestTodo_NAAS_002'` on windows/arm64; deps `WORK-006`, `WF-STEP-018`, `WF-RUN-003` ticked. Implementation staged by owning session; uncommitted.
+  - **Depends:** `WORK-006`, `WF-STEP-018`, `WF-RUN-003`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK; DIRECT=none; WHY=drain eligible continuations while approval decisions fence dependent steps`.
+  - **TEST:** `TestTodo_NAAS_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_NAAS_002`; `RECOVERY=TestTodo_NAAS_002_Recovery`; `SECURITY=TestTodo_NAAS_002_Security`; `REGRESSION=TestTodo_NAAS_002_ManagerScope`; `CONFORMANCE=TestTodo_NAAS_002_Rejection`.
+  - **RED:** the driver returns PARKED on the first human-work continuation even when independent READY work remains; an interrupted approval completion must not lose its committed successor.
+  - **GREEN:** drain runnable continuations before parking, retain pending approvals durably without running their successors, and resume only from a current authorized decision. Replayed decisions recover committed READY work without duplicate votes. Reject malformed or stale parked frontiers instead of reporting success.
+  - **REFACTOR:** share continuation dispatch between approval, work-item, timer and signal resumes; preserve transaction fencing, current-authority checks, correlation and existing telemetry. No second approval engine or polling loop while waiting.
+  - **Refs:** `internal/workflow/execute`, `internal/workflow/runtime`, `internal/intent/app`, [Workflow execution kernel](specs/workflow-runtime.md).
+  - **Progress (2026-09-21):** implemented shared continuation dispatch and durable-frontier validation. `go test ./internal/workflow/execute -coverprofile=.artifacts/coverage/naas-002-execute.out -count=1 -timeout=20m` PASS (83.5%); `go test ./internal/intent/app -coverprofile=.artifacts/coverage/naas-002-app.out -count=1 -timeout=15m` PASS (60.2%, existing exact-path exception through 2026-12-31). `go test -count=1 ./test/workflow -run '^TestPromotionWorkflow(CompletesEndToEnd|SurvivesRestartDuringApprovalAndWait|DuplicateTimerFireAndDuplicateResumeAreIdempotent)$'` PASS. Live Codex-browser demo: notification to assigned manager, approval committed, successor reached WAITING_EFFECTIVE_DATE, notification changed to decision recorded and action count became zero. Cross-scope manager admission requires the current durable relationship and retains tenant, credential, membership and separation checks. The generated-client bootstrap harness now compiles and the NaaS integration/security cases pass; final composed gates/commit remain open.
+
+- [x] `NAAS-003` **[GATE_B][SOL_HIGH] Bound and index notification feed queries with a reusable typed pagination API.**
+  - **Evidence (2026-09-23):** `TestTodo_NAAS_003`, `_Performance` (100k-row indexed plans), `_Security`, `_Invalid`, `_Failure` in `internal/data/inbox` — all PASS `go test -count=1 -run 'TestTodo_NAAS_003'` on windows/arm64 (an earlier red run this session was environmental: C: had 218MB free and embedded PG panicked `No space left on device`; after sweeping day-old `.artifacts/tmp` + `%TEMP%/go-build*` per repo policy, 54GB free, suite green; ~800 peer postgres processes left untouched). Dep `MSG-005` ticked. Implementation staged by owning session; uncommitted.
+  - **Depends:** `MSG-005`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.EXPERIENCE; DIRECT=none; WHY=bound recipient inbox storage reads and preserve tenant isolation`.
+  - **TEST:** `TestTodo_NAAS_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_NAAS_003`; `SECURITY=TestTodo_NAAS_003_Security`; `CONFORMANCE=TestTodo_NAAS_003_Invalid`; `PERFORMANCE=TestTodo_NAAS_003_Performance`; `FAULT=TestTodo_NAAS_003_Failure`.
+  - **RED:** inbox List reads an entire recipient history; workflow feed sorting has no matching creation-time index and no continuation/filter contract.
+  - **GREEN:** typed bounded keyset pages with read/archive/pin/date filters and deterministic equal-timestamp ordering; workflow pages support purpose and workflow filters; enforce tenant/recipient predicates on every page. Prove stable traversal and indexed plans on 100,000 rows, recording baseline versus optimized latency without flaky machine-time assertions.
+  - **REFACTOR:** share filter validation and seek predicates; retain existing callers, atomic publication and CAS mutations. Storage positions are not authentication tokens; public transports must authenticate identity and bind/sign cursors. No population COUNT, OFFSET, or in-memory full-history sorting in the new path.
+  - **Refs:** `internal/data/inbox`, `internal/intent/app/journey_notifications.go`, [Messaging spec](specs/messaging-and-notification-plane.md).
+  - **Progress (2026-09-21):** typed pages and migration implemented; `go test ./internal/data/inbox -count=1 -coverprofile=.artifacts/coverage/naas-003-inbox.out -timeout=10m` PASS (83.3% at that revision). All five named matrix tests pass, including actual PostgreSQL isolation and the 100,001-row plan benchmark. First-page storage p95 improved from 82.2ms without feed indexes to 0.76ms with them; deep unread seek used five cached blocks. `go vet ./internal/data/inbox` and code-style PASS. The latest expanded inbox package passes at 81.5%, and the bootstrap compile blocker is resolved. Remains open for composed gate/commit closure; no live migration applied. Standalone wire API and capacity qualification are separately tracked below, not claimed complete.
+
+- [ ] `NAAS-004` **[GATE_B][SOL_HIGH] Expose an independently paginated notification API and connect the inbox without enumerating journeys.**
+  - **Depends:** `NAAS-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=expose authorized notification pages and independent read-state actions`.
+  - **TEST:** `TestTodo_NAAS_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_NAAS_004`; `SECURITY=TestTodo_NAAS_004_Security`; `INTEGRATION=TestTodo_NAAS_004_Integration`; `PERFORMANCE=TestTodo_NAAS_004_Performance`.
+  - **RED:** the browser feed rides ListJourneys, whose authorization/projection enumerates journeys; the new bounded Go store has no independent paginated wire endpoint or filter controls.
+  - **GREEN:** native gRPC and HTTP parity for recipient-owned feed reads, read/pin/archive CAS actions and explicit unavailable state. Signed expiring cursors bind principal, tenant and canonical filters; forged, expired and cross-scope cursors fail before storage reads. Recheck current assignment and workflow access in bounded batches without ListJourneys/full-history materialization. Clients follow continuation even after an empty authorized page. Demonstrate browser filters, keyboard/mobile/i18n behavior and correlated read latency/failure telemetry without sensitive content.
+  - **REFACTOR:** thin transport through an application port; reuse inbox page predicates, existing cursor signing and existing notification components. Notification read state must never approve work or resume a workflow.
+  - **Refs:** `internal/data/inbox`, `internal/intent/app/journey_notifications.go`, `internal/transport/journey`, `tools/uxqual/journeyclient`, [Messaging spec](specs/messaging-and-notification-plane.md).
+  - **Audit (2026-09-21):** still unimplemented. Do not confuse `WorkflowNoticesPage` (an internal storage API) with a standalone public endpoint: the browser remains on ListJourneys. Public signed cursors, recipient-only mutation endpoints and browser continuation/filter controls are not yet delivered.
+  - **Progress (2026-09-23):** standalone service landed, uncommitted: new `hcmnext.notification.v1.NotificationService` proto (`ListNotifications`, `MarkNotificationRead`, `ArchiveNotification`, `PinNotification`) + `buf generate` output; `transport.NotificationHandler` port; new `internal/transport/notification` pure-forward adapter; `grpcserver.Options.Notifications` registration; `internal/application.NotificationFeed` backing (principal-derived recipient/tenant, `list` HMAC cursors binding principal+tenant+filters with TTL, `WorkflowNoticesPage` reads with injected visibility recheck that fails Unavailable instead of partial, CAS mutations mapped to FailedPrecondition/NotFound, reads never approve work). `TestTodo_NAAS_004` (adapter), `_Integration` (bufconn through interceptors), `_Security` (forged/expired/cross-principal/cross-filter cursors, stale CAS, cross-recipient, visibility outage, withholding, unknown tenant), `_Performance` (250 notices traverse in 10 bounded pages exactly once) PASS; adapter 100% cover; `go vet`/`gofmt` clean; `rpcs.openapi.yaml` regenerated (NotificationService + peer DocumentService registered in `descriptors.go` blank imports) with `TestTodo_INTAPI_008[_Golden]` green; revoke ops in `integration.openapi.yaml` reassigned `INTAPI-002`→`INTAPI-001` (open, owns revocation lifecycle) keeping `TestTodo_INTAPI_009[_Golden]` green. Also repaired an accidental `buf generate --path` wipe of 38 gen files (byte-restored from index/protos, peers' staged states intact). NOT ticked: HTTP edge mounting (`edge/handler.go` M), cell wiring for `cmd/hcmnext` (`transport/cell/cell.go` MM), PROTO-006 parity extension, browser continuation/filter controls.
+
+- [x] `NAAS-005` **[GATE_B][SOL_HIGH] Qualify notification storage for sustained high-volume workloads and safe index rollout.**
+  - **Evidence (2026-09-23):** `TestTodo_NAAS_005` (million-row skewed fixture, deep/sparse traversal, seek plans), `_Performance` (p50/p95/p99 logged, plan/block budgets), `_Recovery` (index-rollout rehearsal, RLS/trigger checks, restart witness), `_Fault` (16-racer CAS exactly-one-winner, dedupe suppression, invalid refused, cross-tenant empty), `_Conformance` (2000-row traversal during 100 concurrent writes, no duplicates) in `internal/data/inbox` — all PASS `go test -count=1 -run 'TestTodo_NAAS_005'` on windows/arm64; dep `NAAS-003` ticked. Storage/code staged by owning session; new Fault/Conformance variants mine; uncommitted.
+  - **Depends:** `NAAS-003`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=qualify notification capacity and index rollout against measured failure and recovery workloads`.
+  - **TEST:** `TestTodo_NAAS_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_NAAS_005`; `PERFORMANCE=TestTodo_NAAS_005_Performance`; `RECOVERY=TestTodo_NAAS_005_Recovery`; `FAULT=TestTodo_NAAS_005_Fault`; `CONFORMANCE=TestTodo_NAAS_005_Conformance`.
+  - **RED:** the current 100,001-row warm single-recipient fixture proves seek plans, not million-row mixed-tenant load, sparse joined filters, sustained concurrent writes, retention growth or production index-build safety.
+  - **GREEN:** reproducible multi-tenant/skewed-recipient million-row qualification with sparse purpose/workflow filters, deep pagination and concurrent publish/read-state changes; record endpoint p50/p95/p99, throughput, query plans, lock waits, WAL and index sizes. Set a measured capacity budget and rehearse migration, restart and recovery on an isolated production-sized copy without weakening RLS or losing idempotency.
+  - **REFACTOR:** research partitioning and retention/archive layout only against measured growth and legal-hold requirements; document the chosen trade-off before adding infrastructure. Never silently purge notification evidence or claim the warm fixture is a production SLA.
+  - **Refs:** `internal/data/inbox/page_performance_test.go`, `migrations/00321_inbox_feed_indexes.sql`, [Messaging spec](specs/messaging-and-notification-plane.md).
+  - **Audit (2026-09-21):** still unimplemented. The passing 100,001-row warm fixture is not evidence for the million-row mixed-tenant/concurrent endpoint workload or migration/recovery rehearsal required here.
+
+- [ ] `WF-NOTIFY-001` **[GATE_C][SOL_HIGH] Tell the requester when their workflow request moves, and show a workflow author who each step notifies.**
+  - **Depends:** `NAAS-001`, `WF-UI-006`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=inform requesters of durable workflow progress without leaking other recipients or sensitive content`.
+  - **TEST:** `TestTodo_WF_NOTIFY_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_NOTIFY_001`; `INTEGRATION=TestTodo_WF_NOTIFY_001_Integration`; `SECURITY=TestTodo_WF_NOTIFY_001_Security`; `BROWSER=TestTodo_WF_NOTIFY_001_Browser`.
+  - **RED:** `NAAS-001` notifies only the owner of routed work. The person who started a request hears nothing when it is sent for review or when it finishes, and the workflow editor says nothing about who a step notifies, so an author cannot tell which steps involve people.
+  - **GREEN:** one pure declaration (`internal/workflow/notifyplan`) states which notices each kernel step type produces. The execution composition publishes from it: a `WORKFLOW_UPDATE` notice to the requester in the routing transaction of every approval or task, and another in the transaction of the terminal write; rollback leaves no notice, retries add none, a requester who owns the routed work is not told twice, and a request with no recorded requester publishes nothing. The journey service serves the caller's own status notices only for requests they can still see, one row per request at its latest update, with how it ended read from the current stage rather than stored copy, and never serves a partial list. The bell words each status in en, de and ar. The editor's step inspector shows "Who is told" from the same declaration.
+  - **REFACTOR:** wrap `execute.WorkItemFactory` and `execute.TerminalWriter` the way `notifyingWorkItems` does; keep status notices on their own template so the approval feed and its pagination are untouched; no email provider, no second approval engine, no new wire message.
+  - **Refs:** `internal/workflow/notifyplan`, `internal/data/inbox/workflow_status.go`, `internal/platform/execution/status_notifications.go`, `internal/intent/app/journey_status_notifications.go`, `internal/transport/journey/server.go`, `internal/humanwork/productui/workflow_notify.go`, [Messaging spec](specs/messaging-and-notification-plane.md).
+  - **Progress (2026-09-21):** implemented and verified live on the uxcheck server (port 8097): Rafael started Aya's promotion request and his bell showed "Request update, Aya, Sent to a reviewer"; Thomas's bell showed the approval request; after Thomas declined, Rafael's bell showed "Declined" through the real terminal writer. `go test ./internal/workflow/notifyplan ./internal/transport/journey -run WF_NOTIFY`, `go test ./internal/platform/execution -run 'WF_NOTIFY_001|NAAS_001'` (PostgreSQL), `go test ./internal/intent/app -run WF_NOTIFY_001` and the productui workflow and notification tests pass. Not committed; remains unchecked pending the full gate. Known limits: notices are in-app only (no email adapter exists, `REV-011-02`); the bell has no read/unread control yet (`NAAS-004`); a draft built in the editor cannot run until Publish exists (`WF-UI-013`), so the editor section describes what a published workflow of those step types does.
+
+- [ ] `WF-HIRE-001` **[GATE_C][SOL_HIGH] Run a second, non-Promotion workflow, New employee hire, through the real EXECUTE driver.**
+  - **Depends:** `WF-EXT-002`, `WF-NOTIFY-001`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.PEOPLE,BI.WORK; DIRECT=none; WHY=prove the generic execution engine supports hiring without promotion-specific mutations`.
+  - **TEST:** `TestTodo_WF_HIRE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_HIRE_001`; `GOLDEN=TestTodo_WF_HIRE_001_Golden`; `INTEGRATION=TestTodo_WF_HIRE_001_Integration`; `RECOVERY=TestTodo_WF_HIRE_001_Recovery`; `CONFORMANCE=TestTodo_WF_HIRE_001_Conformance`.
+  - **RED:** only Promotion runs in EXECUTE. Whether the driver and runtime are generic, or only look generic because nothing else has been run through them, was unproven; `internal/workflow/conformance/recruit` runs in SIMULATE only and uses no human-work, signal or wait step.
+  - **GREEN:** `internal/workflow/hireexec` declares New employee hire as an EXECUTE definition (offer approval, background-check signal, adverse-result review, candidate forms, three provisioning tasks, wait until the start date, one authoritative commit, seven exits) and `test/workflow` drives it through `execute.Driver` on PostgreSQL with its own step runner, work-item routing, timer factory and terminal writer: happy path to one ledger fact, a fresh driver at every call, and the rejected-offer and withdrawn-after-adverse-check exits with no fact written. Work-item and requester notices are published through the exported `execution.WithWorkNotifications` and `execution.WithRequesterStatusTerminal`, so a composition other than Promotion's gets the same notifications. No file in `internal/workflow/execute` or `internal/workflow/runtime` changes.
+  - **REFACTOR:** none to the engine. The limits this run had to design around are recorded against their own todos rather than worked around in shared code: provisioning runs in sequence because joins are not durable (`WF-JOIN-001`, `WF-EXT-019`); the start date reaches the timer through the `TimerFactory` port because a WAIT's wake time is a literal (`WF-EXT-012`); the background-check callback correlates on the request id because correlation keys are start-time facts (`WF-EXT-014`); the check's verdict is read from the proposal because node outputs are not resolved on the durable path (`WF-EXT-004`).
+  - **Refs:** `internal/workflow/hireexec`, `test/workflow/hire_execute_test.go`, `internal/platform/execution/notifications_export.go`, [Workflow execution kernel](specs/workflow-runtime.md).
+  - **Progress (2026-09-21):** implemented. `go test -count=1 ./internal/workflow/hireexec/` and `go test -count=1 -timeout 25m ./test/workflow/ -run TestTodo_WF_HIRE_001` PASS on windows/arm64; `TestPromotionWorkflowExecutesEndToEndWithOneGovernedWrite` still passes. Visible in the designer: `execution.PublishReferenceVersions` publishes New employee hire 1.0.0 and the local-development bootstrap approves and activates it beside Promotion (`TestTodo_WF_HIRE_001_Published`, `TestTodo_WF_COMP_006_BootstrapDev`), so the landing page lists it under Published workflows and a newer version can be drafted from it; it is also offered as a template. A standard deployment does not publish it, because nothing serves a hire run: the production composition, the intent layer and the journey pages are still Promotion-only (`WF-EXT-007`, `WF-EXT-008`, `WF-EXT-018`). Not committed; remains unchecked pending the full gate.
 
 ### R014. §13 HRIS DataOps and configuration lifecycle
 
@@ -23159,7 +23422,8 @@ A read-only check of the code against `AGENTS.md`, the Go technology constitutio
   - **REFACTOR:** none.
   - **Refs:** `internal/transport/admin/server.go`, `internal/transport/manifest`.
 
-- [ ] `REV-101-07` **[GATE_C][SOL_LOW] Inject clocks in engines and domains that call the system clock directly.**
+- [x] `REV-101-07` **[GATE_C][SOL_LOW] Inject clocks in engines and domains that call the system clock directly.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_101_07` in `tools/policy/clockinject` plus `TestTodo_REV_101_07_Property` in `internal/engines/abuse` and `internal/domains/jobarch`; `go test -count=1 ./tools/policy/clockinject/... ./internal/engines/abuse/ ./internal/domains/jobarch/` PASS on windows/arm64 (Go 1.26.3); `go run ./tools/policy/clockinject/cmd/clockinject -root .` exits 0.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=direct clock reads make engine and domain output non-deterministic and unreplayable`.
   - **TEST:** `TestTodo_REV_101_07`.
@@ -23264,7 +23528,8 @@ A read-only check of the migrations and `internal/data` against `AGENTS.md`, `de
   - **REFACTOR:** none.
   - **Refs:** `internal/transaction/idempotency/store.go`, [idempotency lifecycle](specs/platform-foundation-gap-closure.md).
 
-- [ ] `REV-102-07` **[GATE_C][SOL_LOW] Correct the storage-disposition registry's stale header, owners and encryption classes.**
+- [x] `REV-102-07` **[GATE_C][SOL_LOW] Correct the storage-disposition registry's stale header, owners and encryption classes.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_102_07` family in `internal/data/tenancy/storagedisposition`; `go test -count=1 ./internal/data/tenancy/storagedisposition/` PASS on windows/arm64 (Go 1.26.3), coverage 100.0% of statements.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=the registry names a nonexistent owner package, a stale migration range and a platform-managed class for a table holding ciphertext`.
   - **TEST:** `TestTodo_REV_102_07`.
@@ -23385,7 +23650,8 @@ A read-only check of the backlog and code against `AGENTS.md` quality gates, the
   - **REFACTOR:** none.
   - **Refs:** `definitions/toolchain/coverage-gate.yaml`.
 
-- [ ] `REV-103-06` **[GATE_C][SOL_LOW] Stop ignoring errors that drop evidence or misreport state.**
+- [x] `REV-103-06` **[GATE_C][SOL_LOW] Stop ignoring errors that drop evidence or misreport state.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_103_06` family in `internal/data/operationstore`, `internal/intent/app/pgstore`, `internal/trust/session`, `internal/transport/evidence` and `tools/policy/errlint`; `go test -count=1 ./internal/data/operationstore/ ./internal/intent/app/pgstore/ ./internal/trust/session/ ./internal/transport/evidence/ ./tools/policy/errlint/...` PASS on windows/arm64 (Go 1.26.3); narrow `go test -count=1 -run 'TestInterventionChangedOnlyForRecordedOutcomes|TestAdmitPromotionWindow' ./internal/intent/app/` PASS; errlint over the five RED files exits 0.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=none; WHY=several ignored errors silently lose evidence, misreport fencing and hide failed releases`.
   - **TEST:** `TestTodo_REV_103_06`.
@@ -23473,7 +23739,8 @@ Checked `LEGAL-001`..`LEGAL-018`, all 13 `LEGAL-TOOL-*`, and a spread of `LEGAL-
   - **REFACTOR:** none.
   - **Refs:** `internal/domains/payroll/wagehour.go`, `internal/governance/legal/stateparams`, [Obligation kinds](specs/legal-rule-packs-and-state-configuration.md#4-obligation-kinds).
 
-- [ ] `REV-021-02` **[GATE_C][SOL_HIGH] Wire WAGE-001, TAX-001 and FILING-001 into a callable capability so the payroll-obligation chain runs outside its own unit tests.**
+- [x] `REV-021-02` **[GATE_C][SOL_HIGH] Wire WAGE-001, TAX-001 and FILING-001 into a callable capability so the payroll-obligation chain runs outside its own unit tests.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_021_02` family in `internal/domains/payroll`; `go test -count=1 -run 'TestTodo_REV_021_02' ./internal/domains/payroll/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=COMPOSITE; SETS=BI.PAYROLL,BI.REGULATORY; DIRECT=none; WHY=make the proven wage-tax-filing engines reachable from a real payroll run instead of existing only as tested-in-isolation functions`.
   - **TEST:** `TestTodo_REV_021_02`.
@@ -23650,6 +23917,7 @@ Checked MSRC-001..010 and PROTO-001..008 (lines 8318-8519). Every referenced pac
   - **GREEN:** new `internal/transport/dataops` and `internal/transport/integration` packages implement `DataOpsServiceServer`/`IntegrationServiceServer` backed by the `DATAOPS-001` import-batch handler and the `INTG-001` connector-definition registry, are registered in `internal/transport/grpcserver/server.go`, are reachable from `cmd/hcmnext`, and pass the existing `PROTO-006` grpcbridge parity suite for the new methods.
   - **REFACTOR:** reuse the `intentService`/`registryService` registration pattern already in `server.go`.
   - **Refs:** `gen/go/hcmnext/dataops/v1`, `gen/go/hcmnext/integration/v1`, `internal/transport/grpcserver/server.go`, [HRIS DataOps](specs/hris-admin-dataops.md), [integration platform](specs/integration-platform.md).
+  - **Progress (2026-09-23):** transport half landed, uncommitted: `transport.DataOpsHandler` (4 methods) + `transport.IntegrationHandler` (7 methods) ports in `internal/transport/ports.go`; new `internal/transport/dataops` + `internal/transport/integration` pure-forward adapters with compile-time interface pins; `grpcserver.Options` gains optional `DataOps`/`Integration` ports registered when non-nil (nil = unregistered, `ErrNoHandlers` now requires all four nil). `TestTodo_REV_030_01` (both adapter packages, request-identity forwarding + error propagation) and `TestTodo_REV_030_01_Integration` (bufconn through the production interceptor chain: ServiceInfo lists both services 4+7 methods, all 11 RPCs reach the fake ports, handler failures surface) PASS; coverage 100.0%/100.0%/80.6%; `go vet`/`gofmt` clean. NOT ticked: application backing handlers (DATAOPS-001 import-batch, INTG-001 registry) live in owner-staged territory (`internal/application`, `internal/intent/app`); cell wiring (`internal/transport/cell/cell.go` MM) for `cmd/hcmnext` reachability; edge mounting (`internal/transport/edge/handler.go` M) + PROTO-006 parity extension for the new methods.
 
 ### R031. §30 Control-plane publication, distribution and activation
 
@@ -23911,7 +24179,8 @@ Checked all 27 items (QUAL-001..006, DEMAND-001..006, MATCH-001..007, SCENARIO-0
   - **REFACTOR:** none.
   - **Refs:** `internal/domains/qualification/crossqual006.go`, `internal/domains/matching/four_domain.go`, `internal/domains/schedopt/schedopt.go`, [intent coverage](data/models/intent-coverage-matrix.md).
 
-- [ ] `REV-040-02` **[GATE_C][SOL_HIGH] Connect SCENARIO-006's compiled intents to the real internal/intent transaction pipeline.**
+- [x] `REV-040-02` **[GATE_C][SOL_HIGH] Connect SCENARIO-006's compiled intents to the real internal/intent transaction pipeline.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_040_02` family in `internal/domains/scenario`; `go test -count=1 -run 'TestTodo_REV_040_02' ./internal/domains/scenario/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.ANALYTICS,BI.INTELLIGENCE; DIRECT=none; WHY=a scenario compilation that cannot reach the governed transaction pipeline can never turn an approved plan into a real business intent`.
   - **TEST:** `TestTodo_REV_040_02`.
@@ -23925,7 +24194,8 @@ Checked all 27 items (QUAL-001..006, DEMAND-001..006, MATCH-001..007, SCENARIO-0
 
 Checked all 21 items (SUB-001..008, APP-001..006, CUSTOM-001..007). Every referenced package exists (`internal/domains/subscription`, `internal/domains/partnerapp`, `internal/connectivity/application`, `internal/customobject`, `internal/domains/custom`) and every named `TestTodo_*` function is present and matches its claimed matrix (spot-checked `FuzzTodo_SUB_003`, the CUSTOM-002/003 Property/Golden/Fault/Mutation set, and the grpcbridge parity check in `capabilities.go`). None of the five packages appear in `go list -deps` for `cmd/hcmnext`, `cmd/worker`, `cmd/projector`, or `cmd/scheduler` — library-only, but that generic unreachability is REV-103-01's job, so it is not re-flagged here. Two real, section-specific gaps found: the event-subscription engine's closed event vocabulary excludes the sibling custom-object engine's own events, and partner-application revocation/quarantine never actually cascades into live subscriptions or credentials — both are library functions taking caller-supplied lists rather than code that queries the other domain, and nothing in the repo calls them that way. A third gap: subscription delivery has no per-tenant/per-destination throughput bound, unlike the connector-quota work done elsewhere for outbound calls.
 
-- [ ] `REV-042-01` **[GATE_C][SOL_HIGH] Add custom-object event kinds to the subscription engine's closed vocabulary.**
+- [x] `REV-042-01` **[GATE_C][SOL_HIGH] Add custom-object event kinds to the subscription engine's closed vocabulary.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_042_01` family in `internal/domains/subscription`; `go test -count=1 -run 'TestTodo_REV_042_01' ./internal/domains/subscription/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTEGRATION,BI.DATAOPS,BI.TENANT; DIRECT=none; WHY=let partners subscribe to tenant custom-object changes the same way they subscribe to core HR events`.
   - **TEST:** `TestTodo_REV_042_01`.
@@ -23959,7 +24229,8 @@ Checked all 21 items (SUB-001..008, APP-001..006, CUSTOM-001..007). Every refere
 
 Checked `internal/domains/knowledge` (KNOW-001..006: knowledge.go, lifecycle.go, resolve.go, rag.go, invalidation.go, freshness006.go) and `internal/domains/industrypack` (PACK-001..007: manifest.go, binding.go, experience.go, compatibility.go, publication.go, layering.go, conformance.go) plus `tools/policy/enginecoverage`. Every named `TestTodo_KNOW_*`/`TestTodo_PACK_*`/`TestTodo_ENGINE_COVERAGE_001*` function exists and the packages are real, well-factored, kernel-pure implementations (typed rejections, canonical digests, ed25519-signed activation, layered mandatory-setting protection) — this is not a stub area. Two specific functional gaps stood out on deep read. First, KNOW-004's "exclude hostile instructions" guarantee (`rag.go`) and KNOW-006's "never uncited fabrication" guarantee (`freshness006.go`, which reuses KNOW-003 scope verdicts but not any injection check) both rest on an ad hoc, private, English-only, exact-substring blocklist that the codebase's own reviewed prompt-injection boundary (`internal/agentsecurity.DefaultInstructionDetector`, AGENT-002) neither backs nor is even consistent with — two independently maintained weak blocklists for the same concern. Second, PACK-004/005/007's publish-and-activate path (`compatibility.go`, `publication.go`, `conformance.go`) verifies compatibility, dependencies, migrations and a trusted publisher signature, but never checks that the activating tenant is commercially entitled to the industry pack being turned on, even though the platform already has a channel-neutral entitlement resolver (`internal/commercial`, COMM-001) wired into another capability gate (PROMO-010).
 
-- [ ] `REV-047-01` **[GATE_C][SOL_HIGH] Route knowledge hostile-instruction detection through one reviewed, pluggable detector.**
+- [x] `REV-047-01` **[GATE_C][SOL_HIGH] Route knowledge hostile-instruction detection through one reviewed, pluggable detector.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_047_01` family in `internal/domains/knowledge`; `go test -count=1 -run 'TestTodo_REV_047_01' ./internal/domains/knowledge/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** `AGENT-002`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=knowledge chunk and answer authorization against hostile instructions must not rely on a private unreviewed blocklist`.
   - **TEST:** `TestTodo_REV_047_01`.
@@ -24017,7 +24288,8 @@ Checked all four package groups behind this section: `internal/trust/confidentia
   - **REFACTOR:** none.
   - **Refs:** `internal/domains/pseudonym/escrow.go`, `internal/domains/pseudonym/revelation.go`, `internal/intent/approval`.
 
-- [ ] `REV-043-02` **[GATE_C][SOL_HIGH] Route confidential-actor abuse signals through the governed ABUSE detector framework.**
+- [x] `REV-043-02` **[GATE_C][SOL_HIGH] Route confidential-actor abuse signals through the governed ABUSE detector framework.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_043_02` family in `internal/domains/pseudonym`; `go test -count=1 -run 'TestTodo_REV_043_02' ./internal/domains/pseudonym/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.CASES,BI.PRIVACY,BI.SECURITY; DIRECT=none; WHY=give one abuse-governance path evaluation and drift oversight instead of two disconnected ones`.
   - **TEST:** `TestTodo_REV_043_02`.
@@ -24119,7 +24391,8 @@ Read lines 12529-12897 (`RESERVE-001` through `APPT-006`) plus the source for `i
   - **REFACTOR:** fold the current bespoke hold map in `reservation.go` into a thin adapter over the shared package once the shared primitive is wired in.
   - **Refs:** `internal/domains/appointment/reservation.go`, `internal/resource/reservation`, [transaction coordinator](specs/transaction-plan-and-commit-coordinator.md).
 
-- [ ] `REV-046-03` **[GATE_C][SOL_HIGH] Remove the hardcoded tenant-acme literal from LEARN-006 credential expiry.**
+- [x] `REV-046-03` **[GATE_C][SOL_HIGH] Remove the hardcoded tenant-acme literal from LEARN-006 credential expiry.**
+  - **Evidence (2026-09-21):** `TestTodo_REV_046_03` family in `internal/domains/learning`; `go test -count=1 -run 'TestTodo_REV_046_03' ./internal/domains/learning/` PASS on windows/arm64 (Go 1.26.3); branch main.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.TALENT; DIRECT=none; WHY=stop credential expiry from silently authorizing and processing only one hardcoded tenant`.
   - **TEST:** `TestTodo_REV_046_03`.
@@ -25364,7 +25637,7 @@ Checked WEB-061 through WEB-072 (`internal/humanwork/productui`, package is a re
 
 Checked all twelve ticked items (WEB-073 through WEB-084) covering the immutable revision log, draft lifecycle, floorplan/region/widget/action validation, classification ceilings, config precedence, widget-version migration, rollout, rollback/retirement, and dependency-impact reporting. Every named test file and implementation file exists in `internal/humanwork/productui` (`page_revision.go`, `page_draft.go`, `page_rollout.go`, `page_rollback.go`, `dependency_impact.go`, plus the twelve `web0NN_*_test.go` files), the logic sampled (WEB-073, WEB-082, WEB-083, WEB-084) is real, well-structured, and deterministic, and `go list -deps ./cmd/hcmnext` confirms `productui` compiles into the running binary. The one item to flag hard: this entire governance layer is library-only in practice. `PageRevisionLog`, `PageRollout`, `PageRetirement`, and `ReportDependencyImpact` are referenced nowhere outside `internal/humanwork/productui` itself (no hits in a repo-wide grep excluding that package and its tests); the actual page-serving path in `internal/humanwork/workspace/product_shell.go` resolves pages straight from the compiled `productui.PageDefinitions()`/`LookupRoute` registry and never touches a revision, rollout, or retirement. So a page that has been "rolled back" or "retired" through this machinery keeps being served unchanged, and every revision recorded through `PageRevisionLog.Record` lives only in a process-memory map (no `sql.`/`database/sql` call anywhere in the cluster) and vanishes on restart. The section's tests all pass, but the capability the section's title promises — a governed page platform — governs nothing a request actually sees.
 
-- [ ] `REV-067-01` **[GATE_B][SOL_HIGH] Wire the page-revision and rollout ledger into the live page-serving handler.**
+- [x] `REV-067-01` **[GATE_B][SOL_HIGH] Wire the page-revision and rollout ledger into the live page-serving handler.**
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.TENANT; DIRECT=none; WHY=the served page must resolve through the governed rollout so retirement and rollback actually take effect`.
   - **TEST:** `TestTodo_REV_067_01`.
@@ -25373,6 +25646,7 @@ Checked all twelve ticked items (WEB-073 through WEB-084) covering the immutable
   - **GREEN:** `product_shell.go`'s route resolution looks up the live `PageRollout` for the requesting scope from the revision ledger before serving, refuses (or falls back per a defined policy) when no live rollout covers the scope or when an active `PageRetirement` darkens the page, and a golden test proves the served page definition matches the rolled-out revision digest while a fault test proves a retired or rolled-back page is never served.
   - **REFACTOR:** extract a single revision-resolution helper shared by `product_shell.go` and any future studio/admin API rather than duplicating rollout/retirement checks at each call site.
   - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/page_revision.go`, `internal/humanwork/productui/page_rollout.go`, `internal/humanwork/productui/page_rollback.go`, [frontend plan](specs/production-frontend-and-page-composition.md).
+  - **Evidence (2026-09-21):** `TestTodo_REV_067_01`, `TestTodo_REV_067_01_Golden`, `TestTodo_REV_067_01_Fault`, `TestTodo_REV_067_01_Recovery` in `internal/humanwork/workspace` (new `page_governance.go`: forward-only digest-pinned PublishRevision/Rollout, explicit Rollback, Retirement, Resolve fallback; `product_shell.go` serves via ledger); `go test -count=1 -cover ./internal/humanwork/workspace/` PASS 73.4% on windows/arm64.
 
 - [ ] `REV-067-02` **[GATE_C][SOL_LOW] Back the page-revision and rollout ledger with durable per-tenant storage.**
   - **Depends:** none.
@@ -25460,8 +25734,9 @@ Related open items are not duplicated here:
   - **GREEN:** a machine-client registry stores owner, tenant, granted capability scopes, purpose, data-domain and field subset, IP allow-list, expiry, public keys with rotation, revocation state and last use; `POST /oauth2/token` accepts client credentials authenticated by private_key_jwt or mutual TLS and returns a token of at most fifteen minutes carrying only subject, client, tenant, session and assurance, signed by a rotating key published at `/.well-known/jwks.json`; the served verifier accepts these tokens and refuses the HMAC token outside the local development profile.
   - **REFACTOR:** promote `partnerapp.WorkloadIdentityManager` onto the durable registry.
   - **Refs:** `internal/trust/hmactoken.go`, `internal/application/serve.go`, `internal/domains/partnerapp/credential.go`, `schema/openapi/integration.openapi.yaml`.
+  - **Progress (2026-09-22):** implementation and matrix tests done, uncommitted: migration `00324_machine_client_registry.sql` (`machine_client`, `machine_client_key`, tenant RLS, no-DELETE) + disposition rows; `truststore` registry + `ClientRegistry` port adapter; `internal/trust/machine` Ed25519 JWT issue/verify/rotation/JWKS with stdlib only; `partnerapp` `ClientRegistry` port + `AuthorizeClientUse`/`SelectClientKey` policy; `internal/transport/machineauth` `POST /oauth2/token` (private_key_jwt, mTLS terminator contract, DPoP binding, scope subset, replay cache) + `GET /.well-known/jwks.json`; `trust.ServedVerifier` (machine tokens, HMAC dev-only). `TestTodo_INTAPI_001` (truststore PRIMARY on embedded PG), `_Security` (machine), `_Integration`, `_Fault`, `_Recovery` (machineauth served loop) PASS; `trust` 97.6%, `machine` 79.4%, `machineauth` 79.3%, `partnerapp` 73.0%, `truststore` 79.0%; `go vet`/`gofmt` clean. NOT ticked: production `composeVerifier` + edge mounting in `internal/application/serve.go` / `internal/transport/edge/handler.go` belong to the owning session's staged changes; adopt `ServedVerifier` + `machineauth.Routes()` there once they land.
 
-- [ ] `INTAPI-002` **[GATE_B][SOL_HIGH] Cap token lifetime, reject replays and check revocation on every bearer call.**
+- [x] `INTAPI-002` **[GATE_B][SOL_HIGH] Cap token lifetime, reject replays and check revocation on every bearer call.**
   - **Depends:** `INTAPI-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.SECURITY; DIRECT=none; WHY=a stolen token stays valid until it expires and can be replayed from anywhere because nothing checks lifetime bounds, identifiers or revocation`.
   - **TEST:** `TestTodo_INTAPI_002`.
@@ -25470,6 +25745,7 @@ Related open items are not duplicated here:
   - **GREEN:** tokens above the maximum lifetime are refused; each token identifier is accepted once per lifetime; a revoked client, key or session fails closed within the propagation budget; write-capable clients must present a DPoP proof or mutual-TLS binding matching the token confirmation claim; PROPERTY proves no replayed or post-revocation token is admitted.
   - **REFACTOR:** none.
   - **Refs:** `internal/trust/hmactoken.go`, `internal/transport/invocation.go`, `internal/trust/session`.
+  - **Evidence (2026-09-22):** `TestTodo_INTAPI_002`, `_Security`, `_Property` in `internal/trust` (fresh admits once, replay/revoked-client/revoked-session refused, forgery never consults the source, 16-racer exactly-one, HMAC `MaxDevLifetime` 24h cap); `TestTodo_INTAPI_002_Integration` in `internal/transport/journey` (served call OK, replay + post-revocation refused Unauthenticated); `TestMachineTokenUseSingleUse` in `internal/data/truststore` (durable exactly-once via `machine_token_use`, migration `00325`, advisory-locked; revoked/expired/unknown client fails closed; tenant-isolated); `TestDPoPAtUse` + `machine.VerifyDPoPProof` (method/URL/token binding, freshness, signature); issuance refuses Bearer [REDACTED] write-capable clients without DPoP/mTLS (`partnerapp.GrantsWrite`); cnf carried on the principal. `go test -count=1` PASS `internal/trust`, `internal/trust/machine`, `internal/transport/machineauth`, `internal/transport/journey`, `internal/domains/partnerapp`, `internal/data/truststore` (embedded PG); `go vet`/`gofmt` clean; uncommitted. Note: machine-token sessions live/die with client lifecycle (no session-store row exists to revoke); use-time binding enforcement on writes lands in INTAPI-003's capability authorize.
 
 - [ ] `INTAPI-003` **[GATE_B][SOL_HIGH] Enforce client scopes, machine roles, verified delegation and step-up on every capability call.**
   - **Depends:** `INTAPI-001`, `RBAC-RT-002`.
@@ -25480,6 +25756,7 @@ Related open items are not duplicated here:
   - **GREEN:** effective authority is the intersection of the client's granted scopes, the capability's scope and the field policy; machine role templates grant least privilege; acting on behalf of a person requires a delegation verified on the server and intersected with that person's current authority; writes of high risk class require step-up or dual approval; PROPERTY proves a client never exceeds its grant.
   - **REFACTOR:** none.
   - **Refs:** `internal/intent/app/capabilities.go`, `internal/trust/authz/policy.go`, `internal/trust/delegation.go`, `internal/trust/stepup`.
+  - **Progress (2026-09-22):** engine + full matrix committed and verified green (`TestTodo_INTAPI_003`, `_Security`, `_Property` in `internal/capability/authority`, 84.8% cover): scope intersection, kind-gated machine templates, server-verified delegation, step-up/dual-approval gates. Added `partnerapp.GrantedScopesFor` (registry grant resolution with lifecycle re-check, `TestGrantedScopesFor`) for the call site. NOT ticked: `authorize` in `internal/intent/app/capabilities.go` still passes empty `authority.Authority{}`; the owning session's staged rewrite wires `GrantedScopes` (via `GrantedScopesFor`), `EffectiveRoles`, `Delegation`, `StepUp`, `DualApproval` from durable stores. Uncommitted: partnerapp helper + test only.
 
 - [ ] `INTAPI-004` **[GATE_B][SOL_HIGH] Terminate TLS at the listeners and record client identity in audit and abuse signals.**
   - **Depends:** `INTAPI-001`.
@@ -25490,6 +25767,7 @@ Related open items are not duplicated here:
   - **GREEN:** the listeners require TLS, or a documented and tested terminator contract forwards verified client identity; invocation evidence records client identifier and credential digest; client call patterns feed the abuse detector; per-client quotas follow `REV-100-02`.
   - **REFACTOR:** none.
   - **Refs:** `internal/transport/grpcserver`, `internal/transport/cell/cell.go`, `internal/engines/abuse`.
+  - **Progress (2026-09-22):** not started: every implementation file is under another session's staged modification (`internal/transport/cell/cell.go` MM, `internal/transport/grpcserver/interceptor.go` + `streaminterceptor.go` M, `internal/transport/invocation.go` M). Ready inputs delivered by INTAPI-001/002: documented + tested terminator contract headers (`X-HCM-TLS-Client-SHA256`, `X-HCM-Source-IP`), client identifier + credential digest on the principal (`SubjectKindIntegration`, `CredentialDigest()`), per-client registry for quota/REV-100-02 joins. Uncommitted: notes only.
 
 - [ ] `INTAPI-005` **[GATE_B][SOL_HIGH] Require a durable idempotency key on every external write.**
   - **Depends:** `INTAPI-001`.
@@ -25500,8 +25778,11 @@ Related open items are not duplicated here:
   - **GREEN:** every externally reachable write requires an `Idempotency-Key` header or field; the coordinator persists key, request digest and result in PostgreSQL shared across replicas with capability-specific expiry; a replay returns the original result and a key reused with a different request is refused; RACE proves concurrent duplicates execute once.
   - **REFACTOR:** none.
   - **Refs:** `internal/transport/endpoint`, `internal/intent/app/cell.go`.
+  - **Progress (2026-09-22):** not started: `internal/intent/app/cell.go` M staged, `internal/transport/cell/cell.go` MM, `internal/transport/endpoint/intent_endpoints_test.go` M staged (owner actively editing endpoint tests). Durable-coordinator design notes: new write-once table (key, request digest, result, capability expiry) mirroring `machine_token_use` (migration `00325`) fits the exactly-once pattern; `endpoint.Coordinator.Do` semantics (conflict vs replay) carry over with `ON CONFLICT`. Uncommitted: notes only.
+  - **Progress (2026-09-23):** durable core landed, uncommitted: migration `00326_idempotency_keys.sql` (`idempotency_key`: one row per tenant/capability/key, digest, in_progress→completed lifecycle, capability TTL, tenant RLS, expiry index; DELETE granted for reclaim/sweeps, no forbid_mutation by design) + disposition row; new `internal/data/idempotencystore` (`Claim` advisory-locked: first wins Executes, same-digest replays original, different-digest refused via `ErrDigestConflict`, expired reclaimed, in-flight reported; `Complete` exactly-once with `ErrNoClaim`). `TestTodo_INTAPI_005`, `_Race` (16 racers, exactly one winner, all replay), `_Fault` PASS on embedded PG; coverage 79.1%; `go vet`/`gofmt` clean. NOT ticked: `Idempotency-Key` header/field enforcement and coordinator replay wiring in `internal/transport/endpoint` + `internal/intent/app/cell.go` (owner-staged); RECOVERY/INTEGRATION matrix rungs belong to that wiring.
 
-- [ ] `INTAPI-006` **[GATE_B][SOL_LOW] Fix defects on the served API surface.**
+- [x] `INTAPI-006` **[GATE_B][SOL_LOW] Fix defects on the served API surface.**
+  - **Evidence (2026-09-22):** `TestTodo_INTAPI_006`, `_Security`, `_Golden`, `_Integration` in `internal/transport/cell/intapi006_test.go` (RetryNode caller reason, threshold table, tunnel lockdown + service allowlist, dedicated rotating cursor key; ListJourneys paging in `internal/transport/journey`); `go test -count=1 -run 'TestTodo_INTAPI_006' ./internal/transport/cell/` PASS, full `./internal/transport/cell/` + `./internal/transport/journey/` PASS, `go vet` clean, windows/arm64 Go 1.26; implementation staged by owning session, commit theirs; uncommitted
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK,BI.SECURITY; DIRECT=none; WHY=several served calls record wrong audit data, ignore paging, return unavailable or expose operator services through the browser tunnel`.
   - **TEST:** `TestTodo_INTAPI_006`.
@@ -25532,7 +25813,7 @@ Related open items are not duplicated here:
   - **REFACTOR:** none.
   - **Refs:** `schema/proto`, `gen/go`, `schema/openapi/rpcs.openapi.yaml`, `tools/gen/openapi`.
 
-- [ ] `INTAPI-009` **[GATE_C][SOL_LOW] Keep the integration API design contract aligned with the served surface and the backlog.**
+- [x] `INTAPI-009` **[GATE_C][SOL_LOW] Keep the integration API design contract aligned with the served surface and the backlog.**
   - **Depends:** `INTAPI-008`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTEGRATION; DIRECT=none; WHY=a design contract is useful to partners only if every planned operation is owned by a todo and every delivered operation matches the generated contract`.
   - **TEST:** `TestTodo_INTAPI_009`.
@@ -25541,6 +25822,7 @@ Related open items are not duplicated here:
   - **GREEN:** a check fails when an operation lacks an `x-hcmnext-todo` naming an existing todo, when an operation marked served has no matching generated RPC, or when a todo it names is closed while the operation is still marked planned.
   - **REFACTOR:** none.
   - **Refs:** `schema/openapi/integration.openapi.yaml`, `planning/todos.md`.
+  - **Evidence (2026-09-21):** `TestTodo_INTAPI_009`, `TestTodo_INTAPI_009_Golden` in `tools/gen/openapi` (new `intapi009.go` CheckIntegrationAlignment: fails on operations without `x-hcmnext-todo`, served-without-RPC, or closed-todo-still-planned; caught 4 live violations, fixed); `go test -count=1 -run '^TestTodo_INTAPI_009' ./tools/gen/openapi/` PASS on windows/arm64.
 
 - [ ] `INTAPI-010` **[GATE_C][SOL_HIGH] Serve authorized, effective-dated read APIs for every governed domain.**
   - **Depends:** `INTAPI-003`, `RBAC-RT-001`.
@@ -25601,3 +25883,2302 @@ Related open items are not duplicated here:
   - **GREEN:** a suite driven by the OpenAPI documents calls every public operation on a served cell and proves it rejects missing, expired and foreign-tenant credentials, enforces scopes, honours idempotency and optimistic concurrency, pages consistently and returns the standard error model.
   - **REFACTOR:** reuse the runtime RBAC fixture users.
   - **Refs:** `schema/openapi`, `internal/application/rbac_runtime_integration_test.go`.
+
+## 83. Native company chat and collaboration delivery
+
+> Candidate near-term product backlog (2026-09-21). `CHAT-001` records the scope exchange and release owner before implementation depth changes; these GATE_C labels do not add work to the existing P1A/P1B inventory. Each open item needs its named RED test and TodoContract before implementation.
+
+- [ ] `CHAT-001` **[GATE_C][SOL_LOW] Record chat and documentation scope exchange and staffed release gate.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=record chat and documentation scope exchange and staffed release gate through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_001`; `GOLDEN=TestTodo_CHAT_001_Golden`.
+  - **RED:** No approved work displacement, launch owner, partner or acceptance gate exists for this near-term product.
+  - **GREEN:** A signed scope record names displaced work, owners, pilot tenants, SLOs and activation conditions without relabeling current P1A/P1B inventory.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-002` **[GATE_C][SOL_HIGH] Register core-owned conversation routing and shard placement contract.**
+  - **Depends:** `CHAT-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=register core-owned conversation routing and shard placement contract through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_002`; `SECURITY=TestTodo_CHAT_002_Security`; `INTEGRATION=TestTodo_CHAT_002_Integration`.
+  - **RED:** A guessed conversation ID can route to the wrong tenant or message shard.
+  - **GREEN:** Versioned route records bind host tenant, shard, epoch and lifecycle; unknown or stale routes refuse before storage access.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-003` **[GATE_C][SOL_HIGH] Provision an independent chat database and bounded pool.**
+  - **Depends:** `CHAT-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=provision an independent chat database and bounded pool through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_003`; `INTEGRATION=TestTodo_CHAT_003_Integration`; `SECURITY=TestTodo_CHAT_003_Security`.
+  - **RED:** Chat messages can consume workflow database connections or migrations.
+  - **GREEN:** Chat uses distinct database credentials, migrations, pool, backup set and outbox; workflow storage is unreachable from chat repositories.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-004` **[GATE_C][SOL_HIGH] Enforce tenant isolation on every chat-owned table.**
+  - **Depends:** `CHAT-003`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=enforce tenant isolation on every chat-owned table through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_004`; `SECURITY=TestTodo_CHAT_004_Security`; `INTEGRATION=TestTodo_CHAT_004_Integration`.
+  - **RED:** A foreign tenant can read or mutate posts through a missing tenant predicate or RLS policy.
+  - **GREEN:** RLS and repository tests reject cross-tenant rows for conversations, posts, revisions, membership, cursors and app state.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-005` **[GATE_C][SOL_HIGH] Cache and invalidate core conversation routes safely.**
+  - **Depends:** `CHAT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=cache and invalidate core conversation routes safely through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_005`; `FAULT=TestTodo_CHAT_005_Fault`; `SECURITY=TestTodo_CHAT_005_Security`.
+  - **RED:** Stale placement caches keep routing writes to a suspended or moved shard.
+  - **GREEN:** Signed/versioned leases expire and invalidate on epoch change; stale writes fail before message commit.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-006` **[GATE_C][SOL_HIGH] Reconcile pending route and conversation creation.**
+  - **Depends:** `CHAT-002`, `CHAT-003`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=reconcile pending route and conversation creation through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_006`; `RECOVERY=TestTodo_CHAT_006_Recovery`; `INTEGRATION=TestTodo_CHAT_006_Integration`.
+  - **RED:** A crash between core route reservation and chat creation leaves duplicate or invisible conversations.
+  - **GREEN:** Idempotent create and reconciliation produce one active conversation or an inspectable pending repair state.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-007` **[GATE_C][SOL_HIGH] Fence chat writes during shard moves.**
+  - **Depends:** `CHAT-005`, `CHAT-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=fence chat writes during shard moves through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_007`; `RECOVERY=TestTodo_CHAT_007_Recovery`; `INTEGRATION=TestTodo_CHAT_007_Integration`.
+  - **RED:** Old and new chat shards both accept posts during migration.
+  - **GREEN:** Route epoch fencing admits one writer; copied history, sequences and outbox reconcile before cutover.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-008` **[GATE_C][SOL_LOW] Publish canonical conversation RPC schemas and capability manifests.**
+  - **Depends:** `CHAT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=publish canonical conversation RPC schemas and capability manifests through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_008`; `GOLDEN=TestTodo_CHAT_008_Golden`; `CONFORMANCE=TestTodo_CHAT_008_Conformance`.
+  - **RED:** Clients invent unregistered chat methods and inconsistent errors.
+  - **GREEN:** Generated Protobuf and manifests cover create, manage, post, watch and typed errors with versioned compatibility tests.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-009` **[GATE_C][SOL_HIGH] Expose integration HTTP bindings with RPC parity.**
+  - **Depends:** `CHAT-008`, `INTAPI-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=expose integration HTTP bindings with RPC parity through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_009`; `CONFORMANCE=TestTodo_CHAT_009_Conformance`; `SECURITY=TestTodo_CHAT_009_Security`; `INTEGRATION=TestTodo_CHAT_009_Integration`.
+  - **RED:** HTTP clients see different authorization, revision or idempotency results from native RPC.
+  - **GREEN:** Contract-driven HTTP routes match canonical outcomes and do not bypass the core router.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-010` **[GATE_C][SOL_HIGH] Evaluate channel eligibility from roles qualifications and allowlists.**
+  - **Depends:** `CHAT-004`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=evaluate channel eligibility from roles qualifications and allowlists through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_010`; `SECURITY=TestTodo_CHAT_010_Security`; `PROPERTY=TestTodo_CHAT_010_Property`; `GOLDEN=TestTodo_CHAT_010_Golden`.
+  - **RED:** A profile string, expired qualification or allowlist entry grants restricted channel access.
+  - **GREEN:** Current verified facts, mandatory denies and declared rule composition govern discover, join, read and post.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-011` **[GATE_C][SOL_HIGH] Bind chat sessions and streams to current principal authority.**
+  - **Depends:** `CHAT-010`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=bind chat sessions and streams to current principal authority through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_011`; `SECURITY=TestTodo_CHAT_011_Security`; `FAULT=TestTodo_CHAT_011_Fault`; `GOLDEN=TestTodo_CHAT_011_Golden`.
+  - **RED:** Logout, termination or role loss leaves a live stream and cached private data readable.
+  - **GREEN:** Session revocation closes streams and invalidates caches within a measured budget.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-012` **[GATE_C][SOL_HIGH] Create bilateral cross-company conversation grants.**
+  - **Depends:** `CHAT-010`, `CHAT-002`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create bilateral cross-company conversation grants through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_012`; `SECURITY=TestTodo_CHAT_012_Security`; `INTEGRATION=TestTodo_CHAT_012_Integration`; `GOLDEN=TestTodo_CHAT_012_Golden`.
+  - **RED:** A host invitation or link alone admits a foreign company.
+  - **GREEN:** Host proposal and consumer acceptance bind companies, scope, classification, residency and expiry; absent consent denies.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-013` **[GATE_C][SOL_HIGH] Implement current-authority conversation membership lifecycle.**
+  - **Depends:** `CHAT-010`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=implement current-authority conversation membership lifecycle through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_013`; `SECURITY=TestTodo_CHAT_013_Security`; `INTEGRATION=TestTodo_CHAT_013_Integration`; `GOLDEN=TestTodo_CHAT_013_Golden`.
+  - **RED:** Historical membership survives leave, suspension or grant revocation as live authority.
+  - **GREEN:** Join, invite, accept, leave and remove preserve audit history while current membership controls access.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-014` **[GATE_C][SOL_HIGH] Create rename archive restore and transfer channels.**
+  - **Depends:** `CHAT-013`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create rename archive restore and transfer channels through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_014`; `INTEGRATION=TestTodo_CHAT_014_Integration`; `SECURITY=TestTodo_CHAT_014_Security`; `GOLDEN=TestTodo_CHAT_014_Golden`.
+  - **RED:** A departed owner strands a channel or unauthorized member renames it.
+  - **GREEN:** Revision-checked manager actions change channel lifecycle and owner without altering stable ID or retained history.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-015` **[GATE_C][SOL_HIGH] Create one-to-one direct messages with stable participant identity.**
+  - **Depends:** `CHAT-013`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create one-to-one direct messages with stable participant identity through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_015`; `PROPERTY=TestTodo_CHAT_015_Property`; `SECURITY=TestTodo_CHAT_015_Security`; `GOLDEN=TestTodo_CHAT_015_Golden`.
+  - **RED:** Duplicate DM creation or adding a third participant silently exposes old history.
+  - **GREEN:** One stable pair conversation is reused idempotently; a third participant creates a new group history.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-016` **[GATE_C][SOL_HIGH] Create private group chats and shared names.**
+  - **Depends:** `CHAT-013`, `CHAT-015`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create private group chats and shared names through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_016`; `SECURITY=TestTodo_CHAT_016_Security`; `INTEGRATION=TestTodo_CHAT_016_Integration`; `GOLDEN=TestTodo_CHAT_016_Golden`.
+  - **RED:** Group membership or rename expands a prior DM audience unexpectedly.
+  - **GREEN:** Group creation has separate ID/history, explicit invites, manager-controlled shared name and revocable members.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-017` **[GATE_C][SOL_LOW] Commit ordered posts and chat outbox atomically.**
+  - **Depends:** `CHAT-003`, `CHAT-008`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=commit ordered posts and chat outbox atomically through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_017`; `RACE=TestTodo_CHAT_017_Race`; `INTEGRATION=TestTodo_CHAT_017_Integration`.
+  - **RED:** Concurrent send and retry duplicate posts or acknowledge absent outbox events.
+  - **GREEN:** One chat transaction persists post, per-conversation sequence, idempotency result and outbox; retries return the original ID.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-018` **[GATE_C][SOL_HIGH] Stream authorized conversation events with bounded backpressure.**
+  - **Depends:** `CHAT-017`, `CHAT-011`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=stream authorized conversation events with bounded backpressure through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_018`; `RACE=TestTodo_CHAT_018_Race`; `SECURITY=TestTodo_CHAT_018_Security`.
+  - **RED:** Slow subscribers grow memory or see events after access loss.
+  - **GREEN:** Bounded watches deliver ordered authorized events or close with catch-up cursor; workflow request capacity stays reserved.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-019` **[GATE_C][SOL_HIGH] Resume live chat from signed sequence cursors.**
+  - **Depends:** `CHAT-018`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=resume live chat from signed sequence cursors through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_019`; `SECURITY=TestTodo_CHAT_019_Security`; `RECOVERY=TestTodo_CHAT_019_Recovery`.
+  - **RED:** Reconnect drops posts, replays forbidden events or accepts forged cursors.
+  - **GREEN:** Cursor binds principal, tenant, conversation, route epoch and expiry; gap catch-up yields exact committed history.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-020` **[GATE_C][SOL_HIGH] Propagate revocation through chat reads and derived views.**
+  - **Depends:** `CHAT-011`, `CHAT-019`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=propagate revocation through chat reads and derived views through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_020`; `SECURITY=TestTodo_CHAT_020_Security`; `FAULT=TestTodo_CHAT_020_Fault`.
+  - **RED:** Search, push, media or agent caches remain readable after channel revocation.
+  - **GREEN:** A measured policy epoch invalidates every derived surface; stale delivery fails closed and is observable.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-021` **[GATE_C][SOL_HIGH] Index and query authorized chat history.**
+  - **Depends:** `CHAT-017`, `CHAT-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=index and query authorized chat history through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_021`; `SECURITY=TestTodo_CHAT_021_Security`; `INTEGRATION=TestTodo_CHAT_021_Integration`.
+  - **RED:** Search returns private snippets, counts or stale deleted text.
+  - **GREEN:** Bounded indexed queries apply current authorization before hits, counts, facets and snippets; revisions converge.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-022` **[GATE_C][SOL_LOW] Maintain per-recipient unread and mention positions.**
+  - **Depends:** `CHAT-017`, `CHAT-013`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=maintain per-recipient unread and mention positions through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_022`; `RACE=TestTodo_CHAT_022_Race`; `INTEGRATION=TestTodo_CHAT_022_Integration`.
+  - **RED:** A shared read marker loses unread state or leaks another person's activity.
+  - **GREEN:** Recipient-owned cursors and counts update idempotently for posts, edits, leaves and revocation.
+  - **PROGRESS (2026-09-21):** Recipient-scoped read cursors and notification preferences now enforce current membership, tenant/home identity, monotonic positions and bounded unread counts. The full chatstore PostgreSQL suite passes at 74.2% coverage; the race detector and complete revocation/pilot evidence remain outstanding.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-023` **[GATE_C][SOL_HIGH] Implement threaded replies and follow state.**
+  - **Depends:** `CHAT-017`, `CHAT-022`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=implement threaded replies and follow state through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_023`; `INTEGRATION=TestTodo_CHAT_023_Integration`; `SECURITY=TestTodo_CHAT_023_Security`.
+  - **RED:** A deleted root loses replies or threads duplicate unread notifications.
+  - **GREEN:** Replies retain parent identity, ordered navigation and recipient follow/unfollow with retained tombstone context.
+  - **PROGRESS (2026-09-23):** The machine resource post accepts an optional `parent_id`, and authenticated `SendPost` checks that the live parent belongs to the same tenant and conversation before writing. `tools/chat-pingback` is a local explicit-callout demo with a durable resume cursor, event-derived idempotency key, self-reply guard and dry-run. This is partial evidence only; ordered thread navigation, follow/unfollow, tombstone retention and the CHAT-023 matrix remain open.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-024` **[GATE_C][SOL_HIGH] Implement bounded reactions and pins.**
+  - **Depends:** `CHAT-017`, `CHAT-013`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=implement bounded reactions and pins through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_024`; `INTEGRATION=TestTodo_CHAT_024_Integration`; `SECURITY=TestTodo_CHAT_024_Security`.
+  - **RED:** Repeated reactions or forged pins bypass author and manager grants.
+  - **GREEN:** Idempotent reactions and revisioned pins have audit events, current access and retention behavior.
+  - **PROGRESS (2026-09-21):** Reaction listing now checks current authority and uses bounded pagination; pin visibility is checked against current membership. The full chatstore PostgreSQL suite and `test/chat` acceptance suite pass. End-to-end retention and full release-gate evidence remain outstanding.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-025` **[GATE_C][SOL_HIGH] Create immutable post edit revisions.**
+  - **Depends:** `CHAT-017`, `CHAT-021`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create immutable post edit revisions through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_025`; `SECURITY=TestTodo_CHAT_025_Security`; `MUTATION=TestTodo_CHAT_025_Mutation`.
+  - **RED:** Editing old text overwrites evidence or re-executes commands and agent triggers.
+  - **GREEN:** Authorized edit creates a revision, revalidates DLP and mentions, updates projections and never repeats an HCM effect.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-026` **[GATE_C][SOL_HIGH] Create post deletion tombstones with records preservation.**
+  - **Depends:** `CHAT-025`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create post deletion tombstones with records preservation through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_026`; `SECURITY=TestTodo_CHAT_026_Security`; `INTEGRATION=TestTodo_CHAT_026_Integration`.
+  - **RED:** Deleting a post removes held evidence or leaves searchable body fragments.
+  - **GREEN:** Authorized delete records a tombstone, removes ordinary projections and preserves held copies only through records policy.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-027` **[GATE_C][SOL_HIGH] Resolve person and agent mentions by current audience.**
+  - **Depends:** `CHAT-010`, `CHAT-017`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=resolve person and agent mentions by current audience through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_027`; `SECURITY=TestTodo_CHAT_027_Security`; `PROPERTY=TestTodo_CHAT_027_Property`.
+  - **RED:** Forged mention text notifies a person outside the conversation.
+  - **GREEN:** Server resolves canonical IDs on commit and notifies only currently eligible principals.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-028` **[GATE_C][SOL_HIGH] Bind slash commands to invoker and app capabilities.**
+  - **Depends:** `CHAT-017`, `CHAT-009`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=bind slash commands to invoker and app capabilities through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_028`; `SECURITY=TestTodo_CHAT_028_Security`; `INTEGRATION=TestTodo_CHAT_028_Integration`.
+  - **RED:** Quoted text or a broadly installed command executes an HCM action without invoker authority.
+  - **GREEN:** Typed invocation requires explicit selection and intersection of invoker, app, conversation and command scopes.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-029` **[GATE_C][SOL_HIGH] Resolve channel and chat references without discovery leaks.**
+  - **Depends:** `CHAT-010`, `CHAT-017`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=resolve channel and chat references without discovery leaks through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_029`; `SECURITY=TestTodo_CHAT_029_Security`; `INTEGRATION=TestTodo_CHAT_029_Integration`.
+  - **RED:** Autocomplete reveals private chat names or a reference grants target access.
+  - **GREEN:** Only visible IDs are suggested and unauthorized readers see inert non-revealing references.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-030` **[GATE_C][SOL_HIGH] Share conversation links and forward posts with disclosure checks.**
+  - **Depends:** `CHAT-012`, `CHAT-017`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=share conversation links and forward posts with disclosure checks through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_030`; `SECURITY=TestTodo_CHAT_030_Security`; `INTEGRATION=TestTodo_CHAT_030_Integration`.
+  - **RED:** Copying a link or forwarding a post widens audience without a grant.
+  - **GREEN:** Share links locate only; invitation and destination disclosure checks gate membership and forwarded content.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-031` **[GATE_C][TERRA] Build accessible channel and message workspace shell.**
+  - **Depends:** `CHAT-008`, `CHAT-017`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=build accessible channel and message workspace shell through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_031`; `BROWSER=TestTodo_CHAT_031_Browser`; `ACCESSIBILITY=TestTodo_CHAT_031_Accessibility`.
+  - **RED:** No served browser path exposes the conversation timeline and composer.
+  - **GREEN:** Desktop and narrow layouts render authorized rail, timeline, composer and unavailable states with keyboard and screen-reader semantics.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+  - **Partial progress (2026-09-23):** Added a channel poll create/vote surface, tenant-scoped PostgreSQL persistence with immutable revision history, membership and routed-policy checks, and a caller-only vote selection projection. Focused chat UI, copy, application and transport tests plus the JS/WASM build pass. The real PostgreSQL store test is still unverified because the shared Windows `pgtest` startup sweep contended with another full test suite; browser create/vote/results verification remains pending. `CHAT-031` stays open.
+
+- [ ] `CHAT-032` **[GATE_C][TERRA] Persist personal sidebar sections and manual chat order.**
+  - **Depends:** `CHAT-031`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=persist personal sidebar sections and manual chat order through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_032`; `BROWSER=TestTodo_CHAT_032_Browser`; `INTEGRATION=TestTodo_CHAT_032_Integration`.
+  - **RED:** Reordering a chat mutates another person's rail or loses state after reload.
+  - **GREEN:** Recipient-owned sections, stars, filters and order persist per person and sync across sessions.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-033` **[GATE_C][TERRA] Resize and restore desktop chat panes accessibly.**
+  - **Depends:** `CHAT-031`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=resize and restore desktop chat panes accessibly through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_033`; `BROWSER=TestTodo_CHAT_033_Browser`; `ACCESSIBILITY=TestTodo_CHAT_033_Accessibility`.
+  - **RED:** Dragging panes hides composer or has no keyboard alternative.
+  - **GREEN:** Bounded pane sizes, collapse and restore persist per device class with keyboard and zoom parity.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-034` **[GATE_C][TERRA] Apply chat notification preferences without suppressing HCM notices.**
+  - **Depends:** `CHAT-022`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=apply chat notification preferences without suppressing HCM notices through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_034`; `INTEGRATION=TestTodo_CHAT_034_Integration`; `SECURITY=TestTodo_CHAT_034_Security`.
+  - **RED:** Mute or quiet hours hide mandatory approvals or create duplicate pushes.
+  - **GREEN:** Per-chat all/mention/mute and quiet hours affect optional chat events while governed notices stay separate.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-035` **[GATE_C][TERRA] Retain and clear per-conversation drafts safely.**
+  - **Depends:** `CHAT-031`, `CHAT-011`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=retain and clear per-conversation drafts safely through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_035`; `BROWSER=TestTodo_CHAT_035_Browser`; `SECURITY=TestTodo_CHAT_035_Security`.
+  - **RED:** Logout or access loss leaves private drafts readable in browser storage.
+  - **GREEN:** Drafts survive navigation but are sealed or discarded on revocation and never auto-submit across identity changes.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-036` **[GATE_C][SOL_HIGH] Admit chat uploads through quarantine and typed references.**
+  - **Depends:** `CHAT-017`, `DOC-MAL-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=admit chat uploads through quarantine and typed references through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_036`; `SECURITY=TestTodo_CHAT_036_Security`; `INTEGRATION=TestTodo_CHAT_036_Integration`.
+  - **RED:** Unscanned or foreign-tenant bytes are committed as playable attachments.
+  - **GREEN:** Initiate, scan, complete and reference bind immutable artifact IDs to current conversation authority.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-037` **[GATE_C][SOL_HIGH] Play recorded MP3 and WAV messages with accessible alternatives.**
+  - **Depends:** `CHAT-036`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=play recorded MP3 and WAV messages with accessible alternatives through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_037`; `BROWSER=TestTodo_CHAT_037_Browser`; `SECURITY=TestTodo_CHAT_037_Security`.
+  - **RED:** Unsupported or mismatched audio bytes play before inspection or lack text alternative.
+  - **GREEN:** Verified audio messages support protected playback, duration bounds and transcript/alternative policy.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-038` **[GATE_C][SOL_HIGH] Serve BMP PNG GIF and MP4 safely through protected media.**
+  - **Depends:** `CHAT-036`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=serve BMP PNG GIF and MP4 safely through protected media through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_038`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_038`; `SECURITY=TestTodo_CHAT_038_Security`; `INTEGRATION=TestTodo_CHAT_038_Integration`.
+  - **RED:** Animated or video content bypasses quarantine, classification or range authorization.
+  - **GREEN:** Verified formats get bounded derivatives, authorized range reads and revocation across thumbnails and playback.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-039` **[GATE_C][SOL_HIGH] Sandbox approved interactive web embeds.**
+  - **Depends:** `CHAT-017`, `CHAT-010`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=sandbox approved interactive web embeds through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_039`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_039`; `BROWSER=TestTodo_CHAT_039_Browser`; `SECURITY=TestTodo_CHAT_039_Security`.
+  - **RED:** An embed reaches chat credentials, unapproved origins or a forged bridge action.
+  - **GREEN:** Origin policy, isolation, navigation limits and typed bridge checks refuse escapes and fall back visibly.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-040` **[GATE_C][SOL_HIGH] Install upgrade suspend and revoke conversation apps.**
+  - **Depends:** `CHAT-009`, `CHAT-013`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=install upgrade suspend and revoke conversation apps through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_040`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_040`; `SECURITY=TestTodo_CHAT_040_Security`; `INTEGRATION=TestTodo_CHAT_040_Integration`; `GOLDEN=TestTodo_CHAT_040_Golden`.
+  - **RED:** An app upgrade silently adds scope or revoked callbacks keep receiving data.
+  - **GREEN:** Versioned manifest and conversation grants require review; revocation terminates commands, tabs, callbacks and subscriptions.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-041` **[GATE_C][SOL_HIGH] Serve typed plugin cards tabs and command callbacks.**
+  - **Depends:** `CHAT-040`, `CHAT-028`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=serve typed plugin cards tabs and command callbacks through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_041`; `SECURITY=TestTodo_CHAT_041_Security`; `BROWSER=TestTodo_CHAT_041_Browser`; `GOLDEN=TestTodo_CHAT_041_Golden`.
+  - **RED:** Third-party UI script runs on the chat origin or callback exceeds granted actions.
+  - **GREEN:** Server-owned cards and isolated tabs execute typed scoped actions with idempotent visible outcomes.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-042` **[GATE_C][SOL_HIGH] Deliver conversation webhooks and pull events with replay.**
+  - **Depends:** `CHAT-040`, `CHAT-017`, `INTAPI-013`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=deliver conversation webhooks and pull events with replay through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_042`; `RECOVERY=TestTodo_CHAT_042_Recovery`; `SECURITY=TestTodo_CHAT_042_Security`; `GOLDEN=TestTodo_CHAT_042_Golden`.
+  - **RED:** App event retries lose commits or disclose posts after app revocation.
+  - **GREEN:** Signed at-least-once delivery, bounded cursor replay and per-event reauthorization survive restart and revoke.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-043` **[GATE_C][SOL_HIGH] Register visible agent identities and installations.**
+  - **Depends:** `CHAT-040`, `CHAT-010`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=register visible agent identities and installations through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_043`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_043`; `SECURITY=TestTodo_CHAT_043_Security`; `INTEGRATION=TestTodo_CHAT_043_Integration`; `GOLDEN=TestTodo_CHAT_043_Golden`.
+  - **RED:** A bot impersonates a person or reads chats without named admission.
+  - **GREEN:** Agent identity, installation grant, status and capability disclosure are distinct from human membership.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-044` **[GATE_C][SOL_HIGH] Budget autonomous agent triggers and stop loops.**
+  - **Depends:** `CHAT-043`, `CHAT-027`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=budget autonomous agent triggers and stop loops through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_044`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_044`; `FAULT=TestTodo_CHAT_044_Fault`; `SECURITY=TestTodo_CHAT_044_Security`; `GOLDEN=TestTodo_CHAT_044_Golden`.
+  - **RED:** Agents recursively mention each other or exhaust model/tool budget.
+  - **GREEN:** Declared trigger policy, per-tenant rate and cost ceilings, loop detection and kill switch stop safely.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-045` **[GATE_C][SOL_HIGH] Carry agent-proposed HCM actions through BusinessIntent.**
+  - **Depends:** `CHAT-044`, `CHAT-028`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=carry agent-proposed HCM actions through BusinessIntent through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_045`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_045`; `SECURITY=TestTodo_CHAT_045_Security`; `INTEGRATION=TestTodo_CHAT_045_Integration`.
+  - **RED:** An agent writes HCM domain state directly or claims success from a chat post.
+  - **GREEN:** Typed proposal enters normal workflow approval/admission, returns durable intent ID and reconciles outcome without duplicate effect.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-046` **[GATE_C][SOL_HIGH] Protect chat and workflow capacity with separate admission lanes.**
+  - **Depends:** `CHAT-003`, `CHAT-017`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=protect chat and workflow capacity with separate admission lanes through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_046`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_046`; `BENCHMARK=BenchmarkTodo_CHAT_046`; `FAULT=TestTodo_CHAT_046_Fault`.
+  - **RED:** A reconnect storm or chat burst consumes workflow worker, connection or edge capacity.
+  - **GREEN:** Bounded chat pools and shedding preserve measured workflow admission and timer SLOs under saturation.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-047` **[GATE_C][SOL_HIGH] Audit chat membership moderation sharing and app changes.**
+  - **Depends:** `CHAT-013`, `CHAT-040`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=audit chat membership moderation sharing and app changes through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_047`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_047`; `SECURITY=TestTodo_CHAT_047_Security`; `INTEGRATION=TestTodo_CHAT_047_Integration`; `GOLDEN=TestTodo_CHAT_047_Golden`.
+  - **RED:** Sensitive access changes cannot be reconstructed after an incident.
+  - **GREEN:** Immutable actor, target, prior revision, reason and policy evidence covers each change without logging message bodies.
+  - **PROGRESS (2026-09-21):** Core conversation, membership, post, reaction and pin events now commit body-free audit metadata with their canonical chat mutation and outbox entry; an audit write failure rolls back the mutation. PostgreSQL replay, rollback, concurrent sequence and missing-projection tests pass; chatstore is at 74.2% and chatrecordstore at 82.3% coverage. App install/status audit still needs atomic composition, and classification, moderation and full pilot evidence remain open. A share link is a locator, not a persisted share mutation.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+  - **Partial evidence (2026-09-21):** Core conversation/membership/post/reaction/pin and app installation/upgrade/status writes now project audit, outbox and inventory in their canonical tenant transactions. `TestTodo_CHAT_047_Integration_AppMutationAuditAtomicity` injects PostgreSQL audit faults for installation and status and verifies both rollbacks, retries, and stale-write conflict; `TestTodo_CHAT_047_Security_AuditScopeBoundToMutation` rejects a reused tenant/conversation/principal authorization context. Share links only generate locators. Classification, moderation and complete pilot/race evidence remain open; this todo remains unchecked.
+
+- [ ] `CHAT-048` **[GATE_C][SOL_HIGH] Apply chat retention legal holds exports and deletion.**
+  - **Depends:** `CHAT-025`, `CHAT-036`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=apply chat retention legal holds exports and deletion through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_048`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_048`; `INTEGRATION=TestTodo_CHAT_048_Integration`; `SECURITY=TestTodo_CHAT_048_Security`; `GOLDEN=TestTodo_CHAT_048_Golden`.
+  - **RED:** An export omits revisions or a delete destroys held media.
+  - **GREEN:** Records inventory covers posts, edits, tombstones, reactions, files, voice/video, agent output and derived copies.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-049` **[GATE_C][SOL_HIGH] Backup restore and reconcile the chat database independently.**
+  - **Depends:** `CHAT-003`, `CHAT-017`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=backup restore and reconcile the chat database independently through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_049`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_049`; `RECOVERY=TestTodo_CHAT_049_Recovery`; `FAULT=TestTodo_CHAT_049_Fault`.
+  - **RED:** Restoring chat loses acknowledged posts or rolls back workflow state.
+  - **GREEN:** Restore recovers posts, sequence, idempotency and outbox then reconciles fanout without touching workflow backup.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-050` **[GATE_C][SOL_HIGH] Moderate reports blocks and abuse without broad private access.**
+  - **Depends:** `CHAT-026`, `CHAT-047`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=moderate reports blocks and abuse without broad private access through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_050`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_050`; `SECURITY=TestTodo_CHAT_050_Security`; `INTEGRATION=TestTodo_CHAT_050_Integration`; `GOLDEN=TestTodo_CHAT_050_Golden`.
+  - **RED:** A report tool gives moderators unrestricted private chat inspection or ignores abuse.
+  - **GREEN:** Scoped report and case route preserve evidence with separate authority and reasoned actions.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-051` **[GATE_C][SOL_HIGH] Prove cross-company chat and API end to end.**
+  - **Depends:** `CHAT-012`, `CHAT-018`, `CHAT-036`, `CHAT-042`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=prove cross-company chat and API end to end through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_051`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_051`; `CONFORMANCE=TestTodo_CHAT_051_Conformance`; `SECURITY=TestTodo_CHAT_051_Security`.
+  - **RED:** A foreign tenant can read host DB rows, media or events after grant loss.
+  - **GREEN:** Two-company served scenario proves bilateral admission, host ownership, revocation and egress policy.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-052` **[GATE_C][SOL_HIGH] Qualify chat load and workflow noninterference.**
+  - **Depends:** `CHAT-046`, `CHAT-049`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=qualify chat load and workflow noninterference through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_052`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_052`; `BENCHMARK=BenchmarkTodo_CHAT_052`; `RECOVERY=TestTodo_CHAT_052_Recovery`; `CONFORMANCE=TestTodo_CHAT_052_Conformance`.
+  - **RED:** Peak posts, streams, media or agents delay workflow timers beyond budget.
+  - **GREEN:** Mixed-load profile records p95/p99 workflow and chat latency, queue age and cost against a signed regression gate.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-053` **[GATE_C][SOL_LOW] Release a monitored all-employee chat pilot.**
+  - **Depends:** `CHAT-031`, `CHAT-051`, `CHAT-052`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=release a monitored all-employee chat pilot through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_053`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_053`; `BROWSER=TestTodo_CHAT_053_Browser`; `CONFORMANCE=TestTodo_CHAT_053_Conformance`.
+  - **RED:** Product is enabled broadly without adoption, support or rollback evidence.
+  - **GREEN:** Named design partner uses served chat with SLO dashboards, incident playbook, rollback and observed adoption criteria.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-054` **[PHASE_2][SOL_LOW] Design and prove deferred one-to-one P2P audio video calling.**
+  - **Depends:** `CHAT-053`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=design and prove deferred one-to-one P2P audio video calling through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_054`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_054`; `CONFORMANCE=TestTodo_CHAT_054_Conformance`.
+  - **RED:** Call signaling or media identity is inferred from message permissions.
+  - **GREEN:** Separate later contract and conformance fixture bind call admission, consent, network and recording policy.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `CHAT-055` **[PHASE_2][SOL_LOW] Design and prove deferred server-backed team calling.**
+  - **Depends:** `CHAT-054`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=design and prove deferred server-backed team calling through the scoped collaboration surface`.
+  - **TEST:** `TestTodo_CHAT_055`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHAT_055`; `CONFORMANCE=TestTodo_CHAT_055_Conformance`.
+  - **RED:** Group calls reuse P2P signaling without server capacity or participant controls.
+  - **GREEN:** Separate later contract proves server routing, admission, recording, captions and cost budgets.
+  - **REFACTOR:** Keep the behavior behind its owning capability and reuse existing admission, audit and transport ports without changing the proven outcome.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+## 84. Markdown documentation hub and hybrid search delivery
+
+> The document database, Markdown version and deployment, access, links and search work follows the scope decision in `CHAT-001`. Document-processing and signature todos in section 23 have different evidence-file semantics and do not satisfy these Knowledge product tasks.
+
+- [ ] `HUB-001` **[GATE_C][SOL_HIGH] Provision a document database isolated from chat and workflow.**
+  - **Depends:** `CHAT-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=provision a document database isolated from chat and workflow through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_001`; `INTEGRATION=TestTodo_HUB_001_Integration`; `SECURITY=TestTodo_HUB_001_Security`.
+  - **RED:** Document writes or semantic queries share chat/workflow credentials and storage capacity.
+  - **GREEN:** Knowledge uses separate database, pool, migrations, backup, outbox and measured resource budgets with no cross-database joins.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-002` **[GATE_C][SOL_HIGH] Register core-owned document ID routes and shard epochs.**
+  - **Depends:** `HUB-001`, `CHAT-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=register core-owned document ID routes and shard epochs through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_002`; `SECURITY=TestTodo_HUB_002_Security`; `INTEGRATION=TestTodo_HUB_002_Integration`.
+  - **RED:** A document ID resolves to an arbitrary shard or stale migrated copy.
+  - **GREEN:** Core maps ID to tenant, document shard and epoch; stale and foreign routes refuse before document reads.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-003` **[GATE_C][SOL_HIGH] Enforce tenant isolation across document-owned tables.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_003`, `_Security`, `_Integration` in `internal/data/documenthubstore` (isolation registry + RLS conformance); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=enforce tenant isolation across document-owned tables through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_003`; `SECURITY=TestTodo_HUB_003_Security`; `INTEGRATION=TestTodo_HUB_003_Integration`.
+  - **RED:** A tenant can enumerate another tenant's versions, grants, links or vectors.
+  - **GREEN:** RLS and repository tests isolate documents, deployments, comments, link graph and search chunks.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-004` **[GATE_C][SOL_LOW] Define immutable Markdown version storage and hashes.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_004`, `_Integration`, `_Mutation` in `internal/data/documenthubstore` (immutable versions + hashes, migration 00002); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=define immutable Markdown version storage and hashes through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_004`; `MUTATION=TestTodo_HUB_004_Mutation`; `INTEGRATION=TestTodo_HUB_004_Integration`.
+  - **RED:** An update changes a stored version body, title, link or asset after citation.
+  - **GREEN:** Append-only version rows preserve normalized Markdown and deterministic content hash; mutation is refused.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-005` **[GATE_C][SOL_HIGH] Parse and sanitize the supported Markdown profile.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_005`, `_Security`, `FuzzTodo_HUB_005` in `internal/data/documenthubstore` (Markdown parse + sanitize); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=parse and sanitize the supported Markdown profile through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_005`; `FUZZ=FuzzTodo_HUB_005`; `SECURITY=TestTodo_HUB_005_Security`.
+  - **RED:** Raw HTML, unsafe URLs, excessive nesting or remote images execute on the reader origin.
+  - **GREEN:** Bounded parser and renderer produce deterministic safe output for headings, lists, tables, code and protected assets.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-006` **[GATE_C][SOL_LOW] Create candidate versions with expected-base conflict handling.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_006`, `_Race`, `_Integration` in `internal/data/documenthubstore` (candidates + expected-base conflicts, migration 00003); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=create candidate versions with expected-base conflict handling through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_006`; `RACE=TestTodo_HUB_006_Race`; `INTEGRATION=TestTodo_HUB_006_Integration`.
+  - **RED:** Two proposers overwrite each other or autosave edits a prior candidate row.
+  - **GREEN:** Each submit appends an immutable candidate against an expected base; conflict returns both versions for explicit merge.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-007` **[GATE_C][SOL_LOW] Model document default and placement deployment pointers.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_007`, `_Property`, `_Integration` in `internal/data/documenthubstore` (deployment pointers, migration 00004); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=model document default and placement deployment pointers through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_007`; `PROPERTY=TestTodo_HUB_007_Property`; `INTEGRATION=TestTodo_HUB_007_Integration`.
+  - **RED:** A channel sees an unreviewed candidate or a global pointer overwrites another placement endorsement.
+  - **GREEN:** Scoped active pointers name exact deployed version; candidate creation does not change reader views.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-008` **[GATE_C][SOL_HIGH] Review an exact candidate hash independently.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_008`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (hash-bound review, migration 00005); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-006`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=review an exact candidate hash independently through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_008`; `SECURITY=TestTodo_HUB_008_Security`; `INTEGRATION=TestTodo_HUB_008_Integration`; `GOLDEN=TestTodo_HUB_008_Golden`.
+  - **RED:** A reviewer approves version A but publisher deploys altered version B or self-approves.
+  - **GREEN:** Review decision binds version hash, scope, reviewer and authority; official policy requires distinct author/reviewer.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-009` **[GATE_C][SOL_HIGH] Deploy a reviewed version atomically with document outbox.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_009`, `_Race`, `_Recovery`, `_Golden` in `internal/data/documenthubstore` (atomic deploy + outbox); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-007`, `HUB-008`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=deploy a reviewed version atomically with document outbox through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_009`; `RACE=TestTodo_HUB_009_Race`; `RECOVERY=TestTodo_HUB_009_Recovery`; `GOLDEN=TestTodo_HUB_009_Golden`.
+  - **RED:** Deployment pointer changes without publication event or bypasses current review.
+  - **GREEN:** Compare-and-swap commit writes scoped pointer and outbox once; failed deploy leaves old version live.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-010` **[GATE_C][SOL_HIGH] Withdraw or redeploy an old version with fresh evidence.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_010`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (withdraw/redeploy, migration 00008); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-009`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=withdraw or redeploy an old version with fresh evidence through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_010`; `SECURITY=TestTodo_HUB_010_Security`; `INTEGRATION=TestTodo_HUB_010_Integration`; `GOLDEN=TestTodo_HUB_010_Golden`.
+  - **RED:** Rollback overwrites history or emergency withdrawal leaves an unsafe version current.
+  - **GREEN:** Authorized withdrawal and redeploy append records, revalidate access/review and preserve all immutable versions.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-011` **[GATE_C][SOL_HIGH] Grant document actions separately from read access.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_011`, `_Property`, `_Security`, `_Golden` in `internal/data/documenthubstore` (action grants, migration 00006); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-003`, `HUB-007`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=grant document actions separately from read access through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_011`; `SECURITY=TestTodo_HUB_011_Security`; `PROPERTY=TestTodo_HUB_011_Property`; `GOLDEN=TestTodo_HUB_011_Golden`.
+  - **RED:** A channel reader can propose, deploy or manage access merely by membership.
+  - **GREEN:** Distinct READ, HISTORY, PROPOSE, REVIEW, DEPLOY, MANAGE, COMMENT, EXPORT and RETIRE checks enforce deny dominance.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-012` **[GATE_C][SOL_HIGH] Make personal documents private by default and explicitly shareable.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_012`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (private-by-default personal docs); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-011`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=make personal documents private by default and explicitly shareable through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_012`; `SECURITY=TestTodo_HUB_012_Security`; `INTEGRATION=TestTodo_HUB_012_Integration`; `GOLDEN=TestTodo_HUB_012_Golden`.
+  - **RED:** A new personal note appears in team search or a copied link grants access.
+  - **GREEN:** Owner-only creation, named/team/channel grants and expiry preserve private defaults and auditable audience preview.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-013` **[GATE_C][SOL_HIGH] Bind team and channel document paths to current eligibility.**
+  - **Depends:** `HUB-011`, `CHAT-010`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=bind team and channel document paths to current eligibility through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_013`; `SECURITY=TestTodo_HUB_013_Security`; `INTEGRATION=TestTodo_HUB_013_Integration`; `GOLDEN=TestTodo_HUB_013_Golden`.
+  - **RED:** Departed team or channel members continue reading official Markdown or attachments.
+  - **GREEN:** Each placement path rechecks live team/channel policy and document grant; direct grants do not reveal private placement metadata.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-014` **[GATE_C][SOL_HIGH] Place reviewed documents officially in team and channel Docs tabs.**
+  - **Depends:** `HUB-008`, `HUB-013`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=place reviewed documents officially in team and channel Docs tabs through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_014`; `SECURITY=TestTodo_HUB_014_Security`; `INTEGRATION=TestTodo_HUB_014_Integration`; `GOLDEN=TestTodo_HUB_014_Golden`.
+  - **RED:** Pinning a chat link masquerades as official policy or deploys an unreviewed version.
+  - **GREEN:** Authorized manager links a scoped reviewed deployment with custodian and review due date; placement is separately versioned.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-015` **[GATE_C][SOL_HIGH] Gate cross-company document grants and egress.**
+  - **Depends:** `HUB-013`, `CHAT-012`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=gate cross-company document grants and egress through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_015`; `SECURITY=TestTodo_HUB_015_Security`; `INTEGRATION=TestTodo_HUB_015_Integration`; `GOLDEN=TestTodo_HUB_015_Golden`.
+  - **RED:** A cross-company chat automatically exposes all attached documentation.
+  - **GREEN:** Bilateral document scope, host and consumer authority, classification, residency and explicit grant gate every read/export.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-016` **[GATE_C][SOL_HIGH] Propagate document revocation to histories attachments and caches.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_016`, `_Fault`, `_Golden`, `_Security` in `internal/data/documenthubstore` (revocation propagation, migration 00009); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-011`, `HUB-009`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=propagate document revocation to histories attachments and caches through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_016`; `SECURITY=TestTodo_HUB_016_Security`; `FAULT=TestTodo_HUB_016_Fault`; `GOLDEN=TestTodo_HUB_016_Golden`.
+  - **RED:** A revoked grant leaves old versions, previews, comments or vectors readable.
+  - **GREEN:** Policy epoch closes reads and invalidates derived access within measured budget, including active search results.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-017` **[GATE_C][SOL_HIGH] Limit document version history by current policy.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_017`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (history capability + per-version classification redaction; `history.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-016`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=limit document version history by current policy through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_017`; `SECURITY=TestTodo_HUB_017_Security`; `INTEGRATION=TestTodo_HUB_017_Integration`; `GOLDEN=TestTodo_HUB_017_Golden`.
+  - **RED:** A current reader retrieves an older, more sensitive version through history.
+  - **GREEN:** History capability and per-version classification determine access; inaccessible versions reveal no title or bytes.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-018` **[GATE_C][SOL_HIGH] Create version-anchored comments and mentions.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_018`, `_Golden`, `_Integration`, `_Security` in `internal/data/documenthubstore` (version-anchored comments, migration 00010); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-006`, `HUB-011`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=create version-anchored comments and mentions through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_018`; `SECURITY=TestTodo_HUB_018_Security`; `INTEGRATION=TestTodo_HUB_018_Integration`.
+  - **RED:** Comments float to wrong text after redeploy or notify unauthorized members.
+  - **GREEN:** Comments retain version/block anchors, immutable revisions and eligible recipient notifications.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-019` **[GATE_C][SOL_LOW] Extract canonical document links from Markdown versions.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_019`, `_Golden`, `FuzzTodo_HUB_019` in `internal/data/documenthubstore` (canonical link extraction, migration 00007); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-005`, `HUB-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=extract canonical document links from Markdown versions through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_019`; `GOLDEN=TestTodo_HUB_019_Golden`; `FUZZ=FuzzTodo_HUB_019`.
+  - **RED:** Title/slug links break on rename or resolve to a forged foreign document.
+  - **GREEN:** Parser stores stable target ID, optional pinned version/block, source version and validation state.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-020` **[GATE_C][SOL_HIGH] Validate outgoing links before official deployment.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_020`, `_Golden`, `_Property` in `internal/data/documenthubstore` (outgoing link validation; `linkcheck.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-019`, `HUB-009`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=validate outgoing links before official deployment through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_020`; `SECURITY=TestTodo_HUB_020_Security`; `INTEGRATION=TestTodo_HUB_020_Integration`.
+  - **RED:** An official document presents a normal link to private or missing content to its full audience.
+  - **GREEN:** Deploy checks target existence and audience; inaccessible links require fix or explicit restricted label without metadata leak.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-021` **[GATE_C][SOL_HIGH] Resolve latest and pinned document links by context.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_021`, `_Golden`, `_Property` in `internal/data/documenthubstore` (latest/pinned link resolution; `resolve.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-019`, `HUB-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=resolve latest and pinned document links by context through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_021`; `SECURITY=TestTodo_HUB_021_Security`; `PROPERTY=TestTodo_HUB_021_Property`.
+  - **RED:** An unpinned link silently switches between placement versions or a pinned link reaches a candidate.
+  - **GREEN:** Channel context chooses endorsed deployment; pinned links resolve only authorized deployed versions; ambiguity is explicit.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-022` **[GATE_C][SOL_HIGH] Index authorized backlinks and stale references.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_022`, `_Security`, `_Integration` in `internal/data/documenthubstore` (jointly-readable backlinks, checker marks broken/stale + owner alerts; `backlinks.go`, migration 00016); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-019`, `HUB-016`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=index authorized backlinks and stale references through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_022`; `SECURITY=TestTodo_HUB_022_Security`; `INTEGRATION=TestTodo_HUB_022_Integration`.
+  - **RED:** Backlinks disclose restricted source titles or stay current after retirement.
+  - **GREEN:** Backlinks show only jointly readable source/target and link checker marks broken or stale targets with owner alerts.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-023` **[GATE_C][SOL_LOW] Preserve stable block anchors across Markdown redeploys.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_023`, `_Property`, `_Golden` in `internal/data/documenthubstore` (heading-derived block anchors surviving redeploys; `blocks.go`, migration 00011); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-019`, `HUB-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=preserve stable block anchors across Markdown redeploys through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_023`; `GOLDEN=TestTodo_HUB_023_Golden`; `PROPERTY=TestTodo_HUB_023_Property`.
+  - **RED:** A heading rename points citations to unrelated content.
+  - **GREEN:** Stable block IDs or explicit broken-anchor result preserve precise links through version changes.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-024` **[GATE_C][SOL_HIGH] Serve safe document attachments from protected storage.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_024`, `_Security`, `_Integration` in `internal/data/documenthubstore` (admitted-only attachments, per-read authz, no public URL; `attachments.go`, migration 00012); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-005`, `DOC-MAL-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=serve safe document attachments from protected storage through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_024`; `SECURITY=TestTodo_HUB_024_Security`; `INTEGRATION=TestTodo_HUB_024_Integration`.
+  - **RED:** Unscanned files or remote image URLs bypass document grants.
+  - **GREEN:** Immutable artifact references pass quarantine, classification and per-read authorization with no public object URL.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-025` **[GATE_C][SOL_HIGH] Build lexical search over authorized deployed Markdown.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_025`, `_Security`, `_Integration` in `internal/data/documenthubstore` (lexical search over deployed versions with grant prefilter + recheck; `search.go`, migration 00013); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-009`, `HUB-011`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build lexical search over authorized deployed Markdown through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_025`; `SECURITY=TestTodo_HUB_025_Security`; `INTEGRATION=TestTodo_HUB_025_Integration`.
+  - **RED:** Keyword search returns candidates, retired pages or private snippets.
+  - **GREEN:** Indexed title/body/heading terms search deployed versions with prefiltered audience and current-result recheck.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-026` **[GATE_C][SOL_HIGH] Generate tenant-scoped embeddings for deployed sections.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_026`, `_Security`, `_Integration` in `internal/data/documenthubstore` (approved-model + egress-gated section vectors; `embeddings.go`, migration 00014); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-009`, `HUB-016`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=generate tenant-scoped embeddings for deployed sections through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_026`; `SECURITY=TestTodo_HUB_026_Security`; `INTEGRATION=TestTodo_HUB_026_Integration`.
+  - **RED:** Embedding workers send restricted Markdown to an unapproved provider or index candidate drafts.
+  - **GREEN:** Approved model and egress policy create versioned section vectors with hashes, parser/model versions and tenant scope.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-027` **[GATE_C][SOL_LOW] Fuse lexical and semantic search with relevance controls.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_027`, `_Golden`, `BenchmarkTodo_HUB_027` in `internal/data/documenthubstore` (hybrid fusion with lexical priority + explanations; `hybrid.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-025`, `HUB-026`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=fuse lexical and semantic search with relevance controls through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_027`; `GOLDEN=TestTodo_HUB_027_Golden`; `BENCHMARK=BenchmarkTodo_HUB_027`.
+  - **RED:** Semantic similarity buries exact title matches or returns empty results when vectors lag.
+  - **GREEN:** Hybrid ranking retains exact lexical priority, bounded semantic candidates, explanations and keyword fallback.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-028` **[GATE_C][SOL_HIGH] Constrain vector retrieval by current document access.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_028`, `_Security`, `BenchmarkTodo_HUB_028` in `internal/data/documenthubstore` (exact retrieval baseline + index conformance gate; `retrieval.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-026`, `HUB-016`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=constrain vector retrieval by current document access through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_028`; `SECURITY=TestTodo_HUB_028_Security`; `BENCHMARK=BenchmarkTodo_HUB_028`.
+  - **RED:** An ANN index leaks private results, counts or timing after post-filtering.
+  - **GREEN:** Authorized exact candidate search is baseline; approximate indexes require tenant/ACL recall and side-channel conformance.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-029` **[GATE_C][SOL_HIGH] Reconcile search index on deploy revoke retire and model change.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_029`, `_Recovery`, `_Security` in `internal/data/documenthubstore` (idempotent outbox consumer with watermarks; `reconcile.go`, migration 00017); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-027`, `HUB-028`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=reconcile search index on deploy revoke retire and model change through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_029`; `RECOVERY=TestTodo_HUB_029_Recovery`; `SECURITY=TestTodo_HUB_029_Security`.
+  - **RED:** Old embeddings and snippets survive a new deployment or grant revocation.
+  - **GREEN:** Idempotent document outbox consumer rebuilds or deletes affected chunks with watermarks and replay proof.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-030` **[GATE_C][SOL_HIGH] Expose typed document search filters and safe result cards.**
+  - **Depends:** `HUB-027`, `HUB-013`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=expose typed document search filters and safe result cards through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_030`; `SECURITY=TestTodo_HUB_030_Security`; `INTEGRATION=TestTodo_HUB_030_Integration`.
+  - **RED:** A title, owner, status or facet exposes a restricted document.
+  - **GREEN:** Server filters by team, channel, status, owner, locale and date before authorized snippets, counts and citations.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-031` **[GATE_C][SOL_HIGH] Let agents retrieve only authorized deployed document versions.**
+  - **Depends:** `HUB-030`, `CHAT-043`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=let agents retrieve only authorized deployed document versions through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_031`; `SECURITY=TestTodo_HUB_031_Security`; `INTEGRATION=TestTodo_HUB_031_Integration`.
+  - **RED:** An agent uses a private draft or stale embedding as authoritative policy.
+  - **GREEN:** Agent search intersects installation and requester grants, cites exact deployed version/status and refuses authority escalation.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-032` **[GATE_C][TERRA] Build personal team and channel document navigation.**
+  - **Depends:** `HUB-012`, `HUB-014`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build personal team and channel document navigation through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_032`; `BROWSER=TestTodo_HUB_032_Browser`; `ACCESSIBILITY=TestTodo_HUB_032_Accessibility`.
+  - **RED:** Users cannot distinguish private drafts, shared pages and official guidance.
+  - **GREEN:** Accessible hub and Docs tab show owner, deployed version, official scope, review date and sharing state.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-033` **[GATE_C][TERRA] Build Markdown candidate editor and version compare flow.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_033`, `_Accessibility` in `tools/uxqual/render/docs` (`go test -count=1 ./tools/uxqual/render/docs/` PASS) + `tools/uxqual/browser/docs-editor.spec.mjs` 2/2 Chromium (desktop + 390px, keyboard order, conflict alert); candidate editor + version compare (en-US/de-DE/RTL-ar)
+  - **Depends:** `HUB-005`, `HUB-006`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build Markdown candidate editor and version compare flow through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_033`; `BROWSER=TestTodo_HUB_033_Browser`; `ACCESSIBILITY=TestTodo_HUB_033_Accessibility`.
+  - **RED:** UI edits deployed bytes or silently overwrites a concurrent proposer.
+  - **GREEN:** Editor submits new candidates, shows base conflict and compares immutable versions at desktop and narrow widths.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-034` **[GATE_C][TERRA] Build reviewer and publisher deployment controls.**
+  - **Depends:** `HUB-008`, `HUB-009`, `HUB-032`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build reviewer and publisher deployment controls through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_034`; `BROWSER=TestTodo_HUB_034_Browser`; `SECURITY=TestTodo_HUB_034_Security`.
+  - **RED:** A reviewer can approve one hash while UI publishes another or hides audience changes.
+  - **GREEN:** Review screen displays exact diff/hash/scope and deploy requires current authority with visible outcome.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-035` **[GATE_C][TERRA] Build accessible document link picker and backlinks UI.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_035`, `_Accessibility` in `tools/uxqual/render/docs` (`go test -count=1 ./tools/uxqual/render/docs/` PASS) + `tools/uxqual/browser/docs-picker.spec.mjs` 2/2 Chromium (keyboard picker, state text at desktop + 390px); stable-ID link picker + backlinks UI
+  - **Depends:** `HUB-021`, `HUB-022`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build accessible document link picker and backlinks UI through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_035`; `BROWSER=TestTodo_HUB_035_Browser`; `ACCESSIBILITY=TestTodo_HUB_035_Accessibility`.
+  - **RED:** Author inserts title-only links or reader cannot distinguish restricted/broken targets.
+  - **GREEN:** Keyboard picker inserts stable IDs; reader sees safe target state and authorized backlinks.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-036` **[GATE_C][TERRA] Build keyword and semantic search UI with fallback.**
+  - **Depends:** `HUB-030`, `HUB-032`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build keyword and semantic search UI with fallback through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_036`; `BROWSER=TestTodo_HUB_036_Browser`; `ACCESSIBILITY=TestTodo_HUB_036_Accessibility`.
+  - **RED:** Vector outage blanks all search or hides exact matching documents.
+  - **GREEN:** UI labels result provenance, offers filters, safe snippets and usable lexical fallback on vector failure.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-037` **[GATE_C][SOL_HIGH] Declare document records retention hold and disposition.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_037`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (holds freeze disposal; derivatives removed, immutable core retained; `records.go`, migration 00015); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-004`, `HUB-009`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=declare document records retention hold and disposition through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_037`; `SECURITY=TestTodo_HUB_037_Security`; `INTEGRATION=TestTodo_HUB_037_Integration`; `GOLDEN=TestTodo_HUB_037_Golden`.
+  - **RED:** Delete erases held versions or leaves embeddings outside records inventory.
+  - **GREEN:** Records series covers versions, deployments, comments, grants, assets, exports and derivatives with verified disposition.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-038` **[GATE_C][SOL_HIGH] Export raw Markdown versions assets and link manifests.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_038`, `_Security`, `_Integration` in `internal/data/documenthubstore` (read+export authorized bundle: versions, deployments, artifacts, link map, holds + records policy; `export.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-019`, `HUB-037`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=export raw Markdown versions assets and link manifests through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_038`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_038`; `SECURITY=TestTodo_HUB_038_Security`; `INTEGRATION=TestTodo_HUB_038_Integration`.
+  - **RED:** Export drops links, provenance or held versions and discloses inaccessible content.
+  - **GREEN:** Authorized export includes scoped Markdown, version/deployment manifest, artifact refs and stable link map with records policy.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-039` **[GATE_C][SOL_HIGH] Import Markdown through validation and link remapping.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_039`, `_Security`, `FuzzTodo_HUB_039` (280k execs PASS) in `internal/data/documenthubstore` (quarantined import with remap + provenance; `import.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-005`, `HUB-019`, `HUB-024`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=import Markdown through validation and link remapping through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_039`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_039`; `FUZZ=FuzzTodo_HUB_039`; `SECURITY=TestTodo_HUB_039_Security`.
+  - **RED:** Imported HTML, unsafe links or external files become published without review.
+  - **GREEN:** Quarantined import creates candidate versions with provenance, remapped targets and normal review/deploy path.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-040` **[GATE_C][SOL_HIGH] Transfer ownership after employee or team departure.**
+  - **Depends:** `HUB-011`, `HUB-014`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=transfer ownership after employee or team departure through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_040`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_040`; `SECURITY=TestTodo_HUB_040_Security`; `INTEGRATION=TestTodo_HUB_040_Integration`; `GOLDEN=TestTodo_HUB_040_Golden`.
+  - **RED:** Departed owners leave official docs unreviewable or private notes publicly inherited.
+  - **GREEN:** Scoped transfer or retention action records successor custodian, preserves grants and never silently widens audience.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-041` **[GATE_C][SOL_HIGH] Publish document RPC and integration HTTP parity.**
+  - **Depends:** `HUB-009`, `HUB-011`, `INTAPI-007`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=publish document RPC and integration HTTP parity through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_041`; `CONFORMANCE=TestTodo_HUB_041_Conformance`; `SECURITY=TestTodo_HUB_041_Security`; `INTEGRATION=TestTodo_HUB_041_Integration`.
+  - **RED:** HTTP callers can mutate versions or bypass review differently from native RPC.
+  - **GREEN:** Canonical methods and HTTP projection agree on idempotency, revision, authorization, pagination and typed errors.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [x] `HUB-042` **[GATE_C][SOL_HIGH] Restore document database and rebuild derived search.**
+  - \*\*Evidence (2026-09-22): `TestTodo_HUB_042`, `_Recovery`, `_Fault` in `internal/data/documenthubstore` (independent snapshot/restore with hash verification + reconcile to consistent watermark; `backup.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Depends:** `HUB-001`, `HUB-029`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=restore document database and rebuild derived search through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_042`; `RECOVERY=TestTodo_HUB_042_Recovery`; `FAULT=TestTodo_HUB_042_Fault`.
+  - **RED:** Restore loses active pointers or shows stale vectors after rollback.
+  - **GREEN:** Independent backup restores immutable versions, scoped deployments, grants and outbox; indexes rebuild to consistent watermark.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-043` **[GATE_C][SOL_HIGH] Load-test the 1000-person document hub and workflow isolation.**
+  - **Depends:** `HUB-027`, `HUB-042`, `CHAT-052`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=load-test the 1000-person document hub and workflow isolation through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_043`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_043`; `BENCHMARK=BenchmarkTodo_HUB_043`; `FAULT=TestTodo_HUB_043_Fault`; `CONFORMANCE=TestTodo_HUB_043_Conformance`.
+  - **RED:** Document reads, deploys and vector jobs starve chat or workflow at planning scale.
+  - **GREEN:** 50k docs, 500k versions, 200 readers and 30 proposers meet agreed p95/p99 and workflow regression budgets.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-044` **[GATE_C][SOL_LOW] Pilot official team docs and private sharing with real users.**
+  - **Depends:** `HUB-032`, `HUB-034`, `HUB-043`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=pilot official team docs and private sharing with real users through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_044`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_044`; `BROWSER=TestTodo_HUB_044_Browser`; `CONFORMANCE=TestTodo_HUB_044_Conformance`.
+  - **RED:** Hub launches without evidence that staff find current guidance or understand access.
+  - **GREEN:** A named under-1000-person pilot measures findability, review freshness, sharing errors, support and rollback criteria.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `HUB-045` **[GATE_C][SOL_HIGH] Run document authorization and search adversarial conformance.**
+  - **Depends:** `HUB-015`, `HUB-021`, `HUB-028`, `HUB-041`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=run document authorization and search adversarial conformance through the scoped Knowledge surface`.
+  - **TEST:** `TestTodo_HUB_045`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_HUB_045`; `CONFORMANCE=TestTodo_HUB_045_Conformance`; `SECURITY=TestTodo_HUB_045_Security`.
+  - **RED:** Forged routes, stale grants, pinned links, history and vectors disclose cross-scope content.
+  - **GREEN:** Served matrix across personal, team, channel, cross-company and revocation paths proves no metadata or body leak.
+  - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
+
+## 85. Optional small-business experience additions
+
+> Nice-to-have candidates, unscheduled. These reuse planned chat, documents, Human Work, and existing employee surfaces. Their phase labels park the work for later consideration; they do not expand the Phase 1 or chat/document launch gates. Promote each only after the product plan sets scope and priority.
+
+- [ ] `SMB-001` **[PHASE_3][TERRA] Offer one employee request inbox across HR, IT, and teams.**
+  - **Depends:** `CHAT-031`, `REV-077-02`, `WF-STEP-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.CASES,BI.EXPERIENCE; DIRECT=none; WHY=route a bounded employee help request to an accountable owner without building a second workflow or case engine`.
+  - **TEST:** `TestTodo_SMB_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_SMB_001`; `INTEGRATION=TestTodo_SMB_001_Integration`; `SECURITY=TestTodo_SMB_001_Security`.
+  - **RED:** A chat request is lost, has no visible owner or status, or exposes a confidential HR request to a channel or another tenant.
+  - **GREEN:** A small set of request types creates tracked work with requester, owner, status, due date, private replies, and authorized document links; the employee sees progress from chat or the Help hub, while confidential routes remain separate.
+  - **REFACTOR:** Reuse Human Work assignment and Help hub projections; keep request authority outside chat transport and avoid a new generic ticket workflow builder.
+  - **Refs:** [Human Work](specs/human-work-forms-and-rules.md), [Company chat](specs/company-chat-and-collaboration.md), [product pages](specs/production-frontend-and-page-composition.md).
+
+- [ ] `SMB-002` **[PHASE_3][SOL_LOW] Publish targeted announcements with document-version acknowledgements.**
+  - **Depends:** `WEB-102`, `CHAT-031`, `HUB-009`, `CONF-022`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.DOCUMENTS,BI.WORK; DIRECT=none; WHY=let small teams publish official updates and track factual receipt of the exact policy version`.
+  - **TEST:** `TestTodo_SMB_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_SMB_002`; `BROWSER=TestTodo_SMB_002_Browser`; `SECURITY=TestTodo_SMB_002_Security`.
+  - **RED:** An announcement reaches the wrong audience, acknowledgement silently follows a redeployed document, or a click is reported as a legal signature or proof of comprehension.
+  - **GREEN:** Authorized publishers target an audience, link an immutable deployed document version, set an optional due date, and view recipient acknowledgement and reminder status; receipts state exactly what was acknowledged.
+  - **REFACTOR:** Reuse announcement regions, chat delivery, document versions, and existing acknowledgement evidence without creating a second policy store.
+  - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [Company chat](specs/company-chat-and-collaboration.md), [product pages](specs/production-frontend-and-page-composition.md).
+
+- [ ] `SMB-003` **[PHASE_3][TERRA] Turn repeatable onboarding, offboarding, and team procedures into checklists.**
+  - **Depends:** `WF-STEP-004`, `HUB-021`, `WEB-109`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.LIFECYCLE,BI.DOCUMENTS; DIRECT=none; WHY=give small teams a reusable view of assigned steps and supporting guidance`.
+  - **TEST:** `TestTodo_SMB_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_SMB_003`; `INTEGRATION=TestTodo_SMB_003_Integration`; `SECURITY=TestTodo_SMB_003_Security`.
+  - **RED:** A template marks a real HCM obligation complete without its owning workflow, loses task ownership, or exposes a private document through a checklist link.
+  - **GREEN:** A bounded template instantiates assigned tasks with due dates and authorized document links, shows completion by owner, and delegates governed HCM steps to their existing workflows; no automatic external account provisioning is implied.
+  - **REFACTOR:** Reuse WorkItems and document links; keep templates as a thin experience layer over owning workflow and lifecycle state.
+  - **Refs:** [Human Work](specs/human-work-forms-and-rules.md), [Documentation hub](specs/channel-documentation-hub.md), [product pages](specs/production-frontend-and-page-composition.md).
+  - **Progress (2026-09-23):** kernel landed, uncommitted: `internal/humanwork/workitem/checklist.go` — `ChecklistTemplate` (kind/title/role validation), `Instantiate` (fresh IDs, all open, positions 1..N), `Checklist.Validate` (ordering, kinds, states, completion pairs), `CompleteItem`/`SkipItem` (non-required only)/`ReopenItem` with typed refusals. `TestTodo_SMB_003`, `_Integration` (instance independence, full completion by owner), `_Security` (foreign ids, forged completion, skipped-required refused) PASS; full `workitem` suite PASS; `go vet`/`gofmt` clean. NOT ticked: persistence, serving in employee home/team surface, onboarding/offboarding flows and announcement links live in owner-staged shells (`workspace/product_shell.go`, `workspace/handler.go`, `workitem/review.go`).
+
+- [ ] `SMB-004` **[PHASE_3][TERRA] Convert an authorized chat message into a request, task, or documented decision.**
+  - **Depends:** `CHAT-030`, `SMB-001`, `HUB-006`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK,BI.DOCUMENTS; DIRECT=none; WHY=carry a conversation outcome into accountable work or a reviewed document candidate`.
+  - **TEST:** `TestTodo_SMB_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_SMB_004`; `BROWSER=TestTodo_SMB_004_Browser`; `SECURITY=TestTodo_SMB_004_Security`.
+  - **RED:** Conversion copies private message content into a wider audience, creates duplicate work on retry, or treats an informal decision as deployed policy.
+  - **GREEN:** An authorized participant creates one linked request or task, or a document candidate with source context and owner; destination access is checked independently, retries are idempotent, and official decisions still use review and deployment.
+  - **REFACTOR:** Reuse conversation links, WorkItems, and document candidates without adding a parallel chat task store.
+  - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [Human Work](specs/human-work-forms-and-rules.md), [Documentation hub](specs/channel-documentation-hub.md).
+
+## 86. Customer project management and adaptive board delivery
+
+> Candidate workstream, unscheduled. `PM-001` must record a product scope exchange before implementation is promoted. `PHASE_3` and later labels park these tasks outside Phase 1 and the chat/document launch gates; dependency order does not by itself commit a release.
+
+### Project authority and first-use foundations
+
+- [ ] `PM-001` **[DESIGN][SOL_HIGH] Decide the project-product scope exchange and pilot cohort.**
+  - **Depends:** `CHAT-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=decide the project-product scope exchange and pilot cohort through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_001`; `CONFORMANCE=TestTodo_PM_001_Conformance`; `GOLDEN=TestTodo_PM_001_Golden`.
+  - **RED:** Project work is treated as a committed Phase 1 or chat-release feature without an owner, displaced scope, or pilot hypothesis.
+  - **GREEN:** A signed scope decision names the first non-engineering cohort, release boundary, owner, cost, displacement, and measurable continue-or-stop criteria.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-002` **[PHASE_3][SOL_HIGH] Define Project and ProjectTask authority separate from Human Work.**
+  - **Depends:** `PM-001`, `WF-STEP-004`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=define project and projecttask authority separate from human work through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_002`; `CONFORMANCE=TestTodo_PM_002_Conformance`; `SECURITY=TestTodo_PM_002_Security`.
+  - **RED:** A project card can be mistaken for or mutate an HCM WorkItem.
+  - **GREEN:** Stable project and task identities, one owning project, revisioned ordinary task state, and explicit typed WorkItem references preserve separate authority.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-003` **[PHASE_3][SOL_HIGH] Provision isolated project persistence and tenant-scoped data access.**
+  - **Depends:** `PM-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=provision isolated project persistence and tenant-scoped data access through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_003`; `INTEGRATION=TestTodo_PM_003_Integration`; `SECURITY=TestTodo_PM_003_Security`.
+  - **RED:** Project queries cross tenant boundaries or borrow workflow workers, joins, or unbounded pools.
+  - **GREEN:** Project schema, role, migrations, bounded pool, tenant isolation, append-only evidence, and project outbox pass isolation tests.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-004` **[PHASE_3][SOL_HIGH] Implement project active suspended archived and restored lifecycle.**
+  - **Depends:** `PM-003`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=implement project active suspended archived and restored lifecycle through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_004`; `INTEGRATION=TestTodo_PM_004_Integration`; `SECURITY=TestTodo_PM_004_Security`.
+  - **RED:** Suspension admits writes, archive erases records, or restore reopens an unauthorized project.
+  - **GREEN:** State transitions enforce owner/operator authority, preserve history, keep records access, and reconcile committed events during suspension.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-005` **[PHASE_3][SOL_LOW] Own project settings and timezone with revisioned updates.**
+  - **Depends:** `PM-004`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=own project settings and timezone with revisioned updates through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_005`; `INTEGRATION=TestTodo_PM_005_Integration`; `GOLDEN=TestTodo_PM_005_Golden`.
+  - **RED:** A timezone edit silently changes overdue results or project settings are overwritten by a stale client.
+  - **GREEN:** Authorized settings update requires expected revision, previews due-date effects, and records old/new values and actor.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-006` **[PHASE_3][SOL_HIGH] Invite accept change and revoke project memberships.**
+  - **Depends:** `PM-004`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=invite accept change and revoke project memberships through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_006`; `SECURITY=TestTodo_PM_006_Security`; `INTEGRATION=TestTodo_PM_006_Integration`; `GOLDEN=TestTodo_PM_006_Golden`.
+  - **RED:** A copied board URL grants access or removed members retain streams, cursors, or search results.
+  - **GREEN:** Private-default membership has invitation/acceptance, role changes, removal, current-policy reads, and immediate revocation of derived access.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-007` **[PHASE_3][SOL_HIGH] Transfer project ownership and constrain recovery access.**
+  - **Depends:** `PM-006`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=transfer project ownership and constrain recovery access through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_007`; `SECURITY=TestTodo_PM_007_Security`; `RECOVERY=TestTodo_PM_007_Recovery`; `GOLDEN=TestTodo_PM_007_Golden`.
+  - **RED:** Owner loss strands a project or an administrator reads private bodies without purpose and evidence.
+  - **GREEN:** Authorized transfer preserves an active owner; time-limited recovery records purpose, approver, access window, and audit trail.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-008` **[PHASE_3][SOL_HIGH] Create revise archive and restore ordinary project tasks.**
+  - **Depends:** `PM-003`, `PM-006`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=create revise archive and restore ordinary project tasks through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_008`; `INTEGRATION=TestTodo_PM_008_Integration`; `RACE=TestTodo_PM_008_Race`.
+  - **RED:** Retry duplicates a task, concurrent edits overwrite one another, or archive deletes task history.
+  - **GREEN:** Project-owned task commands use stable IDs, expected revision, idempotency, action grants, and retained history.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-009` **[PHASE_3][SOL_HIGH] Enforce configured status transitions on task moves.**
+  - **Depends:** `PM-008`, `PM-013`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=enforce configured status transitions on task moves through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_009`; `RACE=TestTodo_PM_009_Race`; `INTEGRATION=TestTodo_PM_009_Integration`.
+  - **RED:** A drag crosses an illegal transition, ignores required fields, or reports success before commit.
+  - **GREEN:** MoveTask checks task/config revisions and current grant, commits one transition and outbox event, and returns typed conflict or denial.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-010` **[PHASE_3][SOL_LOW] Calculate due and overdue task state in project timezone.**
+  - **Depends:** `PM-005`, `PM-008`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=calculate due and overdue task state in project timezone through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_010`; `GOLDEN=TestTodo_PM_010_Golden`; `PROPERTY=TestTodo_PM_010_Property`.
+  - **RED:** Browser and API disagree around midnight or daylight-saving changes.
+  - **GREEN:** Tenant-local calendar date and project timezone yield one deterministic overdue result excluding DONE and CANCELLED.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-011` **[PHASE_3][SOL_HIGH] Validate typed customer fields and reject restricted HCM facts.**
+  - **Depends:** `PM-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=validate typed customer fields and reject restricted hcm facts through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_011`; `FUZZ=FuzzTodo_PM_011`; `SECURITY=TestTodo_PM_011_Security`.
+  - **RED:** A field changes type silently, unbounded values overload queries, or a project field claims canonical employee truth.
+  - **GREEN:** Stable field IDs and typed validation enforce limits, classification, retirement, and project-wide visibility without creating HCM authority.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-012` **[PHASE_3][SOL_HIGH] Store and validate draft project workflow configurations.**
+  - **Depends:** `PM-003`, `PM-011`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=store and validate draft project workflow configurations through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_012`; `PROPERTY=TestTodo_PM_012_Property`; `GOLDEN=TestTodo_PM_012_Golden`.
+  - **RED:** Invalid statuses, duplicate IDs, unreachable transitions, or hidden required fields enter a live board.
+  - **GREEN:** Draft versions compile bounded task types, statuses, categories, transitions, fields, and column mappings with structured validation errors.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-013` **[PHASE_3][SOL_HIGH] Review and publish an immutable workflow configuration version.**
+  - **Depends:** `PM-012`, `PM-006`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=review and publish an immutable workflow configuration version through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_013`; `SECURITY=TestTodo_PM_013_Security`; `INTEGRATION=TestTodo_PM_013_Integration`; `GOLDEN=TestTodo_PM_013_Golden`.
+  - **RED:** Publisher swaps the reviewed digest, self-approves a high-impact change, or publishes a stale draft.
+  - **GREEN:** Exact digest, expected revision, policy-based independent review, idempotency, and append-only publication history govern activation.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-014` **[PHASE_3][SOL_HIGH] Preview every affected task before configuration migration.**
+  - **Depends:** `PM-012`, `PM-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=preview every affected task before configuration migration through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_014`; `PROPERTY=TestTodo_PM_014_Property`; `INTEGRATION=TestTodo_PM_014_Integration`; `FAULT=TestTodo_PM_014_Fault`; `RECOVERY=TestTodo_PM_014_Recovery`.
+  - **RED:** A removed status, required field, category change, or timezone change strands existing tasks.
+  - **GREEN:** Preview lists affected task IDs/counts, invalid values, destination mapping, notices, and rollback-forward impact before publish.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-015` **[PHASE_3][SOL_HIGH] Migrate bounded task sets atomically on configuration publish.**
+  - **Depends:** `PM-013`, `PM-014`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=migrate bounded task sets atomically on configuration publish through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_015`; `FAULT=TestTodo_PM_015_Fault`; `RACE=TestTodo_PM_015_Race`; `RECOVERY=TestTodo_PM_015_Recovery`.
+  - **RED:** Partial remap leaves mixed active schema versions or a failed migration replaces the old configuration.
+  - **GREEN:** At most the published affected-task limit migrates atomically with the active pointer; above-limit changes reject and old version remains live.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-016` **[PHASE_3][SOL_LOW] Save personal and project board views without widening task access.**
+  - **Depends:** `PM-008`, `PM-012`, `PM-006`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=save personal and project board views without widening task access through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_016`; `SECURITY=TestTodo_PM_016_Security`; `INTEGRATION=TestTodo_PM_016_Integration`.
+  - **RED:** A personal filter reveals hidden counts or a contributor edits a project-wide view.
+  - **GREEN:** Versioned filters, grouping, columns, order, and card fields use PERSONAL or PROJECT audience; current task authorization is applied first.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-017` **[PHASE_3][SOL_HIGH] Page and filter board and list task queries.**
+  - **Depends:** `PM-016`, `PM-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=page and filter board and list task queries through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_017`; `BENCHMARK=BenchmarkTodo_PM_017`; `SECURITY=TestTodo_PM_017_Security`.
+  - **RED:** A large board loads unbounded cards, omits concurrent updates silently, or leaks task counts.
+  - **GREEN:** Stable authorized cursors page at most 100 cards with bounded predicates, declared ordering, and typed stale-cursor recovery.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-018` **[PHASE_3][SOL_HIGH] Search tasks with authorization and degraded exact-filter fallback.**
+  - **Depends:** `PM-017`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=search tasks with authorization and degraded exact-filter fallback through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_018`; `SECURITY=TestTodo_PM_018_Security`; `RECOVERY=TestTodo_PM_018_Recovery`.
+  - **RED:** Search index lag reveals revoked tasks or degraded text search pretends results are complete.
+  - **GREEN:** Authorized search labels freshness; index failure offers paginated exact-field filtering and typed unavailable free-text behavior.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-019` **[PHASE_3][SOL_HIGH] Append paginated task comments and auditable activity.**
+  - **Depends:** `PM-008`, `PM-006`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=append paginated task comments and auditable activity through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_019`; `INTEGRATION=TestTodo_PM_019_Integration`; `SECURITY=TestTodo_PM_019_Security`.
+  - **RED:** Comment edits erase held text or task detail loads unlimited history.
+  - **GREEN:** Append-oriented comments/activity have stable cursors, bounded summaries, revision/tombstone corrections, and current-reader authorization.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-020` **[PHASE_3][SOL_HIGH] Resolve allowlisted chat document and HCM task references.**
+  - **Depends:** `PM-008`, `CHAT-030`, `HUB-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.DOCUMENTS,BI.EXPERIENCE; DIRECT=none; WHY=resolve allowlisted chat document and hcm task references through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_020`; `SECURITY=TestTodo_PM_020_Security`; `INTEGRATION=TestTodo_PM_020_Integration`.
+  - **RED:** A project link grants access to a private channel, draft document, or HCM evidence.
+  - **GREEN:** Only chat post/conversation, deployed document, and safe WorkItem reference types resolve under current target authorization with neutral restricted state.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-021` **[PHASE_3][SOL_HIGH] Project safe HCM WorkItem state without project write authority.**
+  - **Depends:** `PM-002`, `PM-020`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=project safe hcm workitem state without project write authority through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_021`; `SECURITY=TestTodo_PM_021_Security`; `INTEGRATION=TestTodo_PM_021_Integration`.
+  - **RED:** Project card move approves HCM work or stale/redacted WorkItem details remain visible.
+  - **GREEN:** Versioned authorized events update a read-only safe projection with freshness; card actions deep-link to Human Work only.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-022` **[PHASE_3][TERRA] Show project tasks and HCM work distinctly in My Work.**
+  - **Depends:** `PM-008`, `PM-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=show project tasks and hcm work distinctly in my work through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_022`; `BROWSER=TestTodo_PM_022_Browser`; `ACCESSIBILITY=TestTodo_PM_022_Accessibility`.
+  - **RED:** One inbox offers duplicate completion or labels a project task as an HCM obligation.
+  - **GREEN:** Combined read model identifies owning task kind, safe next action, freshness, and separate completion authority.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-023` **[PHASE_3][SOL_HIGH] Route optional project notices without overriding HCM obligations.**
+  - **Depends:** `PM-010`, `PM-019`.
+  - **INTENT CONTEXT:** `ROLE=EMITTER; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=route optional project notices without overriding hcm obligations through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_023`; `INTEGRATION=TestTodo_PM_023_Integration`; `SECURITY=TestTodo_PM_023_Security`.
+  - **RED:** Project mute suppresses mandatory HCM notice or revoked users receive task content.
+  - **GREEN:** Assignment, mention, due and status events use Messaging delivery with current audience, quiet hours, replay, and mandatory-HCM precedence.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-024` **[PHASE_3][SOL_HIGH] Sanitize task text and resolve mentions safely.**
+  - **Depends:** `PM-008`, `PM-019`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=sanitize task text and resolve mentions safely through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_024`; `FUZZ=FuzzTodo_PM_024`; `SECURITY=TestTodo_PM_024_Security`; `GOLDEN=TestTodo_PM_024_Golden`.
+  - **RED:** Task text executes markup or mention lookup leaks hidden project membership.
+  - **GREEN:** Titles, descriptions, and comments follow bounded rich-text parsing, classification, current-access mention resolution, and safe rendering.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+### API, experience, assurance, and AI-assisted setup
+
+- [ ] `PM-025` **[PHASE_3][SOL_HIGH] Bind project records to retention hold export and disposition policy.**
+  - **Depends:** `PM-003`, `PM-019`, `PM-013`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=bind project records to retention hold export and disposition policy through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_025`; `INTEGRATION=TestTodo_PM_025_Integration`; `SECURITY=TestTodo_PM_025_Security`; `GOLDEN=TestTodo_PM_025_Golden`.
+  - **RED:** Archive or comment deletion erases a held version or export includes inaccessible tasks.
+  - **GREEN:** Project series inventories tasks, config, membership, comments, AI evidence, attachments and exports with legal hold and verified disposal.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-026` **[PHASE_3][SOL_HIGH] Publish typed project RPCs and endpoint-manifest contracts.**
+  - **Depends:** `PM-004`, `PM-008`, `PM-013`, `PM-016`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.INTEGRATION; DIRECT=none; WHY=publish typed project rpcs and endpoint-manifest contracts through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_026`; `CONFORMANCE=TestTodo_PM_026_Conformance`; `SECURITY=TestTodo_PM_026_Security`.
+  - **RED:** A served method omits capability, revision, paging, classification, or error semantics.
+  - **GREEN:** Generated manifest and Protobuf methods cover project settings, membership, tasks, comments, views, config preview/publish, and allowlisted links.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-027` **[PHASE_3][SOL_HIGH] Project the same authorized project operations into integration HTTP.**
+  - **Depends:** `PM-026`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.INTEGRATION; DIRECT=none; WHY=project the same authorized project operations into integration http through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_027`; `CONFORMANCE=TestTodo_PM_027_Conformance`; `SECURITY=TestTodo_PM_027_Security`; `INTEGRATION=TestTodo_PM_027_Integration`.
+  - **RED:** HTTP accepts a write that RPC rejects or returns different revision and idempotency results.
+  - **GREEN:** HTTP projection and RPC share the application path with parity fixtures for authorization, errors, paging, version, and replay.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-028` **[PHASE_3][SOL_HIGH] Deliver ordered project change events with replay and deduplication.**
+  - **Depends:** `PM-003`, `PM-009`, `PM-013`.
+  - **INTENT CONTEXT:** `ROLE=EMITTER; SETS=BI.WORK,BI.TRIGGERS; DIRECT=none; WHY=deliver ordered project change events with replay and deduplication through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_028`; `RECOVERY=TestTodo_PM_028_Recovery`; `INTEGRATION=TestTodo_PM_028_Integration`.
+  - **RED:** Crash loses task events or a replay makes duplicate visible changes.
+  - **GREEN:** Project outbox emits versioned per-project sequences at least once with event ID, classification, retention window, signed cursor, and idempotent consumers.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-029` **[PHASE_3][TERRA] Build the project home and project-switching shell.**
+  - **Depends:** `PM-026`, `PM-006`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=build the project home and project-switching shell through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_029`; `BROWSER=TestTodo_PM_029_Browser`; `ACCESSIBILITY=TestTodo_PM_029_Accessibility`.
+  - **RED:** Employees cannot find an authorized project or see a private project name in navigation.
+  - **GREEN:** Accessible responsive shell shows only admitted projects, owner, status, and board/list/doc/chat routes with empty and suspended states.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-030` **[PHASE_3][TERRA] Build paginated board and list views with safe task moves.**
+  - **Depends:** `PM-029`, `PM-017`, `PM-009`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=build paginated board and list views with safe task moves through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_030`; `BROWSER=TestTodo_PM_030_Browser`; `ACCESSIBILITY=TestTodo_PM_030_Accessibility`.
+  - **RED:** Drag reports success before server commit or keyboard users cannot move a card.
+  - **GREEN:** Board/list render 100-card pages, keyboard equivalent moves, optimistic pending state, and conflict rollback with focus restoration.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-031` **[PHASE_3][TERRA] Build task detail comments links activity and assignment controls.**
+  - **Depends:** `PM-030`, `PM-019`, `PM-020`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=build task detail comments links activity and assignment controls through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_031`; `BROWSER=TestTodo_PM_031_Browser`; `SECURITY=TestTodo_PM_031_Security`.
+  - **RED:** Task detail hides owner or due state, loads unbounded comments, or exposes a restricted linked title.
+  - **GREEN:** Task detail shows authorized fields, assignee, local due date, paginated comments/activity, and neutral restricted references.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-032` **[PHASE_3][TERRA] Build manual workflow configuration and migration preview UI.**
+  - **Depends:** `PM-012`, `PM-014`, `PM-015`, `PM-029`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=build manual workflow configuration and migration preview ui through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_032`; `BROWSER=TestTodo_PM_032_Browser`; `ACCESSIBILITY=TestTodo_PM_032_Accessibility`; `FAULT=TestTodo_PM_032_Fault`; `RECOVERY=TestTodo_PM_032_Recovery`.
+  - **RED:** A user publishes a draft without seeing mapped tasks, required-field failures, or review state.
+  - **GREEN:** Manual editor validates drafts, displays exact diff/affected tasks, and publishes only the reviewed digest with clear errors.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-033` **[PHASE_3][TERRA] Prove project flows across keyboard mobile and required locales.**
+  - **Depends:** `PM-030`, `PM-031`, `PM-032`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=prove project flows across keyboard mobile and required locales through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_033`; `BROWSER=TestTodo_PM_033_Browser`; `ACCESSIBILITY=TestTodo_PM_033_Accessibility`; `CONFORMANCE=TestTodo_PM_033_Conformance`.
+  - **RED:** Drag-only interaction, focus loss, untranslated errors, or RTL ordering blocks task use.
+  - **GREEN:** Task create/move/search/configure passes keyboard, screen-reader, reduced-motion, mobile-width, en-US, de-DE, and RTL Arabic fixtures.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-034` **[PHASE_3][SOL_HIGH] Qualify board load and workflow noninterference at pilot scale.**
+  - **Depends:** `PM-017`, `PM-028`, `PM-030`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=qualify board load and workflow noninterference at pilot scale through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_034`; `BENCHMARK=BenchmarkTodo_PM_034`; `FAULT=TestTodo_PM_034_Fault`; `CONFORMANCE=TestTodo_PM_034_Conformance`.
+  - **RED:** 100k tasks or concurrent board traffic misses workflow deadlines or exceeds project latency budget.
+  - **GREEN:** Paired seeded runs meet signed 1k-employee profile, 100-card paging, project p95 targets, zero workflow SLO misses, and <=5 percent p95/p99 regression.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-035` **[PHASE_3][SOL_HIGH] Restore project data and rebuild task search and derived views.**
+  - **Depends:** `PM-003`, `PM-025`, `PM-028`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=restore project data and rebuild task search and derived views through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_035`; `RECOVERY=TestTodo_PM_035_Recovery`; `FAULT=TestTodo_PM_035_Fault`.
+  - **RED:** Backup loses a committed task/config revision or restores a stale search result as authority.
+  - **GREEN:** Restore preserves project IDs, task/config history, memberships and outbox; replay rebuilds indexes with safe freshness state.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-036` **[PHASE_3][SOL_HIGH] Run project tenant authorization and link-leak conformance.**
+  - **Depends:** `PM-006`, `PM-018`, `PM-020`, `PM-026`, `PM-027`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=run project tenant authorization and link-leak conformance through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_036`; `SECURITY=TestTodo_PM_036_Security`; `CONFORMANCE=TestTodo_PM_036_Conformance`.
+  - **RED:** Forged project IDs, stale grants, counts, mentions, cursors or cross-tenant links disclose private work.
+  - **GREEN:** Served browser/RPC/HTTP matrix proves private default, current access on every surface, revocation, and no HCM authority bypass.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-037` **[PHASE_3][SOL_LOW] Release a monitored small-business project-board pilot.**
+  - **Depends:** `PM-023`, `PM-025`, `PM-027`, `PM-028`, `PM-033`, `PM-034`, `PM-035`, `PM-036`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=release a monitored small-business project-board pilot through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_037`; `BROWSER=TestTodo_PM_037_Browser`; `CONFORMANCE=TestTodo_PM_037_Conformance`.
+  - **RED:** A board is broadly enabled without a real customer job, support owner, restore path, or adoption evidence.
+  - **GREEN:** Named under-1000-employee partner finishes an operational project with measured use, support load, rollback, and signed continue-or-stop criteria.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-038` **[PHASE_3][SOL_LOW] Define the typed AI BoardProposal schema and enabled-capability vocabulary.**
+  - **Depends:** `PM-012`, `PM-037`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=define the typed ai boardproposal schema and enabled-capability vocabulary through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_038`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_038`; `GOLDEN=TestTodo_PM_038_Golden`; `SECURITY=TestTodo_PM_038_Security`.
+  - **RED:** AI emits unsupported cycles, scripts, permissions or synthetic tasks as live work.
+  - **GREEN:** Versioned proposal schema permits only enabled workflow/view primitives, marks sample tasks synthetic, and records assumptions and unknowns.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-039` **[PHASE_3][SOL_HIGH] Scope AI board-design retrieval to current user and installation access.**
+  - **Depends:** `PM-038`, `PM-020`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.DOCUMENTS,BI.PRIVACY; DIRECT=none; WHY=scope ai board-design retrieval to current user and installation access through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_039`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_039`; `SECURITY=TestTodo_PM_039_Security`; `INTEGRATION=TestTodo_PM_039_Integration`; `GOLDEN=TestTodo_PM_039_Golden`.
+  - **RED:** Agent cites a private document or hidden chat content outside either grant.
+  - **GREEN:** Retrieval intersects requester and installation rights, pins source IDs/revisions, treats text as untrusted, and returns no denied title or excerpt.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-040` **[PHASE_3][SOL_HIGH] Enforce tenant AI provider residency retention and spend policy.**
+  - **Depends:** `PM-038`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=enforce tenant ai provider residency retention and spend policy through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_040`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_040`; `SECURITY=TestTodo_PM_040_Security`; `FAULT=TestTodo_PM_040_Fault`; `GOLDEN=TestTodo_PM_040_Golden`; `INTEGRATION=TestTodo_PM_040_Integration`.
+  - **RED:** A prompt sends protected source text to an unapproved region or overruns tenant cost ceiling.
+  - **GREEN:** Tenant policy selects approved provider/region, prompt and trace retention, classification, token/concurrency/spend ceilings, and typed denial.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-041` **[PHASE_3][SOL_HIGH] Validate AI-proposed workflows deterministically before preview.**
+  - **Depends:** `PM-038`, `PM-012`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=validate ai-proposed workflows deterministically before preview through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_041`; `PROPERTY=TestTodo_PM_041_Property`; `SECURITY=TestTodo_PM_041_Security`; `CONFORMANCE=TestTodo_PM_041_Conformance`.
+  - **RED:** Model text bypasses status, field, access, or size rules by appearing well formed.
+  - **GREEN:** Same compiler as manual setup rejects illegal transitions, duplicate IDs, unsafe sharing, hidden required fields, and unsupported methodology claims.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-042` **[PHASE_3][TERRA] Preview AI board proposals with sample cards and exact diffs.**
+  - **Depends:** `PM-039`, `PM-040`, `PM-041`, `PM-032`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=preview ai board proposals with sample cards and exact diffs through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_042`; `BROWSER=TestTodo_PM_042_Browser`; `ACCESSIBILITY=TestTodo_PM_042_Accessibility`.
+  - **RED:** Preview conceals affected tasks, costs, synthetic samples, or unsupported assumptions.
+  - **GREEN:** Accessible preview shows rationale, cited sources, sample cards labeled synthetic, config diff, migration impact, and explicit edit/accept controls.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-043` **[PHASE_3][SOL_HIGH] Revalidate AI source grants and draft digest at publication.**
+  - **Depends:** `PM-042`, `PM-013`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=revalidate ai source grants and draft digest at publication through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_043`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_043`; `RACE=TestTodo_PM_043_Race`; `SECURITY=TestTodo_PM_043_Security`; `GOLDEN=TestTodo_PM_043_Golden`.
+  - **RED:** A source is revoked after AI generation but its proposal still publishes.
+  - **GREEN:** Current source IDs/revisions, requester and publisher rights, reviewed digest, and expected config revision are rechecked; stale or revoked proposal fails without side effect.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-044` **[PHASE_3][SOL_HIGH] Retain bounded AI proposal provenance without exposing source text.**
+  - **Depends:** `PM-039`, `PM-040`, `PM-043`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=retain bounded ai proposal provenance without exposing source text through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_044`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_044`; `SECURITY=TestTodo_PM_044_Security`; `INTEGRATION=TestTodo_PM_044_Integration`; `GOLDEN=TestTodo_PM_044_Golden`.
+  - **RED:** Trace stores raw confidential excerpts or cannot explain who published a generated board.
+  - **GREEN:** Audit links model/prompt profile, cited IDs, output schema, validation, human decision, and published digest under separate classified retention.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-045` **[PHASE_3][SOL_HIGH] Keep manual boards available through AI outage quota and malformed output.**
+  - **Depends:** `PM-040`, `PM-041`, `PM-042`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=keep manual boards available through ai outage quota and malformed output through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_045`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_045`; `FAULT=TestTodo_PM_045_Fault`; `RECOVERY=TestTodo_PM_045_Recovery`.
+  - **RED:** Provider outage or invalid model output changes live config or blocks manual editing.
+  - **GREEN:** Typed non-material failures leave current board and drafts unchanged, stop excess AI runs, and preserve manual config paths.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-046` **[PHASE_3][SOL_LOW] Pilot AI refinement with human publication and adversarial inputs.**
+  - **Depends:** `PM-037`, `PM-042`, `PM-043`, `PM-044`, `PM-045`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=pilot ai refinement with human publication and adversarial inputs through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_046`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_046`; `CONFORMANCE=TestTodo_PM_046_Conformance`; `SECURITY=TestTodo_PM_046_Security`.
+  - **RED:** AI setup is shipped on prompt demos without permission, migration, or user-edit evidence.
+  - **GREEN:** Design partner refines a live board with preview/edit/publish; prompt injection, revoked source, stale revision, and rejection paths pass served tests.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+### Advanced flow, interoperability, and shared projects
+
+- [ ] `PM-047` **[PHASE_4][SOL_HIGH] Add advisory and enforceable Kanban WIP policies.**
+  - **Depends:** `PM-009`, `PM-016`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=add advisory and enforceable kanban wip policies through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_047`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_047`; `RACE=TestTodo_PM_047_Race`; `INTEGRATION=TestTodo_PM_047_Integration`.
+  - **RED:** Concurrent moves exceed a hard WIP limit or an override has no authority or reason.
+  - **GREEN:** Versioned advisory/hard policy counts eligible tasks atomically, records authorized override reason, and exposes current limit state.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-048` **[PHASE_4][SOL_LOW] Measure cycle time throughput and WIP from task history.**
+  - **Depends:** `PM-047`, `PM-028`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=measure cycle time throughput and wip from task history through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_048`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_048`; `GOLDEN=TestTodo_PM_048_Golden`; `PROPERTY=TestTodo_PM_048_Property`.
+  - **RED:** Flow metrics use current columns rather than historical transitions or imply one clock across timezones.
+  - **GREEN:** Versioned metric definitions compute age, cycle time, throughput and WIP from immutable events with declared timezone and exclusions.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-049` **[PHASE_4][SOL_HIGH] Model directed task blockers without dependency cycles.**
+  - **Depends:** `PM-008`, `PM-009`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=model directed task blockers without dependency cycles through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_049`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_049`; `PROPERTY=TestTodo_PM_049_Property`; `SECURITY=TestTodo_PM_049_Security`.
+  - **RED:** Circular or unauthorized cross-project edges make a task permanently blocked or disclose titles.
+  - **GREEN:** Typed BLOCKS edges reject cycles, enforce both-side access, and never auto-complete or reopen tasks.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-050` **[PHASE_4][TERRA] Add bounded checklists within project tasks.**
+  - **Depends:** `PM-008`, `PM-019`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=add bounded checklists within project tasks through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_050`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_050`; `INTEGRATION=TestTodo_PM_050_Integration`; `SECURITY=TestTodo_PM_050_Security`.
+  - **RED:** Checklist completion silently completes a parent or HCM WorkItem.
+  - **GREEN:** Ordered revisioned checklist entries have owner, completion evidence, and explicit parent-task semantics only.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-051` **[PHASE_4][SOL_HIGH] Add parent and subtask hierarchy with bounded rollups.**
+  - **Depends:** `PM-050`, `PM-049`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=add parent and subtask hierarchy with bounded rollups through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_051`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_051`; `PROPERTY=TestTodo_PM_051_Property`; `BENCHMARK=BenchmarkTodo_PM_051`.
+  - **RED:** Hierarchy cycles or cross-project parents bypass access and inflate completion counts.
+  - **GREEN:** Bounded acyclic parent links, explicit rollup rules, and inherited project scope preserve task authority.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-052` **[PHASE_4][SOL_LOW] Schedule recurring project tasks with idempotent generation.**
+  - **Depends:** `PM-050`, `PM-023`.
+  - **INTENT CONTEXT:** `ROLE=EMITTER; SETS=BI.WORK,BI.TRIGGERS; DIRECT=none; WHY=schedule recurring project tasks with idempotent generation through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_052`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_052`; `GOLDEN=TestTodo_PM_052_Golden`; `RECOVERY=TestTodo_PM_052_Recovery`.
+  - **RED:** Clock retry creates duplicate recurring tasks or a timezone shift skips one.
+  - **GREEN:** Versioned recurrence schedules generate one task per occurrence with stable key, local-time policy, pause and catch-up controls.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-053` **[PHASE_4][SOL_HIGH] Introduce optional cycles with dated task scope and close behavior.**
+  - **Depends:** `PM-008`, `PM-016`, `PM-010`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=introduce optional cycles with dated task scope and close behavior through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_053`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_053`; `RACE=TestTodo_PM_053_Race`; `INTEGRATION=TestTodo_PM_053_Integration`.
+  - **RED:** A task belongs to overlapping active cycles or closed-cycle changes rewrite history.
+  - **GREEN:** Team cycles pin start/end, membership and revision; close records committed scope, carryover choices and historical report inputs.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-054` **[PHASE_4][SOL_LOW] Prove Scrum planning sprint close and carryover semantics.**
+  - **Depends:** `PM-053`, `PM-049`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=prove scrum planning sprint close and carryover semantics through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_054`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_054`; `CONFORMANCE=TestTodo_PM_054_Conformance`; `BROWSER=TestTodo_PM_054_Browser`.
+  - **RED:** A Scrum-labelled board lacks backlog, cycle scope, close, carryover or sprint reporting.
+  - **GREEN:** Template and served scenario prove planning, sprint start, scope changes, close, carryover and truthful reports.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-055` **[PHASE_4][SOL_LOW] Compose Scrumban from proved cycles and WIP controls.**
+  - **Depends:** `PM-047`, `PM-053`, `PM-054`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=compose scrumban from proved cycles and wip controls through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_055`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_055`; `CONFORMANCE=TestTodo_PM_055_Conformance`; `RACE=TestTodo_PM_055_Race`.
+  - **RED:** Scrumban preset bypasses WIP limits or treats cycle close as Kanban completion.
+  - **GREEN:** Hybrid preset preserves both cycle history and flow policy with deterministic move and close tests.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-056` **[PHASE_4][TERRA] Add project milestones and milestone board views.**
+  - **Depends:** `PM-008`, `PM-016`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=add project milestones and milestone board views through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_056`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_056`; `BROWSER=TestTodo_PM_056_Browser`; `SECURITY=TestTodo_PM_056_Security`.
+  - **RED:** Milestone view reports work complete from dates alone or implies a software deployment.
+  - **GREEN:** Milestones have owner, target date, linked tasks and explicit completion; view groups only authorized work.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-057` **[PHASE_4][TERRA] Publish feature bug and discovery presets over the common model.**
+  - **Depends:** `PM-012`, `PM-016`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=publish feature bug and discovery presets over the common model through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_057`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_057`; `BROWSER=TestTodo_PM_057_Browser`; `CONFORMANCE=TestTodo_PM_057_Conformance`.
+  - **RED:** Preset introduces a second task engine or claims unsupported Scrum/release behavior.
+  - **GREEN:** Typed task fields and status/view templates create ordinary projects with editable defaults and accurate labels.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-058` **[PHASE_4][SOL_HIGH] Define release-board tracking without claiming deployment authority.**
+  - **Depends:** `PM-056`, `PM-028`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=define release-board tracking without claiming deployment authority through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_058`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_058`; `INTEGRATION=TestTodo_PM_058_Integration`; `SECURITY=TestTodo_PM_058_Security`.
+  - **RED:** A card moved to Released is presented as an actual verified deployment.
+  - **GREEN:** Release object pins scope, target milestone, verification evidence and external deployment references; execution remains with owning release system.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-059` **[PHASE_4][SOL_HIGH] Connect support and operations boards to governed request intake.**
+  - **Depends:** `SMB-001`, `PM-023`, `PM-016`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.CASES,BI.EXPERIENCE; DIRECT=none; WHY=connect support and operations boards to governed request intake through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_059`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_059`; `INTEGRATION=TestTodo_PM_059_Integration`; `SECURITY=TestTodo_PM_059_Security`.
+  - **RED:** Board drag changes a confidential case or service SLA without its owning system.
+  - **GREEN:** Intake adapter creates safe linked coordination task; request, incident and SLA truth remain with owners and privacy gates.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-060` **[PHASE_4][SOL_HIGH] Run large configuration migrations as resumable fenced operations.**
+  - **Depends:** `PM-015`, `PM-028`, `PM-035`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=run large configuration migrations as resumable fenced operations through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_060`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_060`; `FAULT=TestTodo_PM_060_Fault`; `RECOVERY=TestTodo_PM_060_Recovery`.
+  - **RED:** Crash activates a partial config or accepts task writes under mixed migration epochs.
+  - **GREEN:** MIGRATING operation fences affected writes, checkpoints idempotent batches, verifies all tasks, then atomically activates new version.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-061` **[PHASE_4][SOL_HIGH] Import and export project tasks configs and links with provenance.**
+  - **Depends:** `PM-025`, `PM-026`, `PM-020`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.INTEGRATION; DIRECT=none; WHY=import and export project tasks configs and links with provenance through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_061`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_061`; `FUZZ=FuzzTodo_PM_061`; `SECURITY=TestTodo_PM_061_Security`.
+  - **RED:** Import overwrites current tasks or export drops configuration history and discloses private links.
+  - **GREEN:** Quarantined import validates types and mapping; authorized export includes stable IDs, versions, comments, links and records manifest.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-062` **[PHASE_4][SOL_HIGH] Serve authorized cross-project board and list views.**
+  - **Depends:** `PM-016`, `PM-006`, `PM-017`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=serve authorized cross-project board and list views through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_062`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_062`; `SECURITY=TestTodo_PM_062_Security`; `BENCHMARK=BenchmarkTodo_PM_062`.
+  - **RED:** A saved filter merges two private projects and exposes counts to a single-project viewer.
+  - **GREEN:** Cross-project queries intersect every project grant, preserve task owner/status truth, and page with bounded stable cursors.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-063` **[PHASE_5][SOL_HIGH] Roll projects into initiatives and portfolio health.**
+  - **Depends:** `PM-062`, `PM-056`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=roll projects into initiatives and portfolio health through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_063`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_063`; `SECURITY=TestTodo_PM_063_Security`; `INTEGRATION=TestTodo_PM_063_Integration`.
+  - **RED:** Portfolio totals disclose private projects or count stale task status as a committed outcome.
+  - **GREEN:** Initiative graph uses authorized project membership, versioned rollup rules, freshness labels and separate project/initiative ownership.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-064` **[PHASE_5][SOL_HIGH] Admit cross-company projects with bilateral host and home policy.**
+  - **Depends:** `PM-006`, `PM-020`, `PM-036`, `CHAT-051`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=admit cross-company projects with bilateral host and home policy through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_064`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_064`; `SECURITY=TestTodo_PM_064_Security`; `INTEGRATION=TestTodo_PM_064_Integration`; `GOLDEN=TestTodo_PM_064_Golden`.
+  - **RED:** Chat membership implicitly grants project access or one company unilaterally exposes another's tasks.
+  - **GREEN:** Explicit host ownership and bilateral consent bind company scope, classification, egress, retention and revocation before guest reads.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-065` **[PHASE_5][SOL_HIGH] Manage external project guest lifecycle and delegated roles.**
+  - **Depends:** `PM-064`, `PM-007`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=manage external project guest lifecycle and delegated roles through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_065`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_065`; `SECURITY=TestTodo_PM_065_Security`; `RECOVERY=TestTodo_PM_065_Recovery`; `GOLDEN=TestTodo_PM_065_Golden`.
+  - **RED:** Expired or offboarded guests retain task cursors, notices, files or admin rights.
+  - **GREEN:** Invites expire, role ceilings are delegated per company, home-side offboarding revokes access, and host records evidence.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-066` **[PHASE_4][SOL_HIGH] Extend project RPC and HTTP API for advanced board capabilities.**
+  - **Depends:** `PM-026`, `PM-027`, `PM-047`, `PM-049`, `PM-053`, `PM-056`, `PM-060`, `PM-061`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.INTEGRATION; DIRECT=none; WHY=extend project rpc and http api for advanced board capabilities through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_066`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_066`; `CONFORMANCE=TestTodo_PM_066_Conformance`; `SECURITY=TestTodo_PM_066_Security`; `INTEGRATION=TestTodo_PM_066_Integration`.
+  - **RED:** UI-only advanced method lacks versioned API or HTTP bypasses capability checks.
+  - **GREEN:** Generated manifest and parity tests cover WIP, cycles, dependencies, milestones, migration operations and imports when each capability activates.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-067` **[PHASE_4][SOL_HIGH] Govern later AI task edits summaries and agent participation.**
+  - **Depends:** `PM-046`, `PM-008`, `PM-026`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=govern later ai task edits summaries and agent participation through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_067`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_067`; `SECURITY=TestTodo_PM_067_Security`; `CONFORMANCE=TestTodo_PM_067_Conformance`; `GOLDEN=TestTodo_PM_067_Golden`.
+  - **RED:** Agent silently rewrites tasks, publishes summaries with private context, or performs HCM actions through a card.
+  - **GREEN:** Scoped agent proposes task changes through same revisioned API with human review where policy requires; summaries cite authorized inputs and HCM actions stay governed.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-068` **[PHASE_4][SOL_LOW] Meter project usage and enforce predictable tenant plan limits.**
+  - **Depends:** `PM-034`, `PM-028`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=meter project usage and enforce predictable tenant plan limits through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_068`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_068`; `BENCHMARK=BenchmarkTodo_PM_068`; `INTEGRATION=TestTodo_PM_068_Integration`; `GOLDEN=TestTodo_PM_068_Golden`.
+  - **RED:** One tenant consumes unbounded cards, storage, events or AI spend and starves workflows.
+  - **GREEN:** Published quotas and cost attribution cover projects, tasks, fields, files, events, search and AI with warning, rejection and export behavior.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-069` **[PHASE_5][SOL_HIGH] Prove cross-company project access and revocation end to end.**
+  - **Depends:** `PM-064`, `PM-065`, `PM-062`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=prove cross-company project access and revocation end to end through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_069`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_069`; `CONFORMANCE=TestTodo_PM_069_Conformance`; `SECURITY=TestTodo_PM_069_Security`.
+  - **RED:** Foreign company sees host rows, linked private docs, search counts or retained streams after revocation.
+  - **GREEN:** Two-company served scenario verifies bilateral admission, host ownership, delegated roles, expiry, egress, and complete revocation.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-070` **[PHASE_4][SOL_LOW] Validate every named board method against its real behavior.**
+  - **Depends:** `PM-048`, `PM-054`, `PM-055`, `PM-057`, `PM-058`, `PM-059`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=validate every named board method against its real behavior through the scoped project-management surface`.
+  - **TEST:** `TestTodo_PM_070`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_070`; `CONFORMANCE=TestTodo_PM_070_Conformance`; `BROWSER=TestTodo_PM_070_Browser`.
+  - **RED:** Preset labels Scrum, Kanban, release or support without cycles, flow, verified scope or request ownership.
+  - **GREEN:** Method matrix proves required semantics and rejects or relabels unsupported presets across browser, RPC and HTTP.
+  - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-071` **[PHASE_4][SOL_HIGH] Add protected project-task attachments.**
+  - **Depends:** `PM-024`, `PM-025`, `PM-031`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=attach ordinary project files without bypassing task access, DLP, or records policy`.
+  - **TEST:** `TestTodo_PM_071`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_071`; `SECURITY=TestTodo_PM_071_Security`; `INTEGRATION=TestTodo_PM_071_Integration`.
+  - **RED:** An attachment serves unsafe bytes, remains downloadable after access loss, or disappears while held.
+  - **GREEN:** Protected artifact upload and download enforce current task grants, malware/DLP checks, size/type policy, immutable reference, retention, and revocation.
+  - **REFACTOR:** Reuse protected artifact and records services; keep file bytes outside project task rows.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md), [data classification](specs/data-classification-and-dlp.md).
+
+- [ ] `PM-072` **[PHASE_4][SOL_HIGH] Qualify later per-task and per-field access controls.**
+  - **Depends:** `PM-006`, `PM-011`, `PM-036`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.PRIVACY; DIRECT=none; WHY=add confidential subsets only after every board, search, event, export, AI and integration surface can enforce them`.
+  - **TEST:** `TestTodo_PM_072`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_072`; `SECURITY=TestTodo_PM_072_Security`; `CONFORMANCE=TestTodo_PM_072_Conformance`; `GOLDEN=TestTodo_PM_072_Golden`.
+  - **RED:** A hidden field leaks through a card count, filter, activity revision, notification, export, or agent prompt.
+  - **GREEN:** Field/task grants compose with project roles and current policy; served conformance proves no value or metadata leak across all derived surfaces.
+  - **REFACTOR:** Extend the existing authorization decision and projection rules rather than inventing a separate board-only ACL.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md), [organization AuthZ](specs/organization-scope-and-authz.md).
+
+- [ ] `PM-073` **[PHASE_4][SOL_HIGH] Rehearse project-database extraction and conditional cutover.**
+  - **Depends:** `PM-003`, `PM-034`, `PM-035`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=move project persistence off shared PostgreSQL capacity if mixed-load qualification threatens workflow SLOs`.
+  - **TEST:** `TestTodo_PM_073`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_073`; `RECOVERY=TestTodo_PM_073_Recovery`; `FAULT=TestTodo_PM_073_Fault`.
+  - **RED:** A failed gate has no safe extraction path or cutover loses task IDs, revisions, memberships, or event cursors.
+  - **GREEN:** Copy, verify, fence, cutover and drain rehearsal preserves API behavior and restore evidence; if the pilot gate fails, separate project database capacity and a rerun are required before rollout.
+  - **REFACTOR:** Preserve project repository and transport contracts across storage placement without cross-database joins.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md), [chat isolation](specs/chat-core-routing-and-isolation.md).
+
+## 87. Customer-owned agent runtime and business integration
+
+> Candidate Gate C workstream, unscheduled until `AGENT-006` records the scope exchange. `AGENT-001`–`AGENT-005` prove design-stage security components, not a served agent product. Chat, Scheduling, Workflow, Knowledge, and BusinessIntent retain their own authority; these todos build the agent-owned layer and its typed bridges.
+
+### Product governance, manifest, and owned state
+
+- [ ] `AGENT-006` **[DESIGN][SOL_HIGH] Record the agent-product scope exchange and pilot contract.**
+  - **Depends:** `AGENT-005`, `CHAT-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=decide agent release scope, owner, provider spend, and displaced work before activation`.
+  - **TEST:** `TestTodo_AGENT_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_006`; `CONFORMANCE=TestTodo_AGENT_006_Conformance`; `GOLDEN=TestTodo_AGENT_006_Golden`; `INTEGRATION=TestTodo_AGENT_006_Integration`.
+  - **RED:** Agent delivery is treated as committed Phase 1 or chat-release scope without a named pilot, cost envelope, domain owner, support owner, or signed workflow and chat SLO gate.
+  - **GREEN:** A versioned scope decision names the first cohort, one served provider, admitted agent jobs, schedule and workflow slice, displaced work, spend ceiling, stop criteria, and accountable reviewers.
+  - **REFACTOR:** Keep release decisions in the execution plan and leave design-only security evidence distinct from served capability.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [execution plan](execution-plan.md).
+
+- [ ] `AGENT-007` **[GATE_C][SOL_HIGH] Define versioned agent manifests and schema compatibility.**
+  - **Depends:** `AGENT-006`, `AGENT-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=bind a customer agent to a validated immutable manifest and compatible schema versions`.
+  - **TEST:** `TestTodo_AGENT_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_007`; `GOLDEN=TestTodo_AGENT_007_Golden`; `FUZZ=FuzzTodo_AGENT_007_Fuzz`; `SECURITY=TestTodo_AGENT_007_Security`.
+  - **RED:** A draft omits owner, purpose, source/tool ceiling, model policy, autonomy, budget, or output schema, or an unknown security field is silently ignored.
+  - **GREEN:** Canonical manifest validation returns stable field diagnostics; immutable version digests pin instructions, model eligibility, tool/output schemas, context grants, and evaluation refs.
+  - **REFACTOR:** Separate manifest parsing from policy resolution and provider request formats.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [agent architecture](specs/platform-architecture-catalog.md).
+
+- [ ] `AGENT-008` **[GATE_C][SOL_HIGH] Provision the agent-owned database and tenant-isolated repositories.**
+  - **Depends:** `AGENT-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=persist agent definitions, schedules, installations, runs, budgets, and outbox without sharing message or workflow tables`.
+  - **TEST:** `TestTodo_AGENT_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_008`; `INTEGRATION=TestTodo_AGENT_008_Integration`; `SECURITY=TestTodo_AGENT_008_Security`; `RECOVERY=TestTodo_AGENT_008_Recovery`.
+  - **RED:** Agent rows leak across tenants, borrow workflow connection capacity, or lose a committed run request on process restart.
+  - **GREEN:** Separate agent credentials, pool, migrations, RLS, revision checks, outbox, backup, and retention preserve tenant isolation and durable state across restart.
+  - **REFACTOR:** Keep persistence behind owned repositories and cross-database exchange behind idempotent messages.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [storage disposition](../definitions/storage/storage-disposition.yaml).
+
+- [ ] `AGENT-009` **[GATE_C][SOL_HIGH] Publish reviewed immutable agent versions with rollback and quarantine.**
+  - **Depends:** `AGENT-007`, `AGENT-008`, `AGENT-004`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=promote exact agent versions only after required evaluation and independent review`.
+  - **TEST:** `TestTodo_AGENT_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_009`; `RACE=TestTodo_AGENT_009_Race`; `SECURITY=TestTodo_AGENT_009_Security`; `MUTATION=TestTodo_AGENT_009_Mutation`; `FAULT=TestTodo_AGENT_009_Fault`; `GOLDEN=TestTodo_AGENT_009_Golden`; `RECOVERY=TestTodo_AGENT_009_Recovery`.
+  - **RED:** An author self-approves a widened grant, a stale digest publishes, an upgrade silently enlarges installations, or quarantine permits a new run.
+  - **GREEN:** Publish pins exact manifest/eval digest and approver; material changes require separation of duties; rollback revalidates eligibility; quarantine fences new and write-capable work.
+  - **REFACTOR:** Reuse existing publication and kill-switch controls without treating a mutable pointer as the version.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [agent safety](specs/platform-architecture-catalog.md).
+
+- [ ] `AGENT-010` **[GATE_C][SOL_HIGH] Resolve layered business charters and scoped organization policy.**
+  - **Depends:** `AGENT-007`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.TENANT; DIRECT=none; WHY=let different business types configure agents without weakening mandatory policy`.
+  - **TEST:** `TestTodo_AGENT_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_010`; `PROPERTY=TestTodo_AGENT_010_Property`; `SECURITY=TestTodo_AGENT_010_Security`; `GOLDEN=TestTodo_AGENT_010_Golden`.
+  - **RED:** A template or installation overrides a platform/legal denial, or a branch manager gains another entity by name matching.
+  - **GREEN:** Versioned platform, tenant, entity, pack, agent, installation, and run layers resolve with deny precedence and effective-dated stable IDs; the result explains each setting source.
+  - **REFACTOR:** Keep policy composition typed and independent of prompt wording or model provider.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [organization AuthZ](specs/organization-scope-and-authz.md).
+
+- [ ] `AGENT-011` **[GATE_C][SOL_HIGH] Issue nonhuman agent principals and current context grants.**
+  - **Depends:** `AGENT-008`, `AGENT-010`, `TRUST-018`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=bind autonomous and human-invoked runs to distinct, revocable authority chains`.
+  - **TEST:** `TestTodo_AGENT_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_011`; `SECURITY=TestTodo_AGENT_011_Security`; `INTEGRATION=TestTodo_AGENT_011_Integration`; `MUTATION=TestTodo_AGENT_011_Mutation`; `GOLDEN=TestTodo_AGENT_011_Golden`.
+  - **RED:** An autonomous run borrows a human's rights or a revoked source, sponsor, or purpose remains usable from a cached grant.
+  - **GREEN:** Agent service identity, sponsor, invoker/delegation, tenant/entity, purpose, audience, and source/capability grants intersect and are rechecked at tool and delivery boundaries.
+  - **REFACTOR:** Use current AuthZ and capability decisions rather than prompt or chat-role claims.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [organization AuthZ](specs/organization-scope-and-authz.md).
+
+- [ ] `AGENT-012` **[GATE_C][SOL_HIGH] Build Agent Studio draft, validation, evaluation, and publication flow.**
+  - **Depends:** `AGENT-009`, `AGENT-010`, `AGENT-011`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=let authorized business owners create and review agents without bypassing the governed manifest`.
+  - **TEST:** `TestTodo_AGENT_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_012`; `BROWSER=TestTodo_AGENT_012_Browser`; `SECURITY=TestTodo_AGENT_012_Security`; `INTEGRATION=TestTodo_AGENT_012_Integration`.
+  - **RED:** The UI hides effective scope, publishes a stale draft, loses reviewer separation, or cannot explain denied tools and sources.
+  - **GREEN:** Accessible draft steps show charter, context, tools, triggers, budgets, authority preview, sandbox evidence, exact review digest, publication status, and owner transfer.
+  - **REFACTOR:** Drive UI from canonical RPCs and manifests rather than a separate browser-only agent model.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [experience UI](specs/experience-ui-and-branding.md).
+
+- [ ] `AGENT-013` **[GATE_C][SOL_HIGH] Ship versioned starting templates for business agents.**
+  - **Depends:** `AGENT-012`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=help small companies start with reviewed agent jobs without granting authority through a template name`.
+  - **TEST:** `TestTodo_AGENT_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_013`; `BROWSER=TestTodo_AGENT_013_Browser`; `SECURITY=TestTodo_AGENT_013_Security`; `CONFORMANCE=TestTodo_AGENT_013_Conformance`.
+  - **RED:** Installing a template grants tools automatically, or a later platform template update silently changes a published customer agent.
+  - **GREEN:** Policy Guide and one second pilot template create tenant-owned drafts with pinned template provenance; grants still require validation, authority preview, evaluation, and publication.
+  - **REFACTOR:** Keep templates as versioned data, not privileged agent classes.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-014` **[GATE_C][SOL_HIGH] Install agents per conversation and reconcile previewed rollouts.**
+  - **Depends:** `AGENT-009`, `AGENT-011`, `CHAT-043`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=place approved agents in named chats with independently revocable narrow grants`.
+  - **TEST:** `TestTodo_AGENT_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_014`; `INTEGRATION=TestTodo_AGENT_014_Integration`; `SECURITY=TestTodo_AGENT_014_Security`; `RACE=TestTodo_AGENT_014_Race`; `GOLDEN=TestTodo_AGENT_014_Golden`.
+  - **RED:** A channel selector grants a newly matching chat silently, an upgrade widens tools, or removing one installation removes another.
+  - **GREEN:** Previewed rollout plans create revisioned per-conversation installations; manager approval and current membership/classification gates each admission, suspension, and removal.
+  - **REFACTOR:** Keep rollout reconciliation separate from chat-owned membership and post storage.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
+
+- [ ] `AGENT-015` **[GATE_C][SOL_HIGH] Admit one idempotent AgentRunRequest across all invocation modes.**
+  - **Depends:** `AGENT-008`, `AGENT-011`, `AGENT-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.TRIGGERS; DIRECT=none; WHY=share one durable authorization and dedupe path for chat, UI/API, event, schedule, and workflow calls`.
+  - **TEST:** `TestTodo_AGENT_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_015`; `RACE=TestTodo_AGENT_015_Race`; `SECURITY=TestTodo_AGENT_015_Security`; `FAULT=TestTodo_AGENT_015_Fault`.
+  - **RED:** A replay creates two runs or an API, schedule, or workflow entry point skips version, sponsor, purpose, audience, deadline, or budget checks.
+  - **GREEN:** One admission contract persists accepted or refused requests by source key and pins agent version, principal chain, context scope, deadline, budget, and cause ID before inference.
+  - **REFACTOR:** Keep entry-point adapters thin and all authority in the shared admission service.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-016` **[GATE_C][SOL_HIGH] Execute durable agent runs with checkpoints, cancellation, and recovery.**
+  - **Depends:** `AGENT-015`, `AGENT-008`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=resume model and tool planning after crashes without replaying uncertain effects`.
+  - **TEST:** `TestTodo_AGENT_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_016`; `FAULT=TestTodo_AGENT_016_Fault`; `RACE=TestTodo_AGENT_016_Race`; `RECOVERY=TestTodo_AGENT_016_Recovery`.
+  - **RED:** Worker death loses an admitted run, replays a side-effecting tool, or leaves cancellation and expiry without terminal state.
+  - **GREEN:** Leased workers checkpoint admission, context, model, tool, validation, and delivery steps; restart reconciles ambiguous effects and reaches one typed terminal outcome.
+  - **REFACTOR:** Keep model attempts and business effects as distinct durable records.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [workflow runtime](specs/workflow-runtime.md).
+
+- [ ] `AGENT-017` **[GATE_C][SOL_HIGH] Build current EffectiveAgentContext from owning services.**
+  - **Depends:** `AGENT-011`, `AGENT-015`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=assemble only current authorized business facts, audience, and source versions for each run`.
+  - **TEST:** `TestTodo_AGENT_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_017`; `SECURITY=TestTodo_AGENT_017_Security`; `FAULT=TestTodo_AGENT_017_Fault`; `GOLDEN=TestTodo_AGENT_017_Golden`.
+  - **RED:** A chat message supplies tenant or role, stale HCM facts are presented as current, or a source grant revoked mid-run survives delivery.
+  - **GREEN:** Context carries tenant/entity, purpose, principal chain, temporal mode, source provenance and freshness, classification, audience, policy versions, and revocation tokens with late rechecks.
+  - **REFACTOR:** Keep owner-provided facts separate from user claims, model inference, and cached projections.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [organization AuthZ](specs/organization-scope-and-authz.md).
+
+- [ ] `AGENT-018` **[GATE_C][SOL_HIGH] Retrieve authorized chat and document context through typed adapters.**
+  - **Depends:** `AGENT-017`, `HUB-031`, `CHAT-043`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS,BI.EXPERIENCE; DIRECT=none; WHY=give agents cited context without direct database or index access`.
+  - **TEST:** `TestTodo_AGENT_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_018`; `INTEGRATION=TestTodo_AGENT_018_Integration`; `SECURITY=TestTodo_AGENT_018_Security`; `CONFORMANCE=TestTodo_AGENT_018_Conformance`.
+  - **RED:** A citation reveals a hidden document or channel, a removed member retains context, or adapter failure is treated as a negative business fact.
+  - **GREEN:** Typed retrieval envelopes carry owner, version, classification, audience, purpose, freshness, citation, and revocation; partial failure is explicit and current grants govern final disclosure.
+  - **REFACTOR:** Use source-owner RPCs and shared retrieval envelopes rather than new cross-database joins.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [documentation hub](specs/channel-documentation-hub.md), [company chat](specs/company-chat-and-collaboration.md).
+
+- [ ] `AGENT-019` **[GATE_C][SOL_HIGH] Define the provider-neutral model request and result contract.**
+  - **Depends:** `AGENT-007`, `AGENT-015`, `AGENT-003`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=own prompts, tool proposals, usage, errors, and canonical run state independently of an AI vendor`.
+  - **TEST:** `TestTodo_AGENT_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_019`; `GOLDEN=TestTodo_AGENT_019_Golden`; `CONFORMANCE=TestTodo_AGENT_019_Conformance`; `FAULT=TestTodo_AGENT_019_Fault`; `INTEGRATION=TestTodo_AGENT_019_Integration`.
+  - **RED:** Provider response IDs or hosted sessions become authoritative run memory, or unsupported tool/output modes pass as equivalent.
+  - **GREEN:** One versioned ModelRequest/ModelResult schema records policy, model profile, tools, output, limits, usage, finish and errors; adapters advertise supported features and return typed refusals.
+  - **REFACTOR:** Keep vendor wire syntax inside replaceable adapters and HCM authorization outside them.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-020` **[GATE_C][SOL_HIGH] Gate provider egress, credentials, retention, and data class.**
+  - **Depends:** `AGENT-019`, `AGENT-011`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY,BI.SECURITY; DIRECT=none; WHY=send only eligible minimized context to approved external or private model endpoints`.
+  - **TEST:** `TestTodo_AGENT_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_020`; `SECURITY=TestTodo_AGENT_020_Security`; `INTEGRATION=TestTodo_AGENT_020_Integration`; `MUTATION=TestTodo_AGENT_020_Mutation`; `GOLDEN=TestTodo_AGENT_020_Golden`.
+  - **RED:** A provider key enters a prompt, a protected field reaches an ineligible region, or hosted tools gain unreviewed network access.
+  - **GREEN:** Dispatch checks provider/model contract, region, retention, training-use, secrets lease, source classification and egress grant before sending; denials have zero model call.
+  - **REFACTOR:** Centralize egress policy across providers without provider-specific business exemptions.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [data classification](specs/data-classification-and-dlp.md).
+
+### Provider adapters, tools, and invocation bridges
+
+- [ ] `AGENT-021` **[GATE_C][SOL_HIGH] Serve the OpenAI inference adapter behind the owned model contract.**
+  - **Depends:** `AGENT-019`, `AGENT-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=use an approved OpenAI model without delegating agent state or tool authority`.
+  - **TEST:** `TestTodo_AGENT_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_021`; `CONFORMANCE=TestTodo_AGENT_021_Conformance`; `FAULT=TestTodo_AGENT_021_Fault`; `SECURITY=TestTodo_AGENT_021_Security`; `INTEGRATION=TestTodo_AGENT_021_Integration`.
+  - **RED:** A provider tool call executes outside HCM Next, streaming text posts before validation, or retry after timeout loses the provider request identity.
+  - **GREEN:** Adapter maps request, proposed tools, usage, finish, errors, cancellation, and streaming to the owned contract; HCM Next alone executes admitted tools.
+  - **REFACTOR:** Keep OpenAI SDK and wire details inside the adapter with no HCM policy branching.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-022` **[GATE_C][SOL_HIGH] Serve the Anthropic inference adapter behind the owned model contract.**
+  - **Depends:** `AGENT-019`, `AGENT-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=use an approved Anthropic model with the same HCM Next run and tool rules`.
+  - **TEST:** `TestTodo_AGENT_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_022`; `CONFORMANCE=TestTodo_AGENT_022_Conformance`; `FAULT=TestTodo_AGENT_022_Fault`; `SECURITY=TestTodo_AGENT_022_Security`; `INTEGRATION=TestTodo_AGENT_022_Integration`.
+  - **RED:** Anthropic tool-use or structured-output differences change business authority, bypass validation, or miscount cost.
+  - **GREEN:** Adapter maps client tool proposals, output, usage, cancellation, and typed failures to shared conformance fixtures without granting server-side HCM effects.
+  - **REFACTOR:** Confine provider-specific schema limits and tool syntax to the adapter.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-023` **[GATE_C][SOL_HIGH] Qualify private-model endpoints through the same inference port.**
+  - **Depends:** `AGENT-019`, `AGENT-020`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=admit customer or platform private models only after endpoint, policy, and behavior qualification`.
+  - **TEST:** `TestTodo_AGENT_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_023`; `CONFORMANCE=TestTodo_AGENT_023_Conformance`; `SECURITY=TestTodo_AGENT_023_Security`; `FAULT=TestTodo_AGENT_023_Fault`.
+  - **RED:** A private endpoint receives production context without service identity, residency proof, health contract, or schema conformance.
+  - **GREEN:** Approved endpoint profile declares network path, identity, model/tool/output support, processing policy, health and limits; conformance yields the same HCM decisions.
+  - **REFACTOR:** Do not fork agent execution or authorization for private hosting.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-024` **[GATE_C][SOL_HIGH] Route eligible models with pinned fallback and budget rules.**
+  - **Depends:** `AGENT-019`, `AGENT-020`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=select only evaluated models that meet task, data, region, latency, and cost constraints`.
+  - **TEST:** `TestTodo_AGENT_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_024`; `PROPERTY=TestTodo_AGENT_024_Property`; `FAULT=TestTodo_AGENT_024_Fault`; `SECURITY=TestTodo_AGENT_024_Security`; `GOLDEN=TestTodo_AGENT_024_Golden`.
+  - **RED:** Fallback crosses a data region, changes output semantics after a tool effect, or exceeds a reserved tenant budget.
+  - **GREEN:** Router records eligibility and provider/model version, respects task profile and budget, and refuses ineligible fallback or uncertain-effect switches.
+  - **REFACTOR:** Keep routing policy independent of a provider's marketing model name.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-025` **[GATE_C][SOL_HIGH] Bridge model tool proposals to typed capability execution.**
+  - **Depends:** `AGENT-015`, `AGENT-017`, `AGENT-001`, `AGENT-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.WORK; DIRECT=none; WHY=let agents use registered HCM and project tools without raw HTTP, SQL, or hidden credentials`.
+  - **TEST:** `TestTodo_AGENT_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_025`; `SECURITY=TestTodo_AGENT_025_Security`; `INTEGRATION=TestTodo_AGENT_025_Integration`; `MUTATION=TestTodo_AGENT_025_Mutation`.
+  - **RED:** Unknown tool, forged arguments, parallel-call burst, or source text can add a tool, broaden scope, or execute an effect.
+  - **GREEN:** Only eligible versioned manifests are exposed; each proposed call passes schema, current grant, purpose, nonce, cost, idempotency and side-effect checks before owner invocation.
+  - **REFACTOR:** Keep tool discovery separate from tool admission and invoke owning capabilities only.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [capability registry](specs/capability-registry-and-lifecycle.md).
+
+- [ ] `AGENT-026` **[GATE_C][SOL_HIGH] Validate agent outputs and final delivery audience.**
+  - **Depends:** `AGENT-016`, `AGENT-017`, `AGENT-025`, `AGENT-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.PRIVACY; DIRECT=none; WHY=stop unvalidated model text or hidden data from entering chat, workflows, or action drafts`.
+  - **TEST:** `TestTodo_AGENT_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_026`; `SECURITY=TestTodo_AGENT_026_Security`; `GOLDEN=TestTodo_AGENT_026_Golden`; `MUTATION=TestTodo_AGENT_026_Mutation`.
+  - **RED:** A partial stream, hidden citation, private fact, unknown card field, or stale grant reaches a public post or workflow result.
+  - **GREEN:** Complete output is schema/citation/taint checked and reauthorized for every current recipient and destination immediately before commit; unsafe output refuses or routes privately.
+  - **REFACTOR:** Keep validation server-owned and separate from provider structured-output promises.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
+
+- [ ] `AGENT-027` **[GATE_C][SOL_HIGH] Invoke owned agents from chat DMs, mentions, and slash commands.**
+  - **Depends:** `AGENT-014`, `AGENT-015`, `AGENT-024`, `AGENT-026`, `CHAT-028`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=connect native chat invocation to the shared agent run path`.
+  - **TEST:** `TestTodo_AGENT_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_027`; `INTEGRATION=TestTodo_AGENT_027_Integration`; `SECURITY=TestTodo_AGENT_027_Security`; `FAULT=TestTodo_AGENT_027_Fault`.
+  - **RED:** Quoted mention runs an agent, a user invokes an uninstalled agent, or provider failure blocks the original chat post.
+  - **GREEN:** Current chat grants create one run by DM, typed mention or command; replies use normal SendPost with agent identity and idempotency while human post durability is independent.
+  - **REFACTOR:** Let Chat own post ordering and Agent own inference and tool execution.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
+
+- [ ] `AGENT-028` **[GATE_C][SOL_HIGH] Admit bounded autonomous channel triggers without loops.**
+  - **Depends:** `AGENT-027`, `CHAT-044`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=allow opt-in agent participation while controlling spam, recursion, and cost`.
+  - **TEST:** `TestTodo_AGENT_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_028`; `RACE=TestTodo_AGENT_028_Race`; `FAULT=TestTodo_AGENT_028_Fault`; `SECURITY=TestTodo_AGENT_028_Security`; `GOLDEN=TestTodo_AGENT_028_Golden`.
+  - **RED:** Two agents recursively trigger each other, a replay double-posts, or an event storm exhausts another tenant's model allowance.
+  - **GREEN:** Installed subscriptions use cause-chain depth, dedupe, cooldown, per-channel budget, fair admission, and pause controls; optional work sheds before human chat or workflow.
+  - **REFACTOR:** Use chat outbox causes and shared run admission rather than special model callbacks.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
+
+- [ ] `AGENT-029` **[PHASE_2][SOL_HIGH] Add a versioned AGENT_RUN target to published scheduling.**
+  - **Depends:** `AGENT-015`, `SCHED-001`, `SCHED-002`, `SCHED-003`, `SCHED-004`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TRIGGERS,BI.INTELLIGENCE; DIRECT=none; WHY=reuse the Scheduling plane's occurrence identity for agent runs without inventing a second cron service`.
+  - **TEST:** `TestTodo_AGENT_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_029`; `GOLDEN=TestTodo_AGENT_029_Golden`; `CONFORMANCE=TestTodo_AGENT_029_Conformance`; `SECURITY=TestTodo_AGENT_029_Security`.
+  - **RED:** A published trigger can target only an intent or an agent target weakens existing intent target validation and recursion rules.
+  - **GREEN:** Versioned target kind AGENT_RUN binds schedule, exact agent version, sponsor, purpose, budget and destination while legacy intent targets retain their semantics.
+  - **REFACTOR:** Keep occurrence and calendar calculation in Scheduling and agent inference in Agent.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [schedule engine](../internal/engines/schedule/schedule.go).
+
+- [ ] `AGENT-030` **[PHASE_2][SOL_HIGH] Publish and control agent schedules with occurrence preview.**
+  - **Depends:** `AGENT-009`, `AGENT-011`, `AGENT-029`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TRIGGERS,BI.INTELLIGENCE; DIRECT=none; WHY=let owners schedule reviewed agents with explicit timezone, destination, and catch-up rules`.
+  - **TEST:** `TestTodo_AGENT_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_030`; `PROPERTY=TestTodo_AGENT_030_Property`; `BROWSER=TestTodo_AGENT_030_Browser`; `SECURITY=TestTodo_AGENT_030_Security`; `GOLDEN=TestTodo_AGENT_030_Golden`.
+  - **RED:** A schedule silently follows latest agent version, double-fires at DST, posts to an unapproved channel, or run-now bypasses pause.
+  - **GREEN:** Owner drafts and previews recurrence, timezone/calendar, DST/misfire/overlap, pinned version, recipient grant and budget; reviewer publishes and controls pause, skip, resume, and dry-run.
+  - **REFACTOR:** Reuse Scheduling rules and make every management action revisioned and auditable.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [schedule engine](../internal/engines/schedule/schedule.go).
+
+- [ ] `AGENT-031` **[PHASE_2][SOL_HIGH] Dispatch scheduled firings into the agent inbox without duplicate runs.**
+  - **Depends:** `AGENT-029`, `AGENT-030`, `AGENT-016`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TRIGGERS,BI.INTELLIGENCE; DIRECT=none; WHY=bridge separate Scheduling and Agent databases through replayable receipts`.
+  - **TEST:** `TestTodo_AGENT_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_031`; `RACE=TestTodo_AGENT_031_Race`; `FAULT=TestTodo_AGENT_031_Fault`; `RECOVERY=TestTodo_AGENT_031_Recovery`.
+  - **RED:** Crash between firing and inbox loses a due run, replay creates a second post, or revocation after enqueue still executes a tool.
+  - **GREEN:** Schedule outbox and agent dedupe inbox reconcile at least once delivery by tenant/schedule/revision/occurrence/version key; current grants and pause recheck before work.
+  - **REFACTOR:** Do not create a distributed transaction or a BusinessIntent for read-only agent inference.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [schedule engine](../internal/engines/schedule/dispatch.go).
+
+- [ ] `AGENT-032` **[PHASE_2][SOL_HIGH] Admit governed domain-event agent subscriptions.**
+  - **Depends:** `AGENT-015`, `AGENT-016`, `SCHED-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TRIGGERS,BI.INTELLIGENCE; DIRECT=none; WHY=trigger agents from authorized business events without unrestricted event-bus access`.
+  - **TEST:** `TestTodo_AGENT_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_032`; `SECURITY=TestTodo_AGENT_032_Security`; `FAULT=TestTodo_AGENT_032_Fault`; `INTEGRATION=TestTodo_AGENT_032_Integration`; `GOLDEN=TestTodo_AGENT_032_Golden`.
+  - **RED:** An event payload contains forbidden fields, duplicate events cause two runs, or an agent event recursively retriggers itself.
+  - **GREEN:** Published event classes expose audience-filtered projections with subscription version, debounce, dedupe, cause depth, budget and revocation.
+  - **REFACTOR:** Use one run admission path and source-owner event projections.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [schedule engine](../internal/engines/schedule/schedule.go).
+
+- [ ] `AGENT-033` **[GATE_C][SOL_HIGH] Invoke an agent as a workflow CAPABILITY and resume by typed signal.**
+  - **Depends:** `AGENT-016`, `AGENT-025`, `WF-EXT-005`, `WF-EXT-014`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.INTELLIGENCE; DIRECT=none; WHY=let deterministic workflows request bounded agent analysis without holding worker leases`.
+  - **TEST:** `TestTodo_AGENT_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_033`; `INTEGRATION=TestTodo_AGENT_033_Integration`; `FAULT=TestTodo_AGENT_033_Fault`; `RECOVERY=TestTodo_AGENT_033_Recovery`.
+  - **RED:** A slow model holds a workflow lease, fabricated output completes a node, or worker death strands a signal wait.
+  - **GREEN:** agents.invoke returns a run ID; workflow waits on correlated durable signal or timeout, validates typed output, and follows explicit success, refusal, failure, or cancellation branches.
+  - **REFACTOR:** Represent agent invocation as a registered CAPABILITY, never a new workflow node type.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [workflow runtime](specs/workflow-runtime.md).
+
+- [ ] `AGENT-034` **[GATE_C][SOL_HIGH] Let agents request governed workflow starts and inspect outcomes.**
+  - **Depends:** `AGENT-025`, `WF-RUN-023`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.INTELLIGENCE; DIRECT=none; WHY=allow agents to hand a validated draft to Workflow without inventing approval or completion`.
+  - **TEST:** `TestTodo_AGENT_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_034`; `INTEGRATION=TestTodo_AGENT_034_Integration`; `SECURITY=TestTodo_AGENT_034_Security`; `FAULT=TestTodo_AGENT_034_Fault`.
+  - **RED:** Agent text starts a workflow directly, reports a post as execution, or recursively starts a workflow that invokes the same agent.
+  - **GREEN:** Typed start capability submits an already admitted intent/proposal through current authorization and approval, returns durable workflow ID, and enforces allowed-edge and cause-depth limits; new agent-authored HCM drafts wait for `AGENT-035`.
+  - **REFACTOR:** Keep Workflow owner authoritative for state, timers, approval, and repair.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [workflow runtime](specs/workflow-runtime.md).
+
+- [ ] `AGENT-035` **[GATE_C][SOL_HIGH] Connect agent action compilation to the served BusinessIntent catalog.**
+  - **Depends:** `AGENT-005`, `AGENT-025`, `INTENT-012`, `INTENT-014`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORK; DIRECT=none; WHY=replace the private draft-definition stand-in with actual discoverable governed intents`.
+  - **TEST:** `TestTodo_AGENT_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_035`; `INTEGRATION=TestTodo_AGENT_035_Integration`; `SECURITY=TestTodo_AGENT_035_Security`; `MUTATION=TestTodo_AGENT_035_Mutation`.
+  - **RED:** Private compiler definition disagrees with served schema, capability refs, risk class, approval or side-effect profile yet an agent draft is accepted.
+  - **GREEN:** Agent compiler resolves exact served IntentDefinition version and validates arguments, governance, subject, scope and digest; a mismatch yields zero draft and zero effect.
+  - **REFACTOR:** Use the existing catalog and owner validators rather than copying definition metadata into agent code.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [BusinessIntent](specs/business-intent-and-change-request.md).
+
+- [ ] `AGENT-036` **[GATE_C][SOL_HIGH] Carry exact approved agent HCM actions through execution and observation.**
+  - **Depends:** `AGENT-035`, `AGENT-026`, `CHAT-045`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORK; DIRECT=none; WHY=execute only an approved agent-proposed HCM intent through the normal deterministic path`.
+  - **TEST:** `TestTodo_AGENT_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_036`; `INTEGRATION=TestTodo_AGENT_036_Integration`; `SECURITY=TestTodo_AGENT_036_Security`; `RACE=TestTodo_AGENT_036_Race`; `MUTATION=TestTodo_AGENT_036_Mutation`.
+  - **RED:** Chat reaction acts as approval, changed proposal digest executes, retry duplicates an effect, or agent reports success before observation.
+  - **GREEN:** Authorized approver accepts exact proposal; current grants and approval recheck at effect boundary; retries are idempotent and agent reports durable draft, approval, execution, observation or repair state.
+  - **REFACTOR:** Leave approvals, HCM writes, ledger, and reconciliation with BusinessIntent and Workflow.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [BusinessIntent](specs/business-intent-and-change-request.md).
+
+### Operations, extension, and release proof
+
+- [ ] `AGENT-037` **[GATE_C][SOL_HIGH] Gate cross-company agent installation and output by bilateral policy.**
+  - **Depends:** `AGENT-014`, `AGENT-026`, `CHAT-051`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=keep a shared-channel agent inside each participating company's processing and disclosure grant`.
+  - **TEST:** `TestTodo_AGENT_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_037`; `SECURITY=TestTodo_AGENT_037_Security`; `INTEGRATION=TestTodo_AGENT_037_Integration`; `MUTATION=TestTodo_AGENT_037_Mutation`; `GOLDEN=TestTodo_AGENT_037_Golden`.
+  - **RED:** Host agent inherits guest HCM rights, a new external member sees old private output, or one company installs an agent unilaterally.
+  - **GREEN:** Host and home approvals intersect per agent version, installation, purpose, region, retention and egress; membership or grant change suspends unsafe delivery before the next reply.
+  - **REFACTOR:** Reuse chat share grants and current audience checks without cross-tenant database joins.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
+
+- [ ] `AGENT-038` **[GATE_C][SOL_HIGH] Isolate agent queues, pools, provider quotas, and hierarchical budgets.**
+  - **Depends:** `AGENT-015`, `AGENT-016`, `CHAT-046`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=prevent model-bound and autonomous work from starving chat, workflow, or other tenants`.
+  - **TEST:** `TestTodo_AGENT_038`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_038`; `BENCHMARK=BenchmarkTodo_AGENT_038_Benchmark`; `FAULT=TestTodo_AGENT_038_Fault`; `RACE=TestTodo_AGENT_038_Race`; `INTEGRATION=TestTodo_AGENT_038_Integration`.
+  - **RED:** One tenant's trigger burst consumes workflow pool slots, interactive agent requests starve behind bulk work, or token spend exceeds reservation.
+  - **GREEN:** Tenant/cell and workload lanes apply fair admission, bounded concurrency, provider quota, token/tool reservation and shedding; mixed-load metrics preserve signed chat/workflow SLOs.
+  - **REFACTOR:** Keep resource admission separate from business authorization and provider routing.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [chat isolation](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `AGENT-039` **[GATE_C][SOL_HIGH] Serve evaluation gates and kill switches for published agents.**
+  - **Depends:** `AGENT-004`, `AGENT-009`, `AGENT-016`, `AGENT-020`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=block unsafe versions and stop in-flight agent effects on incidents or policy change`.
+  - **TEST:** `TestTodo_AGENT_039`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_039`; `SECURITY=TestTodo_AGENT_039_Security`; `RACE=TestTodo_AGENT_039_Race`; `CONFORMANCE=TestTodo_AGENT_039_Conformance`; `GOLDEN=TestTodo_AGENT_039_Golden`.
+  - **RED:** A failed fixture publishes, provider swap runs without evaluation, or a kill switch leaves a write-capable lease live.
+  - **GREEN:** Versioned evaluations gate publish and rollout; operator pause/quarantine fences affected runs, tool leases and delivery while deterministic HCM and human chat continue.
+  - **REFACTOR:** Reuse AGENT-004 security primitives as served controls with exact version and incident evidence.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [incident management](specs/incident-management.md).
+
+- [ ] `AGENT-040` **[GATE_C][SOL_HIGH] Govern agent memory, derived caches, retention, and export.**
+  - **Depends:** `AGENT-008`, `AGENT-017`, `AGENT-026`, `CHAT-048`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=make agent-derived material revocable and recordable without treating it as canonical HCM data`.
+  - **TEST:** `TestTodo_AGENT_040`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_040`; `SECURITY=TestTodo_AGENT_040_Security`; `RECOVERY=TestTodo_AGENT_040_Recovery`; `INTEGRATION=TestTodo_AGENT_040_Integration`; `GOLDEN=TestTodo_AGENT_040_Golden`.
+  - **RED:** A revoked document survives in memory/search, held traces are erased, or a tenant export omits agent prompts and tool outcomes.
+  - **GREEN:** Each memory/cache item pins source, audience, purpose, class, TTL and invalidators; retention, hold, export, deletion, and revocation reach raw and derived stores under owner policy.
+  - **REFACTOR:** Keep agent memory as derived state with no independent source authority.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [records](specs/records-management-and-disposition.md).
+
+- [ ] `AGENT-041` **[GATE_C][SOL_HIGH] Expose owner operations, run traces, incidents, and schedule health.**
+  - **Depends:** `AGENT-016`, `AGENT-038`, `AGENT-039`, `AGENT-040`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=let owners explain, pause, and repair agent behavior without broad access to private context`.
+  - **TEST:** `TestTodo_AGENT_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_041`; `INTEGRATION=TestTodo_AGENT_041_Integration`; `SECURITY=TestTodo_AGENT_041_Security`; `BROWSER=TestTodo_AGENT_041_Browser`.
+  - **RED:** Owner cannot identify failed runs or spend, or dashboard reveals another tenant's private prompt and source content.
+  - **GREEN:** Scoped dashboard shows version, installations, schedules, causes, queue lag, spend, tool denials, citations, failures, evals, and authorized pause/quarantine with correlated incident evidence.
+  - **REFACTOR:** Project redacted operational projections from durable run records instead of logging prompts into general telemetry.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [observability](specs/structured-logging-and-opentelemetry.md).
+
+- [ ] `AGENT-042` **[PHASE_2][SOL_HIGH] Publish canonical agent RPCs and integration HTTP parity.**
+  - **Depends:** `AGENT-009`, `AGENT-015`, `AGENT-030`, `INTAPI-007`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.INTEGRATION; DIRECT=none; WHY=expose creation, installation, schedule, invocation, and run controls through one authorized contract`.
+  - **TEST:** `TestTodo_AGENT_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_042`; `CONFORMANCE=TestTodo_AGENT_042_Conformance`; `SECURITY=TestTodo_AGENT_042_Security`; `INTEGRATION=TestTodo_AGENT_042_Integration`.
+  - **RED:** HTTP can widen grants or run a raw prompt unavailable to RPC, and stale mutations overwrite versions.
+  - **GREEN:** Generated Protobuf/gRPC and versioned HTTP projection share capability/AuthZ decisions, expected revisions, idempotency, cursor streams, rate limits, and typed errors.
+  - **REFACTOR:** Keep transport thin and reject unrestricted provider or tool endpoints.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [endpoint contract](specs/http-grpc-endpoint-contract.md).
+
+- [ ] `AGENT-043` **[PHASE_2][SOL_HIGH] Make agent creation, schedules, and chat controls accessible and localized.**
+  - **Depends:** `AGENT-012`, `AGENT-030`, `AGENT-042`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=let employees and owners operate agents across supported language, keyboard, and assistive modes`.
+  - **TEST:** `TestTodo_AGENT_043`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_043`; `BROWSER=TestTodo_AGENT_043_Browser`; `CONFORMANCE=TestTodo_AGENT_043_Conformance`; `SECURITY=TestTodo_AGENT_043_Security`.
+  - **RED:** Agent identity or disclosure scope is hidden at narrow width, keyboard users cannot pause a schedule, or translated labels alter policy choices.
+  - **GREEN:** Agent Studio, schedule preview, chat identity, status, consent, and run errors pass keyboard, focus, zoom, contrast, locale and RTL fixtures with unchanged authority semantics.
+  - **REFACTOR:** Reuse shared components and canonical UI state rather than provider-branded controls.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [experience UI](specs/experience-ui-and-branding.md).
+
+- [ ] `AGENT-044` **[GATE_C][SOL_HIGH] Roll out agent versions and installations without silent scope expansion.**
+  - **Depends:** `AGENT-014`, `AGENT-039`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=upgrade many installed agents safely while preserving independent grants and rollback`.
+  - **TEST:** `TestTodo_AGENT_044`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_044`; `RACE=TestTodo_AGENT_044_Race`; `INTEGRATION=TestTodo_AGENT_044_Integration`; `SECURITY=TestTodo_AGENT_044_Security`; `FAULT=TestTodo_AGENT_044_Fault`; `GOLDEN=TestTodo_AGENT_044_Golden`; `RECOVERY=TestTodo_AGENT_044_Recovery`.
+  - **RED:** Template or version update changes a running installation's tools or triggers without manager review, or rollback resurrects revoked access.
+  - **GREEN:** Previewed staged rollout pins version and compatibility, evaluates affected installations, requires new approval on expansion, canaries and rolls back with current eligibility checks.
+  - **REFACTOR:** Treat desired rollout and actual installation as separate revisioned records.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-045` **[GATE_C][SOL_HIGH] Export and import portable agent definitions without authority.**
+  - **Depends:** `AGENT-007`, `AGENT-009`, `AGENT-010`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.TENANT; DIRECT=none; WHY=let companies reuse agent designs without copying secrets, grants, or private history`.
+  - **TEST:** `TestTodo_AGENT_045`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_045`; `GOLDEN=TestTodo_AGENT_045_Golden`; `SECURITY=TestTodo_AGENT_045_Security`; `CONFORMANCE=TestTodo_AGENT_045_Conformance`.
+  - **RED:** Export contains tenant IDs, credentials, memory or run history, or import silently activates an unavailable capability.
+  - **GREEN:** Portable manifest export strips authority-bearing data; import remaps sources and capabilities to the destination tenant and creates a reviewable draft.
+  - **REFACTOR:** Version one manifest format and keep tenant mapping outside provider prompts.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-046` **[PHASE_2][SOL_HIGH] Restore the agent store and reconcile in-flight runs and firings.**
+  - **Depends:** `AGENT-008`, `AGENT-016`, `AGENT-031`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.TRIGGERS; DIRECT=none; WHY=restore agent state independently and resume without duplicate scheduled posts or HCM effects`.
+  - **TEST:** `TestTodo_AGENT_046`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_046`; `RECOVERY=TestTodo_AGENT_046_Recovery`; `FAULT=TestTodo_AGENT_046_Fault`; `SECURITY=TestTodo_AGENT_046_Security`.
+  - **RED:** Restore loses an acknowledged run, replays a write tool, advances a firing twice, or mixes tenant data after cell move.
+  - **GREEN:** Backup and restore recover definitions, schedules, run checkpoints, inbox/outbox and idempotency; replay reconciles owner effects and meets declared RPO/RTO without workflow DB restore.
+  - **REFACTOR:** Use source-owner receipts and fencing rather than blind replay of model/tool steps.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [chat isolation](specs/chat-core-routing-and-isolation.md).
+
+- [ ] `AGENT-047` **[PHASE_2][SOL_HIGH] Prove the first company-agent journey end to end.**
+  - **Depends:** `AGENT-027`, `AGENT-028`, `AGENT-031`, `AGENT-033`, `AGENT-036`, `AGENT-039`, `AGENT-042`, `AGENT-043`, `AGENT-046`, `AGENT-048`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.WORK,BI.TRIGGERS; DIRECT=none; WHY=prove one business can create, schedule, chat with, and govern an agent through an approved workflow`.
+  - **TEST:** `TestTodo_AGENT_047`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_047`; `INTEGRATION=TestTodo_AGENT_047_Integration`; `SECURITY=TestTodo_AGENT_047_Security`; `BROWSER=TestTodo_AGENT_047_Browser`; `RECOVERY=TestTodo_AGENT_047_Recovery`; `CONFORMANCE=TestTodo_AGENT_047_Conformance`.
+  - **RED:** Pilot can only demo a mocked agent or cannot explain one tool call, schedule firing, approval, failure, or agent impact on human chat/workflow.
+  - **GREEN:** Served design-partner fixture uses the selected provider from `AGENT-021`–`AGENT-023`, creates and publishes an agent, installs it, answers a cited DM, posts one scheduled digest, participates autonomously, invokes a workflow, carries one exact approved HCM action, and survives restart/revocation.
+  - **REFACTOR:** Keep the journey as a black-box conformance harness over public RPCs and observed owner state.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md), [workflow runtime](specs/workflow-runtime.md).
+
+- [ ] `AGENT-048` **[PHASE_2][SOL_HIGH] Benchmark small and pooled-tenant agent capacity without workflow regression.**
+  - **Depends:** `AGENT-028`, `AGENT-031`, `AGENT-038`, `CHAT-046`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=qualify agent scale and economics across tiny, seasonal, noisy, and shared tenants`.
+  - **TEST:** `TestTodo_AGENT_048`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_048`; `BENCHMARK=BenchmarkTodo_AGENT_048_Benchmark`; `FAULT=TestTodo_AGENT_048_Fault`; `CONFORMANCE=TestTodo_AGENT_048_Conformance`.
+  - **RED:** A single 1000-employee test is called scalable while noisy tenant, provider quota, bulk rollout or scheduled burst delays workflow timers or chat sends.
+  - **GREEN:** Signed workload matrix records latency percentiles, queue age, fair admission, cost, pool wait, timer lateness and scale-out/move thresholds for tiny, peak, pooled and dedicated profiles.
+  - **REFACTOR:** Measure and shed optional inference before increasing workflow or chat critical-path capacity.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [SLO contract](specs/slo-sli-error-budget.md).
+
+- [ ] `AGENT-049` **[PHASE_4][SOL_HIGH] Extend agent task skills into ordinary project boards.**
+  - **Depends:** `AGENT-025`, `AGENT-018`, `PM-067`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.INTELLIGENCE; DIRECT=none; WHY=let project agents propose scoped ordinary task changes without confusing them with HCM work`.
+  - **TEST:** `TestTodo_AGENT_049`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_049`; `INTEGRATION=TestTodo_AGENT_049_Integration`; `SECURITY=TestTodo_AGENT_049_Security`; `CONFORMANCE=TestTodo_AGENT_049_Conformance`.
+  - **RED:** An agent edits a project task outside its grant, bypasses revision checks, or treats task completion as an HCM WorkItem effect.
+  - **GREEN:** Project capability returns current task scope and revision; agent drafts or commits eligible task changes under project policy with clear separation from BusinessIntent.
+  - **REFACTOR:** Keep project data, task revisions, and search with the Project owner.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `AGENT-050` **[PHASE_4][SOL_HIGH] Admit bounded specialist-agent delegation with inherited authority.**
+  - **Depends:** `AGENT-011`, `AGENT-015`, `AGENT-039`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=allow later specialist agents to cooperate without expanding scope or creating loops`.
+  - **TEST:** `TestTodo_AGENT_050`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_050`; `SECURITY=TestTodo_AGENT_050_Security`; `RACE=TestTodo_AGENT_050_Race`; `CONFORMANCE=TestTodo_AGENT_050_Conformance`; `GOLDEN=TestTodo_AGENT_050_Golden`.
+  - **RED:** A delegate gains a tool or source the parent lacked, recurses indefinitely, or hides cost and attribution across the chain.
+  - **GREEN:** Typed delegation carries purpose, inherited narrow grant, depth, budget, deadline and trace; child results return through validated output and both runs remain explainable.
+  - **REFACTOR:** Reuse the common run request and tool gateway rather than agent-to-agent chat as a hidden execution channel.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+- [ ] `AGENT-051` **[PHASE_4][SOL_HIGH] Suggest and refine agent drafts with AI under the manual publication contract.**
+  - **Depends:** `AGENT-012`, `AGENT-024`, `AGENT-039`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=help a business translate its stated job into a reviewable agent configuration without letting AI publish grants`.
+  - **TEST:** `TestTodo_AGENT_051`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_051`; `BROWSER=TestTodo_AGENT_051_Browser`; `SECURITY=TestTodo_AGENT_051_Security`; `CONFORMANCE=TestTodo_AGENT_051_Conformance`.
+  - **RED:** A suggested prompt or tool list becomes an active grant, hides a scope expansion, or overwrites manual edits without revision evidence.
+  - **GREEN:** AI proposes a diff to a tenant draft with reasons and uncertainty; owner accepts selected changes and the ordinary validator, evaluation, reviewer, and immutable publication path still apply.
+  - **REFACTOR:** Reuse Agent Studio draft/version APIs; keep generated prose outside executable authority.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).

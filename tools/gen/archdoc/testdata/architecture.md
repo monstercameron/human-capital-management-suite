@@ -3,16 +3,16 @@
 Generated from the checked-in architecture manifests and the current Go package tree.
 
 - Module: `github.com/monstercameron/human-capital-management-suite`
-- Source graph: f17174653e531eea9ec7bb0bab5571788d9f483ce81f4c76fe14d85cea62a8f6
-- Package count: 883
-- Within-module edge count: 2316
+- Source graph: c6e0b4f9f1d924c907e4b1858939ac4855e80c841f8ebd2430115b5a5fb87249
+- Package count: 923
+- Within-module edge count: 2467
 - Source manifests: `definitions/architecture/repository-layout.yaml`, `definitions/architecture/package-dependency-policy.yaml`, `definitions/architecture/dependency-roles.yaml`
 
 ## Declared layers and roots
 
 | Layer | Declared root | Owner | Phase | Purpose |
 | --- | --- | --- | --- | --- |
-| application | `internal/application` | platform-foundation | P1A | Single explicit application composition root (ARCH-GO-020). Builds registries, governance, workflows, engines, domains, ports/adapters and worker roles for one process role from a validated Config value, and exposes the Start/Stop lifecycle cmd/* invokes. |
+| application | `internal/application` | platform-foundation | deferred | Single explicit application composition root (ARCH-GO-020). Builds registries, governance, workflows, engines, domains, ports/adapters and worker roles for one process role from a validated Config value, and exposes the Start/Stop lifecycle cmd/* invokes. |
 | trust | `internal/authn` | governance-and-trust | P1A | Authentication adapters: the tenant federation issuer registry (AUTHN-001) and the federation registry that binds issuers to the internal/trust/federation port. |
 | kernel | `internal/kernel` | platform-foundation | P1A | Identity/reference/revision, temporal, decimal/money, digest and evidence primitives. |
 | intent | `internal/intent` | intent-and-capability | P1A | BusinessIntent definitions, instances, families, lifecycle, proposals/change requests. |
@@ -26,6 +26,7 @@ Generated from the checked-in architecture manifests and the current Go package 
 | data | `internal/data` | data-and-ledger | P1A | Repositories, projections, outbox and other serving/distribution stores (port/adapter). |
 | transport | `internal/humanwork` | experience-and-transport | P1A | Production Go/WASM user interface (workspace shell, productui pages and components, uicomponents); the served surface in the README "Review the production frontend" section. |
 | connectivity | `internal/connectivity` | connectivity | P1A | System integration connectors, APIs, webhooks, files, government gateways. |
+| transport | `internal/collaboration` | experience-and-transport | P1A | Native chat collaboration contracts and policy adapters. Chat is a GateC capability and remains deferred from the current release inventory even when shared composition code can reach its contracts. The root is separate from internal/transport and internal/humanwork so chat semantics remain bounded while protocol and UI adapters stay in their owning roots. |
 | trust | `internal/trust` | governance-and-trust | P1A | Identity/session/federation/workload-identity primitives. |
 | operations | `internal/operations` | operations-and-assurance | P1A | Telemetry, SLOs, reconciliation, incidents, integrity, DR overlays. |
 | platform | `internal/platform` | platform-foundation | P1A | Process bootstrap, build identity, config, telemetry and reliability plumbing shared by commands. |
@@ -66,9 +67,12 @@ Ranked layers may depend on the same layer or a lower-ranked layer. Port package
 | domains | kernel, engines, domains | `internal/transaction`, `internal/ledger`, `internal/data` |
 | capabilities | kernel, engines, domains, capabilities | `internal/transaction`, `internal/ledger`, `internal/data` |
 | workflow | kernel, engines, domains, capabilities, workflow | `internal/transaction`, `internal/ledger`, `internal/data` |
-| transport | kernel, engines, domains, capabilities, workflow, transport | none |
+| platform | kernel, engines, domains, capabilities, workflow, platform, humanwork, transport | none |
+| humanwork | kernel, engines, domains, capabilities, workflow, platform, humanwork, transport | none |
+| transport | kernel, engines, domains, capabilities, workflow, platform, humanwork, transport | none |
+| application | kernel, engines, domains, capabilities, workflow, platform, humanwork, transport, application | none |
 
-Forbidden edge rules are evaluated by `tools/policy/depedge`: `kernel-must-not-import-upward`, `engine-must-not-import-domain-implementation`, `workflow-must-not-import-domain-persistence`, `transport-must-not-import-store`, `business-must-not-import-concrete-adapter`.
+Forbidden edge rules are evaluated by `tools/policy/depedge`: `kernel-must-not-import-upward`, `engine-must-not-import-domain-implementation`, `workflow-must-not-import-domain-persistence`, `transport-must-not-import-store`, `business-must-not-import-concrete-adapter`, `layer-must-not-import-upward`.
 
 ## Library firewall roots
 
@@ -81,7 +85,7 @@ Third-party modules are admitted only at the owning roots declared by `dependenc
 | `go.opentelemetry.io/` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/transport/otelmw`, `internal/connectivity/providertelemetry` |
 | `github.com/cockroachdb/apd/v3` | INFRASTRUCTURE_MECHANIC | `internal/kernel` |
 | `github.com/fergusstrange/embedded-postgres` | DEV_TEST_ONLY | `test`, `tools`, `internal/data/pgtest` |
-| `github.com/google/uuid` | INFRASTRUCTURE_MECHANIC | `internal/kernel`, `internal/intent`, `internal/ledger`, `internal/data`, `internal/connectivity`, `internal/transaction`, `internal/humanwork`, `internal/workflow`, `internal/operations/explorer`, `internal/resource`, `internal/operations/reconcile`, `internal/engines/wire/digest`, `internal/application`, `internal/domains/leave`, `internal/domains/promotion`, `internal/platform/devclock`, `internal/platform/execution`, `internal/transport`, `tools/uxqual/journeyclient`, `cmd`, `test` |
+| `github.com/google/uuid` | INFRASTRUCTURE_MECHANIC | `internal/kernel`, `internal/intent`, `internal/ledger`, `internal/data`, `internal/connectivity`, `internal/transaction`, `internal/humanwork`, `internal/workflow`, `internal/operations/explorer`, `internal/resource`, `internal/operations/reconcile`, `internal/engines/wire/digest`, `internal/application`, `internal/domains/leave`, `internal/domains/promotion`, `internal/platform/devclock`, `internal/platform/execution`, `internal/transport`, `internal/collaboration/chat`, `internal/collaboration/chatroutingadapter`, `tools/uxqual/journeyclient`, `cmd`, `test` |
 | `github.com/jackc/pgx/v5` | INFRASTRUCTURE_MECHANIC | `internal/data`, `internal/ledger`, `migrations`, `internal/platform/bootstrap`, `cmd/hcmnext`, `cmd/migrate` |
 | `github.com/lib/pq` | INFRASTRUCTURE_MECHANIC | `internal/data`, `internal/ledger`, `migrations` |
 | `github.com/pressly/goose/v3` | INFRASTRUCTURE_MECHANIC | `migrations`, `cmd`, `internal/data/pgtest`, `internal/data/schema` |
@@ -96,7 +100,7 @@ Third-party modules are admitted only at the owning roots declared by `dependenc
 | `google.golang.org/genproto/googleapis/rpc` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `gen` |
 | `connectrpc.com/connect` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `cmd` |
 | `github.com/monstercameron/GoGRPCBridge` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `cmd`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/productclient` |
-| `github.com/monstercameron/GoWebComponents/v5` | INFRASTRUCTURE_MECHANIC | `tools/uxqual`, `internal/humanwork/productui`, `internal/humanwork/uicomponents`, `internal/humanwork/workspace` |
+| `github.com/monstercameron/GoWebComponents/v5` | INFRASTRUCTURE_MECHANIC | `tools/uxqual`, `internal/humanwork/productui`, `internal/humanwork/uicomponents`, `internal/humanwork/workspace`, `internal/humanwork/chatui` |
 | `github.com/monstercameron/schemaflux` | DEV_TEST_ONLY | `tools/gen` |
 | `go.opentelemetry.io/otel/sdk/metric` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/transport/otelmw` |
 | `go.opentelemetry.io/otel` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel`, `internal/transport/otelmw`, `internal/connectivity/providertelemetry` |
@@ -106,9 +110,9 @@ Third-party modules are admitted only at the owning roots declared by `dependenc
 | `go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel` |
 | `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel` |
 | `go.opentelemetry.io/otel/exporters/stdout/stdouttrace` | INFRASTRUCTURE_MECHANIC | `internal/platform/telemetry/otel` |
-| `google.golang.org/grpc` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `gen`, `tools/gen`, `cmd`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/productclient` |
+| `google.golang.org/grpc` | INFRASTRUCTURE_MECHANIC | `internal/transport`, `gen`, `schema/proto/gen`, `tools/gen`, `cmd`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/productclient` |
 | `google.golang.org/grpc/cmd/protoc-gen-go-grpc` | DEV_TEST_ONLY | `tools` |
-| `google.golang.org/protobuf` | INFRASTRUCTURE_MECHANIC | `gen`, `internal/transport`, `internal/intent/protomap`, `internal/engines/wire`, `tools/gen`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/productclient`, `tools/quality/bufprotovalidatekit` |
+| `google.golang.org/protobuf` | INFRASTRUCTURE_MECHANIC | `gen`, `schema/proto/gen`, `internal/transport`, `internal/intent/protomap`, `internal/engines/wire`, `tools/gen`, `tools/uxqual/journeyclient`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/productclient`, `tools/quality/bufprotovalidatekit` |
 | `gopkg.in/yaml.v3` | INFRASTRUCTURE_MECHANIC | `tools`, `internal/data/tenancy/storagedisposition`, `internal/platform/telemetry`, `internal/transport/eastwest` |
 | `honnef.co/go/tools` | DEV_TEST_ONLY | `tools` |
 
@@ -153,7 +157,21 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/authn/outage`
 - `github.com/monstercameron/human-capital-management-suite/internal/authn/subjectlink`
 - `github.com/monstercameron/human-capital-management-suite/internal/capability`
+- `github.com/monstercameron/human-capital-management-suite/internal/capability/authority`
 - `github.com/monstercameron/human-capital-management-suite/internal/capability/binding`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatadmission`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatapps`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatcalls`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatmedia`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicyadapter`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecipient`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecords`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatreferences`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatroutingadapter`
+- `github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatstream`
 - `github.com/monstercameron/human-capital-management-suite/internal/commercial`
 - `github.com/monstercameron/human-capital-management-suite/internal/configuration`
 - `github.com/monstercameron/human-capital-management-suite/internal/conformance/selectedjurisdiction`
@@ -218,6 +236,11 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/data/budgetstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/careerstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/cbastore`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/chatappstore`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/chatauthority`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/chatrecordstore`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/chatroutestore`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/chatstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/commercialstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/compfacts`
@@ -230,6 +253,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/data/customstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/dbport`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce`
+- `github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/documentmeta`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/employeerelationsstore`
 - `github.com/monstercameron/human-capital-management-suite/internal/data/equitystore`
@@ -452,6 +476,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/engines/transformation/version`
 - `github.com/monstercameron/human-capital-management-suite/internal/engines/wire/canonical`
 - `github.com/monstercameron/human-capital-management-suite/internal/engines/wire/digest`
+- `github.com/monstercameron/human-capital-management-suite/internal/engines/workreview`
 - `github.com/monstercameron/human-capital-management-suite/internal/evidence`
 - `github.com/monstercameron/human-capital-management-suite/internal/experience/adoption`
 - `github.com/monstercameron/human-capital-management-suite/internal/experience/channelparity`
@@ -505,6 +530,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/governance/revalidate`
 - `github.com/monstercameron/human-capital-management-suite/internal/humanwork`
 - `github.com/monstercameron/human-capital-management-suite/internal/humanwork/approverclass`
+- `github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui`
 - `github.com/monstercameron/human-capital-management-suite/internal/humanwork/formcontinuity`
 - `github.com/monstercameron/human-capital-management-suite/internal/humanwork/formdraft`
 - `github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation`
@@ -607,8 +633,10 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/testexport`
 - `github.com/monstercameron/human-capital-management-suite/internal/platform/timeauth`
 - `github.com/monstercameron/human-capital-management-suite/internal/platform/topology`
+- `github.com/monstercameron/human-capital-management-suite/internal/platform/upgradejournal`
 - `github.com/monstercameron/human-capital-management-suite/internal/platform/versionexplain`
 - `github.com/monstercameron/human-capital-management-suite/internal/platform/workload`
+- `github.com/monstercameron/human-capital-management-suite/internal/privacy/payloadvault`
 - `github.com/monstercameron/human-capital-management-suite/internal/replan`
 - `github.com/monstercameron/human-capital-management-suite/internal/resource/reservation`
 - `github.com/monstercameron/human-capital-management-suite/internal/store/object`
@@ -627,6 +655,9 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/transport/admin`
 - `github.com/monstercameron/human-capital-management-suite/internal/transport/admin/hcmctl`
 - `github.com/monstercameron/human-capital-management-suite/internal/transport/cell`
+- `github.com/monstercameron/human-capital-management-suite/internal/transport/chat`
+- `github.com/monstercameron/human-capital-management-suite/internal/transport/chatextensions`
+- `github.com/monstercameron/human-capital-management-suite/internal/transport/chatmedia`
 - `github.com/monstercameron/human-capital-management-suite/internal/transport/clients`
 - `github.com/monstercameron/human-capital-management-suite/internal/transport/conformance`
 - `github.com/monstercameron/human-capital-management-suite/internal/transport/eastwest`
@@ -682,6 +713,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/benefits`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/builders`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/bulkack`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/edges`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/hrcase`
@@ -703,8 +735,10 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/designerpalette`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/draftcompile`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/execute`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/capabilityrunner`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/hireexec`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/inspect`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/intervention`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/lease`
@@ -712,6 +746,7 @@ Semantic package roots. Every second-level directory name must be a declared roo
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/migrate/artifacts`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/migrationpreview`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/modeling`
+- `github.com/monstercameron/human-capital-management-suite/internal/workflow/notifyplan`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/observe`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/observe/observetest`
 - `github.com/monstercameron/human-capital-management-suite/internal/workflow/parallel`
@@ -748,6 +783,7 @@ Cross-package conformance, integration and browser test suites that do not belon
 
 - `github.com/monstercameron/human-capital-management-suite/test/acceptance`
 - `github.com/monstercameron/human-capital-management-suite/test/bootstrap`
+- `github.com/monstercameron/human-capital-management-suite/test/chat`
 - `github.com/monstercameron/human-capital-management-suite/test/edge`
 - `github.com/monstercameron/human-capital-management-suite/test/serve`
 - `github.com/monstercameron/human-capital-management-suite/test/tenant`
@@ -803,6 +839,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/atomicity`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/authoritygate`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/boundarytests`
+- `github.com/monstercameron/human-capital-management-suite/tools/planning/chatdelivery`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/closurewitness`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/closurewitness`
 - `github.com/monstercameron/human-capital-management-suite/tools/planning/cmd/convergence`
@@ -893,6 +930,8 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/archrules`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/cleancheckout`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/cleancheckout/cmd/cleancheckout`
+- `github.com/monstercameron/human-capital-management-suite/tools/policy/clockinject`
+- `github.com/monstercameron/human-capital-management-suite/tools/policy/clockinject/cmd/clockinject`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/crosscut`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/defaultactivation`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/defaultproduct`
@@ -912,6 +951,8 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/enginecoverage`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/enginecoverage/cmd/enginecoverage`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/engineownership`
+- `github.com/monstercameron/human-capital-management-suite/tools/policy/errlint`
+- `github.com/monstercameron/human-capital-management-suite/tools/policy/errlint/cmd/errlint`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/fkindex`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/garbagedrawer`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/gensources`
@@ -924,6 +965,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/invocationpath`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/layout`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/libfirewall`
+- `github.com/monstercameron/human-capital-management-suite/tools/policy/libfirewall/cmd/libfirewall`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/libqualification`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/migrationci`
 - `github.com/monstercameron/human-capital-management-suite/tools/policy/migrationci/cmd/migrationci`
@@ -989,6 +1031,7 @@ Developer and CI tooling. Excluded from the release image; internal structure is
 - `github.com/monstercameron/human-capital-management-suite/tools/quality/storagearch`
 - `github.com/monstercameron/human-capital-management-suite/tools/quality/synctestkit`
 - `github.com/monstercameron/human-capital-management-suite/tools/quality/testcontainerskit`
+- `github.com/monstercameron/human-capital-management-suite/tools/quality/testhygiene`
 - `github.com/monstercameron/human-capital-management-suite/tools/quality/thintransport`
 - `github.com/monstercameron/human-capital-management-suite/tools/quality/toolinventory`
 - `github.com/monstercameron/human-capital-management-suite/tools/quality/toxiproxykit`
@@ -1027,6 +1070,7 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 - `github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1`
 - `github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/capabilities/v1`
+- `github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1`
 - `github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1`
 - `github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/dataops/v1`
 - `github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/evidence/v1`
@@ -1041,4 +1085,4 @@ Generated Protobuf/Go artifacts. Content is owned by the generator (TOOL-002/TOO
 
 ## Document digest
 
-`889bbfb0799305a7c378a0fba99fbabe022b084cdbf1355e0ade7065db55f9ef`
+`a7c2de6aead18e936f6755eb28544278fd050ce848129e9d35f45ce6f274692e`

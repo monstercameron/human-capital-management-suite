@@ -3,7 +3,10 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/tools/planning/todoregistry"
 )
 
 // TestTDDContractCommandAdapterSyntheticGreen proves plancheck wires GOV-017
@@ -36,6 +39,106 @@ func TestTDDContractCommandAdapterLiveCorpusRemainsNonGreen(t *testing.T) {
 	root := repositoryRoot(t)
 	if err := runTDDContract(root); err == nil {
 		t.Fatalf("runTDDContract(%s) unexpectedly accepted the live corpus", root)
+	}
+}
+
+// TestTraceabilityCommandAdapterTickedGaps proves plancheck wires REV-103-02
+// to the build-facing command rather than only compiling the library: a
+// ticked todo whose TEST has no function fails runTraceability, while a
+// corpus with no ticked todos returns cleanly.
+func TestTraceabilityCommandAdapterTickedGaps(t *testing.T) {
+	const body = "  - **Depends:** none.\n" +
+		"  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=fixture`.\n" +
+		"  - **TEST:** `TestFixture`.\n" +
+		"  - **TEST MATRIX:** `PRIMARY=TestFixture`.\n" +
+		"  - **RED:** returns a typed error for the seeded defect.\n" +
+		"  - **GREEN:** returns the exact accepted state.\n" +
+		"  - **REFACTOR:** preserves the oracle and rerun scope.\n" +
+		"  - **Refs:** [fixture](fixture.md).\n"
+
+	writeTodos := func(t *testing.T, markdown string) string {
+		t.Helper()
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, "planning"), 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "planning", "todos.md"), []byte(markdown), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		return root
+	}
+
+	// No _test.go files under the synthetic root, so TestFixture cannot
+	// resolve: the ticked todo must fail the command.
+	ticked := "- [x] `FIXTURE-001` **[P0][LUNA] ticked fixture.**\n" + body +
+		"  - **Evidence (2026-09-21):** `TestFixture` in `pkg/x`; `go test -count=1 ./pkg/x/` PASS.\n"
+	if err := runTraceability(writeTodos(t, ticked)); err == nil {
+		t.Fatalf("runTraceability accepted a ticked todo whose TEST has no function")
+	} else if got := err.Error(); !strings.Contains(got, "ticked todo gap") {
+		t.Fatalf("expected a ticked-todo-gap verdict, got %q", got)
+	}
+
+	// An unticked todo is out of scope for the ticked check and carries no
+	// evidence burden: the command resolves cleanly.
+	unticked := "- [ ] `FIXTURE-002` **[P0][LUNA] unticked fixture.**\n" + body
+	if err := runTraceability(writeTodos(t, unticked)); err != nil {
+		t.Fatalf("runTraceability(synthetic clean): %v", err)
+	}
+}
+
+// TestReachabilityCommandAdapterClosesRuntimeTicks proves plancheck wires
+// REV-103-01 to the build-facing command rather than only compiling the
+// library: a ticked todo naming an unreachable package fails the seam,
+// while the same todo with that package in the closure returns cleanly.
+func TestReachabilityCommandAdapterClosesRuntimeTicks(t *testing.T) {
+	const body = "  - **Depends:** none.\n" +
+		"  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=fixture`.\n" +
+		"  - **TEST:** `TestFixture`.\n" +
+		"  - **TEST MATRIX:** `PRIMARY=TestFixture`.\n" +
+		"  - **RED:** returns a typed error for the seeded defect.\n" +
+		"  - **GREEN:** returns the exact accepted state.\n" +
+		"  - **REFACTOR:** preserves the oracle and rerun scope.\n" +
+		"  - **Refs:** [fixture](fixture.md).\n" +
+		"  - **Evidence (2026-09-21):** `TestFixture` in `internal/domains/leave`; `go test -count=1 ./internal/domains/leave/` PASS.\n"
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "planning"), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	markdown := "- [x] `FIXTURE-001` **[GATE_B][LUNA] ticked fixture.**\n" + body
+	if err := os.WriteFile(filepath.Join(root, "planning", "todos.md"), []byte(markdown), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	var todos []todoregistry.Todo
+	todos, err := readTodos(root)
+	if err != nil {
+		t.Fatalf("readTodos: %v", err)
+	}
+	if len(todos) != 1 || !todos[0].Done {
+		t.Fatalf("expected one ticked todo, got %v", todos)
+	}
+
+	served := map[string]bool{"internal/domains/leave": true}
+	if findings := checkReachabilityTodos(todos, served); len(findings) != 0 {
+		t.Fatalf("checkReachabilityTodos(served) = %v, want clean", findings)
+	}
+	findings := checkReachabilityTodos(todos, map[string]bool{})
+	if len(findings) != 1 {
+		t.Fatalf("checkReachabilityTodos(unserved) = %v, want one finding", findings)
+	}
+	if got := findings[0].String(); !strings.Contains(got, "ticked runtime todo") || !strings.Contains(got, "FIXTURE-001") {
+		t.Fatalf("unexpected finding wording: %q", got)
+	}
+}
+
+// TestReachabilityCommandLiveCorpusRemainsNonGreen ensures the live
+// command exposes existing unreachable ticks instead of silently treating
+// library-only code as served.
+func TestReachabilityCommandLiveCorpusRemainsNonGreen(t *testing.T) {
+	root := repositoryRoot(t)
+	if err := runReachability(root); err == nil {
+		t.Fatalf("runReachability(%s) unexpectedly accepted the live corpus", root)
+	} else if got := err.Error(); !strings.Contains(got, "ticked runtime todo") {
+		t.Fatalf("expected a ticked-runtime-todo verdict, got %q", got)
 	}
 }
 

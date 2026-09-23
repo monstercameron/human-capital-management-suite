@@ -34,7 +34,7 @@
     "test:uxqual-browser": "go run ./tools/uxqual/cmd/genfixtures && playwright test -c tools/uxqual/browser/playwright.config.mjs",
     "test:frontend": "go test -count=1 ./cmd/frontenddev ./internal/humanwork/... ./tools/uxqual/... ./test/workspace",
     "test:go": "cd src/blocks/go && go test ./...",
-    "test:all": "npm run format:check && npm run typecheck && npm run lint && npm run check:code-style && npm run check:go && npm run check:race-policy && npm run check:decomposition && npm run check:driftgate && npm run check:apigate && npm run check:substratecoverage && npm run check:enginecoverage && npm run test && npm run test:go && npm run build",
+    "test:all": "npm run format:check && npm run typecheck && npm run lint && npm run check:code-style && npm run check:go && npm run check:race-policy && npm run check:decomposition && npm run check:driftgate && npm run check:apigate && npm run check:substratecoverage && npm run check:enginecoverage && npm run check:libfirewall && npm run test && npm run test:go && npm run build",
     "db:migrate": "npm --workspace @human-capital-management-suite/data-store run db:migrate",
     "db:seed": "npm --workspace @human-capital-management-suite/data-store run db:seed",
     "prepare": "husky",
@@ -43,6 +43,7 @@
     "check:apigate": "go run ./tools/policy/apigate/cmd/apigate -root .",
     "check:substratecoverage": "go run ./tools/policy/substratecoverage/cmd/substratecoverage -root .",
     "check:enginecoverage": "go run ./tools/policy/enginecoverage/cmd/enginecoverage -root .",
+    "check:libfirewall": "go run ./tools/policy/libfirewall/cmd/libfirewall -root .",
     "check:coverage:staged": "go run ./tools/quality/covergate/cmd/covergate -root . -changed",
     "check:coverage": "go run ./tools/quality/covergate/cmd/covergate -root . -all"
   },

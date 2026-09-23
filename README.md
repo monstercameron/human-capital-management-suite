@@ -523,7 +523,7 @@ this README remains human-authored.
 ```text
 Go product core (github.com/monstercameron/human-capital-management-suite)
 ├── package roots
-│   ├── internal/application [application; P1A; owner=platform-foundation]
+│   ├── internal/application [application; deferred; owner=platform-foundation]
 │   ├── internal/authn [trust; P1A; owner=governance-and-trust]
 │   ├── internal/kernel [kernel; P1A; owner=platform-foundation]
 │   ├── internal/intent [intent; P1A; owner=intent-and-capability]
@@ -537,6 +537,7 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 │   ├── internal/data [data; P1A; owner=data-and-ledger]
 │   ├── internal/humanwork [transport; P1A; owner=experience-and-transport]
 │   ├── internal/connectivity [connectivity; P1A; owner=connectivity]
+│   ├── internal/collaboration [transport; P1A; owner=experience-and-transport]
 │   ├── internal/trust [trust; P1A; owner=governance-and-trust]
 │   ├── internal/operations [operations; P1A; owner=operations-and-assurance]
 │   ├── internal/platform [platform; P1A; owner=platform-foundation]
@@ -808,6 +809,80 @@ $token = go run ./cmd/hcmnext token -tenant=harborcare-demo -subject=local-devel
 ```
 
 The three roles are: `intent_author` to author intents in the workspace, `comp_admin` for administrative capability access, and `promotion_operator` for ExecuteIntent when the cell has `-execution-authority=true`. `-org-scope` is required to create intents: the kernel refuses an intent whose initiator carries no organization scope.
+
+### Chat API for installed agents
+
+The local preview exposes a resource-scoped HTTP API for **public channels,
+private channels, group conversations, and direct conversations**. It is a
+limited agent integration surface; chat-link URLs do not grant API access.
+
+Before calling it, an authorized credential issuer must issue a short-lived
+bearer token whose verified identity is an `Agent` or `Integration` in the
+conversation's tenant. A current conversation manager (or owner) must install
+that app in each conversation and grant the needed scopes. The installation's
+app ID must match the authenticated machine subject. `chat.posts.read` permits
+metadata, post reads, and event pulls; `chat.posts.write` permits posting.
+Current channel policy and tenant checks still apply on every request, and a
+revoked installation loses access. The development `hcmnext token` command can
+mint a short-lived development agent token, but it does not establish an
+installation and is not a production issuer. Production credential issuance
+is not provided here.
+
+The API routes are:
+
+| Method | Route                           | Behavior                                                                                                        |
+| ------ | ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/v1/conversations/{id}`        | Authorized conversation metadata                                                                                |
+| `GET`  | `/v1/conversations/{id}/posts`  | Newest-first posts; `page_size` is 1–100 (default 50), and `cursor` pages older results                         |
+| `POST` | `/v1/conversations/{id}/posts`  | Create a post with `Idempotency-Key` and JSON `{"body":"...","parent_id":"<post-id>"}`; `parent_id` is optional |
+| `GET`  | `/v1/conversations/{id}/events` | Bounded pull of post-created, post-edited, and post-deleted events                                              |
+
+Post writes require both the installation's `chat.posts.write` grant and the
+conversation's current posting policy. Set optional `parent_id` to create a
+threaded reply; the server validates that the live parent belongs to the same
+tenant and conversation. Send a fresh UUID idempotency key for
+each logical post and reuse that same key for retries. Event pulls default to
+up to 50 events and a 1-second wait; `max_events` accepts 1–50 and `wait_ms`
+accepts 1–5000. The first pull omits a cursor. Later pulls pass the opaque
+`resume_cursor` returned by the preceding response. Keep it intact; it is a
+signed, expiring cursor bound by the server to the machine, tenant,
+conversation, and event stream. Do not substitute a post sequence number.
+Only post-created, post-edited, and post-deleted events are exposed to machine
+readers. Event delivery is at-least-once, so consumers should deduplicate by
+conversation and sequence. An empty timeout response can have an empty cursor
+when no event has been delivered yet.
+
+For a local preview running on port 8888, replace the conversation ID with the
+ID copied from that conversation's **Copy API curl** action. The snippet uses
+an explicit placeholder because this repository does not issue production
+agent credentials:
+
+```sh
+export HCM_CHAT_TOKEN='<short-lived-agent-token-from-authorized-issuer>'
+BASE='http://127.0.0.1:8888/v1/conversations/<conversation-id>'
+
+# Metadata and one page of posts
+curl --fail-with-body "$BASE" \
+  --header "Authorization: Bearer ${HCM_CHAT_TOKEN}"
+curl --fail-with-body --get "$BASE/posts" \
+  --header "Authorization: Bearer ${HCM_CHAT_TOKEN}" \
+  --data-urlencode 'page_size=50'
+
+# Bounded event pull; pass the returned resume_cursor on the next request
+curl --fail-with-body --get "$BASE/events" \
+  --header "Authorization: Bearer ${HCM_CHAT_TOKEN}" \
+  --data-urlencode 'max_events=20' \
+  --data-urlencode 'wait_ms=1000'
+
+# Reuse this key if retrying this same logical post
+curl --fail-with-body --request POST "$BASE/posts" \
+  --header "Authorization: Bearer ${HCM_CHAT_TOKEN}" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: 2d5f31ab-7c7f-45a7-9f11-a73cd9d7b705' \
+  --data '{"body":"Hello from an agent"}'
+```
+
+For an event continuation, add `--data-urlencode "resume_cursor=${EVENTS_RESUME_CURSOR}"` to the events request, where `EVENTS_RESUME_CURSOR` is the exact `resume_cursor` string returned in the previous JSON response. Use the same-origin HTTPS URL in an appropriately configured deployment; port 8888 is only the local preview example.
 
 The projector and worker are separate long-running processes against the same
 database:

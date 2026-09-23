@@ -12,6 +12,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/planning/scopeexchange"
 	"github.com/monstercameron/human-capital-management-suite/tools/planning/tddcontract"
 	"github.com/monstercameron/human-capital-management-suite/tools/planning/terminology"
+	"github.com/monstercameron/human-capital-management-suite/tools/planning/todogovernance"
 	"github.com/monstercameron/human-capital-management-suite/tools/planning/todoregistry"
 	"github.com/monstercameron/human-capital-management-suite/tools/planning/traceability"
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/depedge"
@@ -44,7 +46,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: plancheck <manifest|scopeexchange|traceability|depthvocab|atomicity|evidence|deferredimports|terminology|plancontradiction|legalmatrix|federalbaseline|researchquestions|p1aevidence|authoritygate|coveragematrix|boundarytests|progress|dependencygraph|tddcontract|garbagedrawer> [-live] [root]")
+		fmt.Fprintln(os.Stderr, "usage: plancheck <manifest|scopeexchange|traceability|depthvocab|atomicity|evidence|deferredimports|terminology|plancontradiction|legalmatrix|federalbaseline|researchquestions|p1aevidence|authoritygate|coveragematrix|boundarytests|progress|dependencygraph|tddcontract|garbagedrawer|reachability> [-live] [root]")
 		os.Exit(2)
 	}
 
@@ -110,6 +112,8 @@ func main() {
 		err = runTDDContract(root)
 	case "garbagedrawer":
 		err = runGarbageDrawer(root)
+	case "reachability":
+		err = runReachability(root)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", cmd)
 		os.Exit(2)
@@ -180,14 +184,22 @@ func runTraceability(root string) error {
 		return fmt.Errorf("scan test names: %w", err)
 	}
 	orphans := traceability.CheckTraceability(todos, tests)
-	if len(orphans) == 0 {
+	// REV-103-02: a tick is only evidence when its named TEST and TEST
+	// MATRIX functions exist and its evidence names the command that ran
+	// them. Ticked todos breaching that contract fail this subcommand
+	// alongside the GOV-003 orphans above.
+	ticked := traceability.CheckTickedTodos(todos, tests)
+	if len(orphans) == 0 && len(ticked) == 0 {
 		fmt.Println("traceability: OK")
 		return nil
 	}
 	for _, o := range orphans {
 		fmt.Println(o)
 	}
-	return fmt.Errorf("traceability: %d orphan(s)", len(orphans))
+	for _, f := range ticked {
+		fmt.Println(f)
+	}
+	return fmt.Errorf("traceability: %d orphan(s), %d ticked todo gap(s)", len(orphans), len(ticked))
 }
 
 func runDepthVocab(root string) error {
@@ -744,6 +756,50 @@ func runTDDContract(root string) error {
 		fmt.Println(finding)
 	}
 	return fmt.Errorf("tddcontract: %d violation(s)", len(findings))
+}
+
+// runReachability adapts REV-103-01's binary-closure gate into plancheck:
+// every ticked runtime todo must name a package linked into a shipped
+// ./cmd/... binary. The closure comes from `go list -deps ./cmd/...` run
+// against root; the todogovernance checker owns classification,
+// exemptions and diagnostics, plancheck owns only command execution.
+func runReachability(root string) error {
+	todos, err := readTodos(root)
+	if err != nil {
+		return err
+	}
+	reachable, err := binaryClosure(root)
+	if err != nil {
+		return fmt.Errorf("list binary closure: %w", err)
+	}
+	findings := checkReachabilityTodos(todos, reachable)
+	if len(findings) == 0 {
+		fmt.Println("reachability: OK")
+		return nil
+	}
+	for _, f := range findings {
+		fmt.Println(f)
+	}
+	return fmt.Errorf("reachability: %d ticked runtime todo(s) name only packages no binary reaches", len(findings))
+}
+
+// binaryClosure runs `go list -deps ./cmd/...` in root and returns the
+// normalized repo-relative package set.
+func binaryClosure(root string) (map[string]bool, error) {
+	cmd := exec.Command("go", "list", "-deps", "./cmd/...")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	return todogovernance.NormalizeReachable(strings.Split(string(out), "\n")), nil
+}
+
+// checkReachabilityTodos is the exec-free seam between runReachability
+// and the checker: command tests inject a synthetic closure here while
+// production passes the live `go list` set.
+func checkReachabilityTodos(todos []todoregistry.Todo, reachable map[string]bool) []todogovernance.ReachabilityFinding {
+	return todogovernance.CheckReachability(todos, reachable)
 }
 
 // runGarbageDrawer adapts ARCH-GO-017's source-ownership policy into

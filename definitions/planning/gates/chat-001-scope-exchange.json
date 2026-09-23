@@ -1,0 +1,61 @@
+{
+  "todo_id": "CHAT-001",
+  "status": "PROPOSED",
+  "scope_decision": "SEPARATE_GATE_C",
+  "release_owner": "Collaboration Product owner with Messaging Platform operations owner",
+  "displaced_work": [
+    {
+      "workstream": "Current P1A/P1B promotion pilot",
+      "disposition": "preserved; no P1A or P1B scope is displaced by this proposal",
+      "owner": "Phase 1 release owner"
+    },
+    {
+      "workstream": "Post-Gate-B documentation and collaboration capacity",
+      "disposition": "capacity source to be selected and approved before implementation begins",
+      "owner": "Product portfolio owner"
+    }
+  ],
+  "pilot_tenants": [
+    "UNSELECTED: design partner and tenant cohort require commercial approval"
+  ],
+  "slos": [
+    {
+      "name": "message send durability",
+      "target": "No acknowledgement without a durable chat-database commit"
+    },
+    {
+      "name": "workflow protection",
+      "target": "Chat load must stay within the measured workflow regression budget before broad activation"
+    },
+    {
+      "name": "revocation",
+      "target": "Access revocation budget must be selected and proven before pilot activation"
+    }
+  ],
+  "activation_conditions": [
+    "Named design partner, target HCM workflow, adoption target, migration cost and capacity owner are approved",
+    "Cross-company authority, authorization, content and records contracts have executable acceptance evidence",
+    "Mixed-tenant capacity and recovery evidence meets the selected SLO and workflow regression budget",
+    "Pilot observation and incident contacts are recorded, then a real Gate C decision is signed"
+  ],
+  "unmet_gates": [
+    "No external product or commercial signer has approved the scope exchange",
+    "No design partner or pilot tenant has been selected",
+    "The company chat specification still has cross-company, authorization, records, integration and operational blockers",
+    "No implementation, all-employee activation or customer/pilot deployment is authorized by this artifact"
+  ],
+  "preserve_p1a_inventory": true,
+  "preserve_p1b_inventory": true,
+  "approval": {
+    "status": "PENDING",
+    "required_roles": [
+      "Collaboration Product owner",
+      "Messaging Platform owner",
+      "Security and Privacy reviewers",
+      "Records and Search reviewers",
+      "Operations and commercial release owner"
+    ],
+    "signers": []
+  },
+  "canonical_digest": "sha256:d714e0b06366a478c63aa245de81e9bf6b24ef44a003c3dbe8545cd87abd368d"
+}

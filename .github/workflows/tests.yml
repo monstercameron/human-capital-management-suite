@@ -170,6 +170,12 @@ jobs:
         run: go run ./tools/policy/enginecoverage/cmd/enginecoverage -root .
       - name: Verify concurrent-package race coverage policy (TOOL-012)
         run: go run ./tools/policy/racepolicy/cmd/racepolicy -root .
+      - name: Injected-clock gate (REV-101-07)
+        run: go run ./tools/policy/clockinject/cmd/clockinject -root .
+      - name: Ignored-error lint (REV-103-06)
+        run: go run ./tools/policy/errlint/cmd/errlint internal/data/operationstore/store.go internal/intent/app/pgstore/pgstore.go internal/trust/session/store.go internal/intent/app/journey_intervention.go internal/transport/evidence/server.go
+      - name: Library firewall gate (REV-101-05)
+        run: go run ./tools/policy/libfirewall/cmd/libfirewall -root .
 
       - name: Stop PostgreSQL
         if: always()

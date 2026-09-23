@@ -25,6 +25,51 @@ workspace, with no separate channel machinery.
 
 Notification as a Service is used here as an architectural pattern: product domains express one semantic notification intent while shared infrastructure owns multi-channel routing, templates, preferences, and delivery observability. Human Capital Management Suite extends that pattern with secure inbox, inbound replies, durable conversations, legal evidence, workflow signals, and HR-specific data controls.
 
+## Implemented recipient-feed storage contract (NAAS-003)
+
+`internal/data/inbox.Store.ListPage` is the reusable Go read API. It accepts
+an authenticated tenant/recipient supplied by its application caller, a bounded
+page size (default 50, maximum 200), read state, archive selection, optional pin
+state and a half-open creation-date range. `WorkflowNoticesPage` additionally
+filters APPROVAL/TASK purpose and workflow instance. SQL filters before limiting;
+the response has records and an optional continuation position, never a total
+population count. Both methods use the immutable `(created_at, inbox_record_id)`
+descending key, not OFFSET or mutable read/pin timestamps. An error returns no
+partial page. A caller-owned transaction supplies tenant RLS; explicit tenant and
+recipient predicates apply on every query. Notification ownership does not grant
+authority to inspect or decide its workflow: application readers still recheck
+current assignment and workflow visibility.
+
+The position is an internal storage key, **not** an authenticated public cursor.
+A public paginated transport must sign it, bind it to tenant, principal and the
+canonical filters, enforce expiry and reject tampering; it must not accept a
+caller-provided recipient override. It must reauthorize every page and permit an
+empty authorized page with a continuation. Pages are a live feed, not a snapshot:
+new inserts appear on refresh, while read/archive/pin changes can change filter
+membership between requests. Existing CAS mutation and atomic publication
+semantics are unchanged.
+
+Migration `00321_inbox_feed_indexes.sql` adds recipient creation-time, read-state
+and pinned-feed B-trees plus a workflow-message lookup index. These indexes add
+write/WAL/storage costs; the migration builds them non-concurrently and requires
+a planned maintenance window on populated cells. Rehearse on a production-sized
+copy before rollout. This change does not partition tables, purge history, change
+retention/legal-hold rules, or add an in-memory cache of authorization decisions.
+
+An isolated 100,001-row PostgreSQL fixture measured a 50-row first-page p95 of
+82.2 ms without the feed indexes and 0.76 ms with them; a deep page was 0.71 ms,
+and unread/pinned pages approximately 0.55 ms. The deep unread plan returned 51
+rows using the expected index and five cached blocks, without a sort/sequence
+scan. These are warm, single-recipient storage measurements, not a production
+SLA, multi-tenant throughput claim or end-to-end API latency. The joined workflow
+fixture contains homogeneous approval metadata; sparse workflow/purpose filters
+and million-row concurrent traffic need separate qualification.
+
+The current browser still receives its bounded feed through `ListJourneys`;
+standalone paginated gRPC/HTTP transport, client continuation/filter controls and
+inbox mutations are not delivered by NAAS-003. They must use this store rather
+than enumerate all journeys or materialize a recipient's entire history.
+
 ## Architectural Boundary
 
 ```text

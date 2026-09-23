@@ -364,3 +364,72 @@ The subsequent coverage lane exposed the same kind of policy/implementation mism
 The next run showed that the bare summary is a general Go 1.26 output form for executable packages with statements but no tests, not a SchemaFlux-only anomaly. Covergate now parses that format as a real zero-coverage result. A repository-wide no-test inventory found exactly three measurable command wrappers after the existing generated, fixture and dependency exclusions; each delegates to a separately qualified library, so each now has an explicit, exact, expiring below-floor exception rather than an accidental parser escape.
 
 Because each monolithic retry consumed nearly an hour before reporting its buffered result, the final CI reconciliation also partitions both exhaustive lanes into four deterministic shards. Coverage assigns the already-sorted measurable package list by stable index modulo four; race applies the same rule to the complete racepolicy list. Each shard owns an isolated runner and PostgreSQL container, `fail-fast` is disabled so all evidence is retained, and the unchanged required-check fan-in accepts the lane only when every matrix shard succeeds.
+
+## Follow-up, 2026-09-21 (workflow editor: review, redesign and adversarial refinement)
+
+This round started as a read-only review of the workflow editor and became a redesign. Nothing here is committed. The tree is shared with several active sessions on `main`, so the work sits uncommitted beside theirs.
+
+### Review findings that were not design
+
+Three reviewers read the transport, the UI and the storage/compile/client layers; I read the edit kernel and then drove the product. The findings below are recorded because they are not fixed by the redesign and still need owners.
+
+- `internal/transport/cell/workflow_control.go` builds the workflow `Authorize` as a switch over the designer actions with `default: return true`. `GetWorkflow`, `ListNodeExecutions`, `PauseWorkflow`, `ResumeWorkflow`, `CancelWorkflow` and `RetryNode` are therefore ungated at the transport. Mutations are still refused by the governance controller, but `internal/transport/workflow/control.go` treats a governed denial as success and returns the full instance projection with it.
+- `RetryNode` passes the idempotency key as `ReasonRef` because `RetryNodeRequest` has no reason field, so every retry's audit reason and ticket reference is a client-chosen key.
+- `internal/humanwork/workflowview/project.go` returns early for an undisclosed run and leaves every node `not-started`. The redesigned viewer no longer renders a per-step state for an undisclosed run, which removes the visible symptom; the projection is unchanged.
+- `workflowdraftstore.PurgeExpired` has no production caller, draft history grows by one full document per save with no bound, and neither the overlay reason nor the document has a size cap.
+- `designerpalette.Catalog.allowsAll` returns true for an entry with no declared capabilities before it checks for a nil policy. Compilation still refuses the capabilities, so this is admission followed by refusal.
+- A draft does not store the template it came from; `projectDraftView` re-derives it by digest match and falls back to the highest-version template with the same workflow id.
+- `ErrConflict` means both a stale revision and a content collision, and both map to a retryable `ABORTED`.
+- The GoWebComponents `graphcanvas` package that `WF-UI-001` was closed for is not in the pinned v5.0.1 and nothing in this repository imports it. The previous "graph" was a CSS grid of cards in depth columns with no edges drawn.
+
+### What the live pass found before any redesign
+
+Choosing a step rewrote the address bar and nothing else. The highlight, `aria-current` and the inspector each kept the step they first rendered, and a save in the inspector was recorded as `Update task_1` while the address and the intent were `decision_1`. After a rename the same step had three names on one screen. The placeholder option of the route picker had no `value`, so choosing it sent its label as a step id and produced a generic error that reloading could never fix. A step with no incoming route was drawn in stage 1 beside the start. There was no control anywhere that removed a step, a route, a binding or a draft, and a new workflow could not be named.
+
+### The redesign
+
+One rendering of a workflow, used for drafts and for published definitions: a single ordered column ranked by longest route from the start (the compiler's notion of depth, recomputed client-side for drafts), the result that leads on written on the connector between two rows, routes that skip or loop drawn on a side rail built per row so rows can be any height and nothing is measured in the browser, and terminal steps collected as named exits. Around it, a library on the start side and an inspector on the end side. Selection is editor state reconciled with the address; the inspector is keyed by the step it edits.
+
+Three commands were added end to end by a parallel lane (`RemoveWorkflowDraftNode`, `ClearWorkflowDraftOutcome`, `RenameWorkflowDraft`), with kernel, transport, role-gate and controller tests. The host gained insert-and-connect and multi-route edits as chains of fenced calls that each use the revision the previous one returned, a 20-second bound per call, refusals reported by cause, and a reload after a refusal so a control never keeps showing a rejected choice.
+
+`graphcanvas` was considered and not used. It is not in the pinned release, and a draft stores no node positions, so there is nothing for drag, pan or zoom to edit; a natively scrolling column is also the keyboard, screen-reader and 320px representation, which removed the separate outline view.
+
+### Adversarial refinement
+
+An independent reviewer scored screenshots of each round against a fixed rubric (first-glance comprehension, visual quality, path information design, inspector, library, editing flow, responsive, internationalisation, accessibility, copy) and was told a 9 means best-in-class for an enterprise HR buyer. Screenshots were captured headlessly with `.artifacts/uxcheck/editorshots.mjs` at 1920, 1600, 1280, 1100, 820, 390 and 320 px, light and dark, in en-US, de-DE and ar, plus the build-from-nothing flow.
+
+| Round | Overall | What was built | Main findings acted on                                                                                                                       |
+| ----- | ------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | 4.0     | n/a            | no hierarchy, unreadable rows, dead controls at narrow widths                                                                                |
+| 2     | 5.5     | n/a            | rows inflated by the rail drawing, exits unexplained, no way to build from nothing                                                           |
+| 3     | 7.0     | n/a            | exits named on steps, canvas starters, insert-and-connect, bulk exception routing                                                            |
+| 4     | 7.3     | 7.9            | library folding, loose steps, narrow-width hop links                                                                                         |
+| 5     | 7.4     | 8.0            | capture crashed after 7 of 25 images; the reviewer scored the rest from source and said so                                                   |
+| 6     | 7.6     | 7.9            | two of my own fixes measured as regressions (a wide-screen rule that narrowed the path, a library box that pushed the first step down 165px) |
+| 7     | 7.5     | 7.8            | my amber connector count disagreed with the step badge; two Arabic direction bugs from `dir="auto"` on block text                            |
+| 8     | 7.6     | 8.0            | library fix had no visible effect; header count exceeded the visible badges                                                                  |
+| 9     | 7.7     | 8.1            | library toggle unreachable below 560px; Decision inspector said nothing about what decides                                                   |
+
+Round 10's fixes are applied and captured (`.artifacts/uxcheck/round10`, 29 images) but were not scored. The reviewer's consistent verdict from round 6 on: what was built can reach about 8.8 to 9.0 with client-side work, and the last step to 9 overall needs Publish (`WF-UI-013`), because the build-from-nothing journey ends in a finished draft with nowhere to send it. One finding was checked and rejected (round 9: exit chips hidden from assistive technology; each row already carries a sentence naming every exit). One finding led somewhere else (round 8: a Decision that would not select was the editor's save fence dropping a click for about 700ms after a draft is created from a template; the fence is deliberate, and the editor now dims while it holds).
+
+### Verification
+
+`go test` passes for `internal/humanwork/productui`, `internal/workflow/designeredit`, `internal/transport/workflow`, `internal/transport/cell`, `tools/uxqual/productclient` and `tools/uxqual/cmd/journeywasm`. The WASM client builds. The live pass confirmed selection, rename, connect, disconnect, remove, undo, insert-and-connect and bulk exception routing against a served build on a scratch database, and that a three-click draft (first step, an End, one bulk select) reaches "Nothing left to finish".
+
+Five test files that pinned the removed markup were deleted and replaced (`workflow_editor_test.go`, `workflow_editor_flow_test.go`, `workflow_editor_path_test.go`); the `TestTodo_WF_UI_*` names the todo registry refers to are kept.
+
+### Environment notes
+
+The check server moved to port 8097 (`hcm-editor` in `Desktop/.claude/launch.json`, script `%LOCALAPPDATA%/hcm-next/uxeditor-serve.ps1`) after another session took 8096. `journey.wasm.gz` and `manifest.json` under `internal/humanwork/workspace/assets` were rebuilt from the working tree and show as modified.
+
+### Workflow notifications (WF-NOTIFY-001)
+
+The product's notification service is the secure inbox plus the bell. Another session had built notices to the owner of routed work (`NAAS-001`); the requester heard nothing, and the editor said nothing about who a step notifies. One declaration, `internal/workflow/notifyplan`, now states which notices each step type produces. The execution composition publishes from it (a `WORKFLOW_UPDATE` notice to the requester in the routing transaction of every approval or task, and another in the transaction of the terminal write) and the editor's step inspector reads it for a "Who is told" section, so the two cannot drift. Status notices use their own message template so the approval feed and its pagination are untouched. The bell shows one row per request at its latest update; how a request ended is read from the stage the viewer can already see. Verified live: a requester's bell showed "Sent to a reviewer" after starting approval, the approver's showed the request, and after a decline the requester's showed "Declined" through the real terminal writer. Limits: in-app only (no email adapter, `REV-011-02`); no read/unread control yet (`NAAS-004`). I first named the tests `NAAS-004`, which the other session had claimed minutes earlier.
+
+### Is the engine flexible enough for a new-employee hire? (WF-HIRE-001)
+
+Three read-only audits first. The EXECUTE driver and runtime are workflow-agnostic: steps, work-item routing, timers, signals and the terminal write are ports, and plan selection is a caller-supplied resolver. Everything behind those ports in the served product is Promotion: the only step runner is a switch over Promotion node ids, the registration handler type takes the Promotion runner, approver routing branches on Promotion node ids, the intent layer builds proposals through a type switch, and the journey pages filter to the Promotion intent type. Step coverage in EXECUTE: approval, task (with a real form and submission model), capability, decision, observe, signal, wait and end are served; PARALLEL, JOIN and SUBWORKFLOW are not (the runtime refuses any plan with a JOIN because arrival counters are in no table); TRANSFORM has no execute path of its own and rides the generic ready-work path.
+
+Then the proof, in new files only: `internal/workflow/hireexec` and `test/workflow/hire_execute_test.go` run New employee hire through the real driver on PostgreSQL (approval, background-check signal, adverse-result review, candidate forms, three provisioning tasks, wait until the start date, one commit, seven exits), with a fresh driver at every call and the notification wrappers now exported for any composition. The four limits it designed around are recorded on the todo: sequential provisioning (`WF-EXT-019`), start date through the timer port (`WF-EXT-012`), callback matched on the request id (`WF-EXT-014`), verdict read from the proposal (`WF-EXT-004`).
+
+Todo status: 117 workflow todos are open, about 45 of them the engine itself; none is closable by verification alone. `WF-REV-015` has passing tests at 73.6% coverage but no importer. The critical path to serving a second workflow is `WF-EXT-004` (data plane, which blocks most of the ladder), then `WF-EXT-005` to `008` (generic capability, decision and transform execution; Promotion types out of the runtime contracts; definitions as data), `WF-EXT-018` (journey pages from definition metadata), and durable joins. A `WF-EXT-004` lane was started this session; its state is recorded in the changelog entry that follows this one if it landed. A brief for durable PARALLEL and JOIN was written and not launched.

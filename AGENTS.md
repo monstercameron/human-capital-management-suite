@@ -17,11 +17,11 @@ Where they disagree about implemented behaviour, the source wins. Where they dis
 
 ## Tracked agent configuration
 
-| Path                                  | What it is                                                                                                                              |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `.claude/settings.json`               | Permissions. Gates and read-only git are pre-allowed; bypassing the hook, stashing, hard resets, amends, rebases and pushes are denied. |
-| `.claude/agents/gate-runner.md`       | Runs the gates and returns a triaged failure list instead of raw logs.                                                                  |
-| `.claude/skills/karpathy-guidelines/` | Vendored verbatim from `multica-ai/andrej-karpathy-skills` at `2c60614`, MIT by its own frontmatter.                                    |
+| Path                                  | What it is                                                                                                                                      |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.claude/settings.json`               | Permissions. Gates and read-only git are pre-allowed; bypassing the hook, stashing, hard resets, amends, rebases and pushes to main are denied. |
+| `.claude/agents/gate-runner.md`       | Runs the gates and returns a triaged failure list instead of raw logs.                                                                          |
+| `.claude/skills/karpathy-guidelines/` | Vendored verbatim from `multica-ai/andrej-karpathy-skills` at `2c60614`, MIT by its own frontmatter.                                            |
 
 ## Quality gates
 
@@ -60,29 +60,26 @@ Root `go test ./...` is not a gate on the development machine: every data packag
 - Every tenant-scoped table has `tenant_isolation` RLS and every append-only table a `forbid_mutation` trigger; every new table gets a `definitions/storage/storage-disposition.yaml` row. plpgsql blocks in migrations need `-- +goose StatementBegin/End`.
 - Transport is a thin generated boundary (ARCH-GO-023): handlers call ports, never business logic. Commands reach the capability registry through `internal/application`, never by importing `internal/capability`.
 - Package-level mutable registries are refused by the composition-root rule; state lives on the value that owns it.
-- Never edit `go.mod` or `go.sum` inside a lane; report the dependency instead.
+- Change `go.mod` or `go.sum` only when the assigned work requires a dependency change; include the reason and verification in that work's commit.
 
-## Delivery loop and model routing
+## Delivery loop
 
-Implementation is cheap and review is expensive, so route the work that way.
-
-- **Implementation runs in Codex GPT-5.6 Luna lanes.** They are dirt cheap; spawn as many as the machine can carry (about twenty concurrent on this host before embedded PostgreSQL starts timing out). One lane per todo or per tightly coupled todo chain, launched with `scripts/run-lane.sh <name>` from a brief that names the todo ids, the file roots the lane owns, its reserved migration numbers and the standing rules in `.claude/lanes/luna-lane-preamble.md`. A lane never runs git, never edits `planning/`, `definitions/`, `go.mod` or `go.sum`, and reports the registry rows and policy edits it needs verbatim.
-- **Review and integration run in GPT-6 or Claude Fable 5.1.** The strong model reads what the lanes produced (`.claude/agents/integration-reviewer.md`), hunts for real defects (authorization after a side effect, tenant-scoping gaps, aliased or assertion-free tests, forged or replayable inputs, business logic in transport), applies the fixes, registers the definitions rows, ticks the todos with evidence, and takes the commit through the gates. Do not spend the strong model on first drafts, and do not let a cheap lane be the last set of eyes on anything.
+Any agent may take a todo from requirements through implementation, tests, documentation and a gated commit on `main`. Assign work by task scope and file conflicts, not by model or permanent role. Before committing, review the diff independently for authorization after a side effect, tenant-scoping gaps, aliased or assertion-free tests, forged or replayable inputs, and business logic in transport (`.claude/agents/integration-reviewer.md`).
 
 **Treat every todo as atomic.** Each one goes through the whole loop before the next one is called done. A red gate at any stage returns to the earliest
 stage that owns the defect; the defect is fixed at the source, never bypassed, never filed for later.
 
 1. **Requirements.** The contract is `planning/plan.md`, `planning/execution-plan.md`, `planning/specs/*` and the todo's `planning/todos.md` entry. The TEST
-   and TEST MATRIX fields are the acceptance criteria. A todo with no testable criteria is not ready; send it back to the orchestrator.
+   and TEST MATRIX fields are the acceptance criteria. A todo with no testable criteria is not ready; clarify it before implementation.
 2. **Context.** Read every package the todo's Refs name, plus the source, tests, migrations and git state actually in scope. Run the narrowest relevant test
    before changing anything.
 3. **Plan.** Write the smallest sufficient change down: the files owned, the tests to add or amend, the definitions rows and migration numbers needed. No
    speculative abstraction, no adjacent cleanup.
-4. **Adversarial plan review.** The strong model tries to kill the plan: wrong package, missing tenant scope, untestable criterion, raced assumption.
+4. **Adversarial plan review.** Challenge the plan: wrong package, missing tenant scope, untestable criterion, raced assumption.
    Findings are fixed in the plan, not filed. A rejected plan returns to step 3.
 5. **Build.** Implement the plan with accessibility and i18n built in, not bolted on: names, keyboard semantics, focus, reduced motion, form-error
-   association, en-US / de-DE / RTL ar wherever the surface renders text or controls. Lanes follow `.claude/lanes/luna-lane-preamble.md` and never run git.
-6. **Review loop.** The strong model reads the diff against the todo's contract and the rules in this file (`.claude/agents/integration-reviewer.md`):
+   association, en-US / de-DE / RTL ar wherever the surface renders text or controls.
+6. **Review loop.** Review the diff against the todo's contract and the rules in this file (`.claude/agents/integration-reviewer.md`):
    authorization before side effects, tenant scoping, assertion-free or aliased tests, forged or replayable inputs, business logic in transport. Findings are
    fixed, then refined: remove speculative abstraction, duplicated helpers and dead code; match the surrounding style. Repeat until clean.
 7. **Test ladder.** Three rungs, in order, no skipping: unit (every hand-written file exercised in its package, matrix labels prove what they say, the package
@@ -94,30 +91,23 @@ stage that owns the defect; the defect is fixed at the source, never bypassed, n
    screenshot) before calling it done; do not ask the user to look. Desktop plus 390 px and 320 px widths, light and dark where themes exist, no overlap,
    truncation or console diagnostics. Record the widths, states and suites run.
 10. **Commit gates.** Tick the todo with its evidence line, update `CHANGELOG.md` and the current `planning/devlog/` entry (the commits, the defects found,
-    the decisions taken; what was verified and what was left partial, in plain prose), then commit in its group through the full pre-commit hook: format,
+    the decisions taken; what was verified and what was left partial, in plain prose), then give that todo its own focused commit through the full pre-commit hook: format,
     lint, typecheck, unit tests, coverage floor, drift, API, substrate and engine coverage, race policy, decomposition, nested-module tests and build.
-11. **Pull request.** Push the topic branch (`git push origin <branch>`, topic branches only — never main or master, never force-push or delete; see Git discipline) and open a PR naming the todos closed and their evidence. A PR never contains scratch directories, credentials or
-    files outside the change.
-12. **CI gate.** `.github/workflows/tests.yml` runs the full module with the race detector plus every hook gate. Green is required before merge. Red returns to
-    step 5 on the same branch; CI re-runs.
-13. **Merge into main.** Merge only when CI is green and review is done. Never push directly to main, never rewrite it.
-
-## Ownership and lanes
-
-Work is delivered by coding lanes (Codex "Luna" subagents) coordinated by an orchestrator session. The orchestrator owns `planning/`, `definitions/`, `go.mod`, `go.sum`, git, registry ticks, migration numbering and commits. A lane owns only the file roots its brief names, writes additive files, never runs git, never edits planning or definitions, and reports the registry rows, manifest entries and policy edits it needs verbatim.
+11. **Shared-index check.** Only one agent stages or commits at a time. Before staging, inspect `git status` and the staged diff; stage explicit paths, verify the staged diff contains only this todo, and do not include another agent's edits. Coordinate if files or staged changes overlap.
+12. **Report.** The commit lands on local `main` after review and the available gates pass. Record the exact local checks run and any CI-only checks that remain unverified; do not represent local verification as a green CI run. A PR is not required.
 
 ## One artifact root
 
-`.artifacts/` is the only place in the checkout for disposable output, and it is ignored by git. Built binaries go to `.artifacts/bin/` (`scripts/build.sh`), lane briefs, logs and reports to `.artifacts/lanes/` (`scripts/run-lane.sh`), coverage output to `.artifacts/coverage/`, Go temp directories and test binaries to `.artifacts/tmp/`, lane build caches to `.artifacts/gocache/`, and the embedded PostgreSQL binary cache to `.artifacts/pg/`. The pre-commit hook and the lane launcher export `GOTMPDIR`, `TMP`, `TEMP` and `HCMNEXT_TEST_PG_CACHE` to those paths; do the same for any command you run by hand that builds or tests. A scratch directory at the repository root is a bug: delete it and fix the command that made it. Never force-add anything under `.artifacts/`, and never point cleanup at anything broader than a child of it.
+`.artifacts/` is the only place in the checkout for disposable output, and it is ignored by git. Built binaries go to `.artifacts/bin/` (`scripts/build.sh`), task briefs, logs and reports to `.artifacts/lanes/` (`scripts/run-lane.sh`), coverage output to `.artifacts/coverage/`, Go temp directories and test binaries to `.artifacts/tmp/`, build caches to `.artifacts/gocache/`, and the embedded PostgreSQL binary cache to `.artifacts/pg/`. The pre-commit hook and task launcher export `GOTMPDIR`, `TMP`, `TEMP` and `HCMNEXT_TEST_PG_CACHE` to those paths; do the same for any command you run by hand that builds or tests. A scratch directory at the repository root is a bug: delete it and fix the command that made it. Never force-add anything under `.artifacts/`, and never point cleanup at anything broader than a child of it.
 
 ## Git discipline
 
-- Commit only when asked, in groups by area (data, trust, domain, operations, transport, policy, docs), each through the full hook.
-- The orchestrator owns git; lanes never run git. Work happens on topic branches named `<area>/<todo-id>-<slug>` using the same areas.
-- Batch velocity: when the user asks to complete several todos at once, stay on the current branch and commit in area groups, one refined message per group naming the todos closed and their evidence; do not mint a topic branch per todo.
-- Push only topic branches with an explicit `git push origin <branch>`, only to open or update a PR — never main or master, never force-push or delete; the agent settings deny those pushes. Merge into main only through a PR whose CI is green.
-- Never push to main. Never `git stash`, `git reset --hard`, `git commit --amend`, `git rebase` or force-push. Never `--no-verify`.
-- Every commit ends with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
+- Work in the shared checkout on local `main`. Do not create feature branches or worktrees. Any agent may own and commit any part of its assigned work, including planning, definitions and migrations.
+- Give each completed todo a focused commit whenever its code and tests can stand on their own. If two todos are inseparable, use one commit naming both IDs and explain the coupling in the devlog.
+- Agents may edit concurrently, but must coordinate overlapping files, migration numbers and commits. Treat the Git index as shared: only one agent stages or commits at a time, stages explicit paths, and verifies the staged diff immediately before committing. Leave unrelated dirty or staged files untouched.
+- A PR is not required. Publishing local `main` to a remote is a separate operation; do it only when the user asks and after checking the remote state. Never force-push or rewrite history.
+- Never `git stash`, `git reset --hard`, `git commit --amend` or `git rebase`. Never `--no-verify`.
+- Attribute commits to the actual contributor; do not add a fixed co-author trailer for an agent that did not contribute.
 - Update `CHANGELOG.md` and the current `planning/devlog/` entry with the commits, the defects found and the decisions taken. Devlog updates say what was verified and what was left partial, in plain prose.
 
 ## Documents
@@ -127,5 +117,5 @@ Do not create a new Markdown file unless the user explicitly asked for that file
 ## Environment notes
 
 - Windows 11 on arm64, Go 1.26, no Docker, no race detector locally.
-- Leaked scratch directories at the repo root (`.gotmp*`, `.codex-*`, `.tmp-*`, `.lane-gotmp-*`, `tmp/`) trip `gofmt`; they are ignored by git and safe to delete.
+- Leaked scratch directories at the repo root (`.gotmp*`, `.codex-*`, `.tmp-*`, `tmp/`) trip `gofmt`; they are ignored by git and safe to delete.
 - Stale embedded PostgreSQL servers and `go-build` temp directories accumulate under `%TEMP%`; sweep them when disk or CPU is short.
