@@ -27,6 +27,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/session"
 )
 
 // Migrator applies the pending schema before the listeners start.
@@ -65,6 +66,12 @@ type ExecutionComposer func(cellConfig *app.CellConfig, pool *pgxadapter.Pool, e
 // Options are the explicit composition seams. The zero value is the
 // production composition; a test fills only the fields it means to replace.
 type Options struct {
+	// ChatSessionRevocation checks each chat authorization against the current
+	// session lifecycle. Standard-profile chat remains fail closed without it.
+	ChatSessionRevocation session.RevocationChecker
+	// ChatMedia configures the protected media route. Zero value keeps the
+	// route explicitly unavailable; it never supplies an accepting scanner.
+	ChatMedia ChatMediaConfig
 	// Logger is the process logger the role's Spec hands bootstrap. Nil
 	// means the redacting JSON handler over stdout that a deployed hcmnext
 	// uses.

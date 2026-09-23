@@ -101,7 +101,7 @@ func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 	t.Cleanup(pool.Close)
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: promoux015SigningKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: promoux015SigningKey, PageCursorKey: integrationPageCursorKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: demoworkforce.CompanyKey, CellID: "cell-promoux015-separation", MaxDeadline: 60 * time.Second,
 		Workspace: true, DevBrowserLogin: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux015-separation",

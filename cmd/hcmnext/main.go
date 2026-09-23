@@ -158,8 +158,12 @@ func main() {
 		os.Exit(runToken(args[1:], os.Stdout, os.Stderr, time.Now))
 	case "workflow-version":
 		os.Exit(runWorkflowVersion(args[1:], os.Stdout, os.Stderr, time.Now, openPostgresVersionRegistry))
+	case "workflow-intervene":
+		os.Exit(runWorkflowIntervene(args[1:], os.Stdout, os.Stderr, time.Now, openInterventionCell))
+	case "records-disposition":
+		os.Exit(runRecordsDisposition(args[1:], os.Stdout, os.Stderr, time.Now))
 	default:
-		fmt.Fprintf(os.Stderr, "hcmnext: unknown command %q; usage: hcmnext [serve|token|workflow-version]\n", args[0])
+		fmt.Fprintf(os.Stderr, "hcmnext: unknown command %q; usage: hcmnext [serve|token|workflow-version|workflow-intervene|records-disposition]\n", args[0])
 		os.Exit(1)
 	}
 }

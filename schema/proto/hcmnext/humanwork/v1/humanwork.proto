@@ -129,4 +129,9 @@ message ThresholdTable {
   repeated string input_names = 4;
   repeated ThresholdRow rows = 5;
   ThresholdHitPolicy hit_policy = 6;
+  // version_ref is the rules-engine version string of the served table
+  // (e.g. "2026.1"): table identity is (table_id, version_ref) per RULE-003,
+  // so a historical approval keeps citing the exact table it ran against.
+  // version stays the served contract revision of this projection.
+  string version_ref = 7;
 }

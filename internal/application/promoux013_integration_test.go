@@ -34,7 +34,8 @@ func promoux013Composed(t *testing.T, now *time.Time) (context.Context, workspac
 	const approver = "principal:promoux013-integration-approver"
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: integrationSigningKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: integrationSigningKey, PageCursorKey: integrationPageCursorKey,
+		Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: tenant, CellID: "cell-promoux013-integration", MaxDeadline: 30 * time.Second,
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux013-integration-authority",

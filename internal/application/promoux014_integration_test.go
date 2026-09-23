@@ -40,7 +40,8 @@ func TestTodo_PROMOUX_014_Integration(t *testing.T) {
 	now := at
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: integrationSigningKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: integrationSigningKey, PageCursorKey: integrationPageCursorKey,
+		Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: tenant, CellID: "cell-promoux014-integration", MaxDeadline: 30 * time.Second,
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux014-integration-authority",

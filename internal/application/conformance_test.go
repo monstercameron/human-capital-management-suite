@@ -193,7 +193,7 @@ func TestTodo_ARCH_GO_020_Conformance(t *testing.T) {
 				t.Errorf("bootstrap workload %d = %q, want %q", i, runtime.Workloads[i].Name, want)
 			}
 		}
-		wantShutdown := []string{shutdownNameHTTP, shutdownNameGRPC, shutdownNameTelemetry}
+		wantShutdown := []string{shutdownNameHTTP, shutdownNameGRPC, shutdownNameChat, shutdownNameTelemetry}
 		for i, want := range wantShutdown {
 			if runtime.Shutdown[i].Name != want {
 				t.Errorf("bootstrap shutdown step %d = %q, want %q", i, runtime.Shutdown[i].Name, want)

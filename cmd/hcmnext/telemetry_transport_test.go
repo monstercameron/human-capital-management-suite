@@ -31,7 +31,7 @@ import (
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/clients"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -53,7 +53,47 @@ type telemetryTransportHarness struct {
 	token string
 
 	grpcIntent intentsv1.IntentServiceClient
-	edgeIntent *edge.IntentClient
+	edgeIntent *generatedIntentClient
+}
+
+// generatedIntentClient is a test-only calling-convention shim over the
+// canonical generated connect client (REV-003-01). The wire logic lives in
+// internal/transport/clients; this type preserves the connect.Request
+// convention so the telemetry transport test exercises the generated backend
+// without rewriting every call site. Every method delegates to exactly one
+// generated method.
+type generatedIntentClient struct {
+	inner clients.IntentClient
+}
+
+func callThrough[Req, Res any](
+	ctx context.Context,
+	req *connect.Request[Req],
+	do func(context.Context, *Req, ...clients.CallOption) (*Res, error),
+) (*connect.Response[Res], error) {
+	var opts []clients.CallOption
+	for key, values := range req.Header() {
+		for _, value := range values {
+			opts = append(opts, clients.WithHeader(key, value))
+		}
+	}
+	res, err := do(ctx, req.Msg, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(res), nil
+}
+
+func (c *generatedIntentClient) SimulateIntent(ctx context.Context, req *connect.Request[intentsv1.SimulateIntentRequest]) (*connect.Response[intentsv1.SimulateIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.SimulateIntent)
+}
+
+func (c *generatedIntentClient) CreateIntent(ctx context.Context, req *connect.Request[intentsv1.CreateIntentRequest]) (*connect.Response[intentsv1.CreateIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.CreateIntent)
+}
+
+func (c *generatedIntentClient) GetIntent(ctx context.Context, req *connect.Request[intentsv1.GetIntentRequest]) (*connect.Response[intentsv1.GetIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.GetIntent)
 }
 
 // newTelemetryTransportHarness migrates a private schema, composes a real
@@ -180,7 +220,7 @@ func newTelemetryTransportHarness(t *testing.T) *telemetryTransportHarness {
 		spanExporter: spanExporter,
 		token:        "Bearer " + token,
 		grpcIntent:   intentsv1.NewIntentServiceClient(conn),
-		edgeIntent:   edge.NewIntentClient(httpServer.Client(), httpServer.URL),
+		edgeIntent:   &generatedIntentClient{inner: clients.NewIntentClientConnect(httpServer.Client(), httpServer.URL)},
 	}
 }
 

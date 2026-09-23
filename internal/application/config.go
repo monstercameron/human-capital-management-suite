@@ -47,6 +47,26 @@ const EnvLegalEvidenceIssuerKeys = "HCMNEXT_LEGAL_EVIDENCE_ISSUER_KEYS"
 // at, for deployments behind a TLS-terminating or Host-rewriting proxy.
 const EnvPublicOrigin = "HCMNEXT_PUBLIC_ORIGIN"
 
+// EnvFederationKeysFile carries the pinned tenant-IdP keys document, so the
+// key material need not appear in a process listing.
+const EnvFederationKeysFile = "HCMNEXT_FEDERATION_KEYS_FILE"
+
+// EnvChatDatabaseURL and EnvChatCursorKey keep the optional chat dependency
+// out of command lines and process listings in deployed environments.
+const EnvChatDatabaseURL = "HCMNEXT_CHAT_DATABASE_URL"
+const EnvChatCursorKey = "HCMNEXT_CHAT_CURSOR_KEY"
+
+// EnvDocumentDatabaseURL selects Knowledge's independent PostgreSQL database.
+const EnvDocumentDatabaseURL = "HCMNEXT_DOCUMENT_DATABASE_URL"
+
+// EnvPageCursorKey and EnvPageCursorPreviousKey carry the dedicated
+// page-cursor signing key and its retired predecessor, so neither appears
+// in a process listing. The page-cursor key is deliberately separate from
+// the development HMAC key: cursors and credentials must never share
+// signing material.
+const EnvPageCursorKey = "HCMNEXT_PAGE_CURSOR_KEY"
+const EnvPageCursorPreviousKey = "HCMNEXT_PAGE_CURSOR_PREVIOUS_KEY"
+
 // Configuration field names. They are constants because ServeConfigFields
 // declares them and ServeConfigFromValues reads them back: a typo between the
 // two is a startup failure rather than a silently defaulted value.
@@ -93,6 +113,26 @@ const (
 	FieldExecutionRetryResolutionAttempts = "execution-retry-resolution-attempts"
 	FieldPublicOrigin                     = "public-origin"
 	FieldLocalDevNow                      = "local-dev-now"
+	// FieldFederationIssuers and FieldFederationKeysFile are the tenant
+	// IdP configuration (REV-005-01): per-tenant issuer allow-list and the
+	// pinned-keys document backing it. When both are set the listener
+	// authenticates with the federation verifier instead of the dev HMAC
+	// key.
+	FieldFederationIssuers   = "federation-issuers"
+	FieldFederationKeysFile  = "federation-keys-file"
+	FieldChatEnabled         = "chat-enabled"
+	FieldChatDatabaseURL     = "chat-database-url"
+	FieldDocumentDatabaseURL = "document-database-url"
+	FieldChatCursorKey       = "chat-cursor-key"
+	FieldChatMediaRoot       = "chat-media-root"
+	FieldArtifactRoot        = "artifact-root"
+	// FieldPageCursorKey is the dedicated page/stream cursor signing key
+	// (INTAPI-006): the development HMAC key also signed page cursors, so
+	// rotating either meant rotating both. FieldPageCursorPreviousKey is
+	// the retired key, accepted for verification only while in-flight
+	// cursors minted under it drain.
+	FieldPageCursorKey         = "page-cursor-key"
+	FieldPageCursorPreviousKey = "page-cursor-previous-key"
 )
 
 // Serve profiles are named sets of defaults, not alternate implementations.
@@ -103,18 +143,24 @@ const (
 	ServeProfileStandard = "standard"
 	ServeProfileLocalDev = devprofile.Name
 
-	LocalDevDatabaseURL = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next?sslmode=disable"
-	LocalDevHMACKey     = devprofile.HMACKey
-	LocalDevTenant      = devprofile.Tenant
-	LocalDevSubject     = devprofile.Subject
-	LocalDevOrgScope    = devprofile.OrgScope
-	LocalDevRoles       = devprofile.Roles
-	LocalDevPurpose     = devprofile.Purpose
+	LocalDevDatabaseURL     = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next?sslmode=disable"
+	LocalDevChatDatabaseURL = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next_chat?sslmode=disable"
+	LocalDevHMACKey         = devprofile.HMACKey
+	LocalDevTenant          = devprofile.Tenant
+	LocalDevSubject         = devprofile.Subject
+	LocalDevOrgScope        = devprofile.OrgScope
+	LocalDevRoles           = devprofile.Roles
+	LocalDevPurpose         = devprofile.Purpose
 	// LocalDevFinancePartner is the local-dev profile's default
 	// -execution-finance-partner: HarborCare's Finance Director worker, the
 	// finance partner the demo tenant's promotion approvals route to
 	// (PROMOUX-015). It is a profile default, never a literal in routing logic.
 	LocalDevFinancePartner = "hc-054-thomas-baker"
+	// LocalDevPageCursorKey is the local-dev profile's default
+	// -page-cursor-key. It is deliberately distinct from LocalDevHMACKey:
+	// even the loopback-only profile keeps cursor and credential signing
+	// material separate, so local cursors never verify under the dev key.
+	LocalDevPageCursorKey = "hcm-next-local-dev-page-cursor-key"
 )
 
 const (
@@ -230,6 +276,30 @@ type ServeConfig struct {
 	// It is accepted only by the loopback-only local-dev profile and can never
 	// override production time.
 	LocalDevNow string
+	// FederationIssuers is the raw -federation-issuers value: comma-separated
+	// tenant=issuer pairs allow-listing each tenant's IdP issuers. Empty
+	// composes the development HMAC verifier.
+	FederationIssuers string
+	// FederationKeysFile is the -federation-keys-file path: the pinned-keys
+	// document backing FederationIssuers. Required whenever FederationIssuers
+	// is set.
+	FederationKeysFile string
+	// ChatEnabled composes the native chat surface and its independent pool.
+	// It is opt in so standard deployments do not acquire a second database
+	// dependency by default.
+	ChatEnabled         bool
+	ChatDatabaseURL     string
+	DocumentDatabaseURL string
+	ChatMediaRoot       string
+	ArtifactRoot        string
+	ChatCursorKey       string
+	// PageCursorKey signs page and stream cursors on every served surface.
+	// It is dedicated: sharing signing material with the development HMAC
+	// key is refused by Validate. PageCursorPreviousKey is the retired
+	// key, accepted for verification only while in-flight cursors minted
+	// under it drain; empty means no rotation is in progress.
+	PageCursorKey         string
+	PageCursorPreviousKey string
 }
 
 // ServeConfigFields declares every flag/env-backed configuration value the
@@ -270,6 +340,16 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldExecutionRetryResolutionAttempts, Usage: "maximum bounded attempts to resolve uncertain retry consumption", Default: "2", Kind: bootstrap.KindInt},
 		{Name: FieldPublicOrigin, Env: EnvPublicOrigin, Usage: "absolute http(s) origin (e.g. https://hcm.example.com) browsers reach this cell at; required behind a TLS-terminating or Host-rewriting proxy"},
 		{Name: FieldLocalDevNow, Usage: "local-dev only: pin the application clock to an RFC3339 instant so future effective-date workflows can be completed safely"},
+		{Name: FieldFederationIssuers, Usage: "comma-separated tenant=issuer pairs allow-listing each tenant's IdP issuers; with -" + FieldFederationKeysFile + " selects the federation verifier instead of the dev HMAC key"},
+		{Name: FieldFederationKeysFile, Env: EnvFederationKeysFile, Usage: "pinned tenant-IdP keys document backing -" + FieldFederationIssuers},
+		{Name: FieldChatEnabled, Usage: "compose native chat over its independent database", Default: "false", Kind: bootstrap.KindBool},
+		{Name: FieldChatDatabaseURL, Env: EnvChatDatabaseURL, Usage: "PostgreSQL connection URL for the independent chat database"},
+		{Name: FieldDocumentDatabaseURL, Env: EnvDocumentDatabaseURL, Usage: "PostgreSQL connection URL for the independent document database", Secret: true},
+		{Name: FieldChatCursorKey, Env: EnvChatCursorKey, Usage: "HMAC key for chat cursors; required when chat is enabled", Secret: true},
+		{Name: FieldChatMediaRoot, Env: EnvChatMediaRoot, Usage: "durable root for chat media files"},
+		{Name: FieldArtifactRoot, Env: EnvArtifactRoot, Usage: "artifact root used when a chat media root is not supplied"},
+		{Name: FieldPageCursorKey, Env: EnvPageCursorKey, Usage: "dedicated HMAC key signing page and stream cursors, at least 32 bytes; never the development HMAC key", Secret: true},
+		{Name: FieldPageCursorPreviousKey, Env: EnvPageCursorPreviousKey, Usage: "retired page-cursor key, accepted for verification while in-flight cursors drain; empty means no rotation is in progress", Secret: true},
 	}
 }
 
@@ -301,6 +381,10 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 		// PROMOUX-015: the demo tenant's finance approvals route to its
 		// Finance Director, so a local promotion is approved by real personas.
 		FieldExecutionFinancePartner: LocalDevFinancePartner,
+		FieldChatEnabled:             "true",
+		FieldChatDatabaseURL:         LocalDevChatDatabaseURL,
+		FieldChatCursorKey:           LocalDevHMACKey,
+		FieldPageCursorKey:           LocalDevPageCursorKey,
 	}
 	for i := range fields {
 		if value, ok := defaults[fields[i].Name]; ok {
@@ -364,6 +448,15 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		LegalEvidenceIssuerKeys:  values.String(FieldLegalEvidenceIssuerKeys),
 		ExecutionRetryVersion:    values.String(FieldExecutionRetryVersion),
 		LocalDevNow:              values.String(FieldLocalDevNow),
+		FederationIssuers:        values.String(FieldFederationIssuers),
+		FederationKeysFile:       values.String(FieldFederationKeysFile),
+		ChatDatabaseURL:          values.String(FieldChatDatabaseURL),
+		DocumentDatabaseURL:      values.String(FieldDocumentDatabaseURL),
+		ChatCursorKey:            values.String(FieldChatCursorKey),
+		ChatMediaRoot:            values.String(FieldChatMediaRoot),
+		ArtifactRoot:             values.String(FieldArtifactRoot),
+		PageCursorKey:            values.String(FieldPageCursorKey),
+		PageCursorPreviousKey:    values.String(FieldPageCursorPreviousKey),
 	}
 	var err error
 	if cfg.PublicOrigin, err = canonicalPublicOrigin(values.String(FieldPublicOrigin)); err != nil {
@@ -394,6 +487,9 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		return ServeConfig{}, err
 	}
 	if cfg.ExecutionRetryResolutionAttempts, err = values.Int(FieldExecutionRetryResolutionAttempts); err != nil {
+		return ServeConfig{}, err
+	}
+	if cfg.ChatEnabled, err = values.Bool(FieldChatEnabled); err != nil {
 		return ServeConfig{}, err
 	}
 	return cfg, nil
@@ -436,6 +532,12 @@ func (c ServeConfig) Validate() error {
 		return fmt.Errorf("-%s must be at least %d bytes; a listener that cannot authenticate must not start",
 			FieldDevHMACKey, MinimumHMACKeyBytes)
 	}
+	if err := c.validatePageCursorKeys(); err != nil {
+		return err
+	}
+	if err := c.validateFederation(); err != nil {
+		return err
+	}
 	switch c.OTelExporter {
 	case OTelExporterNone, OTelExporterStdout:
 	case OTelExporterOTLPHTTP:
@@ -477,6 +579,17 @@ func (c ServeConfig) Validate() error {
 		return fmt.Errorf("-%s and -%s are set together or not at all; a timer promise names both releases",
 			FieldTimerTzdbVersion, FieldTimerCalendarVersion)
 	}
+	if c.ChatEnabled {
+		if strings.TrimSpace(c.ChatDatabaseURL) == "" {
+			return fmt.Errorf("-%s requires -%s", FieldChatEnabled, FieldChatDatabaseURL)
+		}
+		if strings.TrimSpace(c.ChatCursorKey) == "" {
+			return fmt.Errorf("-%s requires -%s", FieldChatEnabled, FieldChatCursorKey)
+		}
+		if c.ChatDatabaseURL == c.DatabaseURL {
+			return fmt.Errorf("-%s must use a database independent from -%s", FieldChatDatabaseURL, FieldDatabaseURL)
+		}
+	}
 	return nil
 }
 
@@ -516,6 +629,40 @@ func parseLegalEvidenceIssuerKeys(raw string) ([][]byte, error) {
 		keys = append(keys, key)
 	}
 	return keys, nil
+}
+
+// validatePageCursorKeys enforces the dedicated rotating page-cursor key
+// (INTAPI-006). The active key is required and must stand on its own: long
+// enough to sign with and different from the development HMAC key, so page
+// cursors and credentials never share signing material. The retired key is
+// optional, but when set it must meet the same floor and differ from both
+// the active and the development key, or a rotation would bless a
+// misconfiguration instead of a key change.
+func (c ServeConfig) validatePageCursorKeys() error {
+	if len(c.PageCursorKey) < MinimumHMACKeyBytes {
+		return fmt.Errorf("-%s must be at least %d bytes; page cursors need their own signing key",
+			FieldPageCursorKey, MinimumHMACKeyBytes)
+	}
+	if c.PageCursorKey == c.DevHMACKey {
+		return fmt.Errorf("-%s must not reuse -%s; page cursors and credentials must never share signing material",
+			FieldPageCursorKey, FieldDevHMACKey)
+	}
+	if c.PageCursorPreviousKey == "" {
+		return nil
+	}
+	if len(c.PageCursorPreviousKey) < MinimumHMACKeyBytes {
+		return fmt.Errorf("-%s must be at least %d bytes when set",
+			FieldPageCursorPreviousKey, MinimumHMACKeyBytes)
+	}
+	if c.PageCursorPreviousKey == c.PageCursorKey {
+		return fmt.Errorf("-%s must differ from -%s; a rotation that changes nothing is a misconfiguration",
+			FieldPageCursorPreviousKey, FieldPageCursorKey)
+	}
+	if c.PageCursorPreviousKey == c.DevHMACKey {
+		return fmt.Errorf("-%s must not reuse -%s; retired cursors and credentials must never share signing material",
+			FieldPageCursorPreviousKey, FieldDevHMACKey)
+	}
+	return nil
 }
 
 func validateLocalDevBoundary(c ServeConfig) error {

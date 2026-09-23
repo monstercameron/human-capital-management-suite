@@ -32,7 +32,8 @@ func uxaudit017Composed(t *testing.T, now *time.Time) (workspace.JourneyEngine, 
 	const tenant = string(fixtures.Tenant)
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: integrationSigningKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: integrationSigningKey, PageCursorKey: integrationPageCursorKey,
+		Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: tenant, CellID: "cell-uxaudit017-integration", MaxDeadline: 30 * time.Second,
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:uxaudit017-integration-authority",

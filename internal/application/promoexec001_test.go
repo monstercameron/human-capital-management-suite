@@ -60,6 +60,7 @@ func TestTodo_PROMO_EXEC_001_DefaultComposition(t *testing.T) {
 		"-grpc-listen=127.0.0.1:0", "-http-listen=127.0.0.1:0", "-database-url="+db.URL,
 		"-dev-hmac-key="+integrationSigningKey, "-tenant="+tenant,
 		"-execution-authority-digest=sha256:promo-exec-001-default",
+		"-page-cursor-key="+integrationPageCursorKey,
 		"-migrate=false")
 	if !cfg.ExecutionAuthority || cfg.WorkflowPlan != WorkflowPlanExecute || !cfg.Scheduler {
 		t.Fatalf("standard defaults = authority %t plan %q scheduler %t, want the engine on",
@@ -200,6 +201,7 @@ func TestTodo_PROMO_EXEC_001_OptOutRefuses(t *testing.T) {
 		"-grpc-listen=127.0.0.1:0", "-http-listen=127.0.0.1:0", "-database-url="+db.URL,
 		"-dev-hmac-key="+integrationSigningKey, "-tenant="+tenant,
 		"-execution-authority=false", "-scheduler=false", "-migrate=false", "-workspace=false")
+	cfg.PageCursorKey = integrationPageCursorKey
 	if cfg.ExecutionAuthority || cfg.Scheduler {
 		t.Fatalf("opt-out = authority %t scheduler %t, want both off", cfg.ExecutionAuthority, cfg.Scheduler)
 	}

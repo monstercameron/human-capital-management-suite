@@ -659,13 +659,18 @@ func (x *ThresholdRow) GetOutcome() string {
 // "thresholds one decision table from tenant config P1A (no expression
 // language)").
 type ThresholdTable struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TableId       string                 `protobuf:"bytes,1,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
-	Version       uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	TenantId      string                 `protobuf:"bytes,3,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	InputNames    []string               `protobuf:"bytes,4,rep,name=input_names,json=inputNames,proto3" json:"input_names,omitempty"`
-	Rows          []*ThresholdRow        `protobuf:"bytes,5,rep,name=rows,proto3" json:"rows,omitempty"`
-	HitPolicy     ThresholdHitPolicy     `protobuf:"varint,6,opt,name=hit_policy,json=hitPolicy,proto3,enum=hcmnext.humanwork.v1.ThresholdHitPolicy" json:"hit_policy,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	TableId    string                 `protobuf:"bytes,1,opt,name=table_id,json=tableId,proto3" json:"table_id,omitempty"`
+	Version    uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	TenantId   string                 `protobuf:"bytes,3,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	InputNames []string               `protobuf:"bytes,4,rep,name=input_names,json=inputNames,proto3" json:"input_names,omitempty"`
+	Rows       []*ThresholdRow        `protobuf:"bytes,5,rep,name=rows,proto3" json:"rows,omitempty"`
+	HitPolicy  ThresholdHitPolicy     `protobuf:"varint,6,opt,name=hit_policy,json=hitPolicy,proto3,enum=hcmnext.humanwork.v1.ThresholdHitPolicy" json:"hit_policy,omitempty"`
+	// version_ref is the rules-engine version string of the served table
+	// (e.g. "2026.1"): table identity is (table_id, version_ref) per RULE-003,
+	// so a historical approval keeps citing the exact table it ran against.
+	// version stays the served contract revision of this projection.
+	VersionRef    string `protobuf:"bytes,7,opt,name=version_ref,json=versionRef,proto3" json:"version_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -740,6 +745,13 @@ func (x *ThresholdTable) GetHitPolicy() ThresholdHitPolicy {
 		return x.HitPolicy
 	}
 	return ThresholdHitPolicy_THRESHOLD_HIT_POLICY_UNSPECIFIED
+}
+
+func (x *ThresholdTable) GetVersionRef() string {
+	if x != nil {
+		return x.VersionRef
+	}
+	return ""
 }
 
 var File_hcmnext_humanwork_v1_humanwork_proto protoreflect.FileDescriptor
@@ -821,7 +833,7 @@ const file_hcmnext_humanwork_v1_humanwork_proto_rawDesc = "" +
 	"\n" +
 	"conditions\x18\x01 \x03(\v2(.hcmnext.humanwork.v1.ThresholdConditionR\n" +
 	"conditions\x12\x18\n" +
-	"\aoutcome\x18\x02 \x01(\tR\aoutcome\"\x84\x02\n" +
+	"\aoutcome\x18\x02 \x01(\tR\aoutcome\"\xa5\x02\n" +
 	"\x0eThresholdTable\x12\x19\n" +
 	"\btable_id\x18\x01 \x01(\tR\atableId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\rR\aversion\x12\x1b\n" +
@@ -830,7 +842,9 @@ const file_hcmnext_humanwork_v1_humanwork_proto_rawDesc = "" +
 	"inputNames\x126\n" +
 	"\x04rows\x18\x05 \x03(\v2\".hcmnext.humanwork.v1.ThresholdRowR\x04rows\x12G\n" +
 	"\n" +
-	"hit_policy\x18\x06 \x01(\x0e2(.hcmnext.humanwork.v1.ThresholdHitPolicyR\thitPolicy*\xad\x03\n" +
+	"hit_policy\x18\x06 \x01(\x0e2(.hcmnext.humanwork.v1.ThresholdHitPolicyR\thitPolicy\x12\x1f\n" +
+	"\vversion_ref\x18\a \x01(\tR\n" +
+	"versionRef*\xad\x03\n" +
 	"\x0eWorkItemStatus\x12 \n" +
 	"\x1cWORK_ITEM_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18WORK_ITEM_STATUS_CREATED\x10\x01\x12\x1b\n" +

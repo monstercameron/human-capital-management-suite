@@ -41,12 +41,16 @@ type Lifecycle interface {
 // needs to read back (the composed cell and the two bound addresses, for the
 // serve role).
 type App struct {
-	role     Role
-	graph    Graph
-	logger   bootstrap.Logger
-	cell     *app.Cell
-	grpcAddr string
-	httpAddr string
+	role   Role
+	graph  Graph
+	logger bootstrap.Logger
+	cell   *app.Cell
+	// disposition is the serve cell's governed retention, legal-hold and
+	// verified-deletion gate (REV-004-02). It is composed with the cell so
+	// the libraries it fronts are reachable from the running process.
+	disposition *DispositionGate
+	grpcAddr    string
+	httpAddr    string
 
 	workloads []bootstrap.Workload
 	shutdown  []bootstrap.ShutdownStep
@@ -72,6 +76,10 @@ func (a *App) Graph() Graph { return a.graph }
 
 // Cell is the composed application cell, or nil for a role that has none.
 func (a *App) Cell() *app.Cell { return a.cell }
+
+// Disposition is the composed governed-disposition gate, or nil for a role
+// that composes none.
+func (a *App) Disposition() *DispositionGate { return a.disposition }
 
 // GRPCAddr and HTTPAddr are the addresses the two surfaces actually bound.
 // They are read back rather than read from configuration because ":0" is a

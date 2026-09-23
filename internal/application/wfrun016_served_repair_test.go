@@ -75,7 +75,8 @@ func (servedRepairVerifier) ReconcileRepair(context.Context, execute.RepairRecon
 func servedRepairConfig(url string) ServeConfig {
 	return ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: url,
-		DevHMACKey: "wfrun016-served-repair-signing-key", Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: "wfrun016-served-repair-signing-key", PageCursorKey: integrationPageCursorKey,
+		Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: servedRepairTenant, CellID: "cell-wfrun016-served", MaxDeadline: 60 * time.Second,
 		OTelExporter:             OTelExporterNone,
 		ExecutionAuthority:       true,

@@ -12,6 +12,12 @@ import (
 // outside this test binary.
 const testDevKey = "application-composition-root-test-signing-key"
 
+// testPageCursorKey is the fixture page-cursor signing key: long enough to
+// satisfy MinimumHMACKeyBytes and deliberately distinct from testDevKey,
+// so the fixture composition itself honors the separation Validate
+// enforces. It signs nothing outside this test binary.
+const testPageCursorKey = "application-page-cursor-test-signing-key-00"
+
 // parseServe parses args against the serve role's declared fields with an
 // empty environment, so a case's outcome depends only on what it passed.
 func parseServe(t *testing.T, args ...string) *bootstrap.Values {
@@ -43,6 +49,8 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 		FieldWorkflowPlan, FieldLegalEvidenceIssuerKeys,
 		FieldExecutionRetry, FieldExecutionRetryVersion, FieldExecutionRetryMaxAttempts,
 		FieldExecutionRetryResolutionAttempts, FieldPublicOrigin, FieldLocalDevNow,
+		FieldPageCursorKey, FieldPageCursorPreviousKey,
+		FieldDocumentDatabaseURL,
 	} {
 		if _, ok := declared[name]; !ok {
 			t.Errorf("field %q is read by the composition but not declared", name)
@@ -51,8 +59,19 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 	if !declared[FieldDevHMACKey].Secret {
 		t.Error("the signing key is not marked Secret; it would reach the config fingerprint and the startup log")
 	}
+	if !declared[FieldDocumentDatabaseURL].Secret {
+		t.Error("document database URL is not marked Secret")
+	}
 	if declared[FieldDevHMACKey].Default != "" {
 		t.Error("the signing key has a default; a listener with a default signing key is one anyone can forge against")
+	}
+	for _, name := range []string{FieldPageCursorKey, FieldPageCursorPreviousKey} {
+		if !declared[name].Secret {
+			t.Errorf("-%s is not marked Secret; cursor key material would reach the config fingerprint and the startup log", name)
+		}
+		if declared[name].Default != "" {
+			t.Errorf("-%s has a default; cursors would verify under a key anyone can guess", name)
+		}
 	}
 	if declared[FieldExecutionAuthority].Default != "true" {
 		t.Errorf("-%s defaults to %q, want true: promotions run through the execution engine unless opted out",
@@ -90,6 +109,9 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		"-execution-retry-max-attempts=3", "-execution-retry-resolution-attempts=4",
 		"-legal-evidence-issuer-keys=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 		"-public-origin=https://HCM.example.com:8443",
+		"-page-cursor-key="+testPageCursorKey,
+		"-page-cursor-previous-key="+testPageCursorKey+"-previous-00",
+		"-chat-media-root=/srv/chat", "-artifact-root=/srv/artifacts",
 	)
 	cfg, err := ServeConfigFromValues(values)
 	if err != nil {
@@ -111,7 +133,9 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		ExecutionRetryMaxAttempts: 3, ExecutionRetryResolutionAttempts: 4,
 		LegalEvidenceIssuerKeys: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 		TimerTzdbVersion:        "2026b", TimerCalendarVersion: "2026.2", HealthAddr: "127.0.0.1:9",
-		PublicOrigin: "https://hcm.example.com:8443",
+		PublicOrigin:  "https://hcm.example.com:8443",
+		PageCursorKey: testPageCursorKey, PageCursorPreviousKey: testPageCursorKey + "-previous-00",
+		ChatMediaRoot: "/srv/chat", ArtifactRoot: "/srv/artifacts",
 	}
 	if cfg != want {
 		t.Errorf("ServeConfigFromValues =\n %+v\nwant\n %+v", cfg, want)
@@ -129,6 +153,7 @@ func TestServeConfigPublicOriginIsCanonicalizedAndValidated(t *testing.T) {
 	// validate; the assertions below are about the origin parse.
 	cfg, err := ServeConfigFromValues(parseServe(t,
 		"-database-url=postgres://x", "-dev-hmac-key="+testDevKey,
+		"-page-cursor-key="+testPageCursorKey,
 		"-tenant=acme", "-execution-authority-digest=sha256:abc"))
 	if err != nil {
 		t.Fatalf("ServeConfigFromValues: %v", err)
@@ -142,6 +167,7 @@ func TestServeConfigPublicOriginIsCanonicalizedAndValidated(t *testing.T) {
 
 	cfg, err = ServeConfigFromValues(parseServe(t,
 		"-database-url=postgres://x", "-dev-hmac-key="+testDevKey,
+		"-page-cursor-key="+testPageCursorKey,
 		"-tenant=acme", "-execution-authority-digest=sha256:abc",
 		"-public-origin=https://HCM.Example.com:443"))
 	if err != nil {
@@ -313,6 +339,7 @@ func TestServeConfigTimerDatasetIsAllOrNothing(t *testing.T) {
 	// The engine defaults need a tenant and an authority digest to
 	// validate; the timer assertions below are about the dataset pair.
 	defaults, err := ServeConfigFromValues(parseServe(t, "-database-url=postgres://x", "-dev-hmac-key="+testDevKey,
+		"-page-cursor-key="+testPageCursorKey,
 		"-tenant=acme", "-execution-authority-digest=sha256:abc"))
 	if err != nil {
 		t.Fatalf("ServeConfigFromValues: %v", err)
@@ -356,7 +383,8 @@ func TestServeConfigFromValuesRejectsNoValues(t *testing.T) {
 func TestServeConfigValidateRejectsAConfigurationAListenerMustNotStartOn(t *testing.T) {
 	base := ServeConfig{
 		DatabaseURL: "postgres://x", DevHMACKey: testDevKey,
-		OTelExporter: OTelExporterNone,
+		PageCursorKey: testPageCursorKey,
+		OTelExporter:  OTelExporterNone,
 	}
 	cases := []struct {
 		name    string
@@ -394,6 +422,18 @@ func TestServeConfigValidateRejectsAConfigurationAListenerMustNotStartOn(t *test
 			c.Scheduler = true
 			c.Tenant = "acme"
 		}, FieldExecutionAuthority},
+		{"missing page cursor key", func(c *ServeConfig) { c.PageCursorKey = "" }, FieldPageCursorKey},
+		{"short page cursor key", func(c *ServeConfig) { c.PageCursorKey = "too-short" }, "at least 32 bytes"},
+		{"page cursor key reuses the dev key", func(c *ServeConfig) { c.PageCursorKey = c.DevHMACKey }, "must never share signing material"},
+		{"short retired page cursor key", func(c *ServeConfig) {
+			c.PageCursorPreviousKey = "too-short"
+		}, FieldPageCursorPreviousKey},
+		{"retired page cursor key equals the active one", func(c *ServeConfig) {
+			c.PageCursorPreviousKey = c.PageCursorKey
+		}, "changes nothing"},
+		{"retired page cursor key reuses the dev key", func(c *ServeConfig) {
+			c.PageCursorPreviousKey = c.DevHMACKey
+		}, "must never share signing material"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -439,6 +479,7 @@ func TestValidateServeValuesReportsTheMissingDatabaseURLFirst(t *testing.T) {
 		t.Error("ValidateServeValues accepted the engine defaults with no tenant or authority digest")
 	}
 	values = parseServe(t, "-database-url=postgres://x", "-dev-hmac-key="+testDevKey,
+		"-page-cursor-key="+testPageCursorKey,
 		"-tenant=acme", "-execution-authority-digest=sha256:abc")
 	if err := ValidateServeValues(values); err != nil {
 		t.Errorf("ValidateServeValues on the defaults plus a URL, a key, a tenant and a digest: %v", err)

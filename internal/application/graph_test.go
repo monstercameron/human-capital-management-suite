@@ -122,15 +122,17 @@ const serveGoldenCanonical = `role=serve
 capability-gateway|governance|*capability.Gateway|capability-registry
 capability-registry|registry|*capability.Registry|cell
 cell|registry|*app.Cell|credential-verifier,evidence-sink,intent-store,legal-evidence-verifier,pay-band-catalog,proposal-executor,telemetry-provider
+chat-service|engine|<nil>|config
 config|config|application.ServeConfig|
 credential-verifier|adapter|application.stubVerifier|config
 database-pool|adapter|<nil>|
 discovery-document|registry|*manifest.DiscoveryDocument|cell
+disposition-gate|adapter|*application.DispositionGate|config
 domain-inputs|port|*app.FixtureInputs|
 evidence-sink|registry|*evidencestore.Store|
 execution-authority|governance|<nil>|config,database-pool,evidence-sink
 grpc-surface|transport|*grpc.Server|cell,workflow-instance-reader
-http-edge|transport|http.HandlerFunc|cell,grpc-surface
+http-edge|transport|*http.ServeMux|cell,grpc-surface
 incumbent-connector|adapter|*fakeincumbent.Incumbent|
 intent-definitions|registry|*intent.Registry|cell
 intent-service|engine|*app.IntentService|cell
@@ -143,6 +145,7 @@ presentation-preferences|adapter|*preferencestore.Store|database-pool
 proposal-executor|workflow|<nil>|execution-authority
 role-access|adapter|*roleaccessstore.Store|database-pool
 schema-migrator|adapter|<nil>|
+shutdown:close-chat-database|shutdown|func(context.Context) error|chat-service
 shutdown:shutdown-telemetry|shutdown|func(context.Context) error|telemetry-provider
 shutdown:stop-grpc-surface|shutdown|func(context.Context) error|grpc-surface
 shutdown:stop-http-edge|shutdown|func(context.Context) error|http-edge

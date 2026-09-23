@@ -53,6 +53,7 @@ import (
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/streaming"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/session"
 )
 
 // Component names recorded in the composed [Graph]. They are constants so a
@@ -96,10 +97,17 @@ const (
 	ComponentShutdownHTTP          = "shutdown:stop-http-edge"
 	ComponentShutdownGRPC          = "shutdown:stop-grpc-surface"
 	ComponentShutdownTelemetry     = "shutdown:shutdown-telemetry"
+	ComponentChatService           = "chat-service"
+	ComponentChatDatabasePool      = "chat-database-pool"
+	ComponentShutdownChat          = "shutdown:close-chat-database"
+	ComponentDocumentStore         = "document-store"
+	ComponentShutdownDocument      = "shutdown:close-document-database"
 	workloadNameGRPC               = "grpc-surface"
 	workloadNameHTTP               = "http-edge"
 	shutdownNameHTTP               = "stop-http-edge"
 	shutdownNameGRPC               = "stop-grpc-surface"
+	shutdownNameChat               = "close-chat-database"
+	shutdownNameDocument           = "close-document-database"
 	shutdownNameTelemetry          = "shutdown-telemetry"
 	httpEdgeReadHeaderTimeoutValue = 10 * time.Second
 )
@@ -276,6 +284,12 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	graph.add(ComponentEvidenceSink, KindRegistry, evidence)
 
+	// REV-004-02: the serve cell owns one governed-disposition gate so
+	// retention disposition, legal-hold enforcement and verified deletion
+	// are reachable from the running process instead of library-only.
+	disposition := NewDispositionGate()
+	graph.add(ComponentDispositionGate, KindAdapter, disposition, ComponentConfig)
+
 	workspaceEnabled := cfg.Workspace
 	workerIDs := workeridstore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
 	roleAccess := roleaccessstore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), productFeatureCatalog()...)
@@ -400,6 +414,49 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	graph.add(ComponentIntentService, KindEngine, cell.Service, ComponentCell)
 	graph.add(ComponentJourneyEngine, KindWorkflow, cell.Journey, ComponentCell)
 
+	chatSessions := options.ChatSessionRevocation
+	if chatSessions == nil {
+		if checker, ok := verifier.(session.RevocationChecker); ok {
+			chatSessions = checker
+		}
+	}
+	var chatFacts ChatAuthorityFacts
+	if chatSessions != nil || cfg.Profile == ServeProfileLocalDev {
+		chatFacts = newCurrentWorkerChatFacts(roleAccess, in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), chatSessions)
+	}
+	chatRuntime, err := composeChat(ctx, cfg, options.Now, chatFacts, in.Pool)
+	if err != nil {
+		// composeChat returns nil unless -chat-enabled is set, so this is an
+		// enabled surface that cannot answer: mounting its routes would serve
+		// nothing but denials, and the failure must be visible at startup
+		// rather than hidden behind an empty log line.
+		logger.Error("hcmnext.chat_unavailable", "error", err.Error())
+		return nil, fmt.Errorf("compose chat: %w", err)
+	}
+	chatCommitted := false
+	defer func() {
+		if !chatCommitted && chatRuntime.close != nil {
+			chatRuntime.close()
+		}
+	}()
+	graph.add(ComponentChatService, KindEngine, chatRuntime.service, ComponentConfig)
+	documentRuntime, err := composeDocument(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if documentRuntime.store != nil {
+		documentRuntime.service = documentService{store: documentRuntime.store, recipientAllowed: documentRecipientValidator(in.Pool)}
+	}
+	documentCommitted := false
+	defer func() {
+		if !documentCommitted && documentRuntime.close != nil {
+			documentRuntime.close()
+		}
+	}()
+	if documentRuntime.store != nil {
+		graph.add(ComponentDocumentStore, KindAdapter, documentRuntime.store, ComponentConfig)
+	}
+
 	var schedulerWorkload, progressWorkload bootstrap.Workload
 	if cfg.Scheduler {
 		schedulerWorkload, err = composeSchedulerWorkload(cfg, in.Pool, in.Identity, cell, telemetryProvider, logger, options.Now)
@@ -448,17 +505,52 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		Idempotency: endpoint.NewCoordinator(),
 	}
 
-	grpcServer, err := transportcell.NewGRPCServerWithWorkflowInspectorAndOperations(
-		cell, workflowInstanceReader, workQueueReader, operationStore, []byte(cfg.DevHMACKey), workWritePorts)
+	// INTAPI-006: page and stream cursors are signed with the dedicated
+	// page-cursor key (plus its retired predecessor while a rotation is in
+	// progress), never with the development HMAC key that authenticates
+	// credentials. ServeConfig.Validate refuses a configuration that reuses
+	// the dev key, so by the time this composition runs the two are
+	// distinct by construction.
+	pageCursorKey := []byte(cfg.PageCursorKey)
+	previousPageCursorKey := []byte(cfg.PageCursorPreviousKey)
+	// INTAPI-006: GetThresholdTable is served through the reference
+	// promotion-approval decision table until a tenant publishes its own.
+	thresholds := newServedThresholds()
+
+	grpcServer, err := transportcell.NewGRPCServerWithWorkflowInspectorAndOperationsAndChat(
+		cell, workflowInstanceReader, workQueueReader, operationStore, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds, chatRuntime.service)
 	if err != nil {
 		return nil, err
 	}
+	transportcell.RegisterChatExtensions(grpcServer, chatRuntime.extensions)
+	transportcell.RegisterDocument(grpcServer, documentRuntime.service, pageCursorKey)
 	graph.add(ComponentGRPCSurface, KindTransport, grpcServer, ComponentCell, ComponentWorkflowInstanceRead)
 
-	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnelAndDependencies(
-		cell, grpcServer, workflowInstanceReader, workQueueReader, operationStore, []byte(cfg.DevHMACKey), workWritePorts)
+	// INTAPI-006: the tunnel bridges a workspace-only server, never the
+	// main one, so the operator surfaces stay off the browser route.
+	// The browser chat client speaks both chat services over this tunnel,
+	// so they are registered here (composed when chat is enabled, generated
+	// stubs otherwise) and admitted by the tunnel's service allowlist.
+	tunnelServer, err := transportcell.NewTunnelGRPCServerWithChatAndDocument(
+		cell, workflowInstanceReader, workQueueReader, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds,
+		chatRuntime.service, chatRuntime.extensions, documentRuntime.service)
 	if err != nil {
 		return nil, err
+	}
+	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnelAndDependenciesAndChat(
+		cell, tunnelServer, workflowInstanceReader, workQueueReader, operationStore, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds, chatRuntime.service)
+	if err != nil {
+		return nil, err
+	}
+	edgeHandler = transportcell.OverlayChatExtensions(edgeHandler, cell.Config, chatRuntime.extensions)
+	if cfg.ChatEnabled {
+		mediaCfg := options.ChatMedia.WithDefaults(cfg.ChatMediaRoot, cfg.ArtifactRoot)
+		if chatRuntime.extensions != nil {
+			mediaCfg.Authorize = chatRuntime.extensions.AuthorizeMedia
+		} else {
+			mediaCfg.Authorize = nil
+		}
+		edgeHandler = OverlayChatMedia(edgeHandler, mediaCfg, cell.Config)
 	}
 	graph.add(ComponentHTTPEdge, KindTransport, edgeHandler, ComponentCell, ComponentGRPCSurface)
 
@@ -579,6 +671,15 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			},
 		},
 		{
+			Name: shutdownNameChat,
+			Run: func(context.Context) error {
+				if chatRuntime.close != nil {
+					chatRuntime.close()
+				}
+				return nil
+			},
+		},
+		{
 			Name: shutdownNameTelemetry,
 			Run: func(stepCtx context.Context) error {
 				if telemetryProvider == nil {
@@ -589,6 +690,15 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			},
 		},
 	}
+	if documentRuntime.close != nil {
+		shutdown = append(shutdown, bootstrap.ShutdownStep{
+			Name: shutdownNameDocument,
+			Run: func(context.Context) error {
+				documentRuntime.close()
+				return nil
+			},
+		})
+	}
 	graph.add(ComponentWorkloadGRPC, KindWorkload, workloads[0].Run, ComponentGRPCSurface)
 	graph.add(ComponentWorkloadHTTP, KindWorkload, workloads[1].Run, ComponentHTTPEdge)
 	if cfg.Scheduler {
@@ -597,22 +707,29 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	graph.add(ComponentShutdownHTTP, KindShutdown, shutdown[0].Run, ComponentHTTPEdge)
 	graph.add(ComponentShutdownGRPC, KindShutdown, shutdown[1].Run, ComponentGRPCSurface)
-	graph.add(ComponentShutdownTelemetry, KindShutdown, shutdown[2].Run, ComponentTelemetryProvider)
+	graph.add(ComponentShutdownChat, KindShutdown, shutdown[2].Run, ComponentChatService)
+	graph.add(ComponentShutdownTelemetry, KindShutdown, shutdown[3].Run, ComponentTelemetryProvider)
+	if documentRuntime.close != nil {
+		graph.add(ComponentShutdownDocument, KindShutdown, shutdown[4].Run, ComponentDocumentStore)
+	}
 
 	// From here the caller's lifecycle owns the provider's lifetime through
 	// the ordered shutdown step above. Earlier returns leave this function
 	// responsible for cleaning up the partially composed provider.
 	telemetryCommitted = true
+	chatCommitted = true
+	documentCommitted = true
 	return &App{
-		role:      RoleServe,
-		graph:     graph.graph(),
-		logger:    logger,
-		cell:      cell,
-		grpcAddr:  grpcListener.Addr().String(),
-		httpAddr:  httpListener.Addr().String(),
-		workloads: workloads,
-		shutdown:  shutdown,
-		listeners: []net.Listener{grpcListener, httpListener},
+		role:        RoleServe,
+		graph:       graph.graph(),
+		logger:      logger,
+		cell:        cell,
+		disposition: disposition,
+		grpcAddr:    grpcListener.Addr().String(),
+		httpAddr:    httpListener.Addr().String(),
+		workloads:   workloads,
+		shutdown:    shutdown,
+		listeners:   []net.Listener{grpcListener, httpListener},
 	}, nil
 }
 
@@ -674,6 +791,10 @@ func composeStore(pool *pgxadapter.Pool, cfg ServeConfig, options Options) (app.
 }
 
 // composeVerifier builds the credential verifier, or takes the supplied one.
+// Tenant IdP configuration selects the federation verifier
+// (internal/trust/federation over the governed issuer registry); otherwise
+// the development HMAC verifier composes, which is available only through
+// an explicit -dev-hmac-key or the local-dev profile default.
 func composeVerifier(cfg ServeConfig, options Options) (trust.Verifier, error) {
 	if options.NewVerifier != nil {
 		verifier, err := options.NewVerifier(cfg)
@@ -682,6 +803,13 @@ func composeVerifier(cfg ServeConfig, options Options) (trust.Verifier, error) {
 		}
 		if verifier == nil {
 			return nil, fmt.Errorf("application: the supplied verifier factory returned no verifier")
+		}
+		return verifier, nil
+	}
+	if federationConfigured(cfg) {
+		verifier, err := composeFederationVerifier(cfg, options.Now)
+		if err != nil {
+			return nil, fmt.Errorf("build the federation verifier: %w", err)
 		}
 		return verifier, nil
 	}

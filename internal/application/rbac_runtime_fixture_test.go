@@ -124,7 +124,7 @@ func rbacCompose(t *testing.T) *rbacHarness {
 	t.Cleanup(pool.Close)
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: rbacSigningKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: rbacSigningKey, PageCursorKey: integrationPageCursorKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: demoworkforce.CompanyKey, CellID: "cell-rbac-runtime", MaxDeadline: 60 * time.Second,
 		Workspace: true, DevBrowserLogin: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:rbac-runtime",

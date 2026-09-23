@@ -22,17 +22,18 @@ import (
 // migration (the seam that would need a database) and telemetry off.
 func stubServeConfig() ServeConfig {
 	return ServeConfig{
-		GRPCListen:   "127.0.0.1:0",
-		HTTPListen:   "127.0.0.1:0",
-		DatabaseURL:  "postgres://stub.invalid/hcmnext",
-		DevHMACKey:   testDevKey,
-		Issuer:       DefaultIssuer,
-		Audience:     DefaultAudience,
-		CellID:       "cell-composition-test",
-		MaxDeadline:  30 * time.Second,
-		Migrate:      false,
-		Workspace:    true,
-		OTelExporter: OTelExporterNone,
+		GRPCListen:    "127.0.0.1:0",
+		HTTPListen:    "127.0.0.1:0",
+		DatabaseURL:   "postgres://stub.invalid/hcmnext",
+		DevHMACKey:    testDevKey,
+		PageCursorKey: testPageCursorKey,
+		Issuer:        DefaultIssuer,
+		Audience:      DefaultAudience,
+		CellID:        "cell-composition-test",
+		MaxDeadline:   30 * time.Second,
+		Migrate:       false,
+		Workspace:     true,
+		OTelExporter:  OTelExporterNone,
 	}
 }
 
@@ -158,7 +159,7 @@ func TestComposeServeBuildsTheWholeRoleFromOneConfigValue(t *testing.T) {
 		t.Errorf("workloads = %q/%q, want %q/%q",
 			runtime.Workloads[0].Name, runtime.Workloads[1].Name, workloadNameGRPC, workloadNameHTTP)
 	}
-	wantShutdown := []string{shutdownNameHTTP, shutdownNameGRPC, shutdownNameTelemetry}
+	wantShutdown := []string{shutdownNameHTTP, shutdownNameGRPC, shutdownNameChat, shutdownNameTelemetry}
 	if len(runtime.Shutdown) != len(wantShutdown) {
 		t.Fatalf("composed %d shutdown steps, want %d", len(runtime.Shutdown), len(wantShutdown))
 	}

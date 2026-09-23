@@ -38,6 +38,12 @@ func TestMain(m *testing.M) {
 // it authenticates nothing outside a test process.
 const integrationSigningKey = "hcm-next-application-composition-signing-key"
 
+// integrationPageCursorKey is the fixture page-cursor signing key for every
+// composed harness in this package: long enough to validate and deliberately
+// distinct from integrationSigningKey, so the fixtures honor the separation
+// production enforces. It signs nothing outside a test process.
+const integrationPageCursorKey = "hcm-next-application-page-cursor-test-key"
+
 // TestTodo_ARCH_GO_020_Integration is the ARCH-GO-020 INTEGRATION test: the
 // composition root composed against a real PostgreSQL, with a governed read
 // run through the cell it composed.
@@ -65,6 +71,7 @@ func TestTodo_ARCH_GO_020_Integration(t *testing.T) {
 		HTTPListen:              "127.0.0.1:0",
 		DatabaseURL:             db.URL,
 		DevHMACKey:              integrationSigningKey,
+		PageCursorKey:           integrationPageCursorKey,
 		Issuer:                  DefaultIssuer,
 		Audience:                DefaultAudience,
 		Tenant:                  string(fixtures.Tenant),
@@ -201,7 +208,8 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 	now := clockAt
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: integrationSigningKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: integrationSigningKey, PageCursorKey: integrationPageCursorKey,
+		Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: tenant, CellID: "cell-application-execute-plan", MaxDeadline: 30 * time.Second,
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:application-execute-authority",

@@ -96,7 +96,13 @@ func TestTodo_PROMO_EXEC_003_LiveInspect(t *testing.T) {
 	h := promoux015Compose(t)
 	_, instanceID := promoexec003Live(t, h)
 	workflow, admin := promoexec003Surfaces(t, h)
-	ctx := h.rpc("hiring-manager")
+	// Raw runtime inspection is operator-scoped unless the caller is a
+	// named business subject. Initiating a journey does not grant access to
+	// every internal node; the requester uses InspectJourney instead.
+	if _, err := workflow.GetWorkflow(h.rpc("hiring-manager"), &workflowv1.GetWorkflowRequest{InstanceId: instanceID}); status.Code(err) != codes.NotFound {
+		t.Fatalf("requester raw inspection = %v, want non-disclosing NOT_FOUND", err)
+	}
+	ctx := h.rpc("admin")
 
 	got, err := workflow.GetWorkflow(ctx, &workflowv1.GetWorkflowRequest{InstanceId: instanceID})
 	if err != nil {
@@ -196,7 +202,7 @@ func TestTodo_PROMO_EXEC_003_LiveInspect_Integration(t *testing.T) {
 	}
 	h.acknowledgeParkedPromotion(intentID)
 
-	terminal, err := workflow.GetWorkflow(h.rpc("hiring-manager"), &workflowv1.GetWorkflowRequest{InstanceId: instanceID})
+	terminal, err := workflow.GetWorkflow(h.rpc("admin"), &workflowv1.GetWorkflowRequest{InstanceId: instanceID})
 	if err != nil {
 		t.Fatalf("GetWorkflow on the terminal run: %v", err)
 	}
@@ -243,11 +249,16 @@ func TestTodo_PROMO_EXEC_003_LiveInspect_Security(t *testing.T) {
 	workflow, admin := promoexec003Surfaces(t, h)
 
 	foreign := promoexec003OperatorCtx(t, h, "other-tenant")
-	if _, err := workflow.GetWorkflow(foreign, &workflowv1.GetWorkflowRequest{InstanceId: instanceID}); status.Code(err) != codes.NotFound {
-		t.Fatalf("GetWorkflow across tenants = %v, want NOT_FOUND", err)
-	}
-	if _, err := workflow.ListNodeExecutions(foreign, &workflowv1.ListNodeExecutionsRequest{InstanceId: instanceID}); status.Code(err) != codes.NotFound {
-		t.Fatalf("ListNodeExecutions across tenants = %v, want NOT_FOUND", err)
+	// Token roles do not establish durable capability grants in another tenant.
+	// Both an existing and an absent ID must fail identically at admission,
+	// without exposing a record or reaching subject-level inspection.
+	for _, id := range []string{instanceID, "00000000-0000-4000-8000-000000000000"} {
+		if got, err := workflow.GetWorkflow(foreign, &workflowv1.GetWorkflowRequest{InstanceId: id}); got != nil || status.Code(err) != codes.PermissionDenied {
+			t.Fatalf("GetWorkflow across tenants for %s = %v, %v; want no record and PERMISSION_DENIED", id, got, err)
+		}
+		if got, err := workflow.ListNodeExecutions(foreign, &workflowv1.ListNodeExecutionsRequest{InstanceId: id}); got != nil || status.Code(err) != codes.PermissionDenied {
+			t.Fatalf("ListNodeExecutions across tenants for %s = %v, %v; want no records and PERMISSION_DENIED", id, got, err)
+		}
 	}
 	if _, err := admin.GetWorkflowInstance(foreign, &adminv1.GetWorkflowInstanceRequest{InstanceId: instanceID}); status.Code(err) != codes.NotFound {
 		t.Fatalf("GetWorkflowInstance across tenants = %v, want NOT_FOUND", err)

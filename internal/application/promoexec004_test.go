@@ -371,7 +371,7 @@ func promoexec004Controls(t *testing.T, h *promoux015Harness) {
 		instanceID).Scan(&nodeID, &attempt); err != nil {
 		t.Fatalf("read a settled node: %v", err)
 	}
-	retry, err := client.RetryNode(h.rpc("admin"), &workflowv1.RetryNodeRequest{IdempotencyKey: "promo-exec-004-retry-1", InstanceId: instanceID, NodeId: nodeID, ExpectedAttempt: uint32(attempt)})
+	retry, err := client.RetryNode(h.rpc("admin"), &workflowv1.RetryNodeRequest{IdempotencyKey: "promo-exec-004-retry-1", InstanceId: instanceID, NodeId: nodeID, ExpectedAttempt: uint32(attempt), ReasonRef: "INC-1"})
 	if err != nil || retry.GetReceipt().GetOutcome() != workflowv1.WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_DENIED ||
 		!strings.Contains(retry.GetReceipt().GetResultCode(), "NOT_FAILED") {
 		t.Fatalf("retry of settled %s = %v, %v; want DENIED on its real state", nodeID, retry, err)

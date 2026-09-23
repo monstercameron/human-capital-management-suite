@@ -28,7 +28,8 @@ func TestComposedDemoTenantCarriesItsPerformancePayrollAndRoleData(t *testing.T)
 	t.Cleanup(pool.Close)
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: "demo-data-composition-signing-key-000000", Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: "demo-data-composition-signing-key-000000", PageCursorKey: integrationPageCursorKey,
+		Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: demoworkforce.CompanyKey, CellID: "cell-demo-data", MaxDeadline: 60 * time.Second,
 		Workspace: true, DevBrowserLogin: true, OTelExporter: OTelExporterNone,
 		WorkflowPlan: WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,

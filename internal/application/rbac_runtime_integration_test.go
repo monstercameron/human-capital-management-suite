@@ -64,52 +64,34 @@ type rbacCase struct {
 // rbacKnownGaps maps every case the running system does not yet meet to the
 // todo that closes it. Populated from observed failures; never from guesses.
 var rbacKnownGaps = map[string]string{
-	// GetRoleAccess still trusts the credential's tenant-scoped role without
-	// resolving the principal against this cell's durable assignments.
-	"A-05": "RBAC-RT-010",
 	// hr_partner is granted pay by unit visibility, not an HR-partner relationship.
 	"C-12": "RBAC-RT-007",
 	// payroll_manager's directory is its own unit, not the org boundary.
 	"C-14": "RBAC-RT-008",
-	// IntentService and ListJourneys authorize by tenant, not by relationship.
-	"G-02": "RBAC-RT-003",
-	"G-03": "RBAC-RT-003",
-	"G-05": "RBAC-RT-003",
-	"G-06": "RBAC-RT-003",
-	"G-08": "RBAC-RT-003",
-	"G-09": "RBAC-RT-003",
-	"G-11": "RBAC-RT-003",
-	"K-04": "RBAC-RT-003",
-	"K-05": "RBAC-RT-003",
-	"K-06": "RBAC-RT-003",
-	"F-08": "RBAC-RT-003",
-	// Workflow inspection has the tenant and coarse action checks but does not
-	// yet authorize the requested instance against its business subject.
-	"J-03": "RBAC-RT-003",
-	"J-04": "RBAC-RT-003",
-	"J-05": "RBAC-RT-003",
-	"K-09": "RBAC-RT-003",
-	// hcm_admin and auditor are refused the inspection that carries diagnostics.
-	"H-04": "RBAC-RT-005",
-	"H-06": "RBAC-RT-005",
-	// A roleless principal lists work items (an empty page, not a refusal).
-	"K-07": "RBAC-RT-004",
+	// G-02, G-03, G-05, G-06, G-08, G-09, G-11, K-04, K-05, K-06 and F-08
+	// closed by RBAC-RT-003: intent reads and actions authorize by subject
+	// and relationship (initiator, participant, management chain, or a
+	// role granting the intent's data domain, over durable assignments),
+	// lists filter before paging, and actions require the capability for
+	// the intent type.
+	// J-03, J-04, J-05 and K-09 closed by RBAC-RT-004: the WorkflowService
+	// now authorizes the requested instance against its business subjects
+	// (participant, supervision or durable operator grant) and answers
+	// NOT_FOUND to outsiders. K-07 closed by RBAC-RT-004: a roleless
+	// principal is refused the work-item list, not handed an empty page.
 	// Gate B (rbac_runtime_pages_test.go).
 	// worker_self is granted self-service pages whose data read refuses it.
 	"B-10": "RBAC-RT-020",
-	// Served calls with no page/feature/action gate; a note written under view.
-	"P1-04": "RBAC-RT-016",
-	"P1-06": "RBAC-RT-016",
+	// A note is still written under a view grant; the update-level wiring
+	// follows with the owning session.
 	"P1-07": "RBAC-RT-016",
-	// An inactive role still grants; built-in roles can be renamed/deactivated.
-	"P3-04": "RBAC-RT-017",
-	"P3-05": "RBAC-RT-017",
+	// Built-in roles can still be renamed/deactivated. Inactive-role grants
+	// are now refused and P3-04/P3-05 are ordinary passing regressions.
 	"P3-06": "RBAC-RT-017",
 	"P3-07": "RBAC-RT-017",
-	// Role administration follows token roles; no self-escalation or lockout guard.
-	"P4-01": "RBAC-RT-018",
-	"P4-02": "RBAC-RT-018",
-	"P4-03": "RBAC-RT-018",
+	// P4-01, P4-02 and P4-03 closed by RBAC-RT-018: role administration
+	// derives from the stored roles page grant, self-assignment refuses,
+	// and a change leaving no grant-bearing role refuses.
 	// A page grant creates no feature rows; a page revoke leaves them.
 	"P5-02": "RBAC-RT-019",
 	"P5-04": "RBAC-RT-019",
@@ -419,8 +401,9 @@ func (h *rbacHarness) visibilityVersion(role string) int64 {
 //	       is the principal's role set
 //	[ADM]  transport/journey requireRoleAdministrator (hcm_admin, comp_admin)
 //	[OPS]  operations/admin RequireOperator (hcmnext.trust.role.operator)
-//	[DIAG] roleaccess.PageJourneyDiagnostics + transport/journey
-//	       diagnosticsAuthorized (hcm_admin, comp_admin; auditor per this todo)
+//	[DIAG] roleaccess.CanDiscloseDiagnostics: hcm_admin, comp_admin and
+//	       auditor by role, anyone else by the journey-diagnostics page
+//	       grant, over the durable assignment (RBAC-RT-005)
 //	[AUTH] trust.HMACVerifier: signature, issuer, audience, validity window;
 //	       the cell serves ServeConfig.Tenant only
 var rbacCases = []rbacCase{

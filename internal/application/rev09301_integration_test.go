@@ -37,7 +37,7 @@ func rev09301Serve(t *testing.T) (journeyv1.JourneyServiceClient, func(string) c
 	t.Cleanup(pool.Close)
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: rev09301SigningKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: rev09301SigningKey, PageCursorKey: integrationPageCursorKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: demoworkforce.CompanyKey, CellID: "cell-rev-093-01", MaxDeadline: 60 * time.Second,
 		Workspace: true, DevBrowserLogin: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:rev-093-01",
