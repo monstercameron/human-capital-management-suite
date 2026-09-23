@@ -1,0 +1,1 @@
+{"findings":[{"block":"","code":"unknown-target","detail":"target document does not exist","label":"gone","pinned_version":"","severity":"error","target":"doc-missing"},{"block":"intro","code":"retired-target","detail":"pinned version is retired","label":"old","pinned_version":"docv-1","severity":"warning","target":"doc-present"}]}

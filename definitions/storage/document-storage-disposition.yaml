@@ -1,0 +1,232 @@
+# Independent document-database storage disposition (HUB-001).
+#
+# Like definitions/storage/chat-storage-disposition.yaml, this registry
+# describes the embedded migration tree used by the independent document
+# database. It is intentionally explicit because the core storagemanifest
+# generator scans only /migrations and cannot see this schema. Future
+# document tables (versions, deployments, grants, links, search chunks)
+# arrive with the todos that own them and extend this registry row by row.
+# Backup and retention operations run against this database independently
+# of chat and workflow storage; pruning that needs DELETE will narrow the
+# forbid_mutation trigger the way chat 00008 did, never by editing history.
+
+version: 1
+module: github.com/monstercameron/human-capital-management-suite
+database: documents
+sources:
+  - internal/data/documenthubstore/migrations/00001_documents.sql
+
+defaults:
+  plane: KNOWLEDGE_DATA
+  data_role: CONTROL
+  isolation_package: internal/data/tenancy
+  rls_policy: tenant_isolation
+  rls_required: true
+  retention_class: OPERATIONAL
+  encryption_class: PLATFORM_MANAGED
+
+tables:
+  - table: document
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00002_document_versions.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_version
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00002_document_versions.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: document_deployment
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00004_document_deployments.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: document_review
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00005_document_reviews.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: document_grant
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00006_document_grants.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_link
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00007_document_links.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_comment
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00010_document_comments.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: document_mention
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00010_document_comments.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_block
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00011_document_blocks.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_attachment
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00012_document_attachments.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: document_search_term
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00013_document_search_terms.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_section_vector
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00014_document_section_vectors.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_hold
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: EVIDENCE
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00015_document_holds.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_index_watermark
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00017_document_index_watermark.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_active_pointer
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00004_document_deployments.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: document_outbox
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00001_documents.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: document_outbox_receipt
+    plane: KNOWLEDGE_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/documenthubstore/migrations/00001_documents.sql
+    owner_package: internal/data/documenthubstore
+    tenant_scoping_column: tenant_id
+    append_only: true

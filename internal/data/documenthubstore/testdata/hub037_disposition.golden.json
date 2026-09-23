@@ -1,0 +1,1 @@
+[{"class":"versions","disposed":false,"doc":"doc-1","held":true,"removed":0,"retained":2,"tables":["document_version"]},{"class":"derivatives","disposed":false,"doc":"doc-1","held":true,"removed":5,"retained":0,"tables":["document_block","document_link","document_search_term","document_section_vector"]}]
