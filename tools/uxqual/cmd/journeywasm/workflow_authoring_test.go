@@ -242,6 +242,94 @@ func TestTodo_WF_UI_009_AuthoringControllerSendsRevisionFencedMove(t *testing.T)
 	}
 }
 
+func TestAuthoringControllerSendsRevisionFencedDeletions(t *testing.T) {
+	var removed *workflowv1.RemoveWorkflowDraftNodeRequest
+	var cleared *workflowv1.ClearWorkflowDraftOutcomeRequest
+	var renamed *workflowv1.RenameWorkflowDraftRequest
+	service := productclient.Service{
+		RemoveWorkflowDraftNode: func(_ context.Context, request *workflowv1.RemoveWorkflowDraftNodeRequest) (*workflowv1.RemoveWorkflowDraftNodeResponse, error) {
+			removed = request
+			return &workflowv1.RemoveWorkflowDraftNodeResponse{}, nil
+		},
+		ClearWorkflowDraftOutcome: func(_ context.Context, request *workflowv1.ClearWorkflowDraftOutcomeRequest) (*workflowv1.ClearWorkflowDraftOutcomeResponse, error) {
+			cleared = request
+			return &workflowv1.ClearWorkflowDraftOutcomeResponse{}, nil
+		},
+		RenameWorkflowDraft: func(_ context.Context, request *workflowv1.RenameWorkflowDraftRequest) (*workflowv1.RenameWorkflowDraftResponse, error) {
+			renamed = request
+			return &workflowv1.RenameWorkflowDraftResponse{}, nil
+		},
+	}
+	controller := newWorkflowAuthoringController(context.Background(), service)
+	draft := productui.WorkflowDraftView{DraftID: "draft-11", Revision: 31}
+	done := make(chan error, 3)
+	controller.RemoveNode(draft, "review", func(err error) { done <- err })
+	controller.ClearOutcome(draft, productui.WorkflowOutcomeChange{FromNodeID: "decision", RouteKey: "APPROVED"}, func(err error) { done <- err })
+	controller.Rename(draft, "Promotion, revised", func(err error) { done <- err })
+	for range 3 {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if removed.GetDraftId() != "draft-11" || removed.GetExpectedRevision() != 31 || removed.GetNodeId() != "review" {
+		t.Fatalf("remove request = %+v", removed)
+	}
+	// An empty to_node_id is the documented "clear every target" form, so the
+	// controller must send it rather than refuse the command.
+	if cleared.GetExpectedRevision() != 31 || cleared.GetFromNodeId() != "decision" || cleared.GetRouteKey() != "APPROVED" || cleared.GetToNodeId() != "" {
+		t.Fatalf("clear request = %+v", cleared)
+	}
+	if renamed.GetExpectedRevision() != 31 || renamed.GetName() != "Promotion, revised" {
+		t.Fatalf("rename request = %+v", renamed)
+	}
+}
+
+func TestAuthoringControllerFailsClosedOnIncompleteDeletions(t *testing.T) {
+	var calls atomic.Int32
+	service := productclient.Service{
+		RemoveWorkflowDraftNode: func(context.Context, *workflowv1.RemoveWorkflowDraftNodeRequest) (*workflowv1.RemoveWorkflowDraftNodeResponse, error) {
+			calls.Add(1)
+			return &workflowv1.RemoveWorkflowDraftNodeResponse{}, nil
+		},
+		ClearWorkflowDraftOutcome: func(context.Context, *workflowv1.ClearWorkflowDraftOutcomeRequest) (*workflowv1.ClearWorkflowDraftOutcomeResponse, error) {
+			calls.Add(1)
+			return &workflowv1.ClearWorkflowDraftOutcomeResponse{}, nil
+		},
+		RenameWorkflowDraft: func(context.Context, *workflowv1.RenameWorkflowDraftRequest) (*workflowv1.RenameWorkflowDraftResponse, error) {
+			calls.Add(1)
+			return &workflowv1.RenameWorkflowDraftResponse{}, nil
+		},
+	}
+	controller := newWorkflowAuthoringController(context.Background(), service)
+	fenced := productui.WorkflowDraftView{DraftID: "draft-11", Revision: 31}
+	unfenced := productui.WorkflowDraftView{DraftID: "draft-11"}
+	done := make(chan error, 5)
+	controller.RemoveNode(fenced, "", func(err error) { done <- err })
+	controller.RemoveNode(unfenced, "review", func(err error) { done <- err })
+	controller.ClearOutcome(fenced, productui.WorkflowOutcomeChange{FromNodeID: "decision"}, func(err error) { done <- err })
+	controller.Rename(fenced, "   ", func(err error) { done <- err })
+	controller.Rename(unfenced, "Promotion", func(err error) { done <- err })
+	for range 5 {
+		if err := <-done; err == nil {
+			t.Fatal("an incomplete deletion was accepted")
+		}
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("RPC calls for incomplete deletions = %d, want 0", got)
+	}
+
+	without := newWorkflowAuthoringController(context.Background(), productclient.Service{})
+	missing := make(chan error, 3)
+	without.RemoveNode(fenced, "review", func(err error) { missing <- err })
+	without.ClearOutcome(fenced, productui.WorkflowOutcomeChange{FromNodeID: "decision", RouteKey: "APPROVED"}, func(err error) { missing <- err })
+	without.Rename(fenced, "Promotion", func(err error) { missing <- err })
+	for range 3 {
+		if err := <-missing; err == nil || errors.Is(err, context.Canceled) {
+			t.Fatalf("missing RPC error = %v, want an explicit unavailable error", err)
+		}
+	}
+}
+
 func TestTodo_WF_UI_010_AuthoringControllerSendsRevisionFencedHistoryNavigation(t *testing.T) {
 	var navigated *workflowv1.NavigateWorkflowDraftHistoryRequest
 	service := productclient.Service{

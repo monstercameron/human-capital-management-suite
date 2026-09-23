@@ -163,7 +163,8 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 	cfg := application.ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
 		DevHMACKey: signingKey, Issuer: application.DefaultIssuer, Audience: application.DefaultAudience,
-		Tenant: tenant, CellID: "cell-promo009-integration", MaxDeadline: 30 * time.Second,
+		PageCursorKey: "promo009-test-page-cursor-signing-key",
+		Tenant:        tenant, CellID: "cell-promo009-integration", MaxDeadline: 30 * time.Second,
 		Migrate: false, Workspace: true, OTelExporter: application.OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promo009-execution-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: financeApprover,

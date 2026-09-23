@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -25,7 +26,7 @@ func TestTodo_WF_UI_002_TransportCatalogAndLiveInspectorOverlay(t *testing.T) {
 			WorkflowVersion: publication.DefinitionVersion, CompiledPlanDigest: publication.CompiledPlanDigest},
 		Inspector: &live,
 	}}
-	srv := &server{deps: Dependencies{Definitions: registry, Instances: reader}}
+	srv := &server{deps: Dependencies{Definitions: registry, Instances: reader, Authorize: allowWorkflowCalls}}
 
 	catalog, err := srv.ListWorkflowPublications(workflowTestContext(t, ListWorkflowPublicationsProcedure), &workflowv1.ListWorkflowPublicationsRequest{})
 	if err != nil {
@@ -58,7 +59,7 @@ func TestTodo_WF_UI_002_SecurityRefusesBeforeCatalogOrInstanceRead(t *testing.T)
 	reader := &workflowTestReader{}
 	srv := &server{deps: Dependencies{
 		Definitions: spy, Instances: reader,
-		Authorize: func(*trust.Principal, string) bool { return false },
+		Authorize: func(context.Context, *trust.Principal, string) bool { return false },
 	}}
 	if _, err := srv.ListWorkflowPublications(workflowTestContext(t, ListWorkflowPublicationsProcedure), &workflowv1.ListWorkflowPublicationsRequest{}); !wfui002Denied(err) {
 		t.Fatalf("catalog denial = %v", err)
@@ -73,7 +74,7 @@ func TestTodo_WF_UI_002_SecurityRefusesBeforeCatalogOrInstanceRead(t *testing.T)
 
 func TestTodo_WF_UI_002_TransportGolden(t *testing.T) {
 	registry, publication := wfui002Publication(t)
-	srv := &server{deps: Dependencies{Definitions: registry}}
+	srv := &server{deps: Dependencies{Definitions: registry, Authorize: allowWorkflowCalls}}
 	got, err := srv.GetWorkflowDefinitionView(workflowTestContext(t, GetWorkflowDefinitionViewProcedure), &workflowv1.GetWorkflowDefinitionViewRequest{WorkflowId: publication.WorkflowID})
 	if err != nil {
 		t.Fatalf("GetWorkflowDefinitionView: %v", err)

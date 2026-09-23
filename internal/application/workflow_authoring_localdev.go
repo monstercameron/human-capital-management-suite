@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/designerpalette"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/draftcompile"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/hireexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 )
 
@@ -28,6 +29,14 @@ func localDevelopmentWorkflowAuthoring(cfg ServeConfig) (draftcompile.Capability
 	promotionPlanDigest := ""
 	if promotionPlan, err := promotionexec.Compile(promotionDefinition); err == nil {
 		promotionPlanDigest = promotionPlan.Digest()
+	}
+	// New employee hire is the second governed template (WF-HIRE-001). It runs
+	// through the same driver in test/workflow; offering it here lets an
+	// author open, read and adapt it, though nothing serves its runs yet.
+	hireDefinition := hireexec.Definition()
+	hirePlanDigest := ""
+	if hirePlan, err := hireexec.Compile(hireDefinition); err == nil {
+		hirePlanDigest = hirePlan.Digest()
 	}
 	reviewNodes := selectWorkflowNodes(promotionDefinition.Nodes, promotionexec.NodeApproveFinance, promotionexec.NodeApproveManager)
 	reviewApprovals := append([]workflow.ApprovalRequirement(nil), promotionDefinition.ApprovalRequirements...)
@@ -50,6 +59,14 @@ func localDevelopmentWorkflowAuthoring(cfg ServeConfig) (draftcompile.Capability
 			RequiredCapabilities: requiredWorkflowCapabilities(promotionDefinition.Nodes),
 			PublishedPlanDigest:  promotionPlanDigest,
 			Expansion:            designerpalette.Expansion{Template: &promotionDefinition},
+		},
+		{
+			ID: "hcmnext.templates.new_hire", Version: 1, Name: "New employee hire", Kind: designerpalette.KindTemplate,
+			Domain: "People", Description: "Offer approval, background check, new-hire forms, provisioning, a wait until the start date, and one commit of the hire.",
+			EffectClass: capability.EffectInternalMutation, Reversal: "COMPENSATION_REQUIRED", Status: "ACTIVE",
+			RequiredCapabilities: requiredWorkflowCapabilities(hireDefinition.Nodes),
+			PublishedPlanDigest:  hirePlanDigest,
+			Expansion:            designerpalette.Expansion{Template: &hireDefinition},
 		},
 	}
 	return policy, extensions

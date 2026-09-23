@@ -19,7 +19,7 @@ func (s *server) ListWorkflowBlocks(ctx context.Context, _ *workflowv1.ListWorkf
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionListWorkflowBlocks) {
+	if !s.authorized(ctx, principal, ActionListWorkflowBlocks) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.Palette == nil {

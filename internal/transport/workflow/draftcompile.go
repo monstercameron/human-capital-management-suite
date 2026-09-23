@@ -43,7 +43,7 @@ func (s *server) CompileWorkflowDraft(ctx context.Context, req *workflowv1.Compi
 	if draftID == "" {
 		return nil, invalid(invocation, "draft_id")
 	}
-	if !s.authorized(principal, ActionCompileWorkflowDraft) {
+	if !s.authorized(ctx, principal, ActionCompileWorkflowDraft) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.Drafts == nil || s.deps.DraftCompiler == nil {

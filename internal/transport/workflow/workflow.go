@@ -33,10 +33,16 @@ import (
 )
 
 const (
-	GetWorkflowProcedure                  = "/hcmnext.workflow.v1.WorkflowService/GetWorkflow"
-	ListNodeExecutionsProcedure           = "/hcmnext.workflow.v1.WorkflowService/ListNodeExecutions"
-	ActionGetWorkflow                     = "get_workflow"
-	ActionListNodeExecutions              = "list_node_executions"
+	GetWorkflowProcedure        = "/hcmnext.workflow.v1.WorkflowService/GetWorkflow"
+	ListNodeExecutionsProcedure = "/hcmnext.workflow.v1.WorkflowService/ListNodeExecutions"
+	ActionGetWorkflow           = "get_workflow"
+	ActionListNodeExecutions    = "list_node_executions"
+	// ActionInspectAnySubject is the operator admission for instance reads:
+	// the durable operator or administrator grant to read an instance the
+	// caller neither participates in nor supervises. It is checked after
+	// the record loads so a refusal can answer NOT_FOUND without disclosing
+	// that the instance exists.
+	ActionInspectAnySubject               = "inspect_any_subject"
 	ListWorkflowPublicationsProcedure     = "/hcmnext.workflow.v1.WorkflowService/ListWorkflowPublications"
 	GetWorkflowDefinitionViewProcedure    = "/hcmnext.workflow.v1.WorkflowService/GetWorkflowDefinitionView"
 	CompileWorkflowDraftProcedure         = "/hcmnext.workflow.v1.WorkflowService/CompileWorkflowDraft"
@@ -48,6 +54,9 @@ const (
 	SetWorkflowDraftOutcomeProcedure      = "/hcmnext.workflow.v1.WorkflowService/SetWorkflowDraftOutcome"
 	BindWorkflowDraftInputProcedure       = "/hcmnext.workflow.v1.WorkflowService/BindWorkflowDraftInput"
 	MoveWorkflowDraftNodeProcedure        = "/hcmnext.workflow.v1.WorkflowService/MoveWorkflowDraftNode"
+	RemoveWorkflowDraftNodeProcedure      = "/hcmnext.workflow.v1.WorkflowService/RemoveWorkflowDraftNode"
+	ClearWorkflowDraftOutcomeProcedure    = "/hcmnext.workflow.v1.WorkflowService/ClearWorkflowDraftOutcome"
+	RenameWorkflowDraftProcedure          = "/hcmnext.workflow.v1.WorkflowService/RenameWorkflowDraft"
 	NavigateWorkflowDraftHistoryProcedure = "/hcmnext.workflow.v1.WorkflowService/NavigateWorkflowDraftHistory"
 	ApplyWorkflowTemplateOverlayProcedure = "/hcmnext.workflow.v1.WorkflowService/ApplyWorkflowTemplateOverlay"
 	ActionListWorkflowPublications        = "list_workflow_publications"
@@ -61,6 +70,9 @@ const (
 	ActionSetWorkflowDraftOutcome         = "set_workflow_draft_outcome"
 	ActionBindWorkflowDraftInput          = "bind_workflow_draft_input"
 	ActionMoveWorkflowDraftNode           = "move_workflow_draft_node"
+	ActionRemoveWorkflowDraftNode         = "remove_workflow_draft_node"
+	ActionClearWorkflowDraftOutcome       = "clear_workflow_draft_outcome"
+	ActionRenameWorkflowDraft             = "rename_workflow_draft"
 	ActionNavigateWorkflowDraftHistory    = "navigate_workflow_draft_history"
 	ActionApplyWorkflowTemplateOverlay    = "apply_workflow_template_overlay"
 	defaultPageSize                       = 100
@@ -157,8 +169,26 @@ type Dependencies struct {
 	DraftCompiler  DraftCompiler
 	Palette        Palette
 	DraftAuthoring *designeredit.Service
-	Authorize      func(*trust.Principal, string) bool
-	CursorKey      []byte
+	// Authorize is the wire-level capability gate (RBAC-RT-004): it answers
+	// whether the principal may call the named action at all, resolved from
+	// the principal's durable role assignments, never from credential
+	// claims. Nil denies every call: an unwired service is closed, not
+	// open. Instance reads (GetWorkflow, ListNodeExecutions) additionally
+	// require participation, supervision or an operator role via
+	// [Dependencies.Supervision] and the durable operator grant, enforced in
+	// the handlers after the record is loaded.
+	Authorize func(context.Context, *trust.Principal, string) bool
+	// Supervision reports whether supervisor stands in the management chain
+	// of subject. It backs the supervision admission for instance reads
+	// until the effective-dated relationship directory (RBAC-RT-007) lands;
+	// nil skips the supervision admission without weakening the participant
+	// or operator admissions.
+	Supervision func(ctx context.Context, supervisor, subject string) (bool, error)
+	CursorKey   []byte
+	// PreviousCursorKey is the retired inspection-cursor signing key,
+	// accepted for verification only while in-flight cursors minted under
+	// it drain. New cursors are always minted under CursorKey.
+	PreviousCursorKey []byte
 	// Control runs governed Pause/Resume/Cancel/RetryNode controls. Nil (or a
 	// nil TenantIDs) refuses every control with FAILED_PRECONDITION and
 	// performs no transition.
@@ -264,6 +294,27 @@ func NewHandler(deps Dependencies, opts ...connect.HandlerOption) http.Handler {
 		}
 		return connect.NewResponse(res), nil
 	}, opts...))
+	mux.Handle(RemoveWorkflowDraftNodeProcedure, connect.NewUnaryHandler(RemoveWorkflowDraftNodeProcedure, func(ctx context.Context, req *connect.Request[workflowv1.RemoveWorkflowDraftNodeRequest]) (*connect.Response[workflowv1.RemoveWorkflowDraftNodeResponse], error) {
+		res, err := s.RemoveWorkflowDraftNode(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(ClearWorkflowDraftOutcomeProcedure, connect.NewUnaryHandler(ClearWorkflowDraftOutcomeProcedure, func(ctx context.Context, req *connect.Request[workflowv1.ClearWorkflowDraftOutcomeRequest]) (*connect.Response[workflowv1.ClearWorkflowDraftOutcomeResponse], error) {
+		res, err := s.ClearWorkflowDraftOutcome(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
+	mux.Handle(RenameWorkflowDraftProcedure, connect.NewUnaryHandler(RenameWorkflowDraftProcedure, func(ctx context.Context, req *connect.Request[workflowv1.RenameWorkflowDraftRequest]) (*connect.Response[workflowv1.RenameWorkflowDraftResponse], error) {
+		res, err := s.RenameWorkflowDraft(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
 	mux.Handle(NavigateWorkflowDraftHistoryProcedure, connect.NewUnaryHandler(NavigateWorkflowDraftHistoryProcedure, func(ctx context.Context, req *connect.Request[workflowv1.NavigateWorkflowDraftHistoryRequest]) (*connect.Response[workflowv1.NavigateWorkflowDraftHistoryResponse], error) {
 		res, err := s.NavigateWorkflowDraftHistory(ctx, req.Msg)
 		if err != nil {
@@ -301,7 +352,7 @@ func (s *server) ListWorkflowPublications(ctx context.Context, _ *workflowv1.Lis
 	if ownedErr != nil {
 		return nil, ownedErr
 	}
-	if !s.authorized(p, ActionListWorkflowPublications) {
+	if !s.authorized(ctx, p, ActionListWorkflowPublications) {
 		return nil, denied(inv, p)
 	}
 	if s.deps.Definitions == nil {
@@ -338,7 +389,7 @@ func (s *server) GetWorkflowDefinitionView(ctx context.Context, req *workflowv1.
 	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" && strings.TrimSpace(req.GetInstanceId()) == "" {
 		return nil, invalid(inv, "workflow_id")
 	}
-	if !s.authorized(p, ActionGetWorkflowDefinitionView) {
+	if !s.authorized(ctx, p, ActionGetWorkflowDefinitionView) {
 		return nil, denied(inv, p)
 	}
 	if s.deps.Definitions == nil {
@@ -472,7 +523,7 @@ func (s *server) GetWorkflow(ctx context.Context, req *workflowv1.GetWorkflowReq
 	if req == nil || strings.TrimSpace(req.GetInstanceId()) == "" {
 		return nil, invalid(inv, "instance_id")
 	}
-	if !s.authorized(p, ActionGetWorkflow) {
+	if !s.authorized(ctx, p, ActionGetWorkflow) {
 		return nil, denied(inv, p)
 	}
 	record, readErr := s.read(ctx, p.Tenant().String(), req.GetInstanceId())
@@ -481,6 +532,13 @@ func (s *server) GetWorkflow(ctx context.Context, req *workflowv1.GetWorkflowReq
 	}
 	if err := validateRecord(record, p.Tenant().String(), req.GetInstanceId()); err != nil {
 		return nil, projectReadError(err, inv, p)
+	}
+	// RBAC-RT-004: capability is not enough for instance reads. Past this
+	// point the caller must participate in the instance, supervise one of
+	// its subjects, or hold the durable operator grant; anything else gets
+	// the same NOT_FOUND as a genuinely absent instance.
+	if !s.authorized(ctx, p, ActionInspectAnySubject) && !s.mayInspectSubject(ctx, p, record.Instance.BusinessSubjectRefs) {
+		return nil, projectReadError(ErrNotFound, inv, p)
 	}
 	return &workflowv1.GetWorkflowResponse{Instance: ProjectInstance(record.Instance)}, nil
 }
@@ -493,7 +551,7 @@ func (s *server) ListNodeExecutions(ctx context.Context, req *workflowv1.ListNod
 	if req == nil || strings.TrimSpace(req.GetInstanceId()) == "" {
 		return nil, invalid(inv, "instance_id")
 	}
-	if !s.authorized(p, ActionListNodeExecutions) {
+	if !s.authorized(ctx, p, ActionListNodeExecutions) {
 		return nil, denied(inv, p)
 	}
 	record, readErr := s.read(ctx, p.Tenant().String(), req.GetInstanceId())
@@ -502,6 +560,9 @@ func (s *server) ListNodeExecutions(ctx context.Context, req *workflowv1.ListNod
 	}
 	if err := validateRecord(record, p.Tenant().String(), req.GetInstanceId()); err != nil {
 		return nil, projectReadError(err, inv, p)
+	}
+	if !s.authorized(ctx, p, ActionInspectAnySubject) && !s.mayInspectSubject(ctx, p, record.Instance.BusinessSubjectRefs) {
+		return nil, projectReadError(ErrNotFound, inv, p)
 	}
 	nodes := append([]NodeExecution(nil), record.Nodes...)
 	sort.SliceStable(nodes, func(i, j int) bool {
@@ -518,7 +579,7 @@ func (s *server) ListNodeExecutions(ctx context.Context, req *workflowv1.ListNod
 	if pageErr != nil {
 		return nil, invalid(inv, "page.page_size")
 	}
-	start, cursorErr := decodeSnapshotCursor(page, s.deps.CursorKey, p.Tenant().String(), req.GetInstanceId(), record.Instance.InstanceVersion)
+	start, cursorErr := decodeSnapshotCursor(page, s.deps.CursorKey, s.deps.PreviousCursorKey, p.Tenant().String(), req.GetInstanceId(), record.Instance.InstanceVersion)
 	if cursorErr != nil {
 		return nil, invalid(inv, "page.cursor")
 	}
@@ -577,8 +638,63 @@ func (s *server) read(ctx context.Context, tenant, id string) (Record, error) {
 	}
 	return s.deps.Instances.ReadWorkflowInstance(ctx, tenant, id)
 }
-func (s *server) authorized(p *trust.Principal, action string) bool {
-	return s.deps.Authorize == nil || s.deps.Authorize(p, action)
+func (s *server) authorized(ctx context.Context, p *trust.Principal, action string) bool {
+	if s.deps.Authorize == nil {
+		return false
+	}
+	return s.deps.Authorize(ctx, p, action)
+}
+
+// mayInspectSubject reports whether p may read an instance whose business
+// subjects are refs: a participant named by the record, a supervisor of a
+// named subject, or a caller the capability gate already admitted for
+// operator inspection. Supervision errors fail closed to the remaining
+// admissions, never to an allow.
+func (s *server) mayInspectSubject(ctx context.Context, p *trust.Principal, refs []string) bool {
+	if p == nil {
+		return false
+	}
+	if participantOf(p.Subject(), refs) {
+		return true
+	}
+	if s.deps.Supervision != nil {
+		for _, ref := range refs {
+			ok, err := s.deps.Supervision(ctx, p.Subject(), ref)
+			if err != nil || !ok {
+				continue
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// participantOf reports whether subject is named by the instance's business
+// subject refs. Refs are short kind:id pairs (worker:jane,
+// employment:doe-1); the principal subject is the bare identity, so a ref
+// matches on the whole string or on its id part, case-insensitively. An
+// empty ref names no one.
+func participantOf(subject string, refs []string) bool {
+	subject = strings.ToLower(strings.TrimSpace(subject))
+	if subject == "" {
+		return false
+	}
+	for _, ref := range refs {
+		candidate := strings.ToLower(strings.TrimSpace(ref))
+		if candidate == "" {
+			continue
+		}
+		if candidate == subject {
+			return true
+		}
+		if strings.Contains(candidate, ":") {
+			parts := strings.Split(candidate, ":")
+			if strings.TrimSpace(parts[len(parts)-1]) == subject {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func trustedContext(ctx context.Context) (*trust.Principal, *transport.Invocation, *envelope.Error) {
@@ -747,13 +863,16 @@ func encodeSnapshotCursor(cursor snapshotCursor, key []byte) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(append(append(payload, '.'), []byte(sig)...)), nil
 }
 
-func decodeSnapshotCursor(page *commonv1.PageRequest, key []byte, tenant, instance string, version uint64) (int, error) {
+// decodeSnapshotCursor verifies an inspection cursor minted by
+// [encodeSnapshotCursor]. key is the active page-cursor key; previous is
+// the retired key, accepted for verification only while in-flight cursors
+// minted under it drain. A cursor from any other key fails closed.
+func decodeSnapshotCursor(page *commonv1.PageRequest, key, previous []byte, tenant, instance string, version uint64) (int, error) {
 	if page == nil || page.GetCursor() == "" {
 		return 0, nil
 	}
-	secret, keyErr := cursorKey(key)
-	if keyErr != nil {
-		return 0, keyErr
+	if len(key) == 0 {
+		return 0, ErrCursorKeyUnset
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(page.GetCursor())
 	if err != nil {
@@ -767,9 +886,7 @@ func decodeSnapshotCursor(page *commonv1.PageRequest, key []byte, tenant, instan
 	if err != nil {
 		return 0, ErrInvalidCursor
 	}
-	mac := hmac.New(sha256.New, secret)
-	_, _ = mac.Write([]byte(parts[0]))
-	if !hmac.Equal(got, mac.Sum(nil)) {
+	if !verifySnapshotMAC([]byte(parts[0]), got, key) && !verifySnapshotMAC([]byte(parts[0]), got, previous) {
 		return 0, ErrInvalidCursor
 	}
 	var cursor snapshotCursor
@@ -783,4 +900,16 @@ func cursorKey(key []byte) ([]byte, error) {
 		return key, nil
 	}
 	return nil, ErrCursorKeyUnset
+}
+
+// verifySnapshotMAC reports whether sig is the HMAC-SHA256 of raw under
+// key. An empty key never verifies: rotation acceptance comes only from an
+// explicitly configured retired key, never from a missing one.
+func verifySnapshotMAC(raw, sig, key []byte) bool {
+	if len(key) == 0 {
+		return false
+	}
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write(raw)
+	return hmac.Equal(mac.Sum(nil), sig)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -70,9 +71,43 @@ type WorkflowCancellation interface {
 	CancelBound(ctx context.Context, req BoundCancellation) (BoundCancellationVerdict, error)
 }
 
-// AdmissionRelease frees the admission reservation (PROMOUX-002) a cleanly
-// cancelled intent held.
+// AdmissionRelease frees everything a cleanly cancelled intent held: the
+// admission reservation (PROMOUX-002) and the proposal's compensation-pool
+// budget hold (WF-RUN-034). It is the one release capability every cancel
+// path shares (WF-REV-004).
 type AdmissionRelease func(ctx context.Context, tenant values.TenantId, intentID string, at time.Time) error
+
+// releasePromotionAdmission frees a cleanly cancelled promotion's admission
+// window and budget hold in one tenant-scoped transaction. Both releases are
+// idempotent, so a replayed cancellation or a second path reaching the same
+// intent frees the hold exactly once: the repeat call writes nothing. An
+// intent that never held anything releases nothing and reports success.
+func releasePromotionAdmission(ctx context.Context, db dbport.Beginner, tenantUUID func(values.TenantId) uuid.UUID, tenant values.TenantId, intentID string, at time.Time) error {
+	id, err := uuid.Parse(intentID)
+	if err != nil {
+		return fmt.Errorf("app: release admission: intent id: %w", err)
+	}
+	tenantID := tenantUUID(tenant)
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		return err
+	}
+	if err := promotionguard.Release(ctx, tx, tenantID, id, at.UTC()); err != nil {
+		return err
+	}
+	// WF-REV-004: a promotion cancelled through CancelIntent rather than the
+	// journey screen kept its compensation budget reserved, because only the
+	// journey's best-effort release freed the hold. The kernel path frees it
+	// here, through the same capability every cancel path shares.
+	if _, err := promotionbudget.ReleaseForIntent(ctx, tx, tenantID, id, at.UTC()); err != nil {
+		return fmt.Errorf("app: release the cancelled promotion's budget hold: %w", err)
+	}
+	return tx.Commit(ctx)
+}
 
 // governedDisposition maps a recorded verdict onto CancelIntent's kernel
 // input. When decided is non-empty the disposition is final without asking
@@ -201,23 +236,7 @@ func composeWorkflowCancellation(db dbport.Beginner, tenantUUID func(values.Tena
 		return nil, nil, fmt.Errorf("app: compile the frozen promotion simulation plan for cancellation: %w", err)
 	}
 	release := func(ctx context.Context, tenant values.TenantId, intentID string, at time.Time) error {
-		id, err := uuid.Parse(intentID)
-		if err != nil {
-			return fmt.Errorf("app: release admission: intent id: %w", err)
-		}
-		tenantID := tenantUUID(tenant)
-		tx, err := db.Begin(ctx)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = tx.Rollback(ctx) }()
-		if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
-			return err
-		}
-		if err := promotionguard.Release(ctx, tx, tenantID, id, at.UTC()); err != nil {
-			return err
-		}
-		return tx.Commit(ctx)
+		return releasePromotionAdmission(ctx, db, tenantUUID, tenant, intentID, at)
 	}
 	return executionWorkflowCancellation{db: db, tenantUUID: tenantUUID, plans: workflowcontrol.NewPlanSet(plan, simulation, frozen, frozenSimulation)}, release, nil
 }

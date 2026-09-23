@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/schedule"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
@@ -267,8 +268,9 @@ func TestPromotionWorkflowWaitsOnARealTimerAndCompletesUnderALeaseFence(t *testi
 		SourceRef: "hcmnext:test:workflow",
 	}
 
-	// --- The runtime worker takes the queue lease. Every advancement below
-	//     presents its fence, and every timer settle presents it too. ---
+	// Timer scheduling holds a queue lease. Instance advancement has its own
+	// WORKFLOW_INSTANCE lease: queue ownership must not authorize a write to
+	// an arbitrary instance.
 	holderA := lease.Identity{WorkloadRef: "workload:hcmnext-workflow-runtime", InstanceRef: "replica:wait-a"}
 	holderB := lease.Identity{WorkloadRef: "workload:hcmnext-workflow-runtime", InstanceRef: "replica:wait-b"}
 	queue := lease.Resource{Kind: lease.ResourceQueue, ID: waitTimerQueue}
@@ -284,7 +286,7 @@ func TestPromotionWorkflowWaitsOnARealTimerAndCompletesUnderALeaseFence(t *testi
 
 	scheduler := timer.Scheduler{}
 	factory := &waitTimerFactory{scheduler: scheduler, dataset: waitDataset}
-	fenceA := grantA.Fence.RuntimeFence(at)
+	instanceLeaserA := platformexecution.NewInstanceLeaser(holderA, time.Hour)
 
 	drvA, err := execute.New(execute.Options{
 		DB: beginner, Steps: endOnlySteps{}, Terminal: terminal,
@@ -292,7 +294,7 @@ func TestPromotionWorkflowWaitsOnARealTimerAndCompletesUnderALeaseFence(t *testi
 		Guard:     idempotency.PostgresStore{},
 		Retention: idempotency.RetentionPolicy{Retention: 72 * time.Hour, RetryWindow: 6 * time.Hour},
 		Clock:     func() time.Time { return at },
-		Fence:     &fenceA, FenceVerifier: lease.Fenced{Manager: manager},
+		Leases:    instanceLeaserA, FenceVerifier: lease.Fenced{Manager: manager},
 	})
 	if err != nil {
 		t.Fatalf("execute.New: %v", err)
@@ -315,6 +317,13 @@ func TestPromotionWorkflowWaitsOnARealTimerAndCompletesUnderALeaseFence(t *testi
 	if parked.Status != execute.StatusParked {
 		t.Fatalf("Execute status = %s, want PARKED on a timer", parked.Status)
 	}
+	// Model a subsequent worker claim that dies without releasing its lease.
+	var instanceFenceA, instanceFenceB runtime.Fence
+	inTenantTx(t, db, tenantID, func(tx dbport.Tx) error {
+		var err error
+		instanceFenceA, err = instanceLeaserA.AcquireInstance(ctx, tx, tenantID, parked.Start.InstanceID, at)
+		return err
+	})
 	if len(parked.Timers) != 1 {
 		t.Fatalf("Execute created %d timers, want exactly 1", len(parked.Timers))
 	}
@@ -356,6 +365,14 @@ func TestPromotionWorkflowWaitsOnARealTimerAndCompletesUnderALeaseFence(t *testi
 	})
 	if grantB.Fence.Token != grantA.Fence.Token+1 {
 		t.Fatalf("takeover fence token = %d, want %d", grantB.Fence.Token, grantA.Fence.Token+1)
+	}
+	inTenantTx(t, db, tenantID, func(tx dbport.Tx) error {
+		var err error
+		instanceFenceB, err = platformexecution.NewInstanceLeaser(holderB, 720*time.Hour).AcquireInstance(ctx, tx, tenantID, parked.Start.InstanceID, takeoverAt)
+		return err
+	})
+	if instanceFenceB.Token <= instanceFenceA.Token {
+		t.Fatalf("instance takeover token = %d, want greater than %d", instanceFenceB.Token, instanceFenceA.Token)
 	}
 
 	// --- The new holder fires the due promise. Nothing polls: the caller
@@ -404,7 +421,7 @@ func TestPromotionWorkflowWaitsOnARealTimerAndCompletesUnderALeaseFence(t *testi
 		Start: start, InstanceID: parked.Start.InstanceID, ExpectedInstanceVersion: parked.InstanceVersion,
 		TimerID: promise.TimerID, Outcome: waitOutcome, RecordedAt: resumeAt,
 	}
-	if _, err := drvA.ResumeTimer(ctx, staleResume); err == nil {
+	if _, err := drvA.ResumeTimer(execute.WithFence(ctx, instanceFenceA), staleResume); err == nil {
 		t.Fatal("the superseded holder advanced the instance")
 	} else {
 		if !errors.Is(err, execute.ErrFenceRefused) {
@@ -424,7 +441,7 @@ func TestPromotionWorkflowWaitsOnARealTimerAndCompletesUnderALeaseFence(t *testi
 
 	// --- The live holder resumes from the fired timer and reaches the
 	//     governed terminal write. ---
-	fenceB := grantB.Fence.RuntimeFence(resumeAt)
+	fenceB := instanceFenceB
 	drvB, err := execute.New(execute.Options{
 		DB: beginner, Steps: endOnlySteps{}, Terminal: terminal,
 		Timers: factory, TimerReader: waitTimerReader{scheduler: scheduler},

@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"testing"
 
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestTodo_WF_UI_007_TransportLinksOutcomeAndBindsCompilerCandidate(t *testing.T) {
-	srv, _, draft := wfui006Server(t, nil)
+	srv, _, draft := wfui006Server(t, allowWorkflowCalls)
 	linked, err := srv.SetWorkflowDraftOutcome(workflowTestContext(t, SetWorkflowDraftOutcomeProcedure), &workflowv1.SetWorkflowDraftOutcomeRequest{
 		DraftId: draft.GetDraftId(), ExpectedRevision: draft.GetRevision(), FromNodeId: promotionexec.NodeRaiseThreshold,
 		RouteKey: "WITHIN_THRESHOLD", ToNodeId: promotionexec.NodeApproveFinance,
@@ -47,8 +48,8 @@ func TestTodo_WF_UI_007_TransportLinksOutcomeAndBindsCompilerCandidate(t *testin
 }
 
 func TestTodo_WF_UI_007_SecurityAuthorizesBeforeLinkMutation(t *testing.T) {
-	srv, store, draft := wfui006Server(t, nil)
-	srv.deps.Authorize = func(*trust.Principal, string) bool { return false }
+	srv, store, draft := wfui006Server(t, allowWorkflowCalls)
+	srv.deps.Authorize = func(context.Context, *trust.Principal, string) bool { return false }
 	before := store.saves
 	_, err := srv.SetWorkflowDraftOutcome(workflowTestContext(t, SetWorkflowDraftOutcomeProcedure), &workflowv1.SetWorkflowDraftOutcomeRequest{
 		DraftId: draft.GetDraftId(), ExpectedRevision: draft.GetRevision(), FromNodeId: promotionexec.NodeRaiseThreshold,
@@ -61,7 +62,7 @@ func TestTodo_WF_UI_007_SecurityAuthorizesBeforeLinkMutation(t *testing.T) {
 }
 
 func TestTodo_WF_UI_007_TransportRejectsNonDominatingBindingWithoutMutation(t *testing.T) {
-	srv, store, draft := wfui006Server(t, nil)
+	srv, store, draft := wfui006Server(t, allowWorkflowCalls)
 	before := store.saves
 	_, err := srv.BindWorkflowDraftInput(workflowTestContext(t, BindWorkflowDraftInputProcedure), &workflowv1.BindWorkflowDraftInputRequest{
 		DraftId: draft.GetDraftId(), ExpectedRevision: draft.GetRevision(), TargetNodeId: promotionexec.NodeRaiseThreshold,

@@ -28,7 +28,7 @@ func TestTodo_WF_UI_005_TransportCreatesInsertsAndRestoresDraft(t *testing.T) {
 		NewID: func() (string, error) { return "01999f37-9f42-7000-8000-000000000008", nil },
 		Now:   func() time.Time { return time.Date(2026, 9, 19, 12, 0, 0, 0, time.UTC) },
 	}
-	srv := &server{deps: Dependencies{DraftAuthoring: authoring}}
+	srv := &server{deps: Dependencies{DraftAuthoring: authoring, Authorize: allowWorkflowCalls}}
 	ctx := workflowTestContext(t, CreateWorkflowDraftProcedure)
 	created, err := srv.CreateWorkflowDraft(ctx, &workflowv1.CreateWorkflowDraftRequest{Name: "Worker change"})
 	if err != nil {
@@ -55,7 +55,7 @@ func TestTodo_WF_UI_005_TransportCreatesInsertsAndRestoresDraft(t *testing.T) {
 func TestTodo_WF_UI_005_TransportDraftAuthoringSecurity(t *testing.T) {
 	store := &wfui005AuthoringStore{}
 	authoring := &designeredit.Service{Store: store, Catalog: wfui005AuthoringCatalog{}, NewID: func() (string, error) { return "01999f37-9f42-7000-8000-000000000009", nil }}
-	srv := &server{deps: Dependencies{DraftAuthoring: authoring, Authorize: func(*trust.Principal, string) bool { return false }}}
+	srv := &server{deps: Dependencies{DraftAuthoring: authoring, Authorize: func(context.Context, *trust.Principal, string) bool { return false }}}
 	_, err := srv.CreateWorkflowDraft(workflowTestContext(t, CreateWorkflowDraftProcedure), &workflowv1.CreateWorkflowDraftRequest{})
 	owned, ok := envelope.As(err)
 	if !ok || owned.Code() != envelope.CodePermissionDenied {
@@ -73,7 +73,7 @@ func TestWorkflowDraftVersioningStartsOnlyFromANewerSemanticVersion(t *testing.T
 		Store: store, Catalog: wfui005AuthoringCatalog{},
 		NewID: func() (string, error) { return "01999f37-9f42-7000-8000-000000000011", nil },
 	}
-	srv := &server{deps: Dependencies{Definitions: registry, DraftAuthoring: authoring}}
+	srv := &server{deps: Dependencies{Definitions: registry, DraftAuthoring: authoring, Authorize: allowWorkflowCalls}}
 	ctx := workflowTestContext(t, CreateWorkflowDraftProcedure)
 
 	created, err := srv.CreateWorkflowDraft(ctx, &workflowv1.CreateWorkflowDraftRequest{WorkflowId: active.WorkflowID})
@@ -118,7 +118,7 @@ func TestTodo_WF_UI_005_PublishedPromotionSuccessorMatchesExecutableByteForByte(
 		Store: store, Catalog: catalog,
 		NewID: func() (string, error) { return "01999f37-9f42-7000-8000-000000000014", nil },
 	}
-	srv := &server{deps: Dependencies{Definitions: definitions, Palette: catalog, DraftAuthoring: authoring}}
+	srv := &server{deps: Dependencies{Definitions: definitions, Palette: catalog, DraftAuthoring: authoring, Authorize: allowWorkflowCalls}}
 
 	created, err := srv.CreateWorkflowDraft(workflowTestContext(t, CreateWorkflowDraftProcedure), &workflowv1.CreateWorkflowDraftRequest{
 		WorkflowId: definition.WorkflowID,
@@ -195,7 +195,7 @@ func TestTodo_WF_UI_005_TransportStaleDraftEditIsAborted(t *testing.T) {
 		Store: store, Catalog: wfui005AuthoringCatalog{{ID: "kernel.task", Version: 1, Name: "Task", Kind: designerpalette.KindBlock, StepType: workflowcore.StepTask}},
 		NewID: func() (string, error) { return "01999f37-9f42-7000-8000-000000000010", nil },
 	}
-	srv := &server{deps: Dependencies{DraftAuthoring: authoring}}
+	srv := &server{deps: Dependencies{DraftAuthoring: authoring, Authorize: allowWorkflowCalls}}
 	ctx := workflowTestContext(t, CreateWorkflowDraftProcedure)
 	created, err := srv.CreateWorkflowDraft(ctx, &workflowv1.CreateWorkflowDraftRequest{})
 	if err != nil {

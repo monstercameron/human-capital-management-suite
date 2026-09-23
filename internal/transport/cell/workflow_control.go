@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
-	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 // workflowDependencies threads the cell's inspection reader and, when the cell
 // composed them, EP-WF-002's governed workflow controls into the workflow
 // transport. A cell without controls leaves Control nil, so the four control
 // RPCs refuse with FAILED_PRECONDITION and perform no transition.
-func workflowDependencies(c *app.Cell, instances app.WorkflowInstanceReader, cursorKey []byte) transportworkflow.Dependencies {
-	deps := transportworkflow.Dependencies{Instances: newWorkflowReader(instances), CursorKey: append([]byte(nil), cursorKey...)}
+func workflowDependencies(c *app.Cell, instances app.WorkflowInstanceReader, cursorKey, previousCursorKey []byte) transportworkflow.Dependencies {
+	deps := transportworkflow.Dependencies{Instances: newWorkflowReader(instances), CursorKey: append([]byte(nil), cursorKey...), PreviousCursorKey: append([]byte(nil), previousCursorKey...)}
 	if c != nil {
 		if catalog, ok := c.WorkflowVersions.(transportworkflow.DefinitionReader); ok {
 			deps.Definitions = catalog
@@ -33,26 +33,17 @@ func workflowDependencies(c *app.Cell, instances app.WorkflowInstanceReader, cur
 			deps.DraftAuthoring = c.WorkflowDraftAuthoring
 		}
 	}
-	deps.Authorize = func(principal *trust.Principal, action string) bool {
-		switch action {
-		case transportworkflow.ActionListWorkflowPublications,
-			transportworkflow.ActionGetWorkflowDefinitionView,
-			transportworkflow.ActionCompileWorkflowDraft,
-			transportworkflow.ActionListWorkflowBlocks,
-			transportworkflow.ActionCreateWorkflowDraft,
-			transportworkflow.ActionGetWorkflowDraft,
-			transportworkflow.ActionInsertWorkflowPaletteEntry,
-			transportworkflow.ActionUpdateWorkflowDraftNode,
-			transportworkflow.ActionSetWorkflowDraftOutcome,
-			transportworkflow.ActionBindWorkflowDraftInput,
-			transportworkflow.ActionMoveWorkflowDraftNode,
-			transportworkflow.ActionNavigateWorkflowDraftHistory,
-			transportworkflow.ActionApplyWorkflowTemplateOverlay:
-		default:
-			return true
-		}
-		return principal != nil && (principal.HasRole("hcm_admin") || principal.HasRole("comp_admin") || principal.HasRole("intent_author"))
+	// RBAC-RT-004: the hook resolves the caller's strictly durable roles
+	// from the cell's role store (never credential claims) and gates every
+	// action by capability. A cell composed without a role store denies
+	// everything; supervision of an instance's subjects additionally needs
+	// the relationship directory RBAC-RT-007 delivers, so the workflow
+	// transport leaves Dependencies.Supervision nil until then.
+	var store roleaccess.Store
+	if c != nil {
+		store = c.RoleAccess
 	}
+	deps.Authorize = workflowAuthorizer(store)
 	if c != nil && c.WorkflowControl != nil && c.WorkflowTenantIDs != nil {
 		deps.Control, deps.TenantIDs = c.WorkflowControl, c.WorkflowTenantIDs
 	}
@@ -77,7 +68,7 @@ func (r workflowDraftReader) ReadWorkflowDraft(ctx context.Context, tenant value
 	}, nil
 }
 
-func workflowDependenciesRef(c *app.Cell, instances app.WorkflowInstanceReader, cursorKey []byte) *transportworkflow.Dependencies {
-	deps := workflowDependencies(c, instances, cursorKey)
+func workflowDependenciesRef(c *app.Cell, instances app.WorkflowInstanceReader, cursorKey, previousCursorKey []byte) *transportworkflow.Dependencies {
+	deps := workflowDependencies(c, instances, cursorKey, previousCursorKey)
 	return &deps
 }

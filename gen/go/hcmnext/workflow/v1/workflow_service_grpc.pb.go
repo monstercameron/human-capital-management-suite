@@ -30,6 +30,9 @@ const (
 	WorkflowService_SetWorkflowDraftOutcome_FullMethodName      = "/hcmnext.workflow.v1.WorkflowService/SetWorkflowDraftOutcome"
 	WorkflowService_BindWorkflowDraftInput_FullMethodName       = "/hcmnext.workflow.v1.WorkflowService/BindWorkflowDraftInput"
 	WorkflowService_MoveWorkflowDraftNode_FullMethodName        = "/hcmnext.workflow.v1.WorkflowService/MoveWorkflowDraftNode"
+	WorkflowService_RemoveWorkflowDraftNode_FullMethodName      = "/hcmnext.workflow.v1.WorkflowService/RemoveWorkflowDraftNode"
+	WorkflowService_ClearWorkflowDraftOutcome_FullMethodName    = "/hcmnext.workflow.v1.WorkflowService/ClearWorkflowDraftOutcome"
+	WorkflowService_RenameWorkflowDraft_FullMethodName          = "/hcmnext.workflow.v1.WorkflowService/RenameWorkflowDraft"
 	WorkflowService_NavigateWorkflowDraftHistory_FullMethodName = "/hcmnext.workflow.v1.WorkflowService/NavigateWorkflowDraftHistory"
 	WorkflowService_ApplyWorkflowTemplateOverlay_FullMethodName = "/hcmnext.workflow.v1.WorkflowService/ApplyWorkflowTemplateOverlay"
 	WorkflowService_GetWorkflow_FullMethodName                  = "/hcmnext.workflow.v1.WorkflowService/GetWorkflow"
@@ -91,6 +94,16 @@ type WorkflowServiceClient interface {
 	// Moves a node one position in the shared graph/outline presentation order.
 	// Edges remain the only execution-flow authority.
 	MoveWorkflowDraftNode(ctx context.Context, in *MoveWorkflowDraftNodeRequest, opts ...grpc.CallOption) (*MoveWorkflowDraftNodeResponse, error)
+	// Deletes one authored node together with every edge that touches it and
+	// every input mapping that read its output. Locked template phases are
+	// immutable through this operation.
+	RemoveWorkflowDraftNode(ctx context.Context, in *RemoveWorkflowDraftNodeRequest, opts ...grpc.CallOption) (*RemoveWorkflowDraftNodeResponse, error)
+	// Disconnects a compiler-declared outcome port. Clearing a route that is
+	// already empty is a successful no-op that preserves the revision.
+	ClearWorkflowDraftOutcome(ctx context.Context, in *ClearWorkflowDraftOutcomeRequest, opts ...grpc.CallOption) (*ClearWorkflowDraftOutcomeResponse, error)
+	// Renames the draft under the same optimistic revision fence as every
+	// other authoring command.
+	RenameWorkflowDraft(ctx context.Context, in *RenameWorkflowDraftRequest, opts ...grpc.CallOption) (*RenameWorkflowDraftResponse, error)
 	// Restores the adjacent durable snapshot while advancing the optimistic
 	// draft revision. Every authoring surface, including agents, shares this
 	// same artifact and history.
@@ -238,6 +251,36 @@ func (c *workflowServiceClient) MoveWorkflowDraftNode(ctx context.Context, in *M
 	return out, nil
 }
 
+func (c *workflowServiceClient) RemoveWorkflowDraftNode(ctx context.Context, in *RemoveWorkflowDraftNodeRequest, opts ...grpc.CallOption) (*RemoveWorkflowDraftNodeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveWorkflowDraftNodeResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_RemoveWorkflowDraftNode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) ClearWorkflowDraftOutcome(ctx context.Context, in *ClearWorkflowDraftOutcomeRequest, opts ...grpc.CallOption) (*ClearWorkflowDraftOutcomeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearWorkflowDraftOutcomeResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_ClearWorkflowDraftOutcome_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *workflowServiceClient) RenameWorkflowDraft(ctx context.Context, in *RenameWorkflowDraftRequest, opts ...grpc.CallOption) (*RenameWorkflowDraftResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RenameWorkflowDraftResponse)
+	err := c.cc.Invoke(ctx, WorkflowService_RenameWorkflowDraft_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *workflowServiceClient) NavigateWorkflowDraftHistory(ctx context.Context, in *NavigateWorkflowDraftHistoryRequest, opts ...grpc.CallOption) (*NavigateWorkflowDraftHistoryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(NavigateWorkflowDraftHistoryResponse)
@@ -369,6 +412,16 @@ type WorkflowServiceServer interface {
 	// Moves a node one position in the shared graph/outline presentation order.
 	// Edges remain the only execution-flow authority.
 	MoveWorkflowDraftNode(context.Context, *MoveWorkflowDraftNodeRequest) (*MoveWorkflowDraftNodeResponse, error)
+	// Deletes one authored node together with every edge that touches it and
+	// every input mapping that read its output. Locked template phases are
+	// immutable through this operation.
+	RemoveWorkflowDraftNode(context.Context, *RemoveWorkflowDraftNodeRequest) (*RemoveWorkflowDraftNodeResponse, error)
+	// Disconnects a compiler-declared outcome port. Clearing a route that is
+	// already empty is a successful no-op that preserves the revision.
+	ClearWorkflowDraftOutcome(context.Context, *ClearWorkflowDraftOutcomeRequest) (*ClearWorkflowDraftOutcomeResponse, error)
+	// Renames the draft under the same optimistic revision fence as every
+	// other authoring command.
+	RenameWorkflowDraft(context.Context, *RenameWorkflowDraftRequest) (*RenameWorkflowDraftResponse, error)
 	// Restores the adjacent durable snapshot while advancing the optimistic
 	// draft revision. Every authoring surface, including agents, shares this
 	// same artifact and history.
@@ -438,6 +491,15 @@ func (UnimplementedWorkflowServiceServer) BindWorkflowDraftInput(context.Context
 }
 func (UnimplementedWorkflowServiceServer) MoveWorkflowDraftNode(context.Context, *MoveWorkflowDraftNodeRequest) (*MoveWorkflowDraftNodeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MoveWorkflowDraftNode not implemented")
+}
+func (UnimplementedWorkflowServiceServer) RemoveWorkflowDraftNode(context.Context, *RemoveWorkflowDraftNodeRequest) (*RemoveWorkflowDraftNodeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveWorkflowDraftNode not implemented")
+}
+func (UnimplementedWorkflowServiceServer) ClearWorkflowDraftOutcome(context.Context, *ClearWorkflowDraftOutcomeRequest) (*ClearWorkflowDraftOutcomeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClearWorkflowDraftOutcome not implemented")
+}
+func (UnimplementedWorkflowServiceServer) RenameWorkflowDraft(context.Context, *RenameWorkflowDraftRequest) (*RenameWorkflowDraftResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RenameWorkflowDraft not implemented")
 }
 func (UnimplementedWorkflowServiceServer) NavigateWorkflowDraftHistory(context.Context, *NavigateWorkflowDraftHistoryRequest) (*NavigateWorkflowDraftHistoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method NavigateWorkflowDraftHistory not implemented")
@@ -682,6 +744,60 @@ func _WorkflowService_MoveWorkflowDraftNode_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WorkflowService_RemoveWorkflowDraftNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveWorkflowDraftNodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).RemoveWorkflowDraftNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_RemoveWorkflowDraftNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).RemoveWorkflowDraftNode(ctx, req.(*RemoveWorkflowDraftNodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_ClearWorkflowDraftOutcome_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearWorkflowDraftOutcomeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).ClearWorkflowDraftOutcome(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_ClearWorkflowDraftOutcome_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).ClearWorkflowDraftOutcome(ctx, req.(*ClearWorkflowDraftOutcomeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WorkflowService_RenameWorkflowDraft_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RenameWorkflowDraftRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkflowServiceServer).RenameWorkflowDraft(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WorkflowService_RenameWorkflowDraft_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkflowServiceServer).RenameWorkflowDraft(ctx, req.(*RenameWorkflowDraftRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _WorkflowService_NavigateWorkflowDraftHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(NavigateWorkflowDraftHistoryRequest)
 	if err := dec(in); err != nil {
@@ -876,6 +992,18 @@ var WorkflowService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MoveWorkflowDraftNode",
 			Handler:    _WorkflowService_MoveWorkflowDraftNode_Handler,
+		},
+		{
+			MethodName: "RemoveWorkflowDraftNode",
+			Handler:    _WorkflowService_RemoveWorkflowDraftNode_Handler,
+		},
+		{
+			MethodName: "ClearWorkflowDraftOutcome",
+			Handler:    _WorkflowService_ClearWorkflowDraftOutcome_Handler,
+		},
+		{
+			MethodName: "RenameWorkflowDraft",
+			Handler:    _WorkflowService_RenameWorkflowDraft_Handler,
 		},
 		{
 			MethodName: "NavigateWorkflowDraftHistory",

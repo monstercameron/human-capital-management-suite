@@ -87,7 +87,7 @@ func TestGovernedWorkflowControlsOnComposedServer(t *testing.T) {
 	if err := h.pool.QueryRow(ctx, `SELECT node_id, attempt FROM workflow_node_execution WHERE instance_id = $1::uuid ORDER BY recorded_at DESC LIMIT 1`, instanceID).Scan(&nodeID, &attempt); err != nil {
 		t.Fatal(err)
 	}
-	retry, err := client.RetryNode(h.rpc("admin"), &workflowv1.RetryNodeRequest{IdempotencyKey: "retry-1", InstanceId: instanceID, NodeId: nodeID, ExpectedAttempt: uint32(attempt)})
+	retry, err := client.RetryNode(h.rpc("admin"), &workflowv1.RetryNodeRequest{IdempotencyKey: "retry-1", InstanceId: instanceID, NodeId: nodeID, ExpectedAttempt: uint32(attempt), ReasonRef: "INC-1"})
 	if err != nil || retry.GetReceipt().GetIntentInstanceId() == "" || strings.HasPrefix(retry.GetReceipt().GetResultCode(), "OPERATOR_") || retry.GetReceipt().GetOutcome() == workflowv1.WorkflowControlOutcome_WORKFLOW_CONTROL_OUTCOME_UNSPECIFIED {
 		t.Fatalf("retry with preflight simulation = %v, %v", retry, err)
 	}

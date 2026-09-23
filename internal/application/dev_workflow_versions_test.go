@@ -22,7 +22,8 @@ func devVersionServeConfig(url string, devBrowserLogin bool, tenant string) Serv
 	return ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: url,
 		DevHMACKey: "dev-workflow-version-bootstrap-signing-key", Issuer: DefaultIssuer, Audience: DefaultAudience,
-		Tenant: tenant, CellID: "cell-dev-versions", MaxDeadline: 60 * time.Second,
+		PageCursorKey: testPageCursorKey,
+		Tenant:        tenant, CellID: "cell-dev-versions", MaxDeadline: 60 * time.Second,
 		Workspace: true, DevBrowserLogin: devBrowserLogin, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:dev-workflow-versions",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promotion-approver",

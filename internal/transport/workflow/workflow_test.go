@@ -26,9 +26,18 @@ func TestProjectWorkflowInspectionRedactsPayloadsAndPreservesFrontier(t *testing
 	if err != nil {
 		t.Fatalf("encode snapshot cursor: %v", err)
 	}
-	got, err := decodeSnapshotCursor(&commonv1.PageRequest{Cursor: cursor}, []byte("test-key"), "tenant-a", "instance-1", 7)
+	got, err := decodeSnapshotCursor(&commonv1.PageRequest{Cursor: cursor}, []byte("test-key"), nil, "tenant-a", "instance-1", 7)
 	if err != nil || got != 3 {
 		t.Fatalf("snapshot cursor round trip = %d, %v", got, err)
+	}
+	// A cursor minted under the retired key verifies while rotation
+	// accepts it, and fails closed once it is dropped.
+	rotated, err := decodeSnapshotCursor(&commonv1.PageRequest{Cursor: cursor}, []byte("test-key-2"), []byte("test-key"), "tenant-a", "instance-1", 7)
+	if err != nil || rotated != 3 {
+		t.Fatalf("retired-key cursor after rotation = %d, %v", rotated, err)
+	}
+	if _, err := decodeSnapshotCursor(&commonv1.PageRequest{Cursor: cursor}, []byte("test-key-2"), nil, "tenant-a", "instance-1", 7); err == nil {
+		t.Fatal("retired-key cursor verified without the retired key")
 	}
 }
 
@@ -48,7 +57,7 @@ func TestWorkflowInspectionEndpointsReturnAuthorizedConsistentExecutionView(t *t
 			{NodeExecutionID: "node-a-1", WorkflowInstanceID: "workflow-1", NodeID: "a", Attempt: 1, Status: "FAILED", InputSnapshotRef: "snapshot-ref", ErrorClass: "SAFE_ERROR_CLASS"},
 		},
 	}}
-	srv := &server{deps: Dependencies{Instances: reader, CursorKey: []byte("workflow-test-cursor-key")}}
+	srv := &server{deps: Dependencies{Instances: reader, CursorKey: []byte("workflow-test-cursor-key"), Authorize: allowWorkflowCalls}}
 	getCtx := workflowTestContext(t, GetWorkflowProcedure)
 	got, err := srv.GetWorkflow(getCtx, &workflowv1.GetWorkflowRequest{InstanceId: "workflow-1"})
 	if err != nil {
@@ -85,7 +94,7 @@ func TestWorkflowInspectionEndpointsReturnAuthorizedConsistentExecutionView(t *t
 func assertWorkflowAuthorizationDenied(t *testing.T) {
 	t.Helper()
 	reader := &workflowTestReader{record: Record{Instance: Instance{InstanceID: "workflow-1", TenantID: transporttest.Tenant}}}
-	srv := &server{deps: Dependencies{Instances: reader, Authorize: func(*trust.Principal, string) bool { return false }}}
+	srv := &server{deps: Dependencies{Instances: reader, Authorize: func(context.Context, *trust.Principal, string) bool { return false }}}
 	_, err := srv.GetWorkflow(workflowTestContext(t, GetWorkflowProcedure), &workflowv1.GetWorkflowRequest{InstanceId: "workflow-1"})
 	owned, ok := envelope.As(err)
 	if !ok || owned.Code() != envelope.CodePermissionDenied {
@@ -133,7 +142,7 @@ func workflowTestContext(t *testing.T, method string) context.Context {
 
 func TestTodo_EP_WF_001_Property(t *testing.T) {
 	reader := &workflowTestReader{record: multiPageRecord(transporttest.Tenant, "workflow-pages", 7)}
-	srv := &server{deps: Dependencies{Instances: reader, CursorKey: []byte("workflow-property-key")}}
+	srv := &server{deps: Dependencies{Instances: reader, CursorKey: []byte("workflow-property-key"), Authorize: allowWorkflowCalls}}
 	var cursor string
 	var ids []string
 	for {
@@ -176,7 +185,7 @@ func TestTodo_EP_WF_001_Golden(t *testing.T) {
 }
 func TestTodo_EP_WF_001_Race(t *testing.T) {
 	reader := &workflowTestReader{record: Record{Instance: Instance{InstanceID: "workflow-race", TenantID: transporttest.Tenant, RuntimeStatus: "RUNNING"}}}
-	srv := &server{deps: Dependencies{Instances: reader, CursorKey: []byte("workflow-race-key")}}
+	srv := &server{deps: Dependencies{Instances: reader, CursorKey: []byte("workflow-race-key"), Authorize: allowWorkflowCalls}}
 	var wg sync.WaitGroup
 	for i := 0; i < 32; i++ {
 		wg.Add(1)
@@ -217,7 +226,7 @@ func TestTodo_EP_WF_001_Conformance(t *testing.T) {
 			if name == "replayed against a different snapshot" {
 				version = 8
 			}
-			if _, err := decodeSnapshotCursor(page, key, transporttest.Tenant, "workflow-1", version); !errors.Is(err, ErrInvalidCursor) {
+			if _, err := decodeSnapshotCursor(page, key, nil, transporttest.Tenant, "workflow-1", version); !errors.Is(err, ErrInvalidCursor) {
 				t.Fatalf("decode cursor error = %v, want ErrInvalidCursor", err)
 			}
 		})
@@ -227,7 +236,7 @@ func TestTodo_EP_WF_001_Mutation(t *testing.T) {
 	if _, err := encodeSnapshotCursor(snapshotCursor{TenantID: "tenant-a", InstanceID: "workflow-1", InstanceVersion: 1, Index: 1}, nil); !errors.Is(err, ErrCursorKeyUnset) {
 		t.Fatalf("unset signing key mint error = %v, want ErrCursorKeyUnset", err)
 	}
-	if _, err := decodeSnapshotCursor(&commonv1.PageRequest{Cursor: "not-a-cursor"}, nil, "tenant-a", "workflow-1", 1); !errors.Is(err, ErrCursorKeyUnset) && !errors.Is(err, ErrInvalidCursor) {
+	if _, err := decodeSnapshotCursor(&commonv1.PageRequest{Cursor: "not-a-cursor"}, nil, nil, "tenant-a", "workflow-1", 1); !errors.Is(err, ErrCursorKeyUnset) && !errors.Is(err, ErrInvalidCursor) {
 		t.Fatalf("unset signing key accept error = %v, want a typed refusal", err)
 	}
 }

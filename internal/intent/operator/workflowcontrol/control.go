@@ -1,6 +1,7 @@
-// Package workflowcontrol turns the four operator workflow interventions --
-// Pause, Resume, Cancel and RetryNode (EP-WF-002) -- into governed operator
-// actions.
+// Package workflowcontrol turns the operator workflow interventions -- Pause,
+// Resume, Cancel and RetryNode (EP-WF-002) plus WF-RUN-015's skip, satisfy,
+// override, rewind, supersede and reconcile (REV-009-02) -- into governed
+// operator actions.
 //
 // Every command is submitted through an [operator.Gateway], so it resolves a
 // registered operational intent under current JIT authority, dual control or
@@ -54,6 +55,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/jit"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/intervention"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -763,7 +765,11 @@ func (c *Controller) retryStep(ctx context.Context) stepFunc {
 }
 
 // Request is a transport-shaped control: identifiers are strings, so a
-// transport adapter needs no identifier library of its own.
+// transport adapter needs no identifier library of its own. Route,
+// TargetNodeID, Replacement, Observation and EvidenceRefs carry a WF-RUN-015
+// typed intervention (REV-009-02): the skip, satisfy, override, rewind,
+// supersede and reconcile kinds run through Controller.Intervene from this
+// same request, so one endpoint covers all ten intervention kinds.
 type Request struct {
 	Kind            operator.Kind
 	Tenant          values.TenantId
@@ -774,6 +780,19 @@ type Request struct {
 	IdempotencyKey  string
 	ReasonRef       string
 	Operator        string
+	// Route is the declared route a SATISFY or OVERRIDE takes.
+	Route string
+	// TargetNodeID is the earlier node a REWIND returns control to.
+	TargetNodeID string
+	// Replacement is the instance UUID a SUPERSEDE links to, empty for
+	// every other kind.
+	Replacement string
+	// Observation is what a RECONCILE observed: EFFECT_APPLIED or
+	// EFFECT_NOT_APPLIED, empty for every other kind.
+	Observation string
+	// EvidenceRefs are the references the intervention cites. At least one
+	// is required.
+	EvidenceRefs []string
 }
 
 // Response is a transport-shaped control result.
@@ -788,6 +807,47 @@ type Response struct {
 	IntentInstanceID string
 	ReceiptDigest    string
 	Replayed         bool
+	// DecisionID and DecisionDigest identify the immutable decision an
+	// accepted intervention recorded; Cause is the gateway refusal code an
+	// INTERVENTION_UNAUTHORIZED denial carries. All three are empty for
+	// the pause, resume, cancel and retry controls.
+	DecisionID     string
+	DecisionDigest string
+	Cause          string
+}
+
+// interventionSpec translates a transport-shaped request into the typed
+// intervention the command carries. A replacement that is not an instance
+// UUID is refused before the gateway; every other malformed field is denied
+// by the intervention contract itself, recording nothing.
+func interventionSpec(req Request) (InterventionSpec, error) {
+	var kind intervention.Kind
+	switch req.Kind {
+	case operator.KindWorkflowSkip:
+		kind = intervention.Skip
+	case operator.KindWorkflowSatisfy:
+		kind = intervention.Satisfy
+	case operator.KindWorkflowOverride:
+		kind = intervention.Override
+	case operator.KindWorkflowRewind:
+		kind = intervention.Rewind
+	case operator.KindWorkflowSupersede:
+		kind = intervention.Supersede
+	case operator.KindWorkflowReconcile:
+		kind = intervention.Reconcile
+	default:
+		return InterventionSpec{}, fmt.Errorf("%w: kind %q is not a workflow intervention", ErrInvalidCommand, req.Kind)
+	}
+	spec := InterventionSpec{Kind: kind, NodeID: req.NodeID, Route: req.Route, TargetNodeID: req.TargetNodeID,
+		Observation: intervention.Observation(req.Observation), EvidenceRefs: req.EvidenceRefs}
+	if strings.TrimSpace(req.Replacement) != "" {
+		replacement, err := uuid.Parse(strings.TrimSpace(req.Replacement))
+		if err != nil {
+			return InterventionSpec{}, fmt.Errorf("%w: replacement: %w", ErrInvalidCommand, err)
+		}
+		spec.Replacement = replacement
+	}
+	return spec, nil
 }
 
 // TenantIDs maps a tenant key to its storage identity.
@@ -823,6 +883,14 @@ func (c *Controller) Handle(ctx context.Context, tenantIDs TenantIDs, req Reques
 		res, err = c.Cancel(ctx, cmd)
 	case operator.KindWorkflowRetryNode:
 		res, err = c.RetryNode(ctx, cmd)
+	case operator.KindWorkflowSkip, operator.KindWorkflowSatisfy, operator.KindWorkflowOverride,
+		operator.KindWorkflowRewind, operator.KindWorkflowSupersede, operator.KindWorkflowReconcile:
+		spec, specErr := interventionSpec(req)
+		if specErr != nil {
+			return Response{}, specErr
+		}
+		cmd.Intervention = &spec
+		res, err = c.Intervene(ctx, cmd)
 	default:
 		return Response{}, fmt.Errorf("%w: kind %q is not a workflow control", ErrInvalidCommand, req.Kind)
 	}
@@ -830,7 +898,8 @@ func (c *Controller) Handle(ctx context.Context, tenantIDs TenantIDs, req Reques
 		return Response{}, err
 	}
 	out := Response{Outcome: res.Outcome, Code: res.Code, InstanceStatus: string(res.InstanceStatus), NodeID: res.NodeID,
-		IntentInstanceID: res.IntentInstanceID, ReceiptDigest: res.ReceiptDigest, Replayed: res.Replayed}
+		IntentInstanceID: res.IntentInstanceID, ReceiptDigest: res.ReceiptDigest, Replayed: res.Replayed,
+		DecisionID: res.DecisionID, DecisionDigest: res.DecisionDigest, Cause: res.Cause}
 	if res.InstanceID != uuid.Nil {
 		out.InstanceID = res.InstanceID.String()
 	}

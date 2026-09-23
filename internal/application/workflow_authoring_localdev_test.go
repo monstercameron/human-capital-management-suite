@@ -13,7 +13,7 @@ import (
 
 func TestTodo_WF_UI_005_LocalDevelopmentCatalogIsExplicitAndTenantScoped(t *testing.T) {
 	policy, extensions := localDevelopmentWorkflowAuthoring(ServeConfig{Profile: ServeProfileLocalDev, Tenant: LocalDevTenant})
-	if policy == nil || len(extensions) != 2 {
+	if policy == nil || len(extensions) != 3 {
 		t.Fatalf("local development workflow authoring = policy %T, extensions %+v", policy, extensions)
 	}
 	key := capability.Key{ID: "hcmnext.people.promote_worker", Version: 1}

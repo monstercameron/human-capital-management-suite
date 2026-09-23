@@ -79,7 +79,8 @@ func newPromoUXServer(t *testing.T) *promoUXServer {
 	cfg := application.ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
 		DevHMACKey: signingKey, Issuer: application.DefaultIssuer, Audience: application.DefaultAudience,
-		Tenant: string(fixtures.Tenant), CellID: "cell-promo-ux-regression", MaxDeadline: 30 * time.Second,
+		PageCursorKey: "promo-ux-test-page-cursor-signing-key",
+		Tenant:        string(fixtures.Tenant), CellID: "cell-promo-ux-regression", MaxDeadline: 30 * time.Second,
 		// The workflow contract drives the served journey RPCs. The separate
 		// test/workspace promo_ux_* suite owns the optional rendered bundle,
 		// whose generated asset manifest may be unavailable in a source checkout.
@@ -136,7 +137,7 @@ func newPromoUXServer(t *testing.T) *promoUXServer {
 	people := map[string]promoUXPersona{
 		"proposer": {Name: "proposer", Subject: "principal:promo-ux-proposer", Roles: []string{"intent_author", "comp_admin", "promotion_operator"}},
 		"finance":  {Name: "finance", Subject: financePrincipal, Roles: []string{"payroll_manager"}},
-		"manager":  {Name: "manager", Subject: "principal:promo-ux-manager", Roles: []string{"hiring_manager", "manager", "promotion_operator"}},
+		"manager":  {Name: "manager", Subject: "principal:promo-ux-manager", Roles: []string{"hiring_manager", "manager"}},
 		"employee": {Name: "employee", Subject: "principal:promo-ux-employee", Roles: []string{"worker_self"}},
 	}
 	for name, person := range people {

@@ -102,7 +102,7 @@ func (s *server) CancelWorkflow(ctx context.Context, req *workflowv1.CancelWorkf
 func (s *server) RetryNode(ctx context.Context, req *workflowv1.RetryNodeRequest) (*workflowv1.RetryNodeResponse, error) {
 	receipt, _, node, err := s.control(ctx, ActionRetryNode, workflowcontrol.Request{
 		Kind: operator.KindWorkflowRetryNode, InstanceID: req.GetInstanceId(), NodeID: req.GetNodeId(),
-		ExpectedAttempt: req.GetExpectedAttempt(), IdempotencyKey: req.GetIdempotencyKey(), ReasonRef: req.GetIdempotencyKey(),
+		ExpectedAttempt: req.GetExpectedAttempt(), IdempotencyKey: req.GetIdempotencyKey(), ReasonRef: req.GetReasonRef(),
 	})
 	if err != nil {
 		return nil, err
@@ -129,10 +129,10 @@ func (s *server) control(ctx context.Context, action string, req workflowcontrol
 		return nil, nil, nil, invalid(inv, "expected_attempt")
 	case req.Kind != operator.KindWorkflowRetryNode && req.ExpectedVersion == 0:
 		return nil, nil, nil, invalid(inv, "expected_instance_version")
-	case req.Kind != operator.KindWorkflowRetryNode && strings.TrimSpace(req.ReasonRef) == "":
+	case strings.TrimSpace(req.ReasonRef) == "":
 		return nil, nil, nil, invalid(inv, "reason_ref")
 	}
-	if !s.authorized(p, action) {
+	if !s.authorized(ctx, p, action) {
 		return nil, nil, nil, controlDenied(inv, p)
 	}
 	if s.deps.Control == nil || s.deps.TenantIDs == nil {

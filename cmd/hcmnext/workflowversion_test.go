@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
 	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/hireexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/releasefixture"
@@ -168,13 +169,14 @@ func TestTodo_WF_COMP_006_OperatorRelease(t *testing.T) {
 		t.Fatalf("list = %d %q", code, out)
 	}
 
-	// Three shipped versions: the prototype and promotion execute 1.1.0 end
+	// Four shipped versions: the prototype, hire and promotion execute 1.1.0 end
 	// ACTIVE; execute 1.0.0 is activated and then superseded by 1.1.0, so it
 	// stands QUARANTINED while still serving its pinned instances.
-	if code, out, stderr := run("bootstrap-dev"); code != 0 || strings.Count(out, "ACTIVE\t") != 2 ||
+	if code, out, stderr := run("bootstrap-dev"); code != 0 || strings.Count(out, "ACTIVE\t") != 3 ||
+		!strings.Contains(out, hireexec.WorkflowID+"\t"+hireexec.SemanticVersion+"\tACTIVE\t") ||
 		!strings.Contains(out, promotionexec.WorkflowID+"\t"+promotionexec.SemanticVersion+"\tACTIVE\t") ||
 		!strings.Contains(out, promotionexec.WorkflowID+"\t"+promotionexec.SemanticVersionV1_0+"\tQUARANTINED\t") {
-		t.Fatalf("bootstrap-dev: exit %d, stdout %q, stderr %q; want the prototype and execute 1.1.0 ACTIVE, execute 1.0.0 superseded", code, out, stderr)
+		t.Fatalf("bootstrap-dev: exit %d, stdout %q, stderr %q; want prototype, hire and execute 1.1.0 ACTIVE, execute 1.0.0 superseded", code, out, stderr)
 	}
 	if active, found, err := store.GetActiveForWorkflow(promotionexec.WorkflowID); err != nil || !found ||
 		active.SemanticVersion != promotionexec.SemanticVersion || active.Approvals[0].ApprovedBy != platformexecution.DevReleaseApprover {

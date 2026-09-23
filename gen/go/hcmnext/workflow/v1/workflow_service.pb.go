@@ -3580,6 +3580,361 @@ func (x *MoveWorkflowDraftNodeResponse) GetDraft() *WorkflowDraftView {
 	return nil
 }
 
+type RemoveWorkflowDraftNodeRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Scope            *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	DraftId          string                 `protobuf:"bytes,2,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	NodeId           string                 `protobuf:"bytes,4,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RemoveWorkflowDraftNodeRequest) Reset() {
+	*x = RemoveWorkflowDraftNodeRequest{}
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveWorkflowDraftNodeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveWorkflowDraftNodeRequest) ProtoMessage() {}
+
+func (x *RemoveWorkflowDraftNodeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveWorkflowDraftNodeRequest.ProtoReflect.Descriptor instead.
+func (*RemoveWorkflowDraftNodeRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *RemoveWorkflowDraftNodeRequest) GetScope() *v1.ScopeContext {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *RemoveWorkflowDraftNodeRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *RemoveWorkflowDraftNodeRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *RemoveWorkflowDraftNodeRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+type RemoveWorkflowDraftNodeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Draft         *WorkflowDraftView     `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveWorkflowDraftNodeResponse) Reset() {
+	*x = RemoveWorkflowDraftNodeResponse{}
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveWorkflowDraftNodeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveWorkflowDraftNodeResponse) ProtoMessage() {}
+
+func (x *RemoveWorkflowDraftNodeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveWorkflowDraftNodeResponse.ProtoReflect.Descriptor instead.
+func (*RemoveWorkflowDraftNodeResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *RemoveWorkflowDraftNodeResponse) GetDraft() *WorkflowDraftView {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+type ClearWorkflowDraftOutcomeRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Scope            *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	DraftId          string                 `protobuf:"bytes,2,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	FromNodeId       string                 `protobuf:"bytes,4,opt,name=from_node_id,json=fromNodeId,proto3" json:"from_node_id,omitempty"`
+	RouteKey         string                 `protobuf:"bytes,5,opt,name=route_key,json=routeKey,proto3" json:"route_key,omitempty"`
+	// An empty to_node_id clears every target currently connected to that
+	// route; a named target clears only that one connection.
+	ToNodeId      string `protobuf:"bytes,6,opt,name=to_node_id,json=toNodeId,proto3" json:"to_node_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClearWorkflowDraftOutcomeRequest) Reset() {
+	*x = ClearWorkflowDraftOutcomeRequest{}
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClearWorkflowDraftOutcomeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClearWorkflowDraftOutcomeRequest) ProtoMessage() {}
+
+func (x *ClearWorkflowDraftOutcomeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClearWorkflowDraftOutcomeRequest.ProtoReflect.Descriptor instead.
+func (*ClearWorkflowDraftOutcomeRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ClearWorkflowDraftOutcomeRequest) GetScope() *v1.ScopeContext {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *ClearWorkflowDraftOutcomeRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *ClearWorkflowDraftOutcomeRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *ClearWorkflowDraftOutcomeRequest) GetFromNodeId() string {
+	if x != nil {
+		return x.FromNodeId
+	}
+	return ""
+}
+
+func (x *ClearWorkflowDraftOutcomeRequest) GetRouteKey() string {
+	if x != nil {
+		return x.RouteKey
+	}
+	return ""
+}
+
+func (x *ClearWorkflowDraftOutcomeRequest) GetToNodeId() string {
+	if x != nil {
+		return x.ToNodeId
+	}
+	return ""
+}
+
+type ClearWorkflowDraftOutcomeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Draft         *WorkflowDraftView     `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClearWorkflowDraftOutcomeResponse) Reset() {
+	*x = ClearWorkflowDraftOutcomeResponse{}
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClearWorkflowDraftOutcomeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClearWorkflowDraftOutcomeResponse) ProtoMessage() {}
+
+func (x *ClearWorkflowDraftOutcomeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClearWorkflowDraftOutcomeResponse.ProtoReflect.Descriptor instead.
+func (*ClearWorkflowDraftOutcomeResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *ClearWorkflowDraftOutcomeResponse) GetDraft() *WorkflowDraftView {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+type RenameWorkflowDraftRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Scope            *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	DraftId          string                 `protobuf:"bytes,2,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	// Trimmed, and between 1 and 120 runes once trimmed.
+	Name          string `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameWorkflowDraftRequest) Reset() {
+	*x = RenameWorkflowDraftRequest{}
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameWorkflowDraftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameWorkflowDraftRequest) ProtoMessage() {}
+
+func (x *RenameWorkflowDraftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameWorkflowDraftRequest.ProtoReflect.Descriptor instead.
+func (*RenameWorkflowDraftRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *RenameWorkflowDraftRequest) GetScope() *v1.ScopeContext {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *RenameWorkflowDraftRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *RenameWorkflowDraftRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *RenameWorkflowDraftRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RenameWorkflowDraftResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Draft         *WorkflowDraftView     `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameWorkflowDraftResponse) Reset() {
+	*x = RenameWorkflowDraftResponse{}
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameWorkflowDraftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameWorkflowDraftResponse) ProtoMessage() {}
+
+func (x *RenameWorkflowDraftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameWorkflowDraftResponse.ProtoReflect.Descriptor instead.
+func (*RenameWorkflowDraftResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *RenameWorkflowDraftResponse) GetDraft() *WorkflowDraftView {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
 type NavigateWorkflowDraftHistoryRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Scope            *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -3593,7 +3948,7 @@ type NavigateWorkflowDraftHistoryRequest struct {
 
 func (x *NavigateWorkflowDraftHistoryRequest) Reset() {
 	*x = NavigateWorkflowDraftHistoryRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[46]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3605,7 +3960,7 @@ func (x *NavigateWorkflowDraftHistoryRequest) String() string {
 func (*NavigateWorkflowDraftHistoryRequest) ProtoMessage() {}
 
 func (x *NavigateWorkflowDraftHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[46]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3618,7 +3973,7 @@ func (x *NavigateWorkflowDraftHistoryRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use NavigateWorkflowDraftHistoryRequest.ProtoReflect.Descriptor instead.
 func (*NavigateWorkflowDraftHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{46}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *NavigateWorkflowDraftHistoryRequest) GetScope() *v1.ScopeContext {
@@ -3658,7 +4013,7 @@ type NavigateWorkflowDraftHistoryResponse struct {
 
 func (x *NavigateWorkflowDraftHistoryResponse) Reset() {
 	*x = NavigateWorkflowDraftHistoryResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[47]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3670,7 +4025,7 @@ func (x *NavigateWorkflowDraftHistoryResponse) String() string {
 func (*NavigateWorkflowDraftHistoryResponse) ProtoMessage() {}
 
 func (x *NavigateWorkflowDraftHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[47]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3683,7 +4038,7 @@ func (x *NavigateWorkflowDraftHistoryResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use NavigateWorkflowDraftHistoryResponse.ProtoReflect.Descriptor instead.
 func (*NavigateWorkflowDraftHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{47}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *NavigateWorkflowDraftHistoryResponse) GetDraft() *WorkflowDraftView {
@@ -3709,7 +4064,7 @@ type ApplyWorkflowTemplateOverlayRequest struct {
 
 func (x *ApplyWorkflowTemplateOverlayRequest) Reset() {
 	*x = ApplyWorkflowTemplateOverlayRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[48]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3721,7 +4076,7 @@ func (x *ApplyWorkflowTemplateOverlayRequest) String() string {
 func (*ApplyWorkflowTemplateOverlayRequest) ProtoMessage() {}
 
 func (x *ApplyWorkflowTemplateOverlayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[48]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3734,7 +4089,7 @@ func (x *ApplyWorkflowTemplateOverlayRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ApplyWorkflowTemplateOverlayRequest.ProtoReflect.Descriptor instead.
 func (*ApplyWorkflowTemplateOverlayRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{48}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ApplyWorkflowTemplateOverlayRequest) GetScope() *v1.ScopeContext {
@@ -3804,7 +4159,7 @@ type ApplyWorkflowTemplateOverlayResponse struct {
 
 func (x *ApplyWorkflowTemplateOverlayResponse) Reset() {
 	*x = ApplyWorkflowTemplateOverlayResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[49]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3816,7 +4171,7 @@ func (x *ApplyWorkflowTemplateOverlayResponse) String() string {
 func (*ApplyWorkflowTemplateOverlayResponse) ProtoMessage() {}
 
 func (x *ApplyWorkflowTemplateOverlayResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[49]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3829,7 +4184,7 @@ func (x *ApplyWorkflowTemplateOverlayResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use ApplyWorkflowTemplateOverlayResponse.ProtoReflect.Descriptor instead.
 func (*ApplyWorkflowTemplateOverlayResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{49}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ApplyWorkflowTemplateOverlayResponse) GetDraft() *WorkflowDraftView {
@@ -3862,7 +4217,7 @@ type GetWorkflowDraftResponse struct {
 
 func (x *GetWorkflowDraftResponse) Reset() {
 	*x = GetWorkflowDraftResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[50]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3874,7 +4229,7 @@ func (x *GetWorkflowDraftResponse) String() string {
 func (*GetWorkflowDraftResponse) ProtoMessage() {}
 
 func (x *GetWorkflowDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[50]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3887,7 +4242,7 @@ func (x *GetWorkflowDraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkflowDraftResponse.ProtoReflect.Descriptor instead.
 func (*GetWorkflowDraftResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{50}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *GetWorkflowDraftResponse) GetDraft() *WorkflowDraftView {
@@ -3917,7 +4272,7 @@ type WorkflowControlReceipt struct {
 
 func (x *WorkflowControlReceipt) Reset() {
 	*x = WorkflowControlReceipt{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[51]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3929,7 +4284,7 @@ func (x *WorkflowControlReceipt) String() string {
 func (*WorkflowControlReceipt) ProtoMessage() {}
 
 func (x *WorkflowControlReceipt) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[51]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3942,7 +4297,7 @@ func (x *WorkflowControlReceipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowControlReceipt.ProtoReflect.Descriptor instead.
 func (*WorkflowControlReceipt) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{51}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *WorkflowControlReceipt) GetOutcome() WorkflowControlOutcome {
@@ -4007,7 +4362,7 @@ type PauseWorkflowRequest struct {
 
 func (x *PauseWorkflowRequest) Reset() {
 	*x = PauseWorkflowRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[52]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4019,7 +4374,7 @@ func (x *PauseWorkflowRequest) String() string {
 func (*PauseWorkflowRequest) ProtoMessage() {}
 
 func (x *PauseWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[52]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4032,7 +4387,7 @@ func (x *PauseWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*PauseWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{52}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *PauseWorkflowRequest) GetIdempotencyKey() string {
@@ -4080,7 +4435,7 @@ type PauseWorkflowResponse struct {
 
 func (x *PauseWorkflowResponse) Reset() {
 	*x = PauseWorkflowResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[53]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4092,7 +4447,7 @@ func (x *PauseWorkflowResponse) String() string {
 func (*PauseWorkflowResponse) ProtoMessage() {}
 
 func (x *PauseWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[53]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4105,7 +4460,7 @@ func (x *PauseWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*PauseWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{53}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *PauseWorkflowResponse) GetInstance() *WorkflowInstance {
@@ -4135,7 +4490,7 @@ type ResumeWorkflowRequest struct {
 
 func (x *ResumeWorkflowRequest) Reset() {
 	*x = ResumeWorkflowRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[54]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4147,7 +4502,7 @@ func (x *ResumeWorkflowRequest) String() string {
 func (*ResumeWorkflowRequest) ProtoMessage() {}
 
 func (x *ResumeWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[54]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4160,7 +4515,7 @@ func (x *ResumeWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*ResumeWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{54}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ResumeWorkflowRequest) GetIdempotencyKey() string {
@@ -4208,7 +4563,7 @@ type ResumeWorkflowResponse struct {
 
 func (x *ResumeWorkflowResponse) Reset() {
 	*x = ResumeWorkflowResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[55]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4220,7 +4575,7 @@ func (x *ResumeWorkflowResponse) String() string {
 func (*ResumeWorkflowResponse) ProtoMessage() {}
 
 func (x *ResumeWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[55]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4233,7 +4588,7 @@ func (x *ResumeWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*ResumeWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{55}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ResumeWorkflowResponse) GetInstance() *WorkflowInstance {
@@ -4263,7 +4618,7 @@ type CancelWorkflowRequest struct {
 
 func (x *CancelWorkflowRequest) Reset() {
 	*x = CancelWorkflowRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[56]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4275,7 +4630,7 @@ func (x *CancelWorkflowRequest) String() string {
 func (*CancelWorkflowRequest) ProtoMessage() {}
 
 func (x *CancelWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[56]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4288,7 +4643,7 @@ func (x *CancelWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*CancelWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{56}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *CancelWorkflowRequest) GetIdempotencyKey() string {
@@ -4336,7 +4691,7 @@ type CancelWorkflowResponse struct {
 
 func (x *CancelWorkflowResponse) Reset() {
 	*x = CancelWorkflowResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[57]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4348,7 +4703,7 @@ func (x *CancelWorkflowResponse) String() string {
 func (*CancelWorkflowResponse) ProtoMessage() {}
 
 func (x *CancelWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[57]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4361,7 +4716,7 @@ func (x *CancelWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*CancelWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{57}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *CancelWorkflowResponse) GetInstance() *WorkflowInstance {
@@ -4385,13 +4740,16 @@ type RetryNodeRequest struct {
 	InstanceId      string                 `protobuf:"bytes,3,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
 	NodeId          string                 `protobuf:"bytes,4,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	ExpectedAttempt uint32                 `protobuf:"varint,5,opt,name=expected_attempt,json=expectedAttempt,proto3" json:"expected_attempt,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// reason_ref is the caller's ticket or justification reference, recorded
+	// on the governed receipt like every other workflow control's.
+	ReasonRef     string `protobuf:"bytes,6,opt,name=reason_ref,json=reasonRef,proto3" json:"reason_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RetryNodeRequest) Reset() {
 	*x = RetryNodeRequest{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[58]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4403,7 +4761,7 @@ func (x *RetryNodeRequest) String() string {
 func (*RetryNodeRequest) ProtoMessage() {}
 
 func (x *RetryNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[58]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4416,7 +4774,7 @@ func (x *RetryNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryNodeRequest.ProtoReflect.Descriptor instead.
 func (*RetryNodeRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{58}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *RetryNodeRequest) GetIdempotencyKey() string {
@@ -4454,6 +4812,13 @@ func (x *RetryNodeRequest) GetExpectedAttempt() uint32 {
 	return 0
 }
 
+func (x *RetryNodeRequest) GetReasonRef() string {
+	if x != nil {
+		return x.ReasonRef
+	}
+	return ""
+}
+
 type RetryNodeResponse struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
 	NodeExecution *NodeExecution          `protobuf:"bytes,1,opt,name=node_execution,json=nodeExecution,proto3" json:"node_execution,omitempty"`
@@ -4464,7 +4829,7 @@ type RetryNodeResponse struct {
 
 func (x *RetryNodeResponse) Reset() {
 	*x = RetryNodeResponse{}
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[59]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4476,7 +4841,7 @@ func (x *RetryNodeResponse) String() string {
 func (*RetryNodeResponse) ProtoMessage() {}
 
 func (x *RetryNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[59]
+	mi := &file_hcmnext_workflow_v1_workflow_service_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4489,7 +4854,7 @@ func (x *RetryNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryNodeResponse.ProtoReflect.Descriptor instead.
 func (*RetryNodeResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{59}
+	return file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *RetryNodeResponse) GetNodeExecution() *NodeExecution {
@@ -4822,6 +5187,31 @@ const file_hcmnext_workflow_v1_workflow_service_proto_rawDesc = "" +
 	"\anode_id\x18\x04 \x01(\tR\x06nodeId\x12\x1c\n" +
 	"\tdirection\x18\x05 \x01(\tR\tdirection\"]\n" +
 	"\x1dMoveWorkflowDraftNodeResponse\x12<\n" +
+	"\x05draft\x18\x01 \x01(\v2&.hcmnext.workflow.v1.WorkflowDraftViewR\x05draft\"\xb8\x01\n" +
+	"\x1eRemoveWorkflowDraftNodeRequest\x125\n" +
+	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x19\n" +
+	"\bdraft_id\x18\x02 \x01(\tR\adraftId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\x12\x17\n" +
+	"\anode_id\x18\x04 \x01(\tR\x06nodeId\"_\n" +
+	"\x1fRemoveWorkflowDraftNodeResponse\x12<\n" +
+	"\x05draft\x18\x01 \x01(\v2&.hcmnext.workflow.v1.WorkflowDraftViewR\x05draft\"\xfe\x01\n" +
+	" ClearWorkflowDraftOutcomeRequest\x125\n" +
+	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x19\n" +
+	"\bdraft_id\x18\x02 \x01(\tR\adraftId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\x12 \n" +
+	"\ffrom_node_id\x18\x04 \x01(\tR\n" +
+	"fromNodeId\x12\x1b\n" +
+	"\troute_key\x18\x05 \x01(\tR\brouteKey\x12\x1c\n" +
+	"\n" +
+	"to_node_id\x18\x06 \x01(\tR\btoNodeId\"a\n" +
+	"!ClearWorkflowDraftOutcomeResponse\x12<\n" +
+	"\x05draft\x18\x01 \x01(\v2&.hcmnext.workflow.v1.WorkflowDraftViewR\x05draft\"\xaf\x01\n" +
+	"\x1aRenameWorkflowDraftRequest\x125\n" +
+	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x19\n" +
+	"\bdraft_id\x18\x02 \x01(\tR\adraftId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"[\n" +
+	"\x1bRenameWorkflowDraftResponse\x12<\n" +
 	"\x05draft\x18\x01 \x01(\v2&.hcmnext.workflow.v1.WorkflowDraftViewR\x05draft\"\xc2\x01\n" +
 	"#NavigateWorkflowDraftHistoryRequest\x125\n" +
 	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x19\n" +
@@ -4886,14 +5276,16 @@ const file_hcmnext_workflow_v1_workflow_service_proto_rawDesc = "" +
 	"reason_ref\x18\x05 \x01(\tR\treasonRef\"\xa2\x01\n" +
 	"\x16CancelWorkflowResponse\x12A\n" +
 	"\binstance\x18\x01 \x01(\v2%.hcmnext.workflow.v1.WorkflowInstanceR\binstance\x12E\n" +
-	"\areceipt\x18\x02 \x01(\v2+.hcmnext.workflow.v1.WorkflowControlReceiptR\areceipt\"\xd7\x01\n" +
+	"\areceipt\x18\x02 \x01(\v2+.hcmnext.workflow.v1.WorkflowControlReceiptR\areceipt\"\xf6\x01\n" +
 	"\x10RetryNodeRequest\x12'\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x125\n" +
 	"\x05scope\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1f\n" +
 	"\vinstance_id\x18\x03 \x01(\tR\n" +
 	"instanceId\x12\x17\n" +
 	"\anode_id\x18\x04 \x01(\tR\x06nodeId\x12)\n" +
-	"\x10expected_attempt\x18\x05 \x01(\rR\x0fexpectedAttempt\"\xa5\x01\n" +
+	"\x10expected_attempt\x18\x05 \x01(\rR\x0fexpectedAttempt\x12\x1d\n" +
+	"\n" +
+	"reason_ref\x18\x06 \x01(\tR\treasonRef\"\xa5\x01\n" +
 	"\x11RetryNodeResponse\x12I\n" +
 	"\x0enode_execution\x18\x01 \x01(\v2\".hcmnext.workflow.v1.NodeExecutionR\rnodeExecution\x12E\n" +
 	"\areceipt\x18\x02 \x01(\v2+.hcmnext.workflow.v1.WorkflowControlReceiptR\areceipt*\x93\x02\n" +
@@ -4903,7 +5295,7 @@ const file_hcmnext_workflow_v1_workflow_service_proto_rawDesc = "" +
 	"+WORKFLOW_CONTROL_OUTCOME_PENDING_SAFE_POINT\x10\x02\x12#\n" +
 	"\x1fWORKFLOW_CONTROL_OUTCOME_DENIED\x10\x03\x12%\n" +
 	"!WORKFLOW_CONTROL_OUTCOME_TOO_LATE\x10\x04\x12,\n" +
-	"(WORKFLOW_CONTROL_OUTCOME_REPAIR_REQUIRED\x10\x052\xc8\x12\n" +
+	"(WORKFLOW_CONTROL_OUTCOME_REPAIR_REQUIRED\x10\x052\xd6\x15\n" +
 	"\x0fWorkflowService\x12\x87\x01\n" +
 	"\x18ListWorkflowPublications\x124.hcmnext.workflow.v1.ListWorkflowPublicationsRequest\x1a5.hcmnext.workflow.v1.ListWorkflowPublicationsResponse\x12\x8a\x01\n" +
 	"\x19GetWorkflowDefinitionView\x125.hcmnext.workflow.v1.GetWorkflowDefinitionViewRequest\x1a6.hcmnext.workflow.v1.GetWorkflowDefinitionViewResponse\x12{\n" +
@@ -4915,7 +5307,10 @@ const file_hcmnext_workflow_v1_workflow_service_proto_rawDesc = "" +
 	"\x17UpdateWorkflowDraftNode\x123.hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest\x1a4.hcmnext.workflow.v1.UpdateWorkflowDraftNodeResponse\x12\x84\x01\n" +
 	"\x17SetWorkflowDraftOutcome\x123.hcmnext.workflow.v1.SetWorkflowDraftOutcomeRequest\x1a4.hcmnext.workflow.v1.SetWorkflowDraftOutcomeResponse\x12\x81\x01\n" +
 	"\x16BindWorkflowDraftInput\x122.hcmnext.workflow.v1.BindWorkflowDraftInputRequest\x1a3.hcmnext.workflow.v1.BindWorkflowDraftInputResponse\x12~\n" +
-	"\x15MoveWorkflowDraftNode\x121.hcmnext.workflow.v1.MoveWorkflowDraftNodeRequest\x1a2.hcmnext.workflow.v1.MoveWorkflowDraftNodeResponse\x12\x93\x01\n" +
+	"\x15MoveWorkflowDraftNode\x121.hcmnext.workflow.v1.MoveWorkflowDraftNodeRequest\x1a2.hcmnext.workflow.v1.MoveWorkflowDraftNodeResponse\x12\x84\x01\n" +
+	"\x17RemoveWorkflowDraftNode\x123.hcmnext.workflow.v1.RemoveWorkflowDraftNodeRequest\x1a4.hcmnext.workflow.v1.RemoveWorkflowDraftNodeResponse\x12\x8a\x01\n" +
+	"\x19ClearWorkflowDraftOutcome\x125.hcmnext.workflow.v1.ClearWorkflowDraftOutcomeRequest\x1a6.hcmnext.workflow.v1.ClearWorkflowDraftOutcomeResponse\x12x\n" +
+	"\x13RenameWorkflowDraft\x12/.hcmnext.workflow.v1.RenameWorkflowDraftRequest\x1a0.hcmnext.workflow.v1.RenameWorkflowDraftResponse\x12\x93\x01\n" +
 	"\x1cNavigateWorkflowDraftHistory\x128.hcmnext.workflow.v1.NavigateWorkflowDraftHistoryRequest\x1a9.hcmnext.workflow.v1.NavigateWorkflowDraftHistoryResponse\x12\x93\x01\n" +
 	"\x1cApplyWorkflowTemplateOverlay\x128.hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest\x1a9.hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayResponse\x12`\n" +
 	"\vGetWorkflow\x12'.hcmnext.workflow.v1.GetWorkflowRequest\x1a(.hcmnext.workflow.v1.GetWorkflowResponse\x12u\n" +
@@ -4938,7 +5333,7 @@ func file_hcmnext_workflow_v1_workflow_service_proto_rawDescGZIP() []byte {
 }
 
 var file_hcmnext_workflow_v1_workflow_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_hcmnext_workflow_v1_workflow_service_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
+var file_hcmnext_workflow_v1_workflow_service_proto_msgTypes = make([]protoimpl.MessageInfo, 67)
 var file_hcmnext_workflow_v1_workflow_service_proto_goTypes = []any{
 	(WorkflowControlOutcome)(0),                  // 0: hcmnext.workflow.v1.WorkflowControlOutcome
 	(*GetWorkflowRequest)(nil),                   // 1: hcmnext.workflow.v1.GetWorkflowRequest
@@ -4987,54 +5382,60 @@ var file_hcmnext_workflow_v1_workflow_service_proto_goTypes = []any{
 	(*BindWorkflowDraftInputResponse)(nil),       // 44: hcmnext.workflow.v1.BindWorkflowDraftInputResponse
 	(*MoveWorkflowDraftNodeRequest)(nil),         // 45: hcmnext.workflow.v1.MoveWorkflowDraftNodeRequest
 	(*MoveWorkflowDraftNodeResponse)(nil),        // 46: hcmnext.workflow.v1.MoveWorkflowDraftNodeResponse
-	(*NavigateWorkflowDraftHistoryRequest)(nil),  // 47: hcmnext.workflow.v1.NavigateWorkflowDraftHistoryRequest
-	(*NavigateWorkflowDraftHistoryResponse)(nil), // 48: hcmnext.workflow.v1.NavigateWorkflowDraftHistoryResponse
-	(*ApplyWorkflowTemplateOverlayRequest)(nil),  // 49: hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest
-	(*ApplyWorkflowTemplateOverlayResponse)(nil), // 50: hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayResponse
-	(*GetWorkflowDraftResponse)(nil),             // 51: hcmnext.workflow.v1.GetWorkflowDraftResponse
-	(*WorkflowControlReceipt)(nil),               // 52: hcmnext.workflow.v1.WorkflowControlReceipt
-	(*PauseWorkflowRequest)(nil),                 // 53: hcmnext.workflow.v1.PauseWorkflowRequest
-	(*PauseWorkflowResponse)(nil),                // 54: hcmnext.workflow.v1.PauseWorkflowResponse
-	(*ResumeWorkflowRequest)(nil),                // 55: hcmnext.workflow.v1.ResumeWorkflowRequest
-	(*ResumeWorkflowResponse)(nil),               // 56: hcmnext.workflow.v1.ResumeWorkflowResponse
-	(*CancelWorkflowRequest)(nil),                // 57: hcmnext.workflow.v1.CancelWorkflowRequest
-	(*CancelWorkflowResponse)(nil),               // 58: hcmnext.workflow.v1.CancelWorkflowResponse
-	(*RetryNodeRequest)(nil),                     // 59: hcmnext.workflow.v1.RetryNodeRequest
-	(*RetryNodeResponse)(nil),                    // 60: hcmnext.workflow.v1.RetryNodeResponse
-	nil,                                          // 61: hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest.ValuesEntry
-	(*v1.ScopeContext)(nil),                      // 62: hcmnext.common.v1.ScopeContext
-	(*WorkflowInstance)(nil),                     // 63: hcmnext.workflow.v1.WorkflowInstance
-	(*v1.PageRequest)(nil),                       // 64: hcmnext.common.v1.PageRequest
-	(*NodeExecution)(nil),                        // 65: hcmnext.workflow.v1.NodeExecution
-	(*v1.PageResponse)(nil),                      // 66: hcmnext.common.v1.PageResponse
-	(*timestamppb.Timestamp)(nil),                // 67: google.protobuf.Timestamp
+	(*RemoveWorkflowDraftNodeRequest)(nil),       // 47: hcmnext.workflow.v1.RemoveWorkflowDraftNodeRequest
+	(*RemoveWorkflowDraftNodeResponse)(nil),      // 48: hcmnext.workflow.v1.RemoveWorkflowDraftNodeResponse
+	(*ClearWorkflowDraftOutcomeRequest)(nil),     // 49: hcmnext.workflow.v1.ClearWorkflowDraftOutcomeRequest
+	(*ClearWorkflowDraftOutcomeResponse)(nil),    // 50: hcmnext.workflow.v1.ClearWorkflowDraftOutcomeResponse
+	(*RenameWorkflowDraftRequest)(nil),           // 51: hcmnext.workflow.v1.RenameWorkflowDraftRequest
+	(*RenameWorkflowDraftResponse)(nil),          // 52: hcmnext.workflow.v1.RenameWorkflowDraftResponse
+	(*NavigateWorkflowDraftHistoryRequest)(nil),  // 53: hcmnext.workflow.v1.NavigateWorkflowDraftHistoryRequest
+	(*NavigateWorkflowDraftHistoryResponse)(nil), // 54: hcmnext.workflow.v1.NavigateWorkflowDraftHistoryResponse
+	(*ApplyWorkflowTemplateOverlayRequest)(nil),  // 55: hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest
+	(*ApplyWorkflowTemplateOverlayResponse)(nil), // 56: hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayResponse
+	(*GetWorkflowDraftResponse)(nil),             // 57: hcmnext.workflow.v1.GetWorkflowDraftResponse
+	(*WorkflowControlReceipt)(nil),               // 58: hcmnext.workflow.v1.WorkflowControlReceipt
+	(*PauseWorkflowRequest)(nil),                 // 59: hcmnext.workflow.v1.PauseWorkflowRequest
+	(*PauseWorkflowResponse)(nil),                // 60: hcmnext.workflow.v1.PauseWorkflowResponse
+	(*ResumeWorkflowRequest)(nil),                // 61: hcmnext.workflow.v1.ResumeWorkflowRequest
+	(*ResumeWorkflowResponse)(nil),               // 62: hcmnext.workflow.v1.ResumeWorkflowResponse
+	(*CancelWorkflowRequest)(nil),                // 63: hcmnext.workflow.v1.CancelWorkflowRequest
+	(*CancelWorkflowResponse)(nil),               // 64: hcmnext.workflow.v1.CancelWorkflowResponse
+	(*RetryNodeRequest)(nil),                     // 65: hcmnext.workflow.v1.RetryNodeRequest
+	(*RetryNodeResponse)(nil),                    // 66: hcmnext.workflow.v1.RetryNodeResponse
+	nil,                                          // 67: hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest.ValuesEntry
+	(*v1.ScopeContext)(nil),                      // 68: hcmnext.common.v1.ScopeContext
+	(*WorkflowInstance)(nil),                     // 69: hcmnext.workflow.v1.WorkflowInstance
+	(*v1.PageRequest)(nil),                       // 70: hcmnext.common.v1.PageRequest
+	(*NodeExecution)(nil),                        // 71: hcmnext.workflow.v1.NodeExecution
+	(*v1.PageResponse)(nil),                      // 72: hcmnext.common.v1.PageResponse
+	(*timestamppb.Timestamp)(nil),                // 73: google.protobuf.Timestamp
 }
 var file_hcmnext_workflow_v1_workflow_service_proto_depIdxs = []int32{
-	62, // 0: hcmnext.workflow.v1.GetWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	63, // 1: hcmnext.workflow.v1.GetWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
-	62, // 2: hcmnext.workflow.v1.ListNodeExecutionsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	64, // 3: hcmnext.workflow.v1.ListNodeExecutionsRequest.page:type_name -> hcmnext.common.v1.PageRequest
-	65, // 4: hcmnext.workflow.v1.ListNodeExecutionsResponse.node_executions:type_name -> hcmnext.workflow.v1.NodeExecution
-	66, // 5: hcmnext.workflow.v1.ListNodeExecutionsResponse.page:type_name -> hcmnext.common.v1.PageResponse
-	67, // 6: hcmnext.workflow.v1.WorkflowPublicationSummary.published_at:type_name -> google.protobuf.Timestamp
-	62, // 7: hcmnext.workflow.v1.ListWorkflowPublicationsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 0: hcmnext.workflow.v1.GetWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	69, // 1: hcmnext.workflow.v1.GetWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
+	68, // 2: hcmnext.workflow.v1.ListNodeExecutionsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	70, // 3: hcmnext.workflow.v1.ListNodeExecutionsRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	71, // 4: hcmnext.workflow.v1.ListNodeExecutionsResponse.node_executions:type_name -> hcmnext.workflow.v1.NodeExecution
+	72, // 5: hcmnext.workflow.v1.ListNodeExecutionsResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	73, // 6: hcmnext.workflow.v1.WorkflowPublicationSummary.published_at:type_name -> google.protobuf.Timestamp
+	68, // 7: hcmnext.workflow.v1.ListWorkflowPublicationsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	5,  // 8: hcmnext.workflow.v1.ListWorkflowPublicationsResponse.publications:type_name -> hcmnext.workflow.v1.WorkflowPublicationSummary
 	8,  // 9: hcmnext.workflow.v1.WorkflowViewNode.routes:type_name -> hcmnext.workflow.v1.WorkflowViewRoute
-	67, // 10: hcmnext.workflow.v1.WorkflowViewNode.started_at:type_name -> google.protobuf.Timestamp
-	67, // 11: hcmnext.workflow.v1.WorkflowViewNode.completed_at:type_name -> google.protobuf.Timestamp
+	73, // 10: hcmnext.workflow.v1.WorkflowViewNode.started_at:type_name -> google.protobuf.Timestamp
+	73, // 11: hcmnext.workflow.v1.WorkflowViewNode.completed_at:type_name -> google.protobuf.Timestamp
 	9,  // 12: hcmnext.workflow.v1.WorkflowDefinitionView.nodes:type_name -> hcmnext.workflow.v1.WorkflowViewNode
 	10, // 13: hcmnext.workflow.v1.WorkflowDefinitionView.edges:type_name -> hcmnext.workflow.v1.WorkflowViewEdge
-	62, // 14: hcmnext.workflow.v1.GetWorkflowDefinitionViewRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 14: hcmnext.workflow.v1.GetWorkflowDefinitionViewRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	11, // 15: hcmnext.workflow.v1.GetWorkflowDefinitionViewResponse.view:type_name -> hcmnext.workflow.v1.WorkflowDefinitionView
-	62, // 16: hcmnext.workflow.v1.CompileWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 16: hcmnext.workflow.v1.CompileWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	16, // 17: hcmnext.workflow.v1.WorkflowEffectSummary.nodes_by_class:type_name -> hcmnext.workflow.v1.WorkflowEffectNodeGroup
 	18, // 18: hcmnext.workflow.v1.WorkflowUnwindSummary.steps:type_name -> hcmnext.workflow.v1.WorkflowUnwindStep
 	15, // 19: hcmnext.workflow.v1.CompileWorkflowDraftResponse.diagnostics:type_name -> hcmnext.workflow.v1.WorkflowDraftDiagnostic
 	17, // 20: hcmnext.workflow.v1.CompileWorkflowDraftResponse.effects:type_name -> hcmnext.workflow.v1.WorkflowEffectSummary
 	19, // 21: hcmnext.workflow.v1.CompileWorkflowDraftResponse.unwind:type_name -> hcmnext.workflow.v1.WorkflowUnwindSummary
-	62, // 22: hcmnext.workflow.v1.ListWorkflowBlocksRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 22: hcmnext.workflow.v1.ListWorkflowBlocksRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	22, // 23: hcmnext.workflow.v1.ListWorkflowBlocksResponse.entries:type_name -> hcmnext.workflow.v1.WorkflowPaletteEntry
-	67, // 24: hcmnext.workflow.v1.WorkflowDraftView.expires_at:type_name -> google.protobuf.Timestamp
+	73, // 24: hcmnext.workflow.v1.WorkflowDraftView.expires_at:type_name -> google.protobuf.Timestamp
 	26, // 25: hcmnext.workflow.v1.WorkflowDraftView.nodes:type_name -> hcmnext.workflow.v1.WorkflowDraftNode
 	32, // 26: hcmnext.workflow.v1.WorkflowDraftView.edges:type_name -> hcmnext.workflow.v1.WorkflowDraftEdge
 	33, // 27: hcmnext.workflow.v1.WorkflowDraftView.groups:type_name -> hcmnext.workflow.v1.WorkflowDraftGroup
@@ -5044,81 +5445,93 @@ var file_hcmnext_workflow_v1_workflow_service_proto_depIdxs = []int32{
 	27, // 31: hcmnext.workflow.v1.WorkflowDraftNode.outcomes:type_name -> hcmnext.workflow.v1.WorkflowDraftOutcome
 	29, // 32: hcmnext.workflow.v1.WorkflowDraftNode.bindings:type_name -> hcmnext.workflow.v1.WorkflowDraftBinding
 	28, // 33: hcmnext.workflow.v1.WorkflowDraftBinding.candidates:type_name -> hcmnext.workflow.v1.WorkflowDraftBindingCandidate
-	62, // 34: hcmnext.workflow.v1.CreateWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	62, // 35: hcmnext.workflow.v1.GetWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	62, // 36: hcmnext.workflow.v1.InsertWorkflowPaletteEntryRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 34: hcmnext.workflow.v1.CreateWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 35: hcmnext.workflow.v1.GetWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 36: hcmnext.workflow.v1.InsertWorkflowPaletteEntryRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	24, // 37: hcmnext.workflow.v1.CreateWorkflowDraftResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
 	24, // 38: hcmnext.workflow.v1.InsertWorkflowPaletteEntryResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
-	62, // 39: hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	61, // 40: hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest.values:type_name -> hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest.ValuesEntry
+	68, // 39: hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	67, // 40: hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest.values:type_name -> hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest.ValuesEntry
 	24, // 41: hcmnext.workflow.v1.UpdateWorkflowDraftNodeResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
-	62, // 42: hcmnext.workflow.v1.SetWorkflowDraftOutcomeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 42: hcmnext.workflow.v1.SetWorkflowDraftOutcomeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	24, // 43: hcmnext.workflow.v1.SetWorkflowDraftOutcomeResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
-	62, // 44: hcmnext.workflow.v1.BindWorkflowDraftInputRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 44: hcmnext.workflow.v1.BindWorkflowDraftInputRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	24, // 45: hcmnext.workflow.v1.BindWorkflowDraftInputResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
-	62, // 46: hcmnext.workflow.v1.MoveWorkflowDraftNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	68, // 46: hcmnext.workflow.v1.MoveWorkflowDraftNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	24, // 47: hcmnext.workflow.v1.MoveWorkflowDraftNodeResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
-	62, // 48: hcmnext.workflow.v1.NavigateWorkflowDraftHistoryRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	24, // 49: hcmnext.workflow.v1.NavigateWorkflowDraftHistoryResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
-	62, // 50: hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	24, // 51: hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
-	24, // 52: hcmnext.workflow.v1.GetWorkflowDraftResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
-	0,  // 53: hcmnext.workflow.v1.WorkflowControlReceipt.outcome:type_name -> hcmnext.workflow.v1.WorkflowControlOutcome
-	62, // 54: hcmnext.workflow.v1.PauseWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	63, // 55: hcmnext.workflow.v1.PauseWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
-	52, // 56: hcmnext.workflow.v1.PauseWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
-	62, // 57: hcmnext.workflow.v1.ResumeWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	63, // 58: hcmnext.workflow.v1.ResumeWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
-	52, // 59: hcmnext.workflow.v1.ResumeWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
-	62, // 60: hcmnext.workflow.v1.CancelWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	63, // 61: hcmnext.workflow.v1.CancelWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
-	52, // 62: hcmnext.workflow.v1.CancelWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
-	62, // 63: hcmnext.workflow.v1.RetryNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	65, // 64: hcmnext.workflow.v1.RetryNodeResponse.node_execution:type_name -> hcmnext.workflow.v1.NodeExecution
-	52, // 65: hcmnext.workflow.v1.RetryNodeResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
-	6,  // 66: hcmnext.workflow.v1.WorkflowService.ListWorkflowPublications:input_type -> hcmnext.workflow.v1.ListWorkflowPublicationsRequest
-	12, // 67: hcmnext.workflow.v1.WorkflowService.GetWorkflowDefinitionView:input_type -> hcmnext.workflow.v1.GetWorkflowDefinitionViewRequest
-	14, // 68: hcmnext.workflow.v1.WorkflowService.CompileWorkflowDraft:input_type -> hcmnext.workflow.v1.CompileWorkflowDraftRequest
-	21, // 69: hcmnext.workflow.v1.WorkflowService.ListWorkflowBlocks:input_type -> hcmnext.workflow.v1.ListWorkflowBlocksRequest
-	34, // 70: hcmnext.workflow.v1.WorkflowService.CreateWorkflowDraft:input_type -> hcmnext.workflow.v1.CreateWorkflowDraftRequest
-	35, // 71: hcmnext.workflow.v1.WorkflowService.GetWorkflowDraft:input_type -> hcmnext.workflow.v1.GetWorkflowDraftRequest
-	36, // 72: hcmnext.workflow.v1.WorkflowService.InsertWorkflowPaletteEntry:input_type -> hcmnext.workflow.v1.InsertWorkflowPaletteEntryRequest
-	39, // 73: hcmnext.workflow.v1.WorkflowService.UpdateWorkflowDraftNode:input_type -> hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest
-	41, // 74: hcmnext.workflow.v1.WorkflowService.SetWorkflowDraftOutcome:input_type -> hcmnext.workflow.v1.SetWorkflowDraftOutcomeRequest
-	43, // 75: hcmnext.workflow.v1.WorkflowService.BindWorkflowDraftInput:input_type -> hcmnext.workflow.v1.BindWorkflowDraftInputRequest
-	45, // 76: hcmnext.workflow.v1.WorkflowService.MoveWorkflowDraftNode:input_type -> hcmnext.workflow.v1.MoveWorkflowDraftNodeRequest
-	47, // 77: hcmnext.workflow.v1.WorkflowService.NavigateWorkflowDraftHistory:input_type -> hcmnext.workflow.v1.NavigateWorkflowDraftHistoryRequest
-	49, // 78: hcmnext.workflow.v1.WorkflowService.ApplyWorkflowTemplateOverlay:input_type -> hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest
-	1,  // 79: hcmnext.workflow.v1.WorkflowService.GetWorkflow:input_type -> hcmnext.workflow.v1.GetWorkflowRequest
-	3,  // 80: hcmnext.workflow.v1.WorkflowService.ListNodeExecutions:input_type -> hcmnext.workflow.v1.ListNodeExecutionsRequest
-	53, // 81: hcmnext.workflow.v1.WorkflowService.PauseWorkflow:input_type -> hcmnext.workflow.v1.PauseWorkflowRequest
-	55, // 82: hcmnext.workflow.v1.WorkflowService.ResumeWorkflow:input_type -> hcmnext.workflow.v1.ResumeWorkflowRequest
-	57, // 83: hcmnext.workflow.v1.WorkflowService.CancelWorkflow:input_type -> hcmnext.workflow.v1.CancelWorkflowRequest
-	59, // 84: hcmnext.workflow.v1.WorkflowService.RetryNode:input_type -> hcmnext.workflow.v1.RetryNodeRequest
-	7,  // 85: hcmnext.workflow.v1.WorkflowService.ListWorkflowPublications:output_type -> hcmnext.workflow.v1.ListWorkflowPublicationsResponse
-	13, // 86: hcmnext.workflow.v1.WorkflowService.GetWorkflowDefinitionView:output_type -> hcmnext.workflow.v1.GetWorkflowDefinitionViewResponse
-	20, // 87: hcmnext.workflow.v1.WorkflowService.CompileWorkflowDraft:output_type -> hcmnext.workflow.v1.CompileWorkflowDraftResponse
-	23, // 88: hcmnext.workflow.v1.WorkflowService.ListWorkflowBlocks:output_type -> hcmnext.workflow.v1.ListWorkflowBlocksResponse
-	37, // 89: hcmnext.workflow.v1.WorkflowService.CreateWorkflowDraft:output_type -> hcmnext.workflow.v1.CreateWorkflowDraftResponse
-	51, // 90: hcmnext.workflow.v1.WorkflowService.GetWorkflowDraft:output_type -> hcmnext.workflow.v1.GetWorkflowDraftResponse
-	38, // 91: hcmnext.workflow.v1.WorkflowService.InsertWorkflowPaletteEntry:output_type -> hcmnext.workflow.v1.InsertWorkflowPaletteEntryResponse
-	40, // 92: hcmnext.workflow.v1.WorkflowService.UpdateWorkflowDraftNode:output_type -> hcmnext.workflow.v1.UpdateWorkflowDraftNodeResponse
-	42, // 93: hcmnext.workflow.v1.WorkflowService.SetWorkflowDraftOutcome:output_type -> hcmnext.workflow.v1.SetWorkflowDraftOutcomeResponse
-	44, // 94: hcmnext.workflow.v1.WorkflowService.BindWorkflowDraftInput:output_type -> hcmnext.workflow.v1.BindWorkflowDraftInputResponse
-	46, // 95: hcmnext.workflow.v1.WorkflowService.MoveWorkflowDraftNode:output_type -> hcmnext.workflow.v1.MoveWorkflowDraftNodeResponse
-	48, // 96: hcmnext.workflow.v1.WorkflowService.NavigateWorkflowDraftHistory:output_type -> hcmnext.workflow.v1.NavigateWorkflowDraftHistoryResponse
-	50, // 97: hcmnext.workflow.v1.WorkflowService.ApplyWorkflowTemplateOverlay:output_type -> hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayResponse
-	2,  // 98: hcmnext.workflow.v1.WorkflowService.GetWorkflow:output_type -> hcmnext.workflow.v1.GetWorkflowResponse
-	4,  // 99: hcmnext.workflow.v1.WorkflowService.ListNodeExecutions:output_type -> hcmnext.workflow.v1.ListNodeExecutionsResponse
-	54, // 100: hcmnext.workflow.v1.WorkflowService.PauseWorkflow:output_type -> hcmnext.workflow.v1.PauseWorkflowResponse
-	56, // 101: hcmnext.workflow.v1.WorkflowService.ResumeWorkflow:output_type -> hcmnext.workflow.v1.ResumeWorkflowResponse
-	58, // 102: hcmnext.workflow.v1.WorkflowService.CancelWorkflow:output_type -> hcmnext.workflow.v1.CancelWorkflowResponse
-	60, // 103: hcmnext.workflow.v1.WorkflowService.RetryNode:output_type -> hcmnext.workflow.v1.RetryNodeResponse
-	85, // [85:104] is the sub-list for method output_type
-	66, // [66:85] is the sub-list for method input_type
-	66, // [66:66] is the sub-list for extension type_name
-	66, // [66:66] is the sub-list for extension extendee
-	0,  // [0:66] is the sub-list for field type_name
+	68, // 48: hcmnext.workflow.v1.RemoveWorkflowDraftNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	24, // 49: hcmnext.workflow.v1.RemoveWorkflowDraftNodeResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
+	68, // 50: hcmnext.workflow.v1.ClearWorkflowDraftOutcomeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	24, // 51: hcmnext.workflow.v1.ClearWorkflowDraftOutcomeResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
+	68, // 52: hcmnext.workflow.v1.RenameWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	24, // 53: hcmnext.workflow.v1.RenameWorkflowDraftResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
+	68, // 54: hcmnext.workflow.v1.NavigateWorkflowDraftHistoryRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	24, // 55: hcmnext.workflow.v1.NavigateWorkflowDraftHistoryResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
+	68, // 56: hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	24, // 57: hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
+	24, // 58: hcmnext.workflow.v1.GetWorkflowDraftResponse.draft:type_name -> hcmnext.workflow.v1.WorkflowDraftView
+	0,  // 59: hcmnext.workflow.v1.WorkflowControlReceipt.outcome:type_name -> hcmnext.workflow.v1.WorkflowControlOutcome
+	68, // 60: hcmnext.workflow.v1.PauseWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	69, // 61: hcmnext.workflow.v1.PauseWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
+	58, // 62: hcmnext.workflow.v1.PauseWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
+	68, // 63: hcmnext.workflow.v1.ResumeWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	69, // 64: hcmnext.workflow.v1.ResumeWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
+	58, // 65: hcmnext.workflow.v1.ResumeWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
+	68, // 66: hcmnext.workflow.v1.CancelWorkflowRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	69, // 67: hcmnext.workflow.v1.CancelWorkflowResponse.instance:type_name -> hcmnext.workflow.v1.WorkflowInstance
+	58, // 68: hcmnext.workflow.v1.CancelWorkflowResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
+	68, // 69: hcmnext.workflow.v1.RetryNodeRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	71, // 70: hcmnext.workflow.v1.RetryNodeResponse.node_execution:type_name -> hcmnext.workflow.v1.NodeExecution
+	58, // 71: hcmnext.workflow.v1.RetryNodeResponse.receipt:type_name -> hcmnext.workflow.v1.WorkflowControlReceipt
+	6,  // 72: hcmnext.workflow.v1.WorkflowService.ListWorkflowPublications:input_type -> hcmnext.workflow.v1.ListWorkflowPublicationsRequest
+	12, // 73: hcmnext.workflow.v1.WorkflowService.GetWorkflowDefinitionView:input_type -> hcmnext.workflow.v1.GetWorkflowDefinitionViewRequest
+	14, // 74: hcmnext.workflow.v1.WorkflowService.CompileWorkflowDraft:input_type -> hcmnext.workflow.v1.CompileWorkflowDraftRequest
+	21, // 75: hcmnext.workflow.v1.WorkflowService.ListWorkflowBlocks:input_type -> hcmnext.workflow.v1.ListWorkflowBlocksRequest
+	34, // 76: hcmnext.workflow.v1.WorkflowService.CreateWorkflowDraft:input_type -> hcmnext.workflow.v1.CreateWorkflowDraftRequest
+	35, // 77: hcmnext.workflow.v1.WorkflowService.GetWorkflowDraft:input_type -> hcmnext.workflow.v1.GetWorkflowDraftRequest
+	36, // 78: hcmnext.workflow.v1.WorkflowService.InsertWorkflowPaletteEntry:input_type -> hcmnext.workflow.v1.InsertWorkflowPaletteEntryRequest
+	39, // 79: hcmnext.workflow.v1.WorkflowService.UpdateWorkflowDraftNode:input_type -> hcmnext.workflow.v1.UpdateWorkflowDraftNodeRequest
+	41, // 80: hcmnext.workflow.v1.WorkflowService.SetWorkflowDraftOutcome:input_type -> hcmnext.workflow.v1.SetWorkflowDraftOutcomeRequest
+	43, // 81: hcmnext.workflow.v1.WorkflowService.BindWorkflowDraftInput:input_type -> hcmnext.workflow.v1.BindWorkflowDraftInputRequest
+	45, // 82: hcmnext.workflow.v1.WorkflowService.MoveWorkflowDraftNode:input_type -> hcmnext.workflow.v1.MoveWorkflowDraftNodeRequest
+	47, // 83: hcmnext.workflow.v1.WorkflowService.RemoveWorkflowDraftNode:input_type -> hcmnext.workflow.v1.RemoveWorkflowDraftNodeRequest
+	49, // 84: hcmnext.workflow.v1.WorkflowService.ClearWorkflowDraftOutcome:input_type -> hcmnext.workflow.v1.ClearWorkflowDraftOutcomeRequest
+	51, // 85: hcmnext.workflow.v1.WorkflowService.RenameWorkflowDraft:input_type -> hcmnext.workflow.v1.RenameWorkflowDraftRequest
+	53, // 86: hcmnext.workflow.v1.WorkflowService.NavigateWorkflowDraftHistory:input_type -> hcmnext.workflow.v1.NavigateWorkflowDraftHistoryRequest
+	55, // 87: hcmnext.workflow.v1.WorkflowService.ApplyWorkflowTemplateOverlay:input_type -> hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest
+	1,  // 88: hcmnext.workflow.v1.WorkflowService.GetWorkflow:input_type -> hcmnext.workflow.v1.GetWorkflowRequest
+	3,  // 89: hcmnext.workflow.v1.WorkflowService.ListNodeExecutions:input_type -> hcmnext.workflow.v1.ListNodeExecutionsRequest
+	59, // 90: hcmnext.workflow.v1.WorkflowService.PauseWorkflow:input_type -> hcmnext.workflow.v1.PauseWorkflowRequest
+	61, // 91: hcmnext.workflow.v1.WorkflowService.ResumeWorkflow:input_type -> hcmnext.workflow.v1.ResumeWorkflowRequest
+	63, // 92: hcmnext.workflow.v1.WorkflowService.CancelWorkflow:input_type -> hcmnext.workflow.v1.CancelWorkflowRequest
+	65, // 93: hcmnext.workflow.v1.WorkflowService.RetryNode:input_type -> hcmnext.workflow.v1.RetryNodeRequest
+	7,  // 94: hcmnext.workflow.v1.WorkflowService.ListWorkflowPublications:output_type -> hcmnext.workflow.v1.ListWorkflowPublicationsResponse
+	13, // 95: hcmnext.workflow.v1.WorkflowService.GetWorkflowDefinitionView:output_type -> hcmnext.workflow.v1.GetWorkflowDefinitionViewResponse
+	20, // 96: hcmnext.workflow.v1.WorkflowService.CompileWorkflowDraft:output_type -> hcmnext.workflow.v1.CompileWorkflowDraftResponse
+	23, // 97: hcmnext.workflow.v1.WorkflowService.ListWorkflowBlocks:output_type -> hcmnext.workflow.v1.ListWorkflowBlocksResponse
+	37, // 98: hcmnext.workflow.v1.WorkflowService.CreateWorkflowDraft:output_type -> hcmnext.workflow.v1.CreateWorkflowDraftResponse
+	57, // 99: hcmnext.workflow.v1.WorkflowService.GetWorkflowDraft:output_type -> hcmnext.workflow.v1.GetWorkflowDraftResponse
+	38, // 100: hcmnext.workflow.v1.WorkflowService.InsertWorkflowPaletteEntry:output_type -> hcmnext.workflow.v1.InsertWorkflowPaletteEntryResponse
+	40, // 101: hcmnext.workflow.v1.WorkflowService.UpdateWorkflowDraftNode:output_type -> hcmnext.workflow.v1.UpdateWorkflowDraftNodeResponse
+	42, // 102: hcmnext.workflow.v1.WorkflowService.SetWorkflowDraftOutcome:output_type -> hcmnext.workflow.v1.SetWorkflowDraftOutcomeResponse
+	44, // 103: hcmnext.workflow.v1.WorkflowService.BindWorkflowDraftInput:output_type -> hcmnext.workflow.v1.BindWorkflowDraftInputResponse
+	46, // 104: hcmnext.workflow.v1.WorkflowService.MoveWorkflowDraftNode:output_type -> hcmnext.workflow.v1.MoveWorkflowDraftNodeResponse
+	48, // 105: hcmnext.workflow.v1.WorkflowService.RemoveWorkflowDraftNode:output_type -> hcmnext.workflow.v1.RemoveWorkflowDraftNodeResponse
+	50, // 106: hcmnext.workflow.v1.WorkflowService.ClearWorkflowDraftOutcome:output_type -> hcmnext.workflow.v1.ClearWorkflowDraftOutcomeResponse
+	52, // 107: hcmnext.workflow.v1.WorkflowService.RenameWorkflowDraft:output_type -> hcmnext.workflow.v1.RenameWorkflowDraftResponse
+	54, // 108: hcmnext.workflow.v1.WorkflowService.NavigateWorkflowDraftHistory:output_type -> hcmnext.workflow.v1.NavigateWorkflowDraftHistoryResponse
+	56, // 109: hcmnext.workflow.v1.WorkflowService.ApplyWorkflowTemplateOverlay:output_type -> hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayResponse
+	2,  // 110: hcmnext.workflow.v1.WorkflowService.GetWorkflow:output_type -> hcmnext.workflow.v1.GetWorkflowResponse
+	4,  // 111: hcmnext.workflow.v1.WorkflowService.ListNodeExecutions:output_type -> hcmnext.workflow.v1.ListNodeExecutionsResponse
+	60, // 112: hcmnext.workflow.v1.WorkflowService.PauseWorkflow:output_type -> hcmnext.workflow.v1.PauseWorkflowResponse
+	62, // 113: hcmnext.workflow.v1.WorkflowService.ResumeWorkflow:output_type -> hcmnext.workflow.v1.ResumeWorkflowResponse
+	64, // 114: hcmnext.workflow.v1.WorkflowService.CancelWorkflow:output_type -> hcmnext.workflow.v1.CancelWorkflowResponse
+	66, // 115: hcmnext.workflow.v1.WorkflowService.RetryNode:output_type -> hcmnext.workflow.v1.RetryNodeResponse
+	94, // [94:116] is the sub-list for method output_type
+	72, // [72:94] is the sub-list for method input_type
+	72, // [72:72] is the sub-list for extension type_name
+	72, // [72:72] is the sub-list for extension extendee
+	0,  // [0:72] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_workflow_v1_workflow_service_proto_init() }
@@ -5133,7 +5546,7 @@ func file_hcmnext_workflow_v1_workflow_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_workflow_v1_workflow_service_proto_rawDesc), len(file_hcmnext_workflow_v1_workflow_service_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   61,
+			NumMessages:   67,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

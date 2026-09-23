@@ -26,7 +26,7 @@ func TestTodo_WF_UI_005_TransportReturnsTenantFilteredPalette(t *testing.T) {
 			return tenant == "acme-corp" && key == allowed
 		}),
 	}
-	srv := &server{deps: Dependencies{Palette: palette}}
+	srv := &server{deps: Dependencies{Palette: palette, Authorize: allowWorkflowCalls}}
 	response, err := srv.ListWorkflowBlocks(workflowTestContext(t, ListWorkflowBlocksProcedure), &workflowv1.ListWorkflowBlocksRequest{})
 	if err != nil {
 		t.Fatalf("ListWorkflowBlocks: %v", err)
@@ -49,7 +49,7 @@ func TestTodo_WF_UI_005_TransportSecurityAuthorizesBeforeListing(t *testing.T) {
 	palette := &wfui005PaletteSpy{}
 	srv := &server{deps: Dependencies{
 		Palette:   palette,
-		Authorize: func(*trust.Principal, string) bool { return false },
+		Authorize: func(context.Context, *trust.Principal, string) bool { return false },
 	}}
 	_, err := srv.ListWorkflowBlocks(workflowTestContext(t, ListWorkflowBlocksProcedure), &workflowv1.ListWorkflowBlocksRequest{})
 	owned, ok := envelope.As(err)

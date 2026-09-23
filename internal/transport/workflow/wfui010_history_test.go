@@ -49,7 +49,7 @@ func (s *wfui010HistoryStore) Navigate(_ context.Context, _ values.TenantId, req
 }
 
 func TestTodo_WF_UI_010_TransportProjectsDiffAndNavigatesHistory(t *testing.T) {
-	srv, store, draft := wfui006Server(t, nil)
+	srv, store, draft := wfui006Server(t, allowWorkflowCalls)
 	current, err := workflowcore.Load(store.draft.Document)
 	if err != nil {
 		t.Fatal(err)
@@ -86,8 +86,8 @@ func TestTodo_WF_UI_010_TransportProjectsDiffAndNavigatesHistory(t *testing.T) {
 }
 
 func TestTodo_WF_UI_010_TransportAuthorizesBeforeHistoryMutation(t *testing.T) {
-	srv, store, draft := wfui006Server(t, nil)
-	srv.deps.Authorize = func(*trust.Principal, string) bool { return false }
+	srv, store, draft := wfui006Server(t, allowWorkflowCalls)
+	srv.deps.Authorize = func(context.Context, *trust.Principal, string) bool { return false }
 	before := store.saves
 	_, err := srv.NavigateWorkflowDraftHistory(workflowTestContext(t, NavigateWorkflowDraftHistoryProcedure), &workflowv1.NavigateWorkflowDraftHistoryRequest{
 		DraftId: draft.GetDraftId(), ExpectedRevision: draft.GetRevision(), Direction: "UNDO",

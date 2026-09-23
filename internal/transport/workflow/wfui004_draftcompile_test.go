@@ -32,6 +32,7 @@ func TestTodo_WF_UI_004_TransportCompilesStoredRevision(t *testing.T) {
 	srv := &server{deps: Dependencies{
 		Drafts:        reader,
 		DraftCompiler: draftcompile.Compiler{Options: workflowcore.Options{Phase: workflowcore.PhaseP1B}},
+		Authorize:     allowWorkflowCalls,
 	}}
 	response, err := srv.CompileWorkflowDraft(
 		workflowTestContext(t, CompileWorkflowDraftProcedure),
@@ -66,7 +67,7 @@ func TestTodo_WF_UI_004_TransportSecurity(t *testing.T) {
 		reader := &wfui004DraftReader{}
 		srv := &server{deps: Dependencies{
 			Drafts: reader, DraftCompiler: draftcompile.Compiler{},
-			Authorize: func(*trust.Principal, string) bool { return false },
+			Authorize: func(context.Context, *trust.Principal, string) bool { return false },
 		}}
 		_, err := srv.CompileWorkflowDraft(workflowTestContext(t, CompileWorkflowDraftProcedure), &workflowv1.CompileWorkflowDraftRequest{DraftId: "draft-42"})
 		owned, ok := envelope.As(err)
@@ -80,7 +81,7 @@ func TestTodo_WF_UI_004_TransportSecurity(t *testing.T) {
 	t.Run("author mismatch is undisclosed and not compiled", func(t *testing.T) {
 		reader := &wfui004DraftReader{draft: Draft{DraftID: "draft-42", AuthorRef: "another-author", Revision: 1, Document: document}}
 		compiler := &wfui004CompilerSpy{}
-		srv := &server{deps: Dependencies{Drafts: reader, DraftCompiler: compiler}}
+		srv := &server{deps: Dependencies{Drafts: reader, DraftCompiler: compiler, Authorize: allowWorkflowCalls}}
 		_, err := srv.CompileWorkflowDraft(workflowTestContext(t, CompileWorkflowDraftProcedure), &workflowv1.CompileWorkflowDraftRequest{DraftId: "draft-42"})
 		owned, ok := envelope.As(err)
 		if !ok || owned.Code() != envelope.CodeNotFound {
@@ -100,6 +101,7 @@ func TestTodo_WF_UI_004_TransportGolden(t *testing.T) {
 	srv := &server{deps: Dependencies{
 		Drafts:        &wfui004DraftReader{draft: Draft{DraftID: "draft-42", AuthorRef: transporttest.Subject, Revision: 3, Document: document}},
 		DraftCompiler: draftcompile.Compiler{Options: workflowcore.Options{Phase: workflowcore.PhaseP1B}},
+		Authorize:     allowWorkflowCalls,
 	}}
 	response, err := srv.CompileWorkflowDraft(workflowTestContext(t, CompileWorkflowDraftProcedure), &workflowv1.CompileWorkflowDraftRequest{DraftId: "draft-42"})
 	if err != nil {

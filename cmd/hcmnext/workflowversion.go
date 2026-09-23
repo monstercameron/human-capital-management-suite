@@ -66,7 +66,7 @@ func openPostgresVersionRegistry(ctx context.Context, url string) (versionRegist
 	return workflowversionstore.Store{DB: pool}, pool.Close, nil
 }
 
-const workflowVersionUsage = "usage: hcmnext workflow-version [list|fixtures|approve|activate|bootstrap-dev|quarantine|lift] [flags]"
+const workflowVersionUsage = "usage: hcmnext workflow-version [list|fixtures|approve|activate|bootstrap-dev|quarantine|lift|migrate-preview|migrate-execute] [flags]"
 
 func runWorkflowVersion(args []string, stdout, stderr io.Writer, now func() time.Time, open openVersionRegistry) int {
 	if len(args) == 0 {
@@ -92,6 +92,11 @@ func runWorkflowVersion(args []string, stdout, stderr io.Writer, now func() time
 	out := fs.String("out", "", "file to write the fixture report to; empty writes it to stdout (fixtures)")
 	runner := fs.String("runner", "cmd/hcmnext:workflow-version-fixtures", "who ran the fixtures (fixtures)")
 	supersede := fs.Bool("supersede", false, "quarantine a different version of the workflow that is already active (activate)")
+	tenantFlag := fs.String("tenant", "", "tenant id of the paused instance (migrate-preview, migrate-execute)")
+	instanceFlag := fs.String("instance", "", "instance id of the paused instance (migrate-preview, migrate-execute)")
+	sourceDigest := fs.String("source-digest", "", "compiled-plan digest the instance currently pins (migrate-preview, migrate-execute)")
+	targetDigest := fs.String("target-digest", "", "compiled-plan digest to preview or migrate onto (migrate-preview, migrate-execute)")
+	migratedBy := fs.String("migrated-by", "", "principal executing the migration; must differ from -approved-by (migrate-execute)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
@@ -100,12 +105,15 @@ func runWorkflowVersion(args []string, stdout, stderr io.Writer, now func() time
 		return 2
 	}
 	switch action {
-	case "list", "fixtures", "approve", "activate", "bootstrap-dev", "quarantine", "lift":
+	case "list", "fixtures", "approve", "activate", "bootstrap-dev", "quarantine", "lift", "migrate-preview", "migrate-execute":
 	default:
 		fmt.Fprintf(stderr, "hcmnext workflow-version: unknown action %q; %s\n", action, workflowVersionUsage)
 		return 2
 	}
 	ctx := context.Background()
+	if action == "migrate-preview" || action == "migrate-execute" {
+		return runWorkflowMigrate(ctx, action, *databaseURL, *tenantFlag, *instanceFlag, *sourceDigest, *targetDigest, *approvedBy, *reason, *migratedBy, stdout, stderr, now)
+	}
 	registry, closeRegistry, err := open(ctx, *databaseURL)
 	if err != nil {
 		fmt.Fprintf(stderr, "hcmnext workflow-version: %v\n", err)

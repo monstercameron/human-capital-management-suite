@@ -20,7 +20,7 @@ func (s *server) CreateWorkflowDraft(ctx context.Context, req *workflowv1.Create
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionCreateWorkflowDraft) {
+	if !s.authorized(ctx, principal, ActionCreateWorkflowDraft) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {
@@ -150,7 +150,7 @@ func (s *server) GetWorkflowDraft(ctx context.Context, req *workflowv1.GetWorkfl
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionGetWorkflowDraft) {
+	if !s.authorized(ctx, principal, ActionGetWorkflowDraft) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {
@@ -171,7 +171,7 @@ func (s *server) InsertWorkflowPaletteEntry(ctx context.Context, req *workflowv1
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionInsertWorkflowPaletteEntry) {
+	if !s.authorized(ctx, principal, ActionInsertWorkflowPaletteEntry) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {
@@ -194,7 +194,7 @@ func (s *server) UpdateWorkflowDraftNode(ctx context.Context, req *workflowv1.Up
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionUpdateWorkflowDraftNode) {
+	if !s.authorized(ctx, principal, ActionUpdateWorkflowDraftNode) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {
@@ -217,7 +217,7 @@ func (s *server) SetWorkflowDraftOutcome(ctx context.Context, req *workflowv1.Se
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionSetWorkflowDraftOutcome) {
+	if !s.authorized(ctx, principal, ActionSetWorkflowDraftOutcome) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {
@@ -240,7 +240,7 @@ func (s *server) BindWorkflowDraftInput(ctx context.Context, req *workflowv1.Bin
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionBindWorkflowDraftInput) {
+	if !s.authorized(ctx, principal, ActionBindWorkflowDraftInput) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {
@@ -263,7 +263,7 @@ func (s *server) MoveWorkflowDraftNode(ctx context.Context, req *workflowv1.Move
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionMoveWorkflowDraftNode) {
+	if !s.authorized(ctx, principal, ActionMoveWorkflowDraftNode) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {
@@ -282,12 +282,83 @@ func (s *server) MoveWorkflowDraftNode(ctx context.Context, req *workflowv1.Move
 	return &workflowv1.MoveWorkflowDraftNodeResponse{Draft: s.projectDraftView(ctx, principal.Tenant(), change.Draft)}, nil
 }
 
+func (s *server) RemoveWorkflowDraftNode(ctx context.Context, req *workflowv1.RemoveWorkflowDraftNodeRequest) (*workflowv1.RemoveWorkflowDraftNodeResponse, error) {
+	principal, invocation, err := trustedContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !s.authorized(ctx, principal, ActionRemoveWorkflowDraftNode) {
+		return nil, denied(invocation, principal)
+	}
+	if s.deps.DraftAuthoring == nil {
+		return nil, projectDraftAuthoringError(errDraftAuthoringUnavailable, invocation, principal)
+	}
+	if req == nil || strings.TrimSpace(req.GetDraftId()) == "" || req.GetExpectedRevision() == 0 || strings.TrimSpace(req.GetNodeId()) == "" {
+		return nil, invalid(invocation, "draft_node_removal")
+	}
+	change, removeErr := s.deps.DraftAuthoring.RemoveNode(ctx, principal.Tenant(), principal.Subject(), designeredit.RemoveNodeRequest{
+		DraftID: req.GetDraftId(), ExpectedRevision: req.GetExpectedRevision(), NodeID: req.GetNodeId(),
+	})
+	if removeErr != nil {
+		return nil, projectDraftAuthoringError(removeErr, invocation, principal)
+	}
+	return &workflowv1.RemoveWorkflowDraftNodeResponse{Draft: s.projectDraftView(ctx, principal.Tenant(), change.Draft)}, nil
+}
+
+func (s *server) ClearWorkflowDraftOutcome(ctx context.Context, req *workflowv1.ClearWorkflowDraftOutcomeRequest) (*workflowv1.ClearWorkflowDraftOutcomeResponse, error) {
+	principal, invocation, err := trustedContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !s.authorized(ctx, principal, ActionClearWorkflowDraftOutcome) {
+		return nil, denied(invocation, principal)
+	}
+	if s.deps.DraftAuthoring == nil {
+		return nil, projectDraftAuthoringError(errDraftAuthoringUnavailable, invocation, principal)
+	}
+	// to_node_id is deliberately optional: an empty target clears every
+	// connection on that route.
+	if req == nil || strings.TrimSpace(req.GetDraftId()) == "" || req.GetExpectedRevision() == 0 || strings.TrimSpace(req.GetFromNodeId()) == "" || strings.TrimSpace(req.GetRouteKey()) == "" {
+		return nil, invalid(invocation, "draft_outcome")
+	}
+	change, clearErr := s.deps.DraftAuthoring.ClearOutcome(ctx, principal.Tenant(), principal.Subject(), designeredit.ClearOutcomeRequest{
+		DraftID: req.GetDraftId(), ExpectedRevision: req.GetExpectedRevision(), FromNodeID: req.GetFromNodeId(), RouteKey: req.GetRouteKey(), ToNodeID: req.GetToNodeId(),
+	})
+	if clearErr != nil {
+		return nil, projectDraftAuthoringError(clearErr, invocation, principal)
+	}
+	return &workflowv1.ClearWorkflowDraftOutcomeResponse{Draft: s.projectDraftView(ctx, principal.Tenant(), change.Draft)}, nil
+}
+
+func (s *server) RenameWorkflowDraft(ctx context.Context, req *workflowv1.RenameWorkflowDraftRequest) (*workflowv1.RenameWorkflowDraftResponse, error) {
+	principal, invocation, err := trustedContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !s.authorized(ctx, principal, ActionRenameWorkflowDraft) {
+		return nil, denied(invocation, principal)
+	}
+	if s.deps.DraftAuthoring == nil {
+		return nil, projectDraftAuthoringError(errDraftAuthoringUnavailable, invocation, principal)
+	}
+	if req == nil || strings.TrimSpace(req.GetDraftId()) == "" || req.GetExpectedRevision() == 0 || strings.TrimSpace(req.GetName()) == "" {
+		return nil, invalid(invocation, "draft_name")
+	}
+	change, renameErr := s.deps.DraftAuthoring.Rename(ctx, principal.Tenant(), principal.Subject(), designeredit.RenameRequest{
+		DraftID: req.GetDraftId(), ExpectedRevision: req.GetExpectedRevision(), Name: req.GetName(),
+	})
+	if renameErr != nil {
+		return nil, projectDraftAuthoringError(renameErr, invocation, principal)
+	}
+	return &workflowv1.RenameWorkflowDraftResponse{Draft: s.projectDraftView(ctx, principal.Tenant(), change.Draft)}, nil
+}
+
 func (s *server) NavigateWorkflowDraftHistory(ctx context.Context, req *workflowv1.NavigateWorkflowDraftHistoryRequest) (*workflowv1.NavigateWorkflowDraftHistoryResponse, error) {
 	principal, invocation, err := trustedContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionNavigateWorkflowDraftHistory) {
+	if !s.authorized(ctx, principal, ActionNavigateWorkflowDraftHistory) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {
@@ -312,7 +383,7 @@ func (s *server) ApplyWorkflowTemplateOverlay(ctx context.Context, req *workflow
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(principal, ActionApplyWorkflowTemplateOverlay) {
+	if !s.authorized(ctx, principal, ActionApplyWorkflowTemplateOverlay) {
 		return nil, denied(invocation, principal)
 	}
 	if s.deps.DraftAuthoring == nil {

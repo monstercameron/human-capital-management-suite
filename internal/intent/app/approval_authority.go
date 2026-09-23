@@ -127,6 +127,33 @@ func employmentSubjectOf(inst intent.Instance, item workitem.WorkItem) string {
 	return ""
 }
 
+// validateRoutedJourneyApprover preserves credential scope checks except for
+// a directly assigned, currently verified manager of this proposal's worker.
+// The proposal scope belongs to its requester, not necessarily its manager.
+// This grants no directory access and never substitutes an elevated principal.
+func (e *journeyEngine) validateRoutedJourneyApprover(
+	ctx context.Context, ex workitem.Executor, principal *trust.Principal, inst intent.Instance,
+	item workitem.WorkItem, candidate humanwork.Candidate, revision intent.ProposalRevision, at time.Time,
+) error {
+	err := ValidatePromotionJourneyApprover(principal, item, candidate.PrincipalID, at)
+	if !errors.Is(err, promotionAuthorityError("APPROVER_ORGANIZATION_SCOPE_MISMATCH")) {
+		return err
+	}
+	if revision.Tenant != principal.Tenant() || inst.Tenant != principal.Tenant() ||
+		item.Kind != workitem.KindApproval || item.NodeID != promotionexec.NodeApproveManager ||
+		candidate.Via != humanwork.SourceDirect || candidate.TermRef != "term:current-manager-of-worker" {
+		return err
+	}
+	stale, lookupErr := e.recheckApprovalAuthority(ctx, ex, principal, inst, item, candidate, revision, at)
+	if lookupErr != nil {
+		return lookupErr
+	}
+	if stale != nil {
+		return stale
+	}
+	return nil
+}
+
 // recheckApprovalAuthority re-resolves the routed approval's authority on ex
 // and compares it with the authority the item was routed under.
 //

@@ -405,6 +405,44 @@ message MoveWorkflowDraftNodeResponse {
   WorkflowDraftView draft = 1;
 }
 
+message RemoveWorkflowDraftNodeRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  string node_id = 4;
+}
+
+message RemoveWorkflowDraftNodeResponse {
+  WorkflowDraftView draft = 1;
+}
+
+message ClearWorkflowDraftOutcomeRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  string from_node_id = 4;
+  string route_key = 5;
+  // An empty to_node_id clears every target currently connected to that
+  // route; a named target clears only that one connection.
+  string to_node_id = 6;
+}
+
+message ClearWorkflowDraftOutcomeResponse {
+  WorkflowDraftView draft = 1;
+}
+
+message RenameWorkflowDraftRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string draft_id = 2;
+  uint64 expected_revision = 3;
+  // Trimmed, and between 1 and 120 runes once trimmed.
+  string name = 4;
+}
+
+message RenameWorkflowDraftResponse {
+  WorkflowDraftView draft = 1;
+}
+
 message NavigateWorkflowDraftHistoryRequest {
   hcmnext.common.v1.ScopeContext scope = 1;
   string draft_id = 2;
@@ -516,6 +554,9 @@ message RetryNodeRequest {
   string instance_id = 3;
   string node_id = 4;
   uint32 expected_attempt = 5;
+  // reason_ref is the caller's ticket or justification reference, recorded
+  // on the governed receipt like every other workflow control's.
+  string reason_ref = 6;
 }
 
 message RetryNodeResponse {
@@ -570,6 +611,16 @@ service WorkflowService {
   // Moves a node one position in the shared graph/outline presentation order.
   // Edges remain the only execution-flow authority.
   rpc MoveWorkflowDraftNode(MoveWorkflowDraftNodeRequest) returns (MoveWorkflowDraftNodeResponse);
+  // Deletes one authored node together with every edge that touches it and
+  // every input mapping that read its output. Locked template phases are
+  // immutable through this operation.
+  rpc RemoveWorkflowDraftNode(RemoveWorkflowDraftNodeRequest) returns (RemoveWorkflowDraftNodeResponse);
+  // Disconnects a compiler-declared outcome port. Clearing a route that is
+  // already empty is a successful no-op that preserves the revision.
+  rpc ClearWorkflowDraftOutcome(ClearWorkflowDraftOutcomeRequest) returns (ClearWorkflowDraftOutcomeResponse);
+  // Renames the draft under the same optimistic revision fence as every
+  // other authoring command.
+  rpc RenameWorkflowDraft(RenameWorkflowDraftRequest) returns (RenameWorkflowDraftResponse);
   // Restores the adjacent durable snapshot while advancing the optimistic
   // draft revision. Every authoring surface, including agents, shares this
   // same artifact and history.

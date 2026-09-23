@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"testing"
 
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
@@ -12,7 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 )
 
-func wfui006Server(t *testing.T, authorize func(*trust.Principal, string) bool) (*server, *wfui005AuthoringStore, *workflowv1.WorkflowDraftView) {
+func wfui006Server(t *testing.T, authorize func(context.Context, *trust.Principal, string) bool) (*server, *wfui005AuthoringStore, *workflowv1.WorkflowDraftView) {
 	t.Helper()
 	definition := promotionexec.Definition()
 	store := &wfui005AuthoringStore{}
@@ -30,7 +31,7 @@ func wfui006Server(t *testing.T, authorize func(*trust.Principal, string) bool) 
 }
 
 func TestTodo_WF_UI_006_TransportTypedRefinementAndOverlay(t *testing.T) {
-	srv, store, draft := wfui006Server(t, nil)
+	srv, store, draft := wfui006Server(t, allowWorkflowCalls)
 	updated, err := srv.UpdateWorkflowDraftNode(workflowTestContext(t, UpdateWorkflowDraftNodeProcedure), &workflowv1.UpdateWorkflowDraftNodeRequest{
 		DraftId: draft.GetDraftId(), ExpectedRevision: draft.GetRevision(), NodeId: promotionexec.NodeAwaitPayrollConfirmation,
 		Values: map[string]string{"display_name": "Payroll acknowledgement", "signal_timeout_seconds": "7200"},
@@ -68,8 +69,8 @@ func TestTodo_WF_UI_006_TransportTypedRefinementAndOverlay(t *testing.T) {
 }
 
 func TestTodo_WF_UI_006_SecurityAuthorizesBeforeMutation(t *testing.T) {
-	srv, store, draft := wfui006Server(t, nil)
-	srv.deps.Authorize = func(*trust.Principal, string) bool { return false }
+	srv, store, draft := wfui006Server(t, allowWorkflowCalls)
+	srv.deps.Authorize = func(context.Context, *trust.Principal, string) bool { return false }
 	before := store.saves
 	_, err := srv.UpdateWorkflowDraftNode(workflowTestContext(t, UpdateWorkflowDraftNodeProcedure), &workflowv1.UpdateWorkflowDraftNodeRequest{DraftId: draft.GetDraftId(), ExpectedRevision: 1, NodeId: promotionexec.NodeSnapshotWorker, Values: map[string]string{"display_name": "Denied"}})
 	owned, ok := envelope.As(err)

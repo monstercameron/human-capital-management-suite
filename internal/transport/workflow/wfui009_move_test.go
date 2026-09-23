@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"testing"
 
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestTodo_WF_UI_009_TransportMovesNodeUnderRevisionFence(t *testing.T) {
-	srv, _, draft := wfui006Server(t, nil)
+	srv, _, draft := wfui006Server(t, allowWorkflowCalls)
 	if len(draft.GetNodes()) < 2 {
 		t.Fatal("promotion draft has fewer than two nodes")
 	}
@@ -29,8 +30,8 @@ func TestTodo_WF_UI_009_TransportMovesNodeUnderRevisionFence(t *testing.T) {
 }
 
 func TestTodo_WF_UI_009_TransportAuthorizesBeforeMove(t *testing.T) {
-	srv, store, draft := wfui006Server(t, nil)
-	srv.deps.Authorize = func(*trust.Principal, string) bool { return false }
+	srv, store, draft := wfui006Server(t, allowWorkflowCalls)
+	srv.deps.Authorize = func(context.Context, *trust.Principal, string) bool { return false }
 	before := store.saves
 	_, err := srv.MoveWorkflowDraftNode(workflowTestContext(t, MoveWorkflowDraftNodeProcedure), &workflowv1.MoveWorkflowDraftNodeRequest{
 		DraftId: draft.GetDraftId(), ExpectedRevision: draft.GetRevision(), NodeId: draft.GetNodes()[1].GetId(), Direction: "EARLIER",

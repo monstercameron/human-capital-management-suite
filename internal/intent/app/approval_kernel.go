@@ -148,10 +148,14 @@ func (e *journeyEngine) voteThroughKernel(ctx context.Context, v journeyVote) (d
 	}
 	if !v.replay {
 		req.Recheck = func(ctx context.Context, ex workitem.Executor, current workitem.WorkItem) error {
-			if err := ValidatePromotionJourneyApprover(v.principal, current, actor, v.at); err != nil {
+			candidate, ok := current.Assignment.Resolution.Authorizes(actor)
+			if !ok {
+				return ErrProposalDecisionRoute
+			}
+			if err := e.validateRoutedJourneyApprover(ctx, ex, v.principal, v.inst, current, candidate, revision, v.at); err != nil {
 				return err
 			}
-			stale, err := e.recheckApprovalAuthority(ctx, ex, v.principal, v.inst, current, v.candidate, revision, v.at)
+			stale, err := e.recheckApprovalAuthority(ctx, ex, v.principal, v.inst, current, candidate, revision, v.at)
 			if err != nil {
 				return err
 			}

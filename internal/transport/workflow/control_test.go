@@ -49,7 +49,7 @@ func TestTodo_EP_WF_002_TransportIntegration(t *testing.T) {
 	}}
 	ctl := &fakeControl{res: workflowcontrol.Response{Outcome: workflowcontrol.OutcomeApplied, IntentInstanceID: "intent:operator:x",
 		ReceiptDigest: "sha256:r", InstanceVersion: 9, InstanceStatus: "PAUSED", NodeID: "execute_promotion", Attempt: 2}}
-	srv := &server{deps: Dependencies{Instances: reader, Control: ctl, TenantIDs: tenantIDs}}
+	srv := &server{deps: Dependencies{Instances: reader, Control: ctl, TenantIDs: tenantIDs, Authorize: allowWorkflowCalls}}
 
 	pause, err := srv.PauseWorkflow(workflowTestContext(t, PauseWorkflowProcedure), &workflowv1.PauseWorkflowRequest{
 		IdempotencyKey: "k1", InstanceId: "workflow-1", ExpectedInstanceVersion: 8, ReasonRef: "INC-1"})
@@ -73,9 +73,12 @@ func TestTodo_EP_WF_002_TransportIntegration(t *testing.T) {
 		t.Fatalf("CancelWorkflow: %v", err)
 	}
 	retry, err := srv.RetryNode(workflowTestContext(t, RetryNodeProcedure), &workflowv1.RetryNodeRequest{
-		IdempotencyKey: "k4", InstanceId: "workflow-1", NodeId: "execute_promotion", ExpectedAttempt: 1})
+		IdempotencyKey: "k4", InstanceId: "workflow-1", NodeId: "execute_promotion", ExpectedAttempt: 1, ReasonRef: "INC-1"})
 	if err != nil || ctl.reqs[3].Kind != operator.KindWorkflowRetryNode || retry.GetNodeExecution().GetAttempt() != 2 {
 		t.Fatalf("RetryNode = %v, %v", retry, err)
+	}
+	if ctl.reqs[3].ReasonRef != "INC-1" || ctl.reqs[3].IdempotencyKey != "k4" {
+		t.Fatalf("retry control request = %+v, want the caller's reason, not the idempotency key", ctl.reqs[3])
 	}
 
 	for outcome, want := range map[workflowcontrol.Outcome]workflowv1.WorkflowControlOutcome{
@@ -91,13 +94,13 @@ func TestTodo_EP_WF_002_TransportIntegration(t *testing.T) {
 	}
 
 	// Without an instance reader the receipt still returns.
-	bare := &server{deps: Dependencies{Control: ctl, TenantIDs: tenantIDs}}
+	bare := &server{deps: Dependencies{Control: ctl, TenantIDs: tenantIDs, Authorize: allowWorkflowCalls}}
 	if res, err := bare.CancelWorkflow(workflowTestContext(t, CancelWorkflowProcedure), &workflowv1.CancelWorkflowRequest{
 		IdempotencyKey: "k5", InstanceId: "workflow-1", ExpectedInstanceVersion: 9, ReasonRef: "r"}); err != nil || res.GetInstance() != nil || res.GetReceipt() == nil {
 		t.Fatalf("bare cancel = %v, %v", res, err)
 	}
 	// An unreadable instance projection does not turn an outcome into an error.
-	unreadable := &server{deps: Dependencies{Instances: &workflowTestReader{}, Control: ctl, TenantIDs: tenantIDs}}
+	unreadable := &server{deps: Dependencies{Instances: &workflowTestReader{}, Control: ctl, TenantIDs: tenantIDs, Authorize: allowWorkflowCalls}}
 	if res, err := unreadable.PauseWorkflow(workflowTestContext(t, PauseWorkflowProcedure), &workflowv1.PauseWorkflowRequest{
 		IdempotencyKey: "k6", InstanceId: "workflow-1", ExpectedInstanceVersion: 9, ReasonRef: "r"}); err != nil || res.GetReceipt() == nil {
 		t.Fatalf("unreadable projection = %v, %v", res, err)
@@ -118,7 +121,7 @@ func TestTodo_EP_WF_002_TransportIntegration(t *testing.T) {
 // malformed and ungoverned controls before any control runs.
 func TestTodo_EP_WF_002_TransportSecurity(t *testing.T) {
 	ctl := &fakeControl{}
-	deny := &server{deps: Dependencies{Control: ctl, TenantIDs: tenantIDs, Authorize: func(*trust.Principal, string) bool { return false }}}
+	deny := &server{deps: Dependencies{Control: ctl, TenantIDs: tenantIDs, Authorize: func(context.Context, *trust.Principal, string) bool { return false }}}
 	_, err := deny.PauseWorkflow(workflowTestContext(t, PauseWorkflowProcedure), &workflowv1.PauseWorkflowRequest{
 		IdempotencyKey: "k", InstanceId: "workflow-1", ExpectedInstanceVersion: 1, ReasonRef: "r"})
 	assertCode(t, "unauthorized", err, envelope.CodePermissionDenied)
@@ -146,11 +149,15 @@ func TestTodo_EP_WF_002_TransportSecurity(t *testing.T) {
 			return err
 		},
 		"no node": func() error {
-			_, err := srv.RetryNode(workflowTestContext(t, RetryNodeProcedure), &workflowv1.RetryNodeRequest{InstanceId: "w", IdempotencyKey: "k", ExpectedAttempt: 1})
+			_, err := srv.RetryNode(workflowTestContext(t, RetryNodeProcedure), &workflowv1.RetryNodeRequest{InstanceId: "w", IdempotencyKey: "k", ExpectedAttempt: 1, ReasonRef: "r"})
 			return err
 		},
 		"no attempt": func() error {
-			_, err := srv.RetryNode(workflowTestContext(t, RetryNodeProcedure), &workflowv1.RetryNodeRequest{InstanceId: "w", IdempotencyKey: "k", NodeId: "n"})
+			_, err := srv.RetryNode(workflowTestContext(t, RetryNodeProcedure), &workflowv1.RetryNodeRequest{InstanceId: "w", IdempotencyKey: "k", NodeId: "n", ReasonRef: "r"})
+			return err
+		},
+		"no retry reason": func() error {
+			_, err := srv.RetryNode(workflowTestContext(t, RetryNodeProcedure), &workflowv1.RetryNodeRequest{InstanceId: "w", IdempotencyKey: "k", NodeId: "n", ExpectedAttempt: 1})
 			return err
 		},
 	} {
@@ -160,10 +167,13 @@ func TestTodo_EP_WF_002_TransportSecurity(t *testing.T) {
 		t.Fatalf("refused controls reached the controller %d times", len(ctl.reqs))
 	}
 
+	// An unwired service refuses before it checks governance wiring:
+	// authorization runs before availability, so a missing hook denies
+	// rather than reporting the unwired control surface.
 	ungoverned := &server{deps: Dependencies{}}
 	_, err = ungoverned.CancelWorkflow(workflowTestContext(t, CancelWorkflowProcedure), &workflowv1.CancelWorkflowRequest{
 		InstanceId: "w", IdempotencyKey: "k", ExpectedInstanceVersion: 1, ReasonRef: "r"})
-	assertCode(t, "ungoverned", err, envelope.CodeFailedPrecondition)
+	assertCode(t, "ungoverned", err, envelope.CodePermissionDenied)
 
 	for name, tc := range map[string]struct {
 		err  error
@@ -172,13 +182,50 @@ func TestTodo_EP_WF_002_TransportSecurity(t *testing.T) {
 		"invalid command": {workflowcontrol.ErrInvalidCommand, envelope.CodeInvalidArgument},
 		"dependency down": {errors.New("db down"), envelope.CodeUnavailable},
 	} {
-		failing := &server{deps: Dependencies{Control: &fakeControl{err: tc.err}, TenantIDs: tenantIDs}}
+		failing := &server{deps: Dependencies{Control: &fakeControl{err: tc.err}, TenantIDs: tenantIDs, Authorize: allowWorkflowCalls}}
 		_, err := failing.PauseWorkflow(workflowTestContext(t, PauseWorkflowProcedure), &workflowv1.PauseWorkflowRequest{
 			InstanceId: "w", IdempotencyKey: "k", ExpectedInstanceVersion: 1, ReasonRef: "r"})
 		assertCode(t, name, err, tc.code)
 	}
 	if controlDenied(nil, nil) == nil || controlUnavailable(nil, nil) == nil || projectControlError(errors.New("x"), nil, nil) == nil {
 		t.Fatal("envelope constructors must tolerate a missing invocation or principal")
+	}
+}
+
+// TestRetryNodeRecordsCallerReason is INTAPI-006's RED for the RetryNode
+// audit defect: the transport sent the idempotency key as the governed
+// ReasonRef, so every retry receipt cited the deduplication key instead of
+// the caller's ticket, and a retry without a reason passed validation the
+// controller itself would refuse.
+func TestRetryNodeRecordsCallerReason(t *testing.T) {
+	reader := &workflowTestReader{record: Record{
+		Instance: Instance{InstanceID: "workflow-1", TenantID: transporttest.Tenant, RuntimeStatus: "PAUSED", InstanceVersion: 9},
+		Nodes:    []NodeExecution{{NodeExecutionID: "n-2", WorkflowInstanceID: "workflow-1", NodeID: "execute_promotion", Attempt: 2, Status: "READY"}},
+	}}
+	ctl := &fakeControl{res: workflowcontrol.Response{Outcome: workflowcontrol.OutcomeApplied, IntentInstanceID: "intent:operator:x",
+		ReceiptDigest: "sha256:r", InstanceVersion: 9, InstanceStatus: "PAUSED", NodeID: "execute_promotion", Attempt: 2}}
+	srv := &server{deps: Dependencies{Instances: reader, Control: ctl, TenantIDs: tenantIDs, Authorize: allowWorkflowCalls}}
+
+	if _, err := srv.RetryNode(workflowTestContext(t, RetryNodeProcedure), &workflowv1.RetryNodeRequest{
+		IdempotencyKey: "k4", InstanceId: "workflow-1", NodeId: "execute_promotion", ExpectedAttempt: 1, ReasonRef: "INC-9"}); err != nil {
+		t.Fatalf("RetryNode: %v", err)
+	}
+	got := ctl.reqs[0]
+	if got.IdempotencyKey != "k4" {
+		t.Fatalf("idempotency key = %q, want k4", got.IdempotencyKey)
+	}
+	if got.ReasonRef != "INC-9" {
+		t.Fatalf("ReasonRef = %q, want the caller's reason INC-9", got.ReasonRef)
+	}
+
+	if _, err := srv.RetryNode(workflowTestContext(t, RetryNodeProcedure), &workflowv1.RetryNodeRequest{
+		IdempotencyKey: "k5", InstanceId: "workflow-1", NodeId: "execute_promotion", ExpectedAttempt: 1}); err == nil {
+		t.Fatal("a retry without a reason_ref was accepted")
+	} else {
+		assertCode(t, "retry without reason", err, envelope.CodeInvalidArgument)
+	}
+	if len(ctl.reqs) != 1 {
+		t.Fatalf("refused retry reached the controller %d times", len(ctl.reqs))
 	}
 }
 

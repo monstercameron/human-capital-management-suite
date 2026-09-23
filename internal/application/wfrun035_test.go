@@ -86,7 +86,8 @@ func TestTodo_WF_RUN_035(t *testing.T) {
 	tenant := fixtures.Tenant
 	cfg := ServeConfig{
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
-		DevHMACKey: integrationSigningKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
+		DevHMACKey: integrationSigningKey, PageCursorKey: integrationPageCursorKey,
+		Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: string(tenant), CellID: "cell-wfrun035", MaxDeadline: 30 * time.Second,
 		Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:wfrun035-authority",

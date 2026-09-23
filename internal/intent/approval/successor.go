@@ -60,6 +60,13 @@ func successorDigest(input ReplanInput) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
+// RequiredRoute reports the exact route the retained verdicts require:
+// any unknown drift forces revalidation, any material drift forces
+// reapproval, and clean retention reviews.
+func RequiredRoute(retained []ReuseDecision) string {
+	return requiredRoute(retained)
+}
+
 // requiredRoute derives the exact route from the retained verdicts: any
 // unknown drift forces revalidation, any material drift forces
 // reapproval, and clean retention reviews.
