@@ -27,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/monstercameron/GoGRPCBridge/pkg/grpctunnel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -41,8 +40,9 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/clients"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
+	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/transporttest"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
@@ -86,7 +86,7 @@ type harness struct {
 	token    string // "Bearer <credential>", the fixture's ordinary valid credential
 
 	grpcIntent   intentsv1.IntentServiceClient // native gRPC, over a real TCP listener
-	edgeIntent   *edge.IntentClient            // HTTP/Connect edge
+	edgeIntent   clients.IntentClient          // HTTP/Connect edge
 	tunnelIntent intentsv1.IntentServiceClient // gRPC frames over the WebSocket tunnel
 }
 
@@ -157,8 +157,15 @@ func newHarness(t *testing.T) *harness {
 	t.Cleanup(func() { _ = nativeConn.Close() })
 
 	// The HTTP/Connect edge and the tunnel, mounted on one mux, exactly like
-	// cmd/hcmnext's httpListener.
-	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnel(composed, grpcServer)
+	// cmd/hcmnext's httpListener. The tunnel bridges the workspace-only
+	// server, never the native one; both reach the identical interceptor
+	// chain, only the registered services differ.
+	tunnelServer, err := transportcell.NewTunnelGRPCServer(composed, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil)
+	if err != nil {
+		t.Fatalf("NewTunnelGRPCServer: %v", err)
+	}
+	t.Cleanup(tunnelServer.Stop)
+	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnel(composed, tunnelServer)
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithTunnel: %v", err)
 	}
@@ -195,7 +202,7 @@ func newHarness(t *testing.T) *harness {
 	tunnelHost := strings.TrimPrefix(httpServer.URL, "http://")
 	tunnelConn, err := grpctunnel.BuildTunnelConn(context.Background(), grpctunnel.TunnelConfig{
 		Target:           "ws://" + tunnelHost + transportcell.TunnelPath,
-		Headers:          http.Header{"Authorization": []string{bearer}},
+		Headers:          http.Header{"Authorization": []string{bearer}, "Origin": []string{"http://" + tunnelHost}},
 		HandshakeTimeout: 10 * time.Second,
 		GRPCOptions: []grpc.DialOption{
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -211,7 +218,7 @@ func newHarness(t *testing.T) *harness {
 		verifier:     verifier,
 		token:        bearer,
 		grpcIntent:   intentsv1.NewIntentServiceClient(nativeConn),
-		edgeIntent:   edge.NewIntentClient(httpServer.Client(), httpServer.URL),
+		edgeIntent:   clients.NewIntentClientConnect(httpServer.Client(), httpServer.URL),
 		tunnelIntent: intentsv1.NewIntentServiceClient(tunnelConn),
 	}
 }
@@ -310,13 +317,9 @@ func (h *harness) connectCaller() transporttest.ConformanceCaller {
 		var err error
 		switch sc.Method {
 		case transporttest.ConformanceMethodGetIntent:
-			req := connect.NewRequest(buildGetIntentRequest(sc))
-			applyHeaders(req.Header(), headers)
-			_, err = h.edgeIntent.GetIntent(ctx, req)
+			_, err = h.edgeIntent.GetIntent(ctx, buildGetIntentRequest(sc), clientHeaders(headers)...)
 		default:
-			req := connect.NewRequest(&intentsv1.ListIntentsRequest{})
-			applyHeaders(req.Header(), headers)
-			_, err = h.edgeIntent.ListIntents(ctx, req)
+			_, err = h.edgeIntent.ListIntents(ctx, &intentsv1.ListIntentsRequest{}, clientHeaders(headers)...)
 		}
 		if err == nil {
 			return transporttest.ConformanceOutcome{}
@@ -341,6 +344,14 @@ func applyHeaders(h http.Header, headers map[string]string) {
 	}
 }
 
+func clientHeaders(headers map[string]string) []clients.CallOption {
+	opts := make([]clients.CallOption, 0, len(headers))
+	for key, value := range headers {
+		opts = append(opts, clients.WithHeader(key, value))
+	}
+	return opts
+}
+
 // ownedFromGRPCLike extracts the owned error from a native-gRPC or
 // tunnel-carried gRPC client failure. A failure that does not decode as an
 // owned status becomes a visibly-wrong owned error rather than a panic, so a
@@ -355,7 +366,7 @@ func ownedFromGRPCLike(err error) *envelope.Error {
 
 // ownedFromConnect is [ownedFromGRPCLike] for the HTTP/Connect edge.
 func ownedFromConnect(err error) *envelope.Error {
-	if owned, ok := edge.FromConnectError(err); ok {
+	if owned, ok := envelope.As(err); ok {
 		return owned
 	}
 	return envelope.New(envelope.CodeUnspecified, "test.undecodable_connect_error", err.Error())

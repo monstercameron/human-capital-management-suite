@@ -28,6 +28,7 @@ import (
 	humanworkv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/humanwork/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
@@ -45,6 +46,11 @@ import (
 func TestTodo_EP_WORK_001_Integration(t *testing.T) {
 	c := newCell(t)
 	ctx := context.Background()
+	// Work capability authorization reads durable assignments, not token
+	// roles. Seed the caller's actual grant before exercising membership.
+	if _, err := c.app.RoleAccess.SaveAssignment(ctx, values.TenantId(testTenant), "system:test-bootstrap", roleaccess.Assignment{WorkerRef: testSubject, RoleIDs: []string{"hcm_admin"}}); err != nil {
+		t.Fatalf("assign work reader: %v", err)
+	}
 	tenantUUID := pgstore.TenantID(testTenant)
 	instanceID := uuid.New()
 
@@ -176,11 +182,17 @@ func TestTodo_EP_WORK_001_Integration(t *testing.T) {
 	cursorKey := []byte("bootstrap-work-queue-key")
 
 	grpcServer, err := transportcell.NewGRPCServerWithWorkflowInspectorAndOperations(
-		c.app, nil, queueReader, nil, cursorKey, transporthumanwork.WritePorts{})
+		c.app, nil, queueReader, nil, cursorKey, nil, transporthumanwork.WritePorts{}, nil)
 	if err != nil {
 		t.Fatalf("NewGRPCServerWithWorkflowInspectorAndOperations: %v", err)
 	}
 	t.Cleanup(grpcServer.Stop)
+	tunnelServer, err := transportcell.NewTunnelGRPCServer(
+		c.app, nil, queueReader, cursorKey, nil, transporthumanwork.WritePorts{}, nil)
+	if err != nil {
+		t.Fatalf("NewTunnelGRPCServer: %v", err)
+	}
+	t.Cleanup(tunnelServer.Stop)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -189,7 +201,7 @@ func TestTodo_EP_WORK_001_Integration(t *testing.T) {
 	t.Cleanup(func() { _ = listener.Close() })
 
 	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnelAndDependencies(
-		c.app, grpcServer, nil, queueReader, nil, cursorKey, transporthumanwork.WritePorts{})
+		c.app, tunnelServer, nil, queueReader, nil, cursorKey, nil, transporthumanwork.WritePorts{}, nil)
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithTunnelAndDependencies: %v", err)
 	}
@@ -207,7 +219,7 @@ func TestTodo_EP_WORK_001_Integration(t *testing.T) {
 	defer cancel()
 	tunnelConn, err := grpctunnel.BuildTunnelConn(tunnelCtx, grpctunnel.TunnelConfig{
 		Target:           "ws://" + host + transportcell.TunnelPath,
-		Headers:          http.Header{"Authorization": []string{c.token}},
+		Headers:          http.Header{"Authorization": []string{c.token}, "Origin": []string{"http://" + host}},
 		HandshakeTimeout: 10 * time.Second,
 		GRPCOptions:      []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
 	})

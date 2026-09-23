@@ -14,6 +14,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/transporttest"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 type edgeQueueReader struct{ item workitem.WorkItem }
@@ -57,6 +58,10 @@ func TestTodo_EP_WORK_001_Edge(t *testing.T) {
 	work := &transporthumanwork.Dependencies{
 		Queue: edgeQueueReader{item: item}, CursorKey: []byte("edge-work-key"),
 		Now: func() time.Time { return now },
+		// RBAC-RT-004: the edge projects the service's answers, so its
+		// fixture admits the capability the same way production
+		// composition does through the durable hook.
+		Authorize: func(context.Context, *trust.Principal, string) bool { return true },
 	}
 	h, err := NewHandler(Options{
 		Config: transporttest.Config(verifier, func() time.Time { return now }, "edge-work-request", nil),

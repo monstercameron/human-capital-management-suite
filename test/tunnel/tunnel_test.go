@@ -42,6 +42,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
+	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 )
@@ -144,15 +145,15 @@ func newCellWith(t *testing.T, withTunnel bool, journeyEngine workspace.JourneyE
 		composed.Journey = journeyEngine
 	}
 
-	grpcServer, err := transportcell.NewGRPCServer(composed)
+	tunnelServer, err := transportcell.NewTunnelGRPCServer(composed, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil)
 	if err != nil {
-		t.Fatalf("NewGRPCServer: %v", err)
+		t.Fatalf("NewTunnelGRPCServer: %v", err)
 	}
-	t.Cleanup(grpcServer.Stop)
+	t.Cleanup(tunnelServer.Stop)
 
 	var handler http.Handler
 	if withTunnel {
-		handler, err = transportcell.NewEdgeHandlerWithTunnel(composed, grpcServer)
+		handler, err = transportcell.NewEdgeHandlerWithTunnel(composed, tunnelServer)
 	} else {
 		handler, err = transportcell.NewEdgeHandler(composed)
 	}
@@ -240,9 +241,11 @@ func (c *cell) dial(ctx context.Context, headers http.Header) *grpc.ClientConn {
 }
 
 // authorizedUpgrade is the header set a browser-resident client sends on the
-// upgrade: the credential, and nothing else that admission reads.
+// upgrade: the credential and the page's own origin. The tunnel is the
+// workspace page's route, so an upgrade without an Origin header is not a
+// browser holding the page and is refused.
 func (c *cell) authorizedUpgrade() http.Header {
-	return http.Header{"Authorization": []string{c.token}}
+	return http.Header{"Authorization": []string{c.token}, "Origin": []string{"http://" + c.host}}
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +356,7 @@ func TestTunnelUpgradeRefusesCallerSelectedAuthority(t *testing.T) {
 	c := newCell(t, true)
 	got := c.upgrade(func(r *http.Request) {
 		r.Header.Set("Authorization", c.token)
+		r.Header.Set("Origin", "http://"+c.host)
 		r.Header.Set("X-HCM-Roles", "operator")
 	})
 	if got != http.StatusForbidden {

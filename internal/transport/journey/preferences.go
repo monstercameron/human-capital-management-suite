@@ -40,6 +40,9 @@ func (s *server) GetProductPreferences(ctx context.Context, _ *journeyv1.GetProd
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
+	if err := s.requireServedCall(ctx, principal, inv, "GetProductPreferences"); err != nil {
+		return nil, err
+	}
 	store, depErr := s.preferenceStore(principal, inv.RequestID())
 	if depErr != nil {
 		return nil, depErr
@@ -136,6 +139,9 @@ func (s *server) RecordWorkflowUse(ctx context.Context, req *journeyv1.RecordWor
 	}
 	if strings.TrimSpace(req.GetWorkflowId()) == "" {
 		return nil, envelope.New(envelope.CodeInvalidArgument, "journey.preferences.workflow_id.required", "workflow_id is required").WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
+	}
+	if err := s.requireServedCall(ctx, principal, inv, "RecordWorkflowUse"); err != nil {
+		return nil, err
 	}
 	store, depErr := s.preferenceStore(principal, inv.RequestID())
 	if depErr != nil {

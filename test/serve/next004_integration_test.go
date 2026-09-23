@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -29,7 +28,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/clients"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -64,7 +63,7 @@ func TestTodo_NEXT_004_Integration(t *testing.T) {
 	httpClient := &http.Client{Timeout: 2 * time.Second}
 	waitForPublishedEdge(t, process, httpClient, baseURL, token)
 
-	intentClient := edge.NewIntentClient(httpClient, baseURL)
+	intentClient := clients.NewIntentClientConnect(httpClient, baseURL)
 	created := create(t, intentClient, token, "serve-smoke-idempotency-1")
 	if created.GetIntentId() == "" {
 		t.Fatal("CreateIntent returned an empty intent id")
@@ -205,6 +204,7 @@ func startServe(t *testing.T, binary, databaseURL, grpcAddr, httpAddr string) *s
 		"-http-listen="+httpAddr,
 		"-database-url="+databaseURL,
 		"-dev-hmac-key="+serveKey,
+		"-page-cursor-key=hcmnext-serve-smoke-cursor-signing-key-32+",
 		"-issuer="+serveIssuer,
 		"-audience="+serveAudience,
 		"-tenant="+serveTenant,
@@ -337,7 +337,7 @@ func mintToken(t *testing.T) string {
 
 func waitForPublishedEdge(t *testing.T, process *serveProcess, httpClient *http.Client, baseURL, token string) {
 	t.Helper()
-	registry := edge.NewRegistryClient(httpClient, baseURL)
+	registry := clients.NewRegistryClientConnect(httpClient, baseURL)
 	deadline := time.Now().Add(45 * time.Second)
 	var lastErr error
 	for time.Now().Before(deadline) {
@@ -345,14 +345,13 @@ func waitForPublishedEdge(t *testing.T, process *serveProcess, httpClient *http.
 			t.Fatalf("hcmnext exited before its edge became ready: %v\nprocess output:\n%s", exitErr, process.output())
 		}
 		callCtx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
-		request := authenticated(&registryv1.ListIntentDefinitionsRequest{}, token)
-		response, err := registry.ListIntentDefinitions(callCtx, request)
+		response, err := registry.ListIntentDefinitions(callCtx, &registryv1.ListIntentDefinitionsRequest{}, authenticated(token))
 		cancel()
-		if err == nil && len(response.Msg.GetIntentDefinitions()) == 14 {
+		if err == nil && len(response.GetIntentDefinitions()) == 14 {
 			return
 		}
 		if err == nil {
-			lastErr = fmt.Errorf("registry published %d definitions, want 14", len(response.Msg.GetIntentDefinitions()))
+			lastErr = fmt.Errorf("registry published %d definitions, want 14", len(response.GetIntentDefinitions()))
 		} else {
 			lastErr = err
 		}
@@ -364,43 +363,41 @@ func waitForPublishedEdge(t *testing.T, process *serveProcess, httpClient *http.
 	t.Fatalf("timed out waiting for published Connect edge at %s: %v\nprocess output:\n%s", baseURL, lastErr, process.output())
 }
 
-func authenticated[T any](msg *T, token string) *connect.Request[T] {
-	req := connect.NewRequest(msg)
-	req.Header().Set(transport.AuthorizationMetadataKey, "Bearer "+token)
-	return req
+func authenticated(token string) clients.CallOption {
+	return clients.WithHeader(transport.AuthorizationMetadataKey, "Bearer "+token)
 }
 
-func create(t *testing.T, client *edge.IntentClient, token, idempotencyKey string) *intentsv1.IntentInstance {
+func create(t *testing.T, client clients.IntentClient, token, idempotencyKey string) *intentsv1.IntentInstance {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	response, err := client.CreateIntent(ctx, authenticated(promotionRequest(t, idempotencyKey), token))
+	response, err := client.CreateIntent(ctx, promotionRequest(t, idempotencyKey), authenticated(token))
 	if err != nil {
 		t.Fatalf("CreateIntent through Connect edge: %v", err)
 	}
-	return response.Msg.GetIntent()
+	return response.GetIntent()
 }
 
-func get(t *testing.T, client *edge.IntentClient, token, id string) *intentsv1.IntentInstance {
+func get(t *testing.T, client clients.IntentClient, token, id string) *intentsv1.IntentInstance {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	response, err := client.GetIntent(ctx, authenticated(&intentsv1.GetIntentRequest{IntentId: id}, token))
+	response, err := client.GetIntent(ctx, &intentsv1.GetIntentRequest{IntentId: id}, authenticated(token))
 	if err != nil {
 		t.Fatalf("GetIntent through Connect edge: %v", err)
 	}
-	return response.Msg.GetIntent()
+	return response.GetIntent()
 }
 
-func simulate(t *testing.T, client *edge.IntentClient, token, id string) *intentsv1.SimulationArtifact {
+func simulate(t *testing.T, client clients.IntentClient, token, id string) *intentsv1.SimulationArtifact {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	response, err := client.SimulateIntent(ctx, authenticated(&intentsv1.SimulateIntentRequest{IntentId: id}, token))
+	response, err := client.SimulateIntent(ctx, &intentsv1.SimulateIntentRequest{IntentId: id}, authenticated(token))
 	if err != nil {
 		t.Fatalf("SimulateIntent through Connect edge: %v", err)
 	}
-	return response.Msg.GetSimulation()
+	return response.GetSimulation()
 }
 
 func promotionRequest(t *testing.T, idempotencyKey string) *intentsv1.CreateIntentRequest {

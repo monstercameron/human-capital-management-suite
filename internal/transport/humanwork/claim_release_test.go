@@ -153,7 +153,7 @@ func claimDeps(store *workStore, extra map[string]bool) Dependencies {
 	return Dependencies{
 		Queue: store, Claims: store, Idempotency: endpoint.NewCoordinator(),
 		Now: func() time.Time { return workNow },
-		Authorize: func(_ *trust.Principal, action string) bool {
+		Authorize: func(_ context.Context, _ *trust.Principal, action string) bool {
 			if extra[action] {
 				return true
 			}
@@ -344,7 +344,7 @@ func TestTodo_EP_WORK_002_Security(t *testing.T) {
 
 	// Denied the wire-level capability outright.
 	denyAll := Dependencies{Queue: store, Claims: store, Idempotency: endpoint.NewCoordinator(),
-		Now: func() time.Time { return workNow }, Authorize: func(*trust.Principal, string) bool { return false }}
+		Now: func() time.Time { return workNow }, Authorize: func(context.Context, *trust.Principal, string) bool { return false }}
 	ctx := humanworkContext(t, ClaimWorkItemProcedure)
 	_, err := (&server{deps: denyAll}).ClaimWorkItem(ctx, &humanworkv1.ClaimWorkItemRequest{
 		IdempotencyKey: "k", WorkItemId: item.WorkItemID.String(), ExpectedItemVersion: uint64(item.ItemVersion),
@@ -469,7 +469,7 @@ func TestTodo_EP_WORK_002_Fault(t *testing.T) {
 		srv := &server{deps: Dependencies{
 			Queue: store, Claims: store, Idempotency: endpoint.NewCoordinator(),
 			Now:       func() time.Time { return workNow.Add(3 * time.Hour) },
-			Authorize: func(*trust.Principal, string) bool { return true },
+			Authorize: func(context.Context, *trust.Principal, string) bool { return true },
 		}}
 		ctx := humanworkContext(t, ReleaseWorkItemProcedure)
 		_, err := srv.ReleaseWorkItem(ctx, &humanworkv1.ReleaseWorkItemRequest{

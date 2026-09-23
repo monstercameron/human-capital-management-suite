@@ -2,8 +2,10 @@ package journey
 
 import (
 	"context"
+	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -21,13 +23,31 @@ func (s *server) requirePageAction(ctx context.Context, principal *trust.Princip
 	return s.requireFeatureAction(ctx, principal, inv, pageID, featureID, action)
 }
 
+// registryFeatureDeclared reports whether the product registry declares
+// featureID on pageID. The registry is the only authority for which
+// page/feature pairs exist: rows for an undeclared pair grant nothing, so a
+// page is judged at feature level exactly when its registry entry declares
+// the feature, never based on which rows a tenant happens to hold.
+func registryFeatureDeclared(pageID, featureID string) bool {
+	for _, definition := range productui.FeatureDefinitionsForPage(productui.PageID(strings.ToLower(strings.TrimSpace(pageID)))) {
+		if strings.EqualFold(string(definition.ID), strings.TrimSpace(featureID)) {
+			return true
+		}
+	}
+	return false
+}
+
 // requireFeatureAction enforces a feature grant beneath the page boundary.
 // Missing permission data denies: an unconfigured store, an empty page
-// permission table, or a page grant without its feature rows all refuse.
-// There is no page-only fallback; bootstrap seeds every tenant's default
-// page and feature rows so legitimate grants keep working.
+// permission table, a page grant without its feature rows, or a pair the
+// product registry does not declare all refuse. There is no page-only
+// fallback; bootstrap seeds every tenant's default page and feature rows so
+// legitimate grants keep working.
 func (s *server) requireFeatureAction(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageID, featureID, action string) error {
 	if s.deps.RoleAccess == nil {
+		return featureAccessDenied(principal, inv)
+	}
+	if !registryFeatureDeclared(pageID, featureID) {
 		return featureAccessDenied(principal, inv)
 	}
 	snapshot, err := s.deps.RoleAccess.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
@@ -53,6 +73,18 @@ func featureAccessDenied(principal *trust.Principal, inv *transport.Invocation) 
 type featureAccessRequest struct {
 	pageID    string
 	featureID string
+	// action is the gated operation. Empty means the view action; the
+	// long-standing read alternatives predate per-action requests and leave
+	// it unset.
+	action string
+}
+
+// resolveAction returns the gated operation for one alternative.
+func (request featureAccessRequest) resolveAction() string {
+	if strings.TrimSpace(request.action) == "" {
+		return roleaccess.ActionView
+	}
+	return request.action
 }
 
 // requireAnyFeatureView supports records legitimately reachable from more
@@ -60,7 +92,7 @@ type featureAccessRequest struct {
 func (s *server) requireAnyFeatureView(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, requests ...featureAccessRequest) error {
 	var first error
 	for _, request := range requests {
-		err := s.requireFeatureAction(ctx, principal, inv, request.pageID, request.featureID, roleaccess.ActionView)
+		err := s.requireFeatureAction(ctx, principal, inv, request.pageID, request.featureID, request.resolveAction())
 		if err == nil {
 			return nil
 		}

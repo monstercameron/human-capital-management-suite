@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"connectrpc.com/connect"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
 )
 
@@ -310,8 +310,8 @@ func TestP1ARefusesAReadTheBootstrapPolicyDenies(t *testing.T) {
 		if edgeErr == nil {
 			t.Fatal("edge: the denied purpose was answered")
 		}
-		if got := connect.CodeOf(edgeErr); got != connect.CodePermissionDenied {
-			t.Fatalf("edge: refusal code is %s, want %s (%v)", got, connect.CodePermissionDenied, edgeErr)
+		if owned, ok := envelope.As(edgeErr); !ok || owned.Code() != envelope.CodePermissionDenied {
+			t.Fatalf("edge: refusal = %v, want owned permission-denied envelope", edgeErr)
 		}
 		assertPolicyRefusal(t, "edge", edgeErr)
 	})

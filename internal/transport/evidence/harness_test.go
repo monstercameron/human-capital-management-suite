@@ -81,6 +81,7 @@ type harness struct {
 // the job's work happened.
 type gatedDispatcher struct {
 	jobs chan struct {
+		ctx context.Context
 		job exportJob
 		run func(context.Context, exportJob)
 	}
@@ -89,29 +90,33 @@ type gatedDispatcher struct {
 
 func newGatedDispatcher() *gatedDispatcher {
 	return &gatedDispatcher{jobs: make(chan struct {
+		ctx context.Context
 		job exportJob
 		run func(context.Context, exportJob)
 	}, 8)}
 }
 
-func (d *gatedDispatcher) Dispatch(job exportJob, run func(context.Context, exportJob)) {
+func (d *gatedDispatcher) Dispatch(ctx context.Context, job exportJob, run func(context.Context, exportJob)) {
 	if d.sync {
-		run(context.Background(), job)
+		run(ctx, job)
 		return
 	}
 	d.jobs <- struct {
+		ctx context.Context
 		job exportJob
 		run func(context.Context, exportJob)
-	}{job, run}
+	}{ctx, job, run}
 }
 
 // Release runs exactly one queued job synchronously and waits for it to
-// finish, simulating the async dispatcher having gotten around to it.
+// finish, simulating the async dispatcher having gotten around to it. The
+// job runs on the context Dispatch received, so context propagation is
+// observable in tests.
 func (d *gatedDispatcher) Release(t *testing.T) {
 	t.Helper()
 	select {
 	case entry := <-d.jobs:
-		entry.run(context.Background(), entry.job)
+		entry.run(entry.ctx, entry.job)
 	case <-time.After(2 * time.Second):
 		t.Fatal("gatedDispatcher: no job was dispatched")
 	}

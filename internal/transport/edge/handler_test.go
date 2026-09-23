@@ -33,6 +33,9 @@ func TestTodo_WF_UI_005_DraftAuthoringRoutesAreMountedWithTypedFactories(t *test
 		transportworkflow.UpdateWorkflowDraftNodeProcedure,
 		transportworkflow.ApplyWorkflowTemplateOverlayProcedure,
 		transportworkflow.MoveWorkflowDraftNodeProcedure,
+		transportworkflow.RemoveWorkflowDraftNodeProcedure,
+		transportworkflow.ClearWorkflowDraftOutcomeProcedure,
+		transportworkflow.RenameWorkflowDraftProcedure,
 		transportworkflow.NavigateWorkflowDraftHistoryProcedure,
 	} {
 		t.Run(procedure, func(t *testing.T) {

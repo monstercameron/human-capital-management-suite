@@ -116,7 +116,7 @@ func completionDeps(store *completionOps, extra map[string]bool) Dependencies {
 	return Dependencies{
 		Queue: store.workStore, Completions: store, Decisions: store, Idempotency: endpoint.NewCoordinator(),
 		Now: func() time.Time { return workNow },
-		Authorize: func(_ *trust.Principal, action string) bool {
+		Authorize: func(_ context.Context, _ *trust.Principal, action string) bool {
 			if extra[action] {
 				return true
 			}
@@ -534,7 +534,7 @@ func TestTodo_EP_WORK_003_Security(t *testing.T) {
 
 	// Denied the wire-level capability outright.
 	denyAll := Dependencies{Queue: store.workStore, Completions: store, Decisions: store, Idempotency: endpoint.NewCoordinator(),
-		Now: func() time.Time { return workNow }, Authorize: func(*trust.Principal, string) bool { return false }}
+		Now: func() time.Time { return workNow }, Authorize: func(context.Context, *trust.Principal, string) bool { return false }}
 	ctx := humanworkContext(t, CompleteWorkItemProcedure)
 	_, err := (&server{deps: denyAll}).CompleteWorkItem(ctx, &humanworkv1.CompleteWorkItemRequest{
 		IdempotencyKey: "k", WorkItemId: item.WorkItemID.String(), ExpectedItemVersion: uint64(item.ItemVersion),

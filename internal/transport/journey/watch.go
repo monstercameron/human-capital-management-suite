@@ -65,11 +65,13 @@ func (d Dependencies) cursorSigner() (streaming.Signer, bool) {
 	if len(d.CursorKey) < streaming.MinKeySize {
 		return streaming.Signer{}, false
 	}
-	signer, err := streaming.NewSigner(d.CursorKey)
+	signer, err := streaming.NewSignerWithPrevious(d.CursorKey, d.PreviousCursorKey)
 	if err != nil {
-		// Unreachable: NewSigner refuses only a key below MinKeySize, which
-		// the length check above already excluded. Fail closed anyway rather
-		// than issue cursors under a signer whose construction complained.
+		// Unreachable: the constructor refuses only a short active key,
+		// which the length check above already excluded, or a short
+		// retired key, which rotation never configures. Fail closed anyway
+		// rather than issue cursors under a signer whose construction
+		// complained.
 		return streaming.Signer{}, false
 	}
 	return signer, true

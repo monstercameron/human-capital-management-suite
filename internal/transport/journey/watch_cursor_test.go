@@ -257,6 +257,54 @@ func TestWatchResumesExactlyAfterThePresentedSequence(t *testing.T) {
 	assertCursorNames(t, signer, next.GetCursor(), fixtureTenant, fixtureIntentID, next.GetSequence())
 }
 
+// retiredCursorKey is the pre-rotation signing key for the rotation test.
+// It authenticates nothing outside this process.
+var retiredCursorKey = []byte("journey-retired-cursor-key-32byte")
+
+// TestWatchResumesACursorMintedUnderTheRetiredKey is INTAPI-006's
+// end-to-end rotation proof: a cursor the server issued before the page
+// key rotated still resumes after it, because the retired key verifies
+// while a rotation is in progress.
+func TestWatchResumesACursorMintedUnderTheRetiredKey(t *testing.T) {
+	engine := newFakeEngine()
+	preRotation := cursorWatchDeps(engine, fixedNow())
+	preRotation.CursorKey = retiredCursorKey
+	preClient := dialJourneyClient(startTestServer(t, preRotation))
+
+	firstCtx, endFirst := context.WithCancel(testContext(t))
+	watch := openWatch(t, firstCtx, preClient, &journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID})
+	opening := watch.recv(5 * time.Second)
+	if opening.GetSequence() != 1 {
+		t.Fatalf("the opening message carries sequence %d, want 1", opening.GetSequence())
+	}
+	held := opening.GetDetail().GetDetailDigest()
+	endFirst()
+
+	// The rotation: the server now mints under the active key and verifies
+	// the retired one.
+	postRotation := cursorWatchDeps(engine, fixedNow())
+	postRotation.PreviousCursorKey = retiredCursorKey
+	postClient := dialJourneyClient(startTestServer(t, postRotation))
+
+	resumed := openWatch(t, testContext(t), postClient, &journeyv1.WatchJourneyRequest{
+		IntentId:     fixtureIntentID,
+		SinceDigest:  held,
+		ResumeCursor: opening.GetCursor(),
+	})
+	resumed.silent(4 * testPollInterval)
+
+	third := fixtureDetail()
+	third.Approver = "approver-nakamura"
+	engine.setDetail(third)
+
+	next := resumed.recv(5 * time.Second)
+	if next.GetSequence() != 2 {
+		t.Fatalf("the resumed stream continued at sequence %d, want 2 (exactly after the retired-key cursor)", next.GetSequence())
+	}
+	signer := mustCursorSigner(t, testCursorKey)
+	assertCursorNames(t, signer, next.GetCursor(), fixtureTenant, fixtureIntentID, next.GetSequence())
+}
+
 // TestWatchWithoutAResumeCursorStartsANewNumberedStream is the control for
 // the test above: reconnecting *without* the cursor is not a resume, and the
 // server says so by numbering from one again rather than by guessing where

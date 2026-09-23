@@ -30,7 +30,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
@@ -188,8 +187,8 @@ func newExecutionCellWithDB(t *testing.T, terminal execute.TerminalWriter, execu
 	}
 	httpServer := httptest.NewServer(edgeHandler)
 	t.Cleanup(httpServer.Close)
-	ec.edgeIntent = edge.NewIntentClient(httpServer.Client(), httpServer.URL)
-	ec.edgeRegistry = edge.NewRegistryClient(httpServer.Client(), httpServer.URL)
+	ec.edgeIntent = newBootstrapIntentClient(httpServer.Client(), httpServer.URL)
+	ec.edgeRegistry = newBootstrapRegistryClient(httpServer.Client(), httpServer.URL)
 	ec.edgeURL = httpServer.URL
 	ec.edgeClient = httpServer.Client()
 
@@ -276,7 +275,7 @@ func TestExecuteIntentIsRefusedWithoutExecutionAuthority(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected ExecuteIntent to be refused with no ExecutionAuthority configured")
 		}
-		owned, ok := edge.FromConnectError(err)
+		owned, ok := envelope.As(err)
 		if !ok {
 			t.Fatalf("edge: ExecuteIntent failed with an unowned error: %v", err)
 		}

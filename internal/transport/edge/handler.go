@@ -118,6 +118,9 @@ func NewHandler(opts Options) (http.Handler, error) {
 			transportworkflow.SetWorkflowDraftOutcomeProcedure,
 			transportworkflow.BindWorkflowDraftInputProcedure,
 			transportworkflow.MoveWorkflowDraftNodeProcedure,
+			transportworkflow.RemoveWorkflowDraftNodeProcedure,
+			transportworkflow.ClearWorkflowDraftOutcomeProcedure,
+			transportworkflow.RenameWorkflowDraftProcedure,
 			transportworkflow.NavigateWorkflowDraftHistoryProcedure,
 			transportworkflow.ApplyWorkflowTemplateOverlayProcedure,
 		} {
@@ -131,6 +134,7 @@ func NewHandler(opts Options) (http.Handler, error) {
 		h := transporthumanwork.NewHandler(*opts.Work, handlerOptions...)
 		mux.Handle(transporthumanwork.ListWorkItemsProcedure, h)
 		mux.Handle(transporthumanwork.GetWorkItemProcedure, h)
+		mux.Handle(transporthumanwork.GetThresholdTableProcedure, h)
 	}
 	if opts.Operations != nil {
 		h := transportoperations.NewHandler(*opts.Operations, handlerOptions...)

@@ -25,7 +25,6 @@ import (
 	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
@@ -176,8 +175,8 @@ func newJourneyHarness(t *testing.T, mutate ...func(*app.CellConfig)) *journeyHa
 	}
 	httpServer := httptest.NewServer(edgeHandler)
 	t.Cleanup(httpServer.Close)
-	jc.edgeIntent = edge.NewIntentClient(httpServer.Client(), httpServer.URL)
-	jc.edgeRegistry = edge.NewRegistryClient(httpServer.Client(), httpServer.URL)
+	jc.edgeIntent = newBootstrapIntentClient(httpServer.Client(), httpServer.URL)
+	jc.edgeRegistry = newBootstrapRegistryClient(httpServer.Client(), httpServer.URL)
 	jc.edgeURL = httpServer.URL
 	jc.edgeClient = httpServer.Client()
 

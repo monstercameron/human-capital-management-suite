@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	registryv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/clients"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/grpcserver"
@@ -78,14 +80,104 @@ type harness struct {
 
 	edgeURL      string
 	httpClient   *http.Client
-	edgeIntent   *edge.IntentClient
-	edgeRegistry *edge.RegistryClient
-	edgeJSON     *edge.IntentClient
+	edgeIntent   *generatedIntentClient
+	edgeRegistry *generatedRegistryClient
+	edgeJSON     *generatedIntentClient
 
 	token string
 
 	mu      sync.Mutex
 	records []transport.LogRecord
+}
+
+// generatedIntentClient is a test-only calling-convention shim over the
+// canonical generated connect client (REV-003-01). The wire logic lives in
+// internal/transport/clients; this type only preserves the connect.Request
+// calling convention the edge tests already use, projecting request headers
+// onto clients.CallOption and wrapping the decoded response back into a
+// connect.Response. Every method delegates to exactly one generated method.
+type generatedIntentClient struct {
+	inner clients.IntentClient
+}
+
+// generatedRegistryClient is the RegistryService counterpart of
+// generatedIntentClient: same delegation, same test-only scope.
+type generatedRegistryClient struct {
+	inner clients.RegistryClient
+}
+
+func callThrough[Req, Res any](
+	ctx context.Context,
+	req *connect.Request[Req],
+	do func(context.Context, *Req, ...clients.CallOption) (*Res, error),
+) (*connect.Response[Res], error) {
+	var opts []clients.CallOption
+	for key, values := range req.Header() {
+		for _, value := range values {
+			opts = append(opts, clients.WithHeader(key, value))
+		}
+	}
+	res, err := do(ctx, req.Msg, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(res), nil
+}
+
+func (c *generatedIntentClient) CreateIntent(ctx context.Context, req *connect.Request[intentsv1.CreateIntentRequest]) (*connect.Response[intentsv1.CreateIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.CreateIntent)
+}
+
+func (c *generatedIntentClient) GetIntent(ctx context.Context, req *connect.Request[intentsv1.GetIntentRequest]) (*connect.Response[intentsv1.GetIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.GetIntent)
+}
+
+func (c *generatedIntentClient) ListIntents(ctx context.Context, req *connect.Request[intentsv1.ListIntentsRequest]) (*connect.Response[intentsv1.ListIntentsResponse], error) {
+	return callThrough(ctx, req, c.inner.ListIntents)
+}
+
+func (c *generatedIntentClient) SimulateIntent(ctx context.Context, req *connect.Request[intentsv1.SimulateIntentRequest]) (*connect.Response[intentsv1.SimulateIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.SimulateIntent)
+}
+
+func (c *generatedIntentClient) ExecuteIntent(ctx context.Context, req *connect.Request[intentsv1.ExecuteIntentRequest]) (*connect.Response[intentsv1.ExecuteIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.ExecuteIntent)
+}
+
+func (c *generatedIntentClient) SubmitIntent(ctx context.Context, req *connect.Request[intentsv1.SubmitIntentRequest]) (*connect.Response[intentsv1.SubmitIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.SubmitIntent)
+}
+
+func (c *generatedIntentClient) CancelIntent(ctx context.Context, req *connect.Request[intentsv1.CancelIntentRequest]) (*connect.Response[intentsv1.CancelIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.CancelIntent)
+}
+
+func (c *generatedIntentClient) SupersedeIntent(ctx context.Context, req *connect.Request[intentsv1.SupersedeIntentRequest]) (*connect.Response[intentsv1.SupersedeIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.SupersedeIntent)
+}
+
+func (c *generatedIntentClient) ExplainIntent(ctx context.Context, req *connect.Request[intentsv1.ExplainIntentRequest]) (*connect.Response[intentsv1.ExplainIntentResponse], error) {
+	return callThrough(ctx, req, c.inner.ExplainIntent)
+}
+
+func (c *generatedIntentClient) ListIntentTimeline(ctx context.Context, req *connect.Request[intentsv1.ListIntentTimelineRequest]) (*connect.Response[intentsv1.ListIntentTimelineResponse], error) {
+	return callThrough(ctx, req, c.inner.ListIntentTimeline)
+}
+
+func (c *generatedRegistryClient) ListIntentDefinitions(ctx context.Context, req *connect.Request[registryv1.ListIntentDefinitionsRequest]) (*connect.Response[registryv1.ListIntentDefinitionsResponse], error) {
+	return callThrough(ctx, req, c.inner.ListIntentDefinitions)
+}
+
+func (c *generatedRegistryClient) GetIntentDefinition(ctx context.Context, req *connect.Request[registryv1.GetIntentDefinitionRequest]) (*connect.Response[registryv1.GetIntentDefinitionResponse], error) {
+	return callThrough(ctx, req, c.inner.GetIntentDefinition)
+}
+
+func (c *generatedRegistryClient) ListCapabilities(ctx context.Context, req *connect.Request[registryv1.ListCapabilitiesRequest]) (*connect.Response[registryv1.ListCapabilitiesResponse], error) {
+	return callThrough(ctx, req, c.inner.ListCapabilities)
+}
+
+func (c *generatedRegistryClient) GetCapability(ctx context.Context, req *connect.Request[registryv1.GetCapabilityRequest]) (*connect.Response[registryv1.GetCapabilityResponse], error) {
+	return callThrough(ctx, req, c.inner.GetCapability)
 }
 
 // newHarness builds the shared fixture.
@@ -155,9 +247,9 @@ func newHarness(t testing.TB) *harness {
 
 	h.edgeURL = httpServer.URL
 	h.httpClient = httpServer.Client()
-	h.edgeIntent = edge.NewIntentClient(h.httpClient, h.edgeURL)
-	h.edgeRegistry = edge.NewRegistryClient(h.httpClient, h.edgeURL)
-	h.edgeJSON = edge.NewIntentClient(h.httpClient, h.edgeURL, connect.WithProtoJSON())
+	h.edgeIntent = &generatedIntentClient{inner: clients.NewIntentClientConnect(h.httpClient, h.edgeURL)}
+	h.edgeRegistry = &generatedRegistryClient{inner: clients.NewRegistryClientConnect(h.httpClient, h.edgeURL)}
+	h.edgeJSON = &generatedIntentClient{inner: clients.NewIntentClientConnect(h.httpClient, h.edgeURL, connect.WithProtoJSON())}
 
 	return h
 }
@@ -246,8 +338,15 @@ func ownedFromGRPC(t *testing.T, err error) *envelope.Error {
 }
 
 // ownedFromEdge extracts the owned error from an HTTP edge client failure.
+// The generated connect backend already decodes into *envelope.Error, so an
+// envelope is returned directly when present; the connect decoding path is
+// kept for raw transport failures.
 func ownedFromEdge(t *testing.T, err error) *envelope.Error {
 	t.Helper()
+	var owned *envelope.Error
+	if errors.As(err, &owned) {
+		return owned
+	}
 	owned, ok := edge.FromConnectError(err)
 	if !ok {
 		t.Fatalf("edge error %v is not a connect error", err)

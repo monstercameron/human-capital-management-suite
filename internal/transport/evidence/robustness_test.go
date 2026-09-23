@@ -113,7 +113,7 @@ func TestGoDispatcherRunsOffTheCallingGoroutine(t *testing.T) {
 	release := make(chan struct{})
 	done := make(chan struct{})
 
-	GoDispatcher{}.Dispatch(exportJob{OperationID: "op-dispatch-test"}, func(ctx context.Context, job exportJob) {
+	(&GoDispatcher{}).Dispatch(context.Background(), exportJob{OperationID: "op-dispatch-test"}, func(ctx context.Context, job exportJob) {
 		<-release // blocks until this test explicitly releases it
 		if job.OperationID != "op-dispatch-test" {
 			t.Errorf("dispatched job lost its identity: %+v", job)

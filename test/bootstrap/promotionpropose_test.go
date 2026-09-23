@@ -31,6 +31,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
+	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 )
 
 // The intent-only `promotion.propose` contract (PROMO-007) end to end, over
@@ -95,7 +96,12 @@ func newPromotionCell(t *testing.T) *promotionCell {
 	}
 	t.Cleanup(func() { _ = direct.Close() })
 
-	handler, err := transportcell.NewEdgeHandlerWithTunnel(h.cell.app, grpcServer)
+	tunnelServer, err := transportcell.NewTunnelGRPCServer(h.cell.app, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil)
+	if err != nil {
+		t.Fatalf("NewTunnelGRPCServer: %v", err)
+	}
+	t.Cleanup(tunnelServer.Stop)
+	handler, err := transportcell.NewEdgeHandlerWithTunnel(h.cell.app, tunnelServer)
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithTunnel: %v", err)
 	}
@@ -107,7 +113,7 @@ func newPromotionCell(t *testing.T) *promotionCell {
 	t.Cleanup(cancel)
 	tunnelConn, err := grpctunnel.BuildTunnelConn(ctx, grpctunnel.TunnelConfig{
 		Target:           "ws://" + host + transportcell.TunnelPath,
-		Headers:          http.Header{"Authorization": []string{h.cell.token}},
+		Headers:          http.Header{"Authorization": []string{h.cell.token}, "Origin": []string{"http://" + host}},
 		HandshakeTimeout: 10 * time.Second,
 		GRPCOptions:      []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
 	})

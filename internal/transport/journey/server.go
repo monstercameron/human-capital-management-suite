@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
@@ -63,6 +65,10 @@ type Dependencies struct {
 	// it did before this field existed, and it is safe precisely because no
 	// cursor was ever issued for that key's absence to be forged against.
 	CursorKey []byte
+	// PreviousCursorKey is the retired stream-cursor signing key, accepted
+	// for resume verification only while a rotation is in progress. New
+	// cursors are always minted under CursorKey.
+	PreviousCursorKey []byte
 	// CursorTTL bounds how long a cursor WatchJourney issues stays
 	// presentable. Zero or negative means [defaultCursorTTL]. It has no
 	// effect when CursorKey leaves cursor issuance disabled.
@@ -307,8 +313,190 @@ func (s *server) engine(principal *trust.Principal, inv *transport.Invocation, o
 	return s.deps.Engine, nil
 }
 
-// ListJourneys forwards to workspace.JourneyEngine.ListJourneys. READ_ONLY.
-func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error) {
+const (
+	// fallbackJourneyPageSize and fallbackJourneyPageSizeMax bound the
+	// local slice listJourneyPage takes for an engine that predates the
+	// paging port. They mirror the live engine's own default and cap so a
+	// test double pages like production; the engine itself stays the only
+	// implementation that filters and sorts.
+	fallbackJourneyPageSize    = 50
+	fallbackJourneyPageSizeMax = 100
+	// historyCursorRefusal matches the live engine's invalid-cursor
+	// refusal, which carries no typed sentinel this package could match
+	// with errors.Is (internal/intent/app owns that message). Matching it
+	// here projects a forged or stale page cursor as INVALID_ARGUMENT
+	// naming page.cursor instead of an INTERNAL error.
+	historyCursorRefusal = "invalid history cursor"
+)
+
+// listJourneyPage resolves one ListJourneys page: the engine's page when it
+// implements workspace.HistoryEngine, a local slice of
+// workspace.JourneyEngine.ListJourneys when it does not.
+//
+// terminalOnly answers only journeys the engine's own viewer projection
+// reports closed. The engine's resume cursor names an offset in its
+// unfiltered query, so a cursor and terminal_only together name no page at
+// all and are refused; terminal pages navigate by page number. The fallback
+// path mints no cursors for the same reason: an opaque cursor it cannot
+// honor is refused rather than silently answered as the first page.
+func (s *server) listJourneyPage(ctx context.Context, eng workspace.JourneyEngine, principal *trust.Principal, inv *transport.Invocation, req *journeyv1.ListJourneysRequest) ([]workspace.JourneySummary, string, int, *envelope.Error) {
+	if hist, ok := eng.(workspace.HistoryEngine); ok {
+		return s.engineJourneyPage(ctx, hist, principal, inv, req)
+	}
+	summaries, err := eng.ListJourneys(ctx)
+	if err != nil {
+		return nil, "", 0, ownedError(err, principal, inv, "list")
+	}
+	if req.GetTerminalOnly() {
+		summaries = closedJourneys(summaries)
+	}
+	if req.GetPage().GetCursor() != "" {
+		return nil, "", 0, pageCursorRefused(inv, principal)
+	}
+	size, number := fallbackPageBounds(req)
+	start := 0
+	if number > 1 {
+		start = (number - 1) * size
+	}
+	if start > len(summaries) {
+		start = len(summaries)
+	}
+	end := start + size
+	if end > len(summaries) {
+		end = len(summaries)
+	}
+	return summaries[start:end], "", len(summaries), nil
+}
+
+// engineJourneyPage maps one wire list request onto the engine's paging
+// port and returns its page unchanged.
+func (s *server) engineJourneyPage(ctx context.Context, hist workspace.HistoryEngine, principal *trust.Principal, inv *transport.Invocation, req *journeyv1.ListJourneysRequest) ([]workspace.JourneySummary, string, int, *envelope.Error) {
+	if req.GetTerminalOnly() {
+		return s.terminalJourneyPage(ctx, hist, principal, inv, req)
+	}
+	page, err := hist.ListJourneysPage(ctx, journeyListQuery(req))
+	if err != nil {
+		return nil, "", 0, listPageError(err, principal, inv)
+	}
+	return page.Journeys, page.NextCursor, page.TotalCount, nil
+}
+
+// terminalJourneyPage drains the engine's filtered query and answers the
+// requested slice of its closed journeys. Draining reuses the engine's own
+// filtering and ordering; the closed selection reads the engine's viewer
+// projection, never a stage list restated here.
+func (s *server) terminalJourneyPage(ctx context.Context, hist workspace.HistoryEngine, principal *trust.Principal, inv *transport.Invocation, req *journeyv1.ListJourneysRequest) ([]workspace.JourneySummary, string, int, *envelope.Error) {
+	if req.GetPage().GetCursor() != "" {
+		return nil, "", 0, pageCursorRefused(inv, principal)
+	}
+	query := journeyListQuery(req)
+	var closed []workspace.JourneySummary
+	for {
+		page, err := hist.ListJourneysPage(ctx, query)
+		if err != nil {
+			return nil, "", 0, listPageError(err, principal, inv)
+		}
+		closed = append(closed, closedJourneys(page.Journeys)...)
+		if page.NextCursor == "" {
+			break
+		}
+		query.Cursor = page.NextCursor
+	}
+	size, number := fallbackPageBounds(req)
+	start := 0
+	if number > 1 {
+		start = (number - 1) * size
+	}
+	if start > len(closed) {
+		start = len(closed)
+	}
+	end := start + size
+	if end > len(closed) {
+		end = len(closed)
+	}
+	return closed[start:end], "", len(closed), nil
+}
+
+// journeyListQuery maps the wire filters onto the engine's query. The page
+// size travels as requested: zero means the engine's default, exactly as a
+// client that never heard of paging would send.
+func journeyListQuery(req *journeyv1.ListJourneysRequest) workspace.JourneyListRequest {
+	return workspace.JourneyListRequest{
+		PageSize:  int(req.GetPage().GetPageSize()),
+		Page:      int(req.GetPageNumber()),
+		Cursor:    req.GetPage().GetCursor(),
+		WorkerRef: req.GetWorkerRef(),
+		Query:     req.GetQuery(),
+		Outcome:   req.GetOutcome(),
+		Year:      req.GetYear(),
+		Sort:      req.GetSort(),
+		Direction: req.GetDirection(),
+	}
+}
+
+// fallbackPageBounds mirrors the live engine's page-size default and cap
+// for paths that slice locally (the pre-paging fallback and the terminal
+// selection), so every path pages alike.
+func fallbackPageBounds(req *journeyv1.ListJourneysRequest) (size, number int) {
+	size = int(req.GetPage().GetPageSize())
+	if size <= 0 {
+		size = fallbackJourneyPageSize
+	}
+	if size > fallbackJourneyPageSizeMax {
+		size = fallbackJourneyPageSizeMax
+	}
+	number = int(req.GetPageNumber())
+	if number < 1 {
+		number = 1
+	}
+	return size, number
+}
+
+// closedJourneys keeps the journeys the engine's viewer projection reports
+// closed. Closed is the engine's terminal verdict for this viewer; the
+// transport restates no stage list of its own.
+func closedJourneys(summaries []workspace.JourneySummary) []workspace.JourneySummary {
+	kept := summaries[:0:0]
+	for _, summary := range summaries {
+		if summary.Viewer.Closed {
+			kept = append(kept, summary)
+		}
+	}
+	return kept
+}
+
+// listPageError projects an engine paging failure: a refused cursor is the
+// caller's field to fix, anything else is the engine's own error.
+func listPageError(err error, principal *trust.Principal, inv *transport.Invocation) *envelope.Error {
+	if err != nil && strings.Contains(err.Error(), historyCursorRefusal) {
+		return pageCursorRefused(inv, principal)
+	}
+	return ownedError(err, principal, inv, "list")
+}
+
+// pageCursorRefused is the one answer for a page cursor the server cannot
+// honor: an opaque engine cursor presented where terminal filtering or a
+// non-paging engine makes it meaningless, or a cursor the engine refused.
+func pageCursorRefused(inv *transport.Invocation, principal *trust.Principal) *envelope.Error {
+	out := envelope.New(envelope.CodeInvalidArgument,
+		"journey.list.input",
+		"the request input is not acceptable").
+		WithViolation("page.cursor", "review this field and try again", "journey.input.invalid")
+	if inv != nil {
+		out = out.WithCorrelation(inv.RequestID())
+	}
+	if principal != nil {
+		out = out.WithEvidence(evidence(principal))
+	}
+	return out
+}
+
+// ListJourneys pages through workspace.HistoryEngine.ListJourneysPage when
+// the engine implements it, and slices workspace.JourneyEngine.ListJourneys
+// locally when it does not. Either way the wire page request — size, cursor,
+// number and filters — is honored, and the response carries the page, its
+// resume cursor and the total. READ_ONLY.
+func (s *server) ListJourneys(ctx context.Context, req *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error) {
 	principal, inv, ctxErr := trustedContext(ctx)
 	if ctxErr != nil {
 		return nil, ctxErr
@@ -328,12 +516,15 @@ func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequ
 		return nil, depErr
 	}
 
-	summaries, err := eng.ListJourneys(ctx)
+	summaries, nextCursor, total, err := s.listJourneyPage(ctx, eng, principal, inv, req)
 	if err != nil {
-		return nil, ownedError(err, principal, inv, "list")
+		return nil, err
 	}
 	diagAuthorized := s.diagnosticsAuthorized(ctx, principal)
-	resp := &journeyv1.ListJourneysResponse{}
+	resp := &journeyv1.ListJourneysResponse{
+		Page:       &commonv1.PageResponse{NextCursor: nextCursor},
+		TotalCount: int32(total),
+	}
 	for _, summary := range summaries {
 		resp.Journeys = append(resp.Journeys, toJourney(summary, diagAuthorized))
 	}
@@ -354,9 +545,12 @@ func (s *server) ListJourneys(ctx context.Context, _ *journeyv1.ListJourneysRequ
 			})
 		}
 	}
+	// WF-NOTIFY-001: status notices for requests the caller started. They share the
+	// message shape; a status notice has no work item.
 	if reader, ok := eng.(workspace.WorkflowStatusReader); ok && !resp.NotificationsUnavailable {
 		notices, err := reader.WorkflowStatusNotifications(ctx, summaries)
 		if err != nil {
+			// One inbox serves both kinds; a partial list would read as complete.
 			resp.Notifications, resp.NotificationsUnavailable = nil, true
 			return resp, nil
 		}
@@ -410,11 +604,20 @@ func (s *server) InspectJourney(ctx context.Context, req *journeyv1.InspectJourn
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
+	// The journeys/work page grants admit business reviewers; the one
+	// diagnostics disclosure rule (RBAC-RT-005) additionally admits oversight
+	// readers such as the auditor, who holds no product page grant. Both
+	// checks are read-only snapshot loads before the engine reads, so no
+	// side effect precedes authorization, and the engine still refuses
+	// subjects its own policy does not disclose to the caller while masking
+	// pay for redacted-only grants.
 	if err := s.requireAnyFeatureView(ctx, principal, inv,
 		featureAccessRequest{pageID: "journeys", featureID: "journey_detail"},
 		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
 	); err != nil {
-		return nil, err
+		if !s.diagnosticsAuthorized(ctx, principal) {
+			return nil, err
+		}
 	}
 	eng, depErr := s.engine(principal, inv, "inspect")
 	if depErr != nil {

@@ -125,29 +125,58 @@ type Cursor struct {
 	ExpiresAt time.Time
 }
 
-// Signer mints and verifies cursor tokens under one caller-supplied key. It
-// holds a private copy of the key so a caller mutating the slice it passed
-// to [NewSigner] cannot change what an already-constructed Signer verifies.
+// Signer mints and verifies cursor tokens under caller-supplied keys. It
+// holds a private copy of every key so a caller mutating a slice it passed
+// to a constructor cannot change what an already-constructed Signer mints
+// or verifies.
 type Signer struct {
-	key []byte
+	key      []byte
+	previous []byte
 }
 
 // NewSigner returns a [Signer] over key, refusing a key shorter than
 // [MinKeySize].
 func NewSigner(key []byte) (Signer, error) {
-	if len(key) < MinKeySize {
-		return Signer{}, ErrKeyTooShort
-	}
-	cp := make([]byte, len(key))
-	copy(cp, key)
-	return Signer{key: cp}, nil
+	return NewSignerWithPrevious(key, nil)
 }
 
-// sign returns the HMAC-SHA256 of body under s's key.
+// NewSignerWithPrevious returns a [Signer] that mints under active and
+// verifies under active or previous. previous is the retired key, accepted
+// for verification only while in-flight cursors minted under it drain; an
+// empty previous means no rotation is in progress. A previous shorter than
+// [MinKeySize] is refused: nothing that short could ever have minted, so
+// accepting it would only bless a misconfiguration.
+func NewSignerWithPrevious(active, previous []byte) (Signer, error) {
+	if len(active) < MinKeySize {
+		return Signer{}, ErrKeyTooShort
+	}
+	if len(previous) != 0 && len(previous) < MinKeySize {
+		return Signer{}, ErrKeyTooShort
+	}
+	return Signer{key: append([]byte(nil), active...), previous: append([]byte(nil), previous...)}, nil
+}
+
+// sign returns the HMAC-SHA256 of body under s's active key.
 func (s Signer) sign(body []byte) []byte {
 	mac := hmac.New(sha256.New, s.key)
 	mac.Write(body)
 	return mac.Sum(nil)
+}
+
+// verified reports whether sig is the HMAC-SHA256 of body under the active
+// key or, while a rotation is in progress, the retired key.
+func (s Signer) verified(body, sig []byte) bool {
+	mac := hmac.New(sha256.New, s.key)
+	mac.Write(body)
+	if hmac.Equal(mac.Sum(nil), sig) {
+		return true
+	}
+	if len(s.previous) == 0 {
+		return false
+	}
+	mac = hmac.New(sha256.New, s.previous)
+	mac.Write(body)
+	return hmac.Equal(mac.Sum(nil), sig)
 }
 
 // Encode returns the opaque cursor token for c. c.Tenant and c.StreamID must
@@ -181,7 +210,7 @@ func (s Signer) Decode(token string, now time.Time, expectTenant, expectStreamID
 	if err != nil {
 		return Cursor{}, ErrCursorMalformed
 	}
-	if !hmac.Equal(sig, s.sign([]byte(body))) {
+	if !s.verified([]byte(body), sig) {
 		return Cursor{}, ErrCursorForged
 	}
 	c, err := decodeBody(body)

@@ -46,6 +46,9 @@ func (s *server) GetWorkerIDPolicy(ctx context.Context, _ *journeyv1.GetWorkerID
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
+	if err := s.requireServedCall(ctx, principal, inv, "GetWorkerIDPolicy"); err != nil {
+		return nil, err
+	}
 	store, dependencyErr := s.workerIDStore(ctx, principal, inv.RequestID())
 	if dependencyErr != nil {
 		return nil, dependencyErr

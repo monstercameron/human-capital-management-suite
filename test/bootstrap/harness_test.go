@@ -37,7 +37,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
-	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 )
@@ -97,8 +96,8 @@ type cell struct {
 	grpcIntent   intentsv1.IntentServiceClient
 	grpcRegistry registryv1.RegistryServiceClient
 
-	edgeIntent   *edge.IntentClient
-	edgeRegistry *edge.RegistryClient
+	edgeIntent   *bootstrapIntentClient
+	edgeRegistry *bootstrapRegistryClient
 	// edgeURL and edgeClient reach the HTTP edge directly, for the routes
 	// that are not connect procedures - the discovery document - and for the
 	// unauthenticated probes those routes have to refuse.
@@ -213,8 +212,8 @@ func newCell(t *testing.T) *cell {
 	}
 	httpServer := httptest.NewServer(edgeHandler)
 	t.Cleanup(httpServer.Close)
-	c.edgeIntent = edge.NewIntentClient(httpServer.Client(), httpServer.URL)
-	c.edgeRegistry = edge.NewRegistryClient(httpServer.Client(), httpServer.URL)
+	c.edgeIntent = newBootstrapIntentClient(httpServer.Client(), httpServer.URL)
+	c.edgeRegistry = newBootstrapRegistryClient(httpServer.Client(), httpServer.URL)
 	c.edgeURL = httpServer.URL
 	c.edgeClient = httpServer.Client()
 

@@ -86,7 +86,7 @@ func queueDeps(reader Reader, extra map[string]bool) Dependencies {
 		Queue:     reader,
 		CursorKey: []byte("work-queue-test-key"),
 		Now:       func() time.Time { return workNow },
-		Authorize: func(_ *trust.Principal, action string) bool {
+		Authorize: func(_ context.Context, _ *trust.Principal, action string) bool {
 			if extra[action] {
 				return true
 			}
@@ -388,7 +388,7 @@ func TestTodo_EP_WORK_001_Security(t *testing.T) {
 	// A principal denied the list action gets PERMISSION_DENIED.
 	strict := Dependencies{
 		Queue: reader, CursorKey: []byte("k"), Now: func() time.Time { return workNow },
-		Authorize: func(*trust.Principal, string) bool { return false },
+		Authorize: func(context.Context, *trust.Principal, string) bool { return false },
 	}
 	ctx := humanworkContext(t, ListWorkItemsProcedure)
 	if _, err := (&server{deps: strict}).ListWorkItems(ctx, &humanworkv1.ListWorkItemsRequest{}); err == nil {

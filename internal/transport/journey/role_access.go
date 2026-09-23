@@ -3,6 +3,7 @@ package journey
 import (
 	"context"
 	"errors"
+	"strings"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
@@ -18,31 +19,195 @@ func (s *server) roleAccessStore(principal *trust.Principal, requestID string) (
 	return s.deps.RoleAccess, nil
 }
 
-// requireRoleAdministrator authorizes role administration from the
-// principal's server-side role set, never the credential: a revoked
-// administrator whose durable assignment no longer holds an administrator
-// role is refused even while the credential still signs one. A principal
-// with no durable assignment resolves through the admitted credential roles.
+// roleSnapshot loads the durable role-access snapshot every role
+// administration decision reads, failing closed when the store is missing
+// or unreadable.
+func (s *server) roleSnapshot(ctx context.Context, principal *trust.Principal, requestID string) (roleaccess.Snapshot, error) {
+	store, err := s.roleAccessStore(principal, requestID)
+	if err != nil {
+		return roleaccess.Snapshot{}, err
+	}
+	snapshot, err := store.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
+	if err != nil {
+		return roleaccess.Snapshot{}, roleAccessError(err, principal, requestID, "load")
+	}
+	return snapshot, nil
+}
+
+// snapshotAdministers reports whether roles may administer roles: the
+// stored roles page must grant update through an active role. Authority
+// comes from durable rows, never from credential claims, so a custom role
+// granted the roles page administers while a revoked administrator whose
+// durable assignment lost it does not. A principal with no durable
+// assignment resolves through the admitted credential roles, the rollout
+// fallback RBAC-RT-002 keeps.
 //
 // Separation of duties (RBAC-RT-009): the platform operator duty and the
-// HCM administrator duty never mix in one call. A principal acting under
+// role administration duty never mix in one call. A principal acting under
 // operator authority ([adminpolicy.OperatorRole] in the resolved set) is
-// refused HCM role administration even when the same set also names an
-// administrator role: operator authority is granted only through durable,
+// refused role administration even when the same set also names an
+// administrator grant: operator authority is granted only through durable,
 // reviewable operator bindings ([adminpolicy.AuthorizeOperator]), never
 // through this gate, so holding both duties at once authorizes neither
 // here. The refusal carries the same code and reason as any other
 // non-administrator: the wire does not distinguish why administration was
 // refused.
-func (s *server) requireRoleAdministrator(ctx context.Context, principal *trust.Principal, requestID string) error {
-	roles := s.effectiveRoles(ctx, principal)
+func snapshotAdministers(snapshot roleaccess.Snapshot, roles []string) bool {
 	if roleaccess.ContainsRole(roles, adminpolicy.OperatorRole) {
-		return envelope.New(envelope.CodePermissionDenied, "journey.role_access.role_required", "role administration requires the HCM administrator role").WithCorrelation(requestID).WithEvidence(evidence(principal))
+		return false
 	}
-	if isAdministratorRoleSet(roles) {
-		return nil
+	return roleaccess.CanPageAction(roleaccess.EffectivePagePermissions(snapshot, roles), "roles", roleaccess.ActionUpdate)
+}
+
+func roleRequiredError(principal *trust.Principal, requestID string) error {
+	return envelope.New(envelope.CodePermissionDenied, "journey.role_access.role_required", "role administration requires the stored roles administration grant").WithCorrelation(requestID).WithEvidence(evidence(principal))
+}
+
+func (s *server) requireRoleAdministrator(ctx context.Context, principal *trust.Principal, requestID string) error {
+	snapshot, err := s.roleSnapshot(ctx, principal, requestID)
+	if err != nil {
+		return err
 	}
-	return envelope.New(envelope.CodePermissionDenied, "journey.role_access.role_required", "role administration requires the HCM administrator role").WithCorrelation(requestID).WithEvidence(evidence(principal))
+	if !snapshotAdministers(snapshot, s.effectiveRoles(ctx, principal)) {
+		return roleRequiredError(principal, requestID)
+	}
+	return nil
+}
+
+// isSelfRoleChange reports whether workerRef names the caller. A principal
+// cannot change their own assignment, not even to grant themselves
+// administration: self-escalation is refused before the store is touched.
+func isSelfRoleChange(principal *trust.Principal, workerRef string) bool {
+	return strings.EqualFold(strings.TrimSpace(principal.Subject()), strings.TrimSpace(workerRef))
+}
+
+func selfAssignmentError(principal *trust.Principal, requestID string) error {
+	return envelope.New(envelope.CodePermissionDenied, "journey.role_access.self_assignment", "a principal cannot change their own role assignment").WithCorrelation(requestID).WithEvidence(evidence(principal))
+}
+
+// grantedPageActions lists the page actions a saved page permission turns on.
+func grantedPageActions(permission roleaccess.PagePermission) []string {
+	var actions []string
+	if permission.View {
+		actions = append(actions, roleaccess.ActionView)
+	}
+	if permission.Create {
+		actions = append(actions, roleaccess.ActionCreate)
+	}
+	if permission.Update {
+		actions = append(actions, roleaccess.ActionUpdate)
+	}
+	if permission.Delete {
+		actions = append(actions, roleaccess.ActionDelete)
+	}
+	return actions
+}
+
+// isAdministrationGrant reports whether pageID is the roles page whose
+// grants are the administration model itself.
+func isAdministrationGrant(pageID string) bool {
+	return strings.EqualFold(strings.TrimSpace(pageID), "roles")
+}
+
+// pageGrantExceedsHolding reports whether saving requested would grant role
+// actions the caller does not hold themselves. The check scopes to the
+// roles page: the administration duty already requires the caller to hold
+// the roles page update, so a page-level roles grant is always held, while
+// ordinary page grants stay the super-administrator latitude the committed
+// round-trip suite pins (an administrator holding the duty may grant a
+// workforce view they never read themselves).
+func pageGrantExceedsHolding(permissions []roleaccess.PagePermission, requested roleaccess.PagePermission) bool {
+	if !isAdministrationGrant(requested.PageID) {
+		return false
+	}
+	for _, action := range grantedPageActions(requested) {
+		if !roleaccess.CanPageAction(permissions, requested.PageID, action) {
+			return true
+		}
+	}
+	return false
+}
+
+// featureGrantExceedsHolding reports whether saving requested would grant
+// roles-page feature actions the caller does not hold themselves: the
+// fine-grained administration powers (role assignments, page and feature
+// access, the catalog) cannot be conferred by an administrator who lacks
+// them. Grants on other pages skip the check for the same super-admin
+// latitude the page check documents.
+func featureGrantExceedsHolding(permissions []roleaccess.PagePermission, features []roleaccess.FeaturePermission, requested roleaccess.FeaturePermission) bool {
+	if !isAdministrationGrant(requested.PageID) {
+		return false
+	}
+	for _, action := range grantedPageActions(roleaccess.PagePermission{View: requested.View, Create: requested.Create, Update: requested.Update, Delete: requested.Delete}) {
+		if !roleaccess.CanFeatureAction(permissions, features, requested.PageID, requested.FeatureID, action) {
+			return true
+		}
+	}
+	return false
+}
+
+func grantExceedsHoldingError(principal *trust.Principal, requestID string) error {
+	return envelope.New(envelope.CodePermissionDenied, "journey.role_access.grant_exceeds_holding", "a grant cannot confer actions its author does not hold").WithCorrelation(requestID).WithEvidence(evidence(principal))
+}
+
+// roleAdministrators lists the roles holding the roles page update grant
+// through active roles. Grants decide, never headcount: with no such role
+// left, no principal could administer roles afterwards.
+func roleAdministrators(snapshot roleaccess.Snapshot) []string {
+	seen := map[string]bool{}
+	var result []string
+	for _, permission := range snapshot.PagePermissions {
+		roleID := roleaccess.NormalizeRoleIDs([]string{permission.RoleID})
+		if len(roleID) == 0 || seen[roleID[0]] {
+			continue
+		}
+		seen[roleID[0]] = true
+		if roleaccess.CanPageAction(roleaccess.EffectivePagePermissions(snapshot, []string{roleID[0]}), "roles", roleaccess.ActionUpdate) {
+			result = append(result, roleID[0])
+		}
+	}
+	return result
+}
+
+// withPagePermission returns the snapshot with requested saved over the
+// matching page row, the way the store would persist it.
+func withPagePermission(snapshot roleaccess.Snapshot, requested roleaccess.PagePermission) roleaccess.Snapshot {
+	requested = roleaccess.NormalizePagePermission(requested)
+	result := snapshot
+	result.PagePermissions = append([]roleaccess.PagePermission(nil), snapshot.PagePermissions...)
+	replaced := false
+	for i, current := range result.PagePermissions {
+		current = roleaccess.NormalizePagePermission(current)
+		if current.RoleID == requested.RoleID && current.PageID == requested.PageID {
+			result.PagePermissions[i] = requested
+			replaced = true
+		}
+	}
+	if !replaced {
+		result.PagePermissions = append(result.PagePermissions, requested)
+	}
+	return result
+}
+
+// withRoleActive returns the snapshot with roleID's active flag set the way
+// the store would persist a role save. A role the snapshot does not know is
+// appended: a brand-new role carries no grants, so it never affects the
+// administrator count either way.
+func withRoleActive(snapshot roleaccess.Snapshot, role roleaccess.Role) roleaccess.Snapshot {
+	result := snapshot
+	result.Roles = append([]roleaccess.Role(nil), snapshot.Roles...)
+	for i, current := range result.Roles {
+		if strings.EqualFold(strings.TrimSpace(current.ID), strings.TrimSpace(role.ID)) {
+			result.Roles[i].Active = role.Active
+			return result
+		}
+	}
+	result.Roles = append(result.Roles, roleaccess.Role{ID: role.ID, Name: role.Name, Description: role.Description, System: role.System, Active: role.Active})
+	return result
+}
+
+func lastAdministratorError(principal *trust.Principal, requestID string) error {
+	return envelope.New(envelope.CodePermissionDenied, "journey.role_access.last_administrator", "the change would leave no role administrator").WithCorrelation(requestID).WithEvidence(evidence(principal))
 }
 
 func roleAccessError(err error, principal *trust.Principal, requestID, operation string) error {
@@ -63,16 +228,17 @@ func (s *server) GetRoleAccess(ctx context.Context, _ *journeyv1.GetRoleAccessRe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
-		return nil, err
-	}
-	store, err := s.roleAccessStore(principal, inv.RequestID())
+	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
 	if err != nil {
 		return nil, err
 	}
-	snapshot, err := store.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
-	if err != nil {
-		return nil, roleAccessError(err, principal, inv.RequestID(), "load")
+	// The gates read the same snapshot the answer is built from, so one
+	// load serves all three and the table pair stays authoritative.
+	if err := s.requireSnapshotServedCall(snapshot, principal, inv, "GetRoleAccess"); err != nil {
+		return nil, err
+	}
+	if !snapshotAdministers(snapshot, s.effectiveRoles(ctx, principal)) {
+		return nil, roleRequiredError(principal, inv.RequestID())
 	}
 	response := &journeyv1.GetRoleAccessResponse{}
 	for _, role := range snapshot.Roles {
@@ -105,17 +271,28 @@ func (s *server) SaveAccessRole(ctx context.Context, req *journeyv1.SaveAccessRo
 	if err := s.requirePageAction(ctx, principal, inv, "roles", action); err != nil {
 		return nil, err
 	}
-	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
-		return nil, err
-	}
 	if req.GetRole() == nil {
 		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "save_role")
+	}
+	requested := fromAccessRole(req.GetRole())
+	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
+	if err != nil {
+		return nil, err
+	}
+	if !snapshotAdministers(snapshot, s.effectiveRoles(ctx, principal)) {
+		return nil, roleRequiredError(principal, inv.RequestID())
+	}
+	// Deactivating the last grant-bearing role locks every principal out
+	// of role administration, including the caller. Renames and system
+	// role protection stay with RBAC-RT-017.
+	if len(roleAdministrators(withRoleActive(snapshot, requested))) == 0 {
+		return nil, lastAdministratorError(principal, inv.RequestID())
 	}
 	store, err := s.roleAccessStore(principal, inv.RequestID())
 	if err != nil {
 		return nil, err
 	}
-	role, err := store.SaveRole(ctx, principal.Tenant(), principal.Subject(), fromAccessRole(req.GetRole()))
+	role, err := store.SaveRole(ctx, principal.Tenant(), principal.Subject(), requested)
 	if err != nil {
 		return nil, roleAccessError(err, principal, inv.RequestID(), "save_role")
 	}
@@ -135,6 +312,9 @@ func (s *server) SaveWorkerRoleAssignment(ctx context.Context, req *journeyv1.Sa
 	}
 	if req.GetAssignment() == nil {
 		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "save_assignment")
+	}
+	if isSelfRoleChange(principal, req.GetAssignment().GetWorkerRef()) {
+		return nil, selfAssignmentError(principal, inv.RequestID())
 	}
 	store, err := s.roleAccessStore(principal, inv.RequestID())
 	if err != nil {
@@ -183,17 +363,29 @@ func (s *server) SaveRolePagePermission(ctx context.Context, req *journeyv1.Save
 	if err := s.requirePageAction(ctx, principal, inv, "roles", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
-		return nil, err
-	}
 	if req.GetPermission() == nil {
 		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "save_page_permission")
+	}
+	requested := fromRolePagePermission(req.GetPermission())
+	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
+	if err != nil {
+		return nil, err
+	}
+	callerRoles := s.effectiveRoles(ctx, principal)
+	if !snapshotAdministers(snapshot, callerRoles) {
+		return nil, roleRequiredError(principal, inv.RequestID())
+	}
+	if pageGrantExceedsHolding(roleaccess.EffectivePagePermissions(snapshot, callerRoles), requested) {
+		return nil, grantExceedsHoldingError(principal, inv.RequestID())
+	}
+	if len(roleAdministrators(withPagePermission(snapshot, requested))) == 0 {
+		return nil, lastAdministratorError(principal, inv.RequestID())
 	}
 	store, err := s.roleAccessStore(principal, inv.RequestID())
 	if err != nil {
 		return nil, err
 	}
-	permission, err := store.SavePagePermission(ctx, principal.Tenant(), principal.Subject(), fromRolePagePermission(req.GetPermission()))
+	permission, err := store.SavePagePermission(ctx, principal.Tenant(), principal.Subject(), requested)
 	if err != nil {
 		return nil, roleAccessError(err, principal, inv.RequestID(), "save_page_permission")
 	}
@@ -208,17 +400,32 @@ func (s *server) SaveRoleFeaturePermission(ctx context.Context, req *journeyv1.S
 	if err := s.requireFeatureAction(ctx, principal, inv, "roles", "feature_access", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
-		return nil, err
-	}
 	if req.GetPermission() == nil {
 		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "save_feature_permission")
+	}
+	requested := fromRoleFeaturePermission(req.GetPermission())
+	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
+	if err != nil {
+		return nil, err
+	}
+	callerRoles := s.effectiveRoles(ctx, principal)
+	if !snapshotAdministers(snapshot, callerRoles) {
+		return nil, roleRequiredError(principal, inv.RequestID())
+	}
+	// Feature rows never carry the roles page grant the duty reads, so no
+	// lockout simulation applies here; the holding check is the whole guard.
+	if featureGrantExceedsHolding(
+		roleaccess.EffectivePagePermissions(snapshot, callerRoles),
+		roleaccess.EffectiveFeaturePermissions(snapshot, callerRoles),
+		requested,
+	) {
+		return nil, grantExceedsHoldingError(principal, inv.RequestID())
 	}
 	store, err := s.roleAccessStore(principal, inv.RequestID())
 	if err != nil {
 		return nil, err
 	}
-	permission, err := store.SaveFeaturePermission(ctx, principal.Tenant(), principal.Subject(), fromRoleFeaturePermission(req.GetPermission()))
+	permission, err := store.SaveFeaturePermission(ctx, principal.Tenant(), principal.Subject(), requested)
 	if err != nil {
 		return nil, roleAccessError(err, principal, inv.RequestID(), "save_feature_permission")
 	}

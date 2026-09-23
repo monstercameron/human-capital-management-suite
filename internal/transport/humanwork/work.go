@@ -17,7 +17,8 @@
 // [workitem.Store.CompleteWithAuthorityRecheck] and
 // [workitem.Store.DecideApproval] rather than by this package writing
 // anything beyond the one idempotent call each method makes.
-// GetThresholdTable is a separate read todo and is left unimplemented.
+// GetThresholdTable serves the one read-only decision table P1A implements,
+// resolved from tenant configuration through the [Thresholds] port.
 package humanwork
 
 import (
@@ -57,9 +58,13 @@ const (
 	// CompleteWorkItemProcedure and DecideApprovalProcedure are EP-WORK-003.
 	CompleteWorkItemProcedure = "/hcmnext.humanwork.v1.WorkService/CompleteWorkItem"
 	DecideApprovalProcedure   = "/hcmnext.humanwork.v1.WorkService/DecideApproval"
+	// GetThresholdTableProcedure is the one read P1A implements: the
+	// read-only threshold decision table resolved from tenant configuration.
+	GetThresholdTableProcedure = "/hcmnext.humanwork.v1.WorkService/GetThresholdTable"
 
 	ActionListWorkItems      = "list_work_items"
 	ActionGetWorkItem        = "get_work_item"
+	ActionGetThresholdTable  = "get_threshold_table"
 	ActionWorkItemGovernance = "work_item_governance_view"
 	// ActionClaimWorkItem and ActionReleaseWorkItem are EP-WORK-002: the
 	// wire-level "may this principal call this method at all" gate. They are
@@ -101,6 +106,15 @@ var (
 	ErrInvalidCursor  = errors.New("humanwork: queue cursor is invalid")
 	ErrCursorKeyUnset = errors.New("humanwork: queue cursor key is unset")
 	ErrQueueEmpty     = errors.New("humanwork: the queue reader is not configured")
+	// ErrThresholdNotFound is the typed absence the [Thresholds] port
+	// reports for a table id it does not publish. Like every other
+	// absence on this service it projects to a non-disclosing NOT_FOUND.
+	ErrThresholdNotFound = errors.New("humanwork: threshold table not found")
+	// ErrThresholdsUnavailable is the typed refusal when the threshold
+	// table port is not composed. The method then answers UNAVAILABLE
+	// rather than acting without its driver, exactly like a nil Claims
+	// for the write methods.
+	ErrThresholdsUnavailable = errors.New("humanwork: threshold table source is not configured")
 )
 
 // Reader is the deliberately small, redaction-safe port the endpoints read
@@ -165,6 +179,59 @@ type Decisions interface {
 		now time.Time, meta workitem.TransitionMeta) (workitem.WorkItem, error)
 }
 
+// ThresholdHitPolicy is the wire hit policy's port vocabulary: how many
+// matching rows are legal and which output a match produces.
+type ThresholdHitPolicy int
+
+const (
+	ThresholdHitPolicyUnspecified ThresholdHitPolicy = iota
+	ThresholdHitPolicyFirst
+	ThresholdHitPolicyUnique
+	ThresholdHitPolicyCollect
+)
+
+// ThresholdCondition is one input-name/comparison pair a threshold row
+// tests. The comparison is a bounded, pre-published literal (e.g.
+// "GREATER_THAN(20.0000)"), rendered by the driver behind [Thresholds];
+// this package never evaluates it.
+type ThresholdCondition struct {
+	InputName  string
+	Comparison string
+}
+
+// ThresholdRow is one row of a published decision table: a conjunction of
+// conditions, or none for the "otherwise" row, mapped to one outcome token.
+type ThresholdRow struct {
+	Conditions []ThresholdCondition
+	Outcome    string
+}
+
+// ThresholdTable is one versioned, read-only decision table the [Thresholds]
+// port resolves from tenant configuration. Identity is (TableID,
+// VersionRef): republishing with different rows is a new version, never an
+// edit, so a historical approval keeps citing the exact table it ran
+// against.
+type ThresholdTable struct {
+	TableID    string
+	Version    uint32
+	VersionRef string
+	TenantID   string
+	InputNames []string
+	Rows       []ThresholdRow
+	HitPolicy  ThresholdHitPolicy
+}
+
+// Thresholds is the deliberately small read port GetThresholdTable serves
+// through (P1A "threshold decision table from tenant config: IMPLEMENT
+// (read-only)"). Tenant arrives as a string because the application reader
+// owns its typed form; a read of another tenant's table, or of an
+// unpublished table id, is ErrThresholdNotFound and nothing more specific.
+type Thresholds interface {
+	// GetThresholdTable resolves one table for the tenant. An empty
+	// tableID names the default table.
+	GetThresholdTable(ctx context.Context, tenant, tableID string) (ThresholdTable, error)
+}
+
 // WritePorts bundles the write ports the application root composes behind
 // ClaimWorkItem, ReleaseWorkItem, CompleteWorkItem and DecideApproval. The
 // transport package only threads an already-composed bundle into the server;
@@ -179,11 +246,27 @@ type WritePorts struct {
 }
 
 type Dependencies struct {
-	Queue     Reader
-	Claims    Claims
-	Authorize func(*trust.Principal, string) bool
+	Queue  Reader
+	Claims Claims
+	// Authorize is the wire-level capability gate (RBAC-RT-004): it answers
+	// whether the principal may call the named action at all, resolved from
+	// the principal's durable role assignments, never from credential
+	// claims. Nil denies every call: an unwired service is closed, not
+	// open. The per-item current-authority check stays where it belongs --
+	// [Claims], [Completions] and [Decisions] re-establish it fresh against
+	// the loaded row -- so this gate answers capability, not membership.
+	Authorize func(context.Context, *trust.Principal, string) bool
 	CursorKey []byte
-	Now       func() time.Time
+	// PreviousCursorKey is the retired page-cursor signing key, accepted
+	// for verification only while in-flight cursors minted under it drain
+	// (at most cursorTTL). New cursors are always minted under CursorKey;
+	// rotation is replacing CursorKey and moving the old value here.
+	PreviousCursorKey []byte
+	// Thresholds resolves the read-only decision table GetThresholdTable
+	// serves. Nil keeps the method's UNAVAILABLE posture rather than
+	// acting without its driver.
+	Thresholds Thresholds
+	Now        func() time.Time
 	// Idempotency composes ENDPOINT-004's Coordinator: exact replay of the
 	// same idempotency key and payload returns the original result without
 	// re-running the claim, release, completion or decision effect, and a
@@ -243,6 +326,13 @@ func NewHandler(deps Dependencies, opts ...connect.HandlerOption) http.Handler {
 		}
 		return connect.NewResponse(res), nil
 	}, opts...))
+	mux.Handle(GetThresholdTableProcedure, connect.NewUnaryHandler(GetThresholdTableProcedure, func(ctx context.Context, req *connect.Request[humanworkv1.GetThresholdTableRequest]) (*connect.Response[humanworkv1.GetThresholdTableResponse], error) {
+		res, err := s.GetThresholdTable(ctx, req.Msg)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(res), nil
+	}, opts...))
 	// Every mutating procedure is mounted here too: EP-WORK-002 and
 	// EP-WORK-003 both answer for real on both transports, and mounting them
 	// unconditionally means an unavailable write port (a nil Claims,
@@ -284,7 +374,7 @@ func (s *server) ListWorkItems(ctx context.Context, req *humanworkv1.ListWorkIte
 	if err != nil {
 		return nil, err
 	}
-	if !s.authorized(p, ActionListWorkItems) {
+	if !s.authorized(ctx, p, ActionListWorkItems) {
 		return nil, denied(inv, p)
 	}
 	now := s.now()
@@ -309,7 +399,7 @@ func (s *server) ListWorkItems(ctx context.Context, req *humanworkv1.ListWorkIte
 	}
 
 	filtered := items[:0:0]
-	governed := s.authorized(p, ActionWorkItemGovernance)
+	governed := s.authorized(ctx, p, ActionWorkItemGovernance)
 	for _, item := range items {
 		m := workitem.MembershipOf(item, p.Subject(), now)
 		inScope := orgScope != "" && item.OrganizationScopeID == orgScope ||
@@ -320,7 +410,7 @@ func (s *server) ListWorkItems(ctx context.Context, req *humanworkv1.ListWorkIte
 		filtered = append(filtered, item)
 	}
 
-	start, cursorErr := decodeQueueCursor(req.GetPage(), s.deps.CursorKey, p, filtered, now)
+	start, cursorErr := decodeQueueCursor(req.GetPage(), s.deps.CursorKey, s.deps.PreviousCursorKey, p, filtered, now)
 	if cursorErr != nil {
 		return nil, invalid(inv, "page.cursor")
 	}
@@ -357,7 +447,7 @@ func (s *server) GetWorkItem(ctx context.Context, req *humanworkv1.GetWorkItemRe
 	if req == nil || strings.TrimSpace(req.GetWorkItemId()) == "" {
 		return nil, invalid(inv, "work_item_id")
 	}
-	if !s.authorized(p, ActionGetWorkItem) {
+	if !s.authorized(ctx, p, ActionGetWorkItem) {
 		return nil, denied(inv, p)
 	}
 	tenant := p.Tenant().String()
@@ -376,12 +466,79 @@ func (s *server) GetWorkItem(ctx context.Context, req *humanworkv1.GetWorkItemRe
 	}
 	now := s.now()
 	m := workitem.MembershipOf(item, p.Subject(), now)
-	governed := s.authorized(p, ActionWorkItemGovernance)
+	governed := s.authorized(ctx, p, ActionWorkItemGovernance)
 	inScope := item.OrganizationScopeID != "" && item.OrganizationScopeID == p.OrganizationScopeID()
 	if !workitem.Visible(item, m, inScope, governed) {
 		return nil, notFound(inv, p)
 	}
 	return &humanworkv1.GetWorkItemResponse{WorkItem: projectItem(item, m, governed)}, nil
+}
+
+// GetThresholdTable is the one read P1A implements: the read-only
+// threshold decision table resolved from tenant configuration through
+// [Dependencies.Thresholds]. The wire-level authorization gate and the
+// non-disclosing absence answer are this package's own, exactly like
+// GetWorkItem; what the table says is entirely the port's.
+func (s *server) GetThresholdTable(ctx context.Context, req *humanworkv1.GetThresholdTableRequest) (*humanworkv1.GetThresholdTableResponse, error) {
+	p, inv, err := trustedContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !s.authorized(ctx, p, ActionGetThresholdTable) {
+		return nil, denied(inv, p)
+	}
+	tenant := p.Tenant().String()
+	// A scope naming another tenant is a hidden resource: absent, not
+	// refused.
+	if scope := req.GetScope(); scope != nil && scope.GetTenantId() != "" && scope.GetTenantId() != tenant {
+		return nil, notFound(inv, p)
+	}
+	if s.deps.Thresholds == nil {
+		return nil, unavailable(inv, p, ErrThresholdsUnavailable)
+	}
+	table, loadErr := s.deps.Thresholds.GetThresholdTable(ctx, tenant, strings.TrimSpace(req.GetTableId()))
+	if loadErr != nil {
+		if errors.Is(loadErr, ErrThresholdNotFound) {
+			return nil, notFound(inv, p)
+		}
+		return nil, unavailable(inv, p, loadErr)
+	}
+	return &humanworkv1.GetThresholdTableResponse{Table: projectThresholdTable(table)}, nil
+}
+
+// projectThresholdTable renders the port's table onto the wire. It carries
+// identity, inputs, rows and hit policy only: the table is read-only and
+// its evaluation stays where the table lives, never in transport.
+func projectThresholdTable(table ThresholdTable) *humanworkv1.ThresholdTable {
+	out := &humanworkv1.ThresholdTable{
+		TableId: table.TableID, Version: table.Version, VersionRef: table.VersionRef,
+		TenantId:   table.TenantID,
+		InputNames: append([]string(nil), table.InputNames...),
+		HitPolicy:  projectThresholdHitPolicy(table.HitPolicy),
+	}
+	for _, row := range table.Rows {
+		wire := &humanworkv1.ThresholdRow{Outcome: row.Outcome}
+		for _, cond := range row.Conditions {
+			wire.Conditions = append(wire.Conditions, &humanworkv1.ThresholdCondition{
+				InputName: cond.InputName, Comparison: cond.Comparison,
+			})
+		}
+		out.Rows = append(out.Rows, wire)
+	}
+	return out
+}
+
+func projectThresholdHitPolicy(policy ThresholdHitPolicy) humanworkv1.ThresholdHitPolicy {
+	switch policy {
+	case ThresholdHitPolicyFirst:
+		return humanworkv1.ThresholdHitPolicy_THRESHOLD_HIT_POLICY_FIRST
+	case ThresholdHitPolicyUnique:
+		return humanworkv1.ThresholdHitPolicy_THRESHOLD_HIT_POLICY_UNIQUE
+	case ThresholdHitPolicyCollect:
+		return humanworkv1.ThresholdHitPolicy_THRESHOLD_HIT_POLICY_COLLECT
+	default:
+		return humanworkv1.ThresholdHitPolicy_THRESHOLD_HIT_POLICY_UNSPECIFIED
+	}
 }
 
 // ClaimWorkItem is EP-WORK-002: an atomic, version-bound, current-authority,
@@ -425,7 +582,7 @@ func (s *server) ClaimWorkItem(ctx context.Context, req *humanworkv1.ClaimWorkIt
 	if loadErr != nil {
 		return nil, unavailable(inv, p, loadErr)
 	}
-	governed := s.authorized(p, ActionWorkItemGovernance)
+	governed := s.authorized(ctx, p, ActionWorkItemGovernance)
 	return &humanworkv1.ClaimWorkItemResponse{WorkItem: projectItem(final, workitem.MembershipOf(final, p.Subject(), now), governed)}, nil
 }
 
@@ -467,7 +624,7 @@ func (s *server) ReleaseWorkItem(ctx context.Context, req *humanworkv1.ReleaseWo
 	if loadErr != nil {
 		return nil, unavailable(inv, p, loadErr)
 	}
-	governed := s.authorized(p, ActionWorkItemGovernance)
+	governed := s.authorized(ctx, p, ActionWorkItemGovernance)
 	return &humanworkv1.ReleaseWorkItemResponse{WorkItem: projectItem(final, workitem.MembershipOf(final, p.Subject(), now), governed)}, nil
 }
 
@@ -496,7 +653,7 @@ func (s *server) prepareMutation(
 		// "current" and must be refused, never treated as a wildcard match.
 		return workitem.WorkItem{}, inv, p, invalid(inv, "expected_item_version")
 	}
-	if !s.authorized(p, action) {
+	if !s.authorized(ctx, p, action) {
 		return workitem.WorkItem{}, inv, p, denied(inv, p)
 	}
 	tenant := p.Tenant().String()
@@ -520,7 +677,7 @@ func (s *server) prepareMutation(
 	}
 	now := s.now()
 	m := workitem.MembershipOf(item, p.Subject(), now)
-	governed := s.authorized(p, ActionWorkItemGovernance)
+	governed := s.authorized(ctx, p, ActionWorkItemGovernance)
 	inScope := item.OrganizationScopeID != "" && item.OrganizationScopeID == p.OrganizationScopeID()
 	if !workitem.Visible(item, m, inScope, governed) {
 		return workitem.WorkItem{}, inv, p, notFound(inv, p)
@@ -695,7 +852,7 @@ func (s *server) CompleteWorkItem(ctx context.Context, req *humanworkv1.Complete
 	if loadErr != nil {
 		return nil, unavailable(inv, p, loadErr)
 	}
-	governed := s.authorized(p, ActionWorkItemGovernance)
+	governed := s.authorized(ctx, p, ActionWorkItemGovernance)
 	return &humanworkv1.CompleteWorkItemResponse{WorkItem: projectItem(final, workitem.MembershipOf(final, p.Subject(), now), governed)}, nil
 }
 
@@ -843,8 +1000,11 @@ func evidenceRefKeys(refs []*commonv1.EvidenceRef) []string {
 	return out
 }
 
-func (s *server) authorized(p *trust.Principal, action string) bool {
-	return s.deps.Authorize == nil || s.deps.Authorize(p, action)
+func (s *server) authorized(ctx context.Context, p *trust.Principal, action string) bool {
+	if s.deps.Authorize == nil {
+		return false
+	}
+	return s.deps.Authorize(ctx, p, action)
 }
 
 func (s *server) now() time.Time {
@@ -1004,7 +1164,12 @@ func encodeQueueCursor(c queueCursor, key []byte) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(raw) + "." + hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-func decodeQueueCursor(page *commonv1.PageRequest, key []byte, p *trust.Principal, items []workitem.WorkItem, now time.Time) (int, error) {
+// decodeQueueCursor verifies a page cursor minted by [encodeQueueCursor].
+// key is the active page-cursor key; previous is the retired key, accepted
+// for verification only while in-flight cursors minted under it drain. A
+// cursor from any other key — including a credential-signing key — fails
+// closed without revealing which check refused it.
+func decodeQueueCursor(page *commonv1.PageRequest, key, previous []byte, p *trust.Principal, items []workitem.WorkItem, now time.Time) (int, error) {
 	if page == nil || page.GetCursor() == "" {
 		return 0, nil
 	}
@@ -1023,9 +1188,7 @@ func decodeQueueCursor(page *commonv1.PageRequest, key []byte, p *trust.Principa
 	if err != nil {
 		return 0, ErrInvalidCursor
 	}
-	mac := hmac.New(sha256.New, key)
-	mac.Write(raw)
-	if !hmac.Equal(mac.Sum(nil), sig) {
+	if !verifyQueueMAC(raw, sig, key) && !verifyQueueMAC(raw, sig, previous) {
 		return 0, ErrInvalidCursor
 	}
 	var c queueCursor
@@ -1038,6 +1201,18 @@ func decodeQueueCursor(page *commonv1.PageRequest, key []byte, p *trust.Principa
 		return 0, ErrInvalidCursor
 	}
 	return c.Index, nil
+}
+
+// verifyQueueMAC reports whether sig is the HMAC-SHA256 of raw under key.
+// An empty key never verifies: rotation acceptance comes only from an
+// explicitly configured retired key, never from a missing one.
+func verifyQueueMAC(raw, sig, key []byte) bool {
+	if len(key) == 0 {
+		return false
+	}
+	mac := hmac.New(sha256.New, key)
+	mac.Write(raw)
+	return hmac.Equal(mac.Sum(nil), sig)
 }
 
 // queueDigest fingerprints the ordered queue the cursor was minted against:

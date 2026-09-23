@@ -98,7 +98,7 @@ func (s *server) ExportIntentEvidence(ctx context.Context, req *evidencev1.Expor
 		if _, err := s.deps.Operations.Create(ctx, tenant, operationID, p.Subject(), requestTypeExport); err != nil && !errors.Is(err, errOperationExists) {
 			return endpoint.Outcome{}, err
 		}
-		s.deps.Dispatcher.Dispatch(job, s.runExport)
+		s.deps.Dispatcher.Dispatch(ctx, job, s.runExport)
 		return endpoint.Outcome{Status: "PENDING", ResultDigest: operationID}, nil
 	}); doErr != nil {
 		return nil, idempotencyError(doErr)

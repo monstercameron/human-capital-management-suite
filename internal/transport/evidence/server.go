@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -43,15 +44,50 @@ const (
 // substitutes a gated fake to prove the request returns before the job
 // finishes.
 type Dispatcher interface {
-	Dispatch(job exportJob, run func(context.Context, exportJob))
+	Dispatch(ctx context.Context, job exportJob, run func(context.Context, exportJob))
 }
 
-// GoDispatcher runs the job in a new goroutine, detached from the request's
-// own context (the job must outlive the request that started it).
-type GoDispatcher struct{}
+// defaultExportTimeout bounds one export job's package assembly (frozen
+// lineage snapshot, receipt assembly, artifact rendering, sealing and a
+// single persist): all local clerical work, so two minutes is generous and
+// a hung dependency still fails the operation closed instead of leaking a
+// goroutine forever.
+const defaultExportTimeout = 2 * time.Minute
 
-func (GoDispatcher) Dispatch(job exportJob, run func(context.Context, exportJob)) {
-	go run(context.Background(), job)
+// GoDispatcher runs the job in a new goroutine on a request-derived context
+// (the job must outlive the request that started it, so cancellation is
+// detached but values and the caller identity travel with it) with a
+// timeout. Drain blocks until every dispatched job has finished, so the
+// composition root can drain exports on shutdown instead of abandoning
+// them mid-assembly. The zero value is usable with the default timeout.
+type GoDispatcher struct {
+	Timeout time.Duration
+
+	mu sync.Mutex
+	wg sync.WaitGroup
+}
+
+func (d *GoDispatcher) Dispatch(ctx context.Context, job exportJob, run func(context.Context, exportJob)) {
+	timeout := d.Timeout
+	if timeout <= 0 {
+		timeout = defaultExportTimeout
+	}
+	// WithoutCancel: a client disconnecting mid-export must not abort the
+	// durable assembly it already admitted; the timeout still bounds it.
+	jobCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
+	d.mu.Lock()
+	d.wg.Add(1)
+	d.mu.Unlock()
+	go func() {
+		defer d.wg.Done()
+		defer cancel()
+		run(jobCtx, job)
+	}()
+}
+
+// Drain blocks until every job Dispatch started has finished.
+func (d *GoDispatcher) Drain() {
+	d.wg.Wait()
 }
 
 // Dependencies is everything the composition root supplies. Every field is
@@ -86,7 +122,7 @@ func newServer(deps Dependencies) (*server, error) {
 		return nil, fmt.Errorf("evidence: %w: every dependency is required", ErrNotConfigured)
 	}
 	if deps.Dispatcher == nil {
-		deps.Dispatcher = GoDispatcher{}
+		deps.Dispatcher = &GoDispatcher{}
 	}
 	if deps.Clock == nil {
 		deps.Clock = func() time.Time { return time.Now().UTC() }

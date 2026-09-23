@@ -28,6 +28,58 @@ func TestNewSignerRefusesAShortKey(t *testing.T) {
 	}
 }
 
+// rotationPreviousKey is the retired key the rotation test mints under. It
+// never authenticates anything outside this package's own tests.
+var rotationPreviousKey = []byte("streaming-previous-key-32bytes!!")
+
+// TestSignerRotatesWithoutBreakingInflightCursors is INTAPI-006's rotation
+// proof for stream cursors: the retired key still verifies while a rotation
+// is in progress, minting always uses the active key, and a short retired
+// key is refused rather than silently accepted.
+func TestSignerRotatesWithoutBreakingInflightCursors(t *testing.T) {
+	now := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
+	cursor := streaming.Cursor{Tenant: "tenant-a", StreamID: "journey/intent-1", Sequence: 7, ExpiresAt: now.Add(5 * time.Minute)}
+
+	oldSigner := mustSigner(t, rotationPreviousKey)
+	preRotation, err := oldSigner.Encode(cursor)
+	if err != nil {
+		t.Fatalf("Encode under the retired key: %v", err)
+	}
+	rotated, err := streaming.NewSignerWithPrevious(testKey, rotationPreviousKey)
+	if err != nil {
+		t.Fatalf("NewSignerWithPrevious: %v", err)
+	}
+	if _, err := rotated.Decode(preRotation, now, cursor.Tenant, cursor.StreamID); err != nil {
+		t.Fatalf("retired-key cursor after rotation: %v", err)
+	}
+	postRotation, err := rotated.Encode(cursor)
+	if err != nil {
+		t.Fatalf("Encode under the active key: %v", err)
+	}
+	if _, err := rotated.Decode(postRotation, now, cursor.Tenant, cursor.StreamID); err != nil {
+		t.Fatalf("active-key cursor: %v", err)
+	}
+	// Without the retired key the old cursor fails closed, and the new
+	// cursor never verified under the retired key alone.
+	fresh, err := streaming.NewSigner(testKey)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	if _, err := fresh.Decode(preRotation, now, cursor.Tenant, cursor.StreamID); !errors.Is(err, streaming.ErrCursorForged) {
+		t.Fatalf("retired-key cursor without the retired key = %v, want forged", err)
+	}
+	previousOnly, err := streaming.NewSigner(rotationPreviousKey)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	if _, err := previousOnly.Decode(postRotation, now, cursor.Tenant, cursor.StreamID); !errors.Is(err, streaming.ErrCursorForged) {
+		t.Fatalf("active-key cursor under the retired key = %v, want forged", err)
+	}
+	if _, err := streaming.NewSignerWithPrevious(testKey, []byte("too-short")); !errors.Is(err, streaming.ErrKeyTooShort) {
+		t.Fatalf("short retired key = %v, want ErrKeyTooShort", err)
+	}
+}
+
 // TestCursorRoundTripsThroughEncodeDecode is the cursor's ordinary path: what
 // a signer encodes, the same signer decodes back unchanged, for the tenant
 // and stream it was minted for.

@@ -43,6 +43,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/scheduler"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
+	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
@@ -88,6 +89,7 @@ func promoexec002Compose(t *testing.T) *promoexec002Cell {
 	values, err := bootstrap.ParseConfig([]string{
 		"-grpc-listen=127.0.0.1:0", "-http-listen=127.0.0.1:0", "-database-url=" + db.URL,
 		"-dev-hmac-key=" + promoexec002SigningKey, "-tenant=" + tenant,
+		"-page-cursor-key=promoexec002-test-page-cursor-signing-key",
 		"-execution-authority-digest=sha256:promo-exec-002-tunnel",
 		"-migrate=false",
 	}, func(string) (string, bool) { return "", false }, application.ServeConfigFields())
@@ -119,12 +121,12 @@ func promoexec002Compose(t *testing.T) *promoexec002Cell {
 		defer cancel()
 		_ = composed.Stop(ctx)
 	})
-	grpcServer, err := transportcell.NewGRPCServer(composed.Cell())
+	tunnelServer, err := transportcell.NewTunnelGRPCServer(composed.Cell(), nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil)
 	if err != nil {
-		t.Fatalf("NewGRPCServer over the served cell: %v", err)
+		t.Fatalf("NewTunnelGRPCServer over the served cell: %v", err)
 	}
-	t.Cleanup(grpcServer.Stop)
-	handler, err := transportcell.NewEdgeHandlerWithTunnel(composed.Cell(), grpcServer)
+	t.Cleanup(tunnelServer.Stop)
+	handler, err := transportcell.NewEdgeHandlerWithTunnel(composed.Cell(), tunnelServer)
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithTunnel over the served cell: %v", err)
 	}
@@ -156,12 +158,13 @@ func (c *promoexec002Cell) credential(subject string, roles []string) string {
 }
 
 // dial opens one tunnel session as the browser does: a websocket upgrade
-// carrying the credential, then gRPC frames over the socket.
+// carrying the credential and the page's own origin, then gRPC frames over
+// the socket.
 func (c *promoexec002Cell) dial(ctx context.Context, token string) *grpc.ClientConn {
 	c.t.Helper()
 	conn, err := grpctunnel.BuildTunnelConn(ctx, grpctunnel.TunnelConfig{
 		Target:           "ws://" + c.host + transportcell.TunnelPath,
-		Headers:          http.Header{"Authorization": []string{"Bearer " + token}},
+		Headers:          http.Header{"Authorization": []string{"Bearer " + token}, "Origin": []string{"http://" + c.host}},
 		HandshakeTimeout: 10 * time.Second,
 		GRPCOptions:      []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
 	})

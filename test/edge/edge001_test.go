@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
@@ -169,9 +167,7 @@ func TestTodo_EDGE_001_Security(t *testing.T) {
 
 	connectCtx, cancel3 := context.WithTimeout(ctx, defaultCallDeadline)
 	defer cancel3()
-	req := connect.NewRequest(crossTenantRequest())
-	applyHeaders(req.Header(), headers)
-	if _, err := h.edgeIntent.GetIntent(connectCtx, req); err == nil {
+	if _, err := h.edgeIntent.GetIntent(connectCtx, crossTenantRequest(), clientHeaders(headers)...); err == nil {
 		t.Fatal("the HTTP/Connect edge accepted a cross-tenant scope from an authenticated caller")
 	} else {
 		outcomes["connect_http_edge"] = transporttest.ConformanceOutcome{Err: ownedFromConnect(err)}

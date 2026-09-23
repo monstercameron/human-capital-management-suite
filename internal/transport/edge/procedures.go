@@ -95,18 +95,30 @@ var requestFactories = map[string]func() proto.Message{
 	transportworkflow.MoveWorkflowDraftNodeProcedure: func() proto.Message {
 		return &workflowv1.MoveWorkflowDraftNodeRequest{}
 	},
+	transportworkflow.RemoveWorkflowDraftNodeProcedure: func() proto.Message {
+		return &workflowv1.RemoveWorkflowDraftNodeRequest{}
+	},
+	transportworkflow.ClearWorkflowDraftOutcomeProcedure: func() proto.Message {
+		return &workflowv1.ClearWorkflowDraftOutcomeRequest{}
+	},
+	transportworkflow.RenameWorkflowDraftProcedure: func() proto.Message {
+		return &workflowv1.RenameWorkflowDraftRequest{}
+	},
 	transportworkflow.NavigateWorkflowDraftHistoryProcedure: func() proto.Message {
 		return &workflowv1.NavigateWorkflowDraftHistoryRequest{}
 	},
 	transportworkflow.ApplyWorkflowTemplateOverlayProcedure: func() proto.Message {
 		return &workflowv1.ApplyWorkflowTemplateOverlayRequest{}
 	},
-	transportworkflow.PauseWorkflowProcedure:     func() proto.Message { return &workflowv1.PauseWorkflowRequest{} },
-	transportworkflow.ResumeWorkflowProcedure:    func() proto.Message { return &workflowv1.ResumeWorkflowRequest{} },
-	transportworkflow.CancelWorkflowProcedure:    func() proto.Message { return &workflowv1.CancelWorkflowRequest{} },
-	transportworkflow.RetryNodeProcedure:         func() proto.Message { return &workflowv1.RetryNodeRequest{} },
-	transporthumanwork.ListWorkItemsProcedure:    func() proto.Message { return &humanworkv1.ListWorkItemsRequest{} },
-	transporthumanwork.GetWorkItemProcedure:      func() proto.Message { return &humanworkv1.GetWorkItemRequest{} },
+	transportworkflow.PauseWorkflowProcedure:  func() proto.Message { return &workflowv1.PauseWorkflowRequest{} },
+	transportworkflow.ResumeWorkflowProcedure: func() proto.Message { return &workflowv1.ResumeWorkflowRequest{} },
+	transportworkflow.CancelWorkflowProcedure: func() proto.Message { return &workflowv1.CancelWorkflowRequest{} },
+	transportworkflow.RetryNodeProcedure:      func() proto.Message { return &workflowv1.RetryNodeRequest{} },
+	transporthumanwork.ListWorkItemsProcedure: func() proto.Message { return &humanworkv1.ListWorkItemsRequest{} },
+	transporthumanwork.GetWorkItemProcedure:   func() proto.Message { return &humanworkv1.GetWorkItemRequest{} },
+	transporthumanwork.GetThresholdTableProcedure: func() proto.Message {
+		return &humanworkv1.GetThresholdTableRequest{}
+	},
 	transportoperations.GetOperationProcedure:    func() proto.Message { return &evidencev1.GetOperationRequest{} },
 	transportoperations.CancelOperationProcedure: func() proto.Message { return &evidencev1.CancelOperationRequest{} },
 }
