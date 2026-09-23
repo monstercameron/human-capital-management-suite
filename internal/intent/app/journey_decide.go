@@ -265,9 +265,10 @@ func (e *journeyEngine) instanceIn(
 // The execution role gates EXECUTE only: holding it never makes a non-member
 // an approver, and lacking it never stops the routed approver.
 func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace.Decision) (detail workspace.JourneyDetail, retErr error) {
+	phase := "load"
 	defer func() {
 		e.journeyEvent(ctx, "journey.decision_recorded", intentID, retErr,
-			slog.Bool("approve", d.Approve), slog.String("stage", string(detail.Summary.Stage)))
+			slog.Bool("approve", d.Approve), slog.String("stage", string(detail.Summary.Stage)), slog.String("decision_phase", phase))
 		e.publishCommitted(ctx, retErr, intentID)
 	}()
 	principal, err := journeyPrincipal(ctx)
@@ -321,10 +322,12 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 	// before re-simulation; completeApproval independently reloads and rechecks
 	// the assignment inside the write transaction, so this read cannot grant
 	// stale action authority.
+	phase = "authority"
 	reviewRelationships, reviewErr := e.approvalDecisionRelationships(ctx, principal, intentID, inst)
 	if reviewErr != nil {
 		return workspace.JourneyDetail{}, reviewErr
 	}
+	phase = "revalidate"
 	simulated, simErr := e.resimulateDetailedWithRelationships(ctx, intentID, reviewRelationships)
 	if simErr != nil {
 		return workspace.JourneyDetail{}, simErr
@@ -337,22 +340,26 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 	if simulated.Revision == nil {
 		return workspace.JourneyDetail{}, fmt.Errorf("%w: executable simulation returned no minted proposal revision", workspace.ErrJourneyStage)
 	}
+	phase = "prepare"
 	start, startErr := e.svc.executionStart(inst, artifact, journeyApprovalRef(intentID), *simulated.Revision)
 	if startErr != nil {
 		return workspace.JourneyDetail{}, journeyError(startErr)
 	}
 
+	phase = "decision_and_advance"
 	done, decideErr := e.completeApproval(ctx, principal, inst, start, d, e.now().UTC(), "", "")
 	if decideErr != nil {
 		return workspace.JourneyDetail{}, journeyError(journeyDecisionError(decideErr))
 	}
 	if done.executed {
+		phase = "consume_result"
 		// WF-STEP-018: the approval kernel already advanced the workflow in
 		// the decision's own transaction.
 		if outcomeErr := e.svc.consumeExecutionResult(ctx, inst, def, rec, done.execution); outcomeErr != nil {
 			return workspace.JourneyDetail{}, outcomeErr
 		}
 	} else if done.needsResume() {
+		phase = "legacy_resume"
 		result, resumeErr := e.svc.executor.Resume(ctx, ExecutionResumeRequest{
 			Start:                   pinnedStart(start, done.instance),
 			InstanceID:              done.instance.InstanceID,
@@ -490,7 +497,13 @@ func (e *journeyEngine) completeApproval(
 	decidedAt time.Time,
 	expectedRequirementID string,
 	expectedProjectionDigest string,
-) (decidedApproval, error) {
+) (out decidedApproval, retErr error) {
+	phase := "load"
+	defer func() {
+		if retErr != nil {
+			e.journeyEvent(ctx, "journey.approval_failed", inst.IntentID, retErr, slog.String("approval_phase", phase))
+		}
+	}()
 	revision := start.Proposal.Revision
 	tx, err := e.beginTenant(ctx, principal)
 	if err != nil {
@@ -566,6 +579,7 @@ func (e *journeyEngine) completeApproval(
 	actor := principal.Subject()
 	// Resolve membership and separation first so a non-member produces the
 	// public denial, not an internal stale-authority diagnostic.
+	phase = "membership"
 	candidate, err := journeyDecider(items, item, inst, actor, decidedAt)
 	if err != nil {
 		return decidedApproval{}, err
@@ -575,9 +589,11 @@ func (e *journeyEngine) completeApproval(
 	// credential proves the actor is still current at this instant; neither is
 	// inferred from a button payload. The history check prevents one principal
 	// from satisfying both finance and current-manager approval classes.
-	if err := ValidatePromotionJourneyApprover(principal, item, actor, decidedAt); err != nil {
+	phase = "authority_binding"
+	if err := e.validateRoutedJourneyApprover(ctx, tx, principal, inst, item, candidate, revision, decidedAt); err != nil {
 		return decidedApproval{}, err
 	}
+	phase = "approval_history"
 	if err := ValidatePromotionApprovalHistory(items, item, actor); err != nil {
 		return decidedApproval{}, err
 	}
@@ -596,6 +612,7 @@ func (e *journeyEngine) completeApproval(
 	// revoked) cannot approve: the item is durably closed and the step takes
 	// its INVALIDATED route, which the compiled plan sends to reapproval by a
 	// fresh proposal.
+	phase = "current_authority"
 	stale, err := e.recheckApprovalAuthority(ctx, tx, principal, inst, item, candidate, revision, decidedAt)
 	if err != nil {
 		return decidedApproval{}, err
@@ -608,6 +625,7 @@ func (e *journeyEngine) completeApproval(
 		return e.invalidateThroughKernel(ctx, start, instance, item, actor, decidedAt, stale.Error())
 	}
 	if item.Kind == workitem.KindApproval {
+		phase = "kernel_vote"
 		decision := e.approvalDecision(item, inst, revision.ProposalRevisionID, revision.MaterialDigest, d, decidedAt, actor)
 		decision.Approver.Via, decision.Approver.DelegationID = candidate.Via, candidate.DelegationID
 		_ = tx.Rollback(ctx)

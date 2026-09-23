@@ -23,6 +23,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -107,6 +108,11 @@ type journeyEngine struct {
 	invalidations InvalidationPublisher
 	// review holds REV-091-02's review ports (journey_review.go).
 	review journeyReviewPorts
+	// roleAccess resolves the server-side role set behind the diagnostics
+	// disclosure decision (RBAC-RT-005). Nil denies disclosure rather than
+	// falling back to credential claims: an engine composed without the
+	// role store cannot prove who holds oversight authority.
+	roleAccess roleaccess.Store
 }
 
 var _ workspace.JourneyEngine = (*journeyEngine)(nil)
@@ -312,8 +318,8 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 		summary.CurrentWorkItem = journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), now, assigneeName)
 		// PROMOUX-012: the viewer's relationship and the next transition, from
 		// the stored initiator and the membership just disclosed above.
-		summary.Viewer = journeyViewerProjection(summary.Stage,
-			isJourneyInitiator(msg.GetInitiator().GetPrincipalId(), principal.Subject()), summary.CurrentWorkItem)
+		summary.Viewer = journeyRecordViewerProjection(summary.Stage,
+			isJourneyInitiator(msg.GetInitiator().GetPrincipalId(), principal.Subject()), summary.CurrentWorkItem, record)
 		out = append(out, summary)
 	}
 	sort.SliceStable(out, func(i, j int) bool {

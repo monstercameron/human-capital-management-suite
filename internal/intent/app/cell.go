@@ -660,6 +660,12 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 		// a cleanly cancelled intent's promotion admission window.
 		WorkflowCancellation: workflowCancel,
 		AdmissionRelease:     releaseAdmission,
+		// RBAC-RT-003: the durable role store and the cell's own worker
+		// locator behind intent reads and actions. Without the role store
+		// the service keeps the historical authentication-plus-tenant
+		// behavior; the locator defaults to the corpus resolver there.
+		RoleAccess:    cfg.RoleAccess,
+		WorkerLocator: locateWorker,
 	})
 	if err != nil {
 		return nil, err
@@ -684,6 +690,7 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	var journeyInvalidations *journeyinvalidation.Hub
 	if cfg.Executor != nil && cfg.ExecutionDB != nil {
 		engine := newJourneyEngine(svc, cfg.ExecutionDB, cfg.ExecutionApprover, cfg.Now, locateWorker, cfg.WorkerIDs)
+		engine.roleAccess = cfg.RoleAccess
 		engine.recorder = cfg.WorkflowRecorder
 		engine.events = cfg.EventLogger
 		engine.authority = cfg.ApprovalAuthority

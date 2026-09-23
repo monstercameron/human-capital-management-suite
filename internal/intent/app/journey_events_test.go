@@ -11,6 +11,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 )
 
 func TestJourneyEventLevelsOutcomesAndRequestIDs(t *testing.T) {
@@ -51,6 +52,25 @@ func TestJourneyEventWithoutLoggerIsSilent(t *testing.T) {
 	var engine *journeyEngine
 	engine.journeyEvent(context.Background(), "journey.proposed", "x", nil) // must not panic
 	(&journeyEngine{}).journeyEvent(context.Background(), "journey.proposed", "x", nil)
+}
+
+func TestJourneyDecisionFailureLogsOwnedReasonWithoutPayload(t *testing.T) {
+	var buf bytes.Buffer
+	engine := &journeyEngine{events: slog.New(logging.NewHandler(&buf))}
+	err := envelope.New(envelope.CodeUnavailable, "intent.simulation.failed", "private proposal contents")
+	engine.journeyEvent(context.Background(), "journey.decision_recorded", "intent-1", err, slog.String("decision_phase", "revalidate"))
+	var line struct {
+		Attrs map[string]any `json:"attrs"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &line); err != nil {
+		t.Fatal(err)
+	}
+	if line.Attrs["reason_ref"] != "intent.simulation.failed" || line.Attrs["error_code"] != envelope.CodeUnavailable.String() || line.Attrs["decision_phase"] != "revalidate" {
+		t.Fatalf("missing safe diagnostic: %v", line.Attrs)
+	}
+	if bytes.Contains(buf.Bytes(), []byte("private proposal contents")) {
+		t.Fatal("private message logged")
+	}
 }
 
 func TestJourneyErrorClassNamesEverySentinel(t *testing.T) {

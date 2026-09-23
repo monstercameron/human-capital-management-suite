@@ -244,6 +244,12 @@ func (s *IntentService) SubmitIntent(ctx context.Context, req *intentsv1.SubmitI
 		return nil, envelope.New(envelope.CodeNotFound, reasonDefinitionUnknown,
 			"the resource does not exist or is not visible").WithDiagnostic(err)
 	}
+	// RBAC-RT-003: submitting requires the capability for this intent type
+	// and the subject relationship a read would require, before the
+	// re-simulation or any write.
+	if authErr := s.denyStoredIntentAction(ctx, principal, purposeOf(principal, inv), def, inst); authErr != nil {
+		return nil, authErr
+	}
 
 	// Re-derive the one deterministic proposal revision this intent can ever
 	// have, exactly like ExecuteIntent's own authority gate.
@@ -321,7 +327,7 @@ func (s *IntentService) SubmitIntent(ctx context.Context, req *intentsv1.SubmitI
 // disposition through the returned instance's dimensional state (see this
 // file's own doc comment for the exact mapping).
 func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelIntentRequest) (*intentsv1.CancelIntentResponse, error) {
-	principal, _, ownedErr := caller(ctx)
+	principal, inv, ownedErr := caller(ctx)
 	if ownedErr != nil {
 		return nil, ownedErr
 	}
@@ -351,6 +357,12 @@ func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelI
 	if err != nil {
 		return nil, envelope.New(envelope.CodeNotFound, reasonDefinitionUnknown,
 			"the resource does not exist or is not visible").WithDiagnostic(err)
+	}
+	// RBAC-RT-003: cancelling requires the capability for this intent type
+	// and the subject relationship a read would require, before the
+	// safe-point read or any write.
+	if authErr := s.denyStoredIntentAction(ctx, principal, purposeOf(principal, inv), def, inst); authErr != nil {
+		return nil, authErr
 	}
 
 	// The safe-point question is asked at most once, before the idempotency
@@ -623,6 +635,12 @@ func (s *IntentService) SupersedeIntent(ctx context.Context, req *intentsv1.Supe
 	successorDef, ownedErr := s.resolveDefinition(req.GetDefinition(), true)
 	if ownedErr != nil {
 		return nil, ownedErr
+	}
+	// RBAC-RT-003: superseding requires the capability for the original's
+	// intent type and the subject relationship a read would require, before
+	// the successor is minted or any write lands.
+	if authErr := s.denyStoredIntentAction(ctx, principal, purposeOf(principal, inv), originalDef, original); authErr != nil {
+		return nil, authErr
 	}
 	spec, ownedErr := s.specForSupersede(req, successorDef, original, principal, inv)
 	if ownedErr != nil {

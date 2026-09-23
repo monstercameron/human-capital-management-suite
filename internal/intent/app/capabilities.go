@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/capability/authority"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/dataops"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
@@ -168,30 +170,16 @@ func capabilityKeyFor(ref intent.Ref) capability.Key {
 // authorize turns the admitted invocation into the already-made authorization
 // decision the gateway requires.
 //
-// This is not an authorization engine and does not pretend to be one: the
-// policy subsystems (GOVERN-001..003, TRUST-011) are not built, and inventing a
-// weak second evaluator here is exactly the drift the capability package's own
-// doc warns about. What the decision does encode is real and checkable: the
-// request reached a verified principal, that principal is authorized for the
-// purpose the invocation resolved, and the granted scope is the exact
-// AuthZScopeRef the capability publishes - never a wildcard.
+// The decision itself is computed by the capability authority engine
+// (internal/capability/authority): the intersection of the caller's granted
+// scopes, the capability's scope and the field policy, over server-verified
+// delegation, with step-up or dual approval gating high-risk writes. This
+// adapter passes no server-resolved authority yet — no durable role,
+// delegation, scope or step-up store is reachable from these call sites, so
+// the engine evaluates the credential's own authority exactly as before for
+// humans, while machine-kind calls and high-risk writes now fail closed
+// until INTAPI-001 resolves their grants. Wiring a store only adds fields
+// to the Authority value; no call site changes shape.
 func authorize(principal *trust.Principal, purpose string, def capability.Definition) capability.Authorization {
-	decision := capability.Authorization{
-		Decision:   capability.Deny,
-		SubjectRef: "",
-		Reason:     "no verified principal",
-	}
-	if principal == nil {
-		return decision
-	}
-	decision.SubjectRef = principal.Subject()
-	decision.Tenant = principal.Tenant().String()
-	if purpose != "" && !principal.AuthorizesPurpose(purpose) {
-		decision.Reason = "the principal is not authorized for the resolved purpose of processing"
-		return decision
-	}
-	decision.Decision = capability.Allow
-	decision.Reason = ""
-	decision.Scopes = []string{def.AuthZScopeRef}
-	return decision
+	return authority.Authorize(principal, purpose, def, authority.Authority{}, time.Now().UTC())
 }

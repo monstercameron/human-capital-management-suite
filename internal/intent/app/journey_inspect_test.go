@@ -43,7 +43,7 @@ func journeyNodeRow(nodeID string, status runtime.NodeStatus) runtime.NodeExecut
 func TestRecordedJourneyInspectionStillRequiresCurrentSubjectAndPayAuthority(t *testing.T) {
 	at := time.Date(2026, 9, 12, 15, 0, 0, 0, time.UTC)
 	subject := values.EntityRef{Tenant: "acme-corp", Kind: "worker", Id: "22222222-2222-4222-8222-222222222222"}
-	if err := authorizeHistoricalJourneyRead(nil, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil); err == nil {
+	if _, err := authorizeHistoricalJourneyRead(nil, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil); err == nil {
 		t.Fatal("recorded journey was readable without a verified principal")
 	}
 	principal, err := trust.NewPrincipal(trust.PrincipalSpec{
@@ -56,7 +56,7 @@ func TestRecordedJourneyInspectionStillRequiresCurrentSubjectAndPayAuthority(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := authorizeHistoricalJourneyRead(principal, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil); err == nil {
+	if _, err := authorizeHistoricalJourneyRead(principal, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil); err == nil {
 		t.Fatal("unassigned manager could read recorded compensation")
 	}
 	admin, err := trust.NewPrincipal(trust.PrincipalSpec{
@@ -69,8 +69,52 @@ func TestRecordedJourneyInspectionStillRequiresCurrentSubjectAndPayAuthority(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := authorizeHistoricalJourneyRead(admin, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil); err != nil {
+	result, err := authorizeHistoricalJourneyRead(admin, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil)
+	if err != nil {
 		t.Fatalf("authorized compensation administrator cannot inspect durable history: %v", err)
+	}
+	if !historicalPayAllowed(result) {
+		t.Fatal("compensation administrator inspects with masked pay")
+	}
+}
+
+func TestTodo_RBAC_RT_005_HistoricalInspectionAdmitsOversight(t *testing.T) {
+	at := time.Date(2026, 9, 12, 15, 0, 0, 0, time.UTC)
+	subject := values.EntityRef{Tenant: "acme-corp", Kind: "worker", Id: "22222222-2222-4222-8222-222222222222"}
+	newPrincipal := func(subjectID string, roles []string, purpose string) *trust.Principal {
+		principal, err := trust.NewPrincipal(trust.PrincipalSpec{
+			Tenant: "acme-corp", Subject: subjectID, SubjectKind: trust.SubjectKindHuman,
+			OrganizationScopeID: "acme", Roles: roles,
+			Purposes: []string{purpose}, AuthenticationMethod: trust.AuthenticationMethodBearerToken,
+			Assurance: trust.AssuranceHigh, SessionRef: "session-" + subjectID,
+			IssuedAt: at.Add(-time.Hour), ExpiresAt: at.Add(time.Hour), CredentialDigest: "digest-" + subjectID,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return principal
+	}
+	// The legacy administrator token evaluates under its mapped template, so
+	// the tenant administrator the directory and the transport already admit
+	// is no longer refused the inspection that carries diagnostics.
+	admin := newPrincipal("hcm-admin-1", []string{"hcm_admin"}, authz.PurposeCompensationReview)
+	adminResult, err := authorizeHistoricalJourneyRead(admin, authz.PurposeCompensationReview, subject, values.NewInstant(at), nil)
+	if err != nil {
+		t.Fatalf("hcm_admin cannot inspect durable history: %v", err)
+	}
+	if !historicalPayAllowed(adminResult) {
+		t.Fatal("hcm_admin inspects with masked pay")
+	}
+	// The auditor's compensation grant is redacted-only: the inspection is
+	// admitted (the subject is administratively disclosable) but raw pay is
+	// never granted, so the caller must mask the amounts.
+	auditor := newPrincipal("auditor-1", []string{string(authz.RoleAuditor)}, authz.PurposeAuditReview)
+	auditorResult, err := authorizeHistoricalJourneyRead(auditor, authz.PurposeAuditReview, subject, values.NewInstant(at), nil)
+	if err != nil {
+		t.Fatalf("auditor cannot inspect durable history: %v", err)
+	}
+	if historicalPayAllowed(auditorResult) {
+		t.Fatal("auditor inspects with raw pay")
 	}
 }
 

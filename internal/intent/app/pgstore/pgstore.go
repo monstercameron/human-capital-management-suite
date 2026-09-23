@@ -350,10 +350,17 @@ func (s *Store) scanRecord(ctx context.Context, tenant string, tenantID uuid.UUI
 			e.MaterialDigest = *legalMaterialDigest
 		}
 		if len(legalAppliedObligations) > 0 && string(legalAppliedObligations) != "null" {
-			_ = json.Unmarshal(legalAppliedObligations, &e.AppliedObligations)
+			// A corrupt obligations blob is a corrupt projection, not an
+			// empty one: returning it decoded-to-zero would launder the
+			// legal evidence the receipt cites.
+			if err := json.Unmarshal(legalAppliedObligations, &e.AppliedObligations); err != nil {
+				return app.IntentRecord{}, fmt.Errorf("pgstore: decode applied legal obligations: %w", err)
+			}
 		}
 		if len(legalObligationDischarges) > 0 && string(legalObligationDischarges) != "null" {
-			_ = json.Unmarshal(legalObligationDischarges, &e.Discharges)
+			if err := json.Unmarshal(legalObligationDischarges, &e.Discharges); err != nil {
+				return app.IntentRecord{}, fmt.Errorf("pgstore: decode legal obligation discharges: %w", err)
+			}
 		}
 		rec.LegalEvidence = e
 	}

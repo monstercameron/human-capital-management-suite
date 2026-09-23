@@ -127,7 +127,7 @@ func routedApprovalRequirement(item workitem.WorkItem) (humanwork.ApprovalRequir
 // caller the approval does not admit, or whose decision would violate
 // separation of duties, is denied; every other error travels unchanged.
 func journeyDecisionError(err error) error {
-	if errors.Is(err, ErrProposalDecisionRoute) || errors.Is(err, ErrProposalDecisionSeparation) {
+	if errors.Is(err, ErrProposalDecisionRoute) || errors.Is(err, ErrProposalDecisionSeparation) || errors.Is(err, ErrPromotionAuthorityStale) {
 		return fmt.Errorf("%w: %w", workspace.ErrDenied, err)
 	}
 	if errors.Is(err, ErrProposalDecisionUnavailable) {

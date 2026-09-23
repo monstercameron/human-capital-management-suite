@@ -6,16 +6,11 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/google/uuid"
-
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
-	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 // PROMOUX-013: governed edit, withdraw and cancel paths over an existing
@@ -100,49 +95,6 @@ func journeyWorkerRefFromIntent(msg *intentsv1.IntentInstance) (string, error) {
 	return ref, nil
 }
 
-// releasePromotionWindow closes PROMOUX-002's admission reservation for
-// originalIntentID once its journey has been durably cancelled (disposition
-// CANCELLED), freeing the worker+effective-date window for a fresh
-// proposal. internal/data/promotionguard.Release's own doc names this
-// precisely: "Nothing in this repository calls Release automatically yet" --
-// PROMOUX-013 is that first caller, discovered because without it a
-// cancelled-then-edited journey could never re-propose the same worker and
-// effective date, which is the ordinary shape of a correction.
-//
-// It is best-effort exactly like [journeyEngine.confirmPromotionWindow]: the
-// cancellation itself has already landed by the time this runs, so a
-// release failure is not surfaced as this call's own failure. It costs
-// availability (the freed window is not yet visible for reuse), never
-// correctness: promotionguard.Admit's own exclusion is still enforced
-// against whatever the row currently says.
-func (e *journeyEngine) releasePromotionWindow(ctx context.Context, principal *trust.Principal, originalIntentID string) {
-	if e.db == nil {
-		return
-	}
-	intentID, err := uuid.Parse(originalIntentID)
-	if err != nil {
-		return
-	}
-	tx, err := e.beginTenant(ctx, principal)
-	if err != nil {
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	tenantID := e.svc.tenantUUID(principal.Tenant())
-	if err := promotionguard.Release(ctx, tx, tenantID, intentID, e.now().UTC()); err != nil {
-		return
-	}
-	// WF-RUN-034: a cancelled promotion also stops holding its organization's
-	// compensation pool. The hold belongs to the proposal revision the
-	// cancelled intent minted, so a cancellation before any proposal releases
-	// nothing. It is best-effort with the guard release it shares this
-	// transaction with.
-	if _, releaseErr := promotionbudget.ReleaseForIntent(ctx, tx, tenantID, intentID, e.now().UTC()); releaseErr != nil {
-		return
-	}
-	_ = tx.Commit(ctx)
-}
-
 // loadPromotionJourney reads and type-checks one journey's stored intent,
 // exactly as [journeyEngine.Execute] and [journeyEngine.Decide] each do
 // before acting.
@@ -170,8 +122,7 @@ func (e *journeyEngine) EditProposal(
 		e.journeyEvent(ctx, "journey.proposal_edited", intentID, retErr, slog.String("successor_intent_id", successor.IntentID))
 		e.publishCommitted(ctx, retErr, intentID, successor.IntentID)
 	}()
-	principal, err := journeyPrincipal(ctx)
-	if err != nil {
+	if _, err := journeyPrincipal(ctx); err != nil {
 		return workspace.JourneySummary{}, "", err
 	}
 	switch {
@@ -234,11 +185,12 @@ func (e *journeyEngine) EditProposal(
 	}
 
 	// PROMOUX-002's admission guard is keyed by (worker, effective date), not
-	// by intent, so the original's still-ACTIVE reservation must be released
-	// before Propose can admit a successor for the same window -- otherwise
-	// an edit that keeps the same worker and effective date (the ordinary
-	// shape of a correction) refuses itself as a duplicate promotion.
-	e.releasePromotionWindow(ctx, principal, intentID)
+	// by intent. The CancelIntent above already freed the original's window
+	// and budget hold through the shared admission release on its CANCELLED
+	// disposition (WF-REV-004), so Propose can admit a successor for the same
+	// window -- including an edit that keeps the same worker and effective
+	// date (the ordinary shape of a correction) -- with no second release
+	// here.
 
 	summary, proposeErr := e.Propose(ctx, edited)
 	if proposeErr != nil {
@@ -440,12 +392,10 @@ func (e *journeyEngine) RequestIntervention(
 		outcome = interventionOutcomeFromDisposition(intent.CancellationDisposition(last.GetEffectDispositionRef()))
 		evidenceRef = last.GetCancellationDecisionId()
 	}
-	if outcome == workspace.InterventionApplied {
-		// The window this journey claimed is freed as soon as it is
-		// durably, cleanly stopped -- not only when it is about to be
-		// edited (see [journeyEngine.releasePromotionWindow]).
-		e.releasePromotionWindow(ctx, principal, intentID)
-	}
+	// WF-REV-004: no second release here. The CancelIntent above already freed
+	// the journey's window and budget hold through the shared admission
+	// release on its CANCELLED disposition, so every cancel path releases the
+	// hold exactly once through the same capability.
 	return workspace.JourneyInterventionResult{
 		Journey: summary, Outcome: outcome, RetainedEvidenceRef: evidenceRef,
 	}, nil

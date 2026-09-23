@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Business-level journey events: one structured line per journey operation
@@ -40,6 +41,13 @@ func (e *journeyEngine) journeyEvent(ctx context.Context, name, intentID string,
 	}
 	fields := make([]slog.Attr, 0, len(attrs)+4)
 	fields = append(fields, slog.String("outcome", outcome))
+	if owned, ok := envelope.As(err); ok {
+		// Stable owned reason codes explain pre-runtime failures without
+		// leaking error messages, proposal contents or decision rationale.
+		fields = append(fields, slog.String("error_code", owned.Code().String()), slog.String("reason_ref", owned.ReasonRef()))
+	} else if err != nil {
+		fields = append(fields, slog.String("error_code", observe.ErrorCode(err)))
+	}
 	if intentID != "" {
 		fields = append(fields, slog.String("intent_id", intentID))
 	}

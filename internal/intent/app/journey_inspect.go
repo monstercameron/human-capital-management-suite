@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
@@ -505,11 +506,20 @@ func (e *journeyEngine) inspectWithRelationships(
 	var findings []workspace.JourneyFinding
 	var plannedWrites []string
 	if executed {
-		if authErr := authorizeHistoricalJourneyRead(principal, purposeOf(principal, inv), summary.Worker, inst.CreatedAt, relationships); authErr != nil {
+		authResult, authErr := authorizeHistoricalJourneyRead(principal, purposeOf(principal, inv), summary.Worker, inst.CreatedAt, relationships)
+		if authErr != nil {
 			if errors.Is(authErr, ErrAuthorizationDenied) {
 				return workspace.JourneyDetail{}, journeyError(authorizationRefusal(authErr))
 			}
 			return workspace.JourneyDetail{}, fmt.Errorf("app: journey: authorize historical inspection: %w", authErr)
+		}
+		if !historicalPayAllowed(authResult) {
+			// A redacted-only oversight grant (the auditor) may review the
+			// execution evidence but never raw pay: the amounts are omitted
+			// the way the directory omits a denied row's pay, while the
+			// rest of the business summary still describes the journey.
+			summary.CurrentBase = ""
+			summary.ProposedBase = ""
 		}
 		summary.MaterialDigest = materialDigest
 	} else {
@@ -531,7 +541,7 @@ func (e *journeyEngine) inspectWithRelationships(
 
 	detail := workspace.JourneyDetail{
 		Summary:              summary,
-		DiagnosticsAvailable: journeyDiagnosticsAllowed(principal),
+		DiagnosticsAvailable: e.diagnosticsAllowed(ctx, principal),
 		Findings:             findings,
 		PlannedWrites:        plannedWrites,
 	}
@@ -555,9 +565,9 @@ func (e *journeyEngine) inspectWithRelationships(
 	// PROMOUX-012: the same viewer projection the list resolves. The work item
 	// summary is used only for the viewer's own membership; the detail page
 	// reads the work items themselves.
-	detail.Summary.Viewer = journeyViewerProjection(detail.Summary.Stage,
+	detail.Summary.Viewer = journeyRecordViewerProjection(detail.Summary.Stage,
 		isJourneyInitiator(inst.Initiator.PrincipalID, principal.Subject()),
-		journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), e.now(), nil))
+		journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), e.now(), nil), record)
 	detail.Nodes = journeyNodes(record.nodes)
 	detail.WorkItems = record.items
 	if item, open := openJourneyWorkItem(record.items); open && item.Assignment.ChosenOwner != "" {
@@ -630,14 +640,49 @@ func (e *journeyEngine) inspectWithRelationships(
 // authorizeHistoricalJourneyRead applies the same subject and compensation
 // field gate as promotion input resolution without rereading mutable worker
 // facts. The durable execution remains the only source of historical values.
-func authorizeHistoricalJourneyRead(principal *trust.Principal, purpose string, subject values.EntityRef, evaluatedAt values.Instant, relationships []authz.RelationshipFact) error {
-	_, err := authorizeRead(principal, purpose, authorizationRequest{
+//
+// The compensation gate is evaluated by the caller from the returned decision
+// rather than refused inside [authorizeRead]: a redacted-only oversight grant
+// (the auditor's compensation grant under audit review) admits the inspection
+// with masked pay instead of refusing it, while a denied gate field still
+// refuses. The refusal set is otherwise unchanged — every role the policy
+// discloses a subject to already holds an allowed core grant, so folding the
+// gate fields into the read set cannot newly satisfy the any-allowed rule.
+func authorizeHistoricalJourneyRead(principal *trust.Principal, purpose string, subject values.EntityRef, evaluatedAt values.Instant, relationships []authz.RelationshipFact) (authorizationResult, error) {
+	result, err := authorizeRead(principal, purpose, authorizationRequest{
 		Subject: subject, EvaluatedAt: evaluatedAt,
-		Gate:          []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
-		Read:          peopleFields(promotion.RequiredWorkerFields()),
+		Read: mergeFields(
+			[]authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget},
+			peopleFields(promotion.RequiredWorkerFields()),
+		),
 		Relationships: relationships,
 	})
-	return err
+	if err != nil {
+		return authorizationResult{}, err
+	}
+	for _, f := range []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget} {
+		ruling := result.Decision.Fields[f]
+		switch ruling.Effect {
+		case authz.EffectAllow, authz.EffectRedacted:
+		default:
+			return authorizationResult{}, fmt.Errorf("%w: %s is %s under purpose %q (%s)",
+				ErrAuthorizationDenied, f, ruling.Effect, result.Decision.Purpose, ruling.Reason)
+		}
+	}
+	return result, nil
+}
+
+// historicalPayAllowed reports whether a historical inspection decision
+// grants raw compensation: every gate field allowed. A redacted-only grant
+// admits the inspection (the subject is disclosable and the read is
+// authorized) but the caller must omit the amounts.
+func historicalPayAllowed(result authorizationResult) bool {
+	for _, f := range []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget} {
+		if result.Decision.Fields[f].Effect != authz.EffectAllow {
+			return false
+		}
+	}
+	return true
 }
 
 // applyJourneyChronology preserves the intent's simulation instant in the
@@ -650,10 +695,23 @@ func applyJourneyChronology(detail *workspace.JourneyDetail, record journeyRecor
 	applyDurableJourneyTime(&detail.Summary, record)
 }
 
-func journeyDiagnosticsAllowed(principal *trust.Principal) bool {
-	return principal != nil && (principal.HasRole("hcm_admin") ||
-		principal.HasRole(string(authz.RoleCompAdmin)) ||
-		principal.HasRole(string(authz.RoleAuditor)))
+// diagnosticsAllowed is the engine half of the one diagnostics disclosure
+// rule (RBAC-RT-005): [roleaccess.CanDiscloseDiagnostics] over the durable
+// assignment, the same decision the transport serializes and the inspection
+// gate admits, so the hand-rolled token-role list it replaces — which
+// admitted auditors but not operators while the transport admitted operators
+// but not auditors — can never disagree again. Without the role store the
+// engine cannot resolve durable roles and denies: credential claims alone
+// never disclose diagnostics.
+func (e *journeyEngine) diagnosticsAllowed(ctx context.Context, principal *trust.Principal) bool {
+	if e == nil || principal == nil || e.roleAccess == nil {
+		return false
+	}
+	snapshot, err := e.roleAccess.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
+	if err != nil {
+		return false
+	}
+	return roleaccess.CanDiscloseDiagnostics(snapshot, principal.Subject(), principal.Roles())
 }
 
 func journeyApproverLabel(item workitem.WorkItem, viewerIsApprover bool) string {

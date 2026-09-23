@@ -71,6 +71,12 @@ type authorizationRequest struct {
 	Subject values.EntityRef
 	// EvaluatedAt is the instant every temporal check is made at.
 	EvaluatedAt values.Instant
+	// EffectiveRoles is the principal's server-resolved role set, from
+	// durable assignments (RBAC-RT-002). When non-nil it governs the scope
+	// and field stages instead of the principal's credential roles; a
+	// non-nil empty set authorizes nothing. Nil keeps the credential-role
+	// behavior for callers with no role store.
+	EffectiveRoles []string
 	// Gate is the set of policy fields the intent cannot be answered without.
 	// A single denial anywhere in it refuses the whole call.
 	Gate []authz.FieldID
@@ -108,10 +114,11 @@ func authorizeRead(principal *trust.Principal, purpose string, req authorization
 	}
 	fields := mergeFields(req.Gate, req.Read)
 	decision, err := authz.Enforce(authz.Request{
-		Principal:   principal,
-		Purpose:     purpose,
-		EffectiveAt: req.EvaluatedAt,
-		Subject:     req.Subject,
+		Principal:      principal,
+		EffectiveRoles: req.EffectiveRoles,
+		Purpose:        purpose,
+		EffectiveAt:    req.EvaluatedAt,
+		Subject:        req.Subject,
 		// No organization-graph projection exists in P1A: the organization
 		// domain owns the part_of edges and does not publish them yet. A zero
 		// PrincipalOrg is authz's documented single-company default, which

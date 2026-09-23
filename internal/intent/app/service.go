@@ -17,6 +17,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -189,6 +190,18 @@ type Options struct {
 	// AdmissionRelease frees a cleanly cancelled intent's admission
 	// reservation. Nil releases nothing.
 	AdmissionRelease AdmissionRelease
+	// RoleAccess resolves the server-side role set behind intent
+	// authorization (RBAC-RT-002, RBAC-RT-003): the durable assignment
+	// when the store carries one for the caller, else the admitted
+	// credential roles. Nil leaves the historical behavior in place:
+	// reads and actions check authentication and tenant only. A cell
+	// composed for serving always sets this (see NewCell); bare
+	// NewIntentService compositions in unit tests leave it nil.
+	RoleAccess roleaccess.Store
+	// WorkerLocator resolves worker references for subject and
+	// management-chain checks. Nil falls back to the corpus-only
+	// resolver. NewCell always sets the cell's own locator.
+	WorkerLocator WorkerLocator
 }
 
 // IntentService is the application service behind both transports.
@@ -249,6 +262,16 @@ type IntentService struct {
 	// releaseAdmission frees a cleanly cancelled intent's admission
 	// reservation; nil releases nothing.
 	releaseAdmission AdmissionRelease
+	// roleAccess and locate are the RBAC-RT-003 authorization ports: the
+	// durable role store and the worker-reference resolver. Both nil is
+	// the legacy posture (authentication plus tenant only); a non-nil
+	// roleAccess enforces subject-and-relationship authorization.
+	roleAccess roleaccess.Store
+	locate     WorkerLocator
+	// roleMu guards roleCache, the server's short-TTL resolved-role cache.
+	// It lives on this service value, never in a package-level registry.
+	roleMu    sync.Mutex
+	roleCache *roleaccess.Resolver
 }
 
 var (
@@ -300,6 +323,8 @@ func NewIntentService(opts Options) (*IntentService, error) {
 		safePoints:                 opts.SafePoints,
 		workflowCancel:             opts.WorkflowCancellation,
 		releaseAdmission:           opts.AdmissionRelease,
+		roleAccess:                 opts.RoleAccess,
+		locate:                     opts.WorkerLocator,
 	}
 	if svc.ids == nil {
 		svc.ids = intent.UUIDv7Source
@@ -507,6 +532,17 @@ func (s *IntentService) CreateIntent(ctx context.Context, req *intentsv1.CreateI
 	spec, ownedErr := s.specFor(req, def, principal, inv)
 	if ownedErr != nil {
 		return nil, ownedErr
+	}
+	// RBAC-RT-003: creating an intent about a subject requires the
+	// capability for that intent type and the subject relationship a read
+	// would require, before the admission scan or any write. Authorship is
+	// established by this call, never proven by it, so the claimed
+	// initiator buys no authority here (see denyIntentAction): a caller may
+	// create about themselves (participant), about their reports (chain),
+	// or under a granting role, and nothing else.
+	if authErr := s.denyIntentAction(ctx, principal, purposeOf(principal, inv), def,
+		spec.Tenant, spec.Subjects, "", s.clock()); authErr != nil {
+		return nil, authErr
 	}
 	// Promotion admission is the integrity boundary for overlapping starts.
 	// Hold the service-local lock across the active scan and append below: a
@@ -763,14 +799,22 @@ func kernelRejection(err error) *envelope.Error {
 }
 
 // GetIntent returns one stored intent.
+//
+// RBAC-RT-003: the caller must be the initiator, a participant, in the
+// subject's management chain, or hold a role granting the intent's data
+// domain. A denial hides (NOT_FOUND), never distinguishing "does not exist"
+// from "not visible to you".
 func (s *IntentService) GetIntent(ctx context.Context, req *intentsv1.GetIntentRequest) (*intentsv1.GetIntentResponse, error) {
-	principal, _, ownedErr := caller(ctx)
+	principal, inv, ownedErr := caller(ctx)
 	if ownedErr != nil {
 		return nil, ownedErr
 	}
 	inst, _, ownedErr := s.loadInstance(ctx, principal.Tenant().String(), req.GetIntentId())
 	if ownedErr != nil {
 		return nil, ownedErr
+	}
+	if denyErr := s.denyIntentRead(ctx, principal, purposeOf(principal, inv), inst); denyErr != nil {
+		return nil, readRefusal(denyErr)
 	}
 	msg, err := protomap.InstanceToProto(inst)
 	if err != nil {
@@ -781,37 +825,52 @@ func (s *IntentService) GetIntent(ctx context.Context, req *intentsv1.GetIntentR
 }
 
 // ListIntents returns one bounded page of the tenant's intents.
+//
+// RBAC-RT-003: rows are filtered by the read rule before paging is applied,
+// so a page boundary never decides visibility. A caller with no effective
+// role at all is refused the list rather than handed an empty page.
 func (s *IntentService) ListIntents(ctx context.Context, req *intentsv1.ListIntentsRequest) (*intentsv1.ListIntentsResponse, error) {
-	principal, _, ownedErr := caller(ctx)
+	principal, inv, ownedErr := caller(ctx)
 	if ownedErr != nil {
 		return nil, ownedErr
+	}
+	if listErr := s.listCallAllowed(ctx, principal); listErr != nil {
+		return nil, listErr
+	}
+	tenant := principal.Tenant().String()
+	visible, listErr := s.filterIntentList(ctx, principal, purposeOf(principal, inv), tenant)
+	if listErr != nil {
+		return nil, listErr
+	}
+	offset, cursorErr := decodeIntentCursor(req.GetPage().GetCursor(), tenant, principal.Subject())
+	if cursorErr != nil {
+		return nil, cursorErr
 	}
 	size := req.GetPage().GetPageSize()
 	if size <= 0 {
 		size = defaultPageSize
 	}
-	page, err := s.store.ListIntents(ctx, principal.Tenant().String(), size, req.GetPage().GetCursor())
-	if err != nil {
-		return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
-			"the operation could not be completed").WithDiagnostic(err)
+	if offset > len(visible) {
+		offset = len(visible)
+	}
+	end := offset + int(size)
+	if end > len(visible) {
+		end = len(visible)
 	}
 	out := &intentsv1.ListIntentsResponse{
-		Intents: make([]*intentsv1.IntentInstance, 0, len(page.Records)),
-		Page:    &commonv1.PageResponse{NextCursor: page.NextCursor},
+		Intents: make([]*intentsv1.IntentInstance, 0, end-offset),
+		Page:    &commonv1.PageResponse{},
 	}
-	for _, rec := range page.Records {
-		inst, decodeErr := decodeEnvelope(rec.Envelope)
-		if decodeErr != nil {
-			return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
-				"the operation could not be completed").WithDiagnostic(decodeErr)
-		}
-		mergeCurrentProjection(&inst, rec)
+	for _, inst := range visible[offset:end] {
 		msg, convErr := protomap.InstanceToProto(inst)
 		if convErr != nil {
 			return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
 				"the operation could not be completed").WithDiagnostic(convErr)
 		}
 		out.Intents = append(out.Intents, msg)
+	}
+	if end < len(visible) {
+		out.Page.NextCursor = encodeIntentCursor(tenant, principal.Subject(), end)
 	}
 	return out, nil
 }
@@ -831,6 +890,18 @@ func (s *IntentService) SimulateIntent(ctx context.Context, req *intentsv1.Simul
 	inst, rec, ownedErr := s.loadInstance(ctx, principal.Tenant().String(), req.GetIntentId())
 	if ownedErr != nil {
 		return nil, ownedErr
+	}
+	// RBAC-RT-003: a simulation discloses the governed answer, so it is
+	// authorized exactly like a read, before the expected-version check
+	// (whose refusal would otherwise confirm the row exists). A policy
+	// denial keeps the simulation's own refusal shape so the authorization
+	// plane stays the load-bearing decision.
+	if denyErr := s.denyIntentRead(ctx, principal, purposeOf(principal, inv), inst); denyErr != nil {
+		if errors.Is(denyErr, ErrAuthorizationDenied) {
+			return nil, authorizationRefusal(denyErr)
+		}
+		return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
+			"the operation could not be completed").WithDiagnostic(denyErr)
 	}
 	if want := req.GetExpectedInstanceVersion(); want != 0 && want != rec.InstanceVersion {
 		return nil, envelope.New(envelope.CodeFailedPrecondition, reasonStaleRevision,
@@ -924,14 +995,21 @@ func (s *IntentService) ExplainIntent(ctx context.Context, req *intentsv1.Explai
 
 // ListIntentTimeline returns the intent's chronology, read from the
 // authoritative ledger rather than from a status column.
+//
+// RBAC-RT-003: the timeline follows the intent's own visibility. A denial
+// hides (NOT_FOUND).
 func (s *IntentService) ListIntentTimeline(ctx context.Context, req *intentsv1.ListIntentTimelineRequest) (*intentsv1.ListIntentTimelineResponse, error) {
-	principal, _, ownedErr := caller(ctx)
+	principal, inv, ownedErr := caller(ctx)
 	if ownedErr != nil {
 		return nil, ownedErr
 	}
 	tenant := principal.Tenant().String()
-	if _, _, ownedErr := s.loadInstance(ctx, tenant, req.GetIntentId()); ownedErr != nil {
+	inst, _, ownedErr := s.loadInstance(ctx, tenant, req.GetIntentId())
+	if ownedErr != nil {
 		return nil, ownedErr
+	}
+	if denyErr := s.denyIntentRead(ctx, principal, purposeOf(principal, inv), inst); denyErr != nil {
+		return nil, readRefusal(denyErr)
 	}
 	entries, err := s.store.Timeline(ctx, tenant, req.GetIntentId())
 	if err != nil {

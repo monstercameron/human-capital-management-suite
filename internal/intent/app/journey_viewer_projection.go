@@ -7,6 +7,7 @@ import (
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 )
 
 // journeyTransition is the next transition one journey stage names: the step,
@@ -91,6 +92,21 @@ func requestProtoEndedBeforeExecution(state intentsv1.RequestState) bool {
 		return true
 	}
 	return false
+}
+
+// journeyRecordViewerProjection distinguishes a correctable blocked proposal
+// from a run that actually reached the blocked terminal. Both share a business
+// stage, but only the latter belongs in History and has no remaining action.
+func journeyRecordViewerProjection(stage workspace.JourneyStage, viewerIsInitiator bool, work *workspace.JourneyWorkItemSummary, record journeyRecord) workspace.JourneyViewerProjection {
+	out := journeyViewerProjection(stage, viewerIsInitiator, work)
+	if stage == workspace.JourneyStageBlocked && record.instance != nil && reachedNode(record.nodes, promotionexec.NodeEndBlocked) {
+		out.Closed = true
+		out.Responsibility = workspace.JourneyResponsibilityClosed
+		out.NextStep = ""
+		out.NextStepOwner = ""
+		out.AwaitsPerson = false
+	}
+	return out
 }
 
 // journeyViewerProjection resolves how the calling viewer stands to one
