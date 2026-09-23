@@ -13,6 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/data/rulethreshold"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/localcommit"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
 	"github.com/monstercameron/human-capital-management-suite/internal/governance/revalidate"
@@ -81,6 +84,12 @@ type ThresholdResult struct {
 	Artifact
 	Tier  rules.ApprovalTier
 	Route workflow.Outcome
+	// Inputs and Decision are the frozen evaluation the served recorder
+	// freezes per proposal revision for RULE-004's commit-time
+	// re-evaluation; ports that cannot supply them leave them zero and the
+	// recorder skips (documented at [Runner.RunInTx]).
+	Inputs   rules.PromotionApprovalInput
+	Decision rules.PromotionApprovalDecision
 }
 
 // ThresholdPort evaluates rules.compensation.raise_threshold/v3.
@@ -179,10 +188,16 @@ type HoldReleasePort interface {
 // Config binds the promotion workflow's narrow ports. Nil ports are allowed
 // so a miswired node returns a typed, node-named failure rather than panics.
 type Config struct {
-	SnapshotWorker           SnapshotPort
-	SimulateCompensation     CompensationPort
-	EvaluateBand             BandPort
-	RaiseThreshold           ThresholdPort
+	SnapshotWorker       SnapshotPort
+	SimulateCompensation CompensationPort
+	EvaluateBand         BandPort
+	RaiseThreshold       ThresholdPort
+	// RecordThresholdDecision freezes one threshold evaluation per
+	// proposal revision inside the advancement transaction, for RULE-004's
+	// commit-time re-evaluation. Nil skips recording: unit compositions
+	// and custom threshold ports without freezable inputs run uncovered,
+	// and the served composition sets the rulethreshold store write.
+	RecordThresholdDecision  func(ctx context.Context, ex runtime.Executor, d rulethreshold.Decision) error
 	Revalidate               RevalidatePort
 	StillValid               ValidityPort
 	ExecutePromotion         ExecutePromotionPort
@@ -211,6 +226,8 @@ type Runner struct {
 type StepRunner = Runner
 
 var _ execute.StepRunner = (*Runner)(nil)
+
+var _ execute.TransactionalStepRunner = (*Runner)(nil)
 
 // New constructs a deterministic promotion step runner. It reads no clock;
 // all timestamps remain in execute.StepRequest.RecordedAt for ports that need
@@ -304,36 +321,14 @@ func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (ret0 frontie
 		return capabilityResult(req, artifact, err)
 
 	case promotionexec.NodeRaiseThreshold:
-		if err := requireType(req, workflow.StepDecision); err != nil {
+		result, failClass, err := r.evaluateThreshold(ctx, req)
+		if err != nil {
 			return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
 		}
-		if r.ports.RaiseThreshold == nil {
-			return failed(req, FailureNotWired)
+		if failClass != "" {
+			return failed(req, failClass)
 		}
-		result, err := r.ports.RaiseThreshold.RaiseThreshold(ctx, req)
-		if err != nil {
-			return failed(req, FailurePort)
-		}
-		if strings.TrimSpace(result.OutputDigest) == "" {
-			return failed(req, FailureBadOutput)
-		}
-		route := result.Route
-		if route == "" {
-			switch result.Tier {
-			case rules.ApprovalTierStandard:
-				route = workflow.Outcome("WITHIN_THRESHOLD")
-			case rules.ApprovalTierFinanceRequired, rules.ApprovalTierExecutiveRequired:
-				route = workflow.Outcome("ABOVE_THRESHOLD")
-			case rules.ApprovalTierUnknownBlocked:
-				route = workflow.OutcomeUnknown
-			default:
-				return failed(req, FailureBadOutput)
-			}
-		}
-		if !thresholdRoute(route) {
-			return failed(req, FailureBadOutput)
-		}
-		return frontier.NodeOutcome{NodeID: req.Node.ID, Outcome: route, OutputDigest: result.OutputDigest}, result.Refs, nil
+		return frontier.NodeOutcome{NodeID: req.Node.ID, Outcome: result.Route, OutputDigest: result.OutputDigest}, result.Refs, nil
 
 	case promotionexec.NodeApproveFinance, promotionexec.NodeApproveManager:
 		if err := requireType(req, workflow.StepApproval); err != nil {
@@ -512,6 +507,107 @@ func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (ret0 frontie
 	}
 
 	return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("promotionsteps: dispatch case for %q was not implemented", req.Node.ID)
+}
+
+// evaluateThreshold runs the RULE-003 port and selects the route, keeping
+// the exact failure-outcome contract the Run dispatch had before the
+// in-transaction recording split it out: requireType mismatches are errors,
+// every other failure is a stable failure outcome with a nil error.
+func (r *Runner) evaluateThreshold(ctx context.Context, req execute.StepRequest) (ThresholdResult, string, error) {
+	if err := requireType(req, workflow.StepDecision); err != nil {
+		return ThresholdResult{}, "", err
+	}
+	if r.ports.RaiseThreshold == nil {
+		return ThresholdResult{}, FailureNotWired, nil
+	}
+	result, err := r.ports.RaiseThreshold.RaiseThreshold(ctx, req)
+	if err != nil {
+		return ThresholdResult{}, FailurePort, nil
+	}
+	if strings.TrimSpace(result.OutputDigest) == "" {
+		return ThresholdResult{}, FailureBadOutput, nil
+	}
+	route := result.Route
+	if route == "" {
+		switch result.Tier {
+		case rules.ApprovalTierStandard:
+			route = workflow.Outcome("WITHIN_THRESHOLD")
+		case rules.ApprovalTierFinanceRequired, rules.ApprovalTierExecutiveRequired:
+			route = workflow.Outcome("ABOVE_THRESHOLD")
+		case rules.ApprovalTierUnknownBlocked:
+			route = workflow.OutcomeUnknown
+		default:
+			return ThresholdResult{}, FailureBadOutput, nil
+		}
+	}
+	if !thresholdRoute(route) {
+		return ThresholdResult{}, FailureBadOutput, nil
+	}
+	result.Route = route
+	return result, "", nil
+}
+
+// RunsInTransaction claims only the threshold node into the advancement
+// transaction, so the threshold decision it freezes and the outcome that
+// decision produced commit or roll back together. Every other node keeps
+// its existing pre-transaction evaluation.
+func (r *Runner) RunsInTransaction(node workflow.CompiledNode) bool {
+	return node.ID == promotionexec.NodeRaiseThreshold
+}
+
+// RunInTx evaluates the threshold node inside the advancement transaction
+// and freezes its decision per proposal revision for RULE-004's commit-time
+// re-evaluation. Ports that cannot supply freezable inputs or a served
+// recorder leave no record and behave exactly as Run; the served
+// composition wires both, so a served threshold always freezes.
+func (r *Runner) RunInTx(ctx context.Context, ex runtime.Executor, req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
+	result, failClass, err := r.evaluateThreshold(ctx, req)
+	if err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	if failClass != "" {
+		return failed(req, failClass)
+	}
+	if err := r.recordThresholdDecision(ctx, ex, req, result); err != nil {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
+	}
+	return frontier.NodeOutcome{NodeID: req.Node.ID, Outcome: result.Route, OutputDigest: result.OutputDigest}, result.Refs, nil
+}
+
+// recordThresholdDecision freezes the evaluation the threshold branch just
+// produced. It is a no-op without a served recorder, with freezable inputs
+// missing from a custom port, or outside an EXECUTE advance: simulate,
+// replay and shadow runs never freeze approval-time evidence, and a unit
+// composition without the store write runs uncovered exactly as before.
+func (r *Runner) recordThresholdDecision(ctx context.Context, ex runtime.Executor, req execute.StepRequest, result ThresholdResult) error {
+	if r.ports.RecordThresholdDecision == nil {
+		return nil
+	}
+	if req.Context.ExecutionMode != workflow.ModeExecute {
+		return nil
+	}
+	if err := result.Inputs.Validate(); err != nil {
+		return nil
+	}
+	decision := result.Decision
+	if decision.MatchedRowID == "" || decision.TableID == "" || decision.TableVersion == "" || decision.TableDigest == "" {
+		return nil
+	}
+	intentID, err := uuid.Parse(req.Proposal.Revision.IntentID)
+	if err != nil {
+		return fmt.Errorf("promotionsteps: threshold record needs an intent-keyed revision: %w", err)
+	}
+	digest, err := rules.InputDigest(result.Inputs)
+	if err != nil {
+		return fmt.Errorf("promotionsteps: threshold record input digest: %w", err)
+	}
+	return r.ports.RecordThresholdDecision(ctx, ex, rulethreshold.Decision{
+		TenantID: req.TenantID, IntentID: intentID, Revision: req.Proposal.Revision.Revision,
+		Attempt: req.Attempt, InstanceID: req.InstanceID,
+		Tier: string(result.Tier), MatchedRow: decision.MatchedRowID,
+		TableID: decision.TableID, TableVersion: decision.TableVersion, TableDigest: decision.TableDigest,
+		InputDigest: digest, Input: result.Inputs, RecordedAt: req.RecordedAt,
+	})
 }
 
 func requireType(req execute.StepRequest, want workflow.StepType) error {
@@ -702,7 +798,7 @@ func (p RulesThresholdPort) RaiseThreshold(ctx context.Context, req execute.Step
 			OutputDigest: digestParts("rules.compensation.raise_threshold/v3", decision.TableDigest, decision.MatchedRowID, string(decision.Tier)),
 			Refs:         runtime.GovernanceRefs{DecisionID: decision.MatchedRowID, PolicyRef: decision.TableDigest},
 		},
-		Tier: decision.Tier, Route: route,
+		Tier: decision.Tier, Route: route, Inputs: in, Decision: decision,
 	}, nil
 }
 

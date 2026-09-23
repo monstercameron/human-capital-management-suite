@@ -265,7 +265,7 @@ func TestTodo_WF_COMP_006_ServedStartNeedsGovernedActivation(t *testing.T) {
 	database.Exec(t, `INSERT INTO execution_retry_approval (tenant_id,approved) VALUES ($1,true)`, tenant)
 	ctx := context.Background()
 	store := workflowversionstore.Store{DB: database.Conn}
-	execution, err := NewPromotionExecution(PromotionExecutionConfig{DB: database.Conn, Terminal: stubTerminal{}, Clock: func() time.Time { return at }, Versions: store})
+	execution, err := NewPromotionExecution(PromotionExecutionConfig{DB: database.Conn, Terminal: stubTerminal{}, Clock: func() time.Time { return at }, Versions: store, Currency: retryCurrency()})
 	if err != nil {
 		t.Fatalf("NewPromotionExecution: %v", err)
 	}

@@ -61,6 +61,13 @@ type Reevaluation struct {
 	Evidence            string
 }
 
+// InputDigest mints the canonical digest over one threshold input set. The
+// served recorder freezes it beside the inputs so ReevaluatePromotionApproval
+// can reproduce it and prove the stored inputs were not tampered with.
+func InputDigest(in PromotionApprovalInput) (string, error) {
+	return inputDigest(in)
+}
+
 func inputDigest(in PromotionApprovalInput) (string, error) {
 	if err := in.Validate(); err != nil {
 		return "", err

@@ -4981,6 +4981,16 @@ tables:
     append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
+  - table: promotion_threshold_decision
+    migration: 00328_promotion_threshold_decision.sql
+    owner_package: internal/data/rulethreshold
+    plane: DATA
+    data_role: EVIDENCE
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
       RBAC-RT-021: append-only permission revision ledger; one row per role

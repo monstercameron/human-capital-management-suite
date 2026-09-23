@@ -92,6 +92,7 @@ func TestStartRetryForSelectedPolicyExecutesBoundStart(t *testing.T) {
 				return nil
 			}}, nil
 		},
+		Currency: retryCurrency(),
 	})
 	if err != nil {
 		t.Fatal(err)

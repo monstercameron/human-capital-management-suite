@@ -188,6 +188,16 @@ type PromotionExecutionConfig struct {
 	// observation closed (fact provider.reader=unconfigured); a 1.0.0
 	// instance never reads it.
 	ProviderReceipts promotionsteps.ProviderReceiptReader
+	// Currency overrides the served currency guard every advance runs
+	// before it may reach the terminal write. Nil composes the served
+	// RULE-004 guard over the durable proposal and approval facts, so a
+	// changed rule input that moves the required approval tier blocks
+	// instead of committing. A unit composition that exercises
+	// non-currency concerns with synthetic intents its durable tables
+	// cannot key on supplies its own guard (a memory-backed one with a
+	// nil Rules port keeps the pre-REV-010-01 verdict exactly); a
+	// composition serving traffic leaves this nil.
+	Currency *execute.CurrencyGuard
 }
 
 // poisonWorkOwner is who is accountable for QuarantinedWork the served driver
@@ -434,6 +444,19 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 			NodeFor:   promotionexec.ReapprovalTaskContract,
 			Validator: promotionexec.ReapprovalTaskValidator,
 		},
+		// REV-010-01: every served advance revalidates the pinned
+		// proposal's supersession and standing approval, and re-runs the
+		// decision-table approval that produced its tier against the
+		// currently published threshold table (RULE-004). The frozen half
+		// comes from the threshold decisions the raise_threshold branch
+		// freezes in the advancement transaction; the live half
+		// re-derives through the same governed reads the threshold port
+		// uses. Revisions that never ran the threshold node, or that
+		// carry no standing approval, resolve RULE-004 to silence and
+		// keep the WF-RUN-029 verdict exactly. A unit composition may
+		// override the guard through PromotionExecutionConfig.Currency;
+		// traffic-serving compositions leave that nil and run this one.
+		Currency:        composeCurrencyGuard(cfg, steps),
 		Instrumentation: instrumentation,
 		Recorder:        recorder,
 		Evidence:        evidence,

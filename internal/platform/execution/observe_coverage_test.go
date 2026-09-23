@@ -71,6 +71,12 @@ var executionUninstrumentedByDesign = map[string]string{
 	"compensate_serve.go servedOperations.Complete":                 "operation port inside the caller's span",
 	"compensate_serve.go servedOperations.RecordEffect":             "operation port inside the caller's span",
 	"compensate_serve.go servedOperations.Reserve":                  "operation port inside the caller's span",
+
+	// REV-010-01: the served RULE-004 wiring. Both run inside the
+	// instrumented driver's own advance transaction and span, and open
+	// none of their own.
+	"promotionsteps/promotionsteps.go Runner.RunInTx": "threshold node inside the instrumented advance transaction",
+	"rule_facts.go ServedRuleFacts.Lookup":            "rule facts read inside the instrumented currency check",
 }
 
 // TestExecutionHostOperationsAreInstrumented holds the execution host to the

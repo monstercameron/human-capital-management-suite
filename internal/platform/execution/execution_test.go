@@ -418,6 +418,18 @@ func (retryApprovalFacts) Decisions(ctx context.Context, ex runtime.Executor, te
 	return []runtime.ApprovalDecisionFact{{DecisionID: "decision:retry-current", Outcome: outcome, ProposalDigest: rev.MaterialDigest.Digest}}, nil
 }
 
+// retryCurrency is the memory-backed currency guard the retry-composition
+// harnesses run under. These harnesses exercise START transaction shape
+// with synthetic intent ids the durable intent-control tables cannot key
+// on, so the served durable guard cannot read them; the memory ports
+// re-check the same synthetic approval the start itself was validated
+// against, and the nil Rules port keeps the pre-REV-010-01 verdict
+// exactly. RULE-004's served re-evaluation is covered by REV-010-01's own
+// tests instead.
+func retryCurrency() *execute.CurrencyGuard {
+	return &execute.CurrencyGuard{Proposal: runtime.MemoryProposalFacts{}, Approval: retryApprovalFacts{}}
+}
+
 type observedSerializableBeginner struct {
 	conn       *pgxadapter.Conn
 	admin      *pgxadapter.Conn
@@ -520,7 +532,7 @@ func TestTodo_DB_EDGE_003_IntegrationPromotionCompositionRetriesSerializableAndR
 		Admit: func(context.Context) error { admissions.Add(1); return nil },
 		Sleep: func(context.Context, time.Duration) error { return nil },
 	}
-	execution, err := NewPromotionExecution(PromotionExecutionConfig{DB: beginner, Terminal: stubTerminal{}, Clock: func() time.Time { return at }, StartRetry: retry})
+	execution, err := NewPromotionExecution(PromotionExecutionConfig{DB: beginner, Terminal: stubTerminal{}, Clock: func() time.Time { return at }, StartRetry: retry, Currency: retryCurrency()})
 	if err != nil {
 		t.Fatal(err)
 	}

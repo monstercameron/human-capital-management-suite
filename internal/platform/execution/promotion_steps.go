@@ -42,6 +42,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotioncommit"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/rulethreshold"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	domaincommit "github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/commit"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
@@ -170,6 +171,12 @@ func (p *promotionStepPorts) runner() *promotionsteps.Runner {
 	threshold := promotionsteps.RulesThresholdPort{Inputs: p.thresholdInputs}
 	return promotionsteps.New(promotionsteps.Config{
 		SnapshotWorker: p, SimulateCompensation: p, EvaluateBand: p, RaiseThreshold: threshold,
+		// REV-010-01: the served threshold freezes its decision per
+		// proposal revision in the advancement transaction, for RULE-004's
+		// commit-time re-evaluation.
+		RecordThresholdDecision: func(ctx context.Context, ex runtime.Executor, d rulethreshold.Decision) error {
+			return rulethreshold.Record(ctx, ex, d)
+		},
 		Revalidate: p, StillValid: p, ExecutePromotion: p,
 		ObservePayroll:        observationPort{ports: p, capabilityID: promotionexec.CapabilityObservePayroll, observe: p.observePayroll},
 		ObserveAccess:         observationPort{ports: p, capabilityID: promotionexec.CapabilityObserveAccess, observe: p.observeAccess},
@@ -909,7 +916,15 @@ func (r promotionStepRunner) RunsInTransaction(node workflow.CompiledNode) bool 
 	case workflow.RoleAuthoritativeCore, workflow.RoleDownstreamEffect:
 		return true
 	default:
-		return false
+		// REV-010-01: the inner runner claims the threshold node so its
+		// decision freezes in the same transaction as its outcome. The
+		// claim delegates to the inner runner's own declaration -- this
+		// switch keeps deciding by effect role, never by node id. A
+		// runner composed without ports answers false, as before.
+		if r.ports == nil {
+			return false
+		}
+		return r.ports.runner().RunsInTransaction(node)
 	}
 }
 
@@ -923,6 +938,15 @@ func (r promotionStepRunner) RunInTx(ctx context.Context, ex runtime.Executor, r
 	}
 	if strings.TrimSpace(req.Node.ID) == "" {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("platform execution: in-transaction step names no node")
+	}
+	// REV-010-01: a node the inner runner claims into the transaction (the
+	// threshold freeze) runs through its own RunInTx, so the frozen
+	// decision and the outcome commit together. Every other claimed node
+	// keeps the legacy Run-with-step-tx path.
+	if r.ports != nil {
+		if inner := r.ports.runner(); inner.RunsInTransaction(req.Node) {
+			return inner.RunInTx(ctx, ex, req)
+		}
 	}
 	return r.ports.runner().Run(withStepTx(ctx, tx), req)
 }
