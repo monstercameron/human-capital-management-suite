@@ -451,9 +451,13 @@ func TestJourneyBaselineTakesACreatedWorkersOwnPay(t *testing.T) {
 	if created.currentBase == corpus.currentBase {
 		t.Fatal("a created worker inherited the ported scenario's salary")
 	}
-	if created.knownAtDate() != row.KnownAt.UTC().Format(time.DateOnly) {
+	// REV-006-01: the created coordinate keeps the row's full intraday
+	// precision. Truncating it to a date moved the knowledge cut-off to
+	// midnight and made every fact the row records later that day read as
+	// stale, refusing every journey propose for a worker created that day.
+	if created.knownAtCutoff() != row.KnownAt.UTC().Format(time.RFC3339Nano) {
 		t.Errorf("known-at = %q, want the row's own %s",
-			created.knownAtDate(), row.KnownAt.UTC().Format(time.DateOnly))
+			created.knownAtCutoff(), row.KnownAt.UTC().Format(time.RFC3339Nano))
 	}
 	// The budget authority is a finance fact about the org unit, not about
 	// the worker, so it still comes from the corpus either way.
@@ -461,9 +465,9 @@ func TestJourneyBaselineTakesACreatedWorkersOwnPay(t *testing.T) {
 		t.Errorf("budget = %q, want the corpus authority %q", created.budgetAvailabe, corpus.budgetAvailabe)
 	}
 	// A corpus worker's knowledge coordinate is unchanged.
-	if corpus.knownAtDate() != corpus.evaluationDate {
+	if corpus.knownAtCutoff() != corpus.evaluationDate {
 		t.Errorf("corpus known-at = %q, want the scenario's evaluation date %q",
-			corpus.knownAtDate(), corpus.evaluationDate)
+			corpus.knownAtCutoff(), corpus.evaluationDate)
 	}
 }
 

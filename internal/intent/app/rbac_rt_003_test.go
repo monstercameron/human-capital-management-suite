@@ -181,9 +181,9 @@ func newRT003Harness(t *testing.T, snapshot roleaccess.Snapshot, useBootstrapCap
 	if err != nil {
 		t.Fatalf("intentdefinitions.NewRegistry: %v", err)
 	}
-	inputs, err := NewFixtureInputs()
+	inputs, err := NewCorpusInputs()
 	if err != nil {
-		t.Fatalf("NewFixtureInputs: %v", err)
+		t.Fatalf("NewCorpusInputs: %v", err)
 	}
 	inputs.BindWorkerLocator(locate)
 	caps := capability.NewRegistry()

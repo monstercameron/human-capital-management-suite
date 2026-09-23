@@ -77,7 +77,7 @@ type CellConfig struct {
 	// none.
 	EventLogger *slog.Logger
 	// Inputs resolves the governed reads a P1A intent needs. Nil means
-	// [NewFixtureInputs], and then Workers and Bands default to the same
+	// [NewCorpusInputs], and then Workers and Bands default to the same
 	// corpus.
 	Inputs DomainInputs
 	// Workers is the governed worker read port the people capability answers
@@ -454,18 +454,18 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	}
 
 	inputs, workers, bands := cfg.Inputs, cfg.Workers, cfg.Bands
-	var fixtureBacked *FixtureInputs
+	var corpusBacked *CorpusInputs
 	if inputs == nil {
-		fixtureBacked, err = NewFixtureInputs()
+		corpusBacked, err = NewCorpusInputs()
 		if err != nil {
 			return nil, err
 		}
-		inputs = fixtureBacked
+		inputs = corpusBacked
 		if workers == nil {
-			workers = fixtureBacked.Workers()
+			workers = corpusBacked.Workers()
 		}
 		if bands == nil {
-			bands = fixtureBacked.Bands()
+			bands = corpusBacked.Bands()
 		}
 	}
 	if workers == nil || bands == nil {
@@ -506,16 +506,16 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	// cell-level WorkerFacts" true rather than aspirational: without it a
 	// created worker would be visible to the capability handlers and invisible
 	// to the simulation that has to certify the promotion.
-	if fixtureBacked != nil {
-		fixtureBacked.BindWorkers(workers)
+	if corpusBacked != nil {
+		corpusBacked.BindWorkers(workers)
 	}
 	// The one worker-reference resolver, composed on the same condition as
 	// the layered read: without a database and a tenant mapping there is no
 	// created population to resolve against, and the corpus locator is what
 	// this cell always used.
 	locateWorker := newWorkerLocator(cfg.ExecutionDB, cfg.TenantUUID)
-	if fixtureBacked != nil {
-		fixtureBacked.BindWorkerLocator(locateWorker)
+	if corpusBacked != nil {
+		corpusBacked.BindWorkerLocator(locateWorker)
 	}
 
 	// PROMOUX-004: the same condition as the layered worker read above.
@@ -527,12 +527,12 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
 		positionReader = positionfacts.Reader{DB: cfg.ExecutionDB, TenantUUID: cfg.TenantUUID}
 	}
-	if fixtureBacked != nil {
-		fixtureBacked.BindPositionReader(positionReader)
+	if corpusBacked != nil {
+		corpusBacked.BindPositionReader(positionReader)
 		// WF-RUN-034: the manager a recorded proposal revision pinned is
 		// approval-frozen material every later re-simulation reuses.
 		if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
-			fixtureBacked.BindPinnedManager(PinnedManagerFromRevisions(cfg.ExecutionDB, cfg.TenantUUID))
+			corpusBacked.BindPinnedManager(PinnedManagerFromRevisions(cfg.ExecutionDB, cfg.TenantUUID))
 		}
 	}
 	// The pay-band catalog is read from the tenant's own compensation_band
@@ -549,8 +549,8 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 			CatalogVersion: demoworkforce.PayBandPolicyVersion, Blocking: true,
 			Source: "hcmnext.compensation", Fallback: bands,
 		}
-		if fixtureBacked != nil {
-			fixtureBacked.BindBands(bands)
+		if corpusBacked != nil {
+			corpusBacked.BindBands(bands)
 		}
 	}
 	// PROMOUX-005: the same condition as positionReader above. Without an
@@ -576,8 +576,8 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if err != nil {
 		return nil, err
 	}
-	if fixtureBacked != nil {
-		fixtureBacked.BindExternalSource(external.SourceRef())
+	if corpusBacked != nil {
+		corpusBacked.BindExternalSource(external.SourceRef())
 	}
 
 	handlers := &domainHandlers{

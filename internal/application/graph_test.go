@@ -128,7 +128,7 @@ credential-verifier|adapter|application.stubVerifier|config
 database-pool|adapter|<nil>|
 discovery-document|registry|*manifest.DiscoveryDocument|cell
 disposition-gate|adapter|*application.DispositionGate|config
-domain-inputs|port|*app.FixtureInputs|
+domain-inputs|port|*app.CorpusInputs|
 evidence-sink|registry|*evidencestore.Store|
 execution-authority|governance|<nil>|config,database-pool,evidence-sink
 grpc-surface|transport|*grpc.Server|cell,workflow-instance-reader

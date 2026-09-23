@@ -162,6 +162,64 @@ func TestPromotionOrgFactsCreatedWalk(t *testing.T) {
 	}
 }
 
+// TestPromotionOrgFactsIntradayKnownAt is the REV-006-01 journey
+// regression: the journey declares a created worker's knowledge cut-off and
+// the resolve reads the manager chain under it. The cut-off keeps the row's
+// full intraday precision, so a worker created after midnight resolves its
+// own chain; a date-truncated (midnight) cut-off still reads stale, which is
+// the bitemporal guard working, not a second defect.
+func TestPromotionOrgFactsIntradayKnownAt(t *testing.T) {
+	managerID := "88888888-8888-4888-8888-888888888888"
+	subjectID := "99999999-9999-4999-8999-999999999999"
+	intraday := time.Date(2026, 9, 23, 8, 58, 44, 0, time.UTC)
+	subject := createdWorkerRow(subjectID, managerID)
+	subject.KnownAt = intraday
+	subject.RecordedAt = intraday.Add(time.Hour)
+	manager := createdWorkerRow(managerID, "")
+	manager.KnownAt = time.Date(2026, 9, 23, 8, 0, 0, 0, time.UTC)
+	manager.RecordedAt = intraday.Add(time.Hour)
+	locate := createdLocator(map[string]*workforce.WorkerRow{subjectID: subject, managerID: manager})
+	adapter, err := newPromotionOrgFacts(locate)
+	if err != nil {
+		t.Fatalf("newPromotionOrgFacts: %v", err)
+	}
+	allow := org.Authorizer(func(org.ManagerRelationshipFact) people.AuthorizationDecision {
+		return people.AuthorizationDecision{PolicyVersion: "authz/v1", Purpose: "manager-read",
+			SubjectDisclosable: true, Fields: map[people.FieldID]people.FieldRuling{
+				people.FieldManagerRelation: {Effect: people.EffectAllow},
+			}}
+	})
+	ctx := context.Background()
+	worker := values.EntityRef{Tenant: fixtures.Tenant, Kind: people.KindWorker, Id: subjectID}
+	asOf := values.NewInstant(intraday.Add(2 * time.Hour))
+	resolve := func(known values.KnownAt) org.ManagerResolution {
+		t.Helper()
+		resolution, err := org.ResolveManagerRelationships(ctx, adapter, org.ManagerResolutionRequest{
+			Tenant: fixtures.Tenant, Worker: worker, AsOf: asOf,
+			KnownAt: known, MaxDepth: maxManagerChainDepth, Authorize: allow,
+		})
+		if err != nil {
+			t.Fatalf("ResolveManagerRelationships: %v", err)
+		}
+		return resolution
+	}
+	full, err := values.NewKnownAt(values.NewInstant(intraday))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved := resolve(full); resolved.Status != org.StatusResolved ||
+		resolved.Direct == nil || resolved.Direct.Manager.Value.Id != managerID {
+		t.Fatalf("intraday cut-off resolves %+v", resolved)
+	}
+	midnight, err := values.NewKnownAt(values.NewInstant(time.Date(2026, 9, 23, 0, 0, 0, 0, time.UTC)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stale := resolve(midnight); stale.Status != org.StatusStale {
+		t.Fatalf("midnight cut-off resolves %+v, want STALE", stale)
+	}
+}
+
 func TestPromotionCompensationFactsCreated(t *testing.T) {
 	subjectID := "66666666-6666-4666-8666-666666666666"
 	locate := createdLocator(map[string]*workforce.WorkerRow{

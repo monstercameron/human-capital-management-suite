@@ -292,7 +292,7 @@ type ResolveRequest struct {
 //
 // It is a port because the source of those facts is a deployment decision. P1A
 // has no worker projection of its own, so the shipped implementation
-// ([NewFixtureInputs]) resolves against internal/domains/fixtures and the
+// ([NewCorpusInputs]) resolves against internal/domains/fixtures and the
 // configured incumbent connector; a later phase replaces it with a real
 // projection without changing this package's ordering.
 type DomainInputs interface {

@@ -81,7 +81,7 @@ func rev00601Proposed(t *testing.T) rewards.CompensationSnapshot {
 
 // rev00601Authorize runs the same authorization the resolve path evaluates
 // and loads the governed worker facts it reads under.
-func rev00601Authorize(t *testing.T, ctx context.Context, inputs *FixtureInputs, principal *trust.Principal, subject values.EntityRef, asOf people.AsOf) (authorizationResult, people.FactSet) {
+func rev00601Authorize(t *testing.T, ctx context.Context, inputs *CorpusInputs, principal *trust.Principal, subject values.EntityRef, asOf people.AsOf) (authorizationResult, people.FactSet) {
 	t.Helper()
 	read := mergeFields(peopleFields(promotion.RequiredWorkerFields()), peopleFields(promosnapshot.WorkerFactFields()))
 	decision, err := authorizeRead(principal, authz.PurposeCompensationReview, authorizationRequest{
@@ -116,9 +116,9 @@ func rev00601Input(t *testing.T, decision authorizationResult, subject values.En
 
 func TestTodo_REV_006_01(t *testing.T) {
 	ctx := context.Background()
-	inputs, err := NewFixtureInputs()
+	inputs, err := NewCorpusInputs()
 	if err != nil {
-		t.Fatalf("NewFixtureInputs: %v", err)
+		t.Fatalf("NewCorpusInputs: %v", err)
 	}
 	principal := rev00601Principal(t)
 	subject := rev00601Subject(t)
@@ -189,9 +189,9 @@ func TestTodo_REV_006_01(t *testing.T) {
 	}
 	// A pool that covers existence but not the raise refuses at simulation
 	// level, still before any commit runs.
-	thin, err := NewFixtureInputs()
+	thin, err := NewCorpusInputs()
 	if err != nil {
-		t.Fatalf("NewFixtureInputs: %v", err)
+		t.Fatalf("NewCorpusInputs: %v", err)
 	}
 	thousand, err := values.NewDecimal("1000.00", 2, values.RoundingHalfEven)
 	if err != nil {
@@ -226,9 +226,9 @@ func TestTodo_REV_006_01(t *testing.T) {
 
 	// An exhausted pool refuses the build on the budget input, before any
 	// commit path can run.
-	exhausted, err := NewFixtureInputs()
+	exhausted, err := NewCorpusInputs()
 	if err != nil {
-		t.Fatalf("NewFixtureInputs: %v", err)
+		t.Fatalf("NewCorpusInputs: %v", err)
 	}
 	zero, err := values.NewDecimal("0.00", 2, values.RoundingHalfEven)
 	if err != nil {
@@ -272,9 +272,9 @@ func TestTodo_REV_006_01(t *testing.T) {
 
 func TestTodo_REV_006_01_Golden(t *testing.T) {
 	ctx := context.Background()
-	inputs, err := NewFixtureInputs()
+	inputs, err := NewCorpusInputs()
 	if err != nil {
-		t.Fatalf("NewFixtureInputs: %v", err)
+		t.Fatalf("NewCorpusInputs: %v", err)
 	}
 	principal := rev00601Principal(t)
 	subject := rev00601Subject(t)
@@ -348,9 +348,9 @@ func rev00601Instance() intent.Instance {
 // live pool and proves the resolve is refused before any commit runs.
 func TestTodo_REV_006_01_Integration(t *testing.T) {
 	ctx := context.Background()
-	inputs, err := NewFixtureInputs()
+	inputs, err := NewCorpusInputs()
 	if err != nil {
-		t.Fatalf("NewFixtureInputs: %v", err)
+		t.Fatalf("NewCorpusInputs: %v", err)
 	}
 	principal := rev00601Principal(t)
 	req := ResolveRequest{Instance: rev00601Instance(), Principal: principal, Purpose: authz.PurposeCompensationReview}
@@ -376,9 +376,9 @@ func TestTodo_REV_006_01_Integration(t *testing.T) {
 		t.Fatal("simulations are not bound to the resolved baseline")
 	}
 
-	exhausted, err := NewFixtureInputs()
+	exhausted, err := NewCorpusInputs()
 	if err != nil {
-		t.Fatalf("NewFixtureInputs: %v", err)
+		t.Fatalf("NewCorpusInputs: %v", err)
 	}
 	zero, err := values.NewDecimal("0.00", 2, values.RoundingHalfEven)
 	if err != nil {

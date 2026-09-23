@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
@@ -38,6 +39,7 @@ func proposalFor(
 	controls intent.ControlSnapshots,
 	revision uint64,
 	managerWorkerID string,
+	contractDigest string,
 ) (intent.ProposalSpec, error) {
 	if inst.RequestedEffectiveAt == nil {
 		return intent.ProposalSpec{}, fmt.Errorf("app: %s carries no requested effective time", inst.IntentID)
@@ -133,6 +135,19 @@ func proposalFor(
 			AlgorithmID: "sha256",
 			Digest:      result.Preflight.ResultDigest,
 		}}
+	}
+	// A position-bound simulation assembles a governed simulation contract
+	// over the resolve-time sims; the minted proposal pins its digest
+	// alongside the preflight so the approved revision -- the material the
+	// terminal resolver builds the commit from -- executes against the
+	// contract the simulation certified, not just the projection. Empty on
+	// paths that assembled none.
+	if digest := strings.TrimSpace(contractDigest); digest != "" {
+		spec.Attachments = append(spec.Attachments, intent.AttachmentRef{
+			ArtifactID:  "artifact:simcontract:" + inst.IntentID,
+			AlgorithmID: "sha256",
+			Digest:      digest,
+		})
 	}
 	return spec, nil
 }

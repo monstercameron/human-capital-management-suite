@@ -48,7 +48,7 @@ type PositionDirectorySource interface {
 // be the identical hook the resubmission check uses for the same viewer
 // (positionpicker.Request.Authorize documents why: a picker and a check
 // that disagree either leak or wrongly refuse), and the production propose
-// path passes no per-position hook today -- FixtureInputs builds its
+// path passes no per-position hook today -- CorpusInputs builds its
 // promotion.PreflightRequest with PositionReader and no Authorize. The
 // boundary that is actually enforced is tenancy: the directory is read
 // inside a tenant-scoped transaction, and every candidate's reference

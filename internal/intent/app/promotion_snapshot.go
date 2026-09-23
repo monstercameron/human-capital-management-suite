@@ -592,7 +592,7 @@ type promotionSnapshotOutput struct {
 // chain -- is returned as the error, before any commit path can run. The
 // direct manager is re-resolved under the same authorization so the
 // assignment simulation keeps exactly the manager the snapshot discloses.
-func (f *FixtureInputs) buildPromotionSnapshot(ctx context.Context, in promotionSnapshotInput) (promotionSnapshotOutput, error) {
+func (f *CorpusInputs) buildPromotionSnapshot(ctx context.Context, in promotionSnapshotInput) (promotionSnapshotOutput, error) {
 	var empty promotionSnapshotOutput
 	if f == nil {
 		return empty, fmt.Errorf("app: promotion snapshot needs a composed resolver")
@@ -866,7 +866,7 @@ func promotionPayPeriod(effective values.LocalDate) (values.PayPeriod, error) {
 // entity reference the snapshot binds: a picker-issued revision reference
 // when it decodes and stays in-tenant, else the corpus catalog code, else a
 // fail-closed refusal for an unknown position.
-func (f *FixtureInputs) snapshotTargetPosition(tenant values.TenantId, positionID string) (values.EntityRef, error) {
+func (f *CorpusInputs) snapshotTargetPosition(tenant values.TenantId, positionID string) (values.EntityRef, error) {
 	if selected, _, decodeErr := position.RevisionRef(positionID).Decode(); decodeErr == nil {
 		if selected.Tenant != tenant {
 			return values.EntityRef{}, fmt.Errorf("app: target position %q is outside tenant %s", positionID, tenant)

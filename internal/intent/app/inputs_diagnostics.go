@@ -36,7 +36,7 @@ func freshnessPolicy() dataops.FreshnessPolicy {
 
 // resolveDrift decodes a detect_drift payload into the bounded cross-system
 // comparison the operations domain runs.
-func (f *FixtureInputs) resolveDrift(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
+func (f *CorpusInputs) resolveDrift(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
 	inst := req.Instance
 	if f.externalSource == "" {
 		return DomainCall{}, fmt.Errorf("app: this cell has no incumbent connection to compare against")
@@ -100,7 +100,7 @@ func (f *FixtureInputs) resolveDrift(ctx context.Context, req ResolveRequest, pa
 // intents rest on the same pinned comparison; the second one simulates the
 // plan the first one would produce, so resolving them differently would let
 // the simulation be about a world the plan never saw.
-func (f *FixtureInputs) resolveRepair(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
+func (f *CorpusInputs) resolveRepair(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
 	inst, def := req.Instance, req.Definition
 	if f.externalSource == "" {
 		return DomainCall{}, fmt.Errorf("app: this cell has no incumbent connection to compare against")
@@ -171,7 +171,7 @@ func (f *FixtureInputs) resolveRepair(ctx context.Context, req ResolveRequest, p
 // coordinate - which transaction, at what knowledge cut-off, over which
 // sections - and the authorization decision that says whether this caller may
 // learn the transaction exists at all.
-func (f *FixtureInputs) resolveTransaction(req ResolveRequest, payload *structValue) (DomainCall, error) {
+func (f *CorpusInputs) resolveTransaction(req ResolveRequest, payload *structValue) (DomainCall, error) {
 	inst := req.Instance
 	ref, err := str(payload, "transaction_ref")
 	if err != nil {
@@ -235,7 +235,7 @@ func comparisonPeopleFields() []people.FieldID {
 
 // population decodes the bounded subject set a drift run examines, accepting
 // either a list of worker references or a single one.
-func (f *FixtureInputs) population(ctx context.Context, inst intent.Instance, payload *structValue) ([]values.EntityRef, error) {
+func (f *CorpusInputs) population(ctx context.Context, inst intent.Instance, payload *structValue) ([]values.EntityRef, error) {
 	refs := optionalStrings(payload, "worker_refs")
 	if len(refs) == 0 {
 		single, err := str(payload, "worker_ref")
@@ -265,7 +265,7 @@ func (f *FixtureInputs) population(ctx context.Context, inst intent.Instance, pa
 
 // pinPopulation performs the governed read that pins the baseline: which
 // subjects resolve at all, and the revision each was read at.
-func (f *FixtureInputs) pinPopulation(
+func (f *CorpusInputs) pinPopulation(
 	ctx context.Context,
 	inst intent.Instance,
 	population []values.EntityRef,

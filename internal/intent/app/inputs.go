@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -48,16 +49,21 @@ const (
 	ObservationPageLimit = 100
 )
 
-// FixtureInputs resolves domain inputs against internal/domains/fixtures and,
-// for the cross-system diagnostics, against the configured incumbent
-// connector.
+// CorpusInputs resolves domain inputs against the design-partner corpus in
+// internal/domains/fixtures and, for the cross-system diagnostics, against
+// the configured incumbent connector.
 //
 // P1A ships no worker projection and no pay-band store: the eight read-only
-// intents answer from the design-partner corpus. That is a deployment fact,
-// not a test convenience, so the adapter lives beside the service and is what
-// cmd/hcmnext wires in. Replacing it with a real projection is a change to
-// this file and to the composition root, and to nothing else.
-type FixtureInputs struct {
+// intents answer from the corpus. That is a deployment fact, not a test
+// convenience -- the corpus is the production source-data authority, so the
+// adapter lives beside the service and is what cmd/hcmnext wires in.
+// REV-006-01 renamed the former FixtureInputs to say exactly that: the name
+// now marks the production resolver, and position-bound promotions resolve
+// through the governed promotion snapshot and simulation pipeline, not
+// through an ungoverned fixture path. Replacing the corpus with a real
+// projection is a change to this file and to the composition root, and to
+// nothing else.
+type CorpusInputs struct {
 	// workers is the governed worker read this resolver pins its baseline
 	// through. It starts as the corpus reader and is rebound by [NewCell] to
 	// the cell's own composed WorkerFacts ([BindWorkers]), so the resolver
@@ -92,10 +98,10 @@ type FixtureInputs struct {
 	budgetPools *corpusBudgetFacts
 }
 
-var _ DomainInputs = (*FixtureInputs)(nil)
+var _ DomainInputs = (*CorpusInputs)(nil)
 
-// NewFixtureInputs loads the corpus.
-func NewFixtureInputs() (*FixtureInputs, error) {
+// NewCorpusInputs loads the corpus-backed production resolver.
+func NewCorpusInputs() (*CorpusInputs, error) {
 	workers, err := fixtures.NewMemoryWorkerFacts()
 	if err != nil {
 		return nil, fmt.Errorf("app: load worker corpus: %w", err)
@@ -108,11 +114,11 @@ func NewFixtureInputs() (*FixtureInputs, error) {
 	if err != nil {
 		return nil, fmt.Errorf("app: load demo pay bands: %w", err)
 	}
-	return &FixtureInputs{workers: workers, bands: demoBands, locate: corpusWorkerLocator}, nil
+	return &CorpusInputs{workers: workers, bands: demoBands, locate: corpusWorkerLocator}, nil
 }
 
 // BindExternalSource names the observing system the comparison intents read.
-func (f *FixtureInputs) BindExternalSource(ref string) { f.externalSource = ref }
+func (f *CorpusInputs) BindExternalSource(ref string) { f.externalSource = ref }
 
 // BindWorkers replaces the governed worker read this resolver pins its
 // baseline through.
@@ -126,7 +132,7 @@ func (f *FixtureInputs) BindExternalSource(ref string) { f.externalSource = ref 
 //
 // A nil reader is ignored: a cell that composed no worker read at all keeps
 // the corpus this resolver loaded for itself.
-func (f *FixtureInputs) BindWorkers(workers people.WorkerFacts) {
+func (f *CorpusInputs) BindWorkers(workers people.WorkerFacts) {
 	if workers != nil {
 		f.workers = workers
 	}
@@ -141,7 +147,7 @@ func (f *FixtureInputs) BindWorkers(workers people.WorkerFacts) {
 //
 // A nil locator is ignored, so a caller that never composed one keeps the
 // corpus resolution this type loaded for itself.
-func (f *FixtureInputs) BindWorkerLocator(locate WorkerLocator) {
+func (f *CorpusInputs) BindWorkerLocator(locate WorkerLocator) {
 	if locate != nil {
 		f.locate = locate
 	}
@@ -155,7 +161,7 @@ func (f *FixtureInputs) BindWorkerLocator(locate WorkerLocator) {
 // the journey engine's Propose) built its preflight with no reader, and
 // PROMOUX-004's selection check refused every picker-issued position as not
 // found: no real position could be proposed. A nil reader is ignored.
-func (f *FixtureInputs) BindPositionReader(reader position.PositionFacts) {
+func (f *CorpusInputs) BindPositionReader(reader position.PositionFacts) {
 	if reader != nil {
 		f.positionReader = reader
 	}
@@ -163,13 +169,13 @@ func (f *FixtureInputs) BindPositionReader(reader position.PositionFacts) {
 
 // BindBands replaces the pay-band catalog this resolver evaluates against.
 //
-// [NewFixtureInputs] composes the compiled-in catalog, because a resolver
+// [NewCorpusInputs] composes the compiled-in catalog, because a resolver
 // built without a database has nothing else to read. [NewCell] calls this with
 // the cell's own database-backed catalog (internal/data/bandfacts) so the
 // simulation that has to certify a promotion prices it against the tenant's
 // own stored bands rather than a process-local map. A nil catalog is ignored,
 // so a cell that composed none keeps the one this type loaded for itself.
-func (f *FixtureInputs) BindBands(bands rewards.PayBandCatalog) {
+func (f *CorpusInputs) BindBands(bands rewards.PayBandCatalog) {
 	if bands != nil {
 		f.bands = bands
 	}
@@ -183,7 +189,7 @@ func (f *FixtureInputs) BindBands(bands rewards.PayBandCatalog) {
 // silently mint a different proposal digest and the decision would fail to
 // find its own started run instead of taking the approval's INVALIDATED
 // route. A nil reader is ignored, and a nil answer means nothing is pinned.
-func (f *FixtureInputs) BindPinnedManager(read PinnedManagerReader) {
+func (f *CorpusInputs) BindPinnedManager(read PinnedManagerReader) {
 	if read != nil {
 		f.pinnedManager = read
 	}
@@ -194,13 +200,13 @@ func (f *FixtureInputs) BindPinnedManager(read PinnedManagerReader) {
 type PinnedManagerReader func(ctx context.Context, tenant values.TenantId, intentID string) (string, bool, error)
 
 // Bands exposes the pay-band catalog the domain handlers evaluate against.
-func (f *FixtureInputs) Bands() rewards.PayBandCatalog { return f.bands }
+func (f *CorpusInputs) Bands() rewards.PayBandCatalog { return f.bands }
 
 // Workers exposes the governed worker read port.
-func (f *FixtureInputs) Workers() people.WorkerFacts { return f.workers }
+func (f *CorpusInputs) Workers() people.WorkerFacts { return f.workers }
 
 // Resolve implements [DomainInputs].
-func (f *FixtureInputs) Resolve(ctx context.Context, req ResolveRequest) (DomainCall, error) {
+func (f *CorpusInputs) Resolve(ctx context.Context, req ResolveRequest) (DomainCall, error) {
 	inst, def := req.Instance, req.Definition
 	payload, err := decodeStruct(inst.Request.WireBytes)
 	if err != nil {
@@ -235,7 +241,7 @@ func (f *FixtureInputs) Resolve(ctx context.Context, req ResolveRequest) (Domain
 // turns a false into a refusal naming the reference. The locator itself logs
 // nothing and invents nothing, so the only lost information is the difference
 // between "not there" and "could not tell", which no caller here distinguishes.
-func (f *FixtureInputs) worker(ctx context.Context, tenant values.TenantId, ref string) (values.EntityRef, bool) {
+func (f *CorpusInputs) worker(ctx context.Context, tenant values.TenantId, ref string) (values.EntityRef, bool) {
 	locate := f.locate
 	if locate == nil {
 		locate = corpusWorkerLocator
@@ -251,7 +257,7 @@ func (f *FixtureInputs) worker(ctx context.Context, tenant values.TenantId, ref 
 // resolves at all, and the revision every fact was read at. Extra fields
 // extend the projection for callers that simulate over them (a position-bound
 // promotion reads occupancy FTE); the baseline projection is unchanged.
-func (f *FixtureInputs) read(ctx context.Context, tenant values.TenantId, worker values.EntityRef, asOf people.AsOf, extra ...people.FieldID) (people.FactSet, error) {
+func (f *CorpusInputs) read(ctx context.Context, tenant values.TenantId, worker values.EntityRef, asOf people.AsOf, extra ...people.FieldID) (people.FactSet, error) {
 	fields := append(append([]people.FieldID(nil), promotion.RequiredWorkerFields()...), extra...)
 	return f.workers.WorkerFactsAt(ctx, people.FactQuery{
 		Tenant: tenant,
@@ -263,14 +269,21 @@ func (f *FixtureInputs) read(ctx context.Context, tenant values.TenantId, worker
 
 // asOf builds the bitemporal coordinate from an effective date and an optional
 // knowledge cut-off, defaulting the cut-off to the instance's creation time.
+// The cut-off accepts a full RFC-3339 instant (what the journey declares for
+// a created worker, whose record carries intraday precision) or a bare date
+// (the corpus evaluation coordinate). A bare date keeps its long-standing
+// midnight meaning; parsing an instant first is what keeps a worker created
+// after midnight from reading as stale against its own day (REV-006-01).
 func asOfFrom(inst intent.Instance, effective values.LocalDate, knownAtText string) (people.AsOf, error) {
 	at := inst.CreatedAt
 	if knownAtText != "" {
-		parsed, err := values.ParseLocalDate(knownAtText)
-		if err != nil {
+		if instant, err := time.Parse(time.RFC3339Nano, knownAtText); err == nil {
+			at = values.NewInstant(instant)
+		} else if parsed, err := values.ParseLocalDate(knownAtText); err != nil {
 			return people.AsOf{}, fmt.Errorf("app: known_at: %w", err)
+		} else {
+			at = values.NewInstant(time.Date(int(parsed.Year()), parsed.Month(), int(parsed.Day()), 0, 0, 0, 0, time.UTC))
 		}
-		at = values.NewInstant(time.Date(int(parsed.Year()), parsed.Month(), int(parsed.Day()), 0, 0, 0, 0, time.UTC))
 	}
 	known, err := values.NewKnownAt(at)
 	if err != nil {
@@ -281,7 +294,7 @@ func asOfFrom(inst intent.Instance, effective values.LocalDate, knownAtText stri
 
 // resolvePromotion decodes a promote_worker payload into the governed read, the
 // domain preflight request and the kernel baseline.
-func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
+func (f *CorpusInputs) resolvePromotion(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
 	inst := req.Instance
 	workerRef, err := str(payload, "worker_ref")
 	if err != nil {
@@ -398,6 +411,36 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 			return DomainCall{}, snapErr
 		}
 		baseline = governed.Snapshot.BaselineSnapshot()
+		// REV-006-01: the kernel preflights request-level required inputs
+		// (employment_ref, effective_time, reason_ref, ...) by NAME, while
+		// the snapshot baseline speaks snapshot input names. Both
+		// statements are true -- the payload stated those inputs above and
+		// the snapshot disclosed its own -- so the kernel baseline unions
+		// them; without the union every position-bound proposal reads as
+		// missing required data and nothing mints.
+		baseline.PresentInputs = unionPresentInputs(baseline.PresentInputs, present)
+		// The snapshot's per-input negative states stay in the snapshot,
+		// bound by its digest, rather than moving into the kernel baseline.
+		// Every substantive absence (manager chain, position revision,
+		// pool) already refuses the build or the simulations before a
+		// baseline exists; the only negatives that reach this point are
+		// informational (a vacancy-after date nobody knows). Carrying those
+		// into the kernel baseline would force a CREATE_OBLIGATION for
+		// facts no workflow could establish, blocking every promotion the
+		// sims just proved executable. The pre-snapshot baseline likewise
+		// stated no negatives.
+		baseline.NegativeStates = nil
+		// planFor pins the commit fence to the governed worker read under
+		// the subject's own key, which the snapshot baseline -- keyed by
+		// input name -- does not carry. Without the pin every
+		// position-bound proposal fails planning with no revision for its
+		// subject.
+		if facts.Exists {
+			if baseline.Revisions == nil {
+				baseline.Revisions = map[string]values.RevisionToken{}
+			}
+			baseline.Revisions[subject.String()] = facts.Watermark
+		}
 		simulated, simErr := runPromotionSims(governed, promotionSimInput{
 			Target:   promotionTargetPlacement{JobCode: target.JobCode, Grade: target.Grade, OrgUnit: target.OrgUnit, PositionID: target.PositionID, PayZone: target.PayZone},
 			AsOf:     asOf,
@@ -458,7 +501,7 @@ func (f *FixtureInputs) resolvePromotion(ctx context.Context, req ResolveRequest
 // managerWorkerID resolves a created worker's recorded manager reference to
 // the manager's own worker id. A corpus worker, or a manager reference no
 // recorded worker answers to, has no manager worker and yields "".
-func (f *FixtureInputs) managerWorkerID(ctx context.Context, inst intent.Instance, workerRef string) string {
+func (f *CorpusInputs) managerWorkerID(ctx context.Context, inst intent.Instance, workerRef string) string {
 	tenant := inst.Tenant
 	// The manager an approved revision already pinned is approval-frozen
 	// material: a re-simulation reuses it rather than re-reading the live
@@ -484,7 +527,7 @@ func (f *FixtureInputs) managerWorkerID(ctx context.Context, inst intent.Instanc
 }
 
 // resolveExplain decodes an explain_worker_state payload.
-func (f *FixtureInputs) resolveExplain(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
+func (f *CorpusInputs) resolveExplain(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
 	inst := req.Instance
 	workerRef, err := str(payload, "worker_ref")
 	if err != nil {
@@ -530,7 +573,7 @@ func (f *FixtureInputs) resolveExplain(ctx context.Context, req ResolveRequest, 
 }
 
 // resolveCompensation decodes a simulate_compensation payload.
-func (f *FixtureInputs) resolveCompensation(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
+func (f *CorpusInputs) resolveCompensation(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
 	inst := req.Instance
 	workerRef, err := str(payload, "worker_ref")
 	if err != nil {
@@ -594,7 +637,7 @@ func (f *FixtureInputs) resolveCompensation(ctx context.Context, req ResolveRequ
 }
 
 // resolvePayBand decodes an evaluate_pay_band_position payload.
-func (f *FixtureInputs) resolvePayBand(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
+func (f *CorpusInputs) resolvePayBand(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
 	inst := req.Instance
 	workerRef, err := str(payload, "worker_ref")
 	if err != nil {
@@ -643,6 +686,25 @@ func (f *FixtureInputs) resolvePayBand(ctx context.Context, req ResolveRequest, 
 		Baseline: baselineFor(inst, facts, subject, promotion.TargetPlacement{},
 			[]string{"employment_ref", "pay_band_ref", "amount"}),
 	}, nil
+}
+
+// unionPresentInputs merges two present-input lists into a sorted,
+// deduplicated union for the kernel baseline. Order is normalized so the
+// baseline – and everything digested from it – stays deterministic.
+func unionPresentInputs(lists ...[]string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, list := range lists {
+		for _, name := range list {
+			if strings.TrimSpace(name) == "" || seen[name] {
+				continue
+			}
+			seen[name] = true
+			out = append(out, name)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // baselineFor builds the kernel's input snapshot from a governed corpus read.

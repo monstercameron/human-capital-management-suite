@@ -104,9 +104,9 @@ func rev09102RequestNaming(t *testing.T, managerRef string) (*structValue, demow
 
 func rev09102Bands(t *testing.T) rewards.PayBandCatalog {
 	t.Helper()
-	inputs, err := NewFixtureInputs()
+	inputs, err := NewCorpusInputs()
 	if err != nil {
-		t.Fatalf("NewFixtureInputs: %v", err)
+		t.Fatalf("NewCorpusInputs: %v", err)
 	}
 	return inputs.Bands()
 }

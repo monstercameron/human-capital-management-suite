@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/simcontract"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/repair"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -35,13 +36,30 @@ const (
 type promotionCall struct {
 	Mode    promotionMode
 	Request promotion.PreflightRequest
+	// IntentID identifies the simulated intent. It is carried so the
+	// SIMULATE branch can bind the governed simulation contract to the
+	// intent it describes; empty on paths that never resolve one.
+	IntentID string
+	// Simulations are the resolve-time governed simassign/simcomp results
+	// for a position-bound proposal. Nil selects the legacy direct
+	// simulation: the handler still answers, but assembles no governed
+	// contract.
+	Simulations *PromotionSimulations
+	// ControlSnapshotDigest is the control snapshot the simulation runs
+	// under, cited by the governed contract's revalidation section.
+	ControlSnapshotDigest string
+	// RevalidationRule is the intent definition's revalidation rule the
+	// governed contract reruns at execution time.
+	RevalidationRule string
 }
 
 // promotionAnswer is what it returns. Exactly one half is populated, selected
-// by the requested mode.
+// by the requested mode; Contract carries the governed simulation contract
+// when the SIMULATE branch assembled one.
 type promotionAnswer struct {
 	Preflight  promotion.PreflightResult
 	Simulation promotion.SimulationResult
+	Contract   simcontract.SimulationResult
 }
 
 // ErrCapabilityUnbound is returned by a bootstrap capability that this cell
@@ -115,7 +133,21 @@ func (h *domainHandlers) promoteWorker(ctx context.Context, payload any) (any, e
 		if err != nil {
 			return nil, err
 		}
-		return promotionAnswer{Preflight: result.Preflight, Simulation: result}, nil
+		answer := promotionAnswer{Preflight: result.Preflight, Simulation: result}
+		if call.Simulations != nil {
+			contract, err := assemblePromotionContract(promotionContractInput{
+				IntentID:              call.IntentID,
+				Simulations:           call.Simulations,
+				Preflight:             result.Preflight,
+				ControlSnapshotDigest: call.ControlSnapshotDigest,
+				RevalidationRule:      call.RevalidationRule,
+			})
+			if err != nil {
+				return nil, err
+			}
+			answer.Contract = contract
+		}
+		return answer, nil
 	default:
 		return nil, fmt.Errorf("app: promote_worker has no mode %q", call.Mode)
 	}

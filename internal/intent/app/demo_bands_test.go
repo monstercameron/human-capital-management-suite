@@ -12,7 +12,7 @@ import (
 )
 
 func TestDemoBandsCoverEveryPublishedPromotionTargetAndStayTenantScoped(t *testing.T) {
-	inputs, err := NewFixtureInputs()
+	inputs, err := NewCorpusInputs()
 	if err != nil {
 		t.Fatal(err)
 	}
