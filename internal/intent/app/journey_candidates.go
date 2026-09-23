@@ -296,6 +296,16 @@ func (e *journeyEngine) recordProposalCandidates(
 		}
 	}
 
+	// REV-006-02: the admitted proposal holds its target head the same
+	// way. Two promotions for the last open headcount each read a
+	// capacity-available snapshot, so the check-then-act has to happen
+	// here, once, under the fence: the loser gets the stores' typed
+	// conflict and never reaches a commit. A revision with no POSITION
+	// target implies no hold, exactly like the budget skip above.
+	if err := e.holdProposalPosition(ctx, inst, *rev, observed); err != nil {
+		return err
+	}
+
 	sets, err := proposalCandidateSets(*rev)
 	if err != nil {
 		return err

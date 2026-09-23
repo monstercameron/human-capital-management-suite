@@ -23,6 +23,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/localcommit"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -103,6 +104,11 @@ type journeyEngine struct {
 	// (promotion_ladder_source.go). Nil on a cell with no execution
 	// database, which publishes the authored ladder instead.
 	ladder *promotionLadderSource
+	// reservations is REV-006-02's capacity fence: the position head and
+	// budget slice holds an admitted proposal takes before its commit is
+	// attempted. Composed by newJourneyEngine; fixtures built outside it
+	// fall back through reservationFenceOf, never a nil map.
+	reservations *localcommit.PromotionReservationFence
 	// invalidations receives every committed promotion transition
 	// (REV-091-03, journey_invalidation.go); nil publishes none.
 	invalidations InvalidationPublisher
@@ -134,7 +140,7 @@ func newJourneyEngine(
 	if len(stores) > 0 {
 		workerIDStore = stores[0]
 	}
-	engine := &journeyEngine{svc: svc, db: db, approver: approver, now: now, locate: locate, workerIDs: workerIDStore}
+	engine := &journeyEngine{svc: svc, db: db, approver: approver, now: now, locate: locate, workerIDs: workerIDStore, reservations: localcommit.NewPromotionReservationFence()}
 	if svc != nil {
 		svc.bindProposalDecisioner(engine)
 	}
@@ -871,19 +877,24 @@ type journeyBaselineFacts struct {
 	revisionSeq    string
 	budgetAvailabe string
 	evaluationDate string
-	// knownAt is the knowledge cut-off the governed worker read is taken at,
-	// as an ISO-8601 date. It is empty for a corpus worker, whose knowledge
-	// coordinate is the ported scenario's own evaluation date; a created
-	// worker carries the instant its record was known at instead, because
-	// that is when this cell actually learned the facts being read.
+	// knownAt is the knowledge cut-off the governed worker read is taken at.
+	// It is empty for a corpus worker, whose knowledge coordinate is the
+	// ported scenario's own evaluation date; a created worker carries the
+	// full-precision instant its record was known at instead, because that
+	// is when this cell actually learned the facts being read. Truncating
+	// that instant to a date would move the cut-off to midnight and make
+	// every fact the row records later that day read as stale (REV-006-01).
 	knownAt       string
 	effective     values.LocalDate
 	effectiveText string
 }
 
-// knownAtDate is the knowledge cut-off the request payload declares: the
-// created worker's own, or the corpus evaluation date.
-func (b journeyBaselineFacts) knownAtDate() string {
+// knownAtCutoff is the knowledge cut-off the request payload declares: the
+// created worker's own full-precision instant, or the corpus evaluation
+// date. The created coordinate keeps its intraday precision on purpose: the
+// resolve parses it back to the exact instant the record was known at, so a
+// worker created after midnight is not read as stale against its own day.
+func (b journeyBaselineFacts) knownAtCutoff() string {
 	if b.knownAt != "" {
 		return b.knownAt
 	}
@@ -928,7 +939,7 @@ func journeyBaseline(in workspace.ProposalInput, subject WorkerLocation) (journe
 		facts.bonusTarget = created.BonusTarget
 		facts.revisionStream = created.RevisionStream
 		facts.revisionSeq = fmt.Sprint(created.RevisionSequence)
-		facts.knownAt = created.KnownAt.UTC().Format(time.DateOnly)
+		facts.knownAt = created.KnownAt.UTC().Format(time.RFC3339Nano)
 	} else if subject.Key == "jane-doe" {
 		facts.currentBase = fixtures.JanePromotionBase
 		facts.currency = "USD"
@@ -1058,7 +1069,7 @@ func journeyRequestPayload(
 		// by a raw entity id would list under that id forever.
 		"worker_ref":  workerKey,
 		"worker_name": current.name,
-		"known_at":    baseline.knownAtDate(),
+		"known_at":    baseline.knownAtCutoff(),
 		// current_placement is a display fact, not an input: the resolver
 		// reads the worker's real placement itself through the governed read
 		// and never looks at this object (it decodes only the named paths it
