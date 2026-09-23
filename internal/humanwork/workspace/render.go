@@ -29,6 +29,10 @@ const (
 	// PathAssetPrefix serves the progressive-enhancement bundle, when one has
 	// been built into this package.
 	PathAssetPrefix = "/workspace/assets/"
+	// PathChatMediaPrefix is the protected chat media boundary the edge mounts
+	// at the origin root. The product shell's connect-src names it so the wasm
+	// client can mint grants and read bytes with its bearer.
+	PathChatMediaPrefix = "/v1/chat/media/"
 	// PathWasm is the GWC/WASM bundle.
 	PathWasm = PathAssetPrefix + assetWasm
 	// PathWasmExec is the Go WASM runtime shim the bundle needs.

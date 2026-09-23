@@ -139,6 +139,9 @@ type JourneyConfig struct {
 	// LogoutPath is populated only for the explicitly enabled local browser
 	// session. Enterprise deployments leave sign-out to their identity edge.
 	LogoutPath string `json:"logout_path,omitempty"`
+	// GiphyAPIKey is GIPHY's public browser client key, present only when the
+	// operator explicitly configures the optional chat GIF picker.
+	GiphyAPIKey string `json:"giphy_api_key,omitempty"`
 }
 
 // LauncherActionConfig is the JSON-island form of one launcher verdict. Copy

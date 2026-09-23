@@ -46,6 +46,14 @@ func (c unreachableCell) ReadPromotion(context.Context, Request) (Reading, error
 // optional public origin composes the handler the way a TLS-terminating
 // deployment would.
 func newShellHandler(t *testing.T, devBrowserLogin bool, publicOrigin ...string) (*Handler, string) {
+	return newShellHandlerConfigured(t, devBrowserLogin, "", publicOrigin...)
+}
+
+func newShellHandlerWithGiphyKey(t *testing.T, key string, publicOrigin ...string) (*Handler, string) {
+	return newShellHandlerConfigured(t, false, key, publicOrigin...)
+}
+
+func newShellHandlerConfigured(t *testing.T, devBrowserLogin bool, giphyAPIKey string, publicOrigin ...string) (*Handler, string) {
 	t.Helper()
 	verifier, err := trust.NewHMACVerifier(trust.HMACVerifierConfig{
 		Key:      shellSigningKey,
@@ -88,6 +96,7 @@ func newShellHandler(t *testing.T, devBrowserLogin bool, publicOrigin ...string)
 		Now:             func() time.Time { return shellNow },
 		DevBrowserLogin: devBrowserLogin,
 		PublicOrigin:    declared,
+		GiphyAPIKey:     giphyAPIKey,
 	})
 	if err != nil {
 		t.Fatalf("NewHandler: %v", err)

@@ -76,6 +76,9 @@ func TestProductShellCarriesAuthenticatedLiveClientConfiguration(t *testing.T) {
 	if config.TunnelURL != "ws://cell.test"+PathTunnel || config.Bearer != token || config.Tenant != shellTenant || config.Subject != shellSubject {
 		t.Fatalf("product config = %+v", config)
 	}
+	if config.GiphyAPIKey != "" || strings.Contains(recorder.Header().Get("Content-Security-Policy"), "giphy.com") {
+		t.Fatal("unconfigured product shell enabled GIPHY")
+	}
 	if !strings.Contains(recorder.Body.String(), `class="app-shell nav-collapsed`) {
 		t.Fatal("explicit collapsed route did not shape the initial server-rendered shell")
 	}
@@ -86,6 +89,37 @@ func TestProductShellCarriesAuthenticatedLiveClientConfiguration(t *testing.T) {
 	}
 	if got := recorder.Header().Get("Content-Security-Policy"); got != ProductContentSecurityPolicy("cell.test") {
 		t.Fatalf("product CSP = %q", got)
+	}
+}
+
+func TestProductShellGiphyConfigAndCSPRequireExplicitPublicKey(t *testing.T) {
+	h, token := newShellHandlerWithGiphyKey(t, "  giphy-public-client-key  ")
+	request := httptest.NewRequest(http.MethodGet, "http://cell.test"+PathProductHome, nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	recorder := httptest.NewRecorder()
+	h.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("GET product shell = %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if got := island(t, recorder.Body.String()).GiphyAPIKey; got != "giphy-public-client-key" {
+		t.Fatalf("product GIPHY key = %q", got)
+	}
+	policy := recorder.Header().Get("Content-Security-Policy")
+	if !strings.Contains(policy, "https://api.giphy.com") || !strings.Contains(policy, "img-src 'self' blob: https://*.giphy.com") {
+		t.Fatalf("configured GIPHY CSP missing provider sources: %q", policy)
+	}
+
+	journey := getJourney(t, h, func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+token) })
+	if journey.Code != http.StatusOK || island(t, journey.Body.String()).GiphyAPIKey != "" {
+		t.Fatalf("journey shell unexpectedly carried the product GIPHY key: status=%d", journey.Code)
+	}
+}
+
+func TestGiphyAPIKeyCanBeConfiguredByEnvironment(t *testing.T) {
+	t.Setenv(EnvGiphyAPIKey, "  operator-public-key  ")
+	h, _ := newShellHandler(t, false)
+	if h.giphyAPIKey != "operator-public-key" {
+		t.Fatalf("environment GIPHY key = %q", h.giphyAPIKey)
 	}
 }
 

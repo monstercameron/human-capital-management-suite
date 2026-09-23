@@ -20,9 +20,16 @@ type cspPolicy struct {
 	connectHost           string
 	allowAssetConnections bool
 	allowTunnelConnection bool
-	sameOriginImages      bool
-	allowBlobScript       bool
-	allowWASM             bool
+	// allowMediaConnections lets the page fetch protected chat media from
+	// PathChatMediaPrefix with its bearer and a grant header. The bytes are
+	// shown through blob URLs, so blobImages accompanies it.
+	allowMediaConnections bool
+	// allowGiphy enables direct browser requests for the optional GIF picker.
+	allowGiphy       bool
+	sameOriginImages bool
+	blobImages       bool
+	allowBlobScript  bool
+	allowWASM        bool
 }
 
 func (p cspPolicy) header() string {
@@ -61,12 +68,25 @@ func (p cspPolicy) header() string {
 		"style-src-attr 'none'",
 	)
 
-	directives = append(directives, "connect-src "+cspConnectSources(
-		p.connectHost, p.allowAssetConnections, p.allowTunnelConnection,
-	))
-	if p.sameOriginImages {
+	connectSources := cspConnectSources(p.connectHost, p.allowAssetConnections, p.allowTunnelConnection, p.allowMediaConnections)
+	if p.allowGiphy {
+		if connectSources == "'none'" {
+			connectSources = "https://api.giphy.com"
+		} else {
+			connectSources += " https://api.giphy.com"
+		}
+	}
+	directives = append(directives, "connect-src "+connectSources)
+	switch {
+	case p.sameOriginImages && p.blobImages && p.allowGiphy:
+		directives = append(directives, "img-src 'self' blob: https://*.giphy.com")
+	case p.sameOriginImages && p.blobImages:
+		directives = append(directives, "img-src 'self' blob:")
+	case p.sameOriginImages:
 		directives = append(directives, "img-src 'self'")
-	} else {
+	case p.blobImages:
+		directives = append(directives, "img-src blob:")
+	default:
 		directives = append(directives, "img-src 'none'")
 	}
 	directives = append(directives,
@@ -120,19 +140,25 @@ func cspStyleSources(values []string) string {
 	return strings.Join(quoted, " ")
 }
 
-func cspConnectSources(rawHost string, allowAssets, allowTunnel bool) string {
-	if !allowAssets && !allowTunnel {
+func cspConnectSources(rawHost string, allowAssets, allowTunnel, allowMedia bool) string {
+	if !allowAssets && !allowTunnel && !allowMedia {
 		return "'none'"
 	}
 	authority := sanitizeHostAuthority(rawHost)
 	if authority == "" {
 		return "'none'"
 	}
-	sources := make([]string, 0, 4)
+	sources := make([]string, 0, 6)
 	if allowAssets {
 		sources = append(sources,
 			"http://"+authority+PathAssetPrefix,
 			"https://"+authority+PathAssetPrefix,
+		)
+	}
+	if allowMedia {
+		sources = append(sources,
+			"http://"+authority+PathChatMediaPrefix,
+			"https://"+authority+PathChatMediaPrefix,
 		)
 	}
 	if allowTunnel {

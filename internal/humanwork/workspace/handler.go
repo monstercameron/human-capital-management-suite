@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,10 @@ import (
 // only so a submitted form can prove it was rendered for the session that is
 // submitting it.
 const sessionCookie = "hcmnext_workspace_session"
+
+// EnvGiphyAPIKey configures the provider's public browser key when the
+// embedding application does not set Options.GiphyAPIKey directly.
+const EnvGiphyAPIKey = "HCMNEXT_GIPHY_API_KEY"
 
 // maxFormBytes bounds a submitted request form.
 const maxFormBytes = 64 << 10
@@ -95,6 +100,10 @@ type Options struct {
 	// dial. Empty derives everything from the request, which is correct for
 	// a listener browsers reach directly.
 	PublicOrigin string
+	// GiphyAPIKey is the provider's browser client key. It is public by
+	// design and is included only in authenticated product page configuration.
+	// Empty disables GIPHY requests and keeps its origins out of the product CSP.
+	GiphyAPIKey string
 }
 
 // Handler serves the Promotion workspace over one live cell.
@@ -122,6 +131,12 @@ type Handler struct {
 	directory   DevDirectory
 	roleAccess  roleaccess.Store
 	preferences preferences.Store
+	giphyAPIKey string
+	// pages is the governed page-revision and rollout ledger the live
+	// page-serving handler resolves through (REV-067-01). Nil or empty
+	// preserves the pre-ledger behavior: pages with no published rollout
+	// serve the compiled registry definition.
+	pages *PageGovernance
 	// publicScheme and publicAuthority are Options.PublicOrigin resolved:
 	// its scheme and its sanitized host[:port]. Empty means the shell
 	// derives both from each request.
@@ -199,6 +214,10 @@ func NewHandler(opts Options) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	giphyAPIKey := strings.TrimSpace(opts.GiphyAPIKey)
+	if giphyAPIKey == "" {
+		giphyAPIKey = strings.TrimSpace(os.Getenv(EnvGiphyAPIKey))
+	}
 	h := &Handler{
 		cell:              opts.Cell,
 		config:            opts.Config,
@@ -215,8 +234,10 @@ func NewHandler(opts Options) (*Handler, error) {
 		directory:         directory,
 		roleAccess:        opts.RoleAccess,
 		preferences:       opts.Preferences,
+		giphyAPIKey:       giphyAPIKey,
 		publicScheme:      publicScheme,
 		publicAuthority:   publicAuthority,
+		pages:             NewPageGovernance(),
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+PathPromotion, h.servePromotion)

@@ -235,8 +235,8 @@ func TestTodo_WEB_033_Conformance(t *testing.T) {
 						t.Errorf("WebSocket source is not path scoped: %q", source)
 					}
 				case strings.HasPrefix(source, "http://"), strings.HasPrefix(source, "https://"):
-					if !strings.HasSuffix(source, PathAssetPrefix) {
-						t.Errorf("HTTP source is not asset-prefix scoped: %q", source)
+					if !strings.HasSuffix(source, PathAssetPrefix) && !strings.HasSuffix(source, PathChatMediaPrefix) {
+						t.Errorf("HTTP source is not asset- or media-prefix scoped: %q", source)
 					}
 				}
 			}
@@ -397,8 +397,12 @@ func TestTodo_WEB_033_Fault(t *testing.T) {
 	if sanitizeHostAuthority(maxHost) == "" {
 		t.Fatal("maximum bounded host fixture was not a valid authority")
 	}
-	if got := len(ProductContentSecurityPolicy(maxHost)); got > 2048 {
-		t.Fatalf("maximum valid CSP header is %d bytes, want <= 2048", got)
+	// The product policy names six path-scoped connect sources (assets, chat
+	// media and the tunnel, each over both schemes), so the bound leaves room
+	// for them at the longest valid authority while staying well under the
+	// 4 KiB header line common proxies enforce.
+	if got := len(ProductContentSecurityPolicy(maxHost)); got > 2560 {
+		t.Fatalf("maximum valid CSP header is %d bytes, want <= 2560", got)
 	}
 }
 

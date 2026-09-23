@@ -39,7 +39,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	principal, _ := trust.FromContext(admitted.Context())
 	config := JourneyConfig{
 		TunnelURL: h.tunnelURL(r), Bearer: normalizeBearerInput(BearerFromRequest(r, h.devBrowserLogin)),
-		Roles: []string{}, JourneysPath: PathJourney,
+		Roles: []string{}, JourneysPath: PathJourney, GiphyAPIKey: h.giphyAPIKey,
 	}
 	if h.devBrowserLogin {
 		config.LogoutPath = PathLogout
@@ -63,6 +63,25 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	if !access.can(definition.ID, roleaccess.ActionView) && !assignedJourneyDetail(definition.ID, r.URL.Query(), access) {
 		h.writeProblem(w, http.StatusForbidden, "Page unavailable", "Your current role does not grant access to this workspace page.")
 		return
+	}
+	// REV-067-01: resolve the served page through the governed rollout
+	// ledger before rendering. A retired page or a scope with no live
+	// rollout is never served; an ungoverned page falls back to the compiled
+	// registry definition. A governed page carries its rolled-out revision
+	// digest so the served definition is pinned to the ledger.
+	revisionScope := ""
+	if principal != nil {
+		revisionScope = principal.OrganizationScopeID()
+		if revisionScope == "" {
+			revisionScope = string(principal.Tenant())
+		}
+	}
+	if revision, governed, servable, reason := h.resolveGovernedRevision(definition.ID, revisionScope, h.now().Unix()); governed {
+		if !servable {
+			h.writeProblem(w, http.StatusNotFound, "Page unavailable", reason)
+			return
+		}
+		w.Header().Set("X-Page-Revision-Digest", revision.Digest)
 	}
 	query := r.URL.Query()
 	locale := productui.ResolveProductLocale(query.Get("locale"))
@@ -106,7 +125,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		h.writeProblem(w, http.StatusInternalServerError, "Workspace unavailable", err.Error())
 		return
 	}
-	writeHTMLDocument(w, http.StatusOK, doc, productContentSecurityPolicyForStylesheet(h.policyHost(r), stylesheet))
+	writeHTMLDocument(w, http.StatusOK, doc, productContentSecurityPolicyForStylesheetAndGiphy(h.policyHost(r), stylesheet, h.giphyAPIKey != ""))
 }
 
 func productThemeFromPreference(value preferences.Theme) productui.CustomerTheme {
@@ -141,6 +160,9 @@ func (h *Handler) resolveProductAccess(ctx context.Context, principal *trust.Pri
 	}
 	access.configured = true
 	access.roles = roleaccess.AssignedRoles(snapshot, principal.Subject(), access.roles)
+	// Page grants come only from the durable policy. New-page defaults are
+	// inserted by roleaccessstore.Bootstrap, never synthesized during a read:
+	// an empty or restricted stored policy must remain a denial.
 	access.permissions = roleaccess.EffectivePagePermissions(snapshot, access.roles)
 	access.featuresConfigured = len(snapshot.FeaturePermissions) > 0
 	access.features = roleaccess.EffectiveFeaturePermissions(snapshot, access.roles)
@@ -366,7 +388,15 @@ func productContentSecurityPolicyForStylesheet(host, stylesheet string) string {
 	return productContentSecurityPolicyForHash(host, sha256Source(stylesheet))
 }
 
+func productContentSecurityPolicyForStylesheetAndGiphy(host, stylesheet string, allowGiphy bool) string {
+	return productContentSecurityPolicyForHashAndGiphy(host, sha256Source(stylesheet), allowGiphy)
+}
+
 func productContentSecurityPolicyForHash(host, stylesheetHash string) string {
+	return productContentSecurityPolicyForHashAndGiphy(host, stylesheetHash, false)
+}
+
+func productContentSecurityPolicyForHashAndGiphy(host, stylesheetHash string, allowGiphy bool) string {
 	return cspPolicy{
 		styleHashes:           []string{stylesheetHash},
 		scriptHash:            journeyLoaderHash,
@@ -374,7 +404,10 @@ func productContentSecurityPolicyForHash(host, stylesheetHash string) string {
 		connectHost:           host,
 		allowAssetConnections: true,
 		allowTunnelConnection: true,
+		allowMediaConnections: true,
+		allowGiphy:            allowGiphy,
 		sameOriginImages:      true,
+		blobImages:            true,
 		allowBlobScript:       true,
 		allowWASM:             true,
 	}.header()
