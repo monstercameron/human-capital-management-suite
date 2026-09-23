@@ -4,6 +4,7 @@ package roleaccessstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -274,6 +275,21 @@ func (s *Store) SaveRole(ctx context.Context, tenant values.TenantId, actor stri
 			}
 			role.Version, role.System, role.Active = 1, false, true
 			return nil
+		}
+		// System roles are built-in duties, not editable identity: renaming
+		// one, deactivating it (which would strip its effective grants) or
+		// removing its system designation is refused before the row is
+		// touched. Custom roles may be renamed or deactivated.
+		var existing roleaccess.Role
+		existing.ID = role.ID
+		if err := tx.QueryRow(ctx, `SELECT name,system_role,active FROM access_role WHERE tenant_id=$1 AND role_id=$2`, tenantID, role.ID).Scan(&existing.Name, &existing.System, &existing.Active); err != nil {
+			if errors.Is(err, dbport.ErrNoRows) {
+				return roleaccess.ErrVersionConflict
+			}
+			return err
+		}
+		if err := roleaccess.ValidateRoleUpdate(existing, role); err != nil {
+			return err
 		}
 		affected, err := tx.Exec(ctx, `UPDATE access_role SET version=version+1,name=$4,description=$5,active=$6,updated_by=$7,updated_at=clock_timestamp() WHERE tenant_id=$1 AND role_id=$2 AND version=$3`, tenantID, role.ID, role.Version, role.Name, role.Description, role.Active, actor)
 		if err != nil {

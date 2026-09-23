@@ -132,6 +132,40 @@ func ValidateRole(value Role) error {
 	return nil
 }
 
+// ValidateRoleUpdate reports whether updated may replace the stored existing
+// role. A system role keeps its identity, name, active status and system
+// designation: renaming it, deactivating it (which would strip its effective
+// grants) or removing its system designation is refused. Custom roles may be
+// renamed or deactivated; every update must otherwise be a valid role.
+func ValidateRoleUpdate(existing, updated Role) error {
+	existing = NormalizeRole(existing)
+	updated = NormalizeRole(updated)
+	if err := ValidateRole(updated); err != nil {
+		return err
+	}
+	if !existing.System {
+		return nil
+	}
+	if updated.ID != existing.ID || updated.Name != existing.Name || !updated.Active || !updated.System {
+		return ErrInvalid
+	}
+	return nil
+}
+
+// inactiveRoles returns the normalized IDs the snapshot explicitly marks
+// inactive. Roles absent from the snapshot carry no active flag and keep
+// their legacy grants; only an explicit deactivation removes them.
+func inactiveRoles(snapshot Snapshot) map[string]bool {
+	inactive := make(map[string]bool, len(snapshot.Roles))
+	for _, role := range snapshot.Roles {
+		role = NormalizeRole(role)
+		if !role.Active {
+			inactive[role.ID] = true
+		}
+	}
+	return inactive
+}
+
 func NormalizeRoleIDs(values []string) []string {
 	seen := make(map[string]bool, len(values))
 	result := make([]string, 0, len(values))
@@ -307,16 +341,18 @@ func (value FeaturePermission) Allows(action string) bool {
 }
 
 // EffectivePagePermissions merges grants from all assigned roles. Grants are
-// additive; one role can never revoke an operation another role grants.
+// additive; one role can never revoke an operation another role grants. A
+// role the snapshot marks inactive contributes no grant.
 func EffectivePagePermissions(snapshot Snapshot, roleIDs []string) []PagePermission {
 	wanted := make(map[string]bool, len(roleIDs))
 	for _, roleID := range NormalizeRoleIDs(roleIDs) {
 		wanted[roleID] = true
 	}
+	inactive := inactiveRoles(snapshot)
 	merged := make(map[string]PagePermission)
 	for _, permission := range snapshot.PagePermissions {
 		permission = NormalizePagePermission(permission)
-		if !wanted[permission.RoleID] || ValidatePagePermission(permission) != nil {
+		if !wanted[permission.RoleID] || inactive[permission.RoleID] || ValidatePagePermission(permission) != nil {
 			continue
 		}
 		current := merged[permission.PageID]
@@ -347,6 +383,7 @@ func CanPageAction(permissions []PagePermission, pageID, action string) bool {
 
 // EffectiveFeaturePermissions merges grants from all assigned roles. Grants
 // are additive; one role can never revoke an operation another role grants.
+// A role the snapshot marks inactive contributes no grant.
 // The returned permissions intentionally omit RoleID because each row is the
 // effective grant for one page/feature pair rather than a role-specific row.
 func EffectiveFeaturePermissions(snapshot Snapshot, roleIDs []string) []FeaturePermission {
@@ -354,10 +391,11 @@ func EffectiveFeaturePermissions(snapshot Snapshot, roleIDs []string) []FeatureP
 	for _, roleID := range NormalizeRoleIDs(roleIDs) {
 		wanted[roleID] = true
 	}
+	inactive := inactiveRoles(snapshot)
 	merged := make(map[string]FeaturePermission)
 	for _, permission := range snapshot.FeaturePermissions {
 		permission = NormalizeFeaturePermission(permission)
-		if !wanted[permission.RoleID] || ValidateFeaturePermission(permission) != nil {
+		if !wanted[permission.RoleID] || inactive[permission.RoleID] || ValidateFeaturePermission(permission) != nil {
 			continue
 		}
 		key := permission.PageID + "\x00" + permission.FeatureID
@@ -427,11 +465,12 @@ func PoliciesForRoles(snapshot Snapshot, roleIDs []string) []VisibilityPolicy {
 			active[role.ID] = true
 		}
 	}
+	inactive := inactiveRoles(snapshot)
 	resolved := make(map[string]bool, len(snapshot.Policies))
 	result := make([]VisibilityPolicy, 0, len(wanted))
 	for _, policy := range snapshot.Policies {
 		policy = NormalizeVisibility(policy)
-		if wanted[policy.RoleID] && ValidateVisibility(policy) == nil {
+		if wanted[policy.RoleID] && !inactive[policy.RoleID] && ValidateVisibility(policy) == nil {
 			result = append(result, policy)
 			resolved[policy.RoleID] = true
 		}
@@ -484,7 +523,7 @@ const PageJourneyDiagnostics = "journey-diagnostics"
 // important read-only case: it can view Insights but cannot create, update, or
 // delete reports there.
 func DefaultPagePermissions() []PagePermission {
-	pages := []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "workflow-designer", "studio", "help", "settings", PageJourneyDiagnostics}
+	pages := []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "admin", "chat-settings", "worker-ids", "roles", "organization-visibility", "appearance", "workflow-designer", "studio", "chat", "docs", "help", "settings", PageJourneyDiagnostics}
 	result := make([]PagePermission, 0, len(pages)*2+64)
 	grant := func(role, page string, create, update, delete bool) {
 		result = append(result, PagePermission{RoleID: role, PageID: page, View: true, Create: create, Update: update, Delete: delete})
@@ -494,22 +533,25 @@ func DefaultPagePermissions() []PagePermission {
 			grant(role, page, true, true, true)
 		}
 	}
+	for _, role := range []string{"manager", "hr_partner", "hiring_manager", "payroll_manager", "worker_self", "finance_partner", "intent_author", "promotion_operator"} {
+		grant(role, "docs", false, false, false)
+	}
 	for _, role := range []string{"manager", "hr_partner", "hiring_manager", "payroll_manager"} {
-		for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "help", "settings"} {
+		for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "chat", "help", "settings"} {
 			create, update := page == "journeys", page == "journeys" || page == "work" || page == "settings"
 			grant(role, page, create, update, false)
 		}
 	}
-	for _, page := range []string{"home", "myself", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "help", "settings"} {
+	for _, page := range []string{"home", "myself", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "chat", "help", "settings"} {
 		grant("worker_self", page, false, page == "settings", false)
 	}
 	// PROMOUX-015: a finance partner decides the approvals routed to them
 	// (My Work, update) and reviews their outcome (Work History); it reaches
 	// no workforce directory, person profile or journey launcher.
-	for _, page := range []string{"home", "myself", "work", "history", "organization", "help", "settings"} {
+	for _, page := range []string{"home", "myself", "work", "history", "organization", "chat", "help", "settings"} {
 		grant("finance_partner", page, false, page == "work" || page == "settings", false)
 	}
-	for _, page := range []string{"home", "journeys", "work", "history", "people", "person", "organization", "insights", "help", "settings"} {
+	for _, page := range []string{"home", "journeys", "work", "history", "people", "person", "organization", "insights", "chat", "help", "settings"} {
 		grant("intent_author", page, page == "journeys", page == "settings", false)
 		grant("promotion_operator", page, false, page == "journeys" || page == "work" || page == "settings", false)
 	}

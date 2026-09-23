@@ -153,11 +153,12 @@ func TestTargetVersionIsTheHighestEmbeddedVersion(t *testing.T) {
 	}
 }
 
-// TestNewestReversibleVersionStopsBelowDeclaredIrreversibles proves the
+// TestNewestReversibleVersionFindsHighestReversibleMigration proves the
 // helper returns the highest version whose Down section lacks the declared
-// "is irreversible" marker, and that every version above it carries the
-// marker — so rollback-cycling tests stop exactly where goose Down can run.
-func TestNewestReversibleVersionStopsBelowDeclaredIrreversibles(t *testing.T) {
+// "is irreversible" marker. Older irreversible migrations can be followed
+// by reversible migrations, so irreversibility is not a monotonic property
+// of the migration history.
+func TestNewestReversibleVersionFindsHighestReversibleMigration(t *testing.T) {
 	reversible, err := NewestReversibleVersion()
 	if err != nil {
 		t.Fatalf("NewestReversibleVersion(): %v", err)
@@ -166,7 +167,7 @@ func TestNewestReversibleVersionStopsBelowDeclaredIrreversibles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Files(): %v", err)
 	}
-	seen := false
+	var highestReversible int64
 	for _, f := range files {
 		body, err := FS.ReadFile(f.Name)
 		if err != nil {
@@ -176,18 +177,12 @@ func TestNewestReversibleVersionStopsBelowDeclaredIrreversibles(t *testing.T) {
 		if idx := strings.Index(down, "-- +goose Down"); idx >= 0 {
 			down = down[idx:]
 		}
-		if f.Version <= reversible && strings.Contains(down, "is irreversible") {
-			t.Errorf("version %d at or below newest reversible %d declares irreversibility", f.Version, reversible)
-		}
-		if f.Version > reversible {
-			seen = true
-			if !strings.Contains(down, "is irreversible") {
-				t.Errorf("version %d above newest reversible %d lacks the irreversibility marker", f.Version, reversible)
-			}
+		if !strings.Contains(down, "is irreversible") && f.Version > highestReversible {
+			highestReversible = f.Version
 		}
 	}
-	if !seen {
-		t.Logf("no irreversible tip migrations; newest reversible %d is the target", reversible)
+	if reversible != highestReversible {
+		t.Errorf("NewestReversibleVersion() = %d, want highest migration with reversible Down %d", reversible, highestReversible)
 	}
 }
 

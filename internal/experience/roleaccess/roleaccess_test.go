@@ -172,7 +172,7 @@ func TestPagePermissionsAreAdditiveAndKeepCRUDIndependent(t *testing.T) {
 		}
 	}
 	admin := EffectivePagePermissions(Snapshot{PagePermissions: defaults}, []string{"hcm_admin"})
-	for _, page := range []string{"organization", "org-explorer", "org-outline", "org-responsive"} {
+	for _, page := range []string{"organization", "org-explorer", "org-outline", "org-responsive", "chat-settings"} {
 		if !CanPageAction(admin, page, ActionView) {
 			t.Errorf("administrator cannot view the implemented organization surface %q", page)
 		}
@@ -208,9 +208,9 @@ func (*testStore) SaveFeaturePermission(context.Context, values.TenantId, string
 // Admin, and no Create or Delete anywhere.
 func TestFinancePartnerPagePermissionsAreNarrow(t *testing.T) {
 	permissions := EffectivePagePermissions(Snapshot{PagePermissions: DefaultPagePermissions()}, []string{"finance_partner"})
-	viewable := map[string]bool{"home": true, "myself": true, "work": true, "history": true, "organization": true, "help": true, "settings": true}
+	viewable := map[string]bool{"home": true, "myself": true, "work": true, "history": true, "organization": true, "chat": true, "help": true, "settings": true}
 	updatable := map[string]bool{"work": true, "settings": true}
-	for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "insights", "admin", "worker-ids", "roles", "organization-visibility", "appearance", "studio", "help", "settings", PageJourneyDiagnostics} {
+	for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "insights", "admin", "chat-settings", "worker-ids", "roles", "organization-visibility", "appearance", "studio", "chat", "help", "settings", PageJourneyDiagnostics} {
 		if got := CanPageAction(permissions, page, ActionView); got != viewable[page] {
 			t.Errorf("finance_partner view %s = %v, want %v", page, got, viewable[page])
 		}

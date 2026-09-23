@@ -59,6 +59,17 @@ func (v *HMACVerifier) IssueIdentity(claims Claims) (string, error) {
 	return v.Issue(claims)
 }
 
+// IdentityVerifier adapts v to the [Verifier] interface with identity-only
+// semantics: a listener that verifies with the returned Verifier admits
+// exactly the tokens [VerifyIdentity] admits, so every authority-bearing
+// credential is refused at the transport boundary with
+// [ErrCallerSelectedAuthority] before any handler runs.
+func (v *HMACVerifier) IdentityVerifier() Verifier {
+	return VerifierFunc(func(ctx context.Context, cred Credential) (*Principal, error) {
+		return v.VerifyIdentity(ctx, cred)
+	})
+}
+
 // VerifyIdentity verifies cred exactly like Verify and then refuses any
 // token that carries caller-selected authority. The returned principal of a
 // successful call holds subject, tenant, session and assurance only; every

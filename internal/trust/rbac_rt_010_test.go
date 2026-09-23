@@ -114,6 +114,33 @@ func TestTodo_RBAC_RT_010(t *testing.T) {
 	})
 }
 
+// TestIdentityVerifierAdapter proves the listener adapter admits exactly
+// what VerifyIdentity admits: an identity-only token verifies through the
+// [Verifier] interface, and an authority-bearing token is refused with
+// [ErrCallerSelectedAuthority] before any handler could run.
+func TestIdentityVerifierAdapter(t *testing.T) {
+	v := hmacVerifierForTest(t, nil)
+	ctx := context.Background()
+
+	token, err := v.IssueIdentity(identityOnlyClaimsForTest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := v.IdentityVerifier().Verify(ctx, Credential{Token: token}); err != nil {
+		t.Fatalf("identity token through adapter: %v", err)
+	}
+
+	c := identityOnlyClaimsForTest()
+	c.Roles = []string{"hcm_admin"}
+	legacy, err := v.Issue(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := v.IdentityVerifier().Verify(ctx, Credential{Token: legacy}); !errors.Is(err, ErrCallerSelectedAuthority) {
+		t.Fatalf("authority token through adapter = %v, want ErrCallerSelectedAuthority", err)
+	}
+}
+
 // TestTodo_RBAC_RT_010_Security proves the identity-only gate fails closed:
 // tampered tokens are rejected as invalid credentials, authority smuggled
 // through any single field is rejected as caller-selected authority, and the
