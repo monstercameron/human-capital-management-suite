@@ -10,6 +10,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -300,7 +301,7 @@ func runEvidence(root string) error {
 }
 
 func runDeferredImports(root string) error {
-	violations, err := deferredimports.ScanDir(filepath.Join(root, "internal"))
+	violations, err := deferredimports.ScanProductionGraph(context.Background(), root)
 	if err != nil {
 		return err
 	}
@@ -315,22 +316,18 @@ func runDeferredImports(root string) error {
 }
 
 func runTerminology(root string) error {
-	var total int
-	err := walkMarkdown(root, func(path, content string) error {
-		for _, v := range terminology.CheckCanonicalTerms(content) {
-			total++
-			fmt.Printf("%s: %s\n", path, v)
-		}
-		return nil
-	})
+	findings, err := terminology.ScanRepository(root)
 	if err != nil {
 		return err
 	}
-	if total == 0 {
+	for _, finding := range findings {
+		fmt.Printf("%s: %s\n", finding.Path, finding.Violation)
+	}
+	if len(findings) == 0 {
 		fmt.Println("terminology: OK")
 		return nil
 	}
-	return fmt.Errorf("terminology: %d violation(s)", total)
+	return fmt.Errorf("terminology: %d violation(s)", len(findings))
 }
 
 // listResearchFiles returns the basenames (e.g. "alabama.md") of every

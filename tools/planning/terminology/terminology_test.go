@@ -103,29 +103,49 @@ func TestTodo_GOV_012_Golden(t *testing.T) {
 // it can be targeted directly (`go test -run TestTodo_GOV_012_Conformance`)
 // without the rest of the primary test's fixtures.
 func TestTodo_GOV_012_Conformance(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "planning")
-	var total int
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() || !strings.HasSuffix(path, ".md") {
-			return nil
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		for _, v := range CheckCanonicalTerms(string(content)) {
-			total++
-			t.Errorf("%s: %s", path, v)
-		}
-		return nil
-	})
+	root := filepath.Join("..", "..", "..")
+	findings, err := ScanRepository(root)
 	if err != nil {
-		t.Fatalf("walk planning/: %v", err)
+		t.Fatalf("scan planning/schema/definitions: %v", err)
 	}
-	if total != 0 {
-		t.Fatalf("found %d canonical-term violations in the real planning corpus", total)
+	for _, finding := range findings {
+		t.Errorf("%s: %s", finding.Path, finding.Violation)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("found %d canonical-term violations in the governed corpus", len(findings))
+	}
+}
+
+func TestTodo_GOV_012_NegativeFixtures(t *testing.T) {
+	fixture, err := os.ReadFile(filepath.Join("testdata", "negative.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	violations := CheckCanonicalTerms(string(fixture))
+	want := []string{
+		"Platform IAM confused with Workforce Access",
+		"Platform IAM confused with Workforce Access",
+		"Candidate used as an exclusive Person state",
+		"Candidate used as an exclusive Person state",
+		"external observation labeled a domain fact",
+	}
+	if len(violations) != len(want) {
+		t.Fatalf("fixture produced %d violations, want %d: %v", len(violations), len(want), violations)
+	}
+	for i := range want {
+		if violations[i].Rule != want[i] {
+			t.Errorf("violation %d rule = %q, want %q", i, violations[i].Rule, want[i])
+		}
+	}
+}
+
+func TestTodo_GOV_012_GlossaryLinks(t *testing.T) {
+	got := LinkGlossaryTerms("Platform IAM authenticates users. `Candidate` is a role.\nSee [Person](existing.md).")
+	want := "[Platform IAM](planning/plan.md#94-identity-and-permission-contract) authenticates users. `Candidate` is a role.\nSee [Person](existing.md)."
+	if got != want {
+		t.Fatalf("glossary links differ:\n got: %s\nwant: %s", got, want)
+	}
+	if len(Glossary[1].Aliases) != 1 || Glossary[1].Aliases[0].Version == "" {
+		t.Fatalf("registered alias must be explicitly versioned: %+v", Glossary[1].Aliases)
 	}
 }

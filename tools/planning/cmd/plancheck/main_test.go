@@ -33,6 +33,27 @@ func TestTDDContractCommandAdapterSyntheticGreen(t *testing.T) {
 	}
 }
 
+func TestTodo_GOV_012_CommandConformance(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{"planning", "schema", "definitions"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "planning", "terms.md"), []byte("Candidate and Worker are not mutually exclusive Person states."), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "schema", "terms.proto"), []byte("// external observation is recorded as domain fact"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "definitions", "terms.yaml"), []byte("name: Workforce Access authenticates all operators"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := runTerminology(root); err == nil || !strings.Contains(err.Error(), "2 violation(s)") {
+		t.Fatalf("runTerminology error = %v, want 2 violations across schemas and definitions (the planning statement is valid)", err)
+	}
+}
+
 // TestTDDContractCommandAdapterLiveCorpusRemainsNonGreen ensures the live
 // command exposes existing findings instead of silently treating incomplete
 // planning evidence as success.
