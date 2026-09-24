@@ -142,6 +142,19 @@ func TestTodo_LIB_009_Property(t *testing.T) {
 		}
 	}
 
+	// Every workload is subject to the same immutable-image requirement. Keep
+	// an individual mutation for each key so a future adapter cannot accidentally
+	// exempt one service while continuing to pass the general policy check.
+	for _, workload := range []string{"postgres", "s3", "smtp", "provider"} {
+		t.Run("floating "+workload+" image", func(t *testing.T) {
+			plan := acceptedPlan()
+			plan.Images[workload] = workload + ":latest"
+			if err := testcontainerskit.ValidateAdoptionPlan(plan); err == nil {
+				t.Fatalf("floating %s image accepted", workload)
+			}
+		})
+	}
+
 	mutations := []struct {
 		name string
 		edit func(*testcontainerskit.AdoptionPlan)
@@ -149,10 +162,14 @@ func TestTodo_LIB_009_Property(t *testing.T) {
 		{"production scope", func(p *testcontainerskit.AdoptionPlan) { p.TestOnly = false }},
 		{"floating module", func(p *testcontainerskit.AdoptionPlan) { p.ModuleVersion = "latest" }},
 		{"path namespace", func(p *testcontainerskit.AdoptionPlan) { p.Namespace = "tc-../shared" }},
+		{"non-opaque namespace", func(p *testcontainerskit.AdoptionPlan) { p.Namespace = "tc-run-UPPERCASE" }},
+		{"namespace too short", func(p *testcontainerskit.AdoptionPlan) { p.Namespace = "tc-a" }},
 		{"unbounded readiness", func(p *testcontainerskit.AdoptionPlan) { p.ReadinessTimeout = 3 * time.Minute }},
+		{"zero readiness", func(p *testcontainerskit.AdoptionPlan) { p.ReadinessTimeout = 0 }},
 		{"unowned cleanup", func(p *testcontainerskit.AdoptionPlan) { p.CleanupTarget = "all-containers" }},
 		{"destroy failure evidence", func(p *testcontainerskit.AdoptionPlan) { p.PreserveOnFailure = false }},
 		{"floating postgres image", func(p *testcontainerskit.AdoptionPlan) { p.Images["postgres"] = "postgres:latest" }},
+		{"malformed digest", func(p *testcontainerskit.AdoptionPlan) { p.Images["smtp"] = "mailhog/mailhog@sha256:abc" }},
 		{"missing S3 fake", func(p *testcontainerskit.AdoptionPlan) { delete(p.Images, "s3") }},
 		{"unapproved extra workload", func(p *testcontainerskit.AdoptionPlan) { p.Images["other"] = p.Images["smtp"] }},
 	}
