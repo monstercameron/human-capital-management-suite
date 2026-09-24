@@ -31,6 +31,12 @@ var (
 	// type. A published version is never rewritten and the tip never moves
 	// backwards.
 	ErrManagedVersionNotAdvancing = errors.New("intent: managed publish does not advance the published version")
+
+	// ErrManagedPublishRequiresManagedProfile reports an attempt to use the
+	// runtime publish action on a BOOTSTRAP registry. Bootstrap definitions
+	// are published by the compiled-in table; runtime publication belongs to
+	// the MANAGED profile.
+	ErrManagedPublishRequiresManagedProfile = errors.New("intent: managed publish requires the MANAGED registry profile")
 )
 
 // CompatibilityChecker is the evolution gate a MANAGED publish runs before
@@ -113,6 +119,14 @@ func (r *Registry) PublishManaged(candidate Definition, check CompatibilityCheck
 		return nil, ManagedReceipt{}, newError("PublishManaged", "registry", ErrInvalidDefinition,
 			"no registry to publish into")
 	}
+	if r.profile != ProfileManaged {
+		return nil, ManagedReceipt{}, newError("PublishManaged", "profile", ErrManagedPublishRequiresManagedProfile,
+			"runtime definition publication requires profile %s; registry profile is %s", ProfileManaged, r.profile)
+	}
+	// Keep a private snapshot before invoking any caller-supplied checker. The
+	// checker receives separate clones below, so it cannot mutate either the
+	// candidate we publish or a predecessor stored in this registry.
+	candidate = candidate.clone()
 	if err := candidate.Validate(); err != nil {
 		return nil, ManagedReceipt{}, err
 	}
@@ -139,7 +153,7 @@ func (r *Registry) PublishManaged(candidate Definition, check CompatibilityCheck
 		receipt.Compatible = true
 		receipt.Evidence = fmt.Sprintf("genesis: %s is the first published version; definition validated", candidate.Ref)
 	} else {
-		compatible, evidence, err := check(previous, candidate)
+		compatible, evidence, err := check(previous.clone(), candidate.clone())
 		if err != nil {
 			return nil, ManagedReceipt{}, fmt.Errorf("intent: managed compatibility check: %w", err)
 		}

@@ -9,6 +9,10 @@ import (
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 )
 
+type errorReportingWatcher interface {
+	WatchConversationWithErrors(context.Context, chatcore.WatchConversationRequest) (<-chan chatcore.WatchEvent, <-chan error, error)
+}
+
 // events exposes one bounded pull from the canonical, revocation-aware watch.
 // It buffers the response so a terminal permission failure cannot follow a
 // partial success response.
@@ -52,7 +56,7 @@ func (h handler) events(w http.ResponseWriter, r *http.Request) {
 		}
 		wait = v
 	}
-	watcher, ok := h.service.(chatcore.ErrorReportingWatcher)
+	watcher, ok := h.service.(errorReportingWatcher)
 	if !ok {
 		writeError(w, http.StatusServiceUnavailable, "chat.unavailable")
 		return

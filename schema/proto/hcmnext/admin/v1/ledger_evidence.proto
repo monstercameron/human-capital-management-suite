@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package hcmnext.admin.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1;adminv1";
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/common/v1/common.proto";
+
+// LedgerEvidenceService provides a tenant-bound, read-only evidence export.
+service LedgerEvidenceService {
+  rpc ExportLedgerEvidence(ExportLedgerEvidenceRequest) returns (ExportLedgerEvidenceResponse);
+}
+
+message ExportLedgerEvidenceRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  // from and to form a half-open recorded-time interval [from, to).
+  google.protobuf.Timestamp from = 2;
+  google.protobuf.Timestamp to = 3;
+}
+
+message EvidencePackageFile {
+  string path = 1;
+  bytes content = 2;
+}
+
+message ExportLedgerEvidenceResponse {
+  repeated EvidencePackageFile files = 1;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 2;
+}

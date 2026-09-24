@@ -182,8 +182,9 @@ func (h *promoux015ReadHarness) addWorkers(t *testing.T, prefix string, n int) {
 	defer func() { _ = tx.Rollback(ctx) }()
 	for i := 0; i < n; i++ {
 		short := fmt.Sprintf("%s%03d", prefix, i)
+		workerID := uuid.New()
 		row := workforce.WorkerRow{
-			TenantID: h.tenantID, WorkerID: uuid.New(), WorkerKey: "px15-" + short,
+			TenantID: h.tenantID, WorkerID: workerID, WorkerKey: workerID.String(),
 			LegalName: "Px15 Worker " + short, PreferredName: "Px15", WorkerNumber: "W-PX15-" + short,
 			WorkerType: "employee", LifecycleStatus: "active", EmploymentID: "emp_px15" + short, AssignmentID: "asg_px15" + short,
 			JobCode: "OPS-HRBP2", JobTitle: "People Partner", Grade: "P2", OrgUnit: "people-ops",
@@ -239,7 +240,7 @@ func TestTodo_PROMOUX_015_Workforce(t *testing.T) {
 	}
 	durable := map[string]bool{}
 	for _, row := range rows {
-		durable[row.WorkerKey] = true
+		durable[strings.ToLower(row.PreferredName)+"-"+row.WorkerID.String()[:8]] = true
 	}
 	corpus, err := fixtures.Workers()
 	if err != nil {

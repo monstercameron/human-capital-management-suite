@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	positionv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -39,6 +40,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportadmin "github.com/monstercameron/human-capital-management-suite/internal/transport/admin"
 	transportextensions "github.com/monstercameron/human-capital-management-suite/internal/transport/chatextensions"
+	transportdataops "github.com/monstercameron/human-capital-management-suite/internal/transport/dataops"
 	transportdocument "github.com/monstercameron/human-capital-management-suite/internal/transport/document"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
@@ -47,10 +49,24 @@ import (
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportjourney "github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/openapidoc"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/otelmw"
+	transportposition "github.com/monstercameron/human-capital-management-suite/internal/transport/position"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
+
+// ServiceHandlers are the application-owned operator handlers additionally
+// exposed on both published surfaces. The cell package only forwards these
+// ports into the canonical admission and telemetry chains.
+type ServiceHandlers struct {
+	DataOps              transport.DataOpsHandler
+	DataOpsStage         transportdataops.StageCSVHandler
+	Integration          transport.IntegrationHandler
+	IntegrationPublisher http.Handler
+	Parameters           http.Handler
+}
 
 // NewGRPCServer builds the canonical gRPC surface over an already composed
 // application cell. grpcserver owns the required admission interceptor
@@ -72,16 +88,14 @@ func NewGRPCServer(c *app.Cell, opts ...grpc.ServerOption) (*grpc.Server, error)
 // NewGRPCServerWithWorkflowInspector is [NewGRPCServer] plus ADMIN-008's
 // workflow-inspector wiring for AdminService.GetWorkflowInstance.
 //
-// instances is the application-side port that loads one instance's durable
-// record for the caller's tenant (app.NewWorkflowInstanceReader over the
-// pool the workflow runtime writes through, with the same tenant mapping
-// [app.CellConfig.TenantUUID] carries, in every real composition). c itself
-// does not carry it: the operator surface is served whether or not the cell
-// was composed with the P1B execution authority, so the composition root
-// passes the reader here rather than app.Cell growing a field that would
-// tie the two together. Nil leaves GetWorkflowInstance UNAVAILABLE.
+// instances is the application-side control projection used by workflow
+// control. The admin inspector is configured independently through
+// [configureAdmin] and reads its durable view with inspect.Load. c itself
+// does not carry the control reader because workflow-control transport is
+// composed separately from the execution authority. Nil disables that
+// optional control projection.
 func NewGRPCServerWithWorkflowInspector(
-	c *app.Cell, instances app.WorkflowInstanceReader, opts ...grpc.ServerOption,
+	c *app.Cell, instances app.WorkflowControlReader, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	return NewGRPCServerWithWorkflowInspectorAndOperations(c, instances, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil, opts...)
 }
@@ -98,10 +112,57 @@ func NewGRPCServerWithWorkflowInspector(
 // decision table WorkService.GetThresholdTable serves; nil keeps that one
 // method UNAVAILABLE.
 func NewGRPCServerWithWorkflowInspectorAndOperations(
-	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store,
 	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
 	thresholds transporthumanwork.Thresholds, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newGRPCServerWithWorkflowInspectorAndOperations(c, instances, workQueue, operationStore,
+		cursorKey, previousCursorKey, workWrites, thresholds, nil, ServiceHandlers{}, opts...)
+}
+
+// NewGRPCServerWithWorkflowInspectorAndOperationsAndAdminDependencies is the
+// canonical server constructor with a composition-root hook for additional
+// trusted AdminService ports. The hook receives the ordinary cell-backed
+// defaults; callers may fill optional ports but must not replace admission or
+// authorization behavior in the handlers.
+func NewGRPCServerWithWorkflowInspectorAndOperationsAndAdminDependencies(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	operationStore transportoperations.Store,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, configureAdmin func(*transportadmin.Dependencies), opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newGRPCServerWithWorkflowInspectorAndOperations(c, instances, workQueue, operationStore,
+		cursorKey, previousCursorKey, workWrites, thresholds, configureAdmin, ServiceHandlers{}, opts...)
+}
+
+// NewGRPCServerWithWorkflowInspectorAndOperationsAndChatAndAdminDependenciesAndServices
+// composes DataOps and Integration on the canonical server. StageCSV remains
+// native gRPC because its generated contract is client-streaming.
+func NewGRPCServerWithWorkflowInspectorAndOperationsAndChatAndAdminDependenciesAndServices(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
+	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds,
+	chatService chatcore.ConversationService, configureAdmin func(*transportadmin.Dependencies),
+	services ServiceHandlers, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	srv, err := newGRPCServerWithWorkflowInspectorAndOperations(c, instances, workQueue, operationStore,
+		cursorKey, previousCursorKey, workWrites, thresholds, configureAdmin, services, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if chatService != nil {
+		RegisterChat(srv, chatService)
+	}
+	return srv, nil
+}
+
+func newGRPCServerWithWorkflowInspectorAndOperations(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	operationStore transportoperations.Store,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, configureAdmin func(*transportadmin.Dependencies),
+	services ServiceHandlers, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
@@ -114,7 +175,9 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 		grpc.ChainStreamInterceptor(otelmw.StreamServerInterceptor(c.Telemetry)),
 	)
 	srv, err := grpcserver.NewServer(grpcserver.Options{
-		Config: c.Config, Intent: c.Service, Registry: c.Service, ServerOptions: opts,
+		Config: c.Config, Intent: c.Service, Registry: c.Service,
+		DataOps: services.DataOps, DataOpsStage: services.DataOpsStage, Integration: services.Integration,
+		ServerOptions: opts,
 	})
 	if err != nil {
 		return nil, err
@@ -123,14 +186,17 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// server under the same interceptor chain; its distinct trust policy is
 	// the operator role check inside internal/operations/admin, not a
 	// second listener.
-	transportadmin.Register(srv, transportadmin.Dependencies{
+	adminDeps := transportadmin.Dependencies{
 		Intent:             c.Service,
 		WorkerFacts:        c.Workers,
 		TransactionHistory: c.Transactions,
 		CapabilityRegistry: c.Capabilities,
 		Now:                c.Config.Now,
-		WorkflowInstances:  instances,
-	})
+	}
+	if configureAdmin != nil {
+		configureAdmin(&adminDeps)
+	}
+	transportadmin.Register(srv, adminDeps)
 	// The Promotion journey service (UX-009) is hosted by the same server
 	// under the same interceptor chain - both halves of it, since
 	// WatchJourney is a server-streaming RPC and grpcserver.NewServer chains
@@ -144,6 +210,7 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 	// reason to hold an opinion about it.
 	transportjourney.Register(srv, transportjourney.Dependencies{
 		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+		Knowledge:         app.KnowledgeSearchService{Source: c.KnowledgeSearch},
 		CursorKey:         append([]byte(nil), cursorKey...),
 		PreviousCursorKey: append([]byte(nil), previousCursorKey...),
 		Invalidations:     journeyInvalidations(c),
@@ -165,19 +232,32 @@ func NewGRPCServerWithWorkflowInspectorAndOperations(
 		Authorize: workAuthorizer(c.RoleAccess),
 	})
 	transportoperations.Register(srv, transportoperations.Dependencies{Store: operationStore})
-	transporthealth.Register(srv, transporthealth.Dependencies{})
+	transporthealth.RegisterServer(srv, healthServer(c))
 	return srv, nil
 }
 
 // NewGRPCServerWithWorkflowInspectorAndOperationsAndChat composes the
 // optional chat service on the same authenticated gRPC server.
 func NewGRPCServerWithWorkflowInspectorAndOperationsAndChat(
-	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
 	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds,
 	chatService chatcore.ConversationService, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
-	srv, err := NewGRPCServerWithWorkflowInspectorAndOperations(c, instances, workQueue, operationStore, cursorKey, previousCursorKey, workWrites, thresholds, opts...)
+	return NewGRPCServerWithWorkflowInspectorAndOperationsAndChatAndAdminDependencies(c, instances, workQueue,
+		operationStore, cursorKey, previousCursorKey, workWrites, thresholds, chatService, nil, opts...)
+}
+
+// NewGRPCServerWithWorkflowInspectorAndOperationsAndChatAndAdminDependencies
+// adds application-composed AdminService ports to the canonical listener.
+func NewGRPCServerWithWorkflowInspectorAndOperationsAndChatAndAdminDependencies(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
+	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds,
+	chatService chatcore.ConversationService, configureAdmin func(*transportadmin.Dependencies), opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	srv, err := newGRPCServerWithWorkflowInspectorAndOperations(c, instances, workQueue, operationStore,
+		cursorKey, previousCursorKey, workWrites, thresholds, configureAdmin, ServiceHandlers{}, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +281,7 @@ func NewGRPCServerWithWorkflowInspectorAndOperationsAndChat(
 // has no business calling is UNIMPLEMENTED at the bridge before
 // authentication, authorization or any handler runs.
 func NewTunnelGRPCServer(
-	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
 	thresholds transporthumanwork.Thresholds, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
@@ -214,20 +294,21 @@ func NewTunnelGRPCServer(
 // Unimplemented stubs otherwise, so a disabled product answers UNIMPLEMENTED
 // at the handler and the policy/constructor agreement holds in both modes.
 func newTunnelGRPCServer(
-	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
 	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
 	extensions transportextensions.Service, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	return newTunnelGRPCServerWithDocument(c, instances, workQueue, cursorKey, previousCursorKey,
-		workWrites, thresholds, chatService, extensions, nil, opts...)
+		workWrites, thresholds, chatService, extensions, nil, nil, opts...)
 }
 
 func newTunnelGRPCServerWithDocument(
-	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
 	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
 	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps *transportposition.Dependencies,
 	opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	if c == nil {
@@ -251,6 +332,7 @@ func newTunnelGRPCServerWithDocument(
 	}
 	transportjourney.Register(srv, transportjourney.Dependencies{
 		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+		Knowledge:         app.KnowledgeSearchService{Source: c.KnowledgeSearch},
 		CursorKey:         append([]byte(nil), cursorKey...),
 		PreviousCursorKey: append([]byte(nil), previousCursorKey...),
 		Invalidations:     journeyInvalidations(c),
@@ -265,6 +347,11 @@ func newTunnelGRPCServerWithDocument(
 	})
 	registerTunnelChat(srv, chatService, extensions)
 	RegisterDocument(srv, documentService, cursorKey)
+	if positionDeps == nil {
+		positionv1.RegisterPositionServiceServer(srv, positionv1.UnimplementedPositionServiceServer{})
+	} else {
+		transportposition.Register(srv, *positionDeps)
+	}
 	return srv, nil
 }
 
@@ -282,7 +369,7 @@ func NewEdgeHandler(c *app.Cell, opts ...connect.HandlerOption) (http.Handler, e
 // reader, operation store and cursor key as the gRPC surface. It is the
 // non-tunnel counterpart of [NewEdgeHandlerWithTunnelAndDependencies].
 func NewEdgeHandlerWithDependencies(
-	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store,
 	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
 	thresholds transporthumanwork.Thresholds, opts ...connect.HandlerOption,
@@ -294,12 +381,26 @@ func NewEdgeHandlerWithDependencies(
 // Connect projection on the canonical edge and leaves the tunnel and all
 // existing routes owned by the ordinary edge composition.
 func NewEdgeHandlerWithTunnelAndDependenciesAndChat(
-	c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
 	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds,
 	chatService chatcore.ConversationService, opts ...connect.HandlerOption,
 ) (http.Handler, error) {
-	h, err := NewEdgeHandlerWithTunnelAndDependencies(c, grpcServer, instances, workQueue, operationStore, cursorKey, previousCursorKey, workWrites, thresholds, opts...)
+	return NewEdgeHandlerWithTunnelAndDependenciesAndChatAndServices(c, grpcServer, instances, workQueue, operationStore,
+		cursorKey, previousCursorKey, workWrites, thresholds, chatService, ServiceHandlers{}, opts...)
+}
+
+// NewEdgeHandlerWithTunnelAndDependenciesAndChatAndServices adds the DataOps
+// and Integration application handlers to the ordinary edge. They use the
+// same admission and telemetry middleware as every other Connect procedure.
+func NewEdgeHandlerWithTunnelAndDependenciesAndChatAndServices(
+	c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
+	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds,
+	chatService chatcore.ConversationService, services ServiceHandlers, opts ...connect.HandlerOption,
+) (http.Handler, error) {
+	h, err := newEdgeHandlerWithDependenciesAndServices(c, grpcServer, instances, workQueue, operationStore,
+		cursorKey, previousCursorKey, workWrites, thresholds, services, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -314,15 +415,22 @@ func buildEdgeHandler(c *app.Cell, grpcServer *grpc.Server, opts ...connect.Hand
 	return buildEdgeHandlerWithDependencies(c, grpcServer, nil, nil, nil, nil, nil, transporthumanwork.WritePorts{}, nil, opts...)
 }
 
-func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader, operationStore transportoperations.Store, cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds, opts ...connect.HandlerOption) (http.Handler, error) {
+func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader, operationStore transportoperations.Store, cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds, opts ...connect.HandlerOption) (http.Handler, error) {
+	return newEdgeHandlerWithDependenciesAndServices(c, grpcServer, instances, workQueue, operationStore,
+		cursorKey, previousCursorKey, workWrites, thresholds, ServiceHandlers{}, opts...)
+}
+
+func newEdgeHandlerWithDependenciesAndServices(c *app.Cell, grpcServer *grpc.Server, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader, operationStore transportoperations.Store, cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds, services ServiceHandlers, opts ...connect.HandlerOption) (http.Handler, error) {
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
 	}
 	opts = append(opts, connect.WithInterceptors(otelmw.NewConnectInterceptor(c.Telemetry)))
 	rpc, err := edge.NewHandler(edge.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
+		DataOps: services.DataOps, Integration: services.Integration,
 		Journey: &transportjourney.Dependencies{
 			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+			Knowledge:         app.KnowledgeSearchService{Source: c.KnowledgeSearch},
 			CursorKey:         append([]byte(nil), cursorKey...),
 			PreviousCursorKey: append([]byte(nil), previousCursorKey...),
 		},
@@ -333,7 +441,7 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 			Decisions: workWrites.Decisions, Idempotency: workWrites.Idempotency,
 			Authorize: workAuthorizer(c.RoleAccess)},
 		Operations: &transportoperations.Dependencies{Store: operationStore},
-		Health:     transporthealth.New(transporthealth.Dependencies{}), HandlerOptions: opts,
+		Health:     healthServer(c), HandlerOptions: opts,
 	})
 	if err != nil {
 		return nil, err
@@ -350,11 +458,16 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 			Config:          c.Config,
 			Now:             c.Config.Now,
 			DevBrowserLogin: c.DevBrowserLogin(),
-			DevPersonas:     c.DevPersonas(),
-			DevDirectory:    c.DevDirectory(),
-			RoleAccess:      c.RoleAccess,
-			Preferences:     c.Preferences,
-			PublicOrigin:    c.PublicOrigin(),
+			OIDCFlow:        c.OIDCFlow, OIDCTenant: c.OIDCTenant, OIDCIssuerURL: c.OIDCIssuerURL,
+			OIDCSessionIssuer: c.OIDCSessionIssuer,
+			Secure:            strings.HasPrefix(strings.ToLower(c.OIDCRedirectURI), "https://"),
+			DevPersonas:       c.DevPersonas(),
+			DevDirectory:      c.DevDirectory(),
+			RoleAccess:        c.RoleAccess,
+			Preferences:       c.Preferences,
+			PageLedger:        c.PageLedger,
+			Catalogs:          c.Catalogs,
+			PublicOrigin:      c.PublicOrigin(),
 		})
 		if wsErr != nil {
 			return nil, fmt.Errorf("transport cell: compose the promotion workspace: %w", wsErr)
@@ -368,11 +481,18 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 		// RPC answer at the root.
 		mux.Handle(RootPattern, rootRedirect(workspace.PathProductHome))
 	}
+	if services.Parameters != nil {
+		mux.Handle("/v1/parameters/", trustedPrincipalHTTP(c.Config, services.Parameters))
+	}
+	if services.IntegrationPublisher != nil {
+		mux.Handle("/v1/integration/connector-definitions", trustedPrincipalHTTP(c.Config, services.IntegrationPublisher))
+	}
 	discovery, err := newDiscoveryHandler(c.Config, c.Discovery, routes)
 	if err != nil {
 		return nil, fmt.Errorf("transport cell: render the discovery document: %w", err)
 	}
 	mux.Handle(app.DiscoveryPath, discovery)
+	mux.Handle(openapidoc.Path, trustedPrincipalHTTP(c.Config, openapidoc.Handler()))
 	if grpcServer != nil {
 		var publicHost string
 		if publicOrigin != nil {
@@ -386,6 +506,28 @@ func buildEdgeHandlerWithDependencies(c *app.Cell, grpcServer *grpc.Server, inst
 	}
 	mux.Handle("/", rpc)
 	return edge.BrowserPolicy(mux, browserPolicyOptions(publicOrigin)), nil
+}
+
+func healthServer(c *app.Cell) *transporthealth.Server {
+	if c != nil && c.Health != nil {
+		return c.Health
+	}
+	return transporthealth.New(transporthealth.Dependencies{})
+}
+
+// trustedPrincipalHTTP authenticates the small non-RPC parameter control API
+// with the same verifier, reserved-header screen and credential quota as the
+// Connect edge, then gives its application service only the verified
+// Principal. Parameter scope, environment and author remain server-derived.
+func trustedPrincipalHTTP(cfg transport.Config, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, _, err := transport.PreAdmit(r.Context(), cfg, transport.MapMetadata(r.Header), r.URL.Path)
+		if err != nil {
+			http.Error(w, "request authentication failed", err.HTTPStatus())
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(trust.WithPrincipal(r.Context(), principal)))
+	})
 }
 
 // cellPublicOrigin parses the deployment's declared public origin once, so

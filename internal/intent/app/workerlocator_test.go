@@ -186,6 +186,10 @@ func TestLayeredLocatorServesTheCorpusOnlyToATenantWithNoPopulation(t *testing.T
 	if got, ok, err := locate(ctx, fixtures.Tenant, created.WorkerKey); err != nil || !ok || got.Created == nil {
 		t.Fatalf("the tenant's own worker resolved as %+v (ok=%v err=%v)", got, ok, err)
 	}
+	displayRef := journeyWorkerKey(created.PreferredName, created.LegalName, shortID(created.WorkerID))
+	if got, ok, err := locate(ctx, fixtures.Tenant, displayRef); err != nil || !ok || got.Created == nil || got.Ref.Id != created.WorkerID.String() {
+		t.Fatalf("the tenant's display slug %q did not resolve to its opaque identity: %+v (ok=%v err=%v)", displayRef, got, ok, err)
+	}
 	if got, ok, err := locate(ctx, fixtures.Tenant, "omar-reyes"); ok || err != nil {
 		t.Fatalf("a populated tenant resolved the corpus key %+v (ok=%v err=%v); the directory does not offer that person",
 			got, ok, err)
@@ -213,7 +217,7 @@ func workerLocatorRow(tenantID uuid.UUID) workforce.WorkerRow {
 	recorded := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
 	id := uuid.New()
 	return workforce.WorkerRow{
-		TenantID: tenantID, WorkerID: id, WorkerKey: "locator-" + id.String()[:8],
+		TenantID: tenantID, WorkerID: id, WorkerKey: id.String(),
 		LegalName: "Locator Worker", PreferredName: "Locator", WorkerNumber: "W-LOC-1",
 		WorkerType: "employee", LifecycleStatus: "active", EmploymentID: "emp_loc", AssignmentID: "asg_loc",
 		JobCode: "OPS-HRBP2", JobTitle: "People Partner", Grade: "P2", OrgUnit: "people-ops",

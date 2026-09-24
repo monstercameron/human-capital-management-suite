@@ -23,11 +23,31 @@ const (
 )
 
 type ListDocumentsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	Query         string                 `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
-	Collection    string                 `protobuf:"bytes,4,opt,name=collection,proto3" json:"collection,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	PageSize   int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken  string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	Query      string                 `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
+	Collection string                 `protobuf:"bytes,4,opt,name=collection,proto3" json:"collection,omitempty"`
+	// folder_id narrows to one of the caller's folders; empty means any.
+	FolderId    string `protobuf:"bytes,5,opt,name=folder_id,json=folderId,proto3" json:"folder_id,omitempty"`
+	StarredOnly bool   `protobuf:"varint,6,opt,name=starred_only,json=starredOnly,proto3" json:"starred_only,omitempty"`
+	// sort is "relevance" (the default while searching), "updated" (newest
+	// first, the default otherwise), "updated_asc" (oldest first), "title"
+	// (A to Z), "title_desc" (Z to A), "owner" (owner display name A to Z)
+	// or "owner_desc" (Z to A); owner orders break ties newest first, then by
+	// document ID.
+	Sort string `protobuf:"bytes,7,opt,name=sort,proto3" json:"sort,omitempty"`
+	// owner_id narrows to documents one person owns.
+	OwnerId string `protobuf:"bytes,8,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	// search_mode chooses how query matches: "smart" (the default: exact
+	// words, substrings, near spellings and meaning, fused), "contains" (the
+	// query as a substring of the title or text), "fuzzy" (tolerates typos)
+	// or "meaning" (vector similarity). Meaning falls back to smart when no
+	// embedding model is configured, and the response says so.
+	SearchMode string `protobuf:"bytes,9,opt,name=search_mode,json=searchMode,proto3" json:"search_mode,omitempty"`
+	// page is a 1-based page number. When it is set the page token is
+	// ignored and page_size rows are skipped per earlier page.
+	Page          int32 `protobuf:"varint,10,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,6 +110,48 @@ func (x *ListDocumentsRequest) GetCollection() string {
 	return ""
 }
 
+func (x *ListDocumentsRequest) GetFolderId() string {
+	if x != nil {
+		return x.FolderId
+	}
+	return ""
+}
+
+func (x *ListDocumentsRequest) GetStarredOnly() bool {
+	if x != nil {
+		return x.StarredOnly
+	}
+	return false
+}
+
+func (x *ListDocumentsRequest) GetSort() string {
+	if x != nil {
+		return x.Sort
+	}
+	return ""
+}
+
+func (x *ListDocumentsRequest) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *ListDocumentsRequest) GetSearchMode() string {
+	if x != nil {
+		return x.SearchMode
+	}
+	return ""
+}
+
+func (x *ListDocumentsRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
 type DocumentSummary struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	DocumentId      string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
@@ -105,8 +167,19 @@ type DocumentSummary struct {
 	CanManageAccess bool                   `protobuf:"varint,11,opt,name=can_manage_access,json=canManageAccess,proto3" json:"can_manage_access,omitempty"`
 	CanComment      bool                   `protobuf:"varint,12,opt,name=can_comment,json=canComment,proto3" json:"can_comment,omitempty"`
 	CanEdit         bool                   `protobuf:"varint,13,opt,name=can_edit,json=canEdit,proto3" json:"can_edit,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// starred and folder_id are the caller's own organization.
+	Starred  bool   `protobuf:"varint,14,opt,name=starred,proto3" json:"starred,omitempty"`
+	FolderId string `protobuf:"bytes,15,opt,name=folder_id,json=folderId,proto3" json:"folder_id,omitempty"`
+	// reader_count counts the people other than the owner who can read the
+	// document. It is sent only to a caller who may manage access.
+	ReaderCount int32 `protobuf:"varint,16,opt,name=reader_count,json=readerCount,proto3" json:"reader_count,omitempty"`
+	// snippet is a short, authorized excerpt around the match while
+	// searching; match says why it matched: "title", "text", "fuzzy" or
+	// "meaning".
+	Snippet       string `protobuf:"bytes,17,opt,name=snippet,proto3" json:"snippet,omitempty"`
+	Match         string `protobuf:"bytes,18,opt,name=match,proto3" json:"match,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DocumentSummary) Reset() {
@@ -230,12 +303,58 @@ func (x *DocumentSummary) GetCanEdit() bool {
 	return false
 }
 
+func (x *DocumentSummary) GetStarred() bool {
+	if x != nil {
+		return x.Starred
+	}
+	return false
+}
+
+func (x *DocumentSummary) GetFolderId() string {
+	if x != nil {
+		return x.FolderId
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetReaderCount() int32 {
+	if x != nil {
+		return x.ReaderCount
+	}
+	return 0
+}
+
+func (x *DocumentSummary) GetSnippet() string {
+	if x != nil {
+		return x.Snippet
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetMatch() string {
+	if x != nil {
+		return x.Match
+	}
+	return ""
+}
+
 type ListDocumentsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Documents     []*DocumentSummary     `protobuf:"bytes,1,rep,name=documents,proto3" json:"documents,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// total_count is how many documents match the whole selection, across
+	// every page.
+	TotalCount int32 `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// search_mode is the mode that actually ran; semantic_available reports
+	// whether meaning search can run in this cell.
+	SearchMode        string `protobuf:"bytes,4,opt,name=search_mode,json=searchMode,proto3" json:"search_mode,omitempty"`
+	SemanticAvailable bool   `protobuf:"varint,5,opt,name=semantic_available,json=semanticAvailable,proto3" json:"semantic_available,omitempty"`
+	// semantic_pending counts the caller-visible documents whose current
+	// version is not yet indexed for meaning search; indexing is queued and
+	// meaning search reads only what is already indexed.
+	SemanticPending int32 `protobuf:"varint,6,opt,name=semantic_pending,json=semanticPending,proto3" json:"semantic_pending,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListDocumentsResponse) Reset() {
@@ -280,6 +399,34 @@ func (x *ListDocumentsResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListDocumentsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ListDocumentsResponse) GetSearchMode() string {
+	if x != nil {
+		return x.SearchMode
+	}
+	return ""
+}
+
+func (x *ListDocumentsResponse) GetSemanticAvailable() bool {
+	if x != nil {
+		return x.SemanticAvailable
+	}
+	return false
+}
+
+func (x *ListDocumentsResponse) GetSemanticPending() int32 {
+	if x != nil {
+		return x.SemanticPending
+	}
+	return 0
 }
 
 type CreateDocumentRequest struct {
@@ -431,10 +578,20 @@ func (x *GetDocumentRequest) GetDocumentId() string {
 }
 
 type GetDocumentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Document      *DocumentSummary       `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
-	Markdown      string                 `protobuf:"bytes,2,opt,name=markdown,proto3" json:"markdown,omitempty"`
-	ContentHash   string                 `protobuf:"bytes,3,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Document    *DocumentSummary       `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
+	Markdown    string                 `protobuf:"bytes,2,opt,name=markdown,proto3" json:"markdown,omitempty"`
+	ContentHash string                 `protobuf:"bytes,3,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	// links has one entry per distinct doc: target in markdown, in first
+	// appearance order.
+	Links []*DocumentLinkTarget `protobuf:"bytes,5,rep,name=links,proto3" json:"links,omitempty"`
+	// channels, people and messages are the caller's view of the chat
+	// references in markdown: "#name" or "[label](channel:<id>)", "@handle"
+	// or "@<subject-id>", and chat message permalinks
+	// (/workspace/app/chat#share=<token>). Each is resolved as the caller.
+	Channels      []*DocumentChannelReference `protobuf:"bytes,20,rep,name=channels,proto3" json:"channels,omitempty"`
+	People        []*DocumentPersonReference  `protobuf:"bytes,21,rep,name=people,proto3" json:"people,omitempty"`
+	Messages      []*DocumentMessageReference `protobuf:"bytes,22,rep,name=messages,proto3" json:"messages,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -490,17 +647,379 @@ func (x *GetDocumentResponse) GetContentHash() string {
 	return ""
 }
 
-type ShareDocumentRequest struct {
+func (x *GetDocumentResponse) GetLinks() []*DocumentLinkTarget {
+	if x != nil {
+		return x.Links
+	}
+	return nil
+}
+
+func (x *GetDocumentResponse) GetChannels() []*DocumentChannelReference {
+	if x != nil {
+		return x.Channels
+	}
+	return nil
+}
+
+func (x *GetDocumentResponse) GetPeople() []*DocumentPersonReference {
+	if x != nil {
+		return x.People
+	}
+	return nil
+}
+
+func (x *GetDocumentResponse) GetMessages() []*DocumentMessageReference {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+// DocumentChannelReference is one channel a document names. key is the
+// reference as written: "id:<conversation-id>" or "name:<normalized-name>".
+// A channel the caller cannot see is locked: only the key is sent. A bare
+// "#name" nobody can resolve is not sent at all, so prose stays prose.
+type DocumentChannelReference struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Key            string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Locked         bool                   `protobuf:"varint,2,opt,name=locked,proto3" json:"locked,omitempty"`
+	ConversationId string                 `protobuf:"bytes,3,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	Name           string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	MemberCount    uint32                 `protobuf:"varint,5,opt,name=member_count,json=memberCount,proto3" json:"member_count,omitempty"`
+	Joined         bool                   `protobuf:"varint,6,opt,name=joined,proto3" json:"joined,omitempty"`
+	Private        bool                   `protobuf:"varint,7,opt,name=private,proto3" json:"private,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DocumentChannelReference) Reset() {
+	*x = DocumentChannelReference{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentChannelReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentChannelReference) ProtoMessage() {}
+
+func (x *DocumentChannelReference) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentChannelReference.ProtoReflect.Descriptor instead.
+func (*DocumentChannelReference) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DocumentChannelReference) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *DocumentChannelReference) GetLocked() bool {
+	if x != nil {
+		return x.Locked
+	}
+	return false
+}
+
+func (x *DocumentChannelReference) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *DocumentChannelReference) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DocumentChannelReference) GetMemberCount() uint32 {
+	if x != nil {
+		return x.MemberCount
+	}
+	return 0
+}
+
+func (x *DocumentChannelReference) GetJoined() bool {
+	if x != nil {
+		return x.Joined
+	}
+	return false
+}
+
+func (x *DocumentChannelReference) GetPrivate() bool {
+	if x != nil {
+		return x.Private
+	}
+	return false
+}
+
+// DocumentPersonReference is one "@handle" or "@<subject-id>" that resolves
+// to a person in the caller's tenant. key is the lowercased token.
+type DocumentPersonReference struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	SubjectId     string                 `protobuf:"bytes,2,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentPersonReference) Reset() {
+	*x = DocumentPersonReference{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentPersonReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentPersonReference) ProtoMessage() {}
+
+func (x *DocumentPersonReference) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentPersonReference.ProtoReflect.Descriptor instead.
+func (*DocumentPersonReference) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DocumentPersonReference) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *DocumentPersonReference) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+func (x *DocumentPersonReference) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+// DocumentMessageReference is one chat permalink, resolved through the same
+// authorization as opening it in chat. An unreadable message reports only
+// its token and readable=false.
+type DocumentMessageReference struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Token          string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	Readable       bool                   `protobuf:"varint,2,opt,name=readable,proto3" json:"readable,omitempty"`
+	ConversationId string                 `protobuf:"bytes,3,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	ChannelName    string                 `protobuf:"bytes,4,opt,name=channel_name,json=channelName,proto3" json:"channel_name,omitempty"`
+	PostId         string                 `protobuf:"bytes,5,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	AuthorId       string                 `protobuf:"bytes,6,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	AuthorName     string                 `protobuf:"bytes,7,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Body           string                 `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DocumentMessageReference) Reset() {
+	*x = DocumentMessageReference{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentMessageReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentMessageReference) ProtoMessage() {}
+
+func (x *DocumentMessageReference) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentMessageReference.ProtoReflect.Descriptor instead.
+func (*DocumentMessageReference) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DocumentMessageReference) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *DocumentMessageReference) GetReadable() bool {
+	if x != nil {
+		return x.Readable
+	}
+	return false
+}
+
+func (x *DocumentMessageReference) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *DocumentMessageReference) GetChannelName() string {
+	if x != nil {
+		return x.ChannelName
+	}
+	return ""
+}
+
+func (x *DocumentMessageReference) GetPostId() string {
+	if x != nil {
+		return x.PostId
+	}
+	return ""
+}
+
+func (x *DocumentMessageReference) GetAuthorId() string {
+	if x != nil {
+		return x.AuthorId
+	}
+	return ""
+}
+
+func (x *DocumentMessageReference) GetAuthorName() string {
+	if x != nil {
+		return x.AuthorName
+	}
+	return ""
+}
+
+func (x *DocumentMessageReference) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *DocumentMessageReference) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+// DocumentLinkTarget says whether the caller could open a linked document
+// right now. The title is sent only when it is readable, so a link never
+// reveals the title of a document the caller cannot open.
+type DocumentLinkTarget struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
-	RecipientId   string                 `protobuf:"bytes,2,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Readable      bool                   `protobuf:"varint,3,opt,name=readable,proto3" json:"readable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentLinkTarget) Reset() {
+	*x = DocumentLinkTarget{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentLinkTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentLinkTarget) ProtoMessage() {}
+
+func (x *DocumentLinkTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentLinkTarget.ProtoReflect.Descriptor instead.
+func (*DocumentLinkTarget) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DocumentLinkTarget) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *DocumentLinkTarget) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *DocumentLinkTarget) GetReadable() bool {
+	if x != nil {
+		return x.Readable
+	}
+	return false
+}
+
+type ShareDocumentRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId  string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	RecipientId string                 `protobuf:"bytes,2,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	// role is "viewer" (read) or "commenter" (read and comment, the default).
+	Role          string `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ShareDocumentRequest) Reset() {
 	*x = ShareDocumentRequest{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[7]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -512,7 +1031,7 @@ func (x *ShareDocumentRequest) String() string {
 func (*ShareDocumentRequest) ProtoMessage() {}
 
 func (x *ShareDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[7]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -525,7 +1044,7 @@ func (x *ShareDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareDocumentRequest.ProtoReflect.Descriptor instead.
 func (*ShareDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{7}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ShareDocumentRequest) GetDocumentId() string {
@@ -542,6 +1061,13 @@ func (x *ShareDocumentRequest) GetRecipientId() string {
 	return ""
 }
 
+func (x *ShareDocumentRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
 type ShareDocumentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -550,7 +1076,7 @@ type ShareDocumentResponse struct {
 
 func (x *ShareDocumentResponse) Reset() {
 	*x = ShareDocumentResponse{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[8]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -562,7 +1088,7 @@ func (x *ShareDocumentResponse) String() string {
 func (*ShareDocumentResponse) ProtoMessage() {}
 
 func (x *ShareDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[8]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -575,24 +1101,122 @@ func (x *ShareDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareDocumentResponse.ProtoReflect.Descriptor instead.
 func (*ShareDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{8}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{12}
 }
 
-type DocumentComment struct {
+// CommentAnchor ties a comment to a passage, W3C TextQuoteSelector style.
+// A client sends quote (the exact selected text), up to 64 characters of
+// prefix and suffix context, and optionally the block_id the selection is
+// in as a hint; the server locates the passage in the version's plain text
+// and fills block_id, start and end itself. Offsets count Unicode code
+// points in the version's plain text (Markdown stripped, whitespace
+// collapsed). In a listing they are re-located in the version being read.
+type CommentAnchor struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	DocumentId    string                 `protobuf:"bytes,2,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
-	VersionId     string                 `protobuf:"bytes,3,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
-	AuthorId      string                 `protobuf:"bytes,4,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
-	Body          string                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	BlockId       string                 `protobuf:"bytes,1,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	Quote         string                 `protobuf:"bytes,2,opt,name=quote,proto3" json:"quote,omitempty"`
+	Prefix        string                 `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	Suffix        string                 `protobuf:"bytes,4,opt,name=suffix,proto3" json:"suffix,omitempty"`
+	Start         int32                  `protobuf:"varint,5,opt,name=start,proto3" json:"start,omitempty"`
+	End           int32                  `protobuf:"varint,6,opt,name=end,proto3" json:"end,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *CommentAnchor) Reset() {
+	*x = CommentAnchor{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommentAnchor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommentAnchor) ProtoMessage() {}
+
+func (x *CommentAnchor) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommentAnchor.ProtoReflect.Descriptor instead.
+func (*CommentAnchor) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CommentAnchor) GetBlockId() string {
+	if x != nil {
+		return x.BlockId
+	}
+	return ""
+}
+
+func (x *CommentAnchor) GetQuote() string {
+	if x != nil {
+		return x.Quote
+	}
+	return ""
+}
+
+func (x *CommentAnchor) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+func (x *CommentAnchor) GetSuffix() string {
+	if x != nil {
+		return x.Suffix
+	}
+	return ""
+}
+
+func (x *CommentAnchor) GetStart() int32 {
+	if x != nil {
+		return x.Start
+	}
+	return 0
+}
+
+func (x *CommentAnchor) GetEnd() int32 {
+	if x != nil {
+		return x.End
+	}
+	return 0
+}
+
+type DocumentComment struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DocumentId string                 `protobuf:"bytes,2,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionId  string                 `protobuf:"bytes,3,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	AuthorId   string                 `protobuf:"bytes,4,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	Body       string                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Anchor     *CommentAnchor         `protobuf:"bytes,7,opt,name=anchor,proto3" json:"anchor,omitempty"`
+	// parent_comment_id is set on replies; replies are one level deep.
+	ParentCommentId string `protobuf:"bytes,8,opt,name=parent_comment_id,json=parentCommentId,proto3" json:"parent_comment_id,omitempty"`
+	Resolved        bool   `protobuf:"varint,9,opt,name=resolved,proto3" json:"resolved,omitempty"`
+	// anchor_orphaned is true when the quoted passage no longer occurs in
+	// the version being read; the quote is kept so the thread still reads.
+	AnchorOrphaned bool `protobuf:"varint,10,opt,name=anchor_orphaned,json=anchorOrphaned,proto3" json:"anchor_orphaned,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
 func (x *DocumentComment) Reset() {
 	*x = DocumentComment{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[9]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -604,7 +1228,7 @@ func (x *DocumentComment) String() string {
 func (*DocumentComment) ProtoMessage() {}
 
 func (x *DocumentComment) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[9]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -617,7 +1241,7 @@ func (x *DocumentComment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DocumentComment.ProtoReflect.Descriptor instead.
 func (*DocumentComment) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{9}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DocumentComment) GetId() string {
@@ -662,6 +1286,34 @@ func (x *DocumentComment) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *DocumentComment) GetAnchor() *CommentAnchor {
+	if x != nil {
+		return x.Anchor
+	}
+	return nil
+}
+
+func (x *DocumentComment) GetParentCommentId() string {
+	if x != nil {
+		return x.ParentCommentId
+	}
+	return ""
+}
+
+func (x *DocumentComment) GetResolved() bool {
+	if x != nil {
+		return x.Resolved
+	}
+	return false
+}
+
+func (x *DocumentComment) GetAnchorOrphaned() bool {
+	if x != nil {
+		return x.AnchorOrphaned
+	}
+	return false
+}
+
 type ListDocumentCommentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
@@ -672,7 +1324,7 @@ type ListDocumentCommentsRequest struct {
 
 func (x *ListDocumentCommentsRequest) Reset() {
 	*x = ListDocumentCommentsRequest{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[10]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -684,7 +1336,7 @@ func (x *ListDocumentCommentsRequest) String() string {
 func (*ListDocumentCommentsRequest) ProtoMessage() {}
 
 func (x *ListDocumentCommentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[10]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -697,7 +1349,7 @@ func (x *ListDocumentCommentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDocumentCommentsRequest.ProtoReflect.Descriptor instead.
 func (*ListDocumentCommentsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{10}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListDocumentCommentsRequest) GetDocumentId() string {
@@ -723,7 +1375,7 @@ type ListDocumentCommentsResponse struct {
 
 func (x *ListDocumentCommentsResponse) Reset() {
 	*x = ListDocumentCommentsResponse{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[11]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -735,7 +1387,7 @@ func (x *ListDocumentCommentsResponse) String() string {
 func (*ListDocumentCommentsResponse) ProtoMessage() {}
 
 func (x *ListDocumentCommentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[11]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -748,7 +1400,7 @@ func (x *ListDocumentCommentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDocumentCommentsResponse.ProtoReflect.Descriptor instead.
 func (*ListDocumentCommentsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{11}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListDocumentCommentsResponse) GetComments() []*DocumentComment {
@@ -759,17 +1411,22 @@ func (x *ListDocumentCommentsResponse) GetComments() []*DocumentComment {
 }
 
 type AddDocumentCommentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
-	VersionId     string                 `protobuf:"bytes,2,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
-	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionId  string                 `protobuf:"bytes,2,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Body       string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	// anchor quotes a passage of version_id; start and end are ignored and
+	// filled by the server. Replies carry no anchor.
+	Anchor *CommentAnchor `protobuf:"bytes,4,opt,name=anchor,proto3" json:"anchor,omitempty"`
+	// parent_comment_id makes this a reply to a top-level comment.
+	ParentCommentId string `protobuf:"bytes,5,opt,name=parent_comment_id,json=parentCommentId,proto3" json:"parent_comment_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *AddDocumentCommentRequest) Reset() {
 	*x = AddDocumentCommentRequest{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[12]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -781,7 +1438,7 @@ func (x *AddDocumentCommentRequest) String() string {
 func (*AddDocumentCommentRequest) ProtoMessage() {}
 
 func (x *AddDocumentCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[12]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +1451,7 @@ func (x *AddDocumentCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddDocumentCommentRequest.ProtoReflect.Descriptor instead.
 func (*AddDocumentCommentRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{12}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AddDocumentCommentRequest) GetDocumentId() string {
@@ -818,6 +1475,20 @@ func (x *AddDocumentCommentRequest) GetBody() string {
 	return ""
 }
 
+func (x *AddDocumentCommentRequest) GetAnchor() *CommentAnchor {
+	if x != nil {
+		return x.Anchor
+	}
+	return nil
+}
+
+func (x *AddDocumentCommentRequest) GetParentCommentId() string {
+	if x != nil {
+		return x.ParentCommentId
+	}
+	return ""
+}
+
 type AddDocumentCommentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Comment       *DocumentComment       `protobuf:"bytes,1,opt,name=comment,proto3" json:"comment,omitempty"`
@@ -827,7 +1498,7 @@ type AddDocumentCommentResponse struct {
 
 func (x *AddDocumentCommentResponse) Reset() {
 	*x = AddDocumentCommentResponse{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[13]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +1510,7 @@ func (x *AddDocumentCommentResponse) String() string {
 func (*AddDocumentCommentResponse) ProtoMessage() {}
 
 func (x *AddDocumentCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[13]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +1523,7 @@ func (x *AddDocumentCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddDocumentCommentResponse.ProtoReflect.Descriptor instead.
 func (*AddDocumentCommentResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{13}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AddDocumentCommentResponse) GetComment() *DocumentComment {
@@ -874,7 +1545,7 @@ type CreateDocumentVersionRequest struct {
 
 func (x *CreateDocumentVersionRequest) Reset() {
 	*x = CreateDocumentVersionRequest{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[14]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -886,7 +1557,7 @@ func (x *CreateDocumentVersionRequest) String() string {
 func (*CreateDocumentVersionRequest) ProtoMessage() {}
 
 func (x *CreateDocumentVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[14]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -899,7 +1570,7 @@ func (x *CreateDocumentVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDocumentVersionRequest.ProtoReflect.Descriptor instead.
 func (*CreateDocumentVersionRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{14}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CreateDocumentVersionRequest) GetDocumentId() string {
@@ -939,7 +1610,7 @@ type CreateDocumentVersionResponse struct {
 
 func (x *CreateDocumentVersionResponse) Reset() {
 	*x = CreateDocumentVersionResponse{}
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[15]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -951,7 +1622,7 @@ func (x *CreateDocumentVersionResponse) String() string {
 func (*CreateDocumentVersionResponse) ProtoMessage() {}
 
 func (x *CreateDocumentVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[15]
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -964,7 +1635,7 @@ func (x *CreateDocumentVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDocumentVersionResponse.ProtoReflect.Descriptor instead.
 func (*CreateDocumentVersionResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{15}
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CreateDocumentVersionResponse) GetVersionId() string {
@@ -974,11 +1645,2989 @@ func (x *CreateDocumentVersionResponse) GetVersionId() string {
 	return ""
 }
 
+type GetDocumentLibraryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentLibraryRequest) Reset() {
+	*x = GetDocumentLibraryRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentLibraryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentLibraryRequest) ProtoMessage() {}
+
+func (x *GetDocumentLibraryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentLibraryRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentLibraryRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{21}
+}
+
+type DocumentFolder struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FolderId      string                 `protobuf:"bytes,1,opt,name=folder_id,json=folderId,proto3" json:"folder_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	DocumentCount int32                  `protobuf:"varint,3,opt,name=document_count,json=documentCount,proto3" json:"document_count,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentFolder) Reset() {
+	*x = DocumentFolder{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentFolder) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentFolder) ProtoMessage() {}
+
+func (x *DocumentFolder) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentFolder.ProtoReflect.Descriptor instead.
+func (*DocumentFolder) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *DocumentFolder) GetFolderId() string {
+	if x != nil {
+		return x.FolderId
+	}
+	return ""
+}
+
+func (x *DocumentFolder) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DocumentFolder) GetDocumentCount() int32 {
+	if x != nil {
+		return x.DocumentCount
+	}
+	return 0
+}
+
+func (x *DocumentFolder) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type GetDocumentLibraryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Folders       []*DocumentFolder      `protobuf:"bytes,1,rep,name=folders,proto3" json:"folders,omitempty"`
+	AllCount      int32                  `protobuf:"varint,2,opt,name=all_count,json=allCount,proto3" json:"all_count,omitempty"`
+	MineCount     int32                  `protobuf:"varint,3,opt,name=mine_count,json=mineCount,proto3" json:"mine_count,omitempty"`
+	SharedCount   int32                  `protobuf:"varint,4,opt,name=shared_count,json=sharedCount,proto3" json:"shared_count,omitempty"`
+	StarredCount  int32                  `protobuf:"varint,5,opt,name=starred_count,json=starredCount,proto3" json:"starred_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentLibraryResponse) Reset() {
+	*x = GetDocumentLibraryResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentLibraryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentLibraryResponse) ProtoMessage() {}
+
+func (x *GetDocumentLibraryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentLibraryResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentLibraryResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetDocumentLibraryResponse) GetFolders() []*DocumentFolder {
+	if x != nil {
+		return x.Folders
+	}
+	return nil
+}
+
+func (x *GetDocumentLibraryResponse) GetAllCount() int32 {
+	if x != nil {
+		return x.AllCount
+	}
+	return 0
+}
+
+func (x *GetDocumentLibraryResponse) GetMineCount() int32 {
+	if x != nil {
+		return x.MineCount
+	}
+	return 0
+}
+
+func (x *GetDocumentLibraryResponse) GetSharedCount() int32 {
+	if x != nil {
+		return x.SharedCount
+	}
+	return 0
+}
+
+func (x *GetDocumentLibraryResponse) GetStarredCount() int32 {
+	if x != nil {
+		return x.StarredCount
+	}
+	return 0
+}
+
+type CreateDocumentFolderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateDocumentFolderRequest) Reset() {
+	*x = CreateDocumentFolderRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateDocumentFolderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateDocumentFolderRequest) ProtoMessage() {}
+
+func (x *CreateDocumentFolderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateDocumentFolderRequest.ProtoReflect.Descriptor instead.
+func (*CreateDocumentFolderRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CreateDocumentFolderRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type CreateDocumentFolderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Folder        *DocumentFolder        `protobuf:"bytes,1,opt,name=folder,proto3" json:"folder,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateDocumentFolderResponse) Reset() {
+	*x = CreateDocumentFolderResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateDocumentFolderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateDocumentFolderResponse) ProtoMessage() {}
+
+func (x *CreateDocumentFolderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateDocumentFolderResponse.ProtoReflect.Descriptor instead.
+func (*CreateDocumentFolderResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *CreateDocumentFolderResponse) GetFolder() *DocumentFolder {
+	if x != nil {
+		return x.Folder
+	}
+	return nil
+}
+
+type RenameDocumentFolderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FolderId      string                 `protobuf:"bytes,1,opt,name=folder_id,json=folderId,proto3" json:"folder_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameDocumentFolderRequest) Reset() {
+	*x = RenameDocumentFolderRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameDocumentFolderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameDocumentFolderRequest) ProtoMessage() {}
+
+func (x *RenameDocumentFolderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameDocumentFolderRequest.ProtoReflect.Descriptor instead.
+func (*RenameDocumentFolderRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RenameDocumentFolderRequest) GetFolderId() string {
+	if x != nil {
+		return x.FolderId
+	}
+	return ""
+}
+
+func (x *RenameDocumentFolderRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RenameDocumentFolderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameDocumentFolderResponse) Reset() {
+	*x = RenameDocumentFolderResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameDocumentFolderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameDocumentFolderResponse) ProtoMessage() {}
+
+func (x *RenameDocumentFolderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameDocumentFolderResponse.ProtoReflect.Descriptor instead.
+func (*RenameDocumentFolderResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{27}
+}
+
+// Deleting a folder removes only the folder; its documents return to the
+// caller's unfiled documents and are never deleted.
+type DeleteDocumentFolderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FolderId      string                 `protobuf:"bytes,1,opt,name=folder_id,json=folderId,proto3" json:"folder_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteDocumentFolderRequest) Reset() {
+	*x = DeleteDocumentFolderRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteDocumentFolderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDocumentFolderRequest) ProtoMessage() {}
+
+func (x *DeleteDocumentFolderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDocumentFolderRequest.ProtoReflect.Descriptor instead.
+func (*DeleteDocumentFolderRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *DeleteDocumentFolderRequest) GetFolderId() string {
+	if x != nil {
+		return x.FolderId
+	}
+	return ""
+}
+
+type DeleteDocumentFolderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteDocumentFolderResponse) Reset() {
+	*x = DeleteDocumentFolderResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteDocumentFolderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDocumentFolderResponse) ProtoMessage() {}
+
+func (x *DeleteDocumentFolderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDocumentFolderResponse.ProtoReflect.Descriptor instead.
+func (*DeleteDocumentFolderResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{29}
+}
+
+// MoveDocuments files readable documents into one of the caller's folders,
+// or takes them out of any folder when folder_id is empty.
+type MoveDocumentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentIds   []string               `protobuf:"bytes,1,rep,name=document_ids,json=documentIds,proto3" json:"document_ids,omitempty"`
+	FolderId      string                 `protobuf:"bytes,2,opt,name=folder_id,json=folderId,proto3" json:"folder_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveDocumentsRequest) Reset() {
+	*x = MoveDocumentsRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveDocumentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveDocumentsRequest) ProtoMessage() {}
+
+func (x *MoveDocumentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveDocumentsRequest.ProtoReflect.Descriptor instead.
+func (*MoveDocumentsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *MoveDocumentsRequest) GetDocumentIds() []string {
+	if x != nil {
+		return x.DocumentIds
+	}
+	return nil
+}
+
+func (x *MoveDocumentsRequest) GetFolderId() string {
+	if x != nil {
+		return x.FolderId
+	}
+	return ""
+}
+
+type MoveDocumentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MoveDocumentsResponse) Reset() {
+	*x = MoveDocumentsResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MoveDocumentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveDocumentsResponse) ProtoMessage() {}
+
+func (x *MoveDocumentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveDocumentsResponse.ProtoReflect.Descriptor instead.
+func (*MoveDocumentsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{31}
+}
+
+type SetDocumentStarredRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	Starred       bool                   `protobuf:"varint,2,opt,name=starred,proto3" json:"starred,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetDocumentStarredRequest) Reset() {
+	*x = SetDocumentStarredRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDocumentStarredRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDocumentStarredRequest) ProtoMessage() {}
+
+func (x *SetDocumentStarredRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDocumentStarredRequest.ProtoReflect.Descriptor instead.
+func (*SetDocumentStarredRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *SetDocumentStarredRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *SetDocumentStarredRequest) GetStarred() bool {
+	if x != nil {
+		return x.Starred
+	}
+	return false
+}
+
+type SetDocumentStarredResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetDocumentStarredResponse) Reset() {
+	*x = SetDocumentStarredResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDocumentStarredResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDocumentStarredResponse) ProtoMessage() {}
+
+func (x *SetDocumentStarredResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDocumentStarredResponse.ProtoReflect.Descriptor instead.
+func (*SetDocumentStarredResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{33}
+}
+
+type ListDocumentAccessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentAccessRequest) Reset() {
+	*x = ListDocumentAccessRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentAccessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentAccessRequest) ProtoMessage() {}
+
+func (x *ListDocumentAccessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentAccessRequest.ProtoReflect.Descriptor instead.
+func (*ListDocumentAccessRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ListDocumentAccessRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+type DocumentAccessEntry struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	SubjectKind string                 `protobuf:"bytes,1,opt,name=subject_kind,json=subjectKind,proto3" json:"subject_kind,omitempty"`
+	SubjectId   string                 `protobuf:"bytes,2,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	// role is "owner", "commenter" or "viewer".
+	Role          string `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	Removable     bool   `protobuf:"varint,4,opt,name=removable,proto3" json:"removable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentAccessEntry) Reset() {
+	*x = DocumentAccessEntry{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentAccessEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentAccessEntry) ProtoMessage() {}
+
+func (x *DocumentAccessEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentAccessEntry.ProtoReflect.Descriptor instead.
+func (*DocumentAccessEntry) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *DocumentAccessEntry) GetSubjectKind() string {
+	if x != nil {
+		return x.SubjectKind
+	}
+	return ""
+}
+
+func (x *DocumentAccessEntry) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+func (x *DocumentAccessEntry) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *DocumentAccessEntry) GetRemovable() bool {
+	if x != nil {
+		return x.Removable
+	}
+	return false
+}
+
+type ListDocumentAccessResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*DocumentAccessEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentAccessResponse) Reset() {
+	*x = ListDocumentAccessResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentAccessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentAccessResponse) ProtoMessage() {}
+
+func (x *ListDocumentAccessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentAccessResponse.ProtoReflect.Descriptor instead.
+func (*ListDocumentAccessResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ListDocumentAccessResponse) GetEntries() []*DocumentAccessEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type RevokeDocumentAccessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	SubjectKind   string                 `protobuf:"bytes,2,opt,name=subject_kind,json=subjectKind,proto3" json:"subject_kind,omitempty"`
+	SubjectId     string                 `protobuf:"bytes,3,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeDocumentAccessRequest) Reset() {
+	*x = RevokeDocumentAccessRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeDocumentAccessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeDocumentAccessRequest) ProtoMessage() {}
+
+func (x *RevokeDocumentAccessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeDocumentAccessRequest.ProtoReflect.Descriptor instead.
+func (*RevokeDocumentAccessRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *RevokeDocumentAccessRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *RevokeDocumentAccessRequest) GetSubjectKind() string {
+	if x != nil {
+		return x.SubjectKind
+	}
+	return ""
+}
+
+func (x *RevokeDocumentAccessRequest) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+type RevokeDocumentAccessResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeDocumentAccessResponse) Reset() {
+	*x = RevokeDocumentAccessResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeDocumentAccessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeDocumentAccessResponse) ProtoMessage() {}
+
+func (x *RevokeDocumentAccessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeDocumentAccessResponse.ProtoReflect.Descriptor instead.
+func (*RevokeDocumentAccessResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{38}
+}
+
+type ResolveDocumentCommentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	CommentId     string                 `protobuf:"bytes,2,opt,name=comment_id,json=commentId,proto3" json:"comment_id,omitempty"`
+	Resolved      bool                   `protobuf:"varint,3,opt,name=resolved,proto3" json:"resolved,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveDocumentCommentRequest) Reset() {
+	*x = ResolveDocumentCommentRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveDocumentCommentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveDocumentCommentRequest) ProtoMessage() {}
+
+func (x *ResolveDocumentCommentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveDocumentCommentRequest.ProtoReflect.Descriptor instead.
+func (*ResolveDocumentCommentRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *ResolveDocumentCommentRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *ResolveDocumentCommentRequest) GetCommentId() string {
+	if x != nil {
+		return x.CommentId
+	}
+	return ""
+}
+
+func (x *ResolveDocumentCommentRequest) GetResolved() bool {
+	if x != nil {
+		return x.Resolved
+	}
+	return false
+}
+
+type ResolveDocumentCommentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveDocumentCommentResponse) Reset() {
+	*x = ResolveDocumentCommentResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveDocumentCommentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveDocumentCommentResponse) ProtoMessage() {}
+
+func (x *ResolveDocumentCommentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveDocumentCommentResponse.ProtoReflect.Descriptor instead.
+func (*ResolveDocumentCommentResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{40}
+}
+
+type GetDocumentPreviewsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// At most 50 distinct IDs.
+	DocumentIds   []string `protobuf:"bytes,1,rep,name=document_ids,json=documentIds,proto3" json:"document_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentPreviewsRequest) Reset() {
+	*x = GetDocumentPreviewsRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentPreviewsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentPreviewsRequest) ProtoMessage() {}
+
+func (x *GetDocumentPreviewsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentPreviewsRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentPreviewsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *GetDocumentPreviewsRequest) GetDocumentIds() []string {
+	if x != nil {
+		return x.DocumentIds
+	}
+	return nil
+}
+
+// DocumentPreview is the unfurl of one document. title, owner, updated_at
+// and snippet are sent only when readable.
+type DocumentPreview struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	Readable      bool                   `protobuf:"varint,2,opt,name=readable,proto3" json:"readable,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	OwnerId       string                 `protobuf:"bytes,4,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	OwnerName     string                 `protobuf:"bytes,5,opt,name=owner_name,json=ownerName,proto3" json:"owner_name,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Snippet       string                 `protobuf:"bytes,7,opt,name=snippet,proto3" json:"snippet,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentPreview) Reset() {
+	*x = DocumentPreview{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentPreview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentPreview) ProtoMessage() {}
+
+func (x *DocumentPreview) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentPreview.ProtoReflect.Descriptor instead.
+func (*DocumentPreview) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *DocumentPreview) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *DocumentPreview) GetReadable() bool {
+	if x != nil {
+		return x.Readable
+	}
+	return false
+}
+
+func (x *DocumentPreview) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *DocumentPreview) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *DocumentPreview) GetOwnerName() string {
+	if x != nil {
+		return x.OwnerName
+	}
+	return ""
+}
+
+func (x *DocumentPreview) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *DocumentPreview) GetSnippet() string {
+	if x != nil {
+		return x.Snippet
+	}
+	return ""
+}
+
+type GetDocumentPreviewsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Previews      []*DocumentPreview     `protobuf:"bytes,1,rep,name=previews,proto3" json:"previews,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentPreviewsResponse) Reset() {
+	*x = GetDocumentPreviewsResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentPreviewsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentPreviewsResponse) ProtoMessage() {}
+
+func (x *GetDocumentPreviewsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentPreviewsResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentPreviewsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *GetDocumentPreviewsResponse) GetPreviews() []*DocumentPreview {
+	if x != nil {
+		return x.Previews
+	}
+	return nil
+}
+
+// DocumentDeployment is a scoped deployment pointer: the default pointer
+// (scope_kind="default") or a team/channel placement (scope_kind=
+// "placement"). official is true only when custodian_id and review_due_at
+// are both bound, i.e. the deployment went through PlaceDocument rather
+// than a bare Deploy.
+type DocumentDeployment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DocumentId    string                 `protobuf:"bytes,2,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionId     string                 `protobuf:"bytes,3,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	ScopeKind     string                 `protobuf:"bytes,4,opt,name=scope_kind,json=scopeKind,proto3" json:"scope_kind,omitempty"`
+	ScopeId       string                 `protobuf:"bytes,5,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
+	DeployerId    string                 `protobuf:"bytes,6,opt,name=deployer_id,json=deployerId,proto3" json:"deployer_id,omitempty"`
+	CustodianId   string                 `protobuf:"bytes,7,opt,name=custodian_id,json=custodianId,proto3" json:"custodian_id,omitempty"`
+	EffectiveAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=effective_at,json=effectiveAt,proto3" json:"effective_at,omitempty"`
+	ReviewDueAt   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=review_due_at,json=reviewDueAt,proto3" json:"review_due_at,omitempty"`
+	Official      bool                   `protobuf:"varint,10,opt,name=official,proto3" json:"official,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentDeployment) Reset() {
+	*x = DocumentDeployment{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentDeployment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentDeployment) ProtoMessage() {}
+
+func (x *DocumentDeployment) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentDeployment.ProtoReflect.Descriptor instead.
+func (*DocumentDeployment) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *DocumentDeployment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DocumentDeployment) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *DocumentDeployment) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *DocumentDeployment) GetScopeKind() string {
+	if x != nil {
+		return x.ScopeKind
+	}
+	return ""
+}
+
+func (x *DocumentDeployment) GetScopeId() string {
+	if x != nil {
+		return x.ScopeId
+	}
+	return ""
+}
+
+func (x *DocumentDeployment) GetDeployerId() string {
+	if x != nil {
+		return x.DeployerId
+	}
+	return ""
+}
+
+func (x *DocumentDeployment) GetCustodianId() string {
+	if x != nil {
+		return x.CustodianId
+	}
+	return ""
+}
+
+func (x *DocumentDeployment) GetEffectiveAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EffectiveAt
+	}
+	return nil
+}
+
+func (x *DocumentDeployment) GetReviewDueAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReviewDueAt
+	}
+	return nil
+}
+
+func (x *DocumentDeployment) GetOfficial() bool {
+	if x != nil {
+		return x.Official
+	}
+	return false
+}
+
+type PlaceDocumentRequest struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionId  string                 `protobuf:"bytes,2,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	ScopeId    string                 `protobuf:"bytes,3,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
+	// expected_live is the deployment ID the caller last observed live in
+	// this scope, for compare-and-swap; empty means "nothing live yet".
+	ExpectedLive  string                 `protobuf:"bytes,4,opt,name=expected_live,json=expectedLive,proto3" json:"expected_live,omitempty"`
+	CustodianId   string                 `protobuf:"bytes,5,opt,name=custodian_id,json=custodianId,proto3" json:"custodian_id,omitempty"`
+	ReviewDueAt   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=review_due_at,json=reviewDueAt,proto3" json:"review_due_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlaceDocumentRequest) Reset() {
+	*x = PlaceDocumentRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlaceDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlaceDocumentRequest) ProtoMessage() {}
+
+func (x *PlaceDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlaceDocumentRequest.ProtoReflect.Descriptor instead.
+func (*PlaceDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *PlaceDocumentRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *PlaceDocumentRequest) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *PlaceDocumentRequest) GetScopeId() string {
+	if x != nil {
+		return x.ScopeId
+	}
+	return ""
+}
+
+func (x *PlaceDocumentRequest) GetExpectedLive() string {
+	if x != nil {
+		return x.ExpectedLive
+	}
+	return ""
+}
+
+func (x *PlaceDocumentRequest) GetCustodianId() string {
+	if x != nil {
+		return x.CustodianId
+	}
+	return ""
+}
+
+func (x *PlaceDocumentRequest) GetReviewDueAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReviewDueAt
+	}
+	return nil
+}
+
+type PlaceDocumentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deployment    *DocumentDeployment    `protobuf:"bytes,1,opt,name=deployment,proto3" json:"deployment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlaceDocumentResponse) Reset() {
+	*x = PlaceDocumentResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlaceDocumentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlaceDocumentResponse) ProtoMessage() {}
+
+func (x *PlaceDocumentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlaceDocumentResponse.ProtoReflect.Descriptor instead.
+func (*PlaceDocumentResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *PlaceDocumentResponse) GetDeployment() *DocumentDeployment {
+	if x != nil {
+		return x.Deployment
+	}
+	return nil
+}
+
+type GetDocumentPlacementRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	ScopeId       string                 `protobuf:"bytes,2,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentPlacementRequest) Reset() {
+	*x = GetDocumentPlacementRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentPlacementRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentPlacementRequest) ProtoMessage() {}
+
+func (x *GetDocumentPlacementRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentPlacementRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentPlacementRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *GetDocumentPlacementRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *GetDocumentPlacementRequest) GetScopeId() string {
+	if x != nil {
+		return x.ScopeId
+	}
+	return ""
+}
+
+type GetDocumentPlacementResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deployment    *DocumentDeployment    `protobuf:"bytes,1,opt,name=deployment,proto3" json:"deployment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentPlacementResponse) Reset() {
+	*x = GetDocumentPlacementResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentPlacementResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentPlacementResponse) ProtoMessage() {}
+
+func (x *GetDocumentPlacementResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentPlacementResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentPlacementResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *GetDocumentPlacementResponse) GetDeployment() *DocumentDeployment {
+	if x != nil {
+		return x.Deployment
+	}
+	return nil
+}
+
+type DocumentOwnershipTransfer struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DocumentId       string                 `protobuf:"bytes,2,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	PriorOwnerId     string                 `protobuf:"bytes,3,opt,name=prior_owner_id,json=priorOwnerId,proto3" json:"prior_owner_id,omitempty"`
+	SuccessorOwnerId string                 `protobuf:"bytes,4,opt,name=successor_owner_id,json=successorOwnerId,proto3" json:"successor_owner_id,omitempty"`
+	Reason           string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	TransferredBy    string                 `protobuf:"bytes,6,opt,name=transferred_by,json=transferredBy,proto3" json:"transferred_by,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DocumentOwnershipTransfer) Reset() {
+	*x = DocumentOwnershipTransfer{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentOwnershipTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentOwnershipTransfer) ProtoMessage() {}
+
+func (x *DocumentOwnershipTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentOwnershipTransfer.ProtoReflect.Descriptor instead.
+func (*DocumentOwnershipTransfer) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *DocumentOwnershipTransfer) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DocumentOwnershipTransfer) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *DocumentOwnershipTransfer) GetPriorOwnerId() string {
+	if x != nil {
+		return x.PriorOwnerId
+	}
+	return ""
+}
+
+func (x *DocumentOwnershipTransfer) GetSuccessorOwnerId() string {
+	if x != nil {
+		return x.SuccessorOwnerId
+	}
+	return ""
+}
+
+func (x *DocumentOwnershipTransfer) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *DocumentOwnershipTransfer) GetTransferredBy() string {
+	if x != nil {
+		return x.TransferredBy
+	}
+	return ""
+}
+
+func (x *DocumentOwnershipTransfer) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type TransferDocumentOwnershipRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId       string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	SuccessorOwnerId string                 `protobuf:"bytes,2,opt,name=successor_owner_id,json=successorOwnerId,proto3" json:"successor_owner_id,omitempty"`
+	Reason           string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *TransferDocumentOwnershipRequest) Reset() {
+	*x = TransferDocumentOwnershipRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransferDocumentOwnershipRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransferDocumentOwnershipRequest) ProtoMessage() {}
+
+func (x *TransferDocumentOwnershipRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransferDocumentOwnershipRequest.ProtoReflect.Descriptor instead.
+func (*TransferDocumentOwnershipRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *TransferDocumentOwnershipRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *TransferDocumentOwnershipRequest) GetSuccessorOwnerId() string {
+	if x != nil {
+		return x.SuccessorOwnerId
+	}
+	return ""
+}
+
+func (x *TransferDocumentOwnershipRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type TransferDocumentOwnershipResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Transfer      *DocumentOwnershipTransfer `protobuf:"bytes,1,opt,name=transfer,proto3" json:"transfer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TransferDocumentOwnershipResponse) Reset() {
+	*x = TransferDocumentOwnershipResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransferDocumentOwnershipResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransferDocumentOwnershipResponse) ProtoMessage() {}
+
+func (x *TransferDocumentOwnershipResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransferDocumentOwnershipResponse.ProtoReflect.Descriptor instead.
+func (*TransferDocumentOwnershipResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *TransferDocumentOwnershipResponse) GetTransfer() *DocumentOwnershipTransfer {
+	if x != nil {
+		return x.Transfer
+	}
+	return nil
+}
+
+type ListDocumentOwnershipHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentOwnershipHistoryRequest) Reset() {
+	*x = ListDocumentOwnershipHistoryRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentOwnershipHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentOwnershipHistoryRequest) ProtoMessage() {}
+
+func (x *ListDocumentOwnershipHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentOwnershipHistoryRequest.ProtoReflect.Descriptor instead.
+func (*ListDocumentOwnershipHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *ListDocumentOwnershipHistoryRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+type ListDocumentOwnershipHistoryResponse struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Transfers     []*DocumentOwnershipTransfer `protobuf:"bytes,1,rep,name=transfers,proto3" json:"transfers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentOwnershipHistoryResponse) Reset() {
+	*x = ListDocumentOwnershipHistoryResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentOwnershipHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentOwnershipHistoryResponse) ProtoMessage() {}
+
+func (x *ListDocumentOwnershipHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentOwnershipHistoryResponse.ProtoReflect.Descriptor instead.
+func (*ListDocumentOwnershipHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ListDocumentOwnershipHistoryResponse) GetTransfers() []*DocumentOwnershipTransfer {
+	if x != nil {
+		return x.Transfers
+	}
+	return nil
+}
+
+type DocumentCrossCompanyGrant struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DocumentId         string                 `protobuf:"bytes,2,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	HostTenant         string                 `protobuf:"bytes,3,opt,name=host_tenant,json=hostTenant,proto3" json:"host_tenant,omitempty"`
+	ConsumerTenant     string                 `protobuf:"bytes,4,opt,name=consumer_tenant,json=consumerTenant,proto3" json:"consumer_tenant,omitempty"`
+	Classification     string                 `protobuf:"bytes,5,opt,name=classification,proto3" json:"classification,omitempty"`
+	Residency          string                 `protobuf:"bytes,6,opt,name=residency,proto3" json:"residency,omitempty"`
+	Version            uint64                 `protobuf:"varint,7,opt,name=version,proto3" json:"version,omitempty"`
+	Proposed           bool                   `protobuf:"varint,8,opt,name=proposed,proto3" json:"proposed,omitempty"`
+	AcceptedByHost     bool                   `protobuf:"varint,9,opt,name=accepted_by_host,json=acceptedByHost,proto3" json:"accepted_by_host,omitempty"`
+	AcceptedByConsumer bool                   `protobuf:"varint,10,opt,name=accepted_by_consumer,json=acceptedByConsumer,proto3" json:"accepted_by_consumer,omitempty"`
+	ExpiresAt          *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	RevokedAt          *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *DocumentCrossCompanyGrant) Reset() {
+	*x = DocumentCrossCompanyGrant{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentCrossCompanyGrant) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentCrossCompanyGrant) ProtoMessage() {}
+
+func (x *DocumentCrossCompanyGrant) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentCrossCompanyGrant.ProtoReflect.Descriptor instead.
+func (*DocumentCrossCompanyGrant) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *DocumentCrossCompanyGrant) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DocumentCrossCompanyGrant) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *DocumentCrossCompanyGrant) GetHostTenant() string {
+	if x != nil {
+		return x.HostTenant
+	}
+	return ""
+}
+
+func (x *DocumentCrossCompanyGrant) GetConsumerTenant() string {
+	if x != nil {
+		return x.ConsumerTenant
+	}
+	return ""
+}
+
+func (x *DocumentCrossCompanyGrant) GetClassification() string {
+	if x != nil {
+		return x.Classification
+	}
+	return ""
+}
+
+func (x *DocumentCrossCompanyGrant) GetResidency() string {
+	if x != nil {
+		return x.Residency
+	}
+	return ""
+}
+
+func (x *DocumentCrossCompanyGrant) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *DocumentCrossCompanyGrant) GetProposed() bool {
+	if x != nil {
+		return x.Proposed
+	}
+	return false
+}
+
+func (x *DocumentCrossCompanyGrant) GetAcceptedByHost() bool {
+	if x != nil {
+		return x.AcceptedByHost
+	}
+	return false
+}
+
+func (x *DocumentCrossCompanyGrant) GetAcceptedByConsumer() bool {
+	if x != nil {
+		return x.AcceptedByConsumer
+	}
+	return false
+}
+
+func (x *DocumentCrossCompanyGrant) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *DocumentCrossCompanyGrant) GetRevokedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RevokedAt
+	}
+	return nil
+}
+
+type ProposeCrossCompanyGrantRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId     string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	ConsumerTenant string                 `protobuf:"bytes,2,opt,name=consumer_tenant,json=consumerTenant,proto3" json:"consumer_tenant,omitempty"`
+	Classification string                 `protobuf:"bytes,3,opt,name=classification,proto3" json:"classification,omitempty"`
+	Residency      string                 `protobuf:"bytes,4,opt,name=residency,proto3" json:"residency,omitempty"`
+	ExpiresAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProposeCrossCompanyGrantRequest) Reset() {
+	*x = ProposeCrossCompanyGrantRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProposeCrossCompanyGrantRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProposeCrossCompanyGrantRequest) ProtoMessage() {}
+
+func (x *ProposeCrossCompanyGrantRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProposeCrossCompanyGrantRequest.ProtoReflect.Descriptor instead.
+func (*ProposeCrossCompanyGrantRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *ProposeCrossCompanyGrantRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *ProposeCrossCompanyGrantRequest) GetConsumerTenant() string {
+	if x != nil {
+		return x.ConsumerTenant
+	}
+	return ""
+}
+
+func (x *ProposeCrossCompanyGrantRequest) GetClassification() string {
+	if x != nil {
+		return x.Classification
+	}
+	return ""
+}
+
+func (x *ProposeCrossCompanyGrantRequest) GetResidency() string {
+	if x != nil {
+		return x.Residency
+	}
+	return ""
+}
+
+func (x *ProposeCrossCompanyGrantRequest) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+type ProposeCrossCompanyGrantResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Grant         *DocumentCrossCompanyGrant `protobuf:"bytes,1,opt,name=grant,proto3" json:"grant,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProposeCrossCompanyGrantResponse) Reset() {
+	*x = ProposeCrossCompanyGrantResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProposeCrossCompanyGrantResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProposeCrossCompanyGrantResponse) ProtoMessage() {}
+
+func (x *ProposeCrossCompanyGrantResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProposeCrossCompanyGrantResponse.ProtoReflect.Descriptor instead.
+func (*ProposeCrossCompanyGrantResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *ProposeCrossCompanyGrantResponse) GetGrant() *DocumentCrossCompanyGrant {
+	if x != nil {
+		return x.Grant
+	}
+	return nil
+}
+
+type AcceptCrossCompanyGrantRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// host_tenant is the tenant that proposed the grant; the caller's own
+	// tenant, resolved from the admitted principal, is the consumer.
+	HostTenant    string `protobuf:"bytes,1,opt,name=host_tenant,json=hostTenant,proto3" json:"host_tenant,omitempty"`
+	GrantId       string `protobuf:"bytes,2,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptCrossCompanyGrantRequest) Reset() {
+	*x = AcceptCrossCompanyGrantRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptCrossCompanyGrantRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptCrossCompanyGrantRequest) ProtoMessage() {}
+
+func (x *AcceptCrossCompanyGrantRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptCrossCompanyGrantRequest.ProtoReflect.Descriptor instead.
+func (*AcceptCrossCompanyGrantRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *AcceptCrossCompanyGrantRequest) GetHostTenant() string {
+	if x != nil {
+		return x.HostTenant
+	}
+	return ""
+}
+
+func (x *AcceptCrossCompanyGrantRequest) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+type AcceptCrossCompanyGrantResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Grant         *DocumentCrossCompanyGrant `protobuf:"bytes,1,opt,name=grant,proto3" json:"grant,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptCrossCompanyGrantResponse) Reset() {
+	*x = AcceptCrossCompanyGrantResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptCrossCompanyGrantResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptCrossCompanyGrantResponse) ProtoMessage() {}
+
+func (x *AcceptCrossCompanyGrantResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptCrossCompanyGrantResponse.ProtoReflect.Descriptor instead.
+func (*AcceptCrossCompanyGrantResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *AcceptCrossCompanyGrantResponse) GetGrant() *DocumentCrossCompanyGrant {
+	if x != nil {
+		return x.Grant
+	}
+	return nil
+}
+
+type RevokeCrossCompanyGrantRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GrantId       string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeCrossCompanyGrantRequest) Reset() {
+	*x = RevokeCrossCompanyGrantRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeCrossCompanyGrantRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeCrossCompanyGrantRequest) ProtoMessage() {}
+
+func (x *RevokeCrossCompanyGrantRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeCrossCompanyGrantRequest.ProtoReflect.Descriptor instead.
+func (*RevokeCrossCompanyGrantRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *RevokeCrossCompanyGrantRequest) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+type RevokeCrossCompanyGrantResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeCrossCompanyGrantResponse) Reset() {
+	*x = RevokeCrossCompanyGrantResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeCrossCompanyGrantResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeCrossCompanyGrantResponse) ProtoMessage() {}
+
+func (x *RevokeCrossCompanyGrantResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeCrossCompanyGrantResponse.ProtoReflect.Descriptor instead.
+func (*RevokeCrossCompanyGrantResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{60}
+}
+
+// DocumentSearchFilters narrows a typed lexical search to a team, channel,
+// status, owner, locale and/or a deployed-at date range; an empty field or
+// zero timestamp skips that filter.
+type DocumentSearchFilters struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TeamId        string                 `protobuf:"bytes,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
+	ChannelId     string                 `protobuf:"bytes,2,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	OwnerId       string                 `protobuf:"bytes,4,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	Locale        string                 `protobuf:"bytes,5,opt,name=locale,proto3" json:"locale,omitempty"`
+	DateFrom      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=date_from,json=dateFrom,proto3" json:"date_from,omitempty"`
+	DateTo        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=date_to,json=dateTo,proto3" json:"date_to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentSearchFilters) Reset() {
+	*x = DocumentSearchFilters{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentSearchFilters) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentSearchFilters) ProtoMessage() {}
+
+func (x *DocumentSearchFilters) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentSearchFilters.ProtoReflect.Descriptor instead.
+func (*DocumentSearchFilters) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *DocumentSearchFilters) GetTeamId() string {
+	if x != nil {
+		return x.TeamId
+	}
+	return ""
+}
+
+func (x *DocumentSearchFilters) GetChannelId() string {
+	if x != nil {
+		return x.ChannelId
+	}
+	return ""
+}
+
+func (x *DocumentSearchFilters) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DocumentSearchFilters) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *DocumentSearchFilters) GetLocale() string {
+	if x != nil {
+		return x.Locale
+	}
+	return ""
+}
+
+func (x *DocumentSearchFilters) GetDateFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DateFrom
+	}
+	return nil
+}
+
+func (x *DocumentSearchFilters) GetDateTo() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DateTo
+	}
+	return nil
+}
+
+// DocumentSearchHit is one authorized, filtered, currently deployed
+// result, carrying its exact version, status and deployed time as
+// citation.
+type DocumentSearchHit struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionId     string                 `protobuf:"bytes,2,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Locale        string                 `protobuf:"bytes,5,opt,name=locale,proto3" json:"locale,omitempty"`
+	OwnerId       string                 `protobuf:"bytes,6,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	DeployedAt    *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=deployed_at,json=deployedAt,proto3" json:"deployed_at,omitempty"`
+	Score         int32                  `protobuf:"varint,8,opt,name=score,proto3" json:"score,omitempty"`
+	MatchedTerms  int32                  `protobuf:"varint,9,opt,name=matched_terms,json=matchedTerms,proto3" json:"matched_terms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentSearchHit) Reset() {
+	*x = DocumentSearchHit{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentSearchHit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentSearchHit) ProtoMessage() {}
+
+func (x *DocumentSearchHit) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentSearchHit.ProtoReflect.Descriptor instead.
+func (*DocumentSearchHit) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *DocumentSearchHit) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *DocumentSearchHit) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *DocumentSearchHit) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *DocumentSearchHit) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DocumentSearchHit) GetLocale() string {
+	if x != nil {
+		return x.Locale
+	}
+	return ""
+}
+
+func (x *DocumentSearchHit) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *DocumentSearchHit) GetDeployedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DeployedAt
+	}
+	return nil
+}
+
+func (x *DocumentSearchHit) GetScore() int32 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *DocumentSearchHit) GetMatchedTerms() int32 {
+	if x != nil {
+		return x.MatchedTerms
+	}
+	return 0
+}
+
+type SearchDocumentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	Filters       *DocumentSearchFilters `protobuf:"bytes,2,opt,name=filters,proto3" json:"filters,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchDocumentsRequest) Reset() {
+	*x = SearchDocumentsRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchDocumentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchDocumentsRequest) ProtoMessage() {}
+
+func (x *SearchDocumentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchDocumentsRequest.ProtoReflect.Descriptor instead.
+func (*SearchDocumentsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *SearchDocumentsRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchDocumentsRequest) GetFilters() *DocumentSearchFilters {
+	if x != nil {
+		return x.Filters
+	}
+	return nil
+}
+
+type SearchDocumentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hits          []*DocumentSearchHit   `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchDocumentsResponse) Reset() {
+	*x = SearchDocumentsResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchDocumentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchDocumentsResponse) ProtoMessage() {}
+
+func (x *SearchDocumentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchDocumentsResponse.ProtoReflect.Descriptor instead.
+func (*SearchDocumentsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *SearchDocumentsResponse) GetHits() []*DocumentSearchHit {
+	if x != nil {
+		return x.Hits
+	}
+	return nil
+}
+
+func (x *SearchDocumentsResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// AgentSearchDocumentsRequest is issued by an installed chat agent acting
+// within conversation_id for requester_id, the human it acts for.
+// agent_id must be a verified agent principal whose installation is
+// resolved through that conversation; the search only returns hits both
+// the installation's granted scope and the requester's own read grants
+// admit.
+type AgentSearchDocumentsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	AgentId        string                 `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	RequesterId    string                 `protobuf:"bytes,3,opt,name=requester_id,json=requesterId,proto3" json:"requester_id,omitempty"`
+	Query          string                 `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
+	Filters        *DocumentSearchFilters `protobuf:"bytes,5,opt,name=filters,proto3" json:"filters,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AgentSearchDocumentsRequest) Reset() {
+	*x = AgentSearchDocumentsRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSearchDocumentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSearchDocumentsRequest) ProtoMessage() {}
+
+func (x *AgentSearchDocumentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSearchDocumentsRequest.ProtoReflect.Descriptor instead.
+func (*AgentSearchDocumentsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *AgentSearchDocumentsRequest) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *AgentSearchDocumentsRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *AgentSearchDocumentsRequest) GetRequesterId() string {
+	if x != nil {
+		return x.RequesterId
+	}
+	return ""
+}
+
+func (x *AgentSearchDocumentsRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *AgentSearchDocumentsRequest) GetFilters() *DocumentSearchFilters {
+	if x != nil {
+		return x.Filters
+	}
+	return nil
+}
+
+type AgentSearchDocumentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hits          []*DocumentSearchHit   `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentSearchDocumentsResponse) Reset() {
+	*x = AgentSearchDocumentsResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSearchDocumentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSearchDocumentsResponse) ProtoMessage() {}
+
+func (x *AgentSearchDocumentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSearchDocumentsResponse.ProtoReflect.Descriptor instead.
+func (*AgentSearchDocumentsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *AgentSearchDocumentsResponse) GetHits() []*DocumentSearchHit {
+	if x != nil {
+		return x.Hits
+	}
+	return nil
+}
+
+func (x *AgentSearchDocumentsResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// GetDocumentVersionRequest names one immutable version by its document and
+// version ID, for compare views that never edit deployed bytes.
+type GetDocumentVersionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionId     string                 `protobuf:"bytes,2,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentVersionRequest) Reset() {
+	*x = GetDocumentVersionRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentVersionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentVersionRequest) ProtoMessage() {}
+
+func (x *GetDocumentVersionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentVersionRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentVersionRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *GetDocumentVersionRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *GetDocumentVersionRequest) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+// GetDocumentVersionResponse is one immutable version. readable is false,
+// and every other field empty, when the caller may not read this document;
+// no version content is ever sent for a version the caller cannot read.
+type GetDocumentVersionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Readable      bool                   `protobuf:"varint,1,opt,name=readable,proto3" json:"readable,omitempty"`
+	DocumentId    string                 `protobuf:"bytes,2,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionId     string                 `protobuf:"bytes,3,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Markdown      string                 `protobuf:"bytes,5,opt,name=markdown,proto3" json:"markdown,omitempty"`
+	ContentHash   string                 `protobuf:"bytes,6,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentVersionResponse) Reset() {
+	*x = GetDocumentVersionResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentVersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentVersionResponse) ProtoMessage() {}
+
+func (x *GetDocumentVersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentVersionResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentVersionResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *GetDocumentVersionResponse) GetReadable() bool {
+	if x != nil {
+		return x.Readable
+	}
+	return false
+}
+
+func (x *GetDocumentVersionResponse) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *GetDocumentVersionResponse) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *GetDocumentVersionResponse) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *GetDocumentVersionResponse) GetMarkdown() string {
+	if x != nil {
+		return x.Markdown
+	}
+	return ""
+}
+
+func (x *GetDocumentVersionResponse) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
+func (x *GetDocumentVersionResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type GetDocumentBacklinksRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentBacklinksRequest) Reset() {
+	*x = GetDocumentBacklinksRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentBacklinksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentBacklinksRequest) ProtoMessage() {}
+
+func (x *GetDocumentBacklinksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentBacklinksRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentBacklinksRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *GetDocumentBacklinksRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+// DocumentBacklink is one inbound link from a source the caller may also
+// read; a source the caller cannot read is left out of the response, never
+// named with a state.
+type DocumentBacklink struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	SourceDocumentId string                 `protobuf:"bytes,1,opt,name=source_document_id,json=sourceDocumentId,proto3" json:"source_document_id,omitempty"`
+	SourceVersionId  string                 `protobuf:"bytes,2,opt,name=source_version_id,json=sourceVersionId,proto3" json:"source_version_id,omitempty"`
+	SourceTitle      string                 `protobuf:"bytes,3,opt,name=source_title,json=sourceTitle,proto3" json:"source_title,omitempty"`
+	Label            string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
+	BlockId          string                 `protobuf:"bytes,5,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	// state is "" (resolves cleanly), "stale" or "broken".
+	State         string `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentBacklink) Reset() {
+	*x = DocumentBacklink{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentBacklink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentBacklink) ProtoMessage() {}
+
+func (x *DocumentBacklink) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentBacklink.ProtoReflect.Descriptor instead.
+func (*DocumentBacklink) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *DocumentBacklink) GetSourceDocumentId() string {
+	if x != nil {
+		return x.SourceDocumentId
+	}
+	return ""
+}
+
+func (x *DocumentBacklink) GetSourceVersionId() string {
+	if x != nil {
+		return x.SourceVersionId
+	}
+	return ""
+}
+
+func (x *DocumentBacklink) GetSourceTitle() string {
+	if x != nil {
+		return x.SourceTitle
+	}
+	return ""
+}
+
+func (x *DocumentBacklink) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *DocumentBacklink) GetBlockId() string {
+	if x != nil {
+		return x.BlockId
+	}
+	return ""
+}
+
+func (x *DocumentBacklink) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+type GetDocumentBacklinksResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Backlinks     []*DocumentBacklink    `protobuf:"bytes,1,rep,name=backlinks,proto3" json:"backlinks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentBacklinksResponse) Reset() {
+	*x = GetDocumentBacklinksResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentBacklinksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentBacklinksResponse) ProtoMessage() {}
+
+func (x *GetDocumentBacklinksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentBacklinksResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentBacklinksResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *GetDocumentBacklinksResponse) GetBacklinks() []*DocumentBacklink {
+	if x != nil {
+		return x.Backlinks
+	}
+	return nil
+}
+
 var File_hcmnext_document_v1_document_service_proto protoreflect.FileDescriptor
 
 const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\n" +
-	"*hcmnext/document/v1/document_service.proto\x12\x13hcmnext.document.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x88\x01\n" +
+	"*hcmnext/document/v1/document_service.proto\x12\x13hcmnext.document.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xac\x02\n" +
 	"\x14ListDocumentsRequest\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
@@ -986,7 +4635,15 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\x05query\x18\x03 \x01(\tR\x05query\x12\x1e\n" +
 	"\n" +
 	"collection\x18\x04 \x01(\tR\n" +
-	"collection\"\xdc\x03\n" +
+	"collection\x12\x1b\n" +
+	"\tfolder_id\x18\x05 \x01(\tR\bfolderId\x12!\n" +
+	"\fstarred_only\x18\x06 \x01(\bR\vstarredOnly\x12\x12\n" +
+	"\x04sort\x18\a \x01(\tR\x04sort\x12\x19\n" +
+	"\bowner_id\x18\b \x01(\tR\aownerId\x12\x1f\n" +
+	"\vsearch_mode\x18\t \x01(\tR\n" +
+	"searchMode\x12\x12\n" +
+	"\x04page\x18\n" +
+	" \x01(\x05R\x04page\"\xe6\x04\n" +
 	"\x0fDocumentSummary\x12\x1f\n" +
 	"\vdocument_id\x18\x01 \x01(\tR\n" +
 	"documentId\x12\x14\n" +
@@ -1006,10 +4663,21 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\x11can_manage_access\x18\v \x01(\bR\x0fcanManageAccess\x12\x1f\n" +
 	"\vcan_comment\x18\f \x01(\bR\n" +
 	"canComment\x12\x19\n" +
-	"\bcan_edit\x18\r \x01(\bR\acanEdit\"\x83\x01\n" +
+	"\bcan_edit\x18\r \x01(\bR\acanEdit\x12\x18\n" +
+	"\astarred\x18\x0e \x01(\bR\astarred\x12\x1b\n" +
+	"\tfolder_id\x18\x0f \x01(\tR\bfolderId\x12!\n" +
+	"\freader_count\x18\x10 \x01(\x05R\vreaderCount\x12\x18\n" +
+	"\asnippet\x18\x11 \x01(\tR\asnippet\x12\x14\n" +
+	"\x05match\x18\x12 \x01(\tR\x05match\"\x9f\x02\n" +
 	"\x15ListDocumentsResponse\x12B\n" +
 	"\tdocuments\x18\x01 \x03(\v2$.hcmnext.document.v1.DocumentSummaryR\tdocuments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"I\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\x12\x1f\n" +
+	"\vsearch_mode\x18\x04 \x01(\tR\n" +
+	"searchMode\x12-\n" +
+	"\x12semantic_available\x18\x05 \x01(\bR\x11semanticAvailable\x12)\n" +
+	"\x10semantic_pending\x18\x06 \x01(\x05R\x0fsemanticPending\"I\n" +
 	"\x15CreateDocumentRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x1a\n" +
 	"\bmarkdown\x18\x02 \x01(\tR\bmarkdown\"X\n" +
@@ -1020,16 +4688,58 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"version_id\x18\x02 \x01(\tR\tversionId\"5\n" +
 	"\x12GetDocumentRequest\x12\x1f\n" +
 	"\vdocument_id\x18\x01 \x01(\tR\n" +
-	"documentId\"\x96\x01\n" +
+	"documentId\"\xb1\x03\n" +
 	"\x13GetDocumentResponse\x12@\n" +
 	"\bdocument\x18\x01 \x01(\v2$.hcmnext.document.v1.DocumentSummaryR\bdocument\x12\x1a\n" +
 	"\bmarkdown\x18\x02 \x01(\tR\bmarkdown\x12!\n" +
-	"\fcontent_hash\x18\x03 \x01(\tR\vcontentHash\"Z\n" +
+	"\fcontent_hash\x18\x03 \x01(\tR\vcontentHash\x12=\n" +
+	"\x05links\x18\x05 \x03(\v2'.hcmnext.document.v1.DocumentLinkTargetR\x05links\x12I\n" +
+	"\bchannels\x18\x14 \x03(\v2-.hcmnext.document.v1.DocumentChannelReferenceR\bchannels\x12D\n" +
+	"\x06people\x18\x15 \x03(\v2,.hcmnext.document.v1.DocumentPersonReferenceR\x06people\x12I\n" +
+	"\bmessages\x18\x16 \x03(\v2-.hcmnext.document.v1.DocumentMessageReferenceR\bmessages\"\xd6\x01\n" +
+	"\x18DocumentChannelReference\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
+	"\x06locked\x18\x02 \x01(\bR\x06locked\x12'\n" +
+	"\x0fconversation_id\x18\x03 \x01(\tR\x0econversationId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12!\n" +
+	"\fmember_count\x18\x05 \x01(\rR\vmemberCount\x12\x16\n" +
+	"\x06joined\x18\x06 \x01(\bR\x06joined\x12\x18\n" +
+	"\aprivate\x18\a \x01(\bR\aprivate\"m\n" +
+	"\x17DocumentPersonReference\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x02 \x01(\tR\tsubjectId\x12!\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\xbe\x02\n" +
+	"\x18DocumentMessageReference\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1a\n" +
+	"\breadable\x18\x02 \x01(\bR\breadable\x12'\n" +
+	"\x0fconversation_id\x18\x03 \x01(\tR\x0econversationId\x12!\n" +
+	"\fchannel_name\x18\x04 \x01(\tR\vchannelName\x12\x17\n" +
+	"\apost_id\x18\x05 \x01(\tR\x06postId\x12\x1b\n" +
+	"\tauthor_id\x18\x06 \x01(\tR\bauthorId\x12\x1f\n" +
+	"\vauthor_name\x18\a \x01(\tR\n" +
+	"authorName\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x12\n" +
+	"\x04body\x18\t \x01(\tR\x04body\"g\n" +
+	"\x12DocumentLinkTarget\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1a\n" +
+	"\breadable\x18\x03 \x01(\bR\breadable\"n\n" +
 	"\x14ShareDocumentRequest\x12\x1f\n" +
 	"\vdocument_id\x18\x01 \x01(\tR\n" +
 	"documentId\x12!\n" +
-	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\"\x17\n" +
-	"\x15ShareDocumentResponse\"\xcd\x01\n" +
+	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"\x17\n" +
+	"\x15ShareDocumentResponse\"\x98\x01\n" +
+	"\rCommentAnchor\x12\x19\n" +
+	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x14\n" +
+	"\x05quote\x18\x02 \x01(\tR\x05quote\x12\x16\n" +
+	"\x06prefix\x18\x03 \x01(\tR\x06prefix\x12\x16\n" +
+	"\x06suffix\x18\x04 \x01(\tR\x06suffix\x12\x14\n" +
+	"\x05start\x18\x05 \x01(\x05R\x05start\x12\x10\n" +
+	"\x03end\x18\x06 \x01(\x05R\x03end\"\xfa\x02\n" +
 	"\x0fDocumentComment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vdocument_id\x18\x02 \x01(\tR\n" +
@@ -1039,20 +4749,27 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\tauthor_id\x18\x04 \x01(\tR\bauthorId\x12\x12\n" +
 	"\x04body\x18\x05 \x01(\tR\x04body\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"]\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12:\n" +
+	"\x06anchor\x18\a \x01(\v2\".hcmnext.document.v1.CommentAnchorR\x06anchor\x12*\n" +
+	"\x11parent_comment_id\x18\b \x01(\tR\x0fparentCommentId\x12\x1a\n" +
+	"\bresolved\x18\t \x01(\bR\bresolved\x12'\n" +
+	"\x0fanchor_orphaned\x18\n" +
+	" \x01(\bR\x0eanchorOrphaned\"]\n" +
 	"\x1bListDocumentCommentsRequest\x12\x1f\n" +
 	"\vdocument_id\x18\x01 \x01(\tR\n" +
 	"documentId\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x02 \x01(\tR\tversionId\"`\n" +
 	"\x1cListDocumentCommentsResponse\x12@\n" +
-	"\bcomments\x18\x01 \x03(\v2$.hcmnext.document.v1.DocumentCommentR\bcomments\"o\n" +
+	"\bcomments\x18\x01 \x03(\v2$.hcmnext.document.v1.DocumentCommentR\bcomments\"\xd7\x01\n" +
 	"\x19AddDocumentCommentRequest\x12\x1f\n" +
 	"\vdocument_id\x18\x01 \x01(\tR\n" +
 	"documentId\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x02 \x01(\tR\tversionId\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body\"\\\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12:\n" +
+	"\x06anchor\x18\x04 \x01(\v2\".hcmnext.document.v1.CommentAnchorR\x06anchor\x12*\n" +
+	"\x11parent_comment_id\x18\x05 \x01(\tR\x0fparentCommentId\"\\\n" +
 	"\x1aAddDocumentCommentResponse\x12>\n" +
 	"\acomment\x18\x01 \x01(\v2$.hcmnext.document.v1.DocumentCommentR\acomment\"\x99\x01\n" +
 	"\x1cCreateDocumentVersionRequest\x12\x1f\n" +
@@ -1063,7 +4780,242 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\bmarkdown\x18\x04 \x01(\tR\bmarkdown\">\n" +
 	"\x1dCreateDocumentVersionResponse\x12\x1d\n" +
 	"\n" +
-	"version_id\x18\x01 \x01(\tR\tversionId2\xa2\x06\n" +
+	"version_id\x18\x01 \x01(\tR\tversionId\"\x1b\n" +
+	"\x19GetDocumentLibraryRequest\"\xa3\x01\n" +
+	"\x0eDocumentFolder\x12\x1b\n" +
+	"\tfolder_id\x18\x01 \x01(\tR\bfolderId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
+	"\x0edocument_count\x18\x03 \x01(\x05R\rdocumentCount\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xdf\x01\n" +
+	"\x1aGetDocumentLibraryResponse\x12=\n" +
+	"\afolders\x18\x01 \x03(\v2#.hcmnext.document.v1.DocumentFolderR\afolders\x12\x1b\n" +
+	"\tall_count\x18\x02 \x01(\x05R\ballCount\x12\x1d\n" +
+	"\n" +
+	"mine_count\x18\x03 \x01(\x05R\tmineCount\x12!\n" +
+	"\fshared_count\x18\x04 \x01(\x05R\vsharedCount\x12#\n" +
+	"\rstarred_count\x18\x05 \x01(\x05R\fstarredCount\"1\n" +
+	"\x1bCreateDocumentFolderRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"[\n" +
+	"\x1cCreateDocumentFolderResponse\x12;\n" +
+	"\x06folder\x18\x01 \x01(\v2#.hcmnext.document.v1.DocumentFolderR\x06folder\"N\n" +
+	"\x1bRenameDocumentFolderRequest\x12\x1b\n" +
+	"\tfolder_id\x18\x01 \x01(\tR\bfolderId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x1e\n" +
+	"\x1cRenameDocumentFolderResponse\":\n" +
+	"\x1bDeleteDocumentFolderRequest\x12\x1b\n" +
+	"\tfolder_id\x18\x01 \x01(\tR\bfolderId\"\x1e\n" +
+	"\x1cDeleteDocumentFolderResponse\"V\n" +
+	"\x14MoveDocumentsRequest\x12!\n" +
+	"\fdocument_ids\x18\x01 \x03(\tR\vdocumentIds\x12\x1b\n" +
+	"\tfolder_id\x18\x02 \x01(\tR\bfolderId\"\x17\n" +
+	"\x15MoveDocumentsResponse\"V\n" +
+	"\x19SetDocumentStarredRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x18\n" +
+	"\astarred\x18\x02 \x01(\bR\astarred\"\x1c\n" +
+	"\x1aSetDocumentStarredResponse\"<\n" +
+	"\x19ListDocumentAccessRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\"\x89\x01\n" +
+	"\x13DocumentAccessEntry\x12!\n" +
+	"\fsubject_kind\x18\x01 \x01(\tR\vsubjectKind\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x02 \x01(\tR\tsubjectId\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\x12\x1c\n" +
+	"\tremovable\x18\x04 \x01(\bR\tremovable\"`\n" +
+	"\x1aListDocumentAccessResponse\x12B\n" +
+	"\aentries\x18\x01 \x03(\v2(.hcmnext.document.v1.DocumentAccessEntryR\aentries\"\x80\x01\n" +
+	"\x1bRevokeDocumentAccessRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12!\n" +
+	"\fsubject_kind\x18\x02 \x01(\tR\vsubjectKind\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x03 \x01(\tR\tsubjectId\"\x1e\n" +
+	"\x1cRevokeDocumentAccessResponse\"{\n" +
+	"\x1dResolveDocumentCommentRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x1d\n" +
+	"\n" +
+	"comment_id\x18\x02 \x01(\tR\tcommentId\x12\x1a\n" +
+	"\bresolved\x18\x03 \x01(\bR\bresolved\" \n" +
+	"\x1eResolveDocumentCommentResponse\"?\n" +
+	"\x1aGetDocumentPreviewsRequest\x12!\n" +
+	"\fdocument_ids\x18\x01 \x03(\tR\vdocumentIds\"\xf3\x01\n" +
+	"\x0fDocumentPreview\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x1a\n" +
+	"\breadable\x18\x02 \x01(\bR\breadable\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x19\n" +
+	"\bowner_id\x18\x04 \x01(\tR\aownerId\x12\x1d\n" +
+	"\n" +
+	"owner_name\x18\x05 \x01(\tR\townerName\x129\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x18\n" +
+	"\asnippet\x18\a \x01(\tR\asnippet\"_\n" +
+	"\x1bGetDocumentPreviewsResponse\x12@\n" +
+	"\bpreviews\x18\x01 \x03(\v2$.hcmnext.document.v1.DocumentPreviewR\bpreviews\"\xfd\x02\n" +
+	"\x12DocumentDeployment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\vdocument_id\x18\x02 \x01(\tR\n" +
+	"documentId\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x03 \x01(\tR\tversionId\x12\x1d\n" +
+	"\n" +
+	"scope_kind\x18\x04 \x01(\tR\tscopeKind\x12\x19\n" +
+	"\bscope_id\x18\x05 \x01(\tR\ascopeId\x12\x1f\n" +
+	"\vdeployer_id\x18\x06 \x01(\tR\n" +
+	"deployerId\x12!\n" +
+	"\fcustodian_id\x18\a \x01(\tR\vcustodianId\x12=\n" +
+	"\feffective_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\veffectiveAt\x12>\n" +
+	"\rreview_due_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vreviewDueAt\x12\x1a\n" +
+	"\bofficial\x18\n" +
+	" \x01(\bR\bofficial\"\xf9\x01\n" +
+	"\x14PlaceDocumentRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x02 \x01(\tR\tversionId\x12\x19\n" +
+	"\bscope_id\x18\x03 \x01(\tR\ascopeId\x12#\n" +
+	"\rexpected_live\x18\x04 \x01(\tR\fexpectedLive\x12!\n" +
+	"\fcustodian_id\x18\x05 \x01(\tR\vcustodianId\x12>\n" +
+	"\rreview_due_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vreviewDueAt\"`\n" +
+	"\x15PlaceDocumentResponse\x12G\n" +
+	"\n" +
+	"deployment\x18\x01 \x01(\v2'.hcmnext.document.v1.DocumentDeploymentR\n" +
+	"deployment\"Y\n" +
+	"\x1bGetDocumentPlacementRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x19\n" +
+	"\bscope_id\x18\x02 \x01(\tR\ascopeId\"g\n" +
+	"\x1cGetDocumentPlacementResponse\x12G\n" +
+	"\n" +
+	"deployment\x18\x01 \x01(\v2'.hcmnext.document.v1.DocumentDeploymentR\n" +
+	"deployment\"\x9a\x02\n" +
+	"\x19DocumentOwnershipTransfer\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\vdocument_id\x18\x02 \x01(\tR\n" +
+	"documentId\x12$\n" +
+	"\x0eprior_owner_id\x18\x03 \x01(\tR\fpriorOwnerId\x12,\n" +
+	"\x12successor_owner_id\x18\x04 \x01(\tR\x10successorOwnerId\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x12%\n" +
+	"\x0etransferred_by\x18\x06 \x01(\tR\rtransferredBy\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x89\x01\n" +
+	" TransferDocumentOwnershipRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12,\n" +
+	"\x12successor_owner_id\x18\x02 \x01(\tR\x10successorOwnerId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"o\n" +
+	"!TransferDocumentOwnershipResponse\x12J\n" +
+	"\btransfer\x18\x01 \x01(\v2..hcmnext.document.v1.DocumentOwnershipTransferR\btransfer\"F\n" +
+	"#ListDocumentOwnershipHistoryRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\"t\n" +
+	"$ListDocumentOwnershipHistoryResponse\x12L\n" +
+	"\ttransfers\x18\x01 \x03(\v2..hcmnext.document.v1.DocumentOwnershipTransferR\ttransfers\"\xe4\x03\n" +
+	"\x19DocumentCrossCompanyGrant\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\vdocument_id\x18\x02 \x01(\tR\n" +
+	"documentId\x12\x1f\n" +
+	"\vhost_tenant\x18\x03 \x01(\tR\n" +
+	"hostTenant\x12'\n" +
+	"\x0fconsumer_tenant\x18\x04 \x01(\tR\x0econsumerTenant\x12&\n" +
+	"\x0eclassification\x18\x05 \x01(\tR\x0eclassification\x12\x1c\n" +
+	"\tresidency\x18\x06 \x01(\tR\tresidency\x12\x18\n" +
+	"\aversion\x18\a \x01(\x04R\aversion\x12\x1a\n" +
+	"\bproposed\x18\b \x01(\bR\bproposed\x12(\n" +
+	"\x10accepted_by_host\x18\t \x01(\bR\x0eacceptedByHost\x120\n" +
+	"\x14accepted_by_consumer\x18\n" +
+	" \x01(\bR\x12acceptedByConsumer\x129\n" +
+	"\n" +
+	"expires_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x129\n" +
+	"\n" +
+	"revoked_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\trevokedAt\"\xec\x01\n" +
+	"\x1fProposeCrossCompanyGrantRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12'\n" +
+	"\x0fconsumer_tenant\x18\x02 \x01(\tR\x0econsumerTenant\x12&\n" +
+	"\x0eclassification\x18\x03 \x01(\tR\x0eclassification\x12\x1c\n" +
+	"\tresidency\x18\x04 \x01(\tR\tresidency\x129\n" +
+	"\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"h\n" +
+	" ProposeCrossCompanyGrantResponse\x12D\n" +
+	"\x05grant\x18\x01 \x01(\v2..hcmnext.document.v1.DocumentCrossCompanyGrantR\x05grant\"\\\n" +
+	"\x1eAcceptCrossCompanyGrantRequest\x12\x1f\n" +
+	"\vhost_tenant\x18\x01 \x01(\tR\n" +
+	"hostTenant\x12\x19\n" +
+	"\bgrant_id\x18\x02 \x01(\tR\agrantId\"g\n" +
+	"\x1fAcceptCrossCompanyGrantResponse\x12D\n" +
+	"\x05grant\x18\x01 \x01(\v2..hcmnext.document.v1.DocumentCrossCompanyGrantR\x05grant\";\n" +
+	"\x1eRevokeCrossCompanyGrantRequest\x12\x19\n" +
+	"\bgrant_id\x18\x01 \x01(\tR\agrantId\"!\n" +
+	"\x1fRevokeCrossCompanyGrantResponse\"\x88\x02\n" +
+	"\x15DocumentSearchFilters\x12\x17\n" +
+	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x02 \x01(\tR\tchannelId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x19\n" +
+	"\bowner_id\x18\x04 \x01(\tR\aownerId\x12\x16\n" +
+	"\x06locale\x18\x05 \x01(\tR\x06locale\x127\n" +
+	"\tdate_from\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\bdateFrom\x123\n" +
+	"\adate_to\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x06dateTo\"\xac\x02\n" +
+	"\x11DocumentSearchHit\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x02 \x01(\tR\tversionId\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x16\n" +
+	"\x06locale\x18\x05 \x01(\tR\x06locale\x12\x19\n" +
+	"\bowner_id\x18\x06 \x01(\tR\aownerId\x12;\n" +
+	"\vdeployed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"deployedAt\x12\x14\n" +
+	"\x05score\x18\b \x01(\x05R\x05score\x12#\n" +
+	"\rmatched_terms\x18\t \x01(\x05R\fmatchedTerms\"t\n" +
+	"\x16SearchDocumentsRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12D\n" +
+	"\afilters\x18\x02 \x01(\v2*.hcmnext.document.v1.DocumentSearchFiltersR\afilters\"k\n" +
+	"\x17SearchDocumentsResponse\x12:\n" +
+	"\x04hits\x18\x01 \x03(\v2&.hcmnext.document.v1.DocumentSearchHitR\x04hits\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"\xe0\x01\n" +
+	"\x1bAgentSearchDocumentsRequest\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x19\n" +
+	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12!\n" +
+	"\frequester_id\x18\x03 \x01(\tR\vrequesterId\x12\x14\n" +
+	"\x05query\x18\x04 \x01(\tR\x05query\x12D\n" +
+	"\afilters\x18\x05 \x01(\v2*.hcmnext.document.v1.DocumentSearchFiltersR\afilters\"p\n" +
+	"\x1cAgentSearchDocumentsResponse\x12:\n" +
+	"\x04hits\x18\x01 \x03(\v2&.hcmnext.document.v1.DocumentSearchHitR\x04hits\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"[\n" +
+	"\x19GetDocumentVersionRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x02 \x01(\tR\tversionId\"\x88\x02\n" +
+	"\x1aGetDocumentVersionResponse\x12\x1a\n" +
+	"\breadable\x18\x01 \x01(\bR\breadable\x12\x1f\n" +
+	"\vdocument_id\x18\x02 \x01(\tR\n" +
+	"documentId\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x03 \x01(\tR\tversionId\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x1a\n" +
+	"\bmarkdown\x18\x05 \x01(\tR\bmarkdown\x12!\n" +
+	"\fcontent_hash\x18\x06 \x01(\tR\vcontentHash\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\">\n" +
+	"\x1bGetDocumentBacklinksRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\"\xd6\x01\n" +
+	"\x10DocumentBacklink\x12,\n" +
+	"\x12source_document_id\x18\x01 \x01(\tR\x10sourceDocumentId\x12*\n" +
+	"\x11source_version_id\x18\x02 \x01(\tR\x0fsourceVersionId\x12!\n" +
+	"\fsource_title\x18\x03 \x01(\tR\vsourceTitle\x12\x14\n" +
+	"\x05label\x18\x04 \x01(\tR\x05label\x12\x19\n" +
+	"\bblock_id\x18\x05 \x01(\tR\ablockId\x12\x14\n" +
+	"\x05state\x18\x06 \x01(\tR\x05state\"c\n" +
+	"\x1cGetDocumentBacklinksResponse\x12C\n" +
+	"\tbacklinks\x18\x01 \x03(\v2%.hcmnext.document.v1.DocumentBacklinkR\tbacklinks2\xe0\x1a\n" +
 	"\x0fDocumentService\x12f\n" +
 	"\rListDocuments\x12).hcmnext.document.v1.ListDocumentsRequest\x1a*.hcmnext.document.v1.ListDocumentsResponse\x12i\n" +
 	"\x0eCreateDocument\x12*.hcmnext.document.v1.CreateDocumentRequest\x1a+.hcmnext.document.v1.CreateDocumentResponse\x12`\n" +
@@ -1071,7 +5023,28 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\rShareDocument\x12).hcmnext.document.v1.ShareDocumentRequest\x1a*.hcmnext.document.v1.ShareDocumentResponse\x12{\n" +
 	"\x14ListDocumentComments\x120.hcmnext.document.v1.ListDocumentCommentsRequest\x1a1.hcmnext.document.v1.ListDocumentCommentsResponse\x12u\n" +
 	"\x12AddDocumentComment\x12..hcmnext.document.v1.AddDocumentCommentRequest\x1a/.hcmnext.document.v1.AddDocumentCommentResponse\x12~\n" +
-	"\x15CreateDocumentVersion\x121.hcmnext.document.v1.CreateDocumentVersionRequest\x1a2.hcmnext.document.v1.CreateDocumentVersionResponseB`Z^github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1;documentv1b\x06proto3"
+	"\x15CreateDocumentVersion\x121.hcmnext.document.v1.CreateDocumentVersionRequest\x1a2.hcmnext.document.v1.CreateDocumentVersionResponse\x12u\n" +
+	"\x12GetDocumentLibrary\x12..hcmnext.document.v1.GetDocumentLibraryRequest\x1a/.hcmnext.document.v1.GetDocumentLibraryResponse\x12{\n" +
+	"\x14CreateDocumentFolder\x120.hcmnext.document.v1.CreateDocumentFolderRequest\x1a1.hcmnext.document.v1.CreateDocumentFolderResponse\x12{\n" +
+	"\x14RenameDocumentFolder\x120.hcmnext.document.v1.RenameDocumentFolderRequest\x1a1.hcmnext.document.v1.RenameDocumentFolderResponse\x12{\n" +
+	"\x14DeleteDocumentFolder\x120.hcmnext.document.v1.DeleteDocumentFolderRequest\x1a1.hcmnext.document.v1.DeleteDocumentFolderResponse\x12f\n" +
+	"\rMoveDocuments\x12).hcmnext.document.v1.MoveDocumentsRequest\x1a*.hcmnext.document.v1.MoveDocumentsResponse\x12u\n" +
+	"\x12SetDocumentStarred\x12..hcmnext.document.v1.SetDocumentStarredRequest\x1a/.hcmnext.document.v1.SetDocumentStarredResponse\x12u\n" +
+	"\x12ListDocumentAccess\x12..hcmnext.document.v1.ListDocumentAccessRequest\x1a/.hcmnext.document.v1.ListDocumentAccessResponse\x12{\n" +
+	"\x14RevokeDocumentAccess\x120.hcmnext.document.v1.RevokeDocumentAccessRequest\x1a1.hcmnext.document.v1.RevokeDocumentAccessResponse\x12\x81\x01\n" +
+	"\x16ResolveDocumentComment\x122.hcmnext.document.v1.ResolveDocumentCommentRequest\x1a3.hcmnext.document.v1.ResolveDocumentCommentResponse\x12x\n" +
+	"\x13GetDocumentPreviews\x12/.hcmnext.document.v1.GetDocumentPreviewsRequest\x1a0.hcmnext.document.v1.GetDocumentPreviewsResponse\x12f\n" +
+	"\rPlaceDocument\x12).hcmnext.document.v1.PlaceDocumentRequest\x1a*.hcmnext.document.v1.PlaceDocumentResponse\x12{\n" +
+	"\x14GetDocumentPlacement\x120.hcmnext.document.v1.GetDocumentPlacementRequest\x1a1.hcmnext.document.v1.GetDocumentPlacementResponse\x12\x8a\x01\n" +
+	"\x19TransferDocumentOwnership\x125.hcmnext.document.v1.TransferDocumentOwnershipRequest\x1a6.hcmnext.document.v1.TransferDocumentOwnershipResponse\x12\x93\x01\n" +
+	"\x1cListDocumentOwnershipHistory\x128.hcmnext.document.v1.ListDocumentOwnershipHistoryRequest\x1a9.hcmnext.document.v1.ListDocumentOwnershipHistoryResponse\x12\x87\x01\n" +
+	"\x18ProposeCrossCompanyGrant\x124.hcmnext.document.v1.ProposeCrossCompanyGrantRequest\x1a5.hcmnext.document.v1.ProposeCrossCompanyGrantResponse\x12\x84\x01\n" +
+	"\x17AcceptCrossCompanyGrant\x123.hcmnext.document.v1.AcceptCrossCompanyGrantRequest\x1a4.hcmnext.document.v1.AcceptCrossCompanyGrantResponse\x12\x84\x01\n" +
+	"\x17RevokeCrossCompanyGrant\x123.hcmnext.document.v1.RevokeCrossCompanyGrantRequest\x1a4.hcmnext.document.v1.RevokeCrossCompanyGrantResponse\x12l\n" +
+	"\x0fSearchDocuments\x12+.hcmnext.document.v1.SearchDocumentsRequest\x1a,.hcmnext.document.v1.SearchDocumentsResponse\x12{\n" +
+	"\x14AgentSearchDocuments\x120.hcmnext.document.v1.AgentSearchDocumentsRequest\x1a1.hcmnext.document.v1.AgentSearchDocumentsResponse\x12u\n" +
+	"\x12GetDocumentVersion\x12..hcmnext.document.v1.GetDocumentVersionRequest\x1a/.hcmnext.document.v1.GetDocumentVersionResponse\x12{\n" +
+	"\x14GetDocumentBacklinks\x120.hcmnext.document.v1.GetDocumentBacklinksRequest\x1a1.hcmnext.document.v1.GetDocumentBacklinksResponseB`Z^github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1;documentv1b\x06proto3"
 
 var (
 	file_hcmnext_document_v1_document_service_proto_rawDescOnce sync.Once
@@ -1085,53 +5058,186 @@ func file_hcmnext_document_v1_document_service_proto_rawDescGZIP() []byte {
 	return file_hcmnext_document_v1_document_service_proto_rawDescData
 }
 
-var file_hcmnext_document_v1_document_service_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_hcmnext_document_v1_document_service_proto_msgTypes = make([]protoimpl.MessageInfo, 72)
 var file_hcmnext_document_v1_document_service_proto_goTypes = []any{
-	(*ListDocumentsRequest)(nil),          // 0: hcmnext.document.v1.ListDocumentsRequest
-	(*DocumentSummary)(nil),               // 1: hcmnext.document.v1.DocumentSummary
-	(*ListDocumentsResponse)(nil),         // 2: hcmnext.document.v1.ListDocumentsResponse
-	(*CreateDocumentRequest)(nil),         // 3: hcmnext.document.v1.CreateDocumentRequest
-	(*CreateDocumentResponse)(nil),        // 4: hcmnext.document.v1.CreateDocumentResponse
-	(*GetDocumentRequest)(nil),            // 5: hcmnext.document.v1.GetDocumentRequest
-	(*GetDocumentResponse)(nil),           // 6: hcmnext.document.v1.GetDocumentResponse
-	(*ShareDocumentRequest)(nil),          // 7: hcmnext.document.v1.ShareDocumentRequest
-	(*ShareDocumentResponse)(nil),         // 8: hcmnext.document.v1.ShareDocumentResponse
-	(*DocumentComment)(nil),               // 9: hcmnext.document.v1.DocumentComment
-	(*ListDocumentCommentsRequest)(nil),   // 10: hcmnext.document.v1.ListDocumentCommentsRequest
-	(*ListDocumentCommentsResponse)(nil),  // 11: hcmnext.document.v1.ListDocumentCommentsResponse
-	(*AddDocumentCommentRequest)(nil),     // 12: hcmnext.document.v1.AddDocumentCommentRequest
-	(*AddDocumentCommentResponse)(nil),    // 13: hcmnext.document.v1.AddDocumentCommentResponse
-	(*CreateDocumentVersionRequest)(nil),  // 14: hcmnext.document.v1.CreateDocumentVersionRequest
-	(*CreateDocumentVersionResponse)(nil), // 15: hcmnext.document.v1.CreateDocumentVersionResponse
-	(*timestamppb.Timestamp)(nil),         // 16: google.protobuf.Timestamp
+	(*ListDocumentsRequest)(nil),                 // 0: hcmnext.document.v1.ListDocumentsRequest
+	(*DocumentSummary)(nil),                      // 1: hcmnext.document.v1.DocumentSummary
+	(*ListDocumentsResponse)(nil),                // 2: hcmnext.document.v1.ListDocumentsResponse
+	(*CreateDocumentRequest)(nil),                // 3: hcmnext.document.v1.CreateDocumentRequest
+	(*CreateDocumentResponse)(nil),               // 4: hcmnext.document.v1.CreateDocumentResponse
+	(*GetDocumentRequest)(nil),                   // 5: hcmnext.document.v1.GetDocumentRequest
+	(*GetDocumentResponse)(nil),                  // 6: hcmnext.document.v1.GetDocumentResponse
+	(*DocumentChannelReference)(nil),             // 7: hcmnext.document.v1.DocumentChannelReference
+	(*DocumentPersonReference)(nil),              // 8: hcmnext.document.v1.DocumentPersonReference
+	(*DocumentMessageReference)(nil),             // 9: hcmnext.document.v1.DocumentMessageReference
+	(*DocumentLinkTarget)(nil),                   // 10: hcmnext.document.v1.DocumentLinkTarget
+	(*ShareDocumentRequest)(nil),                 // 11: hcmnext.document.v1.ShareDocumentRequest
+	(*ShareDocumentResponse)(nil),                // 12: hcmnext.document.v1.ShareDocumentResponse
+	(*CommentAnchor)(nil),                        // 13: hcmnext.document.v1.CommentAnchor
+	(*DocumentComment)(nil),                      // 14: hcmnext.document.v1.DocumentComment
+	(*ListDocumentCommentsRequest)(nil),          // 15: hcmnext.document.v1.ListDocumentCommentsRequest
+	(*ListDocumentCommentsResponse)(nil),         // 16: hcmnext.document.v1.ListDocumentCommentsResponse
+	(*AddDocumentCommentRequest)(nil),            // 17: hcmnext.document.v1.AddDocumentCommentRequest
+	(*AddDocumentCommentResponse)(nil),           // 18: hcmnext.document.v1.AddDocumentCommentResponse
+	(*CreateDocumentVersionRequest)(nil),         // 19: hcmnext.document.v1.CreateDocumentVersionRequest
+	(*CreateDocumentVersionResponse)(nil),        // 20: hcmnext.document.v1.CreateDocumentVersionResponse
+	(*GetDocumentLibraryRequest)(nil),            // 21: hcmnext.document.v1.GetDocumentLibraryRequest
+	(*DocumentFolder)(nil),                       // 22: hcmnext.document.v1.DocumentFolder
+	(*GetDocumentLibraryResponse)(nil),           // 23: hcmnext.document.v1.GetDocumentLibraryResponse
+	(*CreateDocumentFolderRequest)(nil),          // 24: hcmnext.document.v1.CreateDocumentFolderRequest
+	(*CreateDocumentFolderResponse)(nil),         // 25: hcmnext.document.v1.CreateDocumentFolderResponse
+	(*RenameDocumentFolderRequest)(nil),          // 26: hcmnext.document.v1.RenameDocumentFolderRequest
+	(*RenameDocumentFolderResponse)(nil),         // 27: hcmnext.document.v1.RenameDocumentFolderResponse
+	(*DeleteDocumentFolderRequest)(nil),          // 28: hcmnext.document.v1.DeleteDocumentFolderRequest
+	(*DeleteDocumentFolderResponse)(nil),         // 29: hcmnext.document.v1.DeleteDocumentFolderResponse
+	(*MoveDocumentsRequest)(nil),                 // 30: hcmnext.document.v1.MoveDocumentsRequest
+	(*MoveDocumentsResponse)(nil),                // 31: hcmnext.document.v1.MoveDocumentsResponse
+	(*SetDocumentStarredRequest)(nil),            // 32: hcmnext.document.v1.SetDocumentStarredRequest
+	(*SetDocumentStarredResponse)(nil),           // 33: hcmnext.document.v1.SetDocumentStarredResponse
+	(*ListDocumentAccessRequest)(nil),            // 34: hcmnext.document.v1.ListDocumentAccessRequest
+	(*DocumentAccessEntry)(nil),                  // 35: hcmnext.document.v1.DocumentAccessEntry
+	(*ListDocumentAccessResponse)(nil),           // 36: hcmnext.document.v1.ListDocumentAccessResponse
+	(*RevokeDocumentAccessRequest)(nil),          // 37: hcmnext.document.v1.RevokeDocumentAccessRequest
+	(*RevokeDocumentAccessResponse)(nil),         // 38: hcmnext.document.v1.RevokeDocumentAccessResponse
+	(*ResolveDocumentCommentRequest)(nil),        // 39: hcmnext.document.v1.ResolveDocumentCommentRequest
+	(*ResolveDocumentCommentResponse)(nil),       // 40: hcmnext.document.v1.ResolveDocumentCommentResponse
+	(*GetDocumentPreviewsRequest)(nil),           // 41: hcmnext.document.v1.GetDocumentPreviewsRequest
+	(*DocumentPreview)(nil),                      // 42: hcmnext.document.v1.DocumentPreview
+	(*GetDocumentPreviewsResponse)(nil),          // 43: hcmnext.document.v1.GetDocumentPreviewsResponse
+	(*DocumentDeployment)(nil),                   // 44: hcmnext.document.v1.DocumentDeployment
+	(*PlaceDocumentRequest)(nil),                 // 45: hcmnext.document.v1.PlaceDocumentRequest
+	(*PlaceDocumentResponse)(nil),                // 46: hcmnext.document.v1.PlaceDocumentResponse
+	(*GetDocumentPlacementRequest)(nil),          // 47: hcmnext.document.v1.GetDocumentPlacementRequest
+	(*GetDocumentPlacementResponse)(nil),         // 48: hcmnext.document.v1.GetDocumentPlacementResponse
+	(*DocumentOwnershipTransfer)(nil),            // 49: hcmnext.document.v1.DocumentOwnershipTransfer
+	(*TransferDocumentOwnershipRequest)(nil),     // 50: hcmnext.document.v1.TransferDocumentOwnershipRequest
+	(*TransferDocumentOwnershipResponse)(nil),    // 51: hcmnext.document.v1.TransferDocumentOwnershipResponse
+	(*ListDocumentOwnershipHistoryRequest)(nil),  // 52: hcmnext.document.v1.ListDocumentOwnershipHistoryRequest
+	(*ListDocumentOwnershipHistoryResponse)(nil), // 53: hcmnext.document.v1.ListDocumentOwnershipHistoryResponse
+	(*DocumentCrossCompanyGrant)(nil),            // 54: hcmnext.document.v1.DocumentCrossCompanyGrant
+	(*ProposeCrossCompanyGrantRequest)(nil),      // 55: hcmnext.document.v1.ProposeCrossCompanyGrantRequest
+	(*ProposeCrossCompanyGrantResponse)(nil),     // 56: hcmnext.document.v1.ProposeCrossCompanyGrantResponse
+	(*AcceptCrossCompanyGrantRequest)(nil),       // 57: hcmnext.document.v1.AcceptCrossCompanyGrantRequest
+	(*AcceptCrossCompanyGrantResponse)(nil),      // 58: hcmnext.document.v1.AcceptCrossCompanyGrantResponse
+	(*RevokeCrossCompanyGrantRequest)(nil),       // 59: hcmnext.document.v1.RevokeCrossCompanyGrantRequest
+	(*RevokeCrossCompanyGrantResponse)(nil),      // 60: hcmnext.document.v1.RevokeCrossCompanyGrantResponse
+	(*DocumentSearchFilters)(nil),                // 61: hcmnext.document.v1.DocumentSearchFilters
+	(*DocumentSearchHit)(nil),                    // 62: hcmnext.document.v1.DocumentSearchHit
+	(*SearchDocumentsRequest)(nil),               // 63: hcmnext.document.v1.SearchDocumentsRequest
+	(*SearchDocumentsResponse)(nil),              // 64: hcmnext.document.v1.SearchDocumentsResponse
+	(*AgentSearchDocumentsRequest)(nil),          // 65: hcmnext.document.v1.AgentSearchDocumentsRequest
+	(*AgentSearchDocumentsResponse)(nil),         // 66: hcmnext.document.v1.AgentSearchDocumentsResponse
+	(*GetDocumentVersionRequest)(nil),            // 67: hcmnext.document.v1.GetDocumentVersionRequest
+	(*GetDocumentVersionResponse)(nil),           // 68: hcmnext.document.v1.GetDocumentVersionResponse
+	(*GetDocumentBacklinksRequest)(nil),          // 69: hcmnext.document.v1.GetDocumentBacklinksRequest
+	(*DocumentBacklink)(nil),                     // 70: hcmnext.document.v1.DocumentBacklink
+	(*GetDocumentBacklinksResponse)(nil),         // 71: hcmnext.document.v1.GetDocumentBacklinksResponse
+	(*timestamppb.Timestamp)(nil),                // 72: google.protobuf.Timestamp
 }
 var file_hcmnext_document_v1_document_service_proto_depIdxs = []int32{
-	16, // 0: hcmnext.document.v1.DocumentSummary.updated_at:type_name -> google.protobuf.Timestamp
-	16, // 1: hcmnext.document.v1.DocumentSummary.review_due_at:type_name -> google.protobuf.Timestamp
+	72, // 0: hcmnext.document.v1.DocumentSummary.updated_at:type_name -> google.protobuf.Timestamp
+	72, // 1: hcmnext.document.v1.DocumentSummary.review_due_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: hcmnext.document.v1.ListDocumentsResponse.documents:type_name -> hcmnext.document.v1.DocumentSummary
 	1,  // 3: hcmnext.document.v1.GetDocumentResponse.document:type_name -> hcmnext.document.v1.DocumentSummary
-	16, // 4: hcmnext.document.v1.DocumentComment.created_at:type_name -> google.protobuf.Timestamp
-	9,  // 5: hcmnext.document.v1.ListDocumentCommentsResponse.comments:type_name -> hcmnext.document.v1.DocumentComment
-	9,  // 6: hcmnext.document.v1.AddDocumentCommentResponse.comment:type_name -> hcmnext.document.v1.DocumentComment
-	0,  // 7: hcmnext.document.v1.DocumentService.ListDocuments:input_type -> hcmnext.document.v1.ListDocumentsRequest
-	3,  // 8: hcmnext.document.v1.DocumentService.CreateDocument:input_type -> hcmnext.document.v1.CreateDocumentRequest
-	5,  // 9: hcmnext.document.v1.DocumentService.GetDocument:input_type -> hcmnext.document.v1.GetDocumentRequest
-	7,  // 10: hcmnext.document.v1.DocumentService.ShareDocument:input_type -> hcmnext.document.v1.ShareDocumentRequest
-	10, // 11: hcmnext.document.v1.DocumentService.ListDocumentComments:input_type -> hcmnext.document.v1.ListDocumentCommentsRequest
-	12, // 12: hcmnext.document.v1.DocumentService.AddDocumentComment:input_type -> hcmnext.document.v1.AddDocumentCommentRequest
-	14, // 13: hcmnext.document.v1.DocumentService.CreateDocumentVersion:input_type -> hcmnext.document.v1.CreateDocumentVersionRequest
-	2,  // 14: hcmnext.document.v1.DocumentService.ListDocuments:output_type -> hcmnext.document.v1.ListDocumentsResponse
-	4,  // 15: hcmnext.document.v1.DocumentService.CreateDocument:output_type -> hcmnext.document.v1.CreateDocumentResponse
-	6,  // 16: hcmnext.document.v1.DocumentService.GetDocument:output_type -> hcmnext.document.v1.GetDocumentResponse
-	8,  // 17: hcmnext.document.v1.DocumentService.ShareDocument:output_type -> hcmnext.document.v1.ShareDocumentResponse
-	11, // 18: hcmnext.document.v1.DocumentService.ListDocumentComments:output_type -> hcmnext.document.v1.ListDocumentCommentsResponse
-	13, // 19: hcmnext.document.v1.DocumentService.AddDocumentComment:output_type -> hcmnext.document.v1.AddDocumentCommentResponse
-	15, // 20: hcmnext.document.v1.DocumentService.CreateDocumentVersion:output_type -> hcmnext.document.v1.CreateDocumentVersionResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	10, // 4: hcmnext.document.v1.GetDocumentResponse.links:type_name -> hcmnext.document.v1.DocumentLinkTarget
+	7,  // 5: hcmnext.document.v1.GetDocumentResponse.channels:type_name -> hcmnext.document.v1.DocumentChannelReference
+	8,  // 6: hcmnext.document.v1.GetDocumentResponse.people:type_name -> hcmnext.document.v1.DocumentPersonReference
+	9,  // 7: hcmnext.document.v1.GetDocumentResponse.messages:type_name -> hcmnext.document.v1.DocumentMessageReference
+	72, // 8: hcmnext.document.v1.DocumentMessageReference.created_at:type_name -> google.protobuf.Timestamp
+	72, // 9: hcmnext.document.v1.DocumentComment.created_at:type_name -> google.protobuf.Timestamp
+	13, // 10: hcmnext.document.v1.DocumentComment.anchor:type_name -> hcmnext.document.v1.CommentAnchor
+	14, // 11: hcmnext.document.v1.ListDocumentCommentsResponse.comments:type_name -> hcmnext.document.v1.DocumentComment
+	13, // 12: hcmnext.document.v1.AddDocumentCommentRequest.anchor:type_name -> hcmnext.document.v1.CommentAnchor
+	14, // 13: hcmnext.document.v1.AddDocumentCommentResponse.comment:type_name -> hcmnext.document.v1.DocumentComment
+	72, // 14: hcmnext.document.v1.DocumentFolder.created_at:type_name -> google.protobuf.Timestamp
+	22, // 15: hcmnext.document.v1.GetDocumentLibraryResponse.folders:type_name -> hcmnext.document.v1.DocumentFolder
+	22, // 16: hcmnext.document.v1.CreateDocumentFolderResponse.folder:type_name -> hcmnext.document.v1.DocumentFolder
+	35, // 17: hcmnext.document.v1.ListDocumentAccessResponse.entries:type_name -> hcmnext.document.v1.DocumentAccessEntry
+	72, // 18: hcmnext.document.v1.DocumentPreview.updated_at:type_name -> google.protobuf.Timestamp
+	42, // 19: hcmnext.document.v1.GetDocumentPreviewsResponse.previews:type_name -> hcmnext.document.v1.DocumentPreview
+	72, // 20: hcmnext.document.v1.DocumentDeployment.effective_at:type_name -> google.protobuf.Timestamp
+	72, // 21: hcmnext.document.v1.DocumentDeployment.review_due_at:type_name -> google.protobuf.Timestamp
+	72, // 22: hcmnext.document.v1.PlaceDocumentRequest.review_due_at:type_name -> google.protobuf.Timestamp
+	44, // 23: hcmnext.document.v1.PlaceDocumentResponse.deployment:type_name -> hcmnext.document.v1.DocumentDeployment
+	44, // 24: hcmnext.document.v1.GetDocumentPlacementResponse.deployment:type_name -> hcmnext.document.v1.DocumentDeployment
+	72, // 25: hcmnext.document.v1.DocumentOwnershipTransfer.created_at:type_name -> google.protobuf.Timestamp
+	49, // 26: hcmnext.document.v1.TransferDocumentOwnershipResponse.transfer:type_name -> hcmnext.document.v1.DocumentOwnershipTransfer
+	49, // 27: hcmnext.document.v1.ListDocumentOwnershipHistoryResponse.transfers:type_name -> hcmnext.document.v1.DocumentOwnershipTransfer
+	72, // 28: hcmnext.document.v1.DocumentCrossCompanyGrant.expires_at:type_name -> google.protobuf.Timestamp
+	72, // 29: hcmnext.document.v1.DocumentCrossCompanyGrant.revoked_at:type_name -> google.protobuf.Timestamp
+	72, // 30: hcmnext.document.v1.ProposeCrossCompanyGrantRequest.expires_at:type_name -> google.protobuf.Timestamp
+	54, // 31: hcmnext.document.v1.ProposeCrossCompanyGrantResponse.grant:type_name -> hcmnext.document.v1.DocumentCrossCompanyGrant
+	54, // 32: hcmnext.document.v1.AcceptCrossCompanyGrantResponse.grant:type_name -> hcmnext.document.v1.DocumentCrossCompanyGrant
+	72, // 33: hcmnext.document.v1.DocumentSearchFilters.date_from:type_name -> google.protobuf.Timestamp
+	72, // 34: hcmnext.document.v1.DocumentSearchFilters.date_to:type_name -> google.protobuf.Timestamp
+	72, // 35: hcmnext.document.v1.DocumentSearchHit.deployed_at:type_name -> google.protobuf.Timestamp
+	61, // 36: hcmnext.document.v1.SearchDocumentsRequest.filters:type_name -> hcmnext.document.v1.DocumentSearchFilters
+	62, // 37: hcmnext.document.v1.SearchDocumentsResponse.hits:type_name -> hcmnext.document.v1.DocumentSearchHit
+	61, // 38: hcmnext.document.v1.AgentSearchDocumentsRequest.filters:type_name -> hcmnext.document.v1.DocumentSearchFilters
+	62, // 39: hcmnext.document.v1.AgentSearchDocumentsResponse.hits:type_name -> hcmnext.document.v1.DocumentSearchHit
+	72, // 40: hcmnext.document.v1.GetDocumentVersionResponse.created_at:type_name -> google.protobuf.Timestamp
+	70, // 41: hcmnext.document.v1.GetDocumentBacklinksResponse.backlinks:type_name -> hcmnext.document.v1.DocumentBacklink
+	0,  // 42: hcmnext.document.v1.DocumentService.ListDocuments:input_type -> hcmnext.document.v1.ListDocumentsRequest
+	3,  // 43: hcmnext.document.v1.DocumentService.CreateDocument:input_type -> hcmnext.document.v1.CreateDocumentRequest
+	5,  // 44: hcmnext.document.v1.DocumentService.GetDocument:input_type -> hcmnext.document.v1.GetDocumentRequest
+	11, // 45: hcmnext.document.v1.DocumentService.ShareDocument:input_type -> hcmnext.document.v1.ShareDocumentRequest
+	15, // 46: hcmnext.document.v1.DocumentService.ListDocumentComments:input_type -> hcmnext.document.v1.ListDocumentCommentsRequest
+	17, // 47: hcmnext.document.v1.DocumentService.AddDocumentComment:input_type -> hcmnext.document.v1.AddDocumentCommentRequest
+	19, // 48: hcmnext.document.v1.DocumentService.CreateDocumentVersion:input_type -> hcmnext.document.v1.CreateDocumentVersionRequest
+	21, // 49: hcmnext.document.v1.DocumentService.GetDocumentLibrary:input_type -> hcmnext.document.v1.GetDocumentLibraryRequest
+	24, // 50: hcmnext.document.v1.DocumentService.CreateDocumentFolder:input_type -> hcmnext.document.v1.CreateDocumentFolderRequest
+	26, // 51: hcmnext.document.v1.DocumentService.RenameDocumentFolder:input_type -> hcmnext.document.v1.RenameDocumentFolderRequest
+	28, // 52: hcmnext.document.v1.DocumentService.DeleteDocumentFolder:input_type -> hcmnext.document.v1.DeleteDocumentFolderRequest
+	30, // 53: hcmnext.document.v1.DocumentService.MoveDocuments:input_type -> hcmnext.document.v1.MoveDocumentsRequest
+	32, // 54: hcmnext.document.v1.DocumentService.SetDocumentStarred:input_type -> hcmnext.document.v1.SetDocumentStarredRequest
+	34, // 55: hcmnext.document.v1.DocumentService.ListDocumentAccess:input_type -> hcmnext.document.v1.ListDocumentAccessRequest
+	37, // 56: hcmnext.document.v1.DocumentService.RevokeDocumentAccess:input_type -> hcmnext.document.v1.RevokeDocumentAccessRequest
+	39, // 57: hcmnext.document.v1.DocumentService.ResolveDocumentComment:input_type -> hcmnext.document.v1.ResolveDocumentCommentRequest
+	41, // 58: hcmnext.document.v1.DocumentService.GetDocumentPreviews:input_type -> hcmnext.document.v1.GetDocumentPreviewsRequest
+	45, // 59: hcmnext.document.v1.DocumentService.PlaceDocument:input_type -> hcmnext.document.v1.PlaceDocumentRequest
+	47, // 60: hcmnext.document.v1.DocumentService.GetDocumentPlacement:input_type -> hcmnext.document.v1.GetDocumentPlacementRequest
+	50, // 61: hcmnext.document.v1.DocumentService.TransferDocumentOwnership:input_type -> hcmnext.document.v1.TransferDocumentOwnershipRequest
+	52, // 62: hcmnext.document.v1.DocumentService.ListDocumentOwnershipHistory:input_type -> hcmnext.document.v1.ListDocumentOwnershipHistoryRequest
+	55, // 63: hcmnext.document.v1.DocumentService.ProposeCrossCompanyGrant:input_type -> hcmnext.document.v1.ProposeCrossCompanyGrantRequest
+	57, // 64: hcmnext.document.v1.DocumentService.AcceptCrossCompanyGrant:input_type -> hcmnext.document.v1.AcceptCrossCompanyGrantRequest
+	59, // 65: hcmnext.document.v1.DocumentService.RevokeCrossCompanyGrant:input_type -> hcmnext.document.v1.RevokeCrossCompanyGrantRequest
+	63, // 66: hcmnext.document.v1.DocumentService.SearchDocuments:input_type -> hcmnext.document.v1.SearchDocumentsRequest
+	65, // 67: hcmnext.document.v1.DocumentService.AgentSearchDocuments:input_type -> hcmnext.document.v1.AgentSearchDocumentsRequest
+	67, // 68: hcmnext.document.v1.DocumentService.GetDocumentVersion:input_type -> hcmnext.document.v1.GetDocumentVersionRequest
+	69, // 69: hcmnext.document.v1.DocumentService.GetDocumentBacklinks:input_type -> hcmnext.document.v1.GetDocumentBacklinksRequest
+	2,  // 70: hcmnext.document.v1.DocumentService.ListDocuments:output_type -> hcmnext.document.v1.ListDocumentsResponse
+	4,  // 71: hcmnext.document.v1.DocumentService.CreateDocument:output_type -> hcmnext.document.v1.CreateDocumentResponse
+	6,  // 72: hcmnext.document.v1.DocumentService.GetDocument:output_type -> hcmnext.document.v1.GetDocumentResponse
+	12, // 73: hcmnext.document.v1.DocumentService.ShareDocument:output_type -> hcmnext.document.v1.ShareDocumentResponse
+	16, // 74: hcmnext.document.v1.DocumentService.ListDocumentComments:output_type -> hcmnext.document.v1.ListDocumentCommentsResponse
+	18, // 75: hcmnext.document.v1.DocumentService.AddDocumentComment:output_type -> hcmnext.document.v1.AddDocumentCommentResponse
+	20, // 76: hcmnext.document.v1.DocumentService.CreateDocumentVersion:output_type -> hcmnext.document.v1.CreateDocumentVersionResponse
+	23, // 77: hcmnext.document.v1.DocumentService.GetDocumentLibrary:output_type -> hcmnext.document.v1.GetDocumentLibraryResponse
+	25, // 78: hcmnext.document.v1.DocumentService.CreateDocumentFolder:output_type -> hcmnext.document.v1.CreateDocumentFolderResponse
+	27, // 79: hcmnext.document.v1.DocumentService.RenameDocumentFolder:output_type -> hcmnext.document.v1.RenameDocumentFolderResponse
+	29, // 80: hcmnext.document.v1.DocumentService.DeleteDocumentFolder:output_type -> hcmnext.document.v1.DeleteDocumentFolderResponse
+	31, // 81: hcmnext.document.v1.DocumentService.MoveDocuments:output_type -> hcmnext.document.v1.MoveDocumentsResponse
+	33, // 82: hcmnext.document.v1.DocumentService.SetDocumentStarred:output_type -> hcmnext.document.v1.SetDocumentStarredResponse
+	36, // 83: hcmnext.document.v1.DocumentService.ListDocumentAccess:output_type -> hcmnext.document.v1.ListDocumentAccessResponse
+	38, // 84: hcmnext.document.v1.DocumentService.RevokeDocumentAccess:output_type -> hcmnext.document.v1.RevokeDocumentAccessResponse
+	40, // 85: hcmnext.document.v1.DocumentService.ResolveDocumentComment:output_type -> hcmnext.document.v1.ResolveDocumentCommentResponse
+	43, // 86: hcmnext.document.v1.DocumentService.GetDocumentPreviews:output_type -> hcmnext.document.v1.GetDocumentPreviewsResponse
+	46, // 87: hcmnext.document.v1.DocumentService.PlaceDocument:output_type -> hcmnext.document.v1.PlaceDocumentResponse
+	48, // 88: hcmnext.document.v1.DocumentService.GetDocumentPlacement:output_type -> hcmnext.document.v1.GetDocumentPlacementResponse
+	51, // 89: hcmnext.document.v1.DocumentService.TransferDocumentOwnership:output_type -> hcmnext.document.v1.TransferDocumentOwnershipResponse
+	53, // 90: hcmnext.document.v1.DocumentService.ListDocumentOwnershipHistory:output_type -> hcmnext.document.v1.ListDocumentOwnershipHistoryResponse
+	56, // 91: hcmnext.document.v1.DocumentService.ProposeCrossCompanyGrant:output_type -> hcmnext.document.v1.ProposeCrossCompanyGrantResponse
+	58, // 92: hcmnext.document.v1.DocumentService.AcceptCrossCompanyGrant:output_type -> hcmnext.document.v1.AcceptCrossCompanyGrantResponse
+	60, // 93: hcmnext.document.v1.DocumentService.RevokeCrossCompanyGrant:output_type -> hcmnext.document.v1.RevokeCrossCompanyGrantResponse
+	64, // 94: hcmnext.document.v1.DocumentService.SearchDocuments:output_type -> hcmnext.document.v1.SearchDocumentsResponse
+	66, // 95: hcmnext.document.v1.DocumentService.AgentSearchDocuments:output_type -> hcmnext.document.v1.AgentSearchDocumentsResponse
+	68, // 96: hcmnext.document.v1.DocumentService.GetDocumentVersion:output_type -> hcmnext.document.v1.GetDocumentVersionResponse
+	71, // 97: hcmnext.document.v1.DocumentService.GetDocumentBacklinks:output_type -> hcmnext.document.v1.GetDocumentBacklinksResponse
+	70, // [70:98] is the sub-list for method output_type
+	42, // [42:70] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_document_v1_document_service_proto_init() }
@@ -1145,7 +5251,7 @@ func file_hcmnext_document_v1_document_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_document_v1_document_service_proto_rawDesc), len(file_hcmnext_document_v1_document_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   72,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

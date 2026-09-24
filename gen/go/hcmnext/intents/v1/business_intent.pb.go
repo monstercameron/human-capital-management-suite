@@ -1718,8 +1718,14 @@ type ProposalRevision struct {
 	CreatedAt                    *timestamppb.Timestamp     `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	SupersedesProposalRevisionId *string                    `protobuf:"bytes,9,opt,name=supersedes_proposal_revision_id,json=supersedesProposalRevisionId,proto3,oneof" json:"supersedes_proposal_revision_id,omitempty"`
 	InvalidatorRefs              []string                   `protobuf:"bytes,10,rep,name=invalidator_refs,json=invalidatorRefs,proto3" json:"invalidator_refs,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// Full proposal snapshot bytes are retained alongside the material
+	// protobuf payload so durable consumers can reconstruct fields that are
+	// intentionally excluded from the material digest. The ledger event digest
+	// covers this snapshot, and the critical projection stores these exact
+	// bytes as proposal_revision.payload.
+	FullProposalPayload []byte `protobuf:"bytes,11,opt,name=full_proposal_payload,json=fullProposalPayload,proto3" json:"full_proposal_payload,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ProposalRevision) Reset() {
@@ -1818,6 +1824,13 @@ func (x *ProposalRevision) GetSupersedesProposalRevisionId() string {
 func (x *ProposalRevision) GetInvalidatorRefs() []string {
 	if x != nil {
 		return x.InvalidatorRefs
+	}
+	return nil
+}
+
+func (x *ProposalRevision) GetFullProposalPayload() []byte {
+	if x != nil {
+		return x.FullProposalPayload
 	}
 	return nil
 }
@@ -3065,7 +3078,7 @@ const file_hcmnext_intents_v1_business_intent_proto_rawDesc = "" +
 	" \x01(\tR\"classificationPropagationWatermark\x12.\n" +
 	"\x13dlp_decision_digest\x18\v \x01(\tR\x11dlpDecisionDigest\x128\n" +
 	"\x18destination_trust_digest\x18\f \x01(\tR\x16destinationTrustDigest\x12?\n" +
-	"\x1cpurpose_and_residency_digest\x18\r \x01(\tR\x19purposeAndResidencyDigest\"\x9c\x05\n" +
+	"\x1cpurpose_and_residency_digest\x18\r \x01(\tR\x19purposeAndResidencyDigest\"\xd0\x05\n" +
 	"\x10ProposalRevision\x120\n" +
 	"\x14proposal_revision_id\x18\x01 \x01(\tR\x12proposalRevisionId\x12\x1b\n" +
 	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x1a\n" +
@@ -3079,7 +3092,8 @@ const file_hcmnext_intents_v1_business_intent_proto_rawDesc = "" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12J\n" +
 	"\x1fsupersedes_proposal_revision_id\x18\t \x01(\tH\x00R\x1csupersedesProposalRevisionId\x88\x01\x01\x12)\n" +
 	"\x10invalidator_refs\x18\n" +
-	" \x03(\tR\x0finvalidatorRefsB\"\n" +
+	" \x03(\tR\x0finvalidatorRefs\x122\n" +
+	"\x15full_proposal_payload\x18\v \x01(\fR\x13fullProposalPayloadB\"\n" +
 	" _supersedes_proposal_revision_id\"\xca\b\n" +
 	"\x0fApprovalBinding\x12.\n" +
 	"\x13approval_binding_id\x18\x01 \x01(\tR\x11approvalBindingId\x12%\n" +

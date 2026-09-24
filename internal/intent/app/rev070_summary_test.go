@@ -14,9 +14,10 @@ import (
 // passes through untouched rather than invented.
 func TestTodo_REV_070_01_Summary(t *testing.T) {
 	row := workforce.WorkerRow{
-		WorkerKey: "gone", WorkerID: uuid.New(),
+		WorkerID:        uuid.New(),
 		LifecycleStatus: "TERMINATED", WorkerType: "CONTRACTOR",
 	}
+	row.WorkerKey = row.WorkerID.String()
 	summary := createdWorkerSummary(row)
 	if summary.LifecycleStatus != "TERMINATED" {
 		t.Fatalf("summary lifecycle = %q, want TERMINATED", summary.LifecycleStatus)
@@ -24,12 +25,13 @@ func TestTodo_REV_070_01_Summary(t *testing.T) {
 	if summary.WorkerType != "CONTRACTOR" {
 		t.Fatalf("summary worker type = %q, want CONTRACTOR", summary.WorkerType)
 	}
-	if summary.WorkerRef != "gone" {
-		t.Fatalf("summary ref = %q, want gone", summary.WorkerRef)
+	if summary.WorkerRef != "worker-"+row.WorkerID.String()[:8] {
+		t.Fatalf("summary ref = %q, want a read-time opaque fallback", summary.WorkerRef)
 	}
 
+	activeID := uuid.New()
 	active := workforce.WorkerRow{
-		WorkerKey: "staying", WorkerID: uuid.New(),
+		WorkerKey: activeID.String(), WorkerID: activeID,
 		LifecycleStatus: "ACTIVE", WorkerType: "EMPLOYEE",
 	}
 	activeSummary := createdWorkerSummary(active)

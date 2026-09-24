@@ -149,7 +149,7 @@ type Record struct {
 }
 
 type Reader interface {
-	ReadWorkflowInstance(context.Context, string, string) (Record, error)
+	ReadWorkflowControlRecord(context.Context, string, string) (Record, error)
 }
 
 // DefinitionReader is the immutable publication port used by the read-only
@@ -636,7 +636,7 @@ func (s *server) read(ctx context.Context, tenant, id string) (Record, error) {
 	if s.deps.Instances == nil {
 		return Record{}, errors.New("workflow inspection reader is not configured")
 	}
-	return s.deps.Instances.ReadWorkflowInstance(ctx, tenant, id)
+	return s.deps.Instances.ReadWorkflowControlRecord(ctx, tenant, id)
 }
 func (s *server) authorized(ctx context.Context, p *trust.Principal, action string) bool {
 	if s.deps.Authorize == nil {

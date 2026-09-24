@@ -21,6 +21,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/subscription"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
@@ -54,6 +55,12 @@ type StoreFactory func(pool *pgxadapter.Pool, cfg ServeConfig) (app.Store, error
 // with. Nil means the deterministic HMAC development verifier.
 type VerifierFactory func(cfg ServeConfig) (trust.Verifier, error)
 
+// SIEMRingResolver loads destination-scoped SIEM signing credentials from the
+// configured custody provider. The serve role has no implicit development-key fallback.
+type SIEMRingResolver interface {
+	ResolveSIEMRing(context.Context, *trust.Principal, string) (*subscription.CredentialRing, error)
+}
+
 // TelemetryFactory builds the process-local OTel provider. Nil means
 // NewTelemetryProvider, which returns (nil, nil) for -otel-exporter=none.
 type TelemetryFactory func(ctx context.Context, instanceID string, cfg ServeConfig) (*hcmotel.Provider, error)
@@ -66,6 +73,16 @@ type ExecutionComposer func(cellConfig *app.CellConfig, pool *pgxadapter.Pool, e
 // Options are the explicit composition seams. The zero value is the
 // production composition; a test fills only the fields it means to replace.
 type Options struct {
+	// HealthPoolPing replaces only the PostgreSQL Ping call, allowing an
+	// adapter or integration fixture to observe connection failure and recovery
+	// while the production schema check still runs against the composed pool.
+	HealthPoolPing func(context.Context) error
+	// CurrentHealthConfigFingerprint reads the effective config source again
+	// during each readiness refresh. ServeSpec supplies a bootstrap-backed
+	// implementation that resolves the original flags against current env.
+	CurrentHealthConfigFingerprint func() (string, error)
+	HealthCheckInterval            time.Duration
+	HealthCheckTimeout             time.Duration
 	// ChatSessionRevocation checks each chat authorization against the current
 	// session lifecycle. Standard-profile chat remains fail closed without it.
 	ChatSessionRevocation session.RevocationChecker
@@ -81,6 +98,7 @@ type Options struct {
 	// constructed adapter each.
 	NewStore         StoreFactory
 	NewVerifier      VerifierFactory
+	SIEMRingResolver SIEMRingResolver
 	NewTelemetry     TelemetryFactory
 	ComposeExecution ExecutionComposer
 
@@ -189,6 +207,23 @@ func WithMigrator(migrate Migrator) Option {
 // WithListener supplies the listener factory both surfaces are opened with.
 func WithListener(listen ListenFunc) Option {
 	return func(o *Options) { o.Listen = listen }
+}
+
+// WithHealthPoolPing supplies an optional Ping delegate and the process
+// readiness cache and timeout bounds. Schema verification always runs over
+// the composed database pool.
+func WithHealthPoolPing(ping func(context.Context) error, interval, timeout time.Duration) Option {
+	return func(o *Options) {
+		o.HealthPoolPing = ping
+		o.HealthCheckInterval = interval
+		o.HealthCheckTimeout = timeout
+	}
+}
+
+// WithCurrentHealthConfigFingerprint supplies the independently observed
+// configuration fingerprint source used by readiness checks.
+func WithCurrentHealthConfigFingerprint(current func() (string, error)) Option {
+	return func(o *Options) { o.CurrentHealthConfigFingerprint = current }
 }
 
 // WithClock supplies the cell's wall-clock reading.

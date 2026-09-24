@@ -217,8 +217,9 @@ func withCommittedPlacement(row workforce.WorkerRow, committed committedfacts.Pl
 // createdWorkerSummary projects one durable row onto the port's listing row.
 func createdWorkerSummary(row workforce.WorkerRow) workspace.WorkerSummary {
 	worker := workspace.WorkerSummary{
-		WorkerRef:       row.WorkerKey,
+		WorkerRef:       journeyWorkerKey(row.PreferredName, row.LegalName, shortID(row.WorkerID)),
 		WorkerID:        row.WorkerID.String(),
+		SubjectID:       row.WorkerKey,
 		SubjectRevision: fmt.Sprintf("%s@%d", row.RevisionStream, row.RevisionSequence),
 		LegalName:       row.LegalName,
 		PreferredName:   row.PreferredName,
@@ -280,6 +281,7 @@ func corpusWorkers() ([]workspace.WorkerSummary, error) {
 		worker := workspace.WorkerSummary{
 			WorkerRef:       p.Key,
 			WorkerID:        p.ID,
+			SubjectID:       p.Key,
 			SubjectRevision: PromotionSubjectRevision(p.Key),
 			LegalName:       p.LegalName,
 			PreferredName:   p.PreferredName,
@@ -525,8 +527,9 @@ func (s stringSet) sorted() []string {
 // [workforceCapabilityID], so an admitted creation and a refused one both
 // appear in the one chronology Cell.Evidence reads back.
 func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInput) (created workspace.WorkerSummary, retErr error) {
+	var workerID uuid.UUID
 	defer func() {
-		e.journeyEvent(ctx, "journey.worker_created", "", retErr, slog.String("worker_ref", created.WorkerRef))
+		e.journeyEvent(ctx, "journey.worker_created", "", retErr, slog.String("worker_id", workerID.String()))
 	}()
 	principal, err := journeyPrincipal(ctx)
 	if err != nil {
@@ -537,12 +540,18 @@ func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInp
 		return workspace.WorkerSummary{}, fmt.Errorf(
 			"%w: this cell publishes no promotion definition to create workers for", workspace.ErrJourneyUnavailable)
 	}
+	// Mint the opaque subject before any governed decision so refusals have a
+	// stable, non-name coordinate in both evidence and the operation log.
+	workerID, err = e.mintWorkerID()
+	if err != nil {
+		return workspace.WorkerSummary{}, err
+	}
 	if gateErr := e.svc.authorizeExecution(principal, def); gateErr != nil {
-		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceRoleRequired)
+		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workerID.String(), reasonWorkforceRoleRequired)
 		return workspace.WorkerSummary{}, journeyError(gateErr)
 	}
 	if e.db == nil || e.svc.tenantUUID == nil {
-		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceUnavailable)
+		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workerID.String(), reasonWorkforceUnavailable)
 		return workspace.WorkerSummary{}, fmt.Errorf(
 			"%w: this cell was composed with no execution database", workspace.ErrJourneyUnavailable)
 	}
@@ -570,15 +579,15 @@ func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInp
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	row, err := e.newWorkerRowContext(ctx, tx, principal, in, options)
+	row, err := e.newWorkerRowContextWithID(ctx, tx, principal, in, options, workerID)
 	if err != nil {
-		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workforceSubject(in), reasonWorkforceInput)
+		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workerID.String(), reasonWorkforceInput)
 		return workspace.WorkerSummary{}, err
 	}
 
 	stored, err := e.insertWorker(ctx, tx, row)
 	if err != nil {
-		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, row.WorkerKey, reasonWorkforceInput)
+		e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerRefused, workerID.String(), reasonWorkforceInput)
 		return workspace.WorkerSummary{}, err
 	}
 	// WF-RUN-034: the created worker is projected into the bitemporal
@@ -590,7 +599,7 @@ func (e *journeyEngine) CreateWorker(ctx context.Context, in workspace.WorkerInp
 	if err := tx.Commit(ctx); err != nil {
 		return workspace.WorkerSummary{}, fmt.Errorf("app: journey: commit the worker: %w", err)
 	}
-	e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerCreated, stored.WorkerKey, "")
+	e.recordWorkforceEvidence(ctx, principal, EvidenceKindWorkerCreated, workerID.String(), "")
 	return createdWorkerSummary(stored), nil
 }
 
@@ -650,6 +659,16 @@ type txReserver interface {
 func (e *journeyEngine) newWorkerRowContext(
 	ctx context.Context, tx dbport.Tx, principal *trust.Principal, in workspace.WorkerInput, options workspace.WorkforceOptions,
 ) (workforce.WorkerRow, error) {
+	workerID, err := e.mintWorkerID()
+	if err != nil {
+		return workforce.WorkerRow{}, err
+	}
+	return e.newWorkerRowContextWithID(ctx, tx, principal, in, options, workerID)
+}
+
+func (e *journeyEngine) newWorkerRowContextWithID(
+	ctx context.Context, tx dbport.Tx, principal *trust.Principal, in workspace.WorkerInput, options workspace.WorkforceOptions, workerID uuid.UUID,
+) (workforce.WorkerRow, error) {
 	legal := strings.TrimSpace(in.LegalName)
 	if legal == "" {
 		return workforce.WorkerRow{}, journeyInputError("legal_name", "is required")
@@ -705,10 +724,6 @@ func (e *journeyEngine) newWorkerRowContext(
 		return workforce.WorkerRow{}, journeyInputError("hire_date", "is not an ISO-8601 date (YYYY-MM-DD)")
 	}
 
-	workerID, err := e.mintWorkerID()
-	if err != nil {
-		return workforce.WorkerRow{}, err
-	}
 	now := e.now().UTC()
 	short := shortID(workerID)
 	workerNumber := journeyWorkerNumberPrefix + strings.ToUpper(short)
@@ -733,7 +748,7 @@ func (e *journeyEngine) newWorkerRowContext(
 	return workforce.WorkerRow{
 		TenantID:               e.svc.tenantUUID(principal.Tenant()),
 		WorkerID:               workerID,
-		WorkerKey:              journeyWorkerKey(preferred, legal, short),
+		WorkerKey:              workerID.String(),
 		LegalName:              legal,
 		PreferredName:          preferred,
 		WorkerNumber:           workerNumber,
@@ -866,18 +881,6 @@ func journeyWorkerSlug(name string) string {
 		return ""
 	}
 	return slug
-}
-
-// workforceSubject is the evidence subject reference for a creation that never
-// got as far as having a key.
-func workforceSubject(in workspace.WorkerInput) string {
-	if name := strings.TrimSpace(in.PreferredName); name != "" {
-		return journeySanitize(name)
-	}
-	if name := strings.TrimSpace(in.LegalName); name != "" {
-		return journeySanitize(name)
-	}
-	return "worker"
 }
 
 // recordWorkforceEvidence writes one workforce decision to the cell's evidence

@@ -36,6 +36,7 @@ const (
 	fixtureTenant               = "harborcare-demo"
 	fixtureManagerToken         = "test-manager-token"
 	fixtureAppearanceAdminToken = "test-appearance-admin-token"
+	fixtureOtherTenantToken     = "test-other-tenant-token"
 	fixtureUnknownToken         = "test-unrecognized-token"
 	fixtureSubject              = "manager-jane"
 	fixtureOrganization         = "org:harborcare-demo:people-ops"
@@ -50,18 +51,22 @@ const (
 type fakeVerifier struct{}
 
 func (fakeVerifier) Verify(_ context.Context, cred trust.Credential) (*trust.Principal, error) {
-	if cred.Token != fixtureManagerToken && cred.Token != fixtureAppearanceAdminToken {
+	if cred.Token != fixtureManagerToken && cred.Token != fixtureAppearanceAdminToken && cred.Token != fixtureOtherTenantToken {
 		return nil, trust.ErrInvalidCredential
 	}
 	subject := fixtureSubject
 	roles := []string{"intent_author"}
+	tenant := fixtureTenant
 	if cred.Token == fixtureAppearanceAdminToken {
 		subject = "appearance-admin"
 		roles = append(roles, "comp_admin")
+	} else if cred.Token == fixtureOtherTenantToken {
+		tenant = "other-tenant"
+		subject = "other-tenant-user"
 	}
 	now := time.Now()
 	return trust.NewPrincipal(trust.PrincipalSpec{
-		Tenant:               fixtureTenant,
+		Tenant:               values.TenantId(tenant),
 		OrganizationScopeID:  fixtureOrganization,
 		Subject:              subject,
 		SubjectKind:          trust.SubjectKindHuman,

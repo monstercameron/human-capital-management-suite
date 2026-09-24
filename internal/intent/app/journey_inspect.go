@@ -21,6 +21,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/inspect"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -33,11 +34,12 @@ import (
 // tenant-scoped transaction. Every field is nil/empty before the journey has
 // been executed.
 type journeyRecord struct {
-	instance    *runtime.Instance
-	nodes       []runtime.NodeExecution
-	items       []workitem.WorkItem
-	transitions []workspace.JourneyTransition
-	ledger      *workspace.JourneyLedgerEvent
+	instance       *runtime.Instance
+	nodes          []runtime.NodeExecution
+	items          []workitem.WorkItem
+	transitions    []workspace.JourneyTransition
+	ledger         *workspace.JourneyLedgerEvent
+	durableRecords []workspace.JourneyRecordFamily
 }
 
 // beginTenant opens the read transaction every durable journey read runs
@@ -109,9 +111,9 @@ func (e *journeyEngine) readRecord(
 	}
 
 	// The durable rows are the same four reads the operator surface's
-	// GetWorkflowInstance performs ([loadWorkflowInstanceRecord]); the journey
+	// GetWorkflowInstance performs ([loadWorkflowControlRecord]); the journey
 	// adds only its own projection of the transitions and the ledger read.
-	loaded, err := loadWorkflowInstanceRecord(ctx, tx, tenantID, instanceID)
+	loaded, err := loadWorkflowControlRecord(ctx, tx, tenantID, instanceID)
 	if err != nil {
 		return journeyRecord{}, fmt.Errorf("app: journey: %w", err)
 	}
@@ -521,6 +523,23 @@ func (e *journeyEngine) inspectWithRelationships(
 			summary.CurrentBase = ""
 			summary.ProposedBase = ""
 		}
+		inspectionTx, inspectionErr := e.beginTenant(ctx, principal)
+		if inspectionErr != nil {
+			return workspace.JourneyDetail{}, inspectionErr
+		}
+		durable, loadErr := inspect.Load(ctx, inspectionTx, inspect.LoadRequest{
+			TenantID: e.svc.tenantUUID(principal.Tenant()), InstanceID: record.instance.InstanceID,
+			Authorization: inspect.AllowAll("journey.v1", purposeOf(principal, inv), principal.Subject()),
+			WorkItems:     inspect.WorkItemAuthorization{Disclosed: true}, Versions: e.svc.executionVersions,
+		})
+		rollbackErr := inspectionTx.Rollback(ctx)
+		if loadErr != nil {
+			return workspace.JourneyDetail{}, fmt.Errorf("app: journey: inspect durable workflow: %w", loadErr)
+		}
+		if rollbackErr != nil {
+			return workspace.JourneyDetail{}, fmt.Errorf("app: journey: release durable workflow inspection: %w", rollbackErr)
+		}
+		record.durableRecords = journeyRecordFamilies(durable.Records)
 		summary.MaterialDigest = materialDigest
 	} else {
 		artifact, simErr := e.resimulateWithRelationships(ctx, intentID, relationships)
@@ -569,6 +588,7 @@ func (e *journeyEngine) inspectWithRelationships(
 		isJourneyInitiator(inst.Initiator.PrincipalID, principal.Subject()),
 		journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), e.now(), nil), record)
 	detail.Nodes = journeyNodes(record.nodes)
+	detail.DurableRecords = append([]workspace.JourneyRecordFamily(nil), record.durableRecords...)
 	detail.WorkItems = record.items
 	if item, open := openJourneyWorkItem(record.items); open && item.Assignment.ChosenOwner != "" {
 		detail.CanDecide = item.Assignment.ChosenOwner == principal.Subject()
@@ -635,6 +655,17 @@ func (e *journeyEngine) inspectWithRelationships(
 		redactJourneyDiagnostics(&detail)
 	}
 	return detail, nil
+}
+
+func journeyRecordFamilies(records []inspect.RecordFamily) []workspace.JourneyRecordFamily {
+	out := make([]workspace.JourneyRecordFamily, 0, len(records))
+	for _, family := range records {
+		out = append(out, workspace.JourneyRecordFamily{
+			Family: family.Family, Section: string(family.Section), State: string(family.State),
+			Count: int32(family.Count), Reason: family.Reason,
+		})
+	}
+	return out
 }
 
 // authorizeHistoricalJourneyRead applies the same subject and compensation

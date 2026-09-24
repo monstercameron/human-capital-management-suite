@@ -49,6 +49,9 @@ type Options struct {
 	// DataOps is the DataOps handler port. Optional: when nil the
 	// DataOpsService is not registered.
 	DataOps transport.DataOpsHandler
+	// DataOpsStage backs the client-streaming StageCSV method. It is only valid
+	// together with DataOps so the generated service has a complete handler.
+	DataOpsStage transportdataops.StageCSVHandler
 	// Integration is the Integration handler port. Optional: when nil the
 	// IntegrationService is not registered.
 	Integration transport.IntegrationHandler
@@ -96,6 +99,9 @@ func NewServer(opts Options) (*grpc.Server, error) {
 	if opts.Intent == nil && opts.Registry == nil && opts.DataOps == nil && opts.Integration == nil && opts.Notifications == nil {
 		return nil, ErrNoHandlers
 	}
+	if opts.DataOps == nil && opts.DataOpsStage != nil {
+		return nil, errors.New("grpcserver: StageCSV requires the DataOps handler")
+	}
 
 	maxRecv := opts.MaxRecvMsgBytes
 	if maxRecv <= 0 {
@@ -117,7 +123,7 @@ func NewServer(opts Options) (*grpc.Server, error) {
 		registryv1.RegisterRegistryServiceServer(srv, &registryService{handler: opts.Registry})
 	}
 	if opts.DataOps != nil {
-		dataopsv1.RegisterDataOpsServiceServer(srv, &transportdataops.Service{Handler: opts.DataOps})
+		dataopsv1.RegisterDataOpsServiceServer(srv, &transportdataops.Service{Handler: opts.DataOps, Stage: opts.DataOpsStage})
 	}
 	if opts.Integration != nil {
 		integrationv1.RegisterIntegrationServiceServer(srv, &transportintegration.Service{Handler: opts.Integration})

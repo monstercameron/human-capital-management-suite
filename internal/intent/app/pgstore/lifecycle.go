@@ -62,18 +62,16 @@ func (s *Store) MutateLifecycle(ctx context.Context, m app.LifecycleMutation) (a
 			app.ErrOutcomeProjectionConflict, version, m.ExpectedInstanceVersion)
 	}
 
-	request, execution, business, consistency, obligation := app.LifecycleColumns(m.Lifecycle)
+	recordedAt := m.RecordedAt.UTC()
+	if err := applyInstanceLifecycle(ctx, tx, tenantID, intentID, m.ExpectedInstanceVersion+1, m.Lifecycle, recordedAt); err != nil {
+		return app.IntentRecord{}, err
+	}
 	updated, err := tx.Exec(ctx, `
 		UPDATE intent_instance
-		SET request_state = $3, execution_state = $4, business_state = $5,
-			consistency_state = $6, obligation_state = $7,
-			instance_version = instance_version + 1,
-			recorded_at = $8, last_transition_at = $8,
-			commit_receipt_ref = COALESCE(NULLIF($9, ''), commit_receipt_ref),
-			repair_ref = COALESCE(NULLIF($10, ''), repair_ref)
-		WHERE tenant_id = $1 AND intent_id = $2 AND instance_version = $11`,
-		tenantID, intentID, request, execution, business, consistency, obligation,
-		m.RecordedAt.UTC(), m.CommitReceiptRef, m.RepairRef, int64(m.ExpectedInstanceVersion))
+		SET commit_receipt_ref = COALESCE(NULLIF($3, ''), commit_receipt_ref),
+			repair_ref = COALESCE(NULLIF($4, ''), repair_ref)
+		WHERE tenant_id = $1 AND intent_id = $2 AND instance_version = $5`,
+		tenantID, intentID, m.CommitReceiptRef, m.RepairRef, int64(m.ExpectedInstanceVersion+1))
 	if err != nil {
 		return app.IntentRecord{}, fmt.Errorf("pgstore: mutate intent lifecycle: %w", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
@@ -72,6 +73,40 @@ func TestComposeDevPersonasIssuesFourDistinctVerifiedIdentities(t *testing.T) {
 			t.Errorf("duplicate subject %q", principal.Subject())
 		}
 		seen[principal.Subject()] = true
+	}
+}
+
+func TestComposeDevPersonasMintsFreshTokenAfterEightHours(t *testing.T) {
+	now := time.Date(2026, 9, 6, 16, 0, 0, 0, time.UTC)
+	cfg := ServeConfig{DevBrowserLogin: true, DevHMACKey: testDevKey, Issuer: DefaultIssuer, Audience: DefaultAudience, Tenant: LocalDevTenant}
+	verifier, err := trust.NewHMACVerifier(trust.HMACVerifierConfig{Key: []byte(cfg.DevHMACKey), Issuer: cfg.Issuer, Audience: cfg.Audience, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var admin *workspace.DevPersona
+	for _, persona := range composeDevPersonas(verifier, cfg, func() time.Time { return now }) {
+		if persona.ID == "admin" {
+			admin = &persona
+			break
+		}
+	}
+	if admin == nil || admin.IssueToken == nil {
+		t.Fatal("admin persona has no server token issuer")
+	}
+	now = now.Add(9 * time.Hour)
+	if _, err := verifier.Verify(context.Background(), trust.Credential{Token: admin.Token, Audience: cfg.Audience}); err == nil {
+		t.Fatal("startup credential still verifies after its eight-hour lifetime")
+	}
+	freshToken, err := admin.IssueToken()
+	if err != nil {
+		t.Fatalf("mint renewed credential: %v", err)
+	}
+	principal, err := verifier.Verify(context.Background(), trust.Credential{Token: freshToken, Audience: cfg.Audience})
+	if err != nil {
+		t.Fatalf("verify renewed credential: %v", err)
+	}
+	if principal.Subject() != admin.WorkerRef || !principal.HasRole("comp_admin") {
+		t.Fatalf("renewed identity = %q with comp_admin=%v", principal.Subject(), principal.HasRole("comp_admin"))
 	}
 }
 

@@ -166,7 +166,21 @@ func TestEndpointListCursorAndFieldMaskCannotBroadenScopeOrRevealExistence(t *te
 }
 
 func TestTodo_ENDPOINT_005(t *testing.T) {
-	TestEndpointListCursorAndFieldMaskCannotBroadenScopeOrRevealExistence(t)
+	items := items()
+	request := ListRequest{Principal: "u", Tenant: "t", Filter: "f", PageSize: 1, FieldMask: []string{"name"}}
+	response, err := ListItems(items, request, secret, now, allowed())
+	if err != nil {
+		t.Fatalf("list request: %v", err)
+	}
+	if len(response.Items) != 1 || response.Items[0].ID == "" {
+		t.Fatalf("first page omitted visible item: %+v", response.Items)
+	}
+	if response.NextCursor == "" {
+		t.Fatal("bounded first page omitted continuation cursor")
+	}
+	if response.Items[0].Data["name"] == nil {
+		t.Fatal("requested name field was omitted")
+	}
 }
 
 func TestTodo_ENDPOINT_005_Golden(t *testing.T) {

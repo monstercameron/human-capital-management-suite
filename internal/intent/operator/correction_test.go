@@ -172,9 +172,19 @@ func TestTodo_REV_007_03_Integration(t *testing.T) {
 	if first.Correction.Sequence != 2 || first.Correction.Replayed || len(first.Obligations) != 1 {
 		t.Fatalf("first correction = %+v, want successor sequence 2 and one obligation", first.Correction)
 	}
+	if first.Effective.Ref.StreamKey != "worker:promotion" || first.Effective.Ref.Sequence != first.Correction.Sequence ||
+		len(first.EffectivePath) != 1 || first.EffectivePath[0].Ref.Sequence != first.Correction.Sequence {
+		t.Fatalf("first effective lineage = %+v path %+v, want appended correction at sequence %d",
+			first.Effective, first.EffectivePath, first.Correction.Sequence)
+	}
 	second := execute(t)
 	if !second.Correction.Replayed || second.CorrectionID != first.CorrectionID {
 		t.Fatalf("replay = %+v, want the same correction id replayed", second.Correction)
+	}
+	if second.Effective.Ref != first.Effective.Ref || len(second.EffectivePath) != 1 ||
+		second.EffectivePath[0].Ref != first.EffectivePath[0].Ref {
+		t.Fatalf("replayed effective lineage = %+v path %+v, want same terminal node/path as first call",
+			second.Effective, second.EffectivePath)
 	}
 	var total int
 	if err := db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM ledger_event WHERE tenant_id = $1 AND stream_key = 'worker:promotion'`, tenant).Scan(&total); err != nil {

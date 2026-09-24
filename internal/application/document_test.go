@@ -42,10 +42,10 @@ func TestDocumentComments_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.AddDocumentComment(ctx, tenant, reader, id, versionID, "before share"); err == nil {
+	if _, err := svc.AddDocumentComment(ctx, tenant, reader, id, versionID, "before share", nil, ""); err == nil {
 		t.Fatal("unshared reader commented")
 	}
-	if err := svc.ShareDocument(ctx, tenant, owner, id, reader); err != nil {
+	if err := svc.ShareDocument(ctx, tenant, owner, id, reader, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.store.ShareDocument(ctx, tenant, id, owner, documenthubstore.GrantInput{SubjectID: readOnly, Action: documenthubstore.ActionRead, Effect: documenthubstore.EffectAllow}); err != nil {
@@ -59,10 +59,10 @@ func TestDocumentComments_Integration(t *testing.T) {
 	if err != nil || readOnlySummary.CanComment {
 		t.Fatalf("read-only projection = %+v, %v", readOnlySummary, err)
 	}
-	if _, err := svc.AddDocumentComment(ctx, tenant, readOnly, id, versionID, "forged comment"); err == nil {
+	if _, err := svc.AddDocumentComment(ctx, tenant, readOnly, id, versionID, "forged comment", nil, ""); err == nil {
 		t.Fatal("read-only actor commented")
 	}
-	comment, err := svc.AddDocumentComment(ctx, tenant, reader, id, versionID, "Please clarify this rule")
+	comment, err := svc.AddDocumentComment(ctx, tenant, reader, id, versionID, "Please clarify this rule", nil, "")
 	if err != nil || comment.ID == "" || comment.CreatedAt.IsZero() || comment.AuthorID != reader {
 		t.Fatalf("add comment = %+v, %v", comment, err)
 	}
@@ -73,7 +73,7 @@ func TestDocumentComments_Integration(t *testing.T) {
 	if _, err := svc.ListDocumentComments(ctx, tenant, reader, id, "forged-version"); !documentUnavailable(err) {
 		t.Fatalf("forged version list = %v", err)
 	}
-	if _, err := svc.AddDocumentComment(ctx, tenant, reader, id, "forged-version", "wrong version"); !documentUnavailable(err) {
+	if _, err := svc.AddDocumentComment(ctx, tenant, reader, id, "forged-version", "wrong version", nil, ""); !documentUnavailable(err) {
 		t.Fatalf("forged version comment = %v", err)
 	}
 	if _, err := svc.store.GrantAction(ctx, tenant, documenthubstore.GrantInput{DocumentID: id, SubjectID: reader, Action: documenthubstore.ActionComment, Effect: documenthubstore.EffectDeny, Issuer: owner}); err != nil {
@@ -83,7 +83,7 @@ func TestDocumentComments_Integration(t *testing.T) {
 	if err != nil || readerSummary.CanComment {
 		t.Fatalf("comment-denied reader projection = %+v, %v", readerSummary, err)
 	}
-	if _, err := svc.AddDocumentComment(ctx, tenant, reader, id, versionID, "after comment deny"); !documentUnavailable(err) {
+	if _, err := svc.AddDocumentComment(ctx, tenant, reader, id, versionID, "after comment deny", nil, ""); !documentUnavailable(err) {
 		t.Fatalf("comment-denied reader commented = %v", err)
 	}
 	thread, err = svc.ListDocumentComments(ctx, tenant, reader, id, versionID)
@@ -93,7 +93,7 @@ func TestDocumentComments_Integration(t *testing.T) {
 	if _, err := svc.store.GrantAction(ctx, tenant, documenthubstore.GrantInput{DocumentID: id, SubjectID: reader, Action: documenthubstore.ActionRead, Effect: documenthubstore.EffectDeny, Issuer: owner}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.AddDocumentComment(ctx, tenant, reader, id, versionID, "after deny"); !documentUnavailable(err) {
+	if _, err := svc.AddDocumentComment(ctx, tenant, reader, id, versionID, "after deny", nil, ""); !documentUnavailable(err) {
 		t.Fatalf("denied reader commented = %v", err)
 	}
 	if _, err := svc.ListDocumentComments(ctx, "other-tenant", owner, id, versionID); !documentUnavailable(err) {
@@ -139,7 +139,7 @@ func TestDocumentVersionApplication_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.ShareDocument(ctx, tenant, owner, id, reader); err != nil {
+	if err := svc.ShareDocument(ctx, tenant, owner, id, reader, ""); err != nil {
 		t.Fatal(err)
 	}
 	ownerSummary, _, _, err := svc.GetDocument(ctx, tenant, owner, id)

@@ -74,6 +74,27 @@ func (s *server) authorizeWorker(ctx context.Context, principal *trust.Principal
 	return workers[0]
 }
 
+// chatDirectoryWorkers produces an explicit business-only allowlist from the
+// tenant-scoped engine population. Relationships are resolved against the
+// same population once, so managers and reports are available without per-row
+// lookups and no persisted raw/external manager reference is serialized.
+func chatDirectoryWorkers(workers []workspace.WorkerSummary) []*journeyv1.Worker {
+	resolved := projectAuthorizedManagers(workers, workers)
+	out := make([]*journeyv1.Worker, 0, len(resolved))
+	for _, worker := range resolved {
+		msg := &journeyv1.Worker{
+			WorkerRef: worker.WorkerRef, WorkerId: worker.WorkerID, SubjectId: worker.SubjectID,
+			LegalName: worker.LegalName, PreferredName: worker.PreferredName,
+			JobTitle: worker.JobTitle, OrgUnit: worker.OrgUnit,
+			Location: worker.Location, Company: worker.Company,
+			BusinessUnit: worker.BusinessUnit, ProfilePhotoUrl: worker.ProfilePhotoURL,
+			ManagerRelationship: toManagerRelationship(worker.ManagerDisposition, worker.ManagerWorkerRef),
+		}
+		out = append(out, msg)
+	}
+	return out
+}
+
 // applyDirectoryDisclosure omits or masks every field the ruling withholds.
 // Allow copies (already rendered by [toWorker]); Redacted substitutes the
 // stand-in; anything else, including the zero effect, omits.

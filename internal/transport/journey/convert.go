@@ -448,6 +448,23 @@ func toDetail(d workspace.JourneyDetail, diagAuthorized bool) *journeyv1.Journey
 		DiagnosticsAvailable: d.DiagnosticsAvailable,
 		CanDecide:            d.CanDecide,
 	}
+	if d.Submission != nil {
+		submittedAt := timestamppb.New(d.Submission.SubmittedAt)
+		out.Submission = &journeyv1.JourneySubmissionRecord{
+			IntentId: d.Submission.IntentID, ProposalRevisionId: d.Submission.ProposalRevisionID,
+			ProposalDigest: d.Submission.ProposalDigest, MaterialDigest: d.Submission.MaterialDigest,
+			SubmittedBy: d.Submission.SubmittedBy, SubmittedAt: submittedAt,
+			IdempotencyKey: d.Submission.IdempotencyKey, Digest: d.Submission.Digest,
+		}
+	}
+	if diagAuthorized {
+		for _, family := range d.DurableRecords {
+			out.DurableRecords = append(out.DurableRecords, &journeyv1.DurableRecordFamilyProfile{
+				Family: family.Family, Section: family.Section, State: family.State,
+				Count: family.Count, Reason: family.Reason,
+			})
+		}
+	}
 	if diagAuthorized {
 		out.PlannedWrites = append([]string(nil), d.PlannedWrites...)
 		out.Ledger = toLedger(d.Ledger)
@@ -539,6 +556,7 @@ func toWorker(w workspace.WorkerSummary) *journeyv1.Worker {
 	return &journeyv1.Worker{
 		WorkerRef:           w.WorkerRef,
 		WorkerId:            w.WorkerID,
+		SubjectId:           w.SubjectID,
 		SubjectRevision:     w.SubjectRevision,
 		LegalName:           w.LegalName,
 		PreferredName:       w.PreferredName,
@@ -594,6 +612,7 @@ func fromWorker(w *journeyv1.Worker) workspace.WorkerSummary {
 	return workspace.WorkerSummary{
 		WorkerRef:          w.GetWorkerRef(),
 		WorkerID:           w.GetWorkerId(),
+		SubjectID:          w.GetSubjectId(),
 		SubjectRevision:    w.GetSubjectRevision(),
 		LegalName:          w.GetLegalName(),
 		PreferredName:      w.GetPreferredName(),

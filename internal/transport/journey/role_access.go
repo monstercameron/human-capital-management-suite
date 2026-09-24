@@ -275,6 +275,7 @@ func (s *server) SaveAccessRole(ctx context.Context, req *journeyv1.SaveAccessRo
 		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "save_role")
 	}
 	requested := fromAccessRole(req.GetRole())
+	requested.Reason = req.GetReason()
 	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
 	if err != nil {
 		return nil, err
@@ -320,7 +321,9 @@ func (s *server) SaveWorkerRoleAssignment(ctx context.Context, req *journeyv1.Sa
 	if err != nil {
 		return nil, err
 	}
-	assignment, err := store.SaveAssignment(ctx, principal.Tenant(), principal.Subject(), fromWorkerRoleAssignment(req.GetAssignment()))
+	requested := fromWorkerRoleAssignment(req.GetAssignment())
+	requested.Reason = req.GetReason()
+	assignment, err := store.SaveAssignment(ctx, principal.Tenant(), principal.Subject(), requested)
 	if err != nil {
 		return nil, roleAccessError(err, principal, inv.RequestID(), "save_assignment")
 	}
@@ -348,7 +351,9 @@ func (s *server) SaveRoleOrganizationVisibility(ctx context.Context, req *journe
 	if err != nil {
 		return nil, err
 	}
-	policy, err := store.SaveVisibility(ctx, principal.Tenant(), principal.OrganizationScopeID(), principal.Subject(), fromRoleVisibility(req.GetPolicy()))
+	requested := fromRoleVisibility(req.GetPolicy())
+	requested.Reason = req.GetReason()
+	policy, err := store.SaveVisibility(ctx, principal.Tenant(), principal.OrganizationScopeID(), principal.Subject(), requested)
 	if err != nil {
 		return nil, roleAccessError(err, principal, inv.RequestID(), "save_visibility")
 	}
@@ -367,6 +372,7 @@ func (s *server) SaveRolePagePermission(ctx context.Context, req *journeyv1.Save
 		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "save_page_permission")
 	}
 	requested := fromRolePagePermission(req.GetPermission())
+	requested.Reason = req.GetReason()
 	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
 	if err != nil {
 		return nil, err
@@ -404,6 +410,7 @@ func (s *server) SaveRoleFeaturePermission(ctx context.Context, req *journeyv1.S
 		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "save_feature_permission")
 	}
 	requested := fromRoleFeaturePermission(req.GetPermission())
+	requested.Reason = req.GetReason()
 	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
 	if err != nil {
 		return nil, err

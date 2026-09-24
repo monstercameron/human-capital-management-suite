@@ -347,3 +347,12 @@ func assertSameMeaning(t *testing.T, label string, want, got *envelope.Error) {
 		}
 	}
 }
+
+func TestRetryAfterSurvivesOwnedErrorDetailRoundTrip(t *testing.T) {
+	want := envelope.New(envelope.CodeResourceExhausted, "RATE_LIMITED", "the application credential has exceeded its request rate").
+		WithRetryable(true).WithRetryAfter(37).WithCorrelation("req-retry")
+	got := envelope.FromDetail(envelope.CodeFromProto(want.Detail().GetCode()), want.Message(), want.Detail())
+	if got.Code() != want.Code() || got.ReasonRef() != want.ReasonRef() || !got.Retryable() || got.RetryAfter() != 37 || got.CorrelationID() != "req-retry" {
+		t.Fatalf("wire detail round trip = %+v, want code/reason/retry/retry-after/correlation from %+v", got, want)
+	}
+}

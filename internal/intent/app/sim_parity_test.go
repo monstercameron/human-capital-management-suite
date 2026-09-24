@@ -80,13 +80,15 @@ func parityInput(t *testing.T) rewards.SimulateCompensationInput {
 	}
 }
 
-// TestTodo_Unit4_ServedSimMatchesEngine proves the served
+// TestTodo_COMP_006_Integration proves the served
 // simulate_compensation binding answers with the real rewards engine, not a
 // stub or an echo: the capability-table handler from handlerFor, driven with
 // the engine's canonical input against the served catalog, returns a result
-// identical to calling the engine directly -- same figures, same pinned
-// versions, same result digest.
-func TestTodo_Unit4_ServedSimMatchesEngine(t *testing.T) {
+// identical to calling the engine directly, with the same pinned versions,
+// result digest, and zero-effect receipt. Compensation simulation takes its
+// authoritative facts as explicit pinned snapshots, so this integration is
+// the application binding plus the real calculation engine and catalog.
+func TestTodo_COMP_006_Integration(t *testing.T) {
 	ctx := context.Background()
 	catalog := parityCatalog(t)
 	served := &domainHandlers{bands: catalog}
@@ -100,9 +102,13 @@ func TestTodo_Unit4_ServedSimMatchesEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("served simulate_compensation: %v", err)
 	}
-	servedResult, ok := got.(rewards.SimulateCompensationResult)
+	answer, ok := got.(compensationAnswer)
 	if !ok {
-		t.Fatalf("served simulate_compensation returned %T, want rewards.SimulateCompensationResult", got)
+		t.Fatalf("served simulate_compensation returned %T, want compensationAnswer", got)
+	}
+	servedResult := answer.Simulation
+	if answer.PreflightPlan.Digest == "" {
+		t.Fatal("served simulate_compensation returned no universal preflight digest")
 	}
 
 	direct, err := rewards.SimulateCompensation(ctx, catalog, in)
@@ -118,6 +124,9 @@ func TestTodo_Unit4_ServedSimMatchesEngine(t *testing.T) {
 	}
 	if got := servedResult.Delta.AnnualizedBase.String(); got != "5000.00 USD" {
 		t.Fatalf("served annualized base delta = %s, want 5000.00 USD for the 93,000 -> 98,000 raise", got)
+	}
+	if !servedResult.Effects.IsZero() || servedResult.Receipt.ResultDigest != servedResult.ResultDigest {
+		t.Fatalf("served simulation violated zero-effect receipt: effects=%v receipt=%+v", servedResult.Effects.NonZero(), servedResult.Receipt)
 	}
 }
 

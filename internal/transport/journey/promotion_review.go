@@ -2,8 +2,8 @@ package journey
 
 import (
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	app "github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 )
 
 // toPromotionReview projects the engine's REV-091-02 review onto the wire. It
@@ -32,7 +32,7 @@ func toPromotionReview(r *workspace.JourneyPromotionReview) *journeyv1.JourneyPr
 	return out
 }
 
-func toCompensationGuardrail(g promotion.CompensationGuardrail) *journeyv1.JourneyCompensationGuardrail {
+func toCompensationGuardrail(g app.PromotionCompensationGuardrail) *journeyv1.JourneyCompensationGuardrail {
 	if !g.Available() {
 		return &journeyv1.JourneyCompensationGuardrail{
 			Status:            journeyv1.JourneyCompensationGuardrail_STATUS_UNAVAILABLE,

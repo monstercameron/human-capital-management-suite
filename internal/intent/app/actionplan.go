@@ -21,6 +21,10 @@ import (
 
 const actionPlanBindingVersion = 1
 
+// AcceptedIntentExecutionActionID is the action identity a durable
+// HUMAN_APPROVAL grants. It is server-owned and never taken from an RPC field.
+const AcceptedIntentExecutionActionID = "intent.execute"
+
 // Version identifies the accepted-action binding contract.
 func (b ActionPlanBinding) Version() int { return actionPlanBindingVersion }
 
@@ -44,6 +48,7 @@ var ErrActionPlanBinding = errors.New("app: accepted action cannot be bound to t
 // accepted it, when, and under which semantic idempotency key.
 type AcceptedAction struct {
 	Tenant             values.TenantId `json:"tenant"`
+	DecisionID         string          `json:"decision_id"`
 	ActionID           string          `json:"action_id"`
 	IntentID           string          `json:"intent_id"`
 	ProposalRevisionID string          `json:"proposal_revision_id"`
@@ -57,6 +62,7 @@ type AcceptedAction struct {
 // prepared transaction plan that commits it.
 type ActionPlanBinding struct {
 	Tenant             values.TenantId `json:"tenant"`
+	DecisionID         string          `json:"decision_id"`
 	ActionID           string          `json:"action_id"`
 	IntentID           string          `json:"intent_id"`
 	ProposalRevisionID string          `json:"proposal_revision_id"`
@@ -74,6 +80,7 @@ func (a AcceptedAction) validate() error {
 		return fmt.Errorf("%w: tenant: %v", ErrActionPlanBinding, err)
 	}
 	for _, req := range []struct{ field, value string }{
+		{"decision_id", a.DecisionID},
 		{"action_id", a.ActionID},
 		{"intent_id", a.IntentID},
 		{"proposal_revision_id", a.ProposalRevisionID},
@@ -117,7 +124,7 @@ func BindAcceptedAction(action AcceptedAction, plan transactionplan.TransactionP
 		return ActionPlanBinding{}, fmt.Errorf("%w: acceptance is past plan expiry", ErrActionPlanBinding)
 	}
 	b := ActionPlanBinding{
-		Tenant: action.Tenant, ActionID: action.ActionID, IntentID: action.IntentID,
+		Tenant: action.Tenant, DecisionID: action.DecisionID, ActionID: action.ActionID, IntentID: action.IntentID,
 		ProposalRevisionID: action.ProposalRevisionID, ProposalDigest: action.ProposalDigest,
 		AcceptedBy: action.AcceptedBy, AcceptedAt: action.AcceptedAt, IdempotencyKey: action.IdempotencyKey,
 		PlanID: plan.PlanID, PlanDigest: plan.Digest,
@@ -131,7 +138,10 @@ func BindAcceptedAction(action AcceptedAction, plan transactionplan.TransactionP
 // the same acceptance is SUPERSEDED; the same plan with altered content is
 // TAMPERED.
 func (b ActionPlanBinding) Check(action AcceptedAction, plan transactionplan.TransactionPlan) ActionPlanStatus {
-	if action.Tenant != b.Tenant || action.ActionID != b.ActionID || action.IntentID != b.IntentID ||
+	if b.VerifyDigest() != nil {
+		return ActionPlanTampered
+	}
+	if action.Tenant != b.Tenant || action.DecisionID != b.DecisionID || action.ActionID != b.ActionID || action.IntentID != b.IntentID ||
 		action.ProposalRevisionID != b.ProposalRevisionID || action.ProposalDigest != b.ProposalDigest ||
 		action.AcceptedBy != b.AcceptedBy || action.AcceptedAt.Compare(b.AcceptedAt) != 0 ||
 		action.IdempotencyKey != b.IdempotencyKey {
@@ -151,6 +161,7 @@ func (b ActionPlanBinding) Check(action AcceptedAction, plan transactionplan.Tra
 func (b ActionPlanBinding) CanonicalBytes() []byte {
 	shadow := struct {
 		Tenant             values.TenantId `json:"tenant"`
+		DecisionID         string          `json:"decision_id"`
 		ActionID           string          `json:"action_id"`
 		IntentID           string          `json:"intent_id"`
 		ProposalRevisionID string          `json:"proposal_revision_id"`
@@ -160,7 +171,7 @@ func (b ActionPlanBinding) CanonicalBytes() []byte {
 		IdempotencyKey     string          `json:"idempotency_key"`
 		PlanID             string          `json:"plan_id"`
 		PlanDigest         string          `json:"plan_digest"`
-	}{b.Tenant, b.ActionID, b.IntentID, b.ProposalRevisionID, b.ProposalDigest,
+	}{b.Tenant, b.DecisionID, b.ActionID, b.IntentID, b.ProposalRevisionID, b.ProposalDigest,
 		b.AcceptedBy, b.AcceptedAt, b.IdempotencyKey, b.PlanID, b.PlanDigest}
 	out, err := json.Marshal(shadow)
 	if err != nil {

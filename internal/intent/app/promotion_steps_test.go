@@ -190,6 +190,8 @@ func TestPromotionStepServicesFailClosed(t *testing.T) {
 	expired.Deadline = time.Now().UTC().Add(-time.Hour)
 	if _, err := h.services.AuthorizeCommit(ctx, expired); !errors.Is(err, ErrDelegationInvalid) {
 		t.Fatalf("AuthorizeCommit past its deadline = %v, want ErrDelegationInvalid", err)
+	} else if !strings.Contains(err.Error(), "node_id=") || !strings.Contains(err.Error(), "issued_at=") || !strings.Contains(err.Error(), "expires_at=") {
+		t.Fatalf("invalid delegated principal error = %v, want node and bounded internal timestamps", err)
 	}
 	undeclared := h.call
 	undeclared.DeclaredEffects = []capability.EffectClass{capability.EffectPure}

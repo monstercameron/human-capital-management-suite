@@ -23,19 +23,38 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/application/dataopsimport"
+	dataconfigbundlekill "github.com/monstercameron/human-capital-management-suite/internal/data/configbundlekill"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/configparamstore"
+	dataconfigregistry "github.com/monstercameron/human-capital-management-suite/internal/data/configregistry"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/contentregistrystore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dataopsartifactstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dataopsstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/health"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/i18ncatalogstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/integrationregistry"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger/hashchain"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/legalevidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/operationstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pageledgerstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/performancestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/preferencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/roleaccessstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workeridstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/performance"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -43,16 +62,24 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	kernelvalues "github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/explorer"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
+	platformcache "github.com/monstercameron/human-capital-management-suite/internal/platform/cache"
+	platformconfig "github.com/monstercameron/human-capital-management-suite/internal/platform/config"
 	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	transportadmin "github.com/monstercameron/human-capital-management-suite/internal/transport/admin"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint"
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
+	transportparameters "github.com/monstercameron/human-capital-management-suite/internal/transport/parameters"
+	transportreviewparticipants "github.com/monstercameron/human-capital-management-suite/internal/transport/reviewparticipants"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/streaming"
+	transportwebhook "github.com/monstercameron/human-capital-management-suite/internal/transport/webhook"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/session"
 )
 
@@ -60,56 +87,62 @@ import (
 // test asserts on the same string the composition wrote, and so a rename is
 // one edit rather than a silently diverging golden.
 const (
-	ComponentConfig                = "config"
-	ComponentDatabasePool          = "database-pool"
-	ComponentSchemaMigrator        = "schema-migrator"
-	ComponentIntentStore           = "intent-store"
-	ComponentCredentialVerifier    = "credential-verifier"
-	ComponentLegalEvidenceVerifier = "legal-evidence-verifier"
-	ComponentTelemetryProvider     = "telemetry-provider"
-	ComponentEvidenceSink          = "evidence-sink"
-	ComponentDomainInputs          = "domain-inputs"
-	ComponentWorkerFacts           = "worker-facts"
-	ComponentPayBandCatalog        = "pay-band-catalog"
-	ComponentTransactionHistory    = "transaction-history"
-	ComponentIncumbentConnector    = "incumbent-connector"
-	ComponentObservationStore      = "observation-store"
-	ComponentTrustedClock          = "trusted-clock"
-	ComponentDiscoveryDocument     = "discovery-document"
-	ComponentExecutionAuthority    = "execution-authority"
-	ComponentProposalExecutor      = "proposal-executor"
-	ComponentWorkflowResolver      = "workflow-resolver"
-	ComponentWorkflowVersions      = "workflow-versions"
-	ComponentWorkflowInstanceRead  = "workflow-instance-reader"
-	ComponentWorkItemQueueRead     = "work-item-queue-reader"
-	ComponentCell                  = "cell"
-	ComponentIntentDefinitions     = "intent-definitions"
-	ComponentCapabilityRegistry    = "capability-registry"
-	ComponentCapabilityGateway     = "capability-gateway"
-	ComponentIntentService         = "intent-service"
-	ComponentJourneyEngine         = "journey-engine"
-	ComponentPresentationPrefs     = "presentation-preferences"
-	ComponentRoleAccess            = "role-access"
-	ComponentGRPCSurface           = "grpc-surface"
-	ComponentHTTPEdge              = "http-edge"
-	ComponentWorkloadGRPC          = "workload:grpc-surface"
-	ComponentWorkloadHTTP          = "workload:http-edge"
-	ComponentShutdownHTTP          = "shutdown:stop-http-edge"
-	ComponentShutdownGRPC          = "shutdown:stop-grpc-surface"
-	ComponentShutdownTelemetry     = "shutdown:shutdown-telemetry"
-	ComponentChatService           = "chat-service"
-	ComponentChatDatabasePool      = "chat-database-pool"
-	ComponentShutdownChat          = "shutdown:close-chat-database"
-	ComponentDocumentStore         = "document-store"
-	ComponentShutdownDocument      = "shutdown:close-document-database"
-	workloadNameGRPC               = "grpc-surface"
-	workloadNameHTTP               = "http-edge"
-	shutdownNameHTTP               = "stop-http-edge"
-	shutdownNameGRPC               = "stop-grpc-surface"
-	shutdownNameChat               = "close-chat-database"
-	shutdownNameDocument           = "close-document-database"
-	shutdownNameTelemetry          = "shutdown-telemetry"
-	httpEdgeReadHeaderTimeoutValue = 10 * time.Second
+	ComponentConfig                   = "config"
+	ComponentDatabasePool             = "database-pool"
+	ComponentSchemaMigrator           = "schema-migrator"
+	ComponentIntentStore              = "intent-store"
+	ComponentCredentialVerifier       = "credential-verifier"
+	ComponentLegalEvidenceVerifier    = "legal-evidence-verifier"
+	ComponentTelemetryProvider        = "telemetry-provider"
+	ComponentEvidenceSink             = "evidence-sink"
+	ComponentDomainInputs             = "domain-inputs"
+	ComponentWorkerFacts              = "worker-facts"
+	ComponentPayBandCatalog           = "pay-band-catalog"
+	ComponentTransactionHistory       = "transaction-history"
+	ComponentIncumbentConnector       = "incumbent-connector"
+	ComponentObservationStore         = "observation-store"
+	ComponentTrustedClock             = "trusted-clock"
+	ComponentDiscoveryDocument        = "discovery-document"
+	ComponentExecutionAuthority       = "execution-authority"
+	ComponentConfigBundleControl      = "configbundle-control"
+	ComponentConfigBundleReceiver     = "configbundle-receiver"
+	ComponentStoreHealth              = "store-health"
+	ComponentPilotReliability         = "pilot-reliability"
+	ComponentProposalExecutor         = "proposal-executor"
+	ComponentWorkflowResolver         = "workflow-resolver"
+	ComponentWorkflowVersions         = "workflow-versions"
+	ComponentWorkflowControlRead      = "workflow-control-reader"
+	ComponentNotificationFeed         = "notification-feed"
+	ComponentProviderWebhookReceivers = "provider-webhook-receivers"
+	ComponentWorkItemQueueRead        = "work-item-queue-reader"
+	ComponentCell                     = "cell"
+	ComponentIntentDefinitions        = "intent-definitions"
+	ComponentCapabilityRegistry       = "capability-registry"
+	ComponentCapabilityGateway        = "capability-gateway"
+	ComponentIntentService            = "intent-service"
+	ComponentJourneyEngine            = "journey-engine"
+	ComponentPresentationPrefs        = "presentation-preferences"
+	ComponentRoleAccess               = "role-access"
+	ComponentGRPCSurface              = "grpc-surface"
+	ComponentHTTPEdge                 = "http-edge"
+	ComponentWorkloadGRPC             = "workload:grpc-surface"
+	ComponentWorkloadHTTP             = "workload:http-edge"
+	ComponentShutdownHTTP             = "shutdown:stop-http-edge"
+	ComponentShutdownGRPC             = "shutdown:stop-grpc-surface"
+	ComponentShutdownTelemetry        = "shutdown:shutdown-telemetry"
+	ComponentChatService              = "chat-service"
+	ComponentChatDatabasePool         = "chat-database-pool"
+	ComponentShutdownChat             = "shutdown:close-chat-database"
+	ComponentDocumentStore            = "document-store"
+	ComponentShutdownDocument         = "shutdown:close-document-database"
+	workloadNameGRPC                  = "grpc-surface"
+	workloadNameHTTP                  = "http-edge"
+	shutdownNameHTTP                  = "stop-http-edge"
+	shutdownNameGRPC                  = "stop-grpc-surface"
+	shutdownNameChat                  = "close-chat-database"
+	shutdownNameDocument              = "close-document-database"
+	shutdownNameTelemetry             = "shutdown-telemetry"
+	httpEdgeReadHeaderTimeoutValue    = 10 * time.Second
 )
 
 // operationStoreAdapter keeps the transport contract at the composition
@@ -175,7 +208,7 @@ func mapOperationStoreError(err error) error {
 type ServeInput struct {
 	Config ServeConfig
 	// Pool is the one pool this process opened. It is required for the
-	// PostgreSQL store, the operator surface's workflow-instance reader and
+	// PostgreSQL store, the workflow-control projection and
 	// the P1B execution driver; a composition that supplies its own store,
 	// leaves -execution-authority off and does not exercise the operator
 	// read may pass nil.
@@ -203,6 +236,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	graph := newGraphBuilder(RoleServe)
 	graph.add(ComponentConfig, KindConfig, cfg)
 	graph.add(ComponentDatabasePool, KindAdapter, in.Pool)
+	pilotReliability, err := loadPilotReliability(time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("application: %w", err)
+	}
+	graph.add(ComponentPilotReliability, KindGovernance, pilotReliability, ComponentConfig)
 
 	graph.add(ComponentSchemaMigrator, KindAdapter, options.Migrate)
 	if cfg.Migrate {
@@ -240,6 +278,14 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	verifier, err := composeVerifier(cfg, options)
 	if err != nil {
 		return nil, err
+	}
+	baseVerifier := verifier
+	oidcFlow, oidcSessions, err := composeOIDCWorkspaceLogin(ctx, in.Pool, cfg, baseVerifier, options.Now)
+	if err != nil {
+		return nil, err
+	}
+	if oidcSessions != nil {
+		verifier = oidcSessions
 	}
 	graph.add(ComponentCredentialVerifier, KindAdapter, verifier, ComponentConfig)
 	keys, keyErr := parseLegalEvidenceIssuerKeys(cfg.LegalEvidenceIssuerKeys)
@@ -315,6 +361,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		}
 	}
 	cellConfig := app.CellConfig{
+		Health:           newServeHealth(cfg, in.Pool, options.HealthPoolPing, options.CurrentHealthConfigFingerprint, options.HealthCheckInterval, options.HealthCheckTimeout),
 		Store:            store,
 		Verifier:         verifier,
 		LegalEvidence:    legalEvidence,
@@ -324,7 +371,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		EventLogger:      eventLogger(logger),
 		Workspace:        &workspaceEnabled,
 		DevBrowserLogin:  cfg.DevBrowserLogin,
-		DevPersonas:      append(composeDevPersonas(verifier, cfg, options.Now), composeDevEmployeePersonas(verifier, cfg, options.Now)...),
+		DevPersonas:      append(composeDevPersonas(baseVerifier, cfg, options.Now), composeDevEmployeePersonas(baseVerifier, cfg, options.Now)...),
 		DevDirectory:     composeDevDirectory(cfg),
 		PublicOrigin:     cfg.PublicOrigin,
 		Evidence:         evidence,
@@ -343,7 +390,10 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		Clock:                options.Clock,
 		IDs:                  options.IDs,
 		Preferences:          preferencestore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)),
+		KnowledgeSearch:      contentregistrystore.New(in.Pool),
 		RoleAccess:           roleAccess,
+		PageLedger:           pageledgerstore.New(in.Pool, pgstore.TenantID),
+		Catalogs:             i18ncatalogstore.New(in.Pool, pgstore.TenantID),
 		WorkerIDs:            workerIDs,
 		// REV-096-01: the promotion routing predicate's production reader. A
 		// subject's most recently finalized calibration is resolved from the
@@ -356,9 +406,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		// registered with the execution authority.
 		PromotionPlan: cfg.WorkflowPlan,
 	}
+	applyWorkspaceOIDCLogin(&cellConfig, cfg, oidcFlow, oidcSessions)
 	cellConfig.WorkflowCapabilityPolicy, cellConfig.WorkflowPaletteExtensions = localDevelopmentWorkflowAuthoring(cfg)
 	graph.add(ComponentPresentationPrefs, KindAdapter, cellConfig.Preferences, ComponentDatabasePool)
 	graph.add(ComponentRoleAccess, KindAdapter, cellConfig.RoleAccess, ComponentDatabasePool)
+	graph.add("page-ledger-store", KindAdapter, cellConfig.PageLedger, ComponentDatabasePool)
 	graph.add(ComponentPayBandCatalog, KindPort, cellConfig.Bands)
 
 	if cfg.ExecutionAuthority {
@@ -394,6 +446,54 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	var serviceHandlers transportcell.ServiceHandlers
+	if in.Pool != nil {
+		tenantUUID := tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)
+		publishedDefinitions := integrationregistry.New(in.Pool)
+		dataOpsHandler, serviceErr := cell.NewDataOpsHandler(dataopsartifactstore.New(in.Pool, tenantUUID), options.Now)
+		if serviceErr != nil {
+			return nil, fmt.Errorf("application: compose authorized DataOps handlers: %w", serviceErr)
+		}
+		stageHandler := dataopsimport.New(dataopsstore.New(in.Pool), tenantUUID, options.Now)
+		integrationService, serviceErr := NewIntegrationService(IntegrationOptions{
+			Definitions: publishedDefinitions,
+			TenantID: func(tenant string) uuid.UUID {
+				return tenantUUID(kernelvalues.TenantId(tenant))
+			},
+			Observations: cell.Observations,
+			Now:          options.Now,
+		})
+		if serviceErr != nil {
+			return nil, fmt.Errorf("application: compose published Integration registry: %w", serviceErr)
+		}
+		parameterHandler := transportparameters.NewHandler(nil)
+		if cfg.ParameterEnvironment != "" {
+			registry := dataconfigregistry.New(in.Pool)
+			servedParameters, parameterErr := platformconfig.NewServedParameters(
+				TrustedParameterPrincipal{},
+				ActiveRegistryParameterDefinitions{Registry: registry, TenantUUID: func(tenant string) uuid.UUID {
+					return tenantUUID(kernelvalues.TenantId(tenant))
+				}},
+				OrganizationParameterScopes{Graph: StoredParameterOrganizationGraph{DB: in.Pool, TenantUUID: tenantUUID}, Clock: WallClockParameterClock{}},
+				CellParameterEnvironment{Environment: platformconfig.ParameterEnvironment(cfg.ParameterEnvironment)},
+				WallClockParameterClock{},
+				configparamstore.New(in.Pool, func(tenant string) uuid.UUID {
+					return tenantUUID(kernelvalues.TenantId(tenant))
+				}),
+			)
+			if parameterErr != nil {
+				return nil, fmt.Errorf("application: compose served tenant parameters: %w", parameterErr)
+			}
+			parameterHandler = transportparameters.NewHandler(servedParameters)
+		}
+		serviceHandlers = transportcell.ServiceHandlers{
+			DataOps: dataOpsHandler, DataOpsStage: stageHandler, Integration: integrationService,
+			IntegrationPublisher: newIntegrationDefinitionPublisher(publishedDefinitions, func(tenant string) uuid.UUID {
+				return tenantUUID(kernelvalues.TenantId(tenant))
+			}, options.Now),
+			Parameters: parameterHandler,
+		}
+	}
 	graph.add(ComponentCell, KindRegistry, cell,
 		ComponentIntentStore, ComponentCredentialVerifier, ComponentTelemetryProvider,
 		ComponentEvidenceSink, ComponentLegalEvidenceVerifier, ComponentPayBandCatalog, ComponentProposalExecutor)
@@ -424,7 +524,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if chatSessions != nil || cfg.Profile == ServeProfileLocalDev {
 		chatFacts = newCurrentWorkerChatFacts(roleAccess, in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), chatSessions)
 	}
-	chatRuntime, err := composeChat(ctx, cfg, options.Now, chatFacts, in.Pool)
+	chatRuntime, err := composeChat(ctx, cfg, options.Now, chatFacts, in.Pool, cell.Service)
 	if err != nil {
 		// composeChat returns nil unless -chat-enabled is set, so this is an
 		// enabled surface that cannot answer: mounting its routes would serve
@@ -445,7 +545,26 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		return nil, err
 	}
 	if documentRuntime.store != nil {
-		documentRuntime.service = documentService{store: documentRuntime.store, recipientAllowed: documentRecipientValidator(in.Pool)}
+		// documentRoutes is core's document ID route directory (HUB-002), in
+		// memory for this process the same way chat's CHAT-002 directory is;
+		// a durable composition swaps this for a persisted implementation of
+		// documenthubstore.DocumentRouteDirectory without touching call
+		// sites. agentApps resolves an installed chat agent's own
+		// installation for HUB-031 agent search; a chat composition that
+		// never ran (chatRuntime.extensions is nil) leaves it nil, and
+		// AgentSearchDocuments then refuses every call as not installed
+		// rather than silently granting one.
+		documentRoutes := documenthubstore.NewMemoryDocumentRoutes()
+		var agentApps agentInstallationRepository
+		if chatRuntime.extensions != nil && chatRuntime.extensions.Apps != nil {
+			agentApps = chatRuntime.extensions.Apps.Repo
+		}
+		documentRuntime.service = documentService{
+			store: documentRuntime.store, recipientAllowed: documentRecipientValidator(in.Pool), embedder: documentRuntime.embedder, indexer: documentRuntime.indexer,
+			ownerNames: documentOwnerNames(in.Pool), people: documentPeopleDirectory(in.Pool),
+			routes: documentRoutes, aud: documentAudienceEligibility(chatRuntime.service), agentApps: agentApps, agentNow: options.Now,
+		}
+		documentRuntime.service = withDocumentChat(documentRuntime.service, chatRuntime.service)
 	}
 	documentCommitted := false
 	defer func() {
@@ -478,15 +597,13 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// directly, because only internal/transport may import grpc-go/Connect
 	// (LIB-003).
 	//
-	// AdminService.GetWorkflowInstance (ADMIN-008) additionally needs the
-	// application-side workflow instance reader, which app.Cell itself has no
-	// field for because the operator surface is served whether or not the
-	// execution authority is composed; the pool and the same tenant-key
-	// derivation ComposeExecutionAuthority uses are in scope here, so this
-	// composition root is what builds it.
-	workflowInstanceReader := app.NewWorkflowInstanceReader(in.Pool,
+	// Workflow-control reads use this separate control projection. The admin
+	// inspector below uses inspect.Load through WorkflowInstanceInspector.
+	workflowControlReader := app.NewWorkflowControlReader(in.Pool,
 		tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
-	graph.add(ComponentWorkflowInstanceRead, KindPort, workflowInstanceReader, ComponentDatabasePool)
+	graph.add(ComponentWorkflowControlRead, KindPort, workflowControlReader, ComponentDatabasePool)
+	workflowInspector := app.NewWorkflowInstanceInspector(in.Pool,
+		tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), workflowversionstore.Store{DB: in.Pool})
 	// EP-WORK-001: the work-item queue reader is composed over the same pool
 	// and tenant mapping; it powers WorkService.ListWorkItems/GetWorkItem on
 	// both surfaces below.
@@ -516,29 +633,111 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// INTAPI-006: GetThresholdTable is served through the reference
 	// promotion-approval decision table until a tenant publishes its own.
 	thresholds := newServedThresholds()
+	chainRegistry, err := hashchain.NewRegistry()
+	if err != nil {
+		return nil, fmt.Errorf("application: build ledger explorer chain registry: %w", err)
+	}
+	chainDigester := hashchain.NewDigester(chainRegistry)
+	configureAdmin := func(deps *transportadmin.Dependencies) {
+		ConfigureLedgerExplorerAdminDependencies(deps, in.Pool, chainDigester)
+		deps.WorkflowInspector = workflowInspector
+	}
 
-	grpcServer, err := transportcell.NewGRPCServerWithWorkflowInspectorAndOperationsAndChat(
-		cell, workflowInstanceReader, workQueueReader, operationStore, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds, chatRuntime.service)
+	grpcServer, err := transportcell.NewGRPCServerWithWorkflowInspectorAndOperationsAndChatAndAdminDependenciesAndServices(
+		cell, workflowControlReader, workQueueReader, operationStore, pageCursorKey, previousPageCursorKey,
+		workWritePorts, thresholds, chatRuntime.service, configureAdmin, serviceHandlers)
 	if err != nil {
 		return nil, err
 	}
+	var notificationFeed *NotificationFeed
+	workflowNotifications, notificationErr := requiredWorkflowNotificationReader(cell.Journey, cfg.ExecutionAuthority)
+	if notificationErr != nil {
+		return nil, notificationErr
+	}
+	if workflowNotifications != nil {
+		notificationFeed, err = NewNotificationFeed(in.Pool,
+			func(tenant kernelvalues.TenantId) (uuid.UUID, error) { return pgstore.TenantID(string(tenant)), nil },
+			journeyNotificationVisibility{engine: cell.Journey, notifications: workflowNotifications}, cfg.PageCursorKey, options.Now)
+		if err != nil {
+			return nil, err
+		}
+		transportcell.RegisterNotificationFeed(grpcServer, notificationFeed)
+	} else {
+		logger.Info("hcmnext.notification_feed_unavailable", "reason", "served journey engine does not expose current notification authorization")
+	}
+	graph.add(ComponentNotificationFeed, KindAdapter, notificationFeed, ComponentDatabasePool, ComponentJourneyEngine)
+	transportadmin.RegisterLedgerEvidence(grpcServer, NewLedgerEvidenceExport(in.Pool))
 	transportcell.RegisterChatExtensions(grpcServer, chatRuntime.extensions)
 	transportcell.RegisterDocument(grpcServer, documentRuntime.service, pageCursorKey)
-	graph.add(ComponentGRPCSurface, KindTransport, grpcServer, ComponentCell, ComponentWorkflowInstanceRead)
+	graph.add(ComponentGRPCSurface, KindTransport, grpcServer, ComponentCell, ComponentWorkflowControlRead, ComponentNotificationFeed)
 
 	// INTAPI-006: the tunnel bridges a workspace-only server, never the
 	// main one, so the operator surfaces stay off the browser route.
 	// The browser chat client speaks both chat services over this tunnel,
 	// so they are registered here (composed when chat is enabled, generated
 	// stubs otherwise) and admitted by the tunnel's service allowlist.
-	tunnelServer, err := transportcell.NewTunnelGRPCServerWithChatAndDocument(
-		cell, workflowInstanceReader, workQueueReader, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds,
-		chatRuntime.service, chatRuntime.extensions, documentRuntime.service)
+	var positionDB dbport.Beginner
+	if in.Pool != nil {
+		positionDB = in.Pool
+	}
+	positionReads := NewPositionReadService(
+		positionDB,
+		tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID),
+		PositionPageViewer(cell.RoleAccess),
+		PositionPageAuthorizer(cell.RoleAccess, func(ctx context.Context, principal *trust.Principal) (string, error) {
+			if cell.Journey == nil || principal == nil {
+				return "", fmt.Errorf("application: viewer assignment is unavailable")
+			}
+			workers, _, err := cell.Journey.ListWorkers(ctx)
+			if err != nil {
+				return "", err
+			}
+			for _, worker := range workers {
+				if strings.TrimSpace(worker.SubjectID) == principal.Subject() {
+					return strings.TrimSpace(worker.OrgUnit), nil
+				}
+			}
+			return "", fmt.Errorf("application: viewer assignment is unavailable")
+		}), options.Now,
+	)
+	positionDeps := positionTransportDependencies(positionReads)
+	tunnelServer, err := transportcell.NewTunnelGRPCServerWithChatDocumentAndPosition(
+		cell, workflowControlReader, workQueueReader, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds,
+		chatRuntime.service, chatRuntime.extensions, documentRuntime.service, positionDeps)
 	if err != nil {
 		return nil, err
 	}
-	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnelAndDependenciesAndChat(
-		cell, tunnelServer, workflowInstanceReader, workQueueReader, operationStore, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds, chatRuntime.service)
+	reviewParticipantsReads := ReviewParticipantsReadService{
+		Graphs: performancestore.New(in.Pool), Roles: cell.RoleAccess,
+		ResolveGraphTenant: func(tenant kernelvalues.TenantId) (performance.TenantID, error) {
+			return pgstore.TenantID(string(tenant)), nil
+		},
+		ResolveWorker: func(ctx context.Context, principal *trust.Principal) (string, error) {
+			if cell.Journey == nil || principal == nil {
+				return "", ErrReviewParticipantsBinding
+			}
+			workers, _, err := cell.Journey.ListWorkers(ctx)
+			if err != nil {
+				return "", err
+			}
+			for _, worker := range workers {
+				if strings.TrimSpace(worker.SubjectID) == principal.Subject() {
+					workerID := strings.TrimSpace(worker.WorkerID)
+					if workerID != "" {
+						return workerID, nil
+					}
+					return "", ErrReviewParticipantsBinding
+				}
+			}
+			return "", ErrReviewParticipantsBinding
+		},
+	}
+	transportreviewparticipants.Register(tunnelServer, transportreviewparticipants.Dependencies{
+		Read:     reviewParticipantsReads.Read,
+		IsDenied: func(err error) bool { return errors.Is(err, ErrReviewParticipantsDenied) },
+	})
+	edgeHandler, err := transportcell.NewEdgeHandlerWithTunnelAndDependenciesAndChatAndServices(
+		cell, tunnelServer, workflowControlReader, workQueueReader, operationStore, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds, chatRuntime.service, serviceHandlers)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +751,42 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		}
 		edgeHandler = OverlayChatMedia(edgeHandler, mediaCfg, cell.Config)
 	}
-	graph.add(ComponentHTTPEdge, KindTransport, edgeHandler, ComponentCell, ComponentGRPCSurface)
+	if documentRuntime.store != nil {
+		edgeHandler = OverlayDocumentMedia(edgeHandler, documentRuntime.store, DefaultDocumentMediaRoot(cfg.ChatMediaRoot, cfg.ArtifactRoot), cell.Config)
+		edgeHandler = transportcell.DocumentHTTPOverlay(edgeHandler, cell.Config, documentRuntime.service, pageCursorKey)
+	}
+	configBundleControl, err := newConfigBundleControl(cfg, cell.Config.Now, dataconfigregistry.New(in.Pool))
+	if err != nil {
+		return nil, err
+	}
+	if configBundleControl != nil {
+		configBundleControl.configureKillSwitchPersistence(dataconfigbundlekill.New(in.Pool, configBundleControl.receiptPublic))
+		edgeHandler = overlayConfigBundleControl(edgeHandler, cell.Config, configBundleControl)
+		graph.add(ComponentConfigBundleControl, KindAdapter, configBundleControl, ComponentConfig, ComponentCredentialVerifier)
+	}
+	if in.Pool != nil {
+		registry, _, registryErr := health.LoadOrDefaultDispositionRegistry(health.DefaultRegistryPath)
+		if registryErr != nil {
+			return nil, fmt.Errorf("load store-health disposition registry: %w", registryErr)
+		}
+		probe := health.NewProbe(in.Pool, registry, health.DefaultPolicy())
+		edgeHandler = overlayStoreHealth(edgeHandler, cell.Config, probe, platformcache.New[health.Snapshot](platformcache.Config{TTL: 10 * time.Second}))
+		graph.add(ComponentStoreHealth, KindAdapter, probe, ComponentDatabasePool, ComponentCredentialVerifier)
+	}
+	edgeHandler = composeSIEMHTTP(edgeHandler, cell.Config, options.SIEMRingResolver, in.Pool)
+	providerWebhooks, err := composeProviderWebhookReceivers(cfg, in.Pool, options.Now)
+	if err != nil {
+		return nil, err
+	}
+	if providerWebhooks.payroll != nil || providerWebhooks.iam != nil {
+		edgeHandler = transportwebhook.OverlayProviderReceivers(edgeHandler, providerWebhooks.payroll, providerWebhooks.iam)
+		graph.add(ComponentProviderWebhookReceivers, KindTransport, providerWebhooks, ComponentDatabasePool, ComponentConfig)
+	}
+	httpDependencies := []string{ComponentCell, ComponentGRPCSurface}
+	if providerWebhooks.payroll != nil || providerWebhooks.iam != nil {
+		httpDependencies = append(httpDependencies, ComponentProviderWebhookReceivers)
+	}
+	graph.add(ComponentHTTPEdge, KindTransport, edgeHandler, httpDependencies...)
 
 	listen := options.listen()
 	grpcListener, err := listen("tcp", cfg.GRPCListen)
@@ -644,6 +878,14 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			},
 		},
 	}
+	if configBundleControl != nil {
+		workloads = append(workloads, bootstrap.Workload{
+			Name: "configbundle-receiver",
+			Run: func(ctx context.Context) error {
+				return configBundleControl.runReceiver(ctx, time.Second)
+			},
+		})
+	}
 	if cfg.Scheduler {
 		workloads = append(workloads, schedulerWorkload, progressWorkload)
 	}
@@ -701,6 +943,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	graph.add(ComponentWorkloadGRPC, KindWorkload, workloads[0].Run, ComponentGRPCSurface)
 	graph.add(ComponentWorkloadHTTP, KindWorkload, workloads[1].Run, ComponentHTTPEdge)
+	if configBundleControl != nil {
+		graph.add(ComponentConfigBundleReceiver, KindWorkload, func(ctx context.Context) error {
+			return configBundleControl.runReceiver(ctx, time.Second)
+		}, ComponentConfigBundleControl)
+	}
 	if cfg.Scheduler {
 		graph.add(ComponentWorkloadScheduler, KindWorkload, schedulerWorkload.Run, ComponentCell, ComponentDatabasePool)
 		graph.add(ComponentWorkloadProgress, KindWorkload, progressWorkload.Run, ComponentDatabasePool, ComponentTelemetryProvider)
@@ -720,16 +967,17 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	chatCommitted = true
 	documentCommitted = true
 	return &App{
-		role:        RoleServe,
-		graph:       graph.graph(),
-		logger:      logger,
-		cell:        cell,
-		disposition: disposition,
-		grpcAddr:    grpcListener.Addr().String(),
-		httpAddr:    httpListener.Addr().String(),
-		workloads:   workloads,
-		shutdown:    shutdown,
-		listeners:   []net.Listener{grpcListener, httpListener},
+		role:             RoleServe,
+		graph:            graph.graph(),
+		logger:           logger,
+		cell:             cell,
+		disposition:      disposition,
+		pilotReliability: pilotReliability,
+		grpcAddr:         grpcListener.Addr().String(),
+		httpAddr:         httpListener.Addr().String(),
+		workloads:        workloads,
+		shutdown:         shutdown,
+		listeners:        []net.Listener{grpcListener, httpListener},
 	}, nil
 }
 
@@ -832,6 +1080,40 @@ type developmentTokenIssuer interface {
 // composeDevPersonas creates local identities only when the operator enabled
 // the dev browser login and the configured verifier can issue development
 // tokens. A federation verifier therefore never acquires an implicit issuer.
+// ConfigureLedgerExplorerAdminDependencies wires the read-only ledger ports
+// over the caller's existing tenant-scoped querier. Until a trusted policy
+// and classification source can authorize raw ledger values, payload and
+// provenance are explicitly withheld; OperatorRole alone never opens them.
+func ConfigureLedgerExplorerAdminDependencies(deps *transportadmin.Dependencies, q dbport.Querier, digester *hashchain.Digester) {
+	if deps == nil {
+		return
+	}
+	deps.ResolveLedgerTenant = func(_ context.Context, tenantKey string) (uuid.UUID, error) {
+		return pgstore.TenantID(tenantKey), nil
+	}
+	if q == nil || digester == nil {
+		return
+	}
+	deps.ListLedgerStream = func(ctx context.Context, tenant uuid.UUID, stream string) (explorer.StreamListingView, error) {
+		return explorer.StreamListing(ctx, q, tenant, stream, ledgerMetadataOnlyDecision())
+	}
+	deps.VerifyLedgerChain = func(ctx context.Context, tenant uuid.UUID, stream string) (explorer.ChainView, error) {
+		return explorer.VerifyChain(ctx, q, digester, tenant, stream)
+	}
+}
+
+func ledgerMetadataOnlyDecision() *authz.Decision {
+	return &authz.Decision{
+		PolicyVersions:     []string{authz.PolicyVersion},
+		Purpose:            "operator_diagnostics",
+		SubjectDisclosable: true,
+		Fields: map[authz.FieldID]authz.FieldRuling{
+			explorer.FieldPayload:    {Effect: authz.EffectDenied, RuleID: "admin.explorer.policy_unavailable"},
+			explorer.FieldProvenance: {Effect: authz.EffectDenied, RuleID: "admin.explorer.policy_unavailable"},
+		},
+	}
+}
+
 func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() time.Time) []workspace.DevPersona {
 	if !cfg.DevBrowserLogin || cfg.Tenant != demoworkforce.CompanyKey {
 		return nil
@@ -843,7 +1125,6 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 	if now == nil {
 		now = time.Now
 	}
-	timestamp := now().UTC()
 	// id, workerNumber, access, and purpose are the only facts specific to
 	// this demo-tenant binding; the role bundle each persona is issued comes
 	// from workspace.DevPersonaRoleSets, the one fixture the sign-in page's
@@ -894,12 +1175,18 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 			// persona at all.
 			continue
 		}
-		token, err := issuer.Issue(trust.Claims{
+		claims := trust.Claims{
 			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: worker.Row.WorkerKey, SubjectKind: "human", Tenant: cfg.Tenant,
 			OrganizationScopeID: "org:" + cfg.Tenant + ":people-ops", Roles: roles, Purposes: []string{spec.purpose},
 			AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session-local-persona-" + spec.id,
-			IssuedAtUnix: timestamp.Add(-time.Minute).Unix(), ExpiresAtUnix: timestamp.Add(8 * time.Hour).Unix(),
-		})
+		}
+		issueToken := func() (string, error) {
+			timestamp := now().UTC()
+			claims.IssuedAtUnix = timestamp.Add(-time.Minute).Unix()
+			claims.ExpiresAtUnix = timestamp.Add(8 * time.Hour).Unix()
+			return issuer.Issue(claims)
+		}
+		token, err := issueToken()
 		if err != nil {
 			continue
 		}
@@ -912,7 +1199,7 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 			// one cannot re-assert a capability its role does not hold.
 			access = worker.JobTitle + " (self-service)"
 		}
-		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token, WorkerRef: worker.Row.WorkerKey})
+		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token, IssueToken: issueToken, WorkerRef: worker.Row.WorkerKey})
 	}
 	return personas
 }
@@ -923,6 +1210,17 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 func ServeSpec(args []string, opts ...Option) bootstrap.Spec {
 	options := Options{}.Apply(opts...)
 	fields := ServeConfigFieldsForArgs(args)
+	if options.CurrentHealthConfigFingerprint == nil {
+		configArgs := append([]string(nil), args...)
+		configFields := append([]bootstrap.Field(nil), fields...)
+		options.CurrentHealthConfigFingerprint = func() (string, error) {
+			current, err := bootstrap.ParseConfig(configArgs, os.LookupEnv, configFields)
+			if err != nil {
+				return "", err
+			}
+			return current.Fingerprint(), nil
+		}
+	}
 
 	// The store needs a pool it can Begin and Query on, and bootstrap's
 	// DBPool port is deliberately narrower than that. The factory therefore

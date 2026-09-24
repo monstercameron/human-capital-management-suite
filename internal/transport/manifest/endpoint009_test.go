@@ -26,8 +26,8 @@ func TestContractedIntentAndCapabilityEndpointDispositionIsTotal(t *testing.T) {
 	if len(report.Intents) != 14 {
 		t.Fatalf("expected all fourteen intent definitions, got %d", len(report.Intents))
 	}
-	if len(report.Capabilities) != 10 {
-		t.Fatalf("expected all ten BOOTSTRAP capabilities, got %d", len(report.Capabilities))
+	if len(report.Capabilities) != 11 {
+		t.Fatalf("expected all eleven BOOTSTRAP capabilities, got %d", len(report.Capabilities))
 	}
 
 	seenIntent := map[string]bool{}
@@ -158,6 +158,7 @@ func TestTodo_ENDPOINT_009_Golden(t *testing.T) {
 	}
 
 	goldenCaps := map[string]EndpointDispositionCategory{
+		"hcmnext.dataops.explain_field_history":      CategoryGenericIntentLifecycleOnly,
 		"hcmnext.people.explain_worker_state":        CategoryGenericIntentLifecycleOnly,
 		"hcmnext.people.promote_worker":              CategoryGenericIntentLifecycleOnly,
 		"hcmnext.rewards.simulate_compensation":      CategoryGenericIntentLifecycleOnly,

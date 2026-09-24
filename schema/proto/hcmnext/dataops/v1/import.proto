@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package hcmnext.dataops.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/dataops/v1;dataopsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// StageCSVRequest is one bounded frame of a CSV import. The first frame must
+// carry source_uri and idempotency_key; subsequent frames carry only csv_chunk.
+// A stream uses bounded frames so the service can accept the domain's 64 MiB
+// source budget without raising gRPC's per-message limit above the default.
+message StageCSVRequest {
+  string source_uri = 1;
+  string idempotency_key = 2;
+  bytes csv_chunk = 3;
+}
+
+enum StagedImportStatus {
+  STAGED_IMPORT_STATUS_UNSPECIFIED = 0;
+  STAGED_IMPORT_STATUS_STAGED = 1;
+}
+
+// StagedImport is an immutable staging receipt. tenant_id is derived from the
+// authenticated principal; it is never accepted from StageCSVRequest.
+message StagedImport {
+  StagedImportStatus status = 1;
+  string batch_id = 2;
+  uint64 row_count = 3;
+  string source_hash = 4;
+  string schema_candidate = 5;
+  string classification = 6;
+  string tenant_id = 7;
+  string batch_digest = 8;
+  string source_uri = 9;
+  google.protobuf.Timestamp retrieved_at = 10;
+}
+
+message StageCSVResponse {
+  StagedImport staged_import = 1;
+}

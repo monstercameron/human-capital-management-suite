@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	DataOpsService_StageCSV_FullMethodName            = "/hcmnext.dataops.v1.DataOpsService/StageCSV"
 	DataOpsService_ExplainFieldHistory_FullMethodName = "/hcmnext.dataops.v1.DataOpsService/ExplainFieldHistory"
 	DataOpsService_DiffRecord_FullMethodName          = "/hcmnext.dataops.v1.DataOpsService/DiffRecord"
 	DataOpsService_CreateRepairPlan_FullMethodName    = "/hcmnext.dataops.v1.DataOpsService/CreateRepairPlan"
@@ -42,6 +43,9 @@ const (
 // produces a non-executable recommendation only and SimulateRepair performs a
 // pure in-memory projection.
 type DataOpsServiceClient interface {
+	// StageCSV accepts a bounded client stream and writes only an immutable
+	// staging artifact. The tenant is derived from the authenticated principal.
+	StageCSV(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[StageCSVRequest, StageCSVResponse], error)
 	// P1A disposition: IMPLEMENT. Read-only effective-date debugger
 	// (planning/specs/hris-admin-dataops.md "Effective-Date Debugger").
 	ExplainFieldHistory(ctx context.Context, in *ExplainFieldHistoryRequest, opts ...grpc.CallOption) (*ExplainFieldHistoryResponse, error)
@@ -64,6 +68,19 @@ type dataOpsServiceClient struct {
 func NewDataOpsServiceClient(cc grpc.ClientConnInterface) DataOpsServiceClient {
 	return &dataOpsServiceClient{cc}
 }
+
+func (c *dataOpsServiceClient) StageCSV(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[StageCSVRequest, StageCSVResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &DataOpsService_ServiceDesc.Streams[0], DataOpsService_StageCSV_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[StageCSVRequest, StageCSVResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DataOpsService_StageCSVClient = grpc.ClientStreamingClient[StageCSVRequest, StageCSVResponse]
 
 func (c *dataOpsServiceClient) ExplainFieldHistory(ctx context.Context, in *ExplainFieldHistoryRequest, opts ...grpc.CallOption) (*ExplainFieldHistoryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -122,6 +139,9 @@ func (c *dataOpsServiceClient) SimulateRepair(ctx context.Context, in *SimulateR
 // produces a non-executable recommendation only and SimulateRepair performs a
 // pure in-memory projection.
 type DataOpsServiceServer interface {
+	// StageCSV accepts a bounded client stream and writes only an immutable
+	// staging artifact. The tenant is derived from the authenticated principal.
+	StageCSV(grpc.ClientStreamingServer[StageCSVRequest, StageCSVResponse]) error
 	// P1A disposition: IMPLEMENT. Read-only effective-date debugger
 	// (planning/specs/hris-admin-dataops.md "Effective-Date Debugger").
 	ExplainFieldHistory(context.Context, *ExplainFieldHistoryRequest) (*ExplainFieldHistoryResponse, error)
@@ -145,6 +165,9 @@ type DataOpsServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedDataOpsServiceServer struct{}
 
+func (UnimplementedDataOpsServiceServer) StageCSV(grpc.ClientStreamingServer[StageCSVRequest, StageCSVResponse]) error {
+	return status.Error(codes.Unimplemented, "method StageCSV not implemented")
+}
 func (UnimplementedDataOpsServiceServer) ExplainFieldHistory(context.Context, *ExplainFieldHistoryRequest) (*ExplainFieldHistoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExplainFieldHistory not implemented")
 }
@@ -177,6 +200,13 @@ func RegisterDataOpsServiceServer(s grpc.ServiceRegistrar, srv DataOpsServiceSer
 	}
 	s.RegisterService(&DataOpsService_ServiceDesc, srv)
 }
+
+func _DataOpsService_StageCSV_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DataOpsServiceServer).StageCSV(&grpc.GenericServerStream[StageCSVRequest, StageCSVResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DataOpsService_StageCSVServer = grpc.ClientStreamingServer[StageCSVRequest, StageCSVResponse]
 
 func _DataOpsService_ExplainFieldHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExplainFieldHistoryRequest)
@@ -274,6 +304,12 @@ var DataOpsService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DataOpsService_SimulateRepair_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StageCSV",
+			Handler:       _DataOpsService_StageCSV_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "hcmnext/dataops/v1/dataops_service.proto",
 }

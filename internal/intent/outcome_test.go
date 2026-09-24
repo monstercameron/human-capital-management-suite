@@ -2,6 +2,7 @@ package intent
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -84,13 +85,25 @@ func TestTodo_INTENT_007_Race(t *testing.T) {
 		Dimensions: lifecycle.Dimensions{Request: lifecycle.RequestApproved, Execution: lifecycle.ExecutionCommitted,
 			Business: lifecycle.BusinessCompleted, Consistency: lifecycle.ConsistencyConsistent, Obligation: lifecycle.ObligationSatisfied},
 		Reconciliation: ReconciliationPass, CommitReceiptRef: "receipt.promotion.execute/v1:workflow-1", RecordedAt: at}
-	for i := 0; i < 8; i++ {
-		inst := Instance{IntentID: "intent-1", Definition: def.Ref, Lifecycle: lifecycle.Dimensions{
-			Request: lifecycle.RequestApproved, Execution: lifecycle.ExecutionNotPlanned,
-			Business: lifecycle.BusinessNotStarted, Consistency: lifecycle.ConsistencyPendingObservation,
-			Obligation: lifecycle.ObligationPending}, InstanceVersion: 1}
-		if err := BindOutcome(&inst, def, receipt); err != nil {
-			t.Fatalf("iteration %d: %v", i, err)
+	const workers = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			inst := Instance{IntentID: "intent-1", Definition: def.Ref, Lifecycle: lifecycle.Dimensions{
+				Request: lifecycle.RequestApproved, Execution: lifecycle.ExecutionNotPlanned,
+				Business: lifecycle.BusinessNotStarted, Consistency: lifecycle.ConsistencyPendingObservation,
+				Obligation: lifecycle.ObligationPending}, InstanceVersion: 1}
+			errs <- BindOutcome(&inst, def, receipt)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent outcome binding: %v", err)
 		}
 	}
 }

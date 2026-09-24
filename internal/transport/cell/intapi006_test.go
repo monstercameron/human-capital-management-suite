@@ -77,7 +77,7 @@ type intapiInstanceReader struct {
 	record transportworkflow.Record
 }
 
-func (r *intapiInstanceReader) ReadWorkflowInstance(_ context.Context, tenant, instanceID string) (transportworkflow.Record, error) {
+func (r *intapiInstanceReader) ReadWorkflowControlRecord(_ context.Context, tenant, instanceID string) (transportworkflow.Record, error) {
 	if tenant != r.record.Instance.TenantID || instanceID != r.record.Instance.InstanceID {
 		return transportworkflow.Record{}, transportworkflow.ErrNotFound
 	}

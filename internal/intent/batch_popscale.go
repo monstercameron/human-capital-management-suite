@@ -22,7 +22,7 @@ func popscaleSubjects(snapshot population.Snapshot, pageSize int) ([]string, err
 	// working copy first, exactly as the direct read did. Duplicate members
 	// stay refused: a snapshot that counts the same subject twice is
 	// inconsistent and must not compile.
-	ordered := append([]string(nil), snapshot.SubjectIDList()...)
+	ordered := snapshot.SubjectIDList()
 	sort.Strings(ordered)
 	session, err := popscale.NewSession(population.Snapshot{
 		DefinitionID:     snapshot.DefinitionID,
@@ -39,15 +39,11 @@ func popscaleSubjects(snapshot population.Snapshot, pageSize int) ([]string, err
 		return nil, fmt.Errorf("intent: batch population session: %w", err)
 	}
 	var subjects []string
-	for token := ""; ; {
-		page, err := session.Page(token)
-		if err != nil {
-			return nil, fmt.Errorf("intent: batch population page: %w", err)
-		}
+	if err := session.Walk(func(page popscale.Page) error {
 		subjects = append(subjects, page.Subjects...)
-		if !page.Truncated {
-			return subjects, nil
-		}
-		token = page.NextToken
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("intent: batch population pages: %w", err)
 	}
+	return subjects, nil
 }

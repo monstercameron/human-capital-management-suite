@@ -2,6 +2,7 @@ package grpcserver
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"google.golang.org/grpc"
@@ -84,7 +85,7 @@ func admit(ctx context.Context, cfg transport.Config, method string, message pro
 // record against - admission is what would have constructed one - so the
 // record carries the correlation identifier the refusal itself resolved.
 func (c call) refuse(cfg transport.Config, method string, admitErr *envelope.Error) error {
-	return finish(cfg, method, nil, admitErr.CorrelationID(), c.start, admitErr)
+	return finish(c.ctx, cfg, method, nil, admitErr.CorrelationID(), c.start, admitErr)
 }
 
 // conclude ends an admitted call: it projects the handler's outcome through
@@ -101,9 +102,9 @@ func (c call) conclude(cfg transport.Config, method string, handlerErr error) er
 		outcome = c.ctx.Err()
 	}
 	if outcome != nil {
-		return finish(cfg, method, c.inv, c.inv.RequestID(), c.start, transport.OwnedError(outcome, c.inv))
+		return finish(c.ctx, cfg, method, c.inv, c.inv.RequestID(), c.start, transport.OwnedError(outcome, c.inv))
 	}
-	return finish(cfg, method, c.inv, c.inv.RequestID(), c.start, nil)
+	return finish(c.ctx, cfg, method, c.inv, c.inv.RequestID(), c.start, nil)
 }
 
 // UnaryInterceptor is the whole trusted request boundary for native gRPC
@@ -135,12 +136,15 @@ func UnaryInterceptor(cfg transport.Config) grpc.UnaryServerInterceptor {
 // owned error to hand back to grpc-go. *envelope.Error implements grpc-go's
 // status interface, so returning it directly produces the projected status
 // code plus the canonical hcmnext.common.v1.ErrorDetail.
-func finish(cfg transport.Config, method string, inv *transport.Invocation, requestID string, start time.Time, err *envelope.Error) error {
+func finish(ctx context.Context, cfg transport.Config, method string, inv *transport.Invocation, requestID string, start time.Time, err *envelope.Error) error {
 	if cfg.Logger != nil {
 		cfg.Logger.LogRequest(transport.NewLogRecord(method, transport.KindGRPC, inv, requestID, time.Since(start), err))
 	}
 	if err == nil {
 		return nil
+	}
+	if retryAfter := err.RetryAfter(); retryAfter > 0 {
+		grpc.SetTrailer(ctx, metadata.Pairs("Retry-After", strconv.Itoa(retryAfter)))
 	}
 	return err
 }

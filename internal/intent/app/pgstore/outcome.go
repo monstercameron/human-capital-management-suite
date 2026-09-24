@@ -78,7 +78,6 @@ func (s *Store) BindOutcome(ctx context.Context, in app.OutcomeBinding) error {
 	if uint64(version) != in.ExpectedInstanceVersion {
 		return fmt.Errorf("%w: stored instance version %d, expected %d", app.ErrOutcomeProjectionConflict, version, in.ExpectedInstanceVersion)
 	}
-	nextRequest, nextExecution, nextBusiness, nextConsistency, nextObligation := app.LifecycleColumns(in.Receipt.Dimensions)
 	var legalRef, legalDigest, bindingDigest, proposalID, materialDigest any
 	var appliedObligations, obligationDischarges any
 	if evidence := in.Receipt.LegalEvidence; evidence != nil {
@@ -94,25 +93,23 @@ func (s *Store) BindOutcome(ctx context.Context, in app.OutcomeBinding) error {
 		}
 		appliedObligations, obligationDischarges = encodedApplied, encodedDischarges
 	}
+	if err := applyInstanceLifecycle(ctx, tx, tenantID, intentID, in.ExpectedInstanceVersion+1, in.Receipt.Dimensions, in.Receipt.RecordedAt); err != nil {
+		return err
+	}
 	updated, err := tx.Exec(ctx, `
 		UPDATE intent_instance
-		SET request_state = $3, execution_state = $4, business_state = $5,
-			consistency_state = $6, obligation_state = $7,
-			instance_version = instance_version + 1,
-			recorded_at = $8, last_transition_at = $8,
-			commit_receipt_ref = NULLIF($10, ''), repair_ref = NULLIF($11, ''),
-			legal_evaluation_receipt_ref = $12,
-			legal_evaluation_receipt_digest = $13,
-			legal_evaluation_binding_digest = $14,
-			legal_evaluation_proposal_revision_id = $15,
-			legal_evaluation_material_digest = $16,
-			legal_applied_obligations = $17,
-			legal_obligation_discharges = $18
-		WHERE tenant_id = $1 AND intent_id = $2 AND instance_version = $9`,
-		tenantID, intentID, nextRequest, nextExecution, nextBusiness, nextConsistency,
-		nextObligation, in.Receipt.RecordedAt.UTC(), int64(in.ExpectedInstanceVersion),
-		in.Receipt.CommitReceiptRef, in.Receipt.RepairRef, legalRef, legalDigest,
-		bindingDigest, proposalID, materialDigest, appliedObligations, obligationDischarges)
+		SET commit_receipt_ref = NULLIF($3, ''), repair_ref = NULLIF($4, ''),
+			legal_evaluation_receipt_ref = $5,
+			legal_evaluation_receipt_digest = $6,
+			legal_evaluation_binding_digest = $7,
+			legal_evaluation_proposal_revision_id = $8,
+			legal_evaluation_material_digest = $9,
+			legal_applied_obligations = $10,
+			legal_obligation_discharges = $11
+		WHERE tenant_id = $1 AND intent_id = $2 AND instance_version = $12`,
+		tenantID, intentID, in.Receipt.CommitReceiptRef, in.Receipt.RepairRef,
+		legalRef, legalDigest, bindingDigest, proposalID, materialDigest,
+		appliedObligations, obligationDischarges, int64(in.ExpectedInstanceVersion+1))
 	if err != nil {
 		return fmt.Errorf("pgstore: bind intent outcome: %w", err)
 	}

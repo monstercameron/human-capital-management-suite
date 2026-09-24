@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -53,9 +54,22 @@ func TestTodo_APPROVAL_008_Golden(t *testing.T) {
 }
 
 func TestTodo_APPROVAL_008_Race(t *testing.T) {
-	for i := 0; i < 32; i++ {
-		if err := validateProposalDecisionRequest(validProposalDecisionRequest(), true); err != nil {
-			t.Fatalf("iteration %d: %v", i, err)
+	const workers = 32
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := validateProposalDecisionRequest(validProposalDecisionRequest(), true)
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent request validation: %v", err)
 		}
 	}
 }

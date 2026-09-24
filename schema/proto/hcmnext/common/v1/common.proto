@@ -241,4 +241,6 @@ message ErrorDetail {
   // reason_ref is the stable owned reason identifier (for example
   // `structural.request_rejected`); never free text.
   string reason_ref = 6;
+  // retry_after_seconds is the server-owned delay before a retry is useful.
+  uint32 retry_after_seconds = 7;
 }

@@ -17,24 +17,24 @@ import (
 // adapter owns no queries and makes no authorization decisions; it only
 // converts application records into the generated-boundary projection.
 type workflowReader struct {
-	source app.WorkflowInstanceReader
+	source app.WorkflowControlReader
 }
 
 var _ workflow.Reader = workflowReader{}
 
-func newWorkflowReader(source app.WorkflowInstanceReader) workflow.Reader {
+func newWorkflowReader(source app.WorkflowControlReader) workflow.Reader {
 	if source == nil {
 		return nil
 	}
 	return workflowReader{source: source}
 }
 
-func (r workflowReader) ReadWorkflowInstance(ctx context.Context, tenant, instanceID string) (workflow.Record, error) {
+func (r workflowReader) ReadWorkflowControlRecord(ctx context.Context, tenant, instanceID string) (workflow.Record, error) {
 	id, err := runtime.ParseUUID(instanceID)
 	if err != nil {
 		return workflow.Record{}, workflow.ErrNotFound
 	}
-	record, err := r.source.ReadWorkflowInstance(ctx, values.TenantId(tenant), id)
+	record, err := r.source.ReadWorkflowControlRecord(ctx, values.TenantId(tenant), id)
 	if err != nil {
 		if runtime.CodeOf(err) == runtime.CodeInstanceNotFound {
 			return workflow.Record{}, workflow.ErrNotFound
@@ -66,7 +66,7 @@ func (r workflowReader) ReadWorkflowInstance(ctx context.Context, tenant, instan
 	return converted, nil
 }
 
-func convertWorkflowRecord(record app.WorkflowInstanceRecord) workflow.Record {
+func convertWorkflowRecord(record app.WorkflowControlRecord) workflow.Record {
 	instance := record.Instance
 	out := workflow.Instance{
 		InstanceID:          instance.InstanceID.String(),

@@ -18,6 +18,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	app "github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -39,6 +40,7 @@ type Dependencies struct {
 	Preferences preferences.Store
 	RoleAccess  roleaccess.Store
 	WorkerIDs   workerids.Store
+	Knowledge   app.KnowledgeSearchService
 	// Invalidations is the committed-transition hub
 	// WatchPromotionInvalidations subscribes to (REV-091-03). Nil answers
 	// that stream UNAVAILABLE.
@@ -859,6 +861,29 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 		Options: toWorkforceOptions(options),
 		Workers: s.authorizeWorkers(ctx, principal, workers, visible),
 	}, nil
+}
+
+// ListChatDirectory returns the caller's tenant-scoped business directory for
+// chat identity and reporting-line links. Organization visibility continues
+// to govern ListWorkers; this narrower projection carries no compensation or
+// employment identifiers.
+func (s *server) ListChatDirectory(ctx context.Context, _ *journeyv1.ListChatDirectoryRequest) (*journeyv1.ListChatDirectoryResponse, error) {
+	principal, inv, ctxErr := trustedContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
+	}
+	if err := s.requireServedCall(ctx, principal, inv, "ListChatDirectory"); err != nil {
+		return nil, err
+	}
+	eng, depErr := s.engine(principal, inv, "list_chat_directory")
+	if depErr != nil {
+		return nil, depErr
+	}
+	workers, _, err := eng.ListWorkers(ctx)
+	if err != nil {
+		return nil, ownedError(err, principal, inv, "list_chat_directory")
+	}
+	return &journeyv1.ListChatDirectoryResponse{Workers: chatDirectoryWorkers(workers)}, nil
 }
 
 // CreateWorker forwards to workspace.JourneyEngine.CreateWorker, which records

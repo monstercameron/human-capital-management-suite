@@ -60,7 +60,7 @@ func NewWorkItemQueueReader(db dbport.Beginner, tenantUUID func(values.TenantId)
 var ErrWorkItemQueueReaderUnconfigured = errors.New("app: the work item queue reader is not configured")
 
 // scoped opens a tenant-scoped transaction that is always rolled back, the
-// same read discipline [workflowInstanceReader.ReadWorkflowInstance]
+// same read discipline [workflowControlReader.ReadWorkflowControlRecord]
 // documents: every table here is row-level-security protected, so the tenant
 // has to be established on the session before the first SELECT, and a read
 // that committed would be claiming to have changed something.

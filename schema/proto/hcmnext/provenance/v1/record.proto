@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package hcmnext.provenance.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/provenance/v1;provenancev1";
+
+import "google/protobuf/timestamp.proto";
+
+// Digest is one named digest a provenance record cites. Kind identifies which
+// source fact it verifies; the publisher does not recompute it.
+message Digest {
+  string kind = 1;
+  string algorithm = 2;
+  string digest = 3;
+}
+
+// Record is the typed outbox representation of a persisted provenance edge.
+// Optional source-specific fields are empty when they do not apply.
+message Record {
+  string record_id = 1;
+  string intent_ref = 2;
+  string source_kind = 3;
+  string source_ref = 4;
+  string stream_key = 5;
+  int64 sequence = 6;
+  string event_id = 7;
+  string observation_ref = 8;
+  string connector_ref = 9;
+  string source_authority = 10;
+  string principal_ref = 11;
+  repeated string evidence_ids = 12;
+  repeated Digest digests = 13;
+  google.protobuf.Timestamp published_at = 14;
+}

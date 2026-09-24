@@ -379,7 +379,60 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 		// of the decision the caller asked for.
 		return workspace.JourneyDetail{}, fmt.Errorf("%w: %w", workspace.ErrJourneyStage, done.refusal)
 	}
-	return e.inspectWithRelationships(ctx, intentID, reviewRelationships)
+	detail, inspectErr := e.inspectWithRelationships(ctx, intentID, reviewRelationships)
+	if inspectErr != nil {
+		return workspace.JourneyDetail{}, inspectErr
+	}
+	// HUMAN_APPROVAL can be a multi-step route (finance then manager). The
+	// first approved vote persists acceptance facts, but the product action is
+	// submitted only after the journey has left every approval gate.
+	if d.Approve && detail.Summary.Stage != workspace.JourneyStageFinanceApproval &&
+		detail.Summary.Stage != workspace.JourneyStageManagerApproval {
+		submission, submitErr := e.submitApprovedProductAction(ctx, principal, inst, *simulated.Revision)
+		if submitErr != nil {
+			return workspace.JourneyDetail{}, submitErr
+		}
+		detail.Submission = submission
+	}
+	return detail, nil
+}
+
+// submitApprovedProductAction runs after completeApproval has committed its
+// decision transaction. The action itself is resolved from the durable
+// acceptance row; no caller supplied action identity, actor, or timestamp is
+// trusted here. The in-memory registry serializes exact concurrent retries
+// and returns the first retained submission record.
+func (e *journeyEngine) submitApprovedProductAction(
+	ctx context.Context, principal *trust.Principal, inst intent.Instance, revision intent.ProposalRevision,
+) (*workspace.JourneySubmissionRecord, error) {
+	tx, err := e.beginTenant(ctx, principal)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	accepted, err := (DurableProposalFacts{}).ResolveAcceptedAction(ctx, tx, AcceptedActionLookup{
+		Tenant: principal.Tenant(), TenantID: e.svc.tenantUUID(principal.Tenant()),
+		IntentID: inst.IntentID, ActionID: AcceptedIntentExecutionActionID,
+		ProposalRevisionID: revision.ProposalRevisionID,
+		ProposalDigest:     revision.MaterialDigest.Digest,
+		IdempotencyKey:     acceptedExecutionIdempotencyKey(inst.IntentID, revision.ProposalRevisionID),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("app: journey: resolve committed accepted action: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("app: journey: commit accepted action read: %w", err)
+	}
+	record, _, err := e.svc.submitAcceptedProductAction(accepted)
+	if err != nil {
+		return nil, err
+	}
+	return &workspace.JourneySubmissionRecord{
+		IntentID: record.IntentID, ProposalRevisionID: record.ProposalRevisionID,
+		ProposalDigest: record.ProposalDigest, MaterialDigest: record.MaterialDigest,
+		SubmittedBy: record.SubmittedBy, SubmittedAt: record.SubmittedAt.Time(),
+		IdempotencyKey: record.IdempotencyKey, Digest: record.Digest,
+	}, nil
 }
 
 func (e *journeyEngine) approvalDecisionRelationships(
@@ -686,7 +739,7 @@ func (e *journeyEngine) completeApproval(
 // records nothing: it has no reader for these rows.
 func (e *journeyEngine) recordApprovalDecision(
 	ctx context.Context,
-	tx intentcontrol.Executor,
+	tx dbport.Tx,
 	principal *trust.Principal,
 	inst intent.Instance,
 	revision intent.ProposalRevision,

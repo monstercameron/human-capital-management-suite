@@ -33,6 +33,8 @@ const (
 	JourneyService_WatchJourney_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/WatchJourney"
 	JourneyService_WatchPromotionInvalidations_FullMethodName    = "/hcmnext.journey.v1.JourneyService/WatchPromotionInvalidations"
 	JourneyService_ListWorkers_FullMethodName                    = "/hcmnext.journey.v1.JourneyService/ListWorkers"
+	JourneyService_SearchKnowledge_FullMethodName                = "/hcmnext.journey.v1.JourneyService/SearchKnowledge"
+	JourneyService_ListChatDirectory_FullMethodName              = "/hcmnext.journey.v1.JourneyService/ListChatDirectory"
 	JourneyService_CreateWorker_FullMethodName                   = "/hcmnext.journey.v1.JourneyService/CreateWorker"
 	JourneyService_GetProductPreferences_FullMethodName          = "/hcmnext.journey.v1.JourneyService/GetProductPreferences"
 	JourneyService_SaveUserPreferences_FullMethodName            = "/hcmnext.journey.v1.JourneyService/SaveUserPreferences"
@@ -290,6 +292,15 @@ type JourneyServiceClient interface {
 	// makes the list actionable: a client holding one and not the other can
 	// render a picker but not a form.
 	ListWorkers(ctx context.Context, in *ListWorkersRequest, opts ...grpc.CallOption) (*ListWorkersResponse, error)
+	// SearchKnowledge returns currently activated articles authorized for the
+	// authenticated principal. Tenant, roles and audience come from trusted
+	// request context and are never selected by the caller.
+	SearchKnowledge(ctx context.Context, in *SearchKnowledgeRequest, opts ...grpc.CallOption) (*SearchKnowledgeResponse, error)
+	// ListChatDirectory returns the tenant's chat-safe business directory. It
+	// is deliberately separate from ListWorkers: organization visibility still
+	// governs the people page, while chat needs to resolve coworkers and their
+	// reporting relationships within the caller's tenant.
+	ListChatDirectory(ctx context.Context, in *ListChatDirectoryRequest, opts ...grpc.CallOption) (*ListChatDirectoryResponse, error)
 	// CreateWorker records one new employee as a durable, append-only fact.
 	// Effect class: governed demo-authority write - workspace.JourneyEngine
 	// .CreateWorker is gated by the same P1B execution authority ExecuteJourney
@@ -515,6 +526,26 @@ func (c *journeyServiceClient) ListWorkers(ctx context.Context, in *ListWorkersR
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListWorkersResponse)
 	err := c.cc.Invoke(ctx, JourneyService_ListWorkers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) SearchKnowledge(ctx context.Context, in *SearchKnowledgeRequest, opts ...grpc.CallOption) (*SearchKnowledgeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchKnowledgeResponse)
+	err := c.cc.Invoke(ctx, JourneyService_SearchKnowledge_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *journeyServiceClient) ListChatDirectory(ctx context.Context, in *ListChatDirectoryRequest, opts ...grpc.CallOption) (*ListChatDirectoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListChatDirectoryResponse)
+	err := c.cc.Invoke(ctx, JourneyService_ListChatDirectory_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -911,6 +942,15 @@ type JourneyServiceServer interface {
 	// makes the list actionable: a client holding one and not the other can
 	// render a picker but not a form.
 	ListWorkers(context.Context, *ListWorkersRequest) (*ListWorkersResponse, error)
+	// SearchKnowledge returns currently activated articles authorized for the
+	// authenticated principal. Tenant, roles and audience come from trusted
+	// request context and are never selected by the caller.
+	SearchKnowledge(context.Context, *SearchKnowledgeRequest) (*SearchKnowledgeResponse, error)
+	// ListChatDirectory returns the tenant's chat-safe business directory. It
+	// is deliberately separate from ListWorkers: organization visibility still
+	// governs the people page, while chat needs to resolve coworkers and their
+	// reporting relationships within the caller's tenant.
+	ListChatDirectory(context.Context, *ListChatDirectoryRequest) (*ListChatDirectoryResponse, error)
 	// CreateWorker records one new employee as a durable, append-only fact.
 	// Effect class: governed demo-authority write - workspace.JourneyEngine
 	// .CreateWorker is gated by the same P1B execution authority ExecuteJourney
@@ -1025,6 +1065,12 @@ func (UnimplementedJourneyServiceServer) WatchPromotionInvalidations(*WatchPromo
 }
 func (UnimplementedJourneyServiceServer) ListWorkers(context.Context, *ListWorkersRequest) (*ListWorkersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListWorkers not implemented")
+}
+func (UnimplementedJourneyServiceServer) SearchKnowledge(context.Context, *SearchKnowledgeRequest) (*SearchKnowledgeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchKnowledge not implemented")
+}
+func (UnimplementedJourneyServiceServer) ListChatDirectory(context.Context, *ListChatDirectoryRequest) (*ListChatDirectoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListChatDirectory not implemented")
 }
 func (UnimplementedJourneyServiceServer) CreateWorker(context.Context, *CreateWorkerRequest) (*CreateWorkerResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateWorker not implemented")
@@ -1326,6 +1372,42 @@ func _JourneyService_ListWorkers_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(JourneyServiceServer).ListWorkers(ctx, req.(*ListWorkersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JourneyService_SearchKnowledge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchKnowledgeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).SearchKnowledge(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_SearchKnowledge_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).SearchKnowledge(ctx, req.(*SearchKnowledgeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JourneyService_ListChatDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListChatDirectoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JourneyServiceServer).ListChatDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JourneyService_ListChatDirectory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JourneyServiceServer).ListChatDirectory(ctx, req.(*ListChatDirectoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1654,6 +1736,14 @@ var JourneyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListWorkers",
 			Handler:    _JourneyService_ListWorkers_Handler,
+		},
+		{
+			MethodName: "SearchKnowledge",
+			Handler:    _JourneyService_SearchKnowledge_Handler,
+		},
+		{
+			MethodName: "ListChatDirectory",
+			Handler:    _JourneyService_ListChatDirectory_Handler,
 		},
 		{
 			MethodName: "CreateWorker",

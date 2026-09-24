@@ -9,9 +9,10 @@ import (
 
 // RegistryProfile names how the registry is published. Under BOOTSTRAP the
 // registry is a compiled-in Go table: the build is the publication, and the
-// binary's digest is the snapshot fingerprint. MANAGED — the full propose,
-// validate, review, publish, activate lifecycle with a signed control bundle —
-// arrives at Gate C and is not implemented here.
+// binary's digest is the snapshot fingerprint. MANAGED registries can accept
+// successor definitions through [Registry.PublishManaged], which runs a
+// compatibility gate before returning a new immutable registry. Signed
+// control-bundle activation remains outside this package.
 type RegistryProfile string
 
 // Registry profiles.
@@ -29,10 +30,9 @@ type Catalog struct {
 	Capabilities []string
 }
 
-// Registry publishes the compiled-in intent definitions. It is immutable once
-// constructed: there is no Add, no Remove and no setter, so adding a definition
-// is a source change rather than a runtime call, and there is no count to keep
-// in sync.
+// Registry publishes intent definitions. It is immutable once constructed:
+// BOOTSTRAP additions are source changes, while MANAGED additions go through
+// [Registry.PublishManaged] and return a new registry value.
 type Registry struct {
 	profile     RegistryProfile
 	byRef       map[Ref]Definition

@@ -172,10 +172,11 @@ func BuildDispositionReport(defs []intent.Definition, records []capability.Recor
 			row.Justification = "backs a dedicated RegistryService RPC pair, not the generic IntentService lifecycle"
 			row.ServingEndpoints = sortStrings(endpoints)
 		default:
-			// Every other BOOTSTRAP capability ID is one of the eight P1A
-			// domain capabilities (bootstrap.go bootstrapDefinitions),
-			// dispatched only by the generic IntentService lifecycle
-			// through the DefinitionReference in the request.
+			// Every other BOOTSTRAP capability ID is a P1A domain capability
+			// (the eight intent contracts plus the independently exposed
+			// effective-date debugger; see bootstrap.go bootstrapDefinitions),
+			// dispatched only by the generic IntentService lifecycle through
+			// the DefinitionReference in the request.
 			row.Category = CategoryGenericIntentLifecycleOnly
 			row.Justification = "a P1A domain capability invoked only by IntentService's generic lifecycle dispatch, never by a dedicated typed route"
 			row.ServingEndpoints = genericLifecycleEndpointIDs()

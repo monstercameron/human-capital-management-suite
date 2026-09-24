@@ -10,9 +10,33 @@ import (
 	adminv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/authzsim"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 )
+
+func (s *server) requireLedgerTenant(ctx context.Context, principal *trust.Principal, requested uuid.UUID, inv *transport.Invocation) *envelope.Error {
+	if s.deps.ResolveLedgerTenant == nil {
+		return envelope.New(envelope.CodeUnavailable,
+			"admin.ledger_tenant_resolver_unconfigured",
+			"the authenticated tenant resolver is not configured").
+			WithCorrelation(inv.RequestID()).
+			WithEvidence(envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"})
+	}
+	resolved, err := s.deps.ResolveLedgerTenant(ctx, string(principal.Tenant()))
+	if err != nil {
+		return envelope.Coerce(err)
+	}
+	if resolved != requested {
+		return envelope.New(envelope.CodePermissionDenied,
+			"admin.ledger_tenant_scope_denied",
+			"the requested tenant is outside the authenticated operator scope").
+			WithCorrelation(inv.RequestID()).
+			WithEvidence(envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"})
+	}
+	return nil
+}
 
 // ListLedgerEvents is REV-037-01's operator stream listing: it calls
 // internal/operations/explorer.StreamListing unchanged and maps the view
@@ -36,6 +60,9 @@ func (s *server) ListLedgerEvents(ctx context.Context, req *adminv1.ListLedgerEv
 			"tenant_id is not a UUID").
 			WithCorrelation(inv.RequestID()).
 			WithEvidence(envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"})
+	}
+	if scopeErr := s.requireLedgerTenant(ctx, principal, tenant, inv); scopeErr != nil {
+		return nil, scopeErr
 	}
 	view, err := s.deps.ListLedgerStream(ctx, tenant, req.GetStreamKey())
 	if err != nil {
@@ -92,6 +119,9 @@ func (s *server) GetChainVerification(ctx context.Context, req *adminv1.GetChain
 			WithCorrelation(inv.RequestID()).
 			WithEvidence(envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"})
 	}
+	if scopeErr := s.requireLedgerTenant(ctx, principal, tenant, inv); scopeErr != nil {
+		return nil, scopeErr
+	}
 	view, err := s.deps.VerifyLedgerChain(ctx, tenant, req.GetStreamKey())
 	if err != nil {
 		return nil, envelope.Coerce(err)
@@ -133,6 +163,9 @@ func (s *server) SimulateAuthorization(ctx context.Context, req *adminv1.Simulat
 			"subject_tenant_id is not a UUID").
 			WithCorrelation(inv.RequestID()).
 			WithEvidence(envelope.Evidence{ID: principal.EvidenceID(), Kind: "authentication"})
+	}
+	if scopeErr := s.requireLedgerTenant(ctx, principal, subjectTenant, inv); scopeErr != nil {
+		return nil, scopeErr
 	}
 	kind := values.Kind(req.GetSubjectKind())
 	if err := kind.Validate(); err != nil {

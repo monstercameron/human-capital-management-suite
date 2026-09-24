@@ -19,6 +19,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
 // EP-INTENT-003: SubmitIntent, CancelIntent and SupersedeIntent.
@@ -409,9 +411,27 @@ func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelI
 					return endpoint.Outcome{}, wfErr
 				}
 				if verdict.Bound {
+					if verdict.HasSettlement && verdict.Decision != workflow.CannotCancel &&
+						verdict.TerminalStatus != runtime.InstanceCompleted {
+						if err := applyCancellationSettlement(&working, def, verdict, s.clock().Time()); err != nil {
+							return endpoint.Outcome{}, err
+						}
+					}
 					var decided intent.CancellationDisposition
 					point, repairRef, decided = verdict.governedDisposition(inst.Lifecycle.Execution == lifecycle.ExecutionExecuting)
 					if decided != "" {
+						if working.Lifecycle != inst.Lifecycle {
+							mutator, ok := s.store.(LifecycleMutator)
+							if !ok {
+								return endpoint.Outcome{}, ErrLifecycleWritesUnavailable
+							}
+							if _, mutateErr := mutator.MutateLifecycle(ctx, LifecycleMutation{
+								Tenant: tenant, IntentID: intentID, ExpectedInstanceVersion: rec.InstanceVersion,
+								Lifecycle: working.Lifecycle, RecordedAt: s.clock().Time(),
+							}); mutateErr != nil {
+								return endpoint.Outcome{}, mutateErr
+							}
+						}
 						s.recordCancellationEvidence(ctx, tenant, intentID, string(decided), reasonRef)
 						return endpoint.Outcome{Status: string(decided), ResultDigest: intentID}, nil
 					}
@@ -469,6 +489,75 @@ func (s *IntentService) CancelIntent(ctx context.Context, req *intentsv1.CancelI
 	msg.CancellationDecisions = append(msg.CancellationDecisions,
 		cancellationDecisionProto(final.IntentID, principal, reasonRef, disposition, s.clock().Time()))
 	return &intentsv1.CancelIntentResponse{Intent: msg}, nil
+}
+
+// applyCancellationSettlement moves only the existing business and consistency
+// dimensions through the definition's lifecycle machine. The target values
+// come from the persisted cancellation settlement, never from the request or
+// the cancellation disposition alone.
+func applyCancellationSettlement(inst *intent.Instance, def intent.Definition, verdict BoundCancellationVerdict, at time.Time) error {
+	if !verdict.HasSettlement || inst == nil {
+		return nil
+	}
+	ctx := inst.LifecycleContext(def)
+	machine, err := lifecycle.NewMachine(def.LifecycleProfiles(), inst.Lifecycle, ctx)
+	if err != nil {
+		return fmt.Errorf("app: seed lifecycle settlement: %w", err)
+	}
+	decisionRef := "workflow-cancellation-settlement:" + verdict.SettlementDecision.String()
+	apply := func(next lifecycle.Dimensions) error {
+		if err := machine.Apply(next, ctx, lifecycle.TransitionRecord{
+			At: values.NewInstant(at), ReasonRef: decisionRef, GovernanceDecisionRef: decisionRef,
+		}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	next := machine.Current()
+	if next.Business != verdict.BusinessState {
+		next.Business = verdict.BusinessState
+		if err := apply(next); err != nil {
+			return fmt.Errorf("app: apply cancellation business settlement: %w", err)
+		}
+	}
+	if err := applyConsistencySettlement(machine, verdict.ConsistencyState, apply); err != nil {
+		return fmt.Errorf("app: apply cancellation consistency settlement: %w", err)
+	}
+	if machine.Current() != inst.Lifecycle {
+		inst.Lifecycle = machine.Current()
+		inst.RecordedAt = values.NewInstant(at)
+		inst.LastTransitionAt = values.NewInstant(at)
+	}
+	return nil
+}
+
+func applyConsistencySettlement(machine *lifecycle.Machine, target lifecycle.ConsistencyState, apply func(lifecycle.Dimensions) error) error {
+	current := machine.Current().Consistency
+	if current == target {
+		return nil
+	}
+	move := func(state lifecycle.ConsistencyState) error {
+		next := machine.Current()
+		next.Consistency = state
+		return apply(next)
+	}
+	switch current {
+	case lifecycle.ConsistencyUnspecified, lifecycle.ConsistencyNotApplicable, lifecycle.ConsistencyUnknown:
+		if err := move(lifecycle.ConsistencyPendingObservation); err != nil {
+			return err
+		}
+		current = lifecycle.ConsistencyPendingObservation
+	}
+	if current == target {
+		return nil
+	}
+	if current == lifecycle.ConsistencyDegraded && target == lifecycle.ConsistencyConsistent {
+		if err := move(lifecycle.ConsistencyRepairing); err != nil {
+			return err
+		}
+	}
+	return move(target)
 }
 
 // recordCancellationEvidence durably records that a cancellation was

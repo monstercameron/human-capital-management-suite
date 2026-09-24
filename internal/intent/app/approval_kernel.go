@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -184,7 +185,11 @@ func (e *journeyEngine) voteThroughKernel(ctx context.Context, v journeyVote) (d
 			return started, nil
 		}
 		req.Record = func(ctx context.Context, ex workitem.Executor, _ workitem.WorkItem) error {
-			return e.recordApprovalDecision(ctx, ex, v.principal, v.inst, revision, v.decision, v.at)
+			tx, ok := ex.(dbport.Tx)
+			if !ok {
+				return fmt.Errorf("app: approval decision requires the caller's database transaction")
+			}
+			return e.recordApprovalDecision(ctx, tx, v.principal, v.inst, revision, v.decision, v.at)
 		}
 	}
 	voted, err := kernel.CompleteApproval(ctx, req)

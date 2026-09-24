@@ -50,6 +50,7 @@ const EnvPublicOrigin = "HCMNEXT_PUBLIC_ORIGIN"
 // EnvFederationKeysFile carries the pinned tenant-IdP keys document, so the
 // key material need not appear in a process listing.
 const EnvFederationKeysFile = "HCMNEXT_FEDERATION_KEYS_FILE"
+const EnvOIDCSessionSigningKey = "HCMNEXT_OIDC_SESSION_SIGNING_KEY"
 
 // EnvChatDatabaseURL and EnvChatCursorKey keep the optional chat dependency
 // out of command lines and process listings in deployed environments.
@@ -59,6 +60,11 @@ const EnvChatCursorKey = "HCMNEXT_CHAT_CURSOR_KEY"
 // EnvDocumentDatabaseURL selects Knowledge's independent PostgreSQL database.
 const EnvDocumentDatabaseURL = "HCMNEXT_DOCUMENT_DATABASE_URL"
 
+// EnvParameterEnvironment carries the deployment's isolated parameter-value
+// namespace. It has no default because production and sandbox are explicit
+// deployment decisions.
+const EnvParameterEnvironment = "HCMNEXT_PARAMETER_ENVIRONMENT"
+
 // EnvPageCursorKey and EnvPageCursorPreviousKey carry the dedicated
 // page-cursor signing key and its retired predecessor, so neither appears
 // in a process listing. The page-cursor key is deliberately separate from
@@ -66,6 +72,15 @@ const EnvDocumentDatabaseURL = "HCMNEXT_DOCUMENT_DATABASE_URL"
 // signing material.
 const EnvPageCursorKey = "HCMNEXT_PAGE_CURSOR_KEY"
 const EnvPageCursorPreviousKey = "HCMNEXT_PAGE_CURSOR_PREVIOUS_KEY"
+
+// Provider webhook credentials are configured per endpoint and stay out of
+// command lines in deployed environments.
+const (
+	EnvPayrollWebhookEndpointID = "HCMNEXT_PAYROLL_WEBHOOK_ENDPOINT_ID"
+	EnvPayrollWebhookSecret     = "HCMNEXT_PAYROLL_WEBHOOK_SECRET"
+	EnvIAMWebhookEndpointID     = "HCMNEXT_IAM_WEBHOOK_ENDPOINT_ID"
+	EnvIAMWebhookSecret         = "HCMNEXT_IAM_WEBHOOK_SECRET"
+)
 
 // Configuration field names. They are constants because ServeConfigFields
 // declares them and ServeConfigFromValues reads them back: a typo between the
@@ -113,26 +128,40 @@ const (
 	FieldExecutionRetryResolutionAttempts = "execution-retry-resolution-attempts"
 	FieldPublicOrigin                     = "public-origin"
 	FieldLocalDevNow                      = "local-dev-now"
+	FieldParameterEnvironment             = "parameter-environment"
 	// FieldFederationIssuers and FieldFederationKeysFile are the tenant
 	// IdP configuration (REV-005-01): per-tenant issuer allow-list and the
 	// pinned-keys document backing it. When both are set the listener
 	// authenticates with the federation verifier instead of the dev HMAC
 	// key.
-	FieldFederationIssuers   = "federation-issuers"
-	FieldFederationKeysFile  = "federation-keys-file"
-	FieldChatEnabled         = "chat-enabled"
-	FieldChatDatabaseURL     = "chat-database-url"
-	FieldDocumentDatabaseURL = "document-database-url"
-	FieldChatCursorKey       = "chat-cursor-key"
-	FieldChatMediaRoot       = "chat-media-root"
-	FieldArtifactRoot        = "artifact-root"
+	FieldFederationIssuers         = "federation-issuers"
+	FieldFederationKeysFile        = "federation-keys-file"
+	FieldOIDCIssuerURL             = "oidc-issuer-url"
+	FieldOIDCClientID              = "oidc-client-id"
+	FieldOIDCClientSecret          = "oidc-client-secret"
+	FieldOIDCAuthorizationEndpoint = "oidc-authorization-endpoint"
+	FieldOIDCTokenEndpoint         = "oidc-token-endpoint"
+	FieldOIDCRedirectURI           = "oidc-redirect-uri"
+	FieldOIDCSessionSigningKey     = "oidc-session-signing-key"
+	FieldChatEnabled               = "chat-enabled"
+	FieldChatDatabaseURL           = "chat-database-url"
+	FieldDocumentDatabaseURL       = "document-database-url"
+	FieldChatCursorKey             = "chat-cursor-key"
+	FieldChatMediaRoot             = "chat-media-root"
+	FieldArtifactRoot              = "artifact-root"
 	// FieldPageCursorKey is the dedicated page/stream cursor signing key
 	// (INTAPI-006): the development HMAC key also signed page cursors, so
 	// rotating either meant rotating both. FieldPageCursorPreviousKey is
 	// the retired key, accepted for verification only while in-flight
 	// cursors minted under it drain.
-	FieldPageCursorKey         = "page-cursor-key"
-	FieldPageCursorPreviousKey = "page-cursor-previous-key"
+	FieldPageCursorKey            = "page-cursor-key"
+	FieldPageCursorPreviousKey    = "page-cursor-previous-key"
+	FieldConfigBundleSigningSeed  = "configbundle-signing-seed"
+	FieldConfigBundleReceiptSeed  = "configbundle-receipt-seed"
+	FieldPayrollWebhookEndpointID = "payroll-webhook-endpoint-id"
+	FieldPayrollWebhookSecret     = "payroll-webhook-secret"
+	FieldIAMWebhookEndpointID     = "iam-webhook-endpoint-id"
+	FieldIAMWebhookSecret         = "iam-webhook-secret"
 )
 
 // Serve profiles are named sets of defaults, not alternate implementations.
@@ -218,10 +247,13 @@ const TelemetryShutdownGrace = 5 * time.Second
 // at read time: ServeConfigFromValues resolves every field once, and the
 // composition reads only this struct afterwards.
 type ServeConfig struct {
-	Profile     string
-	GRPCListen  string
-	HTTPListen  string
-	DatabaseURL string
+	// ConfigFingerprint is bootstrap's redaction-safe fingerprint of the
+	// effective command and environment values used to compose this role.
+	ConfigFingerprint string
+	Profile           string
+	GRPCListen        string
+	HTTPListen        string
+	DatabaseURL       string
 	// DevHMACKey is the development signing key. It is carried, never
 	// logged: bootstrap.Field marks it Secret so the config fingerprint and
 	// the startup log attributes redact it.
@@ -283,16 +315,27 @@ type ServeConfig struct {
 	// FederationKeysFile is the -federation-keys-file path: the pinned-keys
 	// document backing FederationIssuers. Required whenever FederationIssuers
 	// is set.
-	FederationKeysFile string
+	FederationKeysFile        string
+	OIDCIssuerURL             string
+	OIDCClientID              string
+	OIDCClientSecret          string
+	OIDCAuthorizationEndpoint string
+	OIDCTokenEndpoint         string
+	OIDCRedirectURI           string
+	OIDCSessionSigningKey     string
 	// ChatEnabled composes the native chat surface and its independent pool.
 	// It is opt in so standard deployments do not acquire a second database
 	// dependency by default.
 	ChatEnabled         bool
 	ChatDatabaseURL     string
 	DocumentDatabaseURL string
-	ChatMediaRoot       string
-	ArtifactRoot        string
-	ChatCursorKey       string
+	// ParameterEnvironment selects the deployment-owned value namespace. Empty
+	// leaves parameter serving unconfigured; when set it must name one of the
+	// two isolated environments exactly.
+	ParameterEnvironment string
+	ChatMediaRoot        string
+	ArtifactRoot         string
+	ChatCursorKey        string
 	// PageCursorKey signs page and stream cursors on every served surface.
 	// It is dedicated: sharing signing material with the development HMAC
 	// key is refused by Validate. PageCursorPreviousKey is the retired
@@ -300,6 +343,15 @@ type ServeConfig struct {
 	// under it drain; empty means no rotation is in progress.
 	PageCursorKey         string
 	PageCursorPreviousKey string
+	// ConfigBundleSigningSeed and ConfigBundleReceiptSeed are dedicated
+	// base64-encoded Ed25519 seeds for the config control surface. Both must
+	// be set to mount that surface; they are never shared with other signers.
+	ConfigBundleSigningSeed  string
+	ConfigBundleReceiptSeed  string
+	PayrollWebhookEndpointID string
+	PayrollWebhookSecret     string
+	IAMWebhookEndpointID     string
+	IAMWebhookSecret         string
 }
 
 // ServeConfigFields declares every flag/env-backed configuration value the
@@ -340,8 +392,16 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldExecutionRetryResolutionAttempts, Usage: "maximum bounded attempts to resolve uncertain retry consumption", Default: "2", Kind: bootstrap.KindInt},
 		{Name: FieldPublicOrigin, Env: EnvPublicOrigin, Usage: "absolute http(s) origin (e.g. https://hcm.example.com) browsers reach this cell at; required behind a TLS-terminating or Host-rewriting proxy"},
 		{Name: FieldLocalDevNow, Usage: "local-dev only: pin the application clock to an RFC3339 instant so future effective-date workflows can be completed safely"},
+		{Name: FieldParameterEnvironment, Env: EnvParameterEnvironment, Usage: "deployment parameter value namespace: SANDBOX or PRODUCTION; deliberately has no default"},
 		{Name: FieldFederationIssuers, Usage: "comma-separated tenant=issuer pairs allow-listing each tenant's IdP issuers; with -" + FieldFederationKeysFile + " selects the federation verifier instead of the dev HMAC key"},
 		{Name: FieldFederationKeysFile, Env: EnvFederationKeysFile, Usage: "pinned tenant-IdP keys document backing -" + FieldFederationIssuers},
+		{Name: FieldOIDCIssuerURL, Usage: "exact allow-listed tenant issuer used for workspace authorization-code sign-in"},
+		{Name: FieldOIDCClientID, Usage: "registered OIDC client id for workspace sign-in"},
+		{Name: FieldOIDCClientSecret, Usage: "confidential OIDC client secret for workspace sign-in", Secret: true},
+		{Name: FieldOIDCAuthorizationEndpoint, Usage: "pinned OIDC authorization endpoint for workspace sign-in"},
+		{Name: FieldOIDCTokenEndpoint, Usage: "pinned OIDC token endpoint for workspace sign-in"},
+		{Name: FieldOIDCRedirectURI, Usage: "registered absolute OIDC callback URI for workspace sign-in"},
+		{Name: FieldOIDCSessionSigningKey, Env: EnvOIDCSessionSigningKey, Usage: "shared HMAC key for short-lived OIDC browser access credentials; at least 32 bytes", Secret: true},
 		{Name: FieldChatEnabled, Usage: "compose native chat over its independent database", Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldChatDatabaseURL, Env: EnvChatDatabaseURL, Usage: "PostgreSQL connection URL for the independent chat database"},
 		{Name: FieldDocumentDatabaseURL, Env: EnvDocumentDatabaseURL, Usage: "PostgreSQL connection URL for the independent document database", Secret: true},
@@ -350,6 +410,12 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldArtifactRoot, Env: EnvArtifactRoot, Usage: "artifact root used when a chat media root is not supplied"},
 		{Name: FieldPageCursorKey, Env: EnvPageCursorKey, Usage: "dedicated HMAC key signing page and stream cursors, at least 32 bytes; never the development HMAC key", Secret: true},
 		{Name: FieldPageCursorPreviousKey, Env: EnvPageCursorPreviousKey, Usage: "retired page-cursor key, accepted for verification while in-flight cursors drain; empty means no rotation is in progress", Secret: true},
+		{Name: FieldConfigBundleSigningSeed, Env: "HCMNEXT_CONFIGBUNDLE_SIGNING_SEED", Usage: "base64 Ed25519 seed for config bundle signing; enables the operator config control surface when paired with -" + FieldConfigBundleReceiptSeed, Secret: true},
+		{Name: FieldConfigBundleReceiptSeed, Env: "HCMNEXT_CONFIGBUNDLE_RECEIPT_SEED", Usage: "base64 Ed25519 seed for config application and kill-switch receipt signing; enables the operator config control surface when paired with -" + FieldConfigBundleSigningSeed, Secret: true},
+		{Name: FieldPayrollWebhookEndpointID, Env: EnvPayrollWebhookEndpointID, Usage: "fixed payroll provider receipt endpoint ID; requires -tenant and -" + FieldPayrollWebhookSecret},
+		{Name: FieldPayrollWebhookSecret, Env: EnvPayrollWebhookSecret, Usage: "HMAC secret for payroll provider receipts; at least 32 bytes", Secret: true},
+		{Name: FieldIAMWebhookEndpointID, Env: EnvIAMWebhookEndpointID, Usage: "fixed IAM provider receipt endpoint ID; requires -tenant and -" + FieldIAMWebhookSecret},
+		{Name: FieldIAMWebhookSecret, Env: EnvIAMWebhookSecret, Usage: "HMAC secret for IAM provider receipts; at least 32 bytes", Secret: true},
 	}
 }
 
@@ -425,38 +491,53 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		return ServeConfig{}, fmt.Errorf("application: serve configuration needs parsed values")
 	}
 	cfg := ServeConfig{
-		Profile:                  values.String(FieldProfile),
-		GRPCListen:               values.String(FieldGRPCListen),
-		HTTPListen:               values.String(FieldHTTPListen),
-		DatabaseURL:              values.String(FieldDatabaseURL),
-		DevHMACKey:               values.String(FieldDevHMACKey),
-		Issuer:                   values.String(FieldIssuer),
-		Audience:                 values.String(FieldAudience),
-		Tenant:                   values.String(FieldTenant),
-		CellID:                   values.String(FieldCellID),
-		OTelExporter:             values.String(FieldOTelExporter),
-		OTelEndpoint:             values.String(FieldOTelEndpoint),
-		ExecutionAuthorityDigest: values.String(FieldExecutionAuthorityDigest),
-		ExecutionAuthorityRole:   values.String(FieldExecutionAuthorityRole),
-		ExecutionApprover:        values.String(FieldExecutionApprover),
-		ExecutionManagerApprover: values.String(FieldExecutionManagerApprover),
-		ExecutionFinancePartner:  values.String(FieldExecutionFinancePartner),
-		TimerTzdbVersion:         values.String(FieldTimerTzdbVersion),
-		TimerCalendarVersion:     values.String(FieldTimerCalendarVersion),
-		HealthAddr:               values.String(FieldHealthAddr),
-		WorkflowPlan:             values.String(FieldWorkflowPlan),
-		LegalEvidenceIssuerKeys:  values.String(FieldLegalEvidenceIssuerKeys),
-		ExecutionRetryVersion:    values.String(FieldExecutionRetryVersion),
-		LocalDevNow:              values.String(FieldLocalDevNow),
-		FederationIssuers:        values.String(FieldFederationIssuers),
-		FederationKeysFile:       values.String(FieldFederationKeysFile),
-		ChatDatabaseURL:          values.String(FieldChatDatabaseURL),
-		DocumentDatabaseURL:      values.String(FieldDocumentDatabaseURL),
-		ChatCursorKey:            values.String(FieldChatCursorKey),
-		ChatMediaRoot:            values.String(FieldChatMediaRoot),
-		ArtifactRoot:             values.String(FieldArtifactRoot),
-		PageCursorKey:            values.String(FieldPageCursorKey),
-		PageCursorPreviousKey:    values.String(FieldPageCursorPreviousKey),
+		ConfigFingerprint:         values.Fingerprint(),
+		Profile:                   values.String(FieldProfile),
+		GRPCListen:                values.String(FieldGRPCListen),
+		HTTPListen:                values.String(FieldHTTPListen),
+		DatabaseURL:               values.String(FieldDatabaseURL),
+		DevHMACKey:                values.String(FieldDevHMACKey),
+		Issuer:                    values.String(FieldIssuer),
+		Audience:                  values.String(FieldAudience),
+		Tenant:                    values.String(FieldTenant),
+		CellID:                    values.String(FieldCellID),
+		OTelExporter:              values.String(FieldOTelExporter),
+		OTelEndpoint:              values.String(FieldOTelEndpoint),
+		ExecutionAuthorityDigest:  values.String(FieldExecutionAuthorityDigest),
+		ExecutionAuthorityRole:    values.String(FieldExecutionAuthorityRole),
+		ExecutionApprover:         values.String(FieldExecutionApprover),
+		ExecutionManagerApprover:  values.String(FieldExecutionManagerApprover),
+		ExecutionFinancePartner:   values.String(FieldExecutionFinancePartner),
+		TimerTzdbVersion:          values.String(FieldTimerTzdbVersion),
+		TimerCalendarVersion:      values.String(FieldTimerCalendarVersion),
+		HealthAddr:                values.String(FieldHealthAddr),
+		WorkflowPlan:              values.String(FieldWorkflowPlan),
+		LegalEvidenceIssuerKeys:   values.String(FieldLegalEvidenceIssuerKeys),
+		ExecutionRetryVersion:     values.String(FieldExecutionRetryVersion),
+		LocalDevNow:               values.String(FieldLocalDevNow),
+		FederationIssuers:         values.String(FieldFederationIssuers),
+		FederationKeysFile:        values.String(FieldFederationKeysFile),
+		OIDCIssuerURL:             values.String(FieldOIDCIssuerURL),
+		OIDCClientID:              values.String(FieldOIDCClientID),
+		OIDCClientSecret:          values.String(FieldOIDCClientSecret),
+		OIDCAuthorizationEndpoint: values.String(FieldOIDCAuthorizationEndpoint),
+		OIDCTokenEndpoint:         values.String(FieldOIDCTokenEndpoint),
+		OIDCRedirectURI:           values.String(FieldOIDCRedirectURI),
+		OIDCSessionSigningKey:     values.String(FieldOIDCSessionSigningKey),
+		ChatDatabaseURL:           values.String(FieldChatDatabaseURL),
+		DocumentDatabaseURL:       values.String(FieldDocumentDatabaseURL),
+		ParameterEnvironment:      values.String(FieldParameterEnvironment),
+		ChatCursorKey:             values.String(FieldChatCursorKey),
+		ChatMediaRoot:             values.String(FieldChatMediaRoot),
+		ArtifactRoot:              values.String(FieldArtifactRoot),
+		PageCursorKey:             values.String(FieldPageCursorKey),
+		PageCursorPreviousKey:     values.String(FieldPageCursorPreviousKey),
+		ConfigBundleSigningSeed:   values.String(FieldConfigBundleSigningSeed),
+		ConfigBundleReceiptSeed:   values.String(FieldConfigBundleReceiptSeed),
+		PayrollWebhookEndpointID:  values.String(FieldPayrollWebhookEndpointID),
+		PayrollWebhookSecret:      values.String(FieldPayrollWebhookSecret),
+		IAMWebhookEndpointID:      values.String(FieldIAMWebhookEndpointID),
+		IAMWebhookSecret:          values.String(FieldIAMWebhookSecret),
 	}
 	var err error
 	if cfg.PublicOrigin, err = canonicalPublicOrigin(values.String(FieldPublicOrigin)); err != nil {
@@ -499,6 +580,9 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 // semantic half of the contract: everything here is a statement about the
 // deployment, not about whether a string parsed.
 func (c ServeConfig) Validate() error {
+	if c.ParameterEnvironment != "" && c.ParameterEnvironment != "SANDBOX" && c.ParameterEnvironment != "PRODUCTION" {
+		return fmt.Errorf("-%s must be SANDBOX or PRODUCTION", FieldParameterEnvironment)
+	}
 	if _, err := parseLegalEvidenceIssuerKeys(c.LegalEvidenceIssuerKeys); err != nil {
 		return err
 	}
@@ -535,7 +619,16 @@ func (c ServeConfig) Validate() error {
 	if err := c.validatePageCursorKeys(); err != nil {
 		return err
 	}
+	if err := c.validateConfigBundleKeys(); err != nil {
+		return err
+	}
+	if err := c.validateProviderWebhookCredentials(); err != nil {
+		return err
+	}
 	if err := c.validateFederation(); err != nil {
+		return err
+	}
+	if err := c.validateOIDCLogin(); err != nil {
 		return err
 	}
 	switch c.OTelExporter {
@@ -591,6 +684,91 @@ func (c ServeConfig) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (c ServeConfig) validateOIDCLogin() error {
+	fields := []string{c.OIDCIssuerURL, c.OIDCClientID, c.OIDCClientSecret, c.OIDCAuthorizationEndpoint, c.OIDCTokenEndpoint, c.OIDCRedirectURI, c.OIDCSessionSigningKey}
+	configured := false
+	for _, value := range fields {
+		if strings.TrimSpace(value) != "" {
+			configured = true
+			break
+		}
+	}
+	if !configured {
+		return nil
+	}
+	required := []struct{ field, value string }{
+		{FieldOIDCIssuerURL, c.OIDCIssuerURL}, {FieldOIDCClientID, c.OIDCClientID},
+		{FieldOIDCAuthorizationEndpoint, c.OIDCAuthorizationEndpoint}, {FieldOIDCTokenEndpoint, c.OIDCTokenEndpoint},
+		{FieldOIDCRedirectURI, c.OIDCRedirectURI}, {FieldOIDCSessionSigningKey, c.OIDCSessionSigningKey},
+	}
+	for _, item := range required {
+		if strings.TrimSpace(item.value) == "" {
+			return fmt.Errorf("-%s requires -%s", item.field, FieldOIDCIssuerURL)
+		}
+	}
+	if !c.Workspace {
+		return fmt.Errorf("OIDC workspace login requires -%s=true", FieldWorkspace)
+	}
+	if len(c.OIDCSessionSigningKey) < 32 {
+		return fmt.Errorf("-%s must be at least 32 bytes", FieldOIDCSessionSigningKey)
+	}
+	pairs, err := parseFederationIssuers(c.FederationIssuers)
+	if err != nil {
+		return fmt.Errorf("OIDC workspace login requires configured federation issuers: %w", err)
+	}
+	tenant := kernelvalues.TenantId(c.Tenant)
+	found := false
+	for _, issuer := range pairs[tenant] {
+		if issuer == c.OIDCIssuerURL {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("-%s must name an issuer allow-listed for -%s", FieldOIDCIssuerURL, FieldTenant)
+	}
+	for field, raw := range map[string]string{FieldOIDCAuthorizationEndpoint: c.OIDCAuthorizationEndpoint, FieldOIDCTokenEndpoint: c.OIDCTokenEndpoint, FieldOIDCRedirectURI: c.OIDCRedirectURI} {
+		u, parseErr := url.ParseRequestURI(raw)
+		if parseErr != nil || u.Scheme == "" || u.Host == "" || (u.Scheme != "https" && !(c.Profile == ServeProfileLocalDev && u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1"))) {
+			return fmt.Errorf("-%s must be an absolute HTTPS URL (loopback HTTP is allowed only in local-dev)", field)
+		}
+	}
+	return nil
+}
+
+func (c ServeConfig) validateConfigBundleKeys() error {
+	if c.ConfigBundleSigningSeed == "" && c.ConfigBundleReceiptSeed == "" {
+		return nil
+	}
+	if c.ConfigBundleSigningSeed == "" || c.ConfigBundleReceiptSeed == "" {
+		return fmt.Errorf("-%s and -%s must be configured together", FieldConfigBundleSigningSeed, FieldConfigBundleReceiptSeed)
+	}
+	signing, err := decodeEd25519Seed(c.ConfigBundleSigningSeed)
+	if err != nil {
+		return fmt.Errorf("-%s must be standard-base64 encoded Ed25519 seed: %w", FieldConfigBundleSigningSeed, err)
+	}
+	receipt, err := decodeEd25519Seed(c.ConfigBundleReceiptSeed)
+	if err != nil {
+		return fmt.Errorf("-%s must be standard-base64 encoded Ed25519 seed: %w", FieldConfigBundleReceiptSeed, err)
+	}
+	if string(signing) == string(receipt) || string(signing) == c.DevHMACKey || string(receipt) == c.DevHMACKey ||
+		string(signing) == c.PageCursorKey || string(receipt) == c.PageCursorKey {
+		return fmt.Errorf("config bundle signing seeds must be distinct from each other and from credential/cursor signing keys")
+	}
+	return nil
+}
+
+func decodeEd25519Seed(raw string) ([]byte, error) {
+	seed, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		return nil, err
+	}
+	if len(seed) != ed25519.SeedSize {
+		return nil, fmt.Errorf("seed is %d bytes, want %d", len(seed), ed25519.SeedSize)
+	}
+	return seed, nil
 }
 
 // canonicalPublicOrigin resolves the declared public origin to its canonical
@@ -661,6 +839,47 @@ func (c ServeConfig) validatePageCursorKeys() error {
 	if c.PageCursorPreviousKey == c.DevHMACKey {
 		return fmt.Errorf("-%s must not reuse -%s; retired cursors and credentials must never share signing material",
 			FieldPageCursorPreviousKey, FieldDevHMACKey)
+	}
+	return nil
+}
+
+func (c ServeConfig) validateProviderWebhookCredentials() error {
+	configured := []struct {
+		endpointField string
+		endpoint      string
+		secretField   string
+		secret        string
+	}{
+		{FieldPayrollWebhookEndpointID, c.PayrollWebhookEndpointID, FieldPayrollWebhookSecret, c.PayrollWebhookSecret},
+		{FieldIAMWebhookEndpointID, c.IAMWebhookEndpointID, FieldIAMWebhookSecret, c.IAMWebhookSecret},
+	}
+	secrets := make([]string, 0, len(configured))
+	for _, item := range configured {
+		endpoint, secret := strings.TrimSpace(item.endpoint), item.secret
+		if endpoint == "" && secret == "" {
+			continue
+		}
+		if endpoint == "" || strings.TrimSpace(secret) == "" {
+			return fmt.Errorf("-%s and -%s must be configured together", item.endpointField, item.secretField)
+		}
+		if c.Tenant == "" {
+			return fmt.Errorf("-%s requires -%s to fix the provider tenant scope", item.endpointField, FieldTenant)
+		}
+		if strings.ContainsAny(endpoint, "/\\?#") || len(endpoint) > 128 {
+			return fmt.Errorf("-%s must be a bounded endpoint identifier", item.endpointField)
+		}
+		if len(secret) < 32 {
+			return fmt.Errorf("-%s must be at least 32 bytes", item.secretField)
+		}
+		if secret == c.DevHMACKey || secret == c.PageCursorKey || secret == c.PageCursorPreviousKey {
+			return fmt.Errorf("-%s must not reuse credential or cursor signing material", item.secretField)
+		}
+		for _, prior := range secrets {
+			if secret == prior {
+				return fmt.Errorf("-%s must be distinct from the other provider webhook secret", item.secretField)
+			}
+		}
+		secrets = append(secrets, secret)
 	}
 	return nil
 }

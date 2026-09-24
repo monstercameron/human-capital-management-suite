@@ -14,7 +14,7 @@ import (
 // composed them, EP-WF-002's governed workflow controls into the workflow
 // transport. A cell without controls leaves Control nil, so the four control
 // RPCs refuse with FAILED_PRECONDITION and perform no transition.
-func workflowDependencies(c *app.Cell, instances app.WorkflowInstanceReader, cursorKey, previousCursorKey []byte) transportworkflow.Dependencies {
+func workflowDependencies(c *app.Cell, instances app.WorkflowControlReader, cursorKey, previousCursorKey []byte) transportworkflow.Dependencies {
 	deps := transportworkflow.Dependencies{Instances: newWorkflowReader(instances), CursorKey: append([]byte(nil), cursorKey...), PreviousCursorKey: append([]byte(nil), previousCursorKey...)}
 	if c != nil {
 		if catalog, ok := c.WorkflowVersions.(transportworkflow.DefinitionReader); ok {
@@ -68,7 +68,7 @@ func (r workflowDraftReader) ReadWorkflowDraft(ctx context.Context, tenant value
 	}, nil
 }
 
-func workflowDependenciesRef(c *app.Cell, instances app.WorkflowInstanceReader, cursorKey, previousCursorKey []byte) *transportworkflow.Dependencies {
+func workflowDependenciesRef(c *app.Cell, instances app.WorkflowControlReader, cursorKey, previousCursorKey []byte) *transportworkflow.Dependencies {
 	deps := workflowDependencies(c, instances, cursorKey, previousCursorKey)
 	return &deps
 }

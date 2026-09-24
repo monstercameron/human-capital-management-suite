@@ -131,7 +131,7 @@ disposition-gate|adapter|*application.DispositionGate|config
 domain-inputs|port|*app.CorpusInputs|
 evidence-sink|registry|*evidencestore.Store|
 execution-authority|governance|<nil>|config,database-pool,evidence-sink
-grpc-surface|transport|*grpc.Server|cell,workflow-instance-reader
+grpc-surface|transport|*grpc.Server|cell,notification-feed,workflow-control-reader
 http-edge|transport|*http.ServeMux|cell,grpc-surface
 incumbent-connector|adapter|*fakeincumbent.Incumbent|
 intent-definitions|registry|*intent.Registry|cell
@@ -139,8 +139,11 @@ intent-service|engine|*app.IntentService|cell
 intent-store|adapter|*application.stubStore|config,database-pool
 journey-engine|workflow|<nil>|cell
 legal-evidence-verifier|adapter|<nil>|config,database-pool
+notification-feed|adapter|<nil>|database-pool,journey-engine
 observation-store|adapter|*observe.MemoryStore|
+page-ledger-store|adapter|*pageledgerstore.Store|database-pool
 pay-band-catalog|port|<nil>|
+pilot-reliability|governance|*reliability.Manifest|config
 presentation-preferences|adapter|*preferencestore.Store|database-pool
 proposal-executor|workflow|<nil>|execution-authority
 role-access|adapter|*roleaccessstore.Store|database-pool
@@ -154,7 +157,7 @@ transaction-history|port|*app.ledgerTransactions|
 trusted-clock|engine|*timeauth.Monitor|
 work-item-queue-reader|port|app.workItemQueueReader|database-pool
 worker-facts|port|*fixtures.MemoryWorkerFacts|
-workflow-instance-reader|port|app.workflowInstanceReader|database-pool
+workflow-control-reader|port|app.workflowControlReader|database-pool
 workflow-resolver|workflow|<nil>|execution-authority
 workflow-versions|workflow|<nil>|execution-authority
 workload:grpc-surface|workload|func(context.Context) error|grpc-surface

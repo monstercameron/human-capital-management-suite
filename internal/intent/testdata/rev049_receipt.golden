@@ -1,1 +1,1 @@
-{"intent_type_id":"hcmnext.people.promote_worker","previous_version":1,"version":2,"profile":"BOOTSTRAP","compatible":true,"evidence":"verdict=COMPATIBLE changes=[optional_input_added:notes] violations=[]"}
+{"intent_type_id":"hcmnext.people.promote_worker","previous_version":1,"version":2,"profile":"MANAGED","compatible":true,"evidence":"verdict=COMPATIBLE changes=[optional_input_added:notes] violations=[]"}

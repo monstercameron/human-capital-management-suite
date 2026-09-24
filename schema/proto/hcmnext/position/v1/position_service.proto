@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package hcmnext.position.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1;positionv1";
+
+// PositionService exposes the read-only position object and occupancy views
+// to the authenticated workspace. Tenant, viewer, and effective/known-at
+// coordinates come from the admitted server context and clock; the client
+// supplies only the opaque RevisionRef previously disclosed to it.
+service PositionService {
+  // ListPositionObjectOptions returns current, viewer-authorized choices for
+  // the position object page. Every option carries the opaque reference that
+  // both detail RPCs later re-resolve.
+  rpc ListPositionObjectOptions(ListPositionObjectOptionsRequest) returns (ListPositionObjectOptionsResponse);
+
+  // ListPositionOccupancyOptions is independently authorized for the
+  // occupancy page; page grants are never selected by the caller.
+  rpc ListPositionOccupancyOptions(ListPositionOccupancyOptionsRequest) returns (ListPositionOccupancyOptionsResponse);
+
+  // GetPositionObject re-reads the selected position and reports whether the
+  // current revision is compatible with the revision bound into the supplied
+  // reference. An absent or stale reference is represented in the result.
+  rpc GetPositionObject(GetPositionObjectRequest) returns (GetPositionObjectResponse);
+
+  // GetPositionOccupancy reads this position's real occupants and computes
+  // consumed and available capacity through the Position domain.
+  rpc GetPositionOccupancy(GetPositionOccupancyRequest) returns (GetPositionOccupancyResponse);
+}
+
+message ListPositionObjectOptionsRequest {}
+
+message ListPositionOccupancyOptionsRequest {}
+
+message PositionOption {
+  string position_revision_ref = 1;
+  string position_id = 2;
+  string title = 3;
+  string organization = 4;
+  string job_code = 5;
+  string org_unit = 6;
+}
+
+message ListPositionObjectOptionsResponse {
+  repeated PositionOption options = 1;
+}
+
+message ListPositionOccupancyOptionsResponse {
+  repeated PositionOption options = 1;
+}
+
+message GetPositionObjectRequest {
+  // Opaque position.RevisionRef. It binds a tenant-scoped position identity
+  // and the revision the viewer was shown. It is not authorization.
+  string position_revision_ref = 1;
+}
+
+message GetPositionObjectResponse {
+  string position_id = 1;
+  string revision = 2;
+  string job_code = 3;
+  string org_unit = 4;
+  string lifecycle = 5;
+  bool compatible = 6;
+  bool exists = 7;
+}
+
+message GetPositionOccupancyRequest {
+  string position_revision_ref = 1;
+}
+
+message PositionOccupant {
+  string worker_id = 1;
+  string fte = 2;
+}
+
+message GetPositionOccupancyResponse {
+  string position_id = 1;
+  string capacity_fte = 2;
+  int64 capacity_heads = 3;
+  string consumed_fte = 4;
+  int64 consumed_heads = 5;
+  string available_fte = 6;
+  int64 available_heads = 7;
+  repeated PositionOccupant occupants = 8;
+  bool exists = 9;
+}

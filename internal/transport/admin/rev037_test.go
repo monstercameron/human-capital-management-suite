@@ -8,11 +8,12 @@ import (
 	"github.com/google/uuid"
 
 	adminv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/application"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger/hashchain"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
-	"github.com/monstercameron/human-capital-management-suite/internal/operations/explorer"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/admin"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 )
@@ -28,7 +29,7 @@ type rev037Fixture struct {
 func newRev037Fixture(t *testing.T) *rev037Fixture {
 	t.Helper()
 	db := pgtest.New(t)
-	tenant := uuid.New()
+	tenant := pgstore.TenantID(fixtureTenant)
 
 	registry, err := hashchain.NewRegistry()
 	if err != nil {
@@ -126,15 +127,11 @@ func (f *rev037Fixture) count(t *testing.T, table string) int64 {
 }
 
 func rev037Deps(f *rev037Fixture) admin.Dependencies {
-	return admin.Dependencies{
-		ListLedgerStream: func(ctx context.Context, tenant uuid.UUID, stream string) (explorer.StreamListingView, error) {
-			return explorer.StreamListing(ctx, f.db.Conn, tenant, stream, nil)
-		},
-		VerifyLedgerChain: func(ctx context.Context, tenant uuid.UUID, stream string) (explorer.ChainView, error) {
-			return explorer.VerifyChain(ctx, f.db.Conn, f.digester, tenant, stream)
-		},
-	}
+	deps := admin.Dependencies{}
+	application.ConfigureLedgerExplorerAdminDependencies(&deps, f.db.Conn, f.digester)
+	return deps
 }
+
 func TestTodo_REV_037_01(t *testing.T) {
 	f := newRev037Fixture(t)
 	conn, cleanup := startTestServer(t, rev037Deps(f))
@@ -155,17 +152,23 @@ func TestTodo_REV_037_01(t *testing.T) {
 	if list.GetEvents()[0].GetSequence() != 1 || list.GetEvents()[1].GetSequence() != 2 {
 		t.Fatalf("events not in sequence order: %d, %d", list.GetEvents()[0].GetSequence(), list.GetEvents()[1].GetSequence())
 	}
-	if string(list.GetEvents()[1].GetPayload()) != "130000" {
-		t.Fatalf("events[1].payload = %s, want 130000", list.GetEvents()[1].GetPayload())
+	for _, event := range list.GetEvents() {
+		if len(event.GetPayload()) != 0 || !event.GetPayloadWithheld() {
+			t.Fatalf("event payload was not withheld: %+v", event)
+		}
+		if event.GetAuthority() != "" || event.GetSourceRef() != "" {
+			t.Fatalf("event provenance was not withheld: %+v", event)
+		}
 	}
 	if list.GetDigest() == "" {
 		t.Fatal("listing digest is empty")
 	}
-	if list.GetEvents()[0].GetPayloadWithheld() || list.GetEvents()[0].GetSubjectWithheld() {
-		t.Fatal("operator listing withholds payload the library discloses")
+	if list.GetEvents()[0].GetSubjectWithheld() {
+		t.Fatal("event subject was withheld when only gated fields should be withheld")
 	}
 
-	direct, err := explorer.StreamListing(ctx, f.db.Conn, f.tenant, "worker:1", nil)
+	deps := rev037Deps(f)
+	direct, err := deps.ListLedgerStream(ctx, f.tenant, "worker:1")
 	if err != nil {
 		t.Fatalf("direct listing: %v", err)
 	}
@@ -241,6 +244,17 @@ func TestTodo_REV_037_01_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
+	if len(list.GetEvents()) != 2 {
+		t.Fatalf("listed events = %d, want 2", len(list.GetEvents()))
+	}
+	for _, event := range list.GetEvents() {
+		if len(event.GetPayload()) != 0 || !event.GetPayloadWithheld() {
+			t.Fatalf("production-bound gRPC payload was not withheld: %+v", event)
+		}
+		if event.GetAuthority() != "" || event.GetSourceRef() != "" {
+			t.Fatalf("production-bound gRPC provenance was not withheld: %+v", event)
+		}
+	}
 	if _, err := client.GetChainVerification(opCtx, &adminv1.GetChainVerificationRequest{TenantId: tenantID, StreamKey: "worker:1"}); err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -264,6 +278,7 @@ func TestTodo_REV_037_01_Integration(t *testing.T) {
 	if again.GetDigest() != list.GetDigest() {
 		t.Fatal("repeated listing digest changed without any write")
 	}
+
 }
 
 func TestTodo_REV_037_01_Security(t *testing.T) {
@@ -288,4 +303,6 @@ func TestTodo_REV_037_01_Security(t *testing.T) {
 	opCtx := withToken(ctx, fixtureOperatorToken)
 	_, err = client.ListLedgerEvents(opCtx, &adminv1.ListLedgerEventsRequest{TenantId: "not-a-uuid", StreamKey: "worker:1"})
 	assertOwnedCode(t, err, envelope.CodeInvalidArgument)
+	_, err = client.ListLedgerEvents(opCtx, &adminv1.ListLedgerEventsRequest{TenantId: uuid.NewString(), StreamKey: "worker:1"})
+	assertOwnedCode(t, err, envelope.CodePermissionDenied)
 }

@@ -183,7 +183,11 @@ func TestTodo_INTENT_022_Race(t *testing.T) {
 	results := make([]Receipt, 16)
 	errs := make([]error, 16)
 	for i := range results {
-		wg.Go(func() { results[i], errs[i] = gw.Submit(context.Background(), req) })
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i], errs[i] = gw.Submit(context.Background(), req)
+		}()
 	}
 	wg.Wait()
 	if exec.applied.Load() != 1 {

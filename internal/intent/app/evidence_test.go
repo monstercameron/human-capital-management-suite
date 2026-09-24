@@ -8,8 +8,31 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
+
+type evidenceTransactionProbe struct{}
+
+func (evidenceTransactionProbe) Exec(context.Context, string, ...any) (int64, error) { return 0, nil }
+func (evidenceTransactionProbe) Query(context.Context, string, ...any) (dbport.Rows, error) {
+	return nil, nil
+}
+func (evidenceTransactionProbe) QueryRow(context.Context, string, ...any) dbport.Row { return nil }
+func (evidenceTransactionProbe) Commit(context.Context) error                        { return nil }
+func (evidenceTransactionProbe) Rollback(context.Context) error                      { return nil }
+
+func TestMemoryEvidenceSinkRefusesCallerTransaction(t *testing.T) {
+	sink := NewMemoryEvidenceSink()
+	ctx := dbport.ContextWithTx(context.Background(), evidenceTransactionProbe{})
+	_, err := sink.RecordInvocationTx(ctx, capability.InvocationEvidence{
+		CapabilityID: "workflow.execution_authority_gate", CapabilityVersion: 1,
+		Tenant: "acme", Decision: EvidenceKindGateAdmitted, OccurredAt: time.Date(2026, 9, 15, 9, 0, 0, 0, time.UTC),
+	})
+	if err == nil || sink.Len() != 0 {
+		t.Fatalf("transaction-scoped memory recording = %v, records %d; want refusal and no out-of-band record", err, sink.Len())
+	}
+}
 
 // TestMemoryEvidenceSinkRecordsTenantAndReadsJourneysBackTenantScoped proves
 // the test double honours the [EvidenceStore] contract the durable store

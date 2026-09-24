@@ -18,6 +18,9 @@ const testDevKey = "application-composition-root-test-signing-key"
 // enforces. It signs nothing outside this test binary.
 const testPageCursorKey = "application-page-cursor-test-signing-key-00"
 
+const testPayrollWebhookSecret = "payroll-webhook-test-secret-with-at-least-32-bytes"
+const testIAMWebhookSecret = "iam-webhook-test-secret-with-at-least-32-bytes"
+
 // parseServe parses args against the serve role's declared fields with an
 // empty environment, so a case's outcome depends only on what it passed.
 func parseServe(t *testing.T, args ...string) *bootstrap.Values {
@@ -49,8 +52,11 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 		FieldWorkflowPlan, FieldLegalEvidenceIssuerKeys,
 		FieldExecutionRetry, FieldExecutionRetryVersion, FieldExecutionRetryMaxAttempts,
 		FieldExecutionRetryResolutionAttempts, FieldPublicOrigin, FieldLocalDevNow,
+		FieldParameterEnvironment,
 		FieldPageCursorKey, FieldPageCursorPreviousKey,
 		FieldDocumentDatabaseURL,
+		FieldPayrollWebhookEndpointID, FieldPayrollWebhookSecret,
+		FieldIAMWebhookEndpointID, FieldIAMWebhookSecret,
 	} {
 		if _, ok := declared[name]; !ok {
 			t.Errorf("field %q is read by the composition but not declared", name)
@@ -73,6 +79,22 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 			t.Errorf("-%s has a default; cursors would verify under a key anyone can guess", name)
 		}
 	}
+	for _, item := range []struct {
+		name string
+		env  string
+	}{
+		{FieldPayrollWebhookEndpointID, EnvPayrollWebhookEndpointID},
+		{FieldIAMWebhookEndpointID, EnvIAMWebhookEndpointID},
+	} {
+		if declared[item.name].Env != item.env || declared[item.name].Default != "" {
+			t.Errorf("-%s field=%+v, want env source %q and no default", item.name, declared[item.name], item.env)
+		}
+	}
+	for _, name := range []string{FieldPayrollWebhookSecret, FieldIAMWebhookSecret} {
+		if !declared[name].Secret || declared[name].Default != "" {
+			t.Errorf("-%s field=%+v, want secret redaction and no default", name, declared[name])
+		}
+	}
 	if declared[FieldExecutionAuthority].Default != "true" {
 		t.Errorf("-%s defaults to %q, want true: promotions run through the execution engine unless opted out",
 			FieldExecutionAuthority, declared[FieldExecutionAuthority].Default)
@@ -86,6 +108,45 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 	}
 	if declared[FieldOTelExporter].Default != OTelExporterNone {
 		t.Errorf("-%s defaults to %q, want %q", FieldOTelExporter, declared[FieldOTelExporter].Default, OTelExporterNone)
+	}
+}
+
+func TestParameterEnvironmentIsExplicitAndValidated(t *testing.T) {
+	fieldFound := false
+	for _, field := range ServeConfigFields() {
+		if field.Name == FieldParameterEnvironment {
+			fieldFound = true
+			if field.Env != EnvParameterEnvironment || field.Default != "" {
+				t.Fatalf("parameter environment field=%+v; require deployment source with no default", field)
+			}
+		}
+	}
+	if !fieldFound {
+		t.Fatal("parameter environment is not declared")
+	}
+	values, err := bootstrap.ParseConfig([]string{"-database-url=postgres://x", "-dev-hmac-key=" + testDevKey,
+		"-page-cursor-key=" + testPageCursorKey, "-tenant=acme", "-execution-authority-digest=sha256:abc"}, func(name string) (string, bool) {
+		if name == EnvParameterEnvironment {
+			return "SANDBOX", true
+		}
+		return "", false
+	}, ServeConfigFields())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := ServeConfigFromValues(values)
+	if err != nil || cfg.ParameterEnvironment != "SANDBOX" {
+		t.Fatalf("config=%+v err=%v", cfg, err)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid environment rejected: %v", err)
+	}
+	for _, invalid := range []string{"sandbox", "PRODUCTION ", "TEST"} {
+		bad := cfg
+		bad.ParameterEnvironment = invalid
+		if err := bad.Validate(); err == nil {
+			t.Fatalf("invalid environment %q accepted", invalid)
+		}
 	}
 }
 
@@ -111,6 +172,8 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		"-public-origin=https://HCM.example.com:8443",
 		"-page-cursor-key="+testPageCursorKey,
 		"-page-cursor-previous-key="+testPageCursorKey+"-previous-00",
+		"-payroll-webhook-endpoint-id=payroll-prod", "-payroll-webhook-secret="+testPayrollWebhookSecret,
+		"-iam-webhook-endpoint-id=iam-prod", "-iam-webhook-secret="+testIAMWebhookSecret,
 		"-chat-media-root=/srv/chat", "-artifact-root=/srv/artifacts",
 	)
 	cfg, err := ServeConfigFromValues(values)
@@ -135,13 +198,64 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		TimerTzdbVersion:        "2026b", TimerCalendarVersion: "2026.2", HealthAddr: "127.0.0.1:9",
 		PublicOrigin:  "https://hcm.example.com:8443",
 		PageCursorKey: testPageCursorKey, PageCursorPreviousKey: testPageCursorKey + "-previous-00",
+		PayrollWebhookEndpointID: "payroll-prod", PayrollWebhookSecret: testPayrollWebhookSecret,
+		IAMWebhookEndpointID: "iam-prod", IAMWebhookSecret: testIAMWebhookSecret,
 		ChatMediaRoot: "/srv/chat", ArtifactRoot: "/srv/artifacts",
 	}
+	want.ConfigFingerprint = values.Fingerprint()
 	if cfg != want {
 		t.Errorf("ServeConfigFromValues =\n %+v\nwant\n %+v", cfg, want)
 	}
+	if strings.Contains(cfg.ConfigFingerprint, testPayrollWebhookSecret) || strings.Contains(cfg.ConfigFingerprint, testIAMWebhookSecret) {
+		t.Error("provider webhook secret reached the configuration fingerprint")
+	}
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Validate on a complete configuration: %v", err)
+	}
+}
+
+func TestProviderWebhookCredentialsAreOptInAndTenantBound(t *testing.T) {
+	base := ServeConfig{Tenant: "acme", DevHMACKey: testDevKey, PageCursorKey: testPageCursorKey}
+	if err := base.validateProviderWebhookCredentials(); err != nil {
+		t.Fatalf("unconfigured provider webhooks: %v", err)
+	}
+	valid := base
+	valid.PayrollWebhookEndpointID, valid.PayrollWebhookSecret = "payroll-prod", testPayrollWebhookSecret
+	valid.IAMWebhookEndpointID, valid.IAMWebhookSecret = "iam-prod", testIAMWebhookSecret
+	if err := valid.validateProviderWebhookCredentials(); err != nil {
+		t.Fatalf("valid fixed provider credentials: %v", err)
+	}
+	cases := []struct {
+		name    string
+		mutate  func(*ServeConfig)
+		wantSub string
+	}{
+		{"endpoint without secret", func(c *ServeConfig) { c.PayrollWebhookEndpointID = "payroll-prod" }, FieldPayrollWebhookSecret},
+		{"secret without endpoint", func(c *ServeConfig) { c.PayrollWebhookSecret = testPayrollWebhookSecret }, FieldPayrollWebhookEndpointID},
+		{"tenant not fixed", func(c *ServeConfig) {
+			c.Tenant = ""
+			c.PayrollWebhookEndpointID, c.PayrollWebhookSecret = "payroll-prod", testPayrollWebhookSecret
+		}, FieldTenant},
+		{"short secret", func(c *ServeConfig) { c.PayrollWebhookEndpointID, c.PayrollWebhookSecret = "payroll-prod", "short" }, "at least 32 bytes"},
+		{"credential key reuse", func(c *ServeConfig) {
+			c.PayrollWebhookEndpointID, c.PayrollWebhookSecret = "payroll-prod", c.DevHMACKey
+		}, "must not reuse"},
+		{"same provider secrets", func(c *ServeConfig) {
+			c.PayrollWebhookEndpointID, c.PayrollWebhookSecret = "payroll-prod", testPayrollWebhookSecret
+			c.IAMWebhookEndpointID, c.IAMWebhookSecret = "iam-prod", testPayrollWebhookSecret
+		}, "must be distinct"},
+		{"path-like endpoint", func(c *ServeConfig) {
+			c.PayrollWebhookEndpointID, c.PayrollWebhookSecret = "payroll/other", testPayrollWebhookSecret
+		}, "bounded endpoint identifier"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := base
+			tc.mutate(&cfg)
+			if err := cfg.validateProviderWebhookCredentials(); err == nil || !strings.Contains(err.Error(), tc.wantSub) {
+				t.Fatalf("validation error=%v, want substring %q", err, tc.wantSub)
+			}
+		})
 	}
 }
 

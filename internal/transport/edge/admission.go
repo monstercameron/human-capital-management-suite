@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -83,6 +84,7 @@ func (i admissionInterceptor) finish(ctx context.Context, procedure string, inv 
 		return nil
 	}
 	setStatusOverride(ctx, err.HTTPStatus())
+	setRetryAfterOverride(ctx, err.RetryAfter())
 	return ToConnectError(err)
 }
 
@@ -95,6 +97,9 @@ func ToConnectError(owned *envelope.Error) error {
 		return nil
 	}
 	connectErr := connect.NewError(connect.Code(owned.GRPCCode()), errors.New(owned.Message()))
+	if retryAfter := owned.RetryAfter(); retryAfter > 0 {
+		connectErr.Meta().Set("Retry-After", strconv.Itoa(retryAfter))
+	}
 	if detail, err := connect.NewErrorDetail(owned.Detail()); err == nil {
 		connectErr.AddDetail(detail)
 	}
@@ -134,13 +139,20 @@ type statusOverrideKey struct{}
 // statusOverride carries the HTTP status the canonical projection table
 // requires for this request's outcome.
 type statusOverride struct {
-	status int
+	status     int
+	retryAfter int
 }
 
 // setStatusOverride records the canonical HTTP status for the current request.
 func setStatusOverride(ctx context.Context, status int) {
 	if override, ok := ctx.Value(statusOverrideKey{}).(*statusOverride); ok {
 		override.status = status
+	}
+}
+
+func setRetryAfterOverride(ctx context.Context, seconds int) {
+	if override, ok := ctx.Value(statusOverrideKey{}).(*statusOverride); ok && seconds > 0 {
+		override.retryAfter = seconds
 	}
 }
 
@@ -177,6 +189,9 @@ func (w *overrideResponseWriter) WriteHeader(status int) {
 	w.written = true
 	if w.override.status != 0 && status >= http.StatusBadRequest {
 		status = w.override.status
+	}
+	if status >= http.StatusBadRequest && w.override.retryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(w.override.retryAfter))
 	}
 	w.ResponseWriter.WriteHeader(status)
 }

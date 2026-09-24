@@ -1,7 +1,11 @@
 package app
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -9,11 +13,15 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	intentdefinitions "github.com/monstercameron/human-capital-management-suite/internal/intent/definitions"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -248,8 +256,8 @@ func TestNewWorkerRowDerivesTheRecordTheFormDoesNotSupply(t *testing.T) {
 		t.Fatal("the created worker has no identity")
 	}
 	short := row.WorkerID.String()[:8]
-	if row.WorkerKey != "ada-"+short {
-		t.Errorf("worker key = %q, want the name slug plus the short id", row.WorkerKey)
+	if row.WorkerKey != row.WorkerID.String() {
+		t.Errorf("worker key = %q, want the opaque worker id %q", row.WorkerKey, row.WorkerID)
 	}
 	if row.RevisionStream != "people.worker."+row.WorkerID.String() || row.RevisionSequence != 1 {
 		t.Errorf("revision = %s@%d, want the worker's own stream at 1", row.RevisionStream, row.RevisionSequence)
@@ -401,8 +409,8 @@ func TestCreatedWorkerSummaryProjectsTheDurableRow(t *testing.T) {
 	if got.Source != workspace.WorkerSourceCreated {
 		t.Errorf("source = %q, want CREATED", got.Source)
 	}
-	if got.WorkerRef != row.WorkerKey || got.WorkerID != row.WorkerID.String() {
-		t.Errorf("identity = %s/%s, want %s/%s", got.WorkerRef, got.WorkerID, row.WorkerKey, row.WorkerID)
+	if got.WorkerRef != journeyWorkerKey(row.PreferredName, row.LegalName, shortID(row.WorkerID)) || got.WorkerID != row.WorkerID.String() {
+		t.Errorf("identity = %s/%s, want display slug and opaque id %s", got.WorkerRef, got.WorkerID, row.WorkerID)
 	}
 	if got.BasePay != row.BasePay || got.Currency != row.Currency || got.BonusTarget != row.BonusTarget {
 		t.Errorf("baseline = %s/%s/%s, want the row's own", got.BasePay, got.Currency, got.BonusTarget)
@@ -506,17 +514,138 @@ func TestJourneyWorkerKeyDisambiguatesSharedNames(t *testing.T) {
 	}
 }
 
-// TestWorkforceSubjectNamesTheEvidenceSubject proves a refused creation still
-// records who it was about, even before a key exists.
-func TestWorkforceSubjectNamesTheEvidenceSubject(t *testing.T) {
-	if got := workforceSubject(workspace.WorkerInput{PreferredName: "Ada"}); got != "ada" {
-		t.Errorf("subject = %q, want the preferred name slug", got)
+func TestTodo_REV_102_02(t *testing.T) {
+	e, principal, sink, logs := rev10202ServedEngine(t)
+	in := workerInputFixture()
+	in.LegalName = "Private Subject 10202"
+	in.PreferredName = "Confidential Display"
+	created, err := e.CreateWorker(trust.WithPrincipal(context.Background(), principal), in)
+	if err != nil {
+		t.Fatalf("CreateWorker: %v", err)
 	}
-	if got := workforceSubject(workspace.WorkerInput{LegalName: "Ada Lovelace"}); got != "ada-lovelace" {
-		t.Errorf("subject = %q, want the legal name slug", got)
+	if created.WorkerID == "" || created.SubjectID != created.WorkerID {
+		t.Fatalf("created identity = worker %q / subject %q, want the same opaque worker id", created.WorkerID, created.SubjectID)
 	}
-	if got := workforceSubject(workspace.WorkerInput{}); got != "worker" {
-		t.Errorf("subject = %q, want the fallback token", got)
+	if got, want := created.WorkerRef, "confidential-display-"+shortID(uuid.MustParse(created.WorkerID)); got != want {
+		t.Fatalf("display reference = %q, want read projection %q", got, want)
+	}
+	assertREV10202Privacy(t, sink, logs, in.LegalName, in.PreferredName, created.WorkerID)
+}
+
+func TestTodo_REV_102_02_Security(t *testing.T) {
+	e, principal, sink, logs := rev10202ServedEngine(t)
+	in := workerInputFixture()
+	in.LegalName = "Private Subject 10202"
+	in.PreferredName = "Confidential Display"
+	ctx := trust.WithPrincipal(context.Background(), principal)
+	created, err := e.CreateWorker(ctx, in)
+	if err != nil {
+		t.Fatalf("CreateWorker: %v", err)
+	}
+	bad := in
+	bad.LegalName = "Private Refused Subject 10202"
+	bad.PreferredName = "Refused Confidential Display"
+	bad.HireDate = "not-a-date"
+	if _, err := e.CreateWorker(ctx, bad); err == nil {
+		t.Fatal("CreateWorker accepted the invalid date")
+	}
+	denied := in
+	denied.LegalName = "Private Denied Subject 10202"
+	denied.PreferredName = "Denied Confidential Display"
+	e.svc.executionAuthority.RequiredRole = "workforce_create"
+	if _, err := e.CreateWorker(ctx, denied); !errors.Is(err, workspace.ErrDenied) {
+		t.Fatalf("CreateWorker without the required role = %v, want denied", err)
+	}
+	records := sink.Records()
+	if len(records) != 3 || records[0].SubjectRef != created.WorkerID {
+		t.Fatalf("created/refused evidence subjects = %+v, want the created worker followed by two refusals", records)
+	}
+	seen := make(map[string]bool, len(records))
+	for i, record := range records {
+		if _, err := uuid.Parse(record.SubjectRef); err != nil {
+			t.Errorf("evidence subject %d = %q, want opaque UUID: %v", i, record.SubjectRef, err)
+		}
+		if seen[record.SubjectRef] {
+			t.Errorf("evidence subject %q was reused across worker decisions", record.SubjectRef)
+		}
+		seen[record.SubjectRef] = true
+		if !strings.Contains(logs.String(), record.SubjectRef) {
+			t.Errorf("operation log omitted opaque subject %q: %s", record.SubjectRef, logs.String())
+		}
+	}
+	output := strings.ToLower(fmt.Sprint(sink.Records(), logs.String()))
+	profiles, err := fixtures.Workers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, profile := range profiles {
+		for _, name := range []string{profile.LegalName, profile.PreferredName} {
+			if name != "" && strings.Contains(output, strings.ToLower(name)) {
+				t.Errorf("fixture name %q leaked into evidence/log output: %s", name, output)
+			}
+		}
+	}
+	assertREV10202Privacy(t, sink, logs, in.LegalName, in.PreferredName, created.WorkerID)
+	assertREV10202Privacy(t, sink, logs, bad.LegalName, bad.PreferredName, "")
+	assertREV10202Privacy(t, sink, logs, denied.LegalName, denied.PreferredName, "")
+}
+
+func rev10202ServedEngine(t *testing.T) (*journeyEngine, *trust.Principal, *MemoryEvidenceSink, *bytes.Buffer) {
+	t.Helper()
+	db := pgtest.New(t)
+	tenantID := uuid.New()
+	db.Exec(t, `
+		INSERT INTO tenant (tenant_id, tenant_key, cell_id, display_name, status, effective_from)
+		VALUES ($1, $2, 'cell-local', 'REV-102-02 privacy test', 'ACTIVE', timestamptz '2026-01-01T00:00:00Z')`,
+		tenantID, "rev10202-"+tenantID.String()[:8])
+	defs, err := intentdefinitions.NewRegistry()
+	if err != nil {
+		t.Fatalf("intentdefinitions.NewRegistry: %v", err)
+	}
+	sink := NewMemoryEvidenceSink()
+	var logs bytes.Buffer
+	svc := &IntentService{
+		defs: defs,
+		ids:  intent.UUIDv7Source,
+		executionAuthority: &ExecutionAuthority{
+			AdmittedIntentTypes: map[string]bool{promotion.IntentType: true},
+			RequiredRole:        "intent_author",
+		},
+		tenantUUID: func(values.TenantId) uuid.UUID { return tenantID },
+		evidence:   sink,
+	}
+	engine := newJourneyEngine(svc, db.Conn, "", func() time.Time {
+		return time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	}, nil)
+	engine.events = slog.New(logging.NewHandler(&logs))
+	principal, err := trust.NewPrincipal(trust.PrincipalSpec{
+		Tenant: fixtures.Tenant, Subject: "user-rev10202", SubjectKind: trust.SubjectKindHuman,
+		OrganizationScopeID: "org:rev10202", Roles: []string{"intent_author"},
+		AuthenticationMethod: trust.AuthenticationMethodBearerToken, Assurance: trust.AssuranceHigh,
+		SessionRef: "session-rev10202", Purposes: []string{"hcm_operations"},
+		IssuedAt: time.Now().Add(-time.Minute), ExpiresAt: time.Now().Add(time.Hour),
+		CredentialDigest: "digest:rev10202",
+	})
+	if err != nil {
+		t.Fatalf("trust.NewPrincipal: %v", err)
+	}
+	return engine, principal, sink, &logs
+}
+
+func assertREV10202Privacy(t *testing.T, sink *MemoryEvidenceSink, logs *bytes.Buffer, legalName, preferredName, workerID string) {
+	t.Helper()
+	records := sink.Records()
+	encoded := strings.ToLower(fmt.Sprint(records, logs.String()))
+	for _, name := range []string{legalName, preferredName} {
+		if name != "" && strings.Contains(encoded, strings.ToLower(name)) {
+			t.Errorf("private worker name %q leaked into served evidence/log output: %s", name, encoded)
+		}
+	}
+	if strings.Contains(logs.String(), "worker_ref") {
+		t.Errorf("served log output contains a display worker reference: %s", logs.String())
+	}
+	if workerID != "" && !strings.Contains(encoded, strings.ToLower(workerID)) {
+		t.Errorf("served evidence/log output does not identify the worker by opaque id: %s", encoded)
 	}
 }
 
@@ -543,7 +672,7 @@ func createdRowFixture() workforce.WorkerRow {
 	id := uuid.MustParse("7f3b1c22-0000-4000-8000-0000000000aa")
 	return workforce.WorkerRow{
 		WorkerID:                id,
-		WorkerKey:               "ada-7f3b1c22",
+		WorkerKey:               id.String(),
 		LegalName:               "Ada Lovelace",
 		PreferredName:           "Ada",
 		WorkerNumber:            "W-J7F3B1C22",

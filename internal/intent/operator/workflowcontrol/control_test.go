@@ -409,13 +409,15 @@ func TestTodo_EP_WF_002_Race(t *testing.T) {
 	results := make([]Result, 16)
 	errs := make([]error, 16)
 	for i := range results {
-		wg.Go(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			conn := f0conn(t, f.db)
 			ctl := f.controllerWith(c.journal(), plans{f.plan}, conn)
 			cmd := f.cmd(failed, 0, fmt.Sprintf("race-%d", i))
 			cmd.NodeID, cmd.ExpectedAttempt = "execute_promotion", 1
 			results[i], errs[i] = ctl.RetryNode(ctx, cmd)
-		})
+		}()
 	}
 	wg.Wait()
 	applied := 0

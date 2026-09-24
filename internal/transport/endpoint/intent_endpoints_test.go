@@ -471,17 +471,56 @@ func TestTodo_EP_REG_001_Security(t *testing.T)    { runRegistryContract(t) }
 func TestTodo_EP_REG_001_Conformance(t *testing.T) { runRegistryContract(t) }
 func TestTodo_EP_REG_001_Mutation(t *testing.T)    { runRegistryContract(t) }
 
-func TestTodo_EP_INTENT_001_Property(t *testing.T)    { runIntentCreateGetListContract(t) }
-func TestTodo_EP_INTENT_001_Golden(t *testing.T)      { runIntentCreateGetListContract(t) }
-func TestTodo_EP_INTENT_001_Race(t *testing.T)        { runIntentCreateGetListContract(t) }
+func TestTodo_EP_INTENT_001_Property(t *testing.T) { runIntentCreateGetListContract(t) }
+func TestTodo_EP_INTENT_001_Golden(t *testing.T)   { runIntentCreateGetListContract(t) }
+func TestTodo_EP_INTENT_001_Race(t *testing.T) {
+	h := newEndpointHarness(t)
+	const workers = 12
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			_, err := h.grpcIntent.GetIntent(h.grpcContext(context.Background()), &intentsv1.GetIntentRequest{IntentId: transporttest.KnownIntentID})
+			errs <- err
+		}()
+	}
+	for i := 0; i < workers; i++ {
+		if err := <-errs; err != nil {
+			t.Errorf("concurrent GetIntent: %v", err)
+		}
+	}
+	if got := len(h.intent.Calls()); got != workers {
+		t.Fatalf("recorded concurrent calls = %d, want %d", got, workers)
+	}
+}
 func TestTodo_EP_INTENT_001_Integration(t *testing.T) { runIntentCreateGetListContract(t) }
 func TestTodo_EP_INTENT_001_Fault(t *testing.T)       { runIntentCreateGetListContract(t) }
 func TestTodo_EP_INTENT_001_Security(t *testing.T)    { runIntentCreateGetListContract(t) }
 func TestTodo_EP_INTENT_001_Conformance(t *testing.T) { runIntentCreateGetListContract(t) }
 
-func TestTodo_EP_INTENT_002_Property(t *testing.T)    { runSimulationContract(t) }
-func TestTodo_EP_INTENT_002_Golden(t *testing.T)      { runSimulationContract(t) }
-func TestTodo_EP_INTENT_002_Race(t *testing.T)        { runSimulationContract(t) }
+func TestTodo_EP_INTENT_002_Property(t *testing.T) { runSimulationContract(t) }
+func TestTodo_EP_INTENT_002_Golden(t *testing.T)   { runSimulationContract(t) }
+func TestTodo_EP_INTENT_002_Race(t *testing.T) {
+	h := newEndpointHarness(t)
+	const workers = 12
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			res, err := h.grpcIntent.SimulateIntent(h.grpcContext(context.Background()), &intentsv1.SimulateIntentRequest{IntentId: transporttest.KnownIntentID})
+			if err == nil && (res.GetSimulation() == nil || !res.GetSimulation().GetZeroEffectReceipt().GetZeroEffect()) {
+				err = errors.New("simulation was not zero effect")
+			}
+			errs <- err
+		}()
+	}
+	for i := 0; i < workers; i++ {
+		if err := <-errs; err != nil {
+			t.Errorf("concurrent SimulateIntent: %v", err)
+		}
+	}
+	if got := len(h.intent.Calls()); got != workers {
+		t.Fatalf("recorded concurrent calls = %d, want %d", got, workers)
+	}
+}
 func TestTodo_EP_INTENT_002_Integration(t *testing.T) { runSimulationContract(t) }
 func TestTodo_EP_INTENT_002_Fault(t *testing.T)       { runSimulationContract(t) }
 func TestTodo_EP_INTENT_002_Security(t *testing.T)    { runSimulationContract(t) }
@@ -587,7 +626,7 @@ func TestProcedureInventoryIsStable(t *testing.T) {
 	if !sort.StringsAreSorted(procedures) {
 		t.Fatalf("procedure inventory is not sorted: %v", procedures)
 	}
-	if len(procedures) != 14 {
-		t.Fatalf("procedure inventory has %d entries, want 14", len(procedures))
+	if len(procedures) != 18 {
+		t.Fatalf("procedure inventory has %d entries, want 18", len(procedures))
 	}
 }

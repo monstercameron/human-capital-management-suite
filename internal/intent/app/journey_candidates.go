@@ -267,22 +267,8 @@ func (e *journeyEngine) recordProposalCandidates(
 		return fmt.Errorf("app: record the proposal input snapshot: %w", err)
 	}
 
-	payload, err := intentcontrol.EncodeFullProposal(*rev)
-	if err != nil {
-		return fmt.Errorf("app: encode the proposal revision: %w", err)
-	}
-	if _, err := (intentcontrol.RevisionStore{}).Materialize(ctx, tx, intentcontrol.Revision{
-		TenantID:       tenantID,
-		IntentID:       intentID,
-		Revision:       rev.Revision,
-		ProposalDigest: rev.MaterialDigest.Digest,
-		MaterialDigest: rev.MaterialDigest.Digest,
-		SchemaRef:      executionProposalSchemaRef,
-		Payload:        payload,
-		ProducedBy:     "hcmnext:intent-cell",
-		ProducedAt:     rev.CreatedAt.Time(),
-	}); err != nil {
-		return fmt.Errorf("app: materialize the proposal revision: %w", err)
+	if err := recordProposalRevision(ctx, tx, tenantID, *rev, e.svc.digester); err != nil {
+		return fmt.Errorf("app: record the proposal revision through the ledger: %w", err)
 	}
 
 	// WF-RUN-034: the proposal holds its raise against its organization

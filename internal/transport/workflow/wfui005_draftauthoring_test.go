@@ -141,7 +141,7 @@ func TestTodo_WF_UI_005_PublishedPromotionSuccessorMatchesExecutableByteForByte(
 		t.Fatalf("stored Promotion successor plan digest = %q, want published executable %q", storedPlan.Digest(), base.CompiledPlanDigest)
 	}
 	got := created.GetDraft()
-	if got.GetSemanticVersion() != "1.1.1" || got.GetBaseVersionDigest() != base.CompiledPlanDigest ||
+	if got.GetSemanticVersion() != "1.2.1" || got.GetBaseVersionDigest() != base.CompiledPlanDigest ||
 		got.GetDefinitionDigest() != workflowversion.DefinitionDigest(definition) || got.GetMatchesBaseDefinition() || !got.GetMatchesTemplateDefinition() {
 		t.Fatalf("published Promotion successor parity = %+v", got)
 	}

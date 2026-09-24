@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation"
+	app "github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -59,7 +59,7 @@ func (s *server) WatchPromotionInvalidations(req *journeyv1.WatchPromotionInvali
 		return invalidationError(envelope.CodeUnavailable, "journey.invalidations.unconfigured",
 			"live updates are not configured on this cell", principal, inv)
 	}
-	region := promotion.Region(req.GetRegion())
+	region := app.PromotionRegion(req.GetRegion())
 	if _, err := region.Projection(); err != nil {
 		return invalidationError(envelope.CodeInvalidArgument, "journey.invalidations.region",
 			"the region is not one this service publishes", principal, inv).

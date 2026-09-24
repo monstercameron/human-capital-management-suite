@@ -262,7 +262,7 @@ func (h *rbacHarness) seedAssignments() {
 	store := h.composed.Cell().RoleAccess
 	for _, w := range h.workers {
 		if _, err := store.SaveAssignment(ctx, tenant, "system:rbac-runtime-fixture",
-			roleaccess.Assignment{WorkerRef: w.key, RoleIDs: w.durableRoles}); err != nil {
+			roleaccess.Assignment{WorkerRef: w.key, RoleIDs: w.durableRoles, Reason: "Seed durable role assignments for RBAC runtime authorization tests"}); err != nil {
 			h.t.Fatalf("SaveAssignment %s %v: %v", w.key, w.durableRoles, err)
 		}
 	}
@@ -279,7 +279,7 @@ func (h *rbacHarness) seedAssignments() {
 		roles  []string
 	}{{h.seededA[1], []string{"hr_partner"}}, {h.seededA[2], []string{"payroll_manager"}}} {
 		if _, err := store.SaveAssignment(ctx, tenant, "system:rbac-runtime-fixture",
-			roleaccess.Assignment{Version: versions[bound.worker], WorkerRef: bound.worker, RoleIDs: bound.roles}); err != nil {
+			roleaccess.Assignment{Version: versions[bound.worker], WorkerRef: bound.worker, RoleIDs: bound.roles, Reason: "Set fixture assignment to the authorization case role set"}); err != nil {
 			h.t.Fatalf("SaveAssignment %s %v: %v", bound.worker, bound.roles, err)
 		}
 	}

@@ -79,7 +79,7 @@ func TestComposedHTTPHandlerUsesWorkflowReader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BearerToken: %v", err)
 	}
-	reader := fakeWorkflowReader{record: app.WorkflowInstanceRecord{Instance: runtime.Instance{
+	reader := fakeWorkflowReader{record: app.WorkflowControlRecord{Instance: runtime.Instance{
 		TenantID: tenantID, InstanceID: instanceID, WorkflowID: "promotion", WorkflowVersion: 3,
 		RuntimeStatus: runtime.InstanceRunning, InstanceVersion: 9,
 	}}}

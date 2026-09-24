@@ -2,11 +2,14 @@ package pgstore
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
 )
 
 type fakeRows struct{}
@@ -133,6 +136,52 @@ func TestConstants(t *testing.T) {
 		t.Fatalf("kind %q", StreamKind)
 	}
 }
+
+func TestTodo_REV_012_02(t *testing.T) {
+	intentID := uuid.NewString()
+	db := &barrierProbeDB{}
+	store, err := New(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.LoadIntent(context.Background(), "tenant", intentID)
+	var barrierErr projection.BarrierError
+	if !errors.As(err, &barrierErr) || barrierErr.Status != projection.BarrierStale || loaded.IntentID != "" {
+		t.Fatalf("stale intent read = %+v, %v", loaded, err)
+	}
+	if len(db.queries) != 2 || !strings.Contains(db.queries[0], "FROM stream_head") || !strings.Contains(db.queries[1], "FROM projection_checkpoint") {
+		t.Fatalf("queries before stale read refusal = %q; want source head and checkpoint only", db.queries)
+	}
+}
+
+type barrierProbeDB struct {
+	fakeDB
+	queries []string
+}
+
+func (db *barrierProbeDB) QueryRow(_ context.Context, sql string, _ ...any) dbport.Row {
+	db.queries = append(db.queries, sql)
+	switch len(db.queries) {
+	case 1:
+		return scanFunc(func(dest ...any) error {
+			*dest[0].(*int64) = 1
+			return nil
+		})
+	case 2:
+		return scanFunc(func(dest ...any) error {
+			*dest[0].(*int64) = 0
+			*dest[1].(**string) = nil
+			*dest[2].(*string) = projection.StatusCurrent
+			return nil
+		})
+	default:
+		return rowErr{err: dbport.ErrNoRows}
+	}
+}
+
+type scanFunc func(...any) error
+
+func (f scanFunc) Scan(dest ...any) error { return f(dest...) }
 
 func TestActiveTenants(t *testing.T) {
 	ids, err := ActiveTenants(context.Background(), &fakeDB{})

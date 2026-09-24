@@ -277,6 +277,12 @@ message ProposalRevision {
   google.protobuf.Timestamp created_at = 8;
   optional string supersedes_proposal_revision_id = 9;
   repeated string invalidator_refs = 10;
+  // Full proposal snapshot bytes are retained alongside the material
+  // protobuf payload so durable consumers can reconstruct fields that are
+  // intentionally excluded from the material digest. The ledger event digest
+  // covers this snapshot, and the critical projection stores these exact
+  // bytes as proposal_revision.payload.
+  bytes full_proposal_payload = 11;
 }
 
 message ApprovalBinding {

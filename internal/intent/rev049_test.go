@@ -63,7 +63,7 @@ func rev049Catalog() intent.Catalog {
 
 func rev049Registry(t *testing.T, defs ...intent.Definition) *intent.Registry {
 	t.Helper()
-	reg, err := intent.NewRegistry(intent.ProfileBootstrap, defs, nil, rev049Catalog())
+	reg, err := intent.NewRegistry(intent.ProfileManaged, defs, nil, rev049Catalog())
 	if err != nil {
 		t.Fatalf("compile registry: %v", err)
 	}
@@ -90,6 +90,20 @@ func rev049IncompatibleV2() intent.Definition {
 // with a typed error, compatible ones are accepted, and the check evidence
 // is recorded on the receipt.
 func TestTodo_REV_049_02(t *testing.T) {
+	t.Run("bootstrap registries reject runtime publication", func(t *testing.T) {
+		bootstrap, err := intent.NewRegistry(intent.ProfileBootstrap, []intent.Definition{rev049Def(1)}, nil, rev049Catalog())
+		if err != nil {
+			t.Fatalf("compile bootstrap registry: %v", err)
+		}
+		_, _, err = bootstrap.PublishManaged(rev049CompatibleV2(), evolution.ManagedChecker())
+		if !errors.Is(err, intent.ErrManagedPublishRequiresManagedProfile) {
+			t.Fatalf("bootstrap publish err = %v, want ErrManagedPublishRequiresManagedProfile", err)
+		}
+		if bootstrap.Len() != 1 {
+			t.Fatal("a rejected bootstrap publish changed the registry")
+		}
+	})
+
 	t.Run("GREEN: a compatible version publishes through the real evolution check", func(t *testing.T) {
 		reg := rev049Registry(t, rev049Def(1))
 		next, receipt, err := reg.PublishManaged(rev049CompatibleV2(), evolution.ManagedChecker())
@@ -197,6 +211,45 @@ func TestTodo_REV_049_02(t *testing.T) {
 		}
 		if next.Len() != 1 {
 			t.Fatalf("managed registry holds %d definitions, want 1", next.Len())
+		}
+	})
+
+	t.Run("a mutating checker cannot alter the predecessor or published candidate", func(t *testing.T) {
+		reg := rev049Registry(t, rev049Def(1))
+		candidate := rev049CompatibleV2()
+		checker := intent.CompatibilityChecker(func(previous, current intent.Definition) (bool, string, error) {
+			previous.RequiredInputs[0].Path = "mutated predecessor"
+			current.RequiredInputs[0].Path = "mutated candidate"
+			return true, "mutation probe", nil
+		})
+		next, _, err := reg.PublishManaged(candidate, checker)
+		if err != nil {
+			t.Fatalf("PublishManaged: %v", err)
+		}
+		original, err := reg.Resolve(intent.Ref{TypeID: "hcmnext.people.promote_worker", Version: 1})
+		if err != nil {
+			t.Fatalf("resolve original: %v", err)
+		}
+		if original.RequiredInputs[0].Path != "employment_ref" {
+			t.Fatalf("checker mutated predecessor input path to %q", original.RequiredInputs[0].Path)
+		}
+		published, err := next.Resolve(intent.Ref{TypeID: "hcmnext.people.promote_worker", Version: 2})
+		if err != nil {
+			t.Fatalf("resolve published: %v", err)
+		}
+		if published.RequiredInputs[0].Path != "employment_ref" {
+			t.Fatalf("checker mutation reached published input path %q", published.RequiredInputs[0].Path)
+		}
+		if candidate.RequiredInputs[0].Path != "employment_ref" {
+			t.Fatalf("checker mutation reached caller candidate input path %q", candidate.RequiredInputs[0].Path)
+		}
+		candidate.RequiredInputs[0].Path = "caller mutation"
+		published, err = next.Resolve(intent.Ref{TypeID: "hcmnext.people.promote_worker", Version: 2})
+		if err != nil {
+			t.Fatalf("resolve published after caller mutation: %v", err)
+		}
+		if published.RequiredInputs[0].Path != "employment_ref" {
+			t.Fatalf("caller mutation reached published input path %q", published.RequiredInputs[0].Path)
 		}
 	})
 }

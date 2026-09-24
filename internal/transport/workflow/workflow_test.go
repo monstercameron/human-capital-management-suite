@@ -110,7 +110,7 @@ type workflowTestReader struct {
 	calls  atomic.Int64
 }
 
-func (r *workflowTestReader) ReadWorkflowInstance(_ context.Context, tenant, instanceID string) (Record, error) {
+func (r *workflowTestReader) ReadWorkflowControlRecord(_ context.Context, tenant, instanceID string) (Record, error) {
 	r.calls.Add(1)
 	if tenant != r.record.Instance.TenantID || instanceID != r.record.Instance.InstanceID {
 		return Record{}, ErrNotFound
@@ -202,7 +202,18 @@ func TestTodo_EP_WF_001_Race(t *testing.T) {
 	}
 }
 func TestTodo_EP_WF_001_Integration(t *testing.T) {
-	TestTodo_EP_WF_001_Property(t)
+	reader := &workflowTestReader{record: multiPageRecord(transporttest.Tenant, "workflow-integration", 3)}
+	srv := &server{deps: Dependencies{Instances: reader, CursorKey: []byte("workflow-integration-key"), Authorize: allowWorkflowCalls}}
+	res, err := srv.ListNodeExecutions(workflowTestContext(t, ListNodeExecutionsProcedure), &workflowv1.ListNodeExecutionsRequest{InstanceId: "workflow-integration", Page: &commonv1.PageRequest{PageSize: 2}})
+	if err != nil {
+		t.Fatalf("list node executions: %v", err)
+	}
+	if len(res.GetNodeExecutions()) != 2 || res.GetNodeExecutions()[0].GetNodeExecutionId() != "node-a-1" || res.GetPage().GetNextCursor() == "" {
+		t.Fatalf("integration page = %v", res)
+	}
+	if got := reader.calls.Load(); got != 1 {
+		t.Fatalf("reader calls = %d, want one", got)
+	}
 }
 func TestTodo_EP_WF_001_Security(t *testing.T) {
 	assertWorkflowAuthorizationDenied(t)

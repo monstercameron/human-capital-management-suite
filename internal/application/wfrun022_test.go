@@ -276,9 +276,16 @@ func TestTodo_WF_RUN_022_Race(t *testing.T) {
 	results := make([]scheduler.TickResult, len(replicas))
 	errs := make([]error, len(replicas))
 	var wg sync.WaitGroup
+	start := make(chan struct{})
 	for i, r := range replicas {
-		wg.Go(func() { results[i], errs[i] = r.Tick(context.Background()) })
+		wg.Add(1)
+		go func(i int, r *scheduler.Scheduler) {
+			defer wg.Done()
+			<-start
+			results[i], errs[i] = r.Tick(context.Background())
+		}(i, r)
 	}
+	close(start)
 	wg.Wait()
 	leased, fired := 0, 0
 	for i := range replicas {

@@ -17,15 +17,35 @@ type fakeService struct {
 	tenant, actor string
 	options       ListOptions
 	rows          []Summary
+	semantic      bool
 	comment       Comment
+	role          string
+	library       Library
+	folderID      string
+	name          string
+	documentIDs   []string
+	documentID    string
+	starred       bool
+	subjectKind   string
+	subjectID     string
+	access        []AccessEntry
+	err           error
 }
 
-func (f *fakeService) ListDocuments(_ context.Context, tenant, actor string, options ListOptions) ([]Summary, error) {
+func (f *fakeService) ListDocuments(_ context.Context, tenant, actor string, options ListOptions) (ListResult, error) {
 	f.tenant, f.actor, f.options = tenant, actor, options
-	if f.rows != nil {
-		return f.rows, nil
+	mode := options.Mode
+	if mode == SearchMeaning && !f.semantic {
+		mode = SearchSmart
 	}
-	return []Summary{{DocumentID: "doc-1", Title: "Guide", OwnerID: actor, VersionID: "v-1", Status: "private"}}, nil
+	if f.rows != nil {
+		pending := 0
+		if f.semantic {
+			pending = 7
+		}
+		return ListResult{Rows: f.rows, Total: len(f.rows), Mode: mode, SemanticAvailable: f.semantic, SemanticPending: pending}, nil
+	}
+	return ListResult{Rows: []Summary{{DocumentID: "doc-1", Title: "Guide", OwnerID: actor, VersionID: "v-1", Status: "private"}}, Total: 1, Mode: mode, SemanticAvailable: f.semantic}, nil
 }
 
 func TestDocumentListCursorAndSelection(t *testing.T) {
@@ -33,16 +53,26 @@ func TestDocumentListCursorAndSelection(t *testing.T) {
 	f := &fakeService{rows: []Summary{{DocumentID: "doc-3", UpdatedAt: now}, {DocumentID: "doc-2", UpdatedAt: now.Add(-time.Second)}, {DocumentID: "doc-1", UpdatedAt: now.Add(-2 * time.Second)}}}
 	s := &server{service: f, cursorKey: []byte("test-document-page-key")}
 	ctx := documentContext(t)
-	first, err := s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageSize: 2, Query: "guide", Collection: "private"})
-	if err != nil || len(first.GetDocuments()) != 2 || first.GetNextPageToken() == "" || f.options.Limit != 3 {
+	first, err := s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageSize: 2, Collection: "private"})
+	if err != nil || len(first.GetDocuments()) != 2 || first.GetNextPageToken() == "" || f.options.Limit != 3 || f.options.Sort != SortUpdated {
 		t.Fatalf("first page = %+v, %v; options = %+v", first, err, f.options)
 	}
-	_, err = s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageSize: 2, Query: "guide", Collection: "private", PageToken: first.GetNextPageToken()})
-	if err != nil || f.options.BeforeID != "doc-2" || !f.options.BeforeTime.Equal(now.Add(-time.Second)) {
+	_, err = s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageSize: 2, Collection: "private", PageToken: first.GetNextPageToken()})
+	if err != nil || f.options.BeforeID != "doc-2" || !f.options.BeforeTime.Equal(now.Add(-time.Second)) || f.options.Offset != 0 {
 		t.Fatalf("next cursor = %+v, %v", f.options, err)
 	}
 	if _, err := s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageToken: first.GetNextPageToken(), Query: "different", Collection: "private"}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("changed query cursor = %v", err)
+	}
+	searched, err := s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageSize: 2, Query: "guide", Collection: "private"})
+	if err != nil || f.options.Sort != SortRelevance || f.options.Mode != SearchSmart || searched.GetSearchMode() != SearchSmart || searched.GetNextPageToken() == "" {
+		t.Fatalf("search page = %+v, %v; options = %+v", searched, err, f.options)
+	}
+	if _, err := s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageSize: 2, Query: "guide", Collection: "private", PageToken: searched.GetNextPageToken()}); err != nil || f.options.Offset != 2 {
+		t.Fatalf("search next page offset = %d, %v", f.options.Offset, err)
+	}
+	if _, err := s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageSize: 2, Query: "guide", Collection: "private", SearchMode: SearchFuzzy, PageToken: searched.GetNextPageToken()}); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("cursor reused across modes = %v", err)
 	}
 	if _, err := s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{Collection: "team"}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("unsupported collection = %v", err)
@@ -51,10 +81,14 @@ func TestDocumentListCursorAndSelection(t *testing.T) {
 	if _, err := s.ListDocuments(ctx, &documentv1.ListDocumentsRequest{PageToken: tampered, Query: "guide", Collection: "private"}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("tampered cursor = %v", err)
 	}
-	if _, ok := s.verifyCursor(first.GetNextPageToken(), "different-tenant", "signed-in-user", "guide", "private"); ok {
+	selection := listSelection{Collection: "private", Order: SortUpdated, Mode: SearchSmart}
+	if _, ok := s.verifyCursor(first.GetNextPageToken(), "server", "signed-in-user", selection); !ok {
+		t.Fatal("own cursor refused")
+	}
+	if _, ok := s.verifyCursor(first.GetNextPageToken(), "different-tenant", "signed-in-user", selection); ok {
 		t.Fatal("cross-tenant cursor accepted")
 	}
-	if _, ok := s.verifyCursor(first.GetNextPageToken(), "server", "different-actor", "guide", "private"); ok {
+	if _, ok := s.verifyCursor(first.GetNextPageToken(), "server", "different-actor", selection); ok {
 		t.Fatal("cross-actor cursor accepted")
 	}
 }
@@ -64,20 +98,30 @@ func (f *fakeService) CreateDocument(_ context.Context, tenant, actor, title, ma
 }
 func (f *fakeService) GetDocument(_ context.Context, tenant, actor, id string) (Summary, string, string, error) {
 	f.tenant, f.actor = tenant, actor
-	return Summary{DocumentID: id, Title: "Guide", OwnerID: actor, VersionID: "v-1", Status: "private"}, "# Guide\n", "sha256", nil
+	links := []LinkTarget{{DocumentID: "doc-2", Title: "Readable", Readable: true}, {DocumentID: "doc-3", Title: "must not leak"}}
+	return Summary{DocumentID: id, Title: "Guide", OwnerID: actor, VersionID: "v-1", Status: "private", Links: links}, "# Guide\n", "sha256", nil
 }
-func (f *fakeService) ShareDocument(_ context.Context, tenant, actor, id, recipient string) error {
-	f.tenant, f.actor = tenant, actor
+func (f *fakeService) ShareDocument(_ context.Context, tenant, actor, id, recipient, role string) error {
+	f.tenant, f.actor, f.role = tenant, actor, role
 	return nil
 }
 func (f *fakeService) ListDocumentComments(_ context.Context, tenant, actor, id, versionID string) ([]Comment, error) {
 	f.tenant, f.actor = tenant, actor
 	return []Comment{{ID: "docc-1", DocumentID: id, VersionID: versionID, AuthorID: actor, Body: "Looks good", CreatedAt: time.Now().UTC()}}, nil
 }
-func (f *fakeService) AddDocumentComment(_ context.Context, tenant, actor, id, versionID, body string) (Comment, error) {
+func (f *fakeService) AddDocumentComment(_ context.Context, tenant, actor, id, versionID, body string, anchor *CommentAnchor, parentID string) (Comment, error) {
 	f.tenant, f.actor = tenant, actor
-	f.comment = Comment{ID: "docc-2", DocumentID: id, VersionID: versionID, AuthorID: actor, Body: body, CreatedAt: time.Now().UTC()}
-	return f.comment, nil
+	if anchor != nil {
+		located := *anchor
+		located.Start, located.End = 4, 4+len([]rune(anchor.Quote))
+		anchor = &located
+	}
+	f.comment = Comment{ID: "docc-2", DocumentID: id, VersionID: versionID, AuthorID: actor, Body: body, CreatedAt: time.Now().UTC(), Anchor: anchor, ParentID: parentID}
+	return f.comment, f.err
+}
+func (f *fakeService) ResolveDocumentComment(_ context.Context, tenant, actor, id, commentID string, resolved bool) error {
+	f.tenant, f.actor, f.documentID, f.subjectID, f.starred = tenant, actor, id, commentID, resolved
+	return f.err
 }
 func (f *fakeService) CreateDocumentVersion(_ context.Context, tenant, actor, id, baseVersionID, title, markdown string) (string, error) {
 	f.tenant, f.actor = tenant, actor
@@ -146,8 +190,14 @@ func TestDocumentShareCallerAndValidation(t *testing.T) {
 	if _, err := s.ShareDocument(ctx, &documentv1.ShareDocumentRequest{DocumentId: "doc-1", RecipientId: "signed-in-user"}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("self share = %v", err)
 	}
-	if _, err := s.ShareDocument(ctx, &documentv1.ShareDocumentRequest{DocumentId: "doc-1", RecipientId: "person-2"}); err != nil || f.tenant != "server" || f.actor != "signed-in-user" {
-		t.Fatalf("share caller = %q %q, %v", f.tenant, f.actor, err)
+	if _, err := s.ShareDocument(ctx, &documentv1.ShareDocumentRequest{DocumentId: "doc-1", RecipientId: "person-2"}); err != nil || f.tenant != "server" || f.actor != "signed-in-user" || f.role != RoleCommenter {
+		t.Fatalf("share caller = %q %q %q, %v", f.tenant, f.actor, f.role, err)
+	}
+	if _, err := s.ShareDocument(ctx, &documentv1.ShareDocumentRequest{DocumentId: "doc-1", RecipientId: "person-2", Role: RoleViewer}); err != nil || f.role != RoleViewer {
+		t.Fatalf("viewer share = %q, %v", f.role, err)
+	}
+	if _, err := s.ShareDocument(ctx, &documentv1.ShareDocumentRequest{DocumentId: "doc-1", RecipientId: "person-2", Role: "editor"}); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("unknown role = %v", err)
 	}
 }
 

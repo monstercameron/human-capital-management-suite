@@ -15,6 +15,7 @@ import (
 	dataopsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/dataops/v1"
 	integrationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/integration/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	transportdataops "github.com/monstercameron/human-capital-management-suite/internal/transport/dataops"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/grpcserver"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/transporttest"
 )
@@ -155,8 +156,11 @@ func TestTodo_REV_030_01_Integration(t *testing.T) {
 	dataops := &fakeDataOpsHandler{}
 	integration := &fakeIntegrationHandler{}
 	server, err := grpcserver.NewServer(grpcserver.Options{
-		Config:      cfg,
-		DataOps:     dataops,
+		Config:  cfg,
+		DataOps: dataops,
+		DataOpsStage: transportdataops.StageCSVHandlerFunc(func(context.Context, string, string, []byte) (*dataopsv1.StageCSVResponse, error) {
+			return &dataopsv1.StageCSVResponse{}, nil
+		}),
 		Integration: integration,
 	})
 	if err != nil {
@@ -168,8 +172,8 @@ func TestTodo_REV_030_01_Integration(t *testing.T) {
 	if !ok {
 		t.Fatalf("DataOpsService is not registered: %v", info)
 	}
-	if len(dataopsInfo.Methods) != 4 {
-		t.Fatalf("DataOpsService methods = %d, want 4", len(dataopsInfo.Methods))
+	if len(dataopsInfo.Methods) != 5 {
+		t.Fatalf("DataOpsService methods = %d, want StageCSV plus four unary methods", len(dataopsInfo.Methods))
 	}
 	integrationInfo, ok := info["hcmnext.integration.v1.IntegrationService"]
 	if !ok {

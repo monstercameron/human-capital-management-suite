@@ -62,14 +62,16 @@ func admin008InTx(t *testing.T, conn *pgxadapter.Conn, fn func(tx dbport.Tx) err
 // TestTodo_ADMIN_008_Integration proves GetWorkflowInstance end to end
 // against a real PostgreSQL instance, work item and transition, driven
 // through the generated gRPC client exactly like a real hcmctl invocation
-// would: internal/transport/admin hands the rows
-// internal/intent/app.WorkflowInstanceReader loaded (through
-// internal/workflow/runtime.Store and internal/humanwork/workitem.Store over
-// one tenant-scoped transaction) to internal/workflow/inspect, and this test
+// would: internal/transport/admin obtains a durable view through inspect.Load
+// over one tenant-scoped transaction, and this test
 // never reads a runtime or work-item table itself -- it only asserts on the
 // wire response, which is the whole of ADMIN-008's "hcmctl cannot show a
 // run today" RED case being fixed.
-func TestTodo_ADMIN_008_Integration(t *testing.T) {
+func TestTodo_ADMIN_008_Integration(t *testing.T) { admin008Integration(t) }
+
+func TestTodo_REV_009_03_Integration(t *testing.T) { admin008Integration(t) }
+
+func admin008Integration(t *testing.T) {
 	ctx := context.Background()
 	db := pgtest.New(t)
 	tenant := insertAdmin008Tenant(t, db, "admin008-integration")
@@ -137,7 +139,7 @@ func TestTodo_ADMIN_008_Integration(t *testing.T) {
 	// so what is proven here is the served surface over the real loader,
 	// not a fake of it.
 	deps := admin.Dependencies{
-		WorkflowInstances: app.NewWorkflowInstanceReader(conn, func(values.TenantId) uuid.UUID { return tenant }),
+		WorkflowInspector: app.NewWorkflowInstanceInspector(conn, func(values.TenantId) uuid.UUID { return tenant }, nil),
 	}
 	gconn, cleanup := startTestServer(t, deps)
 	defer cleanup()
@@ -190,9 +192,36 @@ func TestTodo_ADMIN_008_Integration(t *testing.T) {
 	if item.GetTransitions()[0].GetToStatus() != "CREATED" {
 		t.Errorf("transition to_status = %q, want CREATED", item.GetTransitions()[0].GetToStatus())
 	}
-	if !resp.GetComplete() {
-		t.Errorf("response reports incomplete with no denial and a full lifecycle: redactions=%v gaps=%v",
-			resp.GetRedactions(), resp.GetGaps())
+	if len(resp.GetDurableRecords()) == 0 {
+		t.Fatal("response omitted the inspect.Load durable record manifest")
+	}
+	for _, family := range []string{"workflow_timer", "workflow_lease", "workflow_checkpoint", "outbox", "effect_reconciliation_job"} {
+		found := false
+		for _, record := range resp.GetDurableRecords() {
+			if record.GetFamily() == family {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("durable manifest omitted %q", family)
+		}
+	}
+	for family, want := range map[string]string{
+		"workflow_timer": "NOT_RECORDED", "workflow_lease": "NOT_RECORDED",
+		"workflow_checkpoint": "NOT_RECORDED", "outbox": "NOT_RECORDED",
+		"effect_reconciliation_job": "NOT_RECORDED",
+	} {
+		var got string
+		for _, record := range resp.GetDurableRecords() {
+			if record.GetFamily() == family {
+				got = record.GetState()
+				break
+			}
+		}
+		if got != want {
+			t.Errorf("durable manifest %s state = %q, want %q", family, got, want)
+		}
 	}
 	if resp.GetEvidenceRef().GetEvidenceId() == "" {
 		t.Error("expected a non-empty evidence id")

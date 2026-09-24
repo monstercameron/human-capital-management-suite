@@ -3,21 +3,48 @@ package application
 import (
 	"context"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/test/bufconn"
 
 	notificationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/inbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/list"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
+
+type notificationJourneyAuthorityStub struct {
+	journey      workspace.JourneySummary
+	currentOwner string
+}
+
+func (s *notificationJourneyAuthorityStub) ListJourneys(ctx context.Context) ([]workspace.JourneySummary, error) {
+	if _, err := trust.MustFromContext(ctx); err != nil {
+		return nil, err
+	}
+	return []workspace.JourneySummary{s.journey}, nil
+}
+
+func (s *notificationJourneyAuthorityStub) WorkflowNotifications(ctx context.Context, journeys []workspace.JourneySummary) ([]workspace.WorkflowNotification, error) {
+	p, err := trust.MustFromContext(ctx)
+	if err != nil || p.Subject() != s.currentOwner || len(journeys) != 1 {
+		return nil, nil
+	}
+	return []workspace.WorkflowNotification{{JourneyID: s.journey.IntentID, WorkItemID: "current-owner-item", Purpose: "APPROVAL", Status: "ASSIGNED"}}, nil
+}
 
 type stubVisibility struct {
 	hidden map[uuid.UUID]bool
@@ -128,6 +155,116 @@ func envelopeCode(t *testing.T, err error) envelope.Code {
 		t.Fatalf("error %v is not an envelope error", err)
 	}
 	return envErr.Code()
+}
+
+// TestTodo_REV_011_01 proves an inbox row reaches the authenticated recipient
+// through the served feed, whose visibility port is checked before disclosure.
+func TestTodo_REV_011_01(t *testing.T) {
+	fx := newNotificationFixture(t)
+	instance := uuid.New()
+	seed := fx.publish(t, "approval-owner", "APPROVAL", "corr-rev-011", instance, fx.now.Add(-time.Minute))
+
+	owner, err := fx.feed.ListNotifications(fx.principal(t, "naas4", "approval-owner"), &notificationv1.ListNotificationsRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("owner feed: %v", err)
+	}
+	if len(owner.Notifications) != 1 || owner.Notifications[0].Id != seed.InboxRecordID.String() {
+		t.Fatalf("owner feed = %+v, want the routed approval notice", owner.Notifications)
+	}
+
+	other, err := fx.feed.ListNotifications(fx.principal(t, "naas4", "other-principal"), &notificationv1.ListNotificationsRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("other recipient feed: %v", err)
+	}
+	if len(other.Notifications) != 0 {
+		t.Fatalf("another recipient received the approval notice: %+v", other.Notifications)
+	}
+}
+
+// TestTodo_REV_011_01_Security proves recipient scoping and the current
+// workflow visibility check both withhold the notice from unauthorized views.
+func TestTodo_REV_011_01_Security(t *testing.T) {
+	fx := newNotificationFixture(t)
+	instance := uuid.New()
+	fx.publish(t, "approval-owner", "APPROVAL", "corr-rev-011-security", instance, fx.now.Add(-time.Minute))
+	ctx := fx.principal(t, "naas4", "approval-owner")
+
+	fx.vis.hidden[instance] = true
+	withheld, err := fx.feed.ListNotifications(ctx, &notificationv1.ListNotificationsRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("withheld feed: %v", err)
+	}
+	if len(withheld.Notifications) != 0 {
+		t.Fatalf("currently hidden workflow reached the caller: %+v", withheld.Notifications)
+	}
+
+	fx.vis.hidden[instance] = false
+	otherTenant := fx.principal(t, "naas4-ghost", "approval-owner")
+	_, crossTenantErr := fx.feed.ListNotifications(otherTenant, &notificationv1.ListNotificationsRequest{PageSize: 10})
+	if code := envelopeCode(t, crossTenantErr); code != envelope.CodePermissionDenied {
+		t.Fatalf("cross-tenant feed code = %v, want PermissionDenied", code)
+	}
+}
+
+func TestTodo_REV_011_01_ServedGRPC(t *testing.T) {
+	fx := newNotificationFixture(t)
+	instance := uuid.New()
+	seed := fx.publish(t, "approval-owner", "APPROVAL", "corr-rev-011-grpc", instance, fx.now.Add(-time.Minute))
+	ownerCtx := fx.principal(t, "naas4", "approval-owner")
+	owner, _ := trust.MustFromContext(ownerCtx)
+	otherCtx := fx.principal(t, "naas4", "another-approver")
+	other, _ := trust.MustFromContext(otherCtx)
+	authority := &notificationJourneyAuthorityStub{currentOwner: "approval-owner", journey: workspace.JourneySummary{IntentID: "intent-current", InstanceID: instance.String()}}
+	feed, err := NewNotificationFeed(fx.feed.db, func(key values.TenantId) (uuid.UUID, error) {
+		id, ok := fx.tenants[key]
+		if !ok {
+			return uuid.Nil, fmt.Errorf("unknown tenant %q", key)
+		}
+		return id, nil
+	}, journeyNotificationVisibility{engine: authority, notifications: authority}, fx.secret, func() time.Time { return fx.now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := grpc.NewServer(grpc.UnaryInterceptor(func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		md, _ := metadata.FromIncomingContext(ctx)
+		p := owner
+		if len(md.Get("x-test-subject")) > 0 && md.Get("x-test-subject")[0] == other.Subject() {
+			p = other
+		}
+		return handler(trust.WithPrincipal(ctx, p), req)
+	}))
+	transportcell.RegisterNotificationFeed(server, feed)
+	listener := bufconn.Listen(1 << 20)
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { server.Stop(); _ = listener.Close() })
+	conn, err := grpc.DialContext(context.Background(), "bufnet", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial() }), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	client := notificationv1.NewNotificationServiceClient(conn)
+	ownerResponse, err := client.ListNotifications(context.Background(), &notificationv1.ListNotificationsRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("owner served notification feed: %v", err)
+	}
+	if len(ownerResponse.Notifications) != 1 || ownerResponse.Notifications[0].Id != seed.InboxRecordID.String() {
+		t.Fatalf("owner served feed = %+v, want current assigned approver's notice", ownerResponse.Notifications)
+	}
+	otherResponse, err := client.ListNotifications(metadata.AppendToOutgoingContext(context.Background(), "x-test-subject", other.Subject()), &notificationv1.ListNotificationsRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("other served notification feed: %v", err)
+	}
+	if len(otherResponse.Notifications) != 0 {
+		t.Fatalf("unassigned principal received approval notice: %+v", otherResponse.Notifications)
+	}
+	authority.currentOwner = "another-approver"
+	revoked, err := client.ListNotifications(context.Background(), &notificationv1.ListNotificationsRequest{PageSize: 10})
+	if err != nil {
+		t.Fatalf("revoked recipient feed: %v", err)
+	}
+	if len(revoked.Notifications) != 0 {
+		t.Fatalf("stale inbox recipient retained visibility after reassignment: %+v", revoked.Notifications)
+	}
 }
 
 // TestTodo_NAAS_004_Security proves the feed fails closed: no principal, no

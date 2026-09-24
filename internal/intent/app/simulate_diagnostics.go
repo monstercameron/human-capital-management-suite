@@ -107,10 +107,11 @@ func (s *IntentService) simulateRepair(
 	if ownedErr != nil {
 		return nil, ownedErr
 	}
-	result, ok := simulated.(repair.RepairSimulation)
+	plannedSimulation, ok := simulated.(repairSimulationAnswer)
 	if !ok {
 		return nil, unexpectedAnswer(repair.SimulateRepairIntentType, simulated)
 	}
+	result := plannedSimulation.Simulation
 	return &intentsv1.SimulationArtifact{
 		IntentId:          inst.IntentID,
 		PlannedEffects:    repairStepsProto(planned.Plan),

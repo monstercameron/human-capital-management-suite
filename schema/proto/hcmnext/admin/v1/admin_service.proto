@@ -504,6 +504,16 @@ message GetWorkflowInstanceResponse {
   repeated string redactions = 11;
   repeated string gaps = 12;
   hcmnext.common.v1.EvidenceRef evidence_ref = 13;
+  repeated DurableRecordFamilyProfile durable_records = 14;
+}
+
+// DurableRecordFamilyProfile is one durable-family manifest line returned by inspect.Load.
+message DurableRecordFamilyProfile {
+  string family = 1;
+  string section = 2;
+  string state = 3;
+  int32 count = 4;
+  string reason = 5;
 }
 
 // ListLedgerEventsRequest selects one tenant stream for the operator.

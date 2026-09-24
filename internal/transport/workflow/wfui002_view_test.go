@@ -136,7 +136,9 @@ func wfui002Publication(t *testing.T) (*workflowversion.Registry, workflowversio
 		t.Fatalf("CompileApproval: %v", err)
 	}
 	registry := workflowversion.NewRegistry()
-	published, err := workflowversion.Publish(registry, definition, plan, workflowcore.Options{Phase: workflowcore.PhaseP1B}, workflowversion.PublishMeta{
+	published, err := workflowversion.Publish(registry, definition, plan, workflowcore.Options{
+		Phase: workflowcore.PhaseP1B, IRSchemaVersion: prototype.ApprovalIRSchemaV1,
+	}, workflowversion.PublishMeta{
 		SemanticVersion: "1.0.0", PublishedAt: time.Date(2026, 9, 19, 15, 4, 5, 0, time.UTC), PublishedBy: "principal:release-manager",
 	})
 	if err != nil {

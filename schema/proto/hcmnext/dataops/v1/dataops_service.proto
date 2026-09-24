@@ -8,6 +8,7 @@ import "google/protobuf/timestamp.proto";
 import "hcmnext/common/v1/common.proto";
 import "hcmnext/dataops/v1/dataops.proto";
 import "hcmnext/dataops/v1/history.proto";
+import "hcmnext/dataops/v1/import.proto";
 import "hcmnext/dataops/v1/repair.proto";
 
 message ExplainFieldHistoryRequest {
@@ -92,6 +93,10 @@ message SimulateRepairResponse {
 // produces a non-executable recommendation only and SimulateRepair performs a
 // pure in-memory projection.
 service DataOpsService {
+  // StageCSV accepts a bounded client stream and writes only an immutable
+  // staging artifact. The tenant is derived from the authenticated principal.
+  rpc StageCSV(stream StageCSVRequest) returns (StageCSVResponse);
+
   // P1A disposition: IMPLEMENT. Read-only effective-date debugger
   // (planning/specs/hris-admin-dataops.md "Effective-Date Debugger").
   rpc ExplainFieldHistory(ExplainFieldHistoryRequest) returns (ExplainFieldHistoryResponse);

@@ -402,7 +402,7 @@ func TestTodo_WF_RUN_034_Security(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load the role directory: %v", err)
 	}
-	revocation := roleaccess.Assignment{WorkerRef: promoux015Manager, RoleIDs: []string{"hcm_admin", "comp_admin", "intent_author"}}
+	revocation := roleaccess.Assignment{WorkerRef: promoux015Manager, RoleIDs: []string{"hcm_admin", "comp_admin", "intent_author"}, Reason: "Revoke promotion administration before the authorization check"}
 	for _, assignment := range snapshot.Assignments {
 		if strings.EqualFold(strings.TrimSpace(assignment.WorkerRef), promoux015Manager) {
 			revocation.Version = assignment.Version

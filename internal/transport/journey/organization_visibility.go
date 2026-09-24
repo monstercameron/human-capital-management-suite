@@ -281,7 +281,9 @@ func workerIdentityIndex(workers []workspace.WorkerSummary) workerIdentityLookup
 		ambiguous: make(map[string]bool),
 	}
 	for index, worker := range workers {
-		for _, value := range []string{worker.WorkerRef, worker.WorkerID} {
+		// A persisted manager relationship names the manager by the stored
+		// worker key, which is the subject, so the subject resolves too.
+		for _, value := range []string{worker.WorkerRef, worker.WorkerID, worker.SubjectID} {
 			identity := normalizedWorkerIdentity(value)
 			if identity == "" || lookup.ambiguous[identity] {
 				continue

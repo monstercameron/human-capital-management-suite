@@ -12,12 +12,15 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 )
 
@@ -74,6 +77,50 @@ func TestProposePromotionHandlerUsesCanonicalProcedure(t *testing.T) {
 	h := journey.NewProposePromotionHandler(journey.Dependencies{})
 	if h == nil {
 		t.Fatal("handler is nil")
+	}
+}
+
+func TestTodo_REV_084_04_Integration(t *testing.T) {
+	engine := newFakeEngine()
+	engine.detail.Summary.ProposalRevisionID = "revision-current"
+	engine.detail.Summary.MaterialDigest = "sha256:current-content"
+	server := startPromotionEdge(t, journey.Dependencies{Engine: engine, Now: func() time.Time { return fixtureTime() }})
+	client := connect.NewClient[structpb.Struct, structpb.Struct](server.Client(), server.URL+journey.CorrectWorkLoopProcedure, connect.WithProtoJSON())
+	call := func(revision, digest string) (*connect.Response[structpb.Struct], error) {
+		body, err := structpb.NewStruct(map[string]any{
+			"intent_id": fixtureIntentID, "proposal_revision_id": revision,
+			"proposal_digest": digest, "kind": "repair_plan", "reason": "repair the governed plan",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := connect.NewRequest(body)
+		req.Header().Set(transport.AuthorizationMetadataKey, "Bearer "+fixtureManagerToken)
+		req.Header().Set(transport.RequestIDMetadataKey, "rev-084-04")
+		return client.CallUnary(context.Background(), req)
+	}
+
+	rebased, err := call("revision-old", "sha256:old-content")
+	if err != nil {
+		t.Fatalf("superseded correction: %v", err)
+	}
+	if rebased.Msg.GetFields()["route"].GetStringValue() != "work_loop.rebase" || rebased.Msg.GetFields()["allowed"].GetBoolValue() {
+		t.Fatalf("superseded decision = %v, want denied work_loop.rebase", rebased.Msg)
+	}
+	if rebased.Msg.GetFields()["proposal_revision_id"].GetStringValue() != "revision-old" || rebased.Msg.GetFields()["digest"].GetStringValue() == "" {
+		t.Fatalf("rebase response lost request binding or decision digest: %v", rebased.Msg)
+	}
+
+	_, err = call("revision-current", "sha256:altered-content")
+	owned, ok := edge.FromConnectError(err)
+	if !ok || owned.Code() != envelope.CodeFailedPrecondition {
+		t.Fatalf("tamper refusal = (%v, %v), want owned FAILED_PRECONDITION", owned, ok)
+	}
+	if owned.ReasonRef() != "journey.correct.tampered" {
+		t.Fatalf("tamper refusal reason = %q, want journey.correct.tampered", owned.ReasonRef())
+	}
+	if engine.inspectCount() != 2 {
+		t.Fatalf("Inspect calls = %d, want one authoritative read for each request", engine.inspectCount())
 	}
 }
 

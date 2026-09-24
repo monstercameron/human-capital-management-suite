@@ -542,7 +542,7 @@ var File_hcmnext_dataops_v1_dataops_service_proto protoreflect.FileDescriptor
 
 const file_hcmnext_dataops_v1_dataops_service_proto_rawDesc = "" +
 	"\n" +
-	"(hcmnext/dataops/v1/dataops_service.proto\x12\x12hcmnext.dataops.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1ehcmnext/common/v1/common.proto\x1a hcmnext/dataops/v1/dataops.proto\x1a hcmnext/dataops/v1/history.proto\x1a\x1fhcmnext/dataops/v1/repair.proto\"\xcc\x02\n" +
+	"(hcmnext/dataops/v1/dataops_service.proto\x12\x12hcmnext.dataops.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1ehcmnext/common/v1/common.proto\x1a hcmnext/dataops/v1/dataops.proto\x1a hcmnext/dataops/v1/history.proto\x1a\x1fhcmnext/dataops/v1/import.proto\x1a\x1fhcmnext/dataops/v1/repair.proto\"\xcc\x02\n" +
 	"\x1aExplainFieldHistoryRequest\x125\n" +
 	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x126\n" +
 	"\asubject\x18\x02 \x01(\v2\x1c.hcmnext.common.v1.EntityRefR\asubject\x12\x16\n" +
@@ -581,8 +581,9 @@ const file_hcmnext_dataops_v1_dataops_service_proto_rawDesc = "" +
 	"\x16SimulateRepairResponse\x12D\n" +
 	"\n" +
 	"simulation\x18\x01 \x01(\v2$.hcmnext.dataops.v1.RepairSimulationR\n" +
-	"simulation2\xbd\x03\n" +
-	"\x0eDataOpsService\x12v\n" +
+	"simulation2\x96\x04\n" +
+	"\x0eDataOpsService\x12W\n" +
+	"\bStageCSV\x12#.hcmnext.dataops.v1.StageCSVRequest\x1a$.hcmnext.dataops.v1.StageCSVResponse(\x01\x12v\n" +
 	"\x13ExplainFieldHistory\x12..hcmnext.dataops.v1.ExplainFieldHistoryRequest\x1a/.hcmnext.dataops.v1.ExplainFieldHistoryResponse\x12[\n" +
 	"\n" +
 	"DiffRecord\x12%.hcmnext.dataops.v1.DiffRecordRequest\x1a&.hcmnext.dataops.v1.DiffRecordResponse\x12m\n" +
@@ -620,6 +621,8 @@ var file_hcmnext_dataops_v1_dataops_service_proto_goTypes = []any{
 	(*RepairApprovalPolicy)(nil),        // 14: hcmnext.dataops.v1.RepairApprovalPolicy
 	(*RepairPlan)(nil),                  // 15: hcmnext.dataops.v1.RepairPlan
 	(*RepairSimulation)(nil),            // 16: hcmnext.dataops.v1.RepairSimulation
+	(*StageCSVRequest)(nil),             // 17: hcmnext.dataops.v1.StageCSVRequest
+	(*StageCSVResponse)(nil),            // 18: hcmnext.dataops.v1.StageCSVResponse
 }
 var file_hcmnext_dataops_v1_dataops_service_proto_depIdxs = []int32{
 	8,  // 0: hcmnext.dataops.v1.ExplainFieldHistoryRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
@@ -636,16 +639,18 @@ var file_hcmnext_dataops_v1_dataops_service_proto_depIdxs = []int32{
 	15, // 11: hcmnext.dataops.v1.CreateRepairPlanResponse.plan:type_name -> hcmnext.dataops.v1.RepairPlan
 	8,  // 12: hcmnext.dataops.v1.SimulateRepairRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	16, // 13: hcmnext.dataops.v1.SimulateRepairResponse.simulation:type_name -> hcmnext.dataops.v1.RepairSimulation
-	0,  // 14: hcmnext.dataops.v1.DataOpsService.ExplainFieldHistory:input_type -> hcmnext.dataops.v1.ExplainFieldHistoryRequest
-	2,  // 15: hcmnext.dataops.v1.DataOpsService.DiffRecord:input_type -> hcmnext.dataops.v1.DiffRecordRequest
-	4,  // 16: hcmnext.dataops.v1.DataOpsService.CreateRepairPlan:input_type -> hcmnext.dataops.v1.CreateRepairPlanRequest
-	6,  // 17: hcmnext.dataops.v1.DataOpsService.SimulateRepair:input_type -> hcmnext.dataops.v1.SimulateRepairRequest
-	1,  // 18: hcmnext.dataops.v1.DataOpsService.ExplainFieldHistory:output_type -> hcmnext.dataops.v1.ExplainFieldHistoryResponse
-	3,  // 19: hcmnext.dataops.v1.DataOpsService.DiffRecord:output_type -> hcmnext.dataops.v1.DiffRecordResponse
-	5,  // 20: hcmnext.dataops.v1.DataOpsService.CreateRepairPlan:output_type -> hcmnext.dataops.v1.CreateRepairPlanResponse
-	7,  // 21: hcmnext.dataops.v1.DataOpsService.SimulateRepair:output_type -> hcmnext.dataops.v1.SimulateRepairResponse
-	18, // [18:22] is the sub-list for method output_type
-	14, // [14:18] is the sub-list for method input_type
+	17, // 14: hcmnext.dataops.v1.DataOpsService.StageCSV:input_type -> hcmnext.dataops.v1.StageCSVRequest
+	0,  // 15: hcmnext.dataops.v1.DataOpsService.ExplainFieldHistory:input_type -> hcmnext.dataops.v1.ExplainFieldHistoryRequest
+	2,  // 16: hcmnext.dataops.v1.DataOpsService.DiffRecord:input_type -> hcmnext.dataops.v1.DiffRecordRequest
+	4,  // 17: hcmnext.dataops.v1.DataOpsService.CreateRepairPlan:input_type -> hcmnext.dataops.v1.CreateRepairPlanRequest
+	6,  // 18: hcmnext.dataops.v1.DataOpsService.SimulateRepair:input_type -> hcmnext.dataops.v1.SimulateRepairRequest
+	18, // 19: hcmnext.dataops.v1.DataOpsService.StageCSV:output_type -> hcmnext.dataops.v1.StageCSVResponse
+	1,  // 20: hcmnext.dataops.v1.DataOpsService.ExplainFieldHistory:output_type -> hcmnext.dataops.v1.ExplainFieldHistoryResponse
+	3,  // 21: hcmnext.dataops.v1.DataOpsService.DiffRecord:output_type -> hcmnext.dataops.v1.DiffRecordResponse
+	5,  // 22: hcmnext.dataops.v1.DataOpsService.CreateRepairPlan:output_type -> hcmnext.dataops.v1.CreateRepairPlanResponse
+	7,  // 23: hcmnext.dataops.v1.DataOpsService.SimulateRepair:output_type -> hcmnext.dataops.v1.SimulateRepairResponse
+	19, // [19:24] is the sub-list for method output_type
+	14, // [14:19] is the sub-list for method input_type
 	14, // [14:14] is the sub-list for extension type_name
 	14, // [14:14] is the sub-list for extension extendee
 	0,  // [0:14] is the sub-list for field type_name
@@ -658,6 +663,7 @@ func file_hcmnext_dataops_v1_dataops_service_proto_init() {
 	}
 	file_hcmnext_dataops_v1_dataops_proto_init()
 	file_hcmnext_dataops_v1_history_proto_init()
+	file_hcmnext_dataops_v1_import_proto_init()
 	file_hcmnext_dataops_v1_repair_proto_init()
 	file_hcmnext_dataops_v1_dataops_service_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}

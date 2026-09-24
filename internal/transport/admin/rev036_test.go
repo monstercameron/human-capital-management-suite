@@ -360,7 +360,9 @@ func TestTodo_REV_036_01_Integration(t *testing.T) {
 }
 
 func TestTodo_REV_036_01_Security(t *testing.T) {
-	conn, cleanup := startOnboardingServer(t, rev036OperatorDeps(t))
+	spy := &rev036OnboardingSpy{}
+	deps := admin.Dependencies{Onboarding: spy}
+	conn, cleanup := startOnboardingServer(t, deps)
 	defer cleanup()
 	client := adminv1.NewOnboardingServiceClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -375,8 +377,60 @@ func TestTodo_REV_036_01_Security(t *testing.T) {
 		Digest:      sm.Digest,
 	})
 	assertOwnedCode(t, err, envelope.CodePermissionDenied)
+	if spy.calls != 0 {
+		t.Fatalf("operator port called %d times for an ordinary caller", spy.calls)
+	}
 
 	opCtx := withToken(ctx, fixtureOperatorToken)
 	_, err = client.GetOnboardingRun(opCtx, &adminv1.GetOnboardingRunRequest{TenantId: "other-tenant", RunId: "ob-nope"})
 	assertOwnedCode(t, err, envelope.CodePermissionDenied)
+	if spy.calls != 0 {
+		t.Fatalf("operator port called %d times for a cross-tenant caller", spy.calls)
+	}
+}
+
+// rev036OnboardingSpy makes the authorization ordering observable: any
+// attempt to invoke onboarding business behavior increments calls, so the
+// Security test can fail if transport moves a source or state access above
+// the operator-role and tenant checks.
+type rev036OnboardingSpy struct{ calls int }
+
+func (s *rev036OnboardingSpy) Publish(context.Context, string, onboarding.SignedManifest) (string, error) {
+	s.calls++
+	return "ob-spy", nil
+}
+
+func (s *rev036OnboardingSpy) RunPreflight(context.Context, string, string) (onboarding.PreflightResult, error) {
+	s.calls++
+	return onboarding.PreflightResult{}, nil
+}
+
+func (s *rev036OnboardingSpy) StartExtraction(context.Context, string, string, onboarding.ExtractRequest) ([]onboarding.ObjectResult, error) {
+	s.calls++
+	return nil, nil
+}
+
+func (s *rev036OnboardingSpy) ReviewAdjudication(context.Context, string, string, []onboardingruns.OnboardingAdjudicationScope) ([]onboarding.Adjudication, error) {
+	s.calls++
+	return nil, nil
+}
+
+func (s *rev036OnboardingSpy) ExecuteCutover(context.Context, string, string, onboarding.CutoverEvidence, onboarding.CutoverSigner) (onboarding.CutoverDecision, error) {
+	s.calls++
+	return onboarding.CutoverDecision{}, nil
+}
+
+func (s *rev036OnboardingSpy) Abort(context.Context, string, string, string) error {
+	s.calls++
+	return nil
+}
+
+func (s *rev036OnboardingSpy) ReportReconciliation(context.Context, string, string, string, []onboarding.SourceRow, []onboarding.TargetRecord) (onboarding.ReconciliationReport, error) {
+	s.calls++
+	return onboarding.ReconciliationReport{}, nil
+}
+
+func (s *rev036OnboardingSpy) Get(context.Context, string, string) (onboardingruns.OnboardingRunView, error) {
+	s.calls++
+	return onboardingruns.OnboardingRunView{}, nil
 }

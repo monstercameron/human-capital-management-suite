@@ -405,9 +405,8 @@ func promoteWorkerCreateRequest(t *testing.T, principal *trust.Principal, idempo
 	payload := mustLifecycleStruct(t, map[string]any{
 		"worker_ref": "omar-reyes",
 		"known_at":   "2026-05-15",
-		// position_id is deliberately absent: PROMOUX-004 checks a
-		// non-empty value against the real Position domain, and this
-		// environment has no job_position row for any corpus fixture.
+		// position_id is deliberately absent: this is the documented
+		// position-less proposal path, which may resolve BLOCKED.
 		"target": map[string]any{
 			"job_code": "OPS-HRBP3", "grade": "P3", "org_unit": "people-ops",
 			"pay_zone": "US-EAST",
@@ -437,8 +436,7 @@ func promoteWorkerCreateRequest(t *testing.T, principal *trust.Principal, idempo
 			PrincipalId: principal.Subject(), Kind: intentsv1.InitiatorKind_INITIATOR_KIND_HUMAN,
 			IdentityAssuranceRef: principal.EvidenceID(),
 		},
-		// No POSITION subject: position_id is absent above, and an empty
-		// SubjectId would itself be a structurally invalid reference.
+		// No POSITION subject: position_id is intentionally absent above.
 		Subjects: []*intentsv1.SubjectReference{
 			{SubjectKind: "EMPLOYMENT", SubjectId: worker.Id, AuthorityDomain: "PEOPLE"},
 		},

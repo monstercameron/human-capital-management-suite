@@ -31,8 +31,8 @@ var (
 
 	// ErrSupersessionRequiresIncompatibility reports an attempt to record a
 	// supersession over a compatibility report that found no incompatible
-	// change. A COMPATIBLE successor binds live instances directly; the
-	// supersession ceremony exists for the INCOMPATIBLE case only.
+	// change. Under the declared policy, compatible successors need no
+	// supersession artifact; runtime binding is outside this package.
 	ErrSupersessionRequiresIncompatibility = errors.New("evolution: supersession requires an incompatible compatibility report")
 
 	// ErrApproverIsAuthor reports a supersession whose approver and author

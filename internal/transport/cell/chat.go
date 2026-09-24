@@ -20,6 +20,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/edge"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
+	transportposition "github.com/monstercameron/human-capital-management-suite/internal/transport/position"
 )
 
 const ChatExtensionsProcedurePrefix = "/hcmnext.chat.v1.ChatExtensionsService/"
@@ -62,7 +63,7 @@ func RegisterChat(srv *grpc.Server, service chatcore.ConversationService) {
 // UNIMPLEMENTED at the handler rather than silently vanishing at the bridge
 // and so the policy/constructor agreement test holds in either mode.
 func NewTunnelGRPCServerWithChat(
-	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
 	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
 	extensions transportextensions.Service, opts ...grpc.ServerOption,
@@ -73,14 +74,27 @@ func NewTunnelGRPCServerWithChat(
 // NewTunnelGRPCServerWithChatAndDocument composes the workspace document
 // service alongside chat on the existing authenticated browser tunnel.
 func NewTunnelGRPCServerWithChatAndDocument(
-	c *app.Cell, instances app.WorkflowInstanceReader, workQueue app.WorkItemQueueReader,
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
 	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
 	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
 	extensions transportextensions.Service, documentService transportdocument.Service,
 	opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	return newTunnelGRPCServerWithDocument(c, instances, workQueue, cursorKey, previousCursorKey,
-		workWrites, thresholds, chatService, extensions, documentService, opts...)
+		workWrites, thresholds, chatService, extensions, documentService, nil, opts...)
+}
+
+// NewTunnelGRPCServerWithChatDocumentAndPosition composes the typed position
+// read service onto the authenticated browser tunnel.
+func NewTunnelGRPCServerWithChatDocumentAndPosition(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps transportposition.Dependencies, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocument(c, instances, workQueue, cursorKey, previousCursorKey,
+		workWrites, thresholds, chatService, extensions, documentService, &positionDeps, opts...)
 }
 
 // registerTunnelChat puts both chat services on a tunnel server: composed

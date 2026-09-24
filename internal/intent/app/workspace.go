@@ -86,6 +86,7 @@ func (c *Cell) WorkspaceHandler() (http.Handler, error) {
 		Config:       c.Config,
 		Now:          c.Config.Now,
 		RoleAccess:   c.RoleAccess,
+		Catalogs:     c.Catalogs,
 		PublicOrigin: c.PublicOrigin(),
 		// Nil on every cell composed without both an execution driver and its
 		// database: the journey page then reports ErrJourneyUnavailable rather
@@ -376,11 +377,11 @@ func invokeCompensation(
 	if ownedErr != nil {
 		return rewards.SimulateCompensationResult{}, "", workspaceGatewayError(ownedErr)
 	}
-	got, ok := answer.(rewards.SimulateCompensationResult)
+	planned, ok := answer.(compensationAnswer)
 	if !ok {
 		return rewards.SimulateCompensationResult{}, "", fmt.Errorf("app: simulate_compensation returned %T", answer)
 	}
-	return got, evidenceID, nil
+	return planned.Simulation, evidenceID, nil
 }
 
 func invokePromotion(

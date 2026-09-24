@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/reliability"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
 )
 
@@ -48,9 +49,10 @@ type App struct {
 	// disposition is the serve cell's governed retention, legal-hold and
 	// verified-deletion gate (REV-004-02). It is composed with the cell so
 	// the libraries it fronts are reachable from the running process.
-	disposition *DispositionGate
-	grpcAddr    string
-	httpAddr    string
+	disposition      *DispositionGate
+	pilotReliability *reliability.Manifest
+	grpcAddr         string
+	httpAddr         string
 
 	workloads []bootstrap.Workload
 	shutdown  []bootstrap.ShutdownStep

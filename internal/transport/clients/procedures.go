@@ -6,6 +6,8 @@ package clients
 // across every service.
 func Procedures() []string {
 	var out []string
+	out = append(out, ProceduresDataOpsService()...)
+	out = append(out, ProceduresIntegrationService()...)
 	out = append(out, ProceduresIntentService()...)
 	out = append(out, ProceduresRegistryService()...)
 	return out

@@ -88,18 +88,10 @@ type Dependencies struct {
 	// known_at. Nil means time.Now.
 	Now func() time.Time
 
-	// WorkflowInstances backs GetWorkflowInstance: the application-side port
-	// that loads one instance's durable record (the instance row, its node
-	// executions, its work items and their transitions) for the caller's
-	// tenant. internal/intent/app.NewWorkflowInstanceReader over the pool
-	// the workflow runtime writes through is what every real composition
-	// passes. This package reads no runtime or work-item table itself -
-	// package-dependency-policy.yaml's transport-must-not-import-store rule
-	// is exactly that - it hands the loaded rows to internal/workflow/inspect,
-	// which is the pure projection and redaction ADMIN-008 renders. Nil
-	// leaves GetWorkflowInstance UNAVAILABLE, matching every other optional
-	// Dependencies port.
-	WorkflowInstances app.WorkflowInstanceReader
+	// WorkflowInspector backs GetWorkflowInstance: it calls inspect.Load in
+	// one tenant-scoped transaction with this request's already-evaluated
+	// disclosure and work-item decisions. Nil leaves the RPC unavailable.
+	WorkflowInspector app.WorkflowInstanceInspector
 	// Onboarding backs the OnboardingService run lifecycle (REV-036-01): the
 	// application-side operator registry a run moves through. Nil leaves
 	// every onboarding RPC UNAVAILABLE, matching every other optional port.
@@ -111,6 +103,10 @@ type Dependencies struct {
 	// storage adapters and hash-chain mechanics outside transport.
 	ListLedgerStream  func(context.Context, uuid.UUID, string) (explorer.StreamListingView, error)
 	VerifyLedgerChain func(context.Context, uuid.UUID, string) (explorer.ChainView, error)
+	// ResolveLedgerTenant binds a verifier-derived tenant key to the canonical
+	// ledger tenant UUID. Read requests must match this result before a store
+	// port is called; nil fails closed for the ledger explorer methods.
+	ResolveLedgerTenant func(context.Context, string) (uuid.UUID, error)
 	// RecordLedgerCorrection records one governed business correction
 	// through internal/operations/explorer.RecordCorrection (which invokes
 	// internal/data/ledger/lineage.Append plus the correction's hash-chain

@@ -10,16 +10,15 @@ import (
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 )
 
-// parsedCommand is one invocation's fully-parsed intent: the global flags
-// plus a closure that calls exactly one AdminService method with the
-// subcommand's own flags and formats the typed response. The closure is the
-// entire "business" surface of this package, and it never does anything
-// but call the generated client and format its result - it decides nothing
-// about an HCM domain rule.
+// parsedCommand is one invocation's fully-parsed intent. Server-backed
+// commands call a generated client and format its typed response; the local
+// closure is reserved for read-only evidence evaluation that does not access
+// a store or mutate production state.
 type parsedCommand struct {
 	global        globalFlags
 	run           func(ctx context.Context, client adminv1.AdminServiceClient) (string, error)
 	runOnboarding func(ctx context.Context, client adminv1.OnboardingServiceClient) (string, error)
+	runLocal      func() (string, error)
 }
 
 // newSubFlagSet builds a subcommand's own flag set, sharing
@@ -60,6 +59,8 @@ func parseArgs(args []string) (parsedCommand, error) {
 		return parseOnboarding(*g, subArgs)
 	case "explorer":
 		return parseExplorer(*g, subArgs)
+	case "tenant":
+		return parseTenant(*g, subArgs)
 	default:
 		return parsedCommand{}, fmt.Errorf("hcmctl: unknown subcommand %q", name)
 	}

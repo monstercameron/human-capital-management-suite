@@ -62,7 +62,17 @@ func New(deps Dependencies) *Server {
 	return &Server{deps: deps}
 }
 
-func Register(srv *grpc.Server, deps Dependencies) { healthpb.RegisterHealthServer(srv, New(deps)) }
+func Register(srv *grpc.Server, deps Dependencies) { RegisterServer(srv, New(deps)) }
+
+// RegisterServer installs an already composed health server. Sharing the
+// same value across transports gives probes one cache and one dependency
+// check budget for the process.
+func RegisterServer(srv *grpc.Server, server *Server) {
+	if srv == nil || server == nil {
+		return
+	}
+	healthpb.RegisterHealthServer(srv, server)
+}
 
 func (s *Server) Check(ctx context.Context, req *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
 	service := ""

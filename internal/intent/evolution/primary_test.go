@@ -5,16 +5,16 @@ import (
 	"testing"
 )
 
-// TestLiveIntentVersionEvolutionRequiresCompatibleBindingOrSuccessorIntent is
-// the PRIMARY test for INTENT-028: it proves the two-and-only-two legal
-// paths a live intent-definition version may evolve through, and that a
-// third path — editing a published version's content in place — is refused
-// by digest, not by trust.
+// TestLiveIntentVersionEvolutionRequiresCompatibleBindingOrSuccessorIntent
+// is the PRIMARY test for INTENT-028's dormant policy primitives: it proves
+// compatibility classification, supersession record construction, and
+// in-place edit detection. It does not exercise a production publish or live
+// instance migration path.
 func TestLiveIntentVersionEvolutionRequiresCompatibleBindingOrSuccessorIntent(t *testing.T) {
 	published := promotionV1()
 
-	// Path 1: a COMPATIBLE successor binds directly. No supersession is
-	// legal over it, and none is needed.
+	// A compatible successor needs no supersession record under the declared
+	// policy. This is a classification result, not a production binding.
 	compatibleSuccessor := promotionV2CompatibleOptionalAdded()
 	compatReport, err := CompatibilityCheck(published, compatibleSuccessor)
 	if err != nil {
@@ -29,10 +29,9 @@ func TestLiveIntentVersionEvolutionRequiresCompatibleBindingOrSuccessorIntent(t 
 		t.Fatalf("a compatible successor must refuse a supersession record, got %v", err)
 	}
 
-	// Path 2: an INCOMPATIBLE successor may reach a live instance only
-	// through an immutable, digested SupersessionRecord naming a reason, an
-	// author, an approver distinct from the author, an effective instant
-	// and a live-instance policy — never silently.
+	// An incompatible successor can be described by an immutable, digested
+	// supersession record. This validates its shape, not approval or application
+	// to a live instance.
 	incompatibleSuccessor := promotionV2RequiredInputAdded()
 	incompatReport, err := CompatibilityCheck(published, incompatibleSuccessor)
 	if err != nil {

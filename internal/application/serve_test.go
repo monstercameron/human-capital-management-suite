@@ -150,6 +150,15 @@ func TestComposeServeBuildsTheWholeRoleFromOneConfigValue(t *testing.T) {
 	if !logger.saw("hcmnext.serving") {
 		t.Error("the composition never announced what it published")
 	}
+	if !logger.saw("hcmnext.notification_feed_unavailable") {
+		t.Error("the composition did not report that workflow notifications require a current-authorized journey engine")
+	}
+	if component, ok := composed.Graph().Component(ComponentNotificationFeed); !ok || component.Impl != "<nil>" {
+		t.Errorf("notification feed component = %+v (present %v), want an explicit disabled capability when no journey engine is composed", component, ok)
+	}
+	if _, ok := composed.Graph().Component(ComponentProviderWebhookReceivers); ok {
+		t.Error("provider webhook receiver mounted without fixed endpoint credentials")
+	}
 
 	runtime := composed.Runtime()
 	if len(runtime.Workloads) != 2 {

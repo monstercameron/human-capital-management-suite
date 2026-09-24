@@ -14,6 +14,63 @@ service DocumentService {
   rpc ListDocumentComments(ListDocumentCommentsRequest) returns (ListDocumentCommentsResponse);
   rpc AddDocumentComment(AddDocumentCommentRequest) returns (AddDocumentCommentResponse);
   rpc CreateDocumentVersion(CreateDocumentVersionRequest) returns (CreateDocumentVersionResponse);
+  // The library is the caller's own organization of what they can read:
+  // folders and stars never grant, widen or reveal access.
+  rpc GetDocumentLibrary(GetDocumentLibraryRequest) returns (GetDocumentLibraryResponse);
+  rpc CreateDocumentFolder(CreateDocumentFolderRequest) returns (CreateDocumentFolderResponse);
+  rpc RenameDocumentFolder(RenameDocumentFolderRequest) returns (RenameDocumentFolderResponse);
+  rpc DeleteDocumentFolder(DeleteDocumentFolderRequest) returns (DeleteDocumentFolderResponse);
+  rpc MoveDocuments(MoveDocumentsRequest) returns (MoveDocumentsResponse);
+  rpc SetDocumentStarred(SetDocumentStarredRequest) returns (SetDocumentStarredResponse);
+  rpc ListDocumentAccess(ListDocumentAccessRequest) returns (ListDocumentAccessResponse);
+  rpc RevokeDocumentAccess(RevokeDocumentAccessRequest) returns (RevokeDocumentAccessResponse);
+  // ResolveDocumentComment marks a top-level comment thread resolved or
+  // reopens it. The comment's author and anyone who may manage the document
+  // may do so.
+  rpc ResolveDocumentComment(ResolveDocumentCommentRequest) returns (ResolveDocumentCommentResponse);
+  // GetDocumentPreviews is the batched unfurl read chat uses for doc:
+  // links: one entry per requested ID, in request order. A document the
+  // caller cannot open reports only readable=false, never its title.
+  rpc GetDocumentPreviews(GetDocumentPreviewsRequest) returns (GetDocumentPreviewsResponse);
+  // PlaceDocument deploys a reviewed version into a team or channel scope
+  // as an official Docs-tab placement (HUB-014); the caller must hold
+  // MANAGE and DEPLOY.
+  rpc PlaceDocument(PlaceDocumentRequest) returns (PlaceDocumentResponse);
+  // GetDocumentPlacement resolves the live official placement for one
+  // team or channel scope, rechecking the caller's current eligibility
+  // for that audience (HUB-013).
+  rpc GetDocumentPlacement(GetDocumentPlacementRequest) returns (GetDocumentPlacementResponse);
+  // TransferDocumentOwnership moves custody of a document to a successor
+  // custodian after an owner's departure (HUB-040).
+  rpc TransferDocumentOwnership(TransferDocumentOwnershipRequest) returns (TransferDocumentOwnershipResponse);
+  // ListDocumentOwnershipHistory lists ownership transfers for one
+  // document, newest first.
+  rpc ListDocumentOwnershipHistory(ListDocumentOwnershipHistoryRequest) returns (ListDocumentOwnershipHistoryResponse);
+  // ProposeCrossCompanyGrant records the host half of a bilateral
+  // cross-company document grant (HUB-015).
+  rpc ProposeCrossCompanyGrant(ProposeCrossCompanyGrantRequest) returns (ProposeCrossCompanyGrantResponse);
+  // AcceptCrossCompanyGrant records the named consumer tenant's consent to
+  // a proposed grant; the caller's own tenant is the consumer.
+  rpc AcceptCrossCompanyGrant(AcceptCrossCompanyGrantRequest) returns (AcceptCrossCompanyGrantResponse);
+  // RevokeCrossCompanyGrant closes one bilateral grant hosted by the
+  // caller's tenant.
+  rpc RevokeCrossCompanyGrant(RevokeCrossCompanyGrantRequest) returns (RevokeCrossCompanyGrantResponse);
+  // SearchDocuments runs an authorized, typed-filter lexical search over
+  // currently deployed versions (HUB-030).
+  rpc SearchDocuments(SearchDocumentsRequest) returns (SearchDocumentsResponse);
+  // AgentSearchDocuments runs the same search on behalf of an installed
+  // chat agent acting within one conversation for a human requester
+  // (HUB-031); the agent's installation scope and the requester's own
+  // read grants must both admit each hit.
+  rpc AgentSearchDocuments(AgentSearchDocumentsRequest) returns (AgentSearchDocumentsResponse);
+  // GetDocumentVersion reads one immutable version by ID for side-by-side
+  // comparison (HUB-033). It never mutates and carries no editing surface;
+  // a version the caller cannot read reports readable=false only.
+  rpc GetDocumentVersion(GetDocumentVersionRequest) returns (GetDocumentVersionResponse);
+  // GetDocumentBacklinks lists inbound links to a document from sources the
+  // caller may also read (HUB-035/HUB-022); a source the caller cannot read
+  // is left out entirely, never named.
+  rpc GetDocumentBacklinks(GetDocumentBacklinksRequest) returns (GetDocumentBacklinksResponse);
 }
 
 message ListDocumentsRequest {
@@ -21,6 +78,26 @@ message ListDocumentsRequest {
   string page_token = 2;
   string query = 3;
   string collection = 4;
+  // folder_id narrows to one of the caller's folders; empty means any.
+  string folder_id = 5;
+  bool starred_only = 6;
+  // sort is "relevance" (the default while searching), "updated" (newest
+  // first, the default otherwise), "updated_asc" (oldest first), "title"
+  // (A to Z), "title_desc" (Z to A), "owner" (owner display name A to Z)
+  // or "owner_desc" (Z to A); owner orders break ties newest first, then by
+  // document ID.
+  string sort = 7;
+  // owner_id narrows to documents one person owns.
+  string owner_id = 8;
+  // search_mode chooses how query matches: "smart" (the default: exact
+  // words, substrings, near spellings and meaning, fused), "contains" (the
+  // query as a substring of the title or text), "fuzzy" (tolerates typos)
+  // or "meaning" (vector similarity). Meaning falls back to smart when no
+  // embedding model is configured, and the response says so.
+  string search_mode = 9;
+  // page is a 1-based page number. When it is set the page token is
+  // ignored and page_size rows are skipped per earlier page.
+  int32 page = 10;
 }
 
 message DocumentSummary {
@@ -37,11 +114,33 @@ message DocumentSummary {
   bool can_manage_access = 11;
   bool can_comment = 12;
   bool can_edit = 13;
+  // starred and folder_id are the caller's own organization.
+  bool starred = 14;
+  string folder_id = 15;
+  // reader_count counts the people other than the owner who can read the
+  // document. It is sent only to a caller who may manage access.
+  int32 reader_count = 16;
+  // snippet is a short, authorized excerpt around the match while
+  // searching; match says why it matched: "title", "text", "fuzzy" or
+  // "meaning".
+  string snippet = 17;
+  string match = 18;
 }
 
 message ListDocumentsResponse {
   repeated DocumentSummary documents = 1;
   string next_page_token = 2;
+  // total_count is how many documents match the whole selection, across
+  // every page.
+  int32 total_count = 3;
+  // search_mode is the mode that actually ran; semantic_available reports
+  // whether meaning search can run in this cell.
+  string search_mode = 4;
+  bool semantic_available = 5;
+  // semantic_pending counts the caller-visible documents whose current
+  // version is not yet indexed for meaning search; indexing is queued and
+  // meaning search reads only what is already indexed.
+  int32 semantic_pending = 6;
 }
 
 message CreateDocumentRequest {
@@ -62,14 +161,88 @@ message GetDocumentResponse {
   DocumentSummary document = 1;
   string markdown = 2;
   string content_hash = 3;
+  // links has one entry per distinct doc: target in markdown, in first
+  // appearance order.
+  repeated DocumentLinkTarget links = 5;
+  // channels, people and messages are the caller's view of the chat
+  // references in markdown: "#name" or "[label](channel:<id>)", "@handle"
+  // or "@<subject-id>", and chat message permalinks
+  // (/workspace/app/chat#share=<token>). Each is resolved as the caller.
+  repeated DocumentChannelReference channels = 20;
+  repeated DocumentPersonReference people = 21;
+  repeated DocumentMessageReference messages = 22;
+}
+
+// DocumentChannelReference is one channel a document names. key is the
+// reference as written: "id:<conversation-id>" or "name:<normalized-name>".
+// A channel the caller cannot see is locked: only the key is sent. A bare
+// "#name" nobody can resolve is not sent at all, so prose stays prose.
+message DocumentChannelReference {
+  string key = 1;
+  bool locked = 2;
+  string conversation_id = 3;
+  string name = 4;
+  uint32 member_count = 5;
+  bool joined = 6;
+  bool private = 7;
+}
+
+// DocumentPersonReference is one "@handle" or "@<subject-id>" that resolves
+// to a person in the caller's tenant. key is the lowercased token.
+message DocumentPersonReference {
+  string key = 1;
+  string subject_id = 2;
+  string display_name = 3;
+}
+
+// DocumentMessageReference is one chat permalink, resolved through the same
+// authorization as opening it in chat. An unreadable message reports only
+// its token and readable=false.
+message DocumentMessageReference {
+  string token = 1;
+  bool readable = 2;
+  string conversation_id = 3;
+  string channel_name = 4;
+  string post_id = 5;
+  string author_id = 6;
+  string author_name = 7;
+  google.protobuf.Timestamp created_at = 8;
+  string body = 9;
+}
+
+// DocumentLinkTarget says whether the caller could open a linked document
+// right now. The title is sent only when it is readable, so a link never
+// reveals the title of a document the caller cannot open.
+message DocumentLinkTarget {
+  string document_id = 1;
+  string title = 2;
+  bool readable = 3;
 }
 
 message ShareDocumentRequest {
   string document_id = 1;
   string recipient_id = 2;
+  // role is "viewer" (read) or "commenter" (read and comment, the default).
+  string role = 3;
 }
 
 message ShareDocumentResponse {}
+
+// CommentAnchor ties a comment to a passage, W3C TextQuoteSelector style.
+// A client sends quote (the exact selected text), up to 64 characters of
+// prefix and suffix context, and optionally the block_id the selection is
+// in as a hint; the server locates the passage in the version's plain text
+// and fills block_id, start and end itself. Offsets count Unicode code
+// points in the version's plain text (Markdown stripped, whitespace
+// collapsed). In a listing they are re-located in the version being read.
+message CommentAnchor {
+  string block_id = 1;
+  string quote = 2;
+  string prefix = 3;
+  string suffix = 4;
+  int32 start = 5;
+  int32 end = 6;
+}
 
 message DocumentComment {
   string id = 1;
@@ -78,6 +251,13 @@ message DocumentComment {
   string author_id = 4;
   string body = 5;
   google.protobuf.Timestamp created_at = 6;
+  CommentAnchor anchor = 7;
+  // parent_comment_id is set on replies; replies are one level deep.
+  string parent_comment_id = 8;
+  bool resolved = 9;
+  // anchor_orphaned is true when the quoted passage no longer occurs in
+  // the version being read; the quote is kept so the thread still reads.
+  bool anchor_orphaned = 10;
 }
 
 message ListDocumentCommentsRequest {
@@ -93,6 +273,11 @@ message AddDocumentCommentRequest {
   string document_id = 1;
   string version_id = 2;
   string body = 3;
+  // anchor quotes a passage of version_id; start and end are ignored and
+  // filled by the server. Replies carry no anchor.
+  CommentAnchor anchor = 4;
+  // parent_comment_id makes this a reply to a top-level comment.
+  string parent_comment_id = 5;
 }
 
 message AddDocumentCommentResponse {
@@ -108,4 +293,325 @@ message CreateDocumentVersionRequest {
 
 message CreateDocumentVersionResponse {
   string version_id = 1;
+}
+
+message GetDocumentLibraryRequest {}
+
+message DocumentFolder {
+  string folder_id = 1;
+  string name = 2;
+  int32 document_count = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message GetDocumentLibraryResponse {
+  repeated DocumentFolder folders = 1;
+  int32 all_count = 2;
+  int32 mine_count = 3;
+  int32 shared_count = 4;
+  int32 starred_count = 5;
+}
+
+message CreateDocumentFolderRequest {
+  string name = 1;
+}
+
+message CreateDocumentFolderResponse {
+  DocumentFolder folder = 1;
+}
+
+message RenameDocumentFolderRequest {
+  string folder_id = 1;
+  string name = 2;
+}
+
+message RenameDocumentFolderResponse {}
+
+// Deleting a folder removes only the folder; its documents return to the
+// caller's unfiled documents and are never deleted.
+message DeleteDocumentFolderRequest {
+  string folder_id = 1;
+}
+
+message DeleteDocumentFolderResponse {}
+
+// MoveDocuments files readable documents into one of the caller's folders,
+// or takes them out of any folder when folder_id is empty.
+message MoveDocumentsRequest {
+  repeated string document_ids = 1;
+  string folder_id = 2;
+}
+
+message MoveDocumentsResponse {}
+
+message SetDocumentStarredRequest {
+  string document_id = 1;
+  bool starred = 2;
+}
+
+message SetDocumentStarredResponse {}
+
+message ListDocumentAccessRequest {
+  string document_id = 1;
+}
+
+message DocumentAccessEntry {
+  string subject_kind = 1;
+  string subject_id = 2;
+  // role is "owner", "commenter" or "viewer".
+  string role = 3;
+  bool removable = 4;
+}
+
+message ListDocumentAccessResponse {
+  repeated DocumentAccessEntry entries = 1;
+}
+
+message RevokeDocumentAccessRequest {
+  string document_id = 1;
+  string subject_kind = 2;
+  string subject_id = 3;
+}
+
+message RevokeDocumentAccessResponse {}
+
+message ResolveDocumentCommentRequest {
+  string document_id = 1;
+  string comment_id = 2;
+  bool resolved = 3;
+}
+
+message ResolveDocumentCommentResponse {}
+
+message GetDocumentPreviewsRequest {
+  // At most 50 distinct IDs.
+  repeated string document_ids = 1;
+}
+
+// DocumentPreview is the unfurl of one document. title, owner, updated_at
+// and snippet are sent only when readable.
+message DocumentPreview {
+  string document_id = 1;
+  bool readable = 2;
+  string title = 3;
+  string owner_id = 4;
+  string owner_name = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  string snippet = 7;
+}
+
+message GetDocumentPreviewsResponse {
+  repeated DocumentPreview previews = 1;
+}
+
+// DocumentDeployment is a scoped deployment pointer: the default pointer
+// (scope_kind="default") or a team/channel placement (scope_kind=
+// "placement"). official is true only when custodian_id and review_due_at
+// are both bound, i.e. the deployment went through PlaceDocument rather
+// than a bare Deploy.
+message DocumentDeployment {
+  string id = 1;
+  string document_id = 2;
+  string version_id = 3;
+  string scope_kind = 4;
+  string scope_id = 5;
+  string deployer_id = 6;
+  string custodian_id = 7;
+  google.protobuf.Timestamp effective_at = 8;
+  google.protobuf.Timestamp review_due_at = 9;
+  bool official = 10;
+}
+
+message PlaceDocumentRequest {
+  string document_id = 1;
+  string version_id = 2;
+  string scope_id = 3;
+  // expected_live is the deployment ID the caller last observed live in
+  // this scope, for compare-and-swap; empty means "nothing live yet".
+  string expected_live = 4;
+  string custodian_id = 5;
+  google.protobuf.Timestamp review_due_at = 6;
+}
+
+message PlaceDocumentResponse {
+  DocumentDeployment deployment = 1;
+}
+
+message GetDocumentPlacementRequest {
+  string document_id = 1;
+  string scope_id = 2;
+}
+
+message GetDocumentPlacementResponse {
+  DocumentDeployment deployment = 1;
+}
+
+message DocumentOwnershipTransfer {
+  string id = 1;
+  string document_id = 2;
+  string prior_owner_id = 3;
+  string successor_owner_id = 4;
+  string reason = 5;
+  string transferred_by = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message TransferDocumentOwnershipRequest {
+  string document_id = 1;
+  string successor_owner_id = 2;
+  string reason = 3;
+}
+
+message TransferDocumentOwnershipResponse {
+  DocumentOwnershipTransfer transfer = 1;
+}
+
+message ListDocumentOwnershipHistoryRequest {
+  string document_id = 1;
+}
+
+message ListDocumentOwnershipHistoryResponse {
+  repeated DocumentOwnershipTransfer transfers = 1;
+}
+
+message DocumentCrossCompanyGrant {
+  string id = 1;
+  string document_id = 2;
+  string host_tenant = 3;
+  string consumer_tenant = 4;
+  string classification = 5;
+  string residency = 6;
+  uint64 version = 7;
+  bool proposed = 8;
+  bool accepted_by_host = 9;
+  bool accepted_by_consumer = 10;
+  google.protobuf.Timestamp expires_at = 11;
+  google.protobuf.Timestamp revoked_at = 12;
+}
+
+message ProposeCrossCompanyGrantRequest {
+  string document_id = 1;
+  string consumer_tenant = 2;
+  string classification = 3;
+  string residency = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+message ProposeCrossCompanyGrantResponse {
+  DocumentCrossCompanyGrant grant = 1;
+}
+
+message AcceptCrossCompanyGrantRequest {
+  // host_tenant is the tenant that proposed the grant; the caller's own
+  // tenant, resolved from the admitted principal, is the consumer.
+  string host_tenant = 1;
+  string grant_id = 2;
+}
+
+message AcceptCrossCompanyGrantResponse {
+  DocumentCrossCompanyGrant grant = 1;
+}
+
+message RevokeCrossCompanyGrantRequest {
+  string grant_id = 1;
+}
+
+message RevokeCrossCompanyGrantResponse {}
+
+// DocumentSearchFilters narrows a typed lexical search to a team, channel,
+// status, owner, locale and/or a deployed-at date range; an empty field or
+// zero timestamp skips that filter.
+message DocumentSearchFilters {
+  string team_id = 1;
+  string channel_id = 2;
+  string status = 3;
+  string owner_id = 4;
+  string locale = 5;
+  google.protobuf.Timestamp date_from = 6;
+  google.protobuf.Timestamp date_to = 7;
+}
+
+// DocumentSearchHit is one authorized, filtered, currently deployed
+// result, carrying its exact version, status and deployed time as
+// citation.
+message DocumentSearchHit {
+  string document_id = 1;
+  string version_id = 2;
+  string title = 3;
+  string status = 4;
+  string locale = 5;
+  string owner_id = 6;
+  google.protobuf.Timestamp deployed_at = 7;
+  int32 score = 8;
+  int32 matched_terms = 9;
+}
+
+message SearchDocumentsRequest {
+  string query = 1;
+  DocumentSearchFilters filters = 2;
+}
+
+message SearchDocumentsResponse {
+  repeated DocumentSearchHit hits = 1;
+  int32 total = 2;
+}
+
+// AgentSearchDocumentsRequest is issued by an installed chat agent acting
+// within conversation_id for requester_id, the human it acts for.
+// agent_id must be a verified agent principal whose installation is
+// resolved through that conversation; the search only returns hits both
+// the installation's granted scope and the requester's own read grants
+// admit.
+message AgentSearchDocumentsRequest {
+  string conversation_id = 1;
+  string agent_id = 2;
+  string requester_id = 3;
+  string query = 4;
+  DocumentSearchFilters filters = 5;
+}
+
+message AgentSearchDocumentsResponse {
+  repeated DocumentSearchHit hits = 1;
+  int32 total = 2;
+}
+
+// GetDocumentVersionRequest names one immutable version by its document and
+// version ID, for compare views that never edit deployed bytes.
+message GetDocumentVersionRequest {
+  string document_id = 1;
+  string version_id = 2;
+}
+
+// GetDocumentVersionResponse is one immutable version. readable is false,
+// and every other field empty, when the caller may not read this document;
+// no version content is ever sent for a version the caller cannot read.
+message GetDocumentVersionResponse {
+  bool readable = 1;
+  string document_id = 2;
+  string version_id = 3;
+  string title = 4;
+  string markdown = 5;
+  string content_hash = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message GetDocumentBacklinksRequest {
+  string document_id = 1;
+}
+
+// DocumentBacklink is one inbound link from a source the caller may also
+// read; a source the caller cannot read is left out of the response, never
+// named with a state.
+message DocumentBacklink {
+  string source_document_id = 1;
+  string source_version_id = 2;
+  string source_title = 3;
+  string label = 4;
+  string block_id = 5;
+  // state is "" (resolves cleanly), "stale" or "broken".
+  string state = 6;
+}
+
+message GetDocumentBacklinksResponse {
+  repeated DocumentBacklink backlinks = 1;
 }

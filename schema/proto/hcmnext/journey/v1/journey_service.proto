@@ -256,6 +256,15 @@ service JourneyService {
   // makes the list actionable: a client holding one and not the other can
   // render a picker but not a form.
   rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+  // SearchKnowledge returns currently activated articles authorized for the
+  // authenticated principal. Tenant, roles and audience come from trusted
+  // request context and are never selected by the caller.
+  rpc SearchKnowledge(SearchKnowledgeRequest) returns (SearchKnowledgeResponse);
+  // ListChatDirectory returns the tenant's chat-safe business directory. It
+  // is deliberately separate from ListWorkers: organization visibility still
+  // governs the people page, while chat needs to resolve coworkers and their
+  // reporting relationships within the caller's tenant.
+  rpc ListChatDirectory(ListChatDirectoryRequest) returns (ListChatDirectoryResponse);
 
   // CreateWorker records one new employee as a durable, append-only fact.
   // Effect class: governed demo-authority write - workspace.JourneyEngine
@@ -701,6 +710,14 @@ message TimelineEvent {
 
 // JourneyDetail is everything the detail page shows for one journey
 // (workspace.JourneyDetail).
+message DurableRecordFamilyProfile {
+  string family = 1;
+  string section = 2;
+  string state = 3;
+  int32 count = 4;
+  string reason = 5;
+}
+
 message JourneyDetail {
   Journey journey = 1;
   repeated Finding findings = 2;
@@ -734,12 +751,27 @@ message JourneyDetail {
   bool can_decide = 14;
   // notes are the journey's free-standing notes, oldest first.
   repeated JourneyNote notes = 15;
+  repeated DurableRecordFamilyProfile durable_records = 18;
   // promotion_review is the reviewer's view of what the promotion changes
   // in the reporting line and the compensation guardrail it must respect
   // (REV-091-02). It is unset when the engine produced no review for this
   // viewer. Pay figures inside it are populated only when the engine's own
   // compensation authorization admitted this viewer.
   JourneyPromotionReview promotion_review = 16;
+  // submission is the semantic product submission returned after an
+  // approved action is retained. Exact retries return the original record.
+  JourneySubmissionRecord submission = 17;
+}
+
+message JourneySubmissionRecord {
+  string intent_id = 1;
+  string proposal_revision_id = 2;
+  string proposal_digest = 3;
+  string material_digest = 4;
+  string submitted_by = 5;
+  google.protobuf.Timestamp submitted_at = 6;
+  string idempotency_key = 7;
+  string digest = 8;
 }
 
 // JourneyPromotionReview is PROMOUX-005's management impact and PROMOUX-006's
@@ -1335,6 +1367,12 @@ message Worker {
   // asserts neither, and an unreported fact stays unreported.
   string lifecycle_status = 30;
   string worker_type = 31;
+  // subject_id is the principal subject this worker signs in and chats as:
+  // the stored worker key, which is the opaque worker id for a created
+  // worker and the persona key for a seeded one. worker_ref is a display
+  // slug the journey accepts and is not an identity any other service
+  // shares, so chat joins its authors and members on this field.
+  string subject_id = 32;
 }
 
 // WorkforceOptions is the closed set of placements a created worker may be
@@ -1430,6 +1468,37 @@ message ListWorkersRequest {}
 message ListWorkersResponse {
   repeated Worker workers = 1;
   WorkforceOptions options = 2;
+}
+
+message ListChatDirectoryRequest {}
+
+message ListChatDirectoryResponse {
+  // Contains business-directory fields only. Compensation, worker numbers,
+  // internal placement identifiers, and employment dates are never returned.
+  repeated Worker workers = 1;
+}
+
+message SearchKnowledgeRequest {
+  string query = 1;
+  string locale = 2;
+}
+
+message SearchKnowledgeResponse {
+  repeated KnowledgeArticleMatch matches = 1;
+  string envelope_digest = 2;
+  string suppressed_digest = 3;
+}
+
+message KnowledgeArticleMatch {
+  string article_id = 1;
+  uint64 revision = 2;
+  string locale = 3;
+  string title = 4;
+  string summary = 5;
+  string source_digest = 6;
+  string policy_digest = 7;
+  string authorization_evidence = 8;
+  int64 score = 9;
 }
 
 // CreateWorkerRequest is what somebody fills in to add an employee
@@ -1582,15 +1651,28 @@ message GetRoleAccessResponse {
   repeated RolePagePermission page_permissions = 4;
   repeated RoleFeaturePermission feature_permissions = 5;
 }
-message SaveAccessRoleRequest { AccessRole role = 1; }
+message RoleAccessRevisionEvent {
+  string revision_id = 1;
+  string actor_ref = 2;
+  string reason = 3;
+  string change_kind = 4;
+  string role_id = 5;
+  string worker_ref = 6;
+  string organization_scope_id = 7;
+  string page_id = 8;
+  string feature_id = 9;
+  bytes before_row = 10;
+  bytes after_row = 11;
+}
+message SaveAccessRoleRequest { AccessRole role = 1; string reason = 2; }
 message SaveAccessRoleResponse { AccessRole role = 1; }
-message SaveWorkerRoleAssignmentRequest { WorkerRoleAssignment assignment = 1; }
+message SaveWorkerRoleAssignmentRequest { WorkerRoleAssignment assignment = 1; string reason = 2; }
 message SaveWorkerRoleAssignmentResponse { WorkerRoleAssignment assignment = 1; }
-message SaveRoleOrganizationVisibilityRequest { RoleOrganizationVisibilityPolicy policy = 1; }
+message SaveRoleOrganizationVisibilityRequest { RoleOrganizationVisibilityPolicy policy = 1; string reason = 2; }
 message SaveRoleOrganizationVisibilityResponse { RoleOrganizationVisibilityPolicy policy = 1; }
-message SaveRolePagePermissionRequest { RolePagePermission permission = 1; }
+message SaveRolePagePermissionRequest { RolePagePermission permission = 1; string reason = 2; }
 message SaveRolePagePermissionResponse { RolePagePermission permission = 1; }
-message SaveRoleFeaturePermissionRequest { RoleFeaturePermission permission = 1; }
+message SaveRoleFeaturePermissionRequest { RoleFeaturePermission permission = 1; string reason = 2; }
 message SaveRoleFeaturePermissionResponse { RoleFeaturePermission permission = 1; }
 message PreviewRoleAccessRequest { RoleOrganizationVisibilityPolicy proposed = 1; }
 message RoleAccessScope {

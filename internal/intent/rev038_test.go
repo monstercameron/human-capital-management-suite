@@ -13,13 +13,13 @@ import (
 
 // rev038ConsumerFiles are the exact production population-consumer call
 // sites the DISPUTED triage flagged [mechanism-to-confirm], corrected at
-// build time: no production file calls population.Resolve any more. The
-// only production membership enumeration is CompileBatch in batch.go, which
-// must route through popscale. Paths are relative to this package.
-var rev038ConsumerFiles = []string{
-	"batch.go",
-	filepath.Join("..", "domains", "crm", "campaign.go"),
-	filepath.Join("..", "engines", "search", "population_action.go"),
+// build time: the three production membership consumers must route snapshots
+// through popscale, and none may call population.Resolve directly. Paths are
+// relative to this package.
+var rev038ConsumerRoutes = map[string]string{
+	"batch.go": "popscaleSubjects(",
+	filepath.Join("..", "domains", "crm", "campaign.go"):             "popscale.NewSession(",
+	filepath.Join("..", "engines", "search", "population_action.go"): "popscale.NewSession(",
 }
 
 // TestTodo_REV_038_02_Callsites pins the corrected consumer mechanism at
@@ -29,7 +29,7 @@ var rev038ConsumerFiles = []string{
 // unbounded Resolve call or removes the popscale routing, this test fails
 // the build with the exact file.
 func TestTodo_REV_038_02_Callsites(t *testing.T) {
-	for _, file := range rev038ConsumerFiles {
+	for file, route := range rev038ConsumerRoutes {
 		data, err := os.ReadFile(file)
 		if err != nil {
 			t.Fatalf("read consumer %s: %v", file, err)
@@ -37,13 +37,9 @@ func TestTodo_REV_038_02_Callsites(t *testing.T) {
 		if strings.Contains(string(data), "population.Resolve(") {
 			t.Errorf("consumer %s calls population.Resolve directly: route large populations through popscale", file)
 		}
-	}
-	data, err := os.ReadFile("batch.go")
-	if err != nil {
-		t.Fatalf("read batch.go: %v", err)
-	}
-	if !strings.Contains(string(data), "popscaleSubjects(") {
-		t.Error("batch.go does not resolve through popscaleSubjects: CompileBatch must page membership via popscale")
+		if !strings.Contains(string(data), route) {
+			t.Errorf("consumer %s does not route population membership through %s", file, route)
+		}
 	}
 }
 

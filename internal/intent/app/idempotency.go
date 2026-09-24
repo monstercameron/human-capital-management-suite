@@ -120,6 +120,17 @@ func SubmissionFromAccepted(action AcceptedAction) ProductSubmission {
 	}
 }
 
+// submitAcceptedProductAction retains the first record on this IntentService
+// for an action already resolved from durable acceptance facts. Callers must
+// not supply AcceptedAction directly; journeyEngine resolves it after the
+// approval transaction commits.
+func (s *IntentService) submitAcceptedProductAction(action AcceptedAction) (SubmissionRecord, SubmissionOutcome, error) {
+	if s == nil || s.submissions == nil {
+		return SubmissionRecord{}, "", fmt.Errorf("%w: submission registry is unavailable", ErrSubmissionInvalid)
+	}
+	return s.submissions.Submit(SubmissionFromAccepted(action))
+}
+
 // SubmissionRegistry is the tenant-scoped idempotency registry. The zero
 // value is not usable; build one with NewSubmissionRegistry.
 type SubmissionRegistry struct {

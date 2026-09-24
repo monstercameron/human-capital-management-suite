@@ -1,10 +1,10 @@
 // Package hcmctl is the SVC-011/ADMIN-001 thin operator CLI: it parses
 // flags, dials hcmnext.admin.v1.AdminService with the generated Go gRPC
 // client (gen/go/hcmnext/admin/v1), attaches a bearer credential, calls
-// exactly one method per invocation, and prints the typed response. It
-// contains no business or store logic of any kind: every fact it prints
-// came back from the server on the wire, and every write this package could
-// conceivably attempt against workforce data does not exist, because
+// exactly one method per invocation, and prints the typed response. The
+// tenant exit rehearsal is a local, read-only evidence evaluation. Every
+// server-backed fact it prints came back from the wire, and every write this
+// package could conceivably attempt against workforce data does not exist, because
 // AdminService publishes no mutating method (internal/operations/admin,
 // internal/transport/admin). The onboarding subcommand advances a
 // tenant-scoped onboarding run through the generated OnboardingService,
@@ -78,8 +78,8 @@ func DialInsecure(_ context.Context, addr string) (*grpc.ClientConn, error) {
 	return grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
-// Main is the CLI's whole composition root: parse flags, resolve a
-// credential, dial, call exactly one AdminService method, print the result.
+// Main is the CLI's whole composition root: parse flags, run a local
+// read-only command or resolve a credential, dial and call one service method.
 // It returns a process exit code and never calls os.Exit itself, so a test
 // (or a future cmd/hcmctl/main.go) controls the process boundary.
 func Main(args []string, stdout, stderr io.Writer, dial Dialer) int {
@@ -91,6 +91,15 @@ func Main(args []string, stdout, stderr io.Writer, dial Dialer) int {
 		fmt.Fprintln(stderr, redactError(err))
 		fmt.Fprintln(stderr, usage())
 		return 2
+	}
+	if cmd.runLocal != nil {
+		result, err := cmd.runLocal()
+		if err != nil {
+			fmt.Fprintln(stderr, redactError(err))
+			return 2
+		}
+		fmt.Fprint(stdout, result)
+		return 0
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), cmd.global.timeout)
@@ -191,6 +200,7 @@ subcommands:
   instance <id>          governed read-only workflow execution inspector
   onboarding             operator onboarding-pipeline runs (REV-036-01)
   explorer               ledger/provenance explorer and AuthZ simulator (REV-037-01)
+  tenant exit-rehearsal  dry-run a tenant exit rehearsal from an evidence JSON file (REV-015-03)
 
 global flags: -addr -token -timeout -mint -mint-profile -mint-key -mint-issuer
               -mint-audience -mint-tenant -mint-subject -mint-ttl`

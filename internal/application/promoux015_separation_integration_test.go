@@ -209,7 +209,10 @@ func (h *promoux015Harness) proposeAndExecute() string {
 	}
 	executed, err := h.client.ExecuteJourney(h.rpc("admin"), &journeyv1.ExecuteJourneyRequest{IntentId: id})
 	if err != nil {
-		h.t.Fatalf("ExecuteJourney as the operator: %v", err)
+		engine, ctx := h.engine("admin")
+		observed, inspectErr := engine.Inspect(ctx, id)
+		_, engineErr := engine.Execute(ctx, id)
+		h.t.Fatalf("ExecuteJourney as the operator: %v; direct post-failure inspection: stage=%s err=%v; direct engine retry: %v", err, observed.Summary.Stage, inspectErr, engineErr)
 	}
 	if got := executed.GetDetail().GetJourney().GetStage(); got != journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL {
 		h.t.Fatalf("executed stage = %s, want FINANCE_APPROVAL", got)

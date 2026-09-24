@@ -1433,9 +1433,11 @@ type ErrorDetail struct {
 	EvidenceRef     *EvidenceRef           `protobuf:"bytes,5,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
 	// reason_ref is the stable owned reason identifier (for example
 	// `structural.request_rejected`); never free text.
-	ReasonRef     string `protobuf:"bytes,6,opt,name=reason_ref,json=reasonRef,proto3" json:"reason_ref,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ReasonRef string `protobuf:"bytes,6,opt,name=reason_ref,json=reasonRef,proto3" json:"reason_ref,omitempty"`
+	// retry_after_seconds is the server-owned delay before a retry is useful.
+	RetryAfterSeconds uint32 `protobuf:"varint,7,opt,name=retry_after_seconds,json=retryAfterSeconds,proto3" json:"retry_after_seconds,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ErrorDetail) Reset() {
@@ -1508,6 +1510,13 @@ func (x *ErrorDetail) GetReasonRef() string {
 		return x.ReasonRef
 	}
 	return ""
+}
+
+func (x *ErrorDetail) GetRetryAfterSeconds() uint32 {
+	if x != nil {
+		return x.RetryAfterSeconds
+	}
+	return 0
 }
 
 var File_hcmnext_common_v1_common_proto protoreflect.FileDescriptor
@@ -1587,7 +1596,7 @@ const file_hcmnext_common_v1_common_proto_rawDesc = "" +
 	"MoneyRange\x12\x18\n" +
 	"\aminimum\x18\x01 \x01(\tR\aminimum\x12\x18\n" +
 	"\amaximum\x18\x02 \x01(\tR\amaximum\x12\x1a\n" +
-	"\bcurrency\x18\x03 \x01(\tR\bcurrency\"\xb4\x02\n" +
+	"\bcurrency\x18\x03 \x01(\tR\bcurrency\"\xe4\x02\n" +
 	"\vErrorDetail\x120\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x1c.hcmnext.common.v1.ErrorCodeR\x04code\x12L\n" +
 	"\x10field_violations\x18\x02 \x03(\v2!.hcmnext.common.v1.FieldViolationR\x0ffieldViolations\x12\x1c\n" +
@@ -1595,7 +1604,8 @@ const file_hcmnext_common_v1_common_proto_rawDesc = "" +
 	"\x0ecorrelation_id\x18\x04 \x01(\tR\rcorrelationId\x12A\n" +
 	"\fevidence_ref\x18\x05 \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\x12\x1d\n" +
 	"\n" +
-	"reason_ref\x18\x06 \x01(\tR\treasonRef*\xc4\x01\n" +
+	"reason_ref\x18\x06 \x01(\tR\treasonRef\x12.\n" +
+	"\x13retry_after_seconds\x18\a \x01(\rR\x11retryAfterSeconds*\xc4\x01\n" +
 	"\bPresence\x12\x18\n" +
 	"\x14PRESENCE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fPRESENCE_ABSENT\x10\x01\x12\x11\n" +

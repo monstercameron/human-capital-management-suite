@@ -110,21 +110,9 @@ func NewPromotionStepServices(cell *Cell) (*PromotionStepServices, error) {
 	}
 	svc := cell.Service
 	now := func() time.Time { return svc.clock().Time() }
-	registry := capability.NewRegistry()
-	for _, def := range promotionexec.GovernedReadDefinitions() {
-		if err := registry.Register(def, func(ctx context.Context, payload any) (any, error) {
-			read, ok := payload.(governedRead)
-			if !ok {
-				return nil, fmt.Errorf("app: %s expects a governed read, got %T", def.ID, payload)
-			}
-			return read(ctx)
-		}); err != nil {
-			return nil, fmt.Errorf("app: bind graph capability %s: %w", def.ID, err)
-		}
-	}
 	return &PromotionStepServices{
 		svc: svc, roleAccess: cell.RoleAccess, requiredRole: svc.executionAuthority.RequiredRole,
-		reads: capability.NewGateway(registry, cell.Evidence, capability.WithClock(now)), now: now,
+		reads: svc.gateway, now: now,
 		marketRates: cell.MarketRateSource,
 	}, nil
 }
@@ -199,7 +187,8 @@ func (p *PromotionStepServices) principal(ctx context.Context, call PromotionSte
 		IssuedAt:       issued, ExpiresAt: call.Deadline, CredentialDigest: d.EvidenceRef,
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("%w: %v", ErrDelegationInvalid, err)
+		return nil, "", fmt.Errorf("%w: %v (node_id=%s issued_at=%s expires_at=%s)", ErrDelegationInvalid, err,
+			call.NodeID, issued.UTC().Format(time.RFC3339Nano), call.Deadline.UTC().Format(time.RFC3339Nano))
 	}
 	return principal, d.Purposes[0], nil
 }
@@ -347,7 +336,7 @@ func (p *PromotionStepServices) simulate(ctx context.Context, s *promotionSessio
 	if err != nil {
 		return rewards.SimulateCompensationResult{}, err
 	}
-	result, ok := got.(rewards.SimulateCompensationResult)
+	result, ok := compensationSimulation(got)
 	if !ok {
 		return rewards.SimulateCompensationResult{}, fmt.Errorf("app: simulate_compensation returned %T", got)
 	}

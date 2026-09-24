@@ -113,7 +113,20 @@ type Config struct {
 	// Logger receives one structured record per completed request. Nil means
 	// no logging.
 	Logger Logger
+	// CredentialQuota checks a verified machine-client identity before request
+	// validation and tenant admission. A nil callback disables the optional gate.
+	CredentialQuota func(now time.Time, tenantID, clientID string) (outcome CredentialQuotaOutcome, retryAfter int, err error)
 }
+
+// CredentialQuotaOutcome is the typed decision returned by an inbound
+// application-credential quota policy.
+type CredentialQuotaOutcome string
+
+const (
+	CredentialQuotaAdmit         CredentialQuotaOutcome = "ADMIT"
+	CredentialQuotaRateLimited   CredentialQuotaOutcome = "RATE_LIMITED"
+	CredentialQuotaQuotaExceeded CredentialQuotaOutcome = "QUOTA_EXCEEDED"
+)
 
 // defaultMaxDeadline is the server-imposed deadline cap.
 const defaultMaxDeadline = 30 * time.Second
@@ -349,7 +362,42 @@ func PreAdmit(ctx context.Context, cfg Config, md Metadata, method string) (*tru
 	if authErr != nil {
 		return nil, requestID, authErr.WithCorrelation(requestID)
 	}
+	if cfg.CredentialQuota != nil && machineClient(principal.SubjectKind()) {
+		clientID := principal.ClientID()
+		if clientID == "" {
+			return nil, requestID, envelope.New(envelope.CodeUnavailable,
+				"inbound_credential_quota.identity_unavailable", "request admission is temporarily unavailable").
+				WithCorrelation(requestID)
+		}
+		outcome, retryAfter, err := cfg.CredentialQuota(cfg.now().UTC(), principal.Tenant().String(), clientID)
+		if err != nil {
+			return nil, requestID, envelope.New(envelope.CodeUnavailable,
+				"inbound_credential_quota.unavailable", "request admission is temporarily unavailable").
+				WithCorrelation(requestID).WithDiagnostic(err)
+		}
+		switch outcome {
+		case CredentialQuotaAdmit:
+		case CredentialQuotaRateLimited, CredentialQuotaQuotaExceeded:
+			if retryAfter <= 0 {
+				retryAfter = 1
+			}
+			message := "the application credential has exceeded its request rate"
+			if outcome == CredentialQuotaQuotaExceeded {
+				message = "the application credential has exhausted its request quota"
+			}
+			return nil, requestID, envelope.New(envelope.CodeResourceExhausted, string(outcome), message).
+				WithRetryAfter(retryAfter).WithCorrelation(requestID)
+		default:
+			return nil, requestID, envelope.New(envelope.CodeUnavailable,
+				"inbound_credential_quota.invalid_decision", "request admission is temporarily unavailable").
+				WithCorrelation(requestID)
+		}
+	}
 	return principal, requestID, nil
+}
+
+func machineClient(kind trust.SubjectKind) bool {
+	return kind == trust.SubjectKindService || kind == trust.SubjectKindAgent || kind == trust.SubjectKindIntegration
 }
 
 // authenticate extracts the credential and verifies it, projecting every

@@ -56,6 +56,7 @@ var tunnelAllowedServices = map[string]bool{
 	"hcmnext.chat.v1.ConversationService":       true,
 	"hcmnext.chat.v1.ChatExtensionsService":     true,
 	"hcmnext.document.v1.DocumentService":       true,
+	"hcmnext.position.v1.PositionService":       true,
 	"hcmnext.evidence.v1.EvidenceService":       false,
 	"hcmnext.dataops.v1.DataOpsService":         false,
 	"hcmnext.integration.v1.IntegrationService": false,
@@ -157,7 +158,7 @@ func NewEdgeHandlerWithTunnel(c *app.Cell, tunnelServer *grpc.Server, opts ...co
 // every registered service, including the operator-only AdminService, to
 // the browser route.
 func NewEdgeHandlerWithTunnelAndDependencies(
-	c *app.Cell, tunnelServer *grpc.Server, instances app.WorkflowInstanceReader,
+	c *app.Cell, tunnelServer *grpc.Server, instances app.WorkflowControlReader,
 	workQueue app.WorkItemQueueReader,
 	operationStore transportoperations.Store, cursorKey, previousCursorKey []byte,
 	workWrites transporthumanwork.WritePorts, thresholds transporthumanwork.Thresholds, opts ...connect.HandlerOption,
@@ -175,7 +176,7 @@ func NewEdgeHandlerWithTunnelAndDependencies(
 func newTunnelHandler(c *app.Cell, tunnelServer *grpc.Server, publicHost string) (http.Handler, error) {
 	handler, err := grpctunnel.BuildBridgeHandler(tunnelServer, grpctunnel.BridgeConfig{
 		CheckOrigin:             tunnelOriginCheck(publicHost),
-		Authorize:               tunnelAuthorizer(c.Config, c.DevBrowserLogin()),
+		Authorize:               tunnelAuthorizer(c.Config, c.BrowserLoginEnabled()),
 		SessionMaxLifetime:      tunnelSessionMaxLifetime,
 		MaxConnectionsPerClient: tunnelMaxConnectionsPerClient,
 		// PingInterval/IdleTimeout are left zero so the library's own

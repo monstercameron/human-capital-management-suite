@@ -36,6 +36,7 @@ import (
 	datalogger "github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projection/critical"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
@@ -228,37 +229,23 @@ func (s *Store) AppendIntent(ctx context.Context, rec app.IntentRecord) (app.App
 		return app.AppendResult{}, fmt.Errorf("pgstore: append intent chronology: %w", err)
 	}
 
-	request, execution, business, consistency, obligation := app.LifecycleColumns(rec.Lifecycle)
-	affected, err := tx.Exec(ctx, `
-		INSERT INTO intent_instance (
-			tenant_id, intent_id, definition_ref, definition_version,
-			request_digest, request_digest_algorithm, idempotency_key,
-			request_state, execution_state, business_state, consistency_state, obligation_state,
-			instance_version, created_at, recorded_at, last_transition_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-		ON CONFLICT (tenant_id, idempotency_key) DO NOTHING`,
-		tenantID, rec.IntentID, rec.Definition.TypeID, int64(rec.Definition.Version),
-		rec.RequestDigest.Digest, rec.RequestDigest.AlgorithmID, rec.IdempotencyKey,
-		request, execution, business, consistency, obligation,
-		int64(rec.InstanceVersion), rec.CreatedAt, rec.RecordedAt, rec.LastTransitionAt)
-	if err != nil {
-		return app.AppendResult{}, fmt.Errorf("pgstore: project intent instance: %w", err)
-	}
-	if affected == 0 {
-		// Another writer won the race on this idempotency key. Roll this
-		// transaction back whole - the ledger append, the checkpoint advance and
-		// the outbox row go with it - and answer with what is actually stored.
+	if _, err := critical.Apply(ctx, tx, critical.ProtoMapper{}, critical.ApplyRequest{
+		Tenant: tenantID, StreamKey: streamKey, Sequence: receipt.Ledger.Sequence,
+		Digest: receipt.Ledger.Digest, SchemaRef: rec.EnvelopeSchemaRef, Payload: rec.Envelope,
+	}); err != nil {
+		// A different intent may have won the tenant/idempotency uniqueness
+		// race after the preflight read. Roll back the ledger append, generic
+		// checkpoint and outbox together, then return the stored intent if one
+		// now exists under that key.
 		_ = tx.Rollback(ctx)
 		existing, loadErr := s.loadByIdempotencyKey(ctx, rec.Tenant, tenantID, rec.IdempotencyKey)
-		if loadErr != nil {
-			return app.AppendResult{}, loadErr
+		if loadErr == nil {
+			return app.AppendResult{
+				Record: existing, Replayed: true,
+				StreamKey: StreamKey(existing.IntentID), ProjectionName: ProjectionName,
+			}, nil
 		}
-		return app.AppendResult{
-			Record:         existing,
-			Replayed:       true,
-			StreamKey:      StreamKey(existing.IntentID),
-			ProjectionName: ProjectionName,
-		}, nil
+		return app.AppendResult{}, fmt.Errorf("pgstore: project intent instance from ledger: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -399,10 +386,36 @@ func (s *Store) LoadIntent(ctx context.Context, tenant, intentID string) (app.In
 		return app.IntentRecord{}, app.ErrIntentNotFound
 	}
 	tenantID := TenantID(tenant)
+	// LoadIntent supplies the current intent projection to execution and
+	// decision callers. Require the creation event on this intent's own stream
+	// before reading any projected fields; a lagging or rebuilding checkpoint
+	// must not authorize stale decision context.
+	if err := checkIntentReadBarrier(ctx, s.db, tenantID, intentID, time.Now().UTC().Add(time.Second)); err != nil {
+		var barrierErr projection.BarrierError
+		if errors.As(err, &barrierErr) && barrierErr.Status == projection.BarrierUnavailable && errors.Is(barrierErr.Cause, dbport.ErrNoRows) {
+			// No source stream means no visible intent. Preserve the store's
+			// tenant-hiding contract while returning typed barrier errors for
+			// existing streams whose projection cannot safely be served.
+			return app.IntentRecord{}, app.ErrIntentNotFound
+		}
+		return app.IntentRecord{}, err
+	}
 	row := s.db.QueryRow(ctx,
 		`SELECT `+intentColumns+` FROM intent_instance WHERE tenant_id = $1 AND intent_id = $2`,
 		tenantID, intentID)
 	return s.scanRecord(ctx, tenant, tenantID, row)
+}
+
+func intentReadRequirement(tenantID uuid.UUID, intentID string, deadline time.Time) projection.ReadRequirement {
+	return projection.ReadRequirement{
+		Tenant: tenantID, ProjectionName: ProjectionName, StreamKey: StreamKey(intentID),
+		MinimumSequence: envelopeSequence, Deadline: deadline,
+	}
+}
+
+func checkIntentReadBarrier(ctx context.Context, q dbport.Querier, tenantID uuid.UUID, intentID string, deadline time.Time) error {
+	_, err := projection.Check(ctx, q, intentReadRequirement(tenantID, intentID, deadline))
+	return err
 }
 
 // ListIntents implements app.Store. The cursor is the last intent identifier of

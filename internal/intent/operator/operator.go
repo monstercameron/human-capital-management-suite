@@ -77,6 +77,10 @@ const (
 	KindWorkflowCompensate Kind = "WORKFLOW_COMPENSATE"
 	KindWorkflowSupersede  Kind = "WORKFLOW_SUPERSEDE"
 	KindWorkflowReconcile  Kind = "WORKFLOW_RECONCILE"
+	// KindLedgerCorrection records a governed correction to one exact
+	// immutable ledger event. It requires integrity-repair JIT authority and
+	// a simulation of the correction request.
+	KindLedgerCorrection Kind = "LEDGER_CORRECTION"
 	// KindDiagnosticRead is the one non-material kind: it still needs a JIT
 	// grant and still leaves a receipt, but no dual control or simulation.
 	KindDiagnosticRead Kind = "DIAGNOSTIC_READ"
@@ -89,7 +93,7 @@ func Kinds() []Kind {
 		KindFailover, KindQuarantine, KindTenantSuspension, KindKeyRotation,
 		KindWorkflowPause, KindWorkflowResume, KindWorkflowCancel, KindWorkflowRetryNode,
 		KindWorkflowSkip, KindWorkflowSatisfy, KindWorkflowOverride, KindWorkflowRewind,
-		KindWorkflowCompensate, KindWorkflowSupersede, KindWorkflowReconcile, KindDiagnosticRead,
+		KindWorkflowCompensate, KindWorkflowSupersede, KindWorkflowReconcile, KindLedgerCorrection, KindDiagnosticRead,
 	}, authorityKinds()...)
 }
 
@@ -148,6 +152,8 @@ func PolicyFor(k Kind) (Policy, bool) {
 		// Override is exceptional authority, distinct from repair: an
 		// incident responder's grant, never an integrity-repair one.
 		p.Roles, p.DualControl, p.SimulationRequired = []jit.Role{jit.RoleIncidentResponder}, true, true
+	case KindLedgerCorrection:
+		p.Roles, p.SimulationRequired = []jit.Role{jit.RoleIntegrityRepair}, true
 	case KindDiagnosticRead:
 		p.Roles, p.Material = []jit.Role{jit.RoleSupportReadOnly, jit.RoleIncidentResponder}, false
 	default:

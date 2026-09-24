@@ -46,6 +46,12 @@ var servedCallGates = map[string][]servedCallGate{
 	"ListWorkers": {
 		{pageID: "people", featureID: "directory", action: roleaccess.ActionView},
 	},
+	"ListChatDirectory": {
+		{pageID: "chat", featureID: "content", action: roleaccess.ActionView},
+	},
+	"SearchKnowledge": {
+		{pageID: "knowledge-search", featureID: "content", action: roleaccess.ActionView},
+	},
 	"CreateWorker": {
 		{pageID: "people", featureID: "directory", action: roleaccess.ActionCreate},
 	},

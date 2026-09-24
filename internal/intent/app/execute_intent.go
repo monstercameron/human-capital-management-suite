@@ -251,7 +251,7 @@ func (s *IntentService) executionStart(
 	return runtime.StartRequest{
 		TenantID:            s.tenantUUID(inst.Tenant),
 		CellID:              cellID,
-		StartIdempotencyKey: "execute:" + inst.IntentID + ":" + artifact.GetProposalRevisionId(),
+		StartIdempotencyKey: acceptedExecutionIdempotencyKey(inst.IntentID, artifact.GetProposalRevisionId()),
 		Resolver:            s.executionResolver,
 		Versions:            s.executionVersions,
 		Proposal:            runtime.ProposalBinding{Revision: revision},

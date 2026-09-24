@@ -261,6 +261,7 @@ type Error struct {
 	message       string
 	violations    []Violation
 	retryable     bool
+	retryAfter    int
 	correlationID string
 	evidence      Evidence
 	diagnostic    error
@@ -352,6 +353,14 @@ func (e *Error) WithRetryable(retryable bool) *Error {
 	return e
 }
 
+// WithRetryAfter attaches a safe, positive Retry-After interval in seconds.
+func (e *Error) WithRetryAfter(seconds int) *Error {
+	if seconds > 0 {
+		e.retryAfter = seconds
+	}
+	return e
+}
+
 // WithCorrelation sets the correlation identifier and returns e.
 func (e *Error) WithCorrelation(correlationID string) *Error {
 	e.correlationID = correlationID
@@ -385,6 +394,9 @@ func (e *Error) Violations() []Violation { return slices.Clone(e.violations) }
 
 // Retryable reports the canonical retry classification.
 func (e *Error) Retryable() bool { return e.retryable }
+
+// RetryAfter returns the retry interval in seconds, or zero when absent.
+func (e *Error) RetryAfter() int { return e.retryAfter }
 
 // CorrelationID returns the request correlation identifier.
 func (e *Error) CorrelationID() string { return e.correlationID }
@@ -423,6 +435,9 @@ func (e *Error) Detail() *commonv1.ErrorDetail {
 		Retryable:     e.retryable,
 		CorrelationId: e.correlationID,
 		ReasonRef:     e.reasonRef,
+	}
+	if e.retryAfter > 0 {
+		detail.RetryAfterSeconds = uint32(e.retryAfter)
 	}
 	if len(e.violations) > 0 {
 		detail.FieldViolations = make([]*commonv1.FieldViolation, len(e.violations))
@@ -487,6 +502,7 @@ func FromDetail(code Code, message string, detail *commonv1.ErrorDetail) *Error 
 	e.retryable = detail.GetRetryable()
 	e.correlationID = detail.GetCorrelationId()
 	e.reasonRef = detail.GetReasonRef()
+	e.retryAfter = int(detail.GetRetryAfterSeconds())
 	if violations := detail.GetFieldViolations(); len(violations) > 0 {
 		e.violations = make([]Violation, len(violations))
 		for i, v := range violations {

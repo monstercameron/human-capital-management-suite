@@ -79,6 +79,15 @@ func (s *MemoryEvidenceSink) RecordInvocation(_ context.Context, evt capability.
 	return s.record(evt, uuid.Nil), nil
 }
 
+// RecordInvocationTx implements capability.EvidenceSink for the in-memory
+// test double, which has no durable transaction boundary.
+func (s *MemoryEvidenceSink) RecordInvocationTx(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
+	if _, ok := dbport.TxFromContext(ctx); ok {
+		return "", fmt.Errorf("memory evidence sink cannot join a caller-owned database transaction")
+	}
+	return s.RecordInvocation(ctx, evt)
+}
+
 // RecordExecutionEvidence implements [EvidenceStore].
 func (s *MemoryEvidenceSink) RecordExecutionEvidence(_ context.Context, tenantID uuid.UUID, kind, instanceID, nodeID, refID, digest string, occurredAt time.Time) (string, error) {
 	return s.record(ExecutionEvidenceOf(kind, instanceID, nodeID, refID, digest, occurredAt), tenantID), nil

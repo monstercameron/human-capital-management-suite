@@ -13,7 +13,9 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projection/critical"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -52,7 +54,7 @@ import (
 // executionProposalSchemaRef names the schema the materialized
 // proposal_revision payload validates against. It is the canonical proposal
 // message this cell's simulation produces.
-const executionProposalSchemaRef = "hcmnext.intents.v1.Proposal"
+const executionProposalSchemaRef = critical.SchemaRefFullProposalSnapshot
 
 // executionAuthorityRequirementID is the requirement id the execution
 // authority gate's own AUTHZ decision is recorded under. It is the same rule
@@ -73,6 +75,50 @@ var executionDecisionNamespace = uuid.MustParse("6b1f2d84-9c37-4a15-8e63-0d5a7c9
 type ExecutionFacts interface {
 	runtime.ProposalFacts
 	runtime.ApprovalFacts
+}
+
+// AcceptedActionLookup is the exact prepared-plan identity the execution
+// commit boundary asks durable acceptance facts to resolve.
+type AcceptedActionLookup struct {
+	Tenant             values.TenantId
+	TenantID           uuid.UUID
+	IntentID           string
+	ActionID           string
+	ProposalRevisionID string
+	ProposalDigest     string
+	IdempotencyKey     string
+}
+
+// AcceptedActionFacts is the service-owned port for reading a durable action
+// acceptance inside the transaction which prepares and commits its plan.
+type AcceptedActionFacts interface {
+	ResolveAcceptedAction(context.Context, intentcontrol.Executor, AcceptedActionLookup) (AcceptedAction, error)
+}
+
+var _ AcceptedActionFacts = DurableProposalFacts{}
+
+// ResolveAcceptedAction reads the approved action row linked to the exact
+// durable HUMAN_APPROVAL decision. The only caller supplies plan coordinates;
+// actor, acceptance time and decision identity are read from stored facts.
+func (DurableProposalFacts) ResolveAcceptedAction(
+	ctx context.Context, ex intentcontrol.Executor, q AcceptedActionLookup,
+) (AcceptedAction, error) {
+	intentID, err := executionIntentUUID(q.IntentID)
+	if err != nil {
+		return AcceptedAction{}, err
+	}
+	stored, err := (intentcontrol.AcceptedActionStore{}).ForPlan(
+		ctx, ex, q.TenantID, intentID, q.ActionID, q.ProposalRevisionID,
+		q.ProposalDigest, q.IdempotencyKey)
+	if err != nil {
+		return AcceptedAction{}, err
+	}
+	return AcceptedAction{
+		Tenant: q.Tenant, DecisionID: stored.DecisionID.String(), ActionID: stored.ActionID,
+		IntentID: stored.IntentID.String(), ProposalRevisionID: stored.ProposalRevisionID,
+		ProposalDigest: stored.ProposalDigest, AcceptedBy: stored.AcceptedBy,
+		AcceptedAt: values.NewInstant(stored.AcceptedAt), IdempotencyKey: stored.IdempotencyKey,
+	}, nil
 }
 
 type fullProposalVerifier struct{ digester intent.Digester }
@@ -227,7 +273,7 @@ func (d executionDecision) decisionID() uuid.UUID {
 // intent_decision allows one vote per (revision, requirement, principal), so a
 // replayed journey step re-derives the same identities and changes nothing;
 // [intentcontrol.ErrDuplicate] is that outcome, not a failure.
-func (d executionDecision) record(ctx context.Context, ex intentcontrol.Executor) error {
+func (d executionDecision) record(ctx context.Context, tx dbport.Tx) error {
 	if d.Proposal == nil {
 		return fmt.Errorf("app: complete proposal revision snapshot is required")
 	}
@@ -245,24 +291,10 @@ func (d executionDecision) record(ctx context.Context, ex intentcontrol.Executor
 	if !reflect.DeepEqual(ref, p.MaterialDigest) {
 		return fmt.Errorf("app: proposal revision material digest verification failed: digest reference mismatch")
 	}
-	payload, err := intentcontrol.EncodeFullProposal(p)
-	if err != nil {
-		return fmt.Errorf("app: encode the complete proposal revision payload: %w", err)
+	if err := recordProposalRevision(ctx, tx, d.TenantID, p, d.ProposalVerifier); err != nil {
+		return fmt.Errorf("app: record the proposal revision through the ledger: %w", err)
 	}
-	if _, err := (intentcontrol.RevisionStore{}).Materialize(ctx, ex, intentcontrol.Revision{
-		TenantID:       d.TenantID,
-		IntentID:       d.IntentID,
-		Revision:       d.Revision,
-		ProposalDigest: d.MaterialDigest,
-		MaterialDigest: d.MaterialDigest,
-		SchemaRef:      executionProposalSchemaRef,
-		Payload:        payload,
-		ProducedBy:     "hcmnext:intent-cell",
-		ProducedAt:     d.DecidedAt,
-	}); err != nil {
-		return fmt.Errorf("app: materialize the proposal revision: %w", err)
-	}
-	stored, err := (intentcontrol.RevisionStore{}).Load(ctx, ex, d.TenantID, d.IntentID, d.Revision)
+	stored, err := (intentcontrol.RevisionStore{}).Load(ctx, tx, d.TenantID, d.IntentID, d.Revision)
 	if err != nil {
 		return fmt.Errorf("app: read back the proposal revision: %w", err)
 	}
@@ -277,7 +309,7 @@ func (d executionDecision) record(ctx context.Context, ex intentcontrol.Executor
 		return fmt.Errorf("app: stored proposal revision material does not match the decision snapshot")
 	}
 
-	err = (intentcontrol.DecisionStore{}).Record(ctx, ex, intentcontrol.Decision{
+	decision := intentcontrol.Decision{
 		TenantID:         d.TenantID,
 		DecisionID:       d.decisionID(),
 		IntentID:         d.IntentID,
@@ -292,11 +324,26 @@ func (d executionDecision) record(ctx context.Context, ex intentcontrol.Executor
 		AuthorityRef:     d.AuthorityRef,
 		Reason:           d.Reason,
 		DecidedAt:        d.DecidedAt,
-	})
+	}
+	err = (intentcontrol.DecisionStore{}).Record(ctx, tx, decision)
 	if err != nil && !errors.Is(err, intentcontrol.ErrDuplicate) {
 		return fmt.Errorf("app: record the %s decision: %w", d.Kind, err)
 	}
+	if d.Kind == intentcontrol.DecisionHumanApproval && d.Outcome == intentcontrol.OutcomeApproved {
+		if _, acceptanceErr := (intentcontrol.AcceptedActionStore{}).RecordApprovedDecision(
+			ctx, tx, decision, p.ProposalRevisionID, AcceptedIntentExecutionActionID,
+			acceptedExecutionIdempotencyKey(p.IntentID, p.ProposalRevisionID)); acceptanceErr != nil {
+			return fmt.Errorf("app: record accepted intent action: %w", acceptanceErr)
+		}
+	}
 	return nil
+}
+
+// acceptedExecutionIdempotencyKey is the server-derived semantic key granted
+// with a durable approval. It is the exact START key ExecuteIntent later uses,
+// so a plan cannot substitute a caller-selected key after acceptance.
+func acceptedExecutionIdempotencyKey(intentID, proposalRevisionID string) string {
+	return "execute:" + intentID + ":" + proposalRevisionID
 }
 
 // controlSnapshotDigest mints the 64-hex control_digest an intent-control row

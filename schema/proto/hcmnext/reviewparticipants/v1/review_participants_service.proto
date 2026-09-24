@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package hcmnext.reviewparticipants.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/reviewparticipants/v1;reviewparticipantsv1";
+
+// ReviewParticipantsService returns the caller's authorized projection of
+// frozen review-cycle participant/reviewer assignments. The request carries
+// no tenant, subject, or cycle selector; all are resolved from trusted server
+// authority.
+service ReviewParticipantsService {
+  rpc GetReviewParticipants(GetReviewParticipantsRequest) returns (GetReviewParticipantsResponse);
+}
+
+message GetReviewParticipantsRequest {}
+
+message GetReviewParticipantsResponse {
+  repeated ReviewCycle cycles = 1;
+}
+
+message ReviewCycle {
+  string cycle_id = 1;
+  uint64 cycle_revision = 2;
+  uint64 graph_revision = 3;
+  string graph_digest = 4;
+  repeated ReviewerAssignment assignments = 5;
+}
+
+message ReviewerAssignment {
+  string participant_id = 1;
+  string reviewer_id = 2;
+  string relationship = 3;
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
@@ -80,10 +81,9 @@ func locateCorpusWorker(tenant values.TenantId, ref string) (WorkerLocation, boo
 
 // newWorkerLocator layers the tenant's created population behind the corpus.
 //
-// A created worker's key ("lena-01a0694b") is not a well-formed entity
-// identifier, and that is the whole reason this seam exists: without it the
-// corpus locator's permissive fallback would reject the key outright, and a
-// worker somebody created could be listed but never named on a form.
+// A created worker's display reference is a readable slug, while its
+// durable key is the opaque worker id. This seam resolves both the display
+// slug and the durable id.
 //
 // A nil database or a nil tenant mapping yields the corpus locator unchanged.
 func newWorkerLocator(db dbport.Beginner, tenantUUID func(values.TenantId) uuid.UUID) WorkerLocator {
@@ -131,10 +131,16 @@ func newWorkerLocator(db dbport.Beginner, tenantUUID func(values.TenantId) uuid.
 		if err != nil {
 			return WorkerLocation{}, false, fmt.Errorf("app: resolve the created worker %q: %w", ref, err)
 		}
+		if !found {
+			row, found, err = lookupCreatedDisplaySlug(ctx, db, tenantUUID, tenant, ref)
+			if err != nil {
+				return WorkerLocation{}, false, fmt.Errorf("app: resolve created worker display reference: %w", err)
+			}
+		}
 		if found {
 			return WorkerLocation{
 				Ref: values.EntityRef{Tenant: tenant, Kind: people.KindWorker, Id: row.WorkerID.String()},
-				Key: row.WorkerKey,
+				Key: journeyWorkerKey(row.PreferredName, row.LegalName, shortID(row.WorkerID)),
 				// The row travels with the location because the caller that
 				// needs it -- the journey's compensation baseline -- would
 				// otherwise read the same row a second time.
@@ -146,6 +152,31 @@ func newWorkerLocator(db dbport.Beginner, tenantUUID func(values.TenantId) uuid.
 		// only the permissive identifier case is left.
 		return locateIdentifier(tenant, ref)
 	}
+}
+
+// lookupCreatedDisplaySlug resolves the read-time name slug after the opaque
+// durable key lookup has had its chance. It scans only the tenant's own rows;
+// the slug is a presentation convenience, never a persisted coordinate.
+func lookupCreatedDisplaySlug(ctx context.Context, db dbport.Beginner, tenantUUID func(values.TenantId) uuid.UUID, tenant values.TenantId, ref string) (workforce.WorkerRow, bool, error) {
+	tenantID := tenantUUID(tenant)
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return workforce.WorkerRow{}, false, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		return workforce.WorkerRow{}, false, err
+	}
+	rows, err := (workforce.Store{}).List(ctx, tx, tenantID)
+	if err != nil {
+		return workforce.WorkerRow{}, false, err
+	}
+	for _, row := range rows {
+		if journeyWorkerKey(row.PreferredName, row.LegalName, shortID(row.WorkerID)) == ref {
+			return row, true, nil
+		}
+	}
+	return workforce.WorkerRow{}, false, nil
 }
 
 // tenantHasPopulation reports whether this cell can see a durable population

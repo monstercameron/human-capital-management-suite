@@ -84,7 +84,7 @@ func TestTodo_ALIGN_062_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RequestKey: %v", err)
 	}
-	const wantKey = "sha256:e5678f25c83e414fb12a139e04217fc4cbbcfaa231d6f4d5afe790f3573789c6"
+	const wantKey = "sha256:730d8b580e372f4e834c0354569f9317145b540b689c6faa6c9f4f995c0b0bc5"
 	if key != wantKey {
 		t.Fatalf("request key=%q want=%q", key, wantKey)
 	}

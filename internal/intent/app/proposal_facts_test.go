@@ -10,15 +10,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
+	datalogger "github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection/critical"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/wire/digest"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
@@ -49,21 +54,62 @@ func pfDigest(label string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// pfIntent inserts one intent_instance row, the parent every intent-control
-// table keys on, and returns its id.
+// pfIntent records the parent IntentInstance through the production ledger
+// append and critical projection path, then returns its id.
 func pfIntent(t *testing.T, db *pgtest.DB, tenant uuid.UUID, idempotencyKey string) uuid.UUID {
 	t.Helper()
 	id := uuid.New()
-	db.Exec(t, `
-		INSERT INTO intent_instance (
-			tenant_id, intent_id, definition_ref, definition_version,
-			request_digest, idempotency_key,
-			request_state, execution_state, business_state, consistency_state, obligation_state,
-			created_at, last_transition_at)
-		VALUES ($1, $2, 'promotion.request', 1, $3, $4,
-			'DRAFT', 'NOT_PLANNED', 'NOT_STARTED', 'NOT_APPLICABLE', 'NOT_APPLICABLE',
-			$5, $5)`,
-		tenant, id, pfDigest("request:"+idempotencyKey), idempotencyKey, pfClock)
+	stream := "intent:" + id.String()
+	msg := &intentsv1.IntentInstance{
+		IntentId:   id.String(),
+		Definition: &intentsv1.DefinitionReference{IntentTypeId: "promotion.request", Version: 1},
+		TenantId:   tenant.String(), IdempotencyKey: idempotencyKey, InstanceVersion: 1,
+		CanonicalRequestDigest: &intentsv1.CanonicalDigestReference{Digest: pfDigest("request:" + idempotencyKey), AlgorithmId: "sha256"},
+		Lifecycle: &intentsv1.LifecycleDimensions{
+			Request:     intentsv1.RequestState_REQUEST_STATE_DRAFT,
+			Execution:   intentsv1.ExecutionState_EXECUTION_STATE_NOT_PLANNED,
+			Business:    intentsv1.BusinessState_BUSINESS_STATE_NOT_STARTED,
+			Consistency: intentsv1.ConsistencyState_CONSISTENCY_STATE_NOT_APPLICABLE,
+			Obligation:  intentsv1.ObligationState_OBLIGATION_STATE_NOT_APPLICABLE,
+		},
+		CreatedAt: timestamppb.New(pfClock), RecordedAt: timestamppb.New(pfClock), LastTransitionAt: timestamppb.New(pfClock),
+	}
+	payload, err := proto.MarshalOptions{Deterministic: true}.Marshal(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = pfTxErr(context.Background(), wfInspectorConn(t, db), tenant, func(tx dbport.Tx) error {
+		if err := datalogger.EnsureStream(context.Background(), tx, tenant, stream, "TRANSACTION", id.String()); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(context.Background(), `
+			INSERT INTO payload_schema (tenant_id, schema_ref, schema_id, schema_version, message_full_name, wire_format, canonicalization_profile)
+			VALUES ($1, $2, 'hcmnext.intents.v1.IntentInstance', 1, 'hcmnext.intents.v1.IntentInstance', 'PROTOBUF', 'LEDGER_EVENT')
+			ON CONFLICT (tenant_id, schema_ref) DO NOTHING`, tenant, critical.SchemaRefIntentInstance); err != nil {
+			return err
+		}
+		registry, err := ledgerport.NewLedgerEventDigestRegistry()
+		if err != nil {
+			return err
+		}
+		appender := ledgerport.NewAppenderWithClock(registry, func() time.Time { return pfClock })
+		receipt, err := appender.Append(context.Background(), tx, datalogger.AppendRequest{
+			Tenant: tenant, StreamKey: stream, ExpectedHead: 0, AssertionClass: datalogger.TransactionFact,
+			SourceRef: "test:intent", SchemaRef: critical.SchemaRefIntentInstance, Payload: payload,
+			OccurredAt: pfClock, EffectiveAt: pfClock, CorrelationID: uuid.New(), IdempotencyKey: idempotencyKey,
+		})
+		if err != nil {
+			return err
+		}
+		_, err = critical.Apply(context.Background(), tx, critical.ProtoMapper{}, critical.ApplyRequest{
+			Tenant: tenant, StreamKey: stream, Sequence: receipt.Sequence, Digest: receipt.Digest,
+			SchemaRef: critical.SchemaRefIntentInstance, Payload: payload,
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	return id
 }
 
@@ -187,6 +233,16 @@ func TestDurableProposalFactsReadsARecordedDecision(t *testing.T) {
 	if after[0].Invalidated {
 		t.Error("intent_decision has no invalidation column; the fact must never claim one")
 	}
+	wfInspectorTx(t, conn, tenant, func(tx dbport.Tx) error {
+		verified, err := critical.Verify(t.Context(), tx, datalogger.NewReader(), critical.ProtoMapper{}, tenant, "intent:"+intentID.String())
+		if err != nil {
+			return err
+		}
+		if !verified.OK() {
+			t.Errorf("critical proposal projection differs from its ledger stream: %+v", verified.Diffs)
+		}
+		return nil
+	})
 }
 
 func TestDurableProposalFactsReportsADecisionBoundToAnotherDigest(t *testing.T) {
@@ -299,6 +355,22 @@ func TestExecutionDecisionRecordIsIdempotentAndRefusesADigestChange(t *testing.T
 	if err != nil {
 		t.Fatalf("non-material resimulation should retain the immutable stored snapshot: %v", err)
 	}
+	var proposalEventCount int
+	wfInspectorTx(t, conn, tenant, func(tx dbport.Tx) error {
+		events, readErr := datalogger.NewReader().ReadStream(t.Context(), tx, tenant, "intent:"+intentID.String())
+		if readErr != nil {
+			return readErr
+		}
+		for _, event := range events {
+			if event.IdempotencyKey == "proposal-revision:"+intentID.String()+":1" {
+				proposalEventCount++
+			}
+		}
+		return nil
+	})
+	if proposalEventCount != 1 {
+		t.Fatalf("non-material replay left %d proposal revision ledger events, want the original one", proposalEventCount)
+	}
 
 	// A second proposal wearing the same revision number cannot borrow the
 	// first one's stored row: the revision is append-only, so the recorder
@@ -314,12 +386,12 @@ func TestExecutionDecisionRecordIsIdempotentAndRefusesADigestChange(t *testing.T
 	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
 		t.Fatalf("scope tenant: %v", err)
 	}
-	var conflict critical.ErrProposalRevisionConflict
+	var conflict datalogger.ErrIdempotencyConflict
 	if err := drifted.record(ctx, tx); !errors.As(err, &conflict) {
-		t.Fatalf("record(drifted) = %v, want an immutable stored-proposal mismatch", err)
+		t.Fatalf("record(drifted) = %v, want a ledger idempotency conflict", err)
 	}
-	if conflict.IntentID != intentID || conflict.Revision != 1 {
-		t.Fatalf("conflict = %+v, want the conflicting intent and revision", conflict)
+	if conflict.StreamKey != "intent:"+intentID.String() || conflict.IdempotencyKey != "proposal-revision:"+intentID.String()+":1" {
+		t.Fatalf("conflict = %+v, want the conflicting proposal event identity", conflict)
 	}
 }
 

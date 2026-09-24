@@ -19,13 +19,34 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DocumentService_ListDocuments_FullMethodName         = "/hcmnext.document.v1.DocumentService/ListDocuments"
-	DocumentService_CreateDocument_FullMethodName        = "/hcmnext.document.v1.DocumentService/CreateDocument"
-	DocumentService_GetDocument_FullMethodName           = "/hcmnext.document.v1.DocumentService/GetDocument"
-	DocumentService_ShareDocument_FullMethodName         = "/hcmnext.document.v1.DocumentService/ShareDocument"
-	DocumentService_ListDocumentComments_FullMethodName  = "/hcmnext.document.v1.DocumentService/ListDocumentComments"
-	DocumentService_AddDocumentComment_FullMethodName    = "/hcmnext.document.v1.DocumentService/AddDocumentComment"
-	DocumentService_CreateDocumentVersion_FullMethodName = "/hcmnext.document.v1.DocumentService/CreateDocumentVersion"
+	DocumentService_ListDocuments_FullMethodName                = "/hcmnext.document.v1.DocumentService/ListDocuments"
+	DocumentService_CreateDocument_FullMethodName               = "/hcmnext.document.v1.DocumentService/CreateDocument"
+	DocumentService_GetDocument_FullMethodName                  = "/hcmnext.document.v1.DocumentService/GetDocument"
+	DocumentService_ShareDocument_FullMethodName                = "/hcmnext.document.v1.DocumentService/ShareDocument"
+	DocumentService_ListDocumentComments_FullMethodName         = "/hcmnext.document.v1.DocumentService/ListDocumentComments"
+	DocumentService_AddDocumentComment_FullMethodName           = "/hcmnext.document.v1.DocumentService/AddDocumentComment"
+	DocumentService_CreateDocumentVersion_FullMethodName        = "/hcmnext.document.v1.DocumentService/CreateDocumentVersion"
+	DocumentService_GetDocumentLibrary_FullMethodName           = "/hcmnext.document.v1.DocumentService/GetDocumentLibrary"
+	DocumentService_CreateDocumentFolder_FullMethodName         = "/hcmnext.document.v1.DocumentService/CreateDocumentFolder"
+	DocumentService_RenameDocumentFolder_FullMethodName         = "/hcmnext.document.v1.DocumentService/RenameDocumentFolder"
+	DocumentService_DeleteDocumentFolder_FullMethodName         = "/hcmnext.document.v1.DocumentService/DeleteDocumentFolder"
+	DocumentService_MoveDocuments_FullMethodName                = "/hcmnext.document.v1.DocumentService/MoveDocuments"
+	DocumentService_SetDocumentStarred_FullMethodName           = "/hcmnext.document.v1.DocumentService/SetDocumentStarred"
+	DocumentService_ListDocumentAccess_FullMethodName           = "/hcmnext.document.v1.DocumentService/ListDocumentAccess"
+	DocumentService_RevokeDocumentAccess_FullMethodName         = "/hcmnext.document.v1.DocumentService/RevokeDocumentAccess"
+	DocumentService_ResolveDocumentComment_FullMethodName       = "/hcmnext.document.v1.DocumentService/ResolveDocumentComment"
+	DocumentService_GetDocumentPreviews_FullMethodName          = "/hcmnext.document.v1.DocumentService/GetDocumentPreviews"
+	DocumentService_PlaceDocument_FullMethodName                = "/hcmnext.document.v1.DocumentService/PlaceDocument"
+	DocumentService_GetDocumentPlacement_FullMethodName         = "/hcmnext.document.v1.DocumentService/GetDocumentPlacement"
+	DocumentService_TransferDocumentOwnership_FullMethodName    = "/hcmnext.document.v1.DocumentService/TransferDocumentOwnership"
+	DocumentService_ListDocumentOwnershipHistory_FullMethodName = "/hcmnext.document.v1.DocumentService/ListDocumentOwnershipHistory"
+	DocumentService_ProposeCrossCompanyGrant_FullMethodName     = "/hcmnext.document.v1.DocumentService/ProposeCrossCompanyGrant"
+	DocumentService_AcceptCrossCompanyGrant_FullMethodName      = "/hcmnext.document.v1.DocumentService/AcceptCrossCompanyGrant"
+	DocumentService_RevokeCrossCompanyGrant_FullMethodName      = "/hcmnext.document.v1.DocumentService/RevokeCrossCompanyGrant"
+	DocumentService_SearchDocuments_FullMethodName              = "/hcmnext.document.v1.DocumentService/SearchDocuments"
+	DocumentService_AgentSearchDocuments_FullMethodName         = "/hcmnext.document.v1.DocumentService/AgentSearchDocuments"
+	DocumentService_GetDocumentVersion_FullMethodName           = "/hcmnext.document.v1.DocumentService/GetDocumentVersion"
+	DocumentService_GetDocumentBacklinks_FullMethodName         = "/hcmnext.document.v1.DocumentService/GetDocumentBacklinks"
 )
 
 // DocumentServiceClient is the client API for DocumentService service.
@@ -39,6 +60,63 @@ type DocumentServiceClient interface {
 	ListDocumentComments(ctx context.Context, in *ListDocumentCommentsRequest, opts ...grpc.CallOption) (*ListDocumentCommentsResponse, error)
 	AddDocumentComment(ctx context.Context, in *AddDocumentCommentRequest, opts ...grpc.CallOption) (*AddDocumentCommentResponse, error)
 	CreateDocumentVersion(ctx context.Context, in *CreateDocumentVersionRequest, opts ...grpc.CallOption) (*CreateDocumentVersionResponse, error)
+	// The library is the caller's own organization of what they can read:
+	// folders and stars never grant, widen or reveal access.
+	GetDocumentLibrary(ctx context.Context, in *GetDocumentLibraryRequest, opts ...grpc.CallOption) (*GetDocumentLibraryResponse, error)
+	CreateDocumentFolder(ctx context.Context, in *CreateDocumentFolderRequest, opts ...grpc.CallOption) (*CreateDocumentFolderResponse, error)
+	RenameDocumentFolder(ctx context.Context, in *RenameDocumentFolderRequest, opts ...grpc.CallOption) (*RenameDocumentFolderResponse, error)
+	DeleteDocumentFolder(ctx context.Context, in *DeleteDocumentFolderRequest, opts ...grpc.CallOption) (*DeleteDocumentFolderResponse, error)
+	MoveDocuments(ctx context.Context, in *MoveDocumentsRequest, opts ...grpc.CallOption) (*MoveDocumentsResponse, error)
+	SetDocumentStarred(ctx context.Context, in *SetDocumentStarredRequest, opts ...grpc.CallOption) (*SetDocumentStarredResponse, error)
+	ListDocumentAccess(ctx context.Context, in *ListDocumentAccessRequest, opts ...grpc.CallOption) (*ListDocumentAccessResponse, error)
+	RevokeDocumentAccess(ctx context.Context, in *RevokeDocumentAccessRequest, opts ...grpc.CallOption) (*RevokeDocumentAccessResponse, error)
+	// ResolveDocumentComment marks a top-level comment thread resolved or
+	// reopens it. The comment's author and anyone who may manage the document
+	// may do so.
+	ResolveDocumentComment(ctx context.Context, in *ResolveDocumentCommentRequest, opts ...grpc.CallOption) (*ResolveDocumentCommentResponse, error)
+	// GetDocumentPreviews is the batched unfurl read chat uses for doc:
+	// links: one entry per requested ID, in request order. A document the
+	// caller cannot open reports only readable=false, never its title.
+	GetDocumentPreviews(ctx context.Context, in *GetDocumentPreviewsRequest, opts ...grpc.CallOption) (*GetDocumentPreviewsResponse, error)
+	// PlaceDocument deploys a reviewed version into a team or channel scope
+	// as an official Docs-tab placement (HUB-014); the caller must hold
+	// MANAGE and DEPLOY.
+	PlaceDocument(ctx context.Context, in *PlaceDocumentRequest, opts ...grpc.CallOption) (*PlaceDocumentResponse, error)
+	// GetDocumentPlacement resolves the live official placement for one
+	// team or channel scope, rechecking the caller's current eligibility
+	// for that audience (HUB-013).
+	GetDocumentPlacement(ctx context.Context, in *GetDocumentPlacementRequest, opts ...grpc.CallOption) (*GetDocumentPlacementResponse, error)
+	// TransferDocumentOwnership moves custody of a document to a successor
+	// custodian after an owner's departure (HUB-040).
+	TransferDocumentOwnership(ctx context.Context, in *TransferDocumentOwnershipRequest, opts ...grpc.CallOption) (*TransferDocumentOwnershipResponse, error)
+	// ListDocumentOwnershipHistory lists ownership transfers for one
+	// document, newest first.
+	ListDocumentOwnershipHistory(ctx context.Context, in *ListDocumentOwnershipHistoryRequest, opts ...grpc.CallOption) (*ListDocumentOwnershipHistoryResponse, error)
+	// ProposeCrossCompanyGrant records the host half of a bilateral
+	// cross-company document grant (HUB-015).
+	ProposeCrossCompanyGrant(ctx context.Context, in *ProposeCrossCompanyGrantRequest, opts ...grpc.CallOption) (*ProposeCrossCompanyGrantResponse, error)
+	// AcceptCrossCompanyGrant records the named consumer tenant's consent to
+	// a proposed grant; the caller's own tenant is the consumer.
+	AcceptCrossCompanyGrant(ctx context.Context, in *AcceptCrossCompanyGrantRequest, opts ...grpc.CallOption) (*AcceptCrossCompanyGrantResponse, error)
+	// RevokeCrossCompanyGrant closes one bilateral grant hosted by the
+	// caller's tenant.
+	RevokeCrossCompanyGrant(ctx context.Context, in *RevokeCrossCompanyGrantRequest, opts ...grpc.CallOption) (*RevokeCrossCompanyGrantResponse, error)
+	// SearchDocuments runs an authorized, typed-filter lexical search over
+	// currently deployed versions (HUB-030).
+	SearchDocuments(ctx context.Context, in *SearchDocumentsRequest, opts ...grpc.CallOption) (*SearchDocumentsResponse, error)
+	// AgentSearchDocuments runs the same search on behalf of an installed
+	// chat agent acting within one conversation for a human requester
+	// (HUB-031); the agent's installation scope and the requester's own
+	// read grants must both admit each hit.
+	AgentSearchDocuments(ctx context.Context, in *AgentSearchDocumentsRequest, opts ...grpc.CallOption) (*AgentSearchDocumentsResponse, error)
+	// GetDocumentVersion reads one immutable version by ID for side-by-side
+	// comparison (HUB-033). It never mutates and carries no editing surface;
+	// a version the caller cannot read reports readable=false only.
+	GetDocumentVersion(ctx context.Context, in *GetDocumentVersionRequest, opts ...grpc.CallOption) (*GetDocumentVersionResponse, error)
+	// GetDocumentBacklinks lists inbound links to a document from sources the
+	// caller may also read (HUB-035/HUB-022); a source the caller cannot read
+	// is left out entirely, never named.
+	GetDocumentBacklinks(ctx context.Context, in *GetDocumentBacklinksRequest, opts ...grpc.CallOption) (*GetDocumentBacklinksResponse, error)
 }
 
 type documentServiceClient struct {
@@ -119,6 +197,216 @@ func (c *documentServiceClient) CreateDocumentVersion(ctx context.Context, in *C
 	return out, nil
 }
 
+func (c *documentServiceClient) GetDocumentLibrary(ctx context.Context, in *GetDocumentLibraryRequest, opts ...grpc.CallOption) (*GetDocumentLibraryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentLibraryResponse)
+	err := c.cc.Invoke(ctx, DocumentService_GetDocumentLibrary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) CreateDocumentFolder(ctx context.Context, in *CreateDocumentFolderRequest, opts ...grpc.CallOption) (*CreateDocumentFolderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateDocumentFolderResponse)
+	err := c.cc.Invoke(ctx, DocumentService_CreateDocumentFolder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) RenameDocumentFolder(ctx context.Context, in *RenameDocumentFolderRequest, opts ...grpc.CallOption) (*RenameDocumentFolderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RenameDocumentFolderResponse)
+	err := c.cc.Invoke(ctx, DocumentService_RenameDocumentFolder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) DeleteDocumentFolder(ctx context.Context, in *DeleteDocumentFolderRequest, opts ...grpc.CallOption) (*DeleteDocumentFolderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteDocumentFolderResponse)
+	err := c.cc.Invoke(ctx, DocumentService_DeleteDocumentFolder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) MoveDocuments(ctx context.Context, in *MoveDocumentsRequest, opts ...grpc.CallOption) (*MoveDocumentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MoveDocumentsResponse)
+	err := c.cc.Invoke(ctx, DocumentService_MoveDocuments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) SetDocumentStarred(ctx context.Context, in *SetDocumentStarredRequest, opts ...grpc.CallOption) (*SetDocumentStarredResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetDocumentStarredResponse)
+	err := c.cc.Invoke(ctx, DocumentService_SetDocumentStarred_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) ListDocumentAccess(ctx context.Context, in *ListDocumentAccessRequest, opts ...grpc.CallOption) (*ListDocumentAccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDocumentAccessResponse)
+	err := c.cc.Invoke(ctx, DocumentService_ListDocumentAccess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) RevokeDocumentAccess(ctx context.Context, in *RevokeDocumentAccessRequest, opts ...grpc.CallOption) (*RevokeDocumentAccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeDocumentAccessResponse)
+	err := c.cc.Invoke(ctx, DocumentService_RevokeDocumentAccess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) ResolveDocumentComment(ctx context.Context, in *ResolveDocumentCommentRequest, opts ...grpc.CallOption) (*ResolveDocumentCommentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResolveDocumentCommentResponse)
+	err := c.cc.Invoke(ctx, DocumentService_ResolveDocumentComment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) GetDocumentPreviews(ctx context.Context, in *GetDocumentPreviewsRequest, opts ...grpc.CallOption) (*GetDocumentPreviewsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentPreviewsResponse)
+	err := c.cc.Invoke(ctx, DocumentService_GetDocumentPreviews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) PlaceDocument(ctx context.Context, in *PlaceDocumentRequest, opts ...grpc.CallOption) (*PlaceDocumentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PlaceDocumentResponse)
+	err := c.cc.Invoke(ctx, DocumentService_PlaceDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) GetDocumentPlacement(ctx context.Context, in *GetDocumentPlacementRequest, opts ...grpc.CallOption) (*GetDocumentPlacementResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentPlacementResponse)
+	err := c.cc.Invoke(ctx, DocumentService_GetDocumentPlacement_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) TransferDocumentOwnership(ctx context.Context, in *TransferDocumentOwnershipRequest, opts ...grpc.CallOption) (*TransferDocumentOwnershipResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TransferDocumentOwnershipResponse)
+	err := c.cc.Invoke(ctx, DocumentService_TransferDocumentOwnership_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) ListDocumentOwnershipHistory(ctx context.Context, in *ListDocumentOwnershipHistoryRequest, opts ...grpc.CallOption) (*ListDocumentOwnershipHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDocumentOwnershipHistoryResponse)
+	err := c.cc.Invoke(ctx, DocumentService_ListDocumentOwnershipHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) ProposeCrossCompanyGrant(ctx context.Context, in *ProposeCrossCompanyGrantRequest, opts ...grpc.CallOption) (*ProposeCrossCompanyGrantResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProposeCrossCompanyGrantResponse)
+	err := c.cc.Invoke(ctx, DocumentService_ProposeCrossCompanyGrant_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) AcceptCrossCompanyGrant(ctx context.Context, in *AcceptCrossCompanyGrantRequest, opts ...grpc.CallOption) (*AcceptCrossCompanyGrantResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AcceptCrossCompanyGrantResponse)
+	err := c.cc.Invoke(ctx, DocumentService_AcceptCrossCompanyGrant_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) RevokeCrossCompanyGrant(ctx context.Context, in *RevokeCrossCompanyGrantRequest, opts ...grpc.CallOption) (*RevokeCrossCompanyGrantResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeCrossCompanyGrantResponse)
+	err := c.cc.Invoke(ctx, DocumentService_RevokeCrossCompanyGrant_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) SearchDocuments(ctx context.Context, in *SearchDocumentsRequest, opts ...grpc.CallOption) (*SearchDocumentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchDocumentsResponse)
+	err := c.cc.Invoke(ctx, DocumentService_SearchDocuments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) AgentSearchDocuments(ctx context.Context, in *AgentSearchDocumentsRequest, opts ...grpc.CallOption) (*AgentSearchDocumentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AgentSearchDocumentsResponse)
+	err := c.cc.Invoke(ctx, DocumentService_AgentSearchDocuments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) GetDocumentVersion(ctx context.Context, in *GetDocumentVersionRequest, opts ...grpc.CallOption) (*GetDocumentVersionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentVersionResponse)
+	err := c.cc.Invoke(ctx, DocumentService_GetDocumentVersion_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) GetDocumentBacklinks(ctx context.Context, in *GetDocumentBacklinksRequest, opts ...grpc.CallOption) (*GetDocumentBacklinksResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDocumentBacklinksResponse)
+	err := c.cc.Invoke(ctx, DocumentService_GetDocumentBacklinks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DocumentServiceServer is the server API for DocumentService service.
 // All implementations must embed UnimplementedDocumentServiceServer
 // for forward compatibility.
@@ -130,6 +418,63 @@ type DocumentServiceServer interface {
 	ListDocumentComments(context.Context, *ListDocumentCommentsRequest) (*ListDocumentCommentsResponse, error)
 	AddDocumentComment(context.Context, *AddDocumentCommentRequest) (*AddDocumentCommentResponse, error)
 	CreateDocumentVersion(context.Context, *CreateDocumentVersionRequest) (*CreateDocumentVersionResponse, error)
+	// The library is the caller's own organization of what they can read:
+	// folders and stars never grant, widen or reveal access.
+	GetDocumentLibrary(context.Context, *GetDocumentLibraryRequest) (*GetDocumentLibraryResponse, error)
+	CreateDocumentFolder(context.Context, *CreateDocumentFolderRequest) (*CreateDocumentFolderResponse, error)
+	RenameDocumentFolder(context.Context, *RenameDocumentFolderRequest) (*RenameDocumentFolderResponse, error)
+	DeleteDocumentFolder(context.Context, *DeleteDocumentFolderRequest) (*DeleteDocumentFolderResponse, error)
+	MoveDocuments(context.Context, *MoveDocumentsRequest) (*MoveDocumentsResponse, error)
+	SetDocumentStarred(context.Context, *SetDocumentStarredRequest) (*SetDocumentStarredResponse, error)
+	ListDocumentAccess(context.Context, *ListDocumentAccessRequest) (*ListDocumentAccessResponse, error)
+	RevokeDocumentAccess(context.Context, *RevokeDocumentAccessRequest) (*RevokeDocumentAccessResponse, error)
+	// ResolveDocumentComment marks a top-level comment thread resolved or
+	// reopens it. The comment's author and anyone who may manage the document
+	// may do so.
+	ResolveDocumentComment(context.Context, *ResolveDocumentCommentRequest) (*ResolveDocumentCommentResponse, error)
+	// GetDocumentPreviews is the batched unfurl read chat uses for doc:
+	// links: one entry per requested ID, in request order. A document the
+	// caller cannot open reports only readable=false, never its title.
+	GetDocumentPreviews(context.Context, *GetDocumentPreviewsRequest) (*GetDocumentPreviewsResponse, error)
+	// PlaceDocument deploys a reviewed version into a team or channel scope
+	// as an official Docs-tab placement (HUB-014); the caller must hold
+	// MANAGE and DEPLOY.
+	PlaceDocument(context.Context, *PlaceDocumentRequest) (*PlaceDocumentResponse, error)
+	// GetDocumentPlacement resolves the live official placement for one
+	// team or channel scope, rechecking the caller's current eligibility
+	// for that audience (HUB-013).
+	GetDocumentPlacement(context.Context, *GetDocumentPlacementRequest) (*GetDocumentPlacementResponse, error)
+	// TransferDocumentOwnership moves custody of a document to a successor
+	// custodian after an owner's departure (HUB-040).
+	TransferDocumentOwnership(context.Context, *TransferDocumentOwnershipRequest) (*TransferDocumentOwnershipResponse, error)
+	// ListDocumentOwnershipHistory lists ownership transfers for one
+	// document, newest first.
+	ListDocumentOwnershipHistory(context.Context, *ListDocumentOwnershipHistoryRequest) (*ListDocumentOwnershipHistoryResponse, error)
+	// ProposeCrossCompanyGrant records the host half of a bilateral
+	// cross-company document grant (HUB-015).
+	ProposeCrossCompanyGrant(context.Context, *ProposeCrossCompanyGrantRequest) (*ProposeCrossCompanyGrantResponse, error)
+	// AcceptCrossCompanyGrant records the named consumer tenant's consent to
+	// a proposed grant; the caller's own tenant is the consumer.
+	AcceptCrossCompanyGrant(context.Context, *AcceptCrossCompanyGrantRequest) (*AcceptCrossCompanyGrantResponse, error)
+	// RevokeCrossCompanyGrant closes one bilateral grant hosted by the
+	// caller's tenant.
+	RevokeCrossCompanyGrant(context.Context, *RevokeCrossCompanyGrantRequest) (*RevokeCrossCompanyGrantResponse, error)
+	// SearchDocuments runs an authorized, typed-filter lexical search over
+	// currently deployed versions (HUB-030).
+	SearchDocuments(context.Context, *SearchDocumentsRequest) (*SearchDocumentsResponse, error)
+	// AgentSearchDocuments runs the same search on behalf of an installed
+	// chat agent acting within one conversation for a human requester
+	// (HUB-031); the agent's installation scope and the requester's own
+	// read grants must both admit each hit.
+	AgentSearchDocuments(context.Context, *AgentSearchDocumentsRequest) (*AgentSearchDocumentsResponse, error)
+	// GetDocumentVersion reads one immutable version by ID for side-by-side
+	// comparison (HUB-033). It never mutates and carries no editing surface;
+	// a version the caller cannot read reports readable=false only.
+	GetDocumentVersion(context.Context, *GetDocumentVersionRequest) (*GetDocumentVersionResponse, error)
+	// GetDocumentBacklinks lists inbound links to a document from sources the
+	// caller may also read (HUB-035/HUB-022); a source the caller cannot read
+	// is left out entirely, never named.
+	GetDocumentBacklinks(context.Context, *GetDocumentBacklinksRequest) (*GetDocumentBacklinksResponse, error)
 	mustEmbedUnimplementedDocumentServiceServer()
 }
 
@@ -160,6 +505,69 @@ func (UnimplementedDocumentServiceServer) AddDocumentComment(context.Context, *A
 }
 func (UnimplementedDocumentServiceServer) CreateDocumentVersion(context.Context, *CreateDocumentVersionRequest) (*CreateDocumentVersionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateDocumentVersion not implemented")
+}
+func (UnimplementedDocumentServiceServer) GetDocumentLibrary(context.Context, *GetDocumentLibraryRequest) (*GetDocumentLibraryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentLibrary not implemented")
+}
+func (UnimplementedDocumentServiceServer) CreateDocumentFolder(context.Context, *CreateDocumentFolderRequest) (*CreateDocumentFolderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateDocumentFolder not implemented")
+}
+func (UnimplementedDocumentServiceServer) RenameDocumentFolder(context.Context, *RenameDocumentFolderRequest) (*RenameDocumentFolderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RenameDocumentFolder not implemented")
+}
+func (UnimplementedDocumentServiceServer) DeleteDocumentFolder(context.Context, *DeleteDocumentFolderRequest) (*DeleteDocumentFolderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteDocumentFolder not implemented")
+}
+func (UnimplementedDocumentServiceServer) MoveDocuments(context.Context, *MoveDocumentsRequest) (*MoveDocumentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MoveDocuments not implemented")
+}
+func (UnimplementedDocumentServiceServer) SetDocumentStarred(context.Context, *SetDocumentStarredRequest) (*SetDocumentStarredResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetDocumentStarred not implemented")
+}
+func (UnimplementedDocumentServiceServer) ListDocumentAccess(context.Context, *ListDocumentAccessRequest) (*ListDocumentAccessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDocumentAccess not implemented")
+}
+func (UnimplementedDocumentServiceServer) RevokeDocumentAccess(context.Context, *RevokeDocumentAccessRequest) (*RevokeDocumentAccessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeDocumentAccess not implemented")
+}
+func (UnimplementedDocumentServiceServer) ResolveDocumentComment(context.Context, *ResolveDocumentCommentRequest) (*ResolveDocumentCommentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResolveDocumentComment not implemented")
+}
+func (UnimplementedDocumentServiceServer) GetDocumentPreviews(context.Context, *GetDocumentPreviewsRequest) (*GetDocumentPreviewsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentPreviews not implemented")
+}
+func (UnimplementedDocumentServiceServer) PlaceDocument(context.Context, *PlaceDocumentRequest) (*PlaceDocumentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PlaceDocument not implemented")
+}
+func (UnimplementedDocumentServiceServer) GetDocumentPlacement(context.Context, *GetDocumentPlacementRequest) (*GetDocumentPlacementResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentPlacement not implemented")
+}
+func (UnimplementedDocumentServiceServer) TransferDocumentOwnership(context.Context, *TransferDocumentOwnershipRequest) (*TransferDocumentOwnershipResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TransferDocumentOwnership not implemented")
+}
+func (UnimplementedDocumentServiceServer) ListDocumentOwnershipHistory(context.Context, *ListDocumentOwnershipHistoryRequest) (*ListDocumentOwnershipHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDocumentOwnershipHistory not implemented")
+}
+func (UnimplementedDocumentServiceServer) ProposeCrossCompanyGrant(context.Context, *ProposeCrossCompanyGrantRequest) (*ProposeCrossCompanyGrantResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ProposeCrossCompanyGrant not implemented")
+}
+func (UnimplementedDocumentServiceServer) AcceptCrossCompanyGrant(context.Context, *AcceptCrossCompanyGrantRequest) (*AcceptCrossCompanyGrantResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AcceptCrossCompanyGrant not implemented")
+}
+func (UnimplementedDocumentServiceServer) RevokeCrossCompanyGrant(context.Context, *RevokeCrossCompanyGrantRequest) (*RevokeCrossCompanyGrantResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeCrossCompanyGrant not implemented")
+}
+func (UnimplementedDocumentServiceServer) SearchDocuments(context.Context, *SearchDocumentsRequest) (*SearchDocumentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchDocuments not implemented")
+}
+func (UnimplementedDocumentServiceServer) AgentSearchDocuments(context.Context, *AgentSearchDocumentsRequest) (*AgentSearchDocumentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AgentSearchDocuments not implemented")
+}
+func (UnimplementedDocumentServiceServer) GetDocumentVersion(context.Context, *GetDocumentVersionRequest) (*GetDocumentVersionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentVersion not implemented")
+}
+func (UnimplementedDocumentServiceServer) GetDocumentBacklinks(context.Context, *GetDocumentBacklinksRequest) (*GetDocumentBacklinksResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDocumentBacklinks not implemented")
 }
 func (UnimplementedDocumentServiceServer) mustEmbedUnimplementedDocumentServiceServer() {}
 func (UnimplementedDocumentServiceServer) testEmbeddedByValue()                         {}
@@ -308,6 +716,384 @@ func _DocumentService_CreateDocumentVersion_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DocumentService_GetDocumentLibrary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentLibraryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).GetDocumentLibrary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_GetDocumentLibrary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).GetDocumentLibrary(ctx, req.(*GetDocumentLibraryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_CreateDocumentFolder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateDocumentFolderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).CreateDocumentFolder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_CreateDocumentFolder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).CreateDocumentFolder(ctx, req.(*CreateDocumentFolderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_RenameDocumentFolder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RenameDocumentFolderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).RenameDocumentFolder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_RenameDocumentFolder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).RenameDocumentFolder(ctx, req.(*RenameDocumentFolderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_DeleteDocumentFolder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteDocumentFolderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).DeleteDocumentFolder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_DeleteDocumentFolder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).DeleteDocumentFolder(ctx, req.(*DeleteDocumentFolderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_MoveDocuments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MoveDocumentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).MoveDocuments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_MoveDocuments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).MoveDocuments(ctx, req.(*MoveDocumentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_SetDocumentStarred_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetDocumentStarredRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).SetDocumentStarred(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_SetDocumentStarred_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).SetDocumentStarred(ctx, req.(*SetDocumentStarredRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_ListDocumentAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDocumentAccessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).ListDocumentAccess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_ListDocumentAccess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).ListDocumentAccess(ctx, req.(*ListDocumentAccessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_RevokeDocumentAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeDocumentAccessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).RevokeDocumentAccess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_RevokeDocumentAccess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).RevokeDocumentAccess(ctx, req.(*RevokeDocumentAccessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_ResolveDocumentComment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolveDocumentCommentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).ResolveDocumentComment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_ResolveDocumentComment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).ResolveDocumentComment(ctx, req.(*ResolveDocumentCommentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_GetDocumentPreviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentPreviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).GetDocumentPreviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_GetDocumentPreviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).GetDocumentPreviews(ctx, req.(*GetDocumentPreviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_PlaceDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PlaceDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).PlaceDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_PlaceDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).PlaceDocument(ctx, req.(*PlaceDocumentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_GetDocumentPlacement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentPlacementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).GetDocumentPlacement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_GetDocumentPlacement_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).GetDocumentPlacement(ctx, req.(*GetDocumentPlacementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_TransferDocumentOwnership_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransferDocumentOwnershipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).TransferDocumentOwnership(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_TransferDocumentOwnership_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).TransferDocumentOwnership(ctx, req.(*TransferDocumentOwnershipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_ListDocumentOwnershipHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDocumentOwnershipHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).ListDocumentOwnershipHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_ListDocumentOwnershipHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).ListDocumentOwnershipHistory(ctx, req.(*ListDocumentOwnershipHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_ProposeCrossCompanyGrant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProposeCrossCompanyGrantRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).ProposeCrossCompanyGrant(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_ProposeCrossCompanyGrant_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).ProposeCrossCompanyGrant(ctx, req.(*ProposeCrossCompanyGrantRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_AcceptCrossCompanyGrant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcceptCrossCompanyGrantRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).AcceptCrossCompanyGrant(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_AcceptCrossCompanyGrant_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).AcceptCrossCompanyGrant(ctx, req.(*AcceptCrossCompanyGrantRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_RevokeCrossCompanyGrant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeCrossCompanyGrantRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).RevokeCrossCompanyGrant(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_RevokeCrossCompanyGrant_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).RevokeCrossCompanyGrant(ctx, req.(*RevokeCrossCompanyGrantRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_SearchDocuments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchDocumentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).SearchDocuments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_SearchDocuments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).SearchDocuments(ctx, req.(*SearchDocumentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_AgentSearchDocuments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AgentSearchDocumentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).AgentSearchDocuments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_AgentSearchDocuments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).AgentSearchDocuments(ctx, req.(*AgentSearchDocumentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_GetDocumentVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentVersionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).GetDocumentVersion(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_GetDocumentVersion_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).GetDocumentVersion(ctx, req.(*GetDocumentVersionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_GetDocumentBacklinks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDocumentBacklinksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).GetDocumentBacklinks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_GetDocumentBacklinks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).GetDocumentBacklinks(ctx, req.(*GetDocumentBacklinksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DocumentService_ServiceDesc is the grpc.ServiceDesc for DocumentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -342,6 +1128,90 @@ var DocumentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateDocumentVersion",
 			Handler:    _DocumentService_CreateDocumentVersion_Handler,
+		},
+		{
+			MethodName: "GetDocumentLibrary",
+			Handler:    _DocumentService_GetDocumentLibrary_Handler,
+		},
+		{
+			MethodName: "CreateDocumentFolder",
+			Handler:    _DocumentService_CreateDocumentFolder_Handler,
+		},
+		{
+			MethodName: "RenameDocumentFolder",
+			Handler:    _DocumentService_RenameDocumentFolder_Handler,
+		},
+		{
+			MethodName: "DeleteDocumentFolder",
+			Handler:    _DocumentService_DeleteDocumentFolder_Handler,
+		},
+		{
+			MethodName: "MoveDocuments",
+			Handler:    _DocumentService_MoveDocuments_Handler,
+		},
+		{
+			MethodName: "SetDocumentStarred",
+			Handler:    _DocumentService_SetDocumentStarred_Handler,
+		},
+		{
+			MethodName: "ListDocumentAccess",
+			Handler:    _DocumentService_ListDocumentAccess_Handler,
+		},
+		{
+			MethodName: "RevokeDocumentAccess",
+			Handler:    _DocumentService_RevokeDocumentAccess_Handler,
+		},
+		{
+			MethodName: "ResolveDocumentComment",
+			Handler:    _DocumentService_ResolveDocumentComment_Handler,
+		},
+		{
+			MethodName: "GetDocumentPreviews",
+			Handler:    _DocumentService_GetDocumentPreviews_Handler,
+		},
+		{
+			MethodName: "PlaceDocument",
+			Handler:    _DocumentService_PlaceDocument_Handler,
+		},
+		{
+			MethodName: "GetDocumentPlacement",
+			Handler:    _DocumentService_GetDocumentPlacement_Handler,
+		},
+		{
+			MethodName: "TransferDocumentOwnership",
+			Handler:    _DocumentService_TransferDocumentOwnership_Handler,
+		},
+		{
+			MethodName: "ListDocumentOwnershipHistory",
+			Handler:    _DocumentService_ListDocumentOwnershipHistory_Handler,
+		},
+		{
+			MethodName: "ProposeCrossCompanyGrant",
+			Handler:    _DocumentService_ProposeCrossCompanyGrant_Handler,
+		},
+		{
+			MethodName: "AcceptCrossCompanyGrant",
+			Handler:    _DocumentService_AcceptCrossCompanyGrant_Handler,
+		},
+		{
+			MethodName: "RevokeCrossCompanyGrant",
+			Handler:    _DocumentService_RevokeCrossCompanyGrant_Handler,
+		},
+		{
+			MethodName: "SearchDocuments",
+			Handler:    _DocumentService_SearchDocuments_Handler,
+		},
+		{
+			MethodName: "AgentSearchDocuments",
+			Handler:    _DocumentService_AgentSearchDocuments_Handler,
+		},
+		{
+			MethodName: "GetDocumentVersion",
+			Handler:    _DocumentService_GetDocumentVersion_Handler,
+		},
+		{
+			MethodName: "GetDocumentBacklinks",
+			Handler:    _DocumentService_GetDocumentBacklinks_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

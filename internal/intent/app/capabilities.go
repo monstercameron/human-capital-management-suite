@@ -17,6 +17,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 )
 
 // bootstrapCapabilityVersion is the version every BOOTSTRAP capability is
@@ -57,9 +58,32 @@ type promotionCall struct {
 // by the requested mode; Contract carries the governed simulation contract
 // when the SIMULATE branch assembled one.
 type promotionAnswer struct {
-	Preflight  promotion.PreflightResult
-	Simulation promotion.SimulationResult
-	Contract   simcontract.SimulationResult
+	Preflight     promotion.PreflightResult
+	Simulation    promotion.SimulationResult
+	Contract      simcontract.SimulationResult
+	PreflightPlan intent.PreflightPlan
+	Composition   intent.CompiledComposition
+}
+
+type compensationAnswer struct {
+	Simulation    rewards.SimulateCompensationResult
+	PreflightPlan intent.PreflightPlan
+}
+
+func compensationSimulation(answer any) (rewards.SimulateCompensationResult, bool) {
+	switch value := answer.(type) {
+	case rewards.SimulateCompensationResult:
+		return value, true
+	case compensationAnswer:
+		return value.Simulation, true
+	default:
+		return rewards.SimulateCompensationResult{}, false
+	}
+}
+
+type repairSimulationAnswer struct {
+	Simulation    repair.RepairSimulation
+	PreflightPlan intent.PreflightPlan
 }
 
 // ErrCapabilityUnbound is returned by a bootstrap capability that this cell
@@ -95,6 +119,8 @@ func (h *domainHandlers) handlerFor(id string) capability.Handler {
 		return h.evaluatePayBandPosition
 	case dataops.DetectDriftIntentType:
 		return h.detectDrift
+	case dataops.ExplainFieldHistoryOperation:
+		return h.explainFieldHistory
 	case repair.CreateRepairPlanIntentType:
 		return h.createRepairPlan
 	case repair.SimulateRepairIntentType:
@@ -127,13 +153,30 @@ func (h *domainHandlers) promoteWorker(ctx context.Context, payload any) (any, e
 		if err != nil {
 			return nil, err
 		}
-		return promotionAnswer{Preflight: result}, nil
+		preflight, err := promotionPreflightPlan(result)
+		if err != nil {
+			return nil, fmt.Errorf("app: compile promotion preflight plan: %w", err)
+		}
+		composition, err := promotionCompositionPlan(call, result.ResultDigest)
+		if err != nil {
+			return nil, fmt.Errorf("app: compile promotion composition: %w", err)
+		}
+		return promotionAnswer{Preflight: result, PreflightPlan: preflight, Composition: composition}, nil
 	case promotionModeSimulate:
 		result, err := promotion.SimulatePromotion(ctx, h.bands, call.Request)
 		if err != nil {
 			return nil, err
 		}
-		answer := promotionAnswer{Preflight: result.Preflight, Simulation: result}
+		preflight, err := promotionSimulationPlan(result, call)
+		if err != nil {
+			return nil, fmt.Errorf("app: compile promotion preflight plan: %w", err)
+		}
+		composition, err := promotionCompositionPlan(call, result.ResultDigest)
+		if err != nil {
+			return nil, fmt.Errorf("app: compile promotion composition: %w", err)
+		}
+		answer := promotionAnswer{Preflight: result.Preflight, Simulation: result,
+			PreflightPlan: preflight, Composition: composition}
 		if call.Simulations != nil {
 			contract, err := assemblePromotionContract(promotionContractInput{
 				IntentID:              call.IntentID,
@@ -158,7 +201,15 @@ func (h *domainHandlers) simulateCompensation(ctx context.Context, payload any) 
 	if !ok {
 		return nil, fmt.Errorf("app: simulate_compensation expects a rewards.SimulateCompensationInput, got %T", payload)
 	}
-	return rewards.SimulateCompensation(ctx, h.bands, in)
+	result, err := rewards.SimulateCompensation(ctx, h.bands, in)
+	if err != nil {
+		return nil, err
+	}
+	preflight, err := compensationPreflightPlan(result)
+	if err != nil {
+		return nil, fmt.Errorf("app: compile compensation preflight plan: %w", err)
+	}
+	return compensationAnswer{Simulation: result, PreflightPlan: preflight}, nil
 }
 
 func (h *domainHandlers) evaluatePayBandPosition(ctx context.Context, payload any) (any, error) {
@@ -187,6 +238,22 @@ func newCapabilityRegistry(h *domainHandlers) (*capability.Registry, error) {
 	for _, rec := range published.List() {
 		if err := bound.Register(rec.Definition, h.handlerFor(rec.Definition.ID)); err != nil {
 			return nil, fmt.Errorf("app: bind capability %s: %w", rec.Definition.Key(), err)
+		}
+	}
+	// These four graph reads were previously registered in a private gateway
+	// owned by PromotionStepServices. Publish them in the cell registry so
+	// compilation and served invocation resolve the same immutable manifests.
+	for _, def := range promotionexec.GovernedReadDefinitions() {
+		definition := def
+		handler := capability.Handler(func(ctx context.Context, payload any) (any, error) {
+			read, ok := payload.(governedRead)
+			if !ok {
+				return nil, fmt.Errorf("app: %s expects a governed read, got %T", definition.ID, payload)
+			}
+			return read(ctx)
+		})
+		if err := bound.Register(definition, handler); err != nil {
+			return nil, fmt.Errorf("app: bind capability %s: %w", definition.Key(), err)
 		}
 	}
 	return bound, nil

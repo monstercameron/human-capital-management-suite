@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -15,12 +16,10 @@ import (
 )
 
 // GetWorkflowInstance is ADMIN-008's governed, read-only execution inspector:
-// it asks the application-side [app.WorkflowInstanceReader] for the
-// instance, its recorded node executions, its work items and their
-// transitions, then hands the loaded rows to internal/workflow/inspect.Build
-// and inspect.BuildWorkItems, which do the actual rendering and redaction.
-// This method reads no table, writes nothing, and evaluates no HCM business
-// rule; it composes one read port and two pure projections.
+// it asks the application-side port to run inspect.Load over the complete
+// durable record and maps its authorization-aware projection and manifest to
+// the admin response. This method reads no table, writes nothing, and
+// evaluates no HCM business rule.
 func (s *server) GetWorkflowInstance(ctx context.Context, req *adminv1.GetWorkflowInstanceRequest) (*adminv1.GetWorkflowInstanceResponse, error) {
 	principal, inv, opErr := requireOperator(ctx)
 	if opErr != nil {
@@ -38,16 +37,18 @@ func (s *server) GetWorkflowInstance(ctx context.Context, req *adminv1.GetWorkfl
 			WithViolation("instance_id", "must be a valid uuid", "inspect.Build").
 			WithCorrelation(inv.RequestID()).WithEvidence(evidence)
 	}
-	if s.deps.WorkflowInstances == nil {
+	if s.deps.WorkflowInspector == nil {
 		return nil, envelope.New(envelope.CodeUnavailable,
 			"admin.workflow_instance_unconfigured",
 			"the workflow runtime read port is not configured").
 			WithCorrelation(inv.RequestID()).WithEvidence(evidence)
 	}
 
-	record, err := s.deps.WorkflowInstances.ReadWorkflowInstance(ctx, principal.Tenant(), instanceID)
+	decision := adminpolicy.OperatorWorkflowInstanceAuthorization(principal.Subject())
+	workItemDecision := adminpolicy.OperatorWorkItemAuthorization()
+	record, err := s.deps.WorkflowInspector.InspectWorkflowInstance(ctx, principal.Tenant(), instanceID, decision, workItemDecision)
 	if err != nil {
-		if runtime.CodeOf(err) == runtime.CodeInstanceNotFound {
+		if runtime.CodeOf(err) == runtime.CodeInstanceNotFound || errors.Is(err, inspect.ErrNotDisclosable) {
 			return nil, envelope.New(envelope.CodeNotFound,
 				"admin.workflow_instance_not_found", "no such workflow instance").
 				WithCorrelation(inv.RequestID()).WithEvidence(evidence)
@@ -57,29 +58,21 @@ func (s *server) GetWorkflowInstance(ctx context.Context, req *adminv1.GetWorkfl
 			WithDiagnostic(err).WithCorrelation(inv.RequestID()).WithEvidence(evidence)
 	}
 
-	view, err := inspect.Build(inspect.Request{
-		Instance:      record.Instance,
-		Nodes:         record.Nodes,
-		Authorization: adminpolicy.OperatorWorkflowInstanceAuthorization(principal.Subject()),
-	})
-	if err != nil {
-		return nil, envelope.New(envelope.CodeUnavailable,
-			"admin.workflow_instance_build_failed", "the workflow instance could not be projected").
-			WithDiagnostic(err).WithCorrelation(inv.RequestID()).WithEvidence(evidence)
-	}
-	workItems := inspect.BuildWorkItems(record.WorkItems, record.Transitions, adminpolicy.OperatorWorkItemAuthorization())
+	view := record.View
+	workItems := record.WorkItems
 
 	resp := &adminv1.GetWorkflowInstanceResponse{
 		Disclosed:             true,
 		Definition:            toWorkflowDefinitionProfile(view.Definition),
 		Instance:              toWorkflowInstanceProfile(view.Instance),
-		Complete:              view.Completeness.Complete && workItems.Completeness.Complete,
-		Redactions:            mergeSorted(view.Completeness.Redactions, workItems.Completeness.Redactions),
-		Gaps:                  mergeSorted(view.Completeness.Gaps, workItems.Completeness.Gaps),
+		Complete:              record.Completeness.Complete,
+		Redactions:            append([]string(nil), record.Completeness.Redactions...),
+		Gaps:                  append([]string(nil), record.Completeness.Gaps...),
 		WorkItemsDisclosed:    workItems.Disclosed,
 		WorkItemsDeniedReason: workItems.DeniedReason,
 		EvidenceRef:           &commonv1.EvidenceRef{EvidenceId: principal.EvidenceID(), EvidenceKind: "admin.get_workflow_instance"},
 	}
+	resp.DurableRecords = toDurableRecordProfiles(record.Records)
 	for _, f := range view.Frontier {
 		resp.Frontier = append(resp.Frontier, &adminv1.FrontierEntryProfile{
 			NodeId:          f.NodeID,
@@ -98,28 +91,13 @@ func (s *server) GetWorkflowInstance(ctx context.Context, req *adminv1.GetWorkfl
 	return resp, nil
 }
 
-// mergeSorted concatenates two already-sorted string slices into one sorted,
-// de-duplicated slice, so a caller reading the response's redactions or gaps
-// sees one ordered list rather than two lists it must merge itself.
-func mergeSorted(a, b []string) []string {
-	out := make([]string, 0, len(a)+len(b))
-	i, j := 0, 0
-	for i < len(a) && j < len(b) {
-		switch {
-		case a[i] == b[j]:
-			out = append(out, a[i])
-			i++
-			j++
-		case a[i] < b[j]:
-			out = append(out, a[i])
-			i++
-		default:
-			out = append(out, b[j])
-			j++
-		}
+func toDurableRecordProfiles(records []inspect.RecordFamily) []*adminv1.DurableRecordFamilyProfile {
+	out := make([]*adminv1.DurableRecordFamilyProfile, 0, len(records))
+	for _, family := range records {
+		out = append(out, &adminv1.DurableRecordFamilyProfile{
+			Family: family.Family, Section: string(family.Section), State: string(family.State), Count: int32(family.Count), Reason: family.Reason,
+		})
 	}
-	out = append(out, a[i:]...)
-	out = append(out, b[j:]...)
 	return out
 }
 

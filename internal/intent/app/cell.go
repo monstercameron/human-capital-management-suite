@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/authn/oidc"
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/fakeincumbent"
@@ -15,16 +16,19 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/orgfacts"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pageledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/positionfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionladder"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowdraftstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/knowledge"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/org"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/i18n"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
@@ -35,10 +39,12 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/admission"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/timeauth"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint"
+	transporthealth "github.com/monstercameron/human-capital-management-suite/internal/transport/health"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	workflowcore "github.com/monstercameron/human-capital-management-suite/internal/workflow"
@@ -60,8 +66,16 @@ const ObservationFreshnessBudget = 24 * time.Hour
 
 // CellConfig is everything a P1A cell needs that it cannot decide for itself.
 type CellConfig struct {
+	// Health is the shared, bounded liveness/readiness surface registered by
+	// both transports. Nil keeps the transport's fail-open compatibility
+	// behavior for callers that do not compose a production serve role.
+	Health *transporthealth.Server
 	// Store is the persistence port. Required.
 	Store Store
+	// PageLedger persists published workspace page revisions and rollouts.
+	PageLedger pageledger.Store
+	// Catalogs resolves the tenant's activated product-copy revision.
+	Catalogs i18n.ActivatedCatalogStore
 	// Verifier turns a presented credential into a principal. Required: a
 	// listener that cannot authenticate must not start.
 	Verifier trust.Verifier
@@ -119,7 +133,12 @@ type CellConfig struct {
 	// internal/transport/cell, which is the package that actually knows
 	// about internal/humanwork/workspace.Options.DevBrowserLogin - this
 	// package must not import anything transport-shaped to state it.
-	DevBrowserLogin bool
+	DevBrowserLogin   bool
+	OIDCFlow          *oidc.Flow
+	OIDCTenant        values.TenantId
+	OIDCIssuerURL     string
+	OIDCRedirectURI   string
+	OIDCSessionIssuer workspace.OIDCSessionIssuer
 	// DevPersonas are immutable server-issued identities for the explicitly
 	// enabled local browser login surface.
 	DevPersonas []workspace.DevPersona
@@ -179,6 +198,8 @@ type CellConfig struct {
 	// for non-workspace compositions; the product RPC reports UNAVAILABLE
 	// when omitted rather than silently falling back to browser storage.
 	Preferences preferences.Store
+	// KnowledgeSearch is the tenant-scoped active-article search source.
+	KnowledgeSearch knowledge.SearchSource
 	// RoleAccess owns tenant-configurable role definitions, employee role
 	// assignments, and per-role organization-directory boundaries.
 	RoleAccess roleaccess.Store
@@ -312,6 +333,7 @@ type CellConfig struct {
 // runs the same wiring the binary runs. A cell a test assembles differently
 // from the way the process assembles it proves nothing about the process.
 type Cell struct {
+	Health       *transporthealth.Server
 	Service      *IntentService
 	Definitions  *intent.Registry
 	Capabilities *capability.Registry
@@ -342,10 +364,13 @@ type Cell struct {
 	// Telemetry is the OTel provider from CellConfig, or nil. Exported so
 	// internal/transport/cell can read it without this package exposing any
 	// transport-shaped composition of its own.
-	Telemetry   *hcmotel.Provider
-	Preferences preferences.Store
-	RoleAccess  roleaccess.Store
-	WorkerIDs   workerids.Store
+	Telemetry       *hcmotel.Provider
+	Preferences     preferences.Store
+	KnowledgeSearch knowledge.SearchSource
+	RoleAccess      roleaccess.Store
+	PageLedger      pageledger.Store
+	Catalogs        i18n.ActivatedCatalogStore
+	WorkerIDs       workerids.Store
 	// MarketRateSource is the market-rate source the variant's
 	// fetch_market_rate node reads through the promotion step services.
 	MarketRateSource rewards.MarketRateSource
@@ -357,7 +382,12 @@ type Cell struct {
 	// journey to show. A nil Journey travels to
 	// internal/humanwork/workspace.Options unchanged, and the page reports
 	// workspace.ErrJourneyUnavailable from its own nil check.
-	Journey workspace.JourneyEngine
+	Journey           workspace.JourneyEngine
+	OIDCFlow          *oidc.Flow
+	OIDCTenant        values.TenantId
+	OIDCIssuerURL     string
+	OIDCRedirectURI   string
+	OIDCSessionIssuer workspace.OIDCSessionIssuer
 	// JourneyInvalidations is REV-091-03's hub of committed promotion
 	// transitions, fed by Journey after each commit and read per viewer by
 	// the journey transport's WatchPromotionInvalidations stream. Nil exactly
@@ -427,6 +457,7 @@ type Cell struct {
 	// is enabled. Same reasoning as workspaceEnabled: fixed at composition,
 	// read through [Cell.DevBrowserLogin].
 	devBrowserLogin bool
+	oidcFlow        *oidc.Flow
 	devPersonas     []workspace.DevPersona
 	devDirectory    workspace.DevDirectory
 	// publicOrigin records the deployment's declared public origin. Same
@@ -765,8 +796,15 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 		engine.review = journeyReviewPorts{bands: bands, managerFacts: managerFacts}
 	}
 
+	inboundCredentials := admission.NewCredentialLimiter()
+	inboundCredentialPolicy := admission.DefaultCredentialPolicy()
 	cell := &Cell{
 		Journey:                journey,
+		OIDCFlow:               cfg.OIDCFlow,
+		OIDCTenant:             cfg.OIDCTenant,
+		OIDCIssuerURL:          cfg.OIDCIssuerURL,
+		OIDCRedirectURI:        cfg.OIDCRedirectURI,
+		OIDCSessionIssuer:      cfg.OIDCSessionIssuer,
 		WorkflowControl:        workflowControl,
 		WorkflowTenantIDs:      workflowTenantIDs,
 		WorkflowVersions:       cfg.ExecutionVersions,
@@ -782,27 +820,32 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 
 		workspaceEnabled: workspaceEnabled,
 		devBrowserLogin:  cfg.DevBrowserLogin,
+		oidcFlow:         cfg.OIDCFlow,
 		devPersonas:      append([]workspace.DevPersona(nil), cfg.DevPersonas...),
 		devDirectory:     cfg.DevDirectory,
 		publicOrigin:     cfg.PublicOrigin,
 
-		Service:      svc,
-		Definitions:  defs,
-		Capabilities: caps,
-		Workers:      workers,
-		Transactions: handlers.transactions,
-		Gateway:      gateway,
-		Evidence:     sink,
-		Controls:     controls,
-		Inputs:       inputs,
-		Incumbent:    incumbent,
-		Connection:   connection,
-		Observations: observations,
-		Clock:        monitor,
-		Discovery:    discovery,
-		Telemetry:    cfg.Telemetry,
-		Preferences:  cfg.Preferences,
-		RoleAccess:   cfg.RoleAccess,
+		Service:         svc,
+		Health:          cfg.Health,
+		Definitions:     defs,
+		Capabilities:    caps,
+		Workers:         workers,
+		Transactions:    handlers.transactions,
+		Gateway:         gateway,
+		Evidence:        sink,
+		Controls:        controls,
+		Inputs:          inputs,
+		Incumbent:       incumbent,
+		Connection:      connection,
+		Observations:    observations,
+		Clock:           monitor,
+		Discovery:       discovery,
+		Telemetry:       cfg.Telemetry,
+		Preferences:     cfg.Preferences,
+		PageLedger:      cfg.PageLedger,
+		Catalogs:        cfg.Catalogs,
+		KnowledgeSearch: cfg.KnowledgeSearch,
+		RoleAccess:      cfg.RoleAccess,
 
 		MarketRateSource: cfg.MarketRateSource,
 		Config: transport.Config{
@@ -811,6 +854,12 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 			Now:         cfg.Now,
 			MaxDeadline: cfg.MaxDeadline,
 			Logger:      cfg.Logger,
+			CredentialQuota: func(now time.Time, tenantID, clientID string) (transport.CredentialQuotaOutcome, int, error) {
+				decision, err := inboundCredentials.Admit(now, admission.CredentialIdentity{
+					TenantID: tenantID, ClientID: clientID,
+				}, inboundCredentialPolicy)
+				return transport.CredentialQuotaOutcome(decision.Outcome), decision.RetryAfter, err
+			},
 		},
 	}
 	// WF-RUN-034: the execution driver was composed before this cell built
@@ -950,6 +999,9 @@ func (c *Cell) WorkspaceEnabled() bool { return c.workspaceEnabled }
 // made while the cell was composed. internal/transport/cell reads it when
 // building the workspace handler, the same way it reads WorkspaceEnabled.
 func (c *Cell) DevBrowserLogin() bool { return c.devBrowserLogin }
+
+// BrowserLoginEnabled reports whether a browser session cookie is composed.
+func (c *Cell) BrowserLoginEnabled() bool { return c.devBrowserLogin || c.oidcFlow != nil }
 
 // DevPersonas returns a copy of the local-development identities composed for
 // the workspace. Production compositions leave this empty.

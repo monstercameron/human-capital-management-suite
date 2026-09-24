@@ -139,9 +139,27 @@ func TestIntentSubmitCancelSupersedeEndpointsRespectRevisionAuthorityAndIrrevers
 	runIntentSubmitCancelSupersedeContract(t)
 }
 
-func TestTodo_EP_INTENT_003_Property(t *testing.T)    { runIntentSubmitCancelSupersedeContract(t) }
-func TestTodo_EP_INTENT_003_Golden(t *testing.T)      { runIntentSubmitCancelSupersedeContract(t) }
-func TestTodo_EP_INTENT_003_Race(t *testing.T)        { runIntentSubmitCancelSupersedeContract(t) }
+func TestTodo_EP_INTENT_003_Property(t *testing.T) { runIntentSubmitCancelSupersedeContract(t) }
+func TestTodo_EP_INTENT_003_Golden(t *testing.T)   { runIntentSubmitCancelSupersedeContract(t) }
+func TestTodo_EP_INTENT_003_Race(t *testing.T) {
+	h := newEndpointHarness(t)
+	const workers = 12
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			_, err := h.grpcIntent.GetIntent(h.grpcContext(context.Background()), &intentsv1.GetIntentRequest{IntentId: transporttest.KnownIntentID})
+			errs <- err
+		}()
+	}
+	for i := 0; i < workers; i++ {
+		if err := <-errs; err != nil {
+			t.Errorf("concurrent lifecycle read: %v", err)
+		}
+	}
+	if got := len(h.intent.Calls()); got != workers {
+		t.Fatalf("recorded concurrent calls = %d, want %d", got, workers)
+	}
+}
 func TestTodo_EP_INTENT_003_Integration(t *testing.T) { runIntentSubmitCancelSupersedeContract(t) }
 func TestTodo_EP_INTENT_003_Fault(t *testing.T)       { runIntentSubmitCancelSupersedeContract(t) }
 func TestTodo_EP_INTENT_003_Security(t *testing.T)    { runIntentSubmitCancelSupersedeContract(t) }

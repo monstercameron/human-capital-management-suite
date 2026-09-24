@@ -3,10 +3,52 @@ package dataops
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	dataopsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/dataops/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
+
+type fakeStageHandler struct {
+	source, key string
+	payload     []byte
+	response    *dataopsv1.StageCSVResponse
+	err         error
+}
+
+func (f *fakeStageHandler) StageCSV(_ context.Context, source, key string, payload []byte) (*dataopsv1.StageCSVResponse, error) {
+	f.source, f.key, f.payload = source, key, append([]byte(nil), payload...)
+	return f.response, f.err
+}
+
+type fakeStageStream struct {
+	ctx      context.Context
+	frames   []*dataopsv1.StageCSVRequest
+	closeErr error
+	response *dataopsv1.StageCSVResponse
+}
+
+func (s *fakeStageStream) Recv() (*dataopsv1.StageCSVRequest, error) {
+	if len(s.frames) == 0 {
+		return nil, io.EOF
+	}
+	frame := s.frames[0]
+	s.frames = s.frames[1:]
+	return frame, nil
+}
+func (s *fakeStageStream) SendAndClose(response *dataopsv1.StageCSVResponse) error {
+	s.response = response
+	return s.closeErr
+}
+func (s *fakeStageStream) SetHeader(metadata.MD) error  { return nil }
+func (s *fakeStageStream) SendHeader(metadata.MD) error { return nil }
+func (s *fakeStageStream) SetTrailer(metadata.MD)       {}
+func (s *fakeStageStream) Context() context.Context     { return s.ctx }
+func (s *fakeStageStream) SendMsg(any) error            { return nil }
+func (s *fakeStageStream) RecvMsg(any) error            { return nil }
 
 type fakeHandler struct {
 	err error
@@ -95,5 +137,34 @@ func TestTodo_REV_030_01(t *testing.T) {
 	}
 	if _, err := svc.SimulateRepair(ctx, simReq); !errors.Is(err, sentinel) {
 		t.Fatalf("SimulateRepair error = %v, want the handler's error", err)
+	}
+}
+
+func TestTodo_REV_030_01_StageCSV(t *testing.T) {
+	want := &dataopsv1.StageCSVResponse{StagedImport: &dataopsv1.StagedImport{BatchId: "batch-1"}}
+	handler := &fakeStageHandler{response: want}
+	stream := &fakeStageStream{ctx: context.Background(), frames: []*dataopsv1.StageCSVRequest{
+		{SourceUri: "upload://csv", IdempotencyKey: "stage-1", CsvChunk: []byte("a,b\n")},
+		{CsvChunk: []byte("1,2\n")},
+	}}
+	if err := (&Service{Stage: handler}).StageCSV(stream); err != nil {
+		t.Fatalf("StageCSV: %v", err)
+	}
+	if handler.source != "upload://csv" || handler.key != "stage-1" || string(handler.payload) != "a,b\n1,2\n" || stream.response != want {
+		t.Fatalf("forwarded (%q,%q,%q,%p), want source/key/payload/response", handler.source, handler.key, handler.payload, stream.response)
+	}
+
+	for name, frames := range map[string][]*dataopsv1.StageCSVRequest{
+		"missing metadata":         {{CsvChunk: []byte("a,b\n")}},
+		"metadata on second frame": {{SourceUri: "u", IdempotencyKey: "k"}, {SourceUri: "spoof"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := (&Service{Stage: handler}).StageCSV(&fakeStageStream{ctx: context.Background(), frames: frames}); status.Code(err) != codes.InvalidArgument {
+				t.Fatalf("StageCSV error = %v, want InvalidArgument", err)
+			}
+		})
+	}
+	if err := (&Service{}).StageCSV(&fakeStageStream{ctx: context.Background()}); status.Code(err) != codes.Unimplemented {
+		t.Fatalf("unconfigured StageCSV = %v, want Unimplemented", err)
 	}
 }

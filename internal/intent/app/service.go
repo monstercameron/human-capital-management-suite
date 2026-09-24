@@ -13,6 +13,7 @@ import (
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/evidence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
@@ -248,6 +249,9 @@ type IntentService struct {
 	// idempotency is ENDPOINT-004's Coordinator, shared by SubmitIntent,
 	// CancelIntent and SupersedeIntent. Nil leaves all three unavailable.
 	idempotency *endpoint.Coordinator
+	// submissions retains accepted product actions for semantic replay within
+	// this service instance. The registry scopes each key by tenant.
+	submissions *SubmissionRegistry
 	// promotionAdmissionMu closes the scan/append window for promotion
 	// creation within one service. The store's idempotency constraint remains
 	// the cross-process replay fence; this lock makes the active-worker guard
@@ -320,6 +324,7 @@ func NewIntentService(opts Options) (*IntentService, error) {
 		evidence:                   opts.Evidence,
 		legalEvidence:              opts.LegalEvidence,
 		idempotency:                opts.Idempotency,
+		submissions:                NewSubmissionRegistry(),
 		safePoints:                 opts.SafePoints,
 		workflowCancel:             opts.WorkflowCancellation,
 		releaseAdmission:           opts.AdmissionRelease,
@@ -452,6 +457,11 @@ func (s *IntentService) loadInstance(ctx context.Context, tenant, intentID strin
 		if errors.Is(err, ErrIntentNotFound) {
 			return intent.Instance{}, IntentRecord{}, notFound()
 		}
+		if barrierErr, ok := projectionBarrierError(err); ok {
+			return intent.Instance{}, IntentRecord{}, envelope.New(envelope.CodeUnavailable, barrierErr.reason,
+				"the intent state is not ready for this operation").
+				WithRetryAfter(barrierErr.retryAfter).WithDiagnostic(err)
+		}
 		return intent.Instance{}, IntentRecord{}, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
 			"the operation could not be completed").WithDiagnostic(err)
 	}
@@ -462,6 +472,38 @@ func (s *IntentService) loadInstance(ctx context.Context, tenant, intentID strin
 	}
 	mergeCurrentProjection(&inst, rec)
 	return inst, rec, nil
+}
+
+type projectionBarrierDisposition struct {
+	reason     string
+	retryAfter int
+}
+
+func projectionBarrierError(err error) (projectionBarrierDisposition, bool) {
+	var barrierErr projection.BarrierError
+	if !errors.As(err, &barrierErr) {
+		return projectionBarrierDisposition{}, false
+	}
+	var reason string
+	switch barrierErr.Status {
+	case projection.BarrierStale:
+		reason = "projection.read_barrier.stale"
+	case projection.BarrierDegraded:
+		reason = "projection.read_barrier.degraded"
+	case projection.BarrierUnavailable:
+		reason = "projection.read_barrier.unavailable"
+	case projection.BarrierRebuilding:
+		reason = "projection.read_barrier.rebuilding"
+	case projection.BarrierTimeout:
+		reason = "projection.read_barrier.timeout"
+	default:
+		return projectionBarrierDisposition{}, false
+	}
+	seconds := int((barrierErr.RetryAfter + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+	return projectionBarrierDisposition{reason: reason, retryAfter: seconds}, true
 }
 
 // mergeCurrentProjection lays a record's current projection over its decoded
@@ -1260,7 +1302,7 @@ func (s *IntentService) simulateCompensation(
 	if ownedErr != nil {
 		return nil, ownedErr
 	}
-	result, ok := answer.(rewards.SimulateCompensationResult)
+	result, ok := compensationSimulation(answer)
 	if !ok {
 		return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
 			"the operation could not be completed").

@@ -362,12 +362,14 @@ func TestTodo_WF_RUN_015_Race(t *testing.T) {
 	errs := make([]error, workers)
 	var wg sync.WaitGroup
 	for i := range results {
-		wg.Go(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			ctl := f.controllerWith(journal, plans{f.plan}, f0conn(t, f.db))
 			cmd := f.cmd(id, v, fmt.Sprintf("race-skip-%d", i))
 			cmd.Intervention = &InterventionSpec{Kind: intervention.Skip, NodeID: "wait_effective_date", EvidenceRefs: evidence}
 			results[i], errs[i] = ctl.Intervene(ctx, cmd)
-		})
+		}()
 	}
 	wg.Wait()
 	applied := 0

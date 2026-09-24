@@ -2740,12 +2740,13 @@ type GetWorkflowInstanceResponse struct {
 	// complete is true only when nothing was denied and nothing was missing
 	// across both the traversal and the work-item section
 	// (inspect.Completeness.Complete, conjoined).
-	Complete      bool            `protobuf:"varint,10,opt,name=complete,proto3" json:"complete,omitempty"`
-	Redactions    []string        `protobuf:"bytes,11,rep,name=redactions,proto3" json:"redactions,omitempty"`
-	Gaps          []string        `protobuf:"bytes,12,rep,name=gaps,proto3" json:"gaps,omitempty"`
-	EvidenceRef   *v1.EvidenceRef `protobuf:"bytes,13,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Complete       bool                          `protobuf:"varint,10,opt,name=complete,proto3" json:"complete,omitempty"`
+	Redactions     []string                      `protobuf:"bytes,11,rep,name=redactions,proto3" json:"redactions,omitempty"`
+	Gaps           []string                      `protobuf:"bytes,12,rep,name=gaps,proto3" json:"gaps,omitempty"`
+	EvidenceRef    *v1.EvidenceRef               `protobuf:"bytes,13,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	DurableRecords []*DurableRecordFamilyProfile `protobuf:"bytes,14,rep,name=durable_records,json=durableRecords,proto3" json:"durable_records,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetWorkflowInstanceResponse) Reset() {
@@ -2869,6 +2870,90 @@ func (x *GetWorkflowInstanceResponse) GetEvidenceRef() *v1.EvidenceRef {
 	return nil
 }
 
+func (x *GetWorkflowInstanceResponse) GetDurableRecords() []*DurableRecordFamilyProfile {
+	if x != nil {
+		return x.DurableRecords
+	}
+	return nil
+}
+
+// DurableRecordFamilyProfile is one durable-family manifest line returned by inspect.Load.
+type DurableRecordFamilyProfile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Family        string                 `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	Section       string                 `protobuf:"bytes,2,opt,name=section,proto3" json:"section,omitempty"`
+	State         string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	Count         int32                  `protobuf:"varint,4,opt,name=count,proto3" json:"count,omitempty"`
+	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DurableRecordFamilyProfile) Reset() {
+	*x = DurableRecordFamilyProfile{}
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DurableRecordFamilyProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DurableRecordFamilyProfile) ProtoMessage() {}
+
+func (x *DurableRecordFamilyProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DurableRecordFamilyProfile.ProtoReflect.Descriptor instead.
+func (*DurableRecordFamilyProfile) Descriptor() ([]byte, []int) {
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *DurableRecordFamilyProfile) GetFamily() string {
+	if x != nil {
+		return x.Family
+	}
+	return ""
+}
+
+func (x *DurableRecordFamilyProfile) GetSection() string {
+	if x != nil {
+		return x.Section
+	}
+	return ""
+}
+
+func (x *DurableRecordFamilyProfile) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *DurableRecordFamilyProfile) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *DurableRecordFamilyProfile) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 // ListLedgerEventsRequest selects one tenant stream for the operator.
 // tenant_id is the ledger tenant UUID string; stream_key names the stream.
 type ListLedgerEventsRequest struct {
@@ -2881,7 +2966,7 @@ type ListLedgerEventsRequest struct {
 
 func (x *ListLedgerEventsRequest) Reset() {
 	*x = ListLedgerEventsRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[32]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2893,7 +2978,7 @@ func (x *ListLedgerEventsRequest) String() string {
 func (*ListLedgerEventsRequest) ProtoMessage() {}
 
 func (x *ListLedgerEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[32]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2906,7 +2991,7 @@ func (x *ListLedgerEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLedgerEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListLedgerEventsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{32}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListLedgerEventsRequest) GetTenantId() string {
@@ -2955,7 +3040,7 @@ type LedgerEventProfile struct {
 
 func (x *LedgerEventProfile) Reset() {
 	*x = LedgerEventProfile{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[33]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2967,7 +3052,7 @@ func (x *LedgerEventProfile) String() string {
 func (*LedgerEventProfile) ProtoMessage() {}
 
 func (x *LedgerEventProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[33]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2980,7 +3065,7 @@ func (x *LedgerEventProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LedgerEventProfile.ProtoReflect.Descriptor instead.
 func (*LedgerEventProfile) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{33}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *LedgerEventProfile) GetTenantId() string {
@@ -3127,7 +3212,7 @@ type ListLedgerEventsResponse struct {
 
 func (x *ListLedgerEventsResponse) Reset() {
 	*x = ListLedgerEventsResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[34]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3139,7 +3224,7 @@ func (x *ListLedgerEventsResponse) String() string {
 func (*ListLedgerEventsResponse) ProtoMessage() {}
 
 func (x *ListLedgerEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[34]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3152,7 +3237,7 @@ func (x *ListLedgerEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLedgerEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListLedgerEventsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{34}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ListLedgerEventsResponse) GetEvents() []*LedgerEventProfile {
@@ -3188,7 +3273,7 @@ type GetChainVerificationRequest struct {
 
 func (x *GetChainVerificationRequest) Reset() {
 	*x = GetChainVerificationRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[35]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3200,7 +3285,7 @@ func (x *GetChainVerificationRequest) String() string {
 func (*GetChainVerificationRequest) ProtoMessage() {}
 
 func (x *GetChainVerificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[35]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3213,7 +3298,7 @@ func (x *GetChainVerificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetChainVerificationRequest.ProtoReflect.Descriptor instead.
 func (*GetChainVerificationRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{35}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetChainVerificationRequest) GetTenantId() string {
@@ -3242,7 +3327,7 @@ type ChainHeadProfile struct {
 
 func (x *ChainHeadProfile) Reset() {
 	*x = ChainHeadProfile{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[36]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3254,7 +3339,7 @@ func (x *ChainHeadProfile) String() string {
 func (*ChainHeadProfile) ProtoMessage() {}
 
 func (x *ChainHeadProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[36]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3267,7 +3352,7 @@ func (x *ChainHeadProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChainHeadProfile.ProtoReflect.Descriptor instead.
 func (*ChainHeadProfile) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{36}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ChainHeadProfile) GetStreamKey() string {
@@ -3313,7 +3398,7 @@ type GetChainVerificationResponse struct {
 
 func (x *GetChainVerificationResponse) Reset() {
 	*x = GetChainVerificationResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[37]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3325,7 +3410,7 @@ func (x *GetChainVerificationResponse) String() string {
 func (*GetChainVerificationResponse) ProtoMessage() {}
 
 func (x *GetChainVerificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[37]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3338,7 +3423,7 @@ func (x *GetChainVerificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetChainVerificationResponse.ProtoReflect.Descriptor instead.
 func (*GetChainVerificationResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{37}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetChainVerificationResponse) GetStreamKey() string {
@@ -3408,7 +3493,7 @@ type SimulateAuthorizationRequest struct {
 
 func (x *SimulateAuthorizationRequest) Reset() {
 	*x = SimulateAuthorizationRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[38]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3420,7 +3505,7 @@ func (x *SimulateAuthorizationRequest) String() string {
 func (*SimulateAuthorizationRequest) ProtoMessage() {}
 
 func (x *SimulateAuthorizationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[38]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3433,7 +3518,7 @@ func (x *SimulateAuthorizationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SimulateAuthorizationRequest.ProtoReflect.Descriptor instead.
 func (*SimulateAuthorizationRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{38}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *SimulateAuthorizationRequest) GetSubjectTenantId() string {
@@ -3496,7 +3581,7 @@ type SimulateAuthorizationResponse struct {
 
 func (x *SimulateAuthorizationResponse) Reset() {
 	*x = SimulateAuthorizationResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[39]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3508,7 +3593,7 @@ func (x *SimulateAuthorizationResponse) String() string {
 func (*SimulateAuthorizationResponse) ProtoMessage() {}
 
 func (x *SimulateAuthorizationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[39]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3521,7 +3606,7 @@ func (x *SimulateAuthorizationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SimulateAuthorizationResponse.ProtoReflect.Descriptor instead.
 func (*SimulateAuthorizationResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{39}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *SimulateAuthorizationResponse) GetSubjectDisclosable() bool {
@@ -3607,7 +3692,7 @@ type ConfigDependency struct {
 
 func (x *ConfigDependency) Reset() {
 	*x = ConfigDependency{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[40]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3619,7 +3704,7 @@ func (x *ConfigDependency) String() string {
 func (*ConfigDependency) ProtoMessage() {}
 
 func (x *ConfigDependency) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[40]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3632,7 +3717,7 @@ func (x *ConfigDependency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigDependency.ProtoReflect.Descriptor instead.
 func (*ConfigDependency) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{40}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ConfigDependency) GetKind() string {
@@ -3681,7 +3766,7 @@ type ConfigBundle struct {
 
 func (x *ConfigBundle) Reset() {
 	*x = ConfigBundle{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[41]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3693,7 +3778,7 @@ func (x *ConfigBundle) String() string {
 func (*ConfigBundle) ProtoMessage() {}
 
 func (x *ConfigBundle) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[41]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3706,7 +3791,7 @@ func (x *ConfigBundle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigBundle.ProtoReflect.Descriptor instead.
 func (*ConfigBundle) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{41}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ConfigBundle) GetBundleId() string {
@@ -3784,7 +3869,7 @@ type ConfigSignedBundle struct {
 
 func (x *ConfigSignedBundle) Reset() {
 	*x = ConfigSignedBundle{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[42]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3796,7 +3881,7 @@ func (x *ConfigSignedBundle) String() string {
 func (*ConfigSignedBundle) ProtoMessage() {}
 
 func (x *ConfigSignedBundle) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[42]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3809,7 +3894,7 @@ func (x *ConfigSignedBundle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSignedBundle.ProtoReflect.Descriptor instead.
 func (*ConfigSignedBundle) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{42}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ConfigSignedBundle) GetBundle() *ConfigBundle {
@@ -3854,7 +3939,7 @@ type ConfigPackage struct {
 
 func (x *ConfigPackage) Reset() {
 	*x = ConfigPackage{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[43]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3866,7 +3951,7 @@ func (x *ConfigPackage) String() string {
 func (*ConfigPackage) ProtoMessage() {}
 
 func (x *ConfigPackage) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[43]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3879,7 +3964,7 @@ func (x *ConfigPackage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigPackage.ProtoReflect.Descriptor instead.
 func (*ConfigPackage) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{43}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ConfigPackage) GetId() string {
@@ -3929,7 +4014,7 @@ type ConfigRecordProfile struct {
 
 func (x *ConfigRecordProfile) Reset() {
 	*x = ConfigRecordProfile{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[44]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3941,7 +4026,7 @@ func (x *ConfigRecordProfile) String() string {
 func (*ConfigRecordProfile) ProtoMessage() {}
 
 func (x *ConfigRecordProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[44]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3954,7 +4039,7 @@ func (x *ConfigRecordProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigRecordProfile.ProtoReflect.Descriptor instead.
 func (*ConfigRecordProfile) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{44}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ConfigRecordProfile) GetId() string {
@@ -4037,7 +4122,7 @@ type ConfigInspectRequest struct {
 
 func (x *ConfigInspectRequest) Reset() {
 	*x = ConfigInspectRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[45]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4049,7 +4134,7 @@ func (x *ConfigInspectRequest) String() string {
 func (*ConfigInspectRequest) ProtoMessage() {}
 
 func (x *ConfigInspectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[45]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4062,7 +4147,7 @@ func (x *ConfigInspectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigInspectRequest.ProtoReflect.Descriptor instead.
 func (*ConfigInspectRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{45}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ConfigInspectRequest) GetId() string {
@@ -4089,7 +4174,7 @@ type ConfigInspectResponse struct {
 
 func (x *ConfigInspectResponse) Reset() {
 	*x = ConfigInspectResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[46]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4101,7 +4186,7 @@ func (x *ConfigInspectResponse) String() string {
 func (*ConfigInspectResponse) ProtoMessage() {}
 
 func (x *ConfigInspectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[46]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4114,7 +4199,7 @@ func (x *ConfigInspectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigInspectResponse.ProtoReflect.Descriptor instead.
 func (*ConfigInspectResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{46}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ConfigInspectResponse) GetRecords() []*ConfigRecordProfile {
@@ -4140,7 +4225,7 @@ type ConfigTestRequest struct {
 
 func (x *ConfigTestRequest) Reset() {
 	*x = ConfigTestRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[47]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4152,7 +4237,7 @@ func (x *ConfigTestRequest) String() string {
 func (*ConfigTestRequest) ProtoMessage() {}
 
 func (x *ConfigTestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[47]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4165,7 +4250,7 @@ func (x *ConfigTestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigTestRequest.ProtoReflect.Descriptor instead.
 func (*ConfigTestRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{47}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ConfigTestRequest) GetPackage() *ConfigPackage {
@@ -4187,7 +4272,7 @@ type ConfigTestResponse struct {
 
 func (x *ConfigTestResponse) Reset() {
 	*x = ConfigTestResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[48]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4199,7 +4284,7 @@ func (x *ConfigTestResponse) String() string {
 func (*ConfigTestResponse) ProtoMessage() {}
 
 func (x *ConfigTestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[48]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4212,7 +4297,7 @@ func (x *ConfigTestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigTestResponse.ProtoReflect.Descriptor instead.
 func (*ConfigTestResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{48}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ConfigTestResponse) GetPackageId() string {
@@ -4252,7 +4337,7 @@ type ConfigRedriveRequest struct {
 
 func (x *ConfigRedriveRequest) Reset() {
 	*x = ConfigRedriveRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[49]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4264,7 +4349,7 @@ func (x *ConfigRedriveRequest) String() string {
 func (*ConfigRedriveRequest) ProtoMessage() {}
 
 func (x *ConfigRedriveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[49]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4277,7 +4362,7 @@ func (x *ConfigRedriveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigRedriveRequest.ProtoReflect.Descriptor instead.
 func (*ConfigRedriveRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{49}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ConfigRedriveRequest) GetId() string {
@@ -4299,7 +4384,7 @@ type ConfigRedriveResponse struct {
 
 func (x *ConfigRedriveResponse) Reset() {
 	*x = ConfigRedriveResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[50]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4311,7 +4396,7 @@ func (x *ConfigRedriveResponse) String() string {
 func (*ConfigRedriveResponse) ProtoMessage() {}
 
 func (x *ConfigRedriveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[50]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4324,7 +4409,7 @@ func (x *ConfigRedriveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigRedriveResponse.ProtoReflect.Descriptor instead.
 func (*ConfigRedriveResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{50}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ConfigRedriveResponse) GetPackageId() string {
@@ -4375,7 +4460,7 @@ type ConfigSnapshotEntry struct {
 
 func (x *ConfigSnapshotEntry) Reset() {
 	*x = ConfigSnapshotEntry{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[51]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4387,7 +4472,7 @@ func (x *ConfigSnapshotEntry) String() string {
 func (*ConfigSnapshotEntry) ProtoMessage() {}
 
 func (x *ConfigSnapshotEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[51]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4400,7 +4485,7 @@ func (x *ConfigSnapshotEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSnapshotEntry.ProtoReflect.Descriptor instead.
 func (*ConfigSnapshotEntry) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{51}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ConfigSnapshotEntry) GetKey() string {
@@ -4477,7 +4562,7 @@ type ConfigSnapshot struct {
 
 func (x *ConfigSnapshot) Reset() {
 	*x = ConfigSnapshot{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[52]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4489,7 +4574,7 @@ func (x *ConfigSnapshot) String() string {
 func (*ConfigSnapshot) ProtoMessage() {}
 
 func (x *ConfigSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[52]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4502,7 +4587,7 @@ func (x *ConfigSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSnapshot.ProtoReflect.Descriptor instead.
 func (*ConfigSnapshot) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{52}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ConfigSnapshot) GetName() string {
@@ -4536,7 +4621,7 @@ type ConfigDiffRequest struct {
 
 func (x *ConfigDiffRequest) Reset() {
 	*x = ConfigDiffRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[53]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4548,7 +4633,7 @@ func (x *ConfigDiffRequest) String() string {
 func (*ConfigDiffRequest) ProtoMessage() {}
 
 func (x *ConfigDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[53]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4561,7 +4646,7 @@ func (x *ConfigDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigDiffRequest.ProtoReflect.Descriptor instead.
 func (*ConfigDiffRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{53}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ConfigDiffRequest) GetBefore() *ConfigSnapshot {
@@ -4595,7 +4680,7 @@ type ConfigDiffChange struct {
 
 func (x *ConfigDiffChange) Reset() {
 	*x = ConfigDiffChange{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[54]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4607,7 +4692,7 @@ func (x *ConfigDiffChange) String() string {
 func (*ConfigDiffChange) ProtoMessage() {}
 
 func (x *ConfigDiffChange) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[54]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4620,7 +4705,7 @@ func (x *ConfigDiffChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigDiffChange.ProtoReflect.Descriptor instead.
 func (*ConfigDiffChange) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{54}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ConfigDiffChange) GetKey() string {
@@ -4699,7 +4784,7 @@ type ConfigDiffResponse struct {
 
 func (x *ConfigDiffResponse) Reset() {
 	*x = ConfigDiffResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[55]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4711,7 +4796,7 @@ func (x *ConfigDiffResponse) String() string {
 func (*ConfigDiffResponse) ProtoMessage() {}
 
 func (x *ConfigDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[55]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4724,7 +4809,7 @@ func (x *ConfigDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigDiffResponse.ProtoReflect.Descriptor instead.
 func (*ConfigDiffResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{55}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ConfigDiffResponse) GetAdded() []*ConfigDiffChange {
@@ -4773,7 +4858,7 @@ type ConfigReconcileRequest struct {
 
 func (x *ConfigReconcileRequest) Reset() {
 	*x = ConfigReconcileRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[56]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4785,7 +4870,7 @@ func (x *ConfigReconcileRequest) String() string {
 func (*ConfigReconcileRequest) ProtoMessage() {}
 
 func (x *ConfigReconcileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[56]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4798,7 +4883,7 @@ func (x *ConfigReconcileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigReconcileRequest.ProtoReflect.Descriptor instead.
 func (*ConfigReconcileRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{56}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ConfigReconcileRequest) GetEnvironment() string {
@@ -4838,7 +4923,7 @@ type ConfigReconcileResponse struct {
 
 func (x *ConfigReconcileResponse) Reset() {
 	*x = ConfigReconcileResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[57]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4850,7 +4935,7 @@ func (x *ConfigReconcileResponse) String() string {
 func (*ConfigReconcileResponse) ProtoMessage() {}
 
 func (x *ConfigReconcileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[57]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4863,7 +4948,7 @@ func (x *ConfigReconcileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigReconcileResponse.ProtoReflect.Descriptor instead.
 func (*ConfigReconcileResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{57}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ConfigReconcileResponse) GetEnvironment() string {
@@ -4931,7 +5016,7 @@ type ConfigSimulateRequest struct {
 
 func (x *ConfigSimulateRequest) Reset() {
 	*x = ConfigSimulateRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[58]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4943,7 +5028,7 @@ func (x *ConfigSimulateRequest) String() string {
 func (*ConfigSimulateRequest) ProtoMessage() {}
 
 func (x *ConfigSimulateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[58]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4956,7 +5041,7 @@ func (x *ConfigSimulateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSimulateRequest.ProtoReflect.Descriptor instead.
 func (*ConfigSimulateRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{58}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ConfigSimulateRequest) GetId() string {
@@ -4979,7 +5064,7 @@ type ConfigSimulateResponse struct {
 
 func (x *ConfigSimulateResponse) Reset() {
 	*x = ConfigSimulateResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[59]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4991,7 +5076,7 @@ func (x *ConfigSimulateResponse) String() string {
 func (*ConfigSimulateResponse) ProtoMessage() {}
 
 func (x *ConfigSimulateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[59]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5004,7 +5089,7 @@ func (x *ConfigSimulateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSimulateResponse.ProtoReflect.Descriptor instead.
 func (*ConfigSimulateResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{59}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ConfigSimulateResponse) GetPackageId() string {
@@ -5052,7 +5137,7 @@ type ConfigPromoteRequest struct {
 
 func (x *ConfigPromoteRequest) Reset() {
 	*x = ConfigPromoteRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[60]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5064,7 +5149,7 @@ func (x *ConfigPromoteRequest) String() string {
 func (*ConfigPromoteRequest) ProtoMessage() {}
 
 func (x *ConfigPromoteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[60]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5077,7 +5162,7 @@ func (x *ConfigPromoteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigPromoteRequest.ProtoReflect.Descriptor instead.
 func (*ConfigPromoteRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{60}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ConfigPromoteRequest) GetId() string {
@@ -5108,7 +5193,7 @@ type ConfigPromoteResponse struct {
 
 func (x *ConfigPromoteResponse) Reset() {
 	*x = ConfigPromoteResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[61]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5120,7 +5205,7 @@ func (x *ConfigPromoteResponse) String() string {
 func (*ConfigPromoteResponse) ProtoMessage() {}
 
 func (x *ConfigPromoteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[61]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5133,7 +5218,7 @@ func (x *ConfigPromoteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigPromoteResponse.ProtoReflect.Descriptor instead.
 func (*ConfigPromoteResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{61}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ConfigPromoteResponse) GetPackageId() string {
@@ -5188,7 +5273,7 @@ type ConfigRollbackRequest struct {
 
 func (x *ConfigRollbackRequest) Reset() {
 	*x = ConfigRollbackRequest{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[62]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5200,7 +5285,7 @@ func (x *ConfigRollbackRequest) String() string {
 func (*ConfigRollbackRequest) ProtoMessage() {}
 
 func (x *ConfigRollbackRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[62]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5213,7 +5298,7 @@ func (x *ConfigRollbackRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigRollbackRequest.ProtoReflect.Descriptor instead.
 func (*ConfigRollbackRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{62}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ConfigRollbackRequest) GetEnvironment() string {
@@ -5244,7 +5329,7 @@ type ConfigRollbackResponse struct {
 
 func (x *ConfigRollbackResponse) Reset() {
 	*x = ConfigRollbackResponse{}
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[63]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5256,7 +5341,7 @@ func (x *ConfigRollbackResponse) String() string {
 func (*ConfigRollbackResponse) ProtoMessage() {}
 
 func (x *ConfigRollbackResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[63]
+	mi := &file_hcmnext_admin_v1_admin_service_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5269,7 +5354,7 @@ func (x *ConfigRollbackResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigRollbackResponse.ProtoReflect.Descriptor instead.
 func (*ConfigRollbackResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{63}
+	return file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *ConfigRollbackResponse) GetPackageId() string {
@@ -5574,7 +5659,7 @@ const file_hcmnext_admin_v1_admin_service_proto_rawDesc = "" +
 	"\x1aGetWorkflowInstanceRequest\x125\n" +
 	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1f\n" +
 	"\vinstance_id\x18\x02 \x01(\tR\n" +
-	"instanceId\"\xad\x05\n" +
+	"instanceId\"\x84\x06\n" +
 	"\x1bGetWorkflowInstanceResponse\x12\x1c\n" +
 	"\tdisclosed\x18\x01 \x01(\bR\tdisclosed\x12#\n" +
 	"\rdenial_reason\x18\x02 \x01(\tR\fdenialReason\x12K\n" +
@@ -5594,7 +5679,14 @@ const file_hcmnext_admin_v1_admin_service_proto_rawDesc = "" +
 	"redactions\x18\v \x03(\tR\n" +
 	"redactions\x12\x12\n" +
 	"\x04gaps\x18\f \x03(\tR\x04gaps\x12A\n" +
-	"\fevidence_ref\x18\r \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\"U\n" +
+	"\fevidence_ref\x18\r \x01(\v2\x1e.hcmnext.common.v1.EvidenceRefR\vevidenceRef\x12U\n" +
+	"\x0fdurable_records\x18\x0e \x03(\v2,.hcmnext.admin.v1.DurableRecordFamilyProfileR\x0edurableRecords\"\x92\x01\n" +
+	"\x1aDurableRecordFamilyProfile\x12\x16\n" +
+	"\x06family\x18\x01 \x01(\tR\x06family\x12\x18\n" +
+	"\asection\x18\x02 \x01(\tR\asection\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12\x14\n" +
+	"\x05count\x18\x04 \x01(\x05R\x05count\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"U\n" +
 	"\x17ListLedgerEventsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
@@ -5852,7 +5944,7 @@ func file_hcmnext_admin_v1_admin_service_proto_rawDescGZIP() []byte {
 	return file_hcmnext_admin_v1_admin_service_proto_rawDescData
 }
 
-var file_hcmnext_admin_v1_admin_service_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
+var file_hcmnext_admin_v1_admin_service_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
 var file_hcmnext_admin_v1_admin_service_proto_goTypes = []any{
 	(*ListIntentsRequest)(nil),             // 0: hcmnext.admin.v1.ListIntentsRequest
 	(*ListIntentsResponse)(nil),            // 1: hcmnext.admin.v1.ListIntentsResponse
@@ -5886,77 +5978,78 @@ var file_hcmnext_admin_v1_admin_service_proto_goTypes = []any{
 	(*WorkItemProfile)(nil),                // 29: hcmnext.admin.v1.WorkItemProfile
 	(*GetWorkflowInstanceRequest)(nil),     // 30: hcmnext.admin.v1.GetWorkflowInstanceRequest
 	(*GetWorkflowInstanceResponse)(nil),    // 31: hcmnext.admin.v1.GetWorkflowInstanceResponse
-	(*ListLedgerEventsRequest)(nil),        // 32: hcmnext.admin.v1.ListLedgerEventsRequest
-	(*LedgerEventProfile)(nil),             // 33: hcmnext.admin.v1.LedgerEventProfile
-	(*ListLedgerEventsResponse)(nil),       // 34: hcmnext.admin.v1.ListLedgerEventsResponse
-	(*GetChainVerificationRequest)(nil),    // 35: hcmnext.admin.v1.GetChainVerificationRequest
-	(*ChainHeadProfile)(nil),               // 36: hcmnext.admin.v1.ChainHeadProfile
-	(*GetChainVerificationResponse)(nil),   // 37: hcmnext.admin.v1.GetChainVerificationResponse
-	(*SimulateAuthorizationRequest)(nil),   // 38: hcmnext.admin.v1.SimulateAuthorizationRequest
-	(*SimulateAuthorizationResponse)(nil),  // 39: hcmnext.admin.v1.SimulateAuthorizationResponse
-	(*ConfigDependency)(nil),               // 40: hcmnext.admin.v1.ConfigDependency
-	(*ConfigBundle)(nil),                   // 41: hcmnext.admin.v1.ConfigBundle
-	(*ConfigSignedBundle)(nil),             // 42: hcmnext.admin.v1.ConfigSignedBundle
-	(*ConfigPackage)(nil),                  // 43: hcmnext.admin.v1.ConfigPackage
-	(*ConfigRecordProfile)(nil),            // 44: hcmnext.admin.v1.ConfigRecordProfile
-	(*ConfigInspectRequest)(nil),           // 45: hcmnext.admin.v1.ConfigInspectRequest
-	(*ConfigInspectResponse)(nil),          // 46: hcmnext.admin.v1.ConfigInspectResponse
-	(*ConfigTestRequest)(nil),              // 47: hcmnext.admin.v1.ConfigTestRequest
-	(*ConfigTestResponse)(nil),             // 48: hcmnext.admin.v1.ConfigTestResponse
-	(*ConfigRedriveRequest)(nil),           // 49: hcmnext.admin.v1.ConfigRedriveRequest
-	(*ConfigRedriveResponse)(nil),          // 50: hcmnext.admin.v1.ConfigRedriveResponse
-	(*ConfigSnapshotEntry)(nil),            // 51: hcmnext.admin.v1.ConfigSnapshotEntry
-	(*ConfigSnapshot)(nil),                 // 52: hcmnext.admin.v1.ConfigSnapshot
-	(*ConfigDiffRequest)(nil),              // 53: hcmnext.admin.v1.ConfigDiffRequest
-	(*ConfigDiffChange)(nil),               // 54: hcmnext.admin.v1.ConfigDiffChange
-	(*ConfigDiffResponse)(nil),             // 55: hcmnext.admin.v1.ConfigDiffResponse
-	(*ConfigReconcileRequest)(nil),         // 56: hcmnext.admin.v1.ConfigReconcileRequest
-	(*ConfigReconcileResponse)(nil),        // 57: hcmnext.admin.v1.ConfigReconcileResponse
-	(*ConfigSimulateRequest)(nil),          // 58: hcmnext.admin.v1.ConfigSimulateRequest
-	(*ConfigSimulateResponse)(nil),         // 59: hcmnext.admin.v1.ConfigSimulateResponse
-	(*ConfigPromoteRequest)(nil),           // 60: hcmnext.admin.v1.ConfigPromoteRequest
-	(*ConfigPromoteResponse)(nil),          // 61: hcmnext.admin.v1.ConfigPromoteResponse
-	(*ConfigRollbackRequest)(nil),          // 62: hcmnext.admin.v1.ConfigRollbackRequest
-	(*ConfigRollbackResponse)(nil),         // 63: hcmnext.admin.v1.ConfigRollbackResponse
-	nil,                                    // 64: hcmnext.admin.v1.SimulateAuthorizationResponse.FieldRulingsEntry
-	(*v1.ScopeContext)(nil),                // 65: hcmnext.common.v1.ScopeContext
-	(*v1.PageRequest)(nil),                 // 66: hcmnext.common.v1.PageRequest
-	(v11.ConsistencyFreshnessHint)(0),      // 67: hcmnext.intents.v1.ConsistencyFreshnessHint
-	(*v11.IntentInstance)(nil),             // 68: hcmnext.intents.v1.IntentInstance
-	(*v1.PageResponse)(nil),                // 69: hcmnext.common.v1.PageResponse
-	(*v1.EvidenceRef)(nil),                 // 70: hcmnext.common.v1.EvidenceRef
-	(*timestamppb.Timestamp)(nil),          // 71: google.protobuf.Timestamp
+	(*DurableRecordFamilyProfile)(nil),     // 32: hcmnext.admin.v1.DurableRecordFamilyProfile
+	(*ListLedgerEventsRequest)(nil),        // 33: hcmnext.admin.v1.ListLedgerEventsRequest
+	(*LedgerEventProfile)(nil),             // 34: hcmnext.admin.v1.LedgerEventProfile
+	(*ListLedgerEventsResponse)(nil),       // 35: hcmnext.admin.v1.ListLedgerEventsResponse
+	(*GetChainVerificationRequest)(nil),    // 36: hcmnext.admin.v1.GetChainVerificationRequest
+	(*ChainHeadProfile)(nil),               // 37: hcmnext.admin.v1.ChainHeadProfile
+	(*GetChainVerificationResponse)(nil),   // 38: hcmnext.admin.v1.GetChainVerificationResponse
+	(*SimulateAuthorizationRequest)(nil),   // 39: hcmnext.admin.v1.SimulateAuthorizationRequest
+	(*SimulateAuthorizationResponse)(nil),  // 40: hcmnext.admin.v1.SimulateAuthorizationResponse
+	(*ConfigDependency)(nil),               // 41: hcmnext.admin.v1.ConfigDependency
+	(*ConfigBundle)(nil),                   // 42: hcmnext.admin.v1.ConfigBundle
+	(*ConfigSignedBundle)(nil),             // 43: hcmnext.admin.v1.ConfigSignedBundle
+	(*ConfigPackage)(nil),                  // 44: hcmnext.admin.v1.ConfigPackage
+	(*ConfigRecordProfile)(nil),            // 45: hcmnext.admin.v1.ConfigRecordProfile
+	(*ConfigInspectRequest)(nil),           // 46: hcmnext.admin.v1.ConfigInspectRequest
+	(*ConfigInspectResponse)(nil),          // 47: hcmnext.admin.v1.ConfigInspectResponse
+	(*ConfigTestRequest)(nil),              // 48: hcmnext.admin.v1.ConfigTestRequest
+	(*ConfigTestResponse)(nil),             // 49: hcmnext.admin.v1.ConfigTestResponse
+	(*ConfigRedriveRequest)(nil),           // 50: hcmnext.admin.v1.ConfigRedriveRequest
+	(*ConfigRedriveResponse)(nil),          // 51: hcmnext.admin.v1.ConfigRedriveResponse
+	(*ConfigSnapshotEntry)(nil),            // 52: hcmnext.admin.v1.ConfigSnapshotEntry
+	(*ConfigSnapshot)(nil),                 // 53: hcmnext.admin.v1.ConfigSnapshot
+	(*ConfigDiffRequest)(nil),              // 54: hcmnext.admin.v1.ConfigDiffRequest
+	(*ConfigDiffChange)(nil),               // 55: hcmnext.admin.v1.ConfigDiffChange
+	(*ConfigDiffResponse)(nil),             // 56: hcmnext.admin.v1.ConfigDiffResponse
+	(*ConfigReconcileRequest)(nil),         // 57: hcmnext.admin.v1.ConfigReconcileRequest
+	(*ConfigReconcileResponse)(nil),        // 58: hcmnext.admin.v1.ConfigReconcileResponse
+	(*ConfigSimulateRequest)(nil),          // 59: hcmnext.admin.v1.ConfigSimulateRequest
+	(*ConfigSimulateResponse)(nil),         // 60: hcmnext.admin.v1.ConfigSimulateResponse
+	(*ConfigPromoteRequest)(nil),           // 61: hcmnext.admin.v1.ConfigPromoteRequest
+	(*ConfigPromoteResponse)(nil),          // 62: hcmnext.admin.v1.ConfigPromoteResponse
+	(*ConfigRollbackRequest)(nil),          // 63: hcmnext.admin.v1.ConfigRollbackRequest
+	(*ConfigRollbackResponse)(nil),         // 64: hcmnext.admin.v1.ConfigRollbackResponse
+	nil,                                    // 65: hcmnext.admin.v1.SimulateAuthorizationResponse.FieldRulingsEntry
+	(*v1.ScopeContext)(nil),                // 66: hcmnext.common.v1.ScopeContext
+	(*v1.PageRequest)(nil),                 // 67: hcmnext.common.v1.PageRequest
+	(v11.ConsistencyFreshnessHint)(0),      // 68: hcmnext.intents.v1.ConsistencyFreshnessHint
+	(*v11.IntentInstance)(nil),             // 69: hcmnext.intents.v1.IntentInstance
+	(*v1.PageResponse)(nil),                // 70: hcmnext.common.v1.PageResponse
+	(*v1.EvidenceRef)(nil),                 // 71: hcmnext.common.v1.EvidenceRef
+	(*timestamppb.Timestamp)(nil),          // 72: google.protobuf.Timestamp
 }
 var file_hcmnext_admin_v1_admin_service_proto_depIdxs = []int32{
-	65,  // 0: hcmnext.admin.v1.ListIntentsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	66,  // 1: hcmnext.admin.v1.ListIntentsRequest.page:type_name -> hcmnext.common.v1.PageRequest
-	67,  // 2: hcmnext.admin.v1.ListIntentsRequest.freshness:type_name -> hcmnext.intents.v1.ConsistencyFreshnessHint
-	68,  // 3: hcmnext.admin.v1.ListIntentsResponse.intents:type_name -> hcmnext.intents.v1.IntentInstance
-	69,  // 4: hcmnext.admin.v1.ListIntentsResponse.page:type_name -> hcmnext.common.v1.PageResponse
-	70,  // 5: hcmnext.admin.v1.ListIntentsResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	66,  // 0: hcmnext.admin.v1.ListIntentsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	67,  // 1: hcmnext.admin.v1.ListIntentsRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	68,  // 2: hcmnext.admin.v1.ListIntentsRequest.freshness:type_name -> hcmnext.intents.v1.ConsistencyFreshnessHint
+	69,  // 3: hcmnext.admin.v1.ListIntentsResponse.intents:type_name -> hcmnext.intents.v1.IntentInstance
+	70,  // 4: hcmnext.admin.v1.ListIntentsResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	71,  // 5: hcmnext.admin.v1.ListIntentsResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
 	3,   // 6: hcmnext.admin.v1.GetReleaseManifestResponse.endpoints:type_name -> hcmnext.admin.v1.EndpointProfile
 	7,   // 7: hcmnext.admin.v1.GetReleaseManifestResponse.capabilities:type_name -> hcmnext.admin.v1.CapabilityProfile
 	4,   // 8: hcmnext.admin.v1.GetReleaseManifestResponse.intent_definitions:type_name -> hcmnext.admin.v1.IntentDefinitionProfile
-	70,  // 9: hcmnext.admin.v1.GetReleaseManifestResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	71,  // 9: hcmnext.admin.v1.GetReleaseManifestResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
 	7,   // 10: hcmnext.admin.v1.ListCapabilityProfilesResponse.capabilities:type_name -> hcmnext.admin.v1.CapabilityProfile
-	70,  // 11: hcmnext.admin.v1.ListCapabilityProfilesResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	65,  // 12: hcmnext.admin.v1.ExplainTransactionRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	71,  // 11: hcmnext.admin.v1.ListCapabilityProfilesResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	66,  // 12: hcmnext.admin.v1.ExplainTransactionRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	9,   // 13: hcmnext.admin.v1.ExplainTransactionRequest.transaction:type_name -> hcmnext.admin.v1.TransactionRef
-	71,  // 14: hcmnext.admin.v1.ExplainTransactionRequest.known_at:type_name -> google.protobuf.Timestamp
+	72,  // 14: hcmnext.admin.v1.ExplainTransactionRequest.known_at:type_name -> google.protobuf.Timestamp
 	11,  // 15: hcmnext.admin.v1.ExplainTransactionResponse.sections:type_name -> hcmnext.admin.v1.SectionResult
-	70,  // 16: hcmnext.admin.v1.ExplainTransactionResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	65,  // 17: hcmnext.admin.v1.GetWorkerStateRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	71,  // 18: hcmnext.admin.v1.GetWorkerStateRequest.known_at:type_name -> google.protobuf.Timestamp
+	71,  // 16: hcmnext.admin.v1.ExplainTransactionResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	66,  // 17: hcmnext.admin.v1.GetWorkerStateRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	72,  // 18: hcmnext.admin.v1.GetWorkerStateRequest.known_at:type_name -> google.protobuf.Timestamp
 	14,  // 19: hcmnext.admin.v1.GetWorkerStateResponse.fields:type_name -> hcmnext.admin.v1.FieldResult
-	70,  // 20: hcmnext.admin.v1.GetWorkerStateResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	71,  // 20: hcmnext.admin.v1.GetWorkerStateResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
 	19,  // 21: hcmnext.admin.v1.WorkflowInstanceProfile.lifecycle:type_name -> hcmnext.admin.v1.LifecycleProfile
 	16,  // 22: hcmnext.admin.v1.WorkflowInstanceProfile.input_ref:type_name -> hcmnext.admin.v1.RefValue
 	16,  // 23: hcmnext.admin.v1.WorkflowInstanceProfile.effective_context_ref:type_name -> hcmnext.admin.v1.RefValue
 	16,  // 24: hcmnext.admin.v1.WorkflowInstanceProfile.last_checkpoint_ref:type_name -> hcmnext.admin.v1.RefValue
 	17,  // 25: hcmnext.admin.v1.WorkflowInstanceProfile.business_subject_refs:type_name -> hcmnext.admin.v1.RefListValue
-	71,  // 26: hcmnext.admin.v1.WorkflowInstanceProfile.created_at:type_name -> google.protobuf.Timestamp
-	71,  // 27: hcmnext.admin.v1.WorkflowInstanceProfile.started_at:type_name -> google.protobuf.Timestamp
-	71,  // 28: hcmnext.admin.v1.WorkflowInstanceProfile.completed_at:type_name -> google.protobuf.Timestamp
+	72,  // 26: hcmnext.admin.v1.WorkflowInstanceProfile.created_at:type_name -> google.protobuf.Timestamp
+	72,  // 27: hcmnext.admin.v1.WorkflowInstanceProfile.started_at:type_name -> google.protobuf.Timestamp
+	72,  // 28: hcmnext.admin.v1.WorkflowInstanceProfile.completed_at:type_name -> google.protobuf.Timestamp
 	16,  // 29: hcmnext.admin.v1.GovernanceProfile.authorization_decision_id:type_name -> hcmnext.admin.v1.RefValue
 	16,  // 30: hcmnext.admin.v1.GovernanceProfile.decision_id:type_name -> hcmnext.admin.v1.RefValue
 	16,  // 31: hcmnext.admin.v1.GovernanceProfile.policy_ref:type_name -> hcmnext.admin.v1.RefValue
@@ -5978,95 +6071,96 @@ var file_hcmnext_admin_v1_admin_service_proto_depIdxs = []int32{
 	24,  // 47: hcmnext.admin.v1.NodeProfile.connector:type_name -> hcmnext.admin.v1.ConnectorProfile
 	25,  // 48: hcmnext.admin.v1.NodeProfile.observation:type_name -> hcmnext.admin.v1.ObservationProfile
 	26,  // 49: hcmnext.admin.v1.NodeProfile.trace:type_name -> hcmnext.admin.v1.TraceProfile
-	71,  // 50: hcmnext.admin.v1.NodeProfile.started_at:type_name -> google.protobuf.Timestamp
-	71,  // 51: hcmnext.admin.v1.NodeProfile.completed_at:type_name -> google.protobuf.Timestamp
-	71,  // 52: hcmnext.admin.v1.NodeProfile.recorded_at:type_name -> google.protobuf.Timestamp
+	72,  // 50: hcmnext.admin.v1.NodeProfile.started_at:type_name -> google.protobuf.Timestamp
+	72,  // 51: hcmnext.admin.v1.NodeProfile.completed_at:type_name -> google.protobuf.Timestamp
+	72,  // 52: hcmnext.admin.v1.NodeProfile.recorded_at:type_name -> google.protobuf.Timestamp
 	16,  // 53: hcmnext.admin.v1.WorkItemTransitionProfile.evidence_ref:type_name -> hcmnext.admin.v1.RefValue
-	71,  // 54: hcmnext.admin.v1.WorkItemTransitionProfile.at:type_name -> google.protobuf.Timestamp
-	71,  // 55: hcmnext.admin.v1.WorkItemTransitionProfile.recorded_at:type_name -> google.protobuf.Timestamp
+	72,  // 54: hcmnext.admin.v1.WorkItemTransitionProfile.at:type_name -> google.protobuf.Timestamp
+	72,  // 55: hcmnext.admin.v1.WorkItemTransitionProfile.recorded_at:type_name -> google.protobuf.Timestamp
 	16,  // 56: hcmnext.admin.v1.WorkItemProfile.approval_requirement_ref:type_name -> hcmnext.admin.v1.RefValue
 	16,  // 57: hcmnext.admin.v1.WorkItemProfile.proposal_ref:type_name -> hcmnext.admin.v1.RefValue
 	17,  // 58: hcmnext.admin.v1.WorkItemProfile.subject_refs:type_name -> hcmnext.admin.v1.RefListValue
-	71,  // 59: hcmnext.admin.v1.WorkItemProfile.deadline_at:type_name -> google.protobuf.Timestamp
+	72,  // 59: hcmnext.admin.v1.WorkItemProfile.deadline_at:type_name -> google.protobuf.Timestamp
 	16,  // 60: hcmnext.admin.v1.WorkItemProfile.completed_output_digest:type_name -> hcmnext.admin.v1.RefValue
-	71,  // 61: hcmnext.admin.v1.WorkItemProfile.created_at:type_name -> google.protobuf.Timestamp
+	72,  // 61: hcmnext.admin.v1.WorkItemProfile.created_at:type_name -> google.protobuf.Timestamp
 	28,  // 62: hcmnext.admin.v1.WorkItemProfile.transitions:type_name -> hcmnext.admin.v1.WorkItemTransitionProfile
-	65,  // 63: hcmnext.admin.v1.GetWorkflowInstanceRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	66,  // 63: hcmnext.admin.v1.GetWorkflowInstanceRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	18,  // 64: hcmnext.admin.v1.GetWorkflowInstanceResponse.definition:type_name -> hcmnext.admin.v1.WorkflowDefinitionProfile
 	20,  // 65: hcmnext.admin.v1.GetWorkflowInstanceResponse.instance:type_name -> hcmnext.admin.v1.WorkflowInstanceProfile
 	21,  // 66: hcmnext.admin.v1.GetWorkflowInstanceResponse.frontier:type_name -> hcmnext.admin.v1.FrontierEntryProfile
 	27,  // 67: hcmnext.admin.v1.GetWorkflowInstanceResponse.nodes:type_name -> hcmnext.admin.v1.NodeProfile
 	29,  // 68: hcmnext.admin.v1.GetWorkflowInstanceResponse.work_items:type_name -> hcmnext.admin.v1.WorkItemProfile
-	70,  // 69: hcmnext.admin.v1.GetWorkflowInstanceResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	71,  // 70: hcmnext.admin.v1.LedgerEventProfile.occurred_at:type_name -> google.protobuf.Timestamp
-	71,  // 71: hcmnext.admin.v1.LedgerEventProfile.effective_at:type_name -> google.protobuf.Timestamp
-	71,  // 72: hcmnext.admin.v1.LedgerEventProfile.recorded_at:type_name -> google.protobuf.Timestamp
-	33,  // 73: hcmnext.admin.v1.ListLedgerEventsResponse.events:type_name -> hcmnext.admin.v1.LedgerEventProfile
-	70,  // 74: hcmnext.admin.v1.ListLedgerEventsResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	36,  // 75: hcmnext.admin.v1.GetChainVerificationResponse.head:type_name -> hcmnext.admin.v1.ChainHeadProfile
-	70,  // 76: hcmnext.admin.v1.GetChainVerificationResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	64,  // 77: hcmnext.admin.v1.SimulateAuthorizationResponse.field_rulings:type_name -> hcmnext.admin.v1.SimulateAuthorizationResponse.FieldRulingsEntry
-	70,  // 78: hcmnext.admin.v1.SimulateAuthorizationResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	40,  // 79: hcmnext.admin.v1.ConfigBundle.dependencies:type_name -> hcmnext.admin.v1.ConfigDependency
-	41,  // 80: hcmnext.admin.v1.ConfigSignedBundle.bundle:type_name -> hcmnext.admin.v1.ConfigBundle
-	42,  // 81: hcmnext.admin.v1.ConfigPackage.bundle:type_name -> hcmnext.admin.v1.ConfigSignedBundle
-	44,  // 82: hcmnext.admin.v1.ConfigInspectResponse.records:type_name -> hcmnext.admin.v1.ConfigRecordProfile
-	70,  // 83: hcmnext.admin.v1.ConfigInspectResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	43,  // 84: hcmnext.admin.v1.ConfigTestRequest.package:type_name -> hcmnext.admin.v1.ConfigPackage
-	70,  // 85: hcmnext.admin.v1.ConfigTestResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	70,  // 86: hcmnext.admin.v1.ConfigRedriveResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	51,  // 87: hcmnext.admin.v1.ConfigSnapshot.entries:type_name -> hcmnext.admin.v1.ConfigSnapshotEntry
-	52,  // 88: hcmnext.admin.v1.ConfigDiffRequest.before:type_name -> hcmnext.admin.v1.ConfigSnapshot
-	52,  // 89: hcmnext.admin.v1.ConfigDiffRequest.after:type_name -> hcmnext.admin.v1.ConfigSnapshot
-	54,  // 90: hcmnext.admin.v1.ConfigDiffResponse.added:type_name -> hcmnext.admin.v1.ConfigDiffChange
-	54,  // 91: hcmnext.admin.v1.ConfigDiffResponse.removed:type_name -> hcmnext.admin.v1.ConfigDiffChange
-	54,  // 92: hcmnext.admin.v1.ConfigDiffResponse.changed:type_name -> hcmnext.admin.v1.ConfigDiffChange
-	70,  // 93: hcmnext.admin.v1.ConfigDiffResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	52,  // 94: hcmnext.admin.v1.ConfigReconcileRequest.live:type_name -> hcmnext.admin.v1.ConfigSnapshot
-	52,  // 95: hcmnext.admin.v1.ConfigReconcileRequest.desired:type_name -> hcmnext.admin.v1.ConfigSnapshot
-	70,  // 96: hcmnext.admin.v1.ConfigReconcileResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	70,  // 97: hcmnext.admin.v1.ConfigSimulateResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	70,  // 98: hcmnext.admin.v1.ConfigPromoteResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	70,  // 99: hcmnext.admin.v1.ConfigRollbackResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	0,   // 100: hcmnext.admin.v1.AdminService.ListIntents:input_type -> hcmnext.admin.v1.ListIntentsRequest
-	2,   // 101: hcmnext.admin.v1.AdminService.GetReleaseManifest:input_type -> hcmnext.admin.v1.GetReleaseManifestRequest
-	6,   // 102: hcmnext.admin.v1.AdminService.ListCapabilityProfiles:input_type -> hcmnext.admin.v1.ListCapabilityProfilesRequest
-	10,  // 103: hcmnext.admin.v1.AdminService.ExplainTransaction:input_type -> hcmnext.admin.v1.ExplainTransactionRequest
-	13,  // 104: hcmnext.admin.v1.AdminService.GetWorkerState:input_type -> hcmnext.admin.v1.GetWorkerStateRequest
-	30,  // 105: hcmnext.admin.v1.AdminService.GetWorkflowInstance:input_type -> hcmnext.admin.v1.GetWorkflowInstanceRequest
-	32,  // 106: hcmnext.admin.v1.AdminService.ListLedgerEvents:input_type -> hcmnext.admin.v1.ListLedgerEventsRequest
-	35,  // 107: hcmnext.admin.v1.AdminService.GetChainVerification:input_type -> hcmnext.admin.v1.GetChainVerificationRequest
-	38,  // 108: hcmnext.admin.v1.AdminService.SimulateAuthorization:input_type -> hcmnext.admin.v1.SimulateAuthorizationRequest
-	45,  // 109: hcmnext.admin.v1.AdminService.ConfigInspect:input_type -> hcmnext.admin.v1.ConfigInspectRequest
-	47,  // 110: hcmnext.admin.v1.AdminService.ConfigTest:input_type -> hcmnext.admin.v1.ConfigTestRequest
-	49,  // 111: hcmnext.admin.v1.AdminService.ConfigRedrive:input_type -> hcmnext.admin.v1.ConfigRedriveRequest
-	56,  // 112: hcmnext.admin.v1.AdminService.ConfigReconcile:input_type -> hcmnext.admin.v1.ConfigReconcileRequest
-	53,  // 113: hcmnext.admin.v1.AdminService.ConfigDiff:input_type -> hcmnext.admin.v1.ConfigDiffRequest
-	58,  // 114: hcmnext.admin.v1.AdminService.ConfigSimulate:input_type -> hcmnext.admin.v1.ConfigSimulateRequest
-	60,  // 115: hcmnext.admin.v1.AdminService.ConfigPromote:input_type -> hcmnext.admin.v1.ConfigPromoteRequest
-	62,  // 116: hcmnext.admin.v1.AdminService.ConfigRollback:input_type -> hcmnext.admin.v1.ConfigRollbackRequest
-	1,   // 117: hcmnext.admin.v1.AdminService.ListIntents:output_type -> hcmnext.admin.v1.ListIntentsResponse
-	5,   // 118: hcmnext.admin.v1.AdminService.GetReleaseManifest:output_type -> hcmnext.admin.v1.GetReleaseManifestResponse
-	8,   // 119: hcmnext.admin.v1.AdminService.ListCapabilityProfiles:output_type -> hcmnext.admin.v1.ListCapabilityProfilesResponse
-	12,  // 120: hcmnext.admin.v1.AdminService.ExplainTransaction:output_type -> hcmnext.admin.v1.ExplainTransactionResponse
-	15,  // 121: hcmnext.admin.v1.AdminService.GetWorkerState:output_type -> hcmnext.admin.v1.GetWorkerStateResponse
-	31,  // 122: hcmnext.admin.v1.AdminService.GetWorkflowInstance:output_type -> hcmnext.admin.v1.GetWorkflowInstanceResponse
-	34,  // 123: hcmnext.admin.v1.AdminService.ListLedgerEvents:output_type -> hcmnext.admin.v1.ListLedgerEventsResponse
-	37,  // 124: hcmnext.admin.v1.AdminService.GetChainVerification:output_type -> hcmnext.admin.v1.GetChainVerificationResponse
-	39,  // 125: hcmnext.admin.v1.AdminService.SimulateAuthorization:output_type -> hcmnext.admin.v1.SimulateAuthorizationResponse
-	46,  // 126: hcmnext.admin.v1.AdminService.ConfigInspect:output_type -> hcmnext.admin.v1.ConfigInspectResponse
-	48,  // 127: hcmnext.admin.v1.AdminService.ConfigTest:output_type -> hcmnext.admin.v1.ConfigTestResponse
-	50,  // 128: hcmnext.admin.v1.AdminService.ConfigRedrive:output_type -> hcmnext.admin.v1.ConfigRedriveResponse
-	57,  // 129: hcmnext.admin.v1.AdminService.ConfigReconcile:output_type -> hcmnext.admin.v1.ConfigReconcileResponse
-	55,  // 130: hcmnext.admin.v1.AdminService.ConfigDiff:output_type -> hcmnext.admin.v1.ConfigDiffResponse
-	59,  // 131: hcmnext.admin.v1.AdminService.ConfigSimulate:output_type -> hcmnext.admin.v1.ConfigSimulateResponse
-	61,  // 132: hcmnext.admin.v1.AdminService.ConfigPromote:output_type -> hcmnext.admin.v1.ConfigPromoteResponse
-	63,  // 133: hcmnext.admin.v1.AdminService.ConfigRollback:output_type -> hcmnext.admin.v1.ConfigRollbackResponse
-	117, // [117:134] is the sub-list for method output_type
-	100, // [100:117] is the sub-list for method input_type
-	100, // [100:100] is the sub-list for extension type_name
-	100, // [100:100] is the sub-list for extension extendee
-	0,   // [0:100] is the sub-list for field type_name
+	71,  // 69: hcmnext.admin.v1.GetWorkflowInstanceResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	32,  // 70: hcmnext.admin.v1.GetWorkflowInstanceResponse.durable_records:type_name -> hcmnext.admin.v1.DurableRecordFamilyProfile
+	72,  // 71: hcmnext.admin.v1.LedgerEventProfile.occurred_at:type_name -> google.protobuf.Timestamp
+	72,  // 72: hcmnext.admin.v1.LedgerEventProfile.effective_at:type_name -> google.protobuf.Timestamp
+	72,  // 73: hcmnext.admin.v1.LedgerEventProfile.recorded_at:type_name -> google.protobuf.Timestamp
+	34,  // 74: hcmnext.admin.v1.ListLedgerEventsResponse.events:type_name -> hcmnext.admin.v1.LedgerEventProfile
+	71,  // 75: hcmnext.admin.v1.ListLedgerEventsResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	37,  // 76: hcmnext.admin.v1.GetChainVerificationResponse.head:type_name -> hcmnext.admin.v1.ChainHeadProfile
+	71,  // 77: hcmnext.admin.v1.GetChainVerificationResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	65,  // 78: hcmnext.admin.v1.SimulateAuthorizationResponse.field_rulings:type_name -> hcmnext.admin.v1.SimulateAuthorizationResponse.FieldRulingsEntry
+	71,  // 79: hcmnext.admin.v1.SimulateAuthorizationResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	41,  // 80: hcmnext.admin.v1.ConfigBundle.dependencies:type_name -> hcmnext.admin.v1.ConfigDependency
+	42,  // 81: hcmnext.admin.v1.ConfigSignedBundle.bundle:type_name -> hcmnext.admin.v1.ConfigBundle
+	43,  // 82: hcmnext.admin.v1.ConfigPackage.bundle:type_name -> hcmnext.admin.v1.ConfigSignedBundle
+	45,  // 83: hcmnext.admin.v1.ConfigInspectResponse.records:type_name -> hcmnext.admin.v1.ConfigRecordProfile
+	71,  // 84: hcmnext.admin.v1.ConfigInspectResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	44,  // 85: hcmnext.admin.v1.ConfigTestRequest.package:type_name -> hcmnext.admin.v1.ConfigPackage
+	71,  // 86: hcmnext.admin.v1.ConfigTestResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	71,  // 87: hcmnext.admin.v1.ConfigRedriveResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	52,  // 88: hcmnext.admin.v1.ConfigSnapshot.entries:type_name -> hcmnext.admin.v1.ConfigSnapshotEntry
+	53,  // 89: hcmnext.admin.v1.ConfigDiffRequest.before:type_name -> hcmnext.admin.v1.ConfigSnapshot
+	53,  // 90: hcmnext.admin.v1.ConfigDiffRequest.after:type_name -> hcmnext.admin.v1.ConfigSnapshot
+	55,  // 91: hcmnext.admin.v1.ConfigDiffResponse.added:type_name -> hcmnext.admin.v1.ConfigDiffChange
+	55,  // 92: hcmnext.admin.v1.ConfigDiffResponse.removed:type_name -> hcmnext.admin.v1.ConfigDiffChange
+	55,  // 93: hcmnext.admin.v1.ConfigDiffResponse.changed:type_name -> hcmnext.admin.v1.ConfigDiffChange
+	71,  // 94: hcmnext.admin.v1.ConfigDiffResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	53,  // 95: hcmnext.admin.v1.ConfigReconcileRequest.live:type_name -> hcmnext.admin.v1.ConfigSnapshot
+	53,  // 96: hcmnext.admin.v1.ConfigReconcileRequest.desired:type_name -> hcmnext.admin.v1.ConfigSnapshot
+	71,  // 97: hcmnext.admin.v1.ConfigReconcileResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	71,  // 98: hcmnext.admin.v1.ConfigSimulateResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	71,  // 99: hcmnext.admin.v1.ConfigPromoteResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	71,  // 100: hcmnext.admin.v1.ConfigRollbackResponse.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	0,   // 101: hcmnext.admin.v1.AdminService.ListIntents:input_type -> hcmnext.admin.v1.ListIntentsRequest
+	2,   // 102: hcmnext.admin.v1.AdminService.GetReleaseManifest:input_type -> hcmnext.admin.v1.GetReleaseManifestRequest
+	6,   // 103: hcmnext.admin.v1.AdminService.ListCapabilityProfiles:input_type -> hcmnext.admin.v1.ListCapabilityProfilesRequest
+	10,  // 104: hcmnext.admin.v1.AdminService.ExplainTransaction:input_type -> hcmnext.admin.v1.ExplainTransactionRequest
+	13,  // 105: hcmnext.admin.v1.AdminService.GetWorkerState:input_type -> hcmnext.admin.v1.GetWorkerStateRequest
+	30,  // 106: hcmnext.admin.v1.AdminService.GetWorkflowInstance:input_type -> hcmnext.admin.v1.GetWorkflowInstanceRequest
+	33,  // 107: hcmnext.admin.v1.AdminService.ListLedgerEvents:input_type -> hcmnext.admin.v1.ListLedgerEventsRequest
+	36,  // 108: hcmnext.admin.v1.AdminService.GetChainVerification:input_type -> hcmnext.admin.v1.GetChainVerificationRequest
+	39,  // 109: hcmnext.admin.v1.AdminService.SimulateAuthorization:input_type -> hcmnext.admin.v1.SimulateAuthorizationRequest
+	46,  // 110: hcmnext.admin.v1.AdminService.ConfigInspect:input_type -> hcmnext.admin.v1.ConfigInspectRequest
+	48,  // 111: hcmnext.admin.v1.AdminService.ConfigTest:input_type -> hcmnext.admin.v1.ConfigTestRequest
+	50,  // 112: hcmnext.admin.v1.AdminService.ConfigRedrive:input_type -> hcmnext.admin.v1.ConfigRedriveRequest
+	57,  // 113: hcmnext.admin.v1.AdminService.ConfigReconcile:input_type -> hcmnext.admin.v1.ConfigReconcileRequest
+	54,  // 114: hcmnext.admin.v1.AdminService.ConfigDiff:input_type -> hcmnext.admin.v1.ConfigDiffRequest
+	59,  // 115: hcmnext.admin.v1.AdminService.ConfigSimulate:input_type -> hcmnext.admin.v1.ConfigSimulateRequest
+	61,  // 116: hcmnext.admin.v1.AdminService.ConfigPromote:input_type -> hcmnext.admin.v1.ConfigPromoteRequest
+	63,  // 117: hcmnext.admin.v1.AdminService.ConfigRollback:input_type -> hcmnext.admin.v1.ConfigRollbackRequest
+	1,   // 118: hcmnext.admin.v1.AdminService.ListIntents:output_type -> hcmnext.admin.v1.ListIntentsResponse
+	5,   // 119: hcmnext.admin.v1.AdminService.GetReleaseManifest:output_type -> hcmnext.admin.v1.GetReleaseManifestResponse
+	8,   // 120: hcmnext.admin.v1.AdminService.ListCapabilityProfiles:output_type -> hcmnext.admin.v1.ListCapabilityProfilesResponse
+	12,  // 121: hcmnext.admin.v1.AdminService.ExplainTransaction:output_type -> hcmnext.admin.v1.ExplainTransactionResponse
+	15,  // 122: hcmnext.admin.v1.AdminService.GetWorkerState:output_type -> hcmnext.admin.v1.GetWorkerStateResponse
+	31,  // 123: hcmnext.admin.v1.AdminService.GetWorkflowInstance:output_type -> hcmnext.admin.v1.GetWorkflowInstanceResponse
+	35,  // 124: hcmnext.admin.v1.AdminService.ListLedgerEvents:output_type -> hcmnext.admin.v1.ListLedgerEventsResponse
+	38,  // 125: hcmnext.admin.v1.AdminService.GetChainVerification:output_type -> hcmnext.admin.v1.GetChainVerificationResponse
+	40,  // 126: hcmnext.admin.v1.AdminService.SimulateAuthorization:output_type -> hcmnext.admin.v1.SimulateAuthorizationResponse
+	47,  // 127: hcmnext.admin.v1.AdminService.ConfigInspect:output_type -> hcmnext.admin.v1.ConfigInspectResponse
+	49,  // 128: hcmnext.admin.v1.AdminService.ConfigTest:output_type -> hcmnext.admin.v1.ConfigTestResponse
+	51,  // 129: hcmnext.admin.v1.AdminService.ConfigRedrive:output_type -> hcmnext.admin.v1.ConfigRedriveResponse
+	58,  // 130: hcmnext.admin.v1.AdminService.ConfigReconcile:output_type -> hcmnext.admin.v1.ConfigReconcileResponse
+	56,  // 131: hcmnext.admin.v1.AdminService.ConfigDiff:output_type -> hcmnext.admin.v1.ConfigDiffResponse
+	60,  // 132: hcmnext.admin.v1.AdminService.ConfigSimulate:output_type -> hcmnext.admin.v1.ConfigSimulateResponse
+	62,  // 133: hcmnext.admin.v1.AdminService.ConfigPromote:output_type -> hcmnext.admin.v1.ConfigPromoteResponse
+	64,  // 134: hcmnext.admin.v1.AdminService.ConfigRollback:output_type -> hcmnext.admin.v1.ConfigRollbackResponse
+	118, // [118:135] is the sub-list for method output_type
+	101, // [101:118] is the sub-list for method input_type
+	101, // [101:101] is the sub-list for extension type_name
+	101, // [101:101] is the sub-list for extension extendee
+	0,   // [0:101] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_admin_v1_admin_service_proto_init() }
@@ -6080,7 +6174,7 @@ func file_hcmnext_admin_v1_admin_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_admin_v1_admin_service_proto_rawDesc), len(file_hcmnext_admin_v1_admin_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   65,
+			NumMessages:   66,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

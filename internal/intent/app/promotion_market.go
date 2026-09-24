@@ -44,7 +44,7 @@ func (p *PromotionStepServices) simulateWithMarket(ctx context.Context, s *promo
 	if err != nil {
 		return rewards.SimulateCompensationResult{}, err
 	}
-	result, ok := got.(rewards.SimulateCompensationResult)
+	result, ok := compensationSimulation(got)
 	if !ok {
 		return rewards.SimulateCompensationResult{}, fmt.Errorf("app: simulate_compensation returned %T", got)
 	}

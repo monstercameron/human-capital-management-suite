@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
@@ -64,6 +65,13 @@ type BoundCancellationVerdict struct {
 	// TerminalStatus is set instead of Decision when the instance had already
 	// ended before this request with no cancellation decision of its own.
 	TerminalStatus runtime.InstanceStatus
+	// SettlementLifecycle carries lifecycle values derived from the persisted
+	// per-effect cancellation decision rows. HasSettlement is false when no
+	// effect outcome was recorded for this run.
+	HasSettlement      bool
+	BusinessState      lifecycle.BusinessState
+	ConsistencyState   lifecycle.ConsistencyState
+	SettlementDecision uuid.UUID
 }
 
 // WorkflowCancellation is CancelIntent's governed-cancellation port.
@@ -198,9 +206,15 @@ func (w executionWorkflowCancellation) CancelBound(ctx context.Context, req Boun
 	verdict := BoundCancellationVerdict{Bound: true, InstanceID: instanceID}
 	if errors.Is(err, cancellation.ErrTerminal) {
 		verdict.TerminalStatus = inst.RuntimeStatus
+		if err := attachSettlementLifecycle(ctx, tx, tenantID, instanceID, &verdict); err != nil {
+			return BoundCancellationVerdict{}, err
+		}
 		return verdict, nil
 	}
 	if err != nil {
+		return BoundCancellationVerdict{}, err
+	}
+	if err := attachSettlementLifecycle(ctx, tx, tenantID, instanceID, &verdict); err != nil {
 		return BoundCancellationVerdict{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -208,6 +222,37 @@ func (w executionWorkflowCancellation) CancelBound(ctx context.Context, req Boun
 	}
 	verdict.Decision, verdict.DecisionID = out.Decision, out.DecisionID
 	return verdict, nil
+}
+
+// attachSettlementLifecycle derives intent lifecycle values only from the
+// append-only cancellation rows read back inside the same tenant-scoped
+// transaction. The transaction includes the decision just recorded above.
+func attachSettlementLifecycle(ctx context.Context, ex dbport.Querier, tenantID, instanceID uuid.UUID, verdict *BoundCancellationVerdict) error {
+	records, err := cancellation.Decisions(ctx, ex, tenantID, instanceID)
+	if err != nil {
+		return fmt.Errorf("app: read persisted cancellation settlement: %w", err)
+	}
+	settlement := cancellation.ProjectSettlement(records)
+	if len(settlement.Effects) == 0 {
+		return nil
+	}
+	verdict.HasSettlement = true
+	switch settlement.BusinessState {
+	case "NOT_ACHIEVED":
+		verdict.BusinessState = lifecycle.BusinessNotAchieved
+	default:
+		return fmt.Errorf("app: unsupported cancellation settlement business state %q", settlement.BusinessState)
+	}
+	switch settlement.ConsistencyState {
+	case "CONSISTENT":
+		verdict.ConsistencyState = lifecycle.ConsistencyConsistent
+	case "DEGRADED":
+		verdict.ConsistencyState = lifecycle.ConsistencyDegraded
+	default:
+		return fmt.Errorf("app: unsupported cancellation settlement consistency state %q", settlement.ConsistencyState)
+	}
+	verdict.SettlementDecision = records[len(records)-1].DecisionID
+	return nil
 }
 
 // composeWorkflowCancellation builds CancelIntent's governed cancellation and
