@@ -172,6 +172,9 @@ func build(outDir string, stdout io.Writer) error {
 		}
 		fmt.Fprintf(stdout, "%s  %s\n", path, humanSize(info.Size()))
 	}
+	if err := checkJourneyAssetBudgets(outDir); err != nil {
+		return err
+	}
 	if err := writeAssetIntegrityManifest(outDir); err != nil {
 		return err
 	}
