@@ -29,6 +29,76 @@ version: 1
 module: github.com/monstercameron/human-capital-management-suite
 source: go.mod require block
 
+# Explicitly tracked library candidates from LIB-001's GREEN contract. These
+# rows record the qualification decision and replacement seam without
+# admitting absent modules into go.mod or the import classifier below.
+candidate_modules:
+  - path: google.golang.org/protobuf
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-003
+    disposition: ADMITTED_BEHIND_WIRE_BOUNDARY
+    replacement_strategy: Canonical wire contract; generator/runtime changes require LIB-003 conformance vectors.
+  - path: google.golang.org/grpc
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-003
+    disposition: ADMITTED_BEHIND_TRANSPORT_BOUNDARY
+    replacement_strategy: grpc-gateway/connect-go are qualified transport-edge alternatives; preserve the canonical RPC contract.
+  - path: github.com/jackc/pgx/v5
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-004
+    disposition: ADMITTED_BEHIND_POSTGRES_BOUNDARY
+    replacement_strategy: Replace through the owned database port and adapter conformance suite.
+  - path: github.com/google/cel-go
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-005
+    disposition: NOT_ADMITTED
+    replacement_strategy: Keep the backend-neutral bounded expression contract; admission requires LIB-005 qualification.
+  - path: github.com/cockroachdb/apd/v3
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-006
+    disposition: ADMITTED_BEHIND_DECIMAL_KERNEL
+    replacement_strategy: Replace behind the owned decimal kernel and its conformance vectors.
+  - path: go.opentelemetry.io/otel
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-007
+    disposition: ADMITTED_BEHIND_TELEMETRY_ADAPTERS
+    replacement_strategy: Replace through the owned telemetry adapter contract.
+  - path: github.com/pressly/goose/v3
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-008
+    disposition: ADMITTED_BEHIND_MIGRATION_RUNNER
+    replacement_strategy: Replace through the SQL-first migration runner and migration conformance gate.
+  - path: github.com/testcontainers/testcontainers-go
+    role: DEV_TEST_ONLY
+    qualification_todo: LIB-009
+    disposition: REJECTED_NOT_ADMITTED
+    replacement_strategy: Owned ephemeral-environment harness or CI-native backend; admission requires digest-pinned integration evidence.
+  - path: github.com/coreos/go-oidc
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-010
+    disposition: REJECTED_NOT_ADMITTED
+    replacement_strategy: Keep federation behind the owned verifier port; current implementation uses standard-library verification.
+  - path: golang.org/x/oauth2
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-010
+    disposition: REJECTED_NOT_ADMITTED
+    replacement_strategy: Keep authorization-code exchange behind the owned federation port.
+  - path: github.com/lestrrat-go/jwx
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-011
+    disposition: GATED_NOT_ADMITTED
+    replacement_strategy: Go standard library or the existing OIDC implementation unless LIB-011 proves a missing capability.
+  - path: github.com/lestrrat-go/jose
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-011
+    disposition: GATED_NOT_ADMITTED
+    replacement_strategy: Go standard library or the existing OIDC implementation unless LIB-011 proves a missing capability.
+  - path: github.com/square/go-jose
+    role: INFRASTRUCTURE_MECHANIC
+    qualification_todo: LIB-011
+    disposition: GATED_NOT_ADMITTED
+    replacement_strategy: Go standard library or the existing OIDC implementation unless LIB-011 proves a missing capability.
+
 project_core_reserved:
   - name: go (toolchain)
     note: The Go standard library and toolchain itself; not a go.mod module.
@@ -627,7 +697,7 @@ modules:
     replacement_strategy: A standard-library Markdown parser or another maintained Go Markdown parser if Goldmark's maintenance lapses.
 
   - path: go.opentelemetry.io/otel/sdk/metric
-    version: v1.45.0
+    version: v1.46.0
     role: INFRASTRUCTURE_MECHANIC
     semantic_owner: platform-foundation
     license_owner: platform-foundation

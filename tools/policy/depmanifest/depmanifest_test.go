@@ -1,11 +1,13 @@
 package depmanifest_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/depmanifest"
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/internal/repopath"
+	"gopkg.in/yaml.v3"
 )
 
 func loadManifest(t *testing.T) *depmanifest.Manifest {
@@ -62,10 +64,10 @@ func TestDependencyRoleManifestRejectsUnclassifiedModule(t *testing.T) {
 		}
 	})
 
-	t.Run("no module row is PROJECT_CORE unless reserved", func(t *testing.T) {
+	t.Run("no third-party module row is PROJECT_CORE", func(t *testing.T) {
 		for _, row := range m.Modules {
-			if row.Role == depmanifest.RoleProjectCore && !m.IsProjectCoreEligible(row.Path) {
-				t.Errorf("module %s is classified PROJECT_CORE but is not one of project_core_reserved (Go, GWC, grpcbridge, SchemaFlux)", row.Path)
+			if row.Role == depmanifest.RoleProjectCore {
+				t.Errorf("third-party module %s is classified PROJECT_CORE; Go, GWC, grpcbridge, and SchemaFlux are not third-party module paths", row.Path)
 			}
 		}
 	})
@@ -94,13 +96,18 @@ func TestDependencyRoleManifestRejectsUnclassifiedModule(t *testing.T) {
 				t.Errorf("go.mod requires %s (%s) but dependency-roles.yaml classifies neither an exact row nor a matching family_rules prefix for it", req.Path, req.Version)
 				continue
 			}
+			if !c.Exact {
+				t.Errorf("go.mod requires %s (%s) but it has only a family classification; add an exact, version-pinned module row", req.Path, req.Version)
+				continue
+			}
+			if c.Row.Version != req.Version {
+				t.Errorf("go.mod requires %s@%s but dependency-roles.yaml pins %s", req.Path, req.Version, c.Row.Version)
+			}
+			if missing := depmanifest.RowIsComplete(c.Row); len(missing) > 0 {
+				t.Errorf("go.mod dependency %s manifest row is missing fields: %v", req.Path, missing)
+			}
 			if c.Row.Role == depmanifest.RoleProjectCore && !m.IsProjectCoreEligible(req.Path) {
 				t.Errorf("go.mod dependency %s is classified PROJECT_CORE but is not project_core_reserved", req.Path)
-			}
-			if c.Exact {
-				if missing := depmanifest.RowIsComplete(c.Row); len(missing) > 0 {
-					t.Errorf("go.mod dependency %s manifest row is missing fields: %v", req.Path, missing)
-				}
 			}
 		}
 	})
@@ -140,6 +147,49 @@ func TestTodo_LIB_001_Golden(t *testing.T) {
 		c := m.Classify(name)
 		if !c.Found || c.Row.Role != depmanifest.RoleInfrastructureMechanic {
 			t.Errorf("%s classification = %+v, want infrastructure mechanic", name, c)
+		}
+	}
+
+	root := repopath.RootDir()
+	data, err := os.ReadFile(filepath.Join(root, "definitions", "architecture", "dependency-roles.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var candidateManifest struct {
+		Candidates []struct {
+			Path                string `yaml:"path"`
+			Role                string `yaml:"role"`
+			QualificationTodo   string `yaml:"qualification_todo"`
+			Disposition         string `yaml:"disposition"`
+			ReplacementStrategy string `yaml:"replacement_strategy"`
+		} `yaml:"candidate_modules"`
+	}
+	if err := yaml.Unmarshal(data, &candidateManifest); err != nil {
+		t.Fatal(err)
+	}
+	wantCandidates := []string{
+		"google.golang.org/protobuf", "google.golang.org/grpc", "github.com/jackc/pgx/v5",
+		"github.com/google/cel-go", "github.com/cockroachdb/apd/v3", "go.opentelemetry.io/otel",
+		"github.com/pressly/goose/v3", "github.com/testcontainers/testcontainers-go",
+		"github.com/coreos/go-oidc", "golang.org/x/oauth2", "github.com/lestrrat-go/jwx",
+		"github.com/lestrrat-go/jose", "github.com/square/go-jose",
+	}
+	byPath := make(map[string]struct{}, len(candidateManifest.Candidates))
+	for _, candidate := range candidateManifest.Candidates {
+		if _, duplicate := byPath[candidate.Path]; duplicate {
+			t.Errorf("duplicate candidate module %s", candidate.Path)
+		}
+		byPath[candidate.Path] = struct{}{}
+		if !depmanifest.ValidRole(candidate.Role) || candidate.Role == depmanifest.RoleProjectCore {
+			t.Errorf("candidate %s has invalid or semantic role %q", candidate.Path, candidate.Role)
+		}
+		if candidate.QualificationTodo == "" || candidate.Disposition == "" || candidate.ReplacementStrategy == "" {
+			t.Errorf("candidate %s lacks qualification, disposition, or replacement strategy", candidate.Path)
+		}
+	}
+	for _, path := range wantCandidates {
+		if _, ok := byPath[path]; !ok {
+			t.Errorf("candidate registry is missing %s", path)
 		}
 	}
 }
