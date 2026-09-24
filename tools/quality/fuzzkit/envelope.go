@@ -37,10 +37,16 @@ func ParseEnvelope(input string) (Envelope, error) {
 	if kind == "" {
 		return Envelope{}, fmt.Errorf("fuzzkit: kind field is empty")
 	}
+	if !safeIdentifier(tenant) || !safeIdentifier(kind) {
+		return Envelope{}, fmt.Errorf("fuzzkit: tenant and kind must use ASCII letters, digits, '_' or '-'")
+	}
 
 	seq, err := strconv.ParseInt(seqField, 10, 64)
 	if err != nil {
 		return Envelope{}, fmt.Errorf("fuzzkit: invalid sequence field %q: %w", seqField, err)
+	}
+	if seq < 0 || strconv.FormatInt(seq, 10) != seqField {
+		return Envelope{}, fmt.Errorf("fuzzkit: non-canonical sequence field %q", seqField)
 	}
 
 	// A decimal field is expected to contain exactly one '.'. Unlike the
@@ -50,6 +56,22 @@ func ParseEnvelope(input string) (Envelope, error) {
 	if len(decimalParts) != 2 || decimalParts[0] == "" || decimalParts[1] == "" {
 		return Envelope{}, fmt.Errorf("fuzzkit: invalid decimal field %q", decimalField)
 	}
+	for _, part := range decimalParts {
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return Envelope{}, fmt.Errorf("fuzzkit: invalid decimal field %q", decimalField)
+			}
+		}
+	}
 
 	return Envelope{Tenant: tenant, Kind: kind, Sequence: seq, Decimal: decimalField}, nil
+}
+
+func safeIdentifier(value string) bool {
+	for _, r := range value {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '_' && r != '-' {
+			return false
+		}
+	}
+	return value != ""
 }

@@ -1,0 +1,5 @@
+github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace -> github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract: product-must-not-import-tools
+github.com/monstercameron/human-capital-management-suite/internal/customobject -> github.com/monstercameron/human-capital-management-suite/tools/gen/schemaflux: product-must-not-import-tools
+github.com/monstercameron/human-capital-management-suite/cmd/hcmnext -> github.com/monstercameron/human-capital-management-suite/tools/uxqual/qual: product-must-not-import-tools
+github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc -> github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract: allowed
+github.com/monstercameron/human-capital-management-suite/internal/kernel -> golang.org/x/text/language: allowed

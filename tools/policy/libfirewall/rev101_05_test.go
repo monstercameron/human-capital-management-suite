@@ -108,6 +108,54 @@ func TestTodo_REV_101_05(t *testing.T) {
 		}
 	})
 
+	t.Run("other live importers reconciled", func(t *testing.T) {
+		for _, modulePath := range []string{
+			"golang.org/x/image",
+			"github.com/yuin/goldmark",
+			"google.golang.org/protobuf",
+			"gopkg.in/yaml.v3",
+		} {
+			reconciledRow(t, modulePath)
+		}
+		for _, tc := range []struct{ importer, imported string }{
+			{mod + "/internal/collaboration/chatmedia", "golang.org/x/image/draw"},
+			{mod + "/internal/humanwork/docsexport", "golang.org/x/image/font/sfnt"},
+			{mod + "/internal/humanwork/chatui", "github.com/yuin/goldmark/ast"},
+			{mod + "/internal/humanwork/productui", "github.com/yuin/goldmark/ast"},
+			{mod + "/internal/data/projection/wire", "google.golang.org/protobuf/proto"},
+			{mod + "/internal/data/provenance", "google.golang.org/protobuf/types/known/timestamppb"},
+			{mod + "/internal/data/roleaccessstore", "google.golang.org/protobuf/proto"},
+			{mod + "/internal/data/siemstore", "google.golang.org/protobuf/types/known/wrapperspb"},
+			{mod + "/internal/application", "google.golang.org/protobuf/types/known/timestamppb"},
+			{mod + "/internal/intent/app", "google.golang.org/protobuf/types/known/timestamppb"},
+			{mod + "/internal/data/documenthubstore", "gopkg.in/yaml.v3"},
+			{mod + "/internal/platform/processroles", "gopkg.in/yaml.v3"},
+			{mod + "/internal/experience/journeycss", "github.com/monstercameron/GoWebComponents/v5/css"},
+			{mod + "/internal/experience/tokens", "github.com/monstercameron/GoWebComponents/v5/css"},
+			{mod + "/internal/humanwork/docsdiagram", "github.com/monstercameron/GoWebComponents/v5/ui"},
+			{mod + "/internal/domains/knowledge", "github.com/google/uuid"},
+			{mod + "/internal/domains/subscription", "github.com/google/uuid"},
+			{mod + "/internal/governance/privacy/hipaa", "github.com/google/uuid"},
+			{mod + "/internal/messaging", "github.com/google/uuid"},
+			{mod + "/internal/platform/telemetry/siem", "github.com/google/uuid"},
+			{mod + "/tools/planning/lineageconformance", "github.com/google/uuid"},
+		} {
+			if v := libfirewall.CheckImport(m, tc.importer, tc.imported); v != nil {
+				t.Errorf("CheckImport(%q, %q) = %+v, want no violation", tc.importer, tc.imported, v)
+			}
+		}
+		for _, tc := range []struct{ importer, imported string }{
+			{mod + "/internal/domains/knowledge", "google.golang.org/protobuf/proto"},
+			{mod + "/internal/domains/people", "github.com/monstercameron/GoWebComponents/v5/css"},
+			{mod + "/internal/domains/people", "gopkg.in/yaml.v3"},
+			{mod + "/internal/experience/workspacecontract", "github.com/google/uuid"},
+		} {
+			if v := libfirewall.CheckImport(m, tc.importer, tc.imported); v == nil {
+				t.Errorf("CheckImport(%q, %q) = nil, want forbidden edge", tc.importer, tc.imported)
+			}
+		}
+	})
+
 	t.Run("firewall runs in pre-commit and CI", func(t *testing.T) {
 		root := repopath.RootDir()
 		read := func(rel string) string {
@@ -168,6 +216,41 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 	}
 
 	want := map[string][]string{
+		"golang.org/x/image": {
+			"internal/collaboration/chatmedia",
+			"internal/humanwork/docsexport",
+		},
+		"github.com/yuin/goldmark": {
+			"internal/humanwork/chatui",
+			"internal/humanwork/docsexport",
+			"internal/humanwork/productui",
+		},
+		"google.golang.org/protobuf": {
+			"gen",
+			"schema/proto/gen",
+			"internal/transport",
+			"internal/data/projection/wire",
+			"internal/data/provenance",
+			"internal/data/roleaccessstore",
+			"internal/data/siemstore",
+			"internal/application",
+			"internal/intent/app",
+			"internal/intent/protomap",
+			"internal/engines/wire",
+			"tools/gen",
+			"tools/uxqual/journeyclient",
+			"tools/uxqual/cmd/journeywasm",
+			"tools/uxqual/productclient",
+			"tools/quality/bufprotovalidatekit",
+		},
+		"gopkg.in/yaml.v3": {
+			"tools",
+			"internal/platform/processroles",
+			"internal/data/tenancy/storagedisposition",
+			"internal/data/documenthubstore",
+			"internal/platform/telemetry",
+			"internal/transport/eastwest",
+		},
 		"github.com/google/uuid": {
 			"internal/kernel",
 			"internal/intent",
@@ -184,12 +267,18 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/application",
 			"internal/domains/leave",
 			"internal/domains/promotion",
+			"internal/domains/knowledge",
+			"internal/domains/subscription",
+			"internal/governance/privacy/hipaa",
+			"internal/messaging",
 			"internal/platform/devclock",
 			"internal/platform/execution",
+			"internal/platform/telemetry/siem",
 			"internal/transport",
 			"internal/collaboration/chat",
 			"internal/collaboration/chatroutingadapter",
 			"tools/uxqual/journeyclient",
+			"tools/planning/lineageconformance",
 			"cmd",
 			"test",
 		},
@@ -202,6 +291,16 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/humanwork/productui",
 			"internal/i18n",
 			"tools/uxqual/forms",
+		},
+		"github.com/monstercameron/GoWebComponents/v5": {
+			"tools/uxqual",
+			"internal/experience/journeycss",
+			"internal/experience/tokens",
+			"internal/humanwork/productui",
+			"internal/humanwork/uicomponents",
+			"internal/humanwork/workspace",
+			"internal/humanwork/chatui",
+			"internal/humanwork/docsdiagram",
 		},
 		"go.opentelemetry.io/otel/trace": {
 			"internal/platform/telemetry/otel",
@@ -217,10 +316,15 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 	}
 
 	got := map[string][]string{
-		"github.com/google/uuid":         byPath["github.com/google/uuid"],
-		"golang.org/x/text":              byPath["golang.org/x/text"],
-		"go.opentelemetry.io/otel/trace": byPath["go.opentelemetry.io/otel/trace"],
-		"family:go.opentelemetry.io/":    familyOTel,
+		"golang.org/x/image":                           byPath["golang.org/x/image"],
+		"github.com/yuin/goldmark":                     byPath["github.com/yuin/goldmark"],
+		"google.golang.org/protobuf":                   byPath["google.golang.org/protobuf"],
+		"gopkg.in/yaml.v3":                             byPath["gopkg.in/yaml.v3"],
+		"github.com/google/uuid":                       byPath["github.com/google/uuid"],
+		"golang.org/x/text":                            byPath["golang.org/x/text"],
+		"github.com/monstercameron/GoWebComponents/v5": byPath["github.com/monstercameron/GoWebComponents/v5"],
+		"go.opentelemetry.io/otel/trace":               byPath["go.opentelemetry.io/otel/trace"],
+		"family:go.opentelemetry.io/":                  familyOTel,
 	}
 	for path, roots := range want {
 		if strings.Join(got[path], "\n") != strings.Join(roots, "\n") {

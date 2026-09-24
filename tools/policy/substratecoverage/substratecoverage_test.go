@@ -41,8 +41,8 @@ func TestTodo_SUBSTRATE_COVERAGE_001_Golden(t *testing.T) {
 	if firstSubstrateDigest == "" || firstSubstrateDigest != secondSubstrateDigest {
 		t.Fatal("substrate report digest is not stable")
 	}
-	if len(rows) != 8 {
-		t.Fatalf("declared responsibilities = %d, want eight", len(rows))
+	if len(rows) != 10 {
+		t.Fatalf("declared responsibilities = %d, want ten", len(rows))
 	}
 }
 

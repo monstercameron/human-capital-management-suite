@@ -10,6 +10,7 @@ package release
 // and cleancheckout, so no bundle ever reflected a ReleaseGate.Admit denial.
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -17,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/conformance"
+	"github.com/monstercameron/human-capital-management-suite/tools/planning/gateevidence"
+	"github.com/monstercameron/human-capital-management-suite/tools/policy/provenance"
 )
 
 func rev08801GateEvidence() map[string]string {
@@ -50,6 +53,14 @@ func TestTodo_REV_088_01(t *testing.T) {
 		_, err := Build(root, opts)
 		if err == nil || !strings.Contains(err.Error(), "usability.zero_override") {
 			t.Fatalf("Build missing one gate = %v, want a denial naming usability.zero_override", err)
+		}
+	})
+
+	t.Run("ForeignEvidenceRefused", func(t *testing.T) {
+		evidence := rev08801GateEvidence()
+		evidence["authorization.anything"] = "unscoped-digest"
+		if _, _, err := AdmitProductGate(evidence); !errors.Is(err, conformance.ErrReleaseInvalid) {
+			t.Fatalf("AdmitProductGate with foreign evidence = %v, want ErrReleaseInvalid", err)
 		}
 	})
 
@@ -171,6 +182,42 @@ func TestTodo_REV_088_01_Integration(t *testing.T) {
 	}
 	if _, err := VerifyBundle(out, VerifyOptions{}); err == nil || !strings.Contains(err.Error(), ProductGateFileName) {
 		t.Fatalf("removed gate report error = %v, want named %s", err, ProductGateFileName)
+	}
+
+	// VerifyBundle must re-run the gate even if a signer creates a fresh,
+	// valid manifest signature over a proof set that would now be denied.
+	prooflessOut := filepath.Join(t.TempDir(), "proofless-bundle")
+	prooflessOpts := fixture.options(prooflessOut)
+	prooflessOpts.ProductGateEvidence = rev08801GateEvidence()
+	proofless, err := Build(root, prooflessOpts)
+	if err != nil {
+		t.Fatalf("Build proofless verification fixture: %v", err)
+	}
+	record := *proofless.ProductGate
+	record.Evidence = record.Evidence[:len(record.Evidence)-1]
+	proofless.ProductGate = &record
+	digest, err = proofless.CanonicalDigest()
+	if err != nil {
+		t.Fatalf("CanonicalDigest(proofless): %v", err)
+	}
+	privateKey, err := provenance.LoadSigningKeyFixture(filepath.Join(root, DefaultKeyPath))
+	if err != nil {
+		t.Fatalf("LoadSigningKeyFixture: %v", err)
+	}
+	signature, err := gateevidence.SignDigest(privateKey, digest)
+	if err != nil {
+		t.Fatalf("SignDigest(proofless): %v", err)
+	}
+	proofless.Signature.Value = signature
+	encoded, err := json.Marshal(proofless)
+	if err != nil {
+		t.Fatalf("Marshal(proofless): %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(prooflessOut, ManifestFileName), encoded, 0o644); err != nil {
+		t.Fatalf("write proofless manifest: %v", err)
+	}
+	if _, err := VerifyBundle(prooflessOut, VerifyOptions{}); !errors.Is(err, ErrProductGateDecision) || !strings.Contains(err.Error(), "usability.zero_override") {
+		t.Fatalf("VerifyBundle(proofless) = %v, want gate denial naming usability.zero_override", err)
 	}
 }
 

@@ -3,6 +3,8 @@ package privacy
 import (
 	"strings"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 // TestTodo_PRIV_002_Security is the SECURITY matrix test for PRIV-002. It
@@ -13,6 +15,62 @@ import (
 // mutating a validated record's fields without recomputing its evidence id
 // is detected rather than silently accepted.
 func TestTodo_PRIV_002_Security(t *testing.T) {
+	t.Run("an unacknowledged or future acknowledgement cannot authorize optional processing", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			ack  int64
+		}{
+			{name: "missing acknowledgement", ack: 0},
+			{name: "acknowledgement after evaluation", ack: fxEvaluateAt + 1},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				in := fixtureAuthorityInput(t)
+				p := *in.Presentation
+				if tc.ack == 0 {
+					p.AcknowledgedAt = values.Instant{}
+				} else {
+					p.AcknowledgedAt = mustInstant(t, tc.ack)
+				}
+				p.EvidenceID = presentationEvidencePrefix + p.canonicalDigest()
+				in.Presentation = &p
+				got := EvaluateAuthority(in)
+				if got.Allowed || got.Code != AuthorityPresentationNotAck {
+					t.Fatalf("EvaluateAuthority(unacknowledged presentation) = %+v, want denied with %s", got, AuthorityPresentationNotAck)
+				}
+			})
+		}
+	})
+
+	t.Run("presentation recorded after the authority evaluation cannot authorize", func(t *testing.T) {
+		in := fixtureAuthorityInput(t)
+		p := *in.Presentation
+		p.PresentedAt = mustInstant(t, fxEvaluateAt+1)
+		p.AcknowledgedAt = mustInstant(t, fxEvaluateAt+2)
+		p.EvidenceID = presentationEvidencePrefix + p.canonicalDigest()
+		in.Presentation = &p
+		got := EvaluateAuthority(in)
+		if got.Allowed || got.Code != AuthorityNoticeNotPresented {
+			t.Fatalf("EvaluateAuthority(future presentation) = %+v, want denied with %s", got, AuthorityNoticeNotPresented)
+		}
+	})
+
+	t.Run("repeated withdrawal cannot move revocation forward and reopen authority", func(t *testing.T) {
+		in := fixtureAuthorityInput(t)
+		firstAt := mustInstant(t, fxEvaluateAt-100)
+		withdrawn, err := in.Consent.Withdraw(firstAt)
+		if err != nil {
+			t.Fatalf("first Withdraw: %v", err)
+		}
+		if _, err := withdrawn.Withdraw(mustInstant(t, fxEvaluateAt+100)); err == nil {
+			t.Fatal("repeated Withdraw accepted; a later timestamp could reopen authority for the interval after revocation")
+		}
+		in.Consent = &withdrawn
+		got := EvaluateAuthority(in)
+		if got.Allowed || got.Code != AuthorityProcessingBlocked {
+			t.Fatalf("EvaluateAuthority(withdrawn consent) = %+v, want denied with %s", got, AuthorityProcessingBlocked)
+		}
+	})
+
 	t.Run("a consent granted by one principal never authorizes a different principal", func(t *testing.T) {
 		in := fixtureAuthorityInput(t)
 		in.Principal = "worker-9999" // presentation/consent were both recorded for fixturePrincipal

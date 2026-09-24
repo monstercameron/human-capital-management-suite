@@ -3,7 +3,8 @@
 # Buf is retained as a pinned, offline developer-only schema linter. The
 # combined Buf/Protovalidate runtime proposal is rejected because
 # Protovalidate is not admitted, pinned, or present in the schema annotations.
-# The descriptor-based fallback preserves only local request-shape mechanics.
+# The descriptor-based fallback qualifies only offline local request-shape
+# mechanics. No production interceptor or transport parity is claimed.
 version: 1
 todo: LIB-019
 verdict: REJECT
@@ -12,9 +13,10 @@ decision: >-
   go.sum, and the checked-in schemas, so claiming interceptor qualification
   would be false. ADOPT the already-configured Buf 1.72.0 executable only as a
   developer tool for offline STANDARD lint and FILE compatibility checks. The
-  owned descriptor fallback returns the same safe field violations at gRPC and
-  grpcbridge seams, rejects CEL and authority-bearing scopes at publication,
-  and requires an explicit local allow-list for google.protobuf.Any.
+  owned descriptor fallback qualifies offline structural/local rule mechanics,
+  rejects CEL and authority-bearing scopes at publication, and requires an
+  explicit local allow-list for google.protobuf.Any. Production transport
+  registration and cross-transport parity are outside this qualification.
 components:
   buf:
     source: https://github.com/bufbuild/buf
@@ -54,13 +56,13 @@ scope:
   covers:
     - pinned offline Protobuf schema lint
     - local required, UTF-8, byte-length, pattern, and Any registration checks
-    - owned stable field violations
-    - identical validation before gRPC and grpcbridge dispatch
+    - offline owned stable field violations from local descriptors
   excludes:
     - authorization, legal, eligibility, policy, or business decisions
     - state mutation or external effects
     - remote Buf modules or plugins
     - CEL publication or evaluation
+    - production transport registration or cross-transport parity
 alternative:
   name: admitted protobuf descriptors plus Go standard library
   implementation: tools/quality/bufprotovalidatekit

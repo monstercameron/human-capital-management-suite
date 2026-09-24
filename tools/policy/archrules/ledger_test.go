@@ -95,3 +95,32 @@ func TestTodo_ARCH_GO_012_Conformance(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_ARCH_GO_012_Golden(t *testing.T) {
+	li := loadArchConfig(t).LedgerIndependent
+	if li.LedgerRoot != "internal/ledger" {
+		t.Fatalf("ledger_root = %q", li.LedgerRoot)
+	}
+	want := []string{"github.com/jackc/pgx", "github.com/lib/pq", "database/sql"}
+	if len(li.ForbiddenImportPrefixes) != len(want) {
+		t.Fatalf("forbidden import prefixes = %v, want %v", li.ForbiddenImportPrefixes, want)
+	}
+	for i := range want {
+		if li.ForbiddenImportPrefixes[i] != want[i] {
+			t.Errorf("forbidden prefix %d = %q, want %q", i, li.ForbiddenImportPrefixes[i], want[i])
+		}
+	}
+}
+
+func TestTodo_ARCH_GO_012_Mutation(t *testing.T) {
+	li := loadArchConfig(t).LedgerIndependent
+	for _, prefix := range li.ForbiddenImportPrefixes {
+		if !matchesAnyImportPrefix(prefix+"/mutated", li.ForbiddenImportPrefixes) {
+			t.Errorf("mutated forbidden import %q escaped prefix rule", prefix+"/mutated")
+		}
+		nearMiss := prefix + "evil"
+		if matchesAnyImportPrefix(nearMiss, li.ForbiddenImportPrefixes) {
+			t.Errorf("prefix rule overmatched near miss %q", nearMiss)
+		}
+	}
+}

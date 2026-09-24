@@ -216,6 +216,60 @@ func TestTodo_REV_034_02_Integration(t *testing.T) {
 	}
 }
 
+func TestTodo_REV_034_02_DecisionExitCodes(t *testing.T) {
+	dir := t.TempDir()
+	now := rev034Now()
+	root, key := rev034Key(t)
+	policy := writeJSON(t, dir, "policy.json", map[string]any{"maxConformanceAge": 86400000000000})
+	cases := []struct {
+		name        string
+		evidence    map[string]any
+		missing     bool
+		wantCode    int
+		wantVerdict release.DecisionVerdict
+	}{
+		{name: "proceed", evidence: rev034Evidence(now, nil), wantCode: 0, wantVerdict: release.DecisionProceed},
+		{name: "remediate", evidence: func() map[string]any {
+			evidence := rev034Evidence(now, nil)
+			evidence["config"] = map[string]any{"digest": "cfg", "valid": false, "validatedAt": now.Add(-5 * time.Minute).Format(time.RFC3339)}
+			return evidence
+		}(), wantCode: 1, wantVerdict: release.DecisionRemediate},
+		{name: "quarantine", evidence: func() map[string]any {
+			evidence := rev034Evidence(now, nil)
+			evidence["schema"] = map[string]any{"bundleSchemaVersion": release.SchemaVersion + 1, "validatedAt": now.Add(-5 * time.Minute).Format(time.RFC3339)}
+			return evidence
+		}(), wantCode: 1, wantVerdict: release.DecisionQuarantine},
+		{name: "stop", evidence: rev034Evidence(now, []string{"SEV-1 open incident"}), wantCode: 1, wantVerdict: release.DecisionStop},
+		{name: "tool failure", missing: true, wantCode: 2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			evidencePath := filepath.Join(dir, tc.name+".json")
+			if !tc.missing {
+				evidencePath = writeJSON(t, dir, tc.name+".json", tc.evidence)
+			}
+			args := []string{"decide", "-id", "rev034-" + strings.ReplaceAll(tc.name, " ", "-"), "-evidence", evidencePath, "-policy", policy, "-key", key, "-root", root, "-now", now.Format(time.RFC3339)}
+			var stdout, stderr bytes.Buffer
+			if code := run(args, &stdout, &stderr); code != tc.wantCode {
+				t.Fatalf("decide exit = %d, want %d\nstdout: %s\nstderr: %s", code, tc.wantCode, stdout.String(), stderr.String())
+			}
+			if tc.missing {
+				if stdout.Len() != 0 || !strings.Contains(stderr.String(), "read "+evidencePath) {
+					t.Fatalf("tool failure output = stdout %q, stderr %q; want no decision and a read error", stdout.String(), stderr.String())
+				}
+				return
+			}
+			var manifest release.DecisionManifest
+			if err := json.Unmarshal(stdout.Bytes(), &manifest); err != nil {
+				t.Fatalf("decide stdout is not a manifest: %v\n%s", err, stdout.String())
+			}
+			if manifest.Verdict != tc.wantVerdict {
+				t.Fatalf("decide verdict = %s, want %s", manifest.Verdict, tc.wantVerdict)
+			}
+		})
+	}
+}
+
 // TestTodo_REV_034_02_Golden pins the exact signed PROCEED manifest bytes
 // the decide entry point emits for fixed evidence and a fixed clock, so a
 // drift in the decision document breaks the build.

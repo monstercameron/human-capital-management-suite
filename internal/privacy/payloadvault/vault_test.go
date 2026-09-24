@@ -180,6 +180,13 @@ func TestTodo_WF_REV_015_Validation(t *testing.T) {
 func TestTodo_WF_REV_015_Security(t *testing.T) {
 	const personal = "candidate Amina Yusuf, dob 1990-04-17, iban DE75512108001245123456"
 	v := testVault(t, "tenant-a", "subject-1", "k1")
+	otherKey, err := payloadvault.NewSubjectKey("tenant-a", "subject-2", "k1", bytes.Repeat([]byte{0x6D}, payloadvault.KeySize))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := v.AddKey(otherKey); err != nil {
+		t.Fatal(err)
+	}
 
 	original, err := v.Seal("tenant-a", "subject-1", "custom_record_revision", "field_values",
 		[]byte(personal), sealedAt, backupExpiry)
@@ -188,6 +195,11 @@ func TestTodo_WF_REV_015_Security(t *testing.T) {
 	}
 	reversal, err := v.Seal("tenant-a", "subject-1", "ledger_event", "payload",
 		[]byte(personal), sealedAt, backupExpiry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherSubject, err := v.Seal("tenant-a", "subject-2", "custom_record_revision", "field_values",
+		[]byte("candidate another person"), sealedAt, backupExpiry)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,6 +213,22 @@ func TestTodo_WF_REV_015_Security(t *testing.T) {
 		[]payloadvault.VaultRef{original, reversal}, destroyedAt)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(tomb.Payloads) != 2 {
+		t.Fatalf("tombstone payloads = %d, want original and reversal records", len(tomb.Payloads))
+	}
+	gotPayloads := map[string]bool{}
+	for _, payload := range tomb.Payloads {
+		gotPayloads[payload.Table+"."+payload.Field] = true
+	}
+	for _, want := range []string{"custom_record_revision.field_values", "ledger_event.payload"} {
+		if !gotPayloads[want] {
+			t.Fatalf("tombstone omits %s", want)
+		}
+	}
+	otherPlain, err := v.Open(otherSubject)
+	if err != nil || string(otherPlain) != "candidate another person" {
+		t.Fatalf("subject-2 payload after subject-1 erasure = %q, %v", otherPlain, err)
 	}
 
 	stores := map[string]payloadvault.VaultRef{

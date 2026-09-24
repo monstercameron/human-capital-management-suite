@@ -22,6 +22,7 @@ const (
 	RuleTransportImportsStore   = "transport-must-not-import-store"
 	RuleBusinessConcreteAdapter = "business-must-not-import-concrete-adapter"
 	RuleLayerUpward             = "layer-must-not-import-upward"
+	RuleProductImportsTools     = "product-must-not-import-tools"
 )
 
 // Layer is one ranked layer in the dependency policy.
@@ -177,6 +178,13 @@ func (p *Policy) CheckEdge(importerPath, importedPath string) *Violation {
 	}
 	if importerRel == importedRel {
 		return nil
+	}
+	// Product and command packages become part of release binaries. Developer
+	// tools may inspect those packages, but the dependency direction must not
+	// run from shipped code back into tools/.
+	if (strings.HasPrefix(importerRel, "internal/") || strings.HasPrefix(importerRel, "cmd/")) &&
+		(strings.HasPrefix(importedRel, "tools/") || importedRel == "tools") {
+		return &Violation{importerPath, importedPath, RuleProductImportsTools}
 	}
 	if p.matchException(importerRel, importedRel) {
 		return nil

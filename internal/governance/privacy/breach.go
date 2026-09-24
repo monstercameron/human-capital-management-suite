@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/governance/legal"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/privacy/hipaa"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -71,6 +72,10 @@ func AllBreachDataClasses() []BreachDataClass { return slices.Clone(allBreachDat
 
 func (c BreachDataClass) valid() bool { return slices.Contains(allBreachDataClasses, c) }
 
+func containsBreachClass(classes []BreachDataClass, class BreachDataClass) bool {
+	return slices.Contains(classes, class)
+}
+
 // Duty is the closed vocabulary of notice duties PRIV-009's GREEN clause
 // names: federal, state breach law, GLBA, and tenant contract.
 type Duty string
@@ -81,6 +86,9 @@ const (
 	DutyStateBreachLaw Duty = "STATE_BREACH_LAW"
 	DutyGLBA           Duty = "GLBA"
 	DutyTenantContract Duty = "TENANT_CONTRACT"
+	// DutyHIPAA summarizes an applicable HIPAA breach notification evaluation.
+	// Its specific recipients and clocks are carried in HIPAAClocks.
+	DutyHIPAA Duty = "HIPAA"
 )
 
 var allDuties = []Duty{DutyFederal, DutyStateBreachLaw, DutyGLBA, DutyTenantContract}
@@ -133,6 +141,13 @@ type BreachIncident struct {
 	// decision certificate verbatim.
 	HoldRef    string `json:"hold_ref,omitempty"`
 	EvidenceID string `json:"evidence_id"`
+	// HIPAAApplicability records confirmed, assumed, or explicit non-applicability.
+	// Health-info incidents with unresolved or absent scope fail closed.
+	HIPAAApplicability hipaa.Applicability `json:"hipaa_applicability,omitempty"`
+	// HIPAAEntityRole identifies which HIPAA notice path applies.
+	HIPAAEntityRole hipaa.EntityRole `json:"hipaa_entity_role,omitempty"`
+	// HIPAAMatrixVersion pins the companion HIPAA clock matrix.
+	HIPAAMatrixVersion string `json:"hipaa_matrix_version,omitempty"`
 }
 
 // Digest is the canonical content digest of this incident record.
@@ -152,6 +167,13 @@ func (in BreachIncident) Digest() string {
 		"remediated_at_nsec", itoa(int64(remNsec)),
 		"hold_ref", in.HoldRef,
 	)
+	if in.HIPAAApplicability != "" || in.HIPAAEntityRole != "" || in.HIPAAMatrixVersion != "" {
+		dst = appendFields(dst,
+			"hipaa_applicability", string(in.HIPAAApplicability),
+			"hipaa_entity_role", string(in.HIPAAEntityRole),
+			"hipaa_matrix_version", in.HIPAAMatrixVersion,
+		)
+	}
 	classes := slices.Clone(in.AffectedClasses)
 	slices.Sort(classes)
 	for _, c := range classes {
@@ -191,6 +213,22 @@ func (in BreachIncident) validate() error {
 		if !c.valid() {
 			return fmt.Errorf("%w: incident %q names undeclared data class %q", ErrBreachBlocked, in.ID, string(c))
 		}
+	}
+	if containsBreachClass(in.AffectedClasses, BreachHealthInfo) {
+		switch in.HIPAAApplicability {
+		case hipaa.ApplicabilityConfirmed, hipaa.ApplicabilityAssumed:
+			if !in.HIPAAEntityRole.Valid() || strings.TrimSpace(in.HIPAAMatrixVersion) == "" {
+				return fmt.Errorf("%w: applicable health-info incident must pin HIPAA role and clock-matrix version", ErrBreachBlocked)
+			}
+		case hipaa.ApplicabilityNotApplicable:
+			if in.HIPAAEntityRole != "" || in.HIPAAMatrixVersion != "" {
+				return fmt.Errorf("%w: non-applicable health-info incident carries HIPAA role or matrix version", ErrBreachBlocked)
+			}
+		default:
+			return fmt.Errorf("%w: health-info incident has unresolved HIPAA applicability", ErrBreachBlocked)
+		}
+	} else if in.HIPAAApplicability != "" || in.HIPAAEntityRole != "" || in.HIPAAMatrixVersion != "" {
+		return fmt.Errorf("%w: HIPAA breach scope is present without HEALTH_INFO data", ErrBreachBlocked)
 	}
 	if len(in.Populations) == 0 {
 		return fmt.Errorf("%w: incident %q records no affected population", ErrBreachBlocked, in.ID)
@@ -254,8 +292,9 @@ type MatrixRule struct {
 // refuses an incomplete table: every (duty, class) pair must have exactly
 // one rule, so no duty/class combination can pass undecided.
 type NotificationMatrix struct {
-	Version string       `json:"version"`
-	Rules   []MatrixRule `json:"rules"`
+	Version string                       `json:"version"`
+	Rules   []MatrixRule                 `json:"rules"`
+	HIPAA   *hipaa.BreachMatrixExtension `json:"hipaa,omitempty"`
 }
 
 func matrixKey(duty Duty, class BreachDataClass) string {
@@ -341,15 +380,19 @@ type DutyDecision struct {
 // NotificationDecision is the complete, digest-bound certificate for one
 // incident: consumer count plus one decision per duty.
 type NotificationDecision struct {
-	IncidentID     string          `json:"incident_id"`
-	IncidentDigest string          `json:"incident_digest"`
-	Tenant         values.TenantId `json:"tenant"`
-	MatrixVersion  string          `json:"matrix_version"`
-	ConsumerCount  int64           `json:"consumer_count"`
-	Decisions      []DutyDecision  `json:"decisions"`
-	HoldRef        string          `json:"hold_ref,omitempty"`
-	DecidedAt      values.Instant  `json:"decided_at"`
-	EvidenceID     string          `json:"evidence_id"`
+	IncidentID         string               `json:"incident_id"`
+	IncidentDigest     string               `json:"incident_digest"`
+	Tenant             values.TenantId      `json:"tenant"`
+	MatrixVersion      string               `json:"matrix_version"`
+	ConsumerCount      int64                `json:"consumer_count"`
+	Decisions          []DutyDecision       `json:"decisions"`
+	HoldRef            string               `json:"hold_ref,omitempty"`
+	DecidedAt          values.Instant       `json:"decided_at"`
+	EvidenceID         string               `json:"evidence_id"`
+	HIPAAApplicability hipaa.Applicability  `json:"hipaa_applicability,omitempty"`
+	HIPAAEntityRole    hipaa.EntityRole     `json:"hipaa_entity_role,omitempty"`
+	HIPAAMatrixVersion string               `json:"hipaa_matrix_version,omitempty"`
+	HIPAAClocks        []HIPAAClockDecision `json:"hipaa_clocks,omitempty"`
 }
 
 // Digest is the canonical content digest of this certificate.
@@ -365,6 +408,13 @@ func (d NotificationDecision) Digest() string {
 		"decided_at_sec", itoa(sec),
 		"decided_at_nsec", itoa(int64(nsec)),
 	)
+	if d.HIPAAMatrixVersion != "" || d.HIPAAApplicability != "" || d.HIPAAEntityRole != "" || len(d.HIPAAClocks) > 0 {
+		dst = appendFields(dst,
+			"hipaa_applicability", string(d.HIPAAApplicability),
+			"hipaa_entity_role", string(d.HIPAAEntityRole),
+			"hipaa_matrix_version", d.HIPAAMatrixVersion,
+		)
+	}
 	ordered := slices.Clone(d.Decisions)
 	slices.SortFunc(ordered, func(a, b DutyDecision) int {
 		if a.Duty != b.Duty {
@@ -383,6 +433,23 @@ func (d NotificationDecision) Digest() string {
 			"authority", dec.Authority,
 			"reason", dec.Reason,
 		)
+	}
+	if d.HIPAAMatrixVersion != "" || len(d.HIPAAClocks) > 0 {
+		clocks := slices.Clone(d.HIPAAClocks)
+		slices.SortFunc(clocks, compareHIPAAClockDecision)
+		for _, clock := range clocks {
+			dst = appendFields(dst,
+				"hipaa_recipient", string(clock.Recipient),
+				"hipaa_jurisdiction", clock.Jurisdiction,
+				"hipaa_decision", string(clock.Decision),
+				"hipaa_consumers", itoa(clock.Consumers),
+				"hipaa_threshold", itoa(clock.Threshold),
+				"hipaa_deadline_days", itoa(int64(clock.DeadlineDays)),
+				"hipaa_deadline_from", clock.DeadlineFrom,
+				"hipaa_authority", clock.Authority,
+				"hipaa_reason", clock.Reason,
+			)
+		}
 	}
 	return digestHex(dst)
 }
@@ -412,7 +479,7 @@ func (d NotificationDecision) Validate() error {
 	seenGlobal := make(map[Duty]struct{})
 	seenState := make(map[string]struct{})
 	for i, dec := range d.Decisions {
-		if !dec.Duty.valid() {
+		if !dec.Duty.valid() && dec.Duty != DutyHIPAA {
 			return fmt.Errorf("%w: decision %d names undeclared duty %q", ErrBreachBlocked, i, string(dec.Duty))
 		}
 		if dec.Decision != DecisionNotify && dec.Decision != DecisionNoNotify {
@@ -458,6 +525,19 @@ func (d NotificationDecision) Validate() error {
 			return fmt.Errorf("%w: duty %s was never decided", ErrBreachBlocked, duty)
 		}
 	}
+	if _, hasHIPAADuty := seenGlobal[DutyHIPAA]; hasHIPAADuty {
+		if err := validateHIPAAClockDecisions(d.HIPAAMatrixVersion, d.HIPAAClocks); err != nil {
+			return err
+		}
+		if d.HIPAAApplicability != hipaa.ApplicabilityConfirmed && d.HIPAAApplicability != hipaa.ApplicabilityAssumed {
+			return fmt.Errorf("%w: HIPAA duty has no applicable coverage decision", ErrBreachBlocked)
+		}
+		if !d.HIPAAEntityRole.Valid() {
+			return fmt.Errorf("%w: HIPAA duty has no entity role", ErrBreachBlocked)
+		}
+	} else if d.HIPAAMatrixVersion != "" || d.HIPAAEntityRole != "" || len(d.HIPAAClocks) > 0 || d.HIPAAApplicability != "" && d.HIPAAApplicability != hipaa.ApplicabilityNotApplicable {
+		return fmt.Errorf("%w: HIPAA certificate evidence has no HIPAA duty", ErrBreachBlocked)
+	}
 	if len(seenState) == 0 {
 		return fmt.Errorf("%w: state breach law was never decided for any jurisdiction", ErrBreachBlocked)
 	}
@@ -489,6 +569,11 @@ func DecideNotifications(incident BreachIncident, matrix NotificationMatrix, at 
 	if matrix.Version != incident.MatrixVersion {
 		return NotificationDecision{}, fmt.Errorf("%w: incident records matrix %q but was evaluated against %q", ErrBreachBlocked, incident.MatrixVersion, matrix.Version)
 	}
+	if matrix.HIPAA != nil {
+		if err := matrix.HIPAA.Validate(); err != nil || matrix.HIPAA.PRIV009MatrixVersion != matrix.Version {
+			return NotificationDecision{}, fmt.Errorf("%w: attached HIPAA clock matrix is invalid or detached", ErrBreachBlocked)
+		}
+	}
 	if !at.IsSet() {
 		return NotificationDecision{}, fmt.Errorf("%w: no decision instant", ErrBreachBlocked)
 	}
@@ -507,6 +592,26 @@ func DecideNotifications(incident BreachIncident, matrix NotificationMatrix, at 
 	for _, p := range pops {
 		decisions = append(decisions, decideStateDuty(incident.AffectedClasses, p, matrix))
 	}
+	var hipaaClocks []HIPAAClockDecision
+	var hipaaMatrixVersion string
+	if containsBreachClass(incident.AffectedClasses, BreachHealthInfo) && incident.HIPAAApplicability != hipaa.ApplicabilityNotApplicable {
+		if matrix.HIPAA == nil {
+			return NotificationDecision{}, fmt.Errorf("%w: applicable HEALTH_INFO incident has no HIPAA clock extension", ErrBreachBlocked)
+		}
+		if incident.HIPAAMatrixVersion != matrix.HIPAA.Version {
+			return NotificationDecision{}, fmt.Errorf("%w: incident HIPAA matrix %q does not match attached %q", ErrBreachBlocked, incident.HIPAAMatrixVersion, matrix.HIPAA.Version)
+		}
+		if incident.HIPAAApplicability != hipaa.ApplicabilityConfirmed && incident.HIPAAApplicability != hipaa.ApplicabilityAssumed {
+			return NotificationDecision{}, fmt.Errorf("%w: HIPAA coverage is unresolved", ErrBreachBlocked)
+		}
+		hipaaMatrixVersion = matrix.HIPAA.Version
+		hipaaClocks = decideHIPAAClocks(incident, *matrix.HIPAA)
+		decisions = append(decisions, DutyDecision{
+			Duty: DutyHIPAA, Decision: DecisionNotify, Consumers: incident.consumerCount(), Threshold: 1,
+			DeadlineHours: 60 * 24, Authority: "45 CFR 164.404(b)",
+			Reason: "HIPAA individual notice is required; recipient clocks are recorded in the HIPAA matrix extension",
+		})
+	}
 	slices.SortFunc(decisions, func(a, b DutyDecision) int {
 		if decisionLess(a, b) {
 			return -1
@@ -522,6 +627,8 @@ func DecideNotifications(incident BreachIncident, matrix NotificationMatrix, at 
 		Tenant: incident.Tenant, MatrixVersion: matrix.Version,
 		ConsumerCount: incident.consumerCount(), Decisions: decisions,
 		HoldRef: incident.HoldRef, DecidedAt: at,
+		HIPAAApplicability: incident.HIPAAApplicability, HIPAAEntityRole: incident.HIPAAEntityRole,
+		HIPAAMatrixVersion: hipaaMatrixVersion, HIPAAClocks: hipaaClocks,
 	}
 	decision.EvidenceID = breachEvidencePrefix + decision.Digest()
 	if err := decision.Validate(); err != nil {

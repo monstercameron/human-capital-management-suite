@@ -76,6 +76,14 @@ func TestTestcontainersQualification(t *testing.T) {
 	if q.RuntimeProbe.ModuleInGoMod != "absent" || q.RuntimeProbe.ModuleInGoSum != "absent" || q.RuntimeProbe.DockerDaemon != "unavailable_at_recording" {
 		t.Fatalf("runtime probe = %#v", q.RuntimeProbe)
 	}
+	if q.ExecutionEvidence.Status != "not_executed" || q.ExecutionEvidence.Integration != "release_dependency_graph_only" {
+		t.Fatalf("execution evidence overstates integration: %#v", q.ExecutionEvidence)
+	}
+	for _, workload := range []string{"postgres", "s3", "smtp", "provider"} {
+		if q.ExecutionEvidence.Workloads[workload] != "not_executed" {
+			t.Errorf("%s execution evidence = %q, want not_executed", workload, q.ExecutionEvidence.Workloads[workload])
+		}
+	}
 	if err := testcontainerskit.ValidateAdoptionPlan(acceptedPlan()); err != nil {
 		t.Fatalf("future ADOPT gate rejects its valid baseline: %v", err)
 	}
@@ -105,6 +113,10 @@ func TestTodo_LIB_009_QualificationContract(t *testing.T) {
 		{"missing workload", func(q *testcontainerskit.Qualification) { q.AdoptionRequirements.Workloads = nil }},
 		{"missing evidence", func(q *testcontainerskit.Qualification) { q.Evidence = q.Evidence[:5] }},
 		{"changed command", func(q *testcontainerskit.Qualification) { q.Command = "go test ./..." }},
+		{"claimed workload execution", func(q *testcontainerskit.Qualification) { q.ExecutionEvidence.Workloads["postgres"] = "passed" }},
+		{"mislabelled integration", func(q *testcontainerskit.Qualification) {
+			q.ExecutionEvidence.Integration = "testcontainers_cross_system"
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -265,7 +277,13 @@ func TestTodo_LIB_009_Conformance(t *testing.T) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if entry.IsDir() || !strings.HasSuffix(path, ".go") {
+		if entry.IsDir() {
+			if path != root && (entry.Name() == ".artifacts" || entry.Name() == ".git" || entry.Name() == "node_modules") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
 			return nil
 		}
 		parsed, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)

@@ -67,3 +67,15 @@ func TestMigrationCIFencesContractOnBackfillOrShadowFailure(t *testing.T) {
 		t.Fatalf("abort result=%+v err=%v, want contract fenced", result, err)
 	}
 }
+
+func TestMigrationCIRejectsUnreviewedCompatibility(t *testing.T) {
+	input := passingInput()
+	input.Manifest.Entries[0].Compatibility = "UNREVIEWED"
+	result, err := Rehearse(input)
+	if !errors.Is(err, ErrRehearsalFailed) || result.Status != "REJECTED" {
+		t.Fatalf("unreviewed compatibility result=%+v err=%v, want rejection", result, err)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].Code != "COMPATIBILITY_UNREVIEWED" {
+		t.Fatalf("unreviewed compatibility findings=%+v, want COMPATIBILITY_UNREVIEWED", result.Findings)
+	}
+}

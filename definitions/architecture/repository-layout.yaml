@@ -205,16 +205,6 @@ internal_package_roots:
     layer: domains
     phase: P1A
     description: Declared on 2026-09-06 when the repository-layout policy joined the pre-commit gates; the package existed and was in use before its root was written down here.
-  - name: documentextract
-    owner: shared-engines
-    layer: engines
-    phase: P1A
-    description: Declared on 2026-09-06 when the repository-layout policy joined the pre-commit gates; the package existed and was in use before its root was written down here.
-  - name: documentredact
-    owner: governance-and-trust
-    layer: trust
-    phase: P1A
-    description: Declared on 2026-09-06 when the repository-layout policy joined the pre-commit gates; the package existed and was in use before its root was written down here.
   - name: documents
     owner: data-and-ledger
     layer: data
@@ -224,7 +214,7 @@ internal_package_roots:
     owner: governance-and-trust
     layer: trust
     phase: P1A
-    description: Declared on 2026-09-06 when the repository-layout policy joined the pre-commit gates; the package existed and was in use before its root was written down here.
+    description: Security validation for quarantined document content and malware inspection.
   - name: effectgraph
     owner: platform-foundation
     layer: platform
@@ -265,6 +255,11 @@ internal_package_roots:
     layer: platform
     phase: P1A
     description: Declared on 2026-09-06 when the repository-layout policy joined the pre-commit gates; the package existed and was in use before its root was written down here.
+  - name: privacy
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Subject-key payload vault for authenticated sealing, recovery and cryptographic erasure of personal data.
   - name: replan
     owner: platform-foundation
     layer: platform

@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:db57ff2c-fd46-5326-8afa-8dcffde82ef8",
+  "serialNumber": "urn:uuid:562a4a20-0f0e-5e27-abfa-480620a3d114",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-06T03:30:36Z",
+    "timestamp": "2026-09-23T13:15:06Z",
     "tools": [
       {
         "vendor": "github.com/monstercameron/human-capital-management-suite",
@@ -18,7 +18,7 @@
       "name": "github.com/monstercameron/human-capital-management-suite",
       "version": "0.0.0-devel",
       "purl": "pkg:golang/github.com/monstercameron/human-capital-management-suite@0.0.0-devel",
-      "license": "UNKNOWN"
+      "license": "MIT"
     }
   },
   "components": [
@@ -653,6 +653,21 @@
       "license": "BSD-3-Clause"
     },
     {
+      "bom-ref": "pkg:golang/golang.org/x/image@v0.35.0",
+      "type": "library",
+      "name": "golang.org/x/image",
+      "version": "v0.35.0",
+      "purl": "pkg:golang/golang.org/x/image@v0.35.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2ca8e21dd80cb4ef33ec5875f27198e8a0dca04b557ec80b0cf78bca0baa6fb2"
+        }
+      ],
+      "license": "BSD-3-Clause"
+    },
+    {
       "bom-ref": "pkg:golang/golang.org/x/mod@v0.38.0",
       "type": "library",
       "name": "golang.org/x/mod",
@@ -997,6 +1012,7 @@
         "pkg:golang/go.opentelemetry.io/proto/otlp@v1.11.0",
         "pkg:golang/go.uber.org/multierr@v1.11.0",
         "pkg:golang/golang.org/x/exp/typeparams@v0.0.0-20231108232855-2478ac86f678",
+        "pkg:golang/golang.org/x/image@v0.35.0",
         "pkg:golang/golang.org/x/mod@v0.38.0",
         "pkg:golang/golang.org/x/net@v0.58.0",
         "pkg:golang/golang.org/x/sync@v0.22.0",
@@ -1224,6 +1240,9 @@
     },
     {
       "ref": "pkg:golang/golang.org/x/exp/typeparams@v0.0.0-20231108232855-2478ac86f678"
+    },
+    {
+      "ref": "pkg:golang/golang.org/x/image@v0.35.0"
     },
     {
       "ref": "pkg:golang/golang.org/x/mod@v0.38.0"

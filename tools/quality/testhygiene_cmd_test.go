@@ -57,3 +57,16 @@ func TestTesthygieneCommandRejectsBadUsage(t *testing.T) {
 		t.Fatalf("unknown option exit=%d stderr=%s, want 2 with unknown option", code, errOut.String())
 	}
 }
+
+func TestTesthygieneWiredIntoRequiredGates(t *testing.T) {
+	const command = "go run ./tools/quality testhygiene -root ."
+	for _, path := range []string{"../../.husky/pre-commit", "../../.github/workflows/tests.yml"} {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("reading %s: %v", path, err)
+		}
+		if !strings.Contains(string(content), command) {
+			t.Errorf("%s does not invoke %q", path, command)
+		}
+	}
+}

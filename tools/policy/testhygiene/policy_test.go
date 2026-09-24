@@ -108,12 +108,26 @@ func TestTodo_GOV_020_Race(t *testing.T) {
 import "testing"
 func TestSkip(t *testing.T) { t.Skip("fixture") }
 `)
-	report, err := Scan(root, "example.com/mod")
-	if err != nil || len(report.Skips) != 1 {
-		t.Fatalf("Scan = report=%+v err=%v, want one skip", report, err)
+	type result struct {
+		report Report
+		err    error
 	}
-	if report.Skips[0].Package != "example.com/mod/tools/sample" {
-		t.Fatalf("skip package = %q", report.Skips[0].Package)
+	const workers = 8
+	results := make(chan result, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			report, err := Scan(root, "example.com/mod")
+			results <- result{report: report, err: err}
+		}()
+	}
+	for i := 0; i < workers; i++ {
+		got := <-results
+		if got.err != nil || len(got.report.Skips) != 1 {
+			t.Fatalf("concurrent Scan = report=%+v err=%v, want one skip", got.report, got.err)
+		}
+		if got.report.Skips[0].Package != "example.com/mod/tools/sample" {
+			t.Fatalf("concurrent skip package = %q", got.report.Skips[0].Package)
+		}
 	}
 }
 

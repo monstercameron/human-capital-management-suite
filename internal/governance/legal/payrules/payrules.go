@@ -7,6 +7,7 @@ package payrules
 import (
 	"bytes"
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -996,6 +997,15 @@ func LoadPayFrequencyParametersFile(path string) (PayFrequencyParameterSet, erro
 		return PayFrequencyParameterSet{}, err
 	}
 	return LoadPayFrequencyParameters(b)
+}
+
+//go:embed testdata/pay-statements.yaml
+var defaultPayStatementRegistry []byte
+
+// DefaultPayStatementRegistry loads the repository's resolved pay-statement
+// field and delivery rules for release-time validation.
+func DefaultPayStatementRegistry() (PayStatementRegistry, error) {
+	return LoadPayStatementRegistry(defaultPayStatementRegistry)
 }
 
 func LoadPayStatementRegistry(data []byte) (PayStatementRegistry, error) {

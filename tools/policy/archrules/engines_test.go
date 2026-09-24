@@ -106,3 +106,28 @@ func TestTodo_ARCH_GO_008_Property(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_ARCH_GO_008_Golden(t *testing.T) {
+	root := loadArchConfig(t).Engines.Root
+	if root != "internal/engines" {
+		t.Fatalf("engines.root = %q, want internal/engines", root)
+	}
+	// Public sibling contracts are allowed, implementation subpackages are not.
+	if archrules.CheckEngineCrossImport(root, root+"/rules", root+"/payband") != nil {
+		t.Fatal("sibling root contract was rejected")
+	}
+	if archrules.CheckEngineCrossImport(root, root+"/rules", root+"/payband/tables") == nil {
+		t.Fatal("sibling implementation subpackage was accepted")
+	}
+}
+
+func TestTodo_ARCH_GO_008_Conformance(t *testing.T) {
+	root := loadArchConfig(t).Engines.Root
+	for _, a := range []string{"alpha", "nested/beta", "gamma"} {
+		for _, b := range []string{"delta", "epsilon"} {
+			if v := archrules.CheckEngineCrossImport(root, root+"/"+a, root+"/"+b+"/private/impl"); v == nil {
+				t.Errorf("cross-engine private import %s -> %s was accepted", a, b)
+			}
+		}
+	}
+}

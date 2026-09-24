@@ -1,3 +1,3 @@
 alias_test.go:5: TestAliasForwardsToRealTest: alias-test: test body only calls another test (TestRealThing)
 golden_test.go:11: TestTodo_SAMPLE_002_Golden: golden-skip: golden test must fail on a missing file, not skip (t.Skipf)
-race_test.go:5: TestTodo_SAMPLE_001_Race: race-without-concurrency: Race test starts no goroutine and uses no concurrency helper (go statement, t.Parallel, sync/atomic/errgroup/WaitGroup)
+race_test.go:5: TestTodo_SAMPLE_001_Race: race-without-concurrency: Race test starts no goroutine and uses no concurrent runner (go statement, t.Parallel, errgroup.Group.Go)

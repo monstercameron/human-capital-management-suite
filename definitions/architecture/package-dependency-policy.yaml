@@ -40,7 +40,6 @@ layers:
     roots:
       - internal/engines
       - internal/conformance
-      - internal/documentextract
   - name: domains
     rank: 2
     roots:
@@ -154,6 +153,11 @@ rules:
       lower-or-equal rank, never a higher one. This is the general form
       of the direction the named rules pin for their exact cases; it runs
       after them so their citations stay stable where both match.
+  - name: product-must-not-import-tools
+    description: >-
+      Packages under internal/ and cmd/ are part of release binaries and may
+      not import developer packages under tools/; shared product code belongs
+      under internal/ and tools may depend on that code in the other direction.
 
 # Reviewed, narrow exceptions. Each entry names the exact importer/imported
 # pair (module-relative import paths) it waives, plus owner/rationale/expiry

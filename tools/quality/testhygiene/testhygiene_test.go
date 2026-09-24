@@ -42,6 +42,30 @@ func TestAlias(t *testing.T) {
 			want: []string{RuleAliasTest},
 		},
 		{
+			name: "deferred selector test forwarding is rejected",
+			src: `package p
+import "testing"
+func TestAlias(t *testing.T) { defer suite.TestTarget(t) }
+`,
+			want: []string{RuleAliasTest},
+		},
+		{
+			name: "conditional test forwarding is rejected",
+			src: `package p
+import "testing"
+func TestAlias(t *testing.T) { if testing.Short() { TestTarget(t) } else { (TestOther)(t) } }
+`,
+			want: []string{RuleAliasTest},
+		},
+		{
+			name: "conditional test forwarding without else is rejected",
+			src: `package p
+import "testing"
+func TestAlias(t *testing.T) { if testing.Short() { TestTarget(t) } }
+`,
+			want: []string{RuleAliasTest},
+		},
+		{
 			name: "real test with assertions is accepted",
 			src: `package p
 import "testing"
@@ -80,6 +104,75 @@ func TestTodo_SVC_006_Race(t *testing.T) {
 		}
 	}
 }
+`,
+			want: []string{RuleRaceWithoutConcurrency},
+		},
+		{
+			name: "race mutex alone is rejected",
+			src: `package p
+import (
+	"sync"
+	"testing"
+)
+func TestTodo_SVC_006_Race(t *testing.T) {
+	var mu sync.Mutex
+	mu.Lock()
+	mu.Unlock()
+}
+`,
+			want: []string{RuleRaceWithoutConcurrency},
+		},
+		{
+			name: "race atomic alone is rejected",
+			src: `package p
+import (
+	"sync/atomic"
+	"testing"
+)
+func TestTodo_SVC_006_Race(t *testing.T) {
+	var n atomic.Int64
+	n.Add(1)
+}
+`,
+			want: []string{RuleRaceWithoutConcurrency},
+		},
+		{
+			name: "race unused errgroup is rejected",
+			src: `package p
+import (
+	"testing"
+	"golang.org/x/sync/errgroup"
+)
+func TestTodo_SVC_006_Race(t *testing.T) {
+	var g errgroup.Group
+	_ = g
+}
+`,
+			want: []string{RuleRaceWithoutConcurrency},
+		},
+		{
+			name: "dead function literal with go is rejected",
+			src: `package p
+import "testing"
+func TestTodo_SVC_006_Race(t *testing.T) { unused := func() { go work() }; _ = unused }
+`,
+			want: []string{RuleRaceWithoutConcurrency},
+		},
+		{
+			name: "go in constant false branch is rejected",
+			src: `package p
+import "testing"
+func TestTodo_SVC_006_Race(t *testing.T) { if false { go work() } }
+`,
+			want: []string{RuleRaceWithoutConcurrency},
+		},
+		{
+			name: "arbitrary Go method is rejected",
+			src: `package p
+import "testing"
+type runner struct{}
+func (runner) Go(func()) {}
+func TestTodo_SVC_006_Race(t *testing.T) { runner{}.Go(func(){}) }
 `,
 			want: []string{RuleRaceWithoutConcurrency},
 		},
@@ -138,14 +231,23 @@ func TestTodo_X_Race(t *testing.T) {
 			name: "race with atomic is accepted",
 			src: `package p
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
 )
 func TestTodo_X_Race(t *testing.T) {
 	var n atomic.Int64
-	n.Add(1)
-	if n.Load() != 1 {
-		t.Fatal("atomic broke")
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n.Add(1)
+		}()
+	}
+	wg.Wait()
+	if n.Load() != 2 {
+		t.Fatalf("atomic count = %d, want 2", n.Load())
 	}
 }
 `,
@@ -200,6 +302,14 @@ func TestTodo_X_Golden(t *testing.T) {
 			want: []string{RuleGoldenSkip},
 		},
 		{
+			name: "dot-imported golden skip is rejected",
+			src: `package p
+import . "testing"
+func TestTodo_X_Golden(t *T) { Skip("missing oracle") }
+`,
+			want: []string{RuleGoldenSkip},
+		},
+		{
 			name: "golden skip inside subtest closure is rejected",
 			src: `package p
 import "testing"
@@ -210,6 +320,24 @@ func TestTodo_X_Golden(t *testing.T) {
 }
 `,
 			want: []string{RuleGoldenSkip},
+		},
+		{
+			name: "golden skip through helper is rejected",
+			src: `package p
+import "testing"
+func skipMissing(t *testing.T) { t.Skip("missing") }
+func TestTodo_X_Golden(t *testing.T) { skipMissing(t) }
+`,
+			want: []string{RuleGoldenSkip},
+		},
+		{
+			name: "uninvoked skip helper is accepted",
+			src: `package p
+import "testing"
+func skipMissing(t *testing.T) { t.Skip("missing") }
+func TestTodo_X_Golden(t *testing.T) { t.Fatal("missing") }
+`,
+			want: nil,
 		},
 		{
 			name: "golden test that fails is accepted",

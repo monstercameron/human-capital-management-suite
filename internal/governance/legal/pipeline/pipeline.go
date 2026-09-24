@@ -16,6 +16,11 @@ var (
 	ErrAuthorReviewerSame = errors.New("legal pipeline: author and reviewer must be different people")
 	ErrCounselUncertain   = errors.New("legal pipeline: counsel cannot approve VERIFY or DISPUTED rules")
 	ErrReviewFloor        = errors.New("legal pipeline: REVIEW_STATUS_INSUFFICIENT")
+	ErrReviewStatus       = errors.New("legal pipeline: review status cannot be promoted")
+	ErrBlockingFinding    = errors.New("legal pipeline: blocking finding prevents promotion")
+	ErrFindingObligation  = errors.New("legal pipeline: finding references an unknown obligation")
+	ErrFindingMissing     = errors.New("legal pipeline: review finding is required for every obligation")
+	ErrFindingEvidence    = errors.New("legal pipeline: review finding requires a substantive note")
 	ErrPublisherReviewer  = errors.New("legal pipeline: publisher must be different from reviewer")
 	ErrNotPublishable     = errors.New("legal pipeline: candidate is not publishable")
 )
@@ -61,7 +66,10 @@ func Review(d Draft, reviewerID string, status legal.ReviewStatus) (Reviewed, er
 	if d.AuthorID == reviewerID {
 		return Reviewed{}, ErrAuthorReviewerSame
 	}
-	if status == legal.ReviewStatusCounselApproved {
+	if status != legal.ReviewStatusVendorBaseline && status != legal.ReviewStatusCounselApproved && status != legal.ReviewStatusCustomerDefined {
+		return Reviewed{}, fmt.Errorf("%w: %s", ErrReviewStatus, status)
+	}
+	if status == legal.ReviewStatusCounselApproved || status == legal.ReviewStatusCustomerDefined {
 		for _, o := range d.Definition.Obligations {
 			marker := strings.ToUpper(strings.TrimSpace(o.Citation.ConfidenceMarker))
 			if marker == "VERIFY" || marker == "DISPUTED" || marker == "" {
@@ -79,7 +87,8 @@ func Review(d Draft, reviewerID string, status legal.ReviewStatus) (Reviewed, er
 
 // signAndVerify is the signing half of publication, shared by [Publish] and
 // [PublishSupersession]: sign the reviewed candidate as publisher, add the
-// customer-counsel signature when the release claims COUNSEL_APPROVED, and
+// customer-counsel signature when the release claims COUNSEL_APPROVED or
+// CUSTOMER_DEFINED, and
 // verify the fully-signed result before either caller registers it. It never
 // touches a [legal.Registry]: the two callers differ only in which registry
 // call closes the loop (a fresh registration versus a supersession that also
@@ -95,8 +104,8 @@ func signAndVerify(r Reviewed, publisherID string, publisher *legal.Signer, coun
 	if err != nil {
 		return legal.PackRelease{}, err
 	}
-	if release.ReviewStatus == legal.ReviewStatusCounselApproved {
-		if counselID == "" || counsel == nil || counselID == r.AuthorID || counselID == r.ReviewerID || counselID == publisherID {
+	if requiresCounselSignature(release.ReviewStatus) {
+		if counselID == "" || counsel == nil || counselID != r.ReviewerID || counselID == r.AuthorID || counselID == publisherID {
 			return legal.PackRelease{}, ErrNotPublishable
 		}
 		release, err = legal.AddSignature(release, legal.SigningRoleCustomerCounsel, counsel)
@@ -110,10 +119,14 @@ func signAndVerify(r Reviewed, publisherID string, publisher *legal.Signer, coun
 	return release, nil
 }
 
+func requiresCounselSignature(status legal.ReviewStatus) bool {
+	return status == legal.ReviewStatusCounselApproved || status == legal.ReviewStatusCustomerDefined
+}
+
 // Publish signs and registers a reviewed candidate. Vendor baseline requires
-// the publisher signature; counsel-approved releases additionally require the
-// customer-counsel signature. The returned release is immutable by value and
-// is verified before registration.
+// the publisher signature; counsel-approved and customer-defined releases
+// also require the reviewer's customer-counsel signature. The returned
+// release is immutable by value and is verified before registration.
 func Publish(r Reviewed, publisherID string, publisher *legal.Signer, counselID string, counsel *legal.Signer, registry *legal.Registry) (legal.PackRelease, error) {
 	if registry == nil {
 		return legal.PackRelease{}, ErrNotPublishable

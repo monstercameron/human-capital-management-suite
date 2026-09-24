@@ -1,10 +1,76 @@
-internal/data/conflictstore/store.go :: per-footprint insert with conflict-verify follow-up; convertible with the meritstore pattern, deferred to follow-up
-internal/data/contactstore/store.go :: per-event insert; convertible with the meritstore pattern, deferred to follow-up
-internal/data/dbport/batch.go :: ExecAll sequential fallback for drivers without batch support; the batch primitive cannot batch itself
-internal/data/jobarchstore/store.go :: per-revision inserts in import helpers; convertible with the meritstore pattern, deferred to follow-up
-internal/data/meritstore/store.go :: per-recommendation insert in Save; convertible with the emission pattern, deferred to follow-up
-internal/data/promotionladder/ladder.go :: Seed path for ladder edges, bulk import and bootstrap
-internal/data/roleaccessstore/store.go :: tenant Bootstrap path, runs once per tenant
-internal/data/seed/seed.go :: bootstrap seed path, not a request path
-internal/data/signals/expire.go :: background expiry sweep over due subscriptions
-internal/data/workeridstore/store.go :: ID reservation retry loop; each attempt depends on the previous attempt conflict outcome, statements cannot be queued up front
+internal/data/aggregates/store.go:199:Exec :: Each UPDATE is built for the table selected by the resolved aggregate kind and is guarded by its own lifecycle transition.
+internal/data/budgetstore/store.go:413:Exec :: Reservation expiry is a locked state transition: the fence update determines the sequence read and event inserted for that same reservation.
+internal/data/budgetstore/store.go:421:QueryRow :: Reservation expiry is a locked state transition: the fence update determines the sequence read and event inserted for that same reservation.
+internal/data/budgetstore/store.go:424:Exec :: Reservation expiry is a locked state transition: the fence update determines the sequence read and event inserted for that same reservation.
+internal/data/chatrecordstore/store.go:406:Exec :: Restore executes a different bulk JSON recordset statement and sequence repair per whitelisted table; identifiers and catalog sequence names vary by table.
+internal/data/chatrecordstore/store.go:415:Exec :: Restore executes a different bulk JSON recordset statement and sequence repair per whitelisted table; identifiers and catalog sequence names vary by table.
+internal/data/chatstore/channel_widgets.go:118:QueryRow :: Each widget kind has independent revision and payload semantics used immediately to decide its write.
+internal/data/chatstore/contracts_adapter.go:96:Exec :: Membership writes are validated and authorized one principal at a time; failures are returned against the principal currently being added.
+internal/data/chatstore/seed_support.go:74:Exec :: Purge statements target different whitelisted tables and columns and use a table-specific strategy selected per spec.
+internal/data/conflictstore/store.go:105:Exec :: Per-footprint conflict checks and writes are interleaved so each retry verifies the digest observed for that footprint before proceeding.
+internal/data/conflictstore/store.go:114:QueryRow :: Per-footprint conflict checks and writes are interleaved so each retry verifies the digest observed for that footprint before proceeding.
+internal/data/conflictstore/store.go:275:Exec :: Per-footprint conflict checks and writes are interleaved so each retry verifies the digest observed for that footprint before proceeding.
+internal/data/conflictstore/store.go:284:QueryRow :: Per-footprint conflict checks and writes are interleaved so each retry verifies the digest observed for that footprint before proceeding.
+internal/data/conflictstore/store.go:293:QueryRow :: Per-footprint conflict checks and writes are interleaved so each retry verifies the digest observed for that footprint before proceeding.
+internal/data/conflictstore/store.go:301:Exec :: Per-footprint conflict checks and writes are interleaved so each retry verifies the digest observed for that footprint before proceeding.
+internal/data/contactstore/store.go:369:Exec :: Events are validated and assigned durable sequence context in the containing iteration; commit remains atomic in the caller transaction.
+internal/data/dbport/batch.go:50:Exec :: ExecAll's sequential fallback and error-index accounting are the primitive itself; routing fallback calls back through ExecAll would recurse.
+internal/data/dbport/batch.go:65:Exec :: ExecAll's sequential fallback and error-index accounting are the primitive itself; routing fallback calls back through ExecAll would recurse.
+internal/data/demoworkforce/role_assignments.go:195:Exec :: Role assignments are seeded per worker-role pair with pair-specific conflict handling; the enclosing tenant import is transactional.
+internal/data/documenthubstore/backlinks.go:133:Exec :: Link transitions and outbox events are paired per link, and block membership checks determine whether each version participates in the result.
+internal/data/documenthubstore/backlinks.go:147:Exec :: Link transitions and outbox events are paired per link, and block membership checks determine whether each version participates in the result.
+internal/data/documenthubstore/backlinks.go:231:QueryRow :: Link transitions and outbox events are paired per link, and block membership checks determine whether each version participates in the result.
+internal/data/documenthubstore/backlinks.go:237:QueryRow :: Link transitions and outbox events are paired per link, and block membership checks determine whether each version participates in the result.
+internal/data/documenthubstore/backup.go:211:Exec :: Snapshot restoration writes five distinct entity types with different schemas and payloads in dependency order inside one restore transaction.
+internal/data/documenthubstore/backup.go:219:Exec :: Snapshot restoration writes five distinct entity types with different schemas and payloads in dependency order inside one restore transaction.
+internal/data/documenthubstore/backup.go:226:Exec :: Snapshot restoration writes five distinct entity types with different schemas and payloads in dependency order inside one restore transaction.
+internal/data/documenthubstore/backup.go:233:Exec :: Snapshot restoration writes five distinct entity types with different schemas and payloads in dependency order inside one restore transaction.
+internal/data/documenthubstore/backup.go:240:Exec :: Snapshot restoration writes five distinct entity types with different schemas and payloads in dependency order inside one restore transaction.
+internal/data/documenthubstore/blocks.go:88:Exec :: Blocks are inserted in source order because ordinal and block identity define the version's canonical document structure.
+internal/data/documenthubstore/comments.go:81:Exec :: Mention rows are emitted for one comment after its canonical comment row is persisted; errors abort the enclosing transaction.
+internal/data/documenthubstore/embeddings.go:193:Exec :: Vector rows are derived and validated per encoded section immediately before insertion, and preserve section error context.
+internal/data/documenthubstore/linkcheck.go:109:QueryRow :: Each link target and optional pinned version is checked independently to produce a finding attached to that link.
+internal/data/documenthubstore/linkcheck.go:116:QueryRow :: Each link target and optional pinned version is checked independently to produce a finding attached to that link.
+internal/data/documenthubstore/links.go:106:Exec :: Links are inserted in caller order so a failure is associated with the first invalid link and aborts the transaction.
+internal/data/documenthubstore/reconcile.go:192:Exec :: Each selected model or cleanup statement has its own SQL shape and affected-row count, which is accumulated into the reconciliation result.
+internal/data/documenthubstore/reconcile.go:99:Exec :: Each selected model or cleanup statement has its own SQL shape and affected-row count, which is accumulated into the reconciliation result.
+internal/data/documenthubstore/records.go:151:QueryRow :: Record-series tables have distinct count SQL and are processed in declared dependency order before deletion.
+internal/data/documenthubstore/records.go:234:Exec :: Record-series tables have distinct count SQL and are processed in declared dependency order before deletion.
+internal/data/documenthubstore/search.go:74:Exec :: Search terms are emitted from an ordered, canonical count map so deterministic row order is retained during rebuild.
+internal/data/documenthubstore/sharing.go:28:Exec :: Owner grants are created in the policy's declared action order during bootstrap; each action is a separate grant transition.
+internal/data/health/probe.go:287:QueryRow :: The latest applied ledger position is checked per stream and each result is used immediately to compute that stream's health state.
+internal/data/intentcontrol/proposal.go:706:QueryRow :: An ancestry walk must read each current parent before selecting the next ID; the next query key depends on the preceding row.
+internal/data/jobarchstore/store.go:274:Exec :: Archive import persists distinct revision record shapes in dependency order and validates each inserted revision before the next stage.
+internal/data/jobarchstore/store.go:300:Exec :: Archive import persists distinct revision record shapes in dependency order and validates each inserted revision before the next stage.
+internal/data/jobarchstore/store.go:326:Exec :: Archive import persists distinct revision record shapes in dependency order and validates each inserted revision before the next stage.
+internal/data/jobarchstore/store.go:352:Exec :: Archive import persists distinct revision record shapes in dependency order and validates each inserted revision before the next stage.
+internal/data/meritstore/store.go:144:Exec :: Recommendation serialization can fail per item and Save preserves participant-specific error context within its revision transaction.
+internal/data/outbox/adapter_pg.go:122:QueryRow :: Broker bootstrap contains different DDL statements, and offset allocation is a bounded retry loop whose next attempt depends on the prior uniqueness outcome.
+internal/data/outbox/adapter_pg.go:93:Exec :: Broker bootstrap contains different DDL statements, and offset allocation is a bounded retry loop whose next attempt depends on the prior uniqueness outcome.
+internal/data/partition/kit.go:127:Exec :: Partition setup issues generated policy and trigger DDL per relation, while RLS verification reads relation-specific catalog state.
+internal/data/partition/kit.go:172:Exec :: Partition setup issues generated policy and trigger DDL per relation, while RLS verification reads relation-specific catalog state.
+internal/data/partition/kit.go:399:QueryRow :: Partition setup issues generated policy and trigger DDL per relation, while RLS verification reads relation-specific catalog state.
+internal/data/promotioncommit/writer.go:68:Exec :: Schema references are validated and written in declared compatibility order as part of one promotion transaction.
+internal/data/promotionladder/ladder.go:121:Exec :: Ladder seeding inserts edges in topological order; each edge depends on the already established predecessor chain.
+internal/data/recordsmeta/copies.go:160:QueryRow :: Hold intersections are checked or inserted and copy state/events are updated per link according to that link's conflict result.
+internal/data/recordsmeta/copies.go:175:Exec :: Hold intersections are checked or inserted and copy state/events are updated per link according to that link's conflict result.
+internal/data/recordsmeta/copies.go:179:Exec :: Hold intersections are checked or inserted and copy state/events are updated per link according to that link's conflict result.
+internal/data/recordsmeta/release.go:145:Exec :: Release locks and rechecks each copy's active intersections before choosing its state and optional event; these decisions depend on current transactional rows.
+internal/data/recordsmeta/release.go:149:QueryRow :: Release locks and rechecks each copy's active intersections before choosing its state and optional event; these decisions depend on current transactional rows.
+internal/data/recordsmeta/release.go:152:QueryRow :: Release locks and rechecks each copy's active intersections before choosing its state and optional event; these decisions depend on current transactional rows.
+internal/data/recordsmeta/release.go:172:Exec :: Release locks and rechecks each copy's active intersections before choosing its state and optional event; these decisions depend on current transactional rows.
+internal/data/roleaccessstore/store.go:316:QueryRow :: Bootstrap writes and verifies tenant role-policy rows in dependency order, with each conflict result determining the following operation.
+internal/data/roleaccessstore/store.go:343:Exec :: Bootstrap writes and verifies tenant role-policy rows in dependency order, with each conflict result determining the following operation.
+internal/data/roleaccessstore/store.go:35:Exec :: Bootstrap writes and verifies tenant role-policy rows in dependency order, with each conflict result determining the following operation.
+internal/data/roleaccessstore/store.go:41:Exec :: Bootstrap writes and verifies tenant role-policy rows in dependency order, with each conflict result determining the following operation.
+internal/data/roleaccessstore/store.go:47:Exec :: Bootstrap writes and verifies tenant role-policy rows in dependency order, with each conflict result determining the following operation.
+internal/data/roleaccessstore/store.go:65:Exec :: Bootstrap writes and verifies tenant role-policy rows in dependency order, with each conflict result determining the following operation.
+internal/data/seed/seed.go:303:Exec :: Seed statements have different schemas and state-dependent checks and run only inside the atomic bootstrap transaction.
+internal/data/seed/seed.go:332:QueryRow :: Seed statements have different schemas and state-dependent checks and run only inside the atomic bootstrap transaction.
+internal/data/signals/expire.go:125:Exec :: Expiry candidates are selected and transitioned under row locks; each state update's outcome is counted before processing the next candidate.
+internal/data/tenancy/planeverification.go:274:QueryRow :: The verifier checks independently named system tables and reports the first missing table by name.
+internal/data/truststore/accessreview.go:183:QueryRow :: Grant timestamps are read per review entry and used immediately to derive each entry's evidence state.
+internal/data/uow/locks.go:108:Exec :: Advisory locks are acquired in sorted key order to preserve deterministic deadlock avoidance for the transaction.
+internal/data/wakeup/wakeup.go:286:Exec :: LISTEN registers each tenant-specific channel on one session connection; each operation changes that connection's notification subscription state.
+internal/data/workeridstore/store.go:159:Exec :: The retry loop reserves one ID at a time; each next attempt depends on the preceding conflict outcome.
+internal/data/workflowversionstore/store.go:341:Exec :: Approval transitions are inserted in recorded sequence order, and each sequence is part of the version's audit history.

@@ -1,5 +1,5 @@
 # TENANT-004 golden oracle: pilot rehearsal over the ten-category fixture
 # (four observed steps, four revocation receipts, BACKUP tombstone ready).
-digest: sha256:65ad32b89854afd81415eff9bbaebec36a38bfebb22983c9475079176c84c61d
+digest: sha256:8a27b2d64a3e3c866a860551f8ef0287e13b71badd8d6053d646698f5d3fdb7b
 status: CERTIFIABLE
-explain: tenant exit rehearsal v1 id=rehearsal-1 tenant=tenant-1 status=CERTIFIABLE steps=4 revocations=4 restore_ready=1 blockers=0 digest=sha256:65ad32b89854afd81415eff9bbaebec36a38bfebb22983c9475079176c84c61d
+explain: tenant exit rehearsal v1 id=rehearsal-1 tenant=tenant-1 status=CERTIFIABLE steps=4 revocations=4 restore_ready=1 blockers=0 digest=sha256:8a27b2d64a3e3c866a860551f8ef0287e13b71badd8d6053d646698f5d3fdb7b

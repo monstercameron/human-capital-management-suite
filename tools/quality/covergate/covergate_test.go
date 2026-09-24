@@ -112,24 +112,89 @@ func TestEvaluate_ExceptionsNeverWaiveAnotherKindOrAnotherPackage(t *testing.T) 
 }
 
 func TestConfigValidate_RefusesIncompleteOrWildcardExceptions(t *testing.T) {
-	good := Exception{Package: "cmd/x", Kind: KindNoTests, Owner: "o", Reason: "r", Expiry: "2026-12-31"}
+	good := Exception{Package: "cmd/x", Kind: KindNoTests, Owner: "workflow-runtime", Reason: "r", Plan: "2026-10-01: add package tests", Expiry: "2026-12-31"}
 	cases := map[string]Config{
-		"zero threshold":  {Threshold: 0},
-		"over 100":        {Threshold: 101},
-		"wildcard":        {Threshold: 70, Exceptions: []Exception{{Package: "cmd/...", Kind: KindNoTests, Owner: "o", Reason: "r", Expiry: "2026-12-31"}}},
-		"unknown kind":    {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: "meh", Owner: "o", Reason: "r", Expiry: "2026-12-31"}}},
-		"no owner":        {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Reason: "r", Expiry: "2026-12-31"}}},
-		"bad expiry":      {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Owner: "o", Reason: "r", Expiry: "soon"}}},
-		"duplicate entry": {Threshold: 70, Exceptions: []Exception{good, good}},
+		"zero threshold":        {Threshold: 0},
+		"over 100":              {Threshold: 101},
+		"wildcard":              {Threshold: 70, Exceptions: []Exception{{Package: "cmd/...", Kind: KindNoTests, Owner: "workflow-runtime", Reason: "r", Plan: good.Plan, Expiry: "2026-12-31"}}},
+		"unknown kind":          {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: "meh", Owner: "workflow-runtime", Reason: "r", Plan: good.Plan, Expiry: "2026-12-31"}}},
+		"no owner":              {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Reason: "r", Plan: good.Plan, Expiry: "2026-12-31"}}},
+		"placeholder owner":     {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Owner: "backlog", Reason: "r", Plan: good.Plan, Expiry: "2026-12-31"}}},
+		"unregistered team":     {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Owner: "unknown-team", Reason: "r", Plan: good.Plan, Expiry: "2026-12-31"}}},
+		"wrong registered team": {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Owner: "experience-and-transport", Reason: "r", Plan: good.Plan, Expiry: "2026-12-31"}}},
+		"no plan":               {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Owner: good.Owner, Reason: "r", Expiry: good.Expiry}}},
+		"undated plan":          {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Owner: good.Owner, Reason: "r", Plan: "add package tests", Expiry: good.Expiry}}},
+		"plan after expiry":     {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Owner: good.Owner, Reason: "r", Plan: "2027-01-01: add package tests", Expiry: good.Expiry}}},
+		"bad expiry":            {Threshold: 70, Exceptions: []Exception{{Package: "cmd/x", Kind: KindNoTests, Owner: "workflow-runtime", Reason: "r", Plan: good.Plan, Expiry: "soon"}}},
+		"duplicate entry":       {Threshold: 70, Exceptions: []Exception{good, good}},
 	}
 	for name, cfg := range cases {
+		cfg.packageOwners = testOwnerRegistry()
 		if err := cfg.Validate(); err == nil {
 			t.Errorf("%s: expected a validation error", name)
 		}
 	}
-	if err := (Config{Threshold: 70, Exceptions: []Exception{good}}).Validate(); err != nil {
+	if err := (Config{Threshold: 70, Exceptions: []Exception{good}, packageOwners: testOwnerRegistry()}).Validate(); err != nil {
 		t.Fatalf("complete config must validate: %v", err)
 	}
+}
+
+func TestTodo_REV_103_05(t *testing.T) {
+	placeholder := Exception{Package: "internal/transport", Kind: KindBelowFloor, Owner: "backlog", Reason: "raise request-path coverage", Plan: "2026-10-15: cover request dispatch and error paths", Expiry: "2026-11-01"}
+	if err := (Config{Threshold: 70, Exceptions: []Exception{placeholder}, packageOwners: testOwnerRegistry()}).Validate(); err == nil || !strings.Contains(err.Error(), "registered package team") {
+		t.Fatalf("placeholder owner must be refused with a clear finding, got %v", err)
+	}
+	valid := placeholder
+	valid.Owner = "experience-and-transport"
+	if err := (Config{Threshold: 70, Exceptions: []Exception{valid}, packageOwners: testOwnerRegistry()}).Validate(); err != nil {
+		t.Fatalf("a registered team with a dated, pre-expiry action plan must validate: %v", err)
+	}
+}
+
+func testOwnerRegistry() map[string]string {
+	return map[string]string{"cmd/x": "workflow-runtime", "internal/transport": "experience-and-transport", "tools": "platform-toolchain"}
+}
+
+func TestTodo_REV_103_05_Golden(t *testing.T) {
+	cfg, err := LoadConfig(filepath.Join(repoRoot(t), DefaultConfigPath))
+	if err != nil {
+		t.Fatalf("load policy: %v", err)
+	}
+	plans, expiries := map[string]bool{}, map[string]bool{}
+	byPackage := map[string]Exception{}
+	for _, exception := range cfg.Exceptions {
+		planDate, ok := datedPlan(exception.Plan)
+		if !ok || !planDate.Before(mustDate(t, exception.Expiry)) {
+			t.Fatalf("exception %s has invalid or post-expiry plan: %+v", exception.Package, exception)
+		}
+		plans[planDate.Format("2006-01-02")] = true
+		expiries[exception.Expiry] = true
+		byPackage[exception.Package] = exception
+	}
+	if len(plans) != 185 || len(expiries) != 185 {
+		t.Fatalf("plans and expiries must be staggered across packages; got %d plans, %d expiries for %d exceptions", len(plans), len(expiries), len(cfg.Exceptions))
+	}
+	requestPackages := []string{"internal/intent/app/pgstore", "internal/transport"}
+	var prior time.Time
+	for _, pkg := range requestPackages {
+		date, ok := datedPlan(byPackage[pkg].Plan)
+		if !ok || (!prior.IsZero() && !prior.Before(date)) {
+			t.Fatalf("request-path remediation dates must be staggered in order; %s = %v", pkg, date)
+		}
+		prior = date
+	}
+	if _, exists := byPackage["internal/workflow/execute/effects"]; exists {
+		t.Fatal("effects exception must be retired after measured coverage passes the floor")
+	}
+}
+
+func mustDate(t *testing.T, value string) time.Time {
+	t.Helper()
+	date, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		t.Fatalf("parse date %q: %v", value, err)
+	}
+	return date
 }
 
 func TestLoadConfig_ReadsTheCheckedInPolicy(t *testing.T) {
@@ -138,8 +203,8 @@ func TestLoadConfig_ReadsTheCheckedInPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if cfg.Threshold < 70 {
-		t.Fatalf("the checked-in floor must be at least 70%%, got %v", cfg.Threshold)
+	if cfg.Threshold < 70 || len(cfg.Exceptions) != 185 {
+		t.Fatalf("checked-in policy floor/exceptions = %.1f%%/%d, want at least 70%% and 185 remaining exceptions", cfg.Threshold, len(cfg.Exceptions))
 	}
 }
 
@@ -198,7 +263,7 @@ func TestReportFormat_NamesEveryFindingAndTheVerdict(t *testing.T) {
 
 func TestGate_MeasuresARealPackageAgainstThePolicy(t *testing.T) {
 	root := repoRoot(t)
-	report, err := Gate(root, DefaultConfigPath, []string{"./tools/quality/covergate/testdata/gatedpkg"}, time.Now(), 5*time.Minute)
+	report, err := Gate(root, "tools/quality/covergate/testdata/coverage-gate.yaml", []string{"./tools/quality/covergate/testdata/gatedpkg"}, time.Now(), 5*time.Minute)
 	if err != nil {
 		t.Fatalf("gate: %v", err)
 	}

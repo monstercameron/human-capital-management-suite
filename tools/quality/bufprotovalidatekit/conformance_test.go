@@ -1,14 +1,14 @@
 package bufprotovalidatekit_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
-	kit "github.com/monstercameron/human-capital-management-suite/tools/quality/bufprotovalidatekit"
+	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 )
 
@@ -40,6 +40,10 @@ type qualificationManifest struct {
 		Implementation string   `yaml:"implementation"`
 		Packages       []string `yaml:"packages"`
 	} `yaml:"alternative"`
+	Scope struct {
+		Covers   []string `yaml:"covers"`
+		Excludes []string `yaml:"excludes"`
+	} `yaml:"scope"`
 	Evidence []struct {
 		Test    string `yaml:"test"`
 		Package string `yaml:"package"`
@@ -59,34 +63,22 @@ func loadManifest(t *testing.T) qualificationManifest {
 	return manifest
 }
 
-type transportResult struct {
-	Code       string          `json:"code"`
-	Violations []kit.Violation `json:"violations,omitempty"`
-}
-
-func projectTransport(validator *kit.Validator, message kit.Message) transportResult {
-	violations := validator.Validate(message)
-	if len(violations) == 0 {
-		return transportResult{Code: "OK"}
-	}
-	return transportResult{Code: "INVALID_ARGUMENT", Violations: violations}
-}
-
-// TestTodo_LIB_019_Conformance proves identical owned results at both
-// transport boundaries and checks that the repository decision remains
-// offline, pinned, replaceable, and free of a Protovalidate module admission.
+// TestTodo_LIB_019_Conformance proves the owned offline fallback is
+// deterministic and non-mutating, and that qualification does not claim
+// unimplemented production transport wiring or Protovalidate admission.
 func TestTodo_LIB_019_Conformance(t *testing.T) {
 	validator, descriptor := fixtureValidator(t)
 	message := requestMessage(descriptor, "", "123456789", "type.googleapis.com/unregistered.Payload", []byte{1})
-	grpc := projectTransport(validator, message)
-	grpcbridge := projectTransport(validator, message)
-	if !reflect.DeepEqual(grpc, grpcbridge) {
-		t.Fatalf("transport validation differs: grpc=%+v grpcbridge=%+v", grpc, grpcbridge)
+	before := proto.Clone(message)
+	violations := validator.Validate(message)
+	if len(violations) == 0 {
+		t.Fatal("invalid request unexpectedly passed offline structural validation")
 	}
-	left, _ := json.Marshal(grpc)
-	right, _ := json.Marshal(grpcbridge)
-	if !reflect.DeepEqual(left, right) {
-		t.Fatalf("transport bytes differ: %s != %s", left, right)
+	if again := validator.Validate(message); !reflect.DeepEqual(violations, again) {
+		t.Fatalf("offline validation is not deterministic: first=%+v again=%+v", violations, again)
+	}
+	if !proto.Equal(message, before) {
+		t.Fatal("offline validation mutated its protobuf input")
 	}
 
 	m := loadManifest(t)
@@ -112,6 +104,12 @@ func TestTodo_LIB_019_Conformance(t *testing.T) {
 	}
 	if m.Alternative.Implementation != "tools/quality/bufprotovalidatekit" || len(m.Alternative.Packages) < 3 {
 		t.Fatalf("fallback is incomplete: %+v", m.Alternative)
+	}
+	if !slices.Contains(m.Scope.Covers, "offline owned stable field violations from local descriptors") {
+		t.Fatalf("qualification does not describe its offline fallback: %+v", m.Scope.Covers)
+	}
+	if !slices.Contains(m.Scope.Excludes, "production transport registration or cross-transport parity") {
+		t.Fatalf("qualification overclaims production transport integration: %+v", m.Scope.Excludes)
 	}
 
 	wantEvidence := map[string]bool{

@@ -1,15 +1,15 @@
-// Command migrationci validates the tracked migration sequence and
-// rehearses the clean-upgrade policy over it without applying anything.
+// Command migrationci validates a pinned migration manifest against the exact
+// SQL migration files in the checkout and can run the production migration
+// command against a disposable PostgreSQL instance.
 //
-// By default it scans the migrations directory, builds the manifest from
-// the tracked files (version order, sha256 checksums, dependency chain and
-// the five lifecycle phases) and validates that shape. With -rehearse it
-// additionally runs migrationci.Rehearse with caller-asserted live
-// preconditions, exiting non-zero unless the rehearsal reports PASS, so a
-// CI or upgrade step fails closed on any structural or precondition gap.
+// Use -manifest to name the checked-in manifest. Directory scanning remains
+// available for generating a candidate manifest with -json, but assigns no
+// compatibility claim. The database rehearsal proves the clean-schema SQL
+// upgrade path; it does not claim mixed-version or live backfill evidence.
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -17,19 +17,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/migrations"
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/migrationci"
 )
 
-// scannedCompatibility is the compatibility label a directory scan assigns.
-// A scan proves sequence integrity (ordering, checksums, dependency chain,
-// phase shape), not semantic mixed-version compatibility; per-migration
-// compatibility review remains a human gate.
-const scannedCompatibility = "BACKWARD_COMPATIBLE"
+const scannedCompatibility = "UNREVIEWED"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
@@ -40,14 +39,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	dir := fs.String("dir", "migrations", "migrations directory, relative to -root")
 	manifestPath := fs.String("manifest", "", "JSON manifest file; when empty the manifest is scanned from -dir")
 	jsonOutput := fs.Bool("json", false, "emit the machine-readable result")
-	rehearse := fs.Bool("rehearse", false, "run the full upgrade rehearsal with the precondition flags below")
-	backfillComplete := fs.Bool("backfill-complete", false, "assert the backfill checkpoint reached the source watermark")
-	shadowExact := fs.Bool("shadow-exact", false, "assert source and target digests match")
-	mixedCompatible := fs.Bool("mixed-version-compatible", false, "assert old and new binaries overlap")
-	dirty := fs.Bool("dirty", false, "assert uncommitted or generated drift is present (must be false for PASS)")
-	lockHeld := fs.Bool("lock-held", false, "assert another migration owner holds the lock (must be false for PASS)")
-	checksumMismatch := fs.Bool("checksum-mismatch", false, "assert recorded bytes differ from the manifest")
-	abort := fs.Bool("abort", false, "fence the contract phase after cutover rehearsal")
+	rehearse := fs.Bool("rehearse", false, "apply the embedded migration tree to a disposable PostgreSQL instance")
+	databaseURL := fs.String("database-url", os.Getenv("HCMNEXT_MIGRATIONCI_DATABASE_URL"), "disposable PostgreSQL URL (or HCMNEXT_MIGRATIONCI_DATABASE_URL); required with -rehearse")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -64,20 +57,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "migrationci: %v\n", err)
 		return 1
 	}
-	input := migrationci.Input{
-		Manifest:               manifest,
-		BackfillComplete:       *backfillComplete,
-		ShadowExact:            *shadowExact,
-		MixedVersionCompatible: *mixedCompatible,
-		Dirty:                  *dirty,
-		LockHeld:               *lockHeld,
-		ChecksumMismatch:       *checksumMismatch,
-		AbortRequested:         *abort,
-	}
 	if *manifestPath != "" {
 		if err := verifyChecksums(migrationsDir, manifest); err != nil {
-			input.ChecksumMismatch = true
 			fmt.Fprintf(stderr, "migrationci: %v\n", err)
+			return 1
 		}
 	}
 	if !*rehearse {
@@ -93,25 +76,40 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	}
-	result, err := migrationci.Rehearse(input)
-	if *jsonOutput {
-		data, marshalErr := json.MarshalIndent(result, "", "  ")
-		if marshalErr != nil {
-			fmt.Fprintf(stderr, "migrationci: encode result: %v\n", marshalErr)
-			return 2
-		}
-		fmt.Fprintln(stdout, string(data))
-	} else {
-		fmt.Fprintf(stdout, "%s\n", migrationci.ExplainResult(result))
-		for _, finding := range result.Findings {
-			fmt.Fprintf(stdout, "  - %s %s: %s\n", finding.Code, finding.Field, finding.Detail)
-		}
-	}
-	if err != nil {
-		fmt.Fprintf(stderr, "migrationci: %v\n", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	if err := rehearseDatabase(ctx, *root, *databaseURL, stdout, stderr); err != nil {
+		fmt.Fprintf(stderr, "migrationci: database rehearsal failed: %v\n", err)
 		return 1
 	}
+	target, err := migrations.TargetVersion()
+	if err != nil {
+		fmt.Fprintf(stderr, "migrationci: database rehearsal failed: %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "migrationci: database rehearsal PASS: clean schema reached migration %d\n", target)
 	return 0
+}
+
+// rehearseDatabase invokes the production migration composition root against
+// CI's disposable PostgreSQL instance. Migration SQL includes cluster-wide
+// role changes, so the target server must be discarded after the run.
+func rehearseDatabase(ctx context.Context, root, databaseURL string, stdout, stderr io.Writer) error {
+	if strings.TrimSpace(databaseURL) == "" {
+		return fmt.Errorf("-database-url or HCMNEXT_MIGRATIONCI_DATABASE_URL is required with -rehearse")
+	}
+	absoluteRoot, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("resolve repository root: %w", err)
+	}
+	command := exec.CommandContext(ctx, "go", "run", "./cmd/migrate", "up", "-database-url", databaseURL)
+	command.Dir = absoluteRoot
+	command.Stdout = stdout
+	command.Stderr = stderr
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("production migration runner: %w", err)
+	}
+	return nil
 }
 
 // loadManifest reads a checked-in manifest file when -manifest is set, or
@@ -198,10 +196,17 @@ func scanManifest(migrationsDir string) (migrationci.Manifest, error) {
 	return manifest, nil
 }
 
-// verifyChecksums recomputes every manifest entry against the directory.
-// Any unreadable file, unknown version or byte difference is reported; the
-// caller marks the rehearsal input mismatched so Rehearse rejects it.
+// verifyChecksums compares the migration directory's release digest, exact
+// filename/version inventory, and each file checksum against the pinned
+// manifest. Added, removed, renamed, or edited migration files are rejected.
 func verifyChecksums(migrationsDir string, manifest migrationci.Manifest) error {
+	actual, err := scanManifest(migrationsDir)
+	if err != nil {
+		return err
+	}
+	if actual.ReleaseDigest != manifest.ReleaseDigest {
+		return fmt.Errorf("migration directory release digest differs from pinned manifest")
+	}
 	byVersion := make(map[int64]migrationci.Entry, len(manifest.Entries))
 	for _, entry := range manifest.Entries {
 		byVersion[entry.Version] = entry
@@ -210,6 +215,7 @@ func verifyChecksums(migrationsDir string, manifest migrationci.Manifest) error 
 	if err != nil {
 		return fmt.Errorf("read migrations directory %s: %w", migrationsDir, err)
 	}
+	seen := make(map[int64]bool, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
 			continue
@@ -217,16 +223,23 @@ func verifyChecksums(migrationsDir string, manifest migrationci.Manifest) error 
 		base := strings.TrimSuffix(entry.Name(), ".sql")
 		underscore := strings.Index(base, "_")
 		if underscore <= 0 {
-			continue
+			return fmt.Errorf("migration %s has no numeric version prefix", entry.Name())
 		}
 		version, err := strconv.ParseInt(base[:underscore], 10, 64)
-		if err != nil {
-			continue
+		if err != nil || version <= 0 {
+			return fmt.Errorf("migration %s has no numeric version prefix", entry.Name())
 		}
 		want, ok := byVersion[version]
 		if !ok {
 			return fmt.Errorf("migration %s is not in the manifest", entry.Name())
 		}
+		if want.Name != base {
+			return fmt.Errorf("migration %s does not match manifest name %s", entry.Name(), want.Name+".sql")
+		}
+		if seen[version] {
+			return fmt.Errorf("migration version %d appears more than once", version)
+		}
+		seen[version] = true
 		data, err := os.ReadFile(filepath.Join(migrationsDir, entry.Name()))
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", entry.Name(), err)
@@ -234,6 +247,11 @@ func verifyChecksums(migrationsDir string, manifest migrationci.Manifest) error 
 		sum := sha256.Sum256(data)
 		if hex.EncodeToString(sum[:]) != want.Checksum {
 			return fmt.Errorf("migration %s bytes differ from the manifest", entry.Name())
+		}
+	}
+	for version, expected := range byVersion {
+		if !seen[version] {
+			return fmt.Errorf("manifest migration %s.sql is missing", expected.Name)
 		}
 	}
 	return nil

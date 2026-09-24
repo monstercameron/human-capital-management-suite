@@ -72,7 +72,7 @@ func TestTodo_PRIV_002(t *testing.T) {
 	t.Run("RED: unsupported locale presentation denies", func(t *testing.T) {
 		notice := fixtureNotice(t)
 		presentation, err := NewPresentation("presentation-fr", notice, fixturePrincipal, "fr-FR", true,
-			mustInstant(t, fxPresentedAt), values.Instant{})
+			mustInstant(t, fxPresentedAt), mustInstant(t, fxAcknowledgedAt))
 		if err != nil {
 			t.Fatalf("NewPresentation: %v", err)
 		}
@@ -90,7 +90,7 @@ func TestTodo_PRIV_002(t *testing.T) {
 	t.Run("RED: inaccessible presentation channel denies", func(t *testing.T) {
 		notice := fixtureNotice(t)
 		presentation, err := NewPresentation("presentation-inaccessible", notice, fixturePrincipal, "en-US", false,
-			mustInstant(t, fxPresentedAt), values.Instant{})
+			mustInstant(t, fxPresentedAt), mustInstant(t, fxAcknowledgedAt))
 		if err != nil {
 			t.Fatalf("NewPresentation: %v", err)
 		}

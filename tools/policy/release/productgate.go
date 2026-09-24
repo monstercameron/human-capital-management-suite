@@ -51,13 +51,17 @@ func ProductGateGates() []string {
 // against conformance.ErrReleaseDenied.
 func AdmitProductGate(evidence map[string]string) (conformance.ReleaseDecision, []conformance.ReleaseEvidence, error) {
 	gate := conformance.DefaultReleaseGate()
-	items := make([]conformance.ReleaseEvidence, 0, len(gate.Required))
-	for _, name := range gate.Required {
-		digest := strings.TrimSpace(evidence[name])
-		if digest == "" {
-			continue
-		}
-		items = append(items, conformance.ReleaseEvidence{Gate: name, Digest: digest})
+	// Pass the complete caller-supplied set through the conformance gate so
+	// evidence for an unrequired name cannot be silently banked or ignored.
+	// Sorting keeps the sealed record deterministic despite Go map iteration.
+	names := make([]string, 0, len(evidence))
+	for name := range evidence {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	items := make([]conformance.ReleaseEvidence, 0, len(names))
+	for _, name := range names {
+		items = append(items, conformance.ReleaseEvidence{Gate: name, Digest: strings.TrimSpace(evidence[name])})
 	}
 	decision, err := gate.Admit(items)
 	if err != nil {

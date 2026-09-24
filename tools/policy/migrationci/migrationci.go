@@ -1,6 +1,8 @@
-// Package migrationci validates and rehearses migration manifests without
-// applying them. It is the CI-facing policy layer for the durable upgrade
-// protocol; production adapters still own execution and journal writes.
+// Package migrationci validates migration manifests and models the durable
+// upgrade decision policy without applying migrations. Its pure Rehearse
+// function consumes caller-supplied state and is not evidence that a database
+// or mixed-version deployment was actually exercised. Production adapters
+// still own execution, observation, and journal writes.
 package migrationci
 
 import (
@@ -118,8 +120,10 @@ func Validate(manifest Manifest) error {
 		if _, err := hex.DecodeString(entry.Checksum); err != nil {
 			return fmt.Errorf("%w: entry %d checksum is not hexadecimal", ErrInvalidManifest, i)
 		}
-		if entry.Compatibility == "" {
-			return fmt.Errorf("%w: entry %d compatibility is missing", ErrInvalidManifest, i)
+		switch entry.Compatibility {
+		case "UNREVIEWED", "BACKWARD_COMPATIBLE", "FORWARD_COMPATIBLE", "FULL", "BREAKING":
+		default:
+			return fmt.Errorf("%w: entry %d has unknown compatibility class", ErrInvalidManifest, i)
 		}
 		for _, dependency := range entry.Requires {
 			if !seen[dependency] {
@@ -130,9 +134,9 @@ func Validate(manifest Manifest) error {
 	return nil
 }
 
-// Rehearse validates the manifest, then executes the five CI-only lifecycle
-// checks in order. Failures are reported with the exact failing state and do
-// not claim a clean upgrade.
+// Rehearse validates the manifest, then simulates the five lifecycle-policy
+// decisions against caller-supplied state. This is a policy model only; the
+// migrationci command refuses to represent it as observed database evidence.
 func Rehearse(input Input) (Result, error) {
 	result := Result{Status: "REJECTED"}
 	if err := Validate(input.Manifest); err != nil {
@@ -140,6 +144,14 @@ func Rehearse(input Input) (Result, error) {
 		return result, err
 	}
 	result.ManifestDigest = manifestDigest(input.Manifest)
+	for _, entry := range input.Manifest.Entries {
+		if entry.Compatibility == "UNREVIEWED" {
+			result.Findings = append(result.Findings, Finding{Code: "COMPATIBILITY_UNREVIEWED", Field: "compatibility", State: "UNREVIEWED", Detail: "migration compatibility has no reviewed classification"})
+		}
+	}
+	if len(result.Findings) > 0 {
+		return result, ErrRehearsalFailed
+	}
 	if input.Dirty {
 		result.Findings = append(result.Findings, Finding{Code: "DIRTY_TREE", Field: "working_tree", State: "DIRTY", Detail: "uncommitted or generated drift is present"})
 	}

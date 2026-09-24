@@ -122,6 +122,7 @@ type Request struct {
 	FreshnessWindow  time.Duration       `json:"freshness_window"`
 	Copies           []Copy              `json:"copies"`
 	Export           ExportReceipt       `json:"export"`
+	ExportPackage    *ExportPackage      `json:"export_package,omitempty"`
 	ShutdownComplete bool                `json:"shutdown_complete"`
 	Revocations      []RevocationReceipt `json:"revocations"`
 	PendingWork      []PendingWork       `json:"pending_work"`
@@ -248,6 +249,8 @@ func validateEvidence(req Request, entries []Copy) []Blocker {
 	}
 	if !req.Export.Verified || req.Export.ID == "" || req.Export.SchemaVersion == "" || req.Export.Checksum == "" || req.Export.ExpectedDigest == "" || req.Export.Checksum != req.Export.ExpectedDigest || req.Export.Recipient == "" {
 		blockers = append(blockers, Blocker{"EXPORT_UNVERIFIED", req.Export.ID, "schema, recipient and matching export digest are required"})
+	} else if req.ExportPackage == nil || VerifyExportPackage(*req.ExportPackage) != nil || !receiptMatchesPackage(req.Export, *req.ExportPackage) || req.ExportPackage.Manifest.Tenant != req.Tenant || req.ExportPackage.Manifest.InventoryDigest != digestValue(entries) {
+		blockers = append(blockers, Blocker{"EXPORT_PACKAGE_UNVERIFIED", req.Export.ID, "export receipt is not bound to a verified package produced from this inventory"})
 	}
 	if !req.ShutdownComplete {
 		blockers = append(blockers, Blocker{"SHUTDOWN_INCOMPLETE", req.Tenant, "connector and tenant shutdown receipts are incomplete"})

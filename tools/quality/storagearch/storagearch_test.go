@@ -109,11 +109,89 @@ func TestCheckIsDeterministic(t *testing.T) {
 	}
 }
 
-// The matrix names are intentionally kept in the quality package so CI can
-// invoke the ARCH-GO-025 evidence lanes independently as they mature.
-func TestTodo_ARCH_GO_025_Property(t *testing.T)    { TestCheckIsDeterministic(t) }
-func TestTodo_ARCH_GO_025_Golden(t *testing.T)      { TestSemanticPortsRemainAllowed(t) }
-func TestTodo_ARCH_GO_025_Race(t *testing.T)        { TestCheckIsDeterministic(t) }
-func TestTodo_ARCH_GO_025_Integration(t *testing.T) { TestStoreAdaptersRejectBusinessOwnership(t) }
-func TestTodo_ARCH_GO_025_Conformance(t *testing.T) { TestSemanticPortsRemainAllowed(t) }
-func TestTodo_ARCH_GO_025_Mutation(t *testing.T)    { TestStoreAdaptersRejectBusinessOwnership(t) }
+func TestTodo_ARCH_GO_025_Property(t *testing.T) {
+	root := fixture(t, map[string]string{
+		"internal/data/pgxadapter/adapter.go": `package pgxadapter
+import "github.com/jackc/pgx/v5"
+type Adapter struct { conn *pgx.Conn }
+func New() *Adapter { return nil }
+`,
+	})
+	if fs := Check(root); len(fs) != 0 {
+		t.Fatalf("private driver state should stay encapsulated: %#v", fs)
+	}
+}
+
+func TestTodo_ARCH_GO_025_Golden(t *testing.T) {
+	root := fixture(t, map[string]string{
+		"internal/domains/people/port.go":  "package people\ntype Store interface { Save() error }\n",
+		"internal/data/postgres/people.go": "package postgres\nimport \"github.com/monstercameron/human-capital-management-suite/internal/domains/people\"\ntype Store struct{}\nvar _ people.Store = (*Store)(nil)\n",
+	})
+	if fs := Check(root); len(fs) != 0 {
+		t.Fatalf("semantic storage port implementation should be allowed: %#v", fs)
+	}
+}
+
+func TestTodo_ARCH_GO_025_Integration(t *testing.T) {
+	root := fixture(t, map[string]string{
+		"internal/transport/http.go": "package transport\nimport _ \"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter\"\n",
+	})
+	fs := Check(root)
+	if len(fs) != 1 || fs[0].Code != "semantic-imports-technology" {
+		t.Fatalf("semantic-to-adapter integration edge = %#v", fs)
+	}
+}
+
+func TestTodo_ARCH_GO_025_Conformance(t *testing.T) {
+	root := fixture(t, map[string]string{
+		"internal/data/cache/adapter.go": `package cache
+import "github.com/jackc/pgx/v5"
+type Adapter struct { conn *pgx.Conn }
+`,
+	})
+	if fs := Check(root); len(fs) != 0 {
+		t.Fatalf("unexported adapter state should conform to the storage boundary: %#v", fs)
+	}
+}
+
+func TestTodo_ARCH_GO_025_Mutation(t *testing.T) {
+	root := fixture(t, map[string]string{
+		"internal/data/cache/adapter.go": `package cache
+import "github.com/jackc/pgx/v5"
+type Adapter struct { Conn *pgx.Conn }
+func Open(*pgx.Conn) *Adapter { return nil }
+`,
+	})
+	fs := Check(root)
+	count := 0
+	for _, f := range fs {
+		if f.Code == "driver-leak" {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Fatalf("exported driver field and parameter should both be rejected, got %#v", fs)
+	}
+}
+
+func TestTodo_ARCH_GO_025_Race(t *testing.T) {
+	root := fixture(t, map[string]string{
+		"internal/transport/http.go": "package transport\nimport _ \"github.com/monstercameron/human-capital-management-suite/internal/data/postgres\"\n",
+		"internal/data/cache/adapter.go": `package cache
+import "github.com/jackc/pgx/v5"
+type Adapter struct { Conn *pgx.Conn }
+`,
+	})
+	type result struct{ findings []Finding }
+	const workers = 8
+	results := make(chan result, workers)
+	for i := 0; i < workers; i++ {
+		go func() { results <- result{findings: Check(root)} }()
+	}
+	for i := 0; i < workers; i++ {
+		got := <-results
+		if len(got.findings) != 2 || !hasCode(got.findings, "semantic-imports-technology") || !hasCode(got.findings, "driver-leak") {
+			t.Fatalf("concurrent storage scan = %#v", got.findings)
+		}
+	}
+}

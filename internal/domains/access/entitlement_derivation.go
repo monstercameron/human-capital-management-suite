@@ -1,6 +1,7 @@
 package access
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/evidence"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/eligibility"
+	rulesengine "github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -34,6 +37,7 @@ var (
 // intentionally opaque: the derivation carries it as evidence without
 // interpreting employee-sensitive attributes.
 type EmploymentPeriod struct {
+	Tenant              values.TenantId
 	Ref                 string
 	WorkforceIdentityID string
 	Effective           values.EffectiveInterval
@@ -41,6 +45,7 @@ type EmploymentPeriod struct {
 
 // PositionAssignment is a governed position and org-unit fact.
 type PositionAssignment struct {
+	Tenant              values.TenantId
 	Ref                 string
 	WorkforceIdentityID string
 	PositionID          string
@@ -62,6 +67,7 @@ const (
 // An empty selector is a tenant policy applying to every active identity;
 // non-empty selectors require the corresponding fact to be present at AsOf.
 type DeclaredAccessPolicy struct {
+	Tenant        values.TenantId
 	ID            string
 	Version       string
 	EntitlementID string
@@ -229,6 +235,9 @@ func (r EntitlementDerivationRequest) validate() error {
 	}
 	seen := make(map[string]struct{})
 	for _, fact := range r.Employment {
+		if fact.Tenant != r.Graph.Tenant {
+			return fmt.Errorf("%w: employment %s belongs to another tenant", ErrTenantMismatch, fact.Ref)
+		}
 		if strings.TrimSpace(fact.Ref) == "" || strings.TrimSpace(fact.WorkforceIdentityID) == "" {
 			return fmt.Errorf("%w: employment ref and identity are required", ErrInvalidDerivation)
 		}
@@ -245,6 +254,9 @@ func (r EntitlementDerivationRequest) validate() error {
 	}
 	seen = make(map[string]struct{})
 	for _, fact := range r.Positions {
+		if fact.Tenant != r.Graph.Tenant {
+			return fmt.Errorf("%w: position %s belongs to another tenant", ErrTenantMismatch, fact.Ref)
+		}
 		if strings.TrimSpace(fact.Ref) == "" || strings.TrimSpace(fact.WorkforceIdentityID) == "" || strings.TrimSpace(fact.PositionID) == "" {
 			return fmt.Errorf("%w: position ref, identity, and position id are required", ErrInvalidDerivation)
 		}
@@ -265,6 +277,9 @@ func (r EntitlementDerivationRequest) validate() error {
 	}
 	seen = make(map[string]struct{})
 	for _, policy := range r.Policies {
+		if policy.Tenant != r.Graph.Tenant {
+			return fmt.Errorf("%w: policy %s belongs to another tenant", ErrTenantMismatch, policy.ID)
+		}
 		if strings.TrimSpace(policy.ID) == "" || strings.TrimSpace(policy.Version) == "" {
 			return fmt.Errorf("%w: policy id and version are required", ErrInvalidDerivationPolicy)
 		}
@@ -341,36 +356,132 @@ type policyMatch struct {
 	policy     DeclaredAccessPolicy
 	Employment *EmploymentPeriod
 	Position   *PositionAssignment
+	Evaluation EntitlementBasisRef
 }
 
-func matchPolicy(policy DeclaredAccessPolicy, employment []EmploymentPeriod, positions []PositionAssignment) (policyMatch, bool, bool) {
+type derivationFacts struct {
+	employment []EmploymentPeriod
+	positions  []PositionAssignment
+	policyRef  string
+	targets    map[string]string
+}
+
+func (f derivationFacts) ReadFact(_ context.Context, _ values.EntityRef, field string, _ values.EffectiveInterval) (eligibility.Fact, error) {
+	var refs []string
+	switch field {
+	case "employment_ref":
+		for _, fact := range f.employment {
+			refs = append(refs, fact.Ref)
+		}
+	case "position_ref":
+		for _, fact := range f.positions {
+			if f.targets["org_unit_ref"] == "" || fact.OrgUnitRef == f.targets["org_unit_ref"] {
+				refs = append(refs, fact.Ref)
+			}
+		}
+	case "org_unit_ref":
+		for _, fact := range f.positions {
+			if fact.OrgUnitRef != "" && (f.targets["position_ref"] == "" || fact.Ref == f.targets["position_ref"]) {
+				refs = append(refs, fact.OrgUnitRef)
+			}
+		}
+	case "policy_scope":
+		refs = []string{f.policyRef}
+	default:
+		return eligibility.Fact{Presence: values.Unknown[string]("undeclared access selector")}, nil
+	}
+	if len(refs) == 0 {
+		return eligibility.Fact{Presence: values.Unknown[string]("governed selector fact is missing")}, nil
+	}
+	sort.Strings(refs)
+	target := f.targets[field]
+	for _, ref := range refs {
+		if ref == target {
+			return eligibility.Fact{Presence: values.Value(ref)}, nil
+		}
+	}
+	return eligibility.Fact{Presence: values.Value(refs[0])}, nil
+}
+
+func evaluatePolicy(policy DeclaredAccessPolicy, employment []EmploymentPeriod, positions []PositionAssignment, identity WorkforceIdentity) (policyMatch, eligibility.Status, error) {
 	match := policyMatch{policy: policy}
+	children := []eligibility.Condition{{Kind: eligibility.ConditionEquals, Field: "policy_scope", Value: policy.policyRef()}}
+	factCatalog := eligibility.FactCatalog{"policy_scope": {Type: eligibility.FieldTypeString, Readable: true}}
 	if policy.EmploymentRef != "" {
-		found := false
+		children = append(children, eligibility.Condition{Kind: eligibility.ConditionEquals, Field: "employment_ref", Value: policy.EmploymentRef})
+		factCatalog["employment_ref"] = eligibility.FactDescriptor{Type: eligibility.FieldTypeString, Readable: true}
+	}
+	if policy.PositionRef != "" {
+		children = append(children, eligibility.Condition{Kind: eligibility.ConditionEquals, Field: "position_ref", Value: policy.PositionRef})
+		factCatalog["position_ref"] = eligibility.FactDescriptor{Type: eligibility.FieldTypeString, Readable: true}
+	}
+	if policy.OrgUnitRef != "" {
+		children = append(children, eligibility.Condition{Kind: eligibility.ConditionEquals, Field: "org_unit_ref", Value: policy.OrgUnitRef})
+		factCatalog["org_unit_ref"] = eligibility.FactDescriptor{Type: eligibility.FieldTypeString, Readable: true}
+	}
+	criteria := eligibility.Criteria{Root: eligibility.Condition{Kind: eligibility.ConditionAnd, Children: children}}
+	plan, err := eligibility.Compile(criteria, factCatalog, eligibility.RuleCatalog{})
+	if err != nil {
+		return policyMatch{}, eligibility.StatusUnspecified, err
+	}
+	subjectMatter := eligibility.SubjectMatterRef{Kind: eligibility.SubjectMatterAction, ID: policy.ID, Revision: policy.Version}
+	req := eligibility.Request{Subject: identity.WorkerRef, SubjectMatter: subjectMatter, RequestedInterval: identity.Effective, EffectiveInterval: identity.Effective, Jurisdiction: "GLOBAL", Snapshots: eligibility.Snapshots{PopulationSnapshotRef: "access:" + string(identity.Tenant), FactSnapshotRef: "access:" + string(identity.Tenant), RuleSnapshotRef: "access-policy:" + policy.policyRef()}, Purpose: "access entitlement derivation", Authority: "native access policy"}
+	targets := map[string]string{"policy_scope": policy.policyRef(), "employment_ref": policy.EmploymentRef, "position_ref": policy.PositionRef, "org_unit_ref": policy.OrgUnitRef}
+	result, err := eligibility.Evaluate(context.Background(), derivationFacts{employment: employment, positions: positions, policyRef: policy.policyRef(), targets: targets}, nil, req, plan)
+	if err != nil {
+		return policyMatch{}, eligibility.StatusUnspecified, err
+	}
+	match.Evaluation = EntitlementBasisRef{Kind: "eligibility_evaluation", Ref: result.Digest}
+	if result.Status == eligibility.StatusEligible {
 		for i := range employment {
-			if employment[i].Ref == policy.EmploymentRef {
-				match.Employment, found = &employment[i], true
+			if employment[i].Ref == policy.EmploymentRef && policy.EmploymentRef != "" {
+				match.Employment = &employment[i]
 				break
 			}
 		}
-		if !found {
-			return policyMatch{}, false, len(employment) == 0
-		}
-	}
-	if policy.PositionRef != "" || policy.OrgUnitRef != "" {
-		found := false
 		for i := range positions {
-			if (policy.PositionRef == "" || positions[i].Ref == policy.PositionRef) &&
-				(policy.OrgUnitRef == "" || positions[i].OrgUnitRef == policy.OrgUnitRef) {
-				match.Position, found = &positions[i], true
+			if (policy.PositionRef == "" || positions[i].Ref == policy.PositionRef) && (policy.OrgUnitRef == "" || positions[i].OrgUnitRef == policy.OrgUnitRef) && (policy.PositionRef != "" || policy.OrgUnitRef != "") {
+				match.Position = &positions[i]
 				break
 			}
 		}
-		if !found {
-			return policyMatch{}, false, len(positions) == 0
-		}
 	}
-	return match, true, false
+	return match, result.Status, nil
+}
+
+func accessPolicyCompositionTable() rulesengine.Table {
+	deny, unknown, conditional, allow := rulesengine.Column{Name: "deny", Kind: rulesengine.KindBool}, rulesengine.Column{Name: "unknown", Kind: rulesengine.KindBool}, rulesengine.Column{Name: "conditional", Kind: rulesengine.KindBool}, rulesengine.Column{Name: "allow", Kind: rulesengine.KindBool}
+	falseCell := rulesengine.Equal(rulesengine.BoolValue(false))
+	anyCell := rulesengine.Any()
+	status := func(id string, denyCell, unknownCell, conditionalCell, allowCell rulesengine.Condition, outcome DerivationStatus) rulesengine.Row {
+		return rulesengine.Row{ID: id, Conditions: []rulesengine.Condition{denyCell, unknownCell, conditionalCell, allowCell}, Outputs: []rulesengine.Value{rulesengine.StringValue(string(outcome))}}
+	}
+	return rulesengine.Table{
+		ID: "access-entitlement-policy-composition", Version: "1",
+		Inputs:    []rulesengine.Column{deny, unknown, conditional, allow},
+		Outputs:   []rulesengine.Column{{Name: "status", Kind: rulesengine.KindString}},
+		HitPolicy: rulesengine.HitPolicyFirst,
+		Rows: []rulesengine.Row{
+			status("deny-dominates", rulesengine.Equal(rulesengine.BoolValue(true)), anyCell, anyCell, anyCell, DerivationNotExpected),
+			status("unresolved-fails-closed", falseCell, rulesengine.Equal(rulesengine.BoolValue(true)), anyCell, anyCell, DerivationUnknown),
+			status("conditional-pending", falseCell, falseCell, rulesengine.Equal(rulesengine.BoolValue(true)), anyCell, DerivationConditional),
+			status("allow", falseCell, falseCell, falseCell, rulesengine.Equal(rulesengine.BoolValue(true)), DerivationExpected),
+			status("no-grant", falseCell, falseCell, falseCell, falseCell, DerivationNotExpected),
+		},
+	}
+}
+
+func composePolicyResults(deny, unknown, conditional, allow bool) (DerivationStatus, EntitlementBasisRef, error) {
+	table := accessPolicyCompositionTable()
+	result, err := rulesengine.Evaluate(table, map[string]rulesengine.Value{"deny": rulesengine.BoolValue(deny), "unknown": rulesengine.BoolValue(unknown), "conditional": rulesengine.BoolValue(conditional), "allow": rulesengine.BoolValue(allow)})
+	if err != nil {
+		return DerivationUnknown, EntitlementBasisRef{}, err
+	}
+	if len(result.Matches) != 1 || len(result.Matches[0].Outputs) != 1 {
+		return DerivationUnknown, EntitlementBasisRef{}, fmt.Errorf("%w: policy composition returned no unique status", ErrInvalidDerivation)
+	}
+	trace := result.TableDigest + "/" + strings.Join(result.MatchedRowIDs, ",")
+	return DerivationStatus(result.Matches[0].Outputs[0].String()), EntitlementBasisRef{Kind: "rules_evaluation", Ref: trace}, nil
 }
 
 func (m policyMatch) basis() []EntitlementBasisRef {
@@ -431,44 +542,55 @@ func CalculateExpectedEntitlements(request EntitlementDerivationRequest) (Expect
 				result.Decisions = append(result.Decisions, decision)
 				continue
 			}
-			unknown := false
+			unknown, deny, conditional, allow := false, false, false, false
 			matches := make([]policyMatch, 0)
+			evaluations := make([]EntitlementBasisRef, 0)
 			for _, policy := range policies {
 				if policy.EntitlementID != entitlement.ID || !activeAt(policy.Effective, request.AsOf) {
 					continue
 				}
-				match, matched, missing := matchPolicy(policy, employment, positions)
-				if matched {
+				match, status, err := evaluatePolicy(policy, employment, positions, identity)
+				if err != nil {
+					return ExpectedEntitlementCalculation{}, fmt.Errorf("%w: evaluate policy %s: %v", ErrInvalidDerivationPolicy, policy.policyRef(), err)
+				}
+				evaluations = append(evaluations, match.Evaluation)
+				switch status {
+				case eligibility.StatusEligible:
 					matches = append(matches, match)
-				} else if missing {
+					switch policy.Effect {
+					case AccessPolicyDeny:
+						deny = true
+					case AccessPolicyConditional:
+						conditional = true
+					case AccessPolicyAllow:
+						allow = true
+					}
+				case eligibility.StatusConditional:
+					conditional = true
+				case eligibility.StatusUnknown:
 					unknown = true
 				}
 			}
-			if len(matches) == 0 {
-				if unknown {
-					decision.Status = DerivationUnknown
+			composed, rulesBasis, err := composePolicyResults(deny, unknown, conditional, allow)
+			if err != nil {
+				return ExpectedEntitlementCalculation{}, err
+			}
+			decision.Basis = append(decision.Basis, rulesBasis)
+			decision.Basis = append(decision.Basis, evaluations...)
+			sort.Slice(decision.Basis, func(i, j int) bool {
+				if decision.Basis[i].Kind != decision.Basis[j].Kind {
+					return decision.Basis[i].Kind < decision.Basis[j].Kind
 				}
+				return decision.Basis[i].Ref < decision.Basis[j].Ref
+			})
+			if composed != DerivationExpected && len(matches) == 0 {
+				decision.Status = composed
 				result.Decisions = append(result.Decisions, decision)
 				continue
 			}
-			var deny, conditional bool
-			for _, match := range matches {
-				if denyMatch := match.policy.Effect == AccessPolicyDeny; denyMatch {
-					deny = true
-				}
-				if match.policy.Effect == AccessPolicyConditional {
-					conditional = true
-				}
-			}
-			if deny {
-				decision.Status = DerivationNotExpected
-			} else if conditional {
-				decision.Status = DerivationConditional
-			} else {
-				decision.Status = DerivationExpected
-			}
+			decision.Status = composed
 			chosen := matches[0]
-			decision.Basis = chosen.basis()
+			decision.Basis = append(decision.Basis, chosen.basis()...)
 			if chosen.Position != nil {
 				decision.OrgUnitRef = chosen.Position.OrgUnitRef
 			}

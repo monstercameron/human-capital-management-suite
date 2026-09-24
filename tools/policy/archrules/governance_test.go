@@ -115,3 +115,41 @@ func TestTodo_ARCH_GO_006_Conformance(t *testing.T) {
 		})
 	}
 }
+
+func TestTodo_ARCH_GO_006_Golden(t *testing.T) {
+	cfg := loadArchConfig(t)
+	gc := cfg.GovernanceComposition
+	if gc.GovernanceRoot != "internal/governance" {
+		t.Fatalf("governance_root = %q", gc.GovernanceRoot)
+	}
+	want := []string{"internal/trust/authz", "internal/engines/rules"}
+	if len(gc.ComposedRoots) != len(want) {
+		t.Fatalf("composed_roots = %v, want %v", gc.ComposedRoots, want)
+	}
+	for i := range want {
+		if gc.ComposedRoots[i] != want[i] {
+			t.Errorf("composed_roots[%d] = %q, want %q", i, gc.ComposedRoots[i], want[i])
+		}
+	}
+}
+
+func TestTodo_ARCH_GO_006_Mutation(t *testing.T) {
+	cfg := loadArchConfig(t)
+	gc := cfg.GovernanceComposition
+	violates := func(importer, imported string) bool {
+		for _, root := range gc.ComposedRoots {
+			if archrules.UnderRoot(importer, root) && archrules.UnderRoot(imported, gc.GovernanceRoot) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, root := range gc.ComposedRoots {
+		if !violates(root+"/subsystem", gc.GovernanceRoot+"/decision") {
+			t.Errorf("reverse-import mutation %q -> governance was not detected", root)
+		}
+		if violates(gc.GovernanceRoot+"/compose", root+"/contract") {
+			t.Errorf("allowed composition import governance -> %q was rejected", root)
+		}
+	}
+}

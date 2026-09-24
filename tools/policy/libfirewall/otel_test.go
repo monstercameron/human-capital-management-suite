@@ -122,3 +122,27 @@ func TestTodo_LIB_007_Conformance(t *testing.T) {
 		}
 	}
 }
+
+// TestTodo_LIB_007_Security checks the real package graph for direct OTel
+// imports outside the three roots admitted by the dependency manifest.
+func TestTodo_LIB_007_Security(t *testing.T) {
+	cfg, roles := loadFirewallConfigAndRoles(t)
+	pkgs, err := repopath.ListPackages(repopath.RootDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pkg := range pkgs {
+		for _, imp := range pkg.Imports {
+			if len(imp) >= len(cfg.OTelModulePrefix) && imp[:len(cfg.OTelModulePrefix)] == cfg.OTelModulePrefix {
+				if v := libfirewall.CheckImport(roles, pkg.ImportPath, imp); v != nil {
+					t.Errorf("OpenTelemetry import outside admitted boundary: %s", v.Importer)
+				}
+			}
+		}
+	}
+	for _, root := range []string{"internal/domains/people", "internal/engines/payband", "internal/capability"} {
+		if v := libfirewall.CheckImport(roles, roles.Module+"/"+root, "go.opentelemetry.io/otel/trace"); v == nil {
+			t.Errorf("sensitive root %s was admitted", root)
+		}
+	}
+}

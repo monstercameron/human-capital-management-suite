@@ -53,8 +53,9 @@ const (
 type Config struct {
 	// Threshold is the statement-coverage floor in percent, exclusive of
 	// nothing: a package at exactly the threshold passes.
-	Threshold  float64     `yaml:"threshold"`
-	Exceptions []Exception `yaml:"exceptions"`
+	Threshold     float64           `yaml:"threshold"`
+	Exceptions    []Exception       `yaml:"exceptions"`
+	packageOwners map[string]string `yaml:"-"`
 }
 
 // Exception waives one finding kind for one exact package until Expiry.
@@ -63,6 +64,7 @@ type Exception struct {
 	Kind    string `yaml:"kind"`
 	Owner   string `yaml:"owner"`
 	Reason  string `yaml:"reason"`
+	Plan    string `yaml:"plan"`
 	Expiry  string `yaml:"expiry"`
 }
 
@@ -112,6 +114,14 @@ func LoadConfig(path string) (Config, error) {
 	if err := yaml.Unmarshal(raw, &cfg); err != nil {
 		return Config{}, fmt.Errorf("covergate: parse config: %w", err)
 	}
+	root, err := repositoryRoot(path)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.packageOwners, err = loadOwnerRegistry(root)
+	if err != nil {
+		return Config{}, err
+	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -120,7 +130,7 @@ func LoadConfig(path string) (Config, error) {
 
 // Validate refuses a policy that could waive silently: the threshold must
 // be a real percentage and every exception must name an exact package, a
-// known kind, an owner, a reason and a parseable expiry.
+// known kind, its registered package team, a reason, a dated plan and expiry.
 func (c Config) Validate() error {
 	if c.Threshold <= 0 || c.Threshold > 100 {
 		return fmt.Errorf("covergate: threshold %v is not a percentage in (0, 100]", c.Threshold)
@@ -132,11 +142,16 @@ func (c Config) Validate() error {
 			return fmt.Errorf("covergate: exception %d must name one exact package, got %q", i, e.Package)
 		case e.Kind != KindNoTests && e.Kind != KindBelowFloor:
 			return fmt.Errorf("covergate: exception %d (%s) has unknown kind %q", i, e.Package, e.Kind)
-		case strings.TrimSpace(e.Owner) == "" || strings.TrimSpace(e.Reason) == "":
-			return fmt.Errorf("covergate: exception %d (%s) needs an owner and a reason", i, e.Package)
+		case !c.isRegisteredOwner(e.Package, e.Owner) || strings.TrimSpace(e.Reason) == "":
+			return fmt.Errorf("covergate: exception %d (%s) owner %q does not match the registered package team or has no reason", i, e.Package, e.Owner)
 		}
-		if _, err := time.Parse("2006-01-02", e.Expiry); err != nil {
+		expiry, err := time.Parse("2006-01-02", e.Expiry)
+		if err != nil {
 			return fmt.Errorf("covergate: exception %d (%s) expiry %q is not YYYY-MM-DD", i, e.Package, e.Expiry)
+		}
+		planDate, planOK := datedPlan(e.Plan)
+		if !planOK || !planDate.Before(expiry) {
+			return fmt.Errorf("covergate: exception %d (%s) needs a dated remediation plan before expiry", i, e.Package)
 		}
 		key := e.Package + "|" + e.Kind
 		if seen[key] {
@@ -145,6 +160,113 @@ func (c Config) Validate() error {
 		seen[key] = true
 	}
 	return nil
+}
+
+func (c Config) isRegisteredOwner(pkg, owner string) bool {
+	owner = strings.TrimSpace(owner)
+	if owner == "" || strings.EqualFold(owner, "backlog") {
+		return false
+	}
+	parts := strings.Split(pkg, "/")
+	if len(parts) < 2 {
+		return false
+	}
+	root := strings.Join(parts[:2], "/")
+	if parts[0] == "tools" {
+		root = "tools"
+	}
+	return c.packageOwners[root] == owner
+}
+
+func repositoryRoot(path string) (string, error) {
+	current, err := filepath.Abs(filepath.Dir(path))
+	if err != nil {
+		return "", fmt.Errorf("covergate: resolve config directory: %w", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(current, "go.mod")); err == nil {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", fmt.Errorf("covergate: repository root not found above %s", path)
+		}
+		current = parent
+	}
+}
+
+func loadOwnerRegistry(root string) (map[string]string, error) {
+	type repositoryLayout struct {
+		InternalPackageRoots []struct {
+			Name  string `yaml:"name"`
+			Owner string `yaml:"owner"`
+		} `yaml:"internal_package_roots"`
+	}
+	type serviceOwnership struct {
+		Ownership []struct {
+			ID           string `yaml:"id"`
+			PrimaryOwner string `yaml:"primary_owner"`
+			BackupOwner  string `yaml:"backup_owner"`
+		} `yaml:"ownership"`
+	}
+	type toolInventory struct {
+		Tools []struct {
+			Owner string `yaml:"owner"`
+		} `yaml:"tools"`
+	}
+	owners := map[string]string{}
+	load := func(relative string, target any) error {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		if err != nil {
+			return fmt.Errorf("covergate: read owner registry %s: %w", relative, err)
+		}
+		if err := yaml.Unmarshal(data, target); err != nil {
+			return fmt.Errorf("covergate: parse owner registry %s: %w", relative, err)
+		}
+		return nil
+	}
+	var layout repositoryLayout
+	if err := load("definitions/architecture/repository-layout.yaml", &layout); err != nil {
+		return nil, err
+	}
+	for _, packageRoot := range layout.InternalPackageRoots {
+		if owner := strings.TrimSpace(packageRoot.Owner); owner != "" {
+			owners["internal/"+packageRoot.Name] = owner
+		}
+	}
+	var services serviceOwnership
+	if err := load("definitions/operations/service-ownership.yaml", &services); err != nil {
+		return nil, err
+	}
+	for _, service := range services.Ownership {
+		if id, owner := strings.TrimSpace(service.ID), strings.TrimSpace(service.PrimaryOwner); id != "" && owner != "" {
+			owners["cmd/"+id] = owner
+		}
+	}
+	var tools toolInventory
+	if err := load("definitions/toolchain/tool-inventory.yaml", &tools); err != nil {
+		return nil, err
+	}
+	for _, tool := range tools.Tools {
+		if owner := strings.TrimSpace(tool.Owner); owner != "" {
+			if existing := owners["tools"]; existing != "" && existing != owner {
+				return nil, fmt.Errorf("covergate: tool packages have multiple registry owners %q and %q", existing, owner)
+			}
+			owners["tools"] = owner
+		}
+	}
+	return owners, nil
+}
+
+// datedPlan accepts a specific YYYY-MM-DD milestone followed by a concrete
+// remediation action, for example "2026-10-15: add request validation tests".
+func datedPlan(plan string) (time.Time, bool) {
+	dateText, action, found := strings.Cut(strings.TrimSpace(plan), ":")
+	if !found || strings.TrimSpace(action) == "" {
+		return time.Time{}, false
+	}
+	date, err := time.Parse("2006-01-02", strings.TrimSpace(dateText))
+	return date, err == nil
 }
 
 var (

@@ -55,12 +55,11 @@ var skipDirNames = map[string]bool{
 
 // isGeneratedPath reports whether relDir (forward-slash, relative to the
 // scan root) is, or is inside, a generated-code tree: this repository's
-// protobuf/wire output under gen/go and gen/wire. tools/gen is deliberately
+// protobuf output under gen/go. tools/gen is deliberately
 // NOT excluded here — despite the name, it holds hand-written generator
 // *tooling* (its own subpackages, cmd/, tests), not generated output.
 func isGeneratedPath(relDir string) bool {
-	return relDir == "gen/go" || strings.HasPrefix(relDir, "gen/go/") ||
-		relDir == "gen/wire" || strings.HasPrefix(relDir, "gen/wire/")
+	return relDir == "gen/go" || strings.HasPrefix(relDir, "gen/go/")
 }
 
 // FindConcurrentPackages walks root and returns every Go package (directory

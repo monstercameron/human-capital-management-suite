@@ -26,6 +26,14 @@ scope:
     - Testcontainers API behavior, because its module is not admitted
     - Docker or OCI runtime behavior, because the daemon was unavailable at recording
     - claims that digest-pinned PostgreSQL, S3, SMTP, or provider-fake containers were executed
+execution_evidence:
+  status: not_executed
+  integration_test_scope: release_dependency_graph_only
+  workloads:
+    postgres: not_executed
+    s3: not_executed
+    smtp: not_executed
+    provider: not_executed
 adoption_requirements:
   workloads: [postgres, s3, smtp, provider]
   image_pin: each workload image must use an immutable sha256 digest; floating tags are forbidden

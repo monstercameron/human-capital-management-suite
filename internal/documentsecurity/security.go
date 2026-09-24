@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 )
@@ -69,6 +70,7 @@ type Scanner interface {
 
 type Artifact struct {
 	ID, Name, ContentType           string
+	DetectedContentType             string
 	OriginalDigest                  string
 	DerivativeDigest                string
 	State                           State
@@ -132,6 +134,7 @@ func (r *Registry) Scan(ctx context.Context, u Upload, limits Limits, scanner Sc
 			a.State, a.Reason = Unscannable, "scanner did not produce a bounded derivative"
 		} else {
 			a.DerivativeDigest = digest(v.Derivative)
+			a.DetectedContentType = strings.ToLower(strings.TrimSpace(strings.Split(http.DetectContentType(v.Derivative), ";")[0]))
 			if v.DerivativeDigest != "" && v.DerivativeDigest != a.DerivativeDigest {
 				a.State, a.Reason = Unscannable, "derivative digest mismatch"
 			}

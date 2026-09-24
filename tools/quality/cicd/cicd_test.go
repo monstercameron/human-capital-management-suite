@@ -64,12 +64,19 @@ func TestTodo_CICD_001_Property(t *testing.T) {
 // TestTodo_CICD_001_Race exercises the checker concurrently. Check is pure and
 // must not share mutable state between parallel verification jobs.
 func TestTodo_CICD_001_Race(t *testing.T) {
-	for i := 0; i < 32; i++ {
-		t.Run("check", func(t *testing.T) {
-			t.Parallel()
-			if got := cicd.Check(cicd.CleanPipeline()); len(got) != 0 {
-				t.Fatalf("clean pipeline rejected: %v", got)
-			}
-		})
+	const workers = 32
+	start := make(chan struct{})
+	results := make(chan []cicd.Finding, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			<-start
+			results <- cicd.Check(cicd.CleanPipeline())
+		}()
+	}
+	close(start)
+	for i := 0; i < workers; i++ {
+		if got := <-results; len(got) != 0 {
+			t.Errorf("concurrent clean pipeline rejected: %v", got)
+		}
 	}
 }

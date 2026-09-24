@@ -32,19 +32,29 @@ type EvidenceRow struct {
 
 // Qualification is the parsed LIB-009 decision record.
 type Qualification struct {
-	Version                         int           `yaml:"version"`
-	Todo                            string        `yaml:"todo"`
-	Module                          string        `yaml:"module"`
-	Role                            string        `yaml:"role"`
-	Verdict                         string        `yaml:"verdict"`
-	RuntimeDependencyGraphUnchanged bool          `yaml:"runtime_dependency_graph_unchanged"`
-	Decision                        string        `yaml:"decision"`
-	RemovalPath                     string        `yaml:"removal_path"`
-	RuntimeProbe                    RuntimeProbe  `yaml:"runtime_probe"`
-	Scope                           Scope         `yaml:"scope"`
-	AdoptionRequirements            Requirements  `yaml:"adoption_requirements"`
-	Evidence                        []EvidenceRow `yaml:"evidence"`
-	Command                         string        `yaml:"command"`
+	Version                         int               `yaml:"version"`
+	Todo                            string            `yaml:"todo"`
+	Module                          string            `yaml:"module"`
+	Role                            string            `yaml:"role"`
+	Verdict                         string            `yaml:"verdict"`
+	RuntimeDependencyGraphUnchanged bool              `yaml:"runtime_dependency_graph_unchanged"`
+	Decision                        string            `yaml:"decision"`
+	RemovalPath                     string            `yaml:"removal_path"`
+	RuntimeProbe                    RuntimeProbe      `yaml:"runtime_probe"`
+	Scope                           Scope             `yaml:"scope"`
+	AdoptionRequirements            Requirements      `yaml:"adoption_requirements"`
+	Evidence                        []EvidenceRow     `yaml:"evidence"`
+	Command                         string            `yaml:"command"`
+	ExecutionEvidence               ExecutionEvidence `yaml:"execution_evidence"`
+}
+
+// ExecutionEvidence distinguishes the policy and release-graph checks in
+// this package from the cross-system runs required before Testcontainers can
+// be adopted.
+type ExecutionEvidence struct {
+	Status      string            `yaml:"status"`
+	Workloads   map[string]string `yaml:"workloads"`
+	Integration string            `yaml:"integration_test_scope"`
 }
 
 // RuntimeProbe records the observed no-admission state. It is evidence from
@@ -105,6 +115,17 @@ func ValidateQualification(q Qualification) error {
 	}
 	if strings.TrimSpace(q.RemovalPath) == "" || q.Command != "go test -count=1 ./tools/quality/testcontainerskit" {
 		return errors.New("testcontainerskit: removal path or qualification command is missing")
+	}
+	if q.ExecutionEvidence.Status != "not_executed" || q.ExecutionEvidence.Integration != "release_dependency_graph_only" {
+		return errors.New("testcontainerskit: cross-system execution evidence must remain explicitly unproven")
+	}
+	for _, workload := range []string{"postgres", "s3", "smtp", "provider"} {
+		if q.ExecutionEvidence.Workloads[workload] != "not_executed" {
+			return fmt.Errorf("testcontainerskit: %s execution evidence must remain explicitly unproven", workload)
+		}
+	}
+	if len(q.ExecutionEvidence.Workloads) != 4 {
+		return errors.New("testcontainerskit: execution evidence must name exactly the four required workloads")
 	}
 	if len(q.Evidence) != 6 {
 		return fmt.Errorf("testcontainerskit: evidence rows = %d, want 6", len(q.Evidence))

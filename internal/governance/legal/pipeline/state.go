@@ -55,7 +55,8 @@ var (
 	// recorded digest does not match its recomputed content, its signature
 	// does not verify, or its prev_digest does not equal the digest of the
 	// event before it.
-	ErrChainBroken = errors.New("legal pipeline: event chain does not verify")
+	ErrChainBroken  = errors.New("legal pipeline: event chain does not verify")
+	ErrDraftChanged = errors.New("legal pipeline: draft changed after author signature")
 )
 
 // Event is one digested, signed transition in a [Pipeline]'s state machine.
@@ -116,9 +117,10 @@ type Pipeline struct {
 	ReviewerID  string
 	PublisherID string
 
-	Draft        Draft
-	ReviewRecord legal.ReviewRecord
-	Release      legal.PackRelease
+	Draft          Draft
+	ReviewRecord   legal.ReviewRecord
+	Release        legal.PackRelease
+	AuthoredDigest string
 
 	Events []Event
 }
@@ -176,7 +178,7 @@ func Author(data []byte, authorID string, authorSigner *legal.Signer) (*Pipeline
 	if err != nil {
 		return nil, err
 	}
-	p := &Pipeline{AuthorID: authorID, Draft: d}
+	p := &Pipeline{AuthorID: authorID, Draft: d, AuthoredDigest: digest}
 	if err := p.appendEvent(StageAuthored, authorID, legal.SigningRoleRuleAuthor, digest, authorSigner); err != nil {
 		return nil, err
 	}
@@ -195,12 +197,11 @@ func draftDigest(d Draft) (string, error) {
 	return c.Pack().ComputeDigest(), nil
 }
 
-// reviewRole picks the signing role a review at status raises to. Every
-// status other than COUNSEL_APPROVED is a vendor-side review in this
-// package's model; COUNSEL_APPROVED is the one status the contract's
-// section 7.1 assigns to a distinct Customer Counsel role.
+// reviewRole picks the signing role a review at status raises to. Customer
+// counsel owns both COUNSEL_APPROVED and CUSTOMER_DEFINED promotions; vendor
+// legal review owns VENDOR_BASELINE.
 func reviewRole(status legal.ReviewStatus) legal.SigningRole {
-	if status == legal.ReviewStatusCounselApproved {
+	if requiresCounselSignature(status) {
 		return legal.SigningRoleCustomerCounsel
 	}
 	return legal.SigningRoleVendorLegalReviewer
@@ -228,10 +229,31 @@ func (p *Pipeline) Review(reviewerID string, status legal.ReviewStatus, findings
 	); err != nil {
 		return fmt.Errorf("%w: %w", ErrAuthorReviewerSame, err)
 	}
+	currentDraftDigest, err := draftDigest(p.Draft)
+	if err != nil {
+		return err
+	}
+	if currentDraftDigest != p.AuthoredDigest {
+		return ErrDraftChanged
+	}
 
 	reviewed, err := Review(p.Draft, reviewerID, status)
 	if err != nil {
 		return err
+	}
+	knownObligations := make(map[string]struct{}, len(p.Draft.Definition.Obligations))
+	for _, obligation := range p.Draft.Definition.Obligations {
+		knownObligations[obligation.ID] = struct{}{}
+	}
+	for _, finding := range findings {
+		if finding.ObligationID != "" {
+			if _, ok := knownObligations[finding.ObligationID]; !ok {
+				return fmt.Errorf("%w: %s", ErrFindingObligation, finding.ObligationID)
+			}
+		}
+		if finding.Severity == legal.FindingSeverityBlocking {
+			return ErrBlockingFinding
+		}
 	}
 	pack := reviewed.Candidate.Pack()
 	record := legal.ReviewRecord{
@@ -393,6 +415,9 @@ func (p *Pipeline) Withdraw(principalID, reason string, signer *legal.Signer) er
 // receives a serialized [Pipeline] (or one event mutated after the fact)
 // can prove the whole history is intact, not just trust the Stage field.
 func (p *Pipeline) VerifyChain() error {
+	if len(p.Events) == 0 || p.Stage != p.Events[len(p.Events)-1].Stage {
+		return fmt.Errorf("%w: empty chain or stage does not match chain head", ErrChainBroken)
+	}
 	prev := ""
 	for i, ev := range p.Events {
 		if ev.PrevDigest != prev {
@@ -403,6 +428,44 @@ func (p *Pipeline) VerifyChain() error {
 			return fmt.Errorf("%w: event %d (%s): %v", ErrChainBroken, i, ev.Stage, err)
 		}
 		prev = ev.Digest
+	}
+	if p.Events[0].Stage != StageAuthored || p.Events[0].PrincipalID != p.AuthorID || p.Events[0].Role != legal.SigningRoleRuleAuthor || p.Events[0].ArtifactDigest != p.AuthoredDigest {
+		return fmt.Errorf("%w: authored event does not match author evidence", ErrChainBroken)
+	}
+	if len(p.Events) == 1 {
+		current, err := draftDigest(p.Draft)
+		if err != nil || current != p.AuthoredDigest {
+			return fmt.Errorf("%w: authored event does not match current draft", ErrChainBroken)
+		}
+	}
+	if len(p.Events) > 1 {
+		if p.Events[1].Stage != StageReviewed || p.Events[1].PrincipalID != p.ReviewerID || p.Events[1].Role != reviewRole(p.ReviewRecord.Status) || p.Events[1].ArtifactDigest != p.ReviewRecord.ComputeDigest() {
+			return fmt.Errorf("%w: review event does not match review evidence", ErrChainBroken)
+		}
+		if err := p.ReviewRecord.Validate(); err != nil {
+			return fmt.Errorf("%w: review record: %v", ErrChainBroken, err)
+		}
+		candidate, err := p.Draft.Definition.Candidate()
+		definitionStatus, statusErr := legal.ParseReviewStatus(p.Draft.Definition.ReviewStatus)
+		if err != nil || statusErr != nil || p.ReviewRecord.PackDigest != candidate.Pack().ComputeDigest() || p.ReviewRecord.AuthorID != p.AuthorID || p.ReviewRecord.ReviewerID != p.ReviewerID || p.ReviewRecord.Status != definitionStatus {
+			return fmt.Errorf("%w: review record does not bind the current candidate", ErrChainBroken)
+		}
+	}
+	if len(p.Events) > 2 {
+		if p.Events[2].Stage != StagePublished || p.Events[2].PrincipalID != p.PublisherID || p.Events[2].Role != legal.SigningRoleReleasePublisher || p.Events[2].ArtifactDigest != p.Release.ComputeDigest() || p.Release.Digest != p.Events[2].ArtifactDigest || p.Release.ReviewStatus != p.ReviewRecord.Status {
+			return fmt.Errorf("%w: publish event does not match release evidence", ErrChainBroken)
+		}
+		if err := p.Release.Verify(); err != nil {
+			return fmt.Errorf("%w: release: %v", ErrChainBroken, err)
+		}
+		hasPublisher, hasCounsel := false, false
+		for _, signature := range p.Release.Signatures {
+			hasPublisher = hasPublisher || signature.Role == legal.SigningRoleReleasePublisher
+			hasCounsel = hasCounsel || signature.Role == legal.SigningRoleCustomerCounsel
+		}
+		if !hasPublisher || (requiresCounselSignature(p.Release.ReviewStatus) && !hasCounsel) {
+			return fmt.Errorf("%w: required release approval signatures are missing", ErrChainBroken)
+		}
 	}
 	return nil
 }

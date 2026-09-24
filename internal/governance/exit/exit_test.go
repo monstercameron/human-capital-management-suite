@@ -1,6 +1,7 @@
 package exit
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -18,9 +19,29 @@ func validRequest() Request {
 	copies[6].ActiveAuthority = true
 	copies[7].ActiveAuthority = true
 	copies[3].RestoreReDeleteNeeded = true
-	return Request{Tenant: "tenant-1", RequestedBy: "operator-1", At: at, Copies: copies, Export: ExportReceipt{ID: "export-1", SchemaVersion: "exit-v1", Checksum: "sha256:abc", ExpectedDigest: "sha256:abc", Recipient: "customer-1", Verified: true}, ShutdownComplete: true,
+	req := Request{Tenant: "tenant-1", RequestedBy: "operator-1", At: at, Copies: copies, ShutdownComplete: true,
 		Revocations: []RevocationReceipt{{ID: "r-provider", Target: "copy-PROVIDER", Kind: "provider", At: at, Success: true}, {ID: "r-credential", Target: "copy-CREDENTIAL", Kind: "credential", At: at, Success: true}, {ID: "r-webhook", Target: "copy-WEBHOOK", Kind: "webhook", At: at, Success: true}, {ID: "r-support", Target: "copy-SUPPORT_GRANT", Kind: "support", At: at, Success: true}},
 		PendingWork: []PendingWork{{ID: "work-1", Disposition: "FROZEN", Reason: "exit"}}, HoldExceptions: []HoldException{{ID: "hold-1", CopyID: "copy-CANONICAL", Authority: "legal-1", Reason: "litigation hold"}}, RestoreReDeletes: []RestoreReDelete{{ID: "rd-1", CopyID: "copy-BACKUP", TombstoneDigest: "sha256:tombstone", Watermark: "42", Reapplied: true}}}
+	refreshExport(&req)
+	return req
+}
+
+func refreshExport(req *Request) {
+	categories := make([]ExportCategory, 0, len(RequiredCategories))
+	for _, category := range RequiredCategories {
+		for _, copy := range req.Copies {
+			if copy.Category != category {
+				continue
+			}
+			categories = append(categories, ExportCategory{Category: category, CopyID: copy.ID, Fields: []string{"id", "value"}, Records: []json.RawMessage{json.RawMessage(`{"id":"record-1","value":"tenant-data"}`)}})
+			break
+		}
+	}
+	pkg, err := BuildExportPackage(ExportBuildRequest{ID: "export-1", Tenant: req.Tenant, Recipient: "customer-1", Copies: req.Copies, Categories: categories})
+	if err != nil {
+		panic(err)
+	}
+	req.Export, req.ExportPackage = pkg.Receipt, &pkg
 }
 
 func TestTodo_PRIV_EXIT_001(t *testing.T) {

@@ -151,3 +151,60 @@ func TestTodo_ARCH_GO_010_Conformance(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_ARCH_GO_010_Golden(t *testing.T) {
+	do := loadArchConfig(t).DomainOwnership
+	if do.Root != "internal/domains" || do.ForbiddenCentralRepoPackage != "internal/repository" {
+		t.Fatalf("domain ownership roots drifted: %+v", do)
+	}
+	want := []string{"internal/domains/*/store", "internal/domains/*/persistence", "internal/domains/*/repository"}
+	if len(do.PersistenceMarkers) != len(want) {
+		t.Fatalf("persistence markers = %v, want %v", do.PersistenceMarkers, want)
+	}
+	for i := range want {
+		if do.PersistenceMarkers[i] != want[i] {
+			t.Errorf("persistence marker %d = %q, want %q", i, do.PersistenceMarkers[i], want[i])
+		}
+	}
+}
+
+func TestTodo_ARCH_GO_010_Property(t *testing.T) {
+	do := loadArchConfig(t).DomainOwnership
+	for _, a := range []string{"people", "compensation", "org/chart"} {
+		for _, b := range []string{"position", "benefits"} {
+			for _, suffix := range []string{"store", "persistence", "repository"} {
+				imp, dest := do.Root+"/"+a, do.Root+"/"+b+"/"+suffix+"/records"
+				cross := domainOf(do.Root, imp) != domainOf(do.Root, dest) && archrules.MatchesAnyGlob(do.PersistenceMarkers, dest)
+				if !cross {
+					t.Errorf("cross-domain persistence %q -> %q was not recognized", imp, dest)
+				}
+			}
+		}
+	}
+}
+
+func TestTodo_ARCH_GO_010_Race(t *testing.T) {
+	do := loadArchConfig(t).DomainOwnership
+	const workers = 24
+	errCh := make(chan string, workers)
+	done := make(chan struct{}, workers)
+	for i := 0; i < workers; i++ {
+		go func(i int) {
+			a := []string{"people", "compensation", "org"}[i%3]
+			b := []string{"position", "benefits"}[i%2]
+			path := do.Root + "/" + b + "/store"
+			got := domainOf(do.Root, do.Root+"/"+a) != domainOf(do.Root, path) && archrules.MatchesAnyGlob(do.PersistenceMarkers, path)
+			if !got {
+				errCh <- path
+			}
+			done <- struct{}{}
+		}(i)
+	}
+	for i := 0; i < workers; i++ {
+		<-done
+	}
+	close(errCh)
+	for path := range errCh {
+		t.Errorf("concurrent ownership check missed %s", path)
+	}
+}

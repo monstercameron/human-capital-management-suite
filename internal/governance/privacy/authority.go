@@ -28,6 +28,7 @@ const (
 	AuthorityNoticeNotPresented   AuthorityCode = "NOTICE_NOT_PRESENTED"
 	AuthorityPresentationInvalid  AuthorityCode = "PRESENTATION_INVALID"
 	AuthorityNoticeVersionStale   AuthorityCode = "NOTICE_VERSION_MISMATCH"
+	AuthorityPresentationNotAck   AuthorityCode = "PRESENTATION_NOT_ACKNOWLEDGED"
 	AuthorityUnsupportedLocale    AuthorityCode = "UNSUPPORTED_LOCALE"
 	AuthorityPresentationNotA11y  AuthorityCode = "PRESENTATION_NOT_ACCESSIBLE"
 	AuthorityPresentationWrongWho AuthorityCode = "PRESENTATION_PRINCIPAL_MISMATCH"
@@ -214,6 +215,12 @@ func EvaluateAuthority(in AuthorityInput) AuthorityDecision {
 	}
 	if in.Presentation.Principal != in.Principal {
 		return deny(in, AuthorityPresentationWrongWho)
+	}
+	if in.Presentation.PresentedAt.After(in.EffectiveAt) {
+		return deny(in, AuthorityNoticeNotPresented)
+	}
+	if !in.Presentation.AcknowledgedAt.IsSet() || in.Presentation.AcknowledgedAt.After(in.EffectiveAt) {
+		return deny(in, AuthorityPresentationNotAck)
 	}
 	if !localeSupported(in.Presentation.Locale, in.SupportedLocales) {
 		return deny(in, AuthorityUnsupportedLocale)

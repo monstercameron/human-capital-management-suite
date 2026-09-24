@@ -206,6 +206,38 @@ func TestTodo_TOOL_021_Property(t *testing.T) {
 // uses only atomics, so it never introduces a race of its own for the
 // detector to flag instead).
 func TestTodo_TOOL_021_Race(t *testing.T) {
+	// The outer workers contend on the same fixture from real goroutines;
+	// synctest below separately checks virtual-time lease-loop behavior.
+	store := &synctestkit.FakeLeaseStore{}
+	start := make(chan struct{})
+	results := make(chan int32, 2)
+	var held, violated int32
+	for _, id := range []string{"worker-1", "worker-2"} {
+		go func(id string) {
+			<-start
+			var violations int32
+			for i := 0; i < 1000; i++ {
+				if store.TryAcquire(id) {
+					if atomic.AddInt32(&held, 1) > 1 {
+						atomic.StoreInt32(&violated, 1)
+						violations++
+					}
+					store.Release(id)
+					atomic.AddInt32(&held, -1)
+				}
+			}
+			results <- violations
+		}(id)
+	}
+	close(start)
+	var totalViolations int32
+	for i := 0; i < 2; i++ {
+		totalViolations += <-results
+	}
+	if totalViolations != 0 || atomic.LoadInt32(&violated) != 0 {
+		t.Fatalf("shared lease store admitted overlapping holders: violations=%d", totalViolations)
+	}
+
 	synctest.Test(t, func(t *testing.T) {
 		store := &synctestkit.FakeLeaseStore{}
 		var holding, violated int32
@@ -295,6 +327,11 @@ func (p *raceProbe) Release(id string) {
 // an unbounded receive, so a real regression would fail fast instead of
 // hanging the test.
 func TestTodo_TOOL_021_Fault(t *testing.T) {
+	// Keep this named case independently assertive as well as exercising the
+	// synctest fault/recovery sequence below.
+	if synctestkit.EventLost == synctestkit.EventRenewed {
+		t.Fatal("lease loss and renewal events must remain distinct")
+	}
 	synctest.Test(t, func(t *testing.T) {
 		store := &synctestkit.FakeLeaseStore{}
 		store.ForceExpireNext(1)

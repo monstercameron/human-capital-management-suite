@@ -683,27 +683,33 @@ func TestPackDefinitionTreeLoads(t *testing.T) {
 		t.Fatalf("RepoRoot: %v", err)
 	}
 	dir := filepath.Join(root, filepath.FromSlash(PackDefinitionDir))
+	// The packs tree also contains definitions for other governance domains
+	// (for example privacy transfer rules). Only seed/ and states/ contain
+	// Legal RulePack definitions consumed by this package.
+	rulePackDirs := []string{filepath.Join(dir, "seed"), filepath.Join(dir, "states")}
 	count := 0
-	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || filepath.Ext(path) != ".json" {
+	for _, rulePackDir := range rulePackDirs {
+		err = filepath.WalkDir(rulePackDir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || filepath.Ext(path) != ".json" {
+				return nil
+			}
+			count++
+			def, err := LoadPackDefinitionFile(path)
+			if err != nil {
+				t.Errorf("%s: %v", path, err)
+				return nil
+			}
+			if _, err := def.Candidate(); err != nil {
+				t.Errorf("%s: %v", path, err)
+			}
 			return nil
-		}
-		count++
-		def, err := LoadPackDefinitionFile(path)
+		})
 		if err != nil {
-			t.Errorf("%s: %v", path, err)
-			return nil
+			t.Fatalf("walking %s: %v", rulePackDir, err)
 		}
-		if _, err := def.Candidate(); err != nil {
-			t.Errorf("%s: %v", path, err)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walking %s: %v", dir, err)
 	}
 	if count != 53 {
 		t.Errorf("loaded %d definition files, want 53 (50 state drafts + District draft + 2 seed fixtures)", count)

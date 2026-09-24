@@ -2,6 +2,7 @@ package archrules_test
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/archrules"
@@ -317,18 +318,37 @@ func TestTodo_ARCH_GO_022_Conformance(t *testing.T) {
 	}
 }
 
-// TestTodo_ARCH_GO_022_Golden would verify generated artifacts or canonical
-// outputs. For architecture ownership checks, this is typically N/A as there
-// are no generated artifacts; instead, INTEGRATION validates the real graph.
+// TestTodo_ARCH_GO_022_Golden pins representative ownership-boundary answers.
 func TestTodo_ARCH_GO_022_Golden(t *testing.T) {
-	t.Skip("ARCH-GO-022 Golden test: N/A for architecture ownership checks; INTEGRATION validates the real graph")
+	cases := []struct {
+		path, root string
+		want       bool
+	}{
+		{"internal/workflow/runtime/runner.go", "internal/workflow", true},
+		{"internal/workflowish/runner.go", "internal/workflow", false},
+		{"internal/forms/api/handler.go", "internal/messaging", false},
+	}
+	for _, tc := range cases {
+		if got := archrules.UnderRoot(tc.path, tc.root); got != tc.want {
+			t.Errorf("UnderRoot(%q, %q) = %t, want %t", tc.path, tc.root, got, tc.want)
+		}
+	}
 }
 
-// TestTodo_ARCH_GO_022_Race validates that the architecture check itself is
-// free of race conditions. For a static analysis check that reads the package
-// graph without mutation, race detection is typically N/A.
+// TestTodo_ARCH_GO_022_Race checks concurrent ownership-boundary reads.
 func TestTodo_ARCH_GO_022_Race(t *testing.T) {
-	t.Skip("ARCH-GO-022 Race test: N/A for static architecture analysis with no mutable shared state")
+	const workers = 16
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if !archrules.UnderRoot("internal/workflow/runtime/runner.go", "internal/workflow") {
+				t.Error("workflow runtime path escaped its owner root")
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 // TestTodo_ARCH_GO_022_Browser validates browser/UI aspects of human

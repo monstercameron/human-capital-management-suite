@@ -17,6 +17,7 @@ func TestTodo_TENANT_004(t *testing.T) {
 		for i := range r.Revocations {
 			r.Revocations[i].At = at
 		}
+		refreshExport(&r)
 		return r
 	}
 	base := freshExit()

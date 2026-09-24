@@ -1,0 +1,6 @@
+version=hipaa-breach-v1; priv009=breach-matrix-v3; exception=45 CFR 164.412 law-enforcement delay
+COVERED_ENTITY :: 1 business-associate breach of unsecured PHI :: 60 days from discovery, without unreasonable delay :: 45 CFR 164.410(b)
+HHS_SECRETARY :: 499 fewer than 500 affected individuals :: 60 days from end of calendar year of discovery :: 45 CFR 164.408(c)
+HHS_SECRETARY :: 500 500 or more affected individuals :: 60 days from discovery; contemporaneous with individual notice :: 45 CFR 164.408(a)-(b)
+INDIVIDUALS :: 1 each affected individual :: 60 days from discovery :: 45 CFR 164.404(b)
+MEDIA :: 500 more than 500 residents of a state or jurisdiction :: 60 days from discovery :: 45 CFR 164.406(a)-(b)

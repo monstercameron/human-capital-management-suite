@@ -1,0 +1,13 @@
+{
+  "source": {"ref": {"repository": "example.com/hcm", "ref": "main", "commit": "dddddddddddddddddddddddddddddddddddddddd"}},
+  "toolchain": {"config": {"go_version": "go1.26.3", "goos": "linux", "goarch": "amd64", "config_digest": "cfg"}},
+  "artifact": {"verification": {"manifestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "version": "ci", "artifacts": ["hcmnext"]}},
+  "schema": {"bundleSchemaVersion": 1, "validatedAt": "2026-09-12T11:55:00Z"},
+  "config": {"digest": "cfg", "valid": true, "validatedAt": "2026-09-12T11:55:00Z"},
+  "test": {"ranAt": "2026-09-12T11:55:00Z", "passed": 42, "failed": 0},
+  "conformance": {"generatedAt": "2026-09-12T11:00:00Z"},
+  "rollout": {"snapshot": {"id": "ci-r1", "status": "IN_PROGRESS", "history": [{"sequence": 1, "kind": "advance", "stage": "canary-5", "status": "IN_PROGRESS", "evaluated_at": "2026-09-12T11:00:00Z", "digest": "hh"}]}},
+  "rollback": {"decision": {"status": "ADMIT", "admitted": true, "scope": "prod/pilot-cell", "manifest_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "evaluated_at": "2026-09-12T11:55:00Z", "digest": "dd"}},
+  "owner": {"name": "ci", "confirmedAt": "2026-09-12T11:55:00Z"},
+  "blocker": {"checkedAt": "2026-09-12T11:55:00Z", "open": []}
+}

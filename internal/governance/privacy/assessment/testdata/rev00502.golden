@@ -1,14 +1,1 @@
-tenant: tenant-acme
-activity: automated-risk-scoring
-version: 2
-decided_at: 2026-09-01T00:00:00Z
-review_interval: 2160h0m0s
-necessity: scoring is necessary to triage pilot support load
-proportionality: only workforce-role fields are scored, never raw identifiers
-risk: low|scoring drift across locales
-risk: medium|false positive flag delays a legitimate promotion
-mitigation: consent|TRUST-024
-mitigation: dlp|TRUST-018
-mitigation: field-mask|TRUST-010
-reviewer: privacy-reviewer
-signature: ed25519:reviewer-signature
+{"tenant_id":"tenant-acme","activity_id":"automated-risk-scoring","activity_version":"2026-09","inventory_digest":"inventory-fixture","version":2,"decided_at":"2026-09-01T00:00:00Z","review_interval_ns":7776000000000000,"necessity":"scoring is necessary to triage pilot support load","proportionality":"only workforce-role fields are scored, never raw identifiers","risks":[{"description":"false positive delays promotion","affected_subjects":"employees evaluated for promotion","likelihood":"medium","impact":"high","severity":"high"},{"description":"scoring drift across locales","affected_subjects":"employees in supported locales","likelihood":"low","impact":"medium","severity":"medium"}],"mitigations":[{"control":"consent management","reference":"TRUST-024"},{"control":"data loss prevention","reference":"TRUST-018"},{"control":"field masks","reference":"TRUST-010"}],"reviewer":"privacy-reviewer"}

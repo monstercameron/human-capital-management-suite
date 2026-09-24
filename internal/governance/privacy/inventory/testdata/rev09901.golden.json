@@ -1,0 +1,37 @@
+{
+  "version": "privacy-transfer-rules-2026.09.1",
+  "review_state": "REFERENCE_SNAPSHOT_REQUIRES_COUNSEL_APPROVAL",
+  "adequacy_registry_complete": false,
+  "adequacy_entries": 6,
+  "region_groups": [
+    {
+      "id": "EEA",
+      "members": 32
+    },
+    {
+      "id": "EU",
+      "members": 28
+    },
+    {
+      "id": "UK",
+      "members": 2
+    }
+  ],
+  "mechanisms": [
+    "eu.adequacy.decision.v1",
+    "eu.bcr.article-47.v1",
+    "eu.derogation.article-49.v1",
+    "eu.scc.2021-914.module-1",
+    "eu.scc.2021-914.module-2",
+    "eu.scc.2021-914.module-3",
+    "eu.scc.2021-914.module-4",
+    "uk.addendum.eu-scc-2021.module-1",
+    "uk.addendum.eu-scc-2021.module-2",
+    "uk.addendum.eu-scc-2021.module-3",
+    "uk.addendum.eu-scc-2021.module-4",
+    "uk.adequacy.regulations.v1",
+    "uk.bcr.current.v1",
+    "uk.derogation.dpa-2018.v1",
+    "uk.idta.current.v1"
+  ]
+}

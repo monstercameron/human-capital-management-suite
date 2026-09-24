@@ -4,9 +4,16 @@
 # a commit (npm run check:coverage:staged); CI gates the whole root module
 # (npm run check:coverage). A package fails the gate when any test fails, when
 # it has no test files, or when it covers fewer statements than `threshold`.
+# Per-file evidence is generated from `go test -coverprofile` by
+# tools/planning/cmd/testcoverage -write. After both inventories are refreshed,
+# `npm run check:testcoverage` validates file/test digests and rejects missing
+# tests, failed test runs and stale rows. Keep this checker opt-in until the
+# current inventory can be regenerated from a compiling checkout.
 #
 # An exception waives exactly one kind (`no_tests` or `below_floor`) for one
-# exact package path until `expiry`; it needs an owner and a reason, and an
+# exact package path until `expiry`; its owner must match the package team in
+# repository-layout.yaml, service-ownership.yaml or tool-inventory.yaml. Each
+# exception needs a reason and a dated remediation action before expiry; an
 # expired exception waives nothing. Prefixes and wildcards are refused so a
 # new package can never inherit a waiver.
 threshold: 70
@@ -14,1315 +21,1497 @@ threshold: 70
 exceptions:
   - package: cmd/frontenddev
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       59.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-07: add assertion-backed tests for uncovered behavior in cmd/frontenddev and measure until at least 70 percent"
+    expiry: "2026-11-06"
   - package: cmd/hcmctl
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-09: add assertion-backed tests for uncovered behavior in cmd/hcmctl and measure until at least 70 percent"
+    expiry: "2026-11-08"
   - package: cmd/hcmnext
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       69.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-11: add assertion-backed tests for uncovered behavior in cmd/hcmnext and measure until at least 70 percent"
+    expiry: "2026-11-10"
   - package: cmd/migrate
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       54.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-13: add assertion-backed tests for uncovered behavior in cmd/migrate and measure until at least 70 percent"
+    expiry: "2026-11-12"
   - package: cmd/scheduler
     kind: below_floor
-    owner: backlog
+    owner: workflow-runtime
     reason: >-
       60.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-15: add assertion-backed tests for uncovered behavior in cmd/scheduler and measure until at least 70 percent"
+    expiry: "2026-11-14"
   - package: internal/connectivity
     kind: below_floor
-    owner: backlog
+    owner: connectivity
     reason: >-
       65.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-17: add assertion-backed tests for uncovered behavior in internal/connectivity and measure until at least 70 percent"
+    expiry: "2026-11-16"
   - package: internal/connectivity/adapter
     kind: below_floor
-    owner: backlog
+    owner: connectivity
     reason: >-
       58.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-19: add assertion-backed tests for uncovered behavior in internal/connectivity/adapter and measure until at least 70 percent"
+    expiry: "2026-11-18"
   - package: internal/connectivity/mapping
     kind: below_floor
-    owner: backlog
+    owner: connectivity
     reason: >-
       67.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-21: add assertion-backed tests for uncovered behavior in internal/connectivity/mapping and measure until at least 70 percent"
+    expiry: "2026-11-20"
   - package: internal/connectivity/mappingprofile
     kind: below_floor
-    owner: backlog
+    owner: connectivity
     reason: >-
       52.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-23: add assertion-backed tests for uncovered behavior in internal/connectivity/mappingprofile and measure until at least 70 percent"
+    expiry: "2026-11-22"
   - package: internal/connectivity/schemasnapshot/adapters/postgres
     kind: below_floor
-    owner: backlog
+    owner: connectivity
     reason: >-
       64.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-25: add assertion-backed tests for uncovered behavior in internal/connectivity/schemasnapshot/adapters/postgres and measure until at least 70 percent"
+    expiry: "2026-11-24"
   - package: internal/connectivity/transport
     kind: below_floor
-    owner: backlog
+    owner: connectivity
     reason: >-
       57.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-27: add assertion-backed tests for uncovered behavior in internal/connectivity/transport and measure until at least 70 percent"
+    expiry: "2026-11-26"
   - package: internal/customobject
     kind: below_floor
-    owner: backlog
+    owner: intent-and-capability
     reason: >-
       21.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-29: add assertion-backed tests for uncovered behavior in internal/customobject and measure until at least 70 percent"
+    expiry: "2026-11-28"
   - package: internal/data/accessstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       61.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-31: add assertion-backed tests for uncovered behavior in internal/data/accessstore and measure until at least 70 percent"
+    expiry: "2026-11-30"
   - package: internal/data/aggregates
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       68.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-02: add assertion-backed tests for uncovered behavior in internal/data/aggregates and measure until at least 70 percent"
+    expiry: "2026-12-02"
   - package: internal/data/analytics
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       66.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-04: add assertion-backed tests for uncovered behavior in internal/data/analytics and measure until at least 70 percent"
+    expiry: "2026-12-04"
   - package: internal/data/assetstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       69.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-06: add assertion-backed tests for uncovered behavior in internal/data/assetstore and measure until at least 70 percent"
+    expiry: "2026-12-06"
   - package: internal/data/balancestore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       58.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-08: add assertion-backed tests for uncovered behavior in internal/data/balancestore and measure until at least 70 percent"
+    expiry: "2026-12-08"
   - package: internal/data/benefitsstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       65.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-10: add assertion-backed tests for uncovered behavior in internal/data/benefitsstore and measure until at least 70 percent"
+    expiry: "2026-12-10"
   - package: internal/data/budgetstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       66.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-12: add assertion-backed tests for uncovered behavior in internal/data/budgetstore and measure until at least 70 percent"
+    expiry: "2026-12-12"
   - package: internal/data/careerstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       62.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-14: add assertion-backed tests for uncovered behavior in internal/data/careerstore and measure until at least 70 percent"
+    expiry: "2026-12-14"
   - package: internal/data/cbastore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       50.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-16: add assertion-backed tests for uncovered behavior in internal/data/cbastore and measure until at least 70 percent"
+    expiry: "2026-12-16"
   - package: internal/data/contentregistrystore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       66.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-18: add assertion-backed tests for uncovered behavior in internal/data/contentregistrystore and measure until at least 70 percent"
+    expiry: "2026-12-18"
   - package: internal/data/crmstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       60.7% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-20: add assertion-backed tests for uncovered behavior in internal/data/crmstore and measure until at least 70 percent"
+    expiry: "2026-12-20"
   - package: internal/data/customstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       60.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-22: add assertion-backed tests for uncovered behavior in internal/data/customstore and measure until at least 70 percent"
+    expiry: "2026-12-22"
   - package: internal/data/demoworkforce
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       39.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-24: add assertion-backed tests for uncovered behavior in internal/data/demoworkforce and measure until at least 70 percent"
+    expiry: "2026-12-24"
   - package: internal/data/documentmeta
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       63.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-26: add assertion-backed tests for uncovered behavior in internal/data/documentmeta and measure until at least 70 percent"
+    expiry: "2026-12-26"
   - package: internal/data/employeerelationsstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       54.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-28: add assertion-backed tests for uncovered behavior in internal/data/employeerelationsstore and measure until at least 70 percent"
+    expiry: "2026-12-28"
   - package: internal/data/equitystore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       60.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-11-30: add assertion-backed tests for uncovered behavior in internal/data/equitystore and measure until at least 70 percent"
+    expiry: "2026-12-30"
   - package: internal/data/fxstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       64.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-02: add assertion-backed tests for uncovered behavior in internal/data/fxstore and measure until at least 70 percent"
+    expiry: "2027-01-01"
   - package: internal/data/governance
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       50.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-04: add assertion-backed tests for uncovered behavior in internal/data/governance and measure until at least 70 percent"
+    expiry: "2027-01-03"
   - package: internal/data/hrcasestore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       68.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-06: add assertion-backed tests for uncovered behavior in internal/data/hrcasestore and measure until at least 70 percent"
+    expiry: "2027-01-05"
   - package: internal/data/incentivestore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       62.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-08: add assertion-backed tests for uncovered behavior in internal/data/incentivestore and measure until at least 70 percent"
+    expiry: "2027-01-07"
   - package: internal/data/ledger/partition
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       65.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-10: add assertion-backed tests for uncovered behavior in internal/data/ledger/partition and measure until at least 70 percent"
+    expiry: "2027-01-09"
   - package: internal/data/locationstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       61.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-12: add assertion-backed tests for uncovered behavior in internal/data/locationstore and measure until at least 70 percent"
+    expiry: "2027-01-11"
   - package: internal/data/messagingmeta
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       58.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-14: add assertion-backed tests for uncovered behavior in internal/data/messagingmeta and measure until at least 70 percent"
+    expiry: "2027-01-13"
   - package: internal/data/mobilitystore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       66.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-16: add assertion-backed tests for uncovered behavior in internal/data/mobilitystore and measure until at least 70 percent"
+    expiry: "2027-01-15"
   - package: internal/data/operationstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       68.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-18: add assertion-backed tests for uncovered behavior in internal/data/operationstore and measure until at least 70 percent"
+    expiry: "2027-01-17"
   - package: internal/data/opsmeta
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       68.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-20: add assertion-backed tests for uncovered behavior in internal/data/opsmeta and measure until at least 70 percent"
+    expiry: "2027-01-19"
   - package: internal/data/payglstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       67.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-22: add assertion-backed tests for uncovered behavior in internal/data/payglstore and measure until at least 70 percent"
+    expiry: "2027-01-21"
   - package: internal/data/payinputstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       59.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-24: add assertion-backed tests for uncovered behavior in internal/data/payinputstore and measure until at least 70 percent"
+    expiry: "2027-01-23"
   - package: internal/data/paymethodstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       41.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-26: add assertion-backed tests for uncovered behavior in internal/data/paymethodstore and measure until at least 70 percent"
+    expiry: "2027-01-25"
   - package: internal/data/planningstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       66.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-28: add assertion-backed tests for uncovered behavior in internal/data/planningstore and measure until at least 70 percent"
+    expiry: "2027-01-27"
   - package: internal/data/projection
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       62.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-12-30: add assertion-backed tests for uncovered behavior in internal/data/projection and measure until at least 70 percent"
+    expiry: "2027-01-29"
   - package: internal/data/refdata
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       65.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-01: add assertion-backed tests for uncovered behavior in internal/data/refdata and measure until at least 70 percent"
+    expiry: "2027-01-31"
   - package: internal/data/schedulingstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       57.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-03: add assertion-backed tests for uncovered behavior in internal/data/schedulingstore and measure until at least 70 percent"
+    expiry: "2027-02-02"
   - package: internal/data/skillstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       63.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-05: add assertion-backed tests for uncovered behavior in internal/data/skillstore and measure until at least 70 percent"
+    expiry: "2027-02-04"
   - package: internal/data/subscriptionstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       60.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-07: add assertion-backed tests for uncovered behavior in internal/data/subscriptionstore and measure until at least 70 percent"
+    expiry: "2027-02-06"
   - package: internal/data/successionstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       60.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-09: add assertion-backed tests for uncovered behavior in internal/data/successionstore and measure until at least 70 percent"
+    expiry: "2027-02-08"
   - package: internal/data/taxprofilestore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       68.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-11: add assertion-backed tests for uncovered behavior in internal/data/taxprofilestore and measure until at least 70 percent"
+    expiry: "2027-02-10"
   - package: internal/data/workeridstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       67.7% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-13: add assertion-backed tests for uncovered behavior in internal/data/workeridstore and measure until at least 70 percent"
+    expiry: "2027-02-12"
   - package: internal/documents/intake
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       64.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-15: add assertion-backed tests for uncovered behavior in internal/documents/intake and measure until at least 70 percent"
+    expiry: "2027-02-14"
   - package: internal/domains/appointment
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       64.2% (improved from 61.6% on 2026-09-16) of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-17: add assertion-backed tests for uncovered behavior in internal/domains/appointment and measure until at least 70 percent"
+    expiry: "2027-02-16"
   - package: internal/domains/asset
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       60.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-19: add assertion-backed tests for uncovered behavior in internal/domains/asset and measure until at least 70 percent"
+    expiry: "2027-02-18"
   - package: internal/domains/attendance
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       66.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-21: add assertion-backed tests for uncovered behavior in internal/domains/attendance and measure until at least 70 percent"
+    expiry: "2027-02-20"
   - package: internal/domains/availability
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       63.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-23: add assertion-backed tests for uncovered behavior in internal/domains/availability and measure until at least 70 percent"
+    expiry: "2027-02-22"
   - package: internal/domains/benefits
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       44.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-25: add assertion-backed tests for uncovered behavior in internal/domains/benefits and measure until at least 70 percent"
+    expiry: "2027-02-24"
   - package: internal/domains/career
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       39.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-27: add assertion-backed tests for uncovered behavior in internal/domains/career and measure until at least 70 percent"
+    expiry: "2027-02-26"
   - package: internal/domains/cba
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       57.3% (improved from 42.6% on 2026-09-16) of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-29: add assertion-backed tests for uncovered behavior in internal/domains/cba and measure until at least 70 percent"
+    expiry: "2027-02-28"
   - package: internal/domains/compensation
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       10.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-01-31: add assertion-backed tests for uncovered behavior in internal/domains/compensation and measure until at least 70 percent"
+    expiry: "2027-03-02"
   - package: internal/domains/contact
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       44.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-02: add assertion-backed tests for uncovered behavior in internal/domains/contact and measure until at least 70 percent"
+    expiry: "2027-03-04"
   - package: internal/domains/crm
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       18.7% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-04: add assertion-backed tests for uncovered behavior in internal/domains/crm and measure until at least 70 percent"
+    expiry: "2027-03-06"
   - package: internal/domains/custom
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       69.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-06: add assertion-backed tests for uncovered behavior in internal/domains/custom and measure until at least 70 percent"
+    expiry: "2027-03-08"
   - package: internal/domains/demand
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       61.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-08: add assertion-backed tests for uncovered behavior in internal/domains/demand and measure until at least 70 percent"
+    expiry: "2027-03-10"
   - package: internal/domains/employeerelations
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       68.6% (improved from 52.3% on 2026-09-16) of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-10: add assertion-backed tests for uncovered behavior in internal/domains/employeerelations and measure until at least 70 percent"
+    expiry: "2027-03-12"
   - package: internal/domains/equity
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       56.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-12: add assertion-backed tests for uncovered behavior in internal/domains/equity and measure until at least 70 percent"
+    expiry: "2027-03-14"
   - package: internal/domains/fixtures
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       56.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-14: add assertion-backed tests for uncovered behavior in internal/domains/fixtures and measure until at least 70 percent"
+    expiry: "2027-03-16"
   - package: internal/domains/fx
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       57.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-16: add assertion-backed tests for uncovered behavior in internal/domains/fx and measure until at least 70 percent"
+    expiry: "2027-03-18"
   - package: internal/domains/headcount
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       66.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-18: add assertion-backed tests for uncovered behavior in internal/domains/headcount and measure until at least 70 percent"
+    expiry: "2027-03-20"
   - package: internal/domains/hrcase
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       67.6% (improved from 61.4% on 2026-09-16) of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-20: add assertion-backed tests for uncovered behavior in internal/domains/hrcase and measure until at least 70 percent"
+    expiry: "2027-03-22"
   - package: internal/domains/incentive
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       48.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-22: add assertion-backed tests for uncovered behavior in internal/domains/incentive and measure until at least 70 percent"
+    expiry: "2027-03-24"
   - package: internal/domains/industrypack
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       68.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-24: add assertion-backed tests for uncovered behavior in internal/domains/industrypack and measure until at least 70 percent"
+    expiry: "2027-03-26"
   - package: internal/domains/labor
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       68.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-26: add assertion-backed tests for uncovered behavior in internal/domains/labor and measure until at least 70 percent"
+    expiry: "2027-03-28"
   - package: internal/domains/merit
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       56.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-02-28: add assertion-backed tests for uncovered behavior in internal/domains/merit and measure until at least 70 percent"
+    expiry: "2027-03-30"
   - package: internal/domains/mobility
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       51.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-02: add assertion-backed tests for uncovered behavior in internal/domains/mobility and measure until at least 70 percent"
+    expiry: "2027-04-01"
   - package: internal/domains/org
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       67.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-04: add assertion-backed tests for uncovered behavior in internal/domains/org and measure until at least 70 percent"
+    expiry: "2027-04-03"
   - package: internal/domains/paygl
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       55.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-06: add assertion-backed tests for uncovered behavior in internal/domains/paygl and measure until at least 70 percent"
+    expiry: "2027-04-05"
   - package: internal/domains/payinput
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       52.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-08: add assertion-backed tests for uncovered behavior in internal/domains/payinput and measure until at least 70 percent"
+    expiry: "2027-04-07"
   - package: internal/domains/payroll
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       62.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-10: add assertion-backed tests for uncovered behavior in internal/domains/payroll and measure until at least 70 percent"
+    expiry: "2027-04-09"
   - package: internal/domains/payroll/calcpolicy
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       68.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-12: add assertion-backed tests for uncovered behavior in internal/domains/payroll/calcpolicy and measure until at least 70 percent"
+    expiry: "2027-04-11"
   - package: internal/domains/payroll/paymentprofile
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       68.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-14: add assertion-backed tests for uncovered behavior in internal/domains/payroll/paymentprofile and measure until at least 70 percent"
+    expiry: "2027-04-13"
   - package: internal/domains/performance
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       62.7% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-16: add assertion-backed tests for uncovered behavior in internal/domains/performance and measure until at least 70 percent"
+    expiry: "2027-04-15"
   - package: internal/domains/qualification
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       68.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-18: add assertion-backed tests for uncovered behavior in internal/domains/qualification and measure until at least 70 percent"
+    expiry: "2027-04-17"
   - package: internal/domains/safety
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       46.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-20: add assertion-backed tests for uncovered behavior in internal/domains/safety and measure until at least 70 percent"
+    expiry: "2027-04-19"
   - package: internal/domains/service
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       68.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-22: add assertion-backed tests for uncovered behavior in internal/domains/service and measure until at least 70 percent"
+    expiry: "2027-04-21"
   - package: internal/domains/skill
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       64.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-24: add assertion-backed tests for uncovered behavior in internal/domains/skill and measure until at least 70 percent"
+    expiry: "2027-04-23"
   - package: internal/domains/succession
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       45.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-26: add assertion-backed tests for uncovered behavior in internal/domains/succession and measure until at least 70 percent"
+    expiry: "2027-04-25"
   - package: internal/domains/survey
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       59.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-28: add assertion-backed tests for uncovered behavior in internal/domains/survey and measure until at least 70 percent"
+    expiry: "2027-04-27"
   - package: internal/domains/taxprofile
     kind: below_floor
-    owner: backlog
+    owner: domain-teams
     reason: >-
       63.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-03-30: add assertion-backed tests for uncovered behavior in internal/domains/taxprofile and measure until at least 70 percent"
+    expiry: "2027-04-29"
   - package: internal/engines/rules
     kind: below_floor
-    owner: backlog
+    owner: shared-engines
     reason: >-
       62.7% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-01: add assertion-backed tests for uncovered behavior in internal/engines/rules and measure until at least 70 percent"
+    expiry: "2027-05-01"
   - package: internal/engines/schedule
     kind: below_floor
-    owner: backlog
+    owner: shared-engines
     reason: >-
       61.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-03: add assertion-backed tests for uncovered behavior in internal/engines/schedule and measure until at least 70 percent"
+    expiry: "2027-05-03"
   - package: internal/engines/transformation
     kind: below_floor
-    owner: backlog
+    owner: shared-engines
     reason: >-
       68.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-05: add assertion-backed tests for uncovered behavior in internal/engines/transformation and measure until at least 70 percent"
+    expiry: "2027-05-05"
   - package: internal/engines/transformation/exec
     kind: below_floor
-    owner: backlog
+    owner: shared-engines
     reason: >-
       52.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-07: add assertion-backed tests for uncovered behavior in internal/engines/transformation/exec and measure until at least 70 percent"
+    expiry: "2027-05-07"
   - package: internal/experience/reportrender
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       67.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-09: add assertion-backed tests for uncovered behavior in internal/experience/reportrender and measure until at least 70 percent"
+    expiry: "2027-05-09"
   - package: internal/experience/reportschedule
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       58.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-11: add assertion-backed tests for uncovered behavior in internal/experience/reportschedule and measure until at least 70 percent"
+    expiry: "2027-05-11"
   - package: internal/governance/legal/payrules
     kind: below_floor
-    owner: backlog
+    owner: governance-and-trust
     reason: >-
       67.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-13: add assertion-backed tests for uncovered behavior in internal/governance/legal/payrules and measure until at least 70 percent"
+    expiry: "2027-05-13"
   - package: internal/governance/legal/pipeline
     kind: below_floor
-    owner: backlog
+    owner: governance-and-trust
     reason: >-
       63.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-15: add assertion-backed tests for uncovered behavior in internal/governance/legal/pipeline and measure until at least 70 percent"
+    expiry: "2027-05-15"
   - package: internal/governance/legal/stateparams
     kind: below_floor
-    owner: backlog
+    owner: governance-and-trust
     reason: >-
       68.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-17: add assertion-backed tests for uncovered behavior in internal/governance/legal/stateparams and measure until at least 70 percent"
+    expiry: "2027-05-17"
   - package: internal/humanwork/workspace
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       53.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-19: add assertion-backed tests for uncovered behavior in internal/humanwork/workspace and measure until at least 70 percent"
+    expiry: "2027-05-19"
   - package: internal/i18n
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       66.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-21: add assertion-backed tests for uncovered behavior in internal/i18n and measure until at least 70 percent"
+    expiry: "2027-05-21"
   - package: internal/intent/app
     kind: below_floor
-    owner: backlog
+    owner: intent-and-capability
     reason: >-
       22.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-23: add assertion-backed tests for uncovered behavior in internal/intent/app and measure until at least 70 percent"
+    expiry: "2027-05-23"
   - package: internal/intent/app/pgstore
     kind: below_floor
-    owner: backlog
+    owner: intent-and-capability
     reason: >-
       13.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: >-
+      2026-10-01: test TenantID, Bootstrap and correlation validation; 2026-10-15:
+      cover AppendIntent and scanRecord success and failure results; 2026-10-29:
+      cover idempotent reads, LoadIntent, ListIntents, Timeline, Verify, and
+      ActiveTenants; measure until at least 70 percent.
+    expiry: "2026-10-31"
   - package: internal/intent/model/deferred
     kind: below_floor
-    owner: backlog
+    owner: intent-and-capability
     reason: >-
       53.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-25: add assertion-backed tests for uncovered behavior in internal/intent/model/deferred and measure until at least 70 percent"
+    expiry: "2027-05-25"
   - package: internal/intent/protomap
     kind: below_floor
-    owner: backlog
+    owner: intent-and-capability
     reason: >-
       68.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-27: add assertion-backed tests for uncovered behavior in internal/intent/protomap and measure until at least 70 percent"
+    expiry: "2027-05-27"
   - package: internal/ledger
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       66.7% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-04-29: add assertion-backed tests for uncovered behavior in internal/ledger and measure until at least 70 percent"
+    expiry: "2027-05-29"
   - package: internal/operations/admincenter/connectorconfig
     kind: below_floor
-    owner: backlog
+    owner: operations-and-assurance
     reason: >-
       40.7% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-01: add assertion-backed tests for uncovered behavior in internal/operations/admincenter/connectorconfig and measure until at least 70 percent"
+    expiry: "2027-05-31"
   - package: internal/operations/adversarial
     kind: below_floor
-    owner: backlog
+    owner: operations-and-assurance
     reason: >-
       69.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-03: add assertion-backed tests for uncovered behavior in internal/operations/adversarial and measure until at least 70 percent"
+    expiry: "2027-06-02"
   - package: internal/operations/slo
     kind: below_floor
-    owner: backlog
+    owner: operations-and-assurance
     reason: >-
       64.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-05: add assertion-backed tests for uncovered behavior in internal/operations/slo and measure until at least 70 percent"
+    expiry: "2027-06-04"
   - package: internal/operations/telemetryhealth
     kind: below_floor
-    owner: backlog
+    owner: operations-and-assurance
     reason: >-
       69.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-07: add assertion-backed tests for uncovered behavior in internal/operations/telemetryhealth and measure until at least 70 percent"
+    expiry: "2027-06-06"
   - package: internal/platform/configbundle
     kind: below_floor
-    owner: backlog
+    owner: platform-foundation
     reason: >-
       68.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-09: add assertion-backed tests for uncovered behavior in internal/platform/configbundle and measure until at least 70 percent"
+    expiry: "2027-06-08"
   - package: internal/platform/execution
     kind: below_floor
-    owner: backlog
+    owner: platform-foundation
     reason: >-
       63.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-11: add assertion-backed tests for uncovered behavior in internal/platform/execution and measure until at least 70 percent"
+    expiry: "2027-06-10"
   - package: internal/platform/execution/promotionsteps
     kind: below_floor
-    owner: backlog
+    owner: platform-foundation
     reason: >-
       61.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-13: add assertion-backed tests for uncovered behavior in internal/platform/execution/promotionsteps and measure until at least 70 percent"
+    expiry: "2027-06-12"
   - package: internal/platform/telemetry/otel
     kind: below_floor
-    owner: backlog
+    owner: platform-foundation
     reason: >-
       57.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-15: add assertion-backed tests for uncovered behavior in internal/platform/telemetry/otel and measure until at least 70 percent"
+    expiry: "2027-06-14"
   - package: internal/transaction/cancel
     kind: below_floor
-    owner: backlog
+    owner: transaction-and-conflict
     reason: >-
       67.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-17: add assertion-backed tests for uncovered behavior in internal/transaction/cancel and measure until at least 70 percent"
+    expiry: "2027-06-16"
   - package: internal/transaction/commit
     kind: below_floor
-    owner: backlog
+    owner: transaction-and-conflict
     reason: >-
       59.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-19: add assertion-backed tests for uncovered behavior in internal/transaction/commit and measure until at least 70 percent"
+    expiry: "2027-06-18"
   - package: internal/transaction/conflict
     kind: below_floor
-    owner: backlog
+    owner: transaction-and-conflict
     reason: >-
       50.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-21: add assertion-backed tests for uncovered behavior in internal/transaction/conflict and measure until at least 70 percent"
+    expiry: "2027-06-20"
   - package: internal/transaction/correction
     kind: below_floor
-    owner: backlog
+    owner: transaction-and-conflict
     reason: >-
       46.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-23: add assertion-backed tests for uncovered behavior in internal/transaction/correction and measure until at least 70 percent"
+    expiry: "2027-06-22"
   - package: internal/transaction/idempotency
     kind: below_floor
-    owner: backlog
+    owner: transaction-and-conflict
     reason: >-
       67.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-25: add assertion-backed tests for uncovered behavior in internal/transaction/idempotency and measure until at least 70 percent"
+    expiry: "2027-06-24"
   - package: internal/transaction/plan
     kind: below_floor
-    owner: backlog
+    owner: transaction-and-conflict
     reason: >-
       63.7% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-27: add assertion-backed tests for uncovered behavior in internal/transaction/plan and measure until at least 70 percent"
+    expiry: "2027-06-26"
   - package: internal/transport
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       19.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2026-10-03: add request validation and response error tests across transport handlers; reach 70 percent"
+    expiry: "2026-11-02"
   - package: internal/transport/admin/hcmctl
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       37.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-29: add assertion-backed tests for uncovered behavior in internal/transport/admin/hcmctl and measure until at least 70 percent"
+    expiry: "2027-06-28"
   - package: internal/transport/cell
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       65.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-05-31: add assertion-backed tests for uncovered behavior in internal/transport/cell and measure until at least 70 percent"
+    expiry: "2027-06-30"
   - package: internal/transport/conformance
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       69.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-02: add assertion-backed tests for uncovered behavior in internal/transport/conformance and measure until at least 70 percent"
+    expiry: "2027-07-02"
   - package: internal/transport/health
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       57.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-04: add assertion-backed tests for uncovered behavior in internal/transport/health and measure until at least 70 percent"
+    expiry: "2027-07-04"
   - package: internal/transport/operations
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       67.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-06: add assertion-backed tests for uncovered behavior in internal/transport/operations and measure until at least 70 percent"
+    expiry: "2027-07-06"
   - package: internal/transport/otelmw
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       61.5% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-08: add assertion-backed tests for uncovered behavior in internal/transport/otelmw and measure until at least 70 percent"
+    expiry: "2027-07-08"
   - package: internal/transport/transporttest
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       43.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-10: add assertion-backed tests for uncovered behavior in internal/transport/transporttest and measure until at least 70 percent"
+    expiry: "2027-07-10"
   - package: internal/transport/workflow
     kind: below_floor
-    owner: backlog
+    owner: experience-and-transport
     reason: >-
       64.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-12: add assertion-backed tests for uncovered behavior in internal/transport/workflow and measure until at least 70 percent"
+    expiry: "2027-07-12"
   - package: internal/trust/session/pgstore
     kind: below_floor
-    owner: backlog
+    owner: governance-and-trust
     reason: >-
       66.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-14: add assertion-backed tests for uncovered behavior in internal/trust/session/pgstore and measure until at least 70 percent"
+    expiry: "2027-07-14"
   - package: internal/workflow/execute
     kind: below_floor
-    owner: backlog
+    owner: workflow-runtime
     reason: >-
       66.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
-  - package: internal/workflow/execute/effects
-    kind: below_floor
-    owner: backlog
-    reason: >-
-      18.7% of statements covered when the gate was introduced on
-      2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-16: add assertion-backed tests for uncovered behavior in internal/workflow/execute and measure until at least 70 percent"
+    expiry: "2027-07-16"
   - package: internal/workflow/intervention
     kind: below_floor
-    owner: backlog
+    owner: workflow-runtime
     reason: >-
       63.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-18: add assertion-backed tests for uncovered behavior in internal/workflow/intervention and measure until at least 70 percent"
+    expiry: "2027-07-18"
   - package: internal/workflow/prototype
     kind: below_floor
-    owner: backlog
+    owner: workflow-runtime
     reason: >-
       33.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-20: add assertion-backed tests for uncovered behavior in internal/workflow/prototype and measure until at least 70 percent"
+    expiry: "2027-07-20"
   - package: internal/workflow/quarantine
     kind: below_floor
-    owner: backlog
+    owner: workflow-runtime
     reason: >-
       63.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-22: add assertion-backed tests for uncovered behavior in internal/workflow/quarantine and measure until at least 70 percent"
+    expiry: "2027-07-22"
   - package: internal/workflow/shadow
     kind: below_floor
-    owner: backlog
+    owner: workflow-runtime
     reason: >-
       64.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-24: add assertion-backed tests for uncovered behavior in internal/workflow/shadow and measure until at least 70 percent"
+    expiry: "2027-07-24"
   - package: tools/conformance
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       66.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-26: add assertion-backed tests for uncovered behavior in tools/conformance and measure until at least 70 percent"
+    expiry: "2027-07-26"
   - package: tools/conformance/internal/reporoot
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-28: add assertion-backed tests for uncovered behavior in tools/conformance/internal/reporoot and measure until at least 70 percent"
+    expiry: "2027-07-28"
   - package: tools/conformance/transformationvectors
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       34.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-06-30: add assertion-backed tests for uncovered behavior in tools/conformance/transformationvectors and measure until at least 70 percent"
+    expiry: "2027-07-30"
   - package: tools/gen/archdoc/cmd/archdoc
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       61.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-02: add assertion-backed tests for uncovered behavior in tools/gen/archdoc/cmd/archdoc and measure until at least 70 percent"
+    expiry: "2027-08-01"
   - package: tools/gen/clients/cmd/generateclients
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-04: add assertion-backed tests for uncovered behavior in tools/gen/clients/cmd/generateclients and measure until at least 70 percent"
+    expiry: "2027-08-03"
   - package: tools/gen/librarystrategy/cmd/generatelibrarystrategy
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered in the thin command wrapper on 2026-09-21;
       the library implementation has its own qualification suite. Add direct
       command tests or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-06: add assertion-backed tests for uncovered behavior in tools/gen/librarystrategy/cmd/generatelibrarystrategy and measure until at least 70 percent"
+    expiry: "2027-08-05"
   - package: tools/gen/modelgen/cmd/modelgen
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       50.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-08: add assertion-backed tests for uncovered behavior in tools/gen/modelgen/cmd/modelgen and measure until at least 70 percent"
+    expiry: "2027-08-07"
   - package: tools/gen/schemaflux/cmd/modelgen
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered in the thin command wrapper on 2026-09-21;
       SchemaFlux generation and source compilation have dedicated suites. Add
       direct command tests or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-10: add assertion-backed tests for uncovered behavior in tools/gen/schemaflux/cmd/modelgen and measure until at least 70 percent"
+    expiry: "2027-08-09"
   - package: tools/planning/cmd/featurecoverage
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-12: add assertion-backed tests for uncovered behavior in tools/planning/cmd/featurecoverage and measure until at least 70 percent"
+    expiry: "2027-08-11"
   - package: tools/planning/cmd/plancheck
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       38.8% of statements covered on 2026-09-21. Repository-facing adapter
       tests cover the active checks; many command branches and error paths
       remain untested. Add synthetic command cases and retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-14: add assertion-backed tests for uncovered behavior in tools/planning/cmd/plancheck and measure until at least 70 percent"
+    expiry: "2027-08-13"
   - package: tools/planning/cmd/productslice
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       58.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-16: add assertion-backed tests for uncovered behavior in tools/planning/cmd/productslice and measure until at least 70 percent"
+    expiry: "2027-08-15"
   - package: tools/planning/cmd/pilotblueprint
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered in the command wrapper on 2026-09-21; the
       blueprint validation, signature and instantiation libraries have
       dedicated suites. Add direct command tests or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-18: add assertion-backed tests for uncovered behavior in tools/planning/cmd/pilotblueprint and measure until at least 70 percent"
+    expiry: "2027-08-17"
   - package: tools/planning/cmd/todoregistry
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-20: add assertion-backed tests for uncovered behavior in tools/planning/cmd/todoregistry and measure until at least 70 percent"
+    expiry: "2027-08-19"
   - package: tools/planning/corpus
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       40.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-22: add assertion-backed tests for uncovered behavior in tools/planning/corpus and measure until at least 70 percent"
+    expiry: "2027-08-21"
   - package: tools/planning/corpus/cmd/corpus
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       48.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-24: add assertion-backed tests for uncovered behavior in tools/planning/corpus/cmd/corpus and measure until at least 70 percent"
+    expiry: "2027-08-23"
   - package: tools/planning/docintegrity
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       61.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-26: add assertion-backed tests for uncovered behavior in tools/planning/docintegrity and measure until at least 70 percent"
+    expiry: "2027-08-25"
   - package: tools/planning/intentmanifests
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       63.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-28: add assertion-backed tests for uncovered behavior in tools/planning/intentmanifests and measure until at least 70 percent"
+    expiry: "2027-08-27"
   - package: tools/planning/obligations/cmd/obligations
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       53.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-07-30: add assertion-backed tests for uncovered behavior in tools/planning/obligations/cmd/obligations and measure until at least 70 percent"
+    expiry: "2027-08-29"
   - package: tools/policy/apigate/cmd/apigate
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       29.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-01: add assertion-backed tests for uncovered behavior in tools/policy/apigate/cmd/apigate and measure until at least 70 percent"
+    expiry: "2027-08-31"
   - package: tools/policy/cleancheckout/cmd/cleancheckout
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       28.6% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-03: add assertion-backed tests for uncovered behavior in tools/policy/cleancheckout/cmd/cleancheckout and measure until at least 70 percent"
+    expiry: "2027-09-02"
   - package: tools/policy/depadmission/cmd/depadmission
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       36.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-05: add assertion-backed tests for uncovered behavior in tools/policy/depadmission/cmd/depadmission and measure until at least 70 percent"
+    expiry: "2027-09-04"
   - package: tools/policy/depmanifest
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       65.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-07: add assertion-backed tests for uncovered behavior in tools/policy/depmanifest and measure until at least 70 percent"
+    expiry: "2027-09-06"
   - package: tools/policy/dispositioncoverage/cmd/dispositioncoverage
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-09: add assertion-backed tests for uncovered behavior in tools/policy/dispositioncoverage/cmd/dispositioncoverage and measure until at least 70 percent"
+    expiry: "2027-09-08"
   - package: tools/policy/dispositionrebuild
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       61.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-11: add assertion-backed tests for uncovered behavior in tools/policy/dispositionrebuild and measure until at least 70 percent"
+    expiry: "2027-09-10"
   - package: tools/policy/driftgate
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       19.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-13: add assertion-backed tests for uncovered behavior in tools/policy/driftgate and measure until at least 70 percent"
+    expiry: "2027-09-12"
   - package: tools/policy/driftgate/cmd/driftgate
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       33.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-15: add assertion-backed tests for uncovered behavior in tools/policy/driftgate/cmd/driftgate and measure until at least 70 percent"
+    expiry: "2027-09-14"
   - package: tools/policy/endpointmanifest/cmd/endpointmanifest
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-17: add assertion-backed tests for uncovered behavior in tools/policy/endpointmanifest/cmd/endpointmanifest and measure until at least 70 percent"
+    expiry: "2027-09-16"
   - package: tools/policy/enginecoverage/cmd/enginecoverage
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       26.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-19: add assertion-backed tests for uncovered behavior in tools/policy/enginecoverage/cmd/enginecoverage and measure until at least 70 percent"
+    expiry: "2027-09-18"
   - package: tools/policy/internal/repopath
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-21: add assertion-backed tests for uncovered behavior in tools/policy/internal/repopath and measure until at least 70 percent"
+    expiry: "2027-09-20"
   - package: tools/policy/invocationpath
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       67.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-23: add assertion-backed tests for uncovered behavior in tools/policy/invocationpath and measure until at least 70 percent"
+    expiry: "2027-09-22"
   - package: tools/policy/mutationpolicy
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       48.4% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-25: add assertion-backed tests for uncovered behavior in tools/policy/mutationpolicy and measure until at least 70 percent"
+    expiry: "2027-09-24"
   - package: tools/policy/provenance/cmd/provgen
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       5.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-27: add assertion-backed tests for uncovered behavior in tools/policy/provenance/cmd/provgen and measure until at least 70 percent"
+    expiry: "2027-09-26"
   - package: tools/policy/querytransport
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       69.2% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-29: add assertion-backed tests for uncovered behavior in tools/policy/querytransport and measure until at least 70 percent"
+    expiry: "2027-09-28"
   - package: tools/policy/release
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       66.1% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-08-31: add assertion-backed tests for uncovered behavior in tools/policy/release and measure until at least 70 percent"
+    expiry: "2027-09-30"
   - package: tools/policy/release/cmd/release
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       50.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-02: add assertion-backed tests for uncovered behavior in tools/policy/release/cmd/release and measure until at least 70 percent"
+    expiry: "2027-10-02"
   - package: tools/policy/substratecoverage/cmd/substratecoverage
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       26.3% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-04: add assertion-backed tests for uncovered behavior in tools/policy/substratecoverage/cmd/substratecoverage and measure until at least 70 percent"
+    expiry: "2027-10-04"
   - package: tools/policy/webdelivery
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       60.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-06: add assertion-backed tests for uncovered behavior in tools/policy/webdelivery and measure until at least 70 percent"
+    expiry: "2027-10-06"
   - package: tools/quality/bufprotovalidatekit
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       66.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-08: add assertion-backed tests for uncovered behavior in tools/quality/bufprotovalidatekit and measure until at least 70 percent"
+    expiry: "2027-10-08"
   - package: tools/quality/compositionroot
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       53.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-10: add assertion-backed tests for uncovered behavior in tools/quality/compositionroot and measure until at least 70 percent"
+    expiry: "2027-10-10"
   - package: tools/quality/provenance
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       45.8% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-12: add assertion-backed tests for uncovered behavior in tools/quality/provenance and measure until at least 70 percent"
+    expiry: "2027-10-12"
   - package: tools/quality/toxiproxykit
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       62.9% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-14: add assertion-backed tests for uncovered behavior in tools/quality/toxiproxykit and measure until at least 70 percent"
+    expiry: "2027-10-14"
   - package: tools/uxqual/cmd/genfixtures
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-16: add assertion-backed tests for uncovered behavior in tools/uxqual/cmd/genfixtures and measure until at least 70 percent"
+    expiry: "2027-10-16"
   - package: tools/uxqual/render/gwc
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-18: add assertion-backed tests for uncovered behavior in tools/uxqual/render/gwc and measure until at least 70 percent"
+    expiry: "2027-10-18"
   - package: tools/uxqual/render/ssr
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-20: add assertion-backed tests for uncovered behavior in tools/uxqual/render/ssr and measure until at least 70 percent"
+    expiry: "2027-10-20"
   - package: tools/uxqual/tokens
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       0.0% of statements covered when the gate was introduced on
       2026-09-06; raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-22: add assertion-backed tests for uncovered behavior in tools/uxqual/tokens and measure until at least 70 percent"
+    expiry: "2027-10-22"
   - package: internal/data/commercialstore
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       61.8% of statements covered when its failing tests were repaired on
       2026-09-06 (it was a test failure, not a coverage gap, in the baseline
       run); raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-24: add assertion-backed tests for uncovered behavior in internal/data/commercialstore and measure until at least 70 percent"
+    expiry: "2027-10-24"
   - package: internal/data/pgtest
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       58.0% of statements covered when its failing tests were repaired on
       2026-09-06 (it was a test failure, not a coverage gap, in the baseline
       run); raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-26: add assertion-backed tests for uncovered behavior in internal/data/pgtest and measure until at least 70 percent"
+    expiry: "2027-10-26"
   - package: internal/data/runtimestate
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       68.6% of statements covered when its failing tests were repaired on
       2026-09-06 (it was a test failure, not a coverage gap, in the baseline
       run); raise the package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-28: add assertion-backed tests for uncovered behavior in internal/data/runtimestate and measure until at least 70 percent"
+    expiry: "2027-10-28"
   - package: tools/quality
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       44.6% of statements covered when its TOOL-012 race tests were made to
       skip without a race detector on 2026-09-07 (it was a test failure in
       the baseline run); raise the package to the floor or retire this
       exception.
-    expiry: "2026-12-31"
+    plan: "2027-09-30: add assertion-backed tests for uncovered behavior in tools/quality and measure until at least 70 percent"
+    expiry: "2027-10-30"
   - package: internal/data/outbox
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       67.8% of statements covered on the 2026-09-07 whole-module run (it
       was a test failure, not a coverage gap, in the baseline run); raise the
       package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-10-02: add assertion-backed tests for uncovered behavior in internal/data/outbox and measure until at least 70 percent"
+    expiry: "2027-11-01"
   - package: internal/data/projection/critical
     kind: below_floor
-    owner: backlog
+    owner: data-and-ledger
     reason: >-
       67.6% of statements covered on the 2026-09-07 whole-module run (it
       was a test failure, not a coverage gap, in the baseline run); raise the
       package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-10-04: add assertion-backed tests for uncovered behavior in internal/data/projection/critical and measure until at least 70 percent"
+    expiry: "2027-11-03"
   - package: tools/gen/archdoc
     kind: below_floor
-    owner: backlog
+    owner: platform-toolchain
     reason: >-
       61.7% of statements covered on the 2026-09-07 whole-module run (it
       was a test failure, not a coverage gap, in the baseline run); raise the
       package to the floor or retire this exception.
-    expiry: "2026-12-31"
+    plan: "2027-10-06: add assertion-backed tests for uncovered behavior in tools/gen/archdoc and measure until at least 70 percent"
+    expiry: "2027-11-05"

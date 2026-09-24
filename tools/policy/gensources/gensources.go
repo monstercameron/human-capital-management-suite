@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -111,8 +112,8 @@ var generatedByPattern = regexp.MustCompile(`(?i)generated\s+by\s+([A-Za-z0-9._/
 var generatedKeyPattern = regexp.MustCompile(`(?m)^generated_by:\s*([^\s#]+)`)
 var generatedLegacyKeyPattern = regexp.MustCompile(`(?m)^generatedby:\s*([^\s#]+)`)
 
-// Scan scans schema/, definitions/, gen/, and tools/gen/**/testdata under
-// root. It never writes. The report remains useful for a partially migrated
+// Scan scans schema/, definitions/, gen/, tools/gen/**/testdata, and the
+// SchemaFlux generated output under root. It never writes. The report remains useful for a partially migrated
 // tree: all files are classified even when violations are present.
 func Scan(root string) (Report, error) { return ScanWithConfig(root, DefaultConfig()) }
 
@@ -157,6 +158,7 @@ func ScanWithConfig(root string, cfg Config) (Report, error) {
 		report.Violations = append(report.Violations, violations...)
 	}
 	report.Violations = append(report.Violations, checkModelDrift(root, report.Files)...)
+	report.Violations = append(report.Violations, checkSchemaFluxGeneratedHeaders(root)...)
 	sort.Slice(report.Violations, func(i, j int) bool {
 		if report.Violations[i].Path != report.Violations[j].Path {
 			return report.Violations[i].Path < report.Violations[j].Path
@@ -167,6 +169,28 @@ func ScanWithConfig(root string, cfg Config) (Report, error) {
 		return report.Violations[i].Detail < report.Violations[j].Detail
 	})
 	return report, nil
+}
+
+func checkSchemaFluxGeneratedHeaders(root string) []Violation {
+	generatedRoot := filepath.Join(root, "tools", "gen", "schemaflux", "generated")
+	var violations []Violation
+	_ = filepath.Walk(generatedRoot, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil || info == nil || info.IsDir() {
+			return walkErr
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			rel, _ := filepath.Rel(root, path)
+			violations = append(violations, Violation{Path: filepath.ToSlash(rel), Rule: "generated-file-unreadable", Detail: err.Error()})
+			return nil
+		}
+		if generatedBy(data) == "" {
+			rel, _ := filepath.Rel(root, path)
+			violations = append(violations, Violation{Path: filepath.ToSlash(rel), Rule: "hand-edit-in-generated-root", Detail: "files under tools/gen/schemaflux/generated must carry a generator header"})
+		}
+		return nil
+	})
+	return violations
 }
 
 // CheckRepository is a convenience for policy tests that want a report even
@@ -187,6 +211,55 @@ func Validate(root string) error {
 		return err
 	}
 	return report.Error()
+}
+
+// CheckTrackedArtifacts reports generated build output or demo persona media
+// that is still tracked by git. Ignoring a path does not untrack it, so this
+// check uses the index rather than the working tree or .gitignore rules.
+func CheckTrackedArtifacts(root string) ([]Violation, error) {
+	cmd := exec.Command("git", "-C", root, "ls-files", "-z")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("gensources: git ls-files: %w", err)
+	}
+	var violations []Violation
+	for _, raw := range bytes.Split(output, []byte{0}) {
+		if len(raw) == 0 {
+			continue
+		}
+		path := filepath.ToSlash(string(raw))
+		if strings.HasPrefix(path, "internal/generated/schemaflux/") {
+			violations = append(violations, Violation{Path: path, Rule: "generated-tool-output-in-runtime-root", Detail: "tool-only generated models belong under tools/, not internal/"})
+		}
+		if isBuildArtifact(path) {
+			violations = append(violations, Violation{Path: path, Rule: "committed-build-artifact", Detail: "build output must be generated under .artifacts/"})
+			continue
+		}
+		if strings.HasPrefix(path, "internal/humanwork/workspace/assets/") && isDemoPersonaMedia(path) {
+			violations = append(violations, Violation{Path: path, Rule: "committed-demo-media", Detail: "demo persona media is supplied by the development seed, not embedded in the application"})
+		}
+	}
+	sort.Slice(violations, func(i, j int) bool { return violations[i].Path < violations[j].Path })
+	return violations, nil
+}
+
+func isBuildArtifact(path string) bool {
+	if !strings.Contains(path, "/") {
+		lower := strings.ToLower(path)
+		if strings.HasSuffix(lower, ".test.exe") || strings.HasSuffix(lower, ".exe") || lower == "journeywasm" {
+			return true
+		}
+	}
+	return path == "internal/humanwork/workspace/assets/journey.wasm" ||
+		path == "internal/humanwork/workspace/assets/journey.wasm.gz" ||
+		path == "internal/humanwork/workspace/assets/uxqual.wasm" ||
+		path == "internal/humanwork/workspace/assets/wasm_exec.js" ||
+		path == "internal/humanwork/workspace/assets/wasm_exec.js.gz"
+}
+
+func isDemoPersonaMedia(path string) bool {
+	name := strings.TrimPrefix(path, "internal/humanwork/workspace/assets/")
+	return strings.HasPrefix(name, "person-") && (strings.HasSuffix(name, ".png") || strings.HasSuffix(name, ".jpg"))
 }
 
 func collectFiles(root string, include func(string) bool, paths *[]string) error {
@@ -267,6 +340,12 @@ func classify(root, rel string, data []byte, cfg Config) (File, []Violation) {
 	case strings.HasPrefix(rel, "gen/"):
 		if generated {
 			file.Classification = generatedClassification(generator)
+		} else if rel == "gen/TOOLS.lock" {
+			// buf's module lock is generator metadata, not source output. It is
+			// authored and versioned, but a generated-code header has no meaning
+			// for this checksum lockfile.
+			file.Classification = Authored
+			file.Owner = "buf-module-lock"
 		} else {
 			file.Classification = Authored
 			violations = append(violations, Violation{Path: rel, Rule: "hand-edit-in-generated-root", Detail: "every file under gen/ must be generated and carry a generator header"})

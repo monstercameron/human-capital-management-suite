@@ -148,3 +148,16 @@ func TestTodo_ARCH_GO_007_Property(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_ARCH_GO_007_Golden(t *testing.T) {
+	wl := loadArchConfig(t).WorkflowLayers
+	if wl.DefinitionRoot != "internal/workflow/definition" || wl.CompilerRoot != "internal/workflow/compiler" || wl.RuntimeRoot != "internal/workflow/runtime" || wl.StepRoot != "internal/workflow/step" {
+		t.Fatalf("workflow roots drifted: definition=%q compiler=%q runtime=%q step=%q", wl.DefinitionRoot, wl.CompilerRoot, wl.RuntimeRoot, wl.StepRoot)
+	}
+	if len(wl.ForbiddenEdges) != 2 || wl.ForbiddenEdges[0] != (archrules.Edge{From: wl.DefinitionRoot, To: wl.CompilerRoot}) || wl.ForbiddenEdges[1] != (archrules.Edge{From: wl.DefinitionRoot, To: wl.RuntimeRoot}) {
+		t.Fatalf("workflow forbidden edges = %+v", wl.ForbiddenEdges)
+	}
+	if len(wl.CompilerForbiddenContent) == 0 || len(wl.DomainPersistenceMarkers) == 0 {
+		t.Fatalf("workflow forbidden content/persistence markers must be declared")
+	}
+}

@@ -34,6 +34,19 @@ func TestTodo_PRIV_001_Security(t *testing.T) {
 	if _, err := ValidateExecutable(i); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("out-of-scope region = %v, want ErrInvalid", err)
 	}
+
+	i = validInventory()
+	duplicate := i.Occurrences[0]
+	duplicate.FlowID = "other-flow"
+	i.Flows = append(i.Flows, func() ProcessingDataFlow {
+		flow := i.Flows[0]
+		flow.ID = "other-flow"
+		return flow
+	}())
+	i.Occurrences = append(i.Occurrences, duplicate)
+	if _, err := ValidateExecutable(i); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("duplicate receipt ID = %v, want ErrInvalid", err)
+	}
 }
 
 func TestTodo_PRIV_001_Mutation(t *testing.T) {
@@ -49,5 +62,11 @@ func TestTodo_PRIV_001_Mutation(t *testing.T) {
 	}
 	if base.Digest == changed.Digest {
 		t.Fatal("obligation mutation did not change release digest")
+	}
+
+	duplicatedReceipt := validInventory()
+	duplicatedReceipt.Occurrences = append(duplicatedReceipt.Occurrences, duplicatedReceipt.Occurrences[0])
+	if _, err := ValidateExecutable(duplicatedReceipt); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("duplicated occurrence mutation = %v, want ErrInvalid", err)
 	}
 }

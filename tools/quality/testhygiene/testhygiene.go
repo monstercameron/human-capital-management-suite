@@ -43,15 +43,6 @@ func (v Violation) String() string {
 	return fmt.Sprintf("%s:%d: %s: %s: %s", v.File, v.Line, v.Test, v.Rule, v.Detail)
 }
 
-// concurrencyRoots are package identifiers whose selection marks a test as
-// concurrency-aware for the race rule (sync.WaitGroup, atomic.Add,
-// errgroup.Group and the like).
-var concurrencyRoots = map[string]bool{
-	"sync":     true,
-	"atomic":   true,
-	"errgroup": true,
-}
-
 // skipSelectors are the testing skip calls a Golden test must never use: a
 // missing golden oracle is a failure, never a skip.
 var skipSelectors = map[string]bool{
@@ -77,8 +68,7 @@ var skipDirNames = map[string]bool{
 // isGeneratedPath reports whether relDir is generated protobuf/wire output,
 // which carries no hand-written tests.
 func isGeneratedPath(relDir string) bool {
-	return relDir == "gen/go" || strings.HasPrefix(relDir, "gen/go/") ||
-		relDir == "gen/wire" || strings.HasPrefix(relDir, "gen/wire/")
+	return relDir == "gen/go" || strings.HasPrefix(relDir, "gen/go/")
 }
 
 // CheckSource parses one Go test source and returns its hygiene violations
@@ -109,12 +99,12 @@ func CheckSource(filename string, src []byte) ([]Violation, error) {
 			out = append(out, Violation{File: filename, Line: line, Test: name, Rule: RuleAliasTest,
 				Detail: fmt.Sprintf("test body only calls another test (%s)", strings.Join(callees, ", "))})
 		}
-		if strings.HasSuffix(name, "_Race") && !hasConcurrency(fn.Body) {
+		if strings.HasSuffix(name, "_Race") && !hasConcurrency(fn.Body, fn, f) {
 			out = append(out, Violation{File: filename, Line: line, Test: name, Rule: RuleRaceWithoutConcurrency,
-				Detail: "Race test starts no goroutine and uses no concurrency helper (go statement, t.Parallel, sync/atomic/errgroup/WaitGroup)"})
+				Detail: "Race test starts no goroutine and uses no concurrent runner (go statement, t.Parallel, errgroup.Group.Go)"})
 		}
 		if strings.Contains(name, "Golden") {
-			if call, line := firstSkipCall(fset, fn.Body); call != "" {
+			if call, line := goldenSkip(fset, fn.Body, f); call != "" {
 				out = append(out, Violation{File: filename, Line: line, Test: name, Rule: RuleGoldenSkip,
 					Detail: fmt.Sprintf("golden test must fail on a missing file, not skip (%s)", call)})
 			}
@@ -133,61 +123,208 @@ func aliasCallees(body *ast.BlockStmt) ([]string, bool) {
 	}
 	var callees []string
 	for _, stmt := range body.List {
-		expr, ok := stmt.(*ast.ExprStmt)
-		if !ok {
+		found, ok := aliasStatement(stmt)
+		if !ok || len(found) == 0 {
 			return nil, false
 		}
-		call, ok := expr.X.(*ast.CallExpr)
-		if !ok {
-			return nil, false
-		}
-		callee, ok := call.Fun.(*ast.Ident)
-		if !ok || !strings.HasPrefix(callee.Name, "Test") {
-			return nil, false
-		}
-		callees = append(callees, callee.Name)
+		callees = append(callees, found...)
 	}
 	return callees, true
 }
 
-// hasConcurrency reports whether body starts a goroutine or uses a
-// concurrency helper: a go statement, a t.Parallel() call, a selection on
-// sync/atomic/errgroup, or a WaitGroup reference.
-func hasConcurrency(body *ast.BlockStmt) bool {
-	found := false
-	ast.Inspect(body, func(n ast.Node) bool {
-		if found {
-			return false
+// aliasStatement accepts only control-flow statements whose every executable
+// leaf is a direct call to a Test function. It intentionally does not follow
+// arbitrary function values or helpers: that would need type/control-flow analysis.
+func aliasStatement(stmt ast.Stmt) ([]string, bool) {
+	switch s := stmt.(type) {
+	case *ast.ExprStmt:
+		_, ok := s.X.(*ast.CallExpr)
+		if !ok {
+			return nil, false
 		}
-		switch node := n.(type) {
-		case *ast.GoStmt:
-			found = true
-			return false
-		case *ast.CallExpr:
-			if sel, ok := node.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Parallel" {
-				if id, ok := sel.X.(*ast.Ident); ok && (id.Name == "t" || id.Name == "b") {
-					found = true
-					return false
-				}
+		fun := s.X.(*ast.CallExpr).Fun
+		for {
+			p, ok := fun.(*ast.ParenExpr)
+			if !ok {
+				break
+			}
+			fun = p.X
+		}
+		switch c := fun.(type) {
+		case *ast.Ident:
+			if strings.HasPrefix(c.Name, "Test") {
+				return []string{c.Name}, true
 			}
 		case *ast.SelectorExpr:
-			if id, ok := node.X.(*ast.Ident); ok && concurrencyRoots[id.Name] {
-				found = true
-				return false
+			if strings.HasPrefix(c.Sel.Name, "Test") {
+				return []string{c.Sel.Name}, true
 			}
-			if node.Sel.Name == "WaitGroup" {
-				found = true
-				return false
-			}
-		case *ast.Ident:
-			if node.Name == "WaitGroup" {
-				found = true
-				return false
+		}
+		return nil, false
+	case *ast.DeferStmt:
+		return aliasStatement(&ast.ExprStmt{X: s.Call})
+	case *ast.BlockStmt:
+		return aliasCallees(s)
+	case *ast.IfStmt:
+		if s.Init != nil {
+			return nil, false
+		}
+		a, ok := aliasCallees(s.Body)
+		if !ok {
+			return nil, false
+		}
+		if s.Else == nil {
+			return a, true
+		}
+		var b []string
+		switch e := s.Else.(type) {
+		case *ast.BlockStmt:
+			b, ok = aliasCallees(e)
+		case *ast.IfStmt:
+			b, ok = aliasStatement(e)
+		}
+		if !ok {
+			return nil, false
+		}
+		return append(a, b...), true
+	}
+	return nil, false
+}
+
+// hasConcurrency reports whether body starts concurrent work: a go statement,
+// t.Parallel(), or an errgroup.Group.Go call. Merely using a mutex, atomic,
+// or WaitGroup does not make a test concurrent.
+func hasConcurrency(body *ast.BlockStmt, fn *ast.FuncDecl, file *ast.File) bool {
+	found := false
+	imports := map[string]bool{}
+	for _, im := range file.Imports {
+		path := strings.Trim(im.Path.Value, "\"")
+		base := filepath.Base(path)
+		name := base
+		if im.Name != nil {
+			name = im.Name.Name
+		}
+		if path == "golang.org/x/sync/errgroup" {
+			imports[name] = true
+		}
+	}
+	groups := map[string]bool{}
+	ast.Inspect(body, func(n ast.Node) bool {
+		vs, ok := n.(*ast.ValueSpec)
+		if !ok {
+			return true
+		}
+		sel, ok := vs.Type.(*ast.SelectorExpr)
+		if ok && sel.Sel.Name == "Group" {
+			if id, ok := sel.X.(*ast.Ident); ok && imports[id.Name] {
+				for _, name := range vs.Names {
+					groups[name.Name] = true
+				}
 			}
 		}
 		return true
 	})
+	// Only executable statements count. A function literal contributes when it
+	// is the operand of go or an errgroup.Group.Go call.
+	var inspectExecutable func(ast.Node)
+	inspectExecutable = func(root ast.Node) {
+		ast.Inspect(root, func(n ast.Node) bool {
+			if found {
+				return false
+			}
+			switch node := n.(type) {
+			case *ast.IfStmt:
+				if id, ok := node.Cond.(*ast.Ident); ok && id.Name == "false" {
+					if node.Else != nil {
+						inspectExecutable(node.Else)
+					}
+					return false
+				}
+			case *ast.FuncLit:
+				return false // only an enclosing go/Group.Go invocation makes it concurrent
+			case *ast.GoStmt:
+				found = true
+				return false
+			case *ast.CallExpr:
+				if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
+					if sel.Sel.Name == "Parallel" {
+						if id, ok := sel.X.(*ast.Ident); ok && isTestParam(fn, id.Name) {
+							found = true
+							return false
+						}
+					}
+					if sel.Sel.Name == "Go" {
+						if id, ok := sel.X.(*ast.Ident); ok && groups[id.Name] {
+							found = true
+							return false
+						}
+					}
+				}
+			}
+			return true
+		})
+	}
+	inspectExecutable(body)
 	return found
+}
+
+func isTestParam(fn *ast.FuncDecl, name string) bool {
+	if fn.Type.Params == nil {
+		return false
+	}
+	for _, f := range fn.Type.Params.List {
+		for _, n := range f.Names {
+			if n.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func goldenSkip(fset *token.FileSet, body *ast.BlockStmt, file *ast.File) (string, int) {
+	if call, line := firstSkipCall(fset, body); call != "" {
+		return call, line
+	}
+	helpers := map[string]*ast.FuncDecl{}
+	for _, d := range file.Decls {
+		if f, ok := d.(*ast.FuncDecl); ok && f.Recv == nil && f.Body != nil {
+			helpers[f.Name.Name] = f
+		}
+	}
+	seen := map[string]bool{}
+	var visit func(*ast.BlockStmt) (string, int)
+	visit = func(b *ast.BlockStmt) (string, int) {
+		if call, line := firstSkipCall(fset, b); call != "" {
+			return call, line
+		}
+		var result string
+		var ln int
+		ast.Inspect(b, func(n ast.Node) bool {
+			if result != "" {
+				return false
+			}
+			c, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if id, ok := c.Fun.(*ast.Ident); ok {
+				if skipSelectors[id.Name] {
+					result = id.Name
+					ln = fset.Position(c.Pos()).Line
+					return false
+				}
+				if h := helpers[id.Name]; h != nil && !seen[id.Name] {
+					seen[id.Name] = true
+					result, ln = visit(h.Body)
+					return false
+				}
+			}
+			return true
+		})
+		return result, ln
+	}
+	return visit(body)
 }
 
 // firstSkipCall returns the first testing skip call in body ("t.Skipf" and
@@ -203,14 +340,23 @@ func firstSkipCall(fset *token.FileSet, body *ast.BlockStmt) (string, int) {
 		if !ok {
 			return true
 		}
-		sel, ok := expr.Fun.(*ast.SelectorExpr)
-		if !ok || !skipSelectors[sel.Sel.Name] {
+		switch fun := expr.Fun.(type) {
+		case *ast.SelectorExpr:
+			if !skipSelectors[fun.Sel.Name] {
+				return true
+			}
+			if id, ok := fun.X.(*ast.Ident); ok {
+				call = id.Name + "." + fun.Sel.Name
+			} else {
+				call = fun.Sel.Name
+			}
+		case *ast.Ident:
+			if !skipSelectors[fun.Name] {
+				return true
+			}
+			call = fun.Name
+		default:
 			return true
-		}
-		if id, ok := sel.X.(*ast.Ident); ok {
-			call = id.Name + "." + sel.Sel.Name
-		} else {
-			call = sel.Sel.Name
 		}
 		line = fset.Position(expr.Pos()).Line
 		return false

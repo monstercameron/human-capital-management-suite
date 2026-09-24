@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"html/template"
 
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/tokens"
 )
 
 // RenderNoticeDocument renders a minimal, standalone HTML document
 // presenting notice under a human-readable purpose label. It reuses
-// tools/uxqual/tokens.WorkspaceCSS -- the same shared design tokens
+// internal/experience/tokens.WorkspaceCSS -- the same shared design tokens
 // tools/uxqual/qual's WCAG 2.2 AA contrast check scores -- so this
 // presentation channel's evidence is provably consistent with the rest of
 // the platform's accessibility evidence rather than a bespoke one-off

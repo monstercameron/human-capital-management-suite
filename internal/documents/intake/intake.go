@@ -65,13 +65,17 @@ type EvidenceRef struct {
 	Retention        RetentionPolicy
 	IssuedAt         time.Time
 	registry         *documentsecurity.Registry
+	issuer           *Service
 }
 
 func (r EvidenceRef) Validate() error {
 	if r.ID == "" || r.ArtifactID == "" || r.ArtifactDigest == "" || r.DerivativeDigest == "" ||
 		r.DocumentType == "" || r.Classification != MedicalSensitive || r.Compartment != MedicalSensitive ||
 		r.Authority == "" || r.Provenance == "" || r.Purpose == "" || !r.Access.Read || r.Access.Download || r.Access.Purpose != r.Purpose ||
-		r.Retention.PolicyRef == "" || r.IssuedAt.IsZero() || r.registry == nil {
+		r.Retention.PolicyRef == "" || r.IssuedAt.IsZero() || r.registry == nil || r.issuer == nil {
+		return ErrInvalid
+	}
+	if !r.issuer.issuedReferenceMatches(r) {
 		return ErrInvalid
 	}
 	return nil
@@ -118,9 +122,22 @@ type Service struct {
 	Registry *documentsecurity.Registry
 	mu       sync.Mutex
 	sequence uint64
+	issued   map[string]EvidenceRef
 }
 
-func NewService(registry *documentsecurity.Registry) *Service { return &Service{Registry: registry} }
+func NewService(registry *documentsecurity.Registry) *Service {
+	return &Service{Registry: registry, issued: make(map[string]EvidenceRef)}
+}
+
+func (s *Service) issuedReferenceMatches(ref EvidenceRef) bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	issued, ok := s.issued[ref.ID]
+	return ok && issued == ref
+}
 
 func (s *Service) Release(req Request) (Package, error) {
 	if s == nil || s.Registry == nil || strings.TrimSpace(req.ArtifactID) == "" || strings.TrimSpace(req.Purpose) == "" || strings.TrimSpace(req.SubjectID) == "" || strings.TrimSpace(req.RequestedBy) == "" {
@@ -141,10 +158,13 @@ func (s *Service) Release(req Request) (Package, error) {
 	s.mu.Unlock()
 	id := fmt.Sprintf("%s-%d", req.ArtifactID, n)
 	ref := EvidenceRef{ID: "evidence:" + id, ArtifactID: a.ID, ArtifactDigest: a.OriginalDigest, DerivativeDigest: a.DerivativeDigest,
-		DocumentType: deriveType(a.ContentType, a.Name), Classification: MedicalSensitive, Compartment: MedicalSensitive,
+		DocumentType: deriveType(a.DetectedContentType), Classification: MedicalSensitive, Compartment: MedicalSensitive,
 		Authority: "HCM_NEXT_EVIDENCE_AUTHORITY/v1", Provenance: "scanner:" + a.Scanner + "@" + a.ScannerVersion,
 		Purpose: req.Purpose, Access: AccessPolicy{Purpose: req.Purpose, Compartment: MedicalSensitive, Read: true},
-		Retention: RetentionPolicy{PolicyRef: "records.medical-sensitive/v1"}, IssuedAt: req.Now, registry: s.Registry}
+		Retention: RetentionPolicy{PolicyRef: "records.medical-sensitive/v1"}, IssuedAt: req.Now, registry: s.Registry, issuer: s}
+	s.mu.Lock()
+	s.issued[ref.ID] = ref
+	s.mu.Unlock()
 	p := Package{ID: id, Evidence: ref, DocumentType: ref.DocumentType, Metadata: map[string]string{"subject_id": req.SubjectID}}
 	if err := p.Validate(); err != nil {
 		return Package{}, err
@@ -152,7 +172,7 @@ func (s *Service) Release(req Request) (Package, error) {
 	return p, nil
 }
 
-func deriveType(contentType, name string) string {
+func deriveType(contentType string) string {
 	contentType = strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
 	switch contentType {
 	case "application/pdf":
@@ -163,16 +183,6 @@ func deriveType(contentType, name string) string {
 		return "PNG"
 	case "text/plain":
 		return "TEXT"
-	}
-	name = strings.ToLower(name)
-	if strings.HasSuffix(name, ".pdf") {
-		return "PDF"
-	}
-	if strings.HasSuffix(name, ".jpg") || strings.HasSuffix(name, ".jpeg") {
-		return "JPEG"
-	}
-	if strings.HasSuffix(name, ".png") {
-		return "PNG"
 	}
 	return "BINARY"
 }

@@ -167,3 +167,21 @@ func TestTodo_ARCH_GO_009_Golden(t *testing.T) {
 		t.Errorf("engine_contract.paired_symbols = %v, want [[Compile Evaluate]]", ec.PairedSymbols)
 	}
 }
+
+func TestTodo_ARCH_GO_009_Property(t *testing.T) {
+	ec := loadArchConfig(t).EngineContract
+	for i := 0; i < 12; i++ {
+		// Independently generated public symbol sets must pass only when they
+		// include the unconditional version/explanation and symmetric pair.
+		names := map[string]bool{"Version": true, "Compile": true, "Evaluate": true, "Explain": true}
+		if i%2 == 1 {
+			names = map[string]bool{"Version": true, "Compile": true, "Evaluate": true, "ExplainResult": true}
+		}
+		if missing := archrules.CheckEngineContract(ec, names); len(missing) != 0 {
+			t.Errorf("complete variant %d rejected: %v", i, missing)
+		}
+		if missing := archrules.CheckEngineContract(ec, map[string]bool{"Version": true, "Compile": true, "Explain": true}); len(missing) == 0 {
+			t.Errorf("variant %d missing Evaluate accepted", i)
+		}
+	}
+}

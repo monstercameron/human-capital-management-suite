@@ -86,6 +86,9 @@ func (c OptionalProcessing) Withdraw(at values.Instant) (OptionalProcessing, err
 	if err := c.Validate(); err != nil {
 		return OptionalProcessing{}, fmt.Errorf("%w: cannot withdraw an invalid consent record: %v", ErrConsentInvalid, err)
 	}
+	if c.WithdrawnAt.IsSet() {
+		return OptionalProcessing{}, fmt.Errorf("%w: consent %q has already been withdrawn", ErrConsentInvalid, c.ID)
+	}
 	if !at.IsSet() {
 		return OptionalProcessing{}, fmt.Errorf("%w: withdrawal needs a withdrawn_at instant", ErrConsentInvalid)
 	}

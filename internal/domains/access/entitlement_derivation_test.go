@@ -71,9 +71,9 @@ func derivationRequest(t testing.TB) access.EntitlementDerivationRequest {
 	}
 	return access.EntitlementDerivationRequest{
 		Graph: graph, AsOf: derivationInstant(t, "2026-09-05T12:00:00Z"),
-		Employment: []access.EmploymentPeriod{{Ref: "employment-a", WorkforceIdentityID: "identity-a", Effective: effective}},
-		Positions:  []access.PositionAssignment{{Ref: "position-a", WorkforceIdentityID: "identity-a", PositionID: "position-code-a", OrgUnitRef: "org/engineering", Effective: effective}},
-		Policies:   []access.DeclaredAccessPolicy{{ID: "policy/engineering", Version: "3", EntitlementID: "entitlement-github", EmploymentRef: "employment-a", PositionRef: "position-a", OrgUnitRef: "org/engineering", Effect: access.AccessPolicyAllow, Effective: effective}},
+		Employment: []access.EmploymentPeriod{{Tenant: ten, Ref: "employment-a", WorkforceIdentityID: "identity-a", Effective: effective}},
+		Positions:  []access.PositionAssignment{{Tenant: ten, Ref: "position-a", WorkforceIdentityID: "identity-a", PositionID: "position-code-a", OrgUnitRef: "org/engineering", Effective: effective}},
+		Policies:   []access.DeclaredAccessPolicy{{Tenant: ten, ID: "policy/engineering", Version: "3", EntitlementID: "entitlement-github", EmploymentRef: "employment-a", PositionRef: "position-a", OrgUnitRef: "org/engineering", Effect: access.AccessPolicyAllow, Effective: effective}},
 		Revision:   revision, KnownAt: known, Provenance: provenance,
 	}
 }
@@ -113,7 +113,7 @@ func TestExpectedEntitlementCalculationReturnsExplainableUnknownSafeGraph(t *tes
 
 	denied := request
 	denied.Policies = append(append([]access.DeclaredAccessPolicy(nil), request.Policies...), access.DeclaredAccessPolicy{
-		ID: "policy/deny", Version: "1", EntitlementID: "entitlement-github", Effect: access.AccessPolicyDeny, Effective: request.Policies[0].Effective,
+		Tenant: request.Graph.Tenant, ID: "policy/deny", Version: "1", EntitlementID: "entitlement-github", Effect: access.AccessPolicyDeny, Effective: request.Policies[0].Effective,
 	})
 	deniedResult, err := access.CalculateExpectedEntitlements(denied)
 	if err != nil {
@@ -157,7 +157,7 @@ func TestTodo_ACCESS_002_Property(t *testing.T) {
 	permuted.Employment = append([]access.EmploymentPeriod(nil), base.Employment...)
 	permuted.Positions = append([]access.PositionAssignment(nil), base.Positions...)
 	permuted.Policies = append([]access.DeclaredAccessPolicy(nil), base.Policies...)
-	permuted.Employment = append(permuted.Employment, access.EmploymentPeriod{Ref: "employment-unused", WorkforceIdentityID: "identity-a", Effective: base.Employment[0].Effective})
+	permuted.Employment = append(permuted.Employment, access.EmploymentPeriod{Tenant: base.Graph.Tenant, Ref: "employment-unused", WorkforceIdentityID: "identity-a", Effective: base.Employment[0].Effective})
 	permuted.Employment[0], permuted.Employment[1] = permuted.Employment[1], permuted.Employment[0]
 	second, err := access.CalculateExpectedEntitlements(permuted)
 	if err != nil {
@@ -222,6 +222,104 @@ func TestTodo_ACCESS_002_Mutation(t *testing.T) {
 	}
 	if len(deltas) != 1 || deltas[0].Kind != access.EntitlementRevoke {
 		t.Fatalf("mutation delta = %+v", deltas)
+	}
+}
+
+func TestTodo_REV_051_02(t *testing.T) {
+	request := derivationRequest(t)
+	allow, err := access.DeriveExpectedEntitlements(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allow.Expected) != 1 || allow.Decisions[0].Status != access.DerivationExpected {
+		t.Fatalf("shared eligibility/rules engines did not derive allow: %+v", allow.Decisions)
+	}
+	request.Policies = append(request.Policies, access.DeclaredAccessPolicy{Tenant: request.Graph.Tenant, ID: "policy/deny", Version: "1", EntitlementID: "entitlement-github", Effect: access.AccessPolicyDeny, Effective: request.Policies[0].Effective})
+	denied, err := access.DeriveExpectedEntitlements(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(denied.Expected) != 0 || denied.Decisions[0].Status != access.DerivationNotExpected {
+		t.Fatalf("deny did not dominate through rules composition: %+v", denied.Decisions)
+	}
+	deltas, err := access.DiffExpectedEntitlements(allow.Expected, denied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deltas) != 1 || deltas[0].Kind != access.EntitlementRevoke {
+		t.Fatalf("deny did not produce a revoke: %+v", deltas)
+	}
+}
+
+func TestTodo_REV_051_02_Security(t *testing.T) {
+	request := derivationRequest(t)
+	request.Graph.Identities[0].WorkerRef.Tenant = "tenant-b"
+	if _, err := access.DeriveExpectedEntitlements(request); !errors.Is(err, access.ErrTenantMismatch) {
+		t.Fatalf("foreign-tenant worker reference error = %v, want ErrTenantMismatch", err)
+	}
+	request = derivationRequest(t)
+	request.Employment[0].Tenant = "tenant-b"
+	if _, err := access.DeriveExpectedEntitlements(request); !errors.Is(err, access.ErrTenantMismatch) {
+		t.Fatalf("foreign employment tenant error = %v, want ErrTenantMismatch", err)
+	}
+	request = derivationRequest(t)
+	request.Positions[0].Tenant = "tenant-b"
+	if _, err := access.DeriveExpectedEntitlements(request); !errors.Is(err, access.ErrTenantMismatch) {
+		t.Fatalf("foreign position tenant error = %v, want ErrTenantMismatch", err)
+	}
+	request = derivationRequest(t)
+	request.Policies[0].Tenant = "tenant-b"
+	if _, err := access.DeriveExpectedEntitlements(request); !errors.Is(err, access.ErrTenantMismatch) {
+		t.Fatalf("foreign policy tenant error = %v, want ErrTenantMismatch", err)
+	}
+}
+
+func TestTodo_REV_051_02_Mutation(t *testing.T) {
+	request := derivationRequest(t)
+	allowed, err := access.DeriveExpectedEntitlements(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Policies[0].Effect = access.AccessPolicyDeny
+	denied, err := access.DeriveExpectedEntitlements(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allowed.Digest() == denied.Digest() {
+		t.Fatal("changing policy effect did not change the derivation digest")
+	}
+	deltas, err := access.DiffExpectedEntitlements(allowed.Expected, denied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deltas) != 1 || deltas[0].Kind != access.EntitlementRevoke {
+		t.Fatalf("effect mutation delta = %+v", deltas)
+	}
+}
+
+func TestTodo_REV_051_02_PositionOrgUnitCorrelation(t *testing.T) {
+	request := derivationRequest(t)
+	request.Positions = []access.PositionAssignment{
+		{Tenant: request.Graph.Tenant, Ref: "position-a", WorkforceIdentityID: "identity-a", PositionID: "p1", OrgUnitRef: "org/other", Effective: request.Positions[0].Effective},
+		{Tenant: request.Graph.Tenant, Ref: "position-b", WorkforceIdentityID: "identity-a", PositionID: "p2", OrgUnitRef: "org/engineering", Effective: request.Positions[0].Effective},
+	}
+	calculation, err := access.DeriveExpectedEntitlements(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(calculation.Expected) != 0 || calculation.Decisions[0].Status != access.DerivationNotExpected {
+		t.Fatalf("separate position/org unit matches incorrectly granted access: %+v", calculation.Decisions[0])
+	}
+}
+
+func TestTodo_REV_051_02_Golden(t *testing.T) {
+	calculation, err := access.DeriveExpectedEntitlements(derivationRequest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const wantDigest = "sha256:441c4a97d8a4f917d7b384301d715fa35e623a1a3dd5838045cbe66121f5311f"
+	if got := calculation.Digest(); got != wantDigest {
+		t.Fatalf("derivation digest = %q, want pinned golden %q", got, wantDigest)
 	}
 }
 
@@ -385,7 +483,7 @@ func TestCalculateExpectedEntitlements_AllDecisionStatusesAndEffectiveSelection(
 		}, access.DerivationNotExpected, 0},
 		{"missing required position", func(r *access.EntitlementDerivationRequest) { r.Positions = nil }, access.DerivationUnknown, 0},
 		{"deny dominates", func(r *access.EntitlementDerivationRequest) {
-			r.Policies = append(r.Policies, access.DeclaredAccessPolicy{ID: "deny", Version: "1", EntitlementID: "entitlement-github", Effect: access.AccessPolicyDeny, Effective: r.Policies[0].Effective})
+			r.Policies = append(r.Policies, access.DeclaredAccessPolicy{Tenant: r.Graph.Tenant, ID: "deny", Version: "1", EntitlementID: "entitlement-github", Effect: access.AccessPolicyDeny, Effective: r.Policies[0].Effective})
 		}, access.DerivationNotExpected, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

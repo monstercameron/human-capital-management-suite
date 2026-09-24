@@ -361,14 +361,6 @@
   },
   {
     "test_name": "FuzzTodo_DOC_MAL_001",
-    "package": "github.com/monstercameron/human-capital-management-suite/internal/documentsecurity",
-    "first_seen": "2026-09-05",
-    "evidence_ref": "GOV-020: internal/documentsecurity/doc_mal_001_test.go:93",
-    "owner": "governance-and-trust",
-    "expiry": "2026-12-31"
-  },
-  {
-    "test_name": "FuzzTodo_DOC_MAL_001",
     "package": "github.com/monstercameron/human-capital-management-suite/internal/domains/asset/quarantine",
     "first_seen": "2026-09-05",
     "evidence_ref": "GOV-020: internal/domains/asset/quarantine/intake_test.go:236",

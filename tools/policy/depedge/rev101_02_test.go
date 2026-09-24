@@ -181,6 +181,29 @@ func TestTodo_REV_101_02(t *testing.T) {
 		}
 	})
 
+	t.Run("every higher-rank edge is rejected and every non-upward pair is allowed", func(t *testing.T) {
+		// Exercise every manifest root pair, so removing or reversing the
+		// rank comparison fails for the specific forbidden edge class.
+		bare := &depedge.Policy{Module: p.Module, Layers: p.Layers}
+		for _, importerLayer := range p.Layers {
+			for _, importerRoot := range importerLayer.Roots {
+				for _, importedLayer := range p.Layers {
+					for _, importedRoot := range importedLayer.Roots {
+						importer := mod + "/" + importerRoot + "/fault-importer"
+						imported := mod + "/" + importedRoot + "/fault-imported"
+						upward := importedLayer.Rank > importerLayer.Rank
+						v := bare.CheckEdge(importer, imported)
+						if upward && v == nil {
+							t.Errorf("forbidden rank edge %s (%d) -> %s (%d) passed", importerLayer.Name, importerLayer.Rank, importedLayer.Name, importedLayer.Rank)
+						} else if !upward && v != nil {
+							t.Errorf("allowed rank edge %s (%d) -> %s (%d) failed with %s", importerLayer.Name, importerLayer.Rank, importedLayer.Name, importedLayer.Rank, v.Rule)
+						}
+					}
+				}
+			}
+		}
+	})
+
 	t.Run("named rules keep precedence over the generic rank rule", func(t *testing.T) {
 		bare := &depedge.Policy{Module: p.Module, Layers: p.Layers}
 		for _, tc := range []struct {

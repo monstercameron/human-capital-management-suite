@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"time"
 )
 
 // Executable is a validated, immutable-by-convention release of the
@@ -20,7 +21,17 @@ type Executable struct {
 // ValidateExecutable applies the stronger publication checks needed by
 // PRIV-001 and returns a canonical, content-addressed release.
 func ValidateExecutable(input Inventory) (Executable, error) {
-	if err := input.Validate(); err != nil {
+	pack, err := CurrentTransferRulePack()
+	if err != nil {
+		return Executable{}, err
+	}
+	return ValidateExecutableWithTransferPolicy(input, pack, time.Now().UTC())
+}
+
+// ValidateExecutableWithTransferPolicy applies the executable publication
+// checks against an explicit, versioned transfer policy and evaluation time.
+func ValidateExecutableWithTransferPolicy(input Inventory, pack TransferRulePack, asOf time.Time) (Executable, error) {
+	if err := input.ValidateWithTransferPolicy(pack, asOf); err != nil {
 		return Executable{}, err
 	}
 	if len(input.Activities) == 0 || len(input.Flows) == 0 {
@@ -84,6 +95,13 @@ func canonicalInventory(input Inventory) Inventory {
 		out.Activities[i].Regions = sortedClone(out.Activities[i].Regions)
 		out.Activities[i].SecurityControls = sortedClone(out.Activities[i].SecurityControls)
 		out.Activities[i].TransferAssessmentRefs = sortedClone(out.Activities[i].TransferAssessmentRefs)
+		out.Activities[i].TransferPartyRoles = slices.Clone(input.Activities[i].TransferPartyRoles)
+		sort.Slice(out.Activities[i].TransferPartyRoles, func(a, b int) bool {
+			if out.Activities[i].TransferPartyRoles[a].Party != out.Activities[i].TransferPartyRoles[b].Party {
+				return out.Activities[i].TransferPartyRoles[a].Party < out.Activities[i].TransferPartyRoles[b].Party
+			}
+			return out.Activities[i].TransferPartyRoles[a].Role < out.Activities[i].TransferPartyRoles[b].Role
+		})
 		sort.Slice(out.Activities[i].Obligations, func(a, b int) bool {
 			x, y := out.Activities[i].Obligations[a], out.Activities[i].Obligations[b]
 			if x.Kind != y.Kind {
@@ -105,9 +123,22 @@ func canonicalInventory(input Inventory) Inventory {
 		out.Flows[i].TransferRegions = sortedClone(out.Flows[i].TransferRegions)
 		out.Flows[i].ContractRefs = sortedClone(out.Flows[i].ContractRefs)
 		out.Flows[i].Safeguards = sortedClone(out.Flows[i].Safeguards)
+		out.Flows[i].TransferRegimes = slices.Clone(input.Flows[i].TransferRegimes)
+		sort.Slice(out.Flows[i].TransferRegimes, func(a, b int) bool { return out.Flows[i].TransferRegimes[a] < out.Flows[i].TransferRegimes[b] })
+		out.Flows[i].MechanismEvidence = slices.Clone(input.Flows[i].MechanismEvidence)
+		sort.Slice(out.Flows[i].MechanismEvidence, func(a, b int) bool {
+			if out.Flows[i].MechanismEvidence[a].MechanismID != out.Flows[i].MechanismEvidence[b].MechanismID {
+				return out.Flows[i].MechanismEvidence[a].MechanismID < out.Flows[i].MechanismEvidence[b].MechanismID
+			}
+			return out.Flows[i].MechanismEvidence[a].DocumentRef < out.Flows[i].MechanismEvidence[b].DocumentRef
+		})
 		out.Flows[i].SecurityControls = sortedClone(out.Flows[i].SecurityControls)
 	}
 	sort.Slice(out.Flows, func(i, j int) bool { return out.Flows[i].ID < out.Flows[j].ID })
+	out.TransferImpactAssessments = slices.Clone(input.TransferImpactAssessments)
+	sort.Slice(out.TransferImpactAssessments, func(i, j int) bool {
+		return out.TransferImpactAssessments[i].ID < out.TransferImpactAssessments[j].ID
+	})
 	out.Occurrences = slices.Clone(input.Occurrences)
 	for i := range out.Occurrences {
 		out.Occurrences[i].DataCategories = sortedClone(out.Occurrences[i].DataCategories)

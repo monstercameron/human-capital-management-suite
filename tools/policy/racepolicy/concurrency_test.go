@@ -119,12 +119,6 @@ import "sync"
 
 var mu sync.Mutex
 `)
-	writeFile(t, root, "gen/wire/wire_gen.go", `package wire
-
-import "sync"
-
-var mu sync.Mutex
-`)
 	writeFile(t, root, "somepkg/testdata/fixture.go", `package testdata
 
 import "sync"
@@ -146,7 +140,7 @@ func Do() {}
 }
 
 func TestFindConcurrentPackages_ToolsGenIsNotExcluded(t *testing.T) {
-	// Unlike gen/go and gen/wire, tools/gen holds hand-written generator
+	// Unlike gen/go, tools/gen holds hand-written generator
 	// tooling, not generated output, and must still be scanned.
 	root := t.TempDir()
 	writeFile(t, root, "tools/gen/somegen/gen.go", `package somegen

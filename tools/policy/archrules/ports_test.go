@@ -148,3 +148,19 @@ func TestTodo_ARCH_GO_013_Conformance(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_ARCH_GO_013_Golden(t *testing.T) {
+	po := loadArchConfig(t).PortOwnership
+	if po.ForbiddenCentralRepoPackage != "internal/repository" {
+		t.Fatalf("forbidden central repository package = %q", po.ForbiddenCentralRepoPackage)
+	}
+	want := []string{"internal/data/postgres", "internal/data/*/postgres", "internal/data/adapters", "internal/data/*/adapters", "internal/connectivity/*/adapters", "internal/transaction/adapters"}
+	if len(po.AdapterMarkers) != len(want) {
+		t.Fatalf("adapter markers = %v, want %v", po.AdapterMarkers, want)
+	}
+	for i := range want {
+		if po.AdapterMarkers[i] != want[i] {
+			t.Errorf("adapter marker %d = %q, want %q", i, po.AdapterMarkers[i], want[i])
+		}
+	}
+}

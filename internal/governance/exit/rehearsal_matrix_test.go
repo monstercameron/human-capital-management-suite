@@ -20,6 +20,7 @@ func tenant004Fixture(t *testing.T) (RehearsalRequest, time.Time) {
 	for i := range base.Revocations {
 		base.Revocations[i].At = at
 	}
+	refreshExport(&base)
 	return RehearsalRequest{
 		RehearsalID: "rehearsal-1", Tenant: "tenant-1", RequestedBy: "operator-1",
 		At: at, Exit: base,

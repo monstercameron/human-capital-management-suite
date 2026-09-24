@@ -159,12 +159,18 @@ modules:
         internal/application,
         internal/domains/leave,
         internal/domains/promotion,
+        internal/domains/knowledge,
+        internal/domains/subscription,
+        internal/governance/privacy/hipaa,
+        internal/messaging,
         internal/platform/devclock,
         internal/platform/execution,
+        internal/platform/telemetry/siem,
         internal/transport,
         internal/collaboration/chat,
         internal/collaboration/chatroutingadapter,
         tools/uxqual/journeyclient,
+        tools/planning/lineageconformance,
         cmd,
         test,
       ]
@@ -172,6 +178,10 @@ modules:
     upgrade_sla: Minor within 90 days.
     exposure: >-
       Pure in-process identifier generation; no network or data exposure.
+      Existing application, domain, execution, transport, governance,
+      telemetry, messaging, planning and persistence seams still represent
+      canonical HCM identifiers as UUID values; this row records those
+      compatibility boundaries while identity remains an owned contract.
       internal/operations/explorer receives UUID-valued data from owned
       ledger/bitemporal ports and renders it without creating identifiers or
       defining identity policy. internal/engines/wire/digest mints only the
@@ -414,10 +424,28 @@ modules:
       internal/kernel/values, and internal/intent's envelope validator use it
       solely to reject or canonicalize text before it reaches a stored
       semantic contract; no x/text type crosses an owned API. The people,
-      i18n, experience, productui and forms roots stay admitted for
-      locale-aware seams; no package under those roots imports x/text
-      directly today.
+      i18n, experience, productui and forms roots use locale-aware seams and
+      Unicode normalization without exposing x/text types through owned APIs.
     replacement_strategy: Tracks google.golang.org/grpc and github.com/jackc/pgx/v5.
+
+  - path: golang.org/x/image
+    version: v0.35.0
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: experience-and-transport
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots:
+      [internal/collaboration/chatmedia, internal/humanwork/docsexport]
+    direct_import_expected: true
+    upgrade_sla: Tracks the Go project's own release cadence; security patch within 14 days.
+    exposure: >-
+      Decodes BMP image variants and scales normalized chat-media renditions
+      inside internal/collaboration/chatmedia. Image codecs and drawing
+      mechanics remain behind the media adapter and do not define HCM policy.
+      internal/humanwork/docsexport uses its Go fonts (BSD, embedded in
+      exported PDFs), sfnt glyph metrics and the WebP decoder for attached
+      images; no x/image type crosses its API.
+    replacement_strategy: Standard-library image codecs and scaling code if the x/image package is no longer maintained.
 
   - path: golang.org/x/tools
     version: v0.48.0
@@ -514,10 +542,13 @@ modules:
     allowed_import_roots:
       [
         tools/uxqual,
+        internal/experience/journeycss,
+        internal/experience/tokens,
         internal/humanwork/productui,
         internal/humanwork/uicomponents,
         internal/humanwork/workspace,
         internal/humanwork/chatui,
+        internal/humanwork/docsdiagram,
       ]
     direct_import_expected: false
     upgrade_sla: Minor within 90 days; security patch within 14 days.
@@ -525,7 +556,9 @@ modules:
       Preferred UI renderer per the Go technology constitution, qualified by
       UX-QUAL-001 as the selected renderer; the production UI packages import
       its html/ui/css subpackages as renderer mechanics only (markup, server
-      components, typed CSS). No business semantics may come from it.
+      components, typed CSS). The experience style roots own typed CSS
+      emission; docsdiagram owns HTML/SVG diagram rendering. No business
+      semantics may come from it.
       internal/humanwork/chatui imports only the html/ui subpackages to
       render the chat workspace tree from owned types.
     replacement_strategy: Go html/template server-side rendering with progressive enhancement (UX-QUAL-001 fallback).
@@ -579,13 +612,19 @@ modules:
     semantic_owner: experience-and-transport
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: []
-    direct_import_expected: false
+    allowed_import_roots:
+      [
+        internal/humanwork/chatui,
+        internal/humanwork/docsexport,
+        internal/humanwork/productui,
+      ]
+    direct_import_expected: true
     upgrade_sla: Tracks github.com/monstercameron/GoWebComponents/v5's own pin.
     exposure: >-
-      Transitive dependency of GoWebComponents (Markdown renderer used by GoWebComponents html); never imported
-      directly; reachable only from the UX-QUAL-001 fixture renderer.
-    replacement_strategy: Removed automatically if GoWebComponents is dropped (UX-QUAL-001 fallback).
+      Parses Markdown content for the chat and product UI renderers. These
+      presentation roots project the syntax tree into owned HTML components;
+      no Goldmark types cross their UI APIs.
+    replacement_strategy: A standard-library Markdown parser or another maintained Go Markdown parser if Goldmark's maintenance lapses.
 
   - path: go.opentelemetry.io/otel/sdk/metric
     version: v1.45.0
@@ -636,9 +675,11 @@ modules:
     direct_import_expected: true
     upgrade_sla: Tracks google.golang.org/grpc's transitive pin; security patch within 14 days.
     exposure: >-
-      OTel trace API for span context propagation. Exact row (in addition to the family rule) so the
-      dependency-admission report has a pinned version.
-    replacement_strategy: OBS-002 admits this subpackage inside its listed adapters.
+      OTel trace API for span context propagation in the telemetry adapters.
+      internal/intent/app also uses trace context to associate intent spans;
+      this exact row admits that package for trace only, while the family
+      rule confines its other OTel imports to the listed adapters.
+    replacement_strategy: OBS-002's owned tracing seam; internal/intent/app can move to the seam when its request tracing is centralized.
 
   - path: go.opentelemetry.io/otel/metric
     version: v1.46.0
@@ -914,6 +955,12 @@ modules:
         gen,
         schema/proto/gen,
         internal/transport,
+        internal/data/projection/wire,
+        internal/data/provenance,
+        internal/data/roleaccessstore,
+        internal/data/siemstore,
+        internal/application,
+        internal/intent/app,
         internal/intent/protomap,
         internal/engines/wire,
         tools/gen,
@@ -926,7 +973,10 @@ modules:
     upgrade_sla: Minor within 60 days; security patch within 7 days.
     exposure: >-
       Wire encoding for every canonical Protobuf contract. Runtime imports are
-      limited to generated wire code, transport, the intent mapping seam, the
+      limited to generated wire code, transport and application response
+      mappers, the intent application timestamp request mapper and the
+      intent mapping seam, four persistence adapters that encode or decode
+      typed outbox, projection, provenance and access revision records, the
       code generator, the schema-generic wire canonicalization mechanics
       (internal/engines/wire), and LIB-019's developer-only structural
       validation qualification kit; those packages do not own business rules
@@ -958,7 +1008,9 @@ modules:
     allowed_import_roots:
       [
         tools,
+        internal/platform/processroles,
         internal/data/tenancy/storagedisposition,
+        internal/data/documenthubstore,
         internal/platform/telemetry,
         internal/transport/eastwest,
       ]
@@ -966,9 +1018,12 @@ modules:
     upgrade_sla: Best-effort.
     exposure: >-
       Parses definitions/architecture/*.yaml governance manifests inside
-      tools/policy at test/build time. The only runtime mechanics roots are
+      tools/policy at test/build time. Runtime mechanics roots include
+      internal/platform/processroles, which parses the SVC-001 process-role
+      manifest into an owned composition contract,
       internal/data/tenancy/storagedisposition, which owns the physical
-      storage registry parser, internal/platform/telemetry, which owns
+      storage registry parser, internal/data/documenthubstore, which owns
+      document metadata isolation rules, internal/platform/telemetry, which owns
       telemetry-contract loading. Neither parser grants YAML data business
       authority: each projects it into an owned typed contract and validates
       it before use.

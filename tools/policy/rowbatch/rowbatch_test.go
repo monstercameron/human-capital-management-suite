@@ -2,7 +2,7 @@ package rowbatch
 
 // REV-089-01: the PERFOPT-004 batching rollout must reach every row-at-a-time
 // store, not just the four hot paths. This test scans internal/data for Exec
-// calls inside loops; meritstore emission and leavestore segments adopt
+// and QueryRow calls inside loops; meritstore emission and leavestore segments adopt
 // dbport.ExecAll, and every remaining site is a recorded, justified
 // exception.
 //
@@ -44,6 +44,17 @@ func TestTodo_REV_089_01(t *testing.T) {
 		}
 	})
 
+	t.Run("LoopQueryRowDetected", func(t *testing.T) {
+		src := "package x\nfunc f(tx T) {\n\tfor _, r := range rows {\n\t\tif err := tx.QueryRow(ctx, \"SELECT value FROM t WHERE id=$1\", r).Scan(&value); err != nil { return }\n\t}\n}\n"
+		found, err := ScanFile("internal/data/example/store.go", []byte(src))
+		if err != nil {
+			t.Fatalf("scan snippet: %v", err)
+		}
+		if len(found) != 1 || found[0].Method != "QueryRow" || found[0].Line != 4 {
+			t.Fatalf("snippet findings = %+v, want one QueryRow finding at line 4", found)
+		}
+	})
+
 	t.Run("StraightLineExecIgnored", func(t *testing.T) {
 		src := "package x\nfunc f(tx T) {\n\t_, err := tx.Exec(ctx, \"INSERT INTO t VALUES ($1)\", 1)\n\t_ = err\n}\n"
 		found, err := ScanFile("internal/data/example/store.go", []byte(src))
@@ -55,14 +66,56 @@ func TestTodo_REV_089_01(t *testing.T) {
 		}
 	})
 
-	t.Run("FuncLiteralIgnored", func(t *testing.T) {
-		src := "package x\nfunc f(tx T) {\n\tfor _, r := range rows {\n\t\tfn := func() {\n\t\t\ttx.Exec(ctx, \"INSERT INTO t VALUES ($1)\", r)\n\t\t}\n\t\t_ = fn\n\t}\n}\n"
+	t.Run("ImmediateFuncLiteralCallDetected", func(t *testing.T) {
+		src := "package x\nfunc f(tx T) {\n\tfor _, r := range rows {\n\t\tfunc() { _, _ = tx.Exec(ctx, \"INSERT INTO t VALUES ($1)\", r) }()\n\t}\n}\n"
 		found, err := ScanFile("internal/data/example/store.go", []byte(src))
 		if err != nil {
 			t.Fatalf("scan snippet: %v", err)
 		}
-		if len(found) != 0 {
-			t.Fatalf("func-literal findings = %+v, want none", found)
+		if len(found) != 1 || found[0].Method != "Exec" {
+			t.Fatalf("func-literal findings = %+v, want one Exec finding", found)
+		}
+	})
+
+	t.Run("NestedLoopCallCountedOnce", func(t *testing.T) {
+		src := "package x\nfunc f(tx T) {\n\tfor _, outer := range rows {\n\t\tfor _, inner := range outer {\n\t\t\t_, _ = tx.Exec(ctx, \"INSERT INTO t VALUES ($1)\", inner)\n\t\t}\n\t}\n}\n"
+		found, err := ScanFile("internal/data/example/store.go", []byte(src))
+		if err != nil {
+			t.Fatalf("scan nested loop: %v", err)
+		}
+		if len(found) != 1 || found[0].Line != 5 {
+			t.Fatalf("nested loop findings = %+v, want one finding at line 5", found)
+		}
+	})
+
+	t.Run("ExpressionWrappersDetected", func(t *testing.T) {
+		src := "package x\nfunc f(tx T, ready <-chan struct{}, condition bool, value any) {\n\tfor _, r := range rows {\n\t\tfunc() { _, _ = tx.Exec(ctx, \"closure\", r) }()\n\t\tif tx.QueryRow(ctx, \"binary\", r).Scan(&value) == nil || condition { }\n\t\tif !valid(tx.QueryRow(ctx, \"unary\", r).Scan()) { }\n\t\t_ = []error{tx.QueryRow(ctx, \"index\", r).Scan()}[0]\n\t\t_ = map[string]error{\"key\": tx.QueryRow(ctx, \"key-value\", r).Scan()}[\"key\"]\n\t\tswitch err := tx.QueryRow(ctx, \"switch-init\", r).Scan(); err { case nil: }\n\t\tselect { case <-func() <-chan struct{} { _, _ = tx.Exec(ctx, \"select\", r); return ready }(): }\n\t}\n}\n"
+		found, err := ScanFile("internal/data/example/store.go", []byte(src))
+		if err != nil {
+			t.Fatalf("scan expression wrappers: %v", err)
+		}
+		if len(found) != 7 {
+			t.Fatalf("expression wrapper findings = %+v, want seven calls", found)
+		}
+		methods := map[string]int{}
+		for _, f := range found {
+			methods[f.Method]++
+		}
+		if methods["Exec"] != 2 || methods["QueryRow"] != 5 {
+			t.Fatalf("expression wrapper methods = %v, want two Exec and five QueryRow", methods)
+		}
+	})
+
+	t.Run("ExactExceptionCallsite", func(t *testing.T) {
+		exception := Exceptions[0]
+		call := exception.Calls[0]
+		matching := Finding{File: exception.File, Line: call.Line, Method: call.Method}
+		if got := Unexcused([]Finding{matching}); len(got) != 0 {
+			t.Fatalf("exact exception not matched: %+v", got)
+		}
+		matching.Line++
+		if got := Unexcused([]Finding{matching}); len(got) != 1 {
+			t.Fatalf("shifted callsite escaped exact exception: %+v", got)
 		}
 	})
 
@@ -80,7 +133,7 @@ func TestTodo_REV_089_01(t *testing.T) {
 				t.Fatalf("scan %s: %v", file, err)
 			}
 			if len(found) != 0 {
-				t.Fatalf("%s still issues row-at-a-time Exec: %+v", file, found)
+				t.Fatalf("%s still issues per-row database calls: %+v", file, found)
 			}
 		}
 	})
@@ -92,15 +145,27 @@ func TestTodo_REV_089_01(t *testing.T) {
 		}
 		var lines []string
 		for _, f := range Unexcused(findings) {
-			lines = append(lines, f.File+":"+strconv.Itoa(f.Line))
+			lines = append(lines, f.File+":"+strconv.Itoa(f.Line)+":"+f.Method)
 		}
 		if len(lines) != 0 {
-			t.Fatalf("unexcused row-at-a-time Exec sites: %v", lines)
+			t.Fatalf("unexcused row-at-a-time database calls: %v", lines)
+		}
+		if missing := MissingExceptions(findings); len(missing) != 0 {
+			t.Fatalf("stale row-at-a-time exceptions: %v", missing)
+		}
+		if extra := Unexcused(append(findings, Finding{File: "internal/data/meritstore/store.go", Method: "Exec"})); len(extra) != 1 {
+			t.Fatalf("new call in an excepted file escaped the count guard: %+v", extra)
 		}
 	})
 
 	t.Run("ExceptionsPinned", func(t *testing.T) {
-		raw, err := os.ReadFile(filepath.Join("testdata", "rowbatch_exceptions.golden"))
+		path := filepath.Join("testdata", "rowbatch_exceptions.golden")
+		if os.Getenv("HCMNEXT_UPDATE_GOLDEN") == "1" {
+			if err := os.WriteFile(path, []byte(CanonicalExceptions()+"\n"), 0o644); err != nil {
+				t.Fatalf("update exception golden: %v", err)
+			}
+		}
+		raw, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read golden: %v", err)
 		}

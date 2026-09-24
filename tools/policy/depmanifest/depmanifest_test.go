@@ -105,3 +105,95 @@ func TestDependencyRoleManifestRejectsUnclassifiedModule(t *testing.T) {
 		}
 	})
 }
+
+// TestTodo_LIB_001_Property checks classification invariants across every
+// declared requirement and every explicit manifest row.
+func TestTodo_LIB_001_Property(t *testing.T) {
+	m := loadManifest(t)
+	root := repopath.RootDir()
+	requires, err := depmanifest.ParseGoModRequires(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, req := range requires {
+		c := m.Classify(req.Path)
+		if !c.Found {
+			t.Errorf("%s is unclassified", req.Path)
+			continue
+		}
+		if c.Row.Role == depmanifest.RoleProjectCore && !m.IsProjectCoreEligible(req.Path) {
+			t.Errorf("unreserved module %s classified PROJECT_CORE", req.Path)
+		}
+	}
+	for _, row := range m.Modules {
+		if missing := depmanifest.RowIsComplete(row); len(missing) != 0 {
+			t.Errorf("%s missing %v", row.Path, missing)
+		}
+	}
+}
+
+// TestTodo_LIB_001_Golden pins the named infrastructure candidates and their
+// role so a manifest rewrite cannot silently turn mechanics into semantics.
+func TestTodo_LIB_001_Golden(t *testing.T) {
+	m := loadManifest(t)
+	for _, name := range []string{"google.golang.org/protobuf", "google.golang.org/grpc", "github.com/jackc/pgx/v5", "github.com/cockroachdb/apd/v3", "go.opentelemetry.io/otel", "github.com/pressly/goose/v3"} {
+		c := m.Classify(name)
+		if !c.Found || c.Row.Role != depmanifest.RoleInfrastructureMechanic {
+			t.Errorf("%s classification = %+v, want infrastructure mechanic", name, c)
+		}
+	}
+}
+
+// TestTodo_LIB_001_Integration cross-checks the checked-in go.mod against the
+// checked-in YAML manifest using the actual parsers.
+func TestTodo_LIB_001_Integration(t *testing.T) {
+	m := loadManifest(t)
+	requires, err := depmanifest.ParseGoModRequires(repopath.RootDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(requires) < 10 {
+		t.Fatalf("parsed only %d requirements", len(requires))
+	}
+	for _, req := range requires {
+		if c := m.Classify(req.Path); !c.Found {
+			t.Errorf("go.mod module %s@%s has no manifest classification", req.Path, req.Version)
+		}
+	}
+}
+
+// TestTodo_LIB_001_Security ensures no role can bypass the closed role set
+// and every project-core classification is reserved by name.
+func TestTodo_LIB_001_Security(t *testing.T) {
+	m := loadManifest(t)
+	for _, row := range m.Modules {
+		if !depmanifest.ValidRole(row.Role) {
+			t.Errorf("%s has invalid role %q", row.Path, row.Role)
+		}
+		if row.Role == depmanifest.RoleProjectCore && !m.IsProjectCoreEligible(row.Path) {
+			t.Errorf("unreserved core module %s", row.Path)
+		}
+	}
+	if depmanifest.ValidRole("PROJECT_CORE; INFRASTRUCTURE_MECHANIC") {
+		t.Fatal("compound role unexpectedly accepted")
+	}
+}
+
+// TestTodo_LIB_001_Conformance verifies family defaults supply the same
+// ownership and replacement fields required of exact rows.
+func TestTodo_LIB_001_Conformance(t *testing.T) {
+	m := loadManifest(t)
+	for _, name := range []string{"golang.org/x/example", "google.golang.org/example", "go.opentelemetry.io/example"} {
+		c := m.Classify(name)
+		if !c.Found {
+			t.Errorf("family %s not classified", name)
+			continue
+		}
+		if c.Row.Role != depmanifest.RoleInfrastructureMechanic || c.Row.SemanticOwner == "" || c.Row.SecurityOwner == "" || c.Row.LicenseOwner == "" || c.Row.UpgradeSLA == "" || c.Row.Exposure == "" || c.Row.ReplacementStrategy == "" {
+			t.Errorf("family %s lacks complete mechanic ownership policy: %+v", name, c.Row)
+		}
+		if !c.Exact && len(c.Row.AllowedImportRoots) == 0 && name == "go.opentelemetry.io/example" {
+			t.Errorf("OTel family has no allowed adapter roots")
+		}
+	}
+}

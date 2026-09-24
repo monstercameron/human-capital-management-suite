@@ -1,0 +1,236 @@
+{
+  "version": "privacy-transfer-rules-2026.09.1",
+  "effective_from": "2026-09-01T00:00:00Z",
+  "review_state": "REFERENCE_SNAPSHOT_REQUIRES_COUNSEL_APPROVAL",
+  "approval_ref": "",
+  "approved_by": "",
+  "approved_at": "0001-01-01T00:00:00Z",
+  "adequacy_registry_complete": false,
+  "region_groups": [
+    {
+      "id": "EU",
+      "regions": [
+        "EU",
+        "AT",
+        "BE",
+        "BG",
+        "HR",
+        "CY",
+        "CZ",
+        "DK",
+        "EE",
+        "FI",
+        "FR",
+        "DE",
+        "GR",
+        "HU",
+        "IE",
+        "IT",
+        "LV",
+        "LT",
+        "LU",
+        "MT",
+        "NL",
+        "PL",
+        "PT",
+        "RO",
+        "SK",
+        "SI",
+        "ES",
+        "SE"
+      ]
+    },
+    {
+      "id": "EEA",
+      "regions": [
+        "EEA",
+        "EU",
+        "AT",
+        "BE",
+        "BG",
+        "HR",
+        "CY",
+        "CZ",
+        "DK",
+        "EE",
+        "FI",
+        "FR",
+        "DE",
+        "GR",
+        "HU",
+        "IE",
+        "IT",
+        "LV",
+        "LT",
+        "LU",
+        "MT",
+        "NL",
+        "PL",
+        "PT",
+        "RO",
+        "SK",
+        "SI",
+        "ES",
+        "SE",
+        "IS",
+        "LI",
+        "NO"
+      ]
+    },
+    { "id": "UK", "regions": ["UK", "GB"] }
+  ],
+  "sources": [
+    "https://commission.europa.eu/law/law-topic/data-protection/international-dimension-data-protection/adequacy-decisions_en",
+    "https://commission.europa.eu/law/law-topic/data-protection/international-dimension-data-protection/rules-international-data-transfers_en",
+    "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/international-transfers/adequacy-regulations/is-the-restricted-transfer-covered-by-adequacy-regulations/",
+    "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/international-transfers/appropriate-safeguards/what-are-standard-data-protection-clauses-the-uk-idta-and-the-addendum/",
+    "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/international-transfers/completing-a-transfer-risk-assessment/",
+    "https://www.legislation.gov.uk/eur/2016/679/body/2026-02-05",
+    "https://www.legislation.gov.uk/ukpga/2025/18/contents",
+    "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32021D0914"
+  ],
+  "adequacy": [
+    {
+      "regime": "EU_GDPR",
+      "region": "EU",
+      "decision_ref": "EU_GDPR_INTERNAL_EEA",
+      "decision_version": "EEA-current-2026.09",
+      "scope": "EEA member state or institution"
+    },
+    {
+      "regime": "EU_GDPR",
+      "region": "EEA",
+      "decision_ref": "EU_GDPR_INTERNAL_EEA",
+      "decision_version": "EEA-current-2026.09",
+      "scope": "EEA member state or institution"
+    },
+    {
+      "regime": "EU_GDPR",
+      "region": "UK",
+      "decision_ref": "EU_GDPR_UK_2025_RENEWAL",
+      "decision_version": "2025-renewal",
+      "scope": "UK GDPR transfers; excludes law-enforcement transfers"
+    },
+    {
+      "regime": "UK_GDPR",
+      "region": "EU",
+      "decision_ref": "UK_ADEQUACY_EEA",
+      "decision_version": "UK-regulations-snapshot-2026.07",
+      "scope": "EEA country or institution; verify recipient scope"
+    },
+    {
+      "regime": "UK_GDPR",
+      "region": "EEA",
+      "decision_ref": "UK_ADEQUACY_EEA",
+      "decision_version": "UK-regulations-snapshot-2026.07",
+      "scope": "EEA country or institution; verify recipient scope"
+    },
+    {
+      "regime": "UK_GDPR",
+      "region": "UK",
+      "decision_ref": "UK_DOMESTIC",
+      "decision_version": "DUAA-2025/current",
+      "scope": "same-jurisdiction processing"
+    }
+  ],
+  "mechanisms": [
+    {
+      "id": "eu.scc.2021-914.module-1",
+      "regime": "EU_GDPR",
+      "kind": "SCC",
+      "version": "2021/914",
+      "module": "1"
+    },
+    {
+      "id": "eu.scc.2021-914.module-2",
+      "regime": "EU_GDPR",
+      "kind": "SCC",
+      "version": "2021/914",
+      "module": "2"
+    },
+    {
+      "id": "eu.scc.2021-914.module-3",
+      "regime": "EU_GDPR",
+      "kind": "SCC",
+      "version": "2021/914",
+      "module": "3"
+    },
+    {
+      "id": "eu.scc.2021-914.module-4",
+      "regime": "EU_GDPR",
+      "kind": "SCC",
+      "version": "2021/914",
+      "module": "4"
+    },
+    {
+      "id": "eu.bcr.article-47.v1",
+      "regime": "EU_GDPR",
+      "kind": "BCR",
+      "version": "article-47/v1"
+    },
+    {
+      "id": "eu.derogation.article-49.v1",
+      "regime": "EU_GDPR",
+      "kind": "DEROGATION",
+      "version": "article-49/v1"
+    },
+    {
+      "id": "eu.adequacy.decision.v1",
+      "regime": "EU_GDPR",
+      "kind": "ADEQUACY",
+      "version": "article-45/v1"
+    },
+    {
+      "id": "uk.idta.current.v1",
+      "regime": "UK_GDPR",
+      "kind": "IDTA",
+      "version": "current/v1"
+    },
+    {
+      "id": "uk.addendum.eu-scc-2021.module-1",
+      "regime": "UK_GDPR",
+      "kind": "UK_ADDENDUM",
+      "version": "current/v1",
+      "module": "1"
+    },
+    {
+      "id": "uk.addendum.eu-scc-2021.module-2",
+      "regime": "UK_GDPR",
+      "kind": "UK_ADDENDUM",
+      "version": "current/v1",
+      "module": "2"
+    },
+    {
+      "id": "uk.addendum.eu-scc-2021.module-3",
+      "regime": "UK_GDPR",
+      "kind": "UK_ADDENDUM",
+      "version": "current/v1",
+      "module": "3"
+    },
+    {
+      "id": "uk.addendum.eu-scc-2021.module-4",
+      "regime": "UK_GDPR",
+      "kind": "UK_ADDENDUM",
+      "version": "current/v1",
+      "module": "4"
+    },
+    {
+      "id": "uk.bcr.current.v1",
+      "regime": "UK_GDPR",
+      "kind": "BCR",
+      "version": "current/v1"
+    },
+    {
+      "id": "uk.derogation.dpa-2018.v1",
+      "regime": "UK_GDPR",
+      "kind": "DEROGATION",
+      "version": "DPA-2018/v1"
+    },
+    {
+      "id": "uk.adequacy.regulations.v1",
+      "regime": "UK_GDPR",
+      "kind": "ADEQUACY",
+      "version": "regulations/v1"
+    }
+  ]
+}

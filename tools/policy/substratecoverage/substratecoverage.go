@@ -73,10 +73,12 @@ func (r Report) Digest() string {
 // SUBSTRATE-COVERAGE-001. Keep one canonical row per responsibility.
 var Responsibilities = []Responsibility{
 	{Name: "persistence", Package: "internal/data/store", Todo: "STORE-002", Owner: "data platform"},
+	{Name: "DataOps diagnostic artifacts", Package: "internal/data/dataopsartifactstore", Todo: "DATAOPS-008", Owner: "data platform"},
 	{Name: "scheduling", Package: "internal/engines/schedule", Todo: "SCHED-001", Owner: "scheduling platform"},
 	{Name: "messaging", Package: "internal/messaging", Todo: "MSG-001", Owner: "messaging platform"},
 	{Name: "secrets", Package: "internal/trust/secrets", Todo: "TRUST-015", Owner: "trust platform"},
 	{Name: "telemetry", Package: "internal/platform/telemetry", Todo: "OBS-012", Owner: "observability platform"},
+	{Name: "tenant SIEM feed", Package: "internal/platform/telemetry/siem", Todo: "REV-099-05", Owner: "observability platform"},
 	{Name: "search", Package: "internal/data/search", Todo: "SEARCH-001", Owner: "data platform"},
 	{Name: "cache", Package: "internal/platform/cache", Todo: "CACHE-001", Owner: "platform foundation"},
 	{Name: "file transfer", Package: "internal/data/artifacts", Todo: "DATA-016", Owner: "artifact platform"},

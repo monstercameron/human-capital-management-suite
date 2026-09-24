@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/tools/policy/depmanifest"
 )
 
 // goldenRollbackProcedure documents the procedure for rolling back a
@@ -363,6 +365,35 @@ func TestTodo_LIB_014_Mutation(t *testing.T) {
 	}
 
 	t.Logf("LIB-014 MUTATION: go.mod integrity preserved (hash: %s)", initialHash)
+}
+
+// FuzzTodo_LIB_014 exercises the Go module parser against arbitrary go.mod
+// bytes. Successful parses must always produce complete module identities;
+// malformed input must return an error rather than panic.
+func FuzzTodo_LIB_014(f *testing.F) {
+	for _, seed := range []string{
+		"module example.test/m\ngo 1.26\nrequire example.test/lib v1.2.3\n",
+		"module example.test/m\ngo 1.26\nrequire (\n example.test/a v1.0.0\n example.test/b v2.0.0 // indirect\n)\n",
+		"module [",
+		"",
+	} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, contents string) {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		requires, err := depmanifest.ParseGoModRequires(root)
+		if err != nil {
+			return
+		}
+		for i, req := range requires {
+			if req.Path == "" || req.Version == "" {
+				t.Fatalf("requirement %d has incomplete identity: %+v", i, req)
+			}
+		}
+	})
 }
 
 // hashBytes computes a simple hash of byte data for equality checks.

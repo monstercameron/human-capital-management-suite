@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/tools/policy/provenance"
 )
 
 func TestTodo_CICD_003(t *testing.T) {
@@ -105,11 +107,13 @@ func TestTodo_CICD_003_Race(t *testing.T) {
 }
 
 type releaseFixtureInputs struct {
-	root string
-	bin  string
-	ver  string
-	pol  map[string]string
-	gate map[string]string
+	root       string
+	bin        string
+	ver        string
+	sbom       string
+	provenance string
+	pol        map[string]string
+	gate       map[string]string
 }
 
 func (f releaseFixtureInputs) options(out string) Options {
@@ -117,8 +121,8 @@ func (f releaseFixtureInputs) options(out string) Options {
 		Out:                 out,
 		VersionFile:         f.ver,
 		Binaries:            []BinaryInput{{Name: "hcmnext.exe", Path: f.bin}},
-		SBOMPath:            filepath.Join(f.root, "definitions", "supply-chain", "sbom.cdx.json"),
-		ProvenancePath:      filepath.Join(f.root, "definitions", "supply-chain", "provenance.json"),
+		SBOMPath:            f.sbom,
+		ProvenancePath:      f.provenance,
 		P1AEvidencePath:     filepath.Join(f.root, "definitions", "planning", "gates", "p1a-evidence-report.json"),
 		PolicyReports:       f.pol,
 		ProductGateEvidence: f.gate,
@@ -137,6 +141,34 @@ func releaseFixture(t *testing.T, root string) releaseFixtureInputs {
 	if err := os.WriteFile(version, []byte("2026.09.05\n"), 0o644); err != nil {
 		t.Fatalf("write version fixture: %v", err)
 	}
+	// Build a self-consistent local SBOM/provenance pair. The repository's
+	// live supply-chain files may be edited while this package is tested, so
+	// do not let a stale checked-in provenance digest mask release-gate tests.
+	sbom := filepath.Join(dir, "sbom.cdx.json")
+	sbomSource := filepath.Join(root, "definitions", "supply-chain", "sbom.cdx.json")
+	if err := copyFile(sbomSource, sbom); err != nil {
+		t.Fatalf("copy SBOM fixture: %v", err)
+	}
+	provenancePath := filepath.Join(dir, "provenance.json")
+	statement, err := provenance.LoadStatement(filepath.Join(root, "definitions", "supply-chain", "provenance.json"))
+	if err != nil {
+		t.Fatalf("load provenance fixture: %v", err)
+	}
+	statement.SBOM.SHA256, err = fileDigest(sbom)
+	if err != nil {
+		t.Fatalf("hash SBOM fixture: %v", err)
+	}
+	privateKey, err := provenance.LoadSigningKeyFixture(filepath.Join(root, DefaultKeyPath))
+	if err != nil {
+		t.Fatalf("load provenance signing fixture: %v", err)
+	}
+	signedStatement, err := provenance.SignStatement(privateKey, *statement, DefaultKeyPath)
+	if err != nil {
+		t.Fatalf("sign provenance fixture: %v", err)
+	}
+	if err := provenance.WriteStatement(provenancePath, signedStatement); err != nil {
+		t.Fatalf("write provenance fixture: %v", err)
+	}
 	policies := make(map[string]string, len(RequiredPolicyReports))
 	for _, name := range RequiredPolicyReports {
 		path := filepath.Join(dir, name+".json")
@@ -149,7 +181,7 @@ func releaseFixture(t *testing.T, root string) releaseFixtureInputs {
 	for _, name := range ProductGateGates() {
 		gate[name] = "fixture-digest-" + name
 	}
-	return releaseFixtureInputs{root: root, bin: bin, ver: version, pol: policies, gate: gate}
+	return releaseFixtureInputs{root: root, bin: bin, ver: version, pol: policies, gate: gate, sbom: sbom, provenance: provenancePath}
 }
 
 func releaseRepoRoot(t *testing.T) string {

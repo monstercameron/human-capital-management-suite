@@ -111,3 +111,39 @@ func TestTodo_ARCH_GO_011_Security(t *testing.T) {
 		t.Errorf("CheckConflictImportsCoordinator wrongly forbids the intended coordinator -> conflict dependency")
 	}
 }
+
+func TestTodo_ARCH_GO_011_Golden(t *testing.T) {
+	tc := loadArchConfig(t).TransactionConflict
+	if tc.TransactionRoot != "internal/transaction" || tc.ConflictRoot != "internal/transaction/conflict" {
+		t.Fatalf("transaction/conflict roots drifted: %+v", tc)
+	}
+	if len(tc.ForbiddenEdges) != 1 || tc.ForbiddenEdges[0] != (archrules.Edge{From: tc.ConflictRoot, To: tc.TransactionRoot}) {
+		t.Fatalf("forbidden edges = %+v", tc.ForbiddenEdges)
+	}
+}
+
+func TestTodo_ARCH_GO_011_Conformance(t *testing.T) {
+	tc := loadArchConfig(t).TransactionConflict
+	for _, imported := range []string{tc.TransactionRoot, tc.TransactionRoot + "/prepare", tc.TransactionRoot + "/commit/receipt"} {
+		if v := archrules.CheckConflictImportsCoordinator(tc, tc.ConflictRoot+"/analysis", imported); v == nil {
+			t.Errorf("conflict implementation importing coordinator %q was accepted", imported)
+		}
+	}
+	for _, imported := range []string{tc.ConflictRoot, tc.ConflictRoot + "/footprint"} {
+		if v := archrules.CheckConflictImportsCoordinator(tc, tc.ConflictRoot+"/analysis", imported); v != nil {
+			t.Errorf("conflict-internal import %q was rejected: %+v", imported, v)
+		}
+	}
+}
+
+func TestTodo_ARCH_GO_011_Mutation(t *testing.T) {
+	tc := loadArchConfig(t).TransactionConflict
+	// A mutation that swaps the edge direction would silently permit the
+	// prohibited dependency, so assert both sides of that mutation boundary.
+	if archrules.CheckConflictImportsCoordinator(tc, tc.ConflictRoot, tc.TransactionRoot) == nil {
+		t.Fatal("reverse dependency mutation was not detected")
+	}
+	if archrules.CheckConflictImportsCoordinator(tc, tc.TransactionRoot, tc.ConflictRoot) != nil {
+		t.Fatal("allowed coordinator-to-analysis dependency was rejected")
+	}
+}

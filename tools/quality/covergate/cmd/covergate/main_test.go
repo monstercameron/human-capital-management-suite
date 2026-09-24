@@ -60,7 +60,7 @@ func TestRun_ReportsUsageErrorsAndGatesARealPackage(t *testing.T) {
 	}
 	root := repoRoot(t)
 	out.Reset()
-	code := run([]string{"-root", root, "-pkg", "./tools/quality/covergate/testdata/gatedpkg", "-timeout", "5m"}, &out)
+	code := run([]string{"-root", root, "-config", "tools/quality/covergate/testdata/coverage-gate.yaml", "-pkg", "./tools/quality/covergate/testdata/gatedpkg", "-timeout", "5m"}, &out)
 	if code != 0 || !strings.Contains(out.String(), "PASS") {
 		t.Fatalf("real gate run: code=%d out=%q", code, out.String())
 	}

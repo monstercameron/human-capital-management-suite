@@ -2,7 +2,10 @@ package libqualification_test
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/internal/repopath"
@@ -88,6 +91,18 @@ func TestStandardLibraryDefaultPolicy(t *testing.T) {
 		t.Fatalf("listing packages: %v", err)
 	}
 
+	violations := forbiddenProductionImports(pkgs)
+	if len(violations) > 0 {
+		t.Fatalf("LIB-012 POLICY VIOLATION: standard-library-first principle breached:\n%s", strings.Join(violations, "\n"))
+	}
+
+	t.Logf("LIB-012 DECISION=PREFER: log/slog, stdlib crypto/TLS/net, and Go test tools satisfy all needs")
+}
+
+// forbiddenProductionImports is the scanner shared by the live policy test
+// and its fault fixture. It reports prohibited imports from production
+// packages, except exact package/module pairs with an admitted rationale.
+func forbiddenProductionImports(pkgs []repopath.Package) []string {
 	var violations []string
 
 	for _, pkg := range pkgs {
@@ -112,8 +127,7 @@ func TestStandardLibraryDefaultPolicy(t *testing.T) {
 				if strings.HasPrefix(imp, fb.pattern) {
 					// Check if this import is in the admitted exceptions list.
 					if admittedExceptions[pkg.ImportPath] != nil {
-						if reason, found := admittedExceptions[pkg.ImportPath][name]; found {
-							t.Logf("ADMITTED EXCEPTION: %s imports %s (%s)", pkg.ImportPath, name, reason)
+						if _, found := admittedExceptions[pkg.ImportPath][name]; found {
 							continue
 						}
 					}
@@ -124,11 +138,106 @@ func TestStandardLibraryDefaultPolicy(t *testing.T) {
 		}
 	}
 
-	if len(violations) > 0 {
-		t.Fatalf("LIB-012 POLICY VIOLATION: standard-library-first principle breached:\n%s", strings.Join(violations, "\n"))
-	}
+	return violations
+}
 
-	t.Logf("LIB-012 DECISION=PREFER: log/slog, stdlib crypto/TLS/net, and Go test tools satisfy all needs")
+// TestTodo_LIB_012_Fault verifies the production-import scanner reports a
+// forbidden dependency injected into a production package fixture.
+func TestTodo_LIB_012_Fault(t *testing.T) {
+	fixture := []repopath.Package{{
+		ImportPath: "github.com/example/production-service",
+		Imports:    []string{"go.uber.org/zap"},
+	}}
+
+	violations := forbiddenProductionImports(fixture)
+	if len(violations) != 1 {
+		t.Fatalf("scanner returned %d violations, want 1: %v", len(violations), violations)
+	}
+	want := "github.com/example/production-service imports go.uber.org/zap"
+	if !strings.Contains(violations[0], want) {
+		t.Fatalf("scanner missed forbidden production import: got %q, want it to contain %q", violations[0], want)
+	}
+}
+
+// TestTodo_LIB_012_Integration verifies go-list discovery and the policy
+// scanner together against a temporary module with a forbidden production
+// import. The local replacement keeps the fixture offline and self-contained.
+func TestTodo_LIB_012_Integration(t *testing.T) {
+	root := t.TempDir()
+	writeFixtureFile(t, filepath.Join(root, "go.mod"), "module example.test/lib012fixture\n\ngo 1.26\n\nrequire go.uber.org/zap v0.0.0\nreplace go.uber.org/zap => ./zap\n")
+	writeFixtureFile(t, filepath.Join(root, "service.go"), "package service\n\nimport _ \"go.uber.org/zap\"\n")
+	writeFixtureFile(t, filepath.Join(root, "zap", "go.mod"), "module go.uber.org/zap\n\ngo 1.26\n")
+	writeFixtureFile(t, filepath.Join(root, "zap", "zap.go"), "package zap\n")
+
+	pkg, err := repopath.ListPackages(root)
+	if err != nil {
+		t.Fatalf("list fixture packages: %v", err)
+	}
+	if len(pkg) != 1 || pkg[0].ImportPath != "example.test/lib012fixture" {
+		t.Fatalf("go list returned unexpected fixture packages: %+v", pkg)
+	}
+	violations := forbiddenProductionImports(pkg)
+	if len(violations) != 1 || !strings.Contains(violations[0], "go.uber.org/zap") {
+		t.Fatalf("integrated scan returned %v, want forbidden zap import", violations)
+	}
+}
+
+// TestTodo_LIB_012_Race invokes the shared scanner concurrently over one
+// immutable package inventory and asserts every caller sees the same finding.
+func TestTodo_LIB_012_Race(t *testing.T) {
+	pkgs := []repopath.Package{
+		{ImportPath: "example.test/service", Imports: []string{"net/http", "go.uber.org/zap"}},
+		{ImportPath: "example.test/stdlib", Imports: []string{"log/slog", "crypto/sha256"}},
+	}
+	const workers = 16
+	want := "example.test/service imports go.uber.org/zap"
+	var group sync.WaitGroup
+	results := make(chan []string, workers)
+	group.Add(workers)
+	for range workers {
+		go func() {
+			defer group.Done()
+			results <- forbiddenProductionImports(pkgs)
+		}()
+	}
+	group.Wait()
+	close(results)
+	for got := range results {
+		if len(got) != 1 || !strings.Contains(got[0], want) {
+			t.Errorf("concurrent scan returned %v, want one stable zap violation", got)
+		}
+	}
+}
+
+// BenchmarkTodo_LIB_012 measures policy scanning across a bounded inventory
+// of production packages while checking that the expected violation remains
+// visible on every iteration.
+func BenchmarkTodo_LIB_012(b *testing.B) {
+	pkgs := make([]repopath.Package, 128)
+	for i := range pkgs {
+		pkgs[i] = repopath.Package{
+			ImportPath: fmt.Sprintf("example.test/service/pkg%d", i),
+			Imports:    []string{"net/http", "log/slog", "crypto/sha256"},
+		}
+	}
+	pkgs[len(pkgs)-1].Imports = append(pkgs[len(pkgs)-1].Imports, "go.uber.org/zap")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if findings := forbiddenProductionImports(pkgs); len(findings) != 1 {
+			b.Fatalf("scanner returned %d findings, want 1", len(findings))
+		}
+	}
+}
+
+func writeFixtureFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create fixture directory: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write fixture file: %v", err)
+	}
 }
 
 // TestTodo_LIB_012_Golden verifies the exact policy rationale persists:
