@@ -316,10 +316,11 @@ accessibility / delegation / representation / human escalation
   - **REFACTOR:** expose a concise file/line diagnostic suitable for CI annotations.
   - **Refs:** [Planning hierarchy](plan.md), [spec index](specs/README.md).
 
-- [ ] `GOV-005` **[P0][TERRA] Enforce implementation-depth vocabulary.**
-  - **Audit (2026-09-24):** Reopened by the G–L reachability audit: no single accountable role is supported by the authoritative owner registry. The explicit disposition is recorded in `.artifacts/lanes/classify-reach-gl.tsv`; complete served integration or resolve the accountable owner before closing.
+- [x] `GOV-005` **[P0][TERRA] Enforce implementation-depth vocabulary.**
+  - **Audit (2026-09-24):** Owner resolved to Platform Engineering per `planning/specs/specification-ownership-registry.md`; this is a library checker and does not require runtime reachability.
+  - **Evidence (2026-09-24):** `TestDepthVocabularyRejectsSilentPromotion`, `TestTodo_GOV_005_Golden`, `TestTodo_GOV_005_Conformance` in `tools/planning/depthvocab`; `go test -count=1 ./tools/planning/depthvocab` reported `ok` on windows/arm64 (Go 1.26.3). `go run ./tools/planning/cmd/plancheck depthvocab .` printed `depthvocab: OK` against the live planning corpus. Both commands then emitted Windows temp-executable `unlinkat ... Access is denied`; AGENTS.md defines successful Go result lines as authoritative. These are the exact GOV-005 CI commands in `.github/workflows/tests.yml`.
   - **Depends:** `GOV-002`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestDepthVocabularyRejectsSilentPromotion`.
   - **TEST MATRIX:** `PRIMARY=TestDepthVocabularyRejectsSilentPromotion`; `GOLDEN=TestTodo_GOV_005_Golden`; `CONFORMANCE=TestTodo_GOV_005_Conformance`.
   - **RED:** `TestDepthVocabularyRejectsSilentPromotion` rejects `DEFINED`, `PARTIAL`, `contract only` or architecture prose used as staffing authority.
@@ -341,9 +342,9 @@ accessibility / delegation / representation / human escalation
   - **Evidence (2026-09-03):** `TestScopeExchangeRejectsUnfundedAddition`, `TestTodo_GOV_006_Golden` in `tools/planning/scopeexchange` (subcommand of `go run ./tools/planning/cmd/plancheck`); `go test -count=1 ./tools/planning/...` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
 
 - [ ] `GOV-007` **[P0][LUNA] Check todo atomicity.**
-  - **Audit (2026-09-24):** Reopened by the G–L reachability audit: no single accountable role is supported by the authoritative owner registry. The explicit disposition is recorded in `.artifacts/lanes/classify-reach-gl.tsv`; complete served integration or resolve the accountable owner before closing.
+  - **Audit (2026-09-24):** Owner resolved to Platform Engineering per `planning/specs/specification-ownership-registry.md`; this is a library checker and does not require runtime reachability. Completion still depends on its live checker evidence.
   - **Depends:** `GOV-002`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodoAtomicity`.
   - **TEST MATRIX:** `PRIMARY=TestTodoAtomicity`; `GOLDEN=TestTodo_GOV_007_Golden`.
   - **RED:** `TestTodoAtomicity` rejects a fixture containing two independently shippable verbs or no observable expected result.
@@ -493,9 +494,9 @@ accessibility / delegation / representation / human escalation
   - **Refs:** [Reproducibility contract](plan.md#93-reproducibility-contract), [environment governance](plan.md#111-environment-and-change-governance).
 
 - [ ] `GOV-021` **[P0][SOL_HIGH] Reject weak tests and coverage gaming.**
-  - **Audit (2026-09-24):** Reopened by the G–L reachability audit: no single accountable role is supported by the authoritative owner registry. The explicit disposition is recorded in `.artifacts/lanes/classify-reach-gl.tsv`; complete served integration or resolve the accountable owner before closing.
+  - **Audit (2026-09-24):** Owner resolved to Platform Engineering per `planning/specs/specification-ownership-registry.md`; this is a library checker and does not require runtime reachability. Completion still depends on its live checker evidence.
   - **Depends:** `GOV-017`, `GOV-018`, `GOV-019`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestOracleStrengthRejectsExecutionOnlyAssertions`.
   - **TEST MATRIX:** `PRIMARY=TestOracleStrengthRejectsExecutionOnlyAssertions`; `PROPERTY=TestTodo_GOV_021_Property`; `GOLDEN=TestTodo_GOV_021_Golden`; `MUTATION=TestTodo_GOV_021_Mutation`.
   - **RED:** tests that assert only no panic/non-nil/status 200/mock invocation/line coverage, omit zero-prohibited-effect checks, snapshot unstable noise, accept multiple contradictory outputs or never fail against a seeded defect are classified `WEAK_ORACLE` and cannot satisfy a todo.
@@ -7194,10 +7195,10 @@ closed.
   - **Refs:** [Proposal binding](specs/workflow-runtime.md), [execution revalidation](plan.md).
 
 - [ ] `GOV-016` **[P0][LUNA] Reject unresolved, prose, cyclic and phase-inverted todo dependencies.**
-  - **Audit (2026-09-24):** Reopened by the G–L reachability audit: no single accountable role is supported by the authoritative owner registry. The explicit disposition is recorded in `.artifacts/lanes/classify-reach-gl.tsv`; complete served integration or resolve the accountable owner before closing.
+  - **Audit (2026-09-24):** Owner resolved to Platform Engineering per `planning/specs/specification-ownership-registry.md`; this is a library checker and does not require runtime reachability. Completion still depends on its live checker evidence.
   - **Evidence (2026-09-05):** `TestTodo_GOV_016`, `TestTodo_GOV_016_{Golden,Property}`, `FuzzTodo_GOV_016` in `tools/planning/todogovernance` (unresolved, prose, cyclic and phase-inverted Depends rejected over the real registry; the live backlog's 291 phase-inversion edges, the LEGAL-002↔LEGAL-015 cycle and MSG-011's prose dependency are pinned in a reviewed allowlist so any new one fails; `go run ./tools/planning/cmd/todogovernance` reports them); `go test -count=1 ./tools/planning/todogovernance/.../` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02.
   - **Depends:** `GOV-002`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=govern catalog, authority, lifecycle, evidence or backlog coverage for material HCM intents`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_GOV_016`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_GOV_016`; `PROPERTY=TestTodo_GOV_016_Property`; `GOLDEN=TestTodo_GOV_016_Golden`; `FUZZ=FuzzTodo_GOV_016`.
   - **RED:** fixture includes unknown ID, free-form category, malformed range, cycle or Gate A dependency on Gate B/C implementation and validation reports exact file/line/code.

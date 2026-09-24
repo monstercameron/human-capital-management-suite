@@ -24,6 +24,10 @@ negative cases and omitted responsibilities; they do not substitute for executab
 conformance evidence or specialist legal, payroll, security, privacy,
 accessibility, reliability, commercial, implementation, or domain certification.
 
+The planning-policy checker cohort tracked by `GOV-005`, `GOV-007`, `GOV-016`
+and `GOV-021` is accountable to the Platform Engineering owner. These checkers
+are library tooling and do not claim runtime capability ownership.
+
 | Specification                                          | Accountable owner role                                     | Status            | Next mandatory review trigger                                                                                                                                          |
 | ------------------------------------------------------ | ---------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `README.md`                                            | Architecture Council                                       | `ACTIVE_REGISTER` | On specification add/remove, index restructuring or status-model change                                                                                                |

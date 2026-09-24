@@ -144,6 +144,11 @@ jobs:
       - name: Ticked todo traceability gate (REV-103-02)
         run: go run ./tools/planning/cmd/plancheck traceability .
 
+      - name: Implementation depth vocabulary gate (GOV-005)
+        run: |
+          go test -count=1 ./tools/planning/depthvocab
+          go run ./tools/planning/cmd/plancheck depthvocab .
+
       - name: Security-control crosswalk gate (GOV-030)
         run: go run ./tools/planning/controlcrosswalk/cmd/controlcrosswalk -root .
 

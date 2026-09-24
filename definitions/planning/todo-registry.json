@@ -16594,8 +16594,10 @@
     "refactor": "centralize normalization in one Go package consumed by planning and release checks",
     "refs": "[Execution-plan scope rules](execution-plan.md#scope-rules), [cross-phase foundation track](plan.md#cross-phase-foundation-track)",
     "retired": false,
-    "done": false,
-    "evidence": "`TestDepthVocabularyRejectsSilentPromotion`, `TestTodo_GOV_005_Golden`, `TestTodo_GOV_005_Conformance` in `tools/planning/depthvocab` (subcommand of `go run ./tools/planning/cmd/plancheck`); `go test -count=1 ./tools/planning/...` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
+    "done": true,
+    "evidence": "`TestDepthVocabularyRejectsSilentPromotion`, `TestTodo_GOV_005_Golden`, `TestTodo_GOV_005_Conformance` in `tools/planning/depthvocab`; `go test -count=1 ./tools/planning/depthvocab` reported `ok` on windows/arm64 (Go 1.26.3). `go run ./tools/planning/cmd/plancheck depthvocab .` printed `depthvocab: OK` against the live planning corpus. Both commands then emitted Windows temp-executable `unlinkat ... Access is denied`; AGENTS.md defines successful Go result lines as authoritative. These are the exact GOV-005 CI commands in `.github/workflows/tests.yml` | `TestDepthVocabularyRejectsSilentPromotion`, `TestTodo_GOV_005_Golden`, `TestTodo_GOV_005_Conformance` in `tools/planning/depthvocab` (subcommand of `go run ./tools/planning/cmd/plancheck`); `go test -count=1 ./tools/planning/...` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02",
+    "capability_class": "LIBRARY",
+    "owner": "PLATFORM_ENGINEERING_OWNER"
   },
   {
     "id": "GOV-006",
@@ -16640,7 +16642,9 @@
     "refs": "[Near-term planning priorities](plan.md#17-near-term-planning-priorities)",
     "retired": false,
     "done": false,
-    "evidence": "`TestTodoAtomicity`, `TestTodo_GOV_007_Golden` (36 advisory two-verb titles listed by `plancheck atomicity`) in `tools/planning/atomicity` (subcommand of `go run ./tools/planning/cmd/plancheck`); `go test -count=1 ./tools/planning/...` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
+    "evidence": "`TestTodoAtomicity`, `TestTodo_GOV_007_Golden` (36 advisory two-verb titles listed by `plancheck atomicity`) in `tools/planning/atomicity` (subcommand of `go run ./tools/planning/cmd/plancheck`); `go test -count=1 ./tools/planning/...` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02",
+    "capability_class": "LIBRARY",
+    "owner": "PLATFORM_ENGINEERING_OWNER"
   },
   {
     "id": "GOV-008",
@@ -16856,7 +16860,9 @@
     "refs": "[Plan hierarchy](plan.md), [execution dependencies](execution-plan.md#delivery-gates-staffing-envelope-and-critical-path)",
     "retired": false,
     "done": false,
-    "evidence": "`TestTodo_GOV_016`, `TestTodo_GOV_016_{Golden,Property}`, `FuzzTodo_GOV_016` in `tools/planning/todogovernance` (unresolved, prose, cyclic and phase-inverted Depends rejected over the real registry; the live backlog's 291 phase-inversion edges, the LEGAL-002↔LEGAL-015 cycle and MSG-011's prose dependency are pinned in a reviewed allowlist so any new one fails; `go run ./tools/planning/cmd/todogovernance` reports them); `go test -count=1 ./tools/planning/todogovernance/.../` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02 | `TestTodo_GOV_016`, `TestTodo_GOV_016_Property`, `TestTodo_GOV_016_Golden`, `FuzzTodo_GOV_016` in `tools/planning/dependencygraph` (unknown/prose/malformed-range/duplicate/cycle and direct/transitive Gate A phase-inversion diagnostics with stable ID/file/line/code); checker and `plancheck dependencygraph` adapter implemented, but the live corpus correctly remains non-green with 6,202 `GATE_A_PHASE_INVERSION` findings; `go test -count=1 ./tools/planning/dependencygraph ./tools/planning/cmd/plancheck`, `go test -fuzz=FuzzTodo_GOV_016 -fuzztime=2s ./tools/planning/dependencygraph`, and `go vet ./tools/planning/dependencygraph ./tools/planning/cmd/plancheck` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02"
+    "evidence": "`TestTodo_GOV_016`, `TestTodo_GOV_016_{Golden,Property}`, `FuzzTodo_GOV_016` in `tools/planning/todogovernance` (unresolved, prose, cyclic and phase-inverted Depends rejected over the real registry; the live backlog's 291 phase-inversion edges, the LEGAL-002↔LEGAL-015 cycle and MSG-011's prose dependency are pinned in a reviewed allowlist so any new one fails; `go run ./tools/planning/cmd/todogovernance` reports them); `go test -count=1 ./tools/planning/todogovernance/.../` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02 | `TestTodo_GOV_016`, `TestTodo_GOV_016_Property`, `TestTodo_GOV_016_Golden`, `FuzzTodo_GOV_016` in `tools/planning/dependencygraph` (unknown/prose/malformed-range/duplicate/cycle and direct/transitive Gate A phase-inversion diagnostics with stable ID/file/line/code); checker and `plancheck dependencygraph` adapter implemented, but the live corpus correctly remains non-green with 6,202 `GATE_A_PHASE_INVERSION` findings; `go test -count=1 ./tools/planning/dependencygraph ./tools/planning/cmd/plancheck`, `go test -fuzz=FuzzTodo_GOV_016 -fuzztime=2s ./tools/planning/dependencygraph`, and `go vet ./tools/planning/dependencygraph ./tools/planning/cmd/plancheck` PASS on windows/arm64 (Go 1.26.3); branch plan-revision-2026-09-02",
+    "capability_class": "LIBRARY",
+    "owner": "PLATFORM_ENGINEERING_OWNER"
   },
   {
     "id": "GOV-017",
@@ -16996,7 +17002,9 @@
     "refs": "[Epistemic integrity](plan.md#513-preserve-epistemic-integrity), [TodoContract fields](#how-an-agent-must-execute-a-todo)",
     "retired": false,
     "done": false,
-    "evidence": "`TestOracleStrengthRejectsExecutionOnlyAssertions` (nine weak oracle shapes classified `WEAK_ORACLE` with reasons, three strong shapes clean), `TestTodo_GOV_021_Property` (fourteen oracle mutations incl. mutant-closure coverage, bounded effects, digest-pinned snapshots and seeded-defect REDs passing), `TestTodo_GOV_021_Golden` (canonical findings bytes pinned in `testdata/golden.json`), `TestTodo_GOV_021_Mutation` (stripped prohibited-effect bound and vague RED caught, repaired oracle clean) in new kernel-pure `tools/planning/oraclestrength` (reviewed execution-only/coverage-shortcut patterns redeemed only by exact/typed/count/digest/prohibition markers, effect claims require prohibited-outcome bounds, snapshots require digest anchors, bare either/or alternatives refused, REDs require a named failing case); RED observed (missing `testdata/golden.json`, snapshot rule suppressed by an over-broad strong marker, RED inflection and either/or-membership false positives fixed); live-backlog calibration (scratch probe, uncommitted): 290 weak todos of the corpus with all thirteen ticked-strong P0 anchors clean; `go test -count=1 ./tools/planning/oraclestrength/` PASS, `go vet` clean, `gofmt` clean, cover 84.0% (floor 70%), `npm run lint` and `npm run check:code-style` PASS; branch fix/unblock-main-gateclosure"
+    "evidence": "`TestOracleStrengthRejectsExecutionOnlyAssertions` (nine weak oracle shapes classified `WEAK_ORACLE` with reasons, three strong shapes clean), `TestTodo_GOV_021_Property` (fourteen oracle mutations incl. mutant-closure coverage, bounded effects, digest-pinned snapshots and seeded-defect REDs passing), `TestTodo_GOV_021_Golden` (canonical findings bytes pinned in `testdata/golden.json`), `TestTodo_GOV_021_Mutation` (stripped prohibited-effect bound and vague RED caught, repaired oracle clean) in new kernel-pure `tools/planning/oraclestrength` (reviewed execution-only/coverage-shortcut patterns redeemed only by exact/typed/count/digest/prohibition markers, effect claims require prohibited-outcome bounds, snapshots require digest anchors, bare either/or alternatives refused, REDs require a named failing case); RED observed (missing `testdata/golden.json`, snapshot rule suppressed by an over-broad strong marker, RED inflection and either/or-membership false positives fixed); live-backlog calibration (scratch probe, uncommitted): 290 weak todos of the corpus with all thirteen ticked-strong P0 anchors clean; `go test -count=1 ./tools/planning/oraclestrength/` PASS, `go vet` clean, `gofmt` clean, cover 84.0% (floor 70%), `npm run lint` and `npm run check:code-style` PASS; branch fix/unblock-main-gateclosure",
+    "capability_class": "LIBRARY",
+    "owner": "PLATFORM_ENGINEERING_OWNER"
   },
   {
     "id": "GOV-022",
