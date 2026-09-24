@@ -85,7 +85,13 @@ func TestTodo_API_002_BufBreakingAllowsAdditiveChange(t *testing.T) {
 // then rerun without the environment variable to confirm the refreshed
 // golden reports clean, and commit the updated .binpb file.
 func TestTodo_API_002_BufBreakingGolden(t *testing.T) {
-	buf := requireBuf(t)
+	buf, err := ResolveBufBinary()
+	if err != nil {
+		t.Fatalf("buf CLI required for compatibility golden: %v", err)
+	}
+	if _, err := os.Stat(schemaBaselineFile); err != nil {
+		t.Fatalf("reading checked-in baseline %s: %v", schemaBaselineFile, err)
+	}
 	if os.Getenv(RegenBaselineEnv) == "1" {
 		if err := BuildDescriptorImage(buf, liveSchemaModule, schemaBaselineFile); err != nil {
 			t.Fatalf("regenerating baseline: %v", err)

@@ -549,8 +549,6 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 │   ├── internal/contractarchive [data; P1A; owner=data-and-ledger]
 │   ├── internal/cryptoagility [trust; P1A; owner=governance-and-trust]
 │   ├── internal/customobject [domains; P1A; owner=intent-and-capability]
-│   ├── internal/documentextract [engines; P1A; owner=shared-engines]
-│   ├── internal/documentredact [trust; P1A; owner=governance-and-trust]
 │   ├── internal/documents [data; P1A; owner=data-and-ledger]
 │   ├── internal/documentsecurity [trust; P1A; owner=governance-and-trust]
 │   ├── internal/effectgraph [platform; P1A; owner=platform-foundation]
@@ -561,6 +559,7 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 │   ├── internal/i18n [transport; P1A; owner=experience-and-transport]
 │   ├── internal/messaging [connectivity; P1A; owner=connectivity]
 │   ├── internal/performance [platform; P1A; owner=platform-foundation]
+│   ├── internal/privacy [trust; P1A; owner=governance-and-trust]
 │   ├── internal/replan [platform; P1A; owner=platform-foundation]
 │   ├── internal/resource [data; P1A; owner=data-and-ledger]
 │   ├── internal/store [platform; P1A; owner=platform-foundation]
@@ -599,7 +598,7 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 | `github.com/sethvargo/go-retry`                                     | `v0.4.0`                               | `INFRASTRUCTURE_MECHANIC` | indirect | operations-and-assurance |
 | `github.com/x448/float16`                                           | `v0.8.4`                               | `INFRASTRUCTURE_MECHANIC` | indirect | experience-and-transport |
 | `github.com/xi2/xz`                                                 | `v0.0.0-20171230120015-48954b6210f8`   | `DEV_TEST_ONLY`           | indirect | platform-foundation      |
-| `github.com/yuin/goldmark`                                          | `v1.7.13`                              | `INFRASTRUCTURE_MECHANIC` | indirect | experience-and-transport |
+| `github.com/yuin/goldmark`                                          | `v1.7.13`                              | `INFRASTRUCTURE_MECHANIC` | direct   | experience-and-transport |
 | `go.opentelemetry.io/auto/sdk`                                      | `v1.2.1`                               | `INFRASTRUCTURE_MECHANIC` | indirect | platform-foundation      |
 | `go.opentelemetry.io/otel`                                          | `v1.46.0`                              | `INFRASTRUCTURE_MECHANIC` | direct   | platform-foundation      |
 | `go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp` | `v1.46.0`                              | `INFRASTRUCTURE_MECHANIC` | direct   | platform-foundation      |
@@ -613,6 +612,7 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 | `go.opentelemetry.io/proto/otlp`                                    | `v1.11.0`                              | `INFRASTRUCTURE_MECHANIC` | indirect | platform-foundation      |
 | `go.uber.org/multierr`                                              | `v1.11.0`                              | `INFRASTRUCTURE_MECHANIC` | indirect | operations-and-assurance |
 | `golang.org/x/exp/typeparams`                                       | `v0.0.0-20231108232855-2478ac86f678`   | `DEV_TEST_ONLY`           | indirect | platform-foundation      |
+| `golang.org/x/image`                                                | `v0.35.0`                              | `INFRASTRUCTURE_MECHANIC` | direct   | experience-and-transport |
 | `golang.org/x/mod`                                                  | `v0.38.0`                              | `DEV_TEST_ONLY`           | direct   | platform-foundation      |
 | `golang.org/x/net`                                                  | `v0.58.0`                              | `INFRASTRUCTURE_MECHANIC` | direct   | experience-and-transport |
 | `golang.org/x/sync`                                                 | `v0.22.0`                              | `INFRASTRUCTURE_MECHANIC` | indirect | platform-foundation      |

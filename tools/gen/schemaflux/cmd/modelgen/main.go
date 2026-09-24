@@ -14,7 +14,7 @@ import (
 
 func main() {
 	root := flag.String("root", ".", "repository root")
-	out := flag.String("out", "internal/generated/schemaflux/models_generated.go", "generated Go file")
+	out := flag.String("out", "tools/gen/schemaflux/generated/models_generated.go", "generated Go file")
 	flag.Parse()
 	metamodel, err := sources.LoadMetamodel(filepath.Join(*root, "schema/schemaflux/metamodel/v1/metamodel.yaml"))
 	must(err)

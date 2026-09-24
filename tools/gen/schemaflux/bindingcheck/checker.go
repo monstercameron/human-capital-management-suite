@@ -11,11 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	generated "github.com/monstercameron/human-capital-management-suite/internal/generated/schemaflux"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	compiled "github.com/monstercameron/human-capital-management-suite/internal/intent/definitions"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/model"
 	sfx "github.com/monstercameron/human-capital-management-suite/tools/gen/schemaflux"
+	generated "github.com/monstercameron/human-capital-management-suite/tools/gen/schemaflux/generated"
 )
 
 // Row is the check result for one drafted definition.

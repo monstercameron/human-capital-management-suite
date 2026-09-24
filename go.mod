@@ -18,6 +18,7 @@ require (
 	github.com/monstercameron/GoWebComponents/v5 v5.0.1
 	github.com/monstercameron/schemaflux v1.2.0
 	github.com/pressly/goose/v3 v3.28.0
+	github.com/yuin/goldmark v1.7.13
 	go.opentelemetry.io/otel v1.46.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.46.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.46.0
@@ -55,7 +56,6 @@ require (
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
-	github.com/yuin/goldmark v1.7.13 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
