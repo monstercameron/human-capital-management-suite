@@ -126,6 +126,8 @@ func rt003Population(t *testing.T) (WorkerLocator, string) {
 		}
 		loc := WorkerLocation{Ref: ref, Key: key, Created: &workforce.WorkerRow{
 			WorkerID: workerID, WorkerKey: key, ManagerRelationshipRef: w.manager,
+			RevisionStream: "people.worker." + ref.Id, RevisionSequence: 1,
+			BasePay: "93000.00", Currency: "USD", PayBasis: "ANNUAL_SALARY", BonusTarget: "0.0500",
 			EffectiveFrom: "2026-01-01", KnownAt: knownAt, RecordedAt: knownAt,
 		}}
 		byRef[key] = loc

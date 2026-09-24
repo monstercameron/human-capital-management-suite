@@ -38,6 +38,17 @@ type IntentHandler interface {
 	SupersedeIntent(ctx context.Context, req *intentsv1.SupersedeIntentRequest) (*intentsv1.SupersedeIntentResponse, error)
 	ExplainIntent(ctx context.Context, req *intentsv1.ExplainIntentRequest) (*intentsv1.ExplainIntentResponse, error)
 	ListIntentTimeline(ctx context.Context, req *intentsv1.ListIntentTimelineRequest) (*intentsv1.ListIntentTimelineResponse, error)
+	// RecommendIntentAction validates one analytical result against the
+	// server-minted authorization snapshot and links it to a separate
+	// draft proposal. It writes nothing.
+	RecommendIntentAction(ctx context.Context, req *intentsv1.RecommendIntentActionRequest) (*intentsv1.RecommendIntentActionResponse, error)
+	// GetIntentDeepLink returns the stable link token for one visible intent.
+	GetIntentDeepLink(ctx context.Context, req *intentsv1.GetIntentDeepLinkRequest) (*intentsv1.GetIntentDeepLinkResponse, error)
+	// InspectIntentFields shows the authorized field set with restriction
+	// markers and the current revision digest.
+	InspectIntentFields(ctx context.Context, req *intentsv1.InspectIntentFieldsRequest) (*intentsv1.InspectIntentFieldsResponse, error)
+	// ExportIntentFields renders the purpose-bound authorized field set.
+	ExportIntentFields(ctx context.Context, req *intentsv1.ExportIntentFieldsRequest) (*intentsv1.ExportIntentFieldsResponse, error)
 }
 
 // RegistryHandler is the port the authorized discovery surface delegates to.

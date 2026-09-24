@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/budget"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/dataops"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
@@ -96,6 +97,9 @@ type CorpusInputs struct {
 	// promotion snapshot reads. Nil until first use, when the corpus pool
 	// loads; tests override it to prove exhaustion and absence.
 	budgetPools *corpusBudgetFacts
+	// compensationFacts is an optional composed rewards read. Nil uses the
+	// corpus adapter; tests and later deployments may supply the governed port.
+	compensationFacts rewards.CompensationFacts
 }
 
 var _ DomainInputs = (*CorpusInputs)(nil)
@@ -451,15 +455,34 @@ func (f *CorpusInputs) resolvePromotion(ctx context.Context, req ResolveRequest,
 			return DomainCall{}, simErr
 		}
 		simulations = simulated
+		// The position-bound path has a governed current-pay observation in
+		// the immutable snapshot. Never let the caller's `current` object
+		// become a second source of truth for preflight and proposal output.
+		current, err = promotionCurrentFromSnapshot(governed.Snapshot)
+		if err != nil {
+			return DomainCall{}, err
+		}
+		budget, err = promotionBudgetFromSnapshot(governed.Budget)
+		if err != nil {
+			return DomainCall{}, err
+		}
 	}
-	if target.PositionID != "" && f.positionReader != nil {
+	positionReader := f.positionReader
+	if target.PositionID != "" && positionReader == nil {
+		catalog, catalogErr := fixtures.NewMemoryPositionCatalog()
+		if catalogErr != nil {
+			return DomainCall{}, fmt.Errorf("app: corpus position catalog: %w", catalogErr)
+		}
+		positionReader = catalog
+	}
+	if target.PositionID != "" && positionReader != nil {
 		selected, _, decodeErr := position.RevisionRef(target.PositionID).Decode()
 		if decodeErr == nil && selected.Tenant == inst.Tenant {
 			knownAt, knownErr := values.NewKnownAt(values.NewInstant(time.Date(int(evaluation.Year()), evaluation.Month(), int(evaluation.Day()), 0, 0, 0, 0, time.UTC)))
 			if knownErr != nil {
 				return DomainCall{}, fmt.Errorf("app: target position known-at: %w", knownErr)
 			}
-			revision, exists, readErr := f.positionReader.PositionRevisionAt(ctx, position.PositionQuery{
+			revision, exists, readErr := positionReader.PositionRevisionAt(ctx, position.PositionQuery{
 				Tenant: inst.Tenant, Position: selected, AsOf: position.AsOf{EffectiveOn: effective, KnownAt: knownAt},
 			})
 			if readErr != nil {
@@ -490,12 +513,73 @@ func (f *CorpusInputs) resolvePromotion(ctx context.Context, req ResolveRequest,
 			Budget:         budget,
 			Policy:         promotion.DefaultPolicy(),
 			Annualization:  rewards.DefaultAnnualization(),
-			PositionReader: f.positionReader,
+			PositionReader: positionReader,
 		},
 		Baseline:        baseline,
 		Simulations:     simulations,
 		ManagerWorkerID: f.managerWorkerID(ctx, inst, workerRef),
 	}, nil
+}
+
+// promotionCurrentFromSnapshot projects the disclosed annualized current pay
+// into the legacy preflight type. That type accepts a base/pay-basis pair,
+// while the P1A snapshot intentionally discloses only annualized current pay.
+// Treating that canonical amount as annual salary preserves the value used by
+// the governed simulation and binds the exact source watermark. A missing,
+// withheld, or malformed value fails closed; no request-supplied pay is used.
+func promotionCurrentFromSnapshot(snapshot promosnapshot.PromotionInputSnapshot) (rewards.CompensationSnapshot, error) {
+	input, ok := snapshot.Lookup(promosnapshot.InputPayBandPositionCurrent)
+	if !ok || input.Availability != promosnapshot.AvailabilityDisclosed {
+		return rewards.CompensationSnapshot{}, fmt.Errorf("app: governed promotion snapshot has no disclosed current pay")
+	}
+	if !input.Entry.Revision.IsSpecified() {
+		return rewards.CompensationSnapshot{}, fmt.Errorf("app: governed current pay has no source revision")
+	}
+	if err := input.Entry.EffectiveAt.Validate(); err != nil {
+		return rewards.CompensationSnapshot{}, fmt.Errorf("app: governed current pay has no effective date: %w", err)
+	}
+	text, ok := strings.CutPrefix(input.CanonicalText, "band=")
+	if !ok {
+		return rewards.CompensationSnapshot{}, fmt.Errorf("app: governed current pay has an invalid canonical form")
+	}
+	_, text, ok = strings.Cut(text, ";annualized=")
+	if !ok {
+		return rewards.CompensationSnapshot{}, fmt.Errorf("app: governed current pay has no annualized amount")
+	}
+	amountText, _, _ := strings.Cut(text, ";")
+	parts := strings.Fields(amountText)
+	if len(parts) != 2 {
+		return rewards.CompensationSnapshot{}, fmt.Errorf("app: governed current pay has an invalid annualized amount")
+	}
+	base, err := fixtures.Money(parts[0], parts[1])
+	if err != nil {
+		return rewards.CompensationSnapshot{}, fmt.Errorf("app: governed current pay: %w", err)
+	}
+	return rewards.CompensationSnapshot{
+		Base: values.Value(base), PayBasis: rewards.PayBasisAnnualSalary,
+		BonusTargetPercent: values.Absent[values.Percentage](),
+		EffectiveDate:      input.Entry.EffectiveAt, Watermark: input.Entry.Revision, Complete: true,
+	}, nil
+}
+
+// promotionBudgetFromSnapshot projects the server-read pool observation into
+// the legacy preflight type. Request fields may select the pool scope, but
+// cannot supply its owner, policy, value, baseline, or observation identity.
+func promotionBudgetFromSnapshot(ref budget.BudgetAuthorityRef) (*promotion.BudgetAuthorityRef, error) {
+	available, err := values.NewMoneyFromDecimal(ref.AvailableQuantity, ref.Currency)
+	if err != nil {
+		return nil, fmt.Errorf("app: governed promotion budget: %w", err)
+	}
+	projected := &promotion.BudgetAuthorityRef{
+		BudgetType: string(ref.BudgetType), OwnerSystem: ref.OwnerSystem, PolicyRef: ref.BaselineVersion,
+		Scope: ref.Scope, Period: ref.Period, Currency: ref.Currency, Unit: string(ref.Unit),
+		BaselineVersion: ref.BaselineVersion, AvailableAmount: values.Value(available),
+		ObservationID: ref.Evidence.ObservationID,
+	}
+	if err := projected.Validate(); err != nil {
+		return nil, fmt.Errorf("app: governed promotion budget is incomplete: %w", err)
+	}
+	return projected, nil
 }
 
 // managerWorkerID resolves a created worker's recorded manager reference to

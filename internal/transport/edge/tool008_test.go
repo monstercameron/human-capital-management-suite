@@ -477,6 +477,46 @@ func TestTodo_TOOL_008_Integration(t *testing.T) {
 			},
 		},
 		{
+			name: "IntentService.RecommendIntentAction",
+			grpc: func() (proto.Message, error) {
+				return h.grpcIntent.RecommendIntentAction(h.grpcContext(ctx), &intentsv1.RecommendIntentActionRequest{})
+			},
+			edge: func() (proto.Message, error) {
+				res, err := h.edgeIntent.RecommendIntentAction(ctx, edgeRequest(h, &intentsv1.RecommendIntentActionRequest{}))
+				return msgOrNil(res, err)
+			},
+		},
+		{
+			name: "IntentService.GetIntentDeepLink",
+			grpc: func() (proto.Message, error) {
+				return h.grpcIntent.GetIntentDeepLink(h.grpcContext(ctx), &intentsv1.GetIntentDeepLinkRequest{})
+			},
+			edge: func() (proto.Message, error) {
+				res, err := h.edgeIntent.GetIntentDeepLink(ctx, edgeRequest(h, &intentsv1.GetIntentDeepLinkRequest{}))
+				return msgOrNil(res, err)
+			},
+		},
+		{
+			name: "IntentService.InspectIntentFields",
+			grpc: func() (proto.Message, error) {
+				return h.grpcIntent.InspectIntentFields(h.grpcContext(ctx), &intentsv1.InspectIntentFieldsRequest{})
+			},
+			edge: func() (proto.Message, error) {
+				res, err := h.edgeIntent.InspectIntentFields(ctx, edgeRequest(h, &intentsv1.InspectIntentFieldsRequest{}))
+				return msgOrNil(res, err)
+			},
+		},
+		{
+			name: "IntentService.ExportIntentFields",
+			grpc: func() (proto.Message, error) {
+				return h.grpcIntent.ExportIntentFields(h.grpcContext(ctx), &intentsv1.ExportIntentFieldsRequest{})
+			},
+			edge: func() (proto.Message, error) {
+				res, err := h.edgeIntent.ExportIntentFields(ctx, edgeRequest(h, &intentsv1.ExportIntentFieldsRequest{}))
+				return msgOrNil(res, err)
+			},
+		},
+		{
 			name: "RegistryService.ListIntentDefinitions",
 			grpc: func() (proto.Message, error) {
 				return h.grpcRegistry.ListIntentDefinitions(h.grpcContext(ctx), &registryv1.ListIntentDefinitionsRequest{})
@@ -624,6 +664,7 @@ func TestTodo_TOOL_008_Conformance(t *testing.T) {
 			{"hcmnext.intents.v1.IntentService", []string{
 				"CreateIntent", "GetIntent", "ListIntents", "SimulateIntent", "ExecuteIntent", "SubmitIntent",
 				"CancelIntent", "SupersedeIntent", "ExplainIntent", "ListIntentTimeline",
+				"RecommendIntentAction", "GetIntentDeepLink", "InspectIntentFields", "ExportIntentFields",
 			}},
 			{"hcmnext.registry.v1.RegistryService", []string{
 				"ListIntentDefinitions", "GetIntentDefinition", "ListCapabilities", "GetCapability",

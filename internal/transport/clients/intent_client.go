@@ -13,16 +13,20 @@ import (
 // Procedure paths for hcmnext.intents.v1.IntentService, identical to the gRPC method's
 // FullMethod and to connect.Spec.Procedure.
 const (
-	ProcedureCancelIntent       = "/hcmnext.intents.v1.IntentService/CancelIntent"
-	ProcedureCreateIntent       = "/hcmnext.intents.v1.IntentService/CreateIntent"
-	ProcedureExecuteIntent      = "/hcmnext.intents.v1.IntentService/ExecuteIntent"
-	ProcedureExplainIntent      = "/hcmnext.intents.v1.IntentService/ExplainIntent"
-	ProcedureGetIntent          = "/hcmnext.intents.v1.IntentService/GetIntent"
-	ProcedureListIntentTimeline = "/hcmnext.intents.v1.IntentService/ListIntentTimeline"
-	ProcedureListIntents        = "/hcmnext.intents.v1.IntentService/ListIntents"
-	ProcedureSimulateIntent     = "/hcmnext.intents.v1.IntentService/SimulateIntent"
-	ProcedureSubmitIntent       = "/hcmnext.intents.v1.IntentService/SubmitIntent"
-	ProcedureSupersedeIntent    = "/hcmnext.intents.v1.IntentService/SupersedeIntent"
+	ProcedureCancelIntent          = "/hcmnext.intents.v1.IntentService/CancelIntent"
+	ProcedureCreateIntent          = "/hcmnext.intents.v1.IntentService/CreateIntent"
+	ProcedureExecuteIntent         = "/hcmnext.intents.v1.IntentService/ExecuteIntent"
+	ProcedureExplainIntent         = "/hcmnext.intents.v1.IntentService/ExplainIntent"
+	ProcedureExportIntentFields    = "/hcmnext.intents.v1.IntentService/ExportIntentFields"
+	ProcedureGetIntent             = "/hcmnext.intents.v1.IntentService/GetIntent"
+	ProcedureGetIntentDeepLink     = "/hcmnext.intents.v1.IntentService/GetIntentDeepLink"
+	ProcedureInspectIntentFields   = "/hcmnext.intents.v1.IntentService/InspectIntentFields"
+	ProcedureListIntentTimeline    = "/hcmnext.intents.v1.IntentService/ListIntentTimeline"
+	ProcedureListIntents           = "/hcmnext.intents.v1.IntentService/ListIntents"
+	ProcedureRecommendIntentAction = "/hcmnext.intents.v1.IntentService/RecommendIntentAction"
+	ProcedureSimulateIntent        = "/hcmnext.intents.v1.IntentService/SimulateIntent"
+	ProcedureSubmitIntent          = "/hcmnext.intents.v1.IntentService/SubmitIntent"
+	ProcedureSupersedeIntent       = "/hcmnext.intents.v1.IntentService/SupersedeIntent"
 )
 
 // ProceduresIntentService returns every procedure path IntentClient
@@ -33,9 +37,13 @@ func ProceduresIntentService() []string {
 		ProcedureCreateIntent,
 		ProcedureExecuteIntent,
 		ProcedureExplainIntent,
+		ProcedureExportIntentFields,
 		ProcedureGetIntent,
+		ProcedureGetIntentDeepLink,
+		ProcedureInspectIntentFields,
 		ProcedureListIntentTimeline,
 		ProcedureListIntents,
+		ProcedureRecommendIntentAction,
 		ProcedureSimulateIntent,
 		ProcedureSubmitIntent,
 		ProcedureSupersedeIntent,
@@ -58,12 +66,20 @@ type IntentClient interface {
 	ExecuteIntent(ctx context.Context, req *intentsv1.ExecuteIntentRequest, opts ...CallOption) (*intentsv1.ExecuteIntentResponse, error)
 	// ExplainIntent calls hcmnext.intents.v1.IntentService.ExplainIntent.
 	ExplainIntent(ctx context.Context, req *intentsv1.ExplainIntentRequest, opts ...CallOption) (*intentsv1.ExplainIntentResponse, error)
+	// ExportIntentFields calls hcmnext.intents.v1.IntentService.ExportIntentFields.
+	ExportIntentFields(ctx context.Context, req *intentsv1.ExportIntentFieldsRequest, opts ...CallOption) (*intentsv1.ExportIntentFieldsResponse, error)
 	// GetIntent calls hcmnext.intents.v1.IntentService.GetIntent.
 	GetIntent(ctx context.Context, req *intentsv1.GetIntentRequest, opts ...CallOption) (*intentsv1.GetIntentResponse, error)
+	// GetIntentDeepLink calls hcmnext.intents.v1.IntentService.GetIntentDeepLink.
+	GetIntentDeepLink(ctx context.Context, req *intentsv1.GetIntentDeepLinkRequest, opts ...CallOption) (*intentsv1.GetIntentDeepLinkResponse, error)
+	// InspectIntentFields calls hcmnext.intents.v1.IntentService.InspectIntentFields.
+	InspectIntentFields(ctx context.Context, req *intentsv1.InspectIntentFieldsRequest, opts ...CallOption) (*intentsv1.InspectIntentFieldsResponse, error)
 	// ListIntentTimeline calls hcmnext.intents.v1.IntentService.ListIntentTimeline.
 	ListIntentTimeline(ctx context.Context, req *intentsv1.ListIntentTimelineRequest, opts ...CallOption) (*intentsv1.ListIntentTimelineResponse, error)
 	// ListIntents calls hcmnext.intents.v1.IntentService.ListIntents.
 	ListIntents(ctx context.Context, req *intentsv1.ListIntentsRequest, opts ...CallOption) (*intentsv1.ListIntentsResponse, error)
+	// RecommendIntentAction calls hcmnext.intents.v1.IntentService.RecommendIntentAction.
+	RecommendIntentAction(ctx context.Context, req *intentsv1.RecommendIntentActionRequest, opts ...CallOption) (*intentsv1.RecommendIntentActionResponse, error)
 	// SimulateIntent calls hcmnext.intents.v1.IntentService.SimulateIntent.
 	SimulateIntent(ctx context.Context, req *intentsv1.SimulateIntentRequest, opts ...CallOption) (*intentsv1.SimulateIntentResponse, error)
 	// SubmitIntent calls hcmnext.intents.v1.IntentService.SubmitIntent.
@@ -119,9 +135,36 @@ func (c *intentGRPCClient) ExplainIntent(ctx context.Context, req *intentsv1.Exp
 	return res, nil
 }
 
+// ExportIntentFields calls hcmnext.intents.v1.IntentService.ExportIntentFields over native gRPC.
+func (c *intentGRPCClient) ExportIntentFields(ctx context.Context, req *intentsv1.ExportIntentFieldsRequest, opts ...CallOption) (*intentsv1.ExportIntentFieldsResponse, error) {
+	res, err := c.client.ExportIntentFields(applyGRPCOptions(ctx, opts), req)
+	if err != nil {
+		return nil, DecodeGRPCError(err)
+	}
+	return res, nil
+}
+
 // GetIntent calls hcmnext.intents.v1.IntentService.GetIntent over native gRPC.
 func (c *intentGRPCClient) GetIntent(ctx context.Context, req *intentsv1.GetIntentRequest, opts ...CallOption) (*intentsv1.GetIntentResponse, error) {
 	res, err := c.client.GetIntent(applyGRPCOptions(ctx, opts), req)
+	if err != nil {
+		return nil, DecodeGRPCError(err)
+	}
+	return res, nil
+}
+
+// GetIntentDeepLink calls hcmnext.intents.v1.IntentService.GetIntentDeepLink over native gRPC.
+func (c *intentGRPCClient) GetIntentDeepLink(ctx context.Context, req *intentsv1.GetIntentDeepLinkRequest, opts ...CallOption) (*intentsv1.GetIntentDeepLinkResponse, error) {
+	res, err := c.client.GetIntentDeepLink(applyGRPCOptions(ctx, opts), req)
+	if err != nil {
+		return nil, DecodeGRPCError(err)
+	}
+	return res, nil
+}
+
+// InspectIntentFields calls hcmnext.intents.v1.IntentService.InspectIntentFields over native gRPC.
+func (c *intentGRPCClient) InspectIntentFields(ctx context.Context, req *intentsv1.InspectIntentFieldsRequest, opts ...CallOption) (*intentsv1.InspectIntentFieldsResponse, error) {
+	res, err := c.client.InspectIntentFields(applyGRPCOptions(ctx, opts), req)
 	if err != nil {
 		return nil, DecodeGRPCError(err)
 	}
@@ -140,6 +183,15 @@ func (c *intentGRPCClient) ListIntentTimeline(ctx context.Context, req *intentsv
 // ListIntents calls hcmnext.intents.v1.IntentService.ListIntents over native gRPC.
 func (c *intentGRPCClient) ListIntents(ctx context.Context, req *intentsv1.ListIntentsRequest, opts ...CallOption) (*intentsv1.ListIntentsResponse, error) {
 	res, err := c.client.ListIntents(applyGRPCOptions(ctx, opts), req)
+	if err != nil {
+		return nil, DecodeGRPCError(err)
+	}
+	return res, nil
+}
+
+// RecommendIntentAction calls hcmnext.intents.v1.IntentService.RecommendIntentAction over native gRPC.
+func (c *intentGRPCClient) RecommendIntentAction(ctx context.Context, req *intentsv1.RecommendIntentActionRequest, opts ...CallOption) (*intentsv1.RecommendIntentActionResponse, error) {
+	res, err := c.client.RecommendIntentAction(applyGRPCOptions(ctx, opts), req)
 	if err != nil {
 		return nil, DecodeGRPCError(err)
 	}
@@ -175,32 +227,40 @@ func (c *intentGRPCClient) SupersedeIntent(ctx context.Context, req *intentsv1.S
 
 // intentConnectClient is the connect-go backend for IntentClient.
 type intentConnectClient struct {
-	cancelIntent       *connect.Client[intentsv1.CancelIntentRequest, intentsv1.CancelIntentResponse]
-	createIntent       *connect.Client[intentsv1.CreateIntentRequest, intentsv1.CreateIntentResponse]
-	executeIntent      *connect.Client[intentsv1.ExecuteIntentRequest, intentsv1.ExecuteIntentResponse]
-	explainIntent      *connect.Client[intentsv1.ExplainIntentRequest, intentsv1.ExplainIntentResponse]
-	getIntent          *connect.Client[intentsv1.GetIntentRequest, intentsv1.GetIntentResponse]
-	listIntentTimeline *connect.Client[intentsv1.ListIntentTimelineRequest, intentsv1.ListIntentTimelineResponse]
-	listIntents        *connect.Client[intentsv1.ListIntentsRequest, intentsv1.ListIntentsResponse]
-	simulateIntent     *connect.Client[intentsv1.SimulateIntentRequest, intentsv1.SimulateIntentResponse]
-	submitIntent       *connect.Client[intentsv1.SubmitIntentRequest, intentsv1.SubmitIntentResponse]
-	supersedeIntent    *connect.Client[intentsv1.SupersedeIntentRequest, intentsv1.SupersedeIntentResponse]
+	cancelIntent          *connect.Client[intentsv1.CancelIntentRequest, intentsv1.CancelIntentResponse]
+	createIntent          *connect.Client[intentsv1.CreateIntentRequest, intentsv1.CreateIntentResponse]
+	executeIntent         *connect.Client[intentsv1.ExecuteIntentRequest, intentsv1.ExecuteIntentResponse]
+	explainIntent         *connect.Client[intentsv1.ExplainIntentRequest, intentsv1.ExplainIntentResponse]
+	exportIntentFields    *connect.Client[intentsv1.ExportIntentFieldsRequest, intentsv1.ExportIntentFieldsResponse]
+	getIntent             *connect.Client[intentsv1.GetIntentRequest, intentsv1.GetIntentResponse]
+	getIntentDeepLink     *connect.Client[intentsv1.GetIntentDeepLinkRequest, intentsv1.GetIntentDeepLinkResponse]
+	inspectIntentFields   *connect.Client[intentsv1.InspectIntentFieldsRequest, intentsv1.InspectIntentFieldsResponse]
+	listIntentTimeline    *connect.Client[intentsv1.ListIntentTimelineRequest, intentsv1.ListIntentTimelineResponse]
+	listIntents           *connect.Client[intentsv1.ListIntentsRequest, intentsv1.ListIntentsResponse]
+	recommendIntentAction *connect.Client[intentsv1.RecommendIntentActionRequest, intentsv1.RecommendIntentActionResponse]
+	simulateIntent        *connect.Client[intentsv1.SimulateIntentRequest, intentsv1.SimulateIntentResponse]
+	submitIntent          *connect.Client[intentsv1.SubmitIntentRequest, intentsv1.SubmitIntentResponse]
+	supersedeIntent       *connect.Client[intentsv1.SupersedeIntentRequest, intentsv1.SupersedeIntentResponse]
 }
 
 // NewIntentClientConnect builds a IntentClient that calls the
 // hcmnext.intents.v1.IntentService procedures published at baseURL over connect-go.
 func NewIntentClientConnect(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) IntentClient {
 	return &intentConnectClient{
-		cancelIntent:       connect.NewClient[intentsv1.CancelIntentRequest, intentsv1.CancelIntentResponse](httpClient, baseURL+ProcedureCancelIntent, opts...),
-		createIntent:       connect.NewClient[intentsv1.CreateIntentRequest, intentsv1.CreateIntentResponse](httpClient, baseURL+ProcedureCreateIntent, opts...),
-		executeIntent:      connect.NewClient[intentsv1.ExecuteIntentRequest, intentsv1.ExecuteIntentResponse](httpClient, baseURL+ProcedureExecuteIntent, opts...),
-		explainIntent:      connect.NewClient[intentsv1.ExplainIntentRequest, intentsv1.ExplainIntentResponse](httpClient, baseURL+ProcedureExplainIntent, opts...),
-		getIntent:          connect.NewClient[intentsv1.GetIntentRequest, intentsv1.GetIntentResponse](httpClient, baseURL+ProcedureGetIntent, opts...),
-		listIntentTimeline: connect.NewClient[intentsv1.ListIntentTimelineRequest, intentsv1.ListIntentTimelineResponse](httpClient, baseURL+ProcedureListIntentTimeline, opts...),
-		listIntents:        connect.NewClient[intentsv1.ListIntentsRequest, intentsv1.ListIntentsResponse](httpClient, baseURL+ProcedureListIntents, opts...),
-		simulateIntent:     connect.NewClient[intentsv1.SimulateIntentRequest, intentsv1.SimulateIntentResponse](httpClient, baseURL+ProcedureSimulateIntent, opts...),
-		submitIntent:       connect.NewClient[intentsv1.SubmitIntentRequest, intentsv1.SubmitIntentResponse](httpClient, baseURL+ProcedureSubmitIntent, opts...),
-		supersedeIntent:    connect.NewClient[intentsv1.SupersedeIntentRequest, intentsv1.SupersedeIntentResponse](httpClient, baseURL+ProcedureSupersedeIntent, opts...),
+		cancelIntent:          connect.NewClient[intentsv1.CancelIntentRequest, intentsv1.CancelIntentResponse](httpClient, baseURL+ProcedureCancelIntent, opts...),
+		createIntent:          connect.NewClient[intentsv1.CreateIntentRequest, intentsv1.CreateIntentResponse](httpClient, baseURL+ProcedureCreateIntent, opts...),
+		executeIntent:         connect.NewClient[intentsv1.ExecuteIntentRequest, intentsv1.ExecuteIntentResponse](httpClient, baseURL+ProcedureExecuteIntent, opts...),
+		explainIntent:         connect.NewClient[intentsv1.ExplainIntentRequest, intentsv1.ExplainIntentResponse](httpClient, baseURL+ProcedureExplainIntent, opts...),
+		exportIntentFields:    connect.NewClient[intentsv1.ExportIntentFieldsRequest, intentsv1.ExportIntentFieldsResponse](httpClient, baseURL+ProcedureExportIntentFields, opts...),
+		getIntent:             connect.NewClient[intentsv1.GetIntentRequest, intentsv1.GetIntentResponse](httpClient, baseURL+ProcedureGetIntent, opts...),
+		getIntentDeepLink:     connect.NewClient[intentsv1.GetIntentDeepLinkRequest, intentsv1.GetIntentDeepLinkResponse](httpClient, baseURL+ProcedureGetIntentDeepLink, opts...),
+		inspectIntentFields:   connect.NewClient[intentsv1.InspectIntentFieldsRequest, intentsv1.InspectIntentFieldsResponse](httpClient, baseURL+ProcedureInspectIntentFields, opts...),
+		listIntentTimeline:    connect.NewClient[intentsv1.ListIntentTimelineRequest, intentsv1.ListIntentTimelineResponse](httpClient, baseURL+ProcedureListIntentTimeline, opts...),
+		listIntents:           connect.NewClient[intentsv1.ListIntentsRequest, intentsv1.ListIntentsResponse](httpClient, baseURL+ProcedureListIntents, opts...),
+		recommendIntentAction: connect.NewClient[intentsv1.RecommendIntentActionRequest, intentsv1.RecommendIntentActionResponse](httpClient, baseURL+ProcedureRecommendIntentAction, opts...),
+		simulateIntent:        connect.NewClient[intentsv1.SimulateIntentRequest, intentsv1.SimulateIntentResponse](httpClient, baseURL+ProcedureSimulateIntent, opts...),
+		submitIntent:          connect.NewClient[intentsv1.SubmitIntentRequest, intentsv1.SubmitIntentResponse](httpClient, baseURL+ProcedureSubmitIntent, opts...),
+		supersedeIntent:       connect.NewClient[intentsv1.SupersedeIntentRequest, intentsv1.SupersedeIntentResponse](httpClient, baseURL+ProcedureSupersedeIntent, opts...),
 	}
 }
 
@@ -248,11 +308,44 @@ func (c *intentConnectClient) ExplainIntent(ctx context.Context, req *intentsv1.
 	return res.Msg, nil
 }
 
+// ExportIntentFields calls hcmnext.intents.v1.IntentService.ExportIntentFields over connect-go.
+func (c *intentConnectClient) ExportIntentFields(ctx context.Context, req *intentsv1.ExportIntentFieldsRequest, opts ...CallOption) (*intentsv1.ExportIntentFieldsResponse, error) {
+	connectReq := connect.NewRequest(req)
+	applyConnectOptions(connectReq, opts)
+	res, err := c.exportIntentFields.CallUnary(ctx, connectReq)
+	if err != nil {
+		return nil, DecodeConnectError(err)
+	}
+	return res.Msg, nil
+}
+
 // GetIntent calls hcmnext.intents.v1.IntentService.GetIntent over connect-go.
 func (c *intentConnectClient) GetIntent(ctx context.Context, req *intentsv1.GetIntentRequest, opts ...CallOption) (*intentsv1.GetIntentResponse, error) {
 	connectReq := connect.NewRequest(req)
 	applyConnectOptions(connectReq, opts)
 	res, err := c.getIntent.CallUnary(ctx, connectReq)
+	if err != nil {
+		return nil, DecodeConnectError(err)
+	}
+	return res.Msg, nil
+}
+
+// GetIntentDeepLink calls hcmnext.intents.v1.IntentService.GetIntentDeepLink over connect-go.
+func (c *intentConnectClient) GetIntentDeepLink(ctx context.Context, req *intentsv1.GetIntentDeepLinkRequest, opts ...CallOption) (*intentsv1.GetIntentDeepLinkResponse, error) {
+	connectReq := connect.NewRequest(req)
+	applyConnectOptions(connectReq, opts)
+	res, err := c.getIntentDeepLink.CallUnary(ctx, connectReq)
+	if err != nil {
+		return nil, DecodeConnectError(err)
+	}
+	return res.Msg, nil
+}
+
+// InspectIntentFields calls hcmnext.intents.v1.IntentService.InspectIntentFields over connect-go.
+func (c *intentConnectClient) InspectIntentFields(ctx context.Context, req *intentsv1.InspectIntentFieldsRequest, opts ...CallOption) (*intentsv1.InspectIntentFieldsResponse, error) {
+	connectReq := connect.NewRequest(req)
+	applyConnectOptions(connectReq, opts)
+	res, err := c.inspectIntentFields.CallUnary(ctx, connectReq)
 	if err != nil {
 		return nil, DecodeConnectError(err)
 	}
@@ -275,6 +368,17 @@ func (c *intentConnectClient) ListIntents(ctx context.Context, req *intentsv1.Li
 	connectReq := connect.NewRequest(req)
 	applyConnectOptions(connectReq, opts)
 	res, err := c.listIntents.CallUnary(ctx, connectReq)
+	if err != nil {
+		return nil, DecodeConnectError(err)
+	}
+	return res.Msg, nil
+}
+
+// RecommendIntentAction calls hcmnext.intents.v1.IntentService.RecommendIntentAction over connect-go.
+func (c *intentConnectClient) RecommendIntentAction(ctx context.Context, req *intentsv1.RecommendIntentActionRequest, opts ...CallOption) (*intentsv1.RecommendIntentActionResponse, error) {
+	connectReq := connect.NewRequest(req)
+	applyConnectOptions(connectReq, opts)
+	res, err := c.recommendIntentAction.CallUnary(ctx, connectReq)
 	if err != nil {
 		return nil, DecodeConnectError(err)
 	}

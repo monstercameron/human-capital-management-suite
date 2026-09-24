@@ -20,6 +20,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // rev00601Principal is a compensation administrator proposing under the
@@ -402,5 +403,85 @@ func TestTodo_REV_006_01_Integration(t *testing.T) {
 		t.Fatal("promotion against an exhausted pool resolved")
 	} else if got := promosnapshot.InputNameOf(err); got != promosnapshot.InputBudgetAvailability {
 		t.Fatalf("exhausted pool refused on %q, want the budget input: %v", got, err)
+	}
+}
+
+// TestPromotionCurrentComesOnlyFromGovernedSnapshot proves a caller cannot
+// pin forged current pay, bonus, revision or budget observations into the
+// position-bound P1A preflight after resolution through governed sources.
+func TestPromotionCurrentComesOnlyFromGovernedSnapshot(t *testing.T) {
+	ctx := context.Background()
+	inputs, err := NewCorpusInputs()
+	if err != nil {
+		t.Fatalf("NewCorpusInputs: %v", err)
+	}
+	req := ResolveRequest{Instance: rev00601Instance(), Principal: rev00601Principal(t), Purpose: authz.PurposeCompensationReview}
+	trusted, err := inputs.resolvePromotion(ctx, req, rev00601ResolvePayload(t))
+	if err != nil {
+		t.Fatalf("trusted resolvePromotion: %v", err)
+	}
+	forgedPayload := rev00601ResolvePayload(t)
+	current := forgedPayload.GetFields()["current"].GetStructValue()
+	current.GetFields()["base"] = structpb.NewStringValue("1.00")
+	current.GetFields()["bonus_target"] = structpb.NewStringValue("0.99")
+	current.GetFields()["revision_sequence"] = structpb.NewNumberValue(999)
+	budgetFields, err := structpb.NewStruct(map[string]any{
+		"available_amount": "9999999.00", "currency": "USD",
+		"owner_system": "attacker.finance", "policy_ref": "attacker.policy",
+		"scope": "cost-center:people-ops", "period": "FY2026",
+		"baseline_version": "attacker.baseline", "observation_id": "attacker.observation",
+	})
+	if err != nil {
+		t.Fatalf("NewStruct budget: %v", err)
+	}
+	forgedPayload.GetFields()["budget"] = structpb.NewStructValue(budgetFields)
+	forged, err := inputs.resolvePromotion(ctx, req, forgedPayload)
+	if err != nil {
+		t.Fatalf("forged-current resolvePromotion: %v", err)
+	}
+	trustedBase, trustedHasBase := trusted.Promotion.Current.Base.Get()
+	forgedBase, forgedHasBase := forged.Promotion.Current.Base.Get()
+	if !trustedHasBase || !forgedHasBase || trustedBase.String() != forgedBase.String() {
+		t.Fatalf("caller current pay changed governed preflight base: trusted=%v/%v forged=%v/%v", trustedBase, trustedHasBase, forgedBase, forgedHasBase)
+	}
+	if trusted.Promotion.Current.Watermark.Canonical() == nil || forged.Promotion.Current.Watermark != trusted.Promotion.Current.Watermark {
+		t.Fatalf("caller revision changed governed current watermark: trusted=%v forged=%v", trusted.Promotion.Current.Watermark, forged.Promotion.Current.Watermark)
+	}
+	if state := forged.Promotion.Current.BonusTargetPercent.State(); state != values.PresenceAbsent {
+		t.Fatalf("caller bonus target leaked into governed current snapshot: state=%s", state)
+	}
+	if forged.Promotion.Budget == nil || trusted.Promotion.Budget == nil ||
+		forged.Promotion.Budget.OwnerSystem != trusted.Promotion.Budget.OwnerSystem ||
+		forged.Promotion.Budget.PolicyRef != trusted.Promotion.Budget.PolicyRef {
+		t.Fatalf("caller budget authority leaked into preflight: trusted=%+v forged=%+v", trusted.Promotion.Budget, forged.Promotion.Budget)
+	}
+	trustedBudget, _ := trusted.Promotion.Budget.AvailableAmount.Get()
+	forgedBudget, _ := forged.Promotion.Budget.AvailableAmount.Get()
+	if trustedBudget.String() != forgedBudget.String() {
+		t.Fatalf("caller budget amount changed governed preflight value: trusted=%s forged=%s", trustedBudget, forgedBudget)
+	}
+	if trusted.Simulations.CandidateDigest != forged.Simulations.CandidateDigest || trusted.Simulations.Assignment.SnapshotDigest != forged.Simulations.Assignment.SnapshotDigest {
+		t.Fatal("caller current fields changed the governed simulations")
+	}
+}
+
+type missingPromotionCompensationFacts struct{}
+
+func (missingPromotionCompensationFacts) CompensationFactsAt(_ context.Context, q rewards.CompensationFactsQuery) (rewards.CompensationFactSet, error) {
+	return rewards.CompensationFactSet{Worker: q.Worker, Exists: false}, nil
+}
+
+func TestPromotionWithoutGovernedCurrentPayFailsClosed(t *testing.T) {
+	inputs, err := NewCorpusInputs()
+	if err != nil {
+		t.Fatalf("NewCorpusInputs: %v", err)
+	}
+	inputs.compensationFacts = missingPromotionCompensationFacts{}
+	payload := rev00601ResolvePayload(t)
+	_, err = inputs.resolvePromotion(context.Background(), ResolveRequest{
+		Instance: rev00601Instance(), Principal: rev00601Principal(t), Purpose: authz.PurposeCompensationReview,
+	}, payload)
+	if err == nil || promosnapshot.InputNameOf(err) != promosnapshot.InputPayBandPositionCurrent {
+		t.Fatalf("promotion without governed current pay refused on %q, want %q: %v", promosnapshot.InputNameOf(err), promosnapshot.InputPayBandPositionCurrent, err)
 	}
 }

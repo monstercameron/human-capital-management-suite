@@ -421,6 +421,33 @@ func (h *IntentHandler) ListIntentTimeline(ctx context.Context, req *intentsv1.L
 	}, nil
 }
 
+// RecommendIntentAction returns a deterministic draft proposal.
+func (h *IntentHandler) RecommendIntentAction(ctx context.Context, req *intentsv1.RecommendIntentActionRequest) (*intentsv1.RecommendIntentActionResponse, error) {
+	h.record(ctx, "RecommendIntentAction", req, nil, req.GetScope())
+	return &intentsv1.RecommendIntentActionResponse{
+		ProposalId: "proposal:fixture", Status: "DRAFT", Family: "CHANGE_REQUEST",
+		TenantId: req.GetTenantId(), Explanation: "fixture recommendation",
+	}, nil
+}
+
+// GetIntentDeepLink returns a deterministic link token.
+func (h *IntentHandler) GetIntentDeepLink(ctx context.Context, req *intentsv1.GetIntentDeepLinkRequest) (*intentsv1.GetIntentDeepLinkResponse, error) {
+	h.record(ctx, "GetIntentDeepLink", req, nil, req.GetScope())
+	return &intentsv1.GetIntentDeepLinkResponse{IntentId: req.GetIntentId(), LinkToken: "intent/fixture?rev=1"}, nil
+}
+
+// InspectIntentFields returns a deterministic field set.
+func (h *IntentHandler) InspectIntentFields(ctx context.Context, req *intentsv1.InspectIntentFieldsRequest) (*intentsv1.InspectIntentFieldsResponse, error) {
+	h.record(ctx, "InspectIntentFields", req, nil, req.GetScope())
+	return &intentsv1.InspectIntentFieldsResponse{IntentId: req.GetIntentId(), Revision: 1, RevisionDigest: "sha256:fixture"}, nil
+}
+
+// ExportIntentFields returns a deterministic field set.
+func (h *IntentHandler) ExportIntentFields(ctx context.Context, req *intentsv1.ExportIntentFieldsRequest) (*intentsv1.ExportIntentFieldsResponse, error) {
+	h.record(ctx, "ExportIntentFields", req, nil, req.GetScope())
+	return &intentsv1.ExportIntentFieldsResponse{IntentId: req.GetIntentId(), Purpose: req.GetPurpose(), Revision: 1}, nil
+}
+
 // RegistryHandler is the deterministic transport.RegistryHandler fake.
 type RegistryHandler struct {
 	recorder

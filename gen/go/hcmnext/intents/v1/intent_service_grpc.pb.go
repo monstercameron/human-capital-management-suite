@@ -19,16 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	IntentService_CreateIntent_FullMethodName       = "/hcmnext.intents.v1.IntentService/CreateIntent"
-	IntentService_GetIntent_FullMethodName          = "/hcmnext.intents.v1.IntentService/GetIntent"
-	IntentService_ListIntents_FullMethodName        = "/hcmnext.intents.v1.IntentService/ListIntents"
-	IntentService_SimulateIntent_FullMethodName     = "/hcmnext.intents.v1.IntentService/SimulateIntent"
-	IntentService_ExecuteIntent_FullMethodName      = "/hcmnext.intents.v1.IntentService/ExecuteIntent"
-	IntentService_SubmitIntent_FullMethodName       = "/hcmnext.intents.v1.IntentService/SubmitIntent"
-	IntentService_CancelIntent_FullMethodName       = "/hcmnext.intents.v1.IntentService/CancelIntent"
-	IntentService_SupersedeIntent_FullMethodName    = "/hcmnext.intents.v1.IntentService/SupersedeIntent"
-	IntentService_ExplainIntent_FullMethodName      = "/hcmnext.intents.v1.IntentService/ExplainIntent"
-	IntentService_ListIntentTimeline_FullMethodName = "/hcmnext.intents.v1.IntentService/ListIntentTimeline"
+	IntentService_CreateIntent_FullMethodName          = "/hcmnext.intents.v1.IntentService/CreateIntent"
+	IntentService_GetIntent_FullMethodName             = "/hcmnext.intents.v1.IntentService/GetIntent"
+	IntentService_ListIntents_FullMethodName           = "/hcmnext.intents.v1.IntentService/ListIntents"
+	IntentService_SimulateIntent_FullMethodName        = "/hcmnext.intents.v1.IntentService/SimulateIntent"
+	IntentService_ExecuteIntent_FullMethodName         = "/hcmnext.intents.v1.IntentService/ExecuteIntent"
+	IntentService_SubmitIntent_FullMethodName          = "/hcmnext.intents.v1.IntentService/SubmitIntent"
+	IntentService_CancelIntent_FullMethodName          = "/hcmnext.intents.v1.IntentService/CancelIntent"
+	IntentService_SupersedeIntent_FullMethodName       = "/hcmnext.intents.v1.IntentService/SupersedeIntent"
+	IntentService_ExplainIntent_FullMethodName         = "/hcmnext.intents.v1.IntentService/ExplainIntent"
+	IntentService_ListIntentTimeline_FullMethodName    = "/hcmnext.intents.v1.IntentService/ListIntentTimeline"
+	IntentService_RecommendIntentAction_FullMethodName = "/hcmnext.intents.v1.IntentService/RecommendIntentAction"
+	IntentService_GetIntentDeepLink_FullMethodName     = "/hcmnext.intents.v1.IntentService/GetIntentDeepLink"
+	IntentService_InspectIntentFields_FullMethodName   = "/hcmnext.intents.v1.IntentService/InspectIntentFields"
+	IntentService_ExportIntentFields_FullMethodName    = "/hcmnext.intents.v1.IntentService/ExportIntentFields"
 )
 
 // IntentServiceClient is the client API for IntentService service.
@@ -37,7 +41,10 @@ const (
 //
 // IntentService is the BusinessIntent lifecycle surface: create, read,
 // simulate, submit, cancel, supersede, explain and inspect the timeline of
-// one BusinessIntent instance, across all three kernel families. See
+// one BusinessIntent instance, across all three kernel families, plus the
+// governed analysis-to-action and intent-inspection reads (recommend a draft
+// action proposal from an analytical result; deep-link, inspect and export
+// the authority-filtered field set). See
 // planning/specs/http-grpc-endpoint-contract.md#initial-endpoint-inventory.
 type IntentServiceClient interface {
 	CreateIntent(ctx context.Context, in *CreateIntentRequest, opts ...grpc.CallOption) (*CreateIntentResponse, error)
@@ -50,6 +57,10 @@ type IntentServiceClient interface {
 	SupersedeIntent(ctx context.Context, in *SupersedeIntentRequest, opts ...grpc.CallOption) (*SupersedeIntentResponse, error)
 	ExplainIntent(ctx context.Context, in *ExplainIntentRequest, opts ...grpc.CallOption) (*ExplainIntentResponse, error)
 	ListIntentTimeline(ctx context.Context, in *ListIntentTimelineRequest, opts ...grpc.CallOption) (*ListIntentTimelineResponse, error)
+	RecommendIntentAction(ctx context.Context, in *RecommendIntentActionRequest, opts ...grpc.CallOption) (*RecommendIntentActionResponse, error)
+	GetIntentDeepLink(ctx context.Context, in *GetIntentDeepLinkRequest, opts ...grpc.CallOption) (*GetIntentDeepLinkResponse, error)
+	InspectIntentFields(ctx context.Context, in *InspectIntentFieldsRequest, opts ...grpc.CallOption) (*InspectIntentFieldsResponse, error)
+	ExportIntentFields(ctx context.Context, in *ExportIntentFieldsRequest, opts ...grpc.CallOption) (*ExportIntentFieldsResponse, error)
 }
 
 type intentServiceClient struct {
@@ -160,13 +171,56 @@ func (c *intentServiceClient) ListIntentTimeline(ctx context.Context, in *ListIn
 	return out, nil
 }
 
+func (c *intentServiceClient) RecommendIntentAction(ctx context.Context, in *RecommendIntentActionRequest, opts ...grpc.CallOption) (*RecommendIntentActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RecommendIntentActionResponse)
+	err := c.cc.Invoke(ctx, IntentService_RecommendIntentAction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *intentServiceClient) GetIntentDeepLink(ctx context.Context, in *GetIntentDeepLinkRequest, opts ...grpc.CallOption) (*GetIntentDeepLinkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetIntentDeepLinkResponse)
+	err := c.cc.Invoke(ctx, IntentService_GetIntentDeepLink_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *intentServiceClient) InspectIntentFields(ctx context.Context, in *InspectIntentFieldsRequest, opts ...grpc.CallOption) (*InspectIntentFieldsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InspectIntentFieldsResponse)
+	err := c.cc.Invoke(ctx, IntentService_InspectIntentFields_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *intentServiceClient) ExportIntentFields(ctx context.Context, in *ExportIntentFieldsRequest, opts ...grpc.CallOption) (*ExportIntentFieldsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExportIntentFieldsResponse)
+	err := c.cc.Invoke(ctx, IntentService_ExportIntentFields_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IntentServiceServer is the server API for IntentService service.
 // All implementations must embed UnimplementedIntentServiceServer
 // for forward compatibility.
 //
 // IntentService is the BusinessIntent lifecycle surface: create, read,
 // simulate, submit, cancel, supersede, explain and inspect the timeline of
-// one BusinessIntent instance, across all three kernel families. See
+// one BusinessIntent instance, across all three kernel families, plus the
+// governed analysis-to-action and intent-inspection reads (recommend a draft
+// action proposal from an analytical result; deep-link, inspect and export
+// the authority-filtered field set). See
 // planning/specs/http-grpc-endpoint-contract.md#initial-endpoint-inventory.
 type IntentServiceServer interface {
 	CreateIntent(context.Context, *CreateIntentRequest) (*CreateIntentResponse, error)
@@ -179,6 +233,10 @@ type IntentServiceServer interface {
 	SupersedeIntent(context.Context, *SupersedeIntentRequest) (*SupersedeIntentResponse, error)
 	ExplainIntent(context.Context, *ExplainIntentRequest) (*ExplainIntentResponse, error)
 	ListIntentTimeline(context.Context, *ListIntentTimelineRequest) (*ListIntentTimelineResponse, error)
+	RecommendIntentAction(context.Context, *RecommendIntentActionRequest) (*RecommendIntentActionResponse, error)
+	GetIntentDeepLink(context.Context, *GetIntentDeepLinkRequest) (*GetIntentDeepLinkResponse, error)
+	InspectIntentFields(context.Context, *InspectIntentFieldsRequest) (*InspectIntentFieldsResponse, error)
+	ExportIntentFields(context.Context, *ExportIntentFieldsRequest) (*ExportIntentFieldsResponse, error)
 	mustEmbedUnimplementedIntentServiceServer()
 }
 
@@ -218,6 +276,18 @@ func (UnimplementedIntentServiceServer) ExplainIntent(context.Context, *ExplainI
 }
 func (UnimplementedIntentServiceServer) ListIntentTimeline(context.Context, *ListIntentTimelineRequest) (*ListIntentTimelineResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListIntentTimeline not implemented")
+}
+func (UnimplementedIntentServiceServer) RecommendIntentAction(context.Context, *RecommendIntentActionRequest) (*RecommendIntentActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RecommendIntentAction not implemented")
+}
+func (UnimplementedIntentServiceServer) GetIntentDeepLink(context.Context, *GetIntentDeepLinkRequest) (*GetIntentDeepLinkResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetIntentDeepLink not implemented")
+}
+func (UnimplementedIntentServiceServer) InspectIntentFields(context.Context, *InspectIntentFieldsRequest) (*InspectIntentFieldsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InspectIntentFields not implemented")
+}
+func (UnimplementedIntentServiceServer) ExportIntentFields(context.Context, *ExportIntentFieldsRequest) (*ExportIntentFieldsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ExportIntentFields not implemented")
 }
 func (UnimplementedIntentServiceServer) mustEmbedUnimplementedIntentServiceServer() {}
 func (UnimplementedIntentServiceServer) testEmbeddedByValue()                       {}
@@ -420,6 +490,78 @@ func _IntentService_ListIntentTimeline_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IntentService_RecommendIntentAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RecommendIntentActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IntentServiceServer).RecommendIntentAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IntentService_RecommendIntentAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IntentServiceServer).RecommendIntentAction(ctx, req.(*RecommendIntentActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IntentService_GetIntentDeepLink_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetIntentDeepLinkRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IntentServiceServer).GetIntentDeepLink(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IntentService_GetIntentDeepLink_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IntentServiceServer).GetIntentDeepLink(ctx, req.(*GetIntentDeepLinkRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IntentService_InspectIntentFields_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InspectIntentFieldsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IntentServiceServer).InspectIntentFields(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IntentService_InspectIntentFields_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IntentServiceServer).InspectIntentFields(ctx, req.(*InspectIntentFieldsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IntentService_ExportIntentFields_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExportIntentFieldsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IntentServiceServer).ExportIntentFields(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IntentService_ExportIntentFields_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IntentServiceServer).ExportIntentFields(ctx, req.(*ExportIntentFieldsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IntentService_ServiceDesc is the grpc.ServiceDesc for IntentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -466,6 +608,22 @@ var IntentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListIntentTimeline",
 			Handler:    _IntentService_ListIntentTimeline_Handler,
+		},
+		{
+			MethodName: "RecommendIntentAction",
+			Handler:    _IntentService_RecommendIntentAction_Handler,
+		},
+		{
+			MethodName: "GetIntentDeepLink",
+			Handler:    _IntentService_GetIntentDeepLink_Handler,
+		},
+		{
+			MethodName: "InspectIntentFields",
+			Handler:    _IntentService_InspectIntentFields_Handler,
+		},
+		{
+			MethodName: "ExportIntentFields",
+			Handler:    _IntentService_ExportIntentFields_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

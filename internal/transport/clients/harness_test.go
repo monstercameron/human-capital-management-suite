@@ -389,7 +389,7 @@ func dispositionByMethod(t testing.TB) map[string]manifest.Disposition {
 	return out
 }
 
-// methodCase is one of the 14 public RPCs, callable through either
+// methodCase is one of the 18 public RPCs, callable through either
 // generated backend with a valid canonical request.
 type methodCase struct {
 	Name        string
@@ -505,6 +505,42 @@ func (h *harness) methodCases(t testing.TB) []methodCase {
 			},
 		},
 		{
+			Name: "RecommendIntentAction", Disposition: disp("RecommendIntentAction"),
+			GRPC: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
+				return h.grpcIntent.RecommendIntentAction(ctx, recommendIntentActionRequest(), opts...)
+			},
+			Connect: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
+				return msgOrNil(h.connectIntent.RecommendIntentAction(ctx, recommendIntentActionRequest(), opts...))
+			},
+		},
+		{
+			Name: "GetIntentDeepLink", Disposition: disp("GetIntentDeepLink"),
+			GRPC: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
+				return h.grpcIntent.GetIntentDeepLink(ctx, &intentsv1.GetIntentDeepLinkRequest{IntentId: transporttest.KnownIntentID}, opts...)
+			},
+			Connect: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
+				return msgOrNil(h.connectIntent.GetIntentDeepLink(ctx, &intentsv1.GetIntentDeepLinkRequest{IntentId: transporttest.KnownIntentID}, opts...))
+			},
+		},
+		{
+			Name: "InspectIntentFields", Disposition: disp("InspectIntentFields"),
+			GRPC: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
+				return h.grpcIntent.InspectIntentFields(ctx, &intentsv1.InspectIntentFieldsRequest{IntentId: transporttest.KnownIntentID}, opts...)
+			},
+			Connect: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
+				return msgOrNil(h.connectIntent.InspectIntentFields(ctx, &intentsv1.InspectIntentFieldsRequest{IntentId: transporttest.KnownIntentID}, opts...))
+			},
+		},
+		{
+			Name: "ExportIntentFields", Disposition: disp("ExportIntentFields"),
+			GRPC: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
+				return h.grpcIntent.ExportIntentFields(ctx, &intentsv1.ExportIntentFieldsRequest{IntentId: transporttest.KnownIntentID, Purpose: transporttest.PurposeAnalytics}, opts...)
+			},
+			Connect: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
+				return msgOrNil(h.connectIntent.ExportIntentFields(ctx, &intentsv1.ExportIntentFieldsRequest{IntentId: transporttest.KnownIntentID, Purpose: transporttest.PurposeAnalytics}, opts...))
+			},
+		},
+		{
 			Name: "ListIntentDefinitions", Disposition: disp("ListIntentDefinitions"),
 			GRPC: func(ctx context.Context, opts ...clients.CallOption) (proto.Message, error) {
 				return h.grpcRegistry.ListIntentDefinitions(ctx, &registryv1.ListIntentDefinitionsRequest{}, opts...)
@@ -540,5 +576,26 @@ func (h *harness) methodCases(t testing.TB) []methodCase {
 				return msgOrNil(h.connectRegistry.GetCapability(ctx, &registryv1.GetCapabilityRequest{CapabilityId: transporttest.KnownCapabilityID}, opts...))
 			},
 		},
+	}
+}
+
+func recommendIntentActionRequest() *intentsv1.RecommendIntentActionRequest {
+	return &intentsv1.RecommendIntentActionRequest{
+		Scope: &commonv1.ScopeContext{
+			TenantId: transporttest.Tenant, OrganizationScopeId: transporttest.OrganizationScopeID, Purpose: transporttest.PurposeAnalytics,
+		},
+		TenantId: transporttest.Tenant, OrganizationId: transporttest.OrganizationScopeID, Purpose: transporttest.PurposeAnalytics,
+		Analysis: &intentsv1.AnalyticalResult{
+			ResultId: "result-clients-fixture", RequestId: "request-clients-fixture",
+			TenantId: transporttest.Tenant, OrganizationId: transporttest.OrganizationScopeID, Purpose: transporttest.PurposeAnalytics,
+			DefinitionRef: "analysis.definition/v1", QueryRef: "query-fixture", QueryVersion: "1", QueryDigest: "sha256:query",
+			CohortRef: "cohort-fixture", CohortVersion: "1", CohortDigest: "sha256:cohort",
+			ModelRef: "model-fixture", ModelVersion: "1", ModelDigest: "sha256:model", ArtifactRef: "artifact-fixture",
+			Digest: "sha256:analysis",
+		},
+		Action:     &intentsv1.RecommendedActionSpec{DefinitionRef: "action.definition/v1", CapabilityRef: transporttest.KnownCapabilityID, InputDigest: "sha256:action"},
+		Population: &intentsv1.RecommendationPopulation{TenantId: transporttest.Tenant, Ref: "population-fixture", Version: "1", Digest: "sha256:population", Authorized: true},
+		Governance: &intentsv1.RecommendationGovernance{DecisionRef: "governance-fixture", DecisionDigest: "sha256:governance", State: "ALLOW", ScopeDigest: "sha256:scope", Purpose: transporttest.PurposeAnalytics},
+		Simulation: &intentsv1.RecommendationSimulation{SimulationRef: "simulation-fixture", SimulationDigest: "sha256:simulation", ActionInputDigest: "sha256:action", Status: "PASS"},
 	}
 }

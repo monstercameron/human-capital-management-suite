@@ -17,10 +17,11 @@ package manifest
 // domain knowledge, kept in one place per method instead of two.
 //
 // Diff against internal/transport/validate.go's requiredFields (read
-// 2026-09-03, HEAD 94610e8): every one of the thirteen keys below has an
-// identical field-path list to the corresponding entry there. There is no
-// key present in one table and absent from the other, and no field-path
-// list differs in membership or order. This package does not import
+// 2026-09-03, HEAD 94610e8): every one of the thirteen pre-REV-007-04 keys
+// below has an identical field-path list to the corresponding entry there.
+// The four REV-007-04 rows have no validate.go counterpart: validate.go is
+// frozen for another lane, and the manifest is the enforced table (Build
+// fails closed on a missing entry). This package does not import
 // validate.go's unexported map (it is unexported, and the file is frozen),
 // so the comparison is manual and recorded here rather than asserted by an
 // import; TestTodo_ENDPOINT_001_Golden pins this package's own table against
@@ -38,6 +39,13 @@ var requiredFieldPaths = map[string][]string{
 	"/hcmnext.intents.v1.IntentService/SupersedeIntent":    {"idempotency_key", "superseded_intent_id", "definition.intent_type_id", "reason_ref"},
 	"/hcmnext.intents.v1.IntentService/ExplainIntent":      {"intent_id"},
 	"/hcmnext.intents.v1.IntentService/ListIntentTimeline": {"intent_id"},
+	"/hcmnext.intents.v1.IntentService/RecommendIntentAction": {
+		"tenant_id", "organization_id", "purpose", "analysis",
+		"action.capability_ref", "population", "governance", "simulation",
+	},
+	"/hcmnext.intents.v1.IntentService/GetIntentDeepLink":   {"intent_id"},
+	"/hcmnext.intents.v1.IntentService/InspectIntentFields": {"intent_id"},
+	"/hcmnext.intents.v1.IntentService/ExportIntentFields":  {"intent_id", "purpose"},
 
 	"/hcmnext.registry.v1.RegistryService/ListIntentDefinitions": nil,
 	"/hcmnext.registry.v1.RegistryService/GetIntentDefinition":   {"definition.intent_type_id"},

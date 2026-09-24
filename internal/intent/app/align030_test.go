@@ -88,7 +88,7 @@ func align030Plan(t *testing.T, idempotencyKey, planID string, heads align030Hea
 
 func align030Action() AcceptedAction {
 	return AcceptedAction{
-		Tenant: align030Tenant, ActionID: "promotion.execute", IntentID: "intent-1",
+		Tenant: align030Tenant, DecisionID: "00000000-0000-4000-8000-000000000030", ActionID: "promotion.execute", IntentID: "intent-1",
 		ProposalRevisionID: "proposal-1", ProposalDigest: "sha256:proposal",
 		AcceptedBy: "principal-admin", AcceptedAt: align030Now, IdempotencyKey: "idem-1",
 	}
@@ -137,6 +137,15 @@ func TestTodo_ALIGN_030_Property(t *testing.T) {
 	if one.DigestValue() != two.DigestValue() {
 		t.Fatalf("binding digest is not deterministic: %q != %q", one.DigestValue(), two.DigestValue())
 	}
+	otherDecision := align030Action()
+	otherDecision.DecisionID = "00000000-0000-4000-8000-000000000031"
+	otherBinding, err := BindAcceptedAction(otherDecision, plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if otherBinding.DigestValue() == one.DigestValue() || one.Check(otherDecision, plan) != ActionPlanChanged {
+		t.Fatal("binding did not pin the accepted decision identity")
+	}
 	other := align030Plan(t, "idem-2", "", align030DefaultHeads())
 	three, err := BindAcceptedAction(align030Action(), other)
 	if err == nil {
@@ -151,7 +160,7 @@ func TestTodo_ALIGN_030_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const wantDigest = "sha256:ff211f0c5103a69b25cccb8b249eb1d217a0a195a06137c6a5394daf61da3fa0"
+	const wantDigest = "sha256:5f91ca87a683927d001e2e5260eec66f7f2b17d6a66b22efaf5d154ca2ec775b"
 	if b.DigestValue() != wantDigest {
 		t.Fatalf("binding digest=%q want=%q", b.DigestValue(), wantDigest)
 	}

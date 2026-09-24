@@ -289,9 +289,218 @@ message ListIntentTimelineResponse {
   hcmnext.common.v1.PageResponse page = 2;
 }
 
+// AnalysisWatermark pins one source release an analytical result cites. A
+// version without a digest is not reproducible evidence.
+message AnalysisWatermark {
+  string source_ref = 1;
+  string version = 2;
+  string digest = 3;
+  google.protobuf.Timestamp observed = 4;
+}
+
+// AnalysisEvidenceRef is a selected, redaction-safe reference to analytical
+// evidence. It carries lineage metadata rather than a result value, so a
+// recommendation cannot smuggle an unauthorized field into a proposed action.
+message AnalysisEvidenceRef {
+  string id = 1;
+  string source_ref = 2;
+  string transformation_ref = 3;
+  string authority_ref = 4;
+  string field_path = 5;
+  string digest = 6;
+  google.protobuf.Timestamp observed = 7;
+  string required_authority_ref = 8;
+  bool restricted = 9;
+}
+
+// AnalysisUncertainty makes a result's limitations explicit instead of
+// allowing it to be mistaken for an authoritative fact.
+message AnalysisUncertainty {
+  string class = 1;
+  string confidence = 2;
+  repeated string limitations = 3;
+}
+
+// AnalyticalResult is the metadata-and-artifact envelope an analysis
+// produces. It carries lineage, never raw values. The authorization digest
+// is left empty on the wire: the server mints the authorization snapshot
+// from the verified principal and binds it here, so a caller cannot assert
+// its own authority past the route.
+message AnalyticalResult {
+  string result_id = 1;
+  string request_id = 2;
+  string tenant_id = 3;
+  string organization_id = 4;
+  string purpose = 5;
+  string definition_ref = 6;
+  string query_ref = 7;
+  string query_version = 8;
+  string query_digest = 9;
+  string cohort_ref = 10;
+  string cohort_version = 11;
+  string cohort_digest = 12;
+  string model_ref = 13;
+  string model_version = 14;
+  string model_digest = 15;
+  string artifact_ref = 16;
+  repeated AnalysisWatermark source_watermarks = 17;
+  repeated AnalysisEvidenceRef evidence = 18;
+  AnalysisUncertainty uncertainty = 19;
+  google.protobuf.Timestamp generated_at = 20;
+  google.protobuf.Timestamp valid_until = 21;
+  string digest = 22;
+  // authorization_digest must arrive empty: the route mints the
+  // authorization snapshot from the verified principal and binds the
+  // presented result to it (the wire analog of SourceResult's stamp), so a
+  // client-sent citation is refused rather than honored — no served route
+  // exposes the registry digest a caller would need to cite legitimately.
+  string authorization_digest = 23;
+}
+
+// RecommendedActionSpec identifies the deterministic action capability a
+// human or workflow may later decide to use. It is not an invocation and
+// carries no effect payload.
+message RecommendedActionSpec {
+  string definition_ref = 1;
+  string capability_ref = 2;
+  string input_digest = 3;
+}
+
+// RecommendationPopulation is the immutable, authorized population snapshot
+// for a proposed action. A count alone is not an authorization proof; the
+// snapshot digest is required.
+message RecommendationPopulation {
+  string tenant_id = 1;
+  string ref = 2;
+  string version = 3;
+  string digest = 4;
+  bool authorized = 5;
+}
+
+// RecommendationCausalLink states how the analysis relates to the proposed
+// action. It never upgrades descriptive or predictive evidence into a
+// causal fact.
+message RecommendationCausalLink {
+  string kind = 1;
+  string basis = 2;
+  repeated string evidence_ids = 3;
+  repeated string confounders = 4;
+  repeated string limitations = 5;
+}
+
+// RecommendationGovernance is the fresh, scope-bound decision needed before
+// a recommendation becomes a proposal.
+message RecommendationGovernance {
+  string decision_ref = 1;
+  string decision_digest = 2;
+  string state = 3;
+  string scope_digest = 4;
+  string purpose = 5;
+  google.protobuf.Timestamp evaluated_at = 6;
+  google.protobuf.Timestamp valid_until = 7;
+}
+
+// RecommendationSimulation is the fresh simulation result bound to the
+// exact action input digest.
+message RecommendationSimulation {
+  string simulation_ref = 1;
+  string simulation_digest = 2;
+  string action_input_digest = 3;
+  string status = 4;
+  google.protobuf.Timestamp evaluated_at = 5;
+  google.protobuf.Timestamp valid_until = 6;
+}
+
+message RecommendIntentActionRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string tenant_id = 2;
+  string organization_id = 3;
+  string purpose = 4;
+  AnalyticalResult analysis = 5;
+  RecommendedActionSpec action = 6;
+  repeated string selected_evidence_ids = 7;
+  RecommendationPopulation population = 8;
+  RecommendationCausalLink causal_link = 9;
+  RecommendationGovernance governance = 10;
+  RecommendationSimulation simulation = 11;
+}
+
+// RecommendedActionEvidence is one lineage reference the proposal carries.
+message RecommendedActionEvidence {
+  string id = 1;
+  string source_ref = 2;
+  string transformation_ref = 3;
+  string authority_ref = 4;
+  string field_path = 5;
+  string digest = 6;
+  google.protobuf.Timestamp observed = 7;
+}
+
+message RecommendIntentActionResponse {
+  string proposal_id = 1;
+  string status = 2;
+  string family = 3;
+  string tenant_id = 4;
+  string organization_id = 5;
+  RecommendedActionSpec action = 6;
+  string analysis_id = 7;
+  string analysis_digest = 8;
+  repeated RecommendedActionEvidence selected_evidence = 9;
+  string governance_state = 10;
+  string simulation_status = 11;
+  bool execution_authority = 12;
+  string digest = 13;
+  string explanation = 14;
+}
+
+message GetIntentDeepLinkRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string intent_id = 2;
+}
+
+message GetIntentDeepLinkResponse {
+  string intent_id = 1;
+  string link_token = 2;
+}
+
+message InspectIntentFieldsRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string intent_id = 2;
+}
+
+message InspectedIntentField {
+  string name = 1;
+  string value = 2;
+  bool restricted = 3;
+}
+
+message InspectIntentFieldsResponse {
+  string intent_id = 1;
+  uint64 revision = 2;
+  repeated InspectedIntentField fields = 3;
+  string revision_digest = 4;
+}
+
+message ExportIntentFieldsRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string intent_id = 2;
+  string purpose = 3;
+}
+
+message ExportIntentFieldsResponse {
+  string intent_id = 1;
+  string purpose = 2;
+  uint64 revision = 3;
+  map<string, string> fields = 4;
+  string revision_digest = 5;
+}
+
 // IntentService is the BusinessIntent lifecycle surface: create, read,
 // simulate, submit, cancel, supersede, explain and inspect the timeline of
-// one BusinessIntent instance, across all three kernel families. See
+// one BusinessIntent instance, across all three kernel families, plus the
+// governed analysis-to-action and intent-inspection reads (recommend a draft
+// action proposal from an analytical result; deep-link, inspect and export
+// the authority-filtered field set). See
 // planning/specs/http-grpc-endpoint-contract.md#initial-endpoint-inventory.
 service IntentService {
   rpc CreateIntent(CreateIntentRequest) returns (CreateIntentResponse);
@@ -304,4 +513,8 @@ service IntentService {
   rpc SupersedeIntent(SupersedeIntentRequest) returns (SupersedeIntentResponse);
   rpc ExplainIntent(ExplainIntentRequest) returns (ExplainIntentResponse);
   rpc ListIntentTimeline(ListIntentTimelineRequest) returns (ListIntentTimelineResponse);
+  rpc RecommendIntentAction(RecommendIntentActionRequest) returns (RecommendIntentActionResponse);
+  rpc GetIntentDeepLink(GetIntentDeepLinkRequest) returns (GetIntentDeepLinkResponse);
+  rpc InspectIntentFields(InspectIntentFieldsRequest) returns (InspectIntentFieldsResponse);
+  rpc ExportIntentFields(ExportIntentFieldsRequest) returns (ExportIntentFieldsResponse);
 }

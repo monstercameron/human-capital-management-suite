@@ -164,6 +164,22 @@ func (c *generatedIntentClient) ListIntentTimeline(ctx context.Context, req *con
 	return callThrough(ctx, req, c.inner.ListIntentTimeline)
 }
 
+func (c *generatedIntentClient) RecommendIntentAction(ctx context.Context, req *connect.Request[intentsv1.RecommendIntentActionRequest]) (*connect.Response[intentsv1.RecommendIntentActionResponse], error) {
+	return callThrough(ctx, req, c.inner.RecommendIntentAction)
+}
+
+func (c *generatedIntentClient) GetIntentDeepLink(ctx context.Context, req *connect.Request[intentsv1.GetIntentDeepLinkRequest]) (*connect.Response[intentsv1.GetIntentDeepLinkResponse], error) {
+	return callThrough(ctx, req, c.inner.GetIntentDeepLink)
+}
+
+func (c *generatedIntentClient) InspectIntentFields(ctx context.Context, req *connect.Request[intentsv1.InspectIntentFieldsRequest]) (*connect.Response[intentsv1.InspectIntentFieldsResponse], error) {
+	return callThrough(ctx, req, c.inner.InspectIntentFields)
+}
+
+func (c *generatedIntentClient) ExportIntentFields(ctx context.Context, req *connect.Request[intentsv1.ExportIntentFieldsRequest]) (*connect.Response[intentsv1.ExportIntentFieldsResponse], error) {
+	return callThrough(ctx, req, c.inner.ExportIntentFields)
+}
+
 func (c *generatedRegistryClient) ListIntentDefinitions(ctx context.Context, req *connect.Request[registryv1.ListIntentDefinitionsRequest]) (*connect.Response[registryv1.ListIntentDefinitionsResponse], error) {
 	return callThrough(ctx, req, c.inner.ListIntentDefinitions)
 }

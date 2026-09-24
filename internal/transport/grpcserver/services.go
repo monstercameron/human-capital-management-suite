@@ -58,6 +58,22 @@ func (s *intentService) ListIntentTimeline(ctx context.Context, req *intentsv1.L
 	return s.handler.ListIntentTimeline(ctx, req)
 }
 
+func (s *intentService) RecommendIntentAction(ctx context.Context, req *intentsv1.RecommendIntentActionRequest) (*intentsv1.RecommendIntentActionResponse, error) {
+	return s.handler.RecommendIntentAction(ctx, req)
+}
+
+func (s *intentService) GetIntentDeepLink(ctx context.Context, req *intentsv1.GetIntentDeepLinkRequest) (*intentsv1.GetIntentDeepLinkResponse, error) {
+	return s.handler.GetIntentDeepLink(ctx, req)
+}
+
+func (s *intentService) InspectIntentFields(ctx context.Context, req *intentsv1.InspectIntentFieldsRequest) (*intentsv1.InspectIntentFieldsResponse, error) {
+	return s.handler.InspectIntentFields(ctx, req)
+}
+
+func (s *intentService) ExportIntentFields(ctx context.Context, req *intentsv1.ExportIntentFieldsRequest) (*intentsv1.ExportIntentFieldsResponse, error) {
+	return s.handler.ExportIntentFields(ctx, req)
+}
+
 // registryService adapts the generated RegistryService server interface to the
 // transport.RegistryHandler port.
 type registryService struct {

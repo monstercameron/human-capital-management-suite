@@ -139,6 +139,18 @@ func (f *fakeIntentHandler) ExplainIntent(context.Context, *intentsv1.ExplainInt
 func (f *fakeIntentHandler) ListIntentTimeline(context.Context, *intentsv1.ListIntentTimelineRequest) (*intentsv1.ListIntentTimelineResponse, error) {
 	return nil, fmt.Errorf("fakeIntentHandler: ListIntentTimeline must never be called by AdminService")
 }
+func (f *fakeIntentHandler) RecommendIntentAction(context.Context, *intentsv1.RecommendIntentActionRequest) (*intentsv1.RecommendIntentActionResponse, error) {
+	return nil, fmt.Errorf("fakeIntentHandler: RecommendIntentAction must never be called by AdminService")
+}
+func (f *fakeIntentHandler) GetIntentDeepLink(context.Context, *intentsv1.GetIntentDeepLinkRequest) (*intentsv1.GetIntentDeepLinkResponse, error) {
+	return nil, fmt.Errorf("fakeIntentHandler: GetIntentDeepLink must never be called by AdminService")
+}
+func (f *fakeIntentHandler) InspectIntentFields(context.Context, *intentsv1.InspectIntentFieldsRequest) (*intentsv1.InspectIntentFieldsResponse, error) {
+	return nil, fmt.Errorf("fakeIntentHandler: InspectIntentFields must never be called by AdminService")
+}
+func (f *fakeIntentHandler) ExportIntentFields(context.Context, *intentsv1.ExportIntentFieldsRequest) (*intentsv1.ExportIntentFieldsResponse, error) {
+	return nil, fmt.Errorf("fakeIntentHandler: ExportIntentFields must never be called by AdminService")
+}
 
 // fixtureTransactionID is the one transaction fakeTransactionHistory answers.
 // It must be a canonical UUID: values.EntityId.Validate requires either a

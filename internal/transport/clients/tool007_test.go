@@ -213,17 +213,38 @@ func TestTodo_TOOL_007_Golden(t *testing.T) {
 	}
 }
 
-// TestTodo_TOOL_007_Integration runs every one of the 14 public RPCs through
-// both generated backends. The qualification claim is about the generated
-// client, not about one method, so a method that only works on one backend
-// has to fail something.
+// TestTodo_TOOL_007_Integration runs every Intent and Registry RPC through
+// both generated backends. DataOps and Integration RPC parity is exercised by
+// TestTodo_PROTO_006_DataOpsIntegration.
 func TestTodo_TOOL_007_Integration(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
 	cases := h.methodCases(t)
 
-	if got, want := len(cases), len(clients.Procedures()); got != want {
-		t.Fatalf("the fixture covers %d methods but the generated clients publish %d", got, want)
+	manifest := loadEndpointManifest(t)
+	want := map[string]bool{}
+	for _, endpoint := range manifest.Endpoints {
+		if strings.HasPrefix(endpoint.GRPCProcedure, "/hcmnext.intents.v1.IntentService/") ||
+			strings.HasPrefix(endpoint.GRPCProcedure, "/hcmnext.registry.v1.RegistryService/") {
+			want[endpoint.MethodName] = false
+		}
+	}
+	for _, tc := range cases {
+		covered, ok := want[tc.Name]
+		if !ok {
+			t.Errorf("fixture includes ungoverned Intent or Registry method %q", tc.Name)
+			continue
+		}
+		if covered {
+			t.Errorf("fixture repeats method %q", tc.Name)
+			continue
+		}
+		want[tc.Name] = true
+	}
+	for method, covered := range want {
+		if !covered {
+			t.Errorf("fixture omits manifest method %q", method)
+		}
 	}
 
 	for _, tc := range cases {
@@ -246,7 +267,7 @@ func TestTodo_TOOL_007_Integration(t *testing.T) {
 }
 
 // TestTodo_TOOL_007_Conformance checks that the generated clients publish
-// exactly the canonical 14-method surface under typed signatures — no
+// exactly the canonical 29-method surface under typed signatures — no
 // untyped map payload anywhere in the interface.
 func TestTodo_TOOL_007_Conformance(t *testing.T) {
 	h := newHarness(t)
@@ -273,6 +294,8 @@ func TestTodo_TOOL_007_Conformance(t *testing.T) {
 		for _, iface := range []reflect.Type{
 			reflect.TypeOf((*clients.IntentClient)(nil)).Elem(),
 			reflect.TypeOf((*clients.RegistryClient)(nil)).Elem(),
+			reflect.TypeOf((*clients.DataOpsClient)(nil)).Elem(),
+			reflect.TypeOf((*clients.IntegrationClient)(nil)).Elem(),
 		} {
 			for i := 0; i < iface.NumMethod(); i++ {
 				m := iface.Method(i)

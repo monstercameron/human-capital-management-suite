@@ -38,7 +38,9 @@ import (
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/reviewparticipants/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 )
 

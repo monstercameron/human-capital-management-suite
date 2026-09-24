@@ -170,7 +170,7 @@ func TestTodo_ENDPOINT_001_Property(t *testing.T) {
 	}
 }
 
-// TestTodo_ENDPOINT_001_Golden pins the exact thirteen-row manifest this
+// TestTodo_ENDPOINT_001_Golden pins the exact eighteen-row manifest this
 // change generates against a fixture transcribed from
 // planning/specs/http-grpc-endpoint-contract.md's initial endpoint
 // inventory and internal/transport/validate.go's requiredFields table (read
@@ -185,16 +185,20 @@ func TestTodo_ENDPOINT_001_Golden(t *testing.T) {
 		required    []string
 	}
 	golden := map[string]want{
-		"hcmnext.intents.v1.IntentService/CreateIntent":       {DispositionServed, "POST", "/v1/intents", []string{"definition.intent_type_id", "idempotency_key", "request.schema.schema_id"}},
-		"hcmnext.intents.v1.IntentService/GetIntent":          {DispositionServed, "GET", "/v1/intents/{intent}", []string{"intent_id"}},
-		"hcmnext.intents.v1.IntentService/ListIntents":        {DispositionServed, "GET", "/v1/intents", []string{}},
-		"hcmnext.intents.v1.IntentService/SimulateIntent":     {DispositionServed, "POST", "/v1/intents/{intent}:simulate", []string{"intent_id"}},
-		"hcmnext.intents.v1.IntentService/ExecuteIntent":      {DispositionRefusedP1A, "POST", "/v1/intents/{intent}:execute", []string{"idempotency_key", "intent_id", "approval.proposal_revision_id", "approval.approval_ref"}},
-		"hcmnext.intents.v1.IntentService/SubmitIntent":       {DispositionServed, "POST", "/v1/intents/{intent}:submit", []string{"idempotency_key", "intent_id", "proposal_revision_id"}},
-		"hcmnext.intents.v1.IntentService/CancelIntent":       {DispositionServed, "POST", "/v1/intents/{intent}:cancel", []string{"idempotency_key", "intent_id", "reason_ref"}},
-		"hcmnext.intents.v1.IntentService/SupersedeIntent":    {DispositionServed, "POST", "/v1/intents/{intent}:supersede", []string{"definition.intent_type_id", "idempotency_key", "reason_ref", "superseded_intent_id"}},
-		"hcmnext.intents.v1.IntentService/ExplainIntent":      {DispositionServed, "GET", "/v1/intents/{intent}/explanation", []string{"intent_id"}},
-		"hcmnext.intents.v1.IntentService/ListIntentTimeline": {DispositionServed, "GET", "/v1/intents/{intent}/timeline", []string{"intent_id"}},
+		"hcmnext.intents.v1.IntentService/CreateIntent":          {DispositionServed, "POST", "/v1/intents", []string{"definition.intent_type_id", "idempotency_key", "request.schema.schema_id"}},
+		"hcmnext.intents.v1.IntentService/GetIntent":             {DispositionServed, "GET", "/v1/intents/{intent}", []string{"intent_id"}},
+		"hcmnext.intents.v1.IntentService/ListIntents":           {DispositionServed, "GET", "/v1/intents", []string{}},
+		"hcmnext.intents.v1.IntentService/SimulateIntent":        {DispositionServed, "POST", "/v1/intents/{intent}:simulate", []string{"intent_id"}},
+		"hcmnext.intents.v1.IntentService/ExecuteIntent":         {DispositionRefusedP1A, "POST", "/v1/intents/{intent}:execute", []string{"idempotency_key", "intent_id", "approval.proposal_revision_id", "approval.approval_ref"}},
+		"hcmnext.intents.v1.IntentService/SubmitIntent":          {DispositionServed, "POST", "/v1/intents/{intent}:submit", []string{"idempotency_key", "intent_id", "proposal_revision_id"}},
+		"hcmnext.intents.v1.IntentService/CancelIntent":          {DispositionServed, "POST", "/v1/intents/{intent}:cancel", []string{"idempotency_key", "intent_id", "reason_ref"}},
+		"hcmnext.intents.v1.IntentService/SupersedeIntent":       {DispositionServed, "POST", "/v1/intents/{intent}:supersede", []string{"definition.intent_type_id", "idempotency_key", "reason_ref", "superseded_intent_id"}},
+		"hcmnext.intents.v1.IntentService/ExplainIntent":         {DispositionServed, "GET", "/v1/intents/{intent}/explanation", []string{"intent_id"}},
+		"hcmnext.intents.v1.IntentService/ListIntentTimeline":    {DispositionServed, "GET", "/v1/intents/{intent}/timeline", []string{"intent_id"}},
+		"hcmnext.intents.v1.IntentService/RecommendIntentAction": {DispositionServed, "POST", "/hcmnext.intents.v1.IntentService/RecommendIntentAction", []string{"action.capability_ref", "analysis", "governance", "organization_id", "population", "purpose", "simulation", "tenant_id"}},
+		"hcmnext.intents.v1.IntentService/GetIntentDeepLink":     {DispositionServed, "POST", "/hcmnext.intents.v1.IntentService/GetIntentDeepLink", []string{"intent_id"}},
+		"hcmnext.intents.v1.IntentService/InspectIntentFields":   {DispositionServed, "POST", "/hcmnext.intents.v1.IntentService/InspectIntentFields", []string{"intent_id"}},
+		"hcmnext.intents.v1.IntentService/ExportIntentFields":    {DispositionServed, "POST", "/hcmnext.intents.v1.IntentService/ExportIntentFields", []string{"intent_id", "purpose"}},
 
 		"hcmnext.registry.v1.RegistryService/ListIntentDefinitions": {DispositionServed, "GET", "/v1/intent-definitions", []string{}},
 		"hcmnext.registry.v1.RegistryService/GetIntentDefinition":   {DispositionServed, "GET", "/v1/intent-definitions/{intent_definition}", []string{"definition.intent_type_id"}},

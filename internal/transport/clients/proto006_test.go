@@ -26,14 +26,15 @@ import (
 //
 // RED: the generated connect-go backend differs from the generated native
 // gRPC backend in presence, typed errors, authenticated context, deadlines,
-// idempotency or response digest, for any of the 14 public methods of
+// idempotency or response digest, for any of the 29 public unary methods of
 // IntentService and RegistryService — including ExecuteIntent, the remaining
 // REFUSED_P1A method, which must refuse
 // a caller-selected authority identically to every SERVED method rather
 // than being treated as a special case.
 //
 // GREEN: the generated parity suite asserts identical semantic
-// request/result/error/evidence for all 14 public unary routes.
+// request/result/error/evidence for the public unary routes. The separate
+// DataOps/Integration parity test covers the additional eleven methods.
 func TestTodo_PROTO_006(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
@@ -393,7 +394,7 @@ func TestTodo_PROTO_006_Race(t *testing.T) {
 	}
 }
 
-// TestTodo_PROTO_006_Integration runs every one of the 14 public RPCs
+// TestTodo_PROTO_006_Integration runs every one of the 18 Intent and Registry RPCs
 // through both generated backends, identically to
 // TestTodo_TOOL_007_Integration: PROTO-006 and TOOL-007 certify the same
 // generated artifact from two different todo obligations, so both suites
@@ -423,22 +424,22 @@ func TestTodo_PROTO_006_Integration(t *testing.T) {
 }
 
 // TestTodo_PROTO_006_Conformance checks the manifest-to-generated-client
-// cross-join: exactly 14 methods, ExecuteIntent REFUSED_P1A, and the
+// cross-join: exactly 29 methods, ExecuteIntent REFUSED_P1A, and the
 // generated procedure set matches the manifest's grpc_procedure column
 // exactly.
 func TestTodo_PROTO_006_Conformance(t *testing.T) {
 	doc := loadEndpointManifest(t)
 
-	if len(doc.Endpoints) != 14 {
-		t.Fatalf("manifest names %d endpoints, want 14", len(doc.Endpoints))
+	if len(doc.Endpoints) != 29 {
+		t.Fatalf("manifest names %d endpoints, want 29", len(doc.Endpoints))
 	}
 
 	published := make(map[string]bool, len(clients.Procedures()))
 	for _, p := range clients.Procedures() {
 		published[p] = true
 	}
-	if len(published) != 14 {
-		t.Fatalf("generated clients publish %d procedures, want 14", len(published))
+	if len(published) != 29 {
+		t.Fatalf("generated clients publish %d procedures, want 29", len(published))
 	}
 
 	refused := map[string]bool{}

@@ -649,6 +649,10 @@ func (f *CorpusInputs) buildPromotionSnapshot(ctx context.Context, in promotionS
 	if err != nil {
 		return empty, err
 	}
+	var compensationReader rewards.CompensationFacts = compFacts
+	if f.compensationFacts != nil {
+		compensationReader = f.compensationFacts
+	}
 	positionReader := f.positionReader
 	if positionReader == nil {
 		catalog, err := fixtures.NewMemoryPositionCatalog()
@@ -671,7 +675,7 @@ func (f *CorpusInputs) buildPromotionSnapshot(ctx context.Context, in promotionS
 	authorization := promotionSnapshotAuthorization(in.Decision, in.Subject.Tenant, promosnapshot.WorkerFactFields())
 	snap, err := promosnapshot.Build(ctx, promosnapshot.Readers{
 		Worker: f.workers, Org: orgFacts, Position: positionReader,
-		Compensation: compFacts, Bands: f.bands, Budget: pools,
+		Compensation: compensationReader, Bands: f.bands, Budget: pools,
 	}, promosnapshot.Request{
 		Tenant: in.Subject.Tenant, Subject: in.Subject, TargetPosition: targetPosition,
 		Target: promosnapshot.Target{

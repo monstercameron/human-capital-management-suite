@@ -109,9 +109,10 @@ func TestTodo_PROTO_010_Golden(t *testing.T) {
 	}
 	// EP-INTENT-003 served SubmitIntent, CancelIntent and SupersedeIntent,
 	// moving three methods from refused to served. ExecuteIntent is the one
-	// write still refused for the duration of P1A.
-	if served != 13 || refused != 1 || notExposed != 0 || len(m.Endpoints) != 14 {
-		t.Fatalf("disposition distribution = {served:%d refused:%d not_exposed:%d total:%d}, want {13 1 0 14}",
+	// write still refused for the duration of P1A. REV-007-04 served the
+	// four analysis-to-action and intent-inspection reads.
+	if served != 17 || refused != 1 || notExposed != 0 || len(m.Endpoints) != 18 {
+		t.Fatalf("disposition distribution = {served:%d refused:%d not_exposed:%d total:%d}, want {17 1 0 18}",
 			served, refused, notExposed, len(m.Endpoints))
 	}
 }
@@ -148,8 +149,8 @@ func TestTodo_PROTO_010_Conformance(t *testing.T) {
 	for range rpcs {
 		wantCount++
 	}
-	if wantCount != 14 {
-		t.Fatalf("expected 14 total RPC methods across IntentService (10) and RegistryService (4), found %d", wantCount)
+	if wantCount != 18 {
+		t.Fatalf("expected 18 total RPC methods across IntentService (14) and RegistryService (4), found %d", wantCount)
 	}
 
 	m, err := Build()

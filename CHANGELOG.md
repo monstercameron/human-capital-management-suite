@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-23 (REV-007-04 analysis-to-action and inspection surfaces on the transport boundary)
+
+- Ticked REV-007-04: `IntentService` serves `RecommendIntentAction`, `GetIntentDeepLink`, `InspectIntentFields`, `ExportIntentFields` (proto + buf regen, `internal/intent/app/analysis_surface_endpoints.go`, grpcserver/edge/clients/fakes, endpoint-manifest regen to 18 endpoints, 4 ceiling rows). Matrix (PRIMARY/INTEGRATION/CONFORMANCE/GOLDEN) plus full `internal/intent/app` and transport suites pass; vet/fmt clean; coverage gate passes. Scope-cascade re-sign (ceiling, commercial freeze, P1A manifest, P1B template, goldens, P1A evidence report) verified green across the planning suites; the named test evidence is recorded in planning/todos.md.
+
 ## 2026-09-22 (Documentation hub and hybrid search)
 
 - Completed the 15 remaining actionable hub todos (HUB-017, HUB-022-029, HUB-033, HUB-035, HUB-037-039, HUB-042): stable block anchors, quarantine-gated attachments, lexical search, egress-gated embeddings, hybrid fusion with benchmark, constrained vector retrieval with conformance gate, candidate editor + compare UI, link picker + backlinks UI, records holds/disposition, authorized export, validated import (60s fuzz clean), watermarked index reconcile, and snapshot/restore with hash verification. All 30 dependency-ready hub todos ticked with evidence.

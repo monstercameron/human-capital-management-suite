@@ -2244,6 +2244,1665 @@ func (x *ListIntentTimelineResponse) GetPage() *v1.PageResponse {
 	return nil
 }
 
+// AnalysisWatermark pins one source release an analytical result cites. A
+// version without a digest is not reproducible evidence.
+type AnalysisWatermark struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SourceRef     string                 `protobuf:"bytes,1,opt,name=source_ref,json=sourceRef,proto3" json:"source_ref,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Digest        string                 `protobuf:"bytes,3,opt,name=digest,proto3" json:"digest,omitempty"`
+	Observed      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=observed,proto3" json:"observed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnalysisWatermark) Reset() {
+	*x = AnalysisWatermark{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnalysisWatermark) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnalysisWatermark) ProtoMessage() {}
+
+func (x *AnalysisWatermark) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnalysisWatermark.ProtoReflect.Descriptor instead.
+func (*AnalysisWatermark) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *AnalysisWatermark) GetSourceRef() string {
+	if x != nil {
+		return x.SourceRef
+	}
+	return ""
+}
+
+func (x *AnalysisWatermark) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AnalysisWatermark) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *AnalysisWatermark) GetObserved() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Observed
+	}
+	return nil
+}
+
+// AnalysisEvidenceRef is a selected, redaction-safe reference to analytical
+// evidence. It carries lineage metadata rather than a result value, so a
+// recommendation cannot smuggle an unauthorized field into a proposed action.
+type AnalysisEvidenceRef struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SourceRef            string                 `protobuf:"bytes,2,opt,name=source_ref,json=sourceRef,proto3" json:"source_ref,omitempty"`
+	TransformationRef    string                 `protobuf:"bytes,3,opt,name=transformation_ref,json=transformationRef,proto3" json:"transformation_ref,omitempty"`
+	AuthorityRef         string                 `protobuf:"bytes,4,opt,name=authority_ref,json=authorityRef,proto3" json:"authority_ref,omitempty"`
+	FieldPath            string                 `protobuf:"bytes,5,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
+	Digest               string                 `protobuf:"bytes,6,opt,name=digest,proto3" json:"digest,omitempty"`
+	Observed             *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=observed,proto3" json:"observed,omitempty"`
+	RequiredAuthorityRef string                 `protobuf:"bytes,8,opt,name=required_authority_ref,json=requiredAuthorityRef,proto3" json:"required_authority_ref,omitempty"`
+	Restricted           bool                   `protobuf:"varint,9,opt,name=restricted,proto3" json:"restricted,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AnalysisEvidenceRef) Reset() {
+	*x = AnalysisEvidenceRef{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnalysisEvidenceRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnalysisEvidenceRef) ProtoMessage() {}
+
+func (x *AnalysisEvidenceRef) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnalysisEvidenceRef.ProtoReflect.Descriptor instead.
+func (*AnalysisEvidenceRef) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *AnalysisEvidenceRef) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AnalysisEvidenceRef) GetSourceRef() string {
+	if x != nil {
+		return x.SourceRef
+	}
+	return ""
+}
+
+func (x *AnalysisEvidenceRef) GetTransformationRef() string {
+	if x != nil {
+		return x.TransformationRef
+	}
+	return ""
+}
+
+func (x *AnalysisEvidenceRef) GetAuthorityRef() string {
+	if x != nil {
+		return x.AuthorityRef
+	}
+	return ""
+}
+
+func (x *AnalysisEvidenceRef) GetFieldPath() string {
+	if x != nil {
+		return x.FieldPath
+	}
+	return ""
+}
+
+func (x *AnalysisEvidenceRef) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *AnalysisEvidenceRef) GetObserved() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Observed
+	}
+	return nil
+}
+
+func (x *AnalysisEvidenceRef) GetRequiredAuthorityRef() string {
+	if x != nil {
+		return x.RequiredAuthorityRef
+	}
+	return ""
+}
+
+func (x *AnalysisEvidenceRef) GetRestricted() bool {
+	if x != nil {
+		return x.Restricted
+	}
+	return false
+}
+
+// AnalysisUncertainty makes a result's limitations explicit instead of
+// allowing it to be mistaken for an authoritative fact.
+type AnalysisUncertainty struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Class         string                 `protobuf:"bytes,1,opt,name=class,proto3" json:"class,omitempty"`
+	Confidence    string                 `protobuf:"bytes,2,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	Limitations   []string               `protobuf:"bytes,3,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnalysisUncertainty) Reset() {
+	*x = AnalysisUncertainty{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnalysisUncertainty) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnalysisUncertainty) ProtoMessage() {}
+
+func (x *AnalysisUncertainty) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnalysisUncertainty.ProtoReflect.Descriptor instead.
+func (*AnalysisUncertainty) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *AnalysisUncertainty) GetClass() string {
+	if x != nil {
+		return x.Class
+	}
+	return ""
+}
+
+func (x *AnalysisUncertainty) GetConfidence() string {
+	if x != nil {
+		return x.Confidence
+	}
+	return ""
+}
+
+func (x *AnalysisUncertainty) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+// AnalyticalResult is the metadata-and-artifact envelope an analysis
+// produces. It carries lineage, never raw values. The authorization digest
+// is left empty on the wire: the server mints the authorization snapshot
+// from the verified principal and binds it here, so a caller cannot assert
+// its own authority past the route.
+type AnalyticalResult struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ResultId         string                 `protobuf:"bytes,1,opt,name=result_id,json=resultId,proto3" json:"result_id,omitempty"`
+	RequestId        string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	TenantId         string                 `protobuf:"bytes,3,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	OrganizationId   string                 `protobuf:"bytes,4,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	Purpose          string                 `protobuf:"bytes,5,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	DefinitionRef    string                 `protobuf:"bytes,6,opt,name=definition_ref,json=definitionRef,proto3" json:"definition_ref,omitempty"`
+	QueryRef         string                 `protobuf:"bytes,7,opt,name=query_ref,json=queryRef,proto3" json:"query_ref,omitempty"`
+	QueryVersion     string                 `protobuf:"bytes,8,opt,name=query_version,json=queryVersion,proto3" json:"query_version,omitempty"`
+	QueryDigest      string                 `protobuf:"bytes,9,opt,name=query_digest,json=queryDigest,proto3" json:"query_digest,omitempty"`
+	CohortRef        string                 `protobuf:"bytes,10,opt,name=cohort_ref,json=cohortRef,proto3" json:"cohort_ref,omitempty"`
+	CohortVersion    string                 `protobuf:"bytes,11,opt,name=cohort_version,json=cohortVersion,proto3" json:"cohort_version,omitempty"`
+	CohortDigest     string                 `protobuf:"bytes,12,opt,name=cohort_digest,json=cohortDigest,proto3" json:"cohort_digest,omitempty"`
+	ModelRef         string                 `protobuf:"bytes,13,opt,name=model_ref,json=modelRef,proto3" json:"model_ref,omitempty"`
+	ModelVersion     string                 `protobuf:"bytes,14,opt,name=model_version,json=modelVersion,proto3" json:"model_version,omitempty"`
+	ModelDigest      string                 `protobuf:"bytes,15,opt,name=model_digest,json=modelDigest,proto3" json:"model_digest,omitempty"`
+	ArtifactRef      string                 `protobuf:"bytes,16,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	SourceWatermarks []*AnalysisWatermark   `protobuf:"bytes,17,rep,name=source_watermarks,json=sourceWatermarks,proto3" json:"source_watermarks,omitempty"`
+	Evidence         []*AnalysisEvidenceRef `protobuf:"bytes,18,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	Uncertainty      *AnalysisUncertainty   `protobuf:"bytes,19,opt,name=uncertainty,proto3" json:"uncertainty,omitempty"`
+	GeneratedAt      *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	ValidUntil       *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=valid_until,json=validUntil,proto3" json:"valid_until,omitempty"`
+	Digest           string                 `protobuf:"bytes,22,opt,name=digest,proto3" json:"digest,omitempty"`
+	// authorization_digest must arrive empty: the route mints the
+	// authorization snapshot from the verified principal and binds the
+	// presented result to it (the wire analog of SourceResult's stamp), so a
+	// client-sent citation is refused rather than honored — no served route
+	// exposes the registry digest a caller would need to cite legitimately.
+	AuthorizationDigest string `protobuf:"bytes,23,opt,name=authorization_digest,json=authorizationDigest,proto3" json:"authorization_digest,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *AnalyticalResult) Reset() {
+	*x = AnalyticalResult{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnalyticalResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnalyticalResult) ProtoMessage() {}
+
+func (x *AnalyticalResult) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnalyticalResult.ProtoReflect.Descriptor instead.
+func (*AnalyticalResult) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *AnalyticalResult) GetResultId() string {
+	if x != nil {
+		return x.ResultId
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetDefinitionRef() string {
+	if x != nil {
+		return x.DefinitionRef
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetQueryRef() string {
+	if x != nil {
+		return x.QueryRef
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetQueryVersion() string {
+	if x != nil {
+		return x.QueryVersion
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetQueryDigest() string {
+	if x != nil {
+		return x.QueryDigest
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetCohortRef() string {
+	if x != nil {
+		return x.CohortRef
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetCohortVersion() string {
+	if x != nil {
+		return x.CohortVersion
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetCohortDigest() string {
+	if x != nil {
+		return x.CohortDigest
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetModelRef() string {
+	if x != nil {
+		return x.ModelRef
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetModelVersion() string {
+	if x != nil {
+		return x.ModelVersion
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetModelDigest() string {
+	if x != nil {
+		return x.ModelDigest
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetArtifactRef() string {
+	if x != nil {
+		return x.ArtifactRef
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetSourceWatermarks() []*AnalysisWatermark {
+	if x != nil {
+		return x.SourceWatermarks
+	}
+	return nil
+}
+
+func (x *AnalyticalResult) GetEvidence() []*AnalysisEvidenceRef {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *AnalyticalResult) GetUncertainty() *AnalysisUncertainty {
+	if x != nil {
+		return x.Uncertainty
+	}
+	return nil
+}
+
+func (x *AnalyticalResult) GetGeneratedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return nil
+}
+
+func (x *AnalyticalResult) GetValidUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ValidUntil
+	}
+	return nil
+}
+
+func (x *AnalyticalResult) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *AnalyticalResult) GetAuthorizationDigest() string {
+	if x != nil {
+		return x.AuthorizationDigest
+	}
+	return ""
+}
+
+// RecommendedActionSpec identifies the deterministic action capability a
+// human or workflow may later decide to use. It is not an invocation and
+// carries no effect payload.
+type RecommendedActionSpec struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DefinitionRef string                 `protobuf:"bytes,1,opt,name=definition_ref,json=definitionRef,proto3" json:"definition_ref,omitempty"`
+	CapabilityRef string                 `protobuf:"bytes,2,opt,name=capability_ref,json=capabilityRef,proto3" json:"capability_ref,omitempty"`
+	InputDigest   string                 `protobuf:"bytes,3,opt,name=input_digest,json=inputDigest,proto3" json:"input_digest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecommendedActionSpec) Reset() {
+	*x = RecommendedActionSpec{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendedActionSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendedActionSpec) ProtoMessage() {}
+
+func (x *RecommendedActionSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendedActionSpec.ProtoReflect.Descriptor instead.
+func (*RecommendedActionSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *RecommendedActionSpec) GetDefinitionRef() string {
+	if x != nil {
+		return x.DefinitionRef
+	}
+	return ""
+}
+
+func (x *RecommendedActionSpec) GetCapabilityRef() string {
+	if x != nil {
+		return x.CapabilityRef
+	}
+	return ""
+}
+
+func (x *RecommendedActionSpec) GetInputDigest() string {
+	if x != nil {
+		return x.InputDigest
+	}
+	return ""
+}
+
+// RecommendationPopulation is the immutable, authorized population snapshot
+// for a proposed action. A count alone is not an authorization proof; the
+// snapshot digest is required.
+type RecommendationPopulation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Ref           string                 `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Digest        string                 `protobuf:"bytes,4,opt,name=digest,proto3" json:"digest,omitempty"`
+	Authorized    bool                   `protobuf:"varint,5,opt,name=authorized,proto3" json:"authorized,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecommendationPopulation) Reset() {
+	*x = RecommendationPopulation{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendationPopulation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendationPopulation) ProtoMessage() {}
+
+func (x *RecommendationPopulation) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendationPopulation.ProtoReflect.Descriptor instead.
+func (*RecommendationPopulation) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *RecommendationPopulation) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *RecommendationPopulation) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *RecommendationPopulation) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *RecommendationPopulation) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *RecommendationPopulation) GetAuthorized() bool {
+	if x != nil {
+		return x.Authorized
+	}
+	return false
+}
+
+// RecommendationCausalLink states how the analysis relates to the proposed
+// action. It never upgrades descriptive or predictive evidence into a
+// causal fact.
+type RecommendationCausalLink struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Basis         string                 `protobuf:"bytes,2,opt,name=basis,proto3" json:"basis,omitempty"`
+	EvidenceIds   []string               `protobuf:"bytes,3,rep,name=evidence_ids,json=evidenceIds,proto3" json:"evidence_ids,omitempty"`
+	Confounders   []string               `protobuf:"bytes,4,rep,name=confounders,proto3" json:"confounders,omitempty"`
+	Limitations   []string               `protobuf:"bytes,5,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecommendationCausalLink) Reset() {
+	*x = RecommendationCausalLink{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendationCausalLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendationCausalLink) ProtoMessage() {}
+
+func (x *RecommendationCausalLink) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendationCausalLink.ProtoReflect.Descriptor instead.
+func (*RecommendationCausalLink) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *RecommendationCausalLink) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *RecommendationCausalLink) GetBasis() string {
+	if x != nil {
+		return x.Basis
+	}
+	return ""
+}
+
+func (x *RecommendationCausalLink) GetEvidenceIds() []string {
+	if x != nil {
+		return x.EvidenceIds
+	}
+	return nil
+}
+
+func (x *RecommendationCausalLink) GetConfounders() []string {
+	if x != nil {
+		return x.Confounders
+	}
+	return nil
+}
+
+func (x *RecommendationCausalLink) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+// RecommendationGovernance is the fresh, scope-bound decision needed before
+// a recommendation becomes a proposal.
+type RecommendationGovernance struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	DecisionRef    string                 `protobuf:"bytes,1,opt,name=decision_ref,json=decisionRef,proto3" json:"decision_ref,omitempty"`
+	DecisionDigest string                 `protobuf:"bytes,2,opt,name=decision_digest,json=decisionDigest,proto3" json:"decision_digest,omitempty"`
+	State          string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	ScopeDigest    string                 `protobuf:"bytes,4,opt,name=scope_digest,json=scopeDigest,proto3" json:"scope_digest,omitempty"`
+	Purpose        string                 `protobuf:"bytes,5,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	EvaluatedAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	ValidUntil     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=valid_until,json=validUntil,proto3" json:"valid_until,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RecommendationGovernance) Reset() {
+	*x = RecommendationGovernance{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendationGovernance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendationGovernance) ProtoMessage() {}
+
+func (x *RecommendationGovernance) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendationGovernance.ProtoReflect.Descriptor instead.
+func (*RecommendationGovernance) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *RecommendationGovernance) GetDecisionRef() string {
+	if x != nil {
+		return x.DecisionRef
+	}
+	return ""
+}
+
+func (x *RecommendationGovernance) GetDecisionDigest() string {
+	if x != nil {
+		return x.DecisionDigest
+	}
+	return ""
+}
+
+func (x *RecommendationGovernance) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *RecommendationGovernance) GetScopeDigest() string {
+	if x != nil {
+		return x.ScopeDigest
+	}
+	return ""
+}
+
+func (x *RecommendationGovernance) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *RecommendationGovernance) GetEvaluatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EvaluatedAt
+	}
+	return nil
+}
+
+func (x *RecommendationGovernance) GetValidUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ValidUntil
+	}
+	return nil
+}
+
+// RecommendationSimulation is the fresh simulation result bound to the
+// exact action input digest.
+type RecommendationSimulation struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	SimulationRef     string                 `protobuf:"bytes,1,opt,name=simulation_ref,json=simulationRef,proto3" json:"simulation_ref,omitempty"`
+	SimulationDigest  string                 `protobuf:"bytes,2,opt,name=simulation_digest,json=simulationDigest,proto3" json:"simulation_digest,omitempty"`
+	ActionInputDigest string                 `protobuf:"bytes,3,opt,name=action_input_digest,json=actionInputDigest,proto3" json:"action_input_digest,omitempty"`
+	Status            string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	EvaluatedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	ValidUntil        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=valid_until,json=validUntil,proto3" json:"valid_until,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *RecommendationSimulation) Reset() {
+	*x = RecommendationSimulation{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendationSimulation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendationSimulation) ProtoMessage() {}
+
+func (x *RecommendationSimulation) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendationSimulation.ProtoReflect.Descriptor instead.
+func (*RecommendationSimulation) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *RecommendationSimulation) GetSimulationRef() string {
+	if x != nil {
+		return x.SimulationRef
+	}
+	return ""
+}
+
+func (x *RecommendationSimulation) GetSimulationDigest() string {
+	if x != nil {
+		return x.SimulationDigest
+	}
+	return ""
+}
+
+func (x *RecommendationSimulation) GetActionInputDigest() string {
+	if x != nil {
+		return x.ActionInputDigest
+	}
+	return ""
+}
+
+func (x *RecommendationSimulation) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RecommendationSimulation) GetEvaluatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EvaluatedAt
+	}
+	return nil
+}
+
+func (x *RecommendationSimulation) GetValidUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ValidUntil
+	}
+	return nil
+}
+
+type RecommendIntentActionRequest struct {
+	state               protoimpl.MessageState    `protogen:"open.v1"`
+	Scope               *v1.ScopeContext          `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	TenantId            string                    `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	OrganizationId      string                    `protobuf:"bytes,3,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	Purpose             string                    `protobuf:"bytes,4,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Analysis            *AnalyticalResult         `protobuf:"bytes,5,opt,name=analysis,proto3" json:"analysis,omitempty"`
+	Action              *RecommendedActionSpec    `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty"`
+	SelectedEvidenceIds []string                  `protobuf:"bytes,7,rep,name=selected_evidence_ids,json=selectedEvidenceIds,proto3" json:"selected_evidence_ids,omitempty"`
+	Population          *RecommendationPopulation `protobuf:"bytes,8,opt,name=population,proto3" json:"population,omitempty"`
+	CausalLink          *RecommendationCausalLink `protobuf:"bytes,9,opt,name=causal_link,json=causalLink,proto3" json:"causal_link,omitempty"`
+	Governance          *RecommendationGovernance `protobuf:"bytes,10,opt,name=governance,proto3" json:"governance,omitempty"`
+	Simulation          *RecommendationSimulation `protobuf:"bytes,11,opt,name=simulation,proto3" json:"simulation,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *RecommendIntentActionRequest) Reset() {
+	*x = RecommendIntentActionRequest{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendIntentActionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendIntentActionRequest) ProtoMessage() {}
+
+func (x *RecommendIntentActionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendIntentActionRequest.ProtoReflect.Descriptor instead.
+func (*RecommendIntentActionRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *RecommendIntentActionRequest) GetScope() *v1.ScopeContext {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionRequest) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionRequest) GetAnalysis() *AnalyticalResult {
+	if x != nil {
+		return x.Analysis
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionRequest) GetAction() *RecommendedActionSpec {
+	if x != nil {
+		return x.Action
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionRequest) GetSelectedEvidenceIds() []string {
+	if x != nil {
+		return x.SelectedEvidenceIds
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionRequest) GetPopulation() *RecommendationPopulation {
+	if x != nil {
+		return x.Population
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionRequest) GetCausalLink() *RecommendationCausalLink {
+	if x != nil {
+		return x.CausalLink
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionRequest) GetGovernance() *RecommendationGovernance {
+	if x != nil {
+		return x.Governance
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionRequest) GetSimulation() *RecommendationSimulation {
+	if x != nil {
+		return x.Simulation
+	}
+	return nil
+}
+
+// RecommendedActionEvidence is one lineage reference the proposal carries.
+type RecommendedActionEvidence struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SourceRef         string                 `protobuf:"bytes,2,opt,name=source_ref,json=sourceRef,proto3" json:"source_ref,omitempty"`
+	TransformationRef string                 `protobuf:"bytes,3,opt,name=transformation_ref,json=transformationRef,proto3" json:"transformation_ref,omitempty"`
+	AuthorityRef      string                 `protobuf:"bytes,4,opt,name=authority_ref,json=authorityRef,proto3" json:"authority_ref,omitempty"`
+	FieldPath         string                 `protobuf:"bytes,5,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
+	Digest            string                 `protobuf:"bytes,6,opt,name=digest,proto3" json:"digest,omitempty"`
+	Observed          *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=observed,proto3" json:"observed,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *RecommendedActionEvidence) Reset() {
+	*x = RecommendedActionEvidence{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendedActionEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendedActionEvidence) ProtoMessage() {}
+
+func (x *RecommendedActionEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendedActionEvidence.ProtoReflect.Descriptor instead.
+func (*RecommendedActionEvidence) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *RecommendedActionEvidence) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RecommendedActionEvidence) GetSourceRef() string {
+	if x != nil {
+		return x.SourceRef
+	}
+	return ""
+}
+
+func (x *RecommendedActionEvidence) GetTransformationRef() string {
+	if x != nil {
+		return x.TransformationRef
+	}
+	return ""
+}
+
+func (x *RecommendedActionEvidence) GetAuthorityRef() string {
+	if x != nil {
+		return x.AuthorityRef
+	}
+	return ""
+}
+
+func (x *RecommendedActionEvidence) GetFieldPath() string {
+	if x != nil {
+		return x.FieldPath
+	}
+	return ""
+}
+
+func (x *RecommendedActionEvidence) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *RecommendedActionEvidence) GetObserved() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Observed
+	}
+	return nil
+}
+
+type RecommendIntentActionResponse struct {
+	state              protoimpl.MessageState       `protogen:"open.v1"`
+	ProposalId         string                       `protobuf:"bytes,1,opt,name=proposal_id,json=proposalId,proto3" json:"proposal_id,omitempty"`
+	Status             string                       `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Family             string                       `protobuf:"bytes,3,opt,name=family,proto3" json:"family,omitempty"`
+	TenantId           string                       `protobuf:"bytes,4,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	OrganizationId     string                       `protobuf:"bytes,5,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
+	Action             *RecommendedActionSpec       `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty"`
+	AnalysisId         string                       `protobuf:"bytes,7,opt,name=analysis_id,json=analysisId,proto3" json:"analysis_id,omitempty"`
+	AnalysisDigest     string                       `protobuf:"bytes,8,opt,name=analysis_digest,json=analysisDigest,proto3" json:"analysis_digest,omitempty"`
+	SelectedEvidence   []*RecommendedActionEvidence `protobuf:"bytes,9,rep,name=selected_evidence,json=selectedEvidence,proto3" json:"selected_evidence,omitempty"`
+	GovernanceState    string                       `protobuf:"bytes,10,opt,name=governance_state,json=governanceState,proto3" json:"governance_state,omitempty"`
+	SimulationStatus   string                       `protobuf:"bytes,11,opt,name=simulation_status,json=simulationStatus,proto3" json:"simulation_status,omitempty"`
+	ExecutionAuthority bool                         `protobuf:"varint,12,opt,name=execution_authority,json=executionAuthority,proto3" json:"execution_authority,omitempty"`
+	Digest             string                       `protobuf:"bytes,13,opt,name=digest,proto3" json:"digest,omitempty"`
+	Explanation        string                       `protobuf:"bytes,14,opt,name=explanation,proto3" json:"explanation,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *RecommendIntentActionResponse) Reset() {
+	*x = RecommendIntentActionResponse{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecommendIntentActionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecommendIntentActionResponse) ProtoMessage() {}
+
+func (x *RecommendIntentActionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecommendIntentActionResponse.ProtoReflect.Descriptor instead.
+func (*RecommendIntentActionResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *RecommendIntentActionResponse) GetProposalId() string {
+	if x != nil {
+		return x.ProposalId
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetFamily() string {
+	if x != nil {
+		return x.Family
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetOrganizationId() string {
+	if x != nil {
+		return x.OrganizationId
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetAction() *RecommendedActionSpec {
+	if x != nil {
+		return x.Action
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionResponse) GetAnalysisId() string {
+	if x != nil {
+		return x.AnalysisId
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetAnalysisDigest() string {
+	if x != nil {
+		return x.AnalysisDigest
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetSelectedEvidence() []*RecommendedActionEvidence {
+	if x != nil {
+		return x.SelectedEvidence
+	}
+	return nil
+}
+
+func (x *RecommendIntentActionResponse) GetGovernanceState() string {
+	if x != nil {
+		return x.GovernanceState
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetSimulationStatus() string {
+	if x != nil {
+		return x.SimulationStatus
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetExecutionAuthority() bool {
+	if x != nil {
+		return x.ExecutionAuthority
+	}
+	return false
+}
+
+func (x *RecommendIntentActionResponse) GetDigest() string {
+	if x != nil {
+		return x.Digest
+	}
+	return ""
+}
+
+func (x *RecommendIntentActionResponse) GetExplanation() string {
+	if x != nil {
+		return x.Explanation
+	}
+	return ""
+}
+
+type GetIntentDeepLinkRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetIntentDeepLinkRequest) Reset() {
+	*x = GetIntentDeepLinkRequest{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetIntentDeepLinkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetIntentDeepLinkRequest) ProtoMessage() {}
+
+func (x *GetIntentDeepLinkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetIntentDeepLinkRequest.ProtoReflect.Descriptor instead.
+func (*GetIntentDeepLinkRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GetIntentDeepLinkRequest) GetScope() *v1.ScopeContext {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *GetIntentDeepLinkRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+type GetIntentDeepLinkResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IntentId      string                 `protobuf:"bytes,1,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	LinkToken     string                 `protobuf:"bytes,2,opt,name=link_token,json=linkToken,proto3" json:"link_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetIntentDeepLinkResponse) Reset() {
+	*x = GetIntentDeepLinkResponse{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetIntentDeepLinkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetIntentDeepLinkResponse) ProtoMessage() {}
+
+func (x *GetIntentDeepLinkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetIntentDeepLinkResponse.ProtoReflect.Descriptor instead.
+func (*GetIntentDeepLinkResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *GetIntentDeepLinkResponse) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *GetIntentDeepLinkResponse) GetLinkToken() string {
+	if x != nil {
+		return x.LinkToken
+	}
+	return ""
+}
+
+type InspectIntentFieldsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectIntentFieldsRequest) Reset() {
+	*x = InspectIntentFieldsRequest{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectIntentFieldsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectIntentFieldsRequest) ProtoMessage() {}
+
+func (x *InspectIntentFieldsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectIntentFieldsRequest.ProtoReflect.Descriptor instead.
+func (*InspectIntentFieldsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *InspectIntentFieldsRequest) GetScope() *v1.ScopeContext {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *InspectIntentFieldsRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+type InspectedIntentField struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Restricted    bool                   `protobuf:"varint,3,opt,name=restricted,proto3" json:"restricted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectedIntentField) Reset() {
+	*x = InspectedIntentField{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectedIntentField) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectedIntentField) ProtoMessage() {}
+
+func (x *InspectedIntentField) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectedIntentField.ProtoReflect.Descriptor instead.
+func (*InspectedIntentField) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *InspectedIntentField) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *InspectedIntentField) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *InspectedIntentField) GetRestricted() bool {
+	if x != nil {
+		return x.Restricted
+	}
+	return false
+}
+
+type InspectIntentFieldsResponse struct {
+	state          protoimpl.MessageState  `protogen:"open.v1"`
+	IntentId       string                  `protobuf:"bytes,1,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Revision       uint64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Fields         []*InspectedIntentField `protobuf:"bytes,3,rep,name=fields,proto3" json:"fields,omitempty"`
+	RevisionDigest string                  `protobuf:"bytes,4,opt,name=revision_digest,json=revisionDigest,proto3" json:"revision_digest,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *InspectIntentFieldsResponse) Reset() {
+	*x = InspectIntentFieldsResponse{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectIntentFieldsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectIntentFieldsResponse) ProtoMessage() {}
+
+func (x *InspectIntentFieldsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectIntentFieldsResponse.ProtoReflect.Descriptor instead.
+func (*InspectIntentFieldsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *InspectIntentFieldsResponse) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *InspectIntentFieldsResponse) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *InspectIntentFieldsResponse) GetFields() []*InspectedIntentField {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *InspectIntentFieldsResponse) GetRevisionDigest() string {
+	if x != nil {
+		return x.RevisionDigest
+	}
+	return ""
+}
+
+type ExportIntentFieldsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	IntentId      string                 `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Purpose       string                 `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExportIntentFieldsRequest) Reset() {
+	*x = ExportIntentFieldsRequest{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportIntentFieldsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportIntentFieldsRequest) ProtoMessage() {}
+
+func (x *ExportIntentFieldsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportIntentFieldsRequest.ProtoReflect.Descriptor instead.
+func (*ExportIntentFieldsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *ExportIntentFieldsRequest) GetScope() *v1.ScopeContext {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *ExportIntentFieldsRequest) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *ExportIntentFieldsRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+type ExportIntentFieldsResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	IntentId       string                 `protobuf:"bytes,1,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Purpose        string                 `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Revision       uint64                 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Fields         map[string]string      `protobuf:"bytes,4,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	RevisionDigest string                 `protobuf:"bytes,5,opt,name=revision_digest,json=revisionDigest,proto3" json:"revision_digest,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ExportIntentFieldsResponse) Reset() {
+	*x = ExportIntentFieldsResponse{}
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportIntentFieldsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportIntentFieldsResponse) ProtoMessage() {}
+
+func (x *ExportIntentFieldsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_intents_v1_intent_service_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportIntentFieldsResponse.ProtoReflect.Descriptor instead.
+func (*ExportIntentFieldsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *ExportIntentFieldsResponse) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *ExportIntentFieldsResponse) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *ExportIntentFieldsResponse) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ExportIntentFieldsResponse) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *ExportIntentFieldsResponse) GetRevisionDigest() string {
+	if x != nil {
+		return x.RevisionDigest
+	}
+	return ""
+}
+
 var File_hcmnext_intents_v1_intent_service_proto protoreflect.FileDescriptor
 
 const file_hcmnext_intents_v1_intent_service_proto_rawDesc = "" +
@@ -2413,7 +4072,178 @@ const file_hcmnext_intents_v1_intent_service_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\v2\x1e.hcmnext.common.v1.PageRequestR\x04page\"\x8c\x01\n" +
 	"\x1aListIntentTimelineResponse\x129\n" +
 	"\x06events\x18\x01 \x03(\v2!.hcmnext.intents.v1.TimelineEventR\x06events\x123\n" +
-	"\x04page\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.PageResponseR\x04page*\xc4\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x1f.hcmnext.common.v1.PageResponseR\x04page\"\x9c\x01\n" +
+	"\x11AnalysisWatermark\x12\x1d\n" +
+	"\n" +
+	"source_ref\x18\x01 \x01(\tR\tsourceRef\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x16\n" +
+	"\x06digest\x18\x03 \x01(\tR\x06digest\x126\n" +
+	"\bobserved\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bobserved\"\xdd\x02\n" +
+	"\x13AnalysisEvidenceRef\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"source_ref\x18\x02 \x01(\tR\tsourceRef\x12-\n" +
+	"\x12transformation_ref\x18\x03 \x01(\tR\x11transformationRef\x12#\n" +
+	"\rauthority_ref\x18\x04 \x01(\tR\fauthorityRef\x12\x1d\n" +
+	"\n" +
+	"field_path\x18\x05 \x01(\tR\tfieldPath\x12\x16\n" +
+	"\x06digest\x18\x06 \x01(\tR\x06digest\x126\n" +
+	"\bobserved\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bobserved\x124\n" +
+	"\x16required_authority_ref\x18\b \x01(\tR\x14requiredAuthorityRef\x12\x1e\n" +
+	"\n" +
+	"restricted\x18\t \x01(\bR\n" +
+	"restricted\"m\n" +
+	"\x13AnalysisUncertainty\x12\x14\n" +
+	"\x05class\x18\x01 \x01(\tR\x05class\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\x02 \x01(\tR\n" +
+	"confidence\x12 \n" +
+	"\vlimitations\x18\x03 \x03(\tR\vlimitations\"\xd8\a\n" +
+	"\x10AnalyticalResult\x12\x1b\n" +
+	"\tresult_id\x18\x01 \x01(\tR\bresultId\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x12\x1b\n" +
+	"\ttenant_id\x18\x03 \x01(\tR\btenantId\x12'\n" +
+	"\x0forganization_id\x18\x04 \x01(\tR\x0eorganizationId\x12\x18\n" +
+	"\apurpose\x18\x05 \x01(\tR\apurpose\x12%\n" +
+	"\x0edefinition_ref\x18\x06 \x01(\tR\rdefinitionRef\x12\x1b\n" +
+	"\tquery_ref\x18\a \x01(\tR\bqueryRef\x12#\n" +
+	"\rquery_version\x18\b \x01(\tR\fqueryVersion\x12!\n" +
+	"\fquery_digest\x18\t \x01(\tR\vqueryDigest\x12\x1d\n" +
+	"\n" +
+	"cohort_ref\x18\n" +
+	" \x01(\tR\tcohortRef\x12%\n" +
+	"\x0ecohort_version\x18\v \x01(\tR\rcohortVersion\x12#\n" +
+	"\rcohort_digest\x18\f \x01(\tR\fcohortDigest\x12\x1b\n" +
+	"\tmodel_ref\x18\r \x01(\tR\bmodelRef\x12#\n" +
+	"\rmodel_version\x18\x0e \x01(\tR\fmodelVersion\x12!\n" +
+	"\fmodel_digest\x18\x0f \x01(\tR\vmodelDigest\x12!\n" +
+	"\fartifact_ref\x18\x10 \x01(\tR\vartifactRef\x12R\n" +
+	"\x11source_watermarks\x18\x11 \x03(\v2%.hcmnext.intents.v1.AnalysisWatermarkR\x10sourceWatermarks\x12C\n" +
+	"\bevidence\x18\x12 \x03(\v2'.hcmnext.intents.v1.AnalysisEvidenceRefR\bevidence\x12I\n" +
+	"\vuncertainty\x18\x13 \x01(\v2'.hcmnext.intents.v1.AnalysisUncertaintyR\vuncertainty\x12=\n" +
+	"\fgenerated_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\x12;\n" +
+	"\vvalid_until\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"validUntil\x12\x16\n" +
+	"\x06digest\x18\x16 \x01(\tR\x06digest\x121\n" +
+	"\x14authorization_digest\x18\x17 \x01(\tR\x13authorizationDigest\"\x88\x01\n" +
+	"\x15RecommendedActionSpec\x12%\n" +
+	"\x0edefinition_ref\x18\x01 \x01(\tR\rdefinitionRef\x12%\n" +
+	"\x0ecapability_ref\x18\x02 \x01(\tR\rcapabilityRef\x12!\n" +
+	"\finput_digest\x18\x03 \x01(\tR\vinputDigest\"\x9b\x01\n" +
+	"\x18RecommendationPopulation\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x10\n" +
+	"\x03ref\x18\x02 \x01(\tR\x03ref\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12\x16\n" +
+	"\x06digest\x18\x04 \x01(\tR\x06digest\x12\x1e\n" +
+	"\n" +
+	"authorized\x18\x05 \x01(\bR\n" +
+	"authorized\"\xab\x01\n" +
+	"\x18RecommendationCausalLink\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05basis\x18\x02 \x01(\tR\x05basis\x12!\n" +
+	"\fevidence_ids\x18\x03 \x03(\tR\vevidenceIds\x12 \n" +
+	"\vconfounders\x18\x04 \x03(\tR\vconfounders\x12 \n" +
+	"\vlimitations\x18\x05 \x03(\tR\vlimitations\"\xb5\x02\n" +
+	"\x18RecommendationGovernance\x12!\n" +
+	"\fdecision_ref\x18\x01 \x01(\tR\vdecisionRef\x12'\n" +
+	"\x0fdecision_digest\x18\x02 \x01(\tR\x0edecisionDigest\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12!\n" +
+	"\fscope_digest\x18\x04 \x01(\tR\vscopeDigest\x12\x18\n" +
+	"\apurpose\x18\x05 \x01(\tR\apurpose\x12=\n" +
+	"\fevaluated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x12;\n" +
+	"\vvalid_until\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"validUntil\"\xb2\x02\n" +
+	"\x18RecommendationSimulation\x12%\n" +
+	"\x0esimulation_ref\x18\x01 \x01(\tR\rsimulationRef\x12+\n" +
+	"\x11simulation_digest\x18\x02 \x01(\tR\x10simulationDigest\x12.\n" +
+	"\x13action_input_digest\x18\x03 \x01(\tR\x11actionInputDigest\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12=\n" +
+	"\fevaluated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x12;\n" +
+	"\vvalid_until\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"validUntil\"\xa7\x05\n" +
+	"\x1cRecommendIntentActionRequest\x125\n" +
+	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1b\n" +
+	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12'\n" +
+	"\x0forganization_id\x18\x03 \x01(\tR\x0eorganizationId\x12\x18\n" +
+	"\apurpose\x18\x04 \x01(\tR\apurpose\x12@\n" +
+	"\banalysis\x18\x05 \x01(\v2$.hcmnext.intents.v1.AnalyticalResultR\banalysis\x12A\n" +
+	"\x06action\x18\x06 \x01(\v2).hcmnext.intents.v1.RecommendedActionSpecR\x06action\x122\n" +
+	"\x15selected_evidence_ids\x18\a \x03(\tR\x13selectedEvidenceIds\x12L\n" +
+	"\n" +
+	"population\x18\b \x01(\v2,.hcmnext.intents.v1.RecommendationPopulationR\n" +
+	"population\x12M\n" +
+	"\vcausal_link\x18\t \x01(\v2,.hcmnext.intents.v1.RecommendationCausalLinkR\n" +
+	"causalLink\x12L\n" +
+	"\n" +
+	"governance\x18\n" +
+	" \x01(\v2,.hcmnext.intents.v1.RecommendationGovernanceR\n" +
+	"governance\x12L\n" +
+	"\n" +
+	"simulation\x18\v \x01(\v2,.hcmnext.intents.v1.RecommendationSimulationR\n" +
+	"simulation\"\x8d\x02\n" +
+	"\x19RecommendedActionEvidence\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"source_ref\x18\x02 \x01(\tR\tsourceRef\x12-\n" +
+	"\x12transformation_ref\x18\x03 \x01(\tR\x11transformationRef\x12#\n" +
+	"\rauthority_ref\x18\x04 \x01(\tR\fauthorityRef\x12\x1d\n" +
+	"\n" +
+	"field_path\x18\x05 \x01(\tR\tfieldPath\x12\x16\n" +
+	"\x06digest\x18\x06 \x01(\tR\x06digest\x126\n" +
+	"\bobserved\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bobserved\"\xe2\x04\n" +
+	"\x1dRecommendIntentActionResponse\x12\x1f\n" +
+	"\vproposal_id\x18\x01 \x01(\tR\n" +
+	"proposalId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06family\x18\x03 \x01(\tR\x06family\x12\x1b\n" +
+	"\ttenant_id\x18\x04 \x01(\tR\btenantId\x12'\n" +
+	"\x0forganization_id\x18\x05 \x01(\tR\x0eorganizationId\x12A\n" +
+	"\x06action\x18\x06 \x01(\v2).hcmnext.intents.v1.RecommendedActionSpecR\x06action\x12\x1f\n" +
+	"\vanalysis_id\x18\a \x01(\tR\n" +
+	"analysisId\x12'\n" +
+	"\x0fanalysis_digest\x18\b \x01(\tR\x0eanalysisDigest\x12Z\n" +
+	"\x11selected_evidence\x18\t \x03(\v2-.hcmnext.intents.v1.RecommendedActionEvidenceR\x10selectedEvidence\x12)\n" +
+	"\x10governance_state\x18\n" +
+	" \x01(\tR\x0fgovernanceState\x12+\n" +
+	"\x11simulation_status\x18\v \x01(\tR\x10simulationStatus\x12/\n" +
+	"\x13execution_authority\x18\f \x01(\bR\x12executionAuthority\x12\x16\n" +
+	"\x06digest\x18\r \x01(\tR\x06digest\x12 \n" +
+	"\vexplanation\x18\x0e \x01(\tR\vexplanation\"n\n" +
+	"\x18GetIntentDeepLinkRequest\x125\n" +
+	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\"W\n" +
+	"\x19GetIntentDeepLinkResponse\x12\x1b\n" +
+	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12\x1d\n" +
+	"\n" +
+	"link_token\x18\x02 \x01(\tR\tlinkToken\"p\n" +
+	"\x1aInspectIntentFieldsRequest\x125\n" +
+	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\"`\n" +
+	"\x14InspectedIntentField\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\x12\x1e\n" +
+	"\n" +
+	"restricted\x18\x03 \x01(\bR\n" +
+	"restricted\"\xc1\x01\n" +
+	"\x1bInspectIntentFieldsResponse\x12\x1b\n" +
+	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x04R\brevision\x12@\n" +
+	"\x06fields\x18\x03 \x03(\v2(.hcmnext.intents.v1.InspectedIntentFieldR\x06fields\x12'\n" +
+	"\x0frevision_digest\x18\x04 \x01(\tR\x0erevisionDigest\"\x89\x01\n" +
+	"\x19ExportIntentFieldsRequest\x125\n" +
+	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x18\n" +
+	"\apurpose\x18\x03 \x01(\tR\apurpose\"\xa7\x02\n" +
+	"\x1aExportIntentFieldsResponse\x12\x1b\n" +
+	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12\x18\n" +
+	"\apurpose\x18\x02 \x01(\tR\apurpose\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x04R\brevision\x12R\n" +
+	"\x06fields\x18\x04 \x03(\v2:.hcmnext.intents.v1.ExportIntentFieldsResponse.FieldsEntryR\x06fields\x12'\n" +
+	"\x0frevision_digest\x18\x05 \x01(\tR\x0erevisionDigest\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*\xc4\x01\n" +
 	"\x18ConsistencyFreshnessHint\x12*\n" +
 	"&CONSISTENCY_FRESHNESS_HINT_UNSPECIFIED\x10\x00\x12%\n" +
 	"!CONSISTENCY_FRESHNESS_HINT_STRONG\x10\x01\x12,\n" +
@@ -2423,7 +4253,7 @@ const file_hcmnext_intents_v1_intent_service_proto_rawDesc = "" +
 	"$EXECUTION_RECEIPT_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fEXECUTION_RECEIPT_STATUS_PARKED\x10\x01\x12%\n" +
 	"!EXECUTION_RECEIPT_STATUS_COMPLETE\x10\x02\x12%\n" +
-	"!EXECUTION_RECEIPT_STATUS_RESOLVED\x10\x032\x88\b\n" +
+	"!EXECUTION_RECEIPT_STATUS_RESOLVED\x10\x032\xe5\v\n" +
 	"\rIntentService\x12a\n" +
 	"\fCreateIntent\x12'.hcmnext.intents.v1.CreateIntentRequest\x1a(.hcmnext.intents.v1.CreateIntentResponse\x12X\n" +
 	"\tGetIntent\x12$.hcmnext.intents.v1.GetIntentRequest\x1a%.hcmnext.intents.v1.GetIntentResponse\x12^\n" +
@@ -2434,7 +4264,11 @@ const file_hcmnext_intents_v1_intent_service_proto_rawDesc = "" +
 	"\fCancelIntent\x12'.hcmnext.intents.v1.CancelIntentRequest\x1a(.hcmnext.intents.v1.CancelIntentResponse\x12j\n" +
 	"\x0fSupersedeIntent\x12*.hcmnext.intents.v1.SupersedeIntentRequest\x1a+.hcmnext.intents.v1.SupersedeIntentResponse\x12d\n" +
 	"\rExplainIntent\x12(.hcmnext.intents.v1.ExplainIntentRequest\x1a).hcmnext.intents.v1.ExplainIntentResponse\x12s\n" +
-	"\x12ListIntentTimeline\x12-.hcmnext.intents.v1.ListIntentTimelineRequest\x1a..hcmnext.intents.v1.ListIntentTimelineResponseB^Z\\github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1;intentsv1b\x06proto3"
+	"\x12ListIntentTimeline\x12-.hcmnext.intents.v1.ListIntentTimelineRequest\x1a..hcmnext.intents.v1.ListIntentTimelineResponse\x12|\n" +
+	"\x15RecommendIntentAction\x120.hcmnext.intents.v1.RecommendIntentActionRequest\x1a1.hcmnext.intents.v1.RecommendIntentActionResponse\x12p\n" +
+	"\x11GetIntentDeepLink\x12,.hcmnext.intents.v1.GetIntentDeepLinkRequest\x1a-.hcmnext.intents.v1.GetIntentDeepLinkResponse\x12v\n" +
+	"\x13InspectIntentFields\x12..hcmnext.intents.v1.InspectIntentFieldsRequest\x1a/.hcmnext.intents.v1.InspectIntentFieldsResponse\x12s\n" +
+	"\x12ExportIntentFields\x12-.hcmnext.intents.v1.ExportIntentFieldsRequest\x1a..hcmnext.intents.v1.ExportIntentFieldsResponseB^Z\\github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1;intentsv1b\x06proto3"
 
 var (
 	file_hcmnext_intents_v1_intent_service_proto_rawDescOnce sync.Once
@@ -2449,132 +4283,186 @@ func file_hcmnext_intents_v1_intent_service_proto_rawDescGZIP() []byte {
 }
 
 var file_hcmnext_intents_v1_intent_service_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_hcmnext_intents_v1_intent_service_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_hcmnext_intents_v1_intent_service_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_hcmnext_intents_v1_intent_service_proto_goTypes = []any{
-	(ConsistencyFreshnessHint)(0),      // 0: hcmnext.intents.v1.ConsistencyFreshnessHint
-	(ExecutionReceiptStatus)(0),        // 1: hcmnext.intents.v1.ExecutionReceiptStatus
-	(*PlannedWrite)(nil),               // 2: hcmnext.intents.v1.PlannedWrite
-	(*PlannedEffect)(nil),              // 3: hcmnext.intents.v1.PlannedEffect
-	(*Finding)(nil),                    // 4: hcmnext.intents.v1.Finding
-	(*UncertaintyNote)(nil),            // 5: hcmnext.intents.v1.UncertaintyNote
-	(*ZeroEffectReceipt)(nil),          // 6: hcmnext.intents.v1.ZeroEffectReceipt
-	(*SimulationArtifact)(nil),         // 7: hcmnext.intents.v1.SimulationArtifact
-	(*CreateIntentRequest)(nil),        // 8: hcmnext.intents.v1.CreateIntentRequest
-	(*CreateIntentResponse)(nil),       // 9: hcmnext.intents.v1.CreateIntentResponse
-	(*GetIntentRequest)(nil),           // 10: hcmnext.intents.v1.GetIntentRequest
-	(*GetIntentResponse)(nil),          // 11: hcmnext.intents.v1.GetIntentResponse
-	(*ListIntentsRequest)(nil),         // 12: hcmnext.intents.v1.ListIntentsRequest
-	(*ListIntentsResponse)(nil),        // 13: hcmnext.intents.v1.ListIntentsResponse
-	(*SimulateIntentRequest)(nil),      // 14: hcmnext.intents.v1.SimulateIntentRequest
-	(*SimulateIntentResponse)(nil),     // 15: hcmnext.intents.v1.SimulateIntentResponse
-	(*ProposalApproval)(nil),           // 16: hcmnext.intents.v1.ProposalApproval
-	(*ParkedContinuation)(nil),         // 17: hcmnext.intents.v1.ParkedContinuation
-	(*ParkedWorkItem)(nil),             // 18: hcmnext.intents.v1.ParkedWorkItem
-	(*ResolvedStartState)(nil),         // 19: hcmnext.intents.v1.ResolvedStartState
-	(*ExecutionReceipt)(nil),           // 20: hcmnext.intents.v1.ExecutionReceipt
-	(*ExecuteIntentRequest)(nil),       // 21: hcmnext.intents.v1.ExecuteIntentRequest
-	(*ExecuteIntentResponse)(nil),      // 22: hcmnext.intents.v1.ExecuteIntentResponse
-	(*SubmitIntentRequest)(nil),        // 23: hcmnext.intents.v1.SubmitIntentRequest
-	(*SubmitIntentResponse)(nil),       // 24: hcmnext.intents.v1.SubmitIntentResponse
-	(*CancelIntentRequest)(nil),        // 25: hcmnext.intents.v1.CancelIntentRequest
-	(*CancelIntentResponse)(nil),       // 26: hcmnext.intents.v1.CancelIntentResponse
-	(*SupersedeIntentRequest)(nil),     // 27: hcmnext.intents.v1.SupersedeIntentRequest
-	(*SupersedeIntentResponse)(nil),    // 28: hcmnext.intents.v1.SupersedeIntentResponse
-	(*ExplainIntentRequest)(nil),       // 29: hcmnext.intents.v1.ExplainIntentRequest
-	(*ExplainIntentResponse)(nil),      // 30: hcmnext.intents.v1.ExplainIntentResponse
-	(*TimelineEvent)(nil),              // 31: hcmnext.intents.v1.TimelineEvent
-	(*ListIntentTimelineRequest)(nil),  // 32: hcmnext.intents.v1.ListIntentTimelineRequest
-	(*ListIntentTimelineResponse)(nil), // 33: hcmnext.intents.v1.ListIntentTimelineResponse
-	(*v1.EvidenceRef)(nil),             // 34: hcmnext.common.v1.EvidenceRef
-	(*CanonicalDigestReference)(nil),   // 35: hcmnext.intents.v1.CanonicalDigestReference
-	(*v1.ScopeContext)(nil),            // 36: hcmnext.common.v1.ScopeContext
-	(*DefinitionReference)(nil),        // 37: hcmnext.intents.v1.DefinitionReference
-	(*PrincipalReference)(nil),         // 38: hcmnext.intents.v1.PrincipalReference
-	(*SubjectReference)(nil),           // 39: hcmnext.intents.v1.SubjectReference
-	(*TypedPayload)(nil),               // 40: hcmnext.intents.v1.TypedPayload
-	(ExecutionMode)(0),                 // 41: hcmnext.intents.v1.ExecutionMode
-	(*IntentInstance)(nil),             // 42: hcmnext.intents.v1.IntentInstance
-	(*v1.PageRequest)(nil),             // 43: hcmnext.common.v1.PageRequest
-	(*v1.PageResponse)(nil),            // 44: hcmnext.common.v1.PageResponse
-	(*LifecycleDimensions)(nil),        // 45: hcmnext.intents.v1.LifecycleDimensions
-	(*timestamppb.Timestamp)(nil),      // 46: google.protobuf.Timestamp
+	(ConsistencyFreshnessHint)(0),         // 0: hcmnext.intents.v1.ConsistencyFreshnessHint
+	(ExecutionReceiptStatus)(0),           // 1: hcmnext.intents.v1.ExecutionReceiptStatus
+	(*PlannedWrite)(nil),                  // 2: hcmnext.intents.v1.PlannedWrite
+	(*PlannedEffect)(nil),                 // 3: hcmnext.intents.v1.PlannedEffect
+	(*Finding)(nil),                       // 4: hcmnext.intents.v1.Finding
+	(*UncertaintyNote)(nil),               // 5: hcmnext.intents.v1.UncertaintyNote
+	(*ZeroEffectReceipt)(nil),             // 6: hcmnext.intents.v1.ZeroEffectReceipt
+	(*SimulationArtifact)(nil),            // 7: hcmnext.intents.v1.SimulationArtifact
+	(*CreateIntentRequest)(nil),           // 8: hcmnext.intents.v1.CreateIntentRequest
+	(*CreateIntentResponse)(nil),          // 9: hcmnext.intents.v1.CreateIntentResponse
+	(*GetIntentRequest)(nil),              // 10: hcmnext.intents.v1.GetIntentRequest
+	(*GetIntentResponse)(nil),             // 11: hcmnext.intents.v1.GetIntentResponse
+	(*ListIntentsRequest)(nil),            // 12: hcmnext.intents.v1.ListIntentsRequest
+	(*ListIntentsResponse)(nil),           // 13: hcmnext.intents.v1.ListIntentsResponse
+	(*SimulateIntentRequest)(nil),         // 14: hcmnext.intents.v1.SimulateIntentRequest
+	(*SimulateIntentResponse)(nil),        // 15: hcmnext.intents.v1.SimulateIntentResponse
+	(*ProposalApproval)(nil),              // 16: hcmnext.intents.v1.ProposalApproval
+	(*ParkedContinuation)(nil),            // 17: hcmnext.intents.v1.ParkedContinuation
+	(*ParkedWorkItem)(nil),                // 18: hcmnext.intents.v1.ParkedWorkItem
+	(*ResolvedStartState)(nil),            // 19: hcmnext.intents.v1.ResolvedStartState
+	(*ExecutionReceipt)(nil),              // 20: hcmnext.intents.v1.ExecutionReceipt
+	(*ExecuteIntentRequest)(nil),          // 21: hcmnext.intents.v1.ExecuteIntentRequest
+	(*ExecuteIntentResponse)(nil),         // 22: hcmnext.intents.v1.ExecuteIntentResponse
+	(*SubmitIntentRequest)(nil),           // 23: hcmnext.intents.v1.SubmitIntentRequest
+	(*SubmitIntentResponse)(nil),          // 24: hcmnext.intents.v1.SubmitIntentResponse
+	(*CancelIntentRequest)(nil),           // 25: hcmnext.intents.v1.CancelIntentRequest
+	(*CancelIntentResponse)(nil),          // 26: hcmnext.intents.v1.CancelIntentResponse
+	(*SupersedeIntentRequest)(nil),        // 27: hcmnext.intents.v1.SupersedeIntentRequest
+	(*SupersedeIntentResponse)(nil),       // 28: hcmnext.intents.v1.SupersedeIntentResponse
+	(*ExplainIntentRequest)(nil),          // 29: hcmnext.intents.v1.ExplainIntentRequest
+	(*ExplainIntentResponse)(nil),         // 30: hcmnext.intents.v1.ExplainIntentResponse
+	(*TimelineEvent)(nil),                 // 31: hcmnext.intents.v1.TimelineEvent
+	(*ListIntentTimelineRequest)(nil),     // 32: hcmnext.intents.v1.ListIntentTimelineRequest
+	(*ListIntentTimelineResponse)(nil),    // 33: hcmnext.intents.v1.ListIntentTimelineResponse
+	(*AnalysisWatermark)(nil),             // 34: hcmnext.intents.v1.AnalysisWatermark
+	(*AnalysisEvidenceRef)(nil),           // 35: hcmnext.intents.v1.AnalysisEvidenceRef
+	(*AnalysisUncertainty)(nil),           // 36: hcmnext.intents.v1.AnalysisUncertainty
+	(*AnalyticalResult)(nil),              // 37: hcmnext.intents.v1.AnalyticalResult
+	(*RecommendedActionSpec)(nil),         // 38: hcmnext.intents.v1.RecommendedActionSpec
+	(*RecommendationPopulation)(nil),      // 39: hcmnext.intents.v1.RecommendationPopulation
+	(*RecommendationCausalLink)(nil),      // 40: hcmnext.intents.v1.RecommendationCausalLink
+	(*RecommendationGovernance)(nil),      // 41: hcmnext.intents.v1.RecommendationGovernance
+	(*RecommendationSimulation)(nil),      // 42: hcmnext.intents.v1.RecommendationSimulation
+	(*RecommendIntentActionRequest)(nil),  // 43: hcmnext.intents.v1.RecommendIntentActionRequest
+	(*RecommendedActionEvidence)(nil),     // 44: hcmnext.intents.v1.RecommendedActionEvidence
+	(*RecommendIntentActionResponse)(nil), // 45: hcmnext.intents.v1.RecommendIntentActionResponse
+	(*GetIntentDeepLinkRequest)(nil),      // 46: hcmnext.intents.v1.GetIntentDeepLinkRequest
+	(*GetIntentDeepLinkResponse)(nil),     // 47: hcmnext.intents.v1.GetIntentDeepLinkResponse
+	(*InspectIntentFieldsRequest)(nil),    // 48: hcmnext.intents.v1.InspectIntentFieldsRequest
+	(*InspectedIntentField)(nil),          // 49: hcmnext.intents.v1.InspectedIntentField
+	(*InspectIntentFieldsResponse)(nil),   // 50: hcmnext.intents.v1.InspectIntentFieldsResponse
+	(*ExportIntentFieldsRequest)(nil),     // 51: hcmnext.intents.v1.ExportIntentFieldsRequest
+	(*ExportIntentFieldsResponse)(nil),    // 52: hcmnext.intents.v1.ExportIntentFieldsResponse
+	nil,                                   // 53: hcmnext.intents.v1.ExportIntentFieldsResponse.FieldsEntry
+	(*v1.EvidenceRef)(nil),                // 54: hcmnext.common.v1.EvidenceRef
+	(*CanonicalDigestReference)(nil),      // 55: hcmnext.intents.v1.CanonicalDigestReference
+	(*v1.ScopeContext)(nil),               // 56: hcmnext.common.v1.ScopeContext
+	(*DefinitionReference)(nil),           // 57: hcmnext.intents.v1.DefinitionReference
+	(*PrincipalReference)(nil),            // 58: hcmnext.intents.v1.PrincipalReference
+	(*SubjectReference)(nil),              // 59: hcmnext.intents.v1.SubjectReference
+	(*TypedPayload)(nil),                  // 60: hcmnext.intents.v1.TypedPayload
+	(ExecutionMode)(0),                    // 61: hcmnext.intents.v1.ExecutionMode
+	(*IntentInstance)(nil),                // 62: hcmnext.intents.v1.IntentInstance
+	(*v1.PageRequest)(nil),                // 63: hcmnext.common.v1.PageRequest
+	(*v1.PageResponse)(nil),               // 64: hcmnext.common.v1.PageResponse
+	(*LifecycleDimensions)(nil),           // 65: hcmnext.intents.v1.LifecycleDimensions
+	(*timestamppb.Timestamp)(nil),         // 66: google.protobuf.Timestamp
 }
 var file_hcmnext_intents_v1_intent_service_proto_depIdxs = []int32{
-	34, // 0: hcmnext.intents.v1.PlannedWrite.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	35, // 1: hcmnext.intents.v1.SimulationArtifact.material_proposal_digest:type_name -> hcmnext.intents.v1.CanonicalDigestReference
+	54, // 0: hcmnext.intents.v1.PlannedWrite.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	55, // 1: hcmnext.intents.v1.SimulationArtifact.material_proposal_digest:type_name -> hcmnext.intents.v1.CanonicalDigestReference
 	2,  // 2: hcmnext.intents.v1.SimulationArtifact.planned_writes:type_name -> hcmnext.intents.v1.PlannedWrite
 	3,  // 3: hcmnext.intents.v1.SimulationArtifact.planned_effects:type_name -> hcmnext.intents.v1.PlannedEffect
 	4,  // 4: hcmnext.intents.v1.SimulationArtifact.findings:type_name -> hcmnext.intents.v1.Finding
 	5,  // 5: hcmnext.intents.v1.SimulationArtifact.uncertainty:type_name -> hcmnext.intents.v1.UncertaintyNote
 	6,  // 6: hcmnext.intents.v1.SimulationArtifact.zero_effect_receipt:type_name -> hcmnext.intents.v1.ZeroEffectReceipt
-	36, // 7: hcmnext.intents.v1.CreateIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	37, // 8: hcmnext.intents.v1.CreateIntentRequest.definition:type_name -> hcmnext.intents.v1.DefinitionReference
-	38, // 9: hcmnext.intents.v1.CreateIntentRequest.initiator:type_name -> hcmnext.intents.v1.PrincipalReference
-	39, // 10: hcmnext.intents.v1.CreateIntentRequest.subjects:type_name -> hcmnext.intents.v1.SubjectReference
-	40, // 11: hcmnext.intents.v1.CreateIntentRequest.request:type_name -> hcmnext.intents.v1.TypedPayload
-	41, // 12: hcmnext.intents.v1.CreateIntentRequest.execution_mode:type_name -> hcmnext.intents.v1.ExecutionMode
-	42, // 13: hcmnext.intents.v1.CreateIntentResponse.intent:type_name -> hcmnext.intents.v1.IntentInstance
-	36, // 14: hcmnext.intents.v1.GetIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	56, // 7: hcmnext.intents.v1.CreateIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	57, // 8: hcmnext.intents.v1.CreateIntentRequest.definition:type_name -> hcmnext.intents.v1.DefinitionReference
+	58, // 9: hcmnext.intents.v1.CreateIntentRequest.initiator:type_name -> hcmnext.intents.v1.PrincipalReference
+	59, // 10: hcmnext.intents.v1.CreateIntentRequest.subjects:type_name -> hcmnext.intents.v1.SubjectReference
+	60, // 11: hcmnext.intents.v1.CreateIntentRequest.request:type_name -> hcmnext.intents.v1.TypedPayload
+	61, // 12: hcmnext.intents.v1.CreateIntentRequest.execution_mode:type_name -> hcmnext.intents.v1.ExecutionMode
+	62, // 13: hcmnext.intents.v1.CreateIntentResponse.intent:type_name -> hcmnext.intents.v1.IntentInstance
+	56, // 14: hcmnext.intents.v1.GetIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	0,  // 15: hcmnext.intents.v1.GetIntentRequest.freshness:type_name -> hcmnext.intents.v1.ConsistencyFreshnessHint
-	42, // 16: hcmnext.intents.v1.GetIntentResponse.intent:type_name -> hcmnext.intents.v1.IntentInstance
-	36, // 17: hcmnext.intents.v1.ListIntentsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	43, // 18: hcmnext.intents.v1.ListIntentsRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	62, // 16: hcmnext.intents.v1.GetIntentResponse.intent:type_name -> hcmnext.intents.v1.IntentInstance
+	56, // 17: hcmnext.intents.v1.ListIntentsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	63, // 18: hcmnext.intents.v1.ListIntentsRequest.page:type_name -> hcmnext.common.v1.PageRequest
 	0,  // 19: hcmnext.intents.v1.ListIntentsRequest.freshness:type_name -> hcmnext.intents.v1.ConsistencyFreshnessHint
-	42, // 20: hcmnext.intents.v1.ListIntentsResponse.intents:type_name -> hcmnext.intents.v1.IntentInstance
-	44, // 21: hcmnext.intents.v1.ListIntentsResponse.page:type_name -> hcmnext.common.v1.PageResponse
-	36, // 22: hcmnext.intents.v1.SimulateIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	40, // 23: hcmnext.intents.v1.SimulateIntentRequest.proposal:type_name -> hcmnext.intents.v1.TypedPayload
+	62, // 20: hcmnext.intents.v1.ListIntentsResponse.intents:type_name -> hcmnext.intents.v1.IntentInstance
+	64, // 21: hcmnext.intents.v1.ListIntentsResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	56, // 22: hcmnext.intents.v1.SimulateIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	60, // 23: hcmnext.intents.v1.SimulateIntentRequest.proposal:type_name -> hcmnext.intents.v1.TypedPayload
 	7,  // 24: hcmnext.intents.v1.SimulateIntentResponse.simulation:type_name -> hcmnext.intents.v1.SimulationArtifact
-	35, // 25: hcmnext.intents.v1.ProposalApproval.material_proposal_digest:type_name -> hcmnext.intents.v1.CanonicalDigestReference
-	45, // 26: hcmnext.intents.v1.ResolvedStartState.lifecycle:type_name -> hcmnext.intents.v1.LifecycleDimensions
+	55, // 25: hcmnext.intents.v1.ProposalApproval.material_proposal_digest:type_name -> hcmnext.intents.v1.CanonicalDigestReference
+	65, // 26: hcmnext.intents.v1.ResolvedStartState.lifecycle:type_name -> hcmnext.intents.v1.LifecycleDimensions
 	17, // 27: hcmnext.intents.v1.ExecutionReceipt.parked_continuation_refs:type_name -> hcmnext.intents.v1.ParkedContinuation
 	18, // 28: hcmnext.intents.v1.ExecutionReceipt.work_items:type_name -> hcmnext.intents.v1.ParkedWorkItem
 	1,  // 29: hcmnext.intents.v1.ExecutionReceipt.status:type_name -> hcmnext.intents.v1.ExecutionReceiptStatus
 	19, // 30: hcmnext.intents.v1.ExecutionReceipt.resolved_start:type_name -> hcmnext.intents.v1.ResolvedStartState
-	36, // 31: hcmnext.intents.v1.ExecuteIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	56, // 31: hcmnext.intents.v1.ExecuteIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	16, // 32: hcmnext.intents.v1.ExecuteIntentRequest.approval:type_name -> hcmnext.intents.v1.ProposalApproval
 	20, // 33: hcmnext.intents.v1.ExecuteIntentResponse.execution:type_name -> hcmnext.intents.v1.ExecutionReceipt
-	36, // 34: hcmnext.intents.v1.SubmitIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	42, // 35: hcmnext.intents.v1.SubmitIntentResponse.intent:type_name -> hcmnext.intents.v1.IntentInstance
-	36, // 36: hcmnext.intents.v1.CancelIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	42, // 37: hcmnext.intents.v1.CancelIntentResponse.intent:type_name -> hcmnext.intents.v1.IntentInstance
-	36, // 38: hcmnext.intents.v1.SupersedeIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	37, // 39: hcmnext.intents.v1.SupersedeIntentRequest.definition:type_name -> hcmnext.intents.v1.DefinitionReference
-	40, // 40: hcmnext.intents.v1.SupersedeIntentRequest.request:type_name -> hcmnext.intents.v1.TypedPayload
-	42, // 41: hcmnext.intents.v1.SupersedeIntentResponse.superseding_intent:type_name -> hcmnext.intents.v1.IntentInstance
-	36, // 42: hcmnext.intents.v1.ExplainIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	34, // 43: hcmnext.intents.v1.ExplainIntentResponse.evidence_refs:type_name -> hcmnext.common.v1.EvidenceRef
-	46, // 44: hcmnext.intents.v1.TimelineEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	34, // 45: hcmnext.intents.v1.TimelineEvent.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
-	36, // 46: hcmnext.intents.v1.ListIntentTimelineRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	43, // 47: hcmnext.intents.v1.ListIntentTimelineRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	56, // 34: hcmnext.intents.v1.SubmitIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	62, // 35: hcmnext.intents.v1.SubmitIntentResponse.intent:type_name -> hcmnext.intents.v1.IntentInstance
+	56, // 36: hcmnext.intents.v1.CancelIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	62, // 37: hcmnext.intents.v1.CancelIntentResponse.intent:type_name -> hcmnext.intents.v1.IntentInstance
+	56, // 38: hcmnext.intents.v1.SupersedeIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	57, // 39: hcmnext.intents.v1.SupersedeIntentRequest.definition:type_name -> hcmnext.intents.v1.DefinitionReference
+	60, // 40: hcmnext.intents.v1.SupersedeIntentRequest.request:type_name -> hcmnext.intents.v1.TypedPayload
+	62, // 41: hcmnext.intents.v1.SupersedeIntentResponse.superseding_intent:type_name -> hcmnext.intents.v1.IntentInstance
+	56, // 42: hcmnext.intents.v1.ExplainIntentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	54, // 43: hcmnext.intents.v1.ExplainIntentResponse.evidence_refs:type_name -> hcmnext.common.v1.EvidenceRef
+	66, // 44: hcmnext.intents.v1.TimelineEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	54, // 45: hcmnext.intents.v1.TimelineEvent.evidence_ref:type_name -> hcmnext.common.v1.EvidenceRef
+	56, // 46: hcmnext.intents.v1.ListIntentTimelineRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	63, // 47: hcmnext.intents.v1.ListIntentTimelineRequest.page:type_name -> hcmnext.common.v1.PageRequest
 	31, // 48: hcmnext.intents.v1.ListIntentTimelineResponse.events:type_name -> hcmnext.intents.v1.TimelineEvent
-	44, // 49: hcmnext.intents.v1.ListIntentTimelineResponse.page:type_name -> hcmnext.common.v1.PageResponse
-	8,  // 50: hcmnext.intents.v1.IntentService.CreateIntent:input_type -> hcmnext.intents.v1.CreateIntentRequest
-	10, // 51: hcmnext.intents.v1.IntentService.GetIntent:input_type -> hcmnext.intents.v1.GetIntentRequest
-	12, // 52: hcmnext.intents.v1.IntentService.ListIntents:input_type -> hcmnext.intents.v1.ListIntentsRequest
-	14, // 53: hcmnext.intents.v1.IntentService.SimulateIntent:input_type -> hcmnext.intents.v1.SimulateIntentRequest
-	21, // 54: hcmnext.intents.v1.IntentService.ExecuteIntent:input_type -> hcmnext.intents.v1.ExecuteIntentRequest
-	23, // 55: hcmnext.intents.v1.IntentService.SubmitIntent:input_type -> hcmnext.intents.v1.SubmitIntentRequest
-	25, // 56: hcmnext.intents.v1.IntentService.CancelIntent:input_type -> hcmnext.intents.v1.CancelIntentRequest
-	27, // 57: hcmnext.intents.v1.IntentService.SupersedeIntent:input_type -> hcmnext.intents.v1.SupersedeIntentRequest
-	29, // 58: hcmnext.intents.v1.IntentService.ExplainIntent:input_type -> hcmnext.intents.v1.ExplainIntentRequest
-	32, // 59: hcmnext.intents.v1.IntentService.ListIntentTimeline:input_type -> hcmnext.intents.v1.ListIntentTimelineRequest
-	9,  // 60: hcmnext.intents.v1.IntentService.CreateIntent:output_type -> hcmnext.intents.v1.CreateIntentResponse
-	11, // 61: hcmnext.intents.v1.IntentService.GetIntent:output_type -> hcmnext.intents.v1.GetIntentResponse
-	13, // 62: hcmnext.intents.v1.IntentService.ListIntents:output_type -> hcmnext.intents.v1.ListIntentsResponse
-	15, // 63: hcmnext.intents.v1.IntentService.SimulateIntent:output_type -> hcmnext.intents.v1.SimulateIntentResponse
-	22, // 64: hcmnext.intents.v1.IntentService.ExecuteIntent:output_type -> hcmnext.intents.v1.ExecuteIntentResponse
-	24, // 65: hcmnext.intents.v1.IntentService.SubmitIntent:output_type -> hcmnext.intents.v1.SubmitIntentResponse
-	26, // 66: hcmnext.intents.v1.IntentService.CancelIntent:output_type -> hcmnext.intents.v1.CancelIntentResponse
-	28, // 67: hcmnext.intents.v1.IntentService.SupersedeIntent:output_type -> hcmnext.intents.v1.SupersedeIntentResponse
-	30, // 68: hcmnext.intents.v1.IntentService.ExplainIntent:output_type -> hcmnext.intents.v1.ExplainIntentResponse
-	33, // 69: hcmnext.intents.v1.IntentService.ListIntentTimeline:output_type -> hcmnext.intents.v1.ListIntentTimelineResponse
-	60, // [60:70] is the sub-list for method output_type
-	50, // [50:60] is the sub-list for method input_type
-	50, // [50:50] is the sub-list for extension type_name
-	50, // [50:50] is the sub-list for extension extendee
-	0,  // [0:50] is the sub-list for field type_name
+	64, // 49: hcmnext.intents.v1.ListIntentTimelineResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	66, // 50: hcmnext.intents.v1.AnalysisWatermark.observed:type_name -> google.protobuf.Timestamp
+	66, // 51: hcmnext.intents.v1.AnalysisEvidenceRef.observed:type_name -> google.protobuf.Timestamp
+	34, // 52: hcmnext.intents.v1.AnalyticalResult.source_watermarks:type_name -> hcmnext.intents.v1.AnalysisWatermark
+	35, // 53: hcmnext.intents.v1.AnalyticalResult.evidence:type_name -> hcmnext.intents.v1.AnalysisEvidenceRef
+	36, // 54: hcmnext.intents.v1.AnalyticalResult.uncertainty:type_name -> hcmnext.intents.v1.AnalysisUncertainty
+	66, // 55: hcmnext.intents.v1.AnalyticalResult.generated_at:type_name -> google.protobuf.Timestamp
+	66, // 56: hcmnext.intents.v1.AnalyticalResult.valid_until:type_name -> google.protobuf.Timestamp
+	66, // 57: hcmnext.intents.v1.RecommendationGovernance.evaluated_at:type_name -> google.protobuf.Timestamp
+	66, // 58: hcmnext.intents.v1.RecommendationGovernance.valid_until:type_name -> google.protobuf.Timestamp
+	66, // 59: hcmnext.intents.v1.RecommendationSimulation.evaluated_at:type_name -> google.protobuf.Timestamp
+	66, // 60: hcmnext.intents.v1.RecommendationSimulation.valid_until:type_name -> google.protobuf.Timestamp
+	56, // 61: hcmnext.intents.v1.RecommendIntentActionRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	37, // 62: hcmnext.intents.v1.RecommendIntentActionRequest.analysis:type_name -> hcmnext.intents.v1.AnalyticalResult
+	38, // 63: hcmnext.intents.v1.RecommendIntentActionRequest.action:type_name -> hcmnext.intents.v1.RecommendedActionSpec
+	39, // 64: hcmnext.intents.v1.RecommendIntentActionRequest.population:type_name -> hcmnext.intents.v1.RecommendationPopulation
+	40, // 65: hcmnext.intents.v1.RecommendIntentActionRequest.causal_link:type_name -> hcmnext.intents.v1.RecommendationCausalLink
+	41, // 66: hcmnext.intents.v1.RecommendIntentActionRequest.governance:type_name -> hcmnext.intents.v1.RecommendationGovernance
+	42, // 67: hcmnext.intents.v1.RecommendIntentActionRequest.simulation:type_name -> hcmnext.intents.v1.RecommendationSimulation
+	66, // 68: hcmnext.intents.v1.RecommendedActionEvidence.observed:type_name -> google.protobuf.Timestamp
+	38, // 69: hcmnext.intents.v1.RecommendIntentActionResponse.action:type_name -> hcmnext.intents.v1.RecommendedActionSpec
+	44, // 70: hcmnext.intents.v1.RecommendIntentActionResponse.selected_evidence:type_name -> hcmnext.intents.v1.RecommendedActionEvidence
+	56, // 71: hcmnext.intents.v1.GetIntentDeepLinkRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	56, // 72: hcmnext.intents.v1.InspectIntentFieldsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	49, // 73: hcmnext.intents.v1.InspectIntentFieldsResponse.fields:type_name -> hcmnext.intents.v1.InspectedIntentField
+	56, // 74: hcmnext.intents.v1.ExportIntentFieldsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	53, // 75: hcmnext.intents.v1.ExportIntentFieldsResponse.fields:type_name -> hcmnext.intents.v1.ExportIntentFieldsResponse.FieldsEntry
+	8,  // 76: hcmnext.intents.v1.IntentService.CreateIntent:input_type -> hcmnext.intents.v1.CreateIntentRequest
+	10, // 77: hcmnext.intents.v1.IntentService.GetIntent:input_type -> hcmnext.intents.v1.GetIntentRequest
+	12, // 78: hcmnext.intents.v1.IntentService.ListIntents:input_type -> hcmnext.intents.v1.ListIntentsRequest
+	14, // 79: hcmnext.intents.v1.IntentService.SimulateIntent:input_type -> hcmnext.intents.v1.SimulateIntentRequest
+	21, // 80: hcmnext.intents.v1.IntentService.ExecuteIntent:input_type -> hcmnext.intents.v1.ExecuteIntentRequest
+	23, // 81: hcmnext.intents.v1.IntentService.SubmitIntent:input_type -> hcmnext.intents.v1.SubmitIntentRequest
+	25, // 82: hcmnext.intents.v1.IntentService.CancelIntent:input_type -> hcmnext.intents.v1.CancelIntentRequest
+	27, // 83: hcmnext.intents.v1.IntentService.SupersedeIntent:input_type -> hcmnext.intents.v1.SupersedeIntentRequest
+	29, // 84: hcmnext.intents.v1.IntentService.ExplainIntent:input_type -> hcmnext.intents.v1.ExplainIntentRequest
+	32, // 85: hcmnext.intents.v1.IntentService.ListIntentTimeline:input_type -> hcmnext.intents.v1.ListIntentTimelineRequest
+	43, // 86: hcmnext.intents.v1.IntentService.RecommendIntentAction:input_type -> hcmnext.intents.v1.RecommendIntentActionRequest
+	46, // 87: hcmnext.intents.v1.IntentService.GetIntentDeepLink:input_type -> hcmnext.intents.v1.GetIntentDeepLinkRequest
+	48, // 88: hcmnext.intents.v1.IntentService.InspectIntentFields:input_type -> hcmnext.intents.v1.InspectIntentFieldsRequest
+	51, // 89: hcmnext.intents.v1.IntentService.ExportIntentFields:input_type -> hcmnext.intents.v1.ExportIntentFieldsRequest
+	9,  // 90: hcmnext.intents.v1.IntentService.CreateIntent:output_type -> hcmnext.intents.v1.CreateIntentResponse
+	11, // 91: hcmnext.intents.v1.IntentService.GetIntent:output_type -> hcmnext.intents.v1.GetIntentResponse
+	13, // 92: hcmnext.intents.v1.IntentService.ListIntents:output_type -> hcmnext.intents.v1.ListIntentsResponse
+	15, // 93: hcmnext.intents.v1.IntentService.SimulateIntent:output_type -> hcmnext.intents.v1.SimulateIntentResponse
+	22, // 94: hcmnext.intents.v1.IntentService.ExecuteIntent:output_type -> hcmnext.intents.v1.ExecuteIntentResponse
+	24, // 95: hcmnext.intents.v1.IntentService.SubmitIntent:output_type -> hcmnext.intents.v1.SubmitIntentResponse
+	26, // 96: hcmnext.intents.v1.IntentService.CancelIntent:output_type -> hcmnext.intents.v1.CancelIntentResponse
+	28, // 97: hcmnext.intents.v1.IntentService.SupersedeIntent:output_type -> hcmnext.intents.v1.SupersedeIntentResponse
+	30, // 98: hcmnext.intents.v1.IntentService.ExplainIntent:output_type -> hcmnext.intents.v1.ExplainIntentResponse
+	33, // 99: hcmnext.intents.v1.IntentService.ListIntentTimeline:output_type -> hcmnext.intents.v1.ListIntentTimelineResponse
+	45, // 100: hcmnext.intents.v1.IntentService.RecommendIntentAction:output_type -> hcmnext.intents.v1.RecommendIntentActionResponse
+	47, // 101: hcmnext.intents.v1.IntentService.GetIntentDeepLink:output_type -> hcmnext.intents.v1.GetIntentDeepLinkResponse
+	50, // 102: hcmnext.intents.v1.IntentService.InspectIntentFields:output_type -> hcmnext.intents.v1.InspectIntentFieldsResponse
+	52, // 103: hcmnext.intents.v1.IntentService.ExportIntentFields:output_type -> hcmnext.intents.v1.ExportIntentFieldsResponse
+	90, // [90:104] is the sub-list for method output_type
+	76, // [76:90] is the sub-list for method input_type
+	76, // [76:76] is the sub-list for extension type_name
+	76, // [76:76] is the sub-list for extension extendee
+	0,  // [0:76] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_intents_v1_intent_service_proto_init() }
@@ -2590,7 +4478,7 @@ func file_hcmnext_intents_v1_intent_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_intents_v1_intent_service_proto_rawDesc), len(file_hcmnext_intents_v1_intent_service_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   32,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

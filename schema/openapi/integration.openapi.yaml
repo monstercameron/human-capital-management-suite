@@ -4194,7 +4194,7 @@ paths:
       security:
         - oauth2:
             - config.write
-      x-hcmnext-todo: WF-DATA-036
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: b
     get:
@@ -4241,7 +4241,7 @@ paths:
       security:
         - oauth2:
             - config.read
-      x-hcmnext-todo: WF-DATA-036
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: b
   /v1/parameters/{parameter_key}:
@@ -4298,7 +4298,7 @@ paths:
       security:
         - oauth2:
             - config.read
-      x-hcmnext-todo: WF-DATA-036
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: b
     patch:
@@ -4366,7 +4366,7 @@ paths:
       security:
         - oauth2:
             - config.write
-      x-hcmnext-todo: WF-DATA-036
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: b
   /v1/parameters/{parameter_key}:retire:
@@ -4435,7 +4435,7 @@ paths:
       security:
         - oauth2:
             - config.write
-      x-hcmnext-todo: WF-DATA-036
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: b
   /v1/parameters/{parameter_key}/values:
@@ -6454,7 +6454,7 @@ paths:
       security:
         - oauth2:
             - config.read
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-rpc: hcmnext.integration.v1.IntegrationService/ListConnectorDefinitions
       x-hcmnext-write-model: b
@@ -6512,7 +6512,7 @@ paths:
       security:
         - oauth2:
             - config.read
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-rpc: hcmnext.integration.v1.IntegrationService/GetConnectorDefinition
       x-hcmnext-write-model: b
@@ -6774,7 +6774,7 @@ paths:
       security:
         - oauth2:
             - config.read
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-rpc: hcmnext.integration.v1.IntegrationService/ListConnectorConnections
       x-hcmnext-write-model: b
@@ -6832,7 +6832,7 @@ paths:
       security:
         - oauth2:
             - config.read
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-rpc: hcmnext.integration.v1.IntegrationService/GetConnectorConnection
       x-hcmnext-write-model: b
@@ -7064,7 +7064,7 @@ paths:
       security:
         - oauth2:
             - config.write
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-rpc: hcmnext.integration.v1.IntegrationService/TestConnectorConnection
       x-hcmnext-write-model: b
@@ -8714,7 +8714,7 @@ paths:
       security:
         - oauth2:
             - integrations.read
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-rpc: hcmnext.integration.v1.IntegrationService/ListExternalObservations
       x-hcmnext-write-model: c
@@ -8764,7 +8764,7 @@ paths:
       security:
         - oauth2:
             - integrations.read
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-rpc: hcmnext.integration.v1.IntegrationService/GetExternalObservation
       x-hcmnext-write-model: c
@@ -8836,7 +8836,7 @@ paths:
       security:
         - oauth2:
             - integrations.write
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: c
     get:
@@ -8888,7 +8888,7 @@ paths:
       security:
         - oauth2:
             - integrations.read
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: c
   /v1/external-links/{external_link_id}:end:
@@ -8957,7 +8957,7 @@ paths:
       security:
         - oauth2:
             - integrations.write
-      x-hcmnext-todo: REV-030-01
+      x-hcmnext-todo: INTAPI-012
       x-hcmnext-status: PLANNED
       x-hcmnext-write-model: c
   /v1/attestations:

@@ -8,11 +8,12 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
-
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	transportdataops "github.com/monstercameron/human-capital-management-suite/internal/transport/dataops"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	transporthealth "github.com/monstercameron/human-capital-management-suite/internal/transport/health"
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
+	transportintegration "github.com/monstercameron/human-capital-management-suite/internal/transport/integration"
 	transportjourney "github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
@@ -31,12 +32,14 @@ type Options struct {
 	// Intent is the BusinessIntent lifecycle handler port. Optional.
 	Intent transport.IntentHandler
 	// Registry is the discovery handler port. Optional.
-	Registry   transport.RegistryHandler
-	Journey    *transportjourney.Dependencies
-	Workflow   *transportworkflow.Dependencies
-	Work       *transporthumanwork.Dependencies
-	Operations *transportoperations.Dependencies
-	Health     *transporthealth.Server
+	Registry    transport.RegistryHandler
+	DataOps     transport.DataOpsHandler
+	Integration transport.IntegrationHandler
+	Journey     *transportjourney.Dependencies
+	Workflow    *transportworkflow.Dependencies
+	Work        *transporthumanwork.Dependencies
+	Operations  *transportoperations.Dependencies
+	Health      *transporthealth.Server
 	// MaxBodyBytes bounds an inbound body. Zero means 4 MiB.
 	MaxBodyBytes int
 	// HandlerOptions are appended after the options this package sets.
@@ -65,7 +68,7 @@ func NewHandler(opts Options) (http.Handler, error) {
 	if opts.Config.Verifier == nil {
 		return nil, ErrNoVerifier
 	}
-	if opts.Intent == nil && opts.Registry == nil && opts.Journey == nil && opts.Workflow == nil && opts.Work == nil && opts.Operations == nil && opts.Health == nil {
+	if opts.Intent == nil && opts.Registry == nil && opts.DataOps == nil && opts.Integration == nil && opts.Journey == nil && opts.Workflow == nil && opts.Work == nil && opts.Operations == nil && opts.Health == nil {
 		return nil, ErrNoHandlers
 	}
 	maxBody := opts.MaxBodyBytes
@@ -91,6 +94,10 @@ func NewHandler(opts Options) (http.Handler, error) {
 		mount(mux, ProcedureSupersedeIntent, unary(h.SupersedeIntent), handlerOptions)
 		mount(mux, ProcedureExplainIntent, unary(h.ExplainIntent), handlerOptions)
 		mount(mux, ProcedureListIntentTimeline, unary(h.ListIntentTimeline), handlerOptions)
+		mount(mux, ProcedureRecommendIntentAction, unary(h.RecommendIntentAction), handlerOptions)
+		mount(mux, ProcedureGetIntentDeepLink, unary(h.GetIntentDeepLink), handlerOptions)
+		mount(mux, ProcedureInspectIntentFields, unary(h.InspectIntentFields), handlerOptions)
+		mount(mux, ProcedureExportIntentFields, unary(h.ExportIntentFields), handlerOptions)
 	}
 	if h := opts.Registry; h != nil {
 		mount(mux, ProcedureListIntentDefinitions, unary(h.ListIntentDefinitions), handlerOptions)
@@ -98,9 +105,27 @@ func NewHandler(opts Options) (http.Handler, error) {
 		mount(mux, ProcedureListCapabilities, unary(h.ListCapabilities), handlerOptions)
 		mount(mux, ProcedureGetCapability, unary(h.GetCapability), handlerOptions)
 	}
+	if h := opts.DataOps; h != nil {
+		service := &transportdataops.Service{Handler: h}
+		mount(mux, ProcedureExplainFieldHistory, unary(service.ExplainFieldHistory), handlerOptions)
+		mount(mux, ProcedureDiffRecord, unary(service.DiffRecord), handlerOptions)
+		mount(mux, ProcedureCreateRepairPlan, unary(service.CreateRepairPlan), handlerOptions)
+		mount(mux, ProcedureSimulateRepair, unary(service.SimulateRepair), handlerOptions)
+	}
+	if h := opts.Integration; h != nil {
+		service := &transportintegration.Service{Handler: h}
+		mount(mux, ProcedureListConnectorDefinitions, unary(service.ListConnectorDefinitions), handlerOptions)
+		mount(mux, ProcedureGetConnectorDefinition, unary(service.GetConnectorDefinition), handlerOptions)
+		mount(mux, ProcedureListConnectorConnections, unary(service.ListConnectorConnections), handlerOptions)
+		mount(mux, ProcedureGetConnectorConnection, unary(service.GetConnectorConnection), handlerOptions)
+		mount(mux, ProcedureTestConnectorConnection, unary(service.TestConnectorConnection), handlerOptions)
+		mount(mux, ProcedureListExternalObservations, unary(service.ListExternalObservations), handlerOptions)
+		mount(mux, ProcedureGetExternalObservation, unary(service.GetExternalObservation), handlerOptions)
+	}
 	if opts.Journey != nil {
 		mux.Handle(transportjourney.ProposePromotionProcedure, transportjourney.NewProposePromotionHandler(*opts.Journey, handlerOptions...))
 		mux.Handle(transportjourney.ProposeIntoManagementProcedure, transportjourney.NewProposeIntoManagementHandler(*opts.Journey, handlerOptions...))
+		mux.Handle(transportjourney.CorrectWorkLoopProcedure, transportjourney.NewCorrectWorkLoopHandler(*opts.Journey, handlerOptions...))
 	}
 	if opts.Workflow != nil {
 		h := transportworkflow.NewHandler(*opts.Workflow, handlerOptions...)
@@ -243,6 +268,7 @@ const reasonStrictDecoding = "structural.request_rejected"
 // records the HTTP status the canonical projection table requires.
 func writeOwned(ew *connect.ErrorWriter, w http.ResponseWriter, r *http.Request, owned *envelope.Error) {
 	setStatusOverride(r.Context(), owned.HTTPStatus())
+	setRetryAfterOverride(r.Context(), owned.RetryAfter())
 	if err := ew.Write(w, r, ToConnectError(owned)); err != nil {
 		http.Error(w, "", owned.HTTPStatus())
 	}
