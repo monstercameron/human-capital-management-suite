@@ -1,6 +1,7 @@
 package pgtest
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,6 +23,10 @@ const runtimePrefix = "hcmnext-pg-"
 // sweep considers it abandoned. No single test package runs this long, and a
 // live server is additionally protected by its postmaster.pid liveness check.
 const staleRuntimeAge = 2 * time.Hour
+
+// maxRuntimesPerSweep bounds startup work when a machine has accumulated many
+// abandoned clusters. Later test processes continue reclaiming eligible dirs.
+const maxRuntimesPerSweep = 8
 
 // sweepStaleRuntimes removes abandoned runtime directories under base that
 // were created by earlier pgtest processes. A directory is abandoned when it
@@ -49,6 +54,9 @@ func sweepStaleRuntimes(base string, maxAge time.Duration, now time.Time) []stri
 		}
 		if err := os.RemoveAll(path); err == nil {
 			removed = append(removed, path)
+			if len(removed) == maxRuntimesPerSweep {
+				break
+			}
 		}
 	}
 	return removed
@@ -81,5 +89,6 @@ func processExists(pid int) bool {
 	if runtime.GOOS == "windows" {
 		return true
 	}
-	return proc.Signal(syscall.Signal(0)) == nil
+	err = proc.Signal(syscall.Signal(0))
+	return err == nil || errors.Is(err, syscall.EPERM)
 }

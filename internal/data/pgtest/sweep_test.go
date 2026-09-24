@@ -82,6 +82,35 @@ func TestSweepStaleRuntimesToleratesMissingBase(t *testing.T) {
 	}
 }
 
+func TestSweepStaleRuntimesBoundsRemovalPerCall(t *testing.T) {
+	base := t.TempDir()
+	now := time.Now()
+	paths := make([]string, maxRuntimesPerSweep+2)
+	for i := range paths {
+		paths[i] = makeRuntimeDir(t, base, runtimePrefix+strconv.Itoa(i), 3*time.Hour, now)
+	}
+
+	first := sweepStaleRuntimes(base, staleRuntimeAge, now)
+	if len(first) != maxRuntimesPerSweep {
+		t.Fatalf("first sweep removed %d directories, want at most %d", len(first), maxRuntimesPerSweep)
+	}
+	remaining := 0
+	for _, path := range paths {
+		if _, err := os.Stat(path); err == nil {
+			remaining++
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat %s: %v", path, err)
+		}
+	}
+	if remaining != len(paths)-maxRuntimesPerSweep {
+		t.Fatalf("first sweep left %d directories, want %d", remaining, len(paths)-maxRuntimesPerSweep)
+	}
+	second := sweepStaleRuntimes(base, staleRuntimeAge, now)
+	if len(second) != remaining {
+		t.Fatalf("second sweep removed %d directories, want %d", len(second), remaining)
+	}
+}
+
 func TestPostmasterAliveReadsTheFirstLine(t *testing.T) {
 	dir := t.TempDir()
 	if postmasterAlive(filepath.Join(dir, "missing.pid")) {
