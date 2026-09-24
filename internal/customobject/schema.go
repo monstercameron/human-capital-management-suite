@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/monstercameron/human-capital-management-suite/tools/gen/schemaflux"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 )
 
 const (
@@ -140,7 +140,7 @@ func Compile(src CustomObjectType) (CompiledSchema, error) {
 	if err != nil {
 		return CompiledSchema{}, fmt.Errorf("marshal custom object: %w", err)
 	}
-	return CompiledSchema{src.Name, src.Namespace, src.Owner, src.Version, fields, Limits{MaxFields: max}, schemaflux.Digest(b)}, nil
+	return CompiledSchema{src.Name, src.Namespace, src.Owner, src.Version, fields, Limits{MaxFields: max}, canonicalbytes.Digest(b)}, nil
 }
 
 // CompileSchema is an explicit alias useful to callers that distinguish

@@ -10,7 +10,9 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/delivery"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/platformidempotencystore"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/idempotency"
 )
 
 // MessagingDeliverySchemaRef identifies the only outbox payload the hosted
@@ -84,7 +86,7 @@ func (unavailableMessagingTransport) Deliver(context.Context, delivery.Envelope)
 
 func messagingRoleFor(deps bootstrap.Deps, pool workerPool, maxAttempts int) messagingDeliveryRole {
 	store := delivery.PostgresAttemptStore{DB: pool, Provider: "hcmnext.messaging"}
-	runner := delivery.Runner{Store: store, Transport: unavailableMessagingTransport{}, MaxAttempts: maxAttempts}
+	runner := delivery.Runner{Store: store, Transport: unavailableMessagingTransport{}, Idempotency: idempotency.NewRegistryWithStore(platformidempotencystore.New(pool)), MaxAttempts: maxAttempts}
 	return messagingDeliveryRole{logger: deps.Logger, deliver: runner}
 }
 

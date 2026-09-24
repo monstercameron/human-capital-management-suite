@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -130,6 +131,83 @@ func TestWorkerSweepDispatchesDueMessages(t *testing.T) {
 			t.Fatal("didWork = false, want true (the good tenant still had work)")
 		}
 	})
+}
+
+type compensatingFakeDispatcher struct {
+	batches   [][]outbox.Record
+	nextBatch int
+	byID      map[uuid.UUID]string
+	delivered map[string]bool
+	deferred  []uuid.UUID
+	acked     []uuid.UUID
+}
+
+func (f *compensatingFakeDispatcher) Poll(context.Context, uuid.UUID) ([]outbox.Record, error) {
+	if f.nextBatch >= len(f.batches) {
+		return nil, nil
+	}
+	batch := f.batches[f.nextBatch]
+	f.nextBatch++
+	return batch, nil
+}
+
+func (f *compensatingFakeDispatcher) Ack(_ context.Context, _ uuid.UUID, id uuid.UUID) error {
+	f.acked = append(f.acked, id)
+	if effect := f.byID[id]; effect != "" {
+		f.delivered[effect] = true
+	}
+	return nil
+}
+
+func (*compensatingFakeDispatcher) Fail(context.Context, uuid.UUID, uuid.UUID, error) error {
+	return nil
+}
+
+func (f *compensatingFakeDispatcher) EffectDelivered(_ context.Context, _ uuid.UUID, effect string) (bool, error) {
+	return f.delivered[effect], nil
+}
+
+func (f *compensatingFakeDispatcher) Defer(_ context.Context, _ uuid.UUID, id, _ uuid.UUID, _ time.Time, _ string) error {
+	f.deferred = append(f.deferred, id)
+	return nil
+}
+
+// TestWorkerSweepHoldsCompensationUntilOriginalDelivered proves the actual
+// leased worker path defers an early reversal without invoking its handler,
+// then dispatches it after the original claim has been acknowledged.
+func TestWorkerSweepHoldsCompensationUntilOriginalDelivered(t *testing.T) {
+	tenant := uuid.New()
+	originalID, compensationID := uuid.New(), uuid.New()
+	originalEffect := "payroll:worker-rev013"
+	compensationEffect := outbox.CompensationPrefix + originalEffect
+	original := outbox.Record{Tenant: tenant, OutboxID: originalID, EffectIdentity: originalEffect, LeaseToken: uuid.New()}
+	compensation := outbox.Record{Tenant: tenant, OutboxID: compensationID, EffectIdentity: compensationEffect, LeaseToken: uuid.New()}
+	disp := &compensatingFakeDispatcher{
+		batches:   [][]outbox.Record{{compensation, original}, {compensation}},
+		byID:      map[uuid.UUID]string{originalID: originalEffect, compensationID: compensationEffect},
+		delivered: map[string]bool{},
+	}
+	var dispatched []string
+	handler := func(_ context.Context, msg outbox.Record) error {
+		dispatched = append(dispatched, msg.EffectIdentity)
+		return nil
+	}
+	clock := func() time.Time { return time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC) }
+	for i := 0; i < 2; i++ {
+		if _, err := sweepWithTelemetry(context.Background(), discardLogger(), fakeTenantLister{tenants: []uuid.UUID{tenant}}, disp, handler, nil, clock); err != nil {
+			t.Fatalf("sweep %d: %v", i, err)
+		}
+	}
+	if len(disp.deferred) != 1 || disp.deferred[0] != compensationID {
+		t.Fatalf("deferred = %v, want the early compensation once", disp.deferred)
+	}
+	want := []string{originalEffect, compensationEffect}
+	if len(dispatched) != len(want) || dispatched[0] != want[0] || dispatched[1] != want[1] {
+		t.Fatalf("dispatched = %v, want original then compensation %v", dispatched, want)
+	}
+	if len(disp.acked) != 2 || disp.acked[0] != originalID || disp.acked[1] != compensationID {
+		t.Fatalf("acked = %v, want original then compensation", disp.acked)
+	}
 }
 
 // pollErrorOnce wraps a dispatcher, failing Poll for exactly one tenant.

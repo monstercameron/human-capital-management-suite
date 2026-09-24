@@ -32,9 +32,11 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/position"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -274,9 +276,8 @@ func queryOne[T any](t testing.TB, c *cell, sql string, args ...any) T {
 // ---------------------------------------------------------------------------
 
 // promoteWorkerRequest builds the canonical P1A promotion request: Omar Reyes
-// from OPS-HRBP2/P2 to OPS-HRBP3/P3 with the legacy 93,000 -> 98,000 USD
-// raise, which is the corpus scenario internal/domains/promotion itself
-// certifies as READY.
+// from OPS-HRBP2/P2 into the governed POS-HRBP-301 target with the legacy
+// 93,000 -> 98,000 USD raise, which the corpus certifies as READY.
 func promoteWorkerRequest(t *testing.T, idempotencyKey string) *intentsv1.CreateIntentRequest {
 	t.Helper()
 	worker, err := fixtures.WorkerRef("omar-reyes")
@@ -289,10 +290,11 @@ func promoteWorkerRequest(t *testing.T, idempotencyKey string) *intentsv1.Create
 		"target": map[string]any{
 			"job_code": "OPS-HRBP3",
 			"grade":    "P3",
-			// No position_id: PROMOUX-004 refuses every position reference
-			// no picker issued, and POS-HRBP-301 is not a corpus position.
-			"org_unit": "people-ops",
-			"pay_zone": "US-EAST",
+			// Position-bound P1A resolves current compensation and capacity
+			// through the governed snapshot; callers cannot supply current truth.
+			"position_id": governedPromotionPositionRef(t),
+			"org_unit":    "people-ops",
+			"pay_zone":    "US-EAST",
 		},
 		"effective_date":  "2026-06-01",
 		"evaluation_date": "2026-05-15",
@@ -346,6 +348,37 @@ func promoteWorkerRequest(t *testing.T, idempotencyKey string) *intentsv1.Create
 		},
 		ExecutionMode: intentsv1.ExecutionMode_EXECUTION_MODE_SIMULATE,
 	}
+}
+
+func governedPromotionPositionRef(t testing.TB) string {
+	t.Helper()
+	catalog, err := fixtures.NewMemoryPositionCatalog()
+	if err != nil {
+		t.Fatalf("NewMemoryPositionCatalog: %v", err)
+	}
+	ref, ok := catalog.PositionRefForCode("POS-HRBP-301")
+	if !ok {
+		t.Fatal("POS-HRBP-301 is not in the governed fixture catalog")
+	}
+	effective, err := values.ParseLocalDate("2026-06-01")
+	if err != nil {
+		t.Fatalf("ParseLocalDate: %v", err)
+	}
+	known, err := values.NewKnownAt(values.NewInstant(time.Date(2026, 5, 15, 12, 0, 0, 0, time.UTC)))
+	if err != nil {
+		t.Fatalf("NewKnownAt: %v", err)
+	}
+	revision, exists, err := catalog.PositionRevisionAt(context.Background(), position.PositionQuery{
+		Tenant: fixtures.Tenant, Position: ref, AsOf: position.AsOf{EffectiveOn: effective, KnownAt: known},
+	})
+	if err != nil || !exists {
+		t.Fatalf("PositionRevisionAt exists=%v err=%v", exists, err)
+	}
+	encoded, err := position.EncodeRevisionRef(ref, revision.Revision)
+	if err != nil {
+		t.Fatalf("EncodeRevisionRef: %v", err)
+	}
+	return encoded.String()
 }
 
 // mustStruct encodes a P1A request payload.

@@ -279,14 +279,17 @@ func (a fixtureAuthority) Authorize(ctx context.Context, p chatcore.Principal, c
 	}
 	input := chatpolicy.Input{
 		Principal:     chatpolicy.Principal{ID: p.SubjectID, Tenant: p.TenantID, Active: true, Roles: p.Roles, AuthorityRevision: 1},
-		Channel:       chatpolicy.Channel{ID: c.ID, HostTenant: c.TenantID, Enabled: !c.Archived, Private: c.Kind != chatcore.PublicChannel, Revision: revision},
+		Channel:       chatpolicy.Channel{ID: c.ID, HostTenant: c.TenantID, Enabled: !c.Archived, Private: c.Kind != chatcore.PublicChannel, Revision: revision, Classification: "internal", Residency: "US"},
 		Membership:    chatpolicy.Membership{ConversationID: c.ID, PrincipalID: p.SubjectID, Tenant: p.TenantID, State: chatpolicy.MembershipCurrent, Revision: membershipRevision},
 		HasMembership: true,
 		Now:           now,
 	}
 	if p.TenantID != c.TenantID {
 		input.HasGrant = true
-		input.Grant = chatpolicy.Grant{ID: "fixture-grant", ConversationID: c.ID, HostTenant: c.TenantID, ConsumerTenant: p.TenantID, Version: 1, Proposed: true, AcceptedByHost: true, AcceptedByConsumer: true}
+		// A bilateral grant is bounded: explicit scope, classification and
+		// residency matching the channel, and a finite expiry.
+		input.Grant = chatpolicy.Grant{ID: "fixture-grant", ConversationID: c.ID, HostTenant: c.TenantID, ConsumerTenant: p.TenantID, Version: 1, Proposed: true, AcceptedByHost: true, AcceptedByConsumer: true,
+			Scope: "conversation", Classification: "internal", Residency: "US", ExpiresAt: now.Add(time.Hour)}
 	}
 	return input, nil
 }

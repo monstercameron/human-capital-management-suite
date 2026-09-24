@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -48,14 +49,11 @@ func startCommandFixtureServer(t *testing.T, verifier trust.Verifier) (addr stri
 // composition this file's main() wires (os.Args, os.Stdout, os.Stderr,
 // hcmctl.DialInsecure) reaches a live server end to end.
 //
-// Two invocations share the one server: a -mint'd operator credential
-// succeeds and prints the required evidence line (ADMIN-001's "evidence IDs
-// printed on every call"), and a -mint'd credential carrying an
-// unauthorized role is rejected by the server's own AuthZ - and in both
-// cases the minted token and the -mint-key signing secret passed on the
-// command line never appear anywhere in stdout or stderr, proving bearer
-// redaction holds at the command level, not just inside the library's own
-// unit tests.
+// Two invocations share the one server: an issuer-signed operator fixture
+// credential succeeds and prints the required evidence line (ADMIN-001's
+// "evidence IDs printed on every call"), while the identity-only development
+// mint is rejected for lacking operator authority. Neither the signing key
+// nor a bearer credential appears in stdout or stderr.
 func TestHcmctlCommandRunsAgainstAnInProcessAdminServer(t *testing.T) {
 	const signingKey = "hcmctl-command-smoke-test-signing-key-0123456789"
 	const issuer = "hcmctl-smoke-issuer"
@@ -73,24 +71,37 @@ func TestHcmctlCommandRunsAgainstAnInProcessAdminServer(t *testing.T) {
 	addr, cleanup := startCommandFixtureServer(t, verifier)
 	defer cleanup()
 
-	mintArgs := func(role string) []string {
+	mintArgs := func() []string {
 		return []string{
 			"-addr", addr,
 			"-timeout", "10s",
 			"-mint",
+			"-mint-profile", "local-dev",
 			"-mint-key", signingKey,
 			"-mint-issuer", issuer,
 			"-mint-audience", audience,
 			"-mint-tenant", "acme-corp",
 			"-mint-subject", "operator-smoke",
-			"-mint-roles", role,
 			"release-manifest",
 		}
 	}
 
-	t.Run("mint_and_authorized_call_prints_evidence", func(t *testing.T) {
+	now := time.Now()
+	operatorToken, err := verifier.Issue(trust.Claims{
+		Issuer: issuer, Audience: audience, Subject: "operator-smoke",
+		SubjectKind: "human", Tenant: "acme-corp",
+		Roles: []string{admin.OperatorRole}, AuthenticationMethod: "bearer_token",
+		Assurance: "high", SessionRef: "operator-smoke-session",
+		IssuedAtUnix: now.Add(-time.Minute).Unix(), ExpiresAtUnix: now.Add(time.Hour).Unix(),
+	})
+	if err != nil {
+		t.Fatalf("Issue operator fixture credential: %v", err)
+	}
+
+	t.Run("authorized_token_call_prints_evidence", func(t *testing.T) {
 		var stdout, stderr bytes.Buffer
-		code := hcmctl.Main(mintArgs(admin.OperatorRole), &stdout, &stderr, hcmctl.DialInsecure)
+		args := []string{"-addr", addr, "-timeout", "10s", "-token", operatorToken, "release-manifest"}
+		code := hcmctl.Main(args, &stdout, &stderr, hcmctl.DialInsecure)
 		if code != 0 {
 			t.Fatalf("hcmctl.Main exit code = %d, stderr = %s", code, stderr.String())
 		}
@@ -106,11 +117,11 @@ func TestHcmctlCommandRunsAgainstAnInProcessAdminServer(t *testing.T) {
 		assertNoLeakedCredential(t, signingKey, stdout.String()+stderr.String())
 	})
 
-	t.Run("mint_with_an_unauthorized_role_is_rejected_without_leaking_the_credential", func(t *testing.T) {
+	t.Run("identity_only_mint_is_rejected_without_leaking_the_credential", func(t *testing.T) {
 		var stdout, stderr bytes.Buffer
-		code := hcmctl.Main(mintArgs("hcmnext.trust.role.intent_author"), &stdout, &stderr, hcmctl.DialInsecure)
+		code := hcmctl.Main(mintArgs(), &stdout, &stderr, hcmctl.DialInsecure)
 		if code == 0 {
-			t.Fatalf("expected a non-zero exit code for an unauthorized role; stdout = %s", stdout.String())
+			t.Fatalf("expected a non-zero exit code for identity without operator authority; stdout = %s", stdout.String())
 		}
 
 		assertNoLeakedCredential(t, signingKey, stdout.String()+stderr.String())

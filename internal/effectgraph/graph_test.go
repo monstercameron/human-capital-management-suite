@@ -2,6 +2,7 @@ package effectgraph
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -45,21 +46,12 @@ func TestCompileRejectsSafetyViolations(t *testing.T) {
 			if err == nil || err.Error() == "" {
 				t.Fatal("expected rejection")
 			}
-			if want := tt.want; !contains(err.Error(), want) {
+			if want := tt.want; !strings.Contains(err.Error(), want) {
 				t.Fatalf("error=%v want %s", err, want)
 			}
 		})
 	}
 }
-func contains(s, sub string) bool {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
-}
-
 func TestCompileRejectsCycleAndOrderingConflict(t *testing.T) {
 	a, b := node("a"), node("b")
 	a.Prerequisites = []string{"b"}
@@ -77,7 +69,16 @@ func TestCompileRejectsCycleAndOrderingConflict(t *testing.T) {
 // The registry matrix names are intentionally present as separate entry
 // points so plancheck and downstream conformance runners can select each
 // obligation independently.
-func TestTodo_EFFECT_001(t *testing.T) { TestCompileCanonicalOrderAndDigest(t) }
+func TestTodo_EFFECT_001(t *testing.T) {
+	n := node("payroll-write")
+	c, err := Compile(Graph{Nodes: []EffectNode{n}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Nodes) != 1 || c.Nodes[0].ProposalRef != n.ProposalRef || c.Nodes[0].TransactionRef != n.TransactionRef || c.Nodes[0].CapabilityRef != n.CapabilityRef || c.Nodes[0].IdempotencyKey != n.IdempotencyKey {
+		t.Fatalf("effect lineage/policy binding lost: %+v", c)
+	}
+}
 func TestTodo_EFFECT_001_Property(t *testing.T) {
 	a, b := node("a"), node("b")
 	b.Prerequisites = []string{"a"}

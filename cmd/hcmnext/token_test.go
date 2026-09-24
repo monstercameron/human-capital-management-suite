@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/admission"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
@@ -51,6 +52,72 @@ func TestTodo_CHAT_043_DevMachineToken(t *testing.T) {
 	}
 	if _, err := parseTokenArgs([]string{"-dev-hmac-key=" + key, "-tenant=tenant-a", "-subject=agent-a", "-subject-kind=agent", "-ttl=15m", "-roles=comp_admin"}, io.Discard); err == nil {
 		t.Fatal("machine human role accepted")
+	}
+}
+
+func TestTokenCommandMintsIdentityOnlyMachineCredential(t *testing.T) {
+	const key = "hcmnext-identity-token-test-signing-key-32+"
+	now := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	var stdout, stderr strings.Builder
+	code := runToken([]string{
+		"-dev-hmac-key=" + key,
+		"-tenant=tenant-a",
+		"-subject=agent-a",
+		"-client-id=agent-a",
+		"-subject-kind=agent",
+		"-identity-only",
+		"-ttl=15m",
+	}, &stdout, &stderr, func() time.Time { return now })
+	if code != 0 {
+		t.Fatalf("runToken exit = %d, stderr = %q", code, stderr.String())
+	}
+	token := strings.TrimSpace(stdout.String())
+	if token == "" {
+		t.Fatal("runToken printed no token")
+	}
+	verifier, err := trust.NewHMACVerifier(trust.HMACVerifierConfig{
+		Key: []byte(key), Issuer: defaultIssuer, Audience: defaultAudience,
+		Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, err := verifier.VerifyIdentity(context.Background(), trust.Credential{Scheme: "Bearer", Token: token})
+	if err != nil {
+		t.Fatalf("VerifyIdentity: %v", err)
+	}
+	if principal.SubjectKind() != trust.SubjectKindAgent || principal.Subject() != "agent-a" {
+		t.Fatalf("identity = kind %q subject %q", principal.SubjectKind(), principal.Subject())
+	}
+	if principal.ClientID() != "agent-a" {
+		t.Fatalf("ClientID = %q, want stable installed app ID", principal.ClientID())
+	}
+	if len(principal.Roles()) != 0 || len(principal.Purposes()) != 0 || principal.OrganizationScopeID() != "" {
+		t.Fatalf("identity-only credential carried authority: roles=%v purposes=%v org=%q", principal.Roles(), principal.Purposes(), principal.OrganizationScopeID())
+	}
+	decision, err := admission.NewCredentialLimiter().Admit(now, admission.CredentialIdentity{
+		TenantID: principal.Tenant().String(), ClientID: principal.ClientID(),
+	}, admission.DefaultCredentialPolicy())
+	if err != nil || decision.Outcome != admission.CredentialAdmit {
+		t.Fatalf("machine quota admission = %+v, err=%v", decision, err)
+	}
+
+	for _, extra := range [][]string{
+		{"-purpose=chat_integration"},
+		{"-roles=machine-observer"},
+		{"-org-scope=org:tenant-a:team"},
+	} {
+		args := []string{"-dev-hmac-key=" + key, "-tenant=tenant-a", "-subject=agent-a", "-client-id=agent-a", "-subject-kind=agent", "-identity-only", "-ttl=15m"}
+		args = append(args, extra...)
+		if _, err := parseTokenArgs(args, io.Discard); err == nil {
+			t.Errorf("identity-only arguments %v were accepted", extra)
+		}
+	}
+	if _, err := parseTokenArgs([]string{"-dev-hmac-key=" + key, "-tenant=tenant-a", "-subject=user-a", "-identity-only"}, io.Discard); err == nil {
+		t.Fatal("identity-only human credential was accepted")
+	}
+	if _, err := parseTokenArgs([]string{"-dev-hmac-key=" + key, "-tenant=tenant-a", "-subject=agent-a", "-subject-kind=agent", "-identity-only", "-ttl=15m"}, io.Discard); err == nil {
+		t.Fatal("identity-only machine credential without a client ID was accepted")
 	}
 }
 

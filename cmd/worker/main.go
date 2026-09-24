@@ -107,6 +107,7 @@ func workerConfigFields() []bootstrap.Field {
 		{Name: "messaging-max-attempts", Env: "HCMNEXT_WORKER_MESSAGING_MAX_ATTEMPTS", Usage: "maximum provider attempts for one messaging delivery", Default: "3", Kind: bootstrap.KindInt},
 		{Name: "connector-role", Env: EnvConnectorRole, Usage: "enable the governed connector-operation execution role (SVC-008; inert until a provider adapter and credential authority are wired)", Default: "false", Kind: bootstrap.KindBool},
 		{Name: "roles", Env: EnvWorkerRoles, Usage: "comma-separated capability-activity, reconciliation and repair roles", Default: string(WorkerRoleCapabilityActivity), Kind: bootstrap.KindString},
+		{Name: "intelligence-metric-job", Env: "HCMNEXT_WORKER_INTELLIGENCE_METRIC_JOB", Usage: "optional JSON request with tenant_id, metric definition and an existing intent decision_id", Kind: bootstrap.KindString},
 	}
 	return append(fields, workerTelemetryFields()...)
 }
@@ -168,6 +169,11 @@ func validateConfig(v *bootstrap.Values) error {
 	if _, err := ParseWorkerRoles(v.String("roles")); err != nil {
 		return err
 	}
+	if raw := v.String("intelligence-metric-job"); raw != "" {
+		if _, err := parseIntelligenceMetricJob(raw); err != nil {
+			return err
+		}
+	}
 	switch v.String("otel-exporter") {
 	case "none", "stdout":
 	case "otlphttp":
@@ -212,6 +218,14 @@ func build(ctx context.Context, deps bootstrap.Deps) (bootstrap.Runtime, error) 
 	roles, err := ParseWorkerRoles(deps.Values.String("roles"))
 	if err != nil {
 		return bootstrap.Runtime{}, err
+	}
+	var metricJob *IntelligenceMetricJob
+	if raw := deps.Values.String("intelligence-metric-job"); raw != "" {
+		parsed, err := parseIntelligenceMetricJob(raw)
+		if err != nil {
+			return bootstrap.Runtime{}, err
+		}
+		metricJob = &parsed
 	}
 
 	consumer := outbox.NewConsumer(pool, outbox.WithLease(lease), outbox.WithBatchSize(batchSize))
@@ -258,9 +272,10 @@ func build(ctx context.Context, deps bootstrap.Deps) (bootstrap.Runtime, error) 
 		// REV-013-01: the journal is durable Postgres through
 		// connectivityopstore whenever the pool is configured; memory
 		// remains only the no-database dev fallback inside
-		// connectorJournalForPool. The ledger stays in-process: reservations
-		// live for one dispatch attempt, and crash safety comes from the
-		// durable queue claim the journal persists.
+		// connectorJournalForPool. The in-process ledger supplies fast local
+		// admission; Store.Claim also checks durable queue leases and attempt
+		// history against the conservative unknown-connector quota so restart
+		// cannot reset its reservation or rate window.
 		connectorJournalStore := connectorJournalForPool(pool)
 		connectorLedgerStore := operation.NewConnectorLedger(nil)
 		connector := connectorRoleFor(deps, connectorJournalStore, connectorLedgerStore, deps.Identity, lease)
@@ -271,7 +286,25 @@ func build(ctx context.Context, deps bootstrap.Deps) (bootstrap.Runtime, error) 
 			},
 		})
 	}
+	if metricJob != nil {
+		job := *metricJob
+		workloads = append(workloads, bootstrap.Workload{
+			Name: "intelligence-metric",
+			Run: func(ctx context.Context) error {
+				return runIntelligenceMetricLoop(ctx, pool, job, pollInterval, deps.Clock)
+			},
+		})
+	}
 	workloads = append(workloads, workerRoleWorkloads(deps.Logger, roles)...)
+	// The cross-layer idempotency registry carries finite retention horizons;
+	// reclaim it on a tenant-scoped schedule even when no messaging event is due.
+	reclaimer := idempotencyReclaimerFor(pool)
+	workloads = append(workloads, bootstrap.Workload{
+		Name: "idempotency-reclaimer",
+		Run: func(ctx context.Context) error {
+			return runIdempotencyReclaimer(ctx, logger, tenants, reclaimer, pollInterval, deps.Clock)
+		},
+	})
 	runtime := bootstrap.Runtime{Workloads: workloads}
 	if telemetryProvider != nil {
 		runtime.Shutdown = append(runtime.Shutdown, bootstrap.ShutdownStep{Name: "shutdown-telemetry", Run: func(stepCtx context.Context) error {

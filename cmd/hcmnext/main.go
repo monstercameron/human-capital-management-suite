@@ -8,6 +8,7 @@
 //	hcmnext          print the build identity
 //	hcmnext serve    run the P1A cell: gRPC on -grpc-listen, HTTP edge on -http-listen
 //	hcmnext token    mint a bearer credential the -dev-hmac-key verifier accepts
+//	hcmnext ledger-correct record one exact ledger correction under a target-scoped JIT grant
 //
 // # serve
 //
@@ -99,6 +100,13 @@
 // counterpart of an identity provider: something to hand a curl command, the
 // dev browser sign-in form, or a test, without hand-rolling the token format.
 // See "hcmnext token -h" for its flags.
+//
+// # ledger-correct
+//
+// ledger-correct resolves the tenant's actual storage key, requires a live
+// INTEGRITY_REPAIR grant scoped to the exact stream event, simulates the
+// correction against current lineage, and submits the material action through
+// the durable operator journal and gateway before appending the correction.
 package main
 
 import (
@@ -160,10 +168,12 @@ func main() {
 		os.Exit(runWorkflowVersion(args[1:], os.Stdout, os.Stderr, time.Now, openPostgresVersionRegistry))
 	case "workflow-intervene":
 		os.Exit(runWorkflowIntervene(args[1:], os.Stdout, os.Stderr, time.Now, openInterventionCell))
+	case "ledger-correct":
+		os.Exit(runLedgerCorrect(args[1:], os.Stdout, os.Stderr, time.Now, openLedgerCorrectionDB))
 	case "records-disposition":
 		os.Exit(runRecordsDisposition(args[1:], os.Stdout, os.Stderr, time.Now))
 	default:
-		fmt.Fprintf(os.Stderr, "hcmnext: unknown command %q; usage: hcmnext [serve|token|workflow-version|workflow-intervene|records-disposition]\n", args[0])
+		fmt.Fprintf(os.Stderr, "hcmnext: unknown command %q; usage: hcmnext [serve|token|workflow-version|workflow-intervene|ledger-correct|records-disposition]\n", args[0])
 		os.Exit(1)
 	}
 }

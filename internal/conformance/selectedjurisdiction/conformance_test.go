@@ -69,7 +69,16 @@ func TestSelectedJurisdictionPromotionAndLeaveHandleAmbiguityRuleTimeAndReplanCo
 }
 
 func TestTodo_CROSS_CONF_001_Conformance(t *testing.T) {
-	TestSelectedJurisdictionPromotionAndLeaveHandleAmbiguityRuleTimeAndReplanConsistently(t)
+	ctx := contextFixture(t, legal.Jurisdiction{Country: "US", State: "CA"})
+	for _, slice := range []Slice{Promotion, MedicalLeave} {
+		got, err := Evaluate(Request{Slice: slice, Context: ctx})
+		if err != nil {
+			t.Fatalf("Evaluate(%s): %v", slice, err)
+		}
+		if got.Status != Allowed || got.SelectedJurisdiction != ctx.Jurisdiction() || got.CompositionDigest == "" {
+			t.Errorf("conformance result for %s = %#v", slice, got)
+		}
+	}
 }
 func TestTodo_CROSS_CONF_001_Fault(t *testing.T) {
 	ctx := contextFixture(t, legal.Jurisdiction{Country: "US", State: "CA"})
@@ -88,8 +97,66 @@ func TestTodo_CROSS_CONF_001_Golden(t *testing.T) {
 		t.Fatalf("digest is not deterministic")
 	}
 }
-func TestTodo_CROSS_CONF_001_ModelBased(t *testing.T) { TestTodo_CROSS_CONF_001_Golden(t) }
-func TestTodo_CROSS_CONF_001_Mutation(t *testing.T)   { TestTodo_CROSS_CONF_001_Fault(t) }
-func TestTodo_CROSS_CONF_001_Property(t *testing.T)   { TestTodo_CROSS_CONF_001_Golden(t) }
-func TestTodo_CROSS_CONF_001_Recovery(t *testing.T)   { TestTodo_CROSS_CONF_001_Conformance(t) }
-func TestTodo_CROSS_CONF_001_Security(t *testing.T)   { TestTodo_CROSS_CONF_001_Fault(t) }
+func TestTodo_CROSS_CONF_001_ModelBased(t *testing.T) {
+	for _, slice := range []Slice{Promotion, MedicalLeave} {
+		for _, ambiguous := range []bool{false, true} {
+			got, err := Evaluate(Request{Slice: slice, Context: contextFixture(t, legal.Jurisdiction{Country: "US", State: "CA"}), Ambiguous: ambiguous})
+			if err != nil {
+				t.Fatalf("Evaluate(%s, ambiguous=%t): %v", slice, ambiguous, err)
+			}
+			want := Allowed
+			if ambiguous {
+				want = Blocked
+			}
+			if got.Status != want {
+				t.Fatalf("Evaluate(%s, ambiguous=%t) status = %s, want %s", slice, ambiguous, got.Status, want)
+			}
+		}
+	}
+}
+func TestTodo_CROSS_CONF_001_Mutation(t *testing.T) {
+	ctx := contextFixture(t, legal.Jurisdiction{Country: "US", State: "CA"})
+	got, err := Evaluate(Request{Slice: Promotion, Context: ctx, MaterialChange: true})
+	if err != nil || got.Status != ReplanRequired || got.SuccessorProposal == "" {
+		t.Fatalf("material change result = %#v, %v", got, err)
+	}
+}
+func TestTodo_CROSS_CONF_001_Property(t *testing.T) {
+	ctx := contextFixture(t, legal.Jurisdiction{Country: "US", State: "CA"})
+	var wantDigest string
+	for i := 0; i < 8; i++ {
+		got, err := Evaluate(Request{Slice: Promotion, Context: ctx})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.CompositionDigest == "" {
+			t.Fatalf("iteration %d returned empty digest", i)
+		}
+		if i == 0 {
+			wantDigest = got.CompositionDigest
+			continue
+		}
+		if got.CompositionDigest != wantDigest {
+			t.Fatalf("iteration %d digest = %q, want stable digest %q", i, got.CompositionDigest, wantDigest)
+		}
+	}
+}
+func TestTodo_CROSS_CONF_001_Recovery(t *testing.T) {
+	ctx := contextFixture(t, legal.Jurisdiction{Country: "US", State: "CA"})
+	initial, err := Evaluate(Request{Slice: MedicalLeave, Context: ctx})
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterChange, err := Evaluate(Request{Slice: MedicalLeave, Context: ctx, MaterialChange: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterChange.Status != ReplanRequired || afterChange.StaleEffects != 0 || initial.Status != Allowed {
+		t.Fatalf("recovery transition initial=%#v changed=%#v", initial, afterChange)
+	}
+}
+func TestTodo_CROSS_CONF_001_Security(t *testing.T) {
+	if _, err := Evaluate(Request{Slice: Promotion}); err == nil {
+		t.Fatal("missing signed jurisdiction context was accepted")
+	}
+}

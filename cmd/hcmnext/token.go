@@ -35,16 +35,18 @@ const (
 
 // tokenParams is the parsed, validated -flag surface for "hcmnext token".
 type tokenParams struct {
-	hmacKey  string
-	issuer   string
-	audience string
-	tenant   string
-	subject  string
-	kind     string
-	roles    []string
-	purpose  string
-	orgScope string
-	ttl      time.Duration
+	hmacKey      string
+	issuer       string
+	audience     string
+	tenant       string
+	subject      string
+	clientID     string
+	kind         string
+	roles        []string
+	purpose      string
+	orgScope     string
+	ttl          time.Duration
+	identityOnly bool
 }
 
 // parseTokenArgs declares and parses the token subcommand's flags. Errors are
@@ -70,11 +72,13 @@ func parseTokenArgs(args []string, stderr io.Writer) (tokenParams, error) {
 	audience := fs.String("audience", defaultAudience, "the audience to mint for; must match the target listener's -audience")
 	tenant := fs.String("tenant", "", "tenant slug the credential is issued for (required)")
 	subject := fs.String("subject", "", "opaque subject identifier the credential authenticates (required)")
+	clientID := fs.String("client-id", "", "stable machine client identity used for server-side quota admission")
 	kind := fs.String("subject-kind", "human", "authenticated actor kind: human, agent, or integration")
 	roles := fs.String("roles", defaultTokenRoles, "comma-separated role identifiers granted to the credential")
 	purpose := fs.String("purpose", defaultTokenPurpose, "purpose of processing the credential is authorized for")
 	orgScope := fs.String("org-scope", "", "organization scope the subject acts within; required to create intents (the kernel refuses an intent with no organization_scope_id)")
 	ttl := fs.Duration("ttl", defaultTokenTTL, "how long the minted credential remains valid")
+	identityOnly := fs.Bool("identity-only", false, "mint a machine identity credential with no caller-selected roles, scope, or purposes")
 
 	if err := fs.Parse(args); err != nil {
 		return tokenParams{}, err
@@ -100,32 +104,55 @@ func parseTokenArgs(args []string, stderr io.Writer) (tokenParams, error) {
 		problems = append(problems, "machine credentials must live at most 15m; set -ttl")
 	}
 	if *kind != "human" {
-		fs.Visit(func(f *flag.Flag) {
-			if f.Name == "roles" && strings.TrimSpace(f.Value.String()) != "" {
-				problems = append(problems, "machine credentials cannot carry human roles")
+		if *identityOnly {
+			if strings.TrimSpace(*clientID) == "" {
+				problems = append(problems, "identity-only machine credentials require -client-id")
 			}
-			if f.Name == "purpose" && f.Value.String() != "chat_integration" {
-				problems = append(problems, "machine credentials require chat_integration purpose")
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "roles" && strings.TrimSpace(f.Value.String()) != "" {
+					problems = append(problems, "identity-only credentials cannot carry roles")
+				}
+				if f.Name == "purpose" && strings.TrimSpace(f.Value.String()) != "" {
+					problems = append(problems, "identity-only credentials cannot carry purposes")
+				}
+			})
+			if strings.TrimSpace(*orgScope) != "" {
+				problems = append(problems, "identity-only credentials cannot carry organization scope")
 			}
-		})
-		*roles = ""
-		*purpose = "chat_integration"
+			*roles = ""
+			*purpose = ""
+		} else {
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "roles" && strings.TrimSpace(f.Value.String()) != "" {
+					problems = append(problems, "machine credentials cannot carry human roles")
+				}
+				if f.Name == "purpose" && f.Value.String() != "chat_integration" {
+					problems = append(problems, "machine credentials require chat_integration purpose")
+				}
+			})
+			*roles = ""
+			*purpose = "chat_integration"
+		}
+	} else if *identityOnly {
+		problems = append(problems, "-identity-only requires a machine subject kind")
 	}
 	if len(problems) > 0 {
 		return tokenParams{}, fmt.Errorf("hcmnext token: %s", strings.Join(problems, "; "))
 	}
 
 	return tokenParams{
-		hmacKey:  *hmacKey,
-		issuer:   *issuer,
-		audience: *audience,
-		tenant:   *tenant,
-		subject:  *subject,
-		kind:     *kind,
-		roles:    splitAndTrim(*roles),
-		purpose:  *purpose,
-		orgScope: strings.TrimSpace(*orgScope),
-		ttl:      *ttl,
+		hmacKey:      *hmacKey,
+		issuer:       *issuer,
+		audience:     *audience,
+		tenant:       *tenant,
+		subject:      *subject,
+		clientID:     strings.TrimSpace(*clientID),
+		kind:         *kind,
+		roles:        splitAndTrim(*roles),
+		purpose:      *purpose,
+		orgScope:     strings.TrimSpace(*orgScope),
+		ttl:          *ttl,
+		identityOnly: *identityOnly,
 	}, nil
 }
 
@@ -160,25 +187,39 @@ func mintDevToken(p tokenParams, now time.Time) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("hcmnext token: build the verifier: %w", err)
 	}
-	token, err := verifier.Issue(trust.Claims{
+	claims := trust.Claims{
 		Issuer:               p.issuer,
 		Audience:             p.audience,
 		Subject:              p.subject,
+		ClientID:             p.clientID,
 		SubjectKind:          p.kind,
 		Tenant:               p.tenant,
 		OrganizationScopeID:  p.orgScope,
 		Roles:                p.roles,
-		Purposes:             []string{p.purpose},
+		Purposes:             optionalTokenPurpose(p.purpose),
 		AuthenticationMethod: "bearer_token",
 		Assurance:            "substantial",
 		SessionRef:           "session-hcmnext-token-cli",
 		IssuedAtUnix:         now.Add(-time.Minute).Unix(),
 		ExpiresAtUnix:        now.Add(p.ttl).Unix(),
-	})
+	}
+	var token string
+	if p.identityOnly {
+		token, err = verifier.IssueIdentity(claims)
+	} else {
+		token, err = verifier.Issue(claims)
+	}
 	if err != nil {
 		return "", fmt.Errorf("hcmnext token: mint the credential: %w", err)
 	}
 	return token, nil
+}
+
+func optionalTokenPurpose(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return []string{value}
 }
 
 // runToken is the token subcommand's entry point: parse, mint, print. It

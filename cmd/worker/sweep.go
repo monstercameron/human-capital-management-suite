@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,6 +26,14 @@ type dispatcher interface {
 	Poll(ctx context.Context, tenant uuid.UUID) ([]outbox.Record, error)
 	Ack(ctx context.Context, tenant uuid.UUID, outboxID uuid.UUID) error
 	Fail(ctx context.Context, tenant uuid.UUID, outboxID uuid.UUID, cause error) error
+}
+
+// compensationDispatcher supplies the durable ordering fence needed by a
+// compensation-aware queue consumer. The outbox.Consumer implements this
+// with its tenant-scoped row status and existing lease-fenced Defer method.
+type compensationDispatcher interface {
+	EffectDelivered(context.Context, uuid.UUID, string) (bool, error)
+	Defer(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, time.Time, string) error
 }
 
 type messageHandler func(context.Context, outbox.Record) error
@@ -96,6 +105,36 @@ func sweepWithTelemetry(ctx context.Context, logger bootstrap.Logger, tenants te
 		}
 		for _, msg := range batch {
 			didWork = true
+			if original, compensation := outbox.IdentityCompensationLink(msg); compensation {
+				aware, ok := disp.(compensationDispatcher)
+				if !ok {
+					cause := errors.New("worker: compensation requires a durable ordering fence")
+					logger.Error("worker.compensation_fence_unavailable", "outbox_id", msg.OutboxID.String())
+					if failErr := failClaim(ctx, disp, msg, cause); failErr != nil {
+						logger.Error("worker.fail_failed", "outbox_id", msg.OutboxID.String(), "error", failErr.Error())
+					}
+					continue
+				}
+				applied, lookupErr := aware.EffectDelivered(ctx, msg.Tenant, original)
+				if lookupErr != nil {
+					logger.Error("worker.compensation_original_lookup_failed", "outbox_id", msg.OutboxID.String(), "error", lookupErr.Error())
+					if failErr := failClaim(ctx, disp, msg, lookupErr); failErr != nil {
+						logger.Error("worker.fail_failed", "outbox_id", msg.OutboxID.String(), "error", failErr.Error())
+					}
+					continue
+				}
+				if !applied {
+					clock := now
+					if clock == nil {
+						clock = time.Now
+					}
+					deferErr := aware.Defer(ctx, msg.Tenant, msg.OutboxID, msg.LeaseToken, clock().Add(outbox.CompensationHoldDelay), "original effect has not been delivered")
+					if deferErr != nil {
+						logger.Error("worker.compensation_defer_failed", "outbox_id", msg.OutboxID.String(), "error", deferErr.Error())
+					}
+					continue
+				}
+			}
 			handlerCtx, span, traced := startDispatchSpan(ctx, provider, msg, now)
 			err := handler(handlerCtx, msg)
 			if traced {

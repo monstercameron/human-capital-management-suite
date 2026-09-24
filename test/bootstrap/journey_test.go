@@ -16,6 +16,7 @@ import (
 
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	registryv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
@@ -48,6 +49,8 @@ import (
 // accepted.
 const journeyApprover = "principal:promotion-approver"
 
+const journeyManagerApprover = "principal:promotion-manager"
+
 // journeyHarness is one composed journey cell plus the verifier that issues
 // the credentials its callers act under.
 type journeyHarness struct {
@@ -67,9 +70,17 @@ type journeyHarness struct {
 // escape hatch: every other harness in this suite composes the cell the
 // process composes it.
 func newJourneyHarness(t *testing.T, mutate ...func(*app.CellConfig)) *journeyHarness {
+	return newJourneyHarnessWithPlan(t, platformexecution.PLAN_PROTOTYPE, nil, mutate...)
+}
+
+func newJourneyHarnessWithPlan(t *testing.T, plan platformexecution.PromotionPlan, wrapDB func(dbport.Beginner) dbport.Beginner, mutate ...func(*app.CellConfig)) *journeyHarness {
 	t.Helper()
 	base := newCell(t)
 	seedWorkforce(t, base)
+	var executionDB dbport.Beginner = base.pool
+	if wrapDB != nil {
+		executionDB = wrapDB(executionDB)
+	}
 
 	registry, err := ledgerport.NewLedgerEventDigestRegistry()
 	if err != nil {
@@ -86,13 +97,16 @@ func newJourneyHarness(t *testing.T, mutate ...func(*app.CellConfig)) *journeyHa
 	// journey's Inspect reads.
 	evidence := app.NewMemoryEvidenceSink()
 	execution, err := platformexecution.NewPromotionExecution(platformexecution.PromotionExecutionConfig{
-		DB:                  base.pool,
-		Terminal:            terminal,
-		Clock:               func() time.Time { return baseTime },
-		ApproverPrincipalID: journeyApprover,
-		AuthorityDigest:     "sha256:test-p1b-authority-amendment",
-		RequiredRole:        executionAuthorityTestRole,
-		Evidence:            evidence,
+		DB:                         executionDB,
+		Terminal:                   terminal,
+		Plan:                       plan,
+		Clock:                      func() time.Time { return baseTime },
+		ApproverPrincipalID:        journeyApprover,
+		ManagerApproverPrincipalID: journeyManagerApprover,
+		AuthorityDigest:            "sha256:test-p1b-authority-amendment",
+		RequiredRole:               executionAuthorityTestRole,
+		Evidence:                   evidence,
+		TimerDataset:               kernelvalues.DatasetVersions{TzdbVersion: "2026a", CalendarVersion: "2026.1"},
 	})
 	if err != nil {
 		t.Fatalf("NewPromotionExecution: %v", err)
@@ -128,9 +142,14 @@ func newJourneyHarness(t *testing.T, mutate ...func(*app.CellConfig)) *journeyHa
 		ExecutionVersions:  execution.Versions,
 		ExecutionCellID:    testCellID,
 		TenantUUID:         func(tenant kernelvalues.TenantId) uuid.UUID { return pgstore.TenantID(string(tenant)) },
-
-		ExecutionDB:       base.pool,
-		ExecutionApprover: journeyApprover,
+		ExecutionDB:        executionDB,
+		ExecutionApprover:  journeyApprover,
+	}
+	if plan == platformexecution.PLAN_EXECUTE {
+		cfg.ApprovalAuthority = platformexecution.NewPromotionApprovalAuthority(platformexecution.PromotionExecutionConfig{
+			Plan: plan, ApproverPrincipalID: journeyApprover, ManagerApproverPrincipalID: journeyManagerApprover,
+		})
+		cfg.BindPromotionSteps = func(services *app.PromotionStepServices) error { return execution.BindStepServices(services) }
 	}
 	for _, apply := range mutate {
 		apply(&cfg)

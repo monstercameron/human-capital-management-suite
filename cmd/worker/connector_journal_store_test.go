@@ -12,8 +12,8 @@ package main
 //               connectivityopstore, and the production build() role wiring.
 //   INTEGRATION TestTodo_REV_013_01_Integration: a worker is killed
 //               mid-lease between the journal commit and the provider send;
-//               the restarted worker resumes the operation from its persisted
-//               QUEUED state and dispatches it exactly once.
+//               a fresh journal instance reconstructs the operation and its
+//               mapped payload, then dispatches it exactly once.
 //   RECOVERY    TestTodo_REV_013_01_Recovery: a fresh journal handle over the
 //               same database still lists the operation after the planning
 //               process is gone, fencing holds while the lease is live, and
@@ -56,9 +56,8 @@ func rev013Tenant(t *testing.T, db *pgtest.DB, key string) uuid.UUID {
 
 // rev013PlanRequest mirrors connectorPlanRequest but with a UUID tenant (the
 // durable journal keys Postgres rows by UUID tenant) and real 64-hex digests
-// (content_digest columns reject anything else). Payload is nil so a
-// post-restart shell round-trips exactly; the payload-bearing path is covered
-// by the PRIMARY single-process cycle.
+// (content_digest columns reject anything else). The payload argument lets
+// restart tests prove the original bytes reach the provider.
 func rev013PlanRequest(id, tenant uuid.UUID, destination string, payload []byte) operation.PlanRequest {
 	now := time.Now().UTC()
 	return operation.PlanRequest{
@@ -168,15 +167,23 @@ func rev013BaseRow(t *testing.T, pool dbport.Conn, tenant, opID uuid.UUID) (stat
 	return state, fence
 }
 
-// rev013Trail reads the durable journal trail through a fresh
+func rev013AttemptCount(t *testing.T, pool dbport.Conn, tenant, opID uuid.UUID) int64 {
+	t.Helper()
+	var count int64
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM connector_operation_attempt WHERE tenant_id = $1 AND operation_id = $2`, tenant, opID).Scan(&count); err != nil {
+		t.Fatalf("read durable attempt count: %v", err)
+	}
+	return count
+}
+
+// rev013Trail reads the tenant's durable journal stream through a fresh
 // connectivityopstore handle — the independent oracle for "the journal is
-// durable", never the adapter's in-memory view — and returns it in hash-chain
-// order. The store orders rows by random journal id, so chain order is the
-// only insertion order available.
+// durable", never the adapter's in-memory view — and returns the target
+// operation's events after verifying the tenant-wide digest chain.
 func rev013Trail(t *testing.T, pool dbport.Beginner, tenant, opID uuid.UUID) []operation.JournalEvent {
 	t.Helper()
 	store := connectivityopstore.New(pool)
-	events, err := store.Journal(context.Background(), tenant, opID)
+	events, err := store.Journal(context.Background(), tenant, uuid.Nil)
 	if err != nil {
 		t.Fatalf("read durable journal: %v", err)
 	}
@@ -198,8 +205,13 @@ func rev013Trail(t *testing.T, pool dbport.Beginner, tenant, opID uuid.UUID) []o
 		t.Fatal("journal chain has no genesis event linked from the zero digest")
 	}
 	ordered := make([]operation.JournalEvent, 0, len(events))
+	var target []operation.JournalEvent
 	for current := genesis; ; {
+		current.Sequence = uint64(len(ordered) + 1)
 		ordered = append(ordered, current)
+		if current.OperationID == opID {
+			target = append(target, current)
+		}
 		next, ok := byPrevious[current.Digest]
 		if !ok {
 			break
@@ -209,7 +221,10 @@ func rev013Trail(t *testing.T, pool dbport.Beginner, tenant, opID uuid.UUID) []o
 	if len(ordered) != len(events) {
 		t.Fatalf("journal chain covers %d of %d rows: broken or forked", len(ordered), len(events))
 	}
-	return ordered
+	if len(target) == 0 {
+		t.Fatalf("durable journal chain has no events for operation %s", opID)
+	}
+	return target
 }
 
 // rev013TrailKinds returns the chain-ordered event kinds of the durable trail.
@@ -227,7 +242,43 @@ func rev013TrailKinds(t *testing.T, pool dbport.Beginner, tenant, opID uuid.UUID
 // previous_digest to the prior row's event_digest.
 func rev013DigestChain(t *testing.T, pool dbport.Beginner, tenant, opID uuid.UUID) {
 	t.Helper()
-	rev013Trail(t, pool, tenant, opID)
+	events, err := connectivityopstore.New(pool).Journal(context.Background(), tenant, uuid.Nil)
+	if err != nil || len(events) == 0 {
+		t.Fatalf("read tenant journal for digest verification: events=%d err=%v", len(events), err)
+	}
+	byPrevious := make(map[string]operation.JournalEvent, len(events))
+	for _, event := range events {
+		if _, duplicate := byPrevious[event.PreviousDigest]; duplicate {
+			t.Fatalf("duplicate previous digest %q: tenant journal fork", event.PreviousDigest)
+		}
+		byPrevious[event.PreviousDigest] = event
+	}
+	zero := "sha256:" + strings.Repeat("0", 64)
+	current, ok := byPrevious[zero]
+	if !ok {
+		t.Fatal("tenant journal has no genesis event")
+	}
+	perOperation := make(map[uuid.UUID]uint64)
+	seen := make(map[uuid.UUID]bool)
+	for globalSequence := uint64(1); ; globalSequence++ {
+		current.Sequence = globalSequence // recovered by traversing the tenant digest links
+		perOperation[current.OperationID]++
+		if current.OperationSequence != perOperation[current.OperationID] {
+			t.Fatalf("operation %s sequence=%d, want %d", current.OperationID, current.OperationSequence, perOperation[current.OperationID])
+		}
+		seen[current.OperationID] = true
+		next, exists := byPrevious[current.Digest]
+		if !exists {
+			if globalSequence != uint64(len(events)) {
+				t.Fatalf("tenant digest chain ended at %d of %d rows", globalSequence, len(events))
+			}
+			break
+		}
+		current = next
+	}
+	if !seen[opID] {
+		t.Fatalf("target operation %s is absent from verified tenant chain", opID)
+	}
 }
 
 func equalStrings(a, b []string) bool {
@@ -245,6 +296,42 @@ func equalStrings(a, b []string) bool {
 // --- PRIMARY ----------------------------------------------------------------
 
 func TestTodo_REV_013_01(t *testing.T) {
+	t.Run("concurrent_handles_serialize_tenant_digest_chain", func(t *testing.T) {
+		db := pgtest.New(t)
+		tenant := rev013Tenant(t, db, "rev013-concurrent-chain")
+		pool := schemaScopedPool(t, db)
+		handles := []*durableConnectorJournal{
+			newDurableConnectorJournal(pool, nil),
+			newDurableConnectorJournal(pool, nil),
+		}
+		ids := []uuid.UUID{uuid.New(), uuid.New()}
+		start := make(chan struct{})
+		results := make(chan error, len(handles))
+		for i := range handles {
+			go func(i int) {
+				<-start
+				_, err := handles[i].Plan(context.Background(), rev013PlanRequest(ids[i], tenant, "connector.example", []byte(`{"writer":true}`)))
+				if err == nil {
+					_, err = handles[i].Queue(context.Background(), tenant.String(), ids[i])
+				}
+				results <- err
+			}(i)
+		}
+		close(start)
+		for range handles {
+			if err := <-results; err != nil {
+				t.Fatalf("concurrent durable plan/queue: %v", err)
+			}
+		}
+		store := connectivityopstore.New(pool)
+		events, err := store.Journal(context.Background(), tenant, uuid.Nil)
+		if err != nil || len(events) != 4 {
+			t.Fatalf("tenant journal rows=%d err=%v, want 4", len(events), err)
+		}
+		rev013DigestChain(t, pool, tenant, ids[0])
+		rev013DigestChain(t, pool, tenant, ids[1])
+	})
+
 	t.Run("no_database_falls_back_to_memory", func(t *testing.T) {
 		journal := connectorJournalForPool(nil)
 		mem, ok := journal.(*operation.MemoryJournal)
@@ -395,17 +482,18 @@ func TestTodo_REV_013_01_Integration(t *testing.T) {
 	db := pgtest.New(t)
 	tenant := rev013Tenant(t, db, "rev013-integration")
 	pool := schemaScopedPool(t, db)
-	journal := connectorJournalForPool(pool).(*durableConnectorJournal)
+	planner := connectorJournalForPool(pool).(*durableConnectorJournal)
 
 	id := uuid.New()
-	rev013PlanQueued(t, journal, id, tenant, "connector.example", nil)
+	payload := []byte(`{"worker":"w-1"}`)
+	rev013PlanQueued(t, planner, id, tenant, "connector.example", payload)
 
 	manager := newConnectorMachineManager(t, time.Now().UTC())
 	writer := &recordingCredentialWriter{}
 	blocker := &ctxBlockingCredentialSource{entered: make(chan struct{})}
 	tenants := fakeTenantLister{tenants: []uuid.UUID{tenant}}
 
-	runWorker := func(parent context.Context, credentials connectorCredentialSource) int {
+	runWorker := func(parent context.Context, journal connectorJournal, credentials connectorCredentialSource) int {
 		s := spec([]string{"-database-url=postgres://ignored/db", "-poll-interval=25ms", "-connector-role=true"})
 		s.Getenv = func(string) (string, bool) { return "", false }
 		s.DBPoolFactory = bootstrap.NewFakeDBPoolFactory(bootstrap.NewFakeDBPool())
@@ -425,7 +513,7 @@ func TestTodo_REV_013_01_Integration(t *testing.T) {
 	// window between journal commit and provider send.
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	done := make(chan int, 1)
-	go func() { done <- runWorker(workerCtx, blocker) }()
+	go func() { done <- runWorker(workerCtx, newDurableConnectorJournal(pool, nil), blocker) }()
 
 	select {
 	case <-blocker.entered:
@@ -444,6 +532,19 @@ func TestTodo_REV_013_01_Integration(t *testing.T) {
 			t.Fatalf("durable queue never showed the committed lease (state=%q fence=%d)", state, fence)
 		}
 		time.Sleep(25 * time.Millisecond)
+	}
+	secondID := uuid.New()
+	quotaJournal := newDurableConnectorJournal(pool, nil)
+	secondRequest := rev013PlanRequest(secondID, tenant, "connector.example", []byte(`{"worker":"w-2"}`))
+	secondRequest.ExternalResourceKey = "zz-worker-second"
+	if _, err := quotaJournal.Plan(context.Background(), secondRequest); err != nil {
+		t.Fatalf("plan second operation for durable reservation proof: %v", err)
+	}
+	if _, err := quotaJournal.Queue(context.Background(), tenant.String(), secondID); err != nil {
+		t.Fatalf("queue second operation for durable reservation proof: %v", err)
+	}
+	if _, err := connectivityopstore.New(pool).Claim(context.Background(), tenant, secondID, "worker-probe", time.Now().UTC(), time.Minute); !errors.Is(err, connectivityopstore.ErrNotReady) {
+		t.Fatalf("fresh-process admission beside active lease = %v, want durable reservation refusal", err)
 	}
 
 	// Kill the worker mid-lease. The provider is never reached.
@@ -466,13 +567,13 @@ func TestTodo_REV_013_01_Integration(t *testing.T) {
 	defer cancelTwo()
 	realSource := &recordingCredentialSource{manager: manager, ttl: time.Minute}
 	finished := make(chan int, 1)
-	go func() { finished <- runWorker(workerTwo, realSource) }()
+	go func() { finished <- runWorker(workerTwo, newDurableConnectorJournal(pool, nil), realSource) }()
 
 	pollUntil := time.Now().Add(20 * time.Second)
 	var got operation.Operation
 	for time.Now().Before(pollUntil) {
 		var err error
-		got, err = journal.Get(context.Background(), tenant.String(), id)
+		got, err = newDurableConnectorJournal(pool, nil).Get(context.Background(), tenant.String(), id)
 		if err != nil {
 			cancelTwo()
 			t.Fatalf("read journal operation: %v", err)
@@ -486,11 +587,14 @@ func TestTodo_REV_013_01_Integration(t *testing.T) {
 	if code := <-finished; code != bootstrap.ExitOK {
 		t.Fatalf("worker two exit code = %d, want ExitOK", code)
 	}
-	if got.State != operation.StateProviderAccepted || len(got.Attempts) != 1 {
-		t.Fatalf("operation after restart = %+v, want PROVIDER_ACCEPTED with one attempt", got)
+	if got.State != operation.StateProviderAccepted || rev013AttemptCount(t, pool, tenant, id) != 1 {
+		t.Fatalf("operation after restart = %s with %d durable attempts, want PROVIDER_ACCEPTED with one attempt", got.State, rev013AttemptCount(t, pool, tenant, id))
 	}
 	if writer.calls() != 1 {
 		t.Fatalf("writer calls across kill and restart = %d, want exactly 1: no loss, no double-send", writer.calls())
+	}
+	if string(writer.payload()) != string(payload) {
+		t.Fatalf("provider payload after restart = %q, want persisted payload %q", writer.payload(), payload)
 	}
 	// The restart reclaimed the expired lease through the durable queue: the
 	// second claim holds fence 2, which only Store.Claim can grant.
@@ -499,6 +603,9 @@ func TestTodo_REV_013_01_Integration(t *testing.T) {
 	}
 	if kinds := rev013TrailKinds(t, pool, tenant, id); !equalStrings(kinds[:3], []string{"PLANNED", "QUEUED", "LEASED"}) {
 		t.Fatalf("durable trail prefix = %v, want [PLANNED QUEUED LEASED]", kinds)
+	}
+	if _, err := connectivityopstore.New(pool).Claim(context.Background(), tenant, secondID, "worker-after-restart", time.Now().UTC(), time.Minute); !errors.Is(err, connectivityopstore.ErrNotReady) {
+		t.Fatalf("fresh-handle admission after persisted provider attempt = %v, want durable rate-window refusal", err)
 	}
 }
 
@@ -512,7 +619,7 @@ func TestTodo_REV_013_01_Recovery(t *testing.T) {
 	// The planning worker leases the operation, then dies without dispatching.
 	planner := newDurableConnectorJournal(pool, nil)
 	id := uuid.New()
-	rev013PlanQueued(t, planner, id, tenant, "connector.example", nil)
+	rev013PlanQueued(t, planner, id, tenant, "connector.example", []byte(`{"worker":"w-1"}`))
 	claimed, err := planner.Lease(context.Background(), operation.LeaseRequest{
 		TenantID: tenant.String(), OperationID: id, WorkerID: "worker-1",
 		At: time.Now().UTC(), Duration: 200 * time.Millisecond, Revalidate: confirmedConnectorRevalidation,
@@ -544,13 +651,22 @@ func TestTodo_REV_013_01_Recovery(t *testing.T) {
 		t.Fatal("fresh handle lost the operation: it is absent from List after the planner died")
 	}
 
-	// Visibility is read-only: a shell the handle never executed cannot mint
-	// a lease from memory, and the live durable claim fences strangers.
+	// A fresh handle reconstructs the complete planned operation, including
+	// its mapped payload, but the live durable claim still fences another
+	// worker from leasing it.
+	for _, op := range visible {
+		if op.OperationID != id {
+			continue
+		}
+		if string(op.MappedPayload) != "{\"worker\":\"w-1\"}" {
+			t.Fatalf("fresh-handle payload = %q, want original mapped payload", op.MappedPayload)
+		}
+	}
 	if _, err := restarted.Lease(context.Background(), operation.LeaseRequest{
 		TenantID: tenant.String(), OperationID: id, WorkerID: "worker-2",
 		At: time.Now().UTC(), Duration: time.Minute, Revalidate: confirmedConnectorRevalidation,
 	}); !errors.Is(err, operation.ErrNotFound) {
-		t.Fatalf("fresh-handle lease of a shell = %v, want ErrNotFound (fail closed, never forged)", err)
+		t.Fatalf("fresh-handle lease during live claim = %v, want ErrNotFound (live leases are not reconstructed as queued)", err)
 	}
 	store := connectivityopstore.New(pool)
 	if _, err := store.Claim(context.Background(), tenant, id, "worker-2", time.Now().UTC(), time.Minute); !errors.Is(err, connectivityopstore.ErrLeaseFenced) {

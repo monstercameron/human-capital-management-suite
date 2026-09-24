@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/monstercameron/human-capital-management-suite/internal/application"
 	"sync"
 	"testing"
@@ -138,11 +139,36 @@ func TestTodo_SVC_006_Golden(t *testing.T) {
 // TestTodo_SVC_006_Race exercises the immutable resolution and role matrix
 // concurrently; no call may observe a partially selected descriptor.
 func TestTodo_SVC_006_Race(t *testing.T) {
-	activity, req, _, _ := activityFixture(t)
-	for i := 0; i < 32; i++ {
-		if _, _, err := activity.Execute(context.Background(), req); err != nil {
-			t.Fatalf("iteration %d: %v", i, err)
-		}
+	type invocation struct {
+		activity CapabilityActivity
+		req      CapabilityActivityRequest
+	}
+	const workers = 16
+	invocations := make([]invocation, workers)
+	for i := range invocations {
+		activity, req, _, _ := activityFixture(t)
+		invocations[i] = invocation{activity: activity, req: req}
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for _, call := range invocations {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result, evidenceID, err := call.activity.Execute(context.Background(), call.req)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if result != "activity-result" || evidenceID != "evidence-SUCCEEDED" {
+				errs <- fmt.Errorf("concurrent activity result/evidence = %v/%q", result, evidenceID)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 
@@ -276,9 +302,30 @@ func TestTodo_SVC_009_Race(t *testing.T) {
 	store := &repairReceiptStoreFixture{receipt: RepairReceipt{PlanID: plan.PlanID, PlanDigest: plan.Digest, EffectID: "effect-existing"}, found: true}
 	executor := &repairExecutorFixture{}
 	role := RepairRole{Receipts: store, Executor: executor, ExecutorID: "repair-worker", Now: func() time.Time { return when.Add(time.Minute) }}
-	receipt, err := role.ExecuteRepair(context.Background(), plan, RepairApproval{ApprovedBy: "approver", ApprovedAt: when, PlanDigest: plan.Digest})
-	if err != nil || receipt.EffectID != "effect-existing" || executor.calls != 0 {
-		t.Fatalf("idempotent replay receipt/calls = %+v/%d err=%v", receipt, executor.calls, err)
+	const workers = 16
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			receipt, err := role.ExecuteRepair(context.Background(), plan, RepairApproval{ApprovedBy: "approver", ApprovedAt: when, PlanDigest: plan.Digest})
+			if err != nil {
+				errs <- err
+				return
+			}
+			if receipt.EffectID != "effect-existing" {
+				errs <- fmt.Errorf("replay receipt = %+v", receipt)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	if executor.calls != 0 {
+		t.Fatalf("idempotent replay invoked executor %d times", executor.calls)
 	}
 }
 

@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
-	"github.com/monstercameron/human-capital-management-suite/tools/gen/schemaflux"
 )
 
 // CompiledRelationship is the immutable, digest-bearing relationship
@@ -48,7 +48,7 @@ func CompileRelationship(d RelationshipDefinition, objects []CustomObjectType) (
 func digestBytes(b []byte) string {
 	// Keep relationship digests aligned with schema digests without exposing
 	// the SchemaFlux implementation as part of this contract.
-	return schemaflux.Digest(b)
+	return canonicalbytes.Digest(b)
 }
 
 // Cardinality limits the number of targets a source may have at one effective

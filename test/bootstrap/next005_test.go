@@ -107,7 +107,7 @@ func TestP1APromotionProducesExactEvidenceAndZeroAuthoritativeOrProviderEffect(t
 			t.Fatalf("the simulation named no planned write; findings %v", simulated.GetFindings())
 		}
 		if simulated.GetProposalRevisionId() == "" {
-			t.Fatal("the simulation minted no immutable proposal revision")
+			t.Fatalf("the simulation minted no immutable proposal revision; findings=%+v uncertainty=%+v", simulated.GetFindings(), simulated.GetUncertainty())
 		}
 		if simulated.GetMaterialProposalDigest().GetDigest() == "" {
 			t.Fatal("the proposal carries no material digest for an approval to bind")

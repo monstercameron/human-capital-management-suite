@@ -31,25 +31,18 @@
 //     comes from the durable queue claim, which Store.Claim requeues after
 //     expiry. The ledger therefore stays in-process (main.go keeps
 //     NewConnectorLedger) while every granted lease persists as a queue row.
-//   - Restart visibility has a schema boundary, and it is stated plainly:
-//     connector_operation carries identity, lifecycle state, fence and
-//     digests, but no payload bytes, connection name, or destination column,
-//     and no new migration is in scope to add one. Post-restart shells
-//     rebuilt by refreshShells therefore carry the stored digests and the
-//     endpoint recorded verbatim as the destination, name the connection by
-//     its provisioned UUID, and resume MappedPayload as nil. Shells are
-//     read-only: leasing one fails closed with operation.ErrNotFound, while
-//     the durable claim underneath still fences strangers. Payload-bearing
-//     operations replay through the planner, whose re-Plan/re-Queue is
-//     idempotent here (base insert and queue membership are ON CONFLICT
-//     guarded, already-persisted journal sequences are skipped), so a
-//     redeployed planner converges without duplicates.
+//   - Restart visibility is backed by connector_operation.execution_payload,
+//     a tenant-scoped immutable PlanRequest snapshot containing mapped bytes
+//     and no credential bytes. A fresh process reconstructs queued operations
+//     in its semantic journal and resumes them after the durable queue lease
+//     expires; live leases remain read-only and cannot be reclaimed early.
 package main
 
 import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -82,19 +75,16 @@ func connectorJournalForPool(db dbport.Beginner) connectorJournal {
 }
 
 // durableConnectorJournal implements connectorJournal over an in-process
-// semantic delegate plus durable queue, claim and journal rows. persisted
-// tracks, per operation, the highest operation_sequence already stored, so
-// replays and retries never re-insert a sequence. shells holds post-restart
-// read-only bodies rebuilt from Postgres; the delegate wins for every
-// operation it knows.
+// semantic delegate plus durable queue, claim and journal rows. It rebuilds
+// queued execution state from the tenant-scoped operation snapshot and
+// continues the stored journal sequence/hash chain after restart.
 type durableConnectorJournal struct {
-	mu        sync.Mutex
-	mem       *operation.MemoryJournal
-	store     *connectivityopstore.Store
-	db        dbport.Beginner
-	now       func() time.Time
-	persisted map[uuid.UUID]uint64
-	shells    map[uuid.UUID]operation.Operation
+	mu     sync.Mutex
+	mem    *operation.MemoryJournal
+	store  *connectivityopstore.Store
+	db     dbport.Beginner
+	now    func() time.Time
+	shells map[uuid.UUID]operation.Operation
 }
 
 func newDurableConnectorJournal(db dbport.Beginner, now func() time.Time) *durableConnectorJournal {
@@ -102,12 +92,11 @@ func newDurableConnectorJournal(db dbport.Beginner, now func() time.Time) *durab
 		now = func() time.Time { return time.Now().UTC() }
 	}
 	return &durableConnectorJournal{
-		mem:       operation.NewMemoryJournal(now),
-		store:     connectivityopstore.New(db),
-		db:        db,
-		now:       now,
-		persisted: make(map[uuid.UUID]uint64),
-		shells:    make(map[uuid.UUID]operation.Operation),
+		mem:    operation.NewMemoryJournal(now),
+		store:  connectivityopstore.New(db),
+		db:     db,
+		now:    now,
+		shells: make(map[uuid.UUID]operation.Operation),
 	}
 }
 
@@ -213,21 +202,21 @@ func (d *durableConnectorJournal) Get(ctx context.Context, tenant string, id uui
 }
 
 // List returns delegate operations plus durable shells for anything the
-// delegate no longer knows, in the kernel's resource/sequence/id order.
+// delegate cannot execute, in the kernel's resource/sequence/id order.
 // A refresh failure fails the sweep closed: dispatching from memory while
 // the durable substrate is unreachable would lose the attempt record.
 func (d *durableConnectorJournal) List(ctx context.Context, tenant string) ([]operation.Operation, error) {
 	if err := d.ready(); err != nil {
 		return nil, err
 	}
-	ops, err := d.mem.List(ctx, tenant)
-	if err != nil {
-		return nil, err
-	}
 	if tenantID, perr := durableTenantID(tenant); perr == nil {
 		if err := d.refreshShells(ctx, tenantID); err != nil {
 			return nil, err
 		}
+	}
+	ops, err := d.mem.List(ctx, tenant)
+	if err != nil {
+		return nil, err
 	}
 	known := make(map[uuid.UUID]bool, len(ops))
 	for _, op := range ops {
@@ -251,6 +240,28 @@ func (d *durableConnectorJournal) List(ctx context.Context, tenant string) ([]op
 		return ops[a].OperationID.String() < ops[b].OperationID.String()
 	})
 	return ops, nil
+}
+
+func planRequestFromOperation(op operation.Operation) operation.PlanRequest {
+	return operation.PlanRequest{
+		OperationID: op.OperationID, TenantID: op.TenantID, ConnectionID: op.ConnectionID,
+		ConnectorVersion: op.ConnectorVersion, BusinessTransactionID: op.BusinessTransactionID,
+		WorkflowInstanceID: op.WorkflowInstanceID, RepairPlanID: op.RepairPlanID,
+		SemanticOperation: op.SemanticOperation, Direction: op.Direction, Criticality: op.Criticality,
+		ExternalResourceKey: op.ExternalResourceKey, OrderingClass: op.OrderingClass,
+		CausalPredecessorID: op.CausalPredecessorID, ResourceSequence: op.ResourceSequence,
+		ExpectedExternalVersion:    op.ExpectedExternalVersion,
+		SourceAuthorityDecisionRef: op.SourceAuthorityDecisionRef,
+		AuthorityPolicyFingerprint: op.AuthorityPolicyFingerprint,
+		WriterFenceEpoch:           op.WriterFenceEpoch, AuthorityCutoverWatermark: op.AuthorityCutoverWatermark,
+		CanonicalInputRef: op.CanonicalInputRef, CanonicalInputDigest: op.CanonicalInputDigest,
+		MappingProfileVersion: op.MappingProfileVersion, MappedPayloadRef: op.MappedPayloadRef,
+		MappedPayloadDigest: op.MappedPayloadDigest, MappedPayload: append([]byte(nil), op.MappedPayload...),
+		Classification: op.Classification, Purpose: op.Purpose, DestinationRef: op.DestinationRef,
+		CredentialRef: op.CredentialRef, IdempotencyKey: op.IdempotencyKey,
+		ExternalIdempotencyKey: op.ExternalIdempotencyKey, ObservationRequirement: op.ObservationRequirement,
+		CreatedAt: op.CreatedAt, DeadlineAt: op.DeadlineAt,
+	}
 }
 
 // Journal returns the delegate's in-memory trail. The durable trail is read
@@ -426,55 +437,28 @@ func (d *durableConnectorJournal) persistNewEvents(ctx context.Context, tenant u
 	if err != nil {
 		return err
 	}
-	floor, err := d.persistedFloor(ctx, tenant, id)
-	if err != nil {
-		return err
-	}
-	for _, event := range events {
-		if event.OperationSequence <= floor {
-			continue
-		}
-		if err := d.store.AppendJournal(ctx, tenant, event); err != nil {
-			return fmt.Errorf("%w: append journal event %s seq %d: %v", errDurableJournal, id, event.OperationSequence, err)
-		}
-		floor = event.OperationSequence
-		d.mu.Lock()
-		if event.OperationSequence > d.persisted[id] {
-			d.persisted[id] = event.OperationSequence
-		}
-		d.mu.Unlock()
-	}
-	return nil
-}
-
-// persistedFloor returns the highest stored operation_sequence for id,
-// seeding it from the durable trail on first sight so a fresh handle that
-// replays an already-planned operation skips what is already there instead
-// of colliding with it.
-func (d *durableConnectorJournal) persistedFloor(ctx context.Context, tenant, id uuid.UUID) (uint64, error) {
-	d.mu.Lock()
-	floor, seen := d.persisted[id]
-	d.mu.Unlock()
-	if seen {
-		return floor, nil
-	}
 	trail, err := d.store.Journal(ctx, tenant, id)
 	if err != nil {
-		return 0, fmt.Errorf("%w: read journal floor for %s: %v", errDurableJournal, id, err)
+		return fmt.Errorf("%w: read operation journal before append: %v", errDurableJournal, err)
 	}
+	floor := uint64(0)
 	for _, event := range trail {
 		if event.OperationSequence > floor {
 			floor = event.OperationSequence
 		}
 	}
-	d.mu.Lock()
-	if floor < d.persisted[id] {
-		floor = d.persisted[id]
-	} else {
-		d.persisted[id] = floor
+	for _, event := range events {
+		if event.OperationSequence <= floor {
+			continue
+		}
+		// AppendJournal rebases against the database head while holding a
+		// tenant-scoped transaction lock. A cached adapter head is never used.
+		if err := d.store.AppendJournal(ctx, tenant, event); err != nil {
+			return fmt.Errorf("%w: append journal event %s seq %d: %v", errDurableJournal, id, event.OperationSequence, err)
+		}
+		floor++
 	}
-	d.mu.Unlock()
-	return floor, nil
+	return nil
 }
 
 // --- durable operation rows (adapter-owned SQL) ------------------------------
@@ -582,17 +566,21 @@ func (d *durableConnectorJournal) ensureOperation(ctx context.Context, tenant uu
 		tenant, connectionID, systemID, definitionID, op.DestinationRef); err != nil {
 		return false, fmt.Errorf("%w: ensure connector connection: %v", errDurableJournal, err)
 	}
+	executionPayload, err := json.Marshal(planRequestFromOperation(op))
+	if err != nil {
+		return false, fmt.Errorf("%w: encode operation execution payload: %v", errDurableJournal, err)
+	}
 	if _, err := tx.Exec(ctx, `INSERT INTO connector_operation
 			(tenant_id, operation_id, connection_id, causal_predecessor_id, sequence_no, effect_ref, workflow_ref,
 			 semantic_operation, resource_key, expected_external_version, canonical_payload_digest, mapped_payload_digest,
 			 idempotency_key, fence_token, authority_digest, classification, deadline_at, state, completion_state,
-			 created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+			 created_at, updated_at, execution_payload)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22::jsonb)
 		ON CONFLICT (tenant_id, operation_id) DO NOTHING`,
 		tenant, op.OperationID, connectionID, predecessor, sequenceNo, effectRef, workflowRef,
 		op.SemanticOperation, op.ExternalResourceKey, expectedVersion, canonicalDigest, mappedDigest,
 		op.IdempotencyKey, fence, authorityDigest, op.Classification, op.DeadlineAt.UTC(), string(op.State), string(op.CompletionState),
-		op.CreatedAt.UTC(), op.UpdatedAt.UTC()); err != nil {
+		op.CreatedAt.UTC(), op.UpdatedAt.UTC(), executionPayload); err != nil {
 		return false, fmt.Errorf("%w: ensure operation row: %v", errDurableJournal, err)
 	}
 	var one int
@@ -725,27 +713,28 @@ func isHexDigest(value string) bool {
 // durableOperationRow is one connector_operation row read back for shell
 // hydration.
 type durableOperationRow struct {
-	operationID     uuid.UUID
-	connectionID    uuid.UUID
-	predecessor     *uuid.UUID
-	sequenceNo      int64
-	effectRef       string
-	workflowRef     string
-	semanticOp      string
-	resourceKey     string
-	expectedVersion *string
-	canonicalDigest string
-	mappedDigest    string
-	idempotencyKey  string
-	fence           int64
-	authorityDigest string
-	classification  string
-	deadline        time.Time
-	state           string
-	completion      string
-	observation     *uuid.UUID
-	createdAt       time.Time
-	updatedAt       time.Time
+	operationID      uuid.UUID
+	connectionID     uuid.UUID
+	predecessor      *uuid.UUID
+	sequenceNo       int64
+	effectRef        string
+	workflowRef      string
+	semanticOp       string
+	resourceKey      string
+	expectedVersion  *string
+	canonicalDigest  string
+	mappedDigest     string
+	idempotencyKey   string
+	fence            int64
+	authorityDigest  string
+	classification   string
+	deadline         time.Time
+	state            string
+	completion       string
+	observation      *uuid.UUID
+	createdAt        time.Time
+	updatedAt        time.Time
+	executionPayload []byte
 }
 
 // durableQueueInfo is one connector_operation_queue row read back for shell
@@ -756,9 +745,9 @@ type durableQueueInfo struct {
 	expires *time.Time
 }
 
-// refreshShells rebuilds read-only operation bodies from the durable rows
-// for every operation the delegate no longer knows. It only replaces
-// shells, never delegate state, and takes no adapter lock while reading.
+// refreshShells rebuilds operation bodies from the durable rows for every
+// operation the delegate no longer knows. Available PLANNED/QUEUED rows are
+// restored to the semantic delegate; live leases remain snapshots only.
 func (d *durableConnectorJournal) refreshShells(ctx context.Context, tenant uuid.UUID) error {
 	now := d.now().UTC()
 	known := make(map[uuid.UUID]bool)
@@ -780,7 +769,7 @@ func (d *durableConnectorJournal) refreshShells(ctx context.Context, tenant uuid
 	rows, err := tx.Query(ctx, `SELECT operation_id, connection_id, causal_predecessor_id, sequence_no,
 			effect_ref, workflow_ref, semantic_operation, resource_key, expected_external_version,
 			canonical_payload_digest, mapped_payload_digest, idempotency_key, fence_token, authority_digest,
-			classification, deadline_at, state, completion_state, observation_id, created_at, updated_at
+			classification, deadline_at, state, completion_state, observation_id, created_at, updated_at, execution_payload
 		FROM connector_operation WHERE tenant_id = $1 ORDER BY created_at, operation_id`, tenant)
 	if err != nil {
 		return fmt.Errorf("%w: read operation rows: %v", errDurableJournal, err)
@@ -794,7 +783,7 @@ func (d *durableConnectorJournal) refreshShells(ctx context.Context, tenant uuid
 				&row.effectRef, &row.workflowRef, &row.semanticOp, &row.resourceKey, &row.expectedVersion,
 				&row.canonicalDigest, &row.mappedDigest, &row.idempotencyKey, &row.fence, &row.authorityDigest,
 				&row.classification, &row.deadline, &row.state, &row.completion, &row.observation,
-				&row.createdAt, &row.updatedAt); err != nil {
+				&row.createdAt, &row.updatedAt, &row.executionPayload); err != nil {
 				return
 			}
 			found = append(found, row)
@@ -849,16 +838,58 @@ func (d *durableConnectorJournal) refreshShells(ctx context.Context, tenant uuid
 		if known[row.operationID] {
 			continue
 		}
-		d.shells[row.operationID] = buildShell(tenant, row, queues[row.operationID], endpoints[row.connectionID], now)
+		shell := buildShell(tenant, row, queues[row.operationID], endpoints[row.connectionID], now)
+		if len(row.executionPayload) != 0 {
+			var request operation.PlanRequest
+			if err := json.Unmarshal(row.executionPayload, &request); err != nil {
+				return fmt.Errorf("%w: decode execution payload for %s: %v", errDurableJournal, row.operationID, err)
+			}
+			if request.OperationID != row.operationID || request.TenantID != tenant.String() {
+				return fmt.Errorf("%w: execution payload scope mismatch for %s", errDurableJournal, row.operationID)
+			}
+			payloadJournal := operation.NewMemoryJournal(func() time.Time { return now })
+			complete, err := payloadJournal.Plan(ctx, request)
+			if err != nil {
+				return fmt.Errorf("%w: decode planned operation %s: %v", errDurableJournal, row.operationID, err)
+			}
+			complete.State = shell.State
+			complete.FenceToken = shell.FenceToken
+			shell = complete
+			// Rebuild executable state only once the durable queue says the
+			// operation is available. A live queue lease remains visible as a
+			// leased snapshot and is never offered to the dispatch loop.
+			if shell.State == operation.StatePlanned || shell.State == operation.StateQueued {
+				restored, err := d.mem.Plan(ctx, request)
+				if err != nil {
+					return fmt.Errorf("%w: restore planned operation %s: %v", errDurableJournal, row.operationID, err)
+				}
+				if shell.State == operation.StateQueued {
+					if _, err := d.mem.Queue(ctx, tenant.String(), restored.OperationID); err != nil {
+						return fmt.Errorf("%w: restore queued operation %s: %v", errDurableJournal, row.operationID, err)
+					}
+				}
+				trail, err := d.store.Journal(ctx, tenant, row.operationID)
+				if err != nil {
+					return fmt.Errorf("%w: read restored operation sequence %s: %v", errDurableJournal, row.operationID, err)
+				}
+				var sequence uint64
+				for _, event := range trail {
+					if event.OperationSequence > sequence {
+						sequence = event.OperationSequence
+					}
+				}
+				if err := d.mem.SeedOperationSequence(row.operationID, sequence); err != nil {
+					return fmt.Errorf("%w: seed restored operation sequence %s: %v", errDurableJournal, row.operationID, err)
+				}
+			}
+		}
+		d.shells[row.operationID] = shell
 	}
 	return nil
 }
 
-// buildShell maps one durable row triple onto the read-only operation body.
-// Fields the schema holds round-trip exactly; the documented gaps are the
-// process-held execution material (MappedPayload bytes, attempts, redrive
-// lineage) and the kernel-only planning inputs, which restart shells do not
-// need because shells never execute: leasing one fails closed.
+// buildShell maps durable operation, queue and connection rows onto the
+// fields retained outside the execution snapshot.
 func buildShell(tenant uuid.UUID, row durableOperationRow, queue durableQueueInfo, endpoint string, now time.Time) operation.Operation {
 	op := operation.Operation{
 		OperationID:                row.operationID,

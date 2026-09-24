@@ -146,22 +146,31 @@ func (f fixedCredentialSource) LeaseCredential(context.Context, string, string, 
 // connector adapter: it records the reference-only lease it received (never
 // secret material) and returns a scripted result.
 type recordingCredentialWriter struct {
-	mu   sync.Mutex
-	n    int
-	last lease.MachineCredentialLease
-	err  error
+	mu      sync.Mutex
+	n       int
+	last    lease.MachineCredentialLease
+	request operation.WriteRequest
+	err     error
 }
 
-func (w *recordingCredentialWriter) WriteWithCredential(_ context.Context, _ operation.WriteRequest, got lease.MachineCredentialLease) (operation.WriteResponse, error) {
+func (w *recordingCredentialWriter) WriteWithCredential(_ context.Context, request operation.WriteRequest, got lease.MachineCredentialLease) (operation.WriteResponse, error) {
 	w.mu.Lock()
 	w.n++
 	w.last = got
+	w.request = request
+	w.request.Payload = append([]byte(nil), request.Payload...)
 	failErr := w.err
 	w.mu.Unlock()
 	if failErr != nil {
 		return operation.WriteResponse{}, failErr
 	}
 	return operation.WriteResponse{Result: operation.ResponseSuccess, ProviderRequestID: "connector-ok"}, nil
+}
+
+func (w *recordingCredentialWriter) payload() []byte {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return append([]byte(nil), w.request.Payload...)
 }
 
 func (w *recordingCredentialWriter) calls() int {

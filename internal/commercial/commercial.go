@@ -20,7 +20,7 @@ import (
 // manifest digest and fails the moment the manifest is re-signed without
 // updating this constant (the drift that left it at 3df52c31... while the
 // manifest had moved on).
-const P1AManifestDigest = "b51c2d018dcceafb13fa8b74ec2e03a8f85b630e28d597ef17f232d61a4f2da1"
+const P1AManifestDigest = "45ba7ec9da04be91702cb571ec29bdeb34484acab4bba6ea8d89b239515e5049"
 
 const (
 	ReleaseP1A             = "P1A"
