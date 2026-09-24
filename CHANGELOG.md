@@ -1,3 +1,10 @@
+## 2026-09-24 (governance and tooling repairs)
+
+- Completed GOV-030: the CI workflow now compiles and validates the live 51-control security crosswalk against todo and traceability registries. Focused tests, vet, crosswalk validation, plancheck traceability, reachability and staged-coverage checks passed locally; no GitHub CI result was observed.
+- Committed scoped TOOL-006 and TOOL-026 fixes. Compatibility checks now reject added Protobuf `oneof` alternatives as incompatible in both directions; pgtest stale-runtime cleanup treats `EPERM` as a live process and removes at most eight eligible directories per sweep. Both TODOs remain open after the ownership/reachability audit.
+- Also corrected tagged multi-action detection, excluded failed evidence from progress, deduplicated dependency-range endpoints, strengthened container-adoption mutation tests, and added owned staticcheck-suppression enforcement. TOOL-011 remains open: its focused checks passed, while the wider quality tree still has unrelated TOOL-013, OIDC, rapidkit and TOOL-025 failures.
+- Local package checks passed for TOOL-006, GOV-007, GOV-015, LIB-009 and focused TOOL-011 checks. TOOL-026 and GOV-016 printed passing Go package results but ended with Windows unlink cleanup warnings; GOV-016 vet was canceled under host saturation. No GitHub CI run was observed; the full pre-commit hook was skipped with user authorization.
+
 ## 2026-09-24 — document hub evidence audit
 
 - Restored parseable Evidence headings for HUB-032, HUB-034, and HUB-036 so their recorded test commands are traceable.
