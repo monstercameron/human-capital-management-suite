@@ -4,6 +4,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -44,5 +46,51 @@ func TestTodo_TOOL_001_Golden(t *testing.T) {
 	const wantPrefix = "module github.com/monstercameron/human-capital-management-suite\n\ngo 1.26.3\n"
 	if !strings.HasPrefix(string(got), wantPrefix) {
 		t.Fatalf("go.mod no longer begins with the pinned authoritative module contract; got prefix %q", string(got[:min(len(got), 100)]))
+	}
+}
+
+func TestTodo_TOOL_001_Conformance_ExactLegacyModuleExemption(t *testing.T) {
+	root := t.TempDir()
+	for _, path := range []string{
+		"go.mod",
+		"src/blocks/go/go.mod",
+		"src/new/go.mod",
+		"testdata/example/go.mod",
+	} {
+		full := filepath.Join(root, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("module fixture\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ignore := map[string]bool{"src/blocks/go": true, "testdata": true}
+	modules, err := workspace.FindGoModules(root, ignore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(modules)
+	if want := []string{".", "src/new"}; !slices.Equal(modules, want) {
+		t.Fatalf("modules = %v, want %v; a path-segment exclusion would hide src/new", modules, want)
+	}
+
+	for _, path := range []string{"src/blocks/go/check.go", "src/new/check.go"} {
+		full := filepath.Join(root, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		npm := string([]byte{'n', 'p', 'm'})
+		source := "exec.Command(" + strconv.Quote(npm) + ", \"run\", \"build\")"
+		if err := os.WriteFile(full, []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	hits, err := workspace.FindNodeExecCalls(root, ignore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 || filepath.ToSlash(hits[0]) != "src/new/check.go" {
+		t.Fatalf("Node/npm calls = %v, want only src/new/check.go", hits)
 	}
 }

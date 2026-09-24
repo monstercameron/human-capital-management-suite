@@ -2,6 +2,7 @@ package workspace_test
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/internal/repopath"
@@ -33,6 +34,26 @@ func TestGoWorkspacePolicy(t *testing.T) {
 		if workspace.HasGoWork(root) {
 			t.Fatalf("found go.work at repository root; TOOL-001 requires one root module until a measured technical constraint justifies another")
 		}
+		layoutManifest, err := layout.Load(filepath.Join(root, "definitions", "architecture", "repository-layout.yaml"))
+		if err != nil {
+			t.Fatalf("loading repository-layout manifest: %v", err)
+		}
+		modules, err := workspace.FindGoModules(root, map[string]bool{
+			".git": true, ".artifacts": true, "node_modules": true,
+			"vendor": true, "testdata": true,
+		})
+		if err != nil {
+			t.Fatalf("scanning Go modules: %v", err)
+		}
+		slices.Sort(modules)
+		want := []string{"."}
+		for _, exemption := range layoutManifest.LegacyModuleExemptions {
+			want = append(want, filepath.ToSlash(exemption.Path))
+		}
+		slices.Sort(want)
+		if !slices.Equal(modules, want) {
+			t.Fatalf("Go modules = %v, want root plus only the manifest's legacy exemption %v", modules, want)
+		}
 	})
 
 	t.Run("production packages only under allowed roots", func(t *testing.T) {
@@ -58,13 +79,9 @@ func TestGoWorkspacePolicy(t *testing.T) {
 
 	t.Run("no Node or npm requirement on the Go build path", func(t *testing.T) {
 		ignore := map[string]bool{
-			".git":         true,
-			"node_modules": true,
-			"src":          true, // legacy module human-capital-management-suite-executor: a separate go.mod, out of scope
-			"testdata":     true,
-			"dist":         true,
-			"tmp":          true,
-			"vendor":       true,
+			".git": true, ".artifacts": true, "node_modules": true,
+			"src/blocks/go": true, // the exact legacy module declared in repository-layout.yaml
+			"testdata":      true, "dist": true, "tmp": true, "vendor": true,
 		}
 
 		hits, err := workspace.FindNodeExecCalls(root, ignore)
@@ -76,7 +93,7 @@ func TestGoWorkspacePolicy(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy module exemption is documented", func(t *testing.T) {
+	t.Run("legacy module exemption is documented and exact", func(t *testing.T) {
 		layoutManifest, err := layout.Load(filepath.Join(root, "definitions", "architecture", "repository-layout.yaml"))
 		if err != nil {
 			t.Fatalf("loading repository-layout manifest: %v", err)
@@ -88,6 +105,9 @@ func TestGoWorkspacePolicy(t *testing.T) {
 		for _, e := range layoutManifest.LegacyModuleExemptions {
 			if e.Path == "src/blocks/go" {
 				found = true
+				if e.Module != "human-capital-management-suite-executor" {
+					t.Errorf("src/blocks/go exemption module = %q", e.Module)
+				}
 				if e.Expiry == "" {
 					t.Errorf("src/blocks/go legacy exemption has no expiry")
 				}

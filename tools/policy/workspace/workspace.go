@@ -65,11 +65,12 @@ func HasGoWork(root string) bool {
 	return err == nil
 }
 
-// FindNodeExecCalls scans .go files under root (excluding ignoreDirs, by
-// path segment) for a literal os/exec invocation of "npm" or "node". It is
+// FindNodeExecCalls scans .go files under root (excluding exact relative
+// paths and directory names) for a literal os/exec invocation of "npm" or
+// "node". It is
 // a simple textual scan, not a full parse, per the TOOL-001 GREEN clause:
 // "a simple assertion that no Go file imports os/exec of npm is enough".
-func FindNodeExecCalls(root string, ignoreDirs map[string]bool) ([]string, error) {
+func FindNodeExecCalls(root string, ignorePaths map[string]bool) ([]string, error) {
 	var hits []string
 
 	patterns := []*regexp.Regexp{
@@ -84,7 +85,12 @@ func FindNodeExecCalls(root string, ignoreDirs map[string]bool) ([]string, error
 			return err
 		}
 		if d.IsDir() {
-			if ignoreDirs[d.Name()] {
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			if ignorePaths[rel] || ignorePaths[d.Name()] {
 				return filepath.SkipDir
 			}
 			return nil
@@ -110,4 +116,35 @@ func FindNodeExecCalls(root string, ignoreDirs map[string]bool) ([]string, error
 		return nil, fmt.Errorf("workspace: scanning for Node/npm exec calls: %w", err)
 	}
 	return hits, nil
+}
+
+// FindGoModules returns every go.mod below root, excluding exact relative
+// paths, directory names, and their descendants. Paths use slash separators
+// on every platform.
+func FindGoModules(root string, ignorePaths map[string]bool) ([]string, error) {
+	var modules []string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		rel = filepath.ToSlash(rel)
+		if d.IsDir() {
+			if ignorePaths[rel] || ignorePaths[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Name() == "go.mod" {
+			modules = append(modules, filepath.ToSlash(filepath.Dir(rel)))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("workspace: scanning Go modules: %w", err)
+	}
+	return modules, nil
 }
