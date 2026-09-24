@@ -1,3 +1,10 @@
+## 2026-09-24 (depth vocabulary gate and scoped tooling repairs)
+
+- Completed GOV-005 by assigning the library checker to Platform Engineering, adding its live-corpus checks to CI, and recording passing local package, plancheck, traceability, and reachability results. The commands reported success before Windows denied cleanup of temporary executables; no GitHub CI run was observed.
+- Added or repaired scoped planning, policy, recovery, crypto, dependency, and WASM checks. Several remain partial: GOV-007/009/012/020, TOOL-001, LIB-001, RECOVERY-001, CRYPTO-001, WEB-236, and ARCH-GO-027 still have live-evidence, reachability, ownership, or broader-scope work outstanding. GOV-016's live dependency graph remains non-green with 6,202 phase-inversion findings.
+- FEATURE-001's intent-manifest checks passed locally, but its TODO remains open: the digest is self-computed and authoritative source qualifiers/examples are missing.
+- Focused checks passed for most changes. The GOV-020 focused regression passed but its full package remains red on 19 unrelated unquarantined skips; ARCH-GO-027's focused test passed while full package and vet checks were unverified. The full pre-commit hook was skipped with user authorization; no CI result is claimed.
+
 ## 2026-09-24 (governance and tooling repairs)
 
 - Completed GOV-030: the CI workflow now compiles and validates the live 51-control security crosswalk against todo and traceability registries. Focused tests, vet, crosswalk validation, plancheck traceability, reachability and staged-coverage checks passed locally; no GitHub CI result was observed.
