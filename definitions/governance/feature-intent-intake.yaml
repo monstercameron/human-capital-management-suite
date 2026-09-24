@@ -1350,6 +1350,9 @@ groups:
     source_provenance: planning/specs/business-intent-and-change-request.md
     canonical_digest: higher_order_capabilities_1
 
-source_manifest_digest: feature_intent_intake_digest_2026_09_05
+# SHA-256 of the canonical JSON encoding of groups (group IDs sorted; feature
+# order preserved). This pins the intake snapshot and does not imply catalog coverage.
+source_manifest_digest: 34628df74aed22c2245ec62675e9f5778a4a139120bb9ae7cb9c769a68373285
 total_groups: 49
 version: "1.0"
+material_feature_rule: "A material feature binds to exactly one defined intent; DEFERRED marks an unbound candidate awaiting review and does not add it to the catalog."

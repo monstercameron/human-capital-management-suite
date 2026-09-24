@@ -25,6 +25,7 @@ type FeatureManifest struct {
 	SourceManifestDigest string         `yaml:"source_manifest_digest"`
 	TotalGroups          int            `yaml:"total_groups"`
 	Version              string         `yaml:"version"`
+	MaterialFeatureRule  string         `yaml:"material_feature_rule"`
 }
 
 // LoadIntentManifestYAML loads and parses the intent conformance descriptors from YAML.
@@ -44,17 +45,26 @@ func LoadIntentManifestYAML(path string) ([]IntentDescriptor, error) {
 
 // LoadFeatureManifestYAML loads and parses the feature-to-intent intake from YAML.
 func LoadFeatureManifestYAML(path string) ([]FeatureGroup, error) {
+	manifest, err := LoadFeatureIntakeYAML(path)
+	if err != nil {
+		return nil, err
+	}
+	return manifest.Groups, nil
+}
+
+// LoadFeatureIntakeYAML loads the complete immutable intake envelope and its groups.
+func LoadFeatureIntakeYAML(path string) (FeatureManifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read feature manifest: %w", err)
+		return FeatureManifest{}, fmt.Errorf("read feature manifest: %w", err)
 	}
 
 	var manifest FeatureManifest
 	if err := yaml.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("parse feature manifest: %w", err)
+		return FeatureManifest{}, fmt.Errorf("parse feature manifest: %w", err)
 	}
 
-	return manifest.Groups, nil
+	return manifest, nil
 }
 
 // ComputeIntentDigestYAML returns a stable SHA256 digest of the intent descriptors.
@@ -86,6 +96,39 @@ func ComputeFeatureDigestYAML(groups []FeatureGroup) (string, error) {
 
 	h := sha256.Sum256(b)
 	return hex.EncodeToString(h[:]), nil
+}
+
+// ValidateFeatureIntakeYAML verifies the intake envelope and its complete group set.
+func ValidateFeatureIntakeYAML(manifest FeatureManifest) error {
+	if manifest.Version != "1.0" {
+		return fmt.Errorf("feature manifest version=%q, want 1.0", manifest.Version)
+	}
+	if manifest.TotalGroups != 49 || len(manifest.Groups) != manifest.TotalGroups {
+		return fmt.Errorf("feature manifest total_groups=%d and parsed groups=%d, want 49", manifest.TotalGroups, len(manifest.Groups))
+	}
+	if strings.TrimSpace(manifest.MaterialFeatureRule) != "A material feature binds to exactly one defined intent; DEFERRED marks an unbound candidate awaiting review and does not add it to the catalog." {
+		return fmt.Errorf("feature manifest material_feature_rule is missing or differs from the governing rule")
+	}
+	if manifest.SourceManifestDigest == "" {
+		return fmt.Errorf("feature manifest missing source_manifest_digest")
+	}
+	if len(manifest.SourceManifestDigest) != 64 {
+		return fmt.Errorf("feature manifest source_manifest_digest length=%d, want 64 hex characters", len(manifest.SourceManifestDigest))
+	}
+	if _, err := hex.DecodeString(manifest.SourceManifestDigest); err != nil {
+		return fmt.Errorf("feature manifest source_manifest_digest is not hexadecimal: %w", err)
+	}
+	if err := ValidateFeatureManifestYAML(manifest.Groups); err != nil {
+		return err
+	}
+	digest, err := ComputeFeatureDigestYAML(manifest.Groups)
+	if err != nil {
+		return fmt.Errorf("compute feature manifest digest: %w", err)
+	}
+	if manifest.SourceManifestDigest != digest {
+		return fmt.Errorf("feature manifest digest=%q, computed %q", manifest.SourceManifestDigest, digest)
+	}
+	return nil
 }
 
 // ValidateIntentManifestYAML checks finite coverage and all mandatory dimensions.
@@ -185,8 +228,12 @@ func ValidateFeatureManifestYAML(groups []FeatureGroup) error {
 	}
 
 	groupIDsSeen := make(map[int]bool)
+	featureIDsSeen := make(map[string]int)
 
-	for _, g := range groups {
+	for index, g := range groups {
+		if g.GroupID != index+1 {
+			return fmt.Errorf("group at position %d has group_id %d, want %d", index+1, g.GroupID, index+1)
+		}
 		if g.GroupID < 1 || g.GroupID > 49 {
 			return fmt.Errorf("invalid group_id %d, must be 1-49", g.GroupID)
 		}
@@ -197,6 +244,12 @@ func ValidateFeatureManifestYAML(groups []FeatureGroup) error {
 
 		if g.Name == "" {
 			return fmt.Errorf("group %d: missing name", g.GroupID)
+		}
+		if strings.TrimSpace(g.SourceProvenance) == "" {
+			return fmt.Errorf("group %d: missing source_provenance", g.GroupID)
+		}
+		if strings.TrimSpace(g.CanonicalDigest) == "" {
+			return fmt.Errorf("group %d: missing canonical_digest", g.GroupID)
 		}
 		if len(g.Features) == 0 {
 			return fmt.Errorf("group %d: no features defined", g.GroupID)
@@ -210,7 +263,11 @@ func ValidateFeatureManifestYAML(groups []FeatureGroup) error {
 			if seenFeatures[f.FeatureID] {
 				return fmt.Errorf("group %d: duplicate feature_id %s", g.GroupID, f.FeatureID)
 			}
+			if priorGroup, exists := featureIDsSeen[f.FeatureID]; exists {
+				return fmt.Errorf("duplicate feature_id %s in groups %d and %d", f.FeatureID, priorGroup, g.GroupID)
+			}
 			seenFeatures[f.FeatureID] = true
+			featureIDsSeen[f.FeatureID] = g.GroupID
 
 			// Validate category.
 			validCategories := map[string]bool{"CREATE": true, "CHANGE": true, "CALCULATE": true, "OBSERVE": true}
@@ -219,11 +276,14 @@ func ValidateFeatureManifestYAML(groups []FeatureGroup) error {
 			}
 
 			// MappedIntentID must be valid: either an intent ID, "DEFERRED", or "MISSING", or comma-separated.
-			if f.MappedIntentID != "DEFERRED" && f.MappedIntentID != "MISSING" && f.MappedIntentID != "" {
+			if f.MappedIntentID == "" {
+				return fmt.Errorf("group %d: feature %s missing mapped_intent_id", g.GroupID, f.FeatureID)
+			}
+			if f.MappedIntentID != "DEFERRED" && f.MappedIntentID != "MISSING" {
 				parts := strings.Split(f.MappedIntentID, ",")
 				for _, part := range parts {
 					part = strings.TrimSpace(part)
-					if !strings.HasPrefix(part, "hcmnext.") || !strings.Contains(part, "/v") {
+					if !strings.HasPrefix(part, "hcmnext.") || !strings.Contains(part, "/v") || strings.HasSuffix(part, "/v") || part != strings.TrimSpace(part) {
 						return fmt.Errorf("group %d: invalid mapped_intent_id %s", g.GroupID, part)
 					}
 				}

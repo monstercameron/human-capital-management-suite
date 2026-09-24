@@ -58,8 +58,8 @@ type FeatureGroup struct {
 	Name             string    `yaml:"name"`
 	Domain           string    `yaml:"domain,omitempty"`
 	Features         []Feature `yaml:"features"`
-	SourceProvenance string    `yaml:"source_provenance,omitempty"`
-	CanonicalDigest  string    `yaml:"canonical_digest,omitempty"`
+	SourceProvenance string    `yaml:"source_provenance"`
+	CanonicalDigest  string    `yaml:"canonical_digest"`
 }
 
 // Feature represents one named feature within a group.
