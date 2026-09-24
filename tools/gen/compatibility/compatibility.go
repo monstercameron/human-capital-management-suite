@@ -334,6 +334,11 @@ func compareMessage(r *Report, previous, current message, previousRequired, curr
 		}
 		path := current.name + "." + newField.GetName()
 		addChange(r, ChangeFieldAdded, path, fmt.Sprintf("field number %d was added", number))
+		if newField.OneofIndex != nil {
+			addViolation(r, ViolationIncompatibleOneofChange, path,
+				"field was added to oneof %q", oneof(current, newField))
+			markBothIncompatible(r)
+		}
 		if currentRequired[path] {
 			addViolation(r, ViolationRequiredSemanticsAdded, path, "new field has required semantics")
 			markForwardIncompatible(r)

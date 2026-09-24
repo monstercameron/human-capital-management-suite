@@ -55,6 +55,16 @@ func TestContractCompatibility(t *testing.T) {
 			wantCode: ViolationIncompatibleOneofChange, wantForward: Incompatible, wantBackward: Incompatible,
 		},
 		{
+			name: "new oneof alternative is rejected",
+			previous: contract(KindEvent, "worker.changed", 1, "sha256:material-v1", descriptorSet(messageWithOneof("WorkerChanged", "contact",
+				oneofField("email", 1, 0),
+			))),
+			current: contract(KindEvent, "worker.changed", 2, "sha256:material-v1", descriptorSet(messageWithOneof("WorkerChanged", "contact",
+				oneofField("email", 1, 0), oneofField("phone", 2, 0),
+			))),
+			wantCode: ViolationIncompatibleOneofChange, wantForward: Incompatible, wantBackward: Incompatible,
+		},
+		{
 			name:     "material change requires a newer version",
 			previous: base,
 			current:  contract(KindDomain, "worker", 1, "sha256:material-v2", descriptorSet(descriptorMessage("Worker", field("worker_id", 1)))),
