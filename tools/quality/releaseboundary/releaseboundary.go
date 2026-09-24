@@ -19,7 +19,7 @@ import (
 // forbiddenMarkers identify runtime/package names excluded by the Go-only
 // constitution. Matching is case-insensitive and applies to the SBOM subject
 // and component identity, never to arbitrary repository paths.
-var forbiddenMarkers = []string{"node", "nodejs", "npm", "javascript", "typescript", "react", "vite", "next", "nextjs"}
+var forbiddenMarkers = []string{"node", "nodejs", "npm", "javascript", "typescript", "react", "reactjs", "vite", "next", "nextjs"}
 
 // Check validates the SBOM and rejects an excluded runtime or package in the
 // shipped component set. Development tools are out of scope because they are
@@ -47,6 +47,15 @@ func Check(document sbom.Document) error {
 	return nil
 }
 
+// CheckArtifact verifies that document describes the exact binary and module
+// graph that will ship, then enforces the release runtime boundary.
+func CheckArtifact(document sbom.Document, binaryPath string) error {
+	if err := sbom.ValidateArtifact(document, binaryPath); err != nil {
+		return fmt.Errorf("release boundary: SBOM does not match artifact: %w", err)
+	}
+	return Check(document)
+}
+
 // CheckFile reads and checks a canonical release SBOM from disk.
 func CheckFile(path string) error {
 	if strings.TrimSpace(path) == "" {
@@ -64,7 +73,8 @@ func CheckFile(path string) error {
 }
 
 func forbiddenMarker(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
+	value = splitCamelCase(strings.TrimSpace(value))
+	value = strings.ToLower(value)
 	// Match package/path tokens rather than arbitrary substrings: a Go module
 	// such as reactive-streams must not be mistaken for the React runtime.
 	tokens := strings.FieldsFunc(value, func(r rune) bool {
@@ -78,4 +88,19 @@ func forbiddenMarker(value string) string {
 		}
 	}
 	return ""
+}
+
+func splitCamelCase(value string) string {
+	runes := []rune(value)
+	var out strings.Builder
+	for i, r := range runes {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			prev := runes[i-1]
+			if (prev >= 'a' && prev <= 'z') || (prev >= '0' && prev <= '9') {
+				out.WriteByte(' ')
+			}
+		}
+		out.WriteRune(r)
+	}
+	return out.String()
 }

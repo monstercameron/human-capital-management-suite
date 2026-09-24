@@ -27,7 +27,7 @@ func TestReleaseContainsNoLegacyRuntime(t *testing.T) {
 			t.Errorf("allowed Go component %q rejected: %v", name, err)
 		}
 	}
-	for _, name := range []string{"github.com/acme/node-runtime", "github.com/acme/typescript-runtime", "github.com/acme/react-renderer", "github.com/acme/vite-runtime"} {
+	for _, name := range []string{"github.com/acme/node-runtime", "github.com/acme/nodeRuntime", "github.com/acme/typescript-runtime", "github.com/acme/react-renderer", "github.com/acme/reactRuntime", "github.com/acme/reactjs", "github.com/acme/vite-runtime"} {
 		if err := releaseboundary.Check(document(name)); err == nil {
 			t.Errorf("excluded component %q accepted", name)
 		}
@@ -77,16 +77,32 @@ func TestTodo_TOOL_015_Golden(t *testing.T) {
 // TestTodo_TOOL_015_Integration proves the public file boundary is enforced
 // when a release SBOM is supplied by the build pipeline.
 func TestTodo_TOOL_015_Integration(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "release.sbom.json")
-	data, err := document("github.com/acme/react-runtime").Marshal()
+	binary, err := os.Executable()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("locate test binary: %v", err)
 	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		t.Fatal(err)
+	d, err := sbom.Generate("", binary)
+	if err != nil {
+		t.Fatalf("generate SBOM from actual Go build metadata: %v", err)
 	}
-	if err := releaseboundary.CheckFile(path); err == nil {
-		t.Fatal("release pipeline accepted a legacy runtime")
+	if err := releaseboundary.CheckArtifact(d, binary); err != nil {
+		t.Fatalf("actual Go artifact rejected: %v", err)
+	}
+	for i := range d.Components {
+		if d.Components[i].Main {
+			d.Components[i].Hash = "sha256:" + strings.Repeat("0", 64)
+		}
+	}
+	if err := releaseboundary.CheckArtifact(d, binary); err == nil {
+		t.Fatal("main component hash unrelated to the subject was accepted")
+	}
+	d, err = sbom.Generate("", binary)
+	if err != nil {
+		t.Fatalf("regenerate SBOM for subject mismatch case: %v", err)
+	}
+	d.Subject.Digest = "sha256:" + strings.Repeat("0", 64)
+	if err := releaseboundary.CheckArtifact(d, binary); err == nil {
+		t.Fatal("SBOM with a subject unrelated to the binary was accepted")
 	}
 }
 

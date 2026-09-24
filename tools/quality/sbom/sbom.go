@@ -304,7 +304,7 @@ func ValidateArtifact(d Document, binaryPath string) error {
 	mainSeen := false
 	for _, c := range d.Components {
 		if c.Main {
-			if mainSeen || c.Name != m.mainPath || c.SourceDigest != d.Subject.Digest {
+			if mainSeen || c.Name != m.mainPath || c.Hash != d.Subject.Digest || c.SourceDigest != d.Subject.Digest {
 				return errors.New("sbom: main component is not bound to the binary's main module and subject")
 			}
 			mainSeen = true

@@ -45,6 +45,10 @@ for c in "${cmds[@]}"; do
     go build -o "$asset_tool" ./tools/uxqual/cmd/journeywasm
     "$asset_tool" -root "$root" -out "$embed" -overlay "$embed/assets.overlay.json"
     go build -overlay="$embed/assets.overlay.json" -o "$out/$c.exe" "./cmd/$c"
+    # Generate the release SBOM from the built binary's embedded module graph
+    # and enforce the P1B runtime boundary before considering the build ready.
+    go run ./tools/quality/releaseboundary/cmd/releaseboundary \
+      -root "$root" -binary "$out/$c.exe" -out "$out/$c.sbom.json"
   else
     go build -o "$out/$c.exe" "./cmd/$c"
   fi
