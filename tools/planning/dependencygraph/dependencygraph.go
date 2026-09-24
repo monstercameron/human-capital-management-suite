@@ -241,7 +241,8 @@ func parseDependencyField(todoID string, line int, raw string) ([]string, []Diag
 	}
 
 	deps := make([]string, 0, len(tokens))
-	for i, token := range tokens {
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
 		if !todoIDRe.MatchString(token.value) {
 			findings = append(findings, syntaxDiagnostic(todoID, line, "MALFORMED_DEPENDENCY", fmt.Sprintf("%q is not a todo ID", token.value)))
 			continue
@@ -255,8 +256,9 @@ func parseDependencyField(todoID string, line int, raw string) ([]string, []Diag
 				} else {
 					deps = append(deps, rangeDeps...)
 				}
-				// NOTE: no manual index skip here: range rebinds i every
-				// iteration, so an increment would be a silent no-op.
+				// The range consumed both tokens. Without skipping the endpoint,
+				// it is added a second time on the next iteration.
+				i++
 				continue
 			}
 			if !isListSeparator(gap) {

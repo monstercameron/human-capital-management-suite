@@ -58,6 +58,40 @@ func TestTodo_GOV_016(t *testing.T) {
 }
 
 func TestTodo_GOV_016_Property(t *testing.T) {
+	t.Run("dependency ranges expand without duplicating endpoints", func(t *testing.T) {
+		for _, test := range []struct {
+			name string
+			raw  string
+			want []string
+		}{
+			{
+				name: "closed range",
+				raw:  "`TASK-001`-`TASK-003`",
+				want: []string{"TASK-001", "TASK-002", "TASK-003"},
+			},
+			{
+				name: "range followed by list item",
+				raw:  "`TASK-001`-`TASK-003`, `OTHER-001`",
+				want: []string{"TASK-001", "TASK-002", "TASK-003", "OTHER-001"},
+			},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				got, findings := parseDependencyField("ROOT-001", 10, test.raw)
+				if len(findings) != 0 {
+					t.Fatalf("parseDependencyField findings: %v", findings)
+				}
+				if len(got) != len(test.want) {
+					t.Fatalf("dependencies = %v, want %v", got, test.want)
+				}
+				for i := range test.want {
+					if got[i] != test.want[i] {
+						t.Fatalf("dependencies = %v, want %v", got, test.want)
+					}
+				}
+			})
+		}
+	})
+
 	todos := []todoregistry.Todo{
 		{ID: "A-001", Phase: "P0", Line: 1, Depends: []string{"B-001"}},
 		{ID: "B-001", Phase: "P0", Line: 2, Depends: nil},
