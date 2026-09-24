@@ -6,8 +6,8 @@ import "testing"
 // shape as tools/planning/pilotprovider's TestTodo_SELECT_002_Security: it
 // proves the real, checked-in, signed register verifies, then proves that
 // tampering any single signed field - including quietly downgrading a
-// CRITICAL threat's severity, quietly filling in an owner nobody actually
-// designated, or quietly relaxing a mitigation's declared coverage -
+// CRITICAL threat's severity, quietly removing THR-07's mitigation, or
+// quietly relaxing a mitigation's declared coverage -
 // invalidates the signature.
 func TestTodo_THREAT_001_Security(t *testing.T) {
 	original := mustLoadRegister(t)
@@ -27,11 +27,8 @@ func TestTodo_THREAT_001_Security(t *testing.T) {
 		{"a CRITICAL threat's severity is quietly downgraded", func(r *Register) {
 			r.Slices[0].Threats[1].Severity = SeverityMedium // THR-02, CONFUSED_DEPUTY
 		}},
-		{"the unaccepted residual risk quietly gains an accepting owner", func(r *Register) {
-			r.Slices[0].ResidualRisks[0].AcceptedBy = "Someone Nobody Designated"
-		}},
-		{"the unaccepted residual risk's expiry is quietly extended", func(r *Register) {
-			r.Slices[0].ResidualRisks[0].ExpiryDate = "2099-01-01"
+		{"THR-07's mitigation is quietly removed", func(r *Register) {
+			r.Slices[0].Threats[6].Mitigations = nil
 		}},
 		{"a mitigation's consuming edges are quietly narrowed", func(r *Register) {
 			m := &r.Slices[0].Mitigations[0]

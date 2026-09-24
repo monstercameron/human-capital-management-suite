@@ -23,19 +23,22 @@ var (
 
 // Input is everything the live report reads.
 type Input struct {
-	AsOf        string
-	Witnesses   closurewitness.Report
-	Definitions []intent.Definition
-	Bindings    []intent.Binding
-	Producers   []Producer
-	Todos       []closurewitness.TodoRow
-	TestExists  map[string]bool
+	AsOf                  string
+	Witnesses             closurewitness.Report
+	Definitions           []intent.Definition
+	Bindings              []intent.Binding
+	Producers             []Producer
+	Todos                 []closurewitness.TodoRow
+	TestExists            map[string]bool
+	reconciliationRecords []Record
 }
 
 // Compile builds the live per-family lineage report. INTENT is proven by
 // the case's closure witness binding its source; every other link is
 // proven only by a validated producer for exactly that case, so a case no
 // producer covers stays UNKNOWN and a partly covered case stays PARTIAL.
+// RECONCILIATION additionally requires a record loaded from RECON-001's
+// persisted job store; producer metadata alone never proves that link.
 func Compile(in Input) (Report, error) {
 	if len(in.Witnesses.Witnesses) == 0 {
 		return Report{}, fmt.Errorf("lineageconformance: no closure witnesses to generate cases from")
@@ -48,6 +51,18 @@ func Compile(in Input) (Report, error) {
 	caseIDs := map[string]bool{}
 	for _, c := range cases {
 		caseIDs[c.ID] = true
+	}
+	reconciliationByCase := map[string]Record{}
+	for _, rec := range in.reconciliationRecords {
+		if !caseIDs[rec.Case] || rec.ID != rec.Case+"#"+string(LinkReconciliation) ||
+			rec.Link != LinkReconciliation || strings.TrimSpace(rec.Tenant) == "" ||
+			!strings.HasPrefix(rec.Watermark, "effect_reconciliation_job:") || strings.TrimSpace(rec.Payload) == "" {
+			return Report{}, fmt.Errorf("lineageconformance: malformed persisted reconciliation record for %q", rec.Case)
+		}
+		if _, duplicate := reconciliationByCase[rec.Case]; duplicate {
+			return Report{}, fmt.Errorf("lineageconformance: duplicate persisted reconciliation record for %q", rec.Case)
+		}
+		reconciliationByCase[rec.Case] = rec
 	}
 
 	type claim struct {
@@ -91,6 +106,31 @@ func Compile(in Input) (Report, error) {
 					res.Links = append(res.Links, status)
 					continue
 				}
+			}
+			if link == LinkReconciliation {
+				var anyProducer bool
+				var validProducer bool
+				for _, cl := range claims[c.ID][link] {
+					anyProducer = true
+					validProducer = validProducer || cl.err == nil
+				}
+				rec, hasRecord := reconciliationByCase[c.ID]
+				if validProducer && hasRecord {
+					status.State = StateProven
+					status.Detail = "read from the persisted RECON-001 job store"
+					status.Evidence = []string{rec.Watermark + " " + rec.Payload}
+				} else if validProducer {
+					status.Detail = "no persisted reconciliation job was loaded for this effect"
+					res.Findings = append(res.Findings, Finding{Case: c.ID, Link: link, Code: CodeLinkMissing, Detail: status.Detail})
+				} else if anyProducer {
+					status.Detail = "RECON-001 producer is not validated against the closed todo and tests"
+					res.Findings = append(res.Findings, Finding{Case: c.ID, Link: link, Code: CodeProducerInvalid, Detail: status.Detail})
+				} else {
+					status.Detail = fmt.Sprintf("no lineage producer implements %s for %s", link, c.ID)
+					res.Findings = append(res.Findings, Finding{Case: c.ID, Link: link, Code: CodeNoProducer, Detail: status.Detail})
+				}
+				res.Links = append(res.Links, status)
+				continue
 			}
 			var invalid []string
 			for _, cl := range claims[c.ID][link] {

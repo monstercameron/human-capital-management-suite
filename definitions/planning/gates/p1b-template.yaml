@@ -27,11 +27,10 @@ release: P1B
 todo_id: NEXT-002
 p1a_manifest:
   path: definitions/planning/gates/p1a-manifest.yaml
-  digest: "b51c2d018dcceafb13fa8b74ec2e03a8f85b630e28d597ef17f232d61a4f2da1"
+  digest: "45ba7ec9da04be91702cb571ec29bdeb34484acab4bba6ea8d89b239515e5049"
 requires_gate_a_decision: true
 gate_a_decision: ""
 authority_digest: ""
-
 contracts:
   - order: 1
     id: promote_worker
@@ -52,9 +51,8 @@ contracts:
   - order: 6
     id: reject_proposal
     activation_status: BLOCKED_PENDING_GATE_A
-
 signature:
-  algorithm: ed25519
-  public_key: 93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b
-  key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml
-  value: "818f677dbbec1be69697dace83070034e9ee9761d03e90318b95c5aa6a9f2fd9e35a4e6850ca74ca9e1f0521305570a499b9930565722b3c55b32a92db6e9c08"
+  algorithm: "ed25519"
+  public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
+  key_fixture: "tools/planning/gateevidence/testdata/dev-signing-key.yaml"
+  value: "2c73577b97ffab06432ed72cf7db8e30ae74aba6d68049c62a85a2071c493e6a6f0f159e2e121acd44d3a17d7dd1a5419e1549d39cea85313675386200067e0e"

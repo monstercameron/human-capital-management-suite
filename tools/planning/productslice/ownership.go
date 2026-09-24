@@ -223,6 +223,23 @@ func (r OwnershipRegistry) Resolve(sliceID string) (SliceDeclaration, error) {
 	return found, nil
 }
 
+// VerifyDefinition confirms that the registry declaration pins the supplied
+// live definition. This binds ownership to the exact slice contract instead
+// of merely checking that some non-empty digest was recorded.
+func (r OwnershipRegistry) VerifyDefinition(definition ProductSliceDefinition) error {
+	declaration, err := r.Resolve(definition.SliceID)
+	if err != nil {
+		return err
+	}
+	want := definition.Digest()
+	if declaration.DefinitionDigest != want {
+		return ownershipRefusal(definition.SliceID, declaration.Owner,
+			fmt.Sprintf("definition digest %q does not match live definition %q", declaration.DefinitionDigest, want),
+			ErrOwnershipInconsistent)
+	}
+	return nil
+}
+
 // Explain returns bounded, audit-safe structure: slice count and digest
 // only, never an owner, consumer, or definition digest.
 func (r OwnershipRegistry) Explain() string {

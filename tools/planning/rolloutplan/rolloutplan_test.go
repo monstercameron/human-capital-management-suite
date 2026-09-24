@@ -3,12 +3,15 @@ package rolloutplan
 import (
 	"strings"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/configbundle"
 )
 
 func validPlan() Plan {
 	return Plan{
-		Artifact: Artifact{Type: ArtifactWorkflow, Version: "v1.2.0"},
-		Target:   "fleet=prod-eu AND ring<=2",
+		Artifact:   Artifact{Type: ArtifactWorkflow, Version: "v1.2.0"},
+		KillTarget: configbundle.KillSwitchTarget{TenantID: "tenant-a", Capability: "promotion.execute"},
+		Target:     "fleet=prod-eu AND ring<=2",
 		Stages: []Stage{
 			{Name: "canary", HealthWindow: HealthWindow{DurationSeconds: 600, MaxErrors: 0}},
 			{Name: "broad", HealthWindow: HealthWindow{DurationSeconds: 1800, MaxErrors: 2}},

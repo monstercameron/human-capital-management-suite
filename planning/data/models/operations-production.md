@@ -89,7 +89,7 @@ CapabilityAvailability
 ```text
 RecoveryContract
   contract_id, plane/store/service/authority
-  RPO/RTO, RESTORE | REBUILD | REPLAY mode
+  RPO class and numeric target / RTO, RESTORE | REBUILD | REPLAY mode
   ordering/key/config/schema dependencies
   replay watermark/validation/degraded-state requirements
 

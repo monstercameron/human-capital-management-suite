@@ -1,0 +1,11 @@
+schema: hcmnext.planning.productslices.slice-ownership
+schema_version: 1
+slices:
+  - slice_id: promotion
+    owner: people
+    consumers:
+      - promotion.journeys.list
+      - promotion.journeys.detail
+      - hcmnext.people.promote_worker
+    definition_digest: sha256:2ab419ac196982013c55f216d8f6a596b3b1d50b180098d6903468e8753007aa
+digest: sha256:adc762debcdd999b1e744448b2976150a6d538629cadca0c73ad0649d8903fac

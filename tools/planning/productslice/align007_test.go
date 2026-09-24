@@ -162,6 +162,127 @@ func TestTodo_ALIGN_007_Conformance(t *testing.T) {
 	}
 }
 
+// TestTodo_REV_081_02 proves the checked-in ownership registry has a valid
+// declaration for every currently admitted product slice.
+func TestTodo_REV_081_02(t *testing.T) {
+	root, err := RepoRoot()
+	if err != nil {
+		t.Fatalf("RepoRoot: %v", err)
+	}
+	registry, err := LoadOwnershipRegistryYAML(filepath.Join(root, "definitions", "planning", "slice-ownership.yaml"))
+	if err != nil {
+		t.Fatalf("LoadOwnershipRegistryYAML: %v", err)
+	}
+	if err := registry.Validate(); err != nil {
+		t.Fatalf("ownership Validate: %v", err)
+	}
+	if err := registry.VerifyDigest(); err != nil {
+		t.Fatalf("ownership VerifyDigest: %v", err)
+	}
+	if _, err := registry.Resolve("promotion"); err != nil {
+		t.Fatalf("Resolve(promotion): %v", err)
+	}
+}
+
+// TestTodo_REV_081_02_Conformance checks the checked-in declaration against
+// the real Promotion definition and generated admitted-slice registry.
+func TestTodo_REV_081_02_Conformance(t *testing.T) {
+	root, err := RepoRoot()
+	if err != nil {
+		t.Fatalf("RepoRoot: %v", err)
+	}
+	ownershipPath := filepath.Join(root, "definitions", "planning", "slice-ownership.yaml")
+	ownership, err := LoadOwnershipRegistryYAML(ownershipPath)
+	if err != nil {
+		t.Fatalf("LoadOwnershipRegistryYAML(%s): %v", ownershipPath, err)
+	}
+	if err := ownership.Validate(); err != nil {
+		t.Fatalf("ownership Validate: %v", err)
+	}
+	if err := ownership.VerifyDigest(); err != nil {
+		t.Fatalf("ownership VerifyDigest: %v", err)
+	}
+
+	productPath := filepath.Join(root, "definitions", "planning", "product-slices.yaml")
+	products, err := LoadRegistryYAML(productPath)
+	if err != nil {
+		t.Fatalf("LoadRegistryYAML(%s): %v", productPath, err)
+	}
+	if err := products.VerifyDigest(); err != nil {
+		t.Fatalf("product slice registry VerifyDigest: %v", err)
+	}
+	if len(products.Slices) != 1 || products.Slices[0].SliceID != "promotion" {
+		t.Fatalf("live admitted slices=%v, want only promotion", products.Slices)
+	}
+
+	live := PromotionSliceDefinition()
+	if live.SliceID != products.Slices[0].SliceID {
+		t.Fatalf("live Promotion slice id %q differs from admitted id %q", live.SliceID, products.Slices[0].SliceID)
+	}
+	declaration, err := ownership.Resolve(live.SliceID)
+	if err != nil {
+		t.Fatalf("Resolve(%s): %v", live.SliceID, err)
+	}
+	if declaration.DefinitionDigest != live.Digest() {
+		t.Fatalf("ownership definition_digest=%q, want live Promotion digest %q", declaration.DefinitionDigest, live.Digest())
+	}
+	if err := ownership.VerifyDefinition(live); err != nil {
+		t.Fatalf("ownership VerifyDefinition(live Promotion): %v", err)
+	}
+	if products.Slices[0].Digest() != live.Digest() {
+		t.Fatal("checked-in admitted Promotion definition differs from the live Promotion definition")
+	}
+	if declaration.Owner != "people" {
+		t.Fatalf("Promotion owner=%q, want people", declaration.Owner)
+	}
+	for _, consumer := range []string{"promotion.journeys.list", "promotion.journeys.detail", "hcmnext.people.promote_worker"} {
+		if !ownership.Admits(live.SliceID, consumer) {
+			t.Errorf("live Promotion consumer %q is not admitted", consumer)
+		}
+	}
+}
+
+func TestTodo_REV_081_02_Security(t *testing.T) {
+	r := NewOwnershipRegistry(SliceDeclaration{
+		SliceID: "promotion", Owner: "people", Consumers: []string{"promotion.journeys.detail"},
+		DefinitionDigest: PromotionSliceDefinition().Digest(),
+	})
+	if r.Admits("promotion", "promotion.admin.unknown") {
+		t.Fatal("undeclared consumer was admitted")
+	}
+	if r.Admits("payroll", "promotion.journeys.detail") {
+		t.Fatal("consumer was admitted to an unknown slice")
+	}
+	forged := r
+	forged.Slices = append([]SliceDeclaration(nil), r.Slices...)
+	forged.Slices[0].DefinitionDigest = "sha256:forged"
+	if err := forged.Validate(); err != nil {
+		t.Fatalf("forged but structurally valid registry should reach digest check: %v", err)
+	}
+	if err := forged.VerifyDigest(); err == nil {
+		t.Fatal("forged definition digest did not invalidate ownership registry digest")
+	}
+	if err := r.VerifyDefinition(ProductSliceDefinition{SliceID: "promotion", Version: 99}); err == nil {
+		t.Fatal("ownership registry accepted a different live definition")
+	}
+}
+
+func TestTodo_REV_081_02_Golden(t *testing.T) {
+	root, err := RepoRoot()
+	if err != nil {
+		t.Fatalf("RepoRoot: %v", err)
+	}
+	path := filepath.Join(root, "definitions", "planning", "slice-ownership.yaml")
+	r, err := LoadOwnershipRegistryYAML(path)
+	if err != nil {
+		t.Fatalf("LoadOwnershipRegistryYAML: %v", err)
+	}
+	const wantDigest = "sha256:adc762debcdd999b1e744448b2976150a6d538629cadca0c73ad0649d8903fac"
+	if r.Digest != wantDigest || r.DigestValue() != wantDigest {
+		t.Fatalf("checked-in ownership digest=%q recomputed=%q, want %q", r.Digest, r.DigestValue(), wantDigest)
+	}
+}
+
 func FuzzTodo_ALIGN_007_Fuzz(f *testing.F) {
 	data, err := os.ReadFile(filepath.Join("testdata", "slice-ownership.yaml"))
 	if err != nil {

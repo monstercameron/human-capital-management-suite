@@ -17,6 +17,16 @@ func TestRequirementTraceabilityRejectsOrphans(t *testing.T) {
 		assertNames(t, got, []string{"TestFoo"})
 	})
 
+	t.Run("extract a wildcard matrix name", func(t *testing.T) {
+		got := ExtractEvidenceTestNames("`TestTodo_FEATURE_CONF_001_*` matrix in `tools/planning/intentmanifests`")
+		assertNames(t, got, []string{"TestTodo_FEATURE_CONF_001_*"})
+	})
+
+	t.Run("extract a plain TypeScript TEST label", func(t *testing.T) {
+		got := ExtractEvidenceTestNames("TypeScript proof: TEST TestBrowserArtifactPolicyCacheAndStorageLifecycleRejectsStaleInjectedOrSensitiveState in src/platform/client-lifecycle; `npx vitest run` PASS")
+		assertNames(t, got, []string{"TestBrowserArtifactPolicyCacheAndStorageLifecycleRejectsStaleInjectedOrSensitiveState"})
+	})
+
 	t.Run("extract brace expansion group", func(t *testing.T) {
 		got := ExtractEvidenceTestNames("`TestTodo_ID_{Golden,Race}` in `internal/x`")
 		assertNames(t, got, []string{"TestTodo_ID_Golden", "TestTodo_ID_Race"})
@@ -82,6 +92,24 @@ func TestRequirementTraceabilityRejectsOrphans(t *testing.T) {
 		assertNames(t, got, []string{"TestFoo"})
 	})
 
+	t.Run("extract literal test name from a backticked go test run command", func(t *testing.T) {
+		got := ExtractEvidenceTestNames("`go test -count=1 -run '^TestTodo_WF_UI_001($|_)' ./graphcanvas/`")
+		assertNames(t, got, []string{"TestTodo_WF_UI_001"})
+	})
+
+	t.Run("extract literal test name from equals form and keep only identifiers", func(t *testing.T) {
+		got := ExtractEvidenceTestNames("`go test -run=\"^TestTodo_WF_UI_001$\" ./graphcanvas/`; `go test -run 'TestTodo_(FOO|BAR)' ./x`; `go test -run 'TestTodo_' ./y`")
+		assertNames(t, got, []string{"TestTodo_WF_UI_001"})
+	})
+
+	t.Run("run command names still must resolve to a repository test", func(t *testing.T) {
+		todos := []todoregistry.Todo{{ID: "X-001", Done: true, Evidence: "`go test -run '^TestTodo_MISSING$' ./pkg`"}}
+		orphans := CheckTraceability(todos, map[string]bool{"TestTodo_PRESENT": true})
+		if len(orphans) != 1 || orphans[0].ID != "X-001" {
+			t.Fatalf("expected nonexistent command test to remain orphaned, got %v", orphans)
+		}
+	})
+
 	t.Run("ScanTestNames finds real repo test names", func(t *testing.T) {
 		dir := t.TempDir()
 		if err := os.WriteFile(filepath.Join(dir, "fixture_test.go"), mustRead(t, filepath.Join("testdata", "fixture_test.go.txt")), 0o644); err != nil {
@@ -103,6 +131,25 @@ func TestRequirementTraceabilityRejectsOrphans(t *testing.T) {
 		existing := map[string]bool{"TestReal": true}
 		if orphans := CheckTraceability(todos, existing); len(orphans) != 0 {
 			t.Errorf("expected zero orphans, got %v", orphans)
+		}
+	})
+
+	t.Run("a wildcard evidence matrix resolves against existing tests", func(t *testing.T) {
+		todos := []todoregistry.Todo{{ID: "X-001W", Done: true, Evidence: "`TestTodo_FEATURE_CONF_001_*` matrix in `tools/x`"}}
+		existing := map[string]bool{"TestTodo_FEATURE_CONF_001_Golden": true, "TestTodo_FEATURE_CONF_001_Race": true}
+		if orphans := CheckTraceability(todos, existing); len(orphans) != 0 {
+			t.Errorf("expected wildcard evidence to resolve to its concrete matrix functions, got %v", orphans)
+		}
+	})
+
+	t.Run("a retired todo with a recorded disposition needs no test evidence", func(t *testing.T) {
+		todos := []todoregistry.Todo{{
+			ID: "X-001R", Done: true, Retired: true,
+			Disposition: "RETIRED: capability withdrawn by the approved plan",
+			Evidence:    "closed under the recorded retirement disposition",
+		}}
+		if orphans := CheckTraceability(todos, map[string]bool{}); len(orphans) != 0 {
+			t.Errorf("expected explicit retirement disposition to satisfy applicability, got %v", orphans)
 		}
 	})
 

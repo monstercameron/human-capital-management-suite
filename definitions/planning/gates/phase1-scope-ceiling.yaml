@@ -406,6 +406,38 @@ endpoints:
     endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
     disposition: INCLUDE
     rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A."
+  - endpoint_id: hcmnext.intents.v1.IntentService/RecommendIntentAction
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: RecommendIntentAction
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A; the no-effect analysis-to-action recommendation path (REV-007-04)."
+  - endpoint_id: hcmnext.intents.v1.IntentService/GetIntentDeepLink
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: GetIntentDeepLink
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A; stable link token for a visible intent (REV-007-04)."
+  - endpoint_id: hcmnext.intents.v1.IntentService/InspectIntentFields
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: InspectIntentFields
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A; authorized field set with revision digest (REV-007-04)."
+  - endpoint_id: hcmnext.intents.v1.IntentService/ExportIntentFields
+    service_full_name: hcmnext.intents.v1.IntentService
+    method_name: ExportIntentFields
+    generated: true
+    gate: P1A
+    endpoint_disposition: GENERIC_INTENT_LIFECYCLE_ONLY
+    disposition: INCLUDE
+    rationale: "generated endpoint-manifest.json disposition SERVED/GATE_A; purpose-bound field export (REV-007-04)."
   - endpoint_id: hcmnext.intents.v1.IntentService/CancelIntent
     service_full_name: hcmnext.intents.v1.IntentService
     method_name: CancelIntent
@@ -828,4 +860,4 @@ signature:
   algorithm: ed25519
   public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
   key_fixture: "tools/planning/gateevidence/testdata/dev-signing-key.yaml"
-  value: "7dad858b72a8251e61df76dda713cc3b09097f46e342a9fe814016bd83cf181c9722a070a9283659cfc7cd8109ed698e6c4227480c6e8d31c99d7ee88b07c106"
+  value: "dbe3bcb39167c12b04331c494026606732ec6fd21b804df003cc727aafb62e74bfc8bb31f922cf9257129593348dcb641bee5cd4b14351ea40dd05e7138e8a0b"

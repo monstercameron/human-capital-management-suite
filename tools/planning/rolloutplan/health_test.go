@@ -42,7 +42,7 @@ func TestTodo_ROLLOUT_004(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ledger := NewActivationLedger()
+	ledger := newTestActivationLedger(t)
 	canary, err := ledger.Activate(activationRequest(t))
 	if err != nil {
 		t.Fatal(err)
@@ -196,7 +196,7 @@ func TestTodo_ROLLOUT_004_Security(t *testing.T) {
 	}
 	forged := held
 	forged.Verdict = VerdictExpand
-	if _, err := NewActivationLedger().Expand(ExpansionRequest{
+	if _, err := newTestActivationLedger(t).Expand(ExpansionRequest{
 		Plan: plan, Decision: forged,
 		Artifact:     Artifact{Type: ArtifactWorkflow, Version: "v1.2.0"},
 		CohortDigest: broadCohortDigest(t), Epoch: 9,
@@ -229,7 +229,7 @@ func TestTodo_ROLLOUT_004_Security(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := NewActivationLedger().Expand(ExpansionRequest{
+	if _, err := newTestActivationLedger(t).Expand(ExpansionRequest{
 		Plan: plan, Cohorts: set, Decision: broadDecision,
 		Artifact:     Artifact{Type: ArtifactWorkflow, Version: "v1.2.0"},
 		CohortDigest: broadCohortDigest(t), Epoch: 3,

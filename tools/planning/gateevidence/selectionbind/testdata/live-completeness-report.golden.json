@@ -1,5 +1,5 @@
 {
-  "manifest_digest": "b51c2d018dcceafb13fa8b74ec2e03a8f85b630e28d597ef17f232d61a4f2da1",
+  "manifest_digest": "45ba7ec9da04be91702cb571ec29bdeb34484acab4bba6ea8d89b239515e5049",
   "as_of": "2026-09-13",
   "status": "INCOMPLETE",
   "manifest_reasons": null,
@@ -7,7 +7,7 @@
     {
       "todo_id": "PHASE-001",
       "path": "definitions/planning/gates/phase1-scope-ceiling.yaml",
-      "digest": "2e73dc174fcf32e247adc506a8a4d9c82dc8fb78900aff5566de6cea24f2d1eb",
+      "digest": "6d2bfd82cecb9e801d18cccb3bc35fcff8c92a0b7b8a9eb96c6dac569672a70f",
       "ready": true,
       "reasons": null
     },
@@ -62,19 +62,16 @@
     {
       "todo_id": "COMMERCIAL-001",
       "path": "definitions/planning/gates/commercial-001-pilot-package.yaml",
-      "digest": "0d9c703b602031ae36c40ec84bb69013fc648e6ec55956e8d0a81b648d065ad6",
+      "digest": "f91654dbf4fbf97da7c8b4df310ed6e3fa577c74be8754dbf1b487a56f23310f",
       "ready": true,
       "reasons": null
     },
     {
       "todo_id": "THREAT-001",
       "path": "definitions/planning/gates/threat-001-register.yaml",
-      "digest": "09fd51d86d607f5372d185af7b7f366613f2299e6e723287ac8f1e0a369b4322",
-      "ready": false,
-      "reasons": [
-        "slices[0].residual_risks[0].accepted_by: missing - no accountable owner has been designated to accept this residual risk",
-        "release blocked: slices[promotion].threats[THR-07]: unmitigated critical threat has no accountable, unexpired residual-risk acceptance - release blocked"
-      ]
+      "digest": "40db08dbbdd62a654bbf0ccd6eefd121a69e26525da34f633086f8197174ec37",
+      "ready": true,
+      "reasons": null
     }
   ],
   "slots": [

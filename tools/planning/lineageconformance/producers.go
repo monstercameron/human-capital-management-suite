@@ -70,7 +70,8 @@ const PromotionDefinition = "hcmnext.people.promote_worker/v1"
 // DATA-015's links are computed from internal/data/lineage.Stages, so a
 // stage added there changes this set (or fails, if unmapped) without an
 // edit here. LEDGER-013 rebuilds workflow.promotion_outcome from the
-// ledger. Nothing else in the tree publishes per-family lineage.
+// ledger, and RECON-001 persists one reconciliation job per effect and
+// comparison policy.
 func DefaultProducers() ([]Producer, error) {
 	data015, err := stageLinksFor(lineage.Stages)
 	if err != nil {
@@ -86,6 +87,11 @@ func DefaultProducers() ([]Producer, error) {
 			ID: "LEDGER-013/projection.RebuildPromotionOutcome", Todo: "LEDGER-013",
 			Package: "internal/data/projection", Case: PromotionDefinition, Links: []Link{LinkProjection},
 			Tests: []string{"TestTodo_LEDGER_013"},
+		},
+		{
+			ID: "RECON-001/effect_reconciliation_job", Todo: "RECON-001",
+			Package: "internal/operations/reconcile", Case: PromotionDefinition, Links: []Link{LinkReconciliation},
+			Tests: []string{"TestTodo_RECON_001"},
 		},
 	}, nil
 }

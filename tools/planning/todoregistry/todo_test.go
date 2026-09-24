@@ -1,6 +1,7 @@
 package todoregistry
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -174,6 +175,48 @@ func TestTodoRegistryMatchesMarkdown(t *testing.T) {
 	}
 }
 
+// TestTodo_GOV_002_Golden pins the deterministic JSON representation of a
+// representative registry entry, including ordered dependencies and matrix
+// keys. This catches serialization drift independently of the full corpus.
+func TestTodo_GOV_002_Golden(t *testing.T) {
+	todos := []Todo{{
+		ID: "GOV-002", Phase: "P0", Model: "TERRA", Title: "Register every todo",
+		Depends: []string{"GOV-001"}, Test: "TestRegistry", TestMatrix: map[string]string{"GOLDEN": "TestGolden", "PRIMARY": "TestRegistry"},
+		Red: "missing entry", Green: "complete registry", Refactor: "single source", Refs: "plan.md", Done: true,
+	}}
+	got, err := ToJSON(todos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `[
+  {
+    "id": "GOV-002",
+    "phase": "P0",
+    "model": "TERRA",
+    "title": "Register every todo",
+    "section": "",
+    "depends": [
+      "GOV-001"
+    ],
+    "test": "TestRegistry",
+    "test_matrix": {
+      "GOLDEN": "TestGolden",
+      "PRIMARY": "TestRegistry"
+    },
+    "red": "missing entry",
+    "green": "complete registry",
+    "refactor": "single source",
+    "refs": "plan.md",
+    "retired": false,
+    "done": true
+  }
+]
+`
+	if string(got) != want {
+		t.Fatalf("registry JSON changed:\n got: %s\nwant: %s", got, want)
+	}
+}
+
 // countTodoBlocks counts the number of "- [ ] `ID`" lines in the markdown.
 func countTodoBlocks(content string) int {
 	count := 0
@@ -321,5 +364,100 @@ func TestParseEvidenceAcceptsAnyDatedForm(t *testing.T) {
 	partial, _ := ParseTodos(strings.Replace(md, "Evidence (2026-09-06)", "Evidence (partial, 2026-09-06)", 1))
 	if len(partial) != 1 || !strings.Contains(partial[0].Evidence, "TestX") {
 		t.Fatal("partial dated evidence must populate Evidence too")
+	}
+}
+
+func TestParseTodosPreservesRepeatedRefs(t *testing.T) {
+	md := "- [x] `X-001` **[CONFORMANCE][LUNA] repeated refs.**\n" +
+		"  - **Depends:** none.\n" +
+		"  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.ALL; DIRECT=none; WHY=fixture`.\n" +
+		"  - **TEST:** `TestX`.\n" +
+		"  - **TEST MATRIX:** `PRIMARY=TestX`.\n" +
+		"  - **RED:** r.\n" +
+		"  - **GREEN:** g.\n" +
+		"  - **REFACTOR:** f.\n" +
+		"  - **Refs:** [first](./workflows/one.md).\n" +
+		"  - **Refs:** [second](<workflows/two.md>).\n"
+	todos, errs := ParseTodos(md)
+	if len(errs) != 0 || len(todos) != 1 {
+		t.Fatalf("parse: %v %d", errs, len(todos))
+	}
+	if !strings.Contains(todos[0].Refs, "workflows/one.md") || !strings.Contains(todos[0].Refs, "workflows/two.md") {
+		t.Fatalf("repeated Refs were shadowed: %q", todos[0].Refs)
+	}
+}
+
+func TestParseIntentContextConflictsFailClosed(t *testing.T) {
+	md := "- [x] `X-001` **[CONFORMANCE][LUNA] conflicting context.**\n" +
+		"  - **Depends:** none.\n" +
+		"  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; PRE_PROMOTION_EXPLORATORY=true`.\n" +
+		"  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; PRE_PROMOTION_EXPLORATORY=false`.\n" +
+		"  - **TEST:** `TestX`.\n" +
+		"  - **TEST MATRIX:** `PRIMARY=TestX`.\n" +
+		"  - **RED:** r.\n" +
+		"  - **GREEN:** g.\n" +
+		"  - **REFACTOR:** f.\n" +
+		"  - **Refs:** [workflow](workflows/sample.md).\n"
+	todos, errs := ParseTodos(md)
+	if len(errs) != 0 || len(todos) != 1 {
+		t.Fatalf("parse: %v %d", errs, len(todos))
+	}
+	if !todos[0].IntentContextConflict || todos[0].Role != "CONFORMANCE" || !todos[0].PrePromotionExploratory {
+		t.Fatalf("conflicting intent context parsed unsafely: %+v", todos[0])
+	}
+}
+
+func TestTodoCapabilityMetadataParsesAndSerializes(t *testing.T) {
+	markdown := "- [x] `X-001` **[GATE_B][LUNA] explicit capability.**\n" +
+		"  - **Depends:** none.\n" +
+		"  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=fixture; CAPABILITY=LIBRARY; OWNER=ARCHITECTURE_COUNCIL`.\n" +
+		"  - **TEST:** `TestX`.\n" +
+		"  - **TEST MATRIX:** `PRIMARY=TestX`.\n" +
+		"  - **RED:** red.\n" +
+		"  - **GREEN:** green.\n" +
+		"  - **REFACTOR:** refactor.\n" +
+		"  - **Refs:** [fixture](fixture.md).\n"
+	todos, errs := ParseTodos(markdown)
+	if len(errs) != 0 || len(todos) != 1 {
+		t.Fatalf("ParseTodos() = %d todos, errors %v", len(todos), errs)
+	}
+	if todos[0].CapabilityClass != CapabilityLibrary || todos[0].Owner != "ARCHITECTURE_COUNCIL" {
+		t.Fatalf("metadata parsed as capability=%q owner=%q", todos[0].CapabilityClass, todos[0].Owner)
+	}
+	encoded, err := ToJSON(todos)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var registry []map[string]any
+	if err := json.Unmarshal(encoded, &registry); err != nil {
+		t.Fatalf("registry JSON is invalid: %v", err)
+	}
+	if len(registry) != 1 || registry[0]["capability_class"] != CapabilityLibrary || registry[0]["owner"] != "ARCHITECTURE_COUNCIL" {
+		t.Fatalf("registry omitted explicit metadata: %s", encoded)
+	}
+}
+
+func TestTodoCapabilityMetadataRejectsInvalidDeclarations(t *testing.T) {
+	base := "- [x] `X-001` **[GATE_B][LUNA] explicit capability.**\n" +
+		"  - **Depends:** none.\n" +
+		"  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=fixture; %s`.\n" +
+		"  - **TEST:** `TestX`.\n" +
+		"  - **TEST MATRIX:** `PRIMARY=TestX`.\n" +
+		"  - **RED:** red.\n" +
+		"  - **GREEN:** green.\n" +
+		"  - **REFACTOR:** refactor.\n" +
+		"  - **Refs:** [fixture](fixture.md).\n"
+	for _, declaration := range []string{
+		"CAPABILITY=OTHER; OWNER=ARCHITECTURE_COUNCIL",
+		"CAPABILITY=RUNTIME",
+		"CAPABILITY=RUNTIME; OWNER=lowercase",
+		"CAPABILITY=RUNTIME; OWNER=ONE; CAPABILITY=LIBRARY",
+	} {
+		t.Run(declaration, func(t *testing.T) {
+			todos, errs := ParseTodos(fmt.Sprintf(base, declaration))
+			if len(errs) == 0 || len(todos) != 0 {
+				t.Fatalf("invalid declaration accepted: todos=%d errors=%v", len(todos), errs)
+			}
+		})
 	}
 }

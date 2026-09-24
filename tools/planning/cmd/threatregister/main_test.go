@@ -17,22 +17,22 @@ import (
 // like tools/planning/cmd/pilotprovider.
 const repoRoot = "../../../.."
 
-func TestRunReportsTheOneDocumentedGapAndBlocksRelease(t *testing.T) {
+func TestRunReportsMitigatedThreatRegister(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	err := run([]string{"-register", repoRoot + "/definitions/planning/gates/threat-001-register.yaml"}, &stdout, &stderr)
-	if err == nil {
-		t.Fatal("expected a non-zero exit: the checked-in register has one documented violation and blocks release")
+	if err != nil {
+		t.Fatalf("expected exact-path THR-07 mitigation to permit release: %v; stderr: %s", err, stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "VIOLATION: slices[0].residual_risks[0].accepted_by") {
-		t.Errorf("expected stderr to report the documented accepted_by violation, got: %s", stderr.String())
+	if strings.Contains(stderr.String(), "VIOLATION:") {
+		t.Errorf("unexpected structural violation: %s", stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "RELEASE BLOCKER:") {
-		t.Errorf("expected stderr to report a release blocker, got: %s", stderr.String())
+	if strings.Contains(stderr.String(), "THR-07") || strings.Contains(stderr.String(), "RELEASE BLOCKER:") {
+		t.Errorf("mitigated THR-07 was still reported as a blocker: %s", stderr.String())
 	}
 	out := stdout.String()
 	for _, want := range []string{
 		"signature verified: true",
-		"release blocked: true",
+		"release blocked: false",
 		"threats: 9",
 	} {
 		if !strings.Contains(out, want) {

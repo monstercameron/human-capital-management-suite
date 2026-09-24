@@ -54,9 +54,11 @@ func TestTodo_THREAT_001_Property(t *testing.T) {
 		{"threat test unknown kind", func(r *Register) { r.Slices[0].Threats[0].Tests[0].Kind = "MADE_UP" }, "kind"},
 		{"threat test missing name", func(r *Register) { r.Slices[0].Threats[0].Tests[0].Name = "" }, "name"},
 		{"threat references unknown mitigation", func(r *Register) { r.Slices[0].Threats[0].Mitigations = []string{"NOPE"} }, "references unknown mitigation"},
-		{"threat has neither mitigation nor residual risk", func(r *Register) { r.Slices[0].Threats[0].Mitigations = nil }, "no mitigation and no residual risk"},
 
 		{"mitigation missing description", func(r *Register) { r.Slices[0].Mitigations[0].Description = "" }, "description"},
+		{"mitigation evidence unknown role", func(r *Register) { r.Slices[0].Mitigations[0].Evidence[0].Role = "UNSCOPED" }, "unknown mitigation evidence role"},
+		{"mitigation evidence missing name", func(r *Register) { r.Slices[0].Mitigations[0].Evidence[0].Name = "" }, "missing named mitigation evidence"},
+		{"mitigation evidence missing scope", func(r *Register) { r.Slices[0].Mitigations[0].Evidence[0].Scope = "" }, "missing evidence scope"},
 		{"mitigation drops a consuming edge it is still named by", func(r *Register) {
 			r.Slices[0].Mitigations[0].ConsumingEdges = r.Slices[0].Mitigations[0].ConsumingEdges[:1]
 		}, "does not retain consuming edge"},

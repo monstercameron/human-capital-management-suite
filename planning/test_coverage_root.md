@@ -456,12 +456,9 @@ generated=42 hand-written=2184
 | internal/data/workforce                                  | facts.go                              | yes           |
 | internal/data/workforce                                  | row.go                                | yes           |
 | internal/data/workforce                                  | store.go                              | yes           |
-| internal/documentextract                                 | extract.go                            | yes           |
-| internal/documentredact                                  | redact.go                             | yes           |
 | internal/documents/evidence                              | evidence.go                           | yes           |
 | internal/documents/intake                                | intake.go                             | yes           |
 | internal/documents/template                              | template.go                           | yes           |
-| internal/documentsecurity                                | security.go                           | yes           |
 | internal/domains/access                                  | entitlement_derivation.go             | yes           |
 | internal/domains/access                                  | graph.go                              | yes           |
 | internal/domains/access                                  | lifecycle.go                          | yes           |

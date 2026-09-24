@@ -6,19 +6,24 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/lineage"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/provenance"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/rebuild"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/reconcile"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/correction"
 	lc "github.com/monstercameron/human-capital-management-suite/tools/planning/lineageconformance"
 )
@@ -64,10 +69,18 @@ func newPromotionStore(t *testing.T) *promotionStore {
 }
 
 func (s *promotionStore) inTx(t *testing.T, fn func(dbport.Tx) error) {
+	s.inTxOn(t, s.db.Conn, fn)
+}
+
+func (s *promotionStore) inTxOn(t *testing.T, conn *pgxadapter.Conn, fn func(dbport.Tx) error) {
 	t.Helper()
 	ctx := context.Background()
-	tx, err := s.db.Conn.Begin(ctx)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tenancy.WithTenant(ctx, tx, s.tenant); err != nil {
+		_ = tx.Rollback(ctx)
 		t.Fatal(err)
 	}
 	if err := fn(tx); err != nil {
@@ -110,6 +123,17 @@ func (s *promotionStore) record(t *testing.T) {
 			return err
 		}
 		s.outboxID = ob.OutboxID
+		job := reconcile.Job{
+			TenantID: s.tenant, JobID: reconcile.JobID(s.tenant, ob.EffectIdentity, "policy/promotion-v1"),
+			EffectRef: ob.EffectIdentity, EffectID: "promotion-effect", PolicyRef: "policy/promotion-v1",
+			IntendedRef: s.intentRef, CanonicalRef: "observation/obs-118", RequiredFreshness: observe.FreshnessFresh,
+			ObservationAttempts: 1, NextCheckAt: storeOccurred.Add(3 * time.Hour), Deadline: storeOccurred.Add(24 * time.Hour),
+			Owner: "workload:reconcile#replica:1", SLARef: "sla:promotion", RepairPolicy: "repair/promotion-v1",
+			Status: reconcile.StatusPass, Version: 1, CreatedAt: storeOccurred, UpdatedAt: storeOccurred.Add(2 * time.Hour),
+		}
+		if _, _, err := (reconcile.PostgresStore{}).Create(ctx, tx, job); err != nil {
+			return err
+		}
 		if _, err := provenance.Publish(ctx, tx, s.eventProvenance(receipt.Sequence, receipt.EventID, receipt.Digest)); err != nil {
 			return err
 		}
@@ -161,6 +185,7 @@ func (s *promotionStore) correct(t *testing.T, head int64, reason string) {
 // their own packages, and the lineage graph mapped from them.
 type storeFacts struct {
 	graph      lc.Graph
+	effectRef  string
 	events     []ledger.EventRecord
 	head1      projection.PromotionOutcomeReport
 	replay     projection.PromotionOutcomeReport
@@ -169,10 +194,9 @@ type storeFacts struct {
 
 // readStoreGraph maps owner records onto the Promotion case. The DATA-015
 // trace supplies proposal, workflow, transaction, effect and repair; the
-// stores supply intent, event, projection, outbox, observation and every
-// correction. No store holds a Promotion reconciliation result, so none is
-// invented.
-func (s *promotionStore) readStoreGraph(t *testing.T, q dbport.Querier, trace lineage.Trace) storeFacts {
+// stores supply intent, event, projection, outbox, observation, reconciliation
+// and every correction.
+func (s *promotionStore) readStoreGraph(t *testing.T, q reconcile.Executor, trace lineage.Trace) storeFacts {
 	t.Helper()
 	ctx := context.Background()
 	reader := ledger.NewReader()
@@ -223,6 +247,13 @@ func (s *promotionStore) readStoreGraph(t *testing.T, q dbport.Querier, trace li
 		recs = append(recs, lc.Record{ID: id(lc.LinkOutbox), Tenant: tenant, Case: caseID, Link: lc.LinkOutbox,
 			Watermark: "outbox:" + ob.OutboxID.String(), SourceDigest: digestOf(ob.Payload), Payload: ob.EffectIdentity})
 	}
+	reconciliation, found, err := lc.ReadReconciliationRecord(ctx, q, s.tenant, caseID, ob.EffectIdentity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found {
+		recs = append(recs, reconciliation)
+	}
 	for _, edge := range prov.Edges {
 		if edge.SourceKind == provenance.SourceExternalObservation {
 			recs = append(recs, lc.Record{ID: id(lc.LinkObservation), Tenant: tenant, Case: caseID, Link: lc.LinkObservation,
@@ -248,7 +279,7 @@ func (s *promotionStore) readStoreGraph(t *testing.T, q dbport.Querier, trace li
 			SourceDigest: ev.Digest, Corrects: target, Payload: string(ev.Payload)})
 	}
 	return storeFacts{
-		graph:  lc.Graph{Tenant: tenant, Records: lc.Seal(lc.Chain("", recs))},
+		graph: lc.Graph{Tenant: tenant, Records: lc.Seal(lc.Chain("", recs))}, effectRef: ob.EffectIdentity,
 		events: events, head1: head1, replay: replay, provenance: prov,
 	}
 }
@@ -256,13 +287,16 @@ func (s *promotionStore) readStoreGraph(t *testing.T, q dbport.Querier, trace li
 // TestTodo_DATA_022_Integration proves Promotion lineage against the real
 // owner stores in embedded PostgreSQL: event, projection rebuild, outbox
 // effect caused by the event, provenance and append-only correction are
-// read back and pass the shared assertions, and the one link no store
-// holds -- RECONCILIATION -- is reported UNKNOWN, so the family is PARTIAL
-// rather than falsely complete.
+// read back and pass the shared assertions, including the durable reconciliation
+// job linked by the outbox effect's idempotency key.
 func TestTodo_DATA_022_Integration(t *testing.T) {
 	s := newPromotionStore(t)
 	s.record(t)
-	facts := s.readStoreGraph(t, s.db.Conn, promotionTrace(t, s.tenant.String()))
+	var facts storeFacts
+	s.inTx(t, func(tx dbport.Tx) error {
+		facts = s.readStoreGraph(t, tx, promotionTrace(t, s.tenant.String()))
+		return nil
+	})
 
 	if len(facts.events) != 2 || facts.events[1].AssertionClass != ledger.Correction {
 		t.Fatalf("stream holds %d events, want the outcome and its correction", len(facts.events))
@@ -277,23 +311,36 @@ func TestTodo_DATA_022_Integration(t *testing.T) {
 	if facts.provenance.Status != provenance.StatusComplete || facts.provenance.PublishedLedgerEventCount != 2 {
 		t.Fatalf("provenance = %s (%d/%d)", facts.provenance.Status, facts.provenance.PublishedLedgerEventCount, facts.provenance.LedgerEventCount)
 	}
+	var compiled lc.Report
+	s.inTx(t, func(tx dbport.Tx) error {
+		in, err := lc.LoadInput(repoRoot(), asOf)
+		if err != nil {
+			return err
+		}
+		in, err = lc.WithReconciliationRecords(context.Background(), tx, in, s.tenant, map[string]string{lc.PromotionDefinition: facts.effectRef})
+		if err != nil {
+			return err
+		}
+		compiled, err = lc.Compile(in)
+		return err
+	})
+	compiledPromotion := caseResult(t, compiled, lc.PromotionDefinition)
+	if linkState(compiledPromotion, lc.LinkReconciliation) != lc.StateProven ||
+		!strings.Contains(reconciliationEvidence(compiledPromotion), "policy/promotion-v1=PASS") {
+		t.Fatalf("Compile did not use persisted reconciliation evidence: %+v", compiledPromotion)
+	}
 
 	cases, _ := lc.GenerateCases(catalogInput())
 	promo := caseByID(t, cases, lc.PromotionDefinition)
 	res := lc.Evaluate(promo, facts.graph, authorized(s.tenant.String()))
-	if res.Status != lc.StatusPartial {
-		t.Fatalf("store-backed Promotion = %s %+v, want PARTIAL", res.Status, res.Findings)
+	if res.Status != lc.StatusComplete {
+		t.Fatalf("store-backed Promotion = %s %+v, want COMPLETE with durable reconciliation", res.Status, res.Findings)
 	}
 	for _, f := range res.Findings {
-		if f.Code != lc.CodeLinkMissing || f.Link != lc.LinkReconciliation {
-			t.Fatalf("store-backed Promotion has a finding beyond the missing reconciliation: %+v", f)
-		}
+		t.Fatalf("store-backed Promotion has an unexpected finding: %+v", f)
 	}
 	for _, l := range res.Links {
 		want := lc.StateProven
-		if l.Link == lc.LinkReconciliation {
-			want = lc.StateUnknown
-		}
 		if l.State != want {
 			t.Fatalf("store link %s = %s, want %s", l.Link, l.State, want)
 		}
@@ -304,7 +351,7 @@ func TestTodo_DATA_022_Integration(t *testing.T) {
 	// gets nothing.
 	other := uuid.NewString()
 	view := lc.View(facts.graph, uncleared(s.tenant.String()))
-	if got := lc.Evaluate(promo, view, uncleared(s.tenant.String())); got.Status != lc.StatusPartial {
+	if got := lc.Evaluate(promo, view, uncleared(s.tenant.String())); got.Status != lc.StatusComplete {
 		t.Fatalf("redacted store view = %s %+v", got.Status, got.Findings)
 	}
 	if foreign := lc.View(facts.graph, authorized(other)); len(foreign.Records) != 0 {
@@ -315,20 +362,46 @@ func TestTodo_DATA_022_Integration(t *testing.T) {
 	}
 }
 
-// TestTodo_DATA_022_Recovery rebuilds the store-backed lineage on a fresh
+// TestTodo_REV_057_02_Recovery rebuilds the store-backed lineage on a fresh
 // connection after the fact, requires the identical graph digest, refuses
 // in-place rewrites of ledger and provenance history, and proves a second
-// correction appends without disturbing any earlier record's seal.
-func TestTodo_DATA_022_Recovery(t *testing.T) {
+// correction appends without disturbing any earlier record's seal while the
+// reconciliation row and its status remain readable after restart.
+func TestTodo_REV_057_02_Recovery(t *testing.T) {
 	s := newPromotionStore(t)
 	s.record(t)
 	trace := promotionTrace(t, s.tenant.String())
-	first := s.readStoreGraph(t, s.db.Conn, trace)
+	var first storeFacts
+	s.inTx(t, func(tx dbport.Tx) error { first = s.readStoreGraph(t, tx, trace); return nil })
 
 	restarted := s.db.NewConn(t)
-	second := s.readStoreGraph(t, restarted, trace)
+	var second storeFacts
+	s.inTxOn(t, restarted, func(tx dbport.Tx) error { second = s.readStoreGraph(t, tx, trace); return nil })
 	if lc.GraphDigest(first.graph) != lc.GraphDigest(second.graph) || first.replay.Digest != second.replay.Digest {
 		t.Fatal("lineage rebuilt on a fresh connection differs from the original")
+	}
+	cases, _ := lc.GenerateCases(catalogInput())
+	promo := caseByID(t, cases, lc.PromotionDefinition)
+	if res := lc.Evaluate(promo, second.graph, authorized(s.tenant.String())); res.Status != lc.StatusComplete || linkState(res, lc.LinkReconciliation) != lc.StateProven {
+		t.Fatalf("recovered reconciliation = %s, link %s, findings %+v", res.Status, linkState(res, lc.LinkReconciliation), res.Findings)
+	}
+	var recoveredReport lc.Report
+	s.inTxOn(t, restarted, func(tx dbport.Tx) error {
+		in, err := lc.LoadInput(repoRoot(), asOf)
+		if err != nil {
+			return err
+		}
+		in, err = lc.WithReconciliationRecords(context.Background(), tx, in, s.tenant, map[string]string{lc.PromotionDefinition: second.effectRef})
+		if err != nil {
+			return err
+		}
+		recoveredReport, err = lc.Compile(in)
+		return err
+	})
+	recovered := caseResult(t, recoveredReport, lc.PromotionDefinition)
+	if linkState(recovered, lc.LinkReconciliation) != lc.StateProven ||
+		!strings.Contains(reconciliationEvidence(recovered), "policy/promotion-v1=PASS") {
+		t.Fatalf("Compile after restart lost reconciliation status: %+v", recovered)
 	}
 
 	ctx := context.Background()
@@ -340,7 +413,8 @@ func TestTodo_DATA_022_Recovery(t *testing.T) {
 	}
 
 	s.correct(t, 2, "second correction: effective date confirmed")
-	third := s.readStoreGraph(t, restarted, trace)
+	var third storeFacts
+	s.inTxOn(t, restarted, func(tx dbport.Tx) error { third = s.readStoreGraph(t, tx, trace); return nil })
 	if f := lc.CheckAppendOnly(lc.PromotionDefinition, first.graph, third.graph); len(f) != 0 {
 		t.Fatalf("appending a correction disturbed history: %+v", f)
 	}
@@ -353,10 +427,8 @@ func TestTodo_DATA_022_Recovery(t *testing.T) {
 	if corrections != 2 || len(third.graph.Records) != len(first.graph.Records)+1 {
 		t.Fatalf("corrections = %d, records %d -> %d", corrections, len(first.graph.Records), len(third.graph.Records))
 	}
-	cases, _ := lc.GenerateCases(catalogInput())
-	promo := caseByID(t, cases, lc.PromotionDefinition)
 	res := lc.Evaluate(promo, third.graph, authorized(s.tenant.String()))
-	if res.Status != lc.StatusPartial || linkState(res, lc.LinkCorrection) != lc.StateProven {
+	if res.Status != lc.StatusComplete || linkState(res, lc.LinkCorrection) != lc.StateProven {
 		t.Fatalf("lineage after second correction = %s %+v", res.Status, res.Findings)
 	}
 

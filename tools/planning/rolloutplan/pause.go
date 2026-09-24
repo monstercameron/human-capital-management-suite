@@ -188,10 +188,17 @@ func (g *PauseGate) Resume(req ResumeRequest) (ActivationReceipt, error) {
 		return ActivationReceipt{}, &PauseError{Code: StaleResumeEpoch, Detail: "resume epoch must advance past the pause"}
 	}
 	g.mu.Lock()
-	delete(g.paused, req.Stage)
-	g.mu.Unlock()
-	return g.Activate(ActivationRequest{
+	defer g.mu.Unlock()
+	if current, ok := g.paused[req.Stage]; !ok || current != receipt {
+		return ActivationReceipt{}, &PauseError{Code: NotPaused, Detail: "stage " + req.Stage + " pause changed during resume"}
+	}
+	activated, err := g.ledger.Activate(ActivationRequest{
 		Plan: req.Plan, Cohorts: req.Cohorts, Stage: req.Stage, Artifact: req.Artifact,
 		PlanDigest: compiled.Digest, CohortDigest: req.CohortDigest, Epoch: req.Epoch,
 	})
+	if err != nil {
+		return ActivationReceipt{}, err
+	}
+	delete(g.paused, req.Stage)
+	return activated, nil
 }

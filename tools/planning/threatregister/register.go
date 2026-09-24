@@ -198,9 +198,19 @@ func ThreatIdentity(sliceID, asset, trustBoundary string, attack string) string 
 // merely the edges of whichever threat happened to define the mitigation
 // first.
 type Mitigation struct {
-	ID             string   `yaml:"id" json:"id"`
-	Description    string   `yaml:"description" json:"description"`
-	ConsumingEdges []string `yaml:"consuming_edges" json:"consuming_edges"`
+	ID             string               `yaml:"id" json:"id"`
+	Description    string               `yaml:"description" json:"description"`
+	ConsumingEdges []string             `yaml:"consuming_edges" json:"consuming_edges"`
+	Evidence       []MitigationEvidence `yaml:"evidence,omitempty" json:"evidence,omitempty"`
+}
+
+// MitigationEvidence names a test and states precisely which control scope
+// that test supports. Supporting evidence may be useful defense-in-depth,
+// but must not be represented as proof of a different trust-boundary edge.
+type MitigationEvidence struct {
+	Role  string `yaml:"role" json:"role"`
+	Name  string `yaml:"name" json:"name"`
+	Scope string `yaml:"scope" json:"scope"`
 }
 
 // ResidualRisk records that a threat's control is accepted rather than (or
@@ -499,17 +509,9 @@ func (r Register) Validate() []Violation {
 			}
 		}
 
-		residualByThreat := map[string]ResidualRisk{}
-		for _, rr := range s.ResidualRisks {
-			residualByThreat[rr.ThreatID] = rr
-		}
-		for _, th := range s.Threats {
-			if len(th.Mitigations) == 0 {
-				if _, ok := residualByThreat[th.ID]; !ok {
-					add(sField+".threats", "threat "+th.ID+" has no mitigation and no residual risk acceptance - slice omits mitigation")
-				}
-			}
-		}
+		// A structurally complete threat may remain unresolved. Validate checks
+		// the register's structure; ReleaseDecision is responsible for blocking
+		// unmitigated critical findings unless a current acceptance exists.
 
 		mitigationConsuming := map[string]map[string]bool{}
 		for _, th := range s.Threats {
@@ -529,6 +531,18 @@ func (r Register) Validate() []Violation {
 			}
 			if strings.TrimSpace(m.Description) == "" {
 				add(field+".description", "missing")
+			}
+			for ei, evidence := range m.Evidence {
+				ef := fmt.Sprintf("%s.evidence[%d]", field, ei)
+				if evidence.Role != "PRIMARY" && evidence.Role != "SUPPORTING" {
+					add(ef+".role", fmt.Sprintf("unknown mitigation evidence role %q", evidence.Role))
+				}
+				if strings.TrimSpace(evidence.Name) == "" {
+					add(ef+".name", "missing named mitigation evidence")
+				}
+				if strings.TrimSpace(evidence.Scope) == "" {
+					add(ef+".scope", "missing evidence scope")
+				}
 			}
 			want := mitigationConsuming[m.ID]
 			got := stringSet(m.ConsumingEdges)

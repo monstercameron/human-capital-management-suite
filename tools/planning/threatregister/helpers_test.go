@@ -9,10 +9,7 @@ const repoRoot = "../../.."
 
 const registerPath = repoRoot + "/definitions/planning/gates/threat-001-register.yaml"
 
-// mustLoadRegister loads the real, checked-in THREAT-001 register. It does
-// not assert Validate() is clean: by design the checked-in register carries
-// exactly one honest gap (residual_risks[0].accepted_by) - register_test.go's
-// PRIMARY test asserts that explicitly.
+// mustLoadRegister loads the real, checked-in THREAT-001 register.
 func mustLoadRegister(t *testing.T) Register {
 	t.Helper()
 	r, err := LoadRegister(registerPath)
@@ -87,7 +84,7 @@ func validFixture() Register {
 				Edges:       edges,
 				Threats:     threats,
 				Mitigations: []Mitigation{
-					{ID: "MIT-SHARED", Description: "fixture shared mitigation", ConsumingEdges: sharedEdges},
+					{ID: "MIT-SHARED", Description: "fixture shared mitigation", ConsumingEdges: sharedEdges, Evidence: []MitigationEvidence{{Role: "PRIMARY", Name: "fixture evidence", Scope: "fixture edge"}}},
 				},
 				ResidualRisks: nil,
 			},
@@ -126,6 +123,7 @@ func deepCopy(r Register) Register {
 		s.Mitigations = make([]Mitigation, len(r.Slices[i].Mitigations))
 		for j, m := range r.Slices[i].Mitigations {
 			m.ConsumingEdges = append([]string(nil), m.ConsumingEdges...)
+			m.Evidence = append([]MitigationEvidence(nil), m.Evidence...)
 			s.Mitigations[j] = m
 		}
 		s.ResidualRisks = append([]ResidualRisk(nil), s.ResidualRisks...)

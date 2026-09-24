@@ -59,7 +59,7 @@ signed_date: "2026-09-13"
 # - not the internal/commercial.P1AManifestDigest constant; see doc.go for
 # why.
 intent:
-  scope_ceiling_digest: "2e73dc174fcf32e247adc506a8a4d9c82dc8fb78900aff5566de6cea24f2d1eb"
+  scope_ceiling_digest: "6d2bfd82cecb9e801d18cccb3bc35fcff8c92a0b7b8a9eb96c6dac569672a70f"
   entitlements:
     - intent_id: hcmnext.people.explain_worker_state/v1
       effect_class: READ_ONLY
@@ -250,4 +250,4 @@ signature:
   algorithm: ed25519
   public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
   key_fixture: "tools/planning/gateevidence/testdata/dev-signing-key.yaml"
-  value: "3543d22b51cc2588e3ce000b2281e2206213e4e1b319dc4f85081cc694d264eac0fe2cad6597baf6a2df2f6400233da536e63c017286c7d25be606604b261705"
+  value: "1f617a543e6794d332690175460f49affb0c56872a98727e79691c37315123b0c9586f17e9cb8abbf3b66327e1f7850dc27495f979e2b8c376c3b1a2f3a14909"

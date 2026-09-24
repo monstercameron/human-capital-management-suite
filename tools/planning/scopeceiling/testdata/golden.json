@@ -1,12 +1,12 @@
 {
-  "canonical_digest": "2e73dc174fcf32e247adc506a8a4d9c82dc8fb78900aff5566de6cea24f2d1eb",
-  "signature_value": "7dad858b72a8251e61df76dda713cc3b09097f46e342a9fe814016bd83cf181c9722a070a9283659cfc7cd8109ed698e6c4227480c6e8d31c99d7ee88b07c106",
+  "canonical_digest": "6d2bfd82cecb9e801d18cccb3bc35fcff8c92a0b7b8a9eb96c6dac569672a70f",
+  "signature_value": "dbe3bcb39167c12b04331c494026606732ec6fd21b804df003cc727aafb62e74bfc8bb31f922cf9257129593348dcb641bee5cd4b14351ea40dd05e7138e8a0b",
   "counts": {
     "intents": 14,
     "capabilities": 10,
     "workflows": 2,
     "user_flows": 20,
-    "endpoints": 33,
+    "endpoints": 37,
     "models": 20,
     "effects": 5,
     "selection_slots": 4,

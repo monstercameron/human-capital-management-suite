@@ -83,46 +83,35 @@
 // a hand-copied list eventually does. The checked-in register's single
 // "promotion" slice covers all nine classes exactly once each.
 //
-// # Honest incompleteness: one residual risk with no accountable owner
+// # THR-07 domain and provider evidence
 //
-// RED requires every accepted residual risk to name accountable acceptance
-// and an expiry. THR-07 (AMBIGUOUS_EFFECT on ExecuteJourney's timeout
-// path) has no mitigation today: Phase 1 has not yet implemented an
-// idempotency-key-bound observe-before-retry lookup for the domain
-// capability that would let a caller resolve a mid-flight timeout instead
-// of guessing. Inventing a mitigation that does not exist, or inventing an
-// accepting owner nobody has actually designated, would both be fabricated
-// evidence in a signed governance artifact - the same failure mode
-// tools/planning/pilotjurisdiction's doc.go describes for its empty
-// reviewer.name and tools/planning/pilotprovider's doc.go describes for its
-// placeholder vendor identity. Instead, the checked-in register carries a
-// [ResidualRisk] entry for THR-07 with a real justification and a real
-// expiry, but an honestly empty AcceptedBy: nobody has been designated to
-// accept this risk yet. [Register.Validate] therefore reports exactly one
-// violation on the checked-in file
-// (slices[0].residual_risks[0].accepted_by: missing ...), proved by
-// register_test.go's PRIMARY test - every other RED/GREEN/REFACTOR element
-// validates clean.
+// THR-07 covers the ordinary ExecuteJourney to domain compensation-record
+// commit edge. TestTodo_REV_057_01_Integration injects a lost acknowledgement
+// after PostgreSQL commits the compensation write and workflow advancement,
+// then rebuilds Journey and verifies the durable signal-wait frontier and
+// unchanged compensation count. MIT-ATOMIC-DOMAIN-ADVANCEMENT names that
+// transaction-bound control as PRIMARY evidence for EDGE-07. Its signed
+// MitigationEvidence also names CONN-RT-007/009 as SUPPORTING tests with an
+// explicit provider-operation scope. Those tests are defense-in-depth
+// evidence for a separate provider boundary, do not prove EDGE-07, and cannot
+// release THR-07 without the ordinary Journey integration and atomic domain
+// control.
+//
+// CONN-RT-007 and CONN-RT-009 prove ambiguous provider sends require typed
+// observation before redrive and remain fenced across restore. The register
+// carries role and scope for these named tests so they remain visible in the
+// signed compiled artifact without being conflated with domain transaction
+// evidence.
 //
 // # Release blocking is a separate, stronger gate than Validate
 //
 // [Register.ReleaseDecision] is deliberately independent of Validate,
 // mirroring
 // tools/planning/pilotprovider.ProviderTopology.SatisfiesRealProviderSelectionGate's
-// relationship to its own Validate: Validate checks that the register
-// honestly documents its own gaps (including the empty accepted_by above),
-// while ReleaseDecision checks the substantive question a release gate
-// actually cares about - can THR-07, a CRITICAL threat, actually ship?
-// Because THR-07 has zero mitigations and its residual risk's accepted_by
-// is empty, ReleaseDecision(now) reports the pilot blocked for exactly this
-// threat, for any now. This is deliberate: this repository has not yet
-// staffed a security officer able to accept a CRITICAL residual risk
-// (Risk 127's "role names exist but nobody is operationally accountable"
-// is exactly this gap), so a register that reported release as unblocked
-// today would be fabricating readiness. fault_test.go proves both the
-// blocking behavior and the companion invariant GREEN implies but does not
-// spell out for the real file: an expired-but-otherwise-complete residual
-// risk acceptance (accepted_by populated, expiry_date in the past) does not
-// waive the block either - accepted_by alone is not enough once the
-// acceptance itself has lapsed.
+// relationship to its own Validate: Validate ensures the mitigation is
+// structurally present and covers its declared edge, while ReleaseDecision checks
+// whether any CRITICAL threat remains without a mitigation or current risk
+// acceptance. THR-07's exact-path integration evidence and mitigation satisfy
+// the current EDGE-07 release check. fault_test.go proves the independent
+// expiry behavior using an explicitly synthetic acceptance fixture.
 package threatregister

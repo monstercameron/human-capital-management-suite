@@ -8,7 +8,7 @@ import (
 )
 
 func TestTodo_ROLLOUT_003_Golden(t *testing.T) {
-	ledger := NewActivationLedger()
+	ledger := newTestActivationLedger(t)
 	receipt, err := ledger.Activate(activationRequest(t))
 	if err != nil {
 		t.Fatal(err)

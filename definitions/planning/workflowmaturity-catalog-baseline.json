@@ -1,0 +1,412 @@
+{
+  "schema_version": 1,
+  "status": "OPEN_UNASSIGNED",
+  "entries": [
+    {
+      "flow_id": "WF-BEN-003",
+      "definition": "hcmnext.operations.create_repair_plan/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-282129a8",
+        "WF-DISC-009-6803aa8e",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9eb549f5",
+        "WF-DISC-009-dce253d1"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-BEN-003",
+      "definition": "hcmnext.operations.detect_drift/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-29c36b07",
+        "WF-DISC-009-330eff0e",
+        "WF-DISC-009-57b63a11",
+        "WF-DISC-009-f2a457a7"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-BEN-003",
+      "definition": "hcmnext.operations.simulate_repair/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4d34a4a3",
+        "WF-DISC-009-9eb549f5",
+        "WF-DISC-009-fd68b44e"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-001",
+      "definition": "hcmnext.rewards.change_base_pay/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-151e8540",
+        "WF-DISC-009-1db2ab7a",
+        "WF-DISC-009-638d2e24",
+        "WF-DISC-009-8578d2f4",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-dce253d1",
+        "WF-DISC-009-fd803611"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-001",
+      "definition": "hcmnext.rewards.evaluate_pay_band_position/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4d34a4a3",
+        "WF-DISC-009-6ba1d0f2",
+        "WF-DISC-009-b7d2f513"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-001",
+      "definition": "hcmnext.rewards.reserve_compensation_budget/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-54b0e5c3",
+        "WF-DISC-009-58420065",
+        "WF-DISC-009-7485fd3c",
+        "WF-DISC-009-ed342e66",
+        "WF-DISC-009-fd803611"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-001",
+      "definition": "hcmnext.rewards.simulate_compensation/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4d34a4a3",
+        "WF-DISC-009-5b7a9205",
+        "WF-DISC-009-8578d2f4",
+        "WF-DISC-009-b6b1cafa",
+        "WF-DISC-009-f0bce16e"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-005",
+      "definition": "hcmnext.rewards.release_compensation_budget/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-12a108ce",
+        "WF-DISC-009-58420065",
+        "WF-DISC-009-75573ef9",
+        "WF-DISC-009-ed342e66"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-005",
+      "definition": "hcmnext.rewards.reserve_compensation_budget/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-54b0e5c3",
+        "WF-DISC-009-58420065",
+        "WF-DISC-009-7485fd3c",
+        "WF-DISC-009-ed342e66",
+        "WF-DISC-009-fd803611"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-009",
+      "definition": "hcmnext.rewards.evaluate_pay_band_position/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4d34a4a3",
+        "WF-DISC-009-6ba1d0f2",
+        "WF-DISC-009-b7d2f513"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-011",
+      "definition": "hcmnext.rewards.evaluate_pay_band_position/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4d34a4a3",
+        "WF-DISC-009-6ba1d0f2",
+        "WF-DISC-009-b7d2f513"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-CMP-011",
+      "definition": "hcmnext.rewards.simulate_compensation/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4d34a4a3",
+        "WF-DISC-009-5b7a9205",
+        "WF-DISC-009-8578d2f4",
+        "WF-DISC-009-b6b1cafa",
+        "WF-DISC-009-f0bce16e"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-DOP-002",
+      "definition": "hcmnext.intelligence.explain_transaction/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4e94a70d",
+        "WF-DISC-009-57b63a11",
+        "WF-DISC-009-878bbd06",
+        "WF-DISC-009-bd0dcdb0",
+        "WF-DISC-009-dfd5ebee"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-DOP-003",
+      "definition": "hcmnext.operations.detect_drift/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-29c36b07",
+        "WF-DISC-009-330eff0e",
+        "WF-DISC-009-57b63a11",
+        "WF-DISC-009-f2a457a7"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-IAM-003",
+      "definition": "hcmnext.operations.create_repair_plan/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-282129a8",
+        "WF-DISC-009-6803aa8e",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9eb549f5",
+        "WF-DISC-009-dce253d1"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-IAM-003",
+      "definition": "hcmnext.operations.detect_drift/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-29c36b07",
+        "WF-DISC-009-330eff0e",
+        "WF-DISC-009-57b63a11",
+        "WF-DISC-009-f2a457a7"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-IAM-003",
+      "definition": "hcmnext.operations.simulate_repair/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4d34a4a3",
+        "WF-DISC-009-9eb549f5",
+        "WF-DISC-009-fd68b44e"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-PAY-002",
+      "definition": "hcmnext.operations.create_repair_plan/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-282129a8",
+        "WF-DISC-009-6803aa8e",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9eb549f5",
+        "WF-DISC-009-dce253d1"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-PAY-006",
+      "definition": "hcmnext.operations.create_repair_plan/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-282129a8",
+        "WF-DISC-009-6803aa8e",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9eb549f5",
+        "WF-DISC-009-dce253d1"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-PAY-006",
+      "definition": "hcmnext.operations.detect_drift/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-29c36b07",
+        "WF-DISC-009-330eff0e",
+        "WF-DISC-009-57b63a11",
+        "WF-DISC-009-f2a457a7"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-PEO-003",
+      "definition": "hcmnext.people.change_manager/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-1db2ab7a",
+        "WF-DISC-009-4bc13075",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-b900838f",
+        "WF-DISC-009-dce253d1",
+        "WF-DISC-009-fa72a25c"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-PEO-003",
+      "definition": "hcmnext.work.approve_proposal/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-123adf58",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9f28c4b8",
+        "WF-DISC-009-d81be293",
+        "WF-DISC-009-dce253d1",
+        "WF-DISC-009-eab22da8"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-PEO-005",
+      "definition": "hcmnext.people.explain_worker_state/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-48fd6e95",
+        "WF-DISC-009-57b63a11",
+        "WF-DISC-009-dfd5ebee",
+        "WF-DISC-009-e3c75ce0"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-PEO-008",
+      "definition": "hcmnext.people.explain_worker_state/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-48fd6e95",
+        "WF-DISC-009-57b63a11",
+        "WF-DISC-009-dfd5ebee",
+        "WF-DISC-009-e3c75ce0"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-REP-001",
+      "definition": "hcmnext.operations.create_repair_plan/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-282129a8",
+        "WF-DISC-009-6803aa8e",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9eb549f5",
+        "WF-DISC-009-dce253d1"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-REP-001",
+      "definition": "hcmnext.operations.detect_drift/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-29c36b07",
+        "WF-DISC-009-330eff0e",
+        "WF-DISC-009-57b63a11",
+        "WF-DISC-009-f2a457a7"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-REP-001",
+      "definition": "hcmnext.operations.simulate_repair/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-4d34a4a3",
+        "WF-DISC-009-9eb549f5",
+        "WF-DISC-009-fd68b44e"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-WFP-004",
+      "definition": "hcmnext.work.approve_proposal/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-123adf58",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9f28c4b8",
+        "WF-DISC-009-d81be293",
+        "WF-DISC-009-dce253d1",
+        "WF-DISC-009-eab22da8"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-WRK-002",
+      "definition": "hcmnext.work.approve_proposal/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-123adf58",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9f28c4b8",
+        "WF-DISC-009-d81be293",
+        "WF-DISC-009-dce253d1",
+        "WF-DISC-009-eab22da8"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    },
+    {
+      "flow_id": "WF-WRK-002",
+      "definition": "hcmnext.work.reject_proposal/v1",
+      "owner": "UNASSIGNED",
+      "candidate_refs": [
+        "WF-DISC-009-09fb056c",
+        "WF-DISC-009-123adf58",
+        "WF-DISC-009-2a4f6407",
+        "WF-DISC-009-8e39d310",
+        "WF-DISC-009-9f28c4b8",
+        "WF-DISC-009-d81be293",
+        "WF-DISC-009-dce253d1"
+      ],
+      "reason": "The authoritative designownership candidate is explicitly UNASSIGNED; no accountable remediation owner is recorded."
+    }
+  ]
+}

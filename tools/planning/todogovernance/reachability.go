@@ -5,17 +5,10 @@
 //
 // Classification is deliberately narrow so the gate stays actionable:
 //
-//   - Unticked, retired, and UI/chat-surface todos (CHAT-, UXLIVE-,
-//     WF-UI-, WEB-) are out of scope for this gate.
-//   - A todo whose GREEN field carries a backticked `LIBRARY` token is a
-//     declared library; a backticked `RUNTIME` token is a declared runtime
-//     capability. The marker is the per-todo declaration the GREEN clause
-//     requires; undeclared todos fall back to their package roots.
-//   - Undeclared todos naming only tooling roots (tools/, test/, gen/)
-//     are library by location: those trees never link into ./cmd/...
-//     binaries by design. Naming any of internal/, cmd/ or pkg/ makes the
-//     todo a runtime todo, and every named package must then be absent
-//     from the binary closure for the finding to fire.
+//   - Unticked and retired todos are out of scope for this gate.
+//   - A todo declares CAPABILITY=RUNTIME or CAPABILITY=LIBRARY and OWNER in
+//     INTENT CONTEXT. Neither value is inferred from the ID, package path,
+//     or prose.
 //   - Package names come from the backticked Evidence and Refs fields,
 //     which is where the corpus records the proving package
 //     (e.g. "`TestTodo_LEAVE_001` ... in `internal/domains/leave`").
@@ -39,17 +32,7 @@ const RuleREV10301 = "REV-103-01"
 // CodeUnreachableRuntime marks a ticked runtime todo whose named packages
 // are all absent from the binary dependency closure.
 const CodeUnreachableRuntime = "UNREACHABLE_RUNTIME"
-
-// reachabilityExemptPrefixes are ticked-todo ID families this gate never
-// flags: conversational/chat surfaces and browser/UI work whose serving
-// path is not a ./cmd/... binary dependency.
-var reachabilityExemptPrefixes = []string{"CHAT-", "UXLIVE-", "WF-UI-", "WEB-"}
-
-// runtimeRoots are package roots whose code ships inside a ./cmd/...
-// binary when linked. Every other known root (tools/, test/, gen/) never
-// links into a shipped binary, so todos naming only those roots are
-// library by location.
-var runtimeRoots = map[string]bool{"internal": true, "cmd": true, "pkg": true}
+const CodeUnclassifiedCapability = "UNCLASSIFIED_CAPABILITY"
 
 // modulePrefixes are the import-path prefixes stripped before matching an
 // evidence token against the binary closure. Both spellings are accepted:
@@ -62,24 +45,24 @@ var modulePrefixes = []string{
 
 var (
 	backtickRe     = regexp.MustCompile("`([^`]*)`")
-	declarationRe  = regexp.MustCompile("`(RUNTIME|LIBRARY)`")
 	moduleSplitRe  = regexp.MustCompile(`^[A-Za-z0-9_.\-/]+$`)
-	packageTokenRe = regexp.MustCompile(`^(internal|tools|pkg|cmd|test|gen)(/[A-Za-z0-9_.\-]+)*$`)
+	packageTokenRe = regexp.MustCompile(`^(internal|tools|pkg|cmd|test|gen)/[A-Za-z0-9_.\-/]+$`)
 )
 
 // ReachabilityFinding names one ticked runtime todo no binary reaches.
 type ReachabilityFinding struct {
 	ID string
-	// Kind is always CodeUnreachableRuntime; kept as a field so the
-	// renderer and any future kind share one shape.
+	// Kind identifies an unreachable runtime capability or missing explicit
+	// capability classification.
 	Kind string
-	// Detail carries the re-tagged metadata: the owning family derived
-	// from the todo ID and the sorted unreachable package list, e.g.
-	// "owner=LEAVE; packages=internal/domains/leave".
+	// Detail carries the declared owner and sorted package list.
 	Detail string
 }
 
 func (f ReachabilityFinding) String() string {
+	if f.Kind == CodeUnclassifiedCapability {
+		return fmt.Sprintf("%s: %s: %s: ticked todo with unreachable packages lacks explicit CAPABILITY and OWNER (%s)", RuleREV10301, f.ID, f.Kind, f.Detail)
+	}
 	return fmt.Sprintf("%s: %s: %s: ticked runtime todo names only packages no binary reaches (%s)", RuleREV10301, f.ID, f.Kind, f.Detail)
 }
 
@@ -87,16 +70,6 @@ func (f ReachabilityFinding) String() string {
 // comparison: rule, todo, code and the package list.
 func (f ReachabilityFinding) Key() string {
 	return RuleREV10301 + "|" + f.ID + "|" + f.Kind + "|" + f.Detail
-}
-
-// ReachabilityOwner derives the owning family from a todo ID: the text
-// before the first "-". It is the owner tag the GREEN clause requires on
-// every affected tick.
-func ReachabilityOwner(id string) string {
-	if cut, _, ok := strings.Cut(id, "-"); ok && cut != "" {
-		return cut
-	}
-	return id
 }
 
 // TodoPackages extracts every normalized repo-relative Go package path
@@ -145,23 +118,10 @@ func normalizePackageToken(tok string) (string, bool) {
 	return tok, true
 }
 
-// TodoRuntimeClass reports whether a todo is a "runtime" capability whose
-// packages must be reachable from a binary, or a "library" that needs no
-// binary consumer. An explicit backticked `RUNTIME`/`LIBRARY` token in
-// GREEN wins; otherwise any internal/, cmd/ or pkg/ package makes the
-// todo runtime, while tools/-only, test/-only, gen/-only, or package-less
-// todos are library.
-func TodoRuntimeClass(td todoregistry.Todo, pkgs []string) string {
-	if m := declarationRe.FindStringSubmatch(td.Green); m != nil {
-		return m[1]
-	}
-	for _, p := range pkgs {
-		root, _, _ := strings.Cut(p, "/")
-		if runtimeRoots[root] {
-			return "RUNTIME"
-		}
-	}
-	return "LIBRARY"
+// TodoRuntimeClass returns only the explicit capability declaration.
+// Package location and TODO ID are never classification inputs.
+func TodoRuntimeClass(td todoregistry.Todo) string {
+	return td.CapabilityClass
 }
 
 // NormalizeReachable maps raw `go list -deps ./cmd/...` output lines to
@@ -181,22 +141,44 @@ func NormalizeReachable(raw []string) map[string]bool {
 	return reachable
 }
 
-// CheckReachability returns one finding for every ticked, non-retired,
-// non-exempt runtime todo whose named packages are all absent from
-// reachable. Findings follow input order. A runtime todo with at least
-// one reachable package is served and stays silent, as does every
-// library todo.
+// CheckReachability returns a finding for a ticked, non-retired todo whose
+// explicit runtime packages are all absent from reachable, or whose
+// unreachable packages lack explicit capability and owner metadata.
+// Findings follow input order. A runtime todo with at least one reachable
+// package is served and stays silent, as does every declared library todo.
 func CheckReachability(todos []todoregistry.Todo, reachable map[string]bool) []ReachabilityFinding {
+	return checkReachability(todos, reachable, nil)
+}
+
+// CheckReachabilityInPackages applies the same rule as CheckReachability,
+// but first removes references that are not real Go packages in the current
+// repository. Evidence often names directory roots such as `cmd` or stale
+// package paths; those must not be reported as unreachable runtime code.
+func CheckReachabilityInPackages(todos []todoregistry.Todo, reachable, knownPackages map[string]bool) []ReachabilityFinding {
+	return checkReachability(todos, reachable, knownPackages)
+}
+
+func checkReachability(todos []todoregistry.Todo, reachable, knownPackages map[string]bool) []ReachabilityFinding {
 	var findings []ReachabilityFinding
 	for _, td := range todos {
 		if !td.Done || td.Retired {
 			continue
 		}
-		if isReachabilityExempt(td.ID) {
+		pkgs := TodoPackages(td)
+		if knownPackages != nil {
+			filtered := pkgs[:0]
+			for _, p := range pkgs {
+				if knownPackages[p] {
+					filtered = append(filtered, p)
+				}
+			}
+			pkgs = filtered
+		}
+		class := TodoRuntimeClass(td)
+		if class == todoregistry.CapabilityLibrary {
 			continue
 		}
-		pkgs := TodoPackages(td)
-		if TodoRuntimeClass(td, pkgs) != "RUNTIME" {
+		if len(pkgs) == 0 {
 			continue
 		}
 		served := false
@@ -209,24 +191,28 @@ func CheckReachability(todos []todoregistry.Todo, reachable map[string]bool) []R
 		if served {
 			continue
 		}
+		kind := CodeUnreachableRuntime
+		owner := td.Owner
+		if class != todoregistry.CapabilityRuntime || owner == "" || td.CapabilityConflict || td.OwnerConflict {
+			kind = CodeUnclassifiedCapability
+			if owner == "" || td.OwnerConflict {
+				owner = "MISSING"
+			}
+		}
 		findings = append(findings, ReachabilityFinding{
 			ID:     td.ID,
-			Kind:   CodeUnreachableRuntime,
-			Detail: fmt.Sprintf("owner=%s; packages=%s", ReachabilityOwner(td.ID), strings.Join(pkgs, ",")),
+			Kind:   kind,
+			Detail: fmt.Sprintf("owner=%s; capability=%s; packages=%s", owner, classOrMissing(class), strings.Join(pkgs, ",")),
 		})
 	}
 	return findings
 }
 
-// isReachabilityExempt reports whether id belongs to a UI/chat family
-// this gate never flags.
-func isReachabilityExempt(id string) bool {
-	for _, prefix := range reachabilityExemptPrefixes {
-		if strings.HasPrefix(id, prefix) {
-			return true
-		}
+func classOrMissing(class string) string {
+	if class == "" {
+		return "MISSING"
 	}
-	return false
+	return class
 }
 
 // RenderReachabilityFindings renders findings in the stable line form

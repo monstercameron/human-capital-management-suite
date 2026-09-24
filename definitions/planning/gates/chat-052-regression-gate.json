@@ -1,0 +1,64 @@
+{
+  "todo_id": "CHAT-052",
+  "status": "PROPOSED",
+  "profile": "Mixed chat/workflow load: concurrent chat posts, streams and media against durable workflow timer and admission traffic, compared to a workflow-only baseline captured in the same run.",
+  "metrics": [
+    {
+      "name": "workflow_wakeup_p95_seconds",
+      "unit": "seconds",
+      "baseline_source": "planning/plan.md#Quantitative-Service-and-Capacity-Contract",
+      "hard_ceiling": 5
+    },
+    {
+      "name": "chat_send_p99_latency_seconds",
+      "unit": "seconds",
+      "baseline_source": "definitions/planning/gates/chat-001-scope-exchange.json#slos",
+      "hard_ceiling": 1
+    },
+    {
+      "name": "workflow_admission_start_regression_percent",
+      "unit": "percent",
+      "baseline_source": "definitions/planning/gates/chat-001-scope-exchange.json#slos",
+      "regression_budget_percent": 5
+    },
+    {
+      "name": "workflow_queue_age_regression_percent",
+      "unit": "percent",
+      "baseline_source": "definitions/planning/gates/chat-001-scope-exchange.json#slos",
+      "regression_budget_percent": 5
+    },
+    {
+      "name": "cost_regression_percent",
+      "unit": "percent",
+      "baseline_source": "planning/specs/chat-core-routing-and-isolation.md#Scaling-and-acceptance-gates",
+      "regression_budget_percent": 5
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "planning/specs/chat-core-routing-and-isolation.md#Scaling-and-acceptance-gates",
+      "claim": "The routing contract requires mixed-load measurement, workflow-only comparison and a measured regression budget before broad activation."
+    },
+    {
+      "path": "definitions/planning/gates/chat-001-scope-exchange.json#slos",
+      "claim": "The proposed workflow-isolation-under-mixed-load SLO sets a candidate <=5% regression budget and a workflow wake-up p95 <=5 second ceiling, both requiring Operations/workflow-owner approval."
+    },
+    {
+      "path": "planning/plan.md#Quantitative-Service-and-Capacity-Contract",
+      "claim": "Suite planning objectives include p99 <1 s local authoritative commit and workflow wake-up p95 <=5 s; these are the reference values this gate's ceilings borrow."
+    },
+    {
+      "path": "test/chat/chat_load_test.go#TestTodo_CHAT_052_MixedLoad",
+      "claim": "A local mixed-load profile records core-operation-store p95/p99 latency before, during and while the chat send lane is saturated, plus admitted chat send latency; it is a regression probe, not this signed gate."
+    }
+  ],
+  "approval": {
+    "status": "PENDING",
+    "required_roles": [
+      "Messaging Platform engineering and operations owner",
+      "Operations and commercial release owner"
+    ],
+    "signers": []
+  },
+  "canonical_digest": "sha256:1c6a713da77a43e67d831e4706c22bd189931c3853740ecea9b9378eb8d2a3e9"
+}

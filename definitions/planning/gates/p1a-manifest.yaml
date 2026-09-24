@@ -24,10 +24,9 @@
 schema_version: 1
 release: P1A
 todo_id: NEXT-002
-signed_date: "2026-09-13"
+signed_date: "2026-09-24"
 freshness_window_days: 30
 workflow: promotion.preflight-simulate-observe/v1
-
 # The eight P1A executable intent contracts, in next-steps.md's exact order.
 # ExecutionState never leaves NOT_PLANNED in P1A (next-steps.md P1A).
 intents:
@@ -57,7 +56,6 @@ intents:
   - order: 8
     id: hcmnext.operations.simulate_repair/v1
     disposition: INCLUDED
-
 # The hard zero-effect ceiling P1A may never cross (next-steps.md P1A,
 # verbatim). NEXT-005's evidence (test/bootstrap) proves this ceiling holds
 # for the Promotion path under retry and crash.
@@ -65,7 +63,6 @@ effect_ceiling:
   - "zero worker, employment, assignment, organization, position, compensation or budget mutations"
   - "zero reservations, WorkItems and timers"
   - "zero committed external effects, provider writes and MessageIntents"
-
 # The ten bootstrap capability-registry entries (internal/capability/bootstrap.go
 # bootstrapDefinitions), copied field-for-field from
 # tools/gen/schemaflux/testdata/capability_manifest.yaml, which TOOL-004's own
@@ -123,7 +120,6 @@ capabilities:
     owner_domain: registry
     effect_class: READ_ONLY
     test_ref: "conformance:hcmnext.registry.explain_capability/v1"
-
 # The four P1A composition-root binaries (NEXT-004).
 commands:
   - name: hcmnext
@@ -138,7 +134,6 @@ commands:
   - name: migrate
     package: cmd/migrate
     purpose: "Composition root applying the embedded Goose migration tree (migrations/) with DB-006 journaling."
-
 # The fourteen embedded Goose migrations (migrations/*.sql), named and
 # checksummed exactly as migrations.Files() computes them - cross-checked
 # live by manifest_test.go's TestP1AManifestMigrationChecksumsMatchEmbeddedMigrationsFS
@@ -868,7 +863,6 @@ migrations:
       reason: "Reserved for a 2026-09-06 Gate A or authorization lane block (three numbers per lane) and released unused; the lane needed fewer files."
     - version: 260
       reason: "Reserved for a 2026-09-06 Gate A or authorization lane block (three numbers per lane) and released unused; the lane needed fewer files."
-
 # The four toolchain qualification decisions this P1A manifest depends on.
 qualification_decisions:
   - todo_id: TOOL-004
@@ -883,7 +877,6 @@ qualification_decisions:
   - todo_id: WF-RUN-000
     decision: BUILD
     record: definitions/runtime/durable-runtime-decision.yaml
-
 # Exactly one Test function, in exactly one package, per todo this manifest
 # depends on. tools/planning/gateevidence.Compile resolves each entry
 # against definitions/planning/gates/p1a-evidence-results.json (or live
@@ -907,7 +900,6 @@ evidence:
   - todo_id: WF-RUN-000
     test: TestDurableRuntimeAdoptionDecisionRecordIsCompleteAndEvidenced
     package: ./tools/policy/runtimedecision
-
 # No real external-write-adapter package exists anywhere in this repository
 # yet (P1A is read-only by construction; NEXT-005's evidence proves it down
 # to zero effect rows under retry/crash). These prefixes name the P1B write-
@@ -923,7 +915,6 @@ forbidden_import_prefixes:
   - github.com/monstercameron/human-capital-management-suite/internal/connectivity/writeadapters
   - github.com/monstercameron/human-capital-management-suite/internal/transport/clients/providerwrite
   - github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/execute
-
 # The machine-readable zero-effect ceiling: workforce mutation, reservation,
 # WorkItem, timer, message, outbox effect and provider write. Validate
 # requires exactly this list, in this order; it is the same vocabulary
@@ -937,7 +928,6 @@ forbidden_effects:
   - message
   - outbox
   - provider_write
-
 # Selection bindings (NEXT-002, 2026-09-13). Every selecting and readiness
 # artifact this release depends on, pinned by path and digest, in NEXT-002's
 # Depends order plus THREAT-001. CANONICAL_JSON is the artifact's own
@@ -950,13 +940,14 @@ forbidden_effects:
 # every digest (a stale binding fails), verifies every bound signature
 # against the trusted key and runs each artifact's own gate. As signed, it
 # reports INCOMPLETE: placeholder provider, unreviewed jurisdiction, no
-# topology decision, no design partner, no SLO, and an unaccepted critical
-# threat. The PHASE-001 ceiling's slots stay unfilled there by design.
+# topology decision, no design partner and no SLO. THR-07's exact-path
+# EDGE-07 mitigation passes its own release check; the PHASE-001 ceiling's
+# slots stay unfilled there by design.
 selection_bindings:
   - todo_id: PHASE-001
     path: definitions/planning/gates/phase1-scope-ceiling.yaml
     digest_kind: CANONICAL_JSON
-    digest: "2e73dc174fcf32e247adc506a8a4d9c82dc8fb78900aff5566de6cea24f2d1eb"
+    digest: "6d2bfd82cecb9e801d18cccb3bc35fcff8c92a0b7b8a9eb96c6dac569672a70f"
   - todo_id: SELECT-001
     path: definitions/planning/gates/select-001-jurisdiction-profile.yaml
     digest_kind: CANONICAL_JSON
@@ -976,14 +967,13 @@ selection_bindings:
   - todo_id: COMMERCIAL-001
     path: definitions/planning/gates/commercial-001-pilot-package.yaml
     digest_kind: CANONICAL_JSON
-    digest: "0d9c703b602031ae36c40ec84bb69013fc648e6ec55956e8d0a81b648d065ad6"
+    digest: "f91654dbf4fbf97da7c8b4df310ed6e3fa577c74be8754dbf1b487a56f23310f"
   - todo_id: THREAT-001
     path: definitions/planning/gates/threat-001-register.yaml
     digest_kind: CANONICAL_JSON
-    digest: "09fd51d86d607f5372d185af7b7f366613f2299e6e723287ac8f1e0a369b4322"
-
+    digest: "40db08dbbdd62a654bbf0ccd6eefd121a69e26525da34f633086f8197174ec37"
 signature:
-  algorithm: ed25519
-  public_key: 93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b
-  key_fixture: tools/planning/gateevidence/testdata/dev-signing-key.yaml
-  value: "b6ffc2a6c95dcb35d11d7b2434e48efa13dfcc1a21de481cb9c1f1d1e9eac3a985879c725a6d211162303d12d323526e92253bce54fa10f5d9b4959bbe996806"
+  algorithm: "ed25519"
+  public_key: "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b"
+  key_fixture: "tools/planning/gateevidence/testdata/dev-signing-key.yaml"
+  value: "8bb28f543b2ae9286a71d5b8ee1fd2f9eed545261794a1d4b19d559b57a7633cbdc1ccfb08ebeeea45a73eb8f0bb6d209a0d60027adb52819f5032c49e733d07"

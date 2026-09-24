@@ -3,10 +3,10 @@
     "stage": "canary",
     "artifact": "WORKFLOW",
     "version": "v1.2.0",
-    "plan_digest": "sha256:ff90f1f1046508f9805be281b4a1fb8785a451e69a3ad53f91b703c2e0170fe2",
-    "cohort_digest": "sha256:c3095bdf5e6f9f17b5fb9da1bab1ca28ad4def54f6fb419b4ba02db56ed1f6e4",
+    "plan_digest": "sha256:83b8725b725162be35d2000148172fe3314dd87c41a734d0f56eb72ec7dbfc60",
+    "cohort_digest": "sha256:b6a23a8a0ee8af95e582d3d5b6d9c9c591fb30afcb6cada4a9f041f611546cb8",
     "epoch": 1,
-    "control_digest": "sha256:f9b8ecbef34371c91d7880c0ddbf646d3f84db48927ee9c6d34445437ea1cbd1",
+    "control_digest": "sha256:93b0697d57b06e189c59ee7c169ceffbb640b97aef3046f79c99bd20f10b14c8",
     "owner": "release-captains"
   },
   "explanation": {
@@ -16,10 +16,10 @@
       "stage": "canary",
       "artifact": "WORKFLOW",
       "version": "v1.2.0",
-      "plan_digest": "sha256:ff90f1f1046508f9805be281b4a1fb8785a451e69a3ad53f91b703c2e0170fe2",
-      "cohort_digest": "sha256:c3095bdf5e6f9f17b5fb9da1bab1ca28ad4def54f6fb419b4ba02db56ed1f6e4",
+      "plan_digest": "sha256:83b8725b725162be35d2000148172fe3314dd87c41a734d0f56eb72ec7dbfc60",
+      "cohort_digest": "sha256:b6a23a8a0ee8af95e582d3d5b6d9c9c591fb30afcb6cada4a9f041f611546cb8",
       "epoch": 1,
-      "control_digest": "sha256:f9b8ecbef34371c91d7880c0ddbf646d3f84db48927ee9c6d34445437ea1cbd1",
+      "control_digest": "sha256:93b0697d57b06e189c59ee7c169ceffbb640b97aef3046f79c99bd20f10b14c8",
       "owner": "release-captains"
     }
   }

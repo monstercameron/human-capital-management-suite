@@ -73,7 +73,6 @@ func TestP1AAndP1BManifestsAreDisjointOrderedBoundedAndSelectionComplete(t *test
 			"TOPOLOGY-001: no deployable topology decision artifact is checked in",
 			"CUSTOMER-001: Instantiate reports BLOCKED",
 			"CUSTOMER-001: BLOCKED: customer input missing: no design partner has been selected",
-			"THREAT-001: release blocked:",
 			"slot slo: COMMERCIAL-001 promises no SLO",
 		} {
 			if !strings.Contains(all, want) {

@@ -2,7 +2,21 @@ package rolloutplan
 
 import (
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/configbundle"
 )
+
+func rolloutKillBindings(t *testing.T) (*configbundle.KillSwitchStore, configbundle.KillSwitchTarget) {
+	t.Helper()
+	store := configbundle.NewKillSwitchStore(killSigner(t))
+	return store, configbundle.KillSwitchTarget{TenantID: "tenant-a", Capability: "promotion.execute"}
+}
+
+func newTestActivationLedger(t *testing.T) *ActivationLedger {
+	t.Helper()
+	guard, target := rolloutKillBindings(t)
+	return NewActivationLedger(guard, target)
+}
 
 func activationRequest(t *testing.T) ActivationRequest {
 	t.Helper()
@@ -26,7 +40,7 @@ func activationRequest(t *testing.T) ActivationRequest {
 }
 
 func TestTodo_ROLLOUT_003(t *testing.T) {
-	ledger := NewActivationLedger()
+	ledger := newTestActivationLedger(t)
 	receipt, err := ledger.Activate(activationRequest(t))
 	if err != nil {
 		t.Fatalf("valid canary activation rejected: %v", err)
@@ -64,14 +78,14 @@ func TestTodo_ROLLOUT_003(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := activationRequest(t)
 			tc.mutate(&req)
-			if _, err := NewActivationLedger().Activate(req); !HasActivationCode(err, tc.code) {
+			if _, err := newTestActivationLedger(t).Activate(req); !HasActivationCode(err, tc.code) {
 				t.Fatalf("want %s, got %v", tc.code, err)
 			}
 		})
 	}
 
 	t.Run("epoch replays fail", func(t *testing.T) {
-		ledger := NewActivationLedger()
+		ledger := newTestActivationLedger(t)
 		if _, err := ledger.Activate(activationRequest(t)); err != nil {
 			t.Fatal(err)
 		}

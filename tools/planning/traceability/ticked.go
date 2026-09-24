@@ -4,11 +4,10 @@
 // the command that ran them. A tick is only evidence when its named tests
 // exist and its evidence names the command.
 //
-// Retired todos and reviewed variance already recorded in tsProvenTodos
-// (TypeScript-proven suites and legacy evidence gaps) are out of scope:
-// the former are withdrawn, the latter are tracked for re-proof, not
-// re-flagged. Fix a finding by writing the missing test, recording an
-// applicability reason, or unticking the todo.
+// Retired todos are out of scope. tsProvenTodos belongs to the historical
+// evidence-name crosswalk; it does not waive the explicit test/evidence
+// contract for a ticked todo. Fix a finding by writing the missing test,
+// recording an applicability reason in the todo, or unticking the todo.
 package traceability
 
 import (
@@ -31,7 +30,7 @@ const (
 	// TickedMissingEvidence marks a ticked todo with no Evidence field.
 	TickedMissingEvidence = "MISSING_EVIDENCE"
 	// TickedMissingCommand marks a ticked todo whose Evidence field names
-	// no go test/vet/run/build command.
+	// no supported test-runner command.
 	TickedMissingCommand = "MISSING_COMMAND"
 )
 
@@ -47,11 +46,10 @@ func (f TickedFinding) String() string {
 }
 
 var (
-	// tickedCommandRe is the same command notion the evidence package
-	// enforces: a backticked go test/vet/run/build invocation. Sharing the
-	// spelling keeps the two checkers from disagreeing about what counts
-	// as naming the command that ran the tests.
-	tickedCommandRe = regexp.MustCompile("`(go (?:test|vet|run|build)[^`]*)`")
+	// tickedCommandRe accepts only commands that execute test suites supported
+	// by this repository. Build, vet, and application commands cannot prove
+	// that a named test ran.
+	tickedCommandRe = regexp.MustCompile("`\\s*(?:go\\s+test|npm\\s+run\\s+test(?::(?:all|frontend|go|uxqual-browser))?|npx\\s+vitest\\s+run|npx\\s+playwright\\s+test|node\\s+--test)(?:\\s+[^`]*)?`")
 	// tickedTestNameRe admits only real Go test identifiers as matrix
 	// candidates. TEST MATRIX also carries UNIT_ONLY applicability reasons
 	// (see GOV-018), which are annotations rather than test names and must
@@ -59,8 +57,8 @@ var (
 	tickedTestNameRe = nameRe
 )
 
-// CheckTickedTodos returns a TickedFinding for every ticked, non-retired,
-// non-allow-listed todo whose TEST name has no function, whose TEST MATRIX
+// CheckTickedTodos returns a TickedFinding for every ticked, non-retired
+// todo whose TEST name has no function, whose TEST MATRIX
 // entry has no function, which carries no Evidence field, or whose Evidence
 // field names no command. Findings follow input order; matrix entries follow
 // sorted class order so map iteration never perturbs the output. A TEST
@@ -72,10 +70,6 @@ func CheckTickedTodos(todos []todoregistry.Todo, existingTests map[string]bool) 
 		if !td.Done || td.Retired {
 			continue
 		}
-		if _, ok := tsProvenTodos[td.ID]; ok {
-			continue
-		}
-
 		if strings.TrimSpace(td.Evidence) == "" {
 			findings = append(findings, TickedFinding{
 				ID:     td.ID,
@@ -86,11 +80,17 @@ func CheckTickedTodos(todos []todoregistry.Todo, existingTests map[string]bool) 
 			findings = append(findings, TickedFinding{
 				ID:     td.ID,
 				Kind:   TickedMissingCommand,
-				Detail: "Evidence field names no go test, go vet, go run or go build command",
+				Detail: "Evidence field names no supported test-runner command",
 			})
 		}
 
-		if td.Test != "" && !existingTests[td.Test] {
+		if strings.TrimSpace(td.Test) == "" {
+			findings = append(findings, TickedFinding{
+				ID:     td.ID,
+				Kind:   TickedMissingTest,
+				Detail: "completed todo has no TEST name",
+			})
+		} else if !existingTests[td.Test] {
 			findings = append(findings, TickedFinding{
 				ID:     td.ID,
 				Kind:   TickedMissingTest,

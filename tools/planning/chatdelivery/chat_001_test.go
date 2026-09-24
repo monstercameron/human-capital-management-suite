@@ -37,15 +37,15 @@ func TestTodo_CHAT_001(t *testing.T) {
 
 func TestTodo_CHAT_001_Golden(t *testing.T) {
 	r := artifact(t)
-	if got, want := r.CanonicalDigest, "sha256:TO_BE_FILLED"; got == want {
-		t.Fatal("golden digest fixture was not generated")
-	}
 	computed, err := Digest(r)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if computed != r.CanonicalDigest {
 		t.Fatalf("digest changed: got %s want %s", computed, r.CanonicalDigest)
+	}
+	if got, want := r.CanonicalDigest, "sha256:5517e17ea55d35559f257a891c802823d78b460b36d6e16db85b7a3d9870ac61"; got != want {
+		t.Fatalf("CHAT-001 golden digest changed: got %s want %s", got, want)
 	}
 	if got := (Violation{Field: "status", Issue: "must remain PROPOSED until approval evidence exists"}).String(); got != "CHAT-001: status: must remain PROPOSED until approval evidence exists" {
 		t.Fatalf("violation formatting changed: %s", got)
@@ -73,11 +73,17 @@ func TestChatArtifactRejectsIncompleteRecords(t *testing.T) {
 		{"missing owner", func(r *Record) { r.ReleaseOwner = "" }, "release_owner"},
 		{"missing displacement", func(r *Record) { r.DisplacedWork = nil }, "displaced_work"},
 		{"incomplete displacement", func(r *Record) { r.DisplacedWork[0].Owner = "" }, "displaced_work[0]"},
+		{"missing owners", func(r *Record) { r.Owners = nil }, "owners"},
+		{"incomplete owner", func(r *Record) { r.Owners[0].Responsibility = "" }, "owners[0]"},
 		{"missing pilot", func(r *Record) { r.PilotTenants = nil }, "pilot_tenants"},
+		{"missing pilot criteria", func(r *Record) { r.PilotCriteria = nil }, "pilot_selection_criteria"},
 		{"missing slos", func(r *Record) { r.SLOs = nil }, "slos"},
 		{"incomplete slo", func(r *Record) { r.SLOs[0].Target = "" }, "slos[0]"},
 		{"missing activation", func(r *Record) { r.Activation = nil }, "activation_conditions"},
+		{"missing deactivation", func(r *Record) { r.Deactivation = nil }, "deactivation_conditions"},
 		{"missing blockers", func(r *Record) { r.Blockers = nil }, "unmet_gates"},
+		{"missing source evidence", func(r *Record) { r.Evidence = nil }, "source_evidence"},
+		{"incomplete source evidence", func(r *Record) { r.Evidence[0].Path = "" }, "source_evidence[0]"},
 		{"p1a not preserved", func(r *Record) { r.PreserveP1A = false }, "preserve_p1_inventory"},
 		{"p1b not preserved", func(r *Record) { r.PreserveP1B = false }, "preserve_p1_inventory"},
 		{"approval completed", func(r *Record) { r.Approval.Status = "APPROVED" }, "approval.status"},
@@ -89,10 +95,14 @@ func TestChatArtifactRejectsIncompleteRecords(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := base
 			r.DisplacedWork = append([]DisplacedWork(nil), base.DisplacedWork...)
+			r.Owners = append([]Owner(nil), base.Owners...)
 			r.SLOs = append([]SLO(nil), base.SLOs...)
 			r.PilotTenants = append([]string(nil), base.PilotTenants...)
+			r.PilotCriteria = append([]string(nil), base.PilotCriteria...)
 			r.Activation = append([]string(nil), base.Activation...)
+			r.Deactivation = append([]string(nil), base.Deactivation...)
 			r.Blockers = append([]string(nil), base.Blockers...)
+			r.Evidence = append([]Evidence(nil), base.Evidence...)
 			r.Approval.RequiredRoles = append([]string(nil), base.Approval.RequiredRoles...)
 			r.Approval.Signers = append([]string(nil), base.Approval.Signers...)
 			tc.mutate(&r)

@@ -31,9 +31,12 @@ func (o Orphan) String() string {
 }
 
 var (
-	tickRe          = regexp.MustCompile("`([^`]*)`")
-	nameRe          = regexp.MustCompile(`^(Test|Fuzz|Benchmark)[A-Za-z0-9_]*$`)
-	matrixVariantRe = regexp.MustCompile(`^(TestTodo_.+_[0-9]+)_(Property|Golden|Fault|Security|Conformance|Recovery|Mutation|Race|Integration)$`)
+	tickRe                 = regexp.MustCompile("`([^`]*)`")
+	nameRe                 = regexp.MustCompile(`^(Test|Fuzz|Benchmark)[A-Za-z0-9_]*$`)
+	globNameRe             = regexp.MustCompile(`^(Test|Fuzz|Benchmark)[A-Za-z0-9_]*\*$`)
+	matrixVariantRe        = regexp.MustCompile(`^(TestTodo_.+_[0-9]+)_(Property|Golden|Fault|Security|Conformance|Recovery|Mutation|Race|Integration)$`)
+	explicitEvidenceTestRe = regexp.MustCompile(`\bTEST\s+((?:Test|Fuzz|Benchmark)[A-Za-z0-9_]*)`)
+	goTestRunFlagRe        = regexp.MustCompile(`(?:^|\s)-run(?:=|\s+)(?:'([^']*)'|"([^"]*)"|([^\s]+))`)
 )
 
 // ExtractEvidenceTestNames extracts every Test/Fuzz/Benchmark function name
@@ -53,8 +56,34 @@ var (
 func ExtractEvidenceTestNames(evidence string) []string {
 	var names []string
 	lastBase := ""
+	seen := make(map[string]bool)
 
 	for _, tok := range tickRe.FindAllStringSubmatch(evidence, -1) {
+		// Evidence sometimes quotes an entire `go test ... -run` command
+		// instead of quoting the test name separately. Only accept a run
+		// expression that is a single literal Go test identifier, optionally
+		// anchored or followed by the common `($|_)` matrix selector; general
+		// regexes are deliberately ignored so regex tokens cannot manufacture
+		// test names.
+		if strings.HasPrefix(strings.TrimSpace(tok[1]), "go test") {
+			for _, match := range goTestRunFlagRe.FindAllStringSubmatch(tok[1], -1) {
+				pattern := match[1]
+				if pattern == "" {
+					pattern = match[2]
+				}
+				if pattern == "" {
+					pattern = match[3]
+				}
+				name := strings.TrimPrefix(pattern, "^")
+				name = strings.TrimSuffix(name, "($|_)")
+				name = strings.TrimSuffix(name, "$")
+				if nameRe.MatchString(name) && name != "TestTodo_" && !seen[name] {
+					names = append(names, name)
+					seen[name] = true
+				}
+			}
+			continue
+		}
 		for _, part := range splitOutsideBraces(tok[1]) {
 			part = strings.TrimSpace(part)
 			if part == "" {
@@ -95,8 +124,9 @@ func ExtractEvidenceTestNames(evidence string) []string {
 				continue
 			}
 
-			if nameRe.MatchString(part) {
+			if nameRe.MatchString(part) || globNameRe.MatchString(part) {
 				names = append(names, part)
+				seen[part] = true
 				// Evidence may introduce a matrix with its first variant
 				// (`TestTodo_ID_Property`, `_Golden`, ...). Subsequent
 				// shorthand belongs to the todo root, not to Property.
@@ -118,6 +148,12 @@ func ExtractEvidenceTestNames(evidence string) []string {
 					lastBase = part
 				}
 			}
+		}
+	}
+	for _, match := range explicitEvidenceTestRe.FindAllStringSubmatch(evidence, -1) {
+		if !seen[match[1]] {
+			names = append(names, match[1])
+			seen[match[1]] = true
 		}
 	}
 
@@ -198,6 +234,154 @@ func ScanTestNames(root string) (map[string]bool, error) {
 	return names, nil
 }
 
+// ScanRepositoryTestNames returns Go test functions plus named tests in the
+// JavaScript and TypeScript suites supported by plancheck. Vitest and
+// Node-style suites declare their names as string titles rather than Go
+// function identifiers; `it.each`/`test.each` rows are also registered test
+// cases when the runner executes them.
+func ScanRepositoryTestNames(root string) (map[string]bool, error) {
+	names, err := ScanTestNames(root)
+	if err != nil {
+		return nil, err
+	}
+
+	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			name := info.Name()
+			if name == "testdata" || name == "vendor" || name == "node_modules" || (strings.HasPrefix(name, ".") && path != root) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !isJSTestFile(path) {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		source := stripJSComments(string(content))
+		for _, match := range jsTestTitleRe.FindAllStringSubmatch(source, -1) {
+			if name := testNameFromTitle(firstCapture(match)); name != "" {
+				names[name] = true
+			}
+		}
+		for _, match := range jsTestEachTitleRe.FindAllStringSubmatch(source, -1) {
+			if name := testNameFromTitle(firstCapture(match)); name != "" {
+				names[name] = true
+			}
+		}
+		for _, match := range jsTestEachRe.FindAllStringSubmatch(source, -1) {
+			for _, title := range jsStringLiteralRe.FindAllStringSubmatch(match[1], -1) {
+				if name := firstCapture(title); isTestName(name) {
+					names[name] = true
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+var (
+	jsTestTitleRe     = regexp.MustCompile(`\b(?:it|test)(?:\.(?:concurrent|skip|only))?\s*\(\s*(?:"([^"\n]*)"|'([^'\n]*)'|` + "`([^`\\n]*)`" + `)`)
+	jsTestEachRe      = regexp.MustCompile(`(?s)\b(?:it|test)\s*\.\s*each\s*(?:<[^>]+>)?\s*\(\s*\[([^\]]*)\]\s*\)\s*\(`)
+	jsTestEachTitleRe = regexp.MustCompile(`(?s)\b(?:it|test)\s*\.\s*each\s*(?:<[^>]+>)?\s*\(.*?\)\s*\(\s*(?:"([^"\n]*)"|'([^'\n]*)'|` + "`([^`\\n]*)`" + `)`)
+	jsStringLiteralRe = regexp.MustCompile(`"([^"\n]*)"|'([^'\n]*)'|` + "`([^`\\n]*)`")
+)
+
+func isJSTestFile(path string) bool {
+	for _, suffix := range []string{".test.js", ".spec.js", ".test.jsx", ".spec.jsx", ".test.mjs", ".spec.mjs", ".test.cjs", ".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx"} {
+		if strings.HasSuffix(path, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func firstCapture(groups []string) string {
+	for _, value := range groups[1:] {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func isTestName(name string) bool {
+	return nameRe.MatchString(name)
+}
+
+func testNameFromTitle(title string) string {
+	name := title
+	if fields := strings.Fields(title); len(fields) > 0 {
+		name = strings.TrimRight(fields[0], ".,:;)")
+	}
+	if len(name) <= len("Test") || !isTestName(name) {
+		return ""
+	}
+	return name
+}
+
+func stripJSComments(source string) string {
+	bytes := []byte(source)
+	const (
+		normal = iota
+		quoted
+		lineComment
+		blockComment
+	)
+	state := normal
+	var quote byte
+	for i := 0; i < len(bytes); i++ {
+		c := bytes[i]
+		switch state {
+		case quoted:
+			if c == '\\' {
+				i++
+				continue
+			}
+			if c == quote {
+				state = normal
+			}
+		case lineComment:
+			if c == '\n' {
+				state = normal
+			} else {
+				bytes[i] = ' '
+			}
+		case blockComment:
+			if c == '*' && i+1 < len(bytes) && bytes[i+1] == '/' {
+				bytes[i], bytes[i+1] = ' ', ' '
+				i++
+				state = normal
+			} else if c != '\n' && c != '\r' {
+				bytes[i] = ' '
+			}
+		default:
+			if c == '\'' || c == '"' || c == '`' {
+				state = quoted
+				quote = c
+			} else if c == '/' && i+1 < len(bytes) && bytes[i+1] == '/' {
+				bytes[i], bytes[i+1] = ' ', ' '
+				i++
+				state = lineComment
+			} else if c == '/' && i+1 < len(bytes) && bytes[i+1] == '*' {
+				bytes[i], bytes[i+1] = ' ', ' '
+				i++
+				state = blockComment
+			}
+		}
+	}
+	return string(bytes)
+}
+
 // CheckTraceability returns an Orphan for every completed (Done) todo whose
 // Evidence field is empty, names no recognizable test, or names no test that
 // exists in existingTests. Evidence often names one top-level test followed
@@ -209,6 +393,12 @@ func CheckTraceability(todos []todoregistry.Todo, existingTests map[string]bool)
 
 	for _, td := range todos {
 		if !td.Done {
+			continue
+		}
+		// A retired todo with a recorded disposition is an explicit
+		// applicability exception: its contract was withdrawn, so it does not
+		// need a test name in its closure evidence.
+		if td.Retired && strings.TrimSpace(td.Disposition) != "" {
 			continue
 		}
 		if strings.TrimSpace(td.Evidence) == "" {
@@ -224,7 +414,7 @@ func CheckTraceability(todos []todoregistry.Todo, existingTests map[string]bool)
 
 		resolved := false
 		for _, n := range names {
-			if existingTests[n] {
+			if matchesEvidenceTestName(n, existingTests) {
 				resolved = true
 				break
 			}
@@ -235,4 +425,20 @@ func CheckTraceability(todos []todoregistry.Todo, existingTests map[string]bool)
 	}
 
 	return orphans
+}
+
+func matchesEvidenceTestName(name string, existingTests map[string]bool) bool {
+	if existingTests[name] {
+		return true
+	}
+	if !globNameRe.MatchString(name) {
+		return false
+	}
+	prefix := strings.TrimSuffix(name, "*")
+	for existing := range existingTests {
+		if strings.HasPrefix(existing, prefix) {
+			return true
+		}
+	}
+	return false
 }

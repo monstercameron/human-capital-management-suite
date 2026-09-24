@@ -10,12 +10,9 @@
 // tools/planning/workflowmaturity's doc.go for why that document is read
 // only for comparison, never as an input to the gate.
 //
-// It exits non-zero only on a load failure or a self-validation mismatch
-// (Validate finding a report that claims more than fresh evidence
-// supports); it does not exit non-zero merely because some accepted
-// definition is not yet CONTRACTED - that is the gate's normal, expected
-// output while WF-DISC-009's ownership register is still being filled in,
-// and is reported, not hidden.
+// It exits non-zero on a load failure, self-validation mismatch, a new
+// catalog disagreement, or stale baseline ownership evidence. Known
+// UNASSIGNED disagreements remain visible as open work in the baseline.
 package main
 
 import (
@@ -35,6 +32,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	flags.SetOutput(stderr)
 	root := flags.String("root", ".", "repository root")
 	allowlistPath := flags.String("allowlist", workflowmaturity.DefaultIntentCoverageAllowlist, "intentcoverage orphan allowlist to reuse")
+	catalogBaselinePath := flags.String("catalog-baseline", workflowmaturity.DefaultCatalogBaseline, "reviewed catalog disagreement baseline")
 	outPath := flags.String("out", "", "optional report JSON output path")
 	if err := flags.Parse(args); err != nil {
 		return 2
@@ -71,6 +69,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 	for _, d := range disagreements {
 		fmt.Fprintf(stdout, "  %s (%q) claims EXISTING for %s but evidence allows at most %s\n", d.FlowID, d.Title, d.Definition, d.Evidence)
 	}
+	baseline, err := workflowmaturity.LoadCatalogBaseline(*root, *catalogBaselinePath)
+	if err != nil {
+		fmt.Fprintf(stderr, "workflowmaturity: %v\n", err)
+		return 2
+	}
+	baselineViolations := workflowmaturity.ValidateCatalogBaseline(disagreements, baseline, snap.Ownership)
+	for _, violation := range baselineViolations {
+		fmt.Fprintln(stderr, "CATALOG BASELINE FAILURE:", violation)
+	}
+	openUnassigned := 0
+	for _, entry := range baseline.Entries {
+		if entry.Owner == "UNASSIGNED" {
+			openUnassigned++
+		}
+	}
+	fmt.Fprintf(stdout, "catalog baseline: status=%s known=%d open_unassigned=%d\n", baseline.Status, len(baseline.Entries), openUnassigned)
 
 	data, err := report.JSON()
 	if err != nil {
@@ -89,5 +103,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	fmt.Fprintf(stdout, "\nworkflowmaturity: total=%d blocked=%d digest=%s\n", report.TotalDefinitions, report.BlockedCount, report.Digest)
+	if len(baselineViolations) > 0 {
+		return 1
+	}
 	return 0
 }

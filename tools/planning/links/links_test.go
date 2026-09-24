@@ -75,6 +75,33 @@ func TestPlanningLinks(t *testing.T) {
 	}
 }
 
+// TestTodo_GOV_004_Golden pins the scanner's diagnostic coordinates and
+// wording for a missing file and a missing heading anchor.
+func TestTodo_GOV_004_Golden(t *testing.T) {
+	root := t.TempDir()
+	planning := filepath.Join(root, "planning")
+	if err := os.MkdirAll(planning, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(planning, "index.md"), []byte("# Index\n\n[missing](absent.md)\n[anchor](target.md#nope)\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(planning, "target.md"), []byte("# Present\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := CheckPlanningLinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []LinkIssue{
+		{File: filepath.Join(planning, "index.md"), Line: 3, Link: "absent.md", Reason: "file not found: absent.md"},
+		{File: filepath.Join(planning, "index.md"), Line: 4, Link: "target.md#nope", Reason: "anchor not found in target.md: nope"},
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("link diagnostics = %#v, want %#v", got, want)
+	}
+}
+
 // TestGitHubAnchor tests the anchor generation algorithm against GitHub's
 // actual behavior: only letters/digits/hyphens/underscores survive, spaces
 // become hyphens one-for-one (no collapsing), and everything else is

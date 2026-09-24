@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,7 +93,7 @@ func TestTraceabilityCommandAdapterTickedGaps(t *testing.T) {
 // while the same todo with that package in the closure returns cleanly.
 func TestReachabilityCommandAdapterClosesRuntimeTicks(t *testing.T) {
 	const body = "  - **Depends:** none.\n" +
-		"  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=fixture`.\n" +
+		"  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=none; WHY=fixture; CAPABILITY=RUNTIME; OWNER=TEST_OWNER`.\n" +
 		"  - **TEST:** `TestFixture`.\n" +
 		"  - **TEST MATRIX:** `PRIMARY=TestFixture`.\n" +
 		"  - **RED:** returns a typed error for the seeded defect.\n" +
@@ -118,10 +119,11 @@ func TestReachabilityCommandAdapterClosesRuntimeTicks(t *testing.T) {
 	}
 
 	served := map[string]bool{"internal/domains/leave": true}
-	if findings := checkReachabilityTodos(todos, served); len(findings) != 0 {
+	known := map[string]bool{"internal/domains/leave": true}
+	if findings := checkReachabilityTodos(todos, served, known); len(findings) != 0 {
 		t.Fatalf("checkReachabilityTodos(served) = %v, want clean", findings)
 	}
-	findings := checkReachabilityTodos(todos, map[string]bool{})
+	findings := checkReachabilityTodos(todos, map[string]bool{}, known)
 	if len(findings) != 1 {
 		t.Fatalf("checkReachabilityTodos(unserved) = %v, want one finding", findings)
 	}
@@ -130,15 +132,149 @@ func TestReachabilityCommandAdapterClosesRuntimeTicks(t *testing.T) {
 	}
 }
 
-// TestReachabilityCommandLiveCorpusRemainsNonGreen ensures the live
-// command exposes existing unreachable ticks instead of silently treating
-// library-only code as served.
-func TestReachabilityCommandLiveCorpusRemainsNonGreen(t *testing.T) {
+func TestBinaryClosureIncludesShippedCommandsAndExcludesFrontendDev(t *testing.T) {
 	root := repositoryRoot(t)
-	if err := runReachability(root); err == nil {
-		t.Fatalf("runReachability(%s) unexpectedly accepted the live corpus", root)
-	} else if got := err.Error(); !strings.Contains(got, "ticked runtime todo") {
-		t.Fatalf("expected a ticked-runtime-todo verdict, got %q", got)
+	reachable, err := binaryClosure(root)
+	if err != nil {
+		t.Fatalf("binaryClosure(%s): %v", root, err)
+	}
+	want := [...]shippedBinary{
+		{Name: "hcmnext", Package: "./cmd/hcmnext"},
+		{Name: "scheduler", Package: "./cmd/scheduler"},
+		{Name: "worker", Package: "./cmd/worker"},
+		{Name: "migrate", Package: "./cmd/migrate"},
+		{Name: "hcmctl", Package: "./cmd/hcmctl"},
+		{Name: "projector", Package: "./cmd/projector"},
+	}
+	got := shippedBinaryMatrix()
+	if got != want {
+		t.Fatalf("shipped binary matrix = %#v, want %#v", got, want)
+	}
+	buildScript, err := os.ReadFile(filepath.Join(root, "scripts", "build.sh"))
+	if err != nil {
+		t.Fatalf("read scripts/build.sh: %v", err)
+	}
+	defaultCommands := strings.LastIndex(string(buildScript), "cmds=(")
+	if defaultCommands < 0 {
+		t.Fatal("scripts/build.sh no longer declares its default shipped command set")
+	}
+	defaultCommands += len("cmds=(")
+	endCommands := strings.Index(string(buildScript)[defaultCommands:], ")")
+	if endCommands < 0 {
+		t.Fatal("scripts/build.sh default command set is unterminated")
+	}
+	var binaryNames []string
+	for _, binary := range got {
+		binaryNames = append(binaryNames, binary.Name)
+	}
+	if gotNames := strings.Fields(string(buildScript)[defaultCommands : defaultCommands+endCommands]); strings.Join(gotNames, ",") != strings.Join(binaryNames, ",") {
+		t.Fatalf("shipped binary matrix %v no longer matches scripts/build.sh defaults %v", binaryNames, gotNames)
+	}
+	for _, binary := range got {
+		command := "cmd/" + binary.Name
+		if !reachable[command] {
+			t.Errorf("shipped command %s (%s) is missing from binary closure", binary.Name, binary.Package)
+		}
+	}
+	if reachable["cmd/frontenddev"] {
+		t.Fatal("development-only cmd/frontenddev must not satisfy runtime reachability")
+	}
+}
+
+func TestPackageInventoryContainsActualPackagesOnly(t *testing.T) {
+	root := repositoryRoot(t)
+	packages, err := packageInventory(root)
+	if err != nil {
+		t.Fatalf("packageInventory(%s): %v", root, err)
+	}
+	if !packages["internal/domains/leave"] {
+		t.Fatal("package inventory omitted an existing Go package")
+	}
+	if packages["cmd"] || packages["internal"] || packages["gen"] {
+		t.Fatalf("package inventory included a repository directory that is not a Go package: cmd=%t internal=%t gen=%t", packages["cmd"], packages["internal"], packages["gen"])
+	}
+}
+
+func TestWorkflowConformanceCommandAdapter(t *testing.T) {
+	root := t.TempDir()
+	workflowPath := filepath.Join(root, "planning", "workflows", "people", "sample.md")
+	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(workflowPath, []byte("workflow_id: sample/v1\nstate: EXTRACTED + EXPLORED\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "planning"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(context string) {
+		t.Helper()
+		content := "## Fixture\n\n" +
+			"- [x] `CONF-TEST` **[CONFORMANCE][LUNA] exploratory proof.**\n" +
+			"  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; WHY=fixture" + context + "`.\n" +
+			"  - **TEST:** `TestFixture`.\n" +
+			"  - **TEST MATRIX:** `PRIMARY=TestFixture`.\n" +
+			"  - **RED:** returns a failure for the unresolved workflow state.\n" +
+			"  - **GREEN:** identifies exploratory evidence.\n" +
+			"  - **REFACTOR:** none.\n" +
+			"  - **Refs:** [workflow](workflows/people/sample.md).\n"
+		if err := os.WriteFile(filepath.Join(root, "planning", "todos.md"), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("")
+	if err := runWorkflowConformance(root); err == nil {
+		t.Fatal("untagged conformance todo citing an exploratory workflow passed")
+	}
+	write("; PRE_PROMOTION_EXPLORATORY=true")
+	if err := runWorkflowConformance(root); err != nil {
+		t.Fatalf("explicit exploratory conformance todo failed: %v", err)
+	}
+}
+
+func TestWorkflowConformanceIsRequiredByPreCommitAndCI(t *testing.T) {
+	root := repositoryRoot(t)
+	packageBytes, err := os.ReadFile(filepath.Join(root, "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageManifest struct {
+		Scripts map[string]string `json:"scripts"`
+	}
+	if err := json.Unmarshal(packageBytes, &packageManifest); err != nil {
+		t.Fatalf("parse package.json: %v", err)
+	}
+	const scriptName = "check:workflowconformance"
+	const command = "go run ./tools/planning/cmd/plancheck workflowconformance ."
+	if packageManifest.Scripts[scriptName] != command {
+		t.Fatalf("%s = %q, want %q", scriptName, packageManifest.Scripts[scriptName], command)
+	}
+	if count := strings.Count(packageManifest.Scripts["test:all"], "npm run "+scriptName); count != 1 {
+		t.Fatalf("test:all invokes %s %d times, want once", scriptName, count)
+	}
+	hookBytes, err := os.ReadFile(filepath.Join(root, ".husky", "pre-commit"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(hookBytes), "npm run test:all") {
+		t.Fatal("pre-commit no longer runs test:all, so workflow conformance is not required there")
+	}
+	workflowBytes, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "tests.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(string(workflowBytes), "run: npm run "+scriptName); count != 1 {
+		t.Fatalf("CI invokes %s %d times, want once", scriptName, count)
+	}
+}
+
+// TestReachabilityCommandLiveCorpusIsGreen ensures the live command agrees
+// with the repaired ticked runtime corpus while the synthetic test above
+// continues to exercise the unreachable-package failure path.
+func TestReachabilityCommandLiveCorpusIsGreen(t *testing.T) {
+	root := repositoryRoot(t)
+	if err := runReachability(root); err != nil {
+		t.Fatalf("runReachability(%s): %v", root, err)
 	}
 }
 

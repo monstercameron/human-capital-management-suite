@@ -78,7 +78,9 @@ func activateAt(t *testing.T, ledger *ActivationLedger, history *StageHistory, p
 // GREEN: rollback reactivates the exact verified prior version at a new
 // epoch with history intact, and the kill propagates within SLO.
 func TestTodo_ROLLOUT_006(t *testing.T) {
-	ledger := NewActivationLedger()
+	killStore := configbundle.NewKillSwitchStore(killSigner(t))
+	target := configbundle.KillSwitchTarget{TenantID: "tenant-a", Capability: "promotion.execute"}
+	ledger := NewActivationLedger(killStore, target)
 	history := NewStageHistory()
 	planA := validPlan()
 	planB := planV2()
@@ -91,7 +93,6 @@ func TestTodo_ROLLOUT_006(t *testing.T) {
 	// Emergency kill first: scope the stop to the bad version's
 	// capability and prove it lands inside its propagation SLO without
 	// touching anything outside the scope.
-	killStore := configbundle.NewKillSwitchStore(killSigner(t))
 	issuedAt := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 	kill, err := killStore.Issue(configbundle.KillSwitchRequest{
 		SwitchID: "kill-bad-canary",
@@ -111,6 +112,7 @@ func TestTodo_ROLLOUT_006(t *testing.T) {
 	if !killReceipt.WithinSLO {
 		t.Fatalf("kill receipt missed its SLO: %+v", killReceipt)
 	}
+	killStore.SetClock(func() time.Time { return appliedAt })
 	subject := configbundle.KillSwitchTarget{TenantID: "tenant-a", Service: "promotion", Capability: "promotion.execute"}
 	if decision := killStore.Evaluate(subject, appliedAt); !decision.Disabled {
 		t.Fatalf("bad-version subject not disabled: %+v", decision)
@@ -153,7 +155,7 @@ func TestTodo_ROLLOUT_006(t *testing.T) {
 }
 
 func TestTodo_ROLLOUT_006_Race(t *testing.T) {
-	ledger := NewActivationLedger()
+	ledger := newTestActivationLedger(t)
 	history := NewStageHistory()
 	activateAt(t, ledger, history, validPlan(), "canary", "v1.2.0", 1)
 	const workers = 16
@@ -178,7 +180,7 @@ func TestTodo_ROLLOUT_006_Race(t *testing.T) {
 // verified end to end: the recorded control digest, the revised plan pin
 // and the live ledger receipt all agree before the new epoch lands.
 func TestTodo_ROLLOUT_006_Integration(t *testing.T) {
-	ledger := NewActivationLedger()
+	ledger := newTestActivationLedger(t)
 	history := NewStageHistory()
 	planA := validPlan()
 	planB := planV2()
@@ -224,7 +226,7 @@ func TestTodo_ROLLOUT_006_Integration(t *testing.T) {
 func TestTodo_ROLLOUT_006_Fault(t *testing.T) {
 	setup := func(t *testing.T) (*ActivationLedger, *StageHistory, Plan, CohortSet, string) {
 		t.Helper()
-		ledger := NewActivationLedger()
+		ledger := newTestActivationLedger(t)
 		history := NewStageHistory()
 		planA := validPlan()
 		activateAt(t, ledger, history, planA, "canary", "v1.2.0", 1)
@@ -314,13 +316,14 @@ func TestTodo_ROLLOUT_006_Fault(t *testing.T) {
 // TestTodo_ROLLOUT_006_Recovery crashes between kill and rollback and
 // requires the stop to hold while the rollback completes exactly once.
 func TestTodo_ROLLOUT_006_Recovery(t *testing.T) {
-	ledger := NewActivationLedger()
+	killStore := configbundle.NewKillSwitchStore(killSigner(t))
+	target := configbundle.KillSwitchTarget{TenantID: "tenant-a", Capability: "promotion.execute"}
+	ledger := NewActivationLedger(killStore, target)
 	history := NewStageHistory()
 	planA := validPlan()
 	activateAt(t, ledger, history, planA, "canary", "v1.2.0", 1)
 	activateAt(t, ledger, history, planV2(), "canary", "v1.2.1", 2)
 
-	killStore := configbundle.NewKillSwitchStore(killSigner(t))
 	issuedAt := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 	kill, err := killStore.Issue(configbundle.KillSwitchRequest{
 		SwitchID: "kill-crash", Target: configbundle.KillSwitchTarget{TenantID: "tenant-a", Capability: "promotion.execute"},
@@ -334,6 +337,7 @@ func TestTodo_ROLLOUT_006_Recovery(t *testing.T) {
 	if _, err := killStore.Apply(kill, issuedAt.Add(time.Minute)); err != nil {
 		t.Fatal(err)
 	}
+	killStore.SetClock(func() time.Time { return issuedAt.Add(2 * time.Minute) })
 	// Crash here: the kill is applied and retained, the rollout untouched.
 	recoveredStore := killStore
 	if _, ok := recoveredStore.Get("kill-crash"); !ok {
@@ -362,7 +366,7 @@ func TestTodo_ROLLOUT_006_Recovery(t *testing.T) {
 }
 
 func TestTodo_ROLLOUT_006_Mutation(t *testing.T) {
-	ledger := NewActivationLedger()
+	ledger := newTestActivationLedger(t)
 	history := NewStageHistory()
 	planA := validPlan()
 	activateAt(t, ledger, history, planA, "canary", "v1.2.0", 1)

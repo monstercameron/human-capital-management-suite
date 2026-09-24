@@ -114,7 +114,7 @@ func RollbackStage(history *StageHistory, ledger *ActivationLedger, req Rollback
 		return ActivationReceipt{}, &RollbackError{Code: RollbackNotNeeded, Detail: "version " + req.TargetVersion + " is already live"}
 	}
 	before := history.Entries(req.Stage)
-	receipt, err := ledger.Activate(ActivationRequest{
+	receipt, err := ledger.activateForRollback(ActivationRequest{
 		Plan: req.Plan, Cohorts: req.Cohorts, Stage: req.Stage, Artifact: req.Artifact,
 		PlanDigest: req.PlanDigest, CohortDigest: req.CohortDigest, Epoch: req.Epoch,
 	})

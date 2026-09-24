@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -258,10 +259,38 @@ func TestTodo_WEDGE_011_Golden(t *testing.T) {
 }
 
 func TestTodo_WEDGE_011_Race(t *testing.T) {
-	first := EvaluateFixtureCoverage(fullFixtureSet())
-	second := EvaluateFixtureCoverage(fullFixtureSet())
-	if strings.Join(stringKinds(first.Present), ",") != strings.Join(stringKinds(second.Present), ",") {
-		t.Fatal("concurrent-style repeated fixture coverage changed ordering")
+	const workers = 16
+	type result struct {
+		coverage FixtureCoverage
+	}
+	results := make(chan result, workers)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			results <- result{coverage: EvaluateFixtureCoverage(fullFixtureSet())}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	var want FixtureCoverage
+	for i := 0; i < workers; i++ {
+		got := (<-results).coverage
+		if len(got.Missing) != 0 || len(got.Present) != len(RequiredFixtureKinds) || len(got.SetDigest) != 64 {
+			t.Fatalf("worker %d coverage = %+v, want complete fixture coverage with a SHA-256 digest", i, got)
+		}
+		if i == 0 {
+			want = got
+			continue
+		}
+		if got.SetDigest != want.SetDigest || strings.Join(stringKinds(got.Present), ",") != strings.Join(stringKinds(want.Present), ",") {
+			t.Fatalf("worker %d coverage differs from first result: got %+v, want %+v", i, got, want)
+		}
 	}
 }
 

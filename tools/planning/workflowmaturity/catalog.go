@@ -1,10 +1,132 @@
 package workflowmaturity
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/monstercameron/human-capital-management-suite/tools/planning/designownership"
 )
+
+// DefaultCatalogBaseline pins the reviewed set of currently known catalog
+// disagreements. New disagreements fail validation; known UNASSIGNED
+// disagreements remain visible without making the gate permanently red.
+const DefaultCatalogBaseline = "definitions/planning/workflowmaturity-catalog-baseline.json"
+
+// CatalogException is one reviewed catalog mismatch and its ownership
+// disposition. UNASSIGNED is an honest open state, not a resolution owner.
+type CatalogException struct {
+	FlowID        string   `json:"flow_id"`
+	Definition    string   `json:"definition"`
+	Owner         string   `json:"owner"`
+	CandidateRefs []string `json:"candidate_refs,omitempty"`
+	Reason        string   `json:"reason"`
+}
+
+// CatalogBaseline records known mismatches and their current disposition.
+type CatalogBaseline struct {
+	SchemaVersion int                `json:"schema_version"`
+	Status        string             `json:"status"`
+	Entries       []CatalogException `json:"entries"`
+}
+
+// LoadCatalogBaseline reads and validates the checked-in exception policy.
+func LoadCatalogBaseline(root, path string) (CatalogBaseline, error) {
+	resolved := path
+	if !filepath.IsAbs(resolved) {
+		resolved = filepath.Join(root, resolved)
+	}
+	data, err := os.ReadFile(resolved)
+	if err != nil {
+		return CatalogBaseline{}, fmt.Errorf("read catalog baseline %s: %w", resolved, err)
+	}
+	var baseline CatalogBaseline
+	if err := json.Unmarshal(data, &baseline); err != nil {
+		return CatalogBaseline{}, fmt.Errorf("decode catalog baseline %s: %w", resolved, err)
+	}
+	if baseline.SchemaVersion != 1 || strings.TrimSpace(baseline.Status) == "" {
+		return CatalogBaseline{}, fmt.Errorf("catalog baseline requires schema_version 1 and status")
+	}
+	seen := map[string]bool{}
+	for _, entry := range baseline.Entries {
+		key := entry.FlowID + "\x00" + entry.Definition
+		if entry.FlowID == "" || entry.Definition == "" || strings.TrimSpace(entry.Owner) == "" || strings.TrimSpace(entry.Reason) == "" {
+			return CatalogBaseline{}, fmt.Errorf("catalog baseline entry must name flow, definition, owner disposition, and reason")
+		}
+		if entry.Owner == "UNASSIGNED" && len(entry.CandidateRefs) == 0 {
+			return CatalogBaseline{}, fmt.Errorf("unassigned catalog baseline entry %s %s must name ownership candidate refs", entry.FlowID, entry.Definition)
+		}
+		if seen[key] {
+			return CatalogBaseline{}, fmt.Errorf("catalog baseline repeats %s for %s", entry.FlowID, entry.Definition)
+		}
+		seen[key] = true
+	}
+	return baseline, nil
+}
+
+// ValidateCatalogBaseline rejects new disagreements and baseline entries
+// whose ownership references no longer describe the live candidates. A
+// known UNASSIGNED entry is accepted as a pinned open issue.
+func ValidateCatalogBaseline(disagreements []CatalogDisagreement, baseline CatalogBaseline, ownership designownership.Ownership) []string {
+	allowed := make(map[string]CatalogException, len(baseline.Entries))
+	for _, entry := range baseline.Entries {
+		allowed[entry.FlowID+"\x00"+entry.Definition] = entry
+	}
+	var violations []string
+	candidates := make(map[string]designownership.Candidate, len(ownership.Candidates))
+	for _, candidate := range ownership.Candidates {
+		candidates[candidate.ID] = candidate
+	}
+	live := make(map[string]bool, len(disagreements))
+	for _, d := range disagreements {
+		key := d.FlowID + "\x00" + d.Definition
+		live[key] = true
+		entry, ok := allowed[key]
+		if !ok {
+			violations = append(violations, fmt.Sprintf("unreviewed catalog disagreement: %s %s", d.FlowID, d.Definition))
+			continue
+		}
+		if strings.TrimSpace(entry.Owner) == "" || strings.TrimSpace(entry.Reason) == "" {
+			violations = append(violations, fmt.Sprintf("catalog disagreement has no owner or reason: %s %s", d.FlowID, d.Definition))
+			continue
+		}
+		if entry.Owner == "UNASSIGNED" {
+			validRefs := 0
+			for _, ref := range entry.CandidateRefs {
+				candidate, ok := candidates[ref]
+				if !ok || candidate.Owner != "UNASSIGNED" || !contains(candidate.Refs, d.Definition) {
+					violations = append(violations, fmt.Sprintf("catalog disagreement has stale or unrelated ownership candidate %s: %s %s", ref, d.FlowID, d.Definition))
+					continue
+				}
+				validRefs++
+			}
+			if validRefs == 0 {
+				violations = append(violations, fmt.Sprintf("catalog disagreement is explicitly UNASSIGNED with no live candidate ref: %s %s", d.FlowID, d.Definition))
+			}
+		}
+	}
+	for _, entry := range baseline.Entries {
+		key := entry.FlowID + "\x00" + entry.Definition
+		if !live[key] {
+			violations = append(violations, fmt.Sprintf("stale catalog baseline entry: %s %s", entry.FlowID, entry.Definition))
+		}
+	}
+	sort.Strings(violations)
+	return violations
+}
+
+func contains(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
+}
 
 // CatalogClaim is one hand-typed status assertion read from
 // planning/workflows/catalog.md's "### WF-xxx. Title" flow sections. It is

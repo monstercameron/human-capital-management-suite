@@ -3,6 +3,7 @@ package intentmanifests
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -94,8 +95,12 @@ func TestFeatureIntentSourceManifest(t *testing.T) {
 // TestTodo_FEATURE_001_Golden pins the feature manifest digest against silent drift.
 func TestTodo_FEATURE_001_Golden(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "definitions", "governance", "feature-intent-intake.yaml")
-	if _, err := os.Stat(path); err != nil {
-		t.Skip("feature manifest not found")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read required feature manifest %s: %v", path, err)
+	}
+	if len(contents) == 0 {
+		t.Fatalf("feature manifest %s is empty", path)
 	}
 
 	// In production:
@@ -119,8 +124,55 @@ func TestTodo_FEATURE_001_Golden(t *testing.T) {
 
 // TestTodo_FEATURE_001_Race verifies feature manifest consistency under concurrent loads.
 func TestTodo_FEATURE_001_Race(t *testing.T) {
-	// Placeholder for race condition testing under concurrent manifest loads.
-	// Verify no data races when loading feature-intent-intake.yaml simultaneously.
+	const workers = 12
+	type result struct {
+		groups int
+		digest string
+		err    error
+	}
+	path := filepath.Join("..", "..", "..", "definitions", "governance", "feature-intent-intake.yaml")
+	start := make(chan struct{})
+	results := make(chan result, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			groups, err := LoadFeatureManifestYAML(path)
+			if err != nil {
+				results <- result{err: err}
+				return
+			}
+			if err = ValidateFeatureManifestYAML(groups); err != nil {
+				results <- result{err: err}
+				return
+			}
+			digest, err := ComputeFeatureDigestYAML(groups)
+			results <- result{groups: len(groups), digest: digest, err: err}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	var want result
+	for i := 0; i < workers; i++ {
+		got := <-results
+		if got.err != nil {
+			t.Fatalf("worker %d loading feature manifest: %v", i, got.err)
+		}
+		if got.groups != 49 || len(got.digest) != 64 {
+			t.Fatalf("worker %d manifest result = groups %d, digest %q; want 49 groups and SHA-256 digest", i, got.groups, got.digest)
+		}
+		if i == 0 {
+			want = got
+			continue
+		}
+		if got.groups != want.groups || got.digest != want.digest {
+			t.Fatalf("worker %d manifest result = %+v, want %+v", i, got, want)
+		}
+	}
 }
 
 // TestTodo_FEATURE_001_Fault verifies feature manifest handles malformed input safely.

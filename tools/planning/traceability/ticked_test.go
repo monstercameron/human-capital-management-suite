@@ -13,10 +13,8 @@ import (
 // fails a ticked todo whose TEST or TEST MATRIX names have no function,
 // which carries no Evidence line, or whose evidence names no command.
 // Fixtures prove each kind fires and clean/unticked/retired/allow-listed
-// todos stay silent; the live-corpus subtest proves the RED gaps
-// (SVC-003, DB-005, LEDGER-001 missing tests, command-less evidence) are
-// still detected rather than silently accepted, while allow-listed UXSCAN
-// variance stays silent until its entries are retired with real tests.
+// todos stay silent; the live-corpus subtest checks that every currently
+// ticked todo has resolvable tests and command evidence.
 func TestTodo_REV_103_02(t *testing.T) {
 	t.Run("clean ticked todo is silent", func(t *testing.T) {
 		todos := []todoregistry.Todo{{
@@ -32,6 +30,21 @@ func TestTodo_REV_103_02(t *testing.T) {
 		existing := map[string]bool{"TestReal": true, "TestReal_Golden": true}
 		if findings := CheckTickedTodos(todos, existing); len(findings) != 0 {
 			t.Errorf("expected zero findings for a fully evidenced ticked todo, got %v", findings)
+		}
+	})
+
+	t.Run("ticked todo with no TEST or matrix names is flagged", func(t *testing.T) {
+		todo := todoregistry.Todo{
+			ID:       "T-100A",
+			Done:     true,
+			Evidence: "`go test -count=1 ./pkg/x/` PASS",
+		}
+		findings := CheckTickedTodos([]todoregistry.Todo{todo}, map[string]bool{})
+		if len(findings) != 1 || findings[0].Kind != TickedMissingTest {
+			t.Fatalf("expected one MISSING_TEST for absent TEST name, got %v", findings)
+		}
+		if got := findings[0].Detail; got != "completed todo has no TEST name" {
+			t.Errorf("unexpected missing TEST detail: %q", got)
 		}
 	})
 
@@ -104,14 +117,21 @@ func TestTodo_REV_103_02(t *testing.T) {
 		}
 	})
 
-	t.Run("unticked retired and allowlisted todos are ignored", func(t *testing.T) {
+	t.Run("unticked and retired todos are ignored", func(t *testing.T) {
 		todos := []todoregistry.Todo{
 			{ID: "T-105", Done: false, Test: "TestMissing", TestMatrix: map[string]string{"PRIMARY": "TestMissing"}},
 			{ID: "T-106", Done: true, Retired: true, Test: "TestMissing", TestMatrix: map[string]string{"PRIMARY": "TestMissing"}},
-			{ID: "UXSCAN-001", Done: true, Test: "TestMissing", TestMatrix: map[string]string{"PRIMARY": "TestMissing"}},
 		}
 		if findings := CheckTickedTodos(todos, map[string]bool{}); len(findings) != 0 {
-			t.Errorf("expected unticked, retired and allow-listed todos to stay silent, got %v", findings)
+			t.Errorf("expected unticked and retired todos to stay silent, got %v", findings)
+		}
+	})
+
+	t.Run("historical test crosswalk does not waive ticked todo requirements", func(t *testing.T) {
+		todo := todoregistry.Todo{ID: "UXSCAN-001", Done: true, Test: "TestMissing"}
+		findings := CheckTickedTodos([]todoregistry.Todo{todo}, map[string]bool{})
+		if len(findings) != 2 || findings[0].Kind != TickedMissingEvidence || findings[1].Kind != TickedMissingTest {
+			t.Fatalf("expected evidence and test gaps for allow-listed historical todo, got %v", findings)
 		}
 	})
 
@@ -165,49 +185,17 @@ func TestTodo_REV_103_02(t *testing.T) {
 		if len(parseErrs) > 0 {
 			t.Fatalf("ParseTodos returned errors: %v", parseErrs)
 		}
-		existing, err := ScanTestNames(filepath.Join("..", "..", ".."))
+		existing, err := ScanRepositoryTestNames(filepath.Join("..", "..", ".."))
 		if err != nil {
 			t.Fatalf("ScanTestNames: %v", err)
 		}
 		findings := CheckTickedTodos(todos, existing)
 
-		// SVC-003 names neither its primary nor any matrix test.
-		if !hasTickedFinding(findings, "SVC-003", TickedMissingTest, "TestTodo_SVC_003") {
-			t.Errorf("expected SVC-003 MISSING_TEST to be detected")
-		}
-		if !hasTickedFinding(findings, "SVC-003", TickedMissingMatrixTest, "GOLDEN=TestTodo_SVC_003_Golden") {
-			t.Errorf("expected SVC-003 MISSING_MATRIX_TEST to be detected")
-		}
-		// DB-005 proves its primary but not its fuzz/race/integration/
-		// fault/mutation matrix names; the check must flag exactly those.
-		if !hasTickedFinding(findings, "DB-005", TickedMissingMatrixTest, "FuzzTodo_DB_005") {
-			t.Errorf("expected DB-005 MISSING_MATRIX_TEST for FuzzTodo_DB_005 to be detected")
-		}
-		if hasTickedFinding(findings, "DB-005", TickedMissingTest, "") {
-			t.Errorf("DB-005 primary exists and must not be flagged")
-		}
-		// LEDGER-001 proves its primary but not its race/mutation names.
-		if !hasTickedFinding(findings, "LEDGER-001", TickedMissingMatrixTest, "RACE=TestTodo_LEDGER_001_Race") {
-			t.Errorf("expected LEDGER-001 MISSING_MATRIX_TEST for race to be detected")
-		}
-		// UXSCAN-001 is ticked with no evidence line, but it is recorded
-		// reviewed variance in tsProvenTodos, so the check must not
-		// re-flag it: genuine no-evidence gaps are proven by fixture
-		// above, and retiring this entry means writing the Go test,
-		// citing it from evidence, and deleting the entry.
-		if hasTickedFinding(findings, "UXSCAN-001", TickedMissingEvidence, "") {
-			t.Errorf("UXSCAN-001 is allow-listed reviewed variance and must stay silent")
-		}
-		// At least one ticked evidence line still names no command.
-		seenCommandGap := false
-		for _, f := range findings {
-			if f.Kind == TickedMissingCommand {
-				seenCommandGap = true
-				break
+		if len(findings) != 0 {
+			t.Errorf("found %d invalid claims among ticked todos:", len(findings))
+			for _, finding := range findings {
+				t.Errorf("  %s", finding)
 			}
-		}
-		if !seenCommandGap {
-			t.Errorf("expected at least one MISSING_COMMAND finding in the live corpus")
 		}
 	})
 }
@@ -244,11 +232,47 @@ func TestTodo_REV_103_02_Golden(t *testing.T) {
 	}
 }
 
-func hasTickedFinding(findings []TickedFinding, id, kind, substr string) bool {
-	for _, f := range findings {
-		if f.ID == id && f.Kind == kind && strings.Contains(f.Detail, substr) {
-			return true
-		}
+// TestTodo_REV_103_02_Fault verifies that prose which resembles a command
+// cannot satisfy the evidence requirement unless it names a supported,
+// backtick-quoted test runner. It also pins supported command families.
+func TestTodo_REV_103_02_Fault(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		evidence string
+		wantKind string
+	}{
+		{name: "unquoted command", evidence: "go test ./pkg/x", wantKind: TickedMissingCommand},
+		{name: "unsupported command", evidence: "`go generate ./pkg/x`", wantKind: TickedMissingCommand},
+		{name: "vet does not run tests", evidence: "`go vet ./pkg/x/`", wantKind: TickedMissingCommand},
+		{name: "run does not run tests", evidence: "`go run ./cmd/check`", wantKind: TickedMissingCommand},
+		{name: "build does not run tests", evidence: "`go build ./cmd/check`", wantKind: TickedMissingCommand},
+		{name: "npm build does not run tests", evidence: "`npm run build`", wantKind: TickedMissingCommand},
+		{name: "unknown npm test script is unsupported", evidence: "`npm run test:unknown`", wantKind: TickedMissingCommand},
+		{name: "test command after another command is unsupported", evidence: "`echo go test ./pkg/x/`", wantKind: TickedMissingCommand},
+		{name: "test command", evidence: "`go test -count=1 ./pkg/x/`"},
+		{name: "npm test suite", evidence: "`npm run test:all`"},
+		{name: "vitest suite", evidence: "`npx vitest run`"},
+		{name: "playwright suite", evidence: "`npx playwright test -c tools/uxqual/browser/playwright.config.mjs`"},
+		{name: "node test suite", evidence: "`node --test scripts/check-code-style.test.mjs`"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			todo := todoregistry.Todo{
+				ID:         "T-REV10302-FAULT",
+				Done:       true,
+				Test:       "TestExisting",
+				TestMatrix: map[string]string{"PRIMARY": "TestExisting"},
+				Evidence:   tc.evidence,
+			}
+			findings := CheckTickedTodos([]todoregistry.Todo{todo}, map[string]bool{"TestExisting": true})
+			if tc.wantKind == "" {
+				if len(findings) != 0 {
+					t.Fatalf("expected accepted evidence command, got %v", findings)
+				}
+				return
+			}
+			if len(findings) != 1 || findings[0].Kind != tc.wantKind {
+				t.Fatalf("expected one %s finding, got %v", tc.wantKind, findings)
+			}
+		})
 	}
-	return false
 }

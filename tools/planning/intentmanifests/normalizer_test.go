@@ -1,6 +1,8 @@
 package intentmanifests
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -216,52 +218,43 @@ func TestTodo_FEATURE_002_Golden(t *testing.T) {
 
 // TestTodo_FEATURE_002_Race verifies feature normalization consistency under concurrent operations.
 func TestTodo_FEATURE_002_Race(t *testing.T) {
-	// Concurrent additions should not corrupt the normalizer state.
-	norm := NewFeatureNormalizer()
-
-	f1 := &NormalizedFeature{
-		FeatureID:      "hcmnext.people.promote_worker",
-		Label:          "Promote Worker",
-		Classification: ClassCreate,
-		Domain:         "people",
-		ActorRole:      "manager",
-		Channel:        "web",
-		Aliases:        []string{"promote"},
-		IntakeLabel:    "Promote Worker",
-		IntakeGroup:    5,
-		SourceGroupID:  5,
-		SourceRef:      "intake:group_5:f1",
-		IsMaterial:     true,
+	const workers = 12
+	start := make(chan struct{})
+	errCh := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			<-start
+			norm := NewFeatureNormalizer()
+			for j, id := range []string{"hcmnext.people.promote_worker", "hcmnext.rewards.change_base_pay"} {
+				feature := &NormalizedFeature{
+					FeatureID: id, Label: fmt.Sprintf("Feature %d", j), Classification: ClassCreate,
+					Domain: fmt.Sprintf("domain-%d", j), ActorRole: "manager", Channel: "web",
+					Aliases: []string{fmt.Sprintf("alias-%d", j)}, IntakeLabel: fmt.Sprintf("Feature %d", j),
+					IntakeGroup: j + 1, SourceGroupID: j + 1, SourceRef: fmt.Sprintf("intake:group_%d:f1", j+1), IsMaterial: true,
+				}
+				if err := norm.AddNormalizedFeature(feature); err != nil {
+					errCh <- fmt.Errorf("worker %d add %s: %w", worker, id, err)
+					return
+				}
+			}
+			features := norm.NormalizedFeatures()
+			if len(features) != 2 || features[0].FeatureID != "hcmnext.people.promote_worker" || features[1].FeatureID != "hcmnext.rewards.change_base_pay" {
+				errCh <- fmt.Errorf("worker %d normalized features = %+v, want both features sorted by ID", worker, features)
+				return
+			}
+			if err := norm.ValidateNormalization(); err != nil {
+				errCh <- fmt.Errorf("worker %d validation: %w", worker, err)
+			}
+		}(i)
 	}
-
-	f2 := &NormalizedFeature{
-		FeatureID:      "hcmnext.rewards.change_base_pay",
-		Label:          "Change Base Pay",
-		Classification: ClassCreate,
-		Domain:         "rewards",
-		ActorRole:      "admin",
-		Channel:        "web",
-		Aliases:        []string{"adjust"},
-		IntakeLabel:    "Change Base Pay",
-		IntakeGroup:    12,
-		SourceGroupID:  12,
-		SourceRef:      "intake:group_12:f1",
-		IsMaterial:     true,
-	}
-
-	// Sequential addition (using channels would be Go race detector friendly).
-	if err := norm.AddNormalizedFeature(f1); err != nil {
-		t.Fatalf("add f1: %v", err)
-	}
-
-	if err := norm.AddNormalizedFeature(f2); err != nil {
-		t.Fatalf("add f2: %v", err)
-	}
-
-	// Verify both features are present and correct.
-	features := norm.NormalizedFeatures()
-	if got := len(features); got != 2 {
-		t.Errorf("expected 2 features, got %d", got)
+	close(start)
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		t.Error(err)
 	}
 }
 

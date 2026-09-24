@@ -22,7 +22,8 @@ func TestStageLinksCoverDATA015AndRefuseUnmapped(t *testing.T) {
 		t.Fatalf("unmapped stage = %v", err)
 	}
 	producers, err := DefaultProducers()
-	if err != nil || len(producers) != 2 || producers[1].Links[0] != LinkProjection {
+	if err != nil || len(producers) != 3 || producers[1].Links[0] != LinkProjection ||
+		producers[2].Todo != "RECON-001" || producers[2].Links[0] != LinkReconciliation {
 		t.Fatalf("default producers = %+v, %v", producers, err)
 	}
 	for _, p := range producers {

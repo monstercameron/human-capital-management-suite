@@ -139,7 +139,7 @@ const (
 	fixTopology     fix = "deployable topology decision"
 	fixCustomer     fix = "confirmed design partner"
 	fixSLO          fix = "selected SLO"
-	fixThreat       fix = "accepted critical residual risk"
+	fixThreat       fix = "mitigated critical ambiguous effect"
 )
 
 var allFixes = []fix{fixProvider, fixJurisdiction, fixTopology, fixCustomer, fixSLO, fixThreat}
@@ -232,11 +232,21 @@ func buildFixture(t testing.TB, fixes ...fix) fixture {
 		t.Fatal(err)
 	}
 	if has(fixes, fixThreat) {
+		// The live signed register now supplies the exact-path mitigation.
+	} else {
 		for i := range register.Slices {
-			for j := range register.Slices[i].ResidualRisks {
-				register.Slices[i].ResidualRisks[j].AcceptedBy = "Fixture Risk Owner"
-				register.Slices[i].ResidualRisks[j].AcceptedDate = "2026-09-12"
+			for j := range register.Slices[i].Threats {
+				if register.Slices[i].Threats[j].ID == "THR-07" {
+					register.Slices[i].Threats[j].Mitigations = nil
+				}
 			}
+			mitigations := register.Slices[i].Mitigations[:0]
+			for _, mitigation := range register.Slices[i].Mitigations {
+				if mitigation.ID != "MIT-ATOMIC-DOMAIN-ADVANCEMENT" {
+					mitigations = append(mitigations, mitigation)
+				}
+			}
+			register.Slices[i].Mitigations = mitigations
 		}
 	}
 	signedRegister, err := threatregister.SignRegister(*register, priv, pub, keyFixture)

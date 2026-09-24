@@ -2,47 +2,133 @@
   "todo_id": "CHAT-001",
   "status": "PROPOSED",
   "scope_decision": "SEPARATE_GATE_C",
-  "release_owner": "Collaboration Product owner with Messaging Platform operations owner",
+  "release_owner": "Collaboration Product owner with Messaging Platform engineering/operations owner (individuals unassigned)",
   "displaced_work": [
     {
-      "workstream": "Current P1A/P1B promotion pilot",
-      "disposition": "preserved; no P1A or P1B scope is displaced by this proposal",
-      "owner": "Phase 1 release owner"
+      "workstream": "P1A/P1B promotion pilot",
+      "disposition": "preserve scope and schedule; no Gate A/B capacity is charged to this Gate C proposal",
+      "owner": "Phase 1 release owner (individual unassigned)"
     },
     {
-      "workstream": "Post-Gate-B documentation and collaboration capacity",
-      "disposition": "capacity source to be selected and approved before implementation begins",
-      "owner": "Product portfolio owner"
+      "workstream": "First-pilot cross-company expansion: CHAT-012 and HUB-015",
+      "disposition": "proposed deferral from the first pilot pending bilateral identity, records, residency, egress and revocation evidence; candidate exchange only, with effort not estimated or accepted",
+      "owner": "Collaboration Product owner with Knowledge Product owner (individuals unassigned)"
+    }
+  ],
+  "owners": [
+    {
+      "role": "Collaboration Product owner",
+      "status": "ROLE_NAMED_PERSON_UNASSIGNED",
+      "responsibility": "own chat pilot problem, scope, adoption measures and product stop decision"
+    },
+    {
+      "role": "Knowledge Product owner",
+      "status": "ROLE_NAMED_PERSON_UNASSIGNED",
+      "responsibility": "own documentation pilot scope, publishing/search acceptance and document stop decision"
+    },
+    {
+      "role": "Messaging Platform engineering and operations owner",
+      "status": "ROLE_NAMED_PERSON_UNASSIGNED",
+      "responsibility": "own route, chat storage, capacity, SLO evidence, on-call and rollback"
+    },
+    {
+      "role": "Security and Privacy reviewers",
+      "status": "REVIEWERS_UNASSIGNED",
+      "responsibility": "approve identity, authorization, data handling, retention, residency and revocation evidence"
+    },
+    {
+      "role": "Records and Search reviewers",
+      "status": "REVIEWERS_UNASSIGNED",
+      "responsibility": "approve chat/document retention, export, legal hold and search access behavior"
+    },
+    {
+      "role": "Operations and commercial release owner",
+      "status": "ROLE_NAMED_PERSON_UNASSIGNED",
+      "responsibility": "approve tenant participation, support coverage, incident route, cost envelope and release/stop authority"
     }
   ],
   "pilot_tenants": [
-    "UNSELECTED: design partner and tenant cohort require commercial approval"
+    "UNSELECTED: one existing HCM design-partner tenant; tenant name and sponsor require commercial approval"
+  ],
+  "pilot_selection_criteria": [
+    "Select one tenant with a named executive sponsor, an operational HCM collaboration use case, and a product owner who can establish the workflow baseline.",
+    "Require signed participation, data-processing and retention terms; supported identity lifecycle; named tenant administrator and incident contact; and an agreed exit/export path.",
+    "Use a bounded pilot cohort with employee representatives and accessible desktop/mobile web coverage; do not enable tenant-wide access by default.",
+    "Keep cross-company chat grants CHAT-012 and cross-company document grants HUB-015 disabled in this proposed first pilot. Select a two-tenant cohort only after a separate bilateral gate is approved."
   ],
   "slos": [
     {
-      "name": "message send durability",
-      "target": "No acknowledgement without a durable chat-database commit"
+      "name": "durable message send",
+      "target": "Candidate: p99 committed-send latency <= 1 second; zero success acknowledgements without a durable chat-database commit. Measure under concurrent writers and retry load. The latency threshold borrows the suite's initial local-authoritative-command objective and needs Chat owner approval."
     },
     {
-      "name": "workflow protection",
-      "target": "Chat load must stay within the measured workflow regression budget before broad activation"
+      "name": "interactive chat and documentation reads",
+      "target": "Candidate: p95 <= 500 ms for in-boundary reads, using the suite's initial interactive-projection objective; measure at pilot peak and obtain product/operations approval."
     },
     {
-      "name": "revocation",
-      "target": "Access revocation budget must be selected and proven before pilot activation"
+      "name": "search freshness",
+      "target": "Candidate: p95 index freshness lag <= 60 seconds, aligned with the suite's initial search-freshness objective; stale results must still pass current authorization checks."
+    },
+    {
+      "name": "authorization revocation",
+      "target": "Candidate hard ceiling: invalidate active streams and deny subsequent history/media/document reads within 60 seconds of committed membership or identity revocation; test every served path. This adapts the suite's P0 termination-reconciliation objective and requires Security/Privacy approval."
+    },
+    {
+      "name": "workflow isolation under mixed load",
+      "target": "Workflow wake-up p95 remains <= 5 seconds for due P0/P1 timers, and admission/start, approval latency, queue age and HCM transaction errors remain within a proposed <= 5% regression from the same workflow-only baseline during chat/document peak, reconnect, indexing and retention load. The 5% relative budget is a proposal requiring Operations and workflow-owner approval."
     }
   ],
   "activation_conditions": [
-    "Named design partner, target HCM workflow, adoption target, migration cost and capacity owner are approved",
-    "Cross-company authority, authorization, content and records contracts have executable acceptance evidence",
-    "Mixed-tenant capacity and recovery evidence meets the selected SLO and workflow regression budget",
-    "Pilot observation and incident contacts are recorded, then a real Gate C decision is signed"
+    "A named design partner, target HCM collaboration workflow, baseline and adoption target, migration cost, equivalent displaced effort and funded capacity owner are approved in writing.",
+    "Named individuals accept product, engineering/on-call, Security/Privacy, Records/Search, and commercial/operations responsibilities; support hours, escalation route, incident owner, rollback, and export/exit runbook are exercised.",
+    "The pilot scope exchange and proposed SLO values are approved by required roles; P1A/P1B remain unchanged, and the CHAT-012/HUB-015 deferral is accepted or replaced by an explicit equivalent exchange.",
+    "Identity lifecycle, access checks, durable send, audit, retention/hold/export, documentation access, accessibility, recovery, and overload evidence pass their acceptance suites.",
+    "Mixed-tenant peak and failure-injection qualification meets every approved SLO for seven consecutive days; workflow-only baselines and chat/document load measurements are retained.",
+    "Only the selected pilot cohort is activated after the accountable Gate C release owner records a real decision and approval evidence."
+  ],
+  "deactivation_conditions": [
+    "Immediately disable the affected tenant/cohort and preserve incident evidence on any confirmed cross-tenant or unauthorized disclosure, missing durable message behind a success acknowledgement, or inability to honor legal hold/retention policy.",
+    "Pause new invitations and writes if a required authorization revocation exceeds its approved ceiling, or if workflow wake-up exceeds its 5-second p95 objective or the approved regression budget for 15 consecutive minutes; restore only after owner review and a clean 60-minute observation window.",
+    "Roll back pilot activation if recovery/export cannot complete within the approved RTO, an on-call/incident route is unavailable, or the approved cost/capacity ceiling is exceeded for two consecutive daily reviews.",
+    "A tenant sponsor may request exit; revoke access, preserve required records, export the agreed evidence, and complete the documented tenant exit before closing the pilot."
   ],
   "unmet_gates": [
-    "No external product or commercial signer has approved the scope exchange",
-    "No design partner or pilot tenant has been selected",
-    "The company chat specification still has cross-company, authorization, records, integration and operational blockers",
-    "No implementation, all-employee activation or customer/pilot deployment is authorized by this artifact"
+    "No product, engineering/operations, Security/Privacy, Records/Search or commercial signer has approved this draft; individuals remain unassigned.",
+    "No design partner, tenant, HCM use case, baseline, adoption target, migration cost or funded capacity source is selected.",
+    "The proposed displaced effort in CHAT-012/HUB-015 has no estimate and is not approved as equivalent capacity; CHAT-012 deferral conflicts with the current company-chat spec's cross-company first-release commitment and needs an explicit product decision.",
+    "Numeric chat latency, revocation and relative workflow-regression thresholds are proposals adapted from suite objectives, not measured or approved chat SLOs.",
+    "Chat and documentation blockers remain in their source specs, including identity lifecycle, records, cross-company policy, integration operations, recovery and mixed-load evidence.",
+    "This artifact authorizes no implementation promotion, tenant/pilot deployment or all-employee activation."
+  ],
+  "source_evidence": [
+    {
+      "path": "planning/todos.md#CHAT-001",
+      "claim": "CHAT-001 requires a signed exchange naming displacement, owners, pilot tenants, SLOs and activation conditions, and preserves P1A/P1B inventory."
+    },
+    {
+      "path": "planning/specs/company-chat-and-collaboration.md#Product-decisions-captured",
+      "claim": "The draft contract describes chat audience/types, documentation relationship, product boundaries and cross-company first-release intent."
+    },
+    {
+      "path": "planning/specs/company-chat-and-collaboration.md#Business-gap-audit-2026-09-21",
+      "claim": "The release-gap table leaves product proof, lifecycle, records, reliability, cross-company controls and integration operations unresolved."
+    },
+    {
+      "path": "planning/specs/chat-core-routing-and-isolation.md#Scaling-and-acceptance-gates",
+      "claim": "The routing contract requires mixed-load measurement, workflow-only comparison and a measured regression budget before broad activation."
+    },
+    {
+      "path": "planning/specs/channel-documentation-hub.md#Access-model-who-may-do-what",
+      "claim": "Documentation access is separately governed and cross-company document access is off by default."
+    },
+    {
+      "path": "planning/plan.md#Quantitative-Service-and-Capacity-Contract",
+      "claim": "Suite planning objectives include p95 <500 ms interactive reads, p99 <1 s local authoritative commit, p95 <60 s search freshness, P0 termination reconciliation under 60 s, and workflow wake-up p95 <=5 s; these are not contracted chat targets."
+    },
+    {
+      "path": "planning/execution-plan.md#Gate-C-General-Production-Authority",
+      "claim": "Gate C has no Phase 1 date or staffing commitment and is planned from Gate B operating evidence."
+    }
   ],
   "preserve_p1a_inventory": true,
   "preserve_p1b_inventory": true,
@@ -50,12 +136,13 @@
     "status": "PENDING",
     "required_roles": [
       "Collaboration Product owner",
-      "Messaging Platform owner",
+      "Knowledge Product owner",
+      "Messaging Platform engineering and operations owner",
       "Security and Privacy reviewers",
       "Records and Search reviewers",
       "Operations and commercial release owner"
     ],
     "signers": []
   },
-  "canonical_digest": "sha256:d714e0b06366a478c63aa245de81e9bf6b24ef44a003c3dbe8545cd87abd368d"
+  "canonical_digest": "sha256:5517e17ea55d35559f257a891c802823d78b460b36d6e16db85b7a3d9870ac61"
 }

@@ -1,7 +1,6 @@
 package threatregister
 
 import (
-	"strings"
 	"testing"
 	"time"
 )
@@ -13,19 +12,14 @@ import (
 // trust boundary, data class, entry point, threat, mitigation, detection,
 // recovery, owner, test); the nine named attack classes are covered
 // totally, driven off [AllAttackClasses] rather than a hardcoded list;
-// every slice graph edge is mapped to a reviewed threat; the register is
-// honestly incomplete in exactly one documented place
-// (residual_risks[0].accepted_by); and release is correctly blocked for the
-// one unmitigated CRITICAL threat that gap leaves open.
+// every slice graph edge is mapped to a reviewed threat; and the verified
+// THR-07 EDGE-07 control does not block release.
 func TestPhaseOneThreatModelCoversEveryTrustBoundaryAssetActorAndAbusePath(t *testing.T) {
 	r := mustLoadRegister(t)
 
 	violations := r.Validate()
-	if len(violations) != 1 {
-		t.Fatalf("expected exactly one documented violation (the empty residual-risk owner), got %d: %v", len(violations), violations)
-	}
-	if !strings.Contains(violations[0].String(), "residual_risks[0].accepted_by") {
-		t.Errorf("expected the one violation to name residual_risks[0].accepted_by, got %v", violations[0])
+	if len(violations) != 0 {
+		t.Fatalf("expected the signed register to validate cleanly, got %d: %v", len(violations), violations)
 	}
 
 	if len(r.Slices) != 1 {
@@ -93,20 +87,10 @@ func TestPhaseOneThreatModelCoversEveryTrustBoundaryAssetActorAndAbusePath(t *te
 		t.Errorf("shared mitigation should retain exactly 2 consuming edges (EDGE-01 from THR-01, EDGE-06 from THR-06), got %v", shared.ConsumingEdges)
 	}
 
-	// --- GREEN: release is blocked for the one unmitigated CRITICAL threat
-	// (THR-07), because its residual risk has no accountable owner ---
-	blocked, blockers := r.ReleaseDecision(time.Date(2026, 9, 13, 0, 0, 0, 0, time.UTC))
-	if !blocked {
-		t.Fatal("expected release to be blocked by the unmitigated CRITICAL threat THR-07")
-	}
-	found := false
-	for _, b := range blockers {
-		if strings.Contains(b.Field, "THR-07") {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("expected a release blocker naming THR-07, got %v", blockers)
+	// --- GREEN: the exact-path EDGE-07 mitigation resolves THR-07 ---
+	blocked, blockers := r.ReleaseDecision(time.Date(2026, 9, 24, 0, 0, 0, 0, time.UTC))
+	if blocked {
+		t.Fatalf("verified EDGE-07 mitigation must not block release, got %v", blockers)
 	}
 
 	// Signature verifies.

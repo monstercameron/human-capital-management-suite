@@ -38,7 +38,7 @@ func TestTodo_ROLLOUT_005(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ledger := NewActivationLedger()
+	ledger := newTestActivationLedger(t)
 	gate := NewPauseGate(ledger)
 	if _, err := gate.Activate(activationRequest(t)); err != nil {
 		t.Fatal(err)
@@ -133,7 +133,7 @@ func TestTodo_ROLLOUT_005_Mutation(t *testing.T) {
 	}
 	fresh := func(t *testing.T) *PauseGate {
 		t.Helper()
-		gate := NewPauseGate(NewActivationLedger())
+		gate := NewPauseGate(newTestActivationLedger(t))
 		if _, err := gate.Activate(activationRequest(t)); err != nil {
 			t.Fatal(err)
 		}
@@ -141,7 +141,7 @@ func TestTodo_ROLLOUT_005_Mutation(t *testing.T) {
 	}
 
 	// Mutant 1: pausing a stage that never activated is refused.
-	gate := NewPauseGate(NewActivationLedger())
+	gate := NewPauseGate(newTestActivationLedger(t))
 	if _, err := gate.Pause(plan, "canary", 2, "reason"); !HasPauseCode(err, UnknownActivationStage) {
 		t.Fatalf("pause-before-activation = %v, want UNKNOWN_ACTIVATION_STAGE", err)
 	}

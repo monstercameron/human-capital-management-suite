@@ -1,5 +1,63 @@
 version: 1
 items:
+  - id: hcmnext.dataops.explain_field_history
+    kind: capability
+    owner_domain: dataops
+    state: DEFINED
+    claims:
+      - REV-014-01:DIRECT
+      - ARTIFACT-007:DOMAIN
+      - CONFIG-001:DOMAIN
+      - CONFIG-002:DOMAIN
+      - CONFIG-003:DOMAIN
+      - CP-001:DOMAIN
+      - CP-002:DOMAIN
+      - CP-003:DOMAIN
+      - CP-004:DOMAIN
+      - CP-005:DOMAIN
+      - CP-006:DOMAIN
+      - CP-007:DOMAIN
+      - CP-008:DOMAIN
+      - CP-009:DOMAIN
+      - CP-010:DOMAIN
+      - CUSTOM-001:DOMAIN
+      - CUSTOM-002:DOMAIN
+      - CUSTOM-003:DOMAIN
+      - CUSTOM-004:DOMAIN
+      - CUSTOM-005:DOMAIN
+      - CUSTOM-006:DOMAIN
+      - CUSTOM-007:DOMAIN
+      - CUSTOMER-002:DOMAIN
+      - DATA-023:DOMAIN
+      - DATAOPS-001:DOMAIN
+      - DATAOPS-002:DOMAIN
+      - DATAOPS-003:DOMAIN
+      - DATAOPS-004:DOMAIN
+      - DATAOPS-005:DOMAIN
+      - DATAOPS-006:DOMAIN
+      - DATAOPS-007:DOMAIN
+      - EP-EVID-001:DOMAIN
+      - EP-WF-001:DOMAIN
+      - EXPORT-001:DOMAIN
+      - INTAPI-014:DOMAIN
+      - LIB-018:DOMAIN
+      - PACK-001:DOMAIN
+      - PACK-002:DOMAIN
+      - PACK-003:DOMAIN
+      - PACK-004:DOMAIN
+      - PACK-005:DOMAIN
+      - PACK-006:DOMAIN
+      - PACK-007:DOMAIN
+      - REV-030-01:DOMAIN
+      - REV-031-01:DOMAIN
+      - REV-038-01:DOMAIN
+      - REV-042-01:DOMAIN
+      - REV-047-02:DOMAIN
+      - REV-055-01:DOMAIN
+      - REV-100-03:DOMAIN
+    tests:
+      - TestTodo_DATAOPS_007_Security
+      - TestTodo_REV_014_01
   - id: hcmnext.intelligence.explain_transaction
     kind: capability
     display_name: ExplainTransaction
@@ -50,11 +108,8 @@ items:
       - AGENT-049:DOMAIN
       - AGENT-050:DOMAIN
       - AGENT-051:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - REPORT-001:DOMAIN
       - REPORT-002:DOMAIN
       - REPORT-003:DOMAIN
@@ -63,13 +118,9 @@ items:
       - REV-032-03:DOMAIN
       - REV-040-02:DOMAIN
       - REV-079-01:DOMAIN
-      - SCENARIO-001:DOMAIN
       - SCENARIO-002:DOMAIN
-      - SCENARIO-003:DOMAIN
-      - SCENARIO-004:DOMAIN
       - SCENARIO-005:DOMAIN
       - SCENARIO-006:DOMAIN
-      - SCENARIO-007:DOMAIN
       - WEB-217:DOMAIN
       - WEB-218:DOMAIN
       - WEB-219:DOMAIN
@@ -82,7 +133,6 @@ items:
       - WEB-226:DOMAIN
       - WEB-227:DOMAIN
       - WEB-228:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-DISC-008:DOMAIN
     tests:
       - TestExplainTransactionReconstructsAuthorizedChronologyWithoutCausalFabrication
@@ -116,11 +166,8 @@ items:
       - FORENSIC-001:DOMAIN
       - GATEB-EVID-001:DOMAIN
       - INTAPI-004:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -171,12 +218,8 @@ items:
       - REV-100-02:DOMAIN
       - ROLLOUT-001:DOMAIN
       - ROLLOUT-002:DOMAIN
-      - ROLLOUT-003:DOMAIN
-      - ROLLOUT-004:DOMAIN
       - ROLLOUT-005:DOMAIN
-      - ROLLOUT-006:DOMAIN
       - ROLLOUT-007:DOMAIN
-      - ROLLOUT-008:DOMAIN
       - STATUS-001:DOMAIN
       - UXAUDIT-021:DOMAIN
       - UXLIVE-042:DOMAIN
@@ -200,7 +243,6 @@ items:
       - WF-DATA-027:DOMAIN
       - WF-DATA-028:DOMAIN
       - WF-DATA-033:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
       - TestTodo_REPAIR_001
@@ -231,11 +273,8 @@ items:
       - FORENSIC-001:DOMAIN
       - GATEB-EVID-001:DOMAIN
       - INTAPI-004:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -287,12 +326,8 @@ items:
       - REV-100-02:DOMAIN
       - ROLLOUT-001:DOMAIN
       - ROLLOUT-002:DOMAIN
-      - ROLLOUT-003:DOMAIN
-      - ROLLOUT-004:DOMAIN
       - ROLLOUT-005:DOMAIN
-      - ROLLOUT-006:DOMAIN
       - ROLLOUT-007:DOMAIN
-      - ROLLOUT-008:DOMAIN
       - STATUS-001:DOMAIN
       - UXAUDIT-021:DOMAIN
       - UXLIVE-042:DOMAIN
@@ -316,7 +351,6 @@ items:
       - WF-DATA-027:DOMAIN
       - WF-DATA-028:DOMAIN
       - WF-DATA-033:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
       - FuzzTodo_DATAOPS_008
@@ -347,11 +381,8 @@ items:
       - FORENSIC-001:DOMAIN
       - GATEB-EVID-001:DOMAIN
       - INTAPI-004:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -402,12 +433,8 @@ items:
       - REV-100-02:DOMAIN
       - ROLLOUT-001:DOMAIN
       - ROLLOUT-002:DOMAIN
-      - ROLLOUT-003:DOMAIN
-      - ROLLOUT-004:DOMAIN
       - ROLLOUT-005:DOMAIN
-      - ROLLOUT-006:DOMAIN
       - ROLLOUT-007:DOMAIN
-      - ROLLOUT-008:DOMAIN
       - STATUS-001:DOMAIN
       - UXAUDIT-021:DOMAIN
       - UXLIVE-042:DOMAIN
@@ -431,7 +458,6 @@ items:
       - WF-DATA-027:DOMAIN
       - WF-DATA-028:DOMAIN
       - WF-DATA-033:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WORKER-LIFE-004:DOMAIN
     tests:
       - FuzzTodo_REPAIR_003
@@ -463,16 +489,9 @@ items:
       - HIPERF-004:DOMAIN
       - INTAPI-010:DOMAIN
       - INTAPI-011:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
-      - LIB-020:DOMAIN
-      - LOCATION-001:DOMAIN
-      - LOCATION-002:DOMAIN
-      - LOCATION-003:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -594,7 +613,6 @@ items:
       - WF-CAP-002:DOMAIN
       - WF-CAP-008:DOMAIN
       - WF-DATA-002:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-008:DOMAIN
       - WF-HIRE-001:DOMAIN
       - WF-REV-012:DOMAIN
@@ -633,16 +651,9 @@ items:
       - HIPERF-004:DOMAIN
       - INTAPI-010:DOMAIN
       - INTAPI-011:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
-      - LIB-020:DOMAIN
-      - LOCATION-001:DOMAIN
-      - LOCATION-002:DOMAIN
-      - LOCATION-003:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -752,7 +763,6 @@ items:
       - WF-CAP-002:DOMAIN
       - WF-CAP-008:DOMAIN
       - WF-DATA-002:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-008:DOMAIN
       - WF-HIRE-001:DOMAIN
       - WF-REV-012:DOMAIN
@@ -762,31 +772,16 @@ items:
       - TestCommandRefusesAPlanThatDropsAParticipant
       - TestCommandRefusesMissingApprovalAndManagerCycle
       - TestCommandValidatesTheBoundedPromotion
-      - TestJourneyCreateWorkerRequiresTheOperatorRole
-      - TestJourneyCreatedWorkerCompletesTheWholePromotion
-      - TestJourneyDecideApproveCompletesWithOneGovernedWrite
-      - TestJourneyDecideRejectReachesTheRejectedTerminal
-      - TestJourneyExecuteIsRefusedWithoutTheExecutionRole
-      - TestP1APromotionProducesExactEvidenceAndZeroAuthoritativeOrProviderEffect
       - TestP1BAuthorityAmendmentSelectsOneTopologyAndEmitsOnlyTruthfulFacts
-      - TestP1BPreWriteAuthorityEvidenceRejectsMissingStaleCircularOrPostPilotProof
       - TestProposePromotionForwardsToThePromotionService
       - TestProposePromotionIsUnavailableWithoutTheContract
       - TestProposePromotionProjectsThePortsRefusals
-      - TestStreamInterceptorRejectsAnUnauthenticatedStream
       - TestTodo_NEXT_006_Conformance
       - TestTodo_NEXT_006_Fault
       - TestTodo_NEXT_006_Golden
       - TestTodo_NEXT_006_Mutation
       - TestTodo_NEXT_006_Property
       - TestTodo_NEXT_006_Security
-      - TestTodo_NEXT_009_Conformance
-      - TestTodo_NEXT_009_Fault
-      - TestTodo_NEXT_009_Golden
-      - TestTodo_NEXT_009_Mutation
-      - TestTodo_NEXT_009_Property
-      - TestTodo_NEXT_009_Recovery
-      - TestTodo_NEXT_009_Security
       - TestTodo_PROMO_001
       - TestTodo_PROMO_001_Conditional
       - TestTodo_PROMO_001_Golden
@@ -799,20 +794,11 @@ items:
       - TestTodo_PROMO_003
       - TestTodo_PROMO_004
       - TestTodo_PROMO_005
-      - TestTodo_PROMO_006
       - TestTodo_PROMO_007
       - TestTodo_PROMO_007_Golden
       - TestTodo_PROMO_007_Integration
       - TestTodo_PROMO_007_Mutation
       - TestTodo_PROMO_007_Security
-      - TestTodo_PROMO_008
-      - TestTodo_PROMO_008_Golden
-      - TestTodo_PROMO_008_Mutation
-      - TestTodo_PROMO_008_Race
-      - TestTodo_PROMO_008_Recovery
-      - TestTunnelServesAServerStreamingRPC
-      - TestTunnelUpgradeRefusesACrossOriginBrowser
-      - TestWatchJourneyEmitsOneMessagePerChange
   - id: hcmnext.registry.explain_capability
     kind: capability
     owner_domain: registry
@@ -895,10 +881,7 @@ items:
       - HIPERF-001:DOMAIN
       - HIPERF-003:DOMAIN
       - HIPERF-005:DOMAIN
-      - INCENTIVE-001:DOMAIN
-      - INCENTIVE-002:DOMAIN
       - INTAPI-010:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
       - JOBARCH-003:DOMAIN
@@ -908,8 +891,6 @@ items:
       - MERIT-002:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -1036,7 +1017,6 @@ items:
       - WF-CAP-010:DOMAIN
       - WF-CAP-013:DOMAIN
       - WF-CAP-016:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-001:DOMAIN
       - WF-EXT-020:DOMAIN
       - WF-REV-003:DOMAIN
@@ -1050,7 +1030,7 @@ items:
     kind: capability
     display_name: SimulateCompensation
     owner_domain: rewards
-    state: DEFINED
+    state: PARTIAL
     claims:
       - COMP-006:DIRECT
       - AGENT-035:DOMAIN
@@ -1116,10 +1096,7 @@ items:
       - HIPERF-001:DOMAIN
       - HIPERF-003:DOMAIN
       - HIPERF-005:DOMAIN
-      - INCENTIVE-001:DOMAIN
-      - INCENTIVE-002:DOMAIN
       - INTAPI-010:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
       - JOBARCH-003:DOMAIN
@@ -1129,8 +1106,6 @@ items:
       - MERIT-002:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -1257,7 +1232,6 @@ items:
       - WF-CAP-010:DOMAIN
       - WF-CAP-013:DOMAIN
       - WF-CAP-016:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-001:DOMAIN
       - WF-EXT-020:DOMAIN
       - WF-REV-003:DOMAIN
@@ -1265,10 +1239,7 @@ items:
       - WF-REV-016:DOMAIN
       - WF-RUN-034:DOMAIN
       - WORKER-LIFE-004:DOMAIN
-    tests:
-      - FuzzEvaluatePayBandPosition
-      - FuzzTodo_COMP_006
-      - TestSimulateCompensationReturnsExactVersionedResultWithZeroEffects
+    tests: []
   - id: hcmnext.intelligence.explain_transaction
     kind: intent
     display_name: ExplainTransaction
@@ -1345,16 +1316,9 @@ items:
       - HIPERF-004:DOMAIN
       - INTAPI-010:DOMAIN
       - INTAPI-011:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
-      - LIB-020:DOMAIN
-      - LOCATION-001:DOMAIN
-      - LOCATION-002:DOMAIN
-      - LOCATION-003:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -1477,7 +1441,6 @@ items:
       - WF-CAP-002:DOMAIN
       - WF-CAP-008:DOMAIN
       - WF-DATA-002:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-008:DOMAIN
       - WF-HIRE-001:DOMAIN
       - WF-REV-012:DOMAIN
@@ -1504,16 +1467,9 @@ items:
       - HIPERF-004:DOMAIN
       - INTAPI-010:DOMAIN
       - INTAPI-011:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
-      - LIB-020:DOMAIN
-      - LOCATION-001:DOMAIN
-      - LOCATION-002:DOMAIN
-      - LOCATION-003:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -1635,7 +1591,6 @@ items:
       - WF-CAP-002:DOMAIN
       - WF-CAP-008:DOMAIN
       - WF-DATA-002:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-008:DOMAIN
       - WF-HIRE-001:DOMAIN
       - WF-REV-012:DOMAIN
@@ -1674,16 +1629,9 @@ items:
       - HIPERF-004:DOMAIN
       - INTAPI-010:DOMAIN
       - INTAPI-011:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - LEGAL-007:DOMAIN
-      - LIB-020:DOMAIN
-      - LOCATION-001:DOMAIN
-      - LOCATION-002:DOMAIN
-      - LOCATION-003:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -1793,7 +1741,6 @@ items:
       - WF-CAP-002:DOMAIN
       - WF-CAP-008:DOMAIN
       - WF-DATA-002:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-008:DOMAIN
       - WF-HIRE-001:DOMAIN
       - WF-REV-012:DOMAIN
@@ -1803,31 +1750,16 @@ items:
       - TestCommandRefusesAPlanThatDropsAParticipant
       - TestCommandRefusesMissingApprovalAndManagerCycle
       - TestCommandValidatesTheBoundedPromotion
-      - TestJourneyCreateWorkerRequiresTheOperatorRole
-      - TestJourneyCreatedWorkerCompletesTheWholePromotion
-      - TestJourneyDecideApproveCompletesWithOneGovernedWrite
-      - TestJourneyDecideRejectReachesTheRejectedTerminal
-      - TestJourneyExecuteIsRefusedWithoutTheExecutionRole
-      - TestP1APromotionProducesExactEvidenceAndZeroAuthoritativeOrProviderEffect
       - TestP1BAuthorityAmendmentSelectsOneTopologyAndEmitsOnlyTruthfulFacts
-      - TestP1BPreWriteAuthorityEvidenceRejectsMissingStaleCircularOrPostPilotProof
       - TestProposePromotionForwardsToThePromotionService
       - TestProposePromotionIsUnavailableWithoutTheContract
       - TestProposePromotionProjectsThePortsRefusals
-      - TestStreamInterceptorRejectsAnUnauthenticatedStream
       - TestTodo_NEXT_006_Conformance
       - TestTodo_NEXT_006_Fault
       - TestTodo_NEXT_006_Golden
       - TestTodo_NEXT_006_Mutation
       - TestTodo_NEXT_006_Property
       - TestTodo_NEXT_006_Security
-      - TestTodo_NEXT_009_Conformance
-      - TestTodo_NEXT_009_Fault
-      - TestTodo_NEXT_009_Golden
-      - TestTodo_NEXT_009_Mutation
-      - TestTodo_NEXT_009_Property
-      - TestTodo_NEXT_009_Recovery
-      - TestTodo_NEXT_009_Security
       - TestTodo_PROMO_001
       - TestTodo_PROMO_001_Conditional
       - TestTodo_PROMO_001_Golden
@@ -1840,20 +1772,11 @@ items:
       - TestTodo_PROMO_003
       - TestTodo_PROMO_004
       - TestTodo_PROMO_005
-      - TestTodo_PROMO_006
       - TestTodo_PROMO_007
       - TestTodo_PROMO_007_Golden
       - TestTodo_PROMO_007_Integration
       - TestTodo_PROMO_007_Mutation
       - TestTodo_PROMO_007_Security
-      - TestTodo_PROMO_008
-      - TestTodo_PROMO_008_Golden
-      - TestTodo_PROMO_008_Mutation
-      - TestTodo_PROMO_008_Race
-      - TestTodo_PROMO_008_Recovery
-      - TestTunnelServesAServerStreamingRPC
-      - TestTunnelUpgradeRefusesACrossOriginBrowser
-      - TestWatchJourneyEmitsOneMessagePerChange
   - id: hcmnext.rewards.change_base_pay
     kind: intent
     display_name: ChangeBasePay
@@ -1924,10 +1847,7 @@ items:
       - HIPERF-001:DOMAIN
       - HIPERF-003:DOMAIN
       - HIPERF-005:DOMAIN
-      - INCENTIVE-001:DOMAIN
-      - INCENTIVE-002:DOMAIN
       - INTAPI-010:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
       - JOBARCH-003:DOMAIN
@@ -1937,8 +1857,6 @@ items:
       - MERIT-002:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -2065,7 +1983,6 @@ items:
       - WF-CAP-010:DOMAIN
       - WF-CAP-013:DOMAIN
       - WF-CAP-016:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-001:DOMAIN
       - WF-EXT-020:DOMAIN
       - WF-REV-003:DOMAIN
@@ -2145,10 +2062,7 @@ items:
       - HIPERF-001:DOMAIN
       - HIPERF-003:DOMAIN
       - HIPERF-005:DOMAIN
-      - INCENTIVE-001:DOMAIN
-      - INCENTIVE-002:DOMAIN
       - INTAPI-010:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
       - JOBARCH-003:DOMAIN
@@ -2158,8 +2072,6 @@ items:
       - MERIT-002:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -2286,7 +2198,6 @@ items:
       - WF-CAP-010:DOMAIN
       - WF-CAP-013:DOMAIN
       - WF-CAP-016:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-001:DOMAIN
       - WF-EXT-020:DOMAIN
       - WF-REV-003:DOMAIN
@@ -2318,7 +2229,7 @@ items:
     kind: intent
     display_name: SimulateCompensation
     owner_domain: REWARDS
-    state: DEFINED
+    state: PARTIAL
     claims:
       - COMP-006:DIRECT
       - AGENT-035:DOMAIN
@@ -2384,10 +2295,7 @@ items:
       - HIPERF-001:DOMAIN
       - HIPERF-003:DOMAIN
       - HIPERF-005:DOMAIN
-      - INCENTIVE-001:DOMAIN
-      - INCENTIVE-002:DOMAIN
       - INTAPI-010:DOMAIN
-      - INTENT-CONF-001:DOMAIN
       - JOBARCH-001:DOMAIN
       - JOBARCH-002:DOMAIN
       - JOBARCH-003:DOMAIN
@@ -2397,8 +2305,6 @@ items:
       - MERIT-002:DOMAIN
       - MODEL-010:DOMAIN
       - MODEL-016:DOMAIN
-      - MSRC-001:DOMAIN
-      - MSRC-009:DOMAIN
       - NEXT-002:DOMAIN
       - NEXT-003:DOMAIN
       - NEXT-004:DOMAIN
@@ -2525,7 +2431,6 @@ items:
       - WF-CAP-010:DOMAIN
       - WF-CAP-013:DOMAIN
       - WF-CAP-016:DOMAIN
-      - WF-DISC-006:DOMAIN
       - WF-EXT-001:DOMAIN
       - WF-EXT-020:DOMAIN
       - WF-REV-003:DOMAIN
@@ -2533,10 +2438,7 @@ items:
       - WF-REV-016:DOMAIN
       - WF-RUN-034:DOMAIN
       - WORKER-LIFE-004:DOMAIN
-    tests:
-      - FuzzEvaluatePayBandPosition
-      - FuzzTodo_COMP_006
-      - TestSimulateCompensationReturnsExactVersionedResultWithZeroEffects
+    tests: []
   - id: hcmnext.work.approve_proposal
     kind: intent
     display_name: ApproveProposal

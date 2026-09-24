@@ -21,10 +21,14 @@ type Record struct {
 	ScopeDecision   string          `json:"scope_decision"`
 	ReleaseOwner    string          `json:"release_owner"`
 	DisplacedWork   []DisplacedWork `json:"displaced_work"`
+	Owners          []Owner         `json:"owners"`
 	PilotTenants    []string        `json:"pilot_tenants"`
+	PilotCriteria   []string        `json:"pilot_selection_criteria"`
 	SLOs            []SLO           `json:"slos"`
 	Activation      []string        `json:"activation_conditions"`
+	Deactivation    []string        `json:"deactivation_conditions"`
 	Blockers        []string        `json:"unmet_gates"`
+	Evidence        []Evidence      `json:"source_evidence"`
 	PreserveP1A     bool            `json:"preserve_p1a_inventory"`
 	PreserveP1B     bool            `json:"preserve_p1b_inventory"`
 	Approval        Approval        `json:"approval"`
@@ -35,6 +39,17 @@ type DisplacedWork struct {
 	Workstream  string `json:"workstream"`
 	Disposition string `json:"disposition"`
 	Owner       string `json:"owner"`
+}
+
+type Owner struct {
+	Role           string `json:"role"`
+	Status         string `json:"status"`
+	Responsibility string `json:"responsibility"`
+}
+
+type Evidence struct {
+	Path  string `json:"path"`
+	Claim string `json:"claim"`
 }
 
 type SLO struct {
@@ -58,10 +73,14 @@ type canonicalRecord struct {
 	ScopeDecision string          `json:"scope_decision"`
 	ReleaseOwner  string          `json:"release_owner"`
 	DisplacedWork []DisplacedWork `json:"displaced_work"`
+	Owners        []Owner         `json:"owners"`
 	PilotTenants  []string        `json:"pilot_tenants"`
+	PilotCriteria []string        `json:"pilot_selection_criteria"`
 	SLOs          []SLO           `json:"slos"`
 	Activation    []string        `json:"activation_conditions"`
+	Deactivation  []string        `json:"deactivation_conditions"`
 	Blockers      []string        `json:"unmet_gates"`
+	Evidence      []Evidence      `json:"source_evidence"`
 	PreserveP1A   bool            `json:"preserve_p1a_inventory"`
 	PreserveP1B   bool            `json:"preserve_p1b_inventory"`
 	Approval      Approval        `json:"approval"`
@@ -69,7 +88,8 @@ type canonicalRecord struct {
 
 func canonical(r Record) canonicalRecord {
 	return canonicalRecord{r.TodoID, r.Status, r.ScopeDecision, r.ReleaseOwner, r.DisplacedWork,
-		r.PilotTenants, r.SLOs, r.Activation, r.Blockers, r.PreserveP1A, r.PreserveP1B, r.Approval}
+		r.Owners, r.PilotTenants, r.PilotCriteria, r.SLOs, r.Activation, r.Deactivation, r.Blockers,
+		r.Evidence, r.PreserveP1A, r.PreserveP1B, r.Approval}
 }
 
 func Digest(r Record) (string, error) {
@@ -116,8 +136,19 @@ func Validate(r Record) []Violation {
 			add(fmt.Sprintf("displaced_work[%d]", i), "workstream, disposition and owner are required")
 		}
 	}
+	if len(r.Owners) == 0 {
+		add("owners", "must name accountable release-gate roles")
+	}
+	for i, owner := range r.Owners {
+		if owner.Role == "" || owner.Status == "" || owner.Responsibility == "" {
+			add(fmt.Sprintf("owners[%d]", i), "role, assignment status and responsibility are required")
+		}
+	}
 	if len(r.PilotTenants) == 0 {
 		add("pilot_tenants", "must name the pilot selection or explicitly record UNSELECTED")
+	}
+	if len(r.PilotCriteria) == 0 {
+		add("pilot_selection_criteria", "must define pilot-tenant selection criteria")
 	}
 	if len(r.SLOs) == 0 {
 		add("slos", "must record measurable reliability targets")
@@ -130,8 +161,19 @@ func Validate(r Record) []Violation {
 	if len(r.Activation) == 0 {
 		add("activation_conditions", "must record activation conditions")
 	}
+	if len(r.Deactivation) == 0 {
+		add("deactivation_conditions", "must define pilot stop and rollback conditions")
+	}
 	if len(r.Blockers) == 0 {
 		add("unmet_gates", "must record remaining external gates")
+	}
+	if len(r.Evidence) == 0 {
+		add("source_evidence", "must cite repository evidence for the draft")
+	}
+	for i, item := range r.Evidence {
+		if item.Path == "" || item.Claim == "" {
+			add(fmt.Sprintf("source_evidence[%d]", i), "path and claim are required")
+		}
 	}
 	if !r.PreserveP1A || !r.PreserveP1B {
 		add("preserve_p1_inventory", "must preserve existing P1A and P1B inventory")

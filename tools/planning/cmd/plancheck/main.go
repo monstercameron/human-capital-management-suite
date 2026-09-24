@@ -38,6 +38,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/planning/todogovernance"
 	"github.com/monstercameron/human-capital-management-suite/tools/planning/todoregistry"
 	"github.com/monstercameron/human-capital-management-suite/tools/planning/traceability"
+	"github.com/monstercameron/human-capital-management-suite/tools/planning/workflowconformance"
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/depedge"
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/garbagedrawer"
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/importgraph"
@@ -46,7 +47,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: plancheck <manifest|scopeexchange|traceability|depthvocab|atomicity|evidence|deferredimports|terminology|plancontradiction|legalmatrix|federalbaseline|researchquestions|p1aevidence|authoritygate|coveragematrix|boundarytests|progress|dependencygraph|tddcontract|garbagedrawer|reachability> [-live] [root]")
+		fmt.Fprintln(os.Stderr, "usage: plancheck <manifest|scopeexchange|traceability|depthvocab|atomicity|evidence|deferredimports|terminology|plancontradiction|legalmatrix|federalbaseline|researchquestions|p1aevidence|authoritygate|coveragematrix|boundarytests|progress|dependencygraph|tddcontract|garbagedrawer|reachability|workflowconformance> [-live] [root]")
 		os.Exit(2)
 	}
 
@@ -114,6 +115,8 @@ func main() {
 		err = runGarbageDrawer(root)
 	case "reachability":
 		err = runReachability(root)
+	case "workflowconformance":
+		err = runWorkflowConformance(root)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", cmd)
 		os.Exit(2)
@@ -123,6 +126,27 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// runWorkflowConformance enforces the workflow promotion boundary for
+// completed CONFORMANCE todos against the workflow docs named in Refs.
+func runWorkflowConformance(root string) error {
+	todos, err := readTodos(root)
+	if err != nil {
+		return err
+	}
+	findings, err := workflowconformance.Check(root, todos)
+	if err != nil {
+		return err
+	}
+	if len(findings) == 0 {
+		fmt.Println("workflowconformance: OK")
+		return nil
+	}
+	for _, finding := range findings {
+		fmt.Println(finding)
+	}
+	return fmt.Errorf("workflowconformance: %d unpromoted workflow citation(s)", len(findings))
 }
 
 // runManifest and runScopeExchange have no repository data source to check
@@ -179,7 +203,7 @@ func runTraceability(root string) error {
 	if err != nil {
 		return err
 	}
-	tests, err := traceability.ScanTestNames(root)
+	tests, err := traceability.ScanRepositoryTestNames(root)
 	if err != nil {
 		return fmt.Errorf("scan test names: %w", err)
 	}
@@ -189,7 +213,8 @@ func runTraceability(root string) error {
 	// them. Ticked todos breaching that contract fail this subcommand
 	// alongside the GOV-003 orphans above.
 	ticked := traceability.CheckTickedTodos(todos, tests)
-	if len(orphans) == 0 && len(ticked) == 0 {
+	commandTargets := traceability.CheckEvidenceCommandTargets(root, todos)
+	if len(orphans) == 0 && len(ticked) == 0 && len(commandTargets) == 0 {
 		fmt.Println("traceability: OK")
 		return nil
 	}
@@ -199,7 +224,10 @@ func runTraceability(root string) error {
 	for _, f := range ticked {
 		fmt.Println(f)
 	}
-	return fmt.Errorf("traceability: %d orphan(s), %d ticked todo gap(s)", len(orphans), len(ticked))
+	for _, f := range commandTargets {
+		fmt.Println(f)
+	}
+	return fmt.Errorf("traceability: %d orphan(s), %d ticked todo gap(s), %d missing command target(s)", len(orphans), len(ticked), len(commandTargets))
 }
 
 func runDepthVocab(root string) error {
@@ -760,9 +788,10 @@ func runTDDContract(root string) error {
 
 // runReachability adapts REV-103-01's binary-closure gate into plancheck:
 // every ticked runtime todo must name a package linked into a shipped
-// ./cmd/... binary. The closure comes from `go list -deps ./cmd/...` run
-// against root; the todogovernance checker owns classification,
-// exemptions and diagnostics, plancheck owns only command execution.
+// command binary. The closure comes from `go list -deps` over the explicit
+// shipped commands in scripts/build.sh, run
+// against root; the todogovernance checker owns classification and
+// diagnostics, plancheck owns repository package and binary discovery.
 func runReachability(root string) error {
 	todos, err := readTodos(root)
 	if err != nil {
@@ -772,7 +801,11 @@ func runReachability(root string) error {
 	if err != nil {
 		return fmt.Errorf("list binary closure: %w", err)
 	}
-	findings := checkReachabilityTodos(todos, reachable)
+	knownPackages, err := packageInventory(root)
+	if err != nil {
+		return fmt.Errorf("list repository packages: %w", err)
+	}
+	findings := checkReachabilityTodos(todos, reachable, knownPackages)
 	if len(findings) == 0 {
 		fmt.Println("reachability: OK")
 		return nil
@@ -780,13 +813,19 @@ func runReachability(root string) error {
 	for _, f := range findings {
 		fmt.Println(f)
 	}
-	return fmt.Errorf("reachability: %d ticked runtime todo(s) name only packages no binary reaches", len(findings))
+	return fmt.Errorf("reachability: %d ticked todo(s) need explicit capability/owner or name packages no binary reaches", len(findings))
 }
 
-// binaryClosure runs `go list -deps ./cmd/...` in root and returns the
-// normalized repo-relative package set.
+// binaryClosure runs `go list -deps` over the shipped command entry points
+// in root and returns the normalized repo-relative package set. The explicit
+// list excludes development tools such as cmd/frontenddev, which are not
+// shipped runtime binaries.
 func binaryClosure(root string) (map[string]bool, error) {
-	cmd := exec.Command("go", "list", "-deps", "./cmd/...")
+	args := []string{"list", "-deps"}
+	for _, binary := range shippedBinaryMatrix() {
+		args = append(args, binary.Package)
+	}
+	cmd := exec.Command("go", args...)
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {
@@ -795,11 +834,44 @@ func binaryClosure(root string) (map[string]bool, error) {
 	return todogovernance.NormalizeReachable(strings.Split(string(out), "\n")), nil
 }
 
+// packageInventory lists actual Go packages in the repository. TODO evidence
+// can name source-tree directories that are not themselves packages (for
+// example `cmd`) or stale paths left after a move; only actual packages are
+// valid inputs to the runtime reachability rule.
+func packageInventory(root string) (map[string]bool, error) {
+	cmd := exec.Command("go", "list", "./...")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	return todogovernance.NormalizeReachable(strings.Split(string(out), "\n")), nil
+}
+
+type shippedBinary struct {
+	Name    string
+	Package string
+}
+
+// shippedBinaryMatrix is the literal command matrix from scripts/build.sh.
+// Keep this explicit: `./cmd/...` also includes development-only commands
+// and would incorrectly count their dependencies as runtime capabilities.
+func shippedBinaryMatrix() [6]shippedBinary {
+	return [6]shippedBinary{
+		{Name: "hcmnext", Package: "./cmd/hcmnext"},
+		{Name: "scheduler", Package: "./cmd/scheduler"},
+		{Name: "worker", Package: "./cmd/worker"},
+		{Name: "migrate", Package: "./cmd/migrate"},
+		{Name: "hcmctl", Package: "./cmd/hcmctl"},
+		{Name: "projector", Package: "./cmd/projector"},
+	}
+}
+
 // checkReachabilityTodos is the exec-free seam between runReachability
 // and the checker: command tests inject a synthetic closure here while
 // production passes the live `go list` set.
-func checkReachabilityTodos(todos []todoregistry.Todo, reachable map[string]bool) []todogovernance.ReachabilityFinding {
-	return todogovernance.CheckReachability(todos, reachable)
+func checkReachabilityTodos(todos []todoregistry.Todo, reachable, knownPackages map[string]bool) []todogovernance.ReachabilityFinding {
+	return todogovernance.CheckReachabilityInPackages(todos, reachable, knownPackages)
 }
 
 // runGarbageDrawer adapts ARCH-GO-017's source-ownership policy into

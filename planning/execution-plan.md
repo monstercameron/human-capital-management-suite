@@ -370,6 +370,27 @@ The contract is in
   This keeps the non-goal "general regulatory calculation or government
   filing engines".
 
+### Recorded placement: chat and documentation human gates (2026-09-24)
+
+Scope: the four items in
+[the chat backlog](todos.md#83-native-company-chat-and-collaboration-delivery)
+and [the documentation hub backlog](todos.md#84-markdown-documentation-hub-and-hybrid-search-delivery)
+that no code can close. Everything else in those two sections is implemented,
+served and tested.
+
+- **Deferred by owner decision:** `CHAT-001` (signed scope exchange with named
+  owners, pilot tenants and approvers), `CHAT-052` (signed regression gate),
+  `CHAT-053` (monitored all-employee chat pilot with a design partner) and
+  `HUB-044` (official team docs and private sharing piloted with real users).
+- **What exists:** the gate records
+  (`definitions/planning/gates/chat-001-scope-exchange.json`,
+  `chat-052-regression-gate.json`) validate and stay `PROPOSED`; the pilot
+  review in `internal/collaboration/chatpilot` fails closed on unsigned
+  evidence. None of them may be marked approved without a real signer.
+- **Reopens when:** a named product owner and reviewer sign the CHAT-001 and
+  CHAT-052 records, and a design partner is selected to run the CHAT-053 and
+  HUB-044 pilots. The four todos stay unticked until then.
+
 ## Explicit Non-Goals
 
 - Full payroll, tax, benefits, timekeeping, recruiting, talent, or workforce-access products

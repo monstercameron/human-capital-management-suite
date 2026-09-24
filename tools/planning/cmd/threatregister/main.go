@@ -8,10 +8,9 @@
 // `go run ./tools/planning/cmd/pilotprovider` does for SELECT-002's
 // topology.
 //
-// The checked-in register validates with exactly one documented violation
-// (an honestly empty residual-risk owner) and reports release blocked for
-// its one unmitigated CRITICAL threat, so a non-zero exit here is expected
-// today: see tools/planning/threatregister's doc.go for why.
+// The checked-in register carries signed, edge-specific mitigations and
+// reports release unblocked when no critical threat remains without a
+// mitigation or current residual-risk acceptance.
 package main
 
 import (

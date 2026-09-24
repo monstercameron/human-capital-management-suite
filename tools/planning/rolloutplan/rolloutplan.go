@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/configbundle"
 )
 
 // ArtifactType is one supported rollout artifact kind.
@@ -89,15 +91,16 @@ type Stage struct {
 
 // Plan is one multi-artifact rollout plan.
 type Plan struct {
-	Artifact         Artifact `json:"artifact"`
-	Target           string   `json:"target"`
-	Stages           []Stage  `json:"stages"`
-	StopCriteria     string   `json:"stop_criteria"`
-	ExpandCriteria   string   `json:"expand_criteria"`
-	RollbackCriteria string   `json:"rollback_criteria"`
-	KillCriteria     string   `json:"kill_criteria"`
-	Owner            string   `json:"owner"`
-	Expiry           string   `json:"expiry"`
+	Artifact         Artifact                      `json:"artifact"`
+	KillTarget       configbundle.KillSwitchTarget `json:"kill_target"`
+	Target           string                        `json:"target"`
+	Stages           []Stage                       `json:"stages"`
+	StopCriteria     string                        `json:"stop_criteria"`
+	ExpandCriteria   string                        `json:"expand_criteria"`
+	RollbackCriteria string                        `json:"rollback_criteria"`
+	KillCriteria     string                        `json:"kill_criteria"`
+	Owner            string                        `json:"owner"`
+	Expiry           string                        `json:"expiry"`
 }
 
 // Finding is one exact validation failure.
@@ -131,6 +134,12 @@ func Validate(plan Plan) []Finding {
 	}
 	if strings.TrimSpace(plan.Target) == "" {
 		add(MissingTarget, "target", "target expression is required")
+	}
+	if strings.TrimSpace(plan.KillTarget.TenantID) == "" || strings.TrimSpace(plan.KillTarget.TenantID) != plan.KillTarget.TenantID {
+		add(MissingTarget, "kill_target.tenant_id", "kill target tenant is required and must be trimmed")
+	}
+	if strings.TrimSpace(plan.KillTarget.Capability) == "" || strings.TrimSpace(plan.KillTarget.Capability) != plan.KillTarget.Capability {
+		add(MissingTarget, "kill_target.capability", "kill target capability is required and must be trimmed")
 	}
 	if len(plan.Stages) == 0 {
 		add(MissingStages, "stages", "at least one stage is required")

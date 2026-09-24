@@ -15,23 +15,33 @@ import (
 
 // Todo represents a single parsed todo from the backlog.
 type Todo struct {
-	ID          string            `json:"id"`
-	Phase       string            `json:"phase"`
-	Model       string            `json:"model"`
-	Title       string            `json:"title"`
-	Section     string            `json:"section"`
-	Depends     []string          `json:"depends"`
-	Test        string            `json:"test"`
-	TestMatrix  map[string]string `json:"test_matrix"`
-	Red         string            `json:"red"`
-	Green       string            `json:"green"`
-	Refactor    string            `json:"refactor"`
-	Refs        string            `json:"refs"`
-	Retired     bool              `json:"retired"`
-	Done        bool              `json:"done"`
-	Evidence    string            `json:"evidence,omitempty"`
-	Disposition string            `json:"disposition,omitempty"`
-	Line        int               `json:"line,omitempty"`
+	ID                    string            `json:"id"`
+	Phase                 string            `json:"phase"`
+	Model                 string            `json:"model"`
+	Title                 string            `json:"title"`
+	Section               string            `json:"section"`
+	Depends               []string          `json:"depends"`
+	Test                  string            `json:"test"`
+	TestMatrix            map[string]string `json:"test_matrix"`
+	Red                   string            `json:"red"`
+	Green                 string            `json:"green"`
+	Refactor              string            `json:"refactor"`
+	Refs                  string            `json:"refs"`
+	Retired               bool              `json:"retired"`
+	Done                  bool              `json:"done"`
+	Evidence              string            `json:"evidence,omitempty"`
+	Disposition           string            `json:"disposition,omitempty"`
+	CapabilityClass       string            `json:"capability_class,omitempty"`
+	Owner                 string            `json:"owner,omitempty"`
+	Role                  string            `json:"-"`
+	IntentContextConflict bool              `json:"-"`
+	CapabilityConflict    bool              `json:"-"`
+	OwnerConflict         bool              `json:"-"`
+	prePromotionTagSeen   bool
+	// PrePromotionExploratory marks conformance evidence as exploratory
+	// scaffolding that intentionally precedes workflow promotion.
+	PrePromotionExploratory bool `json:"pre_promotion_exploratory,omitempty"`
+	Line                    int  `json:"line,omitempty"`
 }
 
 // UnresolvedDependency names a dependency edge that does not resolve to a
@@ -226,11 +236,49 @@ func parseTodoField(t *Todo, line string) {
 	case "REFACTOR":
 		t.Refactor = fieldValue
 	case "Refs":
-		t.Refs = fieldValue
+		if t.Refs != "" {
+			t.Refs += "\n"
+		}
+		t.Refs += fieldValue
 	case "Disposition":
 		t.Disposition = fieldValue
 	case "INTENT CONTEXT":
-		// Not part of the core registry fields.
+		for _, part := range strings.Split(strings.Trim(fieldValue, "`"), ";") {
+			key, value, ok := strings.Cut(strings.TrimSpace(part), "=")
+			if !ok {
+				continue
+			}
+			switch strings.TrimSpace(key) {
+			case "ROLE":
+				role := strings.TrimSpace(value)
+				if t.Role != "" && t.Role != role {
+					t.IntentContextConflict = true
+				} else if t.Role == "" {
+					t.Role = role
+				}
+			case "PRE_PROMOTION_EXPLORATORY":
+				exploratory := strings.TrimSpace(value) == "true"
+				if t.prePromotionTagSeen && t.PrePromotionExploratory != exploratory {
+					t.IntentContextConflict = true
+				}
+				t.PrePromotionExploratory = t.PrePromotionExploratory || exploratory
+				t.prePromotionTagSeen = true
+			case "CAPABILITY":
+				capabilityClass := strings.TrimSpace(value)
+				if t.CapabilityClass != "" && t.CapabilityClass != capabilityClass {
+					t.CapabilityConflict = true
+				} else if t.CapabilityClass == "" {
+					t.CapabilityClass = capabilityClass
+				}
+			case "OWNER":
+				owner := strings.TrimSpace(value)
+				if t.Owner != "" && t.Owner != owner {
+					t.OwnerConflict = true
+				} else if t.Owner == "" {
+					t.Owner = owner
+				}
+			}
+		}
 	}
 }
 
@@ -400,8 +448,43 @@ func validateTodo(t *Todo) error {
 	if t.Refs == "" {
 		return fmt.Errorf("missing Refs field")
 	}
+	if t.CapabilityConflict {
+		return fmt.Errorf("conflicting CAPABILITY declarations")
+	}
+	if t.OwnerConflict {
+		return fmt.Errorf("conflicting OWNER declarations")
+	}
+	if t.CapabilityClass != "" && t.CapabilityClass != CapabilityRuntime && t.CapabilityClass != CapabilityLibrary {
+		return fmt.Errorf("invalid CAPABILITY: %s", t.CapabilityClass)
+	}
+	if t.Owner != "" && !validOwnerSlug(t.Owner) {
+		return fmt.Errorf("invalid OWNER: %s", t.Owner)
+	}
+	if (t.CapabilityClass == "") != (t.Owner == "") {
+		return fmt.Errorf("CAPABILITY and OWNER must be declared together")
+	}
 
 	return nil
+}
+
+// Capability class values are explicit declarations. They are deliberately
+// not inferred from TODO ID prefixes or package roots.
+const (
+	CapabilityRuntime = "RUNTIME"
+	CapabilityLibrary = "LIBRARY"
+)
+
+func validOwnerSlug(owner string) bool {
+	if owner == "" || owner[0] < 'A' || owner[0] > 'Z' {
+		return false
+	}
+	for i := 1; i < len(owner); i++ {
+		c := owner[i]
+		if (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
 }
 
 // ResolveDependencies checks that all dependencies resolve to an existing
