@@ -3,6 +3,8 @@ package inspect
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation"
 )
 
 // RecordState says how one durable record family behind a [DurableView] was
@@ -33,20 +35,21 @@ const (
 // Durable record families, in the order a [DurableView] lists them. The name
 // is the table (or, for trace, the column set) the family is read from.
 const (
-	FamilyInstance            = "workflow_instance"
-	FamilyCompiledVersion     = "workflow_compiled_version"
-	FamilyExecutionContext    = "workflow_execution_context"
-	FamilyNodeExecution       = "workflow_node_execution"
-	FamilyTimer               = "workflow_timer"
-	FamilyAdvancementReceipt  = "workflow_advancement_receipt"
-	FamilyWorkItem            = "work_item"
-	FamilyLease               = "workflow_lease"
-	FamilyCheckpoint          = "workflow_checkpoint"
-	FamilyBusinessTransaction = "business_transaction"
-	FamilyOutbox              = "outbox"
-	FamilyConnectorOperation  = "connector_operation"
-	FamilyReconciliation      = "effect_reconciliation_job"
-	FamilyTrace               = "trace_links"
+	FamilyInstance             = "workflow_instance"
+	FamilyCompiledVersion      = "workflow_compiled_version"
+	FamilyExecutionContext     = "workflow_execution_context"
+	FamilyNodeExecution        = "workflow_node_execution"
+	FamilyTimer                = "workflow_timer"
+	FamilyAdvancementReceipt   = "workflow_advancement_receipt"
+	FamilyWorkItem             = "work_item"
+	FamilyLease                = "workflow_lease"
+	FamilyCheckpoint           = "workflow_checkpoint"
+	FamilyBusinessTransaction  = "business_transaction"
+	FamilyOutbox               = "outbox"
+	FamilyConnectorOperation   = "connector_operation"
+	FamilyReconciliation       = "effect_reconciliation_job"
+	FamilyCancellationDecision = "workflow_cancellation_decision"
+	FamilyTrace                = "trace_links"
 )
 
 // Unavailability reasons for the families no durable store in this
@@ -245,20 +248,21 @@ type EffectView struct {
 // they do not make a view incomplete, because nothing the instance recorded
 // was missed.
 type DurableView struct {
-	View             View                 `json:"view"`
-	Records          []RecordFamily       `json:"records"`
-	Version          VersionRecordView    `json:"version"`
-	ExecutionContext ExecutionContextView `json:"execution_context"`
-	Attempts         []AttemptHistory     `json:"attempts"`
-	Timers           []TimerView          `json:"timers"`
-	Receipts         []ReceiptView        `json:"receipts"`
-	WorkItems        WorkItemsResult      `json:"work_items"`
-	Lease            LeaseView            `json:"lease"`
-	Checkpoint       CheckpointView       `json:"checkpoint"`
-	Effects          []EffectView         `json:"effects"`
-	TraceIDs         RefList              `json:"trace_ids"`
-	Completeness     Completeness         `json:"completeness"`
-	Unavailable      []string             `json:"unavailable"`
+	View             View                    `json:"view"`
+	Records          []RecordFamily          `json:"records"`
+	Version          VersionRecordView       `json:"version"`
+	ExecutionContext ExecutionContextView    `json:"execution_context"`
+	Attempts         []AttemptHistory        `json:"attempts"`
+	Timers           []TimerView             `json:"timers"`
+	Receipts         []ReceiptView           `json:"receipts"`
+	WorkItems        WorkItemsResult         `json:"work_items"`
+	Lease            LeaseView               `json:"lease"`
+	Checkpoint       CheckpointView          `json:"checkpoint"`
+	Effects          []EffectView            `json:"effects"`
+	Cancellation     cancellation.Settlement `json:"cancellation_settlement"`
+	TraceIDs         RefList                 `json:"trace_ids"`
+	Completeness     Completeness            `json:"completeness"`
+	Unavailable      []string                `json:"unavailable"`
 }
 
 // JSON renders the durable view as indented JSON in declaration order, the

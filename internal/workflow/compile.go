@@ -1,7 +1,10 @@
 package workflow
 
 import (
+	"encoding/json"
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 )
@@ -10,6 +13,9 @@ import (
 // the plan's material identity: the same definition compiled by a different
 // compiler is a different plan, and a runtime pins both.
 const CompilerVersion = "hcmnext.workflow.compiler/v1"
+
+// CurrentIRSchemaVersion is the schema used by newly compiled plans.
+const CurrentIRSchemaVersion uint32 = 2
 
 // CapabilityResolver resolves one exact capability version. *capability.Registry
 // satisfies it, and a test can supply a fixed table without the bootstrap
@@ -33,6 +39,10 @@ type Options struct {
 	// were before it existed, and refuses every reference kind only a
 	// resolver can check with [CodeReferenceResolverRequired].
 	References ReferenceResolver
+	// Parameters resolves typed tenant parameter declarations. The resolver is
+	// required for any PARAMETER mapping and must provide a publish revision for
+	// PINNED_AT_PUBLISH.
+	Parameters ParameterResolver
 	// SimulateProjection compiles the zero-effect SIMULATE projection
 	// (WF-EXT-003): outcome aliases are canonicalized as always, and every
 	// node whose declared effect class writes is suppressed through its own
@@ -44,6 +54,9 @@ type Options struct {
 	// CompilerVersion overrides [CompilerVersion] for tests that need to prove
 	// the compiler identity is material to the digest.
 	CompilerVersion string
+	// IRSchemaVersion selects the compiled-plan wire and digest schema. Zero
+	// selects the current schema; version 1 is retained for frozen publications.
+	IRSchemaVersion uint32
 }
 
 func (o Options) phase() Phase {
@@ -60,6 +73,22 @@ func (o Options) compilerVersion() string {
 	return o.CompilerVersion
 }
 
+func (o Options) irSchemaVersion() uint32 {
+	if o.IRSchemaVersion == 0 {
+		return CurrentIRSchemaVersion
+	}
+	return o.IRSchemaVersion
+}
+
+func storedIRSchemaVersion(version uint32) uint32 {
+	if version == 1 {
+		// Schema v1 predates the explicit field. Keeping its wire form stable
+		// preserves the digest of already published v1 plans.
+		return 0
+	}
+	return version
+}
+
 // requiresZeroEffect reports whether this compilation refuses every write
 // effect. P1A ships paid observation, preflight and simulation only, so a P1A
 // plan must compile to zero effect; there is no flag that relaxes it.
@@ -67,15 +96,22 @@ func (o Options) requiresZeroEffect() bool { return o.phase() == PhaseP1A }
 
 // CompiledMapping is one resolved, type-checked input binding.
 type CompiledMapping struct {
-	Target      string     `json:"target"`
-	TargetType  ValueType  `json:"target_type"`
-	SourceKind  SourceKind `json:"source_kind"`
-	SourceNode  string     `json:"source_node,omitempty"`
-	SourceCtx   string     `json:"source_context_kind,omitempty"`
-	SourcePath  string     `json:"source_path,omitempty"`
-	SourceType  ValueType  `json:"source_type"`
-	Constant    string     `json:"constant,omitempty"`
-	PinnedInput bool       `json:"pinned_input"`
+	Target                     string               `json:"target"`
+	TargetType                 ValueType            `json:"target_type"`
+	SourceKind                 SourceKind           `json:"source_kind"`
+	SourceNode                 string               `json:"source_node,omitempty"`
+	SourceCtx                  string               `json:"source_context_kind,omitempty"`
+	SourcePath                 string               `json:"source_path,omitempty"`
+	SourceType                 ValueType            `json:"source_type"`
+	Constant                   string               `json:"constant,omitempty"`
+	PinnedInput                bool                 `json:"pinned_input"`
+	ParameterKey               string               `json:"parameter_key,omitempty"`
+	ParameterMode              ParameterBindingMode `json:"parameter_mode,omitempty"`
+	ParameterMaxAgeSeconds     uint64               `json:"parameter_max_age_seconds,omitempty"`
+	ParameterValue             string               `json:"parameter_value,omitempty"`
+	ParameterDefinitionName    string               `json:"parameter_definition_name,omitempty"`
+	ParameterDefinitionVersion string               `json:"parameter_definition_version,omitempty"`
+	ParameterRevision          uint64               `json:"parameter_revision,omitempty"`
 }
 
 // CompiledCapability is a node's resolved capability binding, including the
@@ -115,11 +151,13 @@ type CompiledDecision struct {
 
 // CompiledTransform is a resolved TRANSFORM binding with its taint lineage.
 type CompiledTransform struct {
-	TransformRef         string            `json:"transform_ref"`
-	Version              uint32            `json:"version"`
-	NormalizationProfile string            `json:"normalization_profile"`
-	Lookups              []TransformLookup `json:"lookups,omitempty"`
-	InputDigest          string            `json:"input_digest"`
+	TransformRef string `json:"transform_ref"`
+	Version      uint32 `json:"version"`
+	// Program pins the published bounded IR body for schema-v2 plans.
+	Program              *ResolvedReference `json:"program,omitempty"`
+	NormalizationProfile string             `json:"normalization_profile"`
+	Lookups              []TransformLookup  `json:"lookups,omitempty"`
+	InputDigest          string             `json:"input_digest"`
 	// Lineage is the ordered, deduplicated taint provenance of the output:
 	// which declared inputs contributed and at what level.
 	Lineage             []string        `json:"lineage"`
@@ -213,12 +251,42 @@ type CompiledNode struct {
 	FailureRoute string                 `json:"failure_route,omitempty"`
 	Governance   CompiledGovernance     `json:"governance"`
 	EvidenceRefs []string               `json:"evidence_refs"`
+	// Metadata carries authored runtime bindings that the compiler preserves.
+	Metadata map[string]string `json:"metadata,omitempty"`
 
 	// ResolverRef, TimeoutPolicy and CompensationRef are the resolved
 	// published targets the node binds (WF-COMP-007).
 	ResolverRef     *ResolvedReference `json:"resolver_ref,omitempty"`
 	TimeoutPolicy   *ResolvedReference `json:"timeout_policy,omitempty"`
 	CompensationRef *ResolvedReference `json:"compensation_ref,omitempty"`
+}
+
+// AttestationExecutionMetadataPrefix marks authored metadata that is part of
+// the executable attestation contract. Other metadata remains available on
+// the in-process compiled node but stays out of canonical plans, preserving
+// the existing digest contract for authoring and presentation hints.
+const AttestationExecutionMetadataPrefix = "hcmnext.attest.execution."
+
+func (n CompiledNode) MarshalJSON() ([]byte, error) {
+	type compiledNodeJSON CompiledNode
+	n.Metadata = attestationExecutionMetadata(n.Metadata)
+	return json.Marshal(compiledNodeJSON(n))
+}
+
+func attestationExecutionMetadata(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string)
+	for key, value := range in {
+		if strings.HasPrefix(key, AttestationExecutionMetadataPrefix) {
+			out[key] = value
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // ReachabilityProof is the compiled evidence that the graph is sound: which
@@ -270,6 +338,7 @@ type CompiledWorkflow struct {
 	Version         uint32          `json:"version"`
 	Name            string          `json:"name"`
 	CompilerVersion string          `json:"compiler_version"`
+	IRSchemaVersion uint32          `json:"ir_schema_version,omitempty"`
 	Phase           Phase           `json:"phase"`
 	TerminalProfile TerminalProfile `json:"terminal_profile"`
 
@@ -318,19 +387,47 @@ type CompiledWorkflow struct {
 // approval binds and a version comparison uses.
 func (p *CompiledWorkflow) Digest() string { return p.digest }
 
+// SchemaVersion reports the compiled-plan IR schema. A zero stored value is
+// the legacy v1 wire format, whose version was encoded by its digest profile.
+func (p *CompiledWorkflow) SchemaVersion() uint32 {
+	if p == nil || p.IRSchemaVersion == 0 {
+		return 1
+	}
+	return p.IRSchemaVersion
+}
+
 // Node returns one compiled node by id.
 func (p *CompiledWorkflow) Node(id string) (CompiledNode, bool) {
 	for _, n := range p.Nodes {
 		if n.ID == id {
+			n.Metadata = cloneStringMap(n.Metadata)
 			return n, true
 		}
 	}
 	return CompiledNode{}, false
 }
 
+func cloneStringMap(in map[string]string) map[string]string {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
+}
+
 // Verify recomputes the digest from the plan's current content and reports
 // whether it still matches the digest minted at compilation.
 func (p *CompiledWorkflow) Verify() error {
+	if p == nil {
+		return Error{Code: CodeInvalidDefinition, Detail: "compiled plan is nil"}
+	}
+	if p.SchemaVersion() != 1 && p.SchemaVersion() != CurrentIRSchemaVersion {
+		return Error{Code: CodeInvalidDefinition, Location: Location{Ref: p.WorkflowID},
+			Detail: fmt.Sprintf("unsupported compiled-plan IR schema version %d", p.SchemaVersion())}
+	}
 	got := computePlanDigest(p)
 	if got != p.digest {
 		return Error{
@@ -351,7 +448,19 @@ func (p *CompiledWorkflow) Verify() error {
 // effect classes when [Options.SimulateProjection] asks for it (WF-EXT-003).
 // Neither rewrites the caller's definition: both work on copies.
 func Compile(def Definition, opts Options) (*CompiledWorkflow, error) {
+	irVersion := opts.irSchemaVersion()
+	if irVersion != 1 && irVersion != CurrentIRSchemaVersion {
+		return nil, fmt.Errorf("workflow: unsupported compiled-plan IR schema version %d", irVersion)
+	}
+	if irVersion == 1 {
+		for _, node := range def.Nodes {
+			if node.Transform != nil && node.Transform.ProgramRef != nil {
+				return nil, fmt.Errorf("workflow: published transform program refs require compiled-plan IR schema v2")
+			}
+		}
+	}
 	c := &collector{}
+	opts.Parameters = snapshotParameters(&def, opts.Parameters)
 
 	def.Edges = canonicalizeEdges(&def)
 	validateShape(&def, opts, c)
@@ -364,7 +473,7 @@ func Compile(def Definition, opts Options) (*CompiledWorkflow, error) {
 	refs := resolveReferences(&def, opts, c)
 	g := analyzeGraph(&def, c)
 	if g.sound {
-		checkMappings(&def, g, c)
+		checkMappings(&def, g, opts.Parameters, c)
 	}
 	checkSteps(&def, g, records, c)
 	effects := analyzeEffects(&def, g, records, opts, overlaid, c)
@@ -407,6 +516,7 @@ func normalize(
 		Version:               def.Version,
 		Name:                  def.Name,
 		CompilerVersion:       opts.compilerVersion(),
+		IRSchemaVersion:       storedIRSchemaVersion(opts.irSchemaVersion()),
 		Phase:                 opts.phase(),
 		TerminalProfile:       def.TerminalProfile,
 		TenantScope:           def.TenantScope,
@@ -449,11 +559,12 @@ func normalize(
 			FailureRoute:    n.FailureRoute,
 			Governance:      compileGovernance(n.Governance),
 			EvidenceRefs:    evidenceRefsFor(n),
+			Metadata:        cloneStringMap(n.Metadata),
 			ResolverRef:     refs.at(id, refFieldResolver),
 			TimeoutPolicy:   refs.at(id, refFieldTimeoutPolicy),
 			CompensationRef: refs.at(id, refFieldCompensation),
 		}
-		cn.Mappings = compileMappings(def, g, n)
+		cn.Mappings = compileMappings(def, g, n, opts.Parameters)
 		cn.EffectKey = effectKeyOf(n, records)
 		cn.EffectRole = n.EffectRole
 		if n.Retry != nil {
@@ -496,6 +607,7 @@ func normalize(
 			cn.Transform = &CompiledTransform{
 				TransformRef:         n.Transform.TransformRef,
 				Version:              n.Transform.Version,
+				Program:              refs.at(id, refFieldTransform),
 				NormalizationProfile: n.Transform.NormalizationProfile,
 				Lookups:              append([]TransformLookup(nil), n.Transform.Lookups...),
 				InputDigest:          mappingDigest(cn.Mappings),
@@ -689,7 +801,7 @@ func placeSafePoints(
 	return out
 }
 
-func compileMappings(def *Definition, g *graph, n *Node) []CompiledMapping {
+func compileMappings(def *Definition, g *graph, n *Node, parameters ParameterResolver) []CompiledMapping {
 	inputs := fieldsByPath(n.Inputs)
 	out := make([]CompiledMapping, 0, len(n.InputMappings))
 	for _, m := range n.InputMappings {
@@ -703,7 +815,20 @@ func compileMappings(def *Definition, g *graph, n *Node) []CompiledMapping {
 			Constant:    m.Source.Constant,
 			PinnedInput: isPinnedSource(n, m.Source),
 		}
-		if t, ok := sourceType(def, g, n, m.Source); ok {
+		if m.Source.Kind == SourceParameter && parameters != nil {
+			if parameter, ok := parameters.ResolveParameter(m.Source.ParameterKey); ok {
+				cm.ParameterKey = m.Source.ParameterKey
+				cm.ParameterMode = m.Source.ParameterMode
+				cm.ParameterMaxAgeSeconds = m.Source.MaxAgeSeconds
+				if m.Source.ParameterMode == ParameterPinnedAtPublish {
+					cm.ParameterValue = parameter.PublishValue
+					cm.ParameterDefinitionName = parameter.DefinitionName
+					cm.ParameterDefinitionVersion = parameter.DefinitionVersion
+					cm.ParameterRevision = parameter.Revision
+				}
+			}
+		}
+		if t, ok := sourceType(def, g, n, m.Source, parameters); ok {
 			cm.SourceType = t.clone()
 		}
 		out = append(out, cm)

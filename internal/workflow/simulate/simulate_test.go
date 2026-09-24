@@ -262,3 +262,7 @@ func (s *countingSink) RecordInvocation(_ context.Context, _ capability.Invocati
 	s.n++
 	return "ev:test", nil
 }
+
+func (s *countingSink) RecordInvocationTx(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
+	return s.RecordInvocation(ctx, evt)
+}

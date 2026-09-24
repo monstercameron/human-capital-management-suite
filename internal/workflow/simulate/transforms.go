@@ -21,7 +21,8 @@ const PromotionProposalTransformRef = "transforms.promotion.build_proposal"
 // That matters because an approval bound to a digest nobody can reproduce is
 // an approval of nothing.
 type PromotionTransforms struct {
-	Env *Environment
+	Env      *Environment
+	Payloads PublishedRuleResolver
 }
 
 // Transform implements TransformPort.
@@ -34,6 +35,23 @@ func (t PromotionTransforms) Transform(ctx context.Context, req TransformRequest
 	if req.Transform.TransformRef != PromotionProposalTransformRef {
 		return TransformResult{}, refuse(CodeHandlerFailed, req.NodeID,
 			"no implementation is bound to transform %q", req.Transform.TransformRef)
+	}
+	if req.Transform.Program != nil {
+		facts := req
+		facts.Outputs = []workflow.Field{
+			{Path: FieldRaiseRatio, Type: workflow.ValueType{Kind: workflow.KindDecimal}},
+			{Path: FieldBandPosition, Type: workflow.ValueType{Kind: workflow.KindString}},
+		}
+		transformed, err := (PublishedTransforms{Payloads: t.Payloads}).Transform(ctx, facts)
+		if err != nil {
+			return TransformResult{}, wrap(CodeHandlerFailed, req.NodeID, err, "promotion decision-facts transform")
+		}
+		if transformed.Outcome != workflow.OutcomeSucceeded {
+			return transformed, nil
+		}
+		req.Inputs = req.Inputs.clone()
+		req.Inputs[FieldRaiseRatio] = transformed.Outputs[FieldRaiseRatio]
+		req.Inputs[FieldBandPosition] = transformed.Outputs[FieldBandPosition]
 	}
 
 	base, err := moneyInput(req.Inputs, "proposed_base_pay")

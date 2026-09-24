@@ -3,7 +3,7 @@ package task
 import (
 	"github.com/google/uuid"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/candidate"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
@@ -45,7 +45,7 @@ type SubmissionSpec struct {
 	ItemVersion        int64
 
 	CompletedBy  string
-	CandidateVia humanwork.CandidateSource
+	CandidateVia candidate.Source
 	DelegationID string
 
 	ClaimID        uuid.UUID
@@ -70,7 +70,7 @@ type Submission struct {
 	ItemVersion        int64
 
 	CompletedBy  string
-	CandidateVia humanwork.CandidateSource
+	CandidateVia candidate.Source
 	DelegationID string
 
 	ClaimID        uuid.UUID

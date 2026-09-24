@@ -75,8 +75,11 @@ type Options struct {
 
 	Decisions  DecisionPort
 	Transforms TransformPort
-	Reads      ReadPort
-	Approvals  ApprovalPort
+	// RulePayloads resolves the exact table or expression digest carried by a
+	// compiled DECISION node. A node without this binding refuses evaluation.
+	RulePayloads PublishedRuleResolver
+	Reads        ReadPort
+	Approvals    ApprovalPort
 
 	// Controls are extra pinned control versions to cite in the receipt,
 	// beyond the compiler, interpreter and plan digest the run always pins.
@@ -113,12 +116,15 @@ func (o Options) decisions() DecisionPort {
 	if o.Decisions != nil {
 		return o.Decisions
 	}
-	return RulesDecisions{}
+	return PublishedRuleDecisions{Payloads: o.RulePayloads}
 }
 
 func (o Options) transforms() TransformPort {
 	if o.Transforms != nil {
 		return o.Transforms
+	}
+	if o.RulePayloads != nil {
+		return PublishedTransforms{Payloads: o.RulePayloads}
 	}
 	return unboundTransforms{}
 }

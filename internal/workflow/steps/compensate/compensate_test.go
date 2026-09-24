@@ -3,6 +3,8 @@ package compensate
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"strings"
 	"sync"
 	"testing"
@@ -12,7 +14,9 @@ import (
 var testNow = time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
 
 func validRequest() Request {
-	return Request{TenantID: "t", ActorID: "a", TargetExecutionRef: "x", TargetEffectRef: "e", CompensationCapabilityRef: "cap/v1", VerificationObservationRef: "obs/v1", Reason: "repair", ApprovalPolicy: "p", ApprovalRef: "ap", AuthorityPolicyFingerprint: "pf", CapabilityManifestDigest: "md", PayloadDigest: "sha256:p", IdempotencyKey: "i", OriginalHistoryRef: "h", Strategy: StrategyCorrection, RepairRef: "repair-1", ObservationMaxAge: time.Hour}
+	tenant := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	return Request{TenantID: tenant.String(), ActorID: "a", TargetExecutionRef: "x", TargetEffectRef: "e", CompensationCapabilityRef: "cap/v1", VerificationObservationRef: "obs/v1", Reason: "repair", ApprovalPolicy: "p", ApprovalRef: "ap", AuthorityPolicyFingerprint: "pf", CapabilityManifestDigest: "md", PayloadDigest: "sha256:p", IdempotencyKey: "i", OriginalHistoryRef: "h", Strategy: StrategyCorrection, RepairRef: "repair-1", ObservationMaxAge: time.Hour,
+		PlanDigest: "source-plan-digest", OriginalScope: idempotency.Scope{Tenant: tenant, Capability: "source.capability", EffectScope: "source-effect", Key: "source-key"}, OriginalEffectKind: OriginalEffectIdempotencyScope}
 }
 
 type fakeAuthorizer struct{ other bool }
@@ -52,8 +56,9 @@ func (o fakeObserver) ObserveCompensation(context.Context, ObservationRequest) (
 }
 
 type fakeOwner struct {
-	mu sync.Mutex
-	m  map[OperationKey]OperationRecord
+	mu       sync.Mutex
+	m        map[OperationKey]OperationRecord
+	closures int
 }
 
 func (o *fakeOwner) Reserve(_ context.Context, k OperationKey, d string) (OperationRecord, bool, error) {
@@ -84,6 +89,15 @@ func (o *fakeOwner) Complete(_ context.Context, k OperationKey, d string, r Resu
 	o.m[k] = x
 	return nil
 }
+func (o *fakeOwner) CloseCompensated(_ context.Context, _ idempotency.Scope, eventRef string) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if eventRef == "" {
+		return errors.New("empty event ref")
+	}
+	o.closures++
+	return nil
+}
 
 type fakeLedger struct {
 	mu     sync.Mutex
@@ -91,15 +105,15 @@ type fakeLedger struct {
 	fail   bool
 }
 
-func (l *fakeLedger) AppendCompensation(_ context.Context, e Event) error {
+func (l *fakeLedger) AppendCompensation(_ context.Context, e Event) (string, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.fail {
 		l.fail = false
-		return errors.New("ledger")
+		return "", errors.New("ledger")
 	}
 	l.events[e.Digest] = e
-	return nil
+	return e.EventRef, nil
 }
 func fixture() (*Executor, *fakeCapability, *fakeOwner, *fakeLedger) {
 	r := validRequest()
@@ -112,15 +126,67 @@ func fixture() (*Executor, *fakeCapability, *fakeOwner, *fakeLedger) {
 func TestTodo_WF_STEP_016(t *testing.T) {
 	e, _, _, l := fixture()
 	got, err := e.Execute(context.Background(), validRequest())
-	if err != nil || got.Status != StatusCompensated || got.Event.AuthorizationEvidenceRef == "" || len(l.events) != 1 {
+	if err != nil || got.Status != StatusCompensated || got.Event.AuthorizationEvidenceRef == "" ||
+		!strings.HasPrefix(got.Event.EventRef, "compensation:v1:") || len(l.events) != 1 {
 		t.Fatalf("got=%+v err=%v", got, err)
 	}
 }
+
+// TestTodo_WF_REV_010 proves the compensating ledger identity is stable for
+// an identical correction request and changes when the semantic request
+// changes. The ledger append receipt is the identity returned to discharge.
+func TestTodo_WF_REV_010(t *testing.T) {
+	e1, _, _, l1 := fixture()
+	first, err := e1.Execute(context.Background(), validRequest())
+	if err != nil || first.Event.EventRef == "" || len(l1.events) != 1 || l1.events[first.Event.Digest].EventRef != first.Event.EventRef {
+		t.Fatalf("first compensation event = %+v, err=%v", first.Event, err)
+	}
+	e2, _, _, _ := fixture()
+	replayedIdentity, err := e2.Execute(context.Background(), validRequest())
+	if err != nil || replayedIdentity.Event.EventRef != first.Event.EventRef {
+		t.Fatalf("identical compensation identity = %q (%v), want %q", replayedIdentity.Event.EventRef, err, first.Event.EventRef)
+	}
+	e3, _, _, _ := fixture()
+	changed := validRequest()
+	changed.IdempotencyKey = "different-effect"
+	different, err := e3.Execute(context.Background(), changed)
+	if err != nil || different.Event.EventRef == first.Event.EventRef {
+		t.Fatalf("distinct compensation identity = %q (%v), want a different event ref", different.Event.EventRef, err)
+	}
+}
+
+func TestTodo_WF_REV_010_Property(t *testing.T) {
+	for i := 0; i < 3; i++ {
+		e, _, _, _ := fixture()
+		got, err := e.Execute(context.Background(), validRequest())
+		if err != nil {
+			t.Fatalf("run %d: %v", i, err)
+		}
+		if i == 0 {
+			continue
+		}
+		first, _, _, _ := fixture()
+		want, err := first.Execute(context.Background(), validRequest())
+		if err != nil || got.Event.EventRef != want.Event.EventRef {
+			t.Fatalf("run %d event ref %q differs from stable ref %q: %v", i, got.Event.EventRef, want.Event.EventRef, err)
+		}
+	}
+}
+
 func TestTodo_WF_STEP_016_Golden(t *testing.T) {
 	e, _, _, _ := fixture()
 	got, _ := e.Execute(context.Background(), validRequest())
-	if got.Event.Digest != "1baf851e330cb96424003e08ff04984bdee650c90b88d243ce550472d9491271" {
+	if got.Event.Digest != "354929e6aed9c7b0f3a672c99bc5c1db602fc8358fcffb50570aca4bb4c2b3f6" {
 		t.Fatalf("digest=%s", got.Event.Digest)
+	}
+}
+
+func TestCompensationRequestRequiresOriginalClosureBinding(t *testing.T) {
+	r := validRequest()
+	r.OriginalScope = idempotency.Scope{}
+	r.PlanDigest = ""
+	if err := r.Validate(); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("request without original binding err=%v, want ErrInvalidRequest", err)
 	}
 }
 func TestTodo_WF_STEP_016_Security(t *testing.T) {
@@ -194,7 +260,7 @@ func TestTodo_WF_STEP_016_Mutation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			k := OperationKey{"t", "cap/v1", "e", "i"}
+			k := OperationKey{validRequest().TenantID, "cap/v1", "e", "i"}
 			o.mu.Lock()
 			x := o.m[k]
 			mutate(&x.Result)

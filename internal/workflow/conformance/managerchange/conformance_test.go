@@ -27,7 +27,7 @@ func TestTodo_PROMO_006(t *testing.T) {
 	if setup.Plan.Effects.ZeroEffect == false {
 		t.Fatal("Manager Change plan is not zero-effect")
 	}
-	if got := setup.Plan.Digest(); got != "c8db2976705537323390be5fc1e917048646161b134b36d5e00a028d72d1e9b4" {
+	if got := setup.Plan.Digest(); got != "5a41efd841bb457f48b5c28de1d2c1f446ea20edd88db230ad702b2e394245e3" {
 		t.Fatalf("plan digest = %s, want checked-in golden", got)
 	}
 	receipt, err := simulate.Run(context.Background(), setup.Plan, setup.Inputs, setup.Options)

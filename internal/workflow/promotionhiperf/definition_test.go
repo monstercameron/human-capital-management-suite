@@ -9,13 +9,13 @@ import (
 )
 
 // promotionExecutePlanDigest pins the execute plan this variant extends
-// (internal/workflow/promotionexec/definition_test.go). The variant must
-// differ from it while the execute plan itself never moves.
-const promotionExecutePlanDigest = "9c97ca67a56638f631bebd17c0bbdb62336ca7ae801d43571e9b8f908f46d2bf"
+// (internal/workflow/promotionexec/definition_test.go), currently the v3 / 1.2.0
+// plan. Keep this aligned with that package's authoritative current golden.
+const promotionExecutePlanDigest = "5714988b93c43721bdf2bb0f8693df9870b715017472290b6ff139a168227c95"
 
 // promotionHighPerformerPlanDigest pins the variant plan. It is filled when
 // the variant graph lands (GREEN) and never moves without a version bump.
-const promotionHighPerformerPlanDigest = "748c043bee84314ff05bc490c54abca0c78e1572a23c64b76dbcd0d14e517520"
+const promotionHighPerformerPlanDigest = "6b431aaed4f9826175bd7a50ad4a8f5b077df7f293bc8d2fa938decced45828d"
 
 // mappingTargets returns the target paths of node's input mappings.
 func mappingTargets(node workflow.Node) map[string]workflow.Source {
@@ -190,9 +190,16 @@ func TestVariantCapabilityBindings(t *testing.T) {
 			t.Fatalf("CapabilityIDs = %v, missing execute capability %s", ids, id)
 		}
 	}
-	resolver := capabilities()
+	resolver, err := capabilities()
+	if err != nil {
+		t.Fatalf("capabilities: %v", err)
+	}
 	for _, id := range ids {
-		record, ok := resolver.Lookup(capability.Key{ID: id, Version: 1})
+		version := uint32(1)
+		if id == promotionexec.CapabilityExecutePromotion {
+			version = 2
+		}
+		record, ok := resolver.Lookup(capability.Key{ID: id, Version: version})
 		if !ok {
 			t.Fatalf("variant resolver has no record for %s", id)
 		}
@@ -207,10 +214,24 @@ func TestVariantCapabilityBindings(t *testing.T) {
 	// projection from each write node's declared mode overlay (WF-EXT-003),
 	// so the promote and release records stay writes here and compile to
 	// reads only under the projection.
-	for _, id := range []string{"hcmnext.people.promote_worker", "hcmnext.rewards.release_compensation_budget"} {
-		record, ok := resolver.Lookup(capability.Key{ID: id, Version: 1})
+	for _, key := range []capability.Key{{ID: "hcmnext.people.promote_worker", Version: 2}, {ID: "hcmnext.rewards.release_compensation_budget", Version: 1}} {
+		record, ok := resolver.Lookup(key)
 		if !ok || !record.Definition.EffectClass.IsWrite() {
-			t.Fatalf("execute record %s = %+v, want the executable write", id, record.Definition)
+			t.Fatalf("execute record %s = %+v, want the executable write", key, record.Definition)
+		}
+	}
+	plan, err := Compile()
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	for _, nodeID := range []string{promotionexec.NodeExecutePromotion, promotionexec.NodeCompensateHold} {
+		node, ok := plan.Node(nodeID)
+		if !ok || node.Capability == nil {
+			t.Fatalf("compiled node %s has no capability", nodeID)
+		}
+		record, ok := resolver.Lookup(capability.Key{ID: node.Capability.ID, Version: node.Capability.Version})
+		if !ok || record.Digest != node.Capability.Digest {
+			t.Fatalf("node %s manifest %+v does not match variant registry record %+v", nodeID, node.Capability, record)
 		}
 	}
 	sim, err := CompileSimulation()

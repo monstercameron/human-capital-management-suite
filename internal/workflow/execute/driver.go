@@ -37,6 +37,7 @@ type Options struct {
 	Steps     StepRunner
 	WorkItems WorkItemFactory
 	Terminal  TerminalWriter
+	Terminals TerminalRegistry
 	Repair    RepairRequester
 	Guard     idempotency.Store
 	Retention idempotency.RetentionPolicy
@@ -74,6 +75,10 @@ type Options struct {
 	// check at all, exactly reproducing this driver's pre-WF-RUN-029
 	// behavior.
 	Currency *CurrencyGuard
+	// Revalidation reads evidence for the keys declared by the selected
+	// workflow registration. An absent provider is an error when a registration
+	// declares keys; a provider returns facts, never an allow decision.
+	Revalidation RevalidationEvidenceProvider
 	// Timers creates the durable timer a TIMER_REQUIRED continuation
 	// describes (WF-RUN-004). Nil leaves a TIMER_REQUIRED continuation
 	// unsupported, exactly as it was before that ticket.
@@ -174,6 +179,16 @@ func New(opts Options) (*Driver, error) {
 	if opts.Instrumentation == nil {
 		opts.Instrumentation = NoopInstrumentation{}
 	}
+	if bindings, ok := opts.Terminals.(TerminalBindings); ok {
+		copy := make(TerminalBindings, len(bindings))
+		for workflowID, byCode := range bindings {
+			copy[workflowID] = make(map[string]TerminalWriter, len(byCode))
+			for code, writer := range byCode {
+				copy[workflowID][code] = writer
+			}
+		}
+		opts.Terminals = copy
+	}
 	if opts.Evidence == nil {
 		opts.Evidence = NoopExecutionEvidence{}
 	}
@@ -223,6 +238,10 @@ type ExecuteRequest struct {
 	// before WF-EXT-004, and Promotion today, which rebuilds its own inputs
 	// from the pinned proposal rather than from this document.
 	Inputs []workflow.TypedOutput
+	// Contexts are typed snapshots paired with Start.ResolvedContext proof
+	// references. Their values and references are persisted together in the
+	// immutable per-instance data-plane artifact.
+	Contexts []runtime.TypedContextSnapshot
 }
 
 // Result is either COMPLETE or PARKED on the WorkItems returned here. Every
@@ -261,6 +280,9 @@ func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (ret0 Result, 
 	var selection runtime.WorkflowSelection
 	var err error
 	startReq := req.Start
+	if source := startReq.StartSourceValue(); source.Proposal != nil {
+		startReq.Proposal = *source.Proposal
+	}
 	var started runtime.StartReceipt
 	startRetry := d.opts.StartRetry
 	if d.opts.StartRetryFor != nil {
@@ -296,7 +318,7 @@ func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (ret0 Result, 
 			return Result{}, invalid("WorkflowResolver returned no workflow id or plan")
 		}
 		startReq.Resolver = fixedResolver{selection: selection}
-		started, err = d.startOnce(ctx, startReq, false, nil, nil, req.Inputs)
+		started, err = d.startOnce(ctx, startReq, false, nil, nil, req.Inputs, req.Contexts)
 		if err != nil {
 			return Result{}, err
 		}
@@ -309,7 +331,7 @@ func (d *Driver) Execute(ctx context.Context, req ExecuteRequest) (ret0 Result, 
 		// won the authoritative retry is the one used to drain READY work.
 		err := transactioncommit.RetryClosure(ctx, *startRetry, func(ctx context.Context) error {
 			var err error
-			started, err = d.startOnce(ctx, startReq, true, transactionalResolver, &selection, req.Inputs)
+			started, err = d.startOnce(ctx, startReq, true, transactionalResolver, &selection, req.Inputs, req.Contexts)
 			return err
 		})
 		if err != nil {
@@ -387,7 +409,7 @@ func (r transactionalResolver) ResolveWorkflow(ctx context.Context, req runtime.
 	return selection, err
 }
 
-func (d *Driver) startOnce(ctx context.Context, req runtime.StartRequest, serializable bool, resolver TransactionalWorkflowResolver, selection *runtime.WorkflowSelection, inputs []workflow.TypedOutput) (runtime.StartReceipt, error) {
+func (d *Driver) startOnce(ctx context.Context, req runtime.StartRequest, serializable bool, resolver TransactionalWorkflowResolver, selection *runtime.WorkflowSelection, inputs []workflow.TypedOutput, contexts []runtime.TypedContextSnapshot) (runtime.StartReceipt, error) {
 	var tx dbport.Tx
 	var err error
 	if serializable {
@@ -428,17 +450,22 @@ func (d *Driver) startOnce(ctx context.Context, req runtime.StartRequest, serial
 	// runtime.CodeWorkflowInputConflict when not. A run that supplies no
 	// Inputs skips this entirely, so it behaves exactly as it did before
 	// WF-EXT-004.
-	if len(inputs) > 0 {
+	if len(inputs) > 0 || len(contexts) > 0 {
 		plan, perr := d.planForInputs(ctx, req, selection)
 		if perr != nil {
 			return runtime.StartReceipt{}, perr
 		}
 		if verr := validateWorkflowInputDocument(plan, inputs); verr != nil {
+			if len(inputs) > 0 {
+				return runtime.StartReceipt{}, verr
+			}
+		}
+		if verr := validateContextDocument(plan, contexts, req.ResolvedContext); verr != nil {
 			return runtime.StartReceipt{}, verr
 		}
 		artifact := runtime.WorkflowInputArtifact{
 			TenantID: req.TenantID, InstanceID: started.InstanceID, PlanDigest: plan.Digest(),
-			Inputs: artifactValuesOf(inputs), RecordedAt: req.CreatedAt,
+			Inputs: artifactValuesOf(inputs), Contexts: contexts, RecordedAt: req.CreatedAt,
 		}
 		if _, rerr := runtime.RecordWorkflowInputs(ctx, tx, artifact); rerr != nil {
 			return runtime.StartReceipt{}, rerr
@@ -770,7 +797,7 @@ func (d *Driver) advanceOnce(
 
 	// A blocked currency verdict commits a status transition. Isolate input
 	// writes so that commit cannot also publish a refused step's effects.
-	if d.opts.Currency != nil {
+	if d.opts.Currency != nil && run.start.StartSourceValue().Kind == runtime.StartSourceProposal {
 		if _, err := tx.Exec(advCtx, "SAVEPOINT workflow_currency_guard"); err != nil {
 			advSpan.End(OutcomeFailure, err)
 			return runtime.AdvanceReceipt{}, nil, nil, nil, fmt.Errorf("workflow execute: open currency savepoint: %w", err)
@@ -840,7 +867,7 @@ func (d *Driver) advanceOnce(
 		return runtime.AdvanceReceipt{}, nil, nil, nil, err
 	}
 
-	if d.opts.Currency != nil {
+	if d.opts.Currency != nil && run.start.StartSourceValue().Kind == runtime.StartSourceProposal {
 		verdict, cerr := d.opts.Currency.Check(advCtx, tx, CurrencyCheckRequest{
 			TenantID: run.start.TenantID, InstanceID: run.instanceID,
 			Proposal: run.start.Proposal, CheckedAt: at,
@@ -875,12 +902,12 @@ func (d *Driver) advanceOnce(
 
 	sink := &continuationSink{
 		tx: tx, durable: runtime.ContinuationStore{},
-		factory: d.opts.WorkItems, timers: d.opts.Timers, signals: d.opts.Signals, terminal: d.opts.Terminal,
+		factory: d.opts.WorkItems, timers: d.opts.Timers, signals: d.opts.Signals, terminal: d.opts.Terminal, terminals: d.opts.Terminals,
 		repair: d.opts.Repair,
 		plan:   run.selection.Plan,
 		guard:  d.opts.Guard, policy: d.opts.Retention,
 		workflowID: run.selection.WorkflowID, planDigest: run.selection.Plan.Digest(),
-		proposal: run.start.Proposal, cellID: run.start.CellID,
+		proposal: run.start.Proposal, source: run.start.StartSourceValue(), cellID: run.start.CellID,
 		correlationID: run.start.CorrelationID,
 		startKey:      run.start.StartIdempotencyKey,
 		subjectRefs:   append([]string(nil), run.start.BusinessSubjectRefs...),
@@ -897,6 +924,23 @@ func (d *Driver) advanceOnce(
 		Plan: run.selection.Plan, Outcome: outcome, Refs: refs,
 		RecordedAt: at, Sink: sink, TraceID: d.opts.Instrumentation.TraceID(advCtx),
 		ExecutionContextDigest: run.executionContext().Digest(),
+	}
+	if keys := run.selection.RevalidationKeys; len(keys) > 0 {
+		if d.opts.Revalidation == nil {
+			advSpan.End(OutcomeFailure, invalid("workflow %s declares revalidation keys but no evidence provider is configured", run.selection.WorkflowID))
+			return runtime.AdvanceReceipt{}, nil, nil, nil, invalid("workflow %s declares revalidation keys but no evidence provider is configured", run.selection.WorkflowID)
+		}
+		evidence, evidenceErr := d.opts.Revalidation.Evidence(advCtx, tx, RevalidationEvidenceRequest{
+			TenantID: run.start.TenantID, InstanceID: run.instanceID,
+			WorkflowID: run.selection.WorkflowID, Source: run.start.StartSourceValue(),
+			Keys: append([]string(nil), keys...),
+		})
+		if evidenceErr != nil {
+			advSpan.End(OutcomeFailure, evidenceErr)
+			return runtime.AdvanceReceipt{}, nil, nil, nil, fmt.Errorf("workflow execute: load generic revalidation evidence: %w", evidenceErr)
+		}
+		advReq.Revalidation = evidence
+		advReq.RevalidationKeys = append([]string(nil), keys...)
 	}
 	if causalSpan, ok := advSpan.(CausalSpan); ok {
 		nodeExecutionID := runtime.NodeExecutionID(run.start.TenantID, run.instanceID, outcome.NodeID, attempt).String()

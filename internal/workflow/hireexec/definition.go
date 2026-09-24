@@ -8,8 +8,9 @@ import (
 
 // Workflow identity.
 const (
-	WorkflowID = "hcmnext.workflows.new_hire"
-	Version    = 1
+	WorkflowID  = "hcmnext.workflows.new_hire"
+	VersionV1_0 = 1
+	Version     = 2
 )
 
 // Node ids, exported so a caller (the driver's StepRunner/WorkItemFactory and
@@ -169,11 +170,19 @@ func terminalNode(id, code string, status workflow.RuntimeStatus, dims map[strin
 	}
 }
 
-// Definition returns the complete New Hire EXECUTE graph, version 1.
+// Definition returns the current New Hire EXECUTE graph, definition version 2.
 func Definition() workflow.Definition {
+	return definition(Version)
+}
+
+// definition builds the shared graph under the requested immutable definition
+// version. Schema and capability contracts remain at v1 because their
+// shapes did not change; the compiled-plan IR version is selected separately
+// by the publication entrypoint.
+func definition(version uint32) workflow.Definition {
 	return workflow.Definition{
 		WorkflowID:        WorkflowID,
-		Version:           Version,
+		Version:           version,
 		Name:              "New employee hire",
 		InputSchema:       schema("Input"),
 		OutputSchema:      schema("Result"),

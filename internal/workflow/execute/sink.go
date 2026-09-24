@@ -19,14 +19,15 @@ import (
 type continuationSink struct {
 	tx dbport.Tx
 
-	durable  runtime.ContinuationSink
-	factory  WorkItemFactory
-	timers   TimerFactory
-	signals  SignalSubscriber
-	terminal TerminalWriter
-	repair   RepairRequester
-	guard    idempotency.Store
-	policy   idempotency.RetentionPolicy
+	durable   runtime.ContinuationSink
+	factory   WorkItemFactory
+	timers    TimerFactory
+	signals   SignalSubscriber
+	terminal  TerminalWriter
+	terminals TerminalRegistry
+	repair    RepairRequester
+	guard     idempotency.Store
+	policy    idempotency.RetentionPolicy
 
 	// plan is the exact compiled plan the advancement is pinned to. A
 	// TIMER_REQUIRED continuation names a node, and the wake condition lives
@@ -37,6 +38,7 @@ type continuationSink struct {
 	workflowID    string
 	planDigest    string
 	proposal      runtime.ProposalBinding
+	source        runtime.StartSource
 	cellID        string
 	correlationID string
 	startKey      string
@@ -145,7 +147,15 @@ func (s *continuationSink) Complete(ctx context.Context, ex runtime.Executor, re
 	if err := s.durable.Complete(ctx, ex, rec); err != nil {
 		return err
 	}
-	if s.terminal == nil || s.guard == nil {
+	terminal := s.terminal
+	if s.terminals != nil {
+		if registered, ok := s.terminals.ResolveTerminal(s.workflowID, rec.TerminalCode); ok {
+			terminal = registered
+		} else {
+			terminal = nil
+		}
+	}
+	if terminal == nil || s.guard == nil {
 		return invalid("COMPLETE for node %s requires TerminalWriter and idempotency Store", rec.TargetNodeID)
 	}
 	instrumentation := s.instrumentation
@@ -156,18 +166,23 @@ func (s *continuationSink) Complete(ctx context.Context, ex runtime.Executor, re
 		InstanceID: rec.InstanceID.String(), NodeID: rec.TargetNodeID, TerminalCode: rec.TerminalCode,
 	})
 
-	digest := terminalDigest(s.planDigest, s.proposal, rec)
+	digest := terminalDigest(s.planDigest, s.source, rec)
+	effectRef := s.proposal.Revision.ProposalRevisionID
+	if effectRef == "" {
+		sourceBytes, _ := json.Marshal(s.source)
+		effectRef = fmt.Sprintf("%s:%x", s.source.Kind, sha256.Sum256(sourceBytes))
+	}
 	scope := idempotency.Scope{
 		Tenant: rec.TenantID, Capability: s.workflowID,
-		EffectScope: "workflow-terminal:" + s.proposal.Revision.ProposalRevisionID,
+		EffectScope: "workflow-terminal:" + effectRef,
 		Key:         s.startKey,
 	}
 	identity, err := idempotency.Guard(termCtx, s.tx, s.guard, scope, digest, s.policy, rec.RecordedAt,
 		func(ctx context.Context, tx dbport.Tx) (idempotency.ResultIdentity, error) {
-			return s.terminal.Write(ctx, tx, TerminalWriteRequest{
+			return terminal.Write(ctx, tx, TerminalWriteRequest{
 				TenantID: rec.TenantID, InstanceID: rec.InstanceID,
 				WorkflowID: s.workflowID, PlanDigest: s.planDigest,
-				Proposal: s.proposal, TerminalCode: rec.TerminalCode,
+				Proposal: s.proposal, Source: s.source, TerminalCode: rec.TerminalCode,
 				CorrelationID: s.correlationID, IdempotencyKey: s.startKey,
 				RecordedAt:      rec.RecordedAt,
 				EndNodeID:       s.endNodeID,
@@ -179,7 +194,7 @@ func (s *continuationSink) Complete(ctx context.Context, ex runtime.Executor, re
 		return err
 	}
 	termSpan.End(OutcomeSuccess, nil)
-	if s.repair != nil && strings.Contains(rec.TerminalCode, "REPAIR") {
+	if s.repair != nil && s.source.Proposal != nil && strings.Contains(rec.TerminalCode, "REPAIR") {
 		if err := s.repair.Request(ctx, s.tx, RepairRequest{
 			TenantID: rec.TenantID, InstanceID: rec.InstanceID, WorkflowID: s.workflowID,
 			PlanDigest: s.planDigest, Proposal: s.proposal,
@@ -209,19 +224,36 @@ func (s *continuationSink) Complete(ctx context.Context, ex runtime.Executor, re
 	return nil
 }
 
-func terminalDigest(planDigest string, proposal runtime.ProposalBinding, rec runtime.ContinuationRecord) string {
-	material := struct {
-		PlanDigest         string `json:"plan_digest"`
-		ProposalRevisionID string `json:"proposal_revision_id"`
-		ProposalDigest     string `json:"proposal_digest"`
-		InstanceID         string `json:"instance_id"`
-		TerminalCode       string `json:"terminal_code"`
-	}{
-		PlanDigest: planDigest, ProposalRevisionID: proposal.Revision.ProposalRevisionID,
-		ProposalDigest: proposal.Revision.MaterialDigest.Digest,
-		InstanceID:     rec.InstanceID.String(), TerminalCode: rec.TerminalCode,
+func terminalDigest(planDigest string, source runtime.StartSource, rec runtime.ContinuationRecord) string {
+	var revisionID, proposalDigest string
+	if source.Proposal != nil {
+		revisionID = source.Proposal.Revision.ProposalRevisionID
+		proposalDigest = source.Proposal.Revision.MaterialDigest.Digest
 	}
-	b, err := json.Marshal(material)
+	material := struct {
+		PlanDigest         string              `json:"plan_digest"`
+		ProposalRevisionID string              `json:"proposal_revision_id"`
+		ProposalDigest     string              `json:"proposal_digest"`
+		Source             runtime.StartSource `json:"source"`
+		InstanceID         string              `json:"instance_id"`
+		TerminalCode       string              `json:"terminal_code"`
+	}{}
+	var b []byte
+	var err error
+	if source.Proposal != nil {
+		// Keep Promotion's pre-WF-EXT-007 replay identity byte-for-byte stable.
+		b, err = json.Marshal(struct {
+			PlanDigest         string `json:"plan_digest"`
+			ProposalRevisionID string `json:"proposal_revision_id"`
+			ProposalDigest     string `json:"proposal_digest"`
+			InstanceID         string `json:"instance_id"`
+			TerminalCode       string `json:"terminal_code"`
+		}{planDigest, revisionID, proposalDigest, rec.InstanceID.String(), rec.TerminalCode})
+	} else {
+		material.PlanDigest, material.Source = planDigest, source
+		material.InstanceID, material.TerminalCode = rec.InstanceID.String(), rec.TerminalCode
+		b, err = json.Marshal(material)
+	}
 	if err != nil {
 		b = []byte(fmt.Sprintf("unencodable:%v", err))
 	}

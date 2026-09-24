@@ -6,10 +6,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/attest"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
@@ -30,6 +33,89 @@ const outputDigestProfile = "hcmnext.workflow.capability_output/v1"
 // runner's own refusal paths, never to re-prove the gateway.
 type GatewayInvoker interface {
 	Invoke(ctx context.Context, req capability.InvokeRequest) (capability.InvokeResult, error)
+}
+
+// ExecutionRequirementResolver loads the authoritative attestation binding
+// for one compiled obligation. Implementations must resolve stored evidence,
+// never infer identity or digests from obligation prose.
+type ExecutionRequirementResolver interface {
+	ResolveExecutionRequirement(context.Context, execute.StepRequest, workflow.CompiledNode, workflow.ObligationRequirement) (attest.ExecutionRequirement, error)
+}
+
+// PinnedPlanExecutionRequirementResolver reads the attestation response and
+// transaction binding from execution metadata committed into the compiled
+// workflow digest. Runtime callers may provide a store-backed resolver when
+// the binding is selected dynamically; this is the default for pinned plans.
+type PinnedPlanExecutionRequirementResolver struct {
+	Tenant string
+}
+
+func (r PinnedPlanExecutionRequirementResolver) ResolveExecutionRequirement(ctx context.Context, req execute.StepRequest, node workflow.CompiledNode, obligation workflow.ObligationRequirement) (result attest.ExecutionRequirement, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.execute.resolve_execution_requirement", req)
+	defer func() { observe.Done(op, retErr) }()
+	if req.Plan == nil {
+		return attest.ExecutionRequirement{}, fmt.Errorf("compiled plan is required")
+	}
+	pinned, ok := req.Plan.Node(node.ID)
+	if !ok {
+		return attest.ExecutionRequirement{}, fmt.Errorf("node %s is not in the compiled plan", node.ID)
+	}
+	prefix := workflow.AttestationExecutionMetadataPrefix
+	field := func(name string) (string, error) {
+		key := prefix + name
+		value := strings.TrimSpace(pinned.Metadata[key])
+		if value == "" || value != pinned.Metadata[key] {
+			return "", fmt.Errorf("compiled node %s is missing %s", node.ID, key)
+		}
+		return value, nil
+	}
+	responseID, err := field("response_id")
+	if err != nil {
+		return attest.ExecutionRequirement{}, err
+	}
+	responseRevisionText, err := field("response_revision")
+	if err != nil {
+		return attest.ExecutionRequirement{}, err
+	}
+	responseRevision, err := strconv.ParseUint(responseRevisionText, 10, 64)
+	if err != nil || responseRevision == 0 {
+		return attest.ExecutionRequirement{}, fmt.Errorf("compiled node %s has invalid response_revision", node.ID)
+	}
+	statementID, err := field("statement_id")
+	if err != nil {
+		return attest.ExecutionRequirement{}, err
+	}
+	statementVersionText, err := field("statement_version")
+	if err != nil {
+		return attest.ExecutionRequirement{}, err
+	}
+	statementVersion, err := strconv.ParseUint(statementVersionText, 10, 64)
+	if err != nil || statementVersion == 0 {
+		return attest.ExecutionRequirement{}, fmt.Errorf("compiled node %s has invalid statement_version", node.ID)
+	}
+	statementDigest, err := field("statement_digest")
+	if err != nil {
+		return attest.ExecutionRequirement{}, err
+	}
+	bindingDigest, err := field("binding_digest")
+	if err != nil {
+		return attest.ExecutionRequirement{}, err
+	}
+	transactionID, err := field("transaction_id")
+	if err != nil {
+		return attest.ExecutionRequirement{}, err
+	}
+	tenant := r.Tenant
+	if strings.TrimSpace(tenant) == "" {
+		tenant = req.TenantID.String()
+	}
+	return attest.ExecutionRequirement{
+		Tenant: values.TenantId(tenant), ObligationID: obligation.ID,
+		StatementID: statementID, StatementVersion: statementVersion,
+		StatementDigest: statementDigest, BindingDigest: bindingDigest,
+		ResponseID: responseID, ResponseRevision: responseRevision,
+		TransactionID: transactionID,
+	}, nil
 }
 
 // ResolvedValue is one typed mapping result flowing into a capability call.
@@ -108,9 +194,16 @@ type Runner struct {
 	// WF-EXT-004 replaces these maps with the durable artifact store; until
 	// then the composition root supplies them per advancement.
 	NodeOutputs map[string]map[string]ResolvedValue
-	// OnOutputs, when set, receives the typed response after a successful
-	// invocation. It is the seam WF-EXT-004's persistence binds to; the
-	// runner itself records only the digest.
+	// AttestationResponses and AttestationClock are required when a node is
+	// governed by a mandatory attestation obligation. Missing gate bindings
+	// refuse execution.
+	AttestationResponses attest.ResponseStore
+	AttestationClock     attest.TrustedClock
+	// ExecutionRequirements resolves the exact response and statement binding
+	// from the authoritative workflow/attestation stores.
+	ExecutionRequirements ExecutionRequirementResolver
+	// OnOutputs, when set, observes a copy of the typed response after a
+	// successful invocation. Durable persistence uses NodeOutcome.Outputs.
 	OnOutputs func(nodeID string, outputs map[string]ResolvedValue)
 }
 
@@ -144,40 +237,62 @@ func (r *Runner) Run(ctx context.Context, req execute.StepRequest) (out frontier
 	if err != nil {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, err
 	}
-	return frontier.NodeOutcome{NodeID: node.ID, Outcome: res.Outcome, OutputDigest: res.OutputDigest},
+	outputs := typedOutputDocument(res.Outputs)
+	return frontier.NodeOutcome{NodeID: node.ID, Outcome: res.Outcome, Outputs: outputs},
 		runtime.GovernanceRefs{CapabilityExecutionID: res.EvidenceID}, nil
 }
 
 // invoke resolves the node's mappings, presents the node's declared
 // authority scopes to the gateway, and digests the typed response.
 func (r *Runner) invoke(ctx context.Context, req execute.StepRequest, node workflow.CompiledNode) (Result, error) {
-	inputs, err := r.resolveInputs(node)
+	inputs, err := r.resolveInputs(req, node)
 	if err != nil {
 		return Result{}, err
 	}
-	key := capability.Key{ID: node.Capability.ID, Version: node.Capability.Version}
-	result, err := r.Gateway.Invoke(ctx, capability.InvokeRequest{
-		Capability: key,
-		Payload: CapabilityCall{
-			NodeID:        node.ID,
-			Capability:    key,
-			OperationMode: node.Capability.OperationMode,
-			Inputs:        inputs,
-			Outputs:       append([]workflow.Field(nil), req.Node.Outputs...),
-			At:            r.now(),
-		},
-		Authorization: capability.Authorization{
-			Decision:   capability.Allow,
-			Scopes:     append([]string(nil), node.Capability.AuthorityScopes...),
-			Reason:     "workflow node declared authority scopes",
-			SubjectRef: r.SubjectRef,
-			Tenant:     r.tenant(req),
-		},
-		Invocation: invocationFor(req, node, r.Purpose),
-	})
+	requirements, err := r.executionRequirements(ctx, req, node)
 	if err != nil {
+		return Result{}, err
+	}
+	var result capability.InvokeResult
+	invoke := func(effectCtx context.Context) error {
+		var invokeErr error
+		result, invokeErr = r.Gateway.Invoke(effectCtx, capability.InvokeRequest{
+			Capability: capability.Key{ID: node.Capability.ID, Version: node.Capability.Version},
+			Payload: CapabilityCall{
+				NodeID:        node.ID,
+				Capability:    capability.Key{ID: node.Capability.ID, Version: node.Capability.Version},
+				OperationMode: node.Capability.OperationMode,
+				Inputs:        inputs,
+				Outputs:       append([]workflow.Field(nil), req.Node.Outputs...),
+				At:            r.now(),
+			},
+			Authorization: capability.Authorization{
+				Decision:   capability.Allow,
+				Scopes:     append([]string(nil), node.Capability.AuthorityScopes...),
+				Reason:     "workflow node declared authority scopes",
+				SubjectRef: r.SubjectRef,
+				Tenant:     r.tenant(req),
+			},
+			Invocation: invocationFor(req, node, r.Purpose),
+		})
+		return invokeErr
+	}
+	// Nest the effect in every applicable gate. Each exact requirement is
+	// revalidated immediately before the gateway is allowed to invoke.
+	var gated func(int, context.Context) error
+	gated = func(index int, effectCtx context.Context) error {
+		if index == len(requirements) {
+			return invoke(effectCtx)
+		}
+		_, gateErr := attest.EnforceBeforeEffect(effectCtx, r.AttestationResponses, r.AttestationClock, requirements[index], func(gateCtx context.Context, _ attest.ExecutionDecision) error {
+			return gated(index+1, gateCtx)
+		})
+		return gateErr
+	}
+	if err := gated(0, ctx); err != nil {
 		return Result{}, fmt.Errorf("workflow execute: capability runner: node %s: %w", node.ID, err)
 	}
+	key := capability.Key{ID: node.Capability.ID, Version: node.Capability.Version}
 	answer, ok := result.Response.(CapabilityAnswer)
 	if !ok {
 		return Result{}, invalid("capability runner: node %s: capability %s returned %T, want capabilityrunner.CapabilityAnswer", node.ID, key, result.Response)
@@ -201,6 +316,84 @@ func (r *Runner) invoke(ctx context.Context, req execute.StepRequest, node workf
 	}, nil
 }
 
+func (r *Runner) executionRequirements(ctx context.Context, req execute.StepRequest, node workflow.CompiledNode) ([]attest.ExecutionRequirement, error) {
+	if len(node.Governance.ObligationRefs) == 0 && !node.EffectClass.IsWrite() {
+		return nil, nil
+	}
+	if req.Plan == nil {
+		for _, id := range node.Governance.ObligationRefs {
+			if strings.Contains(strings.ToLower(id), "attest") {
+				return nil, fmt.Errorf("%w: node %s references attestation obligation %s without its compiled plan", attest.ErrRequiredAttestation, node.ID, id)
+			}
+		}
+		if node.EffectClass.IsWrite() {
+			return nil, fmt.Errorf("%w: node %s is a write effect without its compiled plan", attest.ErrRequiredAttestation, node.ID)
+		}
+		return nil, nil
+	}
+	byID := make(map[string]workflow.ObligationRequirement, len(req.Plan.Governance.Obligations))
+	for _, obligation := range req.Plan.Governance.Obligations {
+		byID[obligation.ID] = obligation
+	}
+	selected := append([]string(nil), node.Governance.ObligationRefs...)
+	// A plan-level mandatory attestation obligation protects every write
+	// capability in that plan, even when the author did not repeat the ref on
+	// the effect node itself.
+	if node.EffectClass.IsWrite() {
+		for _, obligation := range req.Plan.Governance.Obligations {
+			if obligation.Mandatory && isAttestationObligation(obligation) {
+				selected = append(selected, obligation.ID)
+			}
+		}
+	}
+	seen := make(map[string]struct{}, len(selected))
+	var requirements []attest.ExecutionRequirement
+	for _, id := range selected {
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		obligation, ok := byID[id]
+		if !ok {
+			if strings.Contains(strings.ToLower(id), "attest") {
+				return nil, fmt.Errorf("%w: node %s references unresolved attestation obligation %s", attest.ErrRequiredAttestation, node.ID, id)
+			}
+			continue
+		}
+		if !isAttestationObligation(obligation) {
+			continue
+		}
+		if !obligation.Mandatory {
+			continue
+		}
+		if r.AttestationResponses == nil || r.AttestationClock == nil {
+			return nil, fmt.Errorf("%w: node %s has mandatory attestation obligation %s but no execution gate is configured", attest.ErrRequiredAttestation, node.ID, id)
+		}
+		resolver := r.ExecutionRequirements
+		if resolver == nil {
+			resolver = PinnedPlanExecutionRequirementResolver{Tenant: r.tenant(req)}
+		}
+		requirement, err := resolver.ResolveExecutionRequirement(ctx, req, node, obligation)
+		if err != nil {
+			return nil, fmt.Errorf("%w: resolve obligation %s: %v", attest.ErrRequiredAttestation, id, err)
+		}
+		if requirement.ObligationID != id || string(requirement.Tenant) != r.tenant(req) {
+			return nil, fmt.Errorf("%w: resolved obligation or tenant does not match node %s", attest.ErrRequiredAttestation, node.ID)
+		}
+		requirements = append(requirements, requirement)
+	}
+	return requirements, nil
+}
+
+func isAttestationObligation(obligation workflow.ObligationRequirement) bool {
+	for _, text := range []string{obligation.ID, obligation.Authority, obligation.RequiredAction, obligation.ResponsibleParty, obligation.SatisfactionCondition, obligation.SourceVersion} {
+		if strings.Contains(strings.ToLower(text), "attest") {
+			return true
+		}
+	}
+	return false
+}
+
 // tenant resolves the tenant key the authorization decision is made in. It
 // is never inferred from anything but the runner's binding or the step's own
 // tenant: a durable sink refuses a record without one rather than guess.
@@ -215,7 +408,18 @@ func (r *Runner) tenant(req execute.StepRequest) string {
 // CONTEXT source fails closed naming WF-EXT-004: durable context artifacts
 // do not exist yet, and an ambient read would be exactly the hidden
 // current-state read the compiler refuses to declare.
-func (r *Runner) resolveInputs(node workflow.CompiledNode) (map[string]ResolvedValue, error) {
+func (r *Runner) resolveInputs(req execute.StepRequest, node workflow.CompiledNode) (map[string]ResolvedValue, error) {
+	// WF-EXT-004 resolves compiled mappings in the driver from the durable
+	// input/output artifacts. Prefer that exact result whenever present; the
+	// compatibility maps below remain for callers that intentionally run a
+	// node without a persisted workflow input document.
+	if req.Inputs != nil {
+		out := make(map[string]ResolvedValue, len(req.Inputs))
+		for path, value := range req.Inputs {
+			out[path] = ResolvedValue{Type: value.Type, Text: value.Text}
+		}
+		return out, nil
+	}
 	out := make(map[string]ResolvedValue, len(node.Mappings))
 	for _, m := range node.Mappings {
 		switch m.SourceKind {
@@ -244,6 +448,26 @@ func (r *Runner) resolveInputs(node workflow.CompiledNode) (map[string]ResolvedV
 		}
 	}
 	return out, nil
+}
+
+// typedOutputDocument converts the capability response into the WF-EXT-004
+// artifact shape. The driver validates every path and type against the
+// compiled node and persists the artifact atomically with advancement.
+func typedOutputDocument(outputs map[string]ResolvedValue) *workflow.OutputDocument {
+	if outputs == nil {
+		return nil
+	}
+	paths := make([]string, 0, len(outputs))
+	for path := range outputs {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	doc := &workflow.OutputDocument{Values: make([]workflow.TypedOutput, 0, len(paths))}
+	for _, path := range paths {
+		value := outputs[path]
+		doc.Values = append(doc.Values, workflow.TypedOutput{Path: path, Value: workflow.TypedValue{Type: value.Type, Text: value.Text}})
+	}
+	return doc
 }
 
 // invocationFor builds the governed envelope one call presents. A blank

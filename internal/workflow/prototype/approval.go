@@ -22,6 +22,7 @@ const (
 
 	ApprovalRequirementID  = "approval.prototype.promotion/v1"
 	ApprovedProposalDigest = "sha256:prototype-approved-proposal"
+	ApprovalIRSchemaV1     = 1
 )
 
 // ApprovalDefinition returns the smallest bounded executable graph that can
@@ -107,11 +108,14 @@ func ApprovalDefinition() workflow.Definition {
 	}
 }
 
-// CompileApproval compiles the prototype under the first phase that admits
-// APPROVAL. No capability registry is needed because this graph invokes no
-// capability and performs no business mutation.
+// CompileApproval compiles the published 1.0.0 prototype using its original
+// IR schema. The default compiler schema advances independently; changing it
+// here would produce a different digest under the same durable workflow
+// version and make an otherwise unchanged local-dev database refuse startup.
+// No capability registry is needed because this graph invokes no capability
+// and performs no business mutation.
 func CompileApproval() (*workflow.CompiledWorkflow, error) {
-	return workflow.Compile(ApprovalDefinition(), workflow.Options{Phase: workflow.PhaseP1B})
+	return workflow.Compile(ApprovalDefinition(), workflow.Options{Phase: workflow.PhaseP1B, IRSchemaVersion: ApprovalIRSchemaV1})
 }
 
 func schema(name string) workflow.SchemaRef {

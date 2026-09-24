@@ -35,11 +35,16 @@ func TestTodo_WF_UI_007(t *testing.T) {
 	}
 }
 
-func TestTodo_WF_UI_007_BrowserProjection(t *testing.T) {
-	_, _, draft := refinementService(t)
+func TestTodo_WF_UI_007_DesignerViewProjection(t *testing.T) {
+	service, _, draft := refinementService(t)
 	node := draftNode(t, draft, promotionexec.NodeRaiseThreshold)
 	if len(node.Outcomes) != 3 {
 		t.Fatalf("outcome ports = %+v", node.Outcomes)
+	}
+	for _, outcome := range node.Outcomes {
+		if outcome.RouteKey == "" || len(outcome.TargetNodeIDs) == 0 {
+			t.Fatalf("canvas outcome port lacks a stable route key or target: %+v", outcome)
+		}
 	}
 	var raiseRatio designeredit.BindingView
 	for _, binding := range node.Bindings {
@@ -49,6 +54,18 @@ func TestTodo_WF_UI_007_BrowserProjection(t *testing.T) {
 	}
 	if raiseRatio.SourceNodeID != promotionexec.NodeSimulateCompensation || raiseRatio.SourcePath != "raise_ratio" || len(raiseRatio.Candidates) == 0 {
 		t.Fatalf("raise ratio binding = %+v", raiseRatio)
+	}
+	for _, candidate := range raiseRatio.Candidates {
+		if candidate.NodeID == promotionexec.NodeEndComplete || candidate.NodeID == promotionexec.NodeEvaluateBand {
+			t.Errorf("designer binding view exposed a non-dominating or non-assignable output: %+v", candidate)
+		}
+	}
+	linked, err := service.SetOutcome(context.Background(), values.TenantId("tenant-a"), "author-a", designeredit.SetOutcomeRequest{
+		DraftID: draft.DraftID, ExpectedRevision: draft.Revision, FromNodeID: promotionexec.NodeRaiseThreshold,
+		RouteKey: "WITHIN_THRESHOLD", ToNodeID: promotionexec.NodeApproveFinance,
+	})
+	if err != nil || !hasDraftEdge(linked.Draft, promotionexec.NodeRaiseThreshold, "WITHIN_THRESHOLD", promotionexec.NodeApproveFinance) {
+		t.Fatalf("canvas outcome connection = %+v, %v", linked.Draft.Edges, err)
 	}
 }
 

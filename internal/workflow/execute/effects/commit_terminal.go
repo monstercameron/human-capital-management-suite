@@ -20,6 +20,14 @@ import (
 // second database transaction.
 type TransactionPlanProvider func(context.Context, dbport.Tx, execute.TerminalWriteRequest) (plan.TransactionPlan, error)
 
+// ActionPlanBinder reads the service-owned accepted-action facts and stores
+// their binding to the exact prepared plan inside the supplied transaction.
+// The returned digest is copied into TX-006's result identity in that same
+// transaction so replay surfaces the proof that actually committed.
+type ActionPlanBinder interface {
+	BindAndPersist(context.Context, dbport.Tx, execute.TerminalWriteRequest, plan.TransactionPlan) (string, error)
+}
+
 // InTxCommitter is the small seam the adapter needs from transaction/commit.
 // Keeping it local lets workflow tests use a deterministic fake without
 // importing PostgreSQL types or making the execute port depend on a concrete
@@ -33,9 +41,10 @@ type InTxCommitter interface {
 // coordinator. Next is an optional compatibility delegate for existing
 // terminal fixtures while callers migrate their plan preparation to TX-003.
 type CommitTerminalWriter struct {
-	Committer InTxCommitter
-	Plan      TransactionPlanProvider
-	Next      execute.TerminalWriter
+	Committer        InTxCommitter
+	Plan             TransactionPlanProvider
+	ActionPlanBinder ActionPlanBinder
+	Next             execute.TerminalWriter
 }
 
 var _ execute.TerminalWriter = (*CommitTerminalWriter)(nil)
@@ -63,14 +72,28 @@ func (w *CommitTerminalWriter) Write(ctx context.Context, tx dbport.Tx, req exec
 	if prepared.Tenant != "" && string(prepared.Tenant) != req.TenantID.String() {
 		return idempotency.ResultIdentity{}, fmt.Errorf("effects: terminal plan tenant %q does not match request tenant %q", prepared.Tenant, req.TenantID)
 	}
+	if err := prepared.VerifyDigest(); err != nil {
+		return idempotency.ResultIdentity{}, fmt.Errorf("effects: terminal plan digest is invalid: %w", err)
+	}
+	if w.ActionPlanBinder == nil {
+		return idempotency.ResultIdentity{}, fmt.Errorf("effects: action-plan binder is required for plan-backed terminal commit")
+	}
+	bindingRef, err := w.ActionPlanBinder.BindAndPersist(ctx, tx, req, prepared)
+	if err != nil {
+		return idempotency.ResultIdentity{}, fmt.Errorf("effects: bind accepted action to prepared plan: %w", err)
+	}
+	if !idempotency.ValidDigest(bindingRef) {
+		return idempotency.ResultIdentity{}, fmt.Errorf("effects: action-plan binder returned an invalid binding digest")
+	}
 	receipt, err := w.Committer.CommitInTx(ctx, tx, prepared)
 	if err != nil {
 		return idempotency.ResultIdentity{}, fmt.Errorf("effects: commit terminal transaction plan: %w", err)
 	}
 	identity := idempotency.ResultIdentity{
-		ResultRef:      transactioncommit.ExplainReceipt(receipt),
-		EffectIdentity: prepared.IdempotencyKey,
-		EvidenceID:     receipt.ReceiptID.String(),
+		ResultRef:            transactioncommit.ExplainReceipt(receipt),
+		EffectIdentity:       prepared.IdempotencyKey,
+		EvidenceID:           receipt.ReceiptID.String(),
+		ActionPlanBindingRef: bindingRef,
 	}
 	if len(receipt.Events) > 0 {
 		last := receipt.Events[len(receipt.Events)-1]

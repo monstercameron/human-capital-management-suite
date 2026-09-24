@@ -1,0 +1,20 @@
+{
+  "format": "hcmnext.workflow.saved-test-run/v1",
+  "fixture_ref": "fixture:author-run/promotion@v1",
+  "workflow_id": "hcmnext.workflows.promote_into_management",
+  "compiled_plan_digest": "7e41e8f3b2d6a81d38a6a32e4016dc899a75db086b7129adc0b69ebde10f5e16",
+  "compiler_version": "hcmnext.workflow.compiler/v1",
+  "profile": {
+    "id": "harborcare-promotion",
+    "version": 1
+  },
+  "profile_digest": "sha256:e86ff549453d902714f65d8baec7fbbb711b7bed2bf36bc105a4ea7a8e9c274c",
+  "outcomes": [
+    {
+      "node_id": "snapshot_worker",
+      "outcome": "SUCCEEDED"
+    }
+  ],
+  "expected_result_digest": "sha256:2d6c97f483ecff119169c382819bd6abccd8093244571c0609d650b6f6c9bfa4",
+  "fixture_digest": "sha256:d5980f2ef1827848d4932c86d245372292b16de3e83300ab892991ef337d258e"
+}

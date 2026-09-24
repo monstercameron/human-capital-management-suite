@@ -50,11 +50,13 @@ const (
 // never a bootstrap or domain capability: REV-020-01 proves the workflow's
 // composition, not a real ATS, HRIS, payroll or IAM integration.
 const (
-	CapReadPerson     = "hcmnext.conformance.recruit.read_person"
-	CapReadCapacity   = "hcmnext.conformance.recruit.read_capacity"
-	CapVerifyOffer    = "hcmnext.conformance.recruit.verify_offer"
-	CapObserveOffer   = "hcmnext.conformance.recruit.observe_offer"
-	CapVerifyWorkAuth = "hcmnext.conformance.recruit.verify_work_auth"
+	CapReadPerson   = "hcmnext.conformance.recruit.read_person"
+	CapReadCapacity = "hcmnext.conformance.recruit.read_capacity"
+	CapVerifyOffer  = "hcmnext.conformance.recruit.verify_offer"
+	CapObserveOffer = "hcmnext.conformance.recruit.observe_offer"
+	// The workflow specification retires DOCUMENT as a node type and requires
+	// document operations to bind through the documents.* capability namespace.
+	CapVerifyWorkAuth = "hcmnext.conformance.recruit.documents.verify_work_auth"
 	CapCheckReadiness = "hcmnext.conformance.recruit.check_readiness"
 )
 
@@ -311,7 +313,7 @@ func nodes() []workflow.Node {
 			Governance: governedInvocation(nil, nil, organizationScope),
 		},
 		capabilityNode(NodeVerifyWorkAuth, CapVerifyWorkAuth,
-			[]string{"scope:compliance.read"},
+			[]string{"scope:documents.read"},
 			[]workflow.Field{
 				{Path: "candidate_id", Type: str("CandidateID")},
 				{Path: "start_date", Type: localDate()},

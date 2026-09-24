@@ -215,8 +215,8 @@ func ReferenceDefinition() workflow.Definition {
 		Obligations: []workflow.ObligationRequirement{
 			{
 				ID: ObligationAttestation, Authority: "customer.policy.time.attestation",
-				InsertionPoint: workflow.InsertSimulation, RequiredAction: "Bind the worker's own attestation of the punch to the proposal digest",
-				ResponsibleParty: "time.attestation", SatisfactionCondition: "attestation reference is recorded against the proposal digest",
+				InsertionPoint: workflow.InsertSimulation, RequiredAction: "Revalidate the worker's signed attestation against the proposal digest and transaction before any dependent effect",
+				ResponsibleParty: "time.attestation", SatisfactionCondition: "execution attestation gate accepts the exact response, statement, binding, proposal transaction, and revision before the dependent effect is invoked",
 				SourceVersion: RuleClassifyPunchIntegrity, ReevaluationPolicy: workflow.ReevalReevaluate, Mandatory: true,
 			},
 			{

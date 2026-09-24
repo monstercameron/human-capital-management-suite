@@ -125,6 +125,7 @@ type TerminalWriteRequest struct {
 	WorkflowID     string
 	PlanDigest     string
 	Proposal       runtime.ProposalBinding
+	Source         runtime.StartSource
 	TerminalCode   string
 	CorrelationID  string
 	IdempotencyKey string
@@ -141,6 +142,40 @@ type TerminalWriteRequest struct {
 // channel.
 type TerminalWriter interface {
 	Write(ctx context.Context, tx dbport.Tx, req TerminalWriteRequest) (idempotency.ResultIdentity, error)
+}
+
+// TerminalRegistry binds a writer to a registered workflow and terminal code.
+type TerminalRegistry interface {
+	ResolveTerminal(workflowID, terminalCode string) (TerminalWriter, bool)
+}
+
+// TerminalBindings is a workflow-id / terminal-code writer map.
+type TerminalBindings map[string]map[string]TerminalWriter
+
+func (b TerminalBindings) ResolveTerminal(workflowID, terminalCode string) (TerminalWriter, bool) {
+	byCode, ok := b[workflowID]
+	if !ok {
+		return nil, false
+	}
+	writer, ok := byCode[terminalCode]
+	return writer, ok && writer != nil
+}
+
+// RevalidationEvidenceProvider reads pinned and current values for the keys a
+// workflow registration declared. It returns facts only; routing remains the
+// runtime's deterministic decision.
+type RevalidationEvidenceProvider interface {
+	Evidence(ctx context.Context, tx dbport.Tx, req RevalidationEvidenceRequest) (runtime.RevalidationEvidence, error)
+}
+
+// RevalidationEvidenceRequest identifies the registration and immutable start
+// source the authority evaluates.
+type RevalidationEvidenceRequest struct {
+	TenantID   uuid.UUID
+	InstanceID uuid.UUID
+	WorkflowID string
+	Source     runtime.StartSource
+	Keys       []string
 }
 
 // RepairRequest is the durable follow-up requested when a terminal reports a

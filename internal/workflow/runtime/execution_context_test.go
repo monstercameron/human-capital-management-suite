@@ -272,3 +272,44 @@ func TestTodo_WF_RUN_040(t *testing.T) {
 		t.Fatalf("load with the context row missing = %v, want %s", err, runtime.CodeContextDrift)
 	}
 }
+
+// TestTodo_WF_RUN_040_Mutation proves every authority-relevant field changes
+// the immutable context fingerprint when a caller attempts to alter it.
+func TestTodo_WF_RUN_040_Mutation(t *testing.T) {
+	base := runtime.ExecutionContext{
+		Principal: "principal:worker", PrincipalKind: "HUMAN", Tenant: "tenant:one", Organization: "org:one",
+		Locale: "en-US", LegalEntity: "entity:one", LegalContextDigest: "sha256:legal-one",
+		Purpose: "promotion", Residency: "region:one", EntitlementDigest: "sha256:entitlement-one",
+		RiskClass: "high", BillingRef: "billing:one", ExecutionMode: workflow.ModeExecute,
+		WorkflowID: "promotion", WorkflowVersion: 7, CompiledPlanDigest: "sha256:plan-one", RuntimeVersion: runtime.RuntimeVersion,
+	}
+	pinned := base.Digest()
+	mutations := map[string]func(*runtime.ExecutionContext){
+		"principal":        func(c *runtime.ExecutionContext) { c.Principal = "principal:other" },
+		"tenant":           func(c *runtime.ExecutionContext) { c.Tenant = "tenant:other" },
+		"organization":     func(c *runtime.ExecutionContext) { c.Organization = "org:other" },
+		"locale":           func(c *runtime.ExecutionContext) { c.Locale = "de-DE" },
+		"legal entity":     func(c *runtime.ExecutionContext) { c.LegalEntity = "entity:other" },
+		"legal context":    func(c *runtime.ExecutionContext) { c.LegalContextDigest = "sha256:legal-other" },
+		"purpose":          func(c *runtime.ExecutionContext) { c.Purpose = "termination" },
+		"residency":        func(c *runtime.ExecutionContext) { c.Residency = "region:other" },
+		"entitlement":      func(c *runtime.ExecutionContext) { c.EntitlementDigest = "sha256:entitlement-other" },
+		"risk":             func(c *runtime.ExecutionContext) { c.RiskClass = "low" },
+		"billing":          func(c *runtime.ExecutionContext) { c.BillingRef = "billing:other" },
+		"mode":             func(c *runtime.ExecutionContext) { c.ExecutionMode = workflow.ModeSimulate },
+		"workflow":         func(c *runtime.ExecutionContext) { c.WorkflowID = "other" },
+		"workflow version": func(c *runtime.ExecutionContext) { c.WorkflowVersion++ },
+		"plan":             func(c *runtime.ExecutionContext) { c.CompiledPlanDigest = "sha256:plan-other" },
+		"runtime":          func(c *runtime.ExecutionContext) { c.RuntimeVersion = "other-runtime" },
+	}
+	for name, mutate := range mutations {
+		changed := base
+		mutate(&changed)
+		if changed.Digest() == pinned {
+			t.Errorf("changing %s did not change the pinned context digest", name)
+		}
+		if base.Digest() != pinned {
+			t.Errorf("changing %s mutated the original context", name)
+		}
+	}
+}

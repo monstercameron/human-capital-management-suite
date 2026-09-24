@@ -7,6 +7,11 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
 
+const (
+	newHirePlanDigestV1_0 = "9846950ec069fb6e9b62cd4d88b271b2e17018ac26fa13da84a4372323a947de"
+	newHirePlanDigestV1_1 = "e7ee18718007d99900f0067a398a1171b5ec9119286a0079fdc4ea6b6baa26ca"
+)
+
 // TestTodo_WF_HIRE_001 compiles the definition and proves its compiled shape:
 // identity, start node, the full node set, exactly one AUTHORITATIVE_CORE
 // node, every declared END reachable from the start, and a plan digest that
@@ -132,5 +137,40 @@ func TestCompileOptionsReproduceTheCompiledPlan(t *testing.T) {
 	again, err := workflow.Compile(Definition(), CompileOptions())
 	if err != nil || again.Digest() != plan.Digest() {
 		t.Fatalf("CompileOptions plan = %v, %v; want digest %s", again, err, plan.Digest())
+	}
+}
+
+func TestNewHirePublishedVersionsPreserveFrozenPlan(t *testing.T) {
+	frozen, err := CompileV1_0()
+	if err != nil {
+		t.Fatalf("CompileV1_0: %v", err)
+	}
+	if frozen.WorkflowID != WorkflowID || frozen.Version != VersionV1_0 || frozen.SchemaVersion() != 1 {
+		t.Fatalf("frozen plan identity/schema = %s/%d/%d, want %s/%d/1", frozen.WorkflowID, frozen.Version, frozen.SchemaVersion(), WorkflowID, VersionV1_0)
+	}
+	commit, ok := frozen.Node(NodeCommitHire)
+	if !ok || commit.Capability == nil || commit.Capability.Version != 1 || commit.InputSchema.Version != 1 || commit.OutputSchema.Version != 1 {
+		t.Fatalf("frozen commit binding = %+v, want capability and schemas v1", commit)
+	}
+
+	current, err := Compile()
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	if got := frozen.Digest(); got != newHirePlanDigestV1_0 {
+		t.Fatalf("frozen 1.0.0 digest = %q, want persisted %q", got, newHirePlanDigestV1_0)
+	}
+	if current.WorkflowID != WorkflowID || current.Version != Version || current.SchemaVersion() != workflow.CurrentIRSchemaVersion {
+		t.Fatalf("current plan identity/schema = %s/%d/%d, want %s/%d/%d", current.WorkflowID, current.Version, current.SchemaVersion(), WorkflowID, Version, workflow.CurrentIRSchemaVersion)
+	}
+	if frozen.Digest() == current.Digest() {
+		t.Fatalf("frozen and current plans share digest %q", frozen.Digest())
+	}
+	if got := current.Digest(); got != newHirePlanDigestV1_1 {
+		t.Fatalf("current 1.1.0 digest = %q, want pinned %q", got, newHirePlanDigestV1_1)
+	}
+	currentCommit, ok := current.Node(NodeCommitHire)
+	if !ok || currentCommit.Capability == nil || currentCommit.Capability.Version != 1 || currentCommit.InputSchema.Version != 1 || currentCommit.OutputSchema.Version != 1 {
+		t.Fatalf("current commit binding = %+v, want unchanged capability and schemas v1", currentCommit)
 	}
 }

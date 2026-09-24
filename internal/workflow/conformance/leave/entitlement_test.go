@@ -2,6 +2,7 @@ package leave
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -89,7 +90,30 @@ func TestTodo_CROSS_CONF_002_Property(t *testing.T) { assertPromotionLeaveParity
 
 func TestTodo_CROSS_CONF_002_Golden(t *testing.T) { assertPromotionLeaveParity(t) }
 
-func TestTodo_CROSS_CONF_002_Race(t *testing.T) { assertPromotionLeaveParity(t) }
+func TestTodo_CROSS_CONF_002_Race(t *testing.T) {
+	snapshot := conformanceSnapshot(t, commercial.StatusSuspended)
+	gate, err := NewEntitlementGate(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const workers = 24
+	var wg sync.WaitGroup
+	decisions := make(chan commercial.EntitlementDecision, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			decisions <- gate.Decide(EntitlementRequest{TenantID: "tenant-a", Capability: commercial.LeaveEntitlementCapability, At: conformanceAt, Channel: commercial.ChannelWorkflow, Phase: "resume"})
+		}()
+	}
+	wg.Wait()
+	close(decisions)
+	for decision := range decisions {
+		if decision.Code != commercial.CodeContractSuspended || decision.Fingerprint != snapshot.Fingerprint() {
+			t.Fatalf("concurrent entitlement decision = %+v", decision)
+		}
+	}
+}
 
 func TestTodo_CROSS_CONF_002_Integration(t *testing.T) { assertPromotionLeaveParity(t) }
 

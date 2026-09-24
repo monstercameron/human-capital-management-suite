@@ -16,10 +16,13 @@ import (
 // never move again: live 1.0.0 instances are pinned to it.
 const promotionExecutePlanDigestV1_0 = "655535f1e484991a79562a292eb21374381b1e757e115a3ec53eb25ce61679d7"
 
-// promotionExecutePlanDigest is the 1.1.0 plan: the 1.0.0 graph plus the two
-// provider-confirmation SIGNAL waits (execute -> await payroll -> observe
-// payroll -> await access -> observe access) at definition version 2.
-const promotionExecutePlanDigest = "9c97ca67a56638f631bebd17c0bbdb62336ca7ae801d43571e9b8f908f46d2bf"
+// promotionExecutePlanDigest is the current 1.2.0 plan, with capability v2,
+// schema v2 and the provider-confirmation SIGNAL waits at definition version 3.
+const promotionExecutePlanDigest = "5714988b93c43721bdf2bb0f8693df9870b715017472290b6ff139a168227c95"
+
+// promotionExecutePlanDigestV1_1 is persisted by published 1.1.0 rows; keep
+// its definition v2 and IR schema v1 frozen for pinned instances.
+const promotionExecutePlanDigestV1_1 = "9c97ca67a56638f631bebd17c0bbdb62336ca7ae801d43571e9b8f908f46d2bf"
 
 func TestPromotionExecuteDefinitionCompiles(t *testing.T) {
 	plan, err := Compile()
@@ -104,6 +107,26 @@ func TestPromotionExecuteV1_0IsFrozen(t *testing.T) {
 	}
 	if SemanticVersion == SemanticVersionV1_0 || Version == VersionV1_0 {
 		t.Fatalf("versions %s/%d and %s/%d do not differ", SemanticVersion, Version, SemanticVersionV1_0, VersionV1_0)
+	}
+}
+
+func TestPromotionExecuteV1_1IsFrozen(t *testing.T) {
+	plan, err := CompileV1_1()
+	if err != nil {
+		t.Fatalf("CompileV1_1: %v", err)
+	}
+	if got := plan.Digest(); got != promotionExecutePlanDigestV1_1 {
+		t.Fatalf("1.1.0 plan digest = %q, want persisted %q", got, promotionExecutePlanDigestV1_1)
+	}
+	if plan.WorkflowID != WorkflowID || plan.Version != VersionV1_1 || !HasProviderWaits(plan) {
+		t.Fatalf("1.1.0 identity/waits = %s/%d/%t", plan.WorkflowID, plan.Version, HasProviderWaits(plan))
+	}
+	if plan.SchemaVersion() != 1 {
+		t.Fatalf("1.1.0 IR schema = %d, want the persisted v1 schema", plan.SchemaVersion())
+	}
+	execute, ok := plan.Node(NodeExecutePromotion)
+	if !ok || execute.Capability == nil || execute.Capability.Version != 1 || execute.InputSchema.Version != 1 || execute.OutputSchema.Version != 1 {
+		t.Fatalf("1.1.0 execute binding = %+v, want capability and schemas v1", execute)
 	}
 }
 

@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/forms/continuity"
 	"github.com/monstercameron/human-capital-management-suite/internal/forms/drafts"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/formcontinuity"
 )
 
 // FormIntake is the served task/form intake boundary for interrupted form
@@ -18,12 +18,12 @@ import (
 // draft is never a submission and the alternate route never moves decision
 // authority away from the respondent.
 type FormIntake struct {
-	Drafts *drafts.Store
+	Drafts drafts.Repository
 }
 
 // NewFormIntake builds the intake over store. A nil store refuses every
 // draft operation; continuity establishment is stateless and stays usable.
-func NewFormIntake(store *drafts.Store) FormIntake { return FormIntake{Drafts: store} }
+func NewFormIntake(store drafts.Repository) FormIntake { return FormIntake{Drafts: store} }
 
 func (f FormIntake) checkStore() error {
 	if f.Drafts == nil {
@@ -61,14 +61,14 @@ func (f FormIntake) SubmitDraft(req drafts.ResumeRequest, validate drafts.Valida
 // EstablishAlternateRoute records an accommodation/alternate-channel route,
 // keeping the canonical deadline and the respondent's authority. An assistant
 // is recorded as evidence only.
-func (f FormIntake) EstablishAlternateRoute(req formcontinuity.Request) (formcontinuity.Record, error) {
-	return formcontinuity.Establish(req)
+func (f FormIntake) EstablishAlternateRoute(req continuity.Request) (continuity.Record, error) {
+	return continuity.Establish(req)
 }
 
 // RouteAlternateChannel is the channel-adapter spelling of
 // [FormIntake.EstablishAlternateRoute] with the same contract.
-func (f FormIntake) RouteAlternateChannel(req formcontinuity.Request) (formcontinuity.Record, error) {
-	return formcontinuity.Route(req)
+func (f FormIntake) RouteAlternateChannel(req continuity.Request) (continuity.Record, error) {
+	return continuity.Route(req)
 }
 
 // AlternateSubmissionSpec maps a resumed draft and an established continuity
@@ -83,8 +83,8 @@ func (f FormIntake) RouteAlternateChannel(req formcontinuity.Request) (formconti
 // the sealed draft digest, and the draft must belong to the compiled node's
 // form, so neither substituted content nor a foreign draft can ride an
 // alternate route into a submission.
-func AlternateSubmissionSpec(base SubmissionSpec, draft drafts.Draft, answers []byte, rec formcontinuity.Record) (SubmissionSpec, error) {
-	if rec.Outcome != formcontinuity.OutcomeSafe {
+func AlternateSubmissionSpec(base SubmissionSpec, draft drafts.Draft, answers []byte, rec continuity.Record) (SubmissionSpec, error) {
+	if rec.Outcome != continuity.OutcomeSafe {
 		return SubmissionSpec{}, fmt.Errorf("%w: alternate route is not safe to continue", ErrInvalidSubmission)
 	}
 	if base.CompletedBy != draft.PrincipalID || base.CompletedBy != rec.RespondentID {

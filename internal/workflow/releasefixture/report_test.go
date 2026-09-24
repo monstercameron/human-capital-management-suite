@@ -20,7 +20,7 @@ func publish(t *testing.T, fixtures ...string) version.CompiledVersion {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err := version.Publish(version.NewRegistry(), prototype.ApprovalDefinition(), plan, workflow.Options{Phase: workflow.PhaseP1B},
+	v, err := version.Publish(version.NewRegistry(), prototype.ApprovalDefinition(), plan, workflow.Options{Phase: workflow.PhaseP1B, IRSchemaVersion: prototype.ApprovalIRSchemaV1},
 		version.PublishMeta{SemanticVersion: "1.0.0", PublishedAt: ranAt, PublishedBy: "publisher", FixtureRefs: fixtures})
 	if err != nil {
 		t.Fatal(err)

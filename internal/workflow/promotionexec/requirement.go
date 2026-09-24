@@ -1,13 +1,9 @@
 package promotionexec
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/approverclass"
-	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/promotionapproval"
 )
 
 const (
@@ -19,61 +15,21 @@ const (
 	ManagerApprovalAuthorityFloor  = "current_manager"
 )
 
-func compileApprovalRequirement(id, approver string, decideBy time.Time, policyRef, governanceRef, authorityFloor string) (humanwork.ApprovalRequirement, error) {
-	if approver == "" {
-		return humanwork.ApprovalRequirement{}, fmt.Errorf("promotionexec: the approval requirement needs an approver principal")
-	}
-	if decideBy.IsZero() {
-		return humanwork.ApprovalRequirement{}, fmt.Errorf("promotionexec: the approval requirement needs a decision deadline")
-	}
-	deadline := values.NewInstant(decideBy.UTC().Truncate(time.Second))
-	return humanwork.Compile(humanwork.RequirementSpec{
-		RequirementID: id,
-		Revision:      1,
-		Stage:         1,
-		Candidates: humanwork.Named(approver, policyRef,
-			humanwork.Scope{Kind: humanwork.ScopeOrganization, Ref: organizationScope}),
-		AuthorityFloor: []string{authorityFloor},
-		Quorum:         humanwork.Quorum{MinApprovals: 1},
-		Deadline:       humanwork.Deadline{DecideBy: deadline, Expiry: deadline},
-		Escalation: humanwork.EscalationPolicy{
-			OnDeadline: humanwork.EscalationBlock,
-			RuleID:     "rule.promotion.escalation.block/v1",
-		},
-		Separation: humanwork.SeparationConstraints{
-			RequesterMayNotApprove: true,
-			SubjectMayNotApprove:   true,
-			// Finance and current-manager approvals are independent authority
-			// classes. A principal who already filled one requirement must not
-			// be routed into the other, even when both expressions resolve them.
-			OneRequirementPerPrincipal: true,
-			RuleID:                     "rule.promotion.separation/v1",
-		},
-		Invalidators: []humanwork.Invalidator{
-			{Kind: humanwork.InvalidatorMaterialProposalChange, RuleID: "rule.promotion.invalidate.material_change/v1"},
-			{Kind: humanwork.InvalidatorAuthorityRevoked, RuleID: "rule.promotion.invalidate.authority_revoked/v1"},
-			{Kind: humanwork.InvalidatorDeadlineExpired, RuleID: "rule.promotion.invalidate.deadline/v1"},
-		},
-		Source: humanwork.RequirementSource{
-			Tier:                rules.ApprovalTierStandard,
-			TableID:             "promotion.approval.tier",
-			TableVersion:        "1",
-			TableDigest:         "sha256:promotion-approval-tier",
-			MatchedRowID:        "promotion.standard",
-			GovernancePolicyRef: governanceRef,
-		},
-	})
+type ApprovalRequirement = promotionapproval.ApprovalRequirement
+
+func compileApprovalRequirement(id, approver string, decideBy time.Time, policyRef, governanceRef, authorityFloor string) (ApprovalRequirement, error) {
+	return promotionapproval.Compile(id, approver, decideBy, policyRef, governanceRef, authorityFloor)
 }
 
 // CompileFinanceApprovalRequirement mirrors prototype.CompileApprovalRequirement
 // for the Finance Partner approval.
-func CompileFinanceApprovalRequirement(approver string, decideBy time.Time) (humanwork.ApprovalRequirement, error) {
+func CompileFinanceApprovalRequirement(approver string, decideBy time.Time) (ApprovalRequirement, error) {
 	return compileApprovalRequirement(ApprovalFinance, approver, decideBy, FinanceApprovalPinnedPolicyRef, FinanceApprovalGovernanceRef, FinanceApprovalAuthorityFloor)
 }
 
 // CompileManagerApprovalRequirement mirrors prototype.CompileApprovalRequirement
 // for the current-manager approval.
-func CompileManagerApprovalRequirement(approver string, decideBy time.Time) (humanwork.ApprovalRequirement, error) {
+func CompileManagerApprovalRequirement(approver string, decideBy time.Time) (ApprovalRequirement, error) {
 	return compileApprovalRequirement(ApprovalManager, approver, decideBy, ManagerApprovalPinnedPolicyRef, ManagerApprovalGovernanceRef, ManagerApprovalAuthorityFloor)
 }
 
@@ -96,11 +52,11 @@ func CompileManagerApprovalRequirement(approver string, decideBy time.Time) (hum
 // owner disagree, which [humanwork.Resolution.Authorizes] then refuses at
 // completion for an unrelated reason.
 func FinanceApproverFor(base string) (string, error) {
-	return approverclass.DeriveDistinct(base, approverclass.FinancePartner)
+	return promotionapproval.DeriveDistinct(base, promotionapproval.FinancePartner)
 }
 
 // ManagerApproverFor is [FinanceApproverFor]'s sibling for the
 // current-manager authority class.
 func ManagerApproverFor(base string) (string, error) {
-	return approverclass.DeriveDistinct(base, approverclass.CurrentManager)
+	return promotionapproval.DeriveDistinct(base, promotionapproval.CurrentManager)
 }

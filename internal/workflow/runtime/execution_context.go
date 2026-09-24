@@ -100,6 +100,23 @@ func NodeAllowsMode(node workflow.CompiledNode, mode workflow.ExecutionMode) boo
 // advancement.
 func DeriveExecutionContext(req StartRequest, sel WorkflowSelection) ExecutionContext {
 	rev := req.Proposal.Revision
+	principal, principalKind := rev.CreatedBy.PrincipalID, string(rev.CreatedBy.Kind)
+	organization, legalEntity, legalDigest := rev.OrganizationScopeID, rev.LegalEntityID, rev.ControlSnapshots.LegalContextDigest
+	purpose, residency := rev.Purpose.Purpose, rev.Purpose.ResidencyRef
+	entitlement := rev.ControlSnapshots.EntitlementDigest
+	if req.StartSourceValue().Kind != StartSourceProposal {
+		// Non-proposal starts still pin an explicit, deterministic principal.
+		// The trigger or parent identity is the authority for the source.
+		source := req.StartSourceValue()
+		switch source.Kind {
+		case StartSourceTrigger:
+			principal, principalKind = "trigger:"+source.Trigger.TriggerID, "SYSTEM"
+		case StartSourceParent:
+			principal, principalKind = "workflow:"+source.Parent.InstanceID.String(), "WORKFLOW"
+		}
+		organization, legalEntity, legalDigest = "", "", ""
+		purpose, residency, entitlement = "", "", ""
+	}
 	locale := strings.TrimSpace(req.Locale)
 	if locale == "" {
 		locale = DefaultLocale
@@ -110,11 +127,11 @@ func DeriveExecutionContext(req StartRequest, sel WorkflowSelection) ExecutionCo
 		billing = "billing:tenant:" + tenant
 	}
 	out := ExecutionContext{
-		Principal: rev.CreatedBy.PrincipalID, PrincipalKind: string(rev.CreatedBy.Kind),
-		Tenant: tenant, Organization: rev.OrganizationScopeID,
-		Locale: locale, LegalEntity: rev.LegalEntityID, LegalContextDigest: rev.ControlSnapshots.LegalContextDigest,
-		Purpose: rev.Purpose.Purpose, Residency: rev.Purpose.ResidencyRef,
-		EntitlementDigest: rev.ControlSnapshots.EntitlementDigest, BillingRef: billing,
+		Principal: principal, PrincipalKind: principalKind,
+		Tenant: tenant, Organization: organization,
+		Locale: locale, LegalEntity: legalEntity, LegalContextDigest: legalDigest,
+		Purpose: purpose, Residency: residency,
+		EntitlementDigest: entitlement, BillingRef: billing,
 		ExecutionMode: req.ExecutionMode, WorkflowID: sel.WorkflowID, RuntimeVersion: RuntimeVersion,
 	}
 	if sel.Plan != nil {

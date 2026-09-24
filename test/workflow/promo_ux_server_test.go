@@ -52,10 +52,12 @@ type promoUXServer struct {
 	db          *pgtest.DB
 	pool        *pgxadapter.Pool
 	app         *application.App
+	stopRun     context.CancelFunc
 	verifier    *trust.HMACVerifier
 	client      journeyv1.JourneyServiceClient
 	people      map[string]promoUXPersona
 	positionRef string
+	recompose   func() (*application.App, error)
 }
 
 // newPromoUXServer starts the same composed gRPC/HTTP cell as the serve
@@ -160,7 +162,15 @@ func newPromoUXServer(t *testing.T) *promoUXServer {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	return &promoUXServer{db: db, pool: pool, app: composed, verifier: verifier,
-		client: journeyv1.NewJourneyServiceClient(conn), people: people, positionRef: positionRef}
+		stopRun: stopRun, client: journeyv1.NewJourneyServiceClient(conn), people: people, positionRef: positionRef,
+		recompose: func() (*application.App, error) {
+			return application.ComposeServe(context.Background(), application.ServeInput{
+				Config: cfg, Pool: pool, Identity: "promo-ux-registry-restart", Options: application.Options{
+					Now: func() time.Time { return at }, NewVerifier: staticVerifier,
+				},
+			})
+		},
+	}
 }
 
 // promoUXSeedTargetPosition gives the served position reader a real, vacant

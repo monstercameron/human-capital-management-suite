@@ -176,7 +176,7 @@ func TestTodo_WF_SIM_005_PropertyReceiptIgnoresInputInsertionOrder(t *testing.T)
 
 	permuted := mustSetup(t, simulate.PromotionWithinThresholdPay)
 	rebuilt := simulate.Bag{}
-	order := []string{"effective_date", "proposed_base_pay", "target_job_id", "worker_id"}
+	order := []string{"grade_change", "budget_authority", "effective_date", "proposed_base_pay", "target_job_id", "worker_id"}
 	for _, path := range order {
 		v, err := permuted.Inputs.Values.Get(path)
 		if err != nil {
@@ -257,8 +257,8 @@ func TestTodo_WF_SIM_007_FaultUnreadableSourceIsUnknownNotPass(t *testing.T) {
 // run ends on the unknown terminal.
 func TestTodo_WF_SIM_008_FaultUnresolvedBudgetAuthorityBlocks(t *testing.T) {
 	setup := mustSetup(t, simulate.PromotionWithinThresholdPay)
-	blocked := simulate.RulesDecisions{BudgetAuthority: rules.BudgetAuthorityUnknown, GradeChange: true}
-	setup.Options.Decisions = blocked
+	blocked := setup.Options.Decisions.(simulate.RulesDecisions)
+	setup.Inputs.Values["budget_authority"] = simulate.NewString(string(rules.BudgetAuthorityUnknown))
 	setup.Options.Approvals = simulate.HumanWorkApprovals{
 		Decisions:      blocked,
 		ProposalNodeID: workflow.PromotionNodeBuildProposal,

@@ -263,11 +263,11 @@ func TestWorkflowVersionMigrateBadInvocations(t *testing.T) {
 	}
 }
 
-// TestWorkflowVersionMigratePreviewExecute drives the served operator path
-// end to end against embedded PostgreSQL: migrate-preview classifies the
-// paused instance through the served command, then migrate-execute commits
+// TestTodo_REV_009_01_Integration drives the served operator path
+// end to end against embedded PostgreSQL: migrate preview classifies the
+// paused instance through the served command, then migrate execute commits
 // the migration and the stored instance pins the target plan.
-func TestWorkflowVersionMigratePreviewExecute(t *testing.T) {
+func TestTodo_REV_009_01_Integration(t *testing.T) {
 	db := pgtest.New(t)
 	conn := migopConn(t, db)
 	tenantID := migopInsertTenant(t, db, "migop-served")
@@ -290,7 +290,7 @@ func TestWorkflowVersionMigratePreviewExecute(t *testing.T) {
 		"-tenant", tenantID.String(), "-instance", instanceID.String(),
 		"-source-digest", source.Digest(), "-target-digest", target.Digest()}
 
-	code, out, stderr := run(append([]string{"migrate-preview"}, base...)...)
+	code, out, stderr := run(append([]string{"migrate", "preview"}, base...)...)
 	if code != 0 {
 		t.Fatalf("migrate-preview: exit %d, stdout %q, stderr %q", code, out, stderr)
 	}
@@ -298,7 +298,7 @@ func TestWorkflowVersionMigratePreviewExecute(t *testing.T) {
 		t.Fatalf("migrate-preview printed %q, want a sealed SAFE classification", out)
 	}
 
-	execArgs := append([]string{"migrate-execute"}, base...)
+	execArgs := append([]string{"migrate", "execute"}, base...)
 	execArgs = append(execArgs, "-approved-by", "principal:release-manager",
 		"-reason", "REVIEWED_MIGRATION_PLAN", "-migrated-by", "principal:migration-operator")
 	code, out, stderr = run(execArgs...)

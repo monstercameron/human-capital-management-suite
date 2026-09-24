@@ -5,8 +5,12 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/transformation"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/transformation/ir"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/rulepayload"
 )
 
 // PromotionSetup is a ready-to-run simulation of the promote-into-management
@@ -89,7 +93,22 @@ func newSetup(env *Environment, proposedBasePay string, gradeChange bool) (*Prom
 	if err != nil {
 		return nil, err
 	}
-	plan, err := workflow.CompilePromotionReference(registry)
+	ruleStore := rulepayload.New()
+	thresholdTable := rules.PromotionWorkflowThresholdTable()
+	ruleRef := workflow.Reference{Kind: workflow.RefRule, ID: PromotionThresholdRuleRef, Version: "v3"}
+	rulePin, err := ruleStore.Publish(rulepayload.Payload{
+		Ref: ruleRef, BodyRef: &workflow.VersionedRef{ID: thresholdTable.ID, Version: thresholdTable.Version},
+		Kind: rulepayload.KindDecisionTable, Table: &thresholdTable,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("simulate: publish promotion threshold: %w", err)
+	}
+	transformProgram := promotionDecisionFactsProgram()
+	transformRef := workflow.Reference{Kind: workflow.RefTransform, ID: workflow.PromotionDecisionFactsIRID, Version: workflow.PromotionDecisionFactsIRVer}
+	if _, err := ruleStore.Publish(rulepayload.Payload{Ref: transformRef, Kind: rulepayload.KindTransform, Transform: &transformProgram}); err != nil {
+		return nil, fmt.Errorf("simulate: publish promotion decision-facts transform: %w", err)
+	}
+	plan, err := workflow.CompilePromotionReferenceWithRules(registry, ruleStore)
 	if err != nil {
 		return nil, fmt.Errorf("simulate: promotion reference must compile: %w", err)
 	}
@@ -101,7 +120,11 @@ func newSetup(env *Environment, proposedBasePay string, gradeChange bool) (*Prom
 	// The grade change is stated rather than inferred inside a rule: whether a
 	// move is a grade change is a fact about the proposal, and the threshold
 	// table's job is to price it, not to work out what it is.
-	decisions := RulesDecisions{BudgetAuthority: env.budgetAuthority(), GradeChange: gradeChange}
+	decisionNode, ok := plan.Node(workflow.PromotionNodeRaiseThreshold)
+	if !ok || decisionNode.Decision == nil || decisionNode.Decision.Rule == nil || decisionNode.Decision.Rule.Digest != rulePin.Digest {
+		return nil, fmt.Errorf("simulate: compiled promotion plan did not retain its exact threshold rule pin")
+	}
+	decisions := RulesDecisions{Payloads: ruleStore, PromotionRule: decisionNode.Decision.Rule}
 
 	return &PromotionSetup{
 		Plan: plan,
@@ -112,6 +135,8 @@ func newSetup(env *Environment, proposedBasePay string, gradeChange bool) (*Prom
 				"target_job_id":     NewBranded("JobID", env.Target.JobCode),
 				"proposed_base_pay": NewMoney(base),
 				"effective_date":    NewLocalDate(env.EffectiveDate),
+				"budget_authority":  NewString(string(env.budgetAuthority())),
+				"grade_change":      NewBool(gradeChange),
 			},
 			Context: map[string]Bag{
 				// The snapshot node declares a pinned LegalContext requirement
@@ -128,7 +153,8 @@ func newSetup(env *Environment, proposedBasePay string, gradeChange bool) (*Prom
 			Capabilities: registry,
 			SubjectRef:   "principal:hr-partner-7",
 			Decisions:    decisions,
-			Transforms:   PromotionTransforms{Env: env},
+			RulePayloads: ruleStore,
+			Transforms:   PromotionTransforms{Env: env, Payloads: ruleStore},
 			Reads:        PromotionReads(env),
 			Approvals:    HumanWorkApprovals{Decisions: decisions, ProposalNodeID: workflow.PromotionNodeBuildProposal},
 			Controls: []ControlVersion{
@@ -138,6 +164,18 @@ func newSetup(env *Environment, proposedBasePay string, gradeChange bool) (*Prom
 			},
 		},
 	}, nil
+}
+
+func promotionDecisionFactsProgram() ir.Program {
+	return ir.Program{
+		IRVersion: ir.IRVersion, DefinitionName: "promotion.project_decision_facts",
+		Instructions: []ir.Instruction{
+			{Op: ir.OpProject, Sources: []transformation.Path{{Schema: "workflow", Field: FieldRaiseRatio, Type: transformation.TypeDecimal}}, Destination: transformation.Path{Schema: "workflow", Field: FieldRaiseRatio, Type: transformation.TypeDecimal}},
+			{Op: ir.OpProject, Sources: []transformation.Path{{Schema: "workflow", Field: FieldBandPosition, Type: transformation.TypeString}}, Destination: transformation.Path{Schema: "workflow", Field: FieldBandPosition, Type: transformation.TypeString}},
+		},
+		Dependencies: []string{"workflow.band_position", "workflow.raise_ratio"},
+		Limits:       ir.Limits{MaxSteps: 2, MaxFanOut: 1},
+	}
 }
 
 // ProposedBasePay returns the money value the setup was built with.

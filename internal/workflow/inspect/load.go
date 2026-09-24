@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/runtimestate"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/reconcile"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/lease"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -92,7 +93,7 @@ func Load(ctx context.Context, ex dbport.Conn, req LoadRequest) (ret0 DurableVie
 
 	steps := []func(*DurableView) error{
 		l.loadVersion, l.loadExecutionContext, l.loadTimersAndAttempts, l.loadReceipts,
-		l.loadWorkItems, l.loadLease, l.loadCheckpoint, l.loadEffects,
+		l.loadWorkItems, l.loadLease, l.loadCheckpoint, l.loadEffects, l.loadCancellation,
 	}
 	for _, step := range steps {
 		if err := step(&out); err != nil {
@@ -114,6 +115,21 @@ func Load(ctx context.Context, ex dbport.Conn, req LoadRequest) (ret0 DurableVie
 	sort.Strings(out.Unavailable)
 	out.Completeness = mergeCompleteness(view.Completeness, out.WorkItems.Completeness, l.c.completeness())
 	return out, nil
+}
+
+func (l *loader) loadCancellation(out *DurableView) error {
+	if !l.auth.AllowsSection(SectionObservation) {
+		out.Cancellation = cancellation.Settlement{Effects: []cancellation.EffectSettlement{}}
+		out.Records = append(out.Records, l.family(FamilyCancellationDecision, SectionObservation, 0))
+		return nil
+	}
+	records, err := cancellation.Decisions(l.ctx, l.ex, l.req.TenantID, l.req.InstanceID)
+	if err != nil {
+		return fmt.Errorf("inspect: load cancellation decisions: %w", err)
+	}
+	out.Cancellation = cancellation.ProjectSettlement(records)
+	out.Records = append(out.Records, l.family(FamilyCancellationDecision, SectionObservation, len(records)))
+	return nil
 }
 
 // loader carries one Load's inputs and its durable-read collector.

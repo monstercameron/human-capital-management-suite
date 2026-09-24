@@ -6,9 +6,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 type Status string
@@ -42,7 +45,23 @@ type Request struct {
 	Strategy                                                                                                                                                                                                                                                    Strategy
 	RepairRef                                                                                                                                                                                                                                                   string
 	ObservationMaxAge                                                                                                                                                                                                                                           time.Duration
+	WorkflowID                                                                                                                                                                                                                                                  string
+	InstanceID                                                                                                                                                                                                                                                  uuid.UUID
+	PlanDigest                                                                                                                                                                                                                                                  string
+	OriginalScope                                                                                                                                                                                                                                               idempotency.Scope
+	OriginalEffectKind                                                                                                                                                                                                                                          OriginalEffectKind
+	OriginalEffectEvidenceRef                                                                                                                                                                                                                                   string
+	OriginalEffectRefs                                                                                                                                                                                                                                          []string
 }
+
+// OriginalEffectKind makes the provenance contract explicit for protected
+// idempotent effects and trusted source effects without an idempotency row.
+type OriginalEffectKind string
+
+const (
+	OriginalEffectIdempotencyScope OriginalEffectKind = "IDEMPOTENCY_SCOPE"
+	OriginalEffectProposalHold     OriginalEffectKind = "PROPOSAL_BUDGET_HOLD"
+)
 
 func (r Request) Validate() error {
 	for _, v := range []string{r.TenantID, r.ActorID, r.TargetExecutionRef, r.TargetEffectRef, r.CompensationCapabilityRef, r.VerificationObservationRef, r.Reason, r.ApprovalPolicy, r.ApprovalRef, r.AuthorityPolicyFingerprint, r.CapabilityManifestDigest, r.PayloadDigest, r.IdempotencyKey, r.OriginalHistoryRef} {
@@ -55,6 +74,29 @@ func (r Request) Validate() error {
 	}
 	if r.Strategy == StrategyRepairPlan && r.RepairRef == "" {
 		return fmt.Errorf("%w: repair ref required", ErrInvalidRequest)
+	}
+	if r.WorkflowID != "" || r.InstanceID != uuid.Nil {
+		if r.WorkflowID == "" || r.InstanceID == uuid.Nil || r.PlanDigest == "" {
+			return fmt.Errorf("%w: original workflow provenance is incomplete or inconsistent", ErrInvalidRequest)
+		}
+	}
+	switch r.OriginalEffectKind {
+	case OriginalEffectIdempotencyScope:
+		if r.PlanDigest == "" || r.OriginalScope.Validate() != nil || r.OriginalScope.Tenant.String() != r.TenantID || r.OriginalEffectEvidenceRef != "" {
+			return fmt.Errorf("%w: original effect closure binding is incomplete or inconsistent", ErrInvalidRequest)
+		}
+		if r.WorkflowID != "" && r.OriginalScope.Capability != r.WorkflowID {
+			return fmt.Errorf("%w: original workflow scope capability differs", ErrInvalidRequest)
+		}
+	case OriginalEffectProposalHold:
+		const prefix = "budget-reservation:"
+		reservationID, parseErr := uuid.Parse(strings.TrimPrefix(r.OriginalEffectEvidenceRef, prefix))
+		if r.OriginalScope.Tenant != uuid.Nil || !strings.HasPrefix(r.OriginalEffectEvidenceRef, prefix) || parseErr != nil || reservationID == uuid.Nil || r.PlanDigest == "" ||
+			r.WorkflowID == "" || r.InstanceID == uuid.Nil || !strings.HasPrefix(r.OriginalHistoryRef, "proposal-hold:") {
+			return fmt.Errorf("%w: proposal hold provenance is incomplete", ErrInvalidRequest)
+		}
+	default:
+		return fmt.Errorf("%w: original effect source kind is required", ErrInvalidRequest)
 	}
 	if r.ObservationMaxAge <= 0 {
 		return fmt.Errorf("%w: observation age required", ErrInvalidRequest)
@@ -119,12 +161,18 @@ type OperationOwner interface {
 	Complete(context.Context, OperationKey, string, Result) error
 }
 type Event struct {
-	Request                                                                                                                        Request
-	Status                                                                                                                         Status
-	AuthorizationEvidenceRef, CapabilityEvidenceRef, ObservationEvidenceRef, RemainingDriftRef, OriginalHistoryRef, Detail, Digest string
+	Request                                                                                                                                  Request
+	Status                                                                                                                                   Status
+	AuthorizationEvidenceRef, CapabilityEvidenceRef, ObservationEvidenceRef, RemainingDriftRef, OriginalHistoryRef, Detail, EventRef, Digest string
 }
 type Ledger interface {
-	AppendCompensation(context.Context, Event) error
+	AppendCompensation(context.Context, Event) (string, error)
+}
+
+// OriginalEffectCloser atomically closes the idempotency scope whose effect
+// this event reverses. Implementations use the transaction carried by ctx.
+type OriginalEffectCloser interface {
+	CloseCompensated(context.Context, idempotency.Scope, string) error
 }
 type Result struct {
 	Status   Status
@@ -148,6 +196,10 @@ func (e *Executor) Execute(ctx context.Context, r Request) (ret0 Result, retErr 
 	}
 	if e == nil || e.Capability == nil || e.Authorizer == nil || e.Observer == nil || e.Operations == nil || e.Ledger == nil || e.Now == nil {
 		return Result{}, fmt.Errorf("%w: coordinator ports required", ErrInvalidRequest)
+	}
+	_, canCloseOriginal := e.Operations.(OriginalEffectCloser)
+	if r.OriginalEffectKind == OriginalEffectIdempotencyScope && !canCloseOriginal {
+		return Result{}, fmt.Errorf("%w: idempotent original effects require a closure-capable operation owner", ErrInvalidRequest)
 	}
 	a, err := e.Authorizer.Authorize(ctx, r)
 	if err != nil || !authMatches(a, r) {
@@ -225,6 +277,7 @@ func validReplay(result Result, request Request, digest, authorizationEvidenceRe
 		event.AuthorizationEvidenceRef == authorizationEvidenceRef &&
 		event.CapabilityEvidenceRef == capabilityEvidenceRef &&
 		event.OriginalHistoryRef == request.OriginalHistoryRef &&
+		event.EventRef != "" && event.EventRef == stableEventRef(event) &&
 		event.Digest != "" && Digest(event) == event.Digest
 }
 
@@ -257,19 +310,41 @@ func validObs(o Observation, r Request, c CapabilityReceipt, n time.Time) bool {
 	return x == 1 && o.EvidenceRef != "" && !o.ObservedAt.IsZero() && !o.ObservedAt.After(n) && n.Sub(o.ObservedAt) <= r.ObservationMaxAge && o.TenantID == r.TenantID && o.TargetEffectRef == r.TargetEffectRef && o.CorrectionEvidenceRef == c.EvidenceRef
 }
 func (e *Executor) finish(ctx context.Context, k OperationKey, d string, r Request, a string, c CapabilityReceipt, o Observation, s Status, detail string) (Result, error) {
+	closer, closesOriginal := e.Operations.(OriginalEffectCloser)
+	if s == StatusCompensated && closesOriginal && r.OriginalEffectKind == OriginalEffectIdempotencyScope && (r.OriginalScope.Validate() != nil ||
+		r.OriginalScope.Tenant.String() != r.TenantID || r.PlanDigest == "") {
+		return Result{}, fmt.Errorf("%w: successful durable compensation requires original scope and plan digest", ErrInvalidRequest)
+	}
 	ev := Event{Request: r, Status: s, AuthorizationEvidenceRef: a, CapabilityEvidenceRef: c.EvidenceRef, ObservationEvidenceRef: o.EvidenceRef, OriginalHistoryRef: r.OriginalHistoryRef, Detail: detail}
 	if s == StatusPartial || s == StatusRepairRequired {
 		ev.RemainingDriftRef = r.RepairRef
 	}
+	ev.EventRef = stableEventRef(ev)
 	ev.Digest = Digest(ev)
 	out := Result{Status: s, Event: ev}
-	if err := e.Ledger.AppendCompensation(ctx, ev); err != nil {
+	eventRef, err := e.Ledger.AppendCompensation(ctx, ev)
+	if err != nil {
 		return Result{}, err
+	}
+	if strings.TrimSpace(eventRef) == "" || eventRef != ev.EventRef {
+		return Result{}, fmt.Errorf("%w: ledger returned no stable compensation event identity", ErrInvalidRequest)
 	}
 	if err := e.Operations.Complete(ctx, k, d, out); err != nil {
 		return Result{}, err
 	}
+	if s == StatusCompensated && closesOriginal && r.OriginalEffectKind == OriginalEffectIdempotencyScope {
+		if err := closer.CloseCompensated(ctx, r.OriginalScope, eventRef); err != nil {
+			return Result{}, err
+		}
+	}
 	return out, nil
+}
+
+func stableEventRef(e Event) string {
+	e.EventRef, e.Digest = "", ""
+	b, _ := json.Marshal(e)
+	h := sha256.Sum256(append([]byte("hcmnext.workflow.steps.compensate.EventIdentity/v1\x00"), b...))
+	return "compensation:v1:" + hex.EncodeToString(h[:])
 }
 func requestDigest(r Request) string {
 	b, _ := json.Marshal(r)

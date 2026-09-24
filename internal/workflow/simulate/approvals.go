@@ -28,8 +28,7 @@ const TierBlocked = "TIER_BLOCKED"
 // compensation partner, plus whatever the tier adds - not only the ids the
 // node's governance surface happened to name.
 type HumanWorkApprovals struct {
-	// Decisions supplies the same budget authority and grade-change facts the
-	// DECISION node was evaluated with.
+	// Decisions re-evaluates the same published rule body the DECISION node used.
 	Decisions RulesDecisions
 	// ProposalNodeID names the node whose outputs carry the raise and band
 	// position. Empty means "search every executed node", in sorted node order.
@@ -45,7 +44,29 @@ func (h HumanWorkApprovals) WouldAwait(_ context.Context, req ApprovalRequest) (
 			FieldRaiseRatio, FieldBandPosition)
 	}
 
-	tier, err := h.Decisions.Tier(ratio, position)
+	increase, err := increaseDecimal(ratio)
+	if err != nil {
+		return nil, wrap(CodeHandlerFailed, req.NodeID, err, "approval tier")
+	}
+	budgetText, err := req.WorkflowInputs.Text("budget_authority")
+	if err != nil {
+		return nil, wrap(CodeHandlerFailed, req.NodeID, err, "approval tier inputs")
+	}
+	gradeValue, err := req.WorkflowInputs.Get("grade_change")
+	if err != nil {
+		return nil, wrap(CodeHandlerFailed, req.NodeID, err, "approval tier inputs")
+	}
+	gradeChange, err := gradeValue.Bool()
+	if err != nil {
+		return nil, wrap(CodeHandlerFailed, req.NodeID, err, "approval tier inputs")
+	}
+	input := rules.PromotionApprovalInput{
+		IncreasePercent: increase,
+		BandPosition:    bandPositionOf(position),
+		BudgetAuthority: rules.BudgetAuthority(budgetText),
+		GradeChange:     gradeChange,
+	}
+	tier, err := h.Decisions.Tier(input)
 	if err != nil {
 		return nil, wrap(CodeHandlerFailed, req.NodeID, err, "approval tier")
 	}
@@ -53,20 +74,7 @@ func (h HumanWorkApprovals) WouldAwait(_ context.Context, req ApprovalRequest) (
 		return blockedItems(req, tier), nil
 	}
 
-	budget := h.Decisions.BudgetAuthority
-	if budget == rules.BudgetAuthorityUnspecified {
-		budget = rules.BudgetAuthorityUnknown
-	}
-	increase, err := increaseDecimal(ratio)
-	if err != nil {
-		return nil, wrap(CodeHandlerFailed, req.NodeID, err, "approval tier")
-	}
-	scenario, err := humanwork.NewPromotionScenario(rules.PromotionApprovalInput{
-		IncreasePercent: increase,
-		BandPosition:    bandPositionOf(position),
-		BudgetAuthority: budget,
-		GradeChange:     h.Decisions.GradeChange,
-	})
+	scenario, err := humanwork.NewPromotionScenario(input)
 	if err != nil {
 		return nil, wrap(CodeHandlerFailed, req.NodeID, err, "approval requirement derivation")
 	}

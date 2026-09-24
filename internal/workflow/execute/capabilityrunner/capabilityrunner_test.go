@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +24,10 @@ type stubSink struct {
 func (s *stubSink) RecordInvocation(_ context.Context, _ capability.InvocationEvidence) (string, error) {
 	s.called++
 	return fmt.Sprintf("ev-%d", s.called), nil
+}
+
+func (s *stubSink) RecordInvocationTx(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
+	return s.RecordInvocation(ctx, evt)
 }
 
 func testSchema(id, slot string) capability.SchemaRef {
@@ -156,7 +159,15 @@ func TestTodo_WF_EXT_005(t *testing.T) {
 			NodeOutputs:    map[string]map[string]ResolvedValue{"prev": {"band": {Type: strType(), Text: "B2"}}},
 			OnOutputs:      func(_ string, outputs map[string]ResolvedValue) { stored = outputs },
 		}
-		outcome, refs, err := runner.Run(context.Background(), stepRequest(node))
+		request := stepRequest(node)
+		request.Inputs = map[string]workflow.TypedValue{
+			"worker_id": {Type: strType(), Text: "W-1"},
+			"band":      {Type: strType(), Text: "B2"},
+			"region":    {Type: strType(), Text: "EMEA"},
+		}
+		runner.WorkflowInputs["worker_id"] = ResolvedValue{Type: strType(), Text: "untrusted-side-map"}
+		runner.NodeOutputs["prev"]["band"] = ResolvedValue{Type: strType(), Text: "untrusted-side-map"}
+		outcome, refs, err := runner.Run(context.Background(), request)
 		if err != nil {
 			t.Fatalf("Run: %v", err)
 		}
@@ -178,8 +189,8 @@ func TestTodo_WF_EXT_005(t *testing.T) {
 		if outcome.NodeID != "read_worker" || outcome.Outcome != workflow.OutcomeSucceeded {
 			t.Fatalf("outcome = %+v, want node read_worker SUCCEEDED", outcome)
 		}
-		if !strings.HasPrefix(outcome.OutputDigest, "sha256:") || len(outcome.OutputDigest) < len("sha256:")+16 {
-			t.Fatalf("output digest = %q, want a recorded typed-response digest", outcome.OutputDigest)
+		if outcome.Outputs == nil || len(outcome.Outputs.Values) != 1 || outcome.Outputs.Values[0].Path != "state" || outcome.Outputs.Values[0].Value.Text != "ACTIVE" {
+			t.Fatalf("typed outputs = %+v, want the handler's response for WF-EXT-004 persistence", outcome.Outputs)
 		}
 		if refs.CapabilityExecutionID != "ev-1" {
 			t.Fatalf("capability execution = %q, want ev-1 (gateway evidence)", refs.CapabilityExecutionID)
@@ -189,12 +200,12 @@ func TestTodo_WF_EXT_005(t *testing.T) {
 		}
 
 		// Determinism: the same typed response digests identically.
-		second, _, err := runner.Run(context.Background(), stepRequest(node))
+		second, _, err := runner.Run(context.Background(), request)
 		if err != nil {
 			t.Fatalf("second Run: %v", err)
 		}
-		if second.OutputDigest != outcome.OutputDigest {
-			t.Fatalf("digest changed across identical invocations: %q vs %q", outcome.OutputDigest, second.OutputDigest)
+		if second.Outputs == nil || len(second.Outputs.Values) != len(outcome.Outputs.Values) || second.Outputs.Values[0] != outcome.Outputs.Values[0] {
+			t.Fatalf("typed outputs changed across identical invocations: %+v vs %+v", outcome.Outputs, second.Outputs)
 		}
 	})
 
@@ -265,8 +276,8 @@ func TestTodo_WF_EXT_005(t *testing.T) {
 		if outcome.Outcome != workflow.OutcomePass {
 			t.Fatalf("outcome = %q, want PASS", outcome.Outcome)
 		}
-		if !strings.HasPrefix(outcome.OutputDigest, "sha256:") {
-			t.Fatalf("output digest = %q, want a recorded typed-response digest", outcome.OutputDigest)
+		if outcome.Outputs == nil || len(outcome.Outputs.Values) != 1 || outcome.Outputs.Values[0].Path != "observed" {
+			t.Fatalf("typed outputs = %+v, want the OBSERVE handler response for durable persistence", outcome.Outputs)
 		}
 		if refs.CapabilityExecutionID == "" {
 			t.Fatal("no gateway evidence recorded for the OBSERVE invocation")
@@ -423,8 +434,8 @@ func TestTodo_WF_EXT_005_Integration(t *testing.T) {
 	if outcome.Outcome != workflow.OutcomePass {
 		t.Fatalf("outcome = %q, want PASS", outcome.Outcome)
 	}
-	if !strings.HasPrefix(outcome.OutputDigest, "sha256:") {
-		t.Fatalf("output digest = %q, want a recorded typed-response digest", outcome.OutputDigest)
+	if outcome.Outputs == nil || len(outcome.Outputs.Values) != 1 || outcome.Outputs.Values[0].Path != "payroll_state" {
+		t.Fatalf("typed outputs = %+v, want the OBSERVE handler response for durable persistence", outcome.Outputs)
 	}
 	if refs.CapabilityExecutionID == "" {
 		t.Fatal("no gateway evidence recorded for the OBSERVE invocation")

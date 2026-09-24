@@ -6,10 +6,10 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
 
-// promotionSimulatePlanDigest is the 1.1.0 zero-effect SIMULATE projection.
+// promotionSimulatePlanDigest is the current 1.2.0 zero-effect SIMULATE projection.
 // It moved last with the Promotion helpers it replaces; WF-EXT-003 pins it
 // here so the compiler-owned projection can never drift from it.
-const promotionSimulatePlanDigest = "08c9240d1aaf7d9d4d8c552ffae841a3285a47cce377740974381b2ebcf36437"
+const promotionSimulatePlanDigest = "e889b8f99cb96a0049a4740c1dab24c00a4de652169a6f725bd796da29871617"
 
 // promotionSimulatePlanDigestV1_0 is the frozen 1.0.0 SIMULATE projection,
 // pinned for the same reason beside the frozen EXECUTE digest.

@@ -62,6 +62,17 @@ func walkedPath(t *testing.T, receipt simulate.Receipt) []string {
 func TestTodo_REV_020_01(t *testing.T) {
 	setup := mustSetup(t, GoldenEnvironment())
 	receipt := mustRun(t, setup)
+	definition := ReferenceDefinition()
+	var documentNode *workflow.Node
+	for i := range definition.Nodes {
+		if definition.Nodes[i].ID == NodeVerifyWorkAuth {
+			documentNode = &definition.Nodes[i]
+			break
+		}
+	}
+	if documentNode == nil || documentNode.Type != workflow.StepCapability || documentNode.Capability == nil || documentNode.Capability.ID != CapVerifyWorkAuth || len(documentNode.Capability.AuthorityScopes) != 1 || documentNode.Capability.AuthorityScopes[0] != "scope:documents.read" {
+		t.Fatalf("DOCUMENT migration must bind work-authorization evidence through documents.* CAPABILITY: %+v", documentNode)
+	}
 
 	if receipt.Mode != workflow.ModeSimulate {
 		t.Errorf("mode = %s, want %s", receipt.Mode, workflow.ModeSimulate)
@@ -100,6 +111,21 @@ func TestTodo_REV_020_01(t *testing.T) {
 	wantObligations := []string{ObligationPositionHold, ObligationEmployment, ObligationEvidence}
 	if !sameElements(receipt.Terminal.OutstandingObligationRefs, wantObligations) {
 		t.Errorf("outstanding obligations = %v, want %v", receipt.Terminal.OutstandingObligationRefs, wantObligations)
+	}
+	if len(receipt.WorkItems) != 2 {
+		t.Fatalf("approval work items = %d, want the hiring-manager and HRBP approvals: %+v", len(receipt.WorkItems), receipt.WorkItems)
+	}
+	approvalIDs := []string{receipt.WorkItems[0].RequirementID, receipt.WorkItems[1].RequirementID}
+	if !sameElements(approvalIDs, []string{ApprovalHiringManager, ApprovalHRBP}) {
+		t.Errorf("approval requirements = %v, want hiring-manager and HRBP", approvalIDs)
+	}
+	for _, item := range receipt.WorkItems {
+		if item.State != simulate.WouldAwait {
+			t.Errorf("approval %q state = %q, want %q", item.RequirementID, item.State, simulate.WouldAwait)
+		}
+		if item.RequirementDigest == "" || item.ExpressionDigest == "" || item.QuorumMin != 1 {
+			t.Errorf("approval %q lacks its bound expression, requirement digest, or quorum: %+v", item.RequirementID, item)
+		}
 	}
 
 	wantLifecycle := simulate.LifecycleState{
@@ -255,6 +281,9 @@ func TestTodo_REV_020_01_Security(t *testing.T) {
 			if id == NodeEndHired {
 				t.Errorf("%s environment walked the hired end node", name)
 			}
+		}
+		if counters := receipt.EffectCounters(); !counters.IsZero() {
+			t.Errorf("%s environment counted simulation effects: %v", name, counters.NonZero())
 		}
 	}
 }

@@ -144,11 +144,13 @@ func TestTodo_WF_RUN_020_Race(t *testing.T) {
 	for range 8 {
 		w := h.sweeper()
 		w.Begin = h.appConn().Begin
-		wg.Go(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			if _, err := w.Sweep(context.Background(), h.tenant); err != nil {
 				errs <- err
 			}
-		})
+		}()
 	}
 	wg.Wait()
 	close(errs)

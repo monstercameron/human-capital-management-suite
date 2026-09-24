@@ -3,6 +3,7 @@ package cancellation_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 
@@ -117,7 +118,7 @@ func TestTodo_WF_REV_005_Observation(t *testing.T) {
 			got.Disposition != "COMPENSATE:compensation.promotion.reverse@1" {
 			t.Fatalf("effect evidence = %+v", out.Evidence.Effects)
 		}
-		if len(out.CompensationRefs) != 1 || out.CompensationRefs[0] != "execute_promotion#1=compensation.promotion.reverse@1" {
+		if len(out.CompensationRefs) != 1 || !strings.HasPrefix(out.CompensationRefs[0], "wf-compensation:v1:") {
 			t.Fatalf("obligation = %v", out.CompensationRefs)
 		}
 		if r, ok := out.Blocking(); !ok || r.Code != cancellation.ReasonEffectCompensation {

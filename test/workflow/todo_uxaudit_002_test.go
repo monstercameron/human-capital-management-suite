@@ -1,13 +1,235 @@
 package workflow_test
 
 import (
+	"context"
+	"runtime"
+	"sync"
 	"testing"
+	"time"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/application"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
+
+func rev08403ApprovedJourney(t *testing.T) (*promoUXServer, string, *journeyv1.JourneySubmissionRecord) {
+	t.Helper()
+	h := newPromoUXServer(t)
+	ctx, cancel := h.call(t, "proposer")
+	workers, err := h.client.ListWorkers(ctx, &journeyv1.ListWorkersRequest{})
+	cancel()
+	if err != nil {
+		t.Fatalf("ListWorkers: %v", err)
+	}
+	worker, targetJob, targetGrade := promoUXPosition(t, workers)
+	ctx, cancel = h.call(t, "proposer")
+	proposal := promoUXPropose(worker, targetJob, targetGrade, h.positionRef, "rev08403-race", worker.GetSubjectRevision())
+	proposal.EffectiveDate = "2027-06-01"
+	proposed, err := h.client.ProposePromotion(ctx, proposal)
+	cancel()
+	if err != nil {
+		principal, verifyErr := h.verifier.Verify(context.Background(), trust.Credential{
+			Scheme: "Bearer", Token: h.people["proposer"].Token, Audience: application.DefaultAudience,
+		})
+		if verifyErr != nil {
+			t.Fatalf("ProposePromotion: %v (also failed to verify direct diagnostic principal: %v)", err, verifyErr)
+		}
+		diagnosticCtx, diagnosticCancel := context.WithTimeout(trust.WithPrincipal(context.Background(), principal), 10*time.Second)
+		defer diagnosticCancel()
+		_, directErr := h.app.Cell().Journey.Propose(diagnosticCtx, workspace.ProposalInput{
+			WorkerRef: worker.GetWorkerRef(), TargetJobCode: targetJob, TargetGrade: targetGrade,
+			TargetPositionID: h.positionRef, ProposedBase: "98000.00", EffectiveDate: "2027-06-01",
+			BusinessReason: "Promotion into the senior HRBP role",
+		})
+		t.Fatalf("ProposePromotion: %v (direct journey cause: %v)", err, directErr)
+	}
+	intentID := proposed.GetIntentId()
+	t.Logf("REV-084-03 proposed journey %s", intentID)
+	ctx, cancel = h.call(t, "proposer")
+	_, err = h.client.ExecuteJourney(ctx, &journeyv1.ExecuteJourneyRequest{IntentId: intentID})
+	cancel()
+	if err != nil {
+		t.Fatalf("ExecuteJourney: %v", err)
+	}
+	t.Log("REV-084-03 executed proposal")
+	for _, persona := range []string{"finance", "manager"} {
+		ctx, cancel = h.call(t, persona)
+		decision, decisionErr := h.client.DecideJourney(ctx, &journeyv1.DecideJourneyRequest{
+			IntentId: intentID, Approve: true, Reason: persona + " approved",
+		})
+		cancel()
+		if decisionErr != nil {
+			t.Fatalf("DecideJourney(%s): %v", persona, decisionErr)
+		}
+		if persona == "finance" && decision.GetDetail().GetSubmission() != nil {
+			t.Fatal("submission was exposed after the first approval while the manager gate remained open")
+		}
+		if persona == "manager" && decision.GetDetail().GetSubmission() == nil {
+			t.Fatal("submission is missing after the final approval completed the approval route")
+		}
+		t.Logf("REV-084-03 completed %s approval", persona)
+	}
+	ctx, cancel = h.call(t, "manager")
+	first, err := h.client.DecideJourney(ctx, &journeyv1.DecideJourneyRequest{
+		IntentId: intentID, Approve: true, Reason: "manager approved",
+	})
+	cancel()
+	if err != nil {
+		t.Fatalf("replay manager DecideJourney: %v", err)
+	}
+	want := first.GetDetail().GetSubmission()
+	if want == nil || want.GetIntentId() != intentID || want.GetIdempotencyKey() == "" || want.GetDigest() == "" {
+		t.Fatalf("DecideJourney submission = %+v, want the durable accepted action's typed submission record", want)
+	}
+	t.Log("REV-084-03 submission response is present")
+	return h, intentID, want
+}
+
+type rev08403DurableEffects struct {
+	approvalDecisions int64
+	itemTransitions   int64
+}
+
+func rev08403ReadDurableEffects(t *testing.T, h *promoUXServer) rev08403DurableEffects {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var effects rev08403DurableEffects
+	if err := h.db.SQL.QueryRowContext(ctx, `SELECT count(*) FROM work_item_decision WHERE kind = 'APPROVAL'`).Scan(&effects.approvalDecisions); err != nil {
+		t.Fatalf("count durable approval decisions: %v", err)
+	}
+	if err := h.db.SQL.QueryRowContext(ctx, `SELECT count(*) FROM work_item_transition`).Scan(&effects.itemTransitions); err != nil {
+		t.Fatalf("count durable work-item transitions: %v", err)
+	}
+	return effects
+}
+
+// TestTodo_REV_084_03 exercises semantic replay through the real served
+// DecideJourney entrypoint and verifies the typed submission result returns
+// the original record.
+func TestTodo_REV_084_03(t *testing.T) {
+	_, _, record := rev08403ApprovedJourney(t)
+	if record.GetIntentId() == "" || record.GetDigest() == "" || record.GetIdempotencyKey() == "" {
+		t.Fatalf("served submission record is incomplete: %+v", record)
+	}
+}
+
+// TestTodo_REV_084_03_Race proves concurrent duplicate decisions at the real
+// served submission entrypoint return one original submission record.
+func TestTodo_REV_084_03_Race(t *testing.T) {
+	h, intentID, want := rev08403ApprovedJourney(t)
+	initialEffects := rev08403ReadDurableEffects(t, h)
+	if initialEffects.approvalDecisions != 2 {
+		t.Fatalf("durable approval decisions after finance and manager approval = %d, want exactly 2", initialEffects.approvalDecisions)
+	}
+
+	const callers = 12
+	got := make([]*journeyv1.JourneySubmissionRecord, callers)
+	errs := make([]error, callers)
+	contexts := make([]context.Context, callers)
+	cancels := make([]context.CancelFunc, callers)
+	for i := range contexts {
+		contexts[i], cancels[i] = h.call(t, "manager")
+	}
+	defer func() {
+		for _, cancel := range cancels {
+			cancel()
+		}
+	}()
+	var wg sync.WaitGroup
+	for i := range got {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			response, callErr := h.client.DecideJourney(contexts[i], &journeyv1.DecideJourneyRequest{
+				IntentId: intentID, Approve: true, Reason: "manager approved",
+			})
+			if callErr != nil {
+				errs[i] = callErr
+				return
+			}
+			got[i] = response.GetDetail().GetSubmission()
+		}(i)
+	}
+	t.Logf("REV-084-03 started %d concurrent duplicate decisions", callers)
+	finished := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(finished)
+	}()
+	select {
+	case <-finished:
+		t.Log("REV-084-03 concurrent duplicate decisions completed")
+	case <-time.After(45 * time.Second):
+		stack := make([]byte, 1<<20)
+		n := runtime.Stack(stack, true)
+		t.Fatalf("REV-084-03 duplicate decisions did not finish within 45s; goroutines:\n%s", stack[:n])
+	}
+	for i := range got {
+		if errs[i] != nil {
+			t.Fatalf("duplicate DecideJourney caller %d: %v", i, errs[i])
+		}
+		if !proto.Equal(got[i], want) {
+			t.Fatalf("duplicate DecideJourney caller %d submission = %+v, want original %+v", i, got[i], want)
+		}
+	}
+	if effects := rev08403ReadDurableEffects(t, h); effects != initialEffects {
+		t.Fatalf("duplicate manager submissions changed durable workflow effects: before=%+v after=%+v", initialEffects, effects)
+	}
+
+	// A fresh composition gets a fresh in-memory registry. The durable accepted
+	// action still resolves to the same semantic submission after that restart.
+	// Cancel the server's workload context before Stop waits for its scheduler.
+	h.stopRun()
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	if err := h.app.Stop(stopCtx); err != nil {
+		stopCancel()
+		t.Fatalf("stop first composition: %v", err)
+	}
+	stopCancel()
+	restarted, err := h.recompose()
+	if err != nil {
+		t.Fatalf("recompose served application: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cleanupCancel()
+		if err := restarted.Stop(cleanupCtx); err != nil {
+			t.Errorf("stop restarted composition: %v", err)
+		}
+	})
+	principal, err := h.verifier.Verify(context.Background(), trust.Credential{
+		Scheme: "Bearer", Token: h.people["manager"].Token, Audience: application.DefaultAudience,
+	})
+	if err != nil {
+		t.Fatalf("verify manager for restarted composition: %v", err)
+	}
+	restartCtx, restartCancel := context.WithTimeout(trust.WithPrincipal(context.Background(), principal), 20*time.Second)
+	replayed, err := restarted.Cell().Journey.Decide(restartCtx, intentID,
+		workspace.Decision{Approve: true, Reason: "manager approved"})
+	restartCancel()
+	if err != nil {
+		t.Fatalf("replay DecideJourney after service restart: %v", err)
+	}
+	if replayed.Submission == nil || replayed.Submission.IntentID != want.GetIntentId() ||
+		replayed.Submission.ProposalRevisionID != want.GetProposalRevisionId() ||
+		replayed.Submission.ProposalDigest != want.GetProposalDigest() ||
+		replayed.Submission.MaterialDigest != want.GetMaterialDigest() ||
+		replayed.Submission.SubmittedBy != want.GetSubmittedBy() ||
+		!replayed.Submission.SubmittedAt.Equal(want.GetSubmittedAt().AsTime()) ||
+		replayed.Submission.IdempotencyKey != want.GetIdempotencyKey() || replayed.Submission.Digest != want.GetDigest() {
+		t.Fatalf("restart submission = %+v, want persisted acceptance's original record %+v", replayed.Submission, want)
+	}
+	if effects := rev08403ReadDurableEffects(t, h); effects != initialEffects {
+		t.Fatalf("restart replay changed durable workflow effects: before=%+v after=%+v", initialEffects, effects)
+	}
+	t.Log("REV-084-03 restart replay matched")
+}
 
 // TestTodo_UXAUDIT_002 is the PRIMARY matrix test for planning/todos.md's
 // UXAUDIT-002: one discoverable, authorized promotion path from person to

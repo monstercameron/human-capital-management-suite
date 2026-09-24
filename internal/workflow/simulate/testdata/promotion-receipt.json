@@ -2,11 +2,11 @@
   "interpreter_version": "hcmnext.workflow.simulate/v1",
   "compiler_version": "hcmnext.workflow.compiler/v1",
   "workflow_id": "hcmnext.workflows.promote_into_management",
-  "workflow_version": 1,
-  "plan_digest": "e6c9e4d8c23a7e0e61a39ba1d82d664afd3b39b36c8a860e0d7444a21d599afc",
+  "workflow_version": 2,
+  "plan_digest": "7e41e8f3b2d6a81d38a6a32e4016dc899a75db086b7129adc0b69ebde10f5e16",
   "mode": "SIMULATE",
   "terminal_profile": "SIMULATE_ONLY",
-  "inputs_digest": "7e8a324ee2c3ab1535d5722f1269d8aa473280f7ee3f6c07a4153f10c5b36ebf",
+  "inputs_digest": "94578eaac9459a458245f0ad465941293840343612fcbbaa45294222579e0423",
   "started_at": "2026-09-03T12:00:00Z",
   "ended_at": "2026-09-03T12:00:01.5Z",
   "elapsed_virtual_ns": 1500000000,
@@ -30,11 +30,11 @@
       "evidence": [
         {
           "ref": "capability_execution_id",
-          "id": "ev:a60a61aab694fdbbad3522def5096429"
+          "id": "ev:d7dc3d00956d42f38369e80168484e9c"
         },
         {
           "ref": "governance_decision_id",
-          "id": "ev:0a87f30d039bad24adfdb677a16ece63"
+          "id": "ev:681d5005e73bb886bc4669a0b3c230dc"
         },
         {
           "ref": "request_digest",
@@ -65,11 +65,11 @@
       "evidence": [
         {
           "ref": "capability_execution_id",
-          "id": "ev:0963fcfa0d8aa5ce3110f229df844117"
+          "id": "ev:adb1b84b2a5f42c72c087c77c94ddb39"
         },
         {
           "ref": "governance_decision_id",
-          "id": "ev:088f6affa10a56a53b6d4d3346295a24"
+          "id": "ev:38a78e27c604da884d0ca0f9690fa1b2"
         },
         {
           "ref": "request_digest",
@@ -100,11 +100,11 @@
       "evidence": [
         {
           "ref": "capability_execution_id",
-          "id": "ev:5ca53365d6f214b636f6eb5457a5d3b3"
+          "id": "ev:0bfc26d5ec2ed937c197a8904f829cac"
         },
         {
           "ref": "governance_decision_id",
-          "id": "ev:84ba4718120956740cd3f424de0105a3"
+          "id": "ev:62ce8047f5e06d9c2ec8a2534ad4ae87"
         },
         {
           "ref": "request_digest",
@@ -135,7 +135,7 @@
       "evidence": [
         {
           "ref": "transform_execution_id",
-          "id": "ev:abea0ccd5ea36f1338df49dc8a66e969"
+          "id": "ev:ef128d77ba82ba56a95e422d638b1aed"
         },
         {
           "ref": "input_digest",
@@ -160,21 +160,21 @@
       "outcome": "EXCEEDS_THRESHOLD",
       "route_key": "EXCEEDS_THRESHOLD",
       "next_node_id": "end_requires_finance_approval",
-      "input_digest": "ca5b9d299ec7e32a2aca4b7b3928d4d36222eeef00c9406c2ce411a30c3dadfe",
+      "input_digest": "9bd1f9b181d768ab4fa2581ea122f533915d019af45e212496d5b86869d148eb",
       "output_digest": "87c91ae38d3d03565d36750c20d2b3b52b2e05f3b7eacc091dd9cd02e8542979",
-      "detail": "tier FINANCE_REQUIRED from hcmnext.rules.promotion_approval_threshold@2026.1 row grade-change-standard (increase 9.0909%, band IN_BAND, budget SUFFICIENT)",
+      "detail": "published table hcmnext.rules.promotion_approval_threshold@2026.2#grade-change-standard",
       "evidence": [
         {
           "ref": "decision_id",
-          "id": "ev:b412ec0244f87ccdd74f72329e27f557"
+          "id": "ev:25f3f82686590b4beaee815015e47664"
         },
         {
           "ref": "evaluated_input_digest",
-          "id": "ca5b9d299ec7e32a2aca4b7b3928d4d36222eeef00c9406c2ce411a30c3dadfe"
+          "id": "9bd1f9b181d768ab4fa2581ea122f533915d019af45e212496d5b86869d148eb"
         },
         {
           "ref": "evaluation_trace_ref",
-          "id": "hcmnext.rules.promotion_approval_threshold@2026.1#grade-change-standard"
+          "id": "hcmnext.rules.promotion_approval_threshold@2026.2#grade-change-standard"
         }
       ]
     },
@@ -195,7 +195,7 @@
       "evidence": [
         {
           "ref": "workflow_result_id",
-          "id": "ev:bf42d4f5c79eedc51f218b02cdd10500"
+          "id": "ev:b4fc18999e89c86b488ad2001578a769"
         }
       ]
     }
@@ -323,13 +323,13 @@
     },
     {
       "name": "hcmnext.workflow.plan",
-      "version": "e6c9e4d8c23a7e0e61a39ba1d82d664afd3b39b36c8a860e0d7444a21d599afc"
+      "version": "7e41e8f3b2d6a81d38a6a32e4016dc899a75db086b7129adc0b69ebde10f5e16"
     },
     {
       "name": "hcmnext.workflow.simulate",
       "version": "hcmnext.workflow.simulate/v1"
     }
   ],
-  "zero_effect_digest": "b6b226875072576f83175d3d9e9f93c3e718f3b506391b5d61fc12c981dd3e84",
-  "digest": "21c325af415bca435cefe5287184715d192b0832ffa633dbeb3138df9586a1db"
+  "zero_effect_digest": "b803cb82f7e79879270d0d6292872b8485351b4e13361bb1856d335cc6508e24",
+  "digest": "c1c3e38a840cd90834fe9a76b2039102e68b6f2aa6d6e1a63fc3c86e4ab771b0"
 }

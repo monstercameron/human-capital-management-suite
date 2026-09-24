@@ -63,10 +63,11 @@ type AdvanceRequest struct {
 	// It never participates in replay identity or authorization.
 	Causal *CausalMetadata
 
-	// Revalidation is optional for legacy/non-material nodes. When present it
-	// is evaluated before Advance reads runtime state, and a changed fact is a
-	// typed refusal that cannot reach the node write path.
-	Revalidation *PromotionRevalidation
+	// Revalidation is the evidence evaluated against RevalidationKeys declared
+	// by the selected workflow registration. *PromotionRevalidation remains
+	// accepted during migration; new registrations use RevalidationEvidence.
+	Revalidation     any
+	RevalidationKeys []string
 
 	// SettleAs, when set, is the durable status a routed completion settles
 	// the node in instead of SUCCEEDED: SKIPPED or OVERRIDDEN. The route is
@@ -184,7 +185,30 @@ func Advance(ctx context.Context, tx Executor, req AdvanceRequest) (ret0 Advance
 		return AdvanceReceipt{}, err
 	}
 	if req.Revalidation != nil {
-		if _, err := EvaluatePromotionRevalidation(*req.Revalidation); err != nil {
+		var err error
+		switch evidence := req.Revalidation.(type) {
+		case *PromotionRevalidation:
+			if evidence == nil {
+				return AdvanceReceipt{}, refuse(CodeInvalidRecord, req.InstanceID.String(), req.Outcome.NodeID, "revalidation evidence is nil")
+			}
+			_, err = EvaluatePromotionRevalidation(*evidence)
+		case RevalidationEvidence:
+			if len(req.RevalidationKeys) == 0 {
+				return AdvanceReceipt{}, refuse(CodeInvalidRecord, req.InstanceID.String(), req.Outcome.NodeID, "generic revalidation requires registration-declared keys")
+			}
+			_, err = EvaluateRevalidation(req.RevalidationKeys, evidence)
+		case *RevalidationEvidence:
+			if evidence == nil {
+				return AdvanceReceipt{}, refuse(CodeInvalidRecord, req.InstanceID.String(), req.Outcome.NodeID, "revalidation evidence is nil")
+			}
+			if len(req.RevalidationKeys) == 0 {
+				return AdvanceReceipt{}, refuse(CodeInvalidRecord, req.InstanceID.String(), req.Outcome.NodeID, "generic revalidation requires registration-declared keys")
+			}
+			_, err = EvaluateRevalidation(req.RevalidationKeys, *evidence)
+		default:
+			return AdvanceReceipt{}, refuse(CodeInvalidRecord, req.InstanceID.String(), req.Outcome.NodeID, "unsupported revalidation evidence type %T", req.Revalidation)
+		}
+		if err != nil {
 			return AdvanceReceipt{}, err
 		}
 	}

@@ -2,11 +2,11 @@
   "interpreter_version": "hcmnext.workflow.simulate/v1",
   "compiler_version": "hcmnext.workflow.compiler/v1",
   "workflow_id": "hcmnext.workflows.promote_into_management",
-  "workflow_version": 1,
-  "plan_digest": "e6c9e4d8c23a7e0e61a39ba1d82d664afd3b39b36c8a860e0d7444a21d599afc",
+  "workflow_version": 2,
+  "plan_digest": "7e41e8f3b2d6a81d38a6a32e4016dc899a75db086b7129adc0b69ebde10f5e16",
   "mode": "SIMULATE",
   "terminal_profile": "SIMULATE_ONLY",
-  "inputs_digest": "1d4057ae2d586e9d7c81d97a95621aeb3ef391d5fb11fe7a807414e35ebce633",
+  "inputs_digest": "0bc0c1ce3456a108f3ac46da85ee4cae44a1da7b8066eded74dd36d0d932e018",
   "started_at": "2026-09-03T12:00:00Z",
   "ended_at": "2026-09-03T12:00:01.75Z",
   "elapsed_virtual_ns": 1750000000,
@@ -30,11 +30,11 @@
       "evidence": [
         {
           "ref": "capability_execution_id",
-          "id": "ev:a60a61aab694fdbbad3522def5096429"
+          "id": "ev:d7dc3d00956d42f38369e80168484e9c"
         },
         {
           "ref": "governance_decision_id",
-          "id": "ev:0a87f30d039bad24adfdb677a16ece63"
+          "id": "ev:681d5005e73bb886bc4669a0b3c230dc"
         },
         {
           "ref": "request_digest",
@@ -65,11 +65,11 @@
       "evidence": [
         {
           "ref": "capability_execution_id",
-          "id": "ev:0963fcfa0d8aa5ce3110f229df844117"
+          "id": "ev:adb1b84b2a5f42c72c087c77c94ddb39"
         },
         {
           "ref": "governance_decision_id",
-          "id": "ev:088f6affa10a56a53b6d4d3346295a24"
+          "id": "ev:38a78e27c604da884d0ca0f9690fa1b2"
         },
         {
           "ref": "request_digest",
@@ -100,11 +100,11 @@
       "evidence": [
         {
           "ref": "capability_execution_id",
-          "id": "ev:5ca53365d6f214b636f6eb5457a5d3b3"
+          "id": "ev:0bfc26d5ec2ed937c197a8904f829cac"
         },
         {
           "ref": "governance_decision_id",
-          "id": "ev:84ba4718120956740cd3f424de0105a3"
+          "id": "ev:62ce8047f5e06d9c2ec8a2534ad4ae87"
         },
         {
           "ref": "request_digest",
@@ -135,7 +135,7 @@
       "evidence": [
         {
           "ref": "transform_execution_id",
-          "id": "ev:abea0ccd5ea36f1338df49dc8a66e969"
+          "id": "ev:ef128d77ba82ba56a95e422d638b1aed"
         },
         {
           "ref": "input_digest",
@@ -160,21 +160,21 @@
       "outcome": "WITHIN_THRESHOLD",
       "route_key": "WITHIN_THRESHOLD",
       "next_node_id": "observe_projection",
-      "input_digest": "ca5b9d299ec7e32a2aca4b7b3928d4d36222eeef00c9406c2ce411a30c3dadfe",
+      "input_digest": "b435e20ecd8331142c5ed3200cd07b6fdad4da392c6be1a42b04a27704fc2b22",
       "output_digest": "87c91ae38d3d03565d36750c20d2b3b52b2e05f3b7eacc091dd9cd02e8542979",
-      "detail": "tier STANDARD from hcmnext.rules.promotion_approval_threshold@2026.1 row otherwise-standard (increase 9.0909%, band IN_BAND, budget SUFFICIENT)",
+      "detail": "published table hcmnext.rules.promotion_approval_threshold@2026.2#otherwise-standard",
       "evidence": [
         {
           "ref": "decision_id",
-          "id": "ev:b412ec0244f87ccdd74f72329e27f557"
+          "id": "ev:25f3f82686590b4beaee815015e47664"
         },
         {
           "ref": "evaluated_input_digest",
-          "id": "ca5b9d299ec7e32a2aca4b7b3928d4d36222eeef00c9406c2ce411a30c3dadfe"
+          "id": "b435e20ecd8331142c5ed3200cd07b6fdad4da392c6be1a42b04a27704fc2b22"
         },
         {
           "ref": "evaluation_trace_ref",
-          "id": "hcmnext.rules.promotion_approval_threshold@2026.1#otherwise-standard"
+          "id": "hcmnext.rules.promotion_approval_threshold@2026.2#otherwise-standard"
         }
       ]
     },
@@ -197,7 +197,7 @@
       "evidence": [
         {
           "ref": "observation_id",
-          "id": "ev:e2ad9b5de6aa124c90980c92ed96ad37"
+          "id": "ev:0573e352a0965921242a54ce97bad110"
         },
         {
           "ref": "source_watermark",
@@ -205,7 +205,7 @@
         },
         {
           "ref": "reconciliation_result_id",
-          "id": "ev:fc3553d22c60c5db945620ec7d712d78"
+          "id": "ev:267bbe9aa8c7dc86361263d261f39bab"
         }
       ]
     },
@@ -226,7 +226,7 @@
       "evidence": [
         {
           "ref": "workflow_result_id",
-          "id": "ev:fbf3d4d95e7018cfb84ddb4e815552be"
+          "id": "ev:a91502ce251441d91ae33225372bf152"
         }
       ]
     }
@@ -333,13 +333,13 @@
     },
     {
       "name": "hcmnext.workflow.plan",
-      "version": "e6c9e4d8c23a7e0e61a39ba1d82d664afd3b39b36c8a860e0d7444a21d599afc"
+      "version": "7e41e8f3b2d6a81d38a6a32e4016dc899a75db086b7129adc0b69ebde10f5e16"
     },
     {
       "name": "hcmnext.workflow.simulate",
       "version": "hcmnext.workflow.simulate/v1"
     }
   ],
-  "zero_effect_digest": "bf7b29a4824a665c9f46c2cf974c8e66e1abe0746e7e394806c707fd8f92d66c",
-  "digest": "9d14a338431b4c345801e2e5e11c9cc45a6bb808be5ada3fc728e4b18d77d422"
+  "zero_effect_digest": "35c69f20710a00897d823b016b1ab7d0bc0f3fd024acc1d4433ecaab895bb43d",
+  "digest": "7c80bd5516668bf1e7b94d9e40dd156adf86e4eb7ae96e48f2a4c9807984ecc5"
 }

@@ -70,14 +70,11 @@ type GuardedSteps struct {
 
 var _ execute.StepRunner = GuardedSteps{}
 
-const (
-	stepKeyPrefix    = "wf-step-effect:"
-	stepResultPrefix = "wf-step-result/v1:"
-)
+const stepResultPrefix = "wf-step-result/v1:"
 
 // StepEffectKey is the idempotency key of one node activation's effect.
 func StepEffectKey(instanceID uuid.UUID, nodeID string, attempt int) string {
-	return stepKeyPrefix + instanceID.String() + ":" + nodeID + ":" + strconv.Itoa(attempt)
+	return workflow.StepActivationKey(instanceID, nodeID, attempt)
 }
 
 // StepEffectRequest is the [Request] whose TX-006 coordinates guard one node

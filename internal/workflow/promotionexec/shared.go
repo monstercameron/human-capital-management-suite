@@ -15,5 +15,5 @@ import (
 // (WF-EXT-003), so a variant that starts here compiles through the same
 // compiler canonicalization and projection as the execute plan itself.
 func SharedGraph() ([]workflow.Node, []workflow.Edge) {
-	return promotionNodes(true), promotionEdges(true)
+	return promotionNodes(true, Version), promotionEdges(true)
 }

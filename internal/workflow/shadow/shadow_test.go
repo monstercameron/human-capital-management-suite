@@ -3,6 +3,7 @@ package shadow_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -70,13 +71,41 @@ func TestTodo_WF_RUN_014(t *testing.T) {
 
 func TestTodo_WF_RUN_014_Race(t *testing.T) {
 	p := plan(t)
-	contract, _ := shadow.ContractFor(intent.EnvironmentTest)
-	for i := 0; i < 4; i++ {
-		if _, err := shadow.Run(context.Background(), p, shadow.Options{Contract: contract, Steps: shadow.StepRunnerFunc(func(context.Context, shadow.StepRequest) (shadow.StepResult, error) {
-			return shadow.StepResult{Outcome: workflow.OutcomeSucceeded, TerminalCode: "DONE"}, nil
-		})}); err != nil {
+	contract, err := shadow.ContractFor(intent.EnvironmentTest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const workers = 8
+	var wg sync.WaitGroup
+	results := make(chan shadow.Result, workers)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result, err := shadow.Run(context.Background(), p, shadow.Options{Contract: contract, Steps: shadow.StepRunnerFunc(func(context.Context, shadow.StepRequest) (shadow.StepResult, error) {
+				return shadow.StepResult{Outcome: workflow.OutcomeSucceeded, TerminalCode: "DONE"}, nil
+			})})
+			results <- result
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		if err != nil {
 			t.Fatal(err)
 		}
+	}
+	completed := 0
+	for result := range results {
+		if result.Complete && result.Terminal.Code == shadow.TerminalNotExecuted {
+			completed++
+		}
+	}
+	if completed != workers {
+		t.Fatalf("concurrent shadow runs completed safely=%d, want %d", completed, workers)
 	}
 }
 

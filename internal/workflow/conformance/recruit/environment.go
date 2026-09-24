@@ -150,7 +150,7 @@ func (e *Environment) Registry() (*capability.Registry, error) {
 		{CapReadCapacity, "workforce", e.handleReadCapacity},
 		{CapVerifyOffer, "offers", e.handleVerifyOffer},
 		{CapObserveOffer, "offers", e.handleObserveOfferUnused},
-		{CapVerifyWorkAuth, "compliance", e.handleVerifyWorkAuth},
+		{CapVerifyWorkAuth, "documents", e.handleVerifyWorkAuth},
 		{CapCheckReadiness, "operations", e.handleCheckReadiness},
 	}
 	for _, entry := range entries {

@@ -37,6 +37,8 @@ const (
 	PromotionNodeEvaluateBand    = "evaluate_band"
 	PromotionNodeBuildProposal   = "build_proposal"
 	PromotionNodeRaiseThreshold  = "raise_threshold"
+	PromotionDecisionFactsIRID   = "transforms.promotion.project_decision_facts"
+	PromotionDecisionFactsIRVer  = "1"
 	PromotionNodeObserveDrift    = "observe_projection"
 	PromotionNodeEndSimulated    = "end_simulated_consistent"
 	PromotionNodeEndApproval     = "end_requires_finance_approval"
@@ -569,6 +571,69 @@ func CompilePromotionReference(registry CapabilityResolver) (*CompiledWorkflow, 
 		Phase:        PhaseP1A,
 		Capabilities: registry,
 	})
+}
+
+// CompilePromotionReferenceWithRules compiles the current version of the
+// reference workflow against an immutable rule payload resolver. Frozen v1
+// keeps its original two-input DECISION contract; v2 carries every threshold
+// factor as a declared, digest-pinned input and resolves the aliased table.
+func CompilePromotionReferenceWithRules(registry CapabilityResolver, references ReferenceResolver) (*CompiledWorkflow, error) {
+	definition := PromotionReferenceV2Definition()
+	opts, err := PromotionReferenceV2Options(registry, references)
+	if err != nil {
+		return nil, err
+	}
+	return Compile(definition, opts)
+}
+
+// PromotionReferenceV2Definition returns the current version of the reference
+// workflow. The original PromotionReferenceDefinition remains the frozen v1
+// publication; callers publishing or reproducing the simulator's current plan
+// must use this definition and its matching compilation options.
+func PromotionReferenceV2Definition() Definition {
+	definition := PromotionReferenceDefinition()
+	definition.Version = PromotionVersion + 1
+	definition.InputSchema = workflowSchema("PromoteIntoManagementInputV2")
+	definition.Inputs = append(definition.Inputs,
+		Field{Path: "budget_authority", Type: plainStr()},
+		Field{Path: "grade_change", Type: boolean()},
+	)
+	for i := range definition.Nodes {
+		node := &definition.Nodes[i]
+		if node.ID == PromotionNodeBuildProposal && node.Transform != nil {
+			node.Transform.ProgramRef = &VersionedRef{ID: PromotionDecisionFactsIRID, Version: PromotionDecisionFactsIRVer}
+			continue
+		}
+		if node.ID != PromotionNodeRaiseThreshold || node.Decision == nil {
+			continue
+		}
+		node.InputSchema = workflowSchema("RaiseThresholdInputV2")
+		node.Inputs = append(node.Inputs,
+			Field{Path: "increase_percent", Type: decimal()},
+			Field{Path: "budget_authority", Type: plainStr()},
+			Field{Path: "grade_change", Type: boolean()},
+		)
+		node.InputMappings = append(node.InputMappings,
+			Mapping{Target: "increase_percent", Source: fromNode(PromotionNodeBuildProposal, "raise_ratio")},
+			Mapping{Target: "budget_authority", Source: fromInput("budget_authority")},
+			Mapping{Target: "grade_change", Source: fromInput("grade_change")},
+		)
+		node.Decision.RuleVersion = "v3"
+	}
+	return definition
+}
+
+// PromotionReferenceV2Options binds the exact capability and reference
+// authorities required by PromotionReferenceV2Definition.
+func PromotionReferenceV2Options(registry CapabilityResolver, references ReferenceResolver) (Options, error) {
+	schemas, err := DeclaredSchemaResolver(PromotionReferenceV2Definition())
+	if err != nil {
+		return Options{}, err
+	}
+	return Options{
+		Phase: PhaseP1A, Capabilities: registry,
+		References: ComposeReferenceResolvers(references, schemas),
+	}, nil
 }
 
 // promotionCapabilityIDs is the exact set of capability versions the reference

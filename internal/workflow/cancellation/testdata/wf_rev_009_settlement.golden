@@ -1,0 +1,27 @@
+{
+  "effects": [
+    {
+      "effect_id": "a#1",
+      "state": "REVERSED",
+      "reason": "",
+      "decision_id": "00000000-0000-4000-8000-000000000001",
+      "evidence_digest": "sha256:golden"
+    },
+    {
+      "effect_id": "b#1",
+      "state": "KEPT",
+      "reason": "EFFECT_IRREVERSIBLE",
+      "decision_id": "00000000-0000-4000-8000-000000000001",
+      "evidence_digest": "sha256:golden"
+    },
+    {
+      "effect_id": "c#1",
+      "state": "UNRESOLVED",
+      "reason": "",
+      "decision_id": "00000000-0000-4000-8000-000000000001",
+      "evidence_digest": "sha256:golden"
+    }
+  ],
+  "business_state": "NOT_ACHIEVED",
+  "consistency_state": "DEGRADED"
+}

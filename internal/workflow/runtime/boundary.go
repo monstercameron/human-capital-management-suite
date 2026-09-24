@@ -33,9 +33,9 @@ const (
 	CodeReapprovalRequired = "REAPPROVAL_REQUIRED"
 )
 
-// ConflictKind identifies the competing workflow family in a hard-conflict
-// refusal. It is deliberately narrower than a free-form workflow id because
-// the acceptance contract names the four conflict families explicitly.
+// ConflictKind identifies the competing registered workflow family in a
+// hard-conflict refusal. Known Promotion-era values remain named constants;
+// other registrations may use their workflow id.
 type ConflictKind string
 
 const (
@@ -44,6 +44,60 @@ const (
 	ConflictKindLeave       ConflictKind = "LEAVE"
 	ConflictKindPromotion   ConflictKind = "PROMOTION"
 )
+
+// RevalidationEvidence contains the pinned and current values for the keys a
+// workflow registration declared as material at its revalidation boundary.
+type RevalidationEvidence struct {
+	Pinned  map[string]string
+	Current map[string]string
+}
+
+// ValidateRevalidationKeys checks a registration's immutable ordered key set.
+func ValidateRevalidationKeys(keys []string) error {
+	seen := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		if key == "" {
+			return refuse(CodeInvalidRecord, "", "", "revalidation key is empty")
+		}
+		if _, ok := seen[key]; ok {
+			return refuse(CodeInvalidRecord, "", "", "revalidation key %q is duplicated", key)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+// RevalidationResult is the evidence from one generic boundary check.
+type RevalidationResult struct {
+	Confirmed   bool
+	Requirement RevalidationRequirement
+	ChangedFact string
+	Explanation string
+}
+
+// EvaluateRevalidation applies a registration's ordered key declaration. A
+// missing side is malformed evidence; the first changed key determines the
+// route and therefore remains stable across retries.
+func EvaluateRevalidation(keys []string, evidence RevalidationEvidence) (RevalidationResult, error) {
+	if err := ValidateRevalidationKeys(keys); err != nil {
+		return RevalidationResult{}, err
+	}
+	for _, key := range keys {
+		pinned, hasPinned := evidence.Pinned[key]
+		current, hasCurrent := evidence.Current[key]
+		if !hasPinned || !hasCurrent {
+			return RevalidationResult{}, refuse(CodeInvalidRecord, "", "", "revalidation key %q requires pinned and current values", key)
+		}
+		if pinned != current {
+			return RevalidationResult{
+				Confirmed: false, Requirement: RevalidationReapprovalRequired, ChangedFact: key,
+				Explanation: fmt.Sprintf("%s changed from %q to %q; reapproval is required", key, pinned, current),
+			}, refuse(CodeReapprovalRequired, "", "", "%s changed from %q to %q; reapproval is required", key, pinned, current)
+		}
+	}
+	return RevalidationResult{Confirmed: true, Requirement: RevalidationConfirmed,
+		Explanation: "registered revalidation keys reproduce the pinned values"}, nil
+}
 
 // ConflictObservation is one current competing proposal returned by the
 // caller-owned conflict authority. The runtime performs the classification;
@@ -178,13 +232,8 @@ type PromotionRevalidation struct {
 	CurrentPolicyVersion   string
 }
 
-// PromotionRevalidationResult is the evidence from one pure boundary check.
-type PromotionRevalidationResult struct {
-	Confirmed   bool
-	Requirement RevalidationRequirement
-	ChangedFact string
-	Explanation string
-}
+// PromotionRevalidationResult preserves the pre-generic source name.
+type PromotionRevalidationResult = RevalidationResult
 
 // EvaluatePromotionRevalidation compares pinned approval/policy identities to
 // their current values without opening a transaction or reading a clock.

@@ -12,6 +12,7 @@ import (
 // be mistaken for another profile's digest.
 const (
 	planDigestProfile    = "hcmnext.workflow.CompiledWorkflow/v1"
+	planDigestProfileV2  = "hcmnext.workflow.CompiledWorkflow/v2"
 	mappingDigestProfile = "hcmnext.workflow.InputMappingSet/v1"
 )
 
@@ -39,7 +40,17 @@ func canonicalDigest(profile string, v any) string {
 // digest field is excluded from the canonical bytes, so recomputing over a
 // plan reproduces the digest it was minted with.
 func computePlanDigest(p *CompiledWorkflow) string {
-	return canonicalDigest(planDigestProfile, p)
+	if p == nil {
+		return canonicalDigest(planDigestProfile, p)
+	}
+	switch p.SchemaVersion() {
+	case 1:
+		return canonicalDigest(planDigestProfile, p)
+	case CurrentIRSchemaVersion:
+		return canonicalDigest(planDigestProfileV2, p)
+	default:
+		return canonicalDigest("hcmnext.workflow.CompiledWorkflow/unsupported", p)
+	}
 }
 
 // mappingDigest is the input-snapshot identity a DECISION or TRANSFORM records

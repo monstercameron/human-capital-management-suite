@@ -40,7 +40,7 @@ func (s *scriptCompensator) Compensate(_ context.Context, _ cancellation.Executo
 	if s.refuse[item.EffectID] {
 		return cancellation.CompensationResult{Compensated: false}, nil
 	}
-	return cancellation.CompensationResult{Compensated: true, EvidenceRef: "obs:" + item.EffectID}, nil
+	return cancellation.CompensationResult{Compensated: true, EvidenceRef: "obs:" + item.EffectID, EventRef: "comp-event:" + item.EffectID}, nil
 }
 
 func (s *scriptCompensator) order() []string {
@@ -83,8 +83,13 @@ func seedTwoSucceededAttempts(f *fixture, plan *workflow.CompiledWorkflow, front
 				return err
 			}
 			for _, s := range []runtime.NodeStatus{runtime.NodeRunning, runtime.NodeSucceeded} {
-				if _, version, err = store.RecordNodeTransition(ctx, tx, runtime.NodeTransition{TenantID: f.tenant,
-					InstanceID: inst.InstanceID, NodeID: nodeID, Attempt: attempt, ExpectedInstanceVersion: version, Status: s}); err != nil {
+				transition := runtime.NodeTransition{TenantID: f.tenant,
+					InstanceID: inst.InstanceID, NodeID: nodeID, Attempt: attempt, ExpectedInstanceVersion: version, Status: s}
+				if s == runtime.NodeSucceeded {
+					transition.Refs = runtime.GovernanceRefs{CapabilityExecutionID: "cap-exec:" + strconv.Itoa(attempt),
+						EffectRefs: []string{"effect-history:" + strconv.Itoa(attempt)}}
+				}
+				if _, version, err = store.RecordNodeTransition(ctx, tx, transition); err != nil {
 					return err
 				}
 			}
@@ -134,13 +139,9 @@ func TestTodo_WF_REV_001(t *testing.T) {
 	if obligation.Decision != workflow.CompensationRequired || len(obligation.CompensationRefs) != 2 {
 		t.Fatalf("obligation = %+v", obligation)
 	}
-	wantRefs := []string{
-		"execute_promotion#1=compensation.promotion.reverse@1",
-		"execute_promotion#2=compensation.promotion.reverse@1",
-	}
-	for i, want := range wantRefs {
-		if obligation.CompensationRefs[i] != want {
-			t.Fatalf("obligation refs = %v, want %v", obligation.CompensationRefs, wantRefs)
+	for _, ref := range obligation.CompensationRefs {
+		if !strings.HasPrefix(ref, "wf-compensation:v1:") {
+			t.Fatalf("obligation ref %q does not carry versioned original-effect provenance", ref)
 		}
 	}
 
@@ -159,6 +160,14 @@ func TestTodo_WF_REV_001(t *testing.T) {
 	for _, c := range comp.calls {
 		if c.ObligationID != obligation.DecisionID || c.Compensation != "compensation.promotion.reverse@1" {
 			t.Fatalf("presented item = %+v, want obligation binding", c)
+		}
+		if c.TenantID != f.tenant || c.WorkflowID != plan.WorkflowID || c.InstanceID != id || c.PlanDigest != plan.Digest() ||
+			c.OriginalScope.Tenant != f.tenant || c.OriginalScope.Capability != plan.WorkflowID ||
+			c.OriginalScope.EffectScope != workflow.NodeEffectScope(c.NodeID) ||
+			c.OriginalScope.Key != workflow.StepActivationKey(id, c.NodeID, c.Attempt) ||
+			c.CapabilityExecutionID != "cap-exec:"+strconv.Itoa(c.Attempt) ||
+			len(c.OriginalEffectRefs) != 1 || c.OriginalEffectRefs[0] != "effect-history:"+strconv.Itoa(c.Attempt) {
+			t.Fatalf("discharge lost or changed original effect provenance: %+v", c)
 		}
 	}
 	if len(out.CompensationRefs) != 0 || out.StatusBefore != runtime.InstanceCancelling || out.Evidence.Digest == "" ||
@@ -180,6 +189,10 @@ func TestTodo_WF_REV_001(t *testing.T) {
 		}
 		if n.OutputArtifactRef != "obs:"+n.NodeID+"#"+strconv.Itoa(n.Attempt) {
 			t.Fatalf("node %s attempt %d evidence = %q", n.NodeID, n.Attempt, n.OutputArtifactRef)
+		}
+		if len(n.Refs.EffectRefs) != 2 || n.Refs.EffectRefs[0] != "effect-history:"+strconv.Itoa(n.Attempt) ||
+			n.Refs.EffectRefs[1] != "comp-event:"+n.NodeID+"#"+strconv.Itoa(n.Attempt) {
+			t.Fatalf("node %s attempt %d refs = %v, want source plus compensation event", n.NodeID, n.Attempt, n.Refs.EffectRefs)
 		}
 	}
 	recs := f.decisions(id)

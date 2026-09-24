@@ -32,6 +32,7 @@ package cancellation
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -43,6 +44,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -73,6 +75,46 @@ type CompensationItem struct {
 	Attempt int
 	// Compensation is the published compensation reference that releases it.
 	Compensation string
+	// Provenance binds the inverse to the original guarded workflow effect.
+	TenantID              uuid.UUID
+	WorkflowID            string
+	InstanceID            uuid.UUID
+	PlanDigest            string
+	CapabilityExecutionID string
+	OriginalScope         idempotency.Scope
+	OriginalEffectRefs    []string
+}
+
+const obligationHistoryPrefix = "wf-compensation:v1:"
+
+type obligationHistory struct {
+	EffectID     string        `json:"effect_id"`
+	Compensation string        `json:"compensation"`
+	History      effectHistory `json:"history"`
+}
+
+func encodeObligationHistory(history effectHistory, effectID, compensation string) (string, error) {
+	b, err := json.Marshal(obligationHistory{EffectID: effectID, Compensation: compensation, History: history})
+	if err != nil {
+		return "", err
+	}
+	return obligationHistoryPrefix + base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func decodeObligationHistory(raw string) (obligationHistory, bool) {
+	encoded, ok := strings.CutPrefix(raw, obligationHistoryPrefix)
+	if !ok {
+		return obligationHistory{}, false
+	}
+	b, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return obligationHistory{}, false
+	}
+	var value obligationHistory
+	if err := json.Unmarshal(b, &value); err != nil || value.EffectID == "" || value.Compensation == "" || value.History.TenantID == uuid.Nil {
+		return obligationHistory{}, false
+	}
+	return value, true
 }
 
 // CompensationResult is the observed outcome of one compensation.
@@ -82,6 +124,9 @@ type CompensationResult struct {
 	// EvidenceRef binds the observation. Required when Compensated: an
 	// unbound compensation is not durable evidence and is refused.
 	EvidenceRef string
+	// EventRef is the stable identity returned by the compensation ledger.
+	// A discharge cannot close an effect without naming this event.
+	EventRef string
 }
 
 // Compensator runs one compensation and observes its result. It receives the
@@ -234,6 +279,19 @@ func parseObligation(obligation Outcome) []obligationItem {
 	for _, raw := range obligation.CompensationRefs {
 		item := obligationItem{raw: raw}
 		item.ObligationID = obligation.DecisionID
+		if packed, ok := decodeObligationHistory(raw); ok {
+			item.EffectID, item.Compensation = packed.EffectID, packed.Compensation
+			item.TenantID = packed.History.TenantID
+			item.WorkflowID = packed.History.WorkflowID
+			item.InstanceID = packed.History.InstanceID
+			item.PlanDigest = packed.History.PlanDigest
+			item.CapabilityExecutionID = packed.History.CapabilityExecutionID
+			item.OriginalScope = packed.History.Scope
+			item.OriginalEffectRefs = append([]string(nil), packed.History.EffectRefs...)
+			item.NodeID, item.Attempt = parseEffectCoordinates(item.EffectID)
+			items = append(items, item)
+			continue
+		}
 		id, compensation, ok := strings.Cut(raw, "=")
 		if !ok || strings.TrimSpace(id) == "" || strings.TrimSpace(compensation) == "" {
 			item.EffectID = raw
@@ -245,16 +303,26 @@ func parseObligation(obligation Outcome) []obligationItem {
 			items = append(items, item)
 			continue
 		}
-		hash := strings.LastIndex(id, "#")
-		attempt, err := strconv.Atoi(id[hash+1:])
-		if hash < 0 || err != nil || attempt < 1 {
+		item.NodeID, item.Attempt = parseEffectCoordinates(id)
+		if item.NodeID == "" {
 			items = append(items, item)
 			continue
 		}
-		item.NodeID, item.Attempt = id[:hash], attempt
 		items = append(items, item)
 	}
 	return items
+}
+
+func parseEffectCoordinates(effectID string) (string, int) {
+	hash := strings.LastIndex(effectID, "#")
+	if hash < 0 {
+		return "", 0
+	}
+	attempt, err := strconv.Atoi(effectID[hash+1:])
+	if err != nil || attempt < 1 || hash == 0 {
+		return "", 0
+	}
+	return effectID[:hash], attempt
 }
 
 // compensateOne runs one obligation item. It reports done with an empty
@@ -277,6 +345,21 @@ func (d discharger) compensateOne(ctx context.Context, ex Executor, inst runtime
 		// the recorded COMPENSATED transition as this item's discharge.
 		return "", true, nil
 	}
+	// The decision envelope is checked against the locked instance and the
+	// source execution row before any inverse is presented. Legacy obligations
+	// reconstruct the same coordinates from those authoritative rows.
+	expectedScope := idempotency.Scope{Tenant: inst.TenantID, Capability: inst.WorkflowID,
+		EffectScope: workflow.NodeEffectScope(item.NodeID),
+		Key:         workflow.StepActivationKey(inst.InstanceID, item.NodeID, item.Attempt)}
+	if item.TenantID != uuid.Nil && (item.TenantID != inst.TenantID || item.WorkflowID != inst.WorkflowID ||
+		item.InstanceID != inst.InstanceID || item.PlanDigest != inst.CompiledPlanHash || item.OriginalScope != expectedScope ||
+		!equalStrings(item.OriginalEffectRefs, exec.Refs.EffectRefs) || item.CapabilityExecutionID != exec.Refs.CapabilityExecutionID) {
+		return "obligation provenance does not match its source execution", false, nil
+	}
+	item.TenantID, item.WorkflowID, item.InstanceID = inst.TenantID, inst.WorkflowID, inst.InstanceID
+	item.PlanDigest, item.OriginalScope = inst.CompiledPlanHash, expectedScope
+	item.CapabilityExecutionID = exec.Refs.CapabilityExecutionID
+	item.OriginalEffectRefs = append([]string(nil), exec.Refs.EffectRefs...)
 	if exec.Status != runtime.NodeSucceeded {
 		return fmt.Sprintf("effect execution is %s, not a settled success", exec.Status), false, nil
 	}
@@ -290,16 +373,33 @@ func (d discharger) compensateOne(ctx context.Context, ex Executor, inst runtime
 	if strings.TrimSpace(res.EvidenceRef) == "" {
 		return "compensation reported no observation evidence", false, nil
 	}
+	if strings.TrimSpace(res.EventRef) == "" {
+		return "compensation reported no stable event reference", false, nil
+	}
+	effectRefs := append([]string(nil), exec.Refs.EffectRefs...)
+	effectRefs = append(effectRefs, res.EventRef)
 	_, next, err := (runtime.Store{}).RecordNodeTransition(ctx, ex, runtime.NodeTransition{
 		TenantID: inst.TenantID, InstanceID: inst.InstanceID, NodeID: item.NodeID, Attempt: item.Attempt,
 		ExpectedInstanceVersion: *version, Status: runtime.NodeCompensated,
-		OutputArtifactRef: res.EvidenceRef, CompletedAt: &at,
+		OutputArtifactRef: res.EvidenceRef, Refs: runtime.GovernanceRefs{EffectRefs: effectRefs}, CompletedAt: &at,
 	})
 	if err != nil {
 		return "", false, fmt.Errorf("workflow cancellation: record compensation of %s: %w", item.EffectID, err)
 	}
 	*version = next
 	return "", true, nil
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // cancelled closes timers and open work items exactly as a clean cancel does,

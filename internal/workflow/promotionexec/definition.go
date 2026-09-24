@@ -11,13 +11,11 @@ const (
 	// WorkflowID is the published identity of the executable promotion flow.
 	WorkflowID = "hcmnext.workflows.promotion.execute"
 	// Version is the immutable definition version of the current graph,
-	// published as [SemanticVersion]. Version 1 ([VersionV1_0], published as
-	// [SemanticVersionV1_0]) is frozen in definition_v1.go so instances
-	// pinned to it keep resuming after 1.1.0 is activated.
-	Version = 2
+	// published as [SemanticVersion]. Versions 1 and 2 are frozen alongside it.
+	Version = 3
 	// SemanticVersion is the human-facing identity [Definition] publishes as:
-	// 1.1.0 adds the two provider-confirmation SIGNAL waits.
-	SemanticVersion = "1.1.0"
+	// 1.2.0 updates the execute capability binding and provider-confirmation flow.
+	SemanticVersion = "1.2.0"
 
 	ApprovalFinance = "approval.promotion.finance_partner/v1"
 	ApprovalManager = "approval.promotion.current_manager/v1"
@@ -111,6 +109,14 @@ func capabilitySchema(id, slot string) workflow.SchemaRef {
 	}
 }
 
+func capabilitySchemaV2(id, slot string) workflow.SchemaRef {
+	return workflow.SchemaRef{
+		SchemaID:         id + "." + slot + "/v2",
+		Version:          2,
+		ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition",
+	}
+}
+
 func brandedString(brand string) workflow.ValueType {
 	return workflow.ValueType{Kind: workflow.KindString, Brand: brand}
 }
@@ -199,7 +205,7 @@ func terminalNode(id, code string, status workflow.RuntimeStatus, dims map[strin
 }
 
 // Definition returns the complete documented P1B promotion graph, version
-// 1.1.0. Its declared modes are both EXECUTE and SIMULATE; Compile and
+// 1.2.0. Its declared modes are both EXECUTE and SIMULATE; Compile and
 // CompileSimulation create the corresponding mode-specific compiler
 // projections.
 func Definition() workflow.Definition {
@@ -207,8 +213,8 @@ func Definition() workflow.Definition {
 }
 
 // promotionDefinition builds the promotion graph. providerWaits adds the two
-// 1.1.0 provider-confirmation SIGNAL waits; without them the graph is the
-// frozen 1.0.0 shape ([DefinitionV1_0]).
+// provider-confirmation SIGNAL waits; without them the graph is the frozen
+// 1.0.0 shape ([DefinitionV1_0]).
 func promotionDefinition(definitionVersion uint32, providerWaits bool) workflow.Definition {
 	return workflow.Definition{
 		WorkflowID:        WorkflowID,
@@ -240,12 +246,18 @@ func promotionDefinition(definitionVersion uint32, providerWaits bool) workflow.
 		CancellationPolicyRef: "policy.workflow.cancellation.promotion.execute/v1",
 		MigrationPolicyRef:    "policy.workflow.migration.pinned/v1",
 		RetentionPolicyRef:    "policy.workflow.retention.confidential-hr/v1",
-		Nodes:                 promotionNodes(providerWaits),
+		Nodes:                 promotionNodes(providerWaits, definitionVersion),
 		Edges:                 promotionEdges(providerWaits),
 	}
 }
 
-func promotionNodes(providerWaits bool) []workflow.Node {
+func promotionNodes(providerWaits bool, definitionVersion uint32) []workflow.Node {
+	executeCapabilityVersion := uint32(2)
+	executeSchema := capabilitySchemaV2
+	if definitionVersion < Version {
+		executeCapabilityVersion = 1
+		executeSchema = capabilitySchema
+	}
 	nodes := []workflow.Node{
 		{
 			ID: NodeSnapshotWorker, Type: workflow.StepCapability,
@@ -345,11 +357,11 @@ func promotionNodes(providerWaits bool) []workflow.Node {
 			// same commit; from 1.1.0 the run waits for each provider's
 			// confirmation before observing and reconciling them.
 			ID: NodeExecutePromotion, Type: workflow.StepCapability, SafePointRequested: true, DeclaredEffect: capability.EffectInternalMutation, EffectRole: workflow.RoleAuthoritativeCore,
-			InputSchema: capabilitySchema(capExecute, "request"), OutputSchema: capabilitySchema(capExecute, "response"),
+			InputSchema: executeSchema(capExecute, "request"), OutputSchema: executeSchema(capExecute, "response"),
 			Inputs:        []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "target_job_id", Type: brandedString("JobID")}, {Path: "proposed_base_pay", Type: money()}, {Path: "effective_date", Type: localDate()}, {Path: "proposal_digest", Type: plainString()}},
 			Outputs:       []workflow.Field{{Path: "worker_id", Type: brandedString("WorkerID")}, {Path: "commit_receipt", Type: plainString()}, {Path: "promotion_state", Type: plainString()}},
 			InputMappings: []workflow.Mapping{{Target: "worker_id", Source: output(NodeSnapshotWorker, "worker_id")}, {Target: "target_job_id", Source: input("target_job_id")}, {Target: "proposed_base_pay", Source: input("proposed_base_pay")}, {Target: "effective_date", Source: input("effective_date")}, {Target: "proposal_digest", Source: output(NodeSimulateCompensation, "proposal_digest")}},
-			Capability:    &workflow.CapabilityRef{ID: capExecute, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:people.write"}, IdempotencyKeyMapping: "proposal_digest", EffectBinding: "promotion.core_commit"},
+			Capability:    &workflow.CapabilityRef{ID: capExecute, Version: executeCapabilityVersion, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:people.write"}, IdempotencyKeyMapping: "proposal_digest", EffectBinding: "promotion.core_commit"},
 			FailureRoute:  NodeEndRepairPlan,
 			Governance:    invocation([]string{ApprovalFinance, ApprovalManager}, workflow.RevalidatePreEffect),
 			// The core commit simulates as a read. The compiler derives the
@@ -569,34 +581,10 @@ func providerWaitEdges(from, observation string) []workflow.Edge {
 	}
 }
 
-type staticCapabilities map[capability.Key]capability.Record
-
-func (r staticCapabilities) Lookup(key capability.Key) (capability.Record, bool) {
-	record, ok := r[key]
-	return record, ok
-}
-
-func capabilityRecord(id, owner string, effect capability.EffectClass, scope string) capability.Record {
-	return capability.Record{Definition: capability.Definition{ID: id, Version: 1, OwnerDomain: owner, RequestSchema: capability.SchemaRef{SchemaID: id + ".request/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, ResponseSchema: capability.SchemaRef{SchemaID: id + ".response/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, ErrorSchema: capability.SchemaRef{SchemaID: id + ".error/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, EffectClass: effect, IdempotencyPolicyRef: "idempotency.promotion." + owner + ".v1", AuthZScopeRef: scope, LegalBasisRef: "legal.promotion.execution/v1", EntitlementRef: "entitlement.promotion.execution/v1", SLOClassRef: "slo.promotion.execution/v1", TestRef: "conformance:" + id + "/v1"}, Status: capability.StatusActive, Digest: "sha256:promotionexec-" + owner}
-}
-
 // capabilities resolves the capability versions the graph binds. One table
 // serves both modes: the compiler derives the SIMULATE projection from each
 // write node's declared mode overlay (WF-EXT-003), so the table states the
 // executable truth and never a second hand-maintained simulation copy.
-func capabilities() workflow.CapabilityResolver {
-	return staticCapabilities{
-		{ID: capSnapshotWorker, Version: 1}: capabilityRecord(capSnapshotWorker, "people", capability.EffectReadOnly, "scope:people.read"),
-		{ID: capSimulate, Version: 1}:       capabilityRecord(capSimulate, "rewards", capability.EffectReadOnly, "scope:rewards.read"),
-		{ID: capEvaluateBand, Version: 1}:   capabilityRecord(capEvaluateBand, "rewards", capability.EffectReadOnly, "scope:rewards.read"),
-		{ID: capRevalidate, Version: 1}:     capabilityRecord(capRevalidate, "governance", capability.EffectReadOnly, "scope:governance.read"),
-		{ID: capExecute, Version: 1}:        capabilityRecord(capExecute, "people", capability.EffectInternalMutation, "scope:people.write"),
-		{ID: capObservePayroll, Version: 1}: capabilityRecord(capObservePayroll, "payroll", capability.EffectReadOnly, "scope:observation.read"),
-		{ID: capObserveAccess, Version: 1}:  capabilityRecord(capObserveAccess, "access", capability.EffectReadOnly, "scope:observation.read"),
-		{ID: capObserveRecon, Version: 1}:   capabilityRecord(capObserveRecon, "reconciliation", capability.EffectReadOnly, "scope:observation.read"),
-		{ID: capReleaseHold, Version: 1}:    capabilityRecord(capReleaseHold, "rewards", capability.EffectInternalMutation, "scope:rewards.write"),
-	}
-}
 
 // Compile compiles the EXECUTE projection through the workflow compiler,
 // which canonicalizes the nodes' declared outcome aliases (WF-EXT-003).
@@ -607,7 +595,11 @@ func Compile(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, er
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities()})
+	registry, err := capabilityRegistry()
+	if err != nil {
+		return nil, err
+	}
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: registry})
 }
 
 // CompileSimulation compiles the zero-effect SIMULATE projection while
@@ -619,7 +611,11 @@ func CompileSimulation(definitions ...workflow.Definition) (*workflow.CompiledWo
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities(), SimulateProjection: true})
+	registry, err := capabilityRegistry()
+	if err != nil {
+		return nil, err
+	}
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: registry, SimulateProjection: true})
 }
 
 // NodeOrder returns the deterministic documented order used by the package's

@@ -51,7 +51,9 @@ func promotionPlan(t *testing.T) *workflow.CompiledWorkflow {
 	if err != nil {
 		t.Fatalf("bootstrap capability registry: %v", err)
 	}
-	plan, err := workflow.CompilePromotionReference(registry)
+	plan, err := workflow.Compile(workflow.PromotionReferenceDefinition(), workflow.Options{
+		Phase: workflow.PhaseP1A, Capabilities: registry, IRSchemaVersion: 1,
+	})
 	if err != nil {
 		t.Fatalf("compile Promotion fixture: %v", err)
 	}

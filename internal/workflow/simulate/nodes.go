@@ -372,3 +372,7 @@ func (s *invocationSink) RecordInvocation(_ context.Context, evt capability.Invo
 	})
 	return "ev:" + full[:32], nil
 }
+
+func (s *invocationSink) RecordInvocationTx(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
+	return s.RecordInvocation(ctx, evt)
+}

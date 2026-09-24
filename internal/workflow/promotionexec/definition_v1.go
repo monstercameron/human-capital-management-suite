@@ -4,9 +4,9 @@ import "github.com/monstercameron/human-capital-management-suite/internal/workfl
 
 // Version 1.0.0 of the promotion graph, frozen.
 //
-// 1.1.0 ([Definition]) inserts the two provider-confirmation waits. Instances
+// 1.1.0 inserts the two provider-confirmation waits. Instances
 // started on 1.0.0 stay pinned to its compiled-plan digest for their whole
-// life, so the composition keeps serving this exact plan beside 1.1.0: it must
+// life, so the composition keeps serving this exact plan beside newer versions: it must
 // keep compiling to the digest those instances pinned
 // (655535f1e484991a79562a292eb21374381b1e757e115a3ec53eb25ce61679d7), and the
 // package golden test holds it there. Never edit the 1.0.0 shape; publish a
@@ -31,13 +31,13 @@ func CompileV1_0(definitions ...workflow.Definition) (*workflow.CompiledWorkflow
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return Compile(def)
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: frozenV1CapabilitySnapshot{}, IRSchemaVersion: 1})
 }
 
 // CompileSimulationV1_0 compiles the zero-effect SIMULATE projection of the
 // frozen 1.0.0 graph.
 func CompileSimulationV1_0() (*workflow.CompiledWorkflow, error) {
-	return CompileSimulation(DefinitionV1_0())
+	return workflow.Compile(DefinitionV1_0(), workflow.Options{Phase: workflow.PhaseP1B, Capabilities: frozenV1CapabilitySnapshot{}, SimulateProjection: true, IRSchemaVersion: 1})
 }
 
 // NodeOrderV1_0 is the compiler reachability order of the frozen 1.0.0 plan.

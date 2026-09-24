@@ -3,7 +3,7 @@ package promotionexec
 import (
 	"fmt"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/promotionapproval"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	steptask "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/task"
@@ -42,7 +42,7 @@ func ReapprovalOutputSchema() workflow.SchemaRef {
 //
 // Its signature matches execute.TaskResumePolicy.NodeFor exactly, so the
 // served composition names it directly instead of through an adapter.
-func ReapprovalTaskContract(selection runtime.WorkflowSelection, planNode workflow.CompiledNode, item workitem.WorkItem) (steptask.CompiledTaskNode, error) {
+func ReapprovalTaskContract(selection runtime.WorkflowSelection, planNode workflow.CompiledNode, item promotionapproval.WorkItem) (steptask.CompiledTaskNode, error) {
 	if planNode.ID != NodeReapproval {
 		return steptask.CompiledTaskNode{}, fmt.Errorf("%w: node %q is not the served reapproval TASK", steptask.ErrBindingMismatch, planNode.ID)
 	}

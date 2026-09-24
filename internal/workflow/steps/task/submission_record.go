@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/candidate"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
@@ -127,7 +127,7 @@ func DecodeSubmission(body json.RawMessage) (Submission, error) {
 	}
 	s := Submission{
 		WorkflowInstanceID: instanceID, NodeID: w.NodeID, WorkItemID: workItemID, ItemVersion: w.ItemVersion,
-		CompletedBy: w.CompletedBy, CandidateVia: humanwork.CandidateSource(w.CandidateVia), DelegationID: w.DelegationID,
+		CompletedBy: w.CompletedBy, CandidateVia: candidate.Source(w.CandidateVia), DelegationID: w.DelegationID,
 		ClaimID: claimID, ClaimExpiresAt: claimExpiresAt, SubmittedAt: submittedAt,
 		OutputSchema: workflow.SchemaRef{
 			SchemaID: w.OutputSchema.SchemaID, Version: w.OutputSchema.Version,

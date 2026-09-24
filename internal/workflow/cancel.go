@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/subworkflow"
 )
@@ -45,6 +48,16 @@ type EffectRecord struct {
 	Compensation string `json:"compensation"`
 	Correction   string `json:"correction,omitempty"`
 	Ambiguous    bool   `json:"ambiguous,omitempty"`
+}
+
+// NodeEffectScope is the semantic idempotency scope a served node declares.
+// It lives in this lower workflow package so recovery and cancellation derive
+// the same coordinates without depending on one another.
+func NodeEffectScope(nodeID string) string { return "workflow-node:" + nodeID }
+
+// StepActivationKey is the idempotency key of one node activation attempt.
+func StepActivationKey(instanceID uuid.UUID, nodeID string, attempt int) string {
+	return "wf-step-effect:" + instanceID.String() + ":" + nodeID + ":" + strconv.Itoa(attempt)
 }
 
 // EffectVerdict is one effect's cancellation verdict. Every committed

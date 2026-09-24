@@ -31,6 +31,10 @@ type WorkflowSelection struct {
 	WorkflowID string
 	Pin        version.Pin
 	Plan       *workflow.CompiledWorkflow
+	// RevalidationKeys are the immutable keys declared by this registration.
+	// The execution driver loads their pinned/current evidence before each
+	// advancement and the runtime evaluates it using EvaluateRevalidation.
+	RevalidationKeys []string
 }
 
 // WorkflowResolver looks up which workflow_id and pin a [StartRequest] binds,

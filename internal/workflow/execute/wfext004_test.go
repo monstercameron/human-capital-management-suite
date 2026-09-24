@@ -170,13 +170,16 @@ func wfext004Definition() workflow.Definition {
 					{Path: "score", Type: workflow.ValueType{Kind: workflow.KindDecimal}},
 					{Path: "worker_id", Type: wfext004BrandedString("WorkerID")},
 					{Path: "kind", Type: workflow.ValueType{Kind: workflow.KindString}},
+					{Path: "jurisdiction", Type: workflow.ValueType{Kind: workflow.KindString}},
 				},
+				RequiredContext: []workflow.ContextRequirement{{Kind: "LegalContext", FieldPaths: []string{"jurisdiction"}, Purpose: "WF_EXT_004_CONTEXT", MaximumClassification: "CONFIDENTIAL_HR", MaxAgeSeconds: 3600, Pinned: true, MissingBehavior: workflow.MissingFail}},
 				InputMappings: []workflow.Mapping{
 					{Target: "score", Source: workflow.Source{Kind: workflow.SourceNodeOutput, NodeID: wfext004NodeCompute, Path: "score"}},
 					{Target: "worker_id", Source: workflow.Source{Kind: workflow.SourceWorkflowInput, Path: "worker_id"}},
 					{Target: "kind", Source: workflow.Source{
 						Kind: workflow.SourceConstant, Constant: "PROMOTION", Type: workflow.ValueType{Kind: workflow.KindString},
 					}},
+					{Target: "jurisdiction", Source: workflow.Source{Kind: workflow.SourceContext, ContextKind: "LegalContext", Path: "jurisdiction", Type: workflow.ValueType{Kind: workflow.KindString}}},
 				},
 				Transform:      wfext004TransformSpec("transform.test.wfext004.apply/v1"),
 				DeclaredEffect: capability.EffectPure, Governance: wfext004Governance("WF_EXT_004_APPLY"),
@@ -409,12 +412,14 @@ func newWFEXT004Fixture(t *testing.T, key string) wfext004Fixture {
 		ProposalFacts: runtime.MemoryProposalFacts{}, ApprovalFacts: approvedStartFacts(proposal),
 		ExpectedIntentID: intentID, BusinessSubjectRefs: []string{"employment:wfext004-" + key},
 		ExecutionMode: workflow.ModeExecute, CorrelationID: "corr:wfext004-" + key, CreatedAt: at,
+		ResolvedContext: map[string]string{"LegalContext": "legal-context:wfext004/" + key},
 	}
 	execReq := execute.ExecuteRequest{
 		Start: start,
 		Inputs: []workflow.TypedOutput{
 			{Path: "worker_id", Value: workflow.TypedValue{Type: wfext004BrandedString("WorkerID"), Text: "worker:wfext004-" + key}},
 		},
+		Contexts: []runtime.TypedContextSnapshot{{Kind: "LegalContext", Reference: "legal-context:wfext004/" + key, Values: []runtime.TypedArtifactValue{{Path: "jurisdiction", Type: workflow.ValueType{Kind: workflow.KindString}, Value: "US-NY"}}}},
 	}
 	req := wfext004Requirement(at)
 	return wfext004Fixture{
@@ -523,8 +528,8 @@ func TestTodo_WF_EXT_004(t *testing.T) {
 	if !steps.applyCalled {
 		t.Fatal("apply was never dispatched")
 	}
-	if len(steps.applyInputs) != 3 {
-		t.Fatalf("apply inputs = %+v, want exactly 3 (score, worker_id, kind)", steps.applyInputs)
+	if len(steps.applyInputs) != 4 {
+		t.Fatalf("apply inputs = %+v, want exactly 4 (score, worker_id, kind, jurisdiction)", steps.applyInputs)
 	}
 	if v := steps.applyInputs["score"]; v.Text != "87.5000" || v.Type.Kind != workflow.KindDecimal {
 		t.Errorf("apply score input = %+v, want DECIMAL 87.5000", v)
@@ -534,6 +539,9 @@ func TestTodo_WF_EXT_004(t *testing.T) {
 	}
 	if v := steps.applyInputs["kind"]; v.Text != "PROMOTION" {
 		t.Errorf("apply kind input = %+v, want the constant PROMOTION", v)
+	}
+	if v := steps.applyInputs["jurisdiction"]; v.Text != "US-NY" || v.Type.Kind != workflow.KindString {
+		t.Errorf("apply jurisdiction input = %+v, want typed context value US-NY", v)
 	}
 
 	instanceID := parked.Start.InstanceID
@@ -559,6 +567,15 @@ func TestTodo_WF_EXT_004(t *testing.T) {
 	}
 	if inputRows != 1 {
 		t.Fatalf("workflow input artifact rows = %d, want 1", inputRows)
+	}
+	// A typed context snapshot cannot be substituted independently of the
+	// proof reference pinned into the start request, even on an idempotent
+	// replay after the workflow has completed.
+	forged := f.execRequest
+	forged.Contexts = append([]runtime.TypedContextSnapshot(nil), f.execRequest.Contexts...)
+	forged.Contexts[0].Reference = "legal-context:forged"
+	if _, err := drv.Execute(ctx, forged); err == nil || !strings.Contains(err.Error(), "does not match the start proof reference") {
+		t.Fatalf("Execute with mismatched context proof reference error = %v, want a bound-reference refusal", err)
 	}
 }
 
@@ -589,14 +606,17 @@ func TestTodo_WF_EXT_004_Recovery(t *testing.T) {
 	if final.Status != execute.StatusComplete {
 		t.Fatalf("Resume result = %+v, want COMPLETE", final)
 	}
-	if !freshSteps.applyCalled || len(freshSteps.applyInputs) != 3 {
-		t.Fatalf("fresh runner's apply inputs = %+v, want exactly 3", freshSteps.applyInputs)
+	if !freshSteps.applyCalled || len(freshSteps.applyInputs) != 4 {
+		t.Fatalf("fresh runner's apply inputs = %+v, want exactly 4", freshSteps.applyInputs)
 	}
 	if v := freshSteps.applyInputs["score"]; v.Text != "87.5000" {
 		t.Errorf("recovered apply score input = %+v, want 87.5000 (from the durable artifact, not memory)", v)
 	}
 	if v := freshSteps.applyInputs["worker_id"]; v.Text != "worker:wfext004-recovery" {
 		t.Errorf("recovered apply worker_id input = %+v, want worker:wfext004-recovery", v)
+	}
+	if v := freshSteps.applyInputs["jurisdiction"]; v.Text != "US-NY" {
+		t.Errorf("recovered apply context = %+v, want US-NY", v)
 	}
 
 	t.Run("tamper is impossible through SQL", func(t *testing.T) {

@@ -49,19 +49,10 @@ type Request struct {
 	CorrelationID string
 }
 
-const (
-	// effectScopePrefix is the prefix every node effect scope carries, so an
-	// operator reading an idempotency_record row can tell a workflow node
-	// effect from any other guarded effect at a glance.
-	effectScopePrefix = "workflow-node:"
-	// attemptKeyPrefix is the prefix of the derived idempotency key.
-	attemptKeyPrefix = "wf-node-effect:"
-)
-
 // EffectScopeFor is the semantic effect scope one node's business effect is
 // guarded under. It names the node and nothing else -- not the attempt, and
 // not the worker.
-func EffectScopeFor(nodeID string) string { return effectScopePrefix + nodeID }
+func EffectScopeFor(nodeID string) string { return workflow.NodeEffectScope(nodeID) }
 
 // AttemptKey is the attempt-independent idempotency key one node's business
 // effect is guarded under.
@@ -73,7 +64,7 @@ func EffectScopeFor(nodeID string) string { return effectScopePrefix + nodeID }
 // either a replay (same digest) or an IDEMPOTENCY_CONFLICT (different
 // digest).
 func AttemptKey(instanceID uuid.UUID, nodeID string) string {
-	return attemptKeyPrefix + instanceID.String() + ":" + nodeID
+	return "wf-node-effect:" + instanceID.String() + ":" + nodeID
 }
 
 // Scope is the TX-006 uniqueness scope this request's effect is guarded

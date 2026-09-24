@@ -189,17 +189,22 @@ func newPromotionFixture(t *testing.T, tenant values.TenantId, intentID string) 
 	if err != nil {
 		t.Fatalf("NewPromotionSetup: %v", err)
 	}
-	versions, _ := publishedActiveVersion(t, workflow.PromotionReferenceDefinition(), setup.Plan, setup.Options.Capabilities)
+	definition := workflow.PromotionReferenceDefinition()
+	plan, err := workflow.Compile(definition, workflow.Options{Phase: workflow.PhaseP1A, Capabilities: setup.Options.Capabilities})
+	if err != nil {
+		t.Fatalf("compile the published promotion definition: %v", err)
+	}
+	versions, _ := publishedActiveVersion(t, definition, plan, setup.Options.Capabilities)
 	rev := newTestProposalRevision(t, intentID, tenant)
 	proposalFacts, approvalFacts := approvedProposalFacts(rev)
 	return promotionFixture{
 		Setup:    setup,
-		Plan:     setup.Plan,
+		Plan:     plan,
 		Versions: versions,
 		Resolver: stubResolver{sel: runtime.WorkflowSelection{
-			WorkflowID: setup.Plan.WorkflowID,
-			Pin:        version.Pin{CompiledPlanDigest: setup.Plan.Digest()},
-			Plan:       setup.Plan,
+			WorkflowID: plan.WorkflowID,
+			Pin:        version.Pin{CompiledPlanDigest: plan.Digest()},
+			Plan:       plan,
 		}},
 		Proposal:      rev,
 		Binding:       approvedBinding(rev),

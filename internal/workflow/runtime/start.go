@@ -115,6 +115,86 @@ type ProposalBinding struct {
 	Superseded  bool
 }
 
+// StartSourceKind identifies the durable cause of a run.
+type StartSourceKind string
+
+const (
+	StartSourceProposal StartSourceKind = "PROPOSAL"
+	StartSourceTrigger  StartSourceKind = "TRIGGER"
+	StartSourceParent   StartSourceKind = "PARENT"
+)
+
+// TriggerStartSource identifies a registry-accepted trigger.
+type TriggerStartSource struct {
+	TriggerID   string
+	TriggerType string
+	Key         string
+	Facts       map[string]string
+}
+
+// ParentStartSource identifies a parent run that requested this child.
+type ParentStartSource struct {
+	InstanceID uuid.UUID
+	WorkflowID string
+	ChildKey   string
+}
+
+// StartSource is a tagged union. Exactly one payload must match Kind.
+type StartSource struct {
+	Kind StartSourceKind
+	// IntentType is the typed business intent selected before runtime start.
+	// The resolver uses it with immutable proposal facts or trigger identity.
+	IntentType string
+	Proposal   *ProposalBinding
+	Trigger    *TriggerStartSource
+	Parent     *ParentStartSource
+}
+
+func (s StartSource) validate() error {
+	count := 0
+	if s.Proposal != nil {
+		count++
+	}
+	if s.Trigger != nil {
+		count++
+	}
+	if s.Parent != nil {
+		count++
+	}
+	if count != 1 {
+		return refuse(CodeInvalidRecord, "", "", "start source must carry exactly one payload")
+	}
+	switch s.Kind {
+	case StartSourceProposal:
+		if s.Proposal != nil {
+			return s.Proposal.validate()
+		}
+	case StartSourceTrigger:
+		if s.Trigger != nil && s.Trigger.TriggerID != "" && s.Trigger.TriggerType != "" && s.Trigger.Key != "" {
+			return nil
+		}
+	case StartSourceParent:
+		if s.Parent != nil && s.Parent.InstanceID != uuid.Nil && s.Parent.WorkflowID != "" && s.Parent.ChildKey != "" {
+			return nil
+		}
+	}
+	return refuse(CodeInvalidRecord, "", "", "start source kind %q has an invalid or mismatched payload", s.Kind)
+}
+
+// Validate checks the tagged source and its required identity fields.
+func (s StartSource) Validate() error { return s.validate() }
+
+func (r StartRequest) source() StartSource {
+	if r.Source != nil {
+		return *r.Source
+	}
+	return StartSource{Kind: StartSourceProposal, Proposal: &r.Proposal}
+}
+
+// StartSourceValue returns the request's tagged start cause, including the
+// legacy Proposal shorthand.
+func (r StartRequest) StartSourceValue() StartSource { return r.source() }
+
 // validate checks only the revision's own structural immutability: a
 // [ProposalBinding] naming no revision, or a revision with no minted material
 // digest, is never bindable regardless of which approval path a
@@ -145,6 +225,10 @@ type StartRequest struct {
 	Versions version.Store
 
 	Proposal ProposalBinding
+
+	// Source selects proposal, trigger or parent-run start semantics. Proposal
+	// above remains a source-compatible shorthand for older callers.
+	Source *StartSource
 
 	// ProposalFacts and ApprovalFacts resolve Proposal.Revision's supersession
 	// and approval decisions from the caller-owned proposal and approval
@@ -212,6 +296,9 @@ type StartRequest struct {
 }
 
 func (r StartRequest) validate() error {
+	if r.Source != nil && r.Source.IntentType == "" {
+		return refuse(CodeInvalidRecord, "", "", "typed start source must name its intent type")
+	}
 	switch {
 	case r.TenantID == uuid.Nil:
 		return refuse(CodeInvalidRecord, "", "", "tenant id must not be the nil UUID")
@@ -231,17 +318,17 @@ func (r StartRequest) validate() error {
 		return refuse(CodeInvalidRecord, "", "", "created_at must be supplied; this package never reads a wall clock")
 	case len(r.BusinessSubjectRefs) == 0:
 		return refuse(CodeInvalidRecord, "", "", "start names no business subject")
-	case r.ProposalFacts == nil && r.ApprovalFacts == nil:
+	case r.source().Kind == StartSourceProposal && r.ProposalFacts == nil && r.ApprovalFacts == nil:
 		return refuse(CodeInvalidRecord, "", "",
 			"start requires ProposalFacts and ApprovalFacts; caller-asserted proposal flags are not authorization facts")
-	case (r.ProposalFacts == nil) != (r.ApprovalFacts == nil):
+	case r.source().Kind == StartSourceProposal && (r.ProposalFacts == nil) != (r.ApprovalFacts == nil):
 		return refuse(CodeInvalidRecord, "", "",
 			"start supplies one of ProposalFacts/ApprovalFacts without the other")
 	case (r.ConflictFacts == nil) != (r.ConflictCandidate == nil):
 		return refuse(CodeInvalidRecord, "", "",
 			"start supplies one of ConflictFacts/ConflictCandidate without the other")
 	}
-	return r.Proposal.validate()
+	return r.source().validate()
 }
 
 // resolveProposalFacts refuses [CodeSupersededProposal], [CodeUnapprovedProposal]
@@ -368,21 +455,49 @@ type startFingerprint struct {
 	Subjects              []string          `json:"subjects"`
 	CorrelationID         string            `json:"correlation_id"`
 	ResolvedContext       map[string]string `json:"resolved_context,omitempty"`
+	StartSource           string            `json:"start_source,omitempty"`
 }
 
 func computeStartFingerprint(workflowID string, plan *workflow.CompiledWorkflow, req StartRequest) string {
 	subjects := append([]string(nil), req.BusinessSubjectRefs...)
 	sort.Strings(subjects)
+	source := req.source()
+	var sourceIdentity string
+	if req.Source != nil {
+		var identity any
+		switch source.Kind {
+		case StartSourceProposal:
+			identity = struct {
+				Kind           StartSourceKind `json:"kind"`
+				IntentType     string          `json:"intent_type"`
+				RevisionID     string          `json:"revision_id"`
+				MaterialDigest string          `json:"material_digest"`
+			}{source.Kind, source.IntentType, source.Proposal.Revision.ProposalRevisionID, source.Proposal.Revision.MaterialDigest.Digest}
+		case StartSourceTrigger:
+			identity = source
+		case StartSourceParent:
+			identity = source
+		}
+		sourceBytes, _ := json.Marshal(identity)
+		sourceIdentity = string(sourceBytes)
+	}
+	var revisionID, proposalDigest, controlDigest string
+	if source.Proposal != nil {
+		revisionID = source.Proposal.Revision.ProposalRevisionID
+		proposalDigest = source.Proposal.Revision.MaterialDigest.Digest
+		controlDigest = canonicalDigest(controlSnapshotDigestProfile, source.Proposal.Revision.ControlSnapshots)
+	}
 	fp := startFingerprint{
 		WorkflowID:            workflowID,
 		CompiledPlanDigest:    plan.Digest(),
-		ProposalRevisionID:    req.Proposal.Revision.ProposalRevisionID,
-		ProposalDigest:        req.Proposal.Revision.MaterialDigest.Digest,
+		ProposalRevisionID:    revisionID,
+		ProposalDigest:        proposalDigest,
 		ExecutionMode:         string(req.ExecutionMode),
-		ControlSnapshotDigest: canonicalDigest(controlSnapshotDigestProfile, req.Proposal.Revision.ControlSnapshots),
+		ControlSnapshotDigest: controlDigest,
 		Subjects:              subjects,
 		CorrelationID:         req.CorrelationID,
 		ResolvedContext:       req.ResolvedContext,
+		StartSource:           sourceIdentity,
 	}
 	return canonicalDigest(startFingerprintDigestProfile, fp)
 }
@@ -454,15 +569,22 @@ func newStartReceipt(inst Instance, cv version.CompiledVersion, replay bool, app
 func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceipt, retErr error) {
 	ctx, obsOp := observe.Begin(ctx, "workflow.runtime.start", req)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
+	if source := req.source(); source.Proposal != nil {
+		req.Proposal = *source.Proposal
+	}
 	if err := req.validate(); err != nil {
 		return StartReceipt{}, err
 	}
-	if err := req.checkProposalAlignment(); err != nil {
-		return StartReceipt{}, err
-	}
-	approvalDecisionIDs, err := resolveProposalFacts(ctx, tx, req)
-	if err != nil {
-		return StartReceipt{}, err
+	var approvalDecisionIDs []string
+	if req.source().Kind == StartSourceProposal {
+		if err := req.checkProposalAlignment(); err != nil {
+			return StartReceipt{}, err
+		}
+		var err error
+		approvalDecisionIDs, err = resolveProposalFacts(ctx, tx, req)
+		if err != nil {
+			return StartReceipt{}, err
+		}
 	}
 	if req.ConflictFacts != nil {
 		if _, err := CheckConflict(ctx, tx, ConflictCheckRequest{
@@ -480,6 +602,9 @@ func Start(ctx context.Context, tx Executor, req StartRequest) (ret0 StartReceip
 	if sel.WorkflowID == "" || sel.Plan == nil {
 		return StartReceipt{}, refuse(CodeWorkflowResolutionFailed, "", "",
 			"workflow resolver returned no workflow id or compiled plan")
+	}
+	if err := ValidateRevalidationKeys(sel.RevalidationKeys); err != nil {
+		return StartReceipt{}, wrap(CodeWorkflowResolutionFailed, "", "", err, "validate registration revalidation keys")
 	}
 
 	cv, err := resolveActiveVersion(version.BindTx(ctx, tx, req.Versions), sel.WorkflowID, sel.Pin, sel.Plan)

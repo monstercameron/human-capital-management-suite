@@ -22,6 +22,8 @@ const (
 	RefSchema ReferenceKind = "SCHEMA"
 	// RefRule is a published decision table or expression a DECISION cites.
 	RefRule ReferenceKind = "RULE"
+	// RefTransform is a published bounded transformation IR program.
+	RefTransform ReferenceKind = "TRANSFORM"
 	// RefResolver is a published assignee/approver resolver a node binds.
 	RefResolver ReferenceKind = "RESOLVER"
 	// RefTimeoutPolicy is a published timeout policy a node binds.
@@ -33,7 +35,7 @@ const (
 // Valid reports whether k names a declared reference kind.
 func (k ReferenceKind) Valid() bool {
 	switch k {
-	case RefSchema, RefRule, RefResolver, RefTimeoutPolicy, RefCompensation:
+	case RefSchema, RefRule, RefTransform, RefResolver, RefTimeoutPolicy, RefCompensation:
 		return true
 	default:
 		return false
@@ -171,6 +173,7 @@ const (
 	refFieldVariablesSchema = "variables_schema"
 	refFieldSignalSchema    = "signal.expected_schema_ref"
 	refFieldRule            = "decision.rule_ref"
+	refFieldTransform       = "transform.transform_ref"
 	refFieldResolver        = "resolver_ref"
 	refFieldTimeoutPolicy   = "timeout_policy"
 	refFieldCompensation    = "compensation_ref"
@@ -236,6 +239,9 @@ func referenceSites(def *Definition) []referenceSite {
 				ref:              Reference{Kind: RefRule, ID: n.Decision.RuleRef, Version: n.Decision.RuleVersion},
 				requiresResolver: n.Decision.RuleVersion != "",
 			})
+		}
+		if n.Transform != nil {
+			versioned(n.ID, refFieldTransform, RefTransform, n.Transform.ProgramRef)
 		}
 		versioned(n.ID, refFieldResolver, RefResolver, n.ResolverRef)
 		versioned(n.ID, refFieldTimeoutPolicy, RefTimeoutPolicy, n.TimeoutPolicy)

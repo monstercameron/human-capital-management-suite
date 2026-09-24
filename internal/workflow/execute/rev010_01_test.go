@@ -55,7 +55,7 @@ type stubRuleFacts struct {
 	tenant   uuid.UUID
 }
 
-func (s *stubRuleFacts) Lookup(_ context.Context, _ runtime.Executor, tenantID uuid.UUID, _ intent.ProposalRevision) (RuleApproval, error) {
+func (s *stubRuleFacts) Lookup(_ context.Context, _ runtime.Executor, tenantID uuid.UUID, _ intent.ProposalRevision, _ time.Time) (RuleApproval, error) {
 	s.calls++
 	s.tenant = tenantID
 	return s.approval, s.err

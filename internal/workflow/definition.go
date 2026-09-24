@@ -41,7 +41,55 @@ const (
 	SourceNodeOutput    SourceKind = "NODE_OUTPUT"
 	SourceContext       SourceKind = "CONTEXT"
 	SourceConstant      SourceKind = "CONSTANT"
+	SourceParameter     SourceKind = "PARAMETER"
 )
+
+// ParameterBindingMode declares when a workflow reads a tenant parameter.
+type ParameterBindingMode string
+
+const (
+	ParameterPinnedAtPublish ParameterBindingMode = "PINNED_AT_PUBLISH"
+	ParameterPinnedAtStart   ParameterBindingMode = "PINNED_AT_START"
+	ParameterLive            ParameterBindingMode = "LIVE"
+)
+
+func (m ParameterBindingMode) valid() bool {
+	switch m {
+	case ParameterPinnedAtPublish, ParameterPinnedAtStart, ParameterLive:
+		return true
+	default:
+		return false
+	}
+}
+
+// ParameterConsumer is a workflow-side view of config's allowlisted consumer.
+// It keeps the compiler independent of the config package, which itself uses
+// workflow.ValueType.
+type ParameterConsumer struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
+}
+
+// ParameterDeclaration is the dependency-safe metadata the compiler needs to
+// prove a parameter binding. PublishValue and revision identity are supplied
+// only by a trusted resolver when compiling PINNED_AT_PUBLISH.
+type ParameterDeclaration struct {
+	Key               string              `json:"key"`
+	Type              ValueType           `json:"type"`
+	Classification    string              `json:"classification"`
+	AllowedConsumers  []ParameterConsumer `json:"allowed_consumers"`
+	PublishValue      string              `json:"publish_value,omitempty"`
+	HasPublishValue   bool                `json:"has_publish_value,omitempty"`
+	DefinitionName    string              `json:"definition_name,omitempty"`
+	DefinitionVersion string              `json:"definition_version,omitempty"`
+	Revision          uint64              `json:"revision,omitempty"`
+}
+
+// ParameterResolver supplies the current typed declaration and, for a
+// publish-pinned binding, its trusted value revision.
+type ParameterResolver interface {
+	ResolveParameter(key string) (ParameterDeclaration, bool)
+}
 
 // Source is the producing side of one input mapping.
 type Source struct {
@@ -59,6 +107,11 @@ type Source struct {
 	Type ValueType `json:"type,omitempty"`
 	// Constant carries the canonical text of a CONSTANT source.
 	Constant string `json:"constant,omitempty"`
+	// ParameterKey and ParameterMode identify a governed tenant parameter.
+	ParameterKey  string               `json:"parameter_key,omitempty"`
+	ParameterMode ParameterBindingMode `json:"parameter_mode,omitempty"`
+	// MaxAgeSeconds is required for LIVE and bounds the age of each read.
+	MaxAgeSeconds uint64 `json:"max_age_seconds,omitempty"`
 }
 
 // Mapping binds one declared input field of a node to one source.
@@ -194,6 +247,9 @@ const (
 type TransformSpec struct {
 	TransformRef string `json:"transform_ref"`
 	Version      uint32 `json:"version"`
+	// ProgramRef pins a published bounded XFORM IR program. It is separate
+	// from TransformRef so legacy domain transforms can keep their own executor.
+	ProgramRef *VersionedRef `json:"program_ref,omitempty"`
 	// InlineCode must be empty. The field exists so a definition carrying
 	// arbitrary customer code is rejected with a named diagnostic rather than
 	// silently accepted by a loader that ignored the key.
@@ -670,6 +726,14 @@ type Definition struct {
 	WorkflowID string `json:"workflow_id"`
 	Version    uint32 `json:"version"`
 	Name       string `json:"name"`
+	// IntentType identifies the business intent this workflow accepts. It is
+	// selector metadata used by served cells; compilation still validates the
+	// workflow graph independently.
+	IntentType string `json:"intent_type,omitempty"`
+	// MatchPredicate is a closed set of exact material-fact matches. A
+	// definition is eligible only when every listed path has the listed value.
+	// Empty means the workflow matches every intent of IntentType.
+	MatchPredicate map[string]string `json:"match_predicate,omitempty"`
 
 	InputSchema     SchemaRef `json:"input_schema"`
 	OutputSchema    SchemaRef `json:"output_schema"`

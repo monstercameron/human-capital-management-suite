@@ -57,7 +57,7 @@ type RuleApproval struct {
 // (not resolved), the same answer a plan that never touched a decision
 // table gets.
 type RuleFacts interface {
-	Lookup(ctx context.Context, ex runtime.Executor, tenantID uuid.UUID, rev intent.ProposalRevision) (RuleApproval, error)
+	Lookup(ctx context.Context, ex runtime.Executor, tenantID uuid.UUID, rev intent.ProposalRevision, checkedAt time.Time) (RuleApproval, error)
 }
 
 // CurrencyCheckRequest is what [CurrencyGuard.Check] revalidates.
@@ -179,7 +179,7 @@ func (g CurrencyGuard) Check(ctx context.Context, ex runtime.Executor, req Curre
 	// checks above already run at -- every advancement goes through
 	// advanceOnce -- so no step package ever duplicates it.
 	if g.Rules != nil {
-		ruleCtx, err := g.Rules.Lookup(ctx, ex, req.TenantID, rev)
+		ruleCtx, err := g.Rules.Lookup(ctx, ex, req.TenantID, rev, req.CheckedAt)
 		if err != nil {
 			return CurrencyVerdict{}, err
 		}

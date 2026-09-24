@@ -82,14 +82,16 @@ func promotionRegistry(t *testing.T) *capability.Registry {
 
 func promotionOptions(t *testing.T) workflow.Options {
 	t.Helper()
-	return workflow.Options{Phase: workflow.PhaseP1A, Capabilities: promotionRegistry(t)}
+	return workflow.Options{Phase: workflow.PhaseP1A, Capabilities: promotionRegistry(t), IRSchemaVersion: 1}
 }
 
 // mustCompilePromotion compiles the reference workflow and fails the test
 // with the full diagnostic set if it does not publish.
 func mustCompilePromotion(t *testing.T) *workflow.CompiledWorkflow {
 	t.Helper()
-	plan, err := workflow.CompilePromotionReference(promotionRegistry(t))
+	plan, err := workflow.Compile(workflow.PromotionReferenceDefinition(), workflow.Options{
+		Phase: workflow.PhaseP1A, Capabilities: promotionRegistry(t), IRSchemaVersion: 1,
+	})
 	if err != nil {
 		t.Fatalf("promotion reference must compile: %v", err)
 	}

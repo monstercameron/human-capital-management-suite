@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/frontier"
@@ -21,6 +22,7 @@ type txStepRunner struct {
 	txCalls    int
 	sawEx      runtime.Executor
 	advancesAt int
+	recordedAt time.Time
 	scn        *obsScenario
 }
 
@@ -35,6 +37,7 @@ func (r *txStepRunner) RunInTx(_ context.Context, ex runtime.Executor, req StepR
 	r.txCalls++
 	r.sawEx = ex
 	r.advancesAt = r.scn.advanceCalls
+	r.recordedAt = req.RecordedAt
 	if r.fail != nil {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, r.fail
 	}
@@ -99,5 +102,28 @@ func TestTransactionalStepRunsInsideTheAdvanceTransaction(t *testing.T) {
 	d.opts.Steps = unclaimed
 	if _, err := d.Resume(ctx, scn.req); err != nil || unclaimed.runCalls != 1 || unclaimed.txCalls != 0 {
 		t.Fatalf("unclaimed node: err %v, run %d, tx %d", err, unclaimed.runCalls, unclaimed.txCalls)
+	}
+}
+
+// TestTransactionalDecisionReceivesDriverClock proves a raise_threshold-like
+// transactional decision receives the driver's recorded instant unchanged.
+// That instant is used by the domain adapter to bound delegated-principal
+// validity, so a zero value must not be manufactured at this boundary.
+func TestTransactionalDecisionReceivesDriverClock(t *testing.T) {
+	scn := newOBSScenario(t, "")
+	// The second node stands in for promotion's transactional raise_threshold
+	// decision: it is dispatched through RunInTx rather than StepRunner.Run.
+	scn.req.Start.Resolver.(staticResolver).selection.Plan.Nodes[1].Type = workflow.StepDecision
+	// The resolver's selection and the test scenario share this compiled plan.
+	at := time.Date(2026, 9, 23, 16, 45, 12, 345000000, time.UTC)
+	runner := &txStepRunner{claim: "end", scn: scn}
+	d := scn.driver(t)
+	d.opts.Steps = runner
+	d.opts.Clock = func() time.Time { return at }
+	if _, err := d.Resume(context.Background(), scn.req); err != nil {
+		t.Fatalf("Resume: %v", err)
+	}
+	if runner.txCalls != 1 || !runner.recordedAt.Equal(at) {
+		t.Fatalf("transactional decision calls=%d RecordedAt=%s; want one call at %s", runner.txCalls, runner.recordedAt.Format(time.RFC3339Nano), at.Format(time.RFC3339Nano))
 	}
 }

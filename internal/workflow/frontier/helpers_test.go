@@ -81,7 +81,9 @@ func promotionRegistry(t *testing.T) *capability.Registry {
 // every test in this package advances through.
 func promotionPlan(t *testing.T) *workflow.CompiledWorkflow {
 	t.Helper()
-	plan, err := workflow.CompilePromotionReference(promotionRegistry(t))
+	plan, err := workflow.Compile(workflow.PromotionReferenceDefinition(), workflow.Options{
+		Phase: workflow.PhaseP1A, Capabilities: promotionRegistry(t), IRSchemaVersion: 1,
+	})
 	if err != nil {
 		t.Fatalf("promotion reference must compile: %v", err)
 	}

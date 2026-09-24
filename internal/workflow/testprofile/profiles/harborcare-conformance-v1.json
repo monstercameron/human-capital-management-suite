@@ -1,0 +1,23 @@
+{
+  "format": "hcmnext.workflow.test-profile/v1",
+  "ref": { "id": "harborcare-conformance", "version": 1 },
+  "name": "HarborCare workflow conformance",
+  "tenant": "acme",
+  "datasets": [
+    {
+      "id": "workflow-conformance-manager-change",
+      "version": "1",
+      "source": "internal/workflow/conformance/managerchange/environment.go"
+    },
+    {
+      "id": "workflow-conformance-benefits",
+      "version": "1",
+      "source": "internal/workflow/conformance/benefits/environment.go"
+    },
+    {
+      "id": "workflow-conformance-payroll",
+      "version": "1",
+      "source": "internal/workflow/conformance/payroll/environment.go"
+    }
+  ]
+}

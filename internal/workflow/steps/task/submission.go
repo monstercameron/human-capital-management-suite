@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/candidate"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 )
 
@@ -76,9 +76,9 @@ func validateSubmission(s Submission) error {
 	return nil
 }
 
-func validCandidateSource(s humanwork.CandidateSource) bool {
+func validCandidateSource(s candidate.Source) bool {
 	switch s {
-	case humanwork.SourceDirect, humanwork.SourceDelegated, humanwork.SourceFallback:
+	case candidate.SourceDirect, candidate.SourceDelegated, candidate.SourceFallback:
 		return true
 	default:
 		return false

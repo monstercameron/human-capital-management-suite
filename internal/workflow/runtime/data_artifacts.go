@@ -16,8 +16,9 @@ import (
 )
 
 // WF-EXT-004: the two durable data-plane artifacts a mapping resolves
-// against on the EXECUTE path -- the run's typed input document, recorded
-// once at start, and each node's typed output, recorded once per attempt.
+// against on the EXECUTE path -- the run's typed input and bound context
+// documents, recorded once at start, and each node's typed output, recorded
+// once per attempt.
 // They mirror node_inputs.go's own NodeInputArtifact exactly: append-only,
 // re-digested on read, an idempotent insert that refuses a conflicting
 // second write instead of replacing it.
@@ -52,6 +53,15 @@ type TypedArtifactValue struct {
 	Value string             `json:"value"`
 }
 
+// TypedContextSnapshot binds a typed context document to the reference the
+// caller resolved before starting the workflow. The snapshot's values and
+// reference are covered by WorkflowInputArtifact.Digest.
+type TypedContextSnapshot struct {
+	Kind      string               `json:"kind"`
+	Reference string               `json:"reference"`
+	Values    []TypedArtifactValue `json:"values"`
+}
+
 func typedArtifactValuesOf(outs []workflow.TypedOutput) []TypedArtifactValue {
 	out := make([]TypedArtifactValue, 0, len(outs))
 	for _, o := range outs {
@@ -68,16 +78,17 @@ func typedOutputsOf(vals []TypedArtifactValue) []workflow.TypedOutput {
 	return out
 }
 
-// WorkflowInputArtifact is the durable record of the typed input document one
-// instance was started with. It is written once, inside the same transaction
-// as [Start], and is the only source [workflow.ResolveMappings] reads a
-// WORKFLOW_INPUT mapping from on the durable path.
+// WorkflowInputArtifact is the durable record of the typed input and context
+// documents one instance was started with. It is written once, inside the
+// same transaction as [Start], and is the only source [workflow.ResolveMappings]
+// reads WORKFLOW_INPUT and CONTEXT mappings from on the durable path.
 type WorkflowInputArtifact struct {
 	TenantID   uuid.UUID `json:"tenant_id"`
 	InstanceID uuid.UUID `json:"instance_id"`
 	PlanDigest string    `json:"plan_digest"`
 
-	Inputs []TypedArtifactValue `json:"inputs"`
+	Inputs   []TypedArtifactValue   `json:"inputs"`
+	Contexts []TypedContextSnapshot `json:"contexts,omitempty"`
 
 	RecordedAt time.Time `json:"recorded_at"`
 }
@@ -90,8 +101,8 @@ func (a WorkflowInputArtifact) Validate() error {
 		return refuse(CodeInvalidRecord, instance, "", "workflow input artifact needs a tenant and an instance")
 	case a.PlanDigest == "":
 		return refuse(CodeInvalidRecord, instance, "", "workflow input artifact pins no compiled plan")
-	case len(a.Inputs) == 0:
-		return refuse(CodeInvalidRecord, instance, "", "workflow input artifact records no inputs")
+	case len(a.Inputs) == 0 && len(a.Contexts) == 0:
+		return refuse(CodeInvalidRecord, instance, "", "workflow input artifact records no inputs or contexts")
 	case a.RecordedAt.IsZero():
 		return refuse(CodeInvalidRecord, instance, "", "workflow input artifact carries no recorded instant")
 	}
@@ -102,12 +113,32 @@ func (a WorkflowInputArtifact) Validate() error {
 		}
 		seen[in.Path] = true
 	}
+	contextKinds := map[string]bool{}
+	for _, snapshot := range a.Contexts {
+		if strings.TrimSpace(snapshot.Kind) == "" || contextKinds[snapshot.Kind] || strings.TrimSpace(snapshot.Reference) == "" || len(snapshot.Values) == 0 {
+			return refuse(CodeInvalidRecord, instance, "", "context snapshots need a unique kind, reference and values")
+		}
+		contextKinds[snapshot.Kind] = true
+		paths := map[string]bool{}
+		for _, value := range snapshot.Values {
+			if strings.TrimSpace(value.Path) == "" || paths[value.Path] {
+				return refuse(CodeInvalidRecord, instance, "", "context %s paths must be present and unique (%q)", snapshot.Kind, value.Path)
+			}
+			paths[value.Path] = true
+		}
+	}
 	return nil
 }
 
 func (a WorkflowInputArtifact) canonical() WorkflowInputArtifact {
 	a.Inputs = append([]TypedArtifactValue(nil), a.Inputs...)
 	sort.Slice(a.Inputs, func(i, j int) bool { return a.Inputs[i].Path < a.Inputs[j].Path })
+	a.Contexts = append([]TypedContextSnapshot(nil), a.Contexts...)
+	for i := range a.Contexts {
+		a.Contexts[i].Values = append([]TypedArtifactValue(nil), a.Contexts[i].Values...)
+		sort.Slice(a.Contexts[i].Values, func(j, k int) bool { return a.Contexts[i].Values[j].Path < a.Contexts[i].Values[k].Path })
+	}
+	sort.Slice(a.Contexts, func(i, j int) bool { return a.Contexts[i].Kind < a.Contexts[j].Kind })
 	a.RecordedAt = a.RecordedAt.UTC()
 	return a
 }
@@ -120,6 +151,10 @@ func (a WorkflowInputArtifact) Digest() string {
 // Clone returns a deep copy.
 func (a WorkflowInputArtifact) Clone() WorkflowInputArtifact {
 	a.Inputs = append([]TypedArtifactValue(nil), a.Inputs...)
+	a.Contexts = append([]TypedContextSnapshot(nil), a.Contexts...)
+	for i := range a.Contexts {
+		a.Contexts[i].Values = append([]TypedArtifactValue(nil), a.Contexts[i].Values...)
+	}
 	return a
 }
 
@@ -133,7 +168,22 @@ func (a WorkflowInputArtifact) Input(path string) (TypedArtifactValue, bool) {
 	return TypedArtifactValue{}, false
 }
 
-// RecordWorkflowInputs appends the pinned input document of one instance and
+// Context returns one value from the context snapshot of the requested kind.
+func (a WorkflowInputArtifact) Context(kind, path string) (TypedArtifactValue, bool) {
+	for _, snapshot := range a.Contexts {
+		if snapshot.Kind != kind {
+			continue
+		}
+		for _, value := range snapshot.Values {
+			if value.Path == path {
+				return value, true
+			}
+		}
+	}
+	return TypedArtifactValue{}, false
+}
+
+// RecordWorkflowInputs appends the pinned input and context documents of one instance and
 // returns its digest. It is meant to run inside the same transaction as
 // [Start], only when that call created the instance -- see startOnce in
 // internal/workflow/execute/driver.go, which also calls this on a replay so
@@ -183,7 +233,7 @@ func RecordWorkflowInputs(ctx context.Context, ex Executor, a WorkflowInputArtif
 	return digest, nil
 }
 
-// LoadWorkflowInputs returns the instance's recorded workflow input document.
+// LoadWorkflowInputs returns the instance's recorded workflow input and context document.
 // found is false for an instance that recorded none -- a run that supplies no
 // [ExecuteRequest.Inputs] (Promotion, as of WF-EXT-004, and every plan before
 // it) keeps working exactly as before. A stored row is re-digested and

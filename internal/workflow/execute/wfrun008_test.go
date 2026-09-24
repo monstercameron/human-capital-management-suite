@@ -126,7 +126,7 @@ func TestSettlePauseLeavesOtherErrorsUnchanged(t *testing.T) {
 // TestStepInputsRefusesANodeThatDoesNotAdmitTheRunMode is WF-RUN-040's
 // driver-side gate: the step handler never runs for a node whose compiled
 // effect class does not admit the run's execution mode.
-func TestStepInputsRefusesANodeThatDoesNotAdmitTheRunMode(t *testing.T) {
+func TestTodo_WF_RUN_040_Security(t *testing.T) {
 	node := workflow.CompiledNode{ID: "commit", AllowedModes: []workflow.ExecutionMode{workflow.ModeExecute}}
 	run := runContext{start: runtime.StartRequest{ExecutionMode: workflow.ModeSimulate}}
 	_, err := (&Driver{}).stepInputs(context.Background(), run, StepRequest{Node: node}, 1)

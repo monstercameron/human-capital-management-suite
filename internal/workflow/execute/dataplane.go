@@ -61,6 +61,76 @@ func validateWorkflowInputDocument(plan *workflow.CompiledWorkflow, inputs []wor
 	return nil
 }
 
+// validateContextDocument binds each supplied context snapshot to the proof
+// reference checked by runtime.Start and verifies mapped values against the
+// compiled source and target types.
+func validateContextDocument(plan *workflow.CompiledWorkflow, contexts []runtime.TypedContextSnapshot, references map[string]string) error {
+	if plan == nil {
+		return invalid("no compiled plan to validate the context document against")
+	}
+	targetTypes := map[string]map[string][]workflow.ValueType{}
+	for _, node := range plan.Nodes {
+		for _, mapping := range node.Mappings {
+			if mapping.SourceKind != workflow.SourceContext {
+				continue
+			}
+			byPath := targetTypes[mapping.SourceCtx]
+			if byPath == nil {
+				byPath = map[string][]workflow.ValueType{}
+				targetTypes[mapping.SourceCtx] = byPath
+			}
+			byPath[mapping.SourcePath] = append(byPath[mapping.SourcePath], mapping.TargetType)
+		}
+	}
+	seen := map[string]bool{}
+	for _, snapshot := range contexts {
+		if snapshot.Reference == "" || references[snapshot.Kind] != snapshot.Reference {
+			return invalid("context %q snapshot reference does not match the start proof reference", snapshot.Kind)
+		}
+		if seen[snapshot.Kind] {
+			return invalid("context document contains duplicate kind %q", snapshot.Kind)
+		}
+		seen[snapshot.Kind] = true
+		declared := targetTypes[snapshot.Kind]
+		for _, value := range snapshot.Values {
+			wants, ok := declared[value.Path]
+			if !ok {
+				return invalid("context %q contains undeclared mapped field %q", snapshot.Kind, value.Path)
+			}
+			for _, want := range wants {
+				if err := value.Type.AssignableTo(want); err != nil {
+					return invalid("context %s.%s: %s is not assignable to mapped type %s: %v", snapshot.Kind, value.Path, value.Type, want, err)
+				}
+			}
+		}
+	}
+	for kind, paths := range targetTypes {
+		if references[kind] == "" {
+			return invalid("context mapping for %q has no resolved proof reference", kind)
+		}
+		var snapshot *runtime.TypedContextSnapshot
+		for i := range contexts {
+			if contexts[i].Kind == kind {
+				snapshot = &contexts[i]
+				break
+			}
+		}
+		if snapshot == nil {
+			return invalid("context mapping for %q has no typed snapshot", kind)
+		}
+		values := map[string]bool{}
+		for _, value := range snapshot.Values {
+			values[value.Path] = true
+		}
+		for path := range paths {
+			if !values[path] {
+				return invalid("context snapshot %q is missing mapped field %q", kind, path)
+			}
+		}
+	}
+	return nil
+}
+
 // planForInputs resolves the compiled plan a start is binding, reusing an
 // already-resolved selection when one is available (the serializable retry
 // path's selection pointer, populated by the time runtime.Start returns) and
@@ -88,6 +158,7 @@ func (d *Driver) planForInputs(ctx context.Context, req runtime.StartRequest, se
 type dataPlaneSource struct {
 	hasInputs bool
 	inputs    runtime.WorkflowInputArtifact
+	contexts  map[string][]runtime.TypedArtifactValue
 	// producedOutputs holds, for a node whose latest recorded execution
 	// SUCCEEDED, that attempt's typed outputs. A node absent from this map
 	// either never ran, or its latest attempt did not succeed -- both read as
@@ -120,24 +191,22 @@ func (s dataPlaneSource) NodeOutput(nodeID, path string) (workflow.TypedValue, b
 	return workflow.TypedValue{}, true, false
 }
 
-// Context reports every CONTEXT mapping unresolved. The only per-instance
-// context fact this package pins durably today is
-// [runtime.StartRequest.ResolvedContext], a proof reference keyed by context
-// kind (that a required-context read happened), not the typed per-path field
-// values a mapping needs -- there is no durable store of those on the
-// EXECUTE path yet. A CONTEXT mapping therefore refuses
-// [workflow.CodeUnresolvedContext] rather than fabricate a value; see this
-// ticket's final report for the follow-up this leaves open.
-func (dataPlaneSource) Context(string, string) (workflow.TypedValue, bool) {
+// Context reads the typed snapshot bound to the resolved proof reference in
+// the instance's immutable workflow input artifact.
+func (s dataPlaneSource) Context(kind, path string) (workflow.TypedValue, bool) {
+	for _, value := range s.contexts[kind] {
+		if value.Path == path {
+			return workflow.TypedValue{Type: value.Type, Text: value.Value}, true
+		}
+	}
 	return workflow.TypedValue{}, false
 }
 
 // buildDataPlaneSource reads the durable rows one [workflow.ResolveMappings]
 // call needs, in one short read-only-by-convention transaction. hasInputs is
-// false, and every other field zero, for an instance that recorded no
-// workflow-input document -- the caller skips resolution entirely in that
-// case, exactly reproducing the pre-WF-EXT-004 behavior for every plan that
-// starts with no ExecuteRequest.Inputs.
+// false, and every other field zero, for an instance that recorded neither a
+// workflow-input nor context document -- the caller skips resolution when
+// there is no durable document to resolve against.
 func (d *Driver) buildDataPlaneSource(ctx context.Context, run runContext) (dataPlaneSource, error) {
 	tx, err := d.opts.DB.Begin(ctx)
 	if err != nil {
@@ -183,7 +252,11 @@ func (d *Driver) buildDataPlaneSource(ctx context.Context, run runContext) (data
 	if err := tx.Commit(ctx); err != nil {
 		return dataPlaneSource{}, fmt.Errorf("workflow execute: commit data plane read: %w", err)
 	}
-	return dataPlaneSource{hasInputs: true, inputs: inputs, producedOutputs: produced}, nil
+	contexts := make(map[string][]runtime.TypedArtifactValue, len(inputs.Contexts))
+	for _, snapshot := range inputs.Contexts {
+		contexts[snapshot.Kind] = snapshot.Values
+	}
+	return dataPlaneSource{hasInputs: true, inputs: inputs, contexts: contexts, producedOutputs: produced}, nil
 }
 
 // resolveNodeInputs resolves node's compiled mappings against the instance's

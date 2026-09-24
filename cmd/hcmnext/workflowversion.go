@@ -66,7 +66,7 @@ func openPostgresVersionRegistry(ctx context.Context, url string) (versionRegist
 	return workflowversionstore.Store{DB: pool}, pool.Close, nil
 }
 
-const workflowVersionUsage = "usage: hcmnext workflow-version [list|fixtures|approve|activate|bootstrap-dev|quarantine|lift|migrate-preview|migrate-execute] [flags]"
+const workflowVersionUsage = "usage: hcmnext workflow-version [list|fixtures|approve|activate|bootstrap-dev|quarantine|lift|migrate preview|migrate execute|migrate-preview|migrate-execute] [flags]"
 
 func runWorkflowVersion(args []string, stdout, stderr io.Writer, now func() time.Time, open openVersionRegistry) int {
 	if len(args) == 0 {
@@ -74,6 +74,19 @@ func runWorkflowVersion(args []string, stdout, stderr io.Writer, now func() time
 		return 2
 	}
 	action := args[0]
+	actionArgs := args[1:]
+	// Keep the original hyphenated spellings as aliases while exposing the
+	// operator-facing nested command named by the workflow migration contract.
+	if action == "migrate" && len(args) > 1 {
+		switch args[1] {
+		case "preview":
+			action = "migrate-preview"
+			actionArgs = args[2:]
+		case "execute":
+			action = "migrate-execute"
+			actionArgs = args[2:]
+		}
+	}
 	fs := flag.NewFlagSet("workflow-version "+action, flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	databaseURL := fs.String("database-url", os.Getenv(EnvDatabaseURL), "PostgreSQL URL (env "+EnvDatabaseURL+")")
@@ -92,12 +105,12 @@ func runWorkflowVersion(args []string, stdout, stderr io.Writer, now func() time
 	out := fs.String("out", "", "file to write the fixture report to; empty writes it to stdout (fixtures)")
 	runner := fs.String("runner", "cmd/hcmnext:workflow-version-fixtures", "who ran the fixtures (fixtures)")
 	supersede := fs.Bool("supersede", false, "quarantine a different version of the workflow that is already active (activate)")
-	tenantFlag := fs.String("tenant", "", "tenant id of the paused instance (migrate-preview, migrate-execute)")
-	instanceFlag := fs.String("instance", "", "instance id of the paused instance (migrate-preview, migrate-execute)")
-	sourceDigest := fs.String("source-digest", "", "compiled-plan digest the instance currently pins (migrate-preview, migrate-execute)")
-	targetDigest := fs.String("target-digest", "", "compiled-plan digest to preview or migrate onto (migrate-preview, migrate-execute)")
-	migratedBy := fs.String("migrated-by", "", "principal executing the migration; must differ from -approved-by (migrate-execute)")
-	if err := fs.Parse(args[1:]); err != nil {
+	tenantFlag := fs.String("tenant", "", "tenant id of the paused instance (migrate preview|execute)")
+	instanceFlag := fs.String("instance", "", "instance id of the paused instance (migrate preview|execute)")
+	sourceDigest := fs.String("source-digest", "", "compiled-plan digest the instance currently pins (migrate preview|execute)")
+	targetDigest := fs.String("target-digest", "", "compiled-plan digest to preview or migrate onto (migrate preview|execute)")
+	migratedBy := fs.String("migrated-by", "", "principal executing the migration; must differ from -approved-by (migrate execute)")
+	if err := fs.Parse(actionArgs); err != nil {
 		return 2
 	}
 	if strings.TrimSpace(*databaseURL) == "" {

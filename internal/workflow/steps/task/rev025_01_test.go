@@ -11,9 +11,9 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/forms/continuity"
 	"github.com/monstercameron/human-capital-management-suite/internal/forms/drafts"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/formcontinuity"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	steptask "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/task"
@@ -61,16 +61,16 @@ func rev025ResumeReq(revision uint64) drafts.ResumeRequest {
 	}
 }
 
-func rev025ContinuityReq() formcontinuity.Request {
-	return formcontinuity.Request{
+func rev025ContinuityReq() continuity.Request {
+	return continuity.Request{
 		FormID: rev025NodeFixture.FormDefinition.Ref, TaskVersion: "v1",
-		CanonicalChannel: formcontinuity.ChannelWeb, AlternateChannel: formcontinuity.ChannelPhone,
+		CanonicalChannel: continuity.ChannelWeb, AlternateChannel: continuity.ChannelPhone,
 		OriginalDeadline: rev025Now.Add(48 * time.Hour), Now: rev025Now,
-		Identity:         formcontinuity.Identity{PrincipalID: rev025Principal, Assurance: "IAL2", AssistantID: rev025Assistant},
-		Authority:        formcontinuity.Authority{DecisionRight: "submit.leave", Scope: "worker:worker-1", AuthorityRef: "authority:leave-2026"},
-		Attribution:      formcontinuity.Attribution{RespondentID: rev025Principal, AssistantID: rev025Assistant, TranscriberID: rev025Assistant, ReadBackBy: rev025Principal},
-		Privacy:          formcontinuity.Privacy{Purpose: "leave-request", Compartment: "hr:restricted", RedactionRule: "leave:v2"},
-		Validation:       formcontinuity.Validation{FormRevision: "leave:v3", SchemaDigest: "sha256:schema", ProofDigest: "sha256:proof"},
+		Identity:         continuity.Identity{PrincipalID: rev025Principal, Assurance: "IAL2", AssistantID: rev025Assistant},
+		Authority:        continuity.Authority{DecisionRight: "submit.leave", Scope: "worker:worker-1", AuthorityRef: "authority:leave-2026"},
+		Attribution:      continuity.Attribution{RespondentID: rev025Principal, AssistantID: rev025Assistant, TranscriberID: rev025Assistant, ReadBackBy: rev025Principal},
+		Privacy:          continuity.Privacy{Purpose: "leave-request", Compartment: "hr:restricted", RedactionRule: "leave:v2"},
+		Validation:       continuity.Validation{FormRevision: "leave:v3", SchemaDigest: "sha256:schema", ProofDigest: "sha256:proof"},
 		TranscriptionRef: "transcription:1", ReadBackConfirmed: true,
 		EvidenceDigest: "sha256:evidence", ResponseDigest: "sha256:response",
 	}
@@ -96,7 +96,8 @@ var rev025AcceptDraft = func(_ string, _ []byte) error { return nil }
 // typed records into a governed submission spec without moving decision
 // authority to the assistant.
 func TestTodo_REV_025_01(t *testing.T) {
-	intake := steptask.NewFormIntake(rev025Store(t))
+	draftStore := rev025Store(t)
+	intake := steptask.NewFormIntake(draftStore)
 
 	saved, err := intake.SaveDraft(rev025SaveReq(0))
 	if err != nil {
@@ -105,7 +106,7 @@ func TestTodo_REV_025_01(t *testing.T) {
 	if saved.Revision != 1 || saved.PrincipalID != rev025Principal || saved.FormID != rev025NodeFixture.FormDefinition.Ref {
 		t.Fatalf("saved draft = %#v, want revision 1 for %s on %s", saved, rev025Principal, rev025NodeFixture.FormDefinition.Ref)
 	}
-	sealed, err := intake.Drafts.Encrypted(saved.ID)
+	sealed, err := draftStore.Encrypted(saved.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +143,7 @@ func TestTodo_REV_025_01(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EstablishAlternateRoute: %v", err)
 	}
-	if established.Outcome != formcontinuity.OutcomeSafe {
+	if established.Outcome != continuity.OutcomeSafe {
 		t.Fatalf("continuity outcome = %q, want SAFE_TO_CONTINUE", established.Outcome)
 	}
 	if !established.Deadline().Equal(rev025Now.Add(48 * time.Hour)) {
@@ -207,14 +208,14 @@ func TestTodo_REV_025_01(t *testing.T) {
 	}
 	// A blocked route produces no submission spec.
 	blocked := established
-	blocked.Outcome = formcontinuity.OutcomeBlocked
+	blocked.Outcome = continuity.OutcomeBlocked
 	if _, err := steptask.AlternateSubmissionSpec(rev025BaseSpec(), updated, rev025Answers, blocked); !errors.Is(err, steptask.ErrInvalidSubmission) {
 		t.Fatalf("blocked route error = %v, want ErrInvalidSubmission", err)
 	}
 	// A self-service RTL route carries no accommodation evidence, so it stays
 	// on the plain Submit path instead of the alternate-evidence mapping.
 	rtlReq := rev025ContinuityReq()
-	rtlReq.AlternateChannel = formcontinuity.ChannelRTL
+	rtlReq.AlternateChannel = continuity.ChannelRTL
 	rtlReq.TranscriptionRef = ""
 	rtlReq.ReadBackConfirmed = false
 	rtl, err := intake.EstablishAlternateRoute(rtlReq)
@@ -250,7 +251,7 @@ func TestTodo_REV_025_01_Integration(t *testing.T) {
 		t.Fatalf("SaveDraft: %v", err)
 	}
 	req := rev025ContinuityReq()
-	req.AlternateChannel = formcontinuity.ChannelAccessible
+	req.AlternateChannel = continuity.ChannelAccessible
 	req.AccommodationRef = "accommodation:large-print"
 	req.TranscriptionRef = ""
 	req.ReadBackConfirmed = false
@@ -304,9 +305,9 @@ func TestTodo_REV_025_01_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RouteAlternateChannel: %v", err)
 	}
-	wantRec := formcontinuity.Record{
-		Outcome: formcontinuity.OutcomeSafe, FormID: "form.promotion.review", TaskVersion: "v1",
-		Channel: formcontinuity.ChannelPhone, OriginalDeadline: rev025Now.Add(48 * time.Hour),
+	wantRec := continuity.Record{
+		Outcome: continuity.OutcomeSafe, FormID: "form.promotion.review", TaskVersion: "v1",
+		Channel: continuity.ChannelPhone, OriginalDeadline: rev025Now.Add(48 * time.Hour),
 		RespondentID: rev025Principal, AssistantID: rev025Assistant, AuthorityRef: "authority:leave-2026",
 		Purpose: "leave-request", Compartment: "hr:restricted",
 		FormRevision: "leave:v3", SchemaDigest: "sha256:schema",

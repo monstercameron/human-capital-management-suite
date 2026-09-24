@@ -253,7 +253,7 @@ func TestTodo_WF_RUN_010_Integration(t *testing.T) {
 		if out.Decision != workflow.CompensationRequired || out.Instance.RuntimeStatus != runtime.InstanceCancelling {
 			t.Fatalf("outcome = %+v", out)
 		}
-		if len(out.CompensationRefs) != 1 || out.CompensationRefs[0] != "execute_promotion#1=compensation.promotion.reverse@1" {
+		if len(out.CompensationRefs) != 1 || !strings.HasPrefix(out.CompensationRefs[0], "wf-compensation:v1:") {
 			t.Fatalf("obligation = %v", out.CompensationRefs)
 		}
 		if r, ok := out.Blocking(); !ok || r.Code != cancellation.ReasonEffectCompensation || r.NodeID != promotionexec.NodeExecutePromotion {

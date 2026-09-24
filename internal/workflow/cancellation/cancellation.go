@@ -54,6 +54,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/runtimestate"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
+	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -257,8 +258,22 @@ type decider struct{ req Request }
 // observer request that resolves it and the ambiguous record carrying its
 // declared undo contract.
 type pendingObservation struct {
-	req ObserveEffectRequest
-	rec workflow.EffectRecord
+	req     ObserveEffectRequest
+	rec     workflow.EffectRecord
+	history effectHistory
+}
+
+// effectHistory is the original effect's provenance as recorded by the
+// execution runtime. It is copied into the append-only cancellation
+// obligation so discharge can bind its correction to that exact execution.
+type effectHistory struct {
+	TenantID              uuid.UUID         `json:"tenant_id"`
+	WorkflowID            string            `json:"workflow_id"`
+	InstanceID            uuid.UUID         `json:"instance_id"`
+	PlanDigest            string            `json:"plan_digest"`
+	CapabilityExecutionID string            `json:"capability_execution_id,omitempty"`
+	EffectRefs            []string          `json:"effect_refs,omitempty"`
+	Scope                 idempotency.Scope `json:"scope"`
 }
 
 // judged is one instance's facts and verdict, before anything is written.
@@ -268,13 +283,14 @@ type judged struct {
 	outcome      workflow.CancellationOutcome
 	reasons      []Reason
 	compensation []string
+	history      map[string]effectHistory
 	// children are live children whose own verdict is acted on when the
 	// parent's is CANCELLED or COMPENSATION_REQUIRED.
 	children []*judged
 }
 
 func (d decider) judge(ctx context.Context, ex Executor, inst runtime.Instance, plan *workflow.CompiledWorkflow, depth int) (*judged, error) {
-	j := &judged{inst: inst, plan: plan}
+	j := &judged{inst: inst, plan: plan, history: make(map[string]effectHistory)}
 	nodes, err := (runtime.Store{}).LoadNodeExecutions(ctx, ex, inst.TenantID, inst.InstanceID)
 	if err != nil {
 		return nil, err
@@ -308,16 +324,25 @@ func (d decider) judge(ctx context.Context, ex Executor, inst runtime.Instance, 
 		if !ok {
 			continue
 		}
+		history := effectHistory{
+			TenantID: inst.TenantID, WorkflowID: inst.WorkflowID, InstanceID: inst.InstanceID,
+			PlanDigest: inst.CompiledPlanHash, CapabilityExecutionID: n.Refs.CapabilityExecutionID,
+			EffectRefs: append([]string(nil), n.Refs.EffectRefs...),
+			Scope: idempotency.Scope{Tenant: inst.TenantID, Capability: inst.WorkflowID,
+				EffectScope: workflow.NodeEffectScope(n.NodeID),
+				Key:         workflow.StepActivationKey(inst.InstanceID, n.NodeID, n.Attempt)},
+		}
+		j.history[id] = history
 		effects = append(effects, rec)
 		if !settled && d.req.Observer != nil {
 			observable[id] = pendingObservation{
 				req: ObserveEffectRequest{TenantID: inst.TenantID, InstanceID: inst.InstanceID,
 					NodeID: n.NodeID, Attempt: n.Attempt, EffectID: id, Status: n.Status, EffectRefs: n.Refs.EffectRefs},
-				rec: rec,
+				rec: rec, history: history,
 			}
 			continue
 		}
-		j.addEffectReason(rec, n.NodeID, "")
+		j.addEffectReason(rec, n.NodeID, "", history)
 	}
 
 	links, err := (runtimestate.ChildLinkStore{}).LinksForParent(ctx, ex, inst.TenantID, inst.InstanceID)
@@ -379,23 +404,35 @@ func (j *judged) observeReasons(observable map[string]pendingObservation) {
 		case e.Verdict == "":
 			// Confirmed never produced: nothing committed, nothing owed.
 		case e.Verdict == workflow.EffectUnresolved:
-			j.addEffectReason(pending.rec, pending.req.NodeID, "")
+			j.addEffectReason(pending.rec, pending.req.NodeID, "", pending.history)
 		default:
 			resolved := pending.rec
 			resolved.Ambiguous = false
-			j.addEffectReason(resolved, pending.req.NodeID, "")
+			j.addEffectReason(resolved, pending.req.NodeID, "", pending.history)
 		}
 	}
 }
 
-func (j *judged) addEffectReason(rec workflow.EffectRecord, nodeID, prefix string) {
+func (j *judged) addEffectReason(rec workflow.EffectRecord, nodeID, prefix string, history effectHistory) {
 	switch {
 	case rec.Ambiguous:
 		j.reasons = append(j.reasons, Reason{Code: ReasonEffectAmbiguous, NodeID: nodeID, Ref: prefix + rec.ID})
 	case rec.Reversible:
 	case rec.Compensation != "":
 		j.reasons = append(j.reasons, Reason{Code: ReasonEffectCompensation, NodeID: nodeID, Ref: prefix + rec.ID})
-		j.compensation = append(j.compensation, prefix+rec.ID+"="+rec.Compensation)
+		ref := prefix + rec.ID + "=" + rec.Compensation
+		if prefix == "" && history.TenantID != uuid.Nil && history.WorkflowID != "" {
+			encoded, err := encodeObligationHistory(history, rec.ID, rec.Compensation)
+			if err != nil {
+				// The values are basic runtime identifiers and JSON marshaling
+				// cannot fail today. If that ever changes, leave no actionable
+				// compensation reference in the obligation.
+				j.reasons = append(j.reasons, Reason{Code: ReasonEffectAmbiguous, NodeID: nodeID, Ref: rec.ID})
+				return
+			}
+			ref = encoded
+		}
+		j.compensation = append(j.compensation, ref)
 	case rec.Correction != "":
 		// Kept with a forward correction path: the verdict carries the
 		// correction for its owner to drive, and the run is refused while
@@ -489,7 +526,7 @@ func (d decider) judgeChild(ctx context.Context, ex Executor, parent *judged, li
 				rec.Compensation = compensationFor(cj.compensation, r.Ref)
 			}
 			lifted = append(lifted, rec)
-			parent.addEffectReason(rec, link.ParentNodeID, "")
+			parent.addEffectReason(rec, link.ParentNodeID, "", effectHistory{})
 		}
 	}
 	switch cj.outcome.Decision {

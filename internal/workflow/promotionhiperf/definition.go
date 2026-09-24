@@ -1,6 +1,10 @@
 package promotionhiperf
 
 import (
+	"context"
+	"errors"
+	"fmt"
+
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
@@ -176,7 +180,11 @@ func Compile(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, er
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities()})
+	registry, err := capabilities()
+	if err != nil {
+		return nil, err
+	}
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: registry})
 }
 
 // CompileSimulation compiles the zero-effect SIMULATE projection of the
@@ -187,7 +195,11 @@ func CompileSimulation(definitions ...workflow.Definition) (*workflow.CompiledWo
 	if len(definitions) == 1 {
 		def = definitions[0]
 	}
-	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilities(), SimulateProjection: true})
+	registry, err := capabilities()
+	if err != nil {
+		return nil, err
+	}
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: registry, SimulateProjection: true})
 }
 
 // CapabilityIDs returns the exact capability identities the variant graph
@@ -205,33 +217,31 @@ func NodeOrder() []string {
 	return append(order, promotionexec.NodeOrder()[1:]...)
 }
 
-type staticCapabilities map[capability.Key]capability.Record
-
-func (r staticCapabilities) Lookup(key capability.Key) (capability.Record, bool) {
-	record, ok := r[key]
-	return record, ok
-}
-
-func capabilityRecord(id, owner string, effect capability.EffectClass, scope string) capability.Record {
-	return capability.Record{Definition: capability.Definition{ID: id, Version: 1, OwnerDomain: owner, RequestSchema: capability.SchemaRef{SchemaID: id + ".request/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, ResponseSchema: capability.SchemaRef{SchemaID: id + ".response/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, ErrorSchema: capability.SchemaRef{SchemaID: id + ".error/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}, EffectClass: effect, IdempotencyPolicyRef: "idempotency.promotion." + owner + ".v1", AuthZScopeRef: scope, LegalBasisRef: "legal.promotion.execution/v1", EntitlementRef: "entitlement.promotion.execution/v1", SLOClassRef: "slo.promotion.execution/v1", TestRef: "conformance:" + id + "/v1"}, Status: capability.StatusActive, Digest: "sha256:promotionhiperf-" + owner}
-}
-
 // capabilities resolves the capability versions the variant graph binds. One
-// table serves both modes: the compiler derives the SIMULATE projection from
-// each write node's declared mode overlay (WF-EXT-003).
-func capabilities() workflow.CapabilityResolver {
-	return staticCapabilities{
-		{ID: "hcmnext.people.explain_worker_state", Version: 1}:         capabilityRecord("hcmnext.people.explain_worker_state", "people", capability.EffectReadOnly, "scope:people.read"),
-		{ID: "hcmnext.rewards.simulate_compensation", Version: 1}:       capabilityRecord("hcmnext.rewards.simulate_compensation", "rewards", capability.EffectReadOnly, "scope:rewards.read"),
-		{ID: "hcmnext.rewards.evaluate_pay_band_position", Version: 1}:  capabilityRecord("hcmnext.rewards.evaluate_pay_band_position", "rewards", capability.EffectReadOnly, "scope:rewards.read"),
-		{ID: CapabilityMarketRate, Version: 1}:                          capabilityRecord(CapabilityMarketRate, "rewards", capability.EffectReadOnly, "scope:rewards.read"),
-		{ID: "internal/governance/revalidate", Version: 1}:              capabilityRecord("internal/governance/revalidate", "governance", capability.EffectReadOnly, "scope:governance.read"),
-		{ID: "hcmnext.people.promote_worker", Version: 1}:               capabilityRecord("hcmnext.people.promote_worker", "people", capability.EffectInternalMutation, "scope:people.write"),
-		{ID: "hcmnext.payroll.observe_promotion", Version: 1}:           capabilityRecord("hcmnext.payroll.observe_promotion", "payroll", capability.EffectReadOnly, "scope:observation.read"),
-		{ID: "hcmnext.access.observe_promotion", Version: 1}:            capabilityRecord("hcmnext.access.observe_promotion", "access", capability.EffectReadOnly, "scope:observation.read"),
-		{ID: "hcmnext.reconciliation.observe_promotion", Version: 1}:    capabilityRecord("hcmnext.reconciliation.observe_promotion", "reconciliation", capability.EffectReadOnly, "scope:observation.read"),
-		{ID: "hcmnext.rewards.release_compensation_budget", Version: 1}: capabilityRecord("hcmnext.rewards.release_compensation_budget", "rewards", capability.EffectInternalMutation, "scope:rewards.write"),
+// the registry resolves those records. The market-rate read is registered
+// here as the variant's sole additional manifest.
+func capabilities() (*capability.Registry, error) {
+	registry, err := promotionexec.ManifestRegistry()
+	if err != nil {
+		return nil, err
 	}
+	id := CapabilityMarketRate
+	definition := capability.Definition{
+		ID: id, Version: 1, OwnerDomain: "rewards",
+		RequestSchema:  capability.SchemaRef{SchemaID: id + ".request/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"},
+		ResponseSchema: capability.SchemaRef{SchemaID: id + ".response/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"},
+		ErrorSchema:    capability.SchemaRef{SchemaID: id + ".error/v1", Version: 1, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"},
+		EffectClass:    capability.EffectReadOnly, ReadData: capability.DataDomainFieldSet{DataDomains: []string{"market_rate"}},
+		RiskClass: "LOW", IdempotencyPolicyRef: "idempotency.read-safe.v1", AuthZScopeRef: "scope:rewards.read",
+		LegalBasisRef: "legal.promotion.execution/v1", EntitlementRef: "entitlement.promotion.execution/v1",
+		SLOClassRef: "slo.interactive.p95-2s.v1", TestRef: "conformance:" + id + "/v1",
+	}
+	if err := registry.Register(definition, func(context.Context, any) (any, error) {
+		return nil, errors.New("promotionhiperf: market-rate manifest has no execution binding")
+	}); err != nil {
+		return nil, fmt.Errorf("promotionhiperf: register market-rate capability: %w", err)
+	}
+	return registry, nil
 }
 
 // HasMarketRate reports whether plan carries the variant's market-rate
