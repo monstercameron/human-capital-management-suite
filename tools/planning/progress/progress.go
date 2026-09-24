@@ -106,16 +106,20 @@ func SummarizeMarkdown(markdown string, now time.Time) (Report, error) {
 				item.Issues = append(item.Issues, "evidence timestamp is not a date")
 			}
 
-			if strings.Contains(strings.ToUpper(claim.Body), "RESULT FAIL") ||
+			failedResult := false
+			if record, ok := evidence.ParseEvidenceField(todo.ID, claim.Label, claim.Body); ok {
+				failedResult = record.Result == "FAIL" || record.Result == "FAILED"
+			}
+			if failedResult || strings.Contains(strings.ToUpper(claim.Body), "RESULT FAIL") ||
 				strings.Contains(strings.ToUpper(claim.Body), "RESULT: FAIL") {
 				item.Red = true
 			}
-			item.Refactored = len(item.Issues) == 0 && refactoredRe.MatchString(claim.Body)
-			item.GateAccepted = len(item.Issues) == 0 && gateAcceptedRe.MatchString(claim.Body)
+			item.Refactored = len(item.Issues) == 0 && !failedResult && refactoredRe.MatchString(claim.Body)
+			item.GateAccepted = len(item.Issues) == 0 && !failedResult && gateAcceptedRe.MatchString(claim.Body)
 			item.Evidenced = len(item.Issues) == 0
 		}
 
-		item.Complete = item.Green && item.Refactored && item.Evidenced
+		item.Complete = item.Green && !item.Red && item.Refactored && item.Evidenced
 		report.Items = append(report.Items, item)
 	}
 

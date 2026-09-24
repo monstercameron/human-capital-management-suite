@@ -52,6 +52,15 @@ func TestProgressRejectsUncheckedEvidence(t *testing.T) {
   - **REFACTOR:** keep the implementation small.
   - **Refs:** [example](plan.md).
   - **Evidence (2026-09-03):** ` + "`TestAccepted`" + ` in ` + "`tools/planning/progress`" + `; ` + "`go test -count=1 ./tools/planning/progress/...`" + ` PASS on windows/arm64 (Go 1.26.3); branch example; refactored; gate-accepted.
+- [x] ` + "`FAILED-001`" + ` **[P0][LUNA] A checked item with a failed fresh run.**
+  - **Depends:** none.
+  - **TEST:** ` + "`TestFailed`" + `.
+  - **TEST MATRIX:** ` + "`PRIMARY=TestFailed`" + `.
+  - **RED:** a failing run remains red.
+  - **GREEN:** a later passing run completes the behavior.
+  - **REFACTOR:** keep the implementation small.
+  - **Refs:** [example](plan.md).
+  - **Evidence (2026-09-03):** ` + "`TestFailed`" + ` in ` + "`tools/planning/progress`" + `; ` + "`go test -count=1 ./tools/planning/progress/...`" + ` FAIL on windows/arm64 (Go 1.26.3); branch example; refactored; gate-accepted.
 `
 
 	report, err := SummarizeMarkdown(markdown, time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC))
@@ -59,23 +68,30 @@ func TestProgressRejectsUncheckedEvidence(t *testing.T) {
 		t.Fatalf("SummarizeMarkdown: %v", err)
 	}
 
-	if got := report.Count(StageAuthored); got != 5 {
-		t.Errorf("authored count = %d, want 5", got)
+	if got := report.Count(StageAuthored); got != 6 {
+		t.Errorf("authored count = %d, want 6", got)
 	}
-	if got := report.Count(StageRed); got != 1 {
-		t.Errorf("red count = %d, want 1 (the unchecked item), got report %s", got, report)
+	if got := report.Count(StageRed); got != 2 {
+		t.Errorf("red count = %d, want 2 (unchecked and failed items), got report %s", got, report)
 	}
-	if got := report.Count(StageGreen); got != 4 {
-		t.Errorf("green count = %d, want 4", got)
+	if got := report.Count(StageGreen); got != 5 {
+		t.Errorf("green count = %d, want 5", got)
 	}
-	if got := report.Count(StageEvidenced); got != 2 {
-		t.Errorf("evidenced count = %d, want 2", got)
+	if got := report.Count(StageEvidenced); got != 3 {
+		t.Errorf("evidenced count = %d, want 3", got)
 	}
 	if got := report.Count(StageGateAccepted); got != 1 {
 		t.Errorf("gate-accepted count = %d, want 1", got)
 	}
 	if got := report.Count(StageComplete); got != 2 {
 		t.Errorf("complete count = %d, want 2", got)
+	}
+	failed, ok := report.Item("FAILED-001")
+	if !ok {
+		t.Fatal("missing report item FAILED-001")
+	}
+	if !failed.Green || !failed.Red || !failed.Evidenced || failed.Refactored || failed.GateAccepted || failed.Complete {
+		t.Errorf("fresh failed run did not fail closed: %+v", failed)
 	}
 
 	for _, id := range []string{"NO-EVIDENCE-001", "STALE-001"} {
