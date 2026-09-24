@@ -45,6 +45,15 @@ func Use(r Reader) error { return r.Read() }
 		t.Fatalf("consumer-owned interface was reported as ceremony: %v", got)
 	}
 
+	incompatibleImplementation := archrules.SourcePackage{ImportPath: "internal/example", Source: `package example
+type Reader interface { Read() error }
+type reader struct{}
+func (reader) Read() int { return 0 }
+`}
+	if got := archrules.CheckCeremonySources([]archrules.SourcePackage{incompatibleImplementation}, rules); len(got) != 0 {
+		t.Fatalf("same-named but incompatible method was counted as an implementation: %v", got)
+	}
+
 	redLayer := archrules.SourcePackage{ImportPath: "internal/foo_service", Source: `package foo_service
 import "example.com/dependency"
 func New(v int) int { return dependency.New(v) }
@@ -68,6 +77,15 @@ func New(v int) int { x := dependency.New(v); return x + 1 }
 `}
 	if got := archrules.CheckCeremonySources([]archrules.SourcePackage{greenLayer}, rules); len(got) != 0 {
 		t.Fatalf("semantic layer was reported as ceremony: %v", got)
+	}
+
+	forwardingWithState := archrules.SourcePackage{ImportPath: "internal/foo_service", Source: `package foo_service
+import "example.com/dependency"
+var Default = dependency.Default
+func New(v int) int { return dependency.New(v) }
+`}
+	if got := archrules.CheckCeremonySources([]archrules.SourcePackage{forwardingWithState}, rules); len(got) != 0 {
+		t.Fatalf("forwarding package with a value declaration was reported as forwarding-only: %v", got)
 	}
 }
 

@@ -1,8 +1,10 @@
 package archrules
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -204,7 +206,7 @@ func checkParsedPackage(pkg SourcePackage, files []*ast.File) []CeremonyViolatio
 				if methodName == "" || interfaceReferences(files, ts.Name, iface) != 0 {
 					continue
 				}
-				implementers := methodImplementers(files, methodName)
+				implementers := methodImplementers(files, methodName, iface.Methods.List[0].Type.(*ast.FuncType))
 				if len(implementers) != 1 {
 					continue
 				}
@@ -244,12 +246,13 @@ func interfaceReferences(files []*ast.File, declared *ast.Ident, iface *ast.Inte
 	return refs
 }
 
-func methodImplementers(files []*ast.File, method string) []string {
+func methodImplementers(files []*ast.File, method string, signature *ast.FuncType) []string {
 	seen := map[string]bool{}
+	wantSignature := signatureKey(signature)
 	for _, file := range files {
 		for _, decl := range file.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Recv == nil || fn.Name.Name != method || len(fn.Recv.List) == 0 {
+			if !ok || fn.Recv == nil || fn.Name.Name != method || len(fn.Recv.List) == 0 || signatureKey(fn.Type) != wantSignature {
 				continue
 			}
 			if name := receiverName(fn.Recv.List[0].Type); name != "" {
@@ -263,6 +266,34 @@ func methodImplementers(files []*ast.File, method string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func formatNode(node ast.Node) string {
+	var buf bytes.Buffer
+	if err := format.Node(&buf, token.NewFileSet(), node); err != nil {
+		return ""
+	}
+	return buf.String()
+}
+
+func signatureKey(signature *ast.FuncType) string {
+	fieldKeys := func(fields *ast.FieldList) []string {
+		if fields == nil {
+			return nil
+		}
+		var keys []string
+		for _, field := range fields.List {
+			count := len(field.Names)
+			if count == 0 {
+				count = 1
+			}
+			for i := 0; i < count; i++ {
+				keys = append(keys, formatNode(field.Type))
+			}
+		}
+		return keys
+	}
+	return strings.Join(fieldKeys(signature.Params), ",") + "->" + strings.Join(fieldKeys(signature.Results), ",")
 }
 
 func receiverName(expr ast.Expr) string {
@@ -303,6 +334,9 @@ func forwardingOnly(files []*ast.File) bool {
 			case *ast.GenDecl:
 				if d.Tok == token.IMPORT {
 					continue
+				}
+				if d.Tok == token.VAR || d.Tok == token.CONST {
+					return false
 				}
 				for _, spec := range d.Specs {
 					ts, ok := spec.(*ast.TypeSpec)
