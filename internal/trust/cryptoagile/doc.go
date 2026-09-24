@@ -31,9 +31,16 @@
 //
 // [DualSigner] implements dual-sign: during a migration window it signs a
 // message under both the outgoing (ACTIVE) and incoming (DUAL) suite.
-// [EnvelopeVerifier] implements dual-read: it accepts a signature under any
-// suite the registry has not marked RETIRED, and refuses a RETIRED suite's
-// signature with a typed [RetiredSuiteError] rather than a bare boolean.
+// [EnvelopeVerifier.Verify] implements current dual-read: it accepts a
+// signature under any suite the registry has not marked RETIRED, and refuses
+// a RETIRED suite with a typed [RetiredSuiteError].
+// [EnvelopeVerifier.VerifyHistorical] checks evidence under a retired suite
+// only when the caller supplies its original signing time, before retirement.
+// A signature alone does not authenticate the caller-supplied signing time.
+// The caller must derive it from a timestamp covered by message or from an
+// independently protected append-only record; otherwise post-cutoff material
+// could be misrepresented as historical. Historical verification proves
+// authenticity; it does not authorize a current action under a retired suite.
 //
 // [MigrationPlan] declares the windows a migration moves through and
 // [MigrationPlan.Validate] refuses a plan whose windows overlap or leave a
@@ -53,4 +60,10 @@
 // key custody port - to them, matching custody's own rule that a caller
 // never receives raw credential bytes. [FakeKeySource] is the in-memory test
 // double used where a real custody provider is not available.
+//
+// A production migration caller must persist migration receipts and additional
+// signatures as append-only records, and must compose a suite registry and
+// custody handles from governed policy. The existing ledger checkpoint epoch
+// stores one Ed25519 signature and is immutable; this package does not provide
+// a production receipt store or a production suite-policy source.
 package cryptoagile

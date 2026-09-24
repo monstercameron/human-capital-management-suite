@@ -126,9 +126,10 @@ func (e *RetiredSuiteError) Error() string {
 
 // Verification refusal reasons other than [RetiredSuiteError].
 var (
-	ErrStrippedSuiteID  = errors.New("cryptoagile: envelope carries no suite id")
-	ErrSuiteNotFound    = errors.New("cryptoagile: envelope names a suite id that is not registered")
-	ErrSignatureInvalid = errors.New("cryptoagile: signature does not verify under its stated suite")
+	ErrStrippedSuiteID           = errors.New("cryptoagile: envelope carries no suite id")
+	ErrSuiteNotFound             = errors.New("cryptoagile: envelope names a suite id that is not registered")
+	ErrSignatureInvalid          = errors.New("cryptoagile: signature does not verify under its stated suite")
+	ErrSuiteNotValidAtSignedTime = errors.New("cryptoagile: suite was not valid at the evidence signing time")
 )
 
 // EnvelopeVerifier implements dual-read: [EnvelopeVerifier.Verify] accepts a
@@ -165,6 +166,38 @@ func (v *EnvelopeVerifier) Verify(message []byte, env Envelope) error {
 		return fmt.Errorf("cryptoagile: verifying under suite %q: %w", env.SuiteID, err)
 	}
 	if !ok2 {
+		return fmt.Errorf("%w: suite %q", ErrSignatureInvalid, env.SuiteID)
+	}
+	return nil
+}
+
+// VerifyHistorical verifies the cryptographic authenticity of evidence that
+// was signed while its suite was active or dual, including evidence whose
+// suite has since been retired. It is for historical verification only;
+// callers making a current trust decision must use [EnvelopeVerifier.Verify],
+// which continues to refuse retired suites.
+//
+// signedAt must come from a timestamp bound by message or from an independently
+// protected append-only record. This method does not authenticate signedAt;
+// passing a fabricated pre-retirement time can make a post-retirement signature
+// appear historical. The caller must establish the timestamp's provenance.
+func (v *EnvelopeVerifier) VerifyHistorical(message []byte, env Envelope, signedAt time.Time) error {
+	if strings.TrimSpace(env.SuiteID) == "" {
+		return ErrStrippedSuiteID
+	}
+	suite, ok := v.registry.Get(env.SuiteID)
+	if !ok {
+		return fmt.Errorf("%w: %q", ErrSuiteNotFound, env.SuiteID)
+	}
+	if signedAt.IsZero() || suite.ActivatedAt.IsZero() || signedAt.Before(suite.ActivatedAt) ||
+		(suite.Status == StatusRetired && !signedAt.Before(suite.RetiredAt)) {
+		return fmt.Errorf("%w: suite %q at %s", ErrSuiteNotValidAtSignedTime, suite.ID, signedAt.Format(time.RFC3339))
+	}
+	valid, err := v.keys.Verify(env.SuiteID, bindSuite(env.SuiteID, message), env.Signature)
+	if err != nil {
+		return fmt.Errorf("cryptoagile: verifying historical evidence under suite %q: %w", env.SuiteID, err)
+	}
+	if !valid {
 		return fmt.Errorf("%w: suite %q", ErrSignatureInvalid, env.SuiteID)
 	}
 	return nil
