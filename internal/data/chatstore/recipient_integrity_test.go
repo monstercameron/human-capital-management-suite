@@ -45,32 +45,6 @@ func TestTodo_CHAT_022_Integration_RecipientCursorIntegrity(t *testing.T) {
 	if _, err := s.PutReadState(ctx, state, 2); !errors.Is(err, chat.ErrConflict) {
 		t.Fatalf("stale CAS: %v", err)
 	}
-	var wg sync.WaitGroup
-	results := make(chan error, 2)
-	for i := 0; i < 2; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_, err := s.PutReadState(ctx, state, 3)
-			results <- err
-		}()
-	}
-	wg.Wait()
-	close(results)
-	successes, conflicts := 0, 0
-	for err := range results {
-		switch {
-		case err == nil:
-			successes++
-		case errors.Is(err, chat.ErrConflict):
-			conflicts++
-		default:
-			t.Fatalf("concurrent CAS: %v", err)
-		}
-	}
-	if successes != 1 || conflicts != 1 {
-		t.Fatalf("concurrent CAS successes=%d conflicts=%d", successes, conflicts)
-	}
 	late := chat.Membership{ConversationID: c.ID, TenantID: c.TenantID, HomeTenantID: "later", SubjectID: "sam", Role: chat.Member, HistoryVisibility: chat.FromJoin}
 	if _, err := s.PutMembership(ctx, chat.Principal{TenantID: "host", SubjectID: "sam"}, late); err != nil {
 		t.Fatal(err)
@@ -103,5 +77,53 @@ func TestTodo_CHAT_022_Integration_RecipientCursorIntegrity(t *testing.T) {
 	}
 	if _, err := s.PutPreferences(ctx, chat.NotificationPreferences{TenantID: c.TenantID, ConversationID: c.ID, HomeTenantID: "foreign", SubjectID: "sam", Muted: true}, 1); !errors.Is(err, chat.ErrPermissionDenied) {
 		t.Fatalf("removed preference write: %v", err)
+	}
+}
+
+func TestTodo_CHAT_022_Race(t *testing.T) {
+	s := adapterDB(t)
+	ctx := context.Background()
+	c := chat.Conversation{ID: "recipient-race", TenantID: "host", Kind: chat.PrivateChannel, OwnerID: "sam", Revision: 1}
+	member := chat.Membership{ConversationID: c.ID, TenantID: c.TenantID, HomeTenantID: "host", SubjectID: "sam", Role: chat.Manager, HistoryVisibility: chat.FullHistory}
+	if _, err := s.CreateConversation(ctx, c, []chat.Membership{member}, ""); err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.SendPost(ctx, chat.SendPostRequest{Principal: chat.Principal{TenantID: "host", SubjectID: "sam"}, TenantID: c.TenantID, ConversationID: c.ID, IdempotencyKey: "one"}, chat.Post{AuthorID: "sam", Body: "one"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := chat.ReadState{TenantID: c.TenantID, ConversationID: c.ID, HomeTenantID: "host", SubjectID: "sam", LastReadSequence: p.Sequence}
+	if _, err := s.PutReadState(ctx, state, 1); err != nil {
+		t.Fatalf("initial cursor: %v", err)
+	}
+	var wg sync.WaitGroup
+	results := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := s.PutReadState(ctx, state, 2)
+			results <- err
+		}()
+	}
+	wg.Wait()
+	close(results)
+	successes, conflicts := 0, 0
+	for err := range results {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, chat.ErrConflict):
+			conflicts++
+		default:
+			t.Fatalf("concurrent cursor CAS: %v", err)
+		}
+	}
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("concurrent cursor CAS successes=%d conflicts=%d", successes, conflicts)
+	}
+	got, err := s.GetReadState(ctx, c.TenantID, c.ID, "host", "sam")
+	if err != nil || got.LastReadSequence != p.Sequence || got.Revision != 3 {
+		t.Fatalf("cursor after race: %+v %v", got, err)
 	}
 }

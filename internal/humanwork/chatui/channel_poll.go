@@ -39,7 +39,7 @@ func channelPollSection(m Model, h handlers) ui.Node {
 			html.Input(html.Props{ID: "channel-poll-question", Class: "chat-input", Type: "text", MaxLength: 240, Required: true, Disabled: m.ChannelPollPending || m.ChannelPollLoading}),
 			html.Label(html.Props{For: "channel-poll-options", Text: m.t(KeyPollOptions)}),
 			html.P(html.Props{ID: "channel-poll-options-hint", Class: "muted", Text: m.t(KeyPollOptionsHint)}),
-			html.Textarea(html.Props{ID: "channel-poll-options", Class: "chat-input", Rows: 4, Required: true, Placeholder: m.t(KeyPollOptions), Aria: map[string]string{"describedby": "channel-poll-options-hint"}, Disabled: m.ChannelPollPending || m.ChannelPollLoading}),
+			html.Textarea(html.Props{ID: "channel-poll-options", Class: "chat-input", Rows: 4, Required: true, Aria: map[string]string{"describedby": "channel-poll-options-hint"}, Disabled: m.ChannelPollPending || m.ChannelPollLoading}),
 			html.Button(html.Props{Class: "button small", Type: "submit", Disabled: m.ChannelPollPending || m.ChannelPollLoading || m.Callbacks.CreateChannelPoll == nil, Text: m.t(KeyPollCreate)})))
 		return html.Section(html.Props{ID: "chat-poll-section", Class: "details-section channel-poll", TabIndex: -1, Data: map[string]string{"loading": boolString(m.ChannelPollLoading)}, Aria: map[string]string{"label": m.t(KeyPollTitle)}}, children...)
 	}
@@ -63,7 +63,11 @@ func channelPollSection(m Model, h handlers) ui.Node {
 		if selected {
 			voteLabel = m.t(KeyPollVoted)
 		}
-		rows = append(rows, html.Li(html.Props{Class: "channel-poll-option"},
+		rowClass := "channel-poll-option"
+		if selected {
+			rowClass += " selected"
+		}
+		rows = append(rows, html.Li(html.Props{Class: rowClass},
 			actionButton("button secondary small channel-poll-vote", "poll-vote", option.ID, label, m.ChannelPollPending || m.ChannelPollLoading || m.Callbacks.VoteChannelPoll == nil, ui.Text(voteLabel)),
 			html.Span(html.Props{Class: "channel-poll-option-label", Text: option.Text}),
 			html.Progress(html.Props{Class: "channel-poll-progress", Raw: map[string]any{"value": percent, "max": 100}, Aria: map[string]string{"label": label}}),

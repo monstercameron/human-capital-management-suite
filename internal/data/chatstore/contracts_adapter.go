@@ -232,7 +232,10 @@ func decodeCursor(s string) (string, error) {
 	}
 	return string(b), nil
 }
-func (s *Adapter) UpdateConversation(ctx context.Context, c chat.Conversation, expected uint64) (chat.Conversation, error) {
+func (s *Adapter) UpdateConversation(ctx context.Context, actor chat.Principal, c chat.Conversation, expected uint64) (chat.Conversation, error) {
+	if actor.TenantID == "" || actor.SubjectID == "" || actor.TenantID != c.TenantID || c.ID == "" || expected == 0 {
+		return c, chat.ErrInvalidArgument
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return c, err
@@ -244,9 +247,40 @@ func (s *Adapter) UpdateConversation(ctx context.Context, c chat.Conversation, e
 	if err = fenceContextWrite(ctx, tx, c.TenantID, c.ID); err != nil {
 		return c, err
 	}
+	// routeFence locks the conversation row before these membership checks.
+	// Membership removal and rejoin use the same lock, so current manager
+	// authority and a proposed owner cannot be revoked between validation and
+	// the settings revision update.
+	var actorRole string
+	err = tx.QueryRow(ctx, `SELECT role FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND state='active' AND left_at IS NULL FOR SHARE`, c.TenantID, c.ID, actor.TenantID, actor.SubjectID).Scan(&actorRole)
+	if errors.Is(err, dbport.ErrNoRows) {
+		return c, chat.ErrPermissionDenied
+	}
+	if err != nil {
+		return c, err
+	}
+	if actorRole != string(chat.Manager) {
+		return c, chat.ErrPermissionDenied
+	}
+	var currentOwner string
+	if err = tx.QueryRow(ctx, `SELECT owner_id FROM chat_conversation WHERE tenant_id=$1 AND id=$2`, c.TenantID, c.ID).Scan(&currentOwner); err != nil {
+		return c, err
+	}
+	if c.OwnerID == "" {
+		c.OwnerID = currentOwner
+	}
+	if c.OwnerID != currentOwner {
+		var target string
+		err = tx.QueryRow(ctx, `SELECT member_id FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$1 AND member_id=$3 AND state='active' AND left_at IS NULL FOR SHARE`, c.TenantID, c.ID, c.OwnerID).Scan(&target)
+		if errors.Is(err, dbport.ErrNoRows) {
+			return c, chat.ErrInvalidArgument
+		}
+		if err != nil {
+			return c, err
+		}
+	}
 	var rev int64
-	var owner string
-	err = tx.QueryRow(ctx, `UPDATE chat_conversation SET name=$1,settings_revision=settings_revision+1,lifecycle=$2 WHERE tenant_id=$3 AND id=$4 AND settings_revision=$5 RETURNING settings_revision,owner_id`, c.Name, map[bool]string{true: "ARCHIVED", false: "ACTIVE"}[c.Archived], c.TenantID, c.ID, expected).Scan(&rev, &owner)
+	err = tx.QueryRow(ctx, `UPDATE chat_conversation SET name=$1,owner_id=$2,settings_revision=settings_revision+1,lifecycle=$3 WHERE tenant_id=$4 AND id=$5 AND settings_revision=$6 RETURNING settings_revision,owner_id`, c.Name, c.OwnerID, map[bool]string{true: "ARCHIVED", false: "ACTIVE"}[c.Archived], c.TenantID, c.ID, expected).Scan(&rev, &c.OwnerID)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return c, chat.ErrConflict
 	}
@@ -254,8 +288,7 @@ func (s *Adapter) UpdateConversation(ctx context.Context, c chat.Conversation, e
 		return c, err
 	}
 	c.Revision = uint64(rev)
-	c.OwnerID = owner
-	if err = emitAdapterEvent(ctx, tx, c.TenantID, c.ID, "conversation.updated", c.TenantID, owner, c.ID, c.Revision, c); err != nil {
+	if err = emitAdapterEvent(ctx, tx, c.TenantID, c.ID, "conversation.updated", actor.TenantID, actor.SubjectID, c.ID, c.Revision, c); err != nil {
 		return c, err
 	}
 	return c, tx.Commit(ctx)
@@ -628,11 +661,21 @@ func (s *Adapter) GetPost(ctx context.Context, tenantID, conversationID, postID 
 	}
 	return p, tx.Commit(ctx)
 }
+
+// EditPost commits the service's revalidated reference set with the new body
+// (CHAT-025); nil references keep the stored set.
 func (s *Adapter) EditPost(ctx context.Context, r chat.EditPostRequest) (chat.Post, error) {
-	return s.revise(ctx, r.TenantID, r.ConversationID, r.PostID, r.Principal.TenantID, r.Principal.SubjectID, r.Body, false, r.ExpectedRevision)
+	var refsJSON []byte
+	if r.References != nil {
+		var err error
+		if refsJSON, err = json.Marshal(r.References); err != nil {
+			return chat.Post{}, err
+		}
+	}
+	return s.revise(ctx, r.TenantID, r.ConversationID, r.PostID, r.Principal.TenantID, r.Principal.SubjectID, r.Body, refsJSON, false, r.ExpectedRevision)
 }
 func (s *Adapter) DeletePost(ctx context.Context, r chat.DeletePostRequest) (chat.Post, error) {
-	return s.revise(ctx, r.TenantID, r.ConversationID, r.PostID, r.Principal.TenantID, r.Principal.SubjectID, "", true, r.ExpectedRevision)
+	return s.revise(ctx, r.TenantID, r.ConversationID, r.PostID, r.Principal.TenantID, r.Principal.SubjectID, "", nil, true, r.ExpectedRevision)
 }
 
 // currentTombstone returns the caller's own post when it is already tombstoned.
@@ -648,7 +691,7 @@ func currentTombstone(ctx context.Context, tx dbport.Tx, tenantID, conversationI
 	return chatPost(x)
 }
 
-func (s *Adapter) revise(ctx context.Context, t, cid, id, home, author, body string, deleted bool, expected uint64) (chat.Post, error) {
+func (s *Adapter) revise(ctx context.Context, t, cid, id, home, author, body string, refsJSON []byte, deleted bool, expected uint64) (chat.Post, error) {
 	var p chat.Post
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -664,8 +707,27 @@ func (s *Adapter) revise(ctx context.Context, t, cid, id, home, author, body str
 	if err = fenceContextWrite(ctx, tx, t, cid); err != nil {
 		return p, err
 	}
+	// A delete that removes evidence under an active records hold is exactly
+	// the CHAT-026 RED this store must refuse to reproduce: capture the live
+	// body before the update clears the ordinary projection, but only keep it
+	// (in the immutable revision ledger, never in the live row) when the
+	// post's record currently carries an unreleased hold. Every other delete
+	// stays genuinely destructive — no hold, no held copy.
+	preservedBody := body
+	if deleted {
+		held, herr := recordHeld(ctx, tx, t, "post:"+id)
+		if herr != nil {
+			return p, herr
+		}
+		if held {
+			var liveBody string
+			if lerr := tx.QueryRow(ctx, `SELECT body FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND id=$3 AND tombstoned=false`, t, cid, id).Scan(&liveBody); lerr == nil {
+				preservedBody = liveBody
+			}
+		}
+	}
 	var x Post
-	err = tx.QueryRow(ctx, `UPDATE chat_post SET body=$1,tombstoned=$2,revision=revision+1,updated_at=now() WHERE tenant_id=$3 AND conversation_id=$4 AND id=$5 AND author_home_tenant_id=$6 AND author_id=$7 AND revision=$8 AND tombstoned=false RETURNING id,tenant_id,conversation_id,author_id,author_home_tenant_id,sequence,body,revision,tombstoned,created_at,parent_id,references_json,source_attribution`, body, deleted, t, cid, id, home, author, expected).Scan(&x.ID, &x.TenantID, &x.ConversationID, &x.AuthorID, &x.AuthorHomeTenantID, &x.Sequence, &x.Body, &x.Revision, &x.Tombstoned, &x.CreatedAt, &x.ParentID, &x.References, &x.SourceAttribution)
+	err = tx.QueryRow(ctx, `UPDATE chat_post SET body=$1,tombstoned=$2,revision=revision+1,references_json=COALESCE($9::jsonb,references_json),updated_at=now() WHERE tenant_id=$3 AND conversation_id=$4 AND id=$5 AND author_home_tenant_id=$6 AND author_id=$7 AND revision=$8 AND tombstoned=false RETURNING id,tenant_id,conversation_id,author_id,author_home_tenant_id,sequence,body,revision,tombstoned,created_at,parent_id,references_json,source_attribution`, body, deleted, t, cid, id, home, author, expected, nullableJSON(refsJSON)).Scan(&x.ID, &x.TenantID, &x.ConversationID, &x.AuthorID, &x.AuthorHomeTenantID, &x.Sequence, &x.Body, &x.Revision, &x.Tombstoned, &x.CreatedAt, &x.ParentID, &x.References, &x.SourceAttribution)
 	if errors.Is(err, dbport.ErrNoRows) {
 		// The update matched nothing for one of two very different reasons, and
 		// collapsing both into a conflict is what made the live log unreadable:
@@ -688,7 +750,7 @@ func (s *Adapter) revise(ctx context.Context, t, cid, id, home, author, body str
 	if err != nil {
 		return p, err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO chat_post_revision(tenant_id,post_id,revision,author_id,body,parent_id,references_json,source_attribution,tombstoned) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, t, id, x.Revision, author, body, x.ParentID, x.References, x.SourceAttribution, deleted)
+	_, err = tx.Exec(ctx, `INSERT INTO chat_post_revision(tenant_id,post_id,revision,author_id,body,parent_id,references_json,source_attribution,tombstoned) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, t, id, x.Revision, author, preservedBody, x.ParentID, x.References, x.SourceAttribution, deleted)
 	if err != nil {
 		return p, err
 	}
@@ -1489,4 +1551,13 @@ func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest
 		return after, nil, false, err
 	}
 	return after, out, scanned < limit, tx.Commit(ctx)
+}
+
+// nullableJSON passes a nil byte slice as SQL NULL so COALESCE keeps the
+// stored value, and anything else as its JSON text.
+func nullableJSON(b []byte) any {
+	if b == nil {
+		return nil
+	}
+	return string(b)
 }

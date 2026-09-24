@@ -1,0 +1,15 @@
+{
+  "ID": "grant-1",
+  "ConversationID": "conversation-1",
+  "HostTenant": "acme",
+  "ConsumerTenant": "vendor",
+  "Version": 1,
+  "Scope": "conversation",
+  "Classification": "internal",
+  "Residency": "US",
+  "Proposed": true,
+  "AcceptedByHost": true,
+  "AcceptedByConsumer": true,
+  "ExpiresAt": "2026-09-21T13:00:00Z",
+  "RevokedAt": "0001-01-01T00:00:00Z"
+}

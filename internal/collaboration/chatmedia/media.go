@@ -218,6 +218,14 @@ func (s *Service) Upload(ctx context.Context, req UploadRequest) (Reference, err
 	if sniff(req.Content) != mt {
 		return Reference{}, ErrUnsupported
 	}
+	if mt == MediaMP3 || mt == MediaWAV {
+		if strings.TrimSpace(req.Transcript) == "" && strings.TrimSpace(req.AltText) == "" {
+			return Reference{}, fmt.Errorf("%w: audio needs a transcript or text alternative", ErrInvalid)
+		}
+		if _, ok := inspectAudioDuration(req.Content, mt); !ok {
+			return Reference{}, ErrUnsupported
+		}
+	}
 	id := scopedArtifactID(req.TenantID, req.ConversationID, req.Content)
 	if s.authorize == nil {
 		return Reference{}, ErrUnauthorized
@@ -412,6 +420,30 @@ func (s *Service) OpenVariant(ctx context.Context, req AccessRequest, variant st
 		a, err = s.store.Get(ctx, req.TenantID, req.ArtifactID)
 	} else {
 		a, err = s.store.GetRendition(ctx, req.TenantID, req.ArtifactID, variant)
+		if errors.Is(err, ErrUnsupported) {
+			// Older admitted images can predate stored renditions. Derive the
+			// requested bounded rendition from the original bytes after the same
+			// grant and admission checks, without changing the stored artifact.
+			var original Artifact
+			original, err = s.store.Get(ctx, req.TenantID, req.ArtifactID)
+			if err == nil {
+				var renditions map[string]Rendition
+				renditions, err = imageRenditions(original.Content, original.MediaType)
+				if err == nil {
+					var ok bool
+					var rendition Rendition
+					rendition, ok = renditions[variant]
+					if !ok {
+						err = ErrUnsupported
+					} else {
+						original.Content = rendition.Content
+						original.MediaType = rendition.MediaType
+						original.Size = int64(len(rendition.Content))
+						a = original
+					}
+				}
+			}
+		}
 	}
 	if err != nil {
 		return nil, Reference{}, err

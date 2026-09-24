@@ -87,7 +87,7 @@ func installPaneResize() {
 			return nil
 		})
 		move := js.FuncOf(func(_ js.Value, args []js.Value) any {
-			if len(args) == 0 || paneDrag.pane == "" {
+			if len(args) == 0 || paneDrag.pane == "" || !samePanePointer(paneDrag.pointer, args[0].Get("pointerId")) {
 				return nil
 			}
 			dx := args[0].Get("clientX").Float() - paneDrag.startX
@@ -103,7 +103,7 @@ func installPaneResize() {
 			return nil
 		})
 		up := js.FuncOf(func(_ js.Value, args []js.Value) any {
-			if paneDrag.pane == "" {
+			if len(args) == 0 || paneDrag.pane == "" || !samePanePointer(paneDrag.pointer, args[0].Get("pointerId")) {
 				return nil
 			}
 			pane, workspace, handle := paneDrag.pane, paneDrag.workspace, paneDrag.handle
@@ -219,6 +219,13 @@ func clampInt(v, low, high int) int {
 		return high
 	}
 	return v
+}
+
+// samePanePointer keeps a second pointer from moving or finishing the active
+// drag. Pointer capture normally routes the owning pointer's events to the
+// handle, but unrelated pointers still bubble through the document listeners.
+func samePanePointer(active, event js.Value) bool {
+	return active.Type() == js.TypeNumber && event.Type() == js.TypeNumber && active.Equal(event)
 }
 
 // paneLog keeps the last drag events on window.__chatPaneLog for diagnosis.

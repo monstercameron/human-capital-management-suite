@@ -28,23 +28,24 @@ type ChatStreamRuntime struct {
 }
 
 type ChatStreamRuntimeConfig struct {
-	CursorKey    string
-	Reader       chatstream.Reader
-	Authorizer   chatstream.Authorizer
-	PollInterval time.Duration
-	PageLimit    int
-	QueueSize    int
-	ReplayLimit  int
-	CursorTTL    time.Duration
-	Budgets      chatadmission.Config
-	Clock        func() time.Time
+	CursorKey       string
+	Reader          chatstream.Reader
+	Authorizer      chatstream.Authorizer
+	PollInterval    time.Duration
+	RecheckInterval time.Duration
+	PageLimit       int
+	QueueSize       int
+	ReplayLimit     int
+	CursorTTL       time.Duration
+	Budgets         chatadmission.Config
+	Clock           func() time.Time
 }
 
 func NewChatStreamRuntime(c ChatStreamRuntimeConfig) (*ChatStreamRuntime, error) {
 	if c.CursorKey == "" {
 		return nil, ErrChatStreamingDisabled
 	}
-	stream, err := chatstream.New(chatstream.Config{Key: []byte(c.CursorKey), Reader: c.Reader, Authorizer: c.Authorizer, QueueSize: c.QueueSize, ReplayLimit: c.ReplayLimit, CursorTTL: c.CursorTTL, Clock: c.Clock})
+	stream, err := chatstream.New(chatstream.Config{Key: []byte(c.CursorKey), Reader: c.Reader, Authorizer: c.Authorizer, QueueSize: c.QueueSize, ReplayLimit: c.ReplayLimit, CursorTTL: c.CursorTTL, Clock: c.Clock, RecheckInterval: c.RecheckInterval})
 	if err != nil {
 		return nil, err
 	}
@@ -237,6 +238,10 @@ func (a chatServiceStreamAuthorizer) Authorize(ctx context.Context, access chats
 	}
 	epoch, err := chatMembershipEpoch(ctx, a.service, a.membership, access.TenantID, access.ConversationID, principal)
 	if err != nil || epoch != access.MembershipEpoch {
+		return chatcore.ErrPermissionDenied
+	}
+	routeEpoch, err := chatRouteEpoch(ctx, a.service, access.TenantID, access.ConversationID)
+	if err != nil || routeEpoch != access.RouteEpoch {
 		return chatcore.ErrPermissionDenied
 	}
 	return nil
@@ -460,7 +465,11 @@ func (s *streamingChatService) WatchConversationWithErrors(ctx context.Context, 
 	if err != nil {
 		return nil, nil, err
 	}
-	sub, _, err := s.runtime.Watch(ctx, chatstream.WatchRequest{TenantID: req.TenantID, HomeTenantID: req.Principal.TenantID, SubjectID: req.Principal.SubjectID, ConversationID: req.ConversationID, MembershipEpoch: epoch, Cursor: req.ResumeCursor, AfterSequence: req.AfterSequence})
+	routeEpoch, err := chatRouteEpoch(ctx, s.ConversationService, req.TenantID, req.ConversationID)
+	if err != nil {
+		return nil, nil, chatStreamError(err)
+	}
+	sub, _, err := s.runtime.Watch(ctx, chatstream.WatchRequest{TenantID: req.TenantID, HomeTenantID: req.Principal.TenantID, SubjectID: req.Principal.SubjectID, ConversationID: req.ConversationID, MembershipEpoch: epoch, RouteEpoch: routeEpoch, Cursor: req.ResumeCursor, AfterSequence: req.AfterSequence})
 	if err != nil {
 		return nil, nil, chatStreamError(err)
 	}

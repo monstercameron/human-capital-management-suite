@@ -59,7 +59,7 @@ func fixture() (*Service, Actor) {
 	r := NewMemoryRepository()
 	now := time.Unix(1000, 0).UTC()
 	s := &Service{Repo: r, Secret: []byte("secret"), Now: func() time.Time { return now }, Callback: callbackStub{}, Authority: authorityStub{}}
-	a := Actor{Tenant: "t1", Principal: "p1", Conversation: "c1", Scopes: []string{"chat:invoke"}}
+	a := Actor{Tenant: "t1", Principal: "manager", Conversation: "c1", Scopes: []string{"chat:invoke"}}
 	m := Manifest{AppID: "app", Version: 1, Scopes: []string{"chat:invoke"}, Commands: []Command{{Name: "ping", Scope: "chat:invoke"}}, Cards: []CardType{{Kind: "notice", Fields: []Field{{Name: "text", Type: "string", Required: true}}}}, Agent: &AgentManifest{DisplayName: "Helper", Triggers: []TriggerSource{TriggerMention}, MaxDepth: 2, CostCeiling: 10}}
 	if _, err := s.Install(context.Background(), a, m, []string{"chat:invoke"}, "manager"); err != nil {
 		panic(err)
@@ -151,7 +151,7 @@ func TestProposalUsesBusinessIntentPort(t *testing.T) {
 	s, a := fixture()
 	stub := &intentStub{}
 	s.Intent = stub
-	p := Proposal{Tenant: "t1", Principal: "p1", Conversation: "c1", AgentInstallation: "t1:c1:app", IntentType: "hcm.leave.request", IdempotencyKey: "i1"}
+	p := Proposal{Tenant: a.Tenant, Principal: a.Principal, Conversation: a.Conversation, AgentInstallation: "t1:c1:app", IntentType: "hcm.leave.request", IdempotencyKey: "i1"}
 	r, err := s.ProposeIntent(context.Background(), a, p)
 	if err != nil || r.IntentID != "intent-1" || stub.calls != 1 {
 		t.Fatalf("proposal=%+v err=%v calls=%d", r, err, stub.calls)

@@ -48,6 +48,15 @@ func focusSearchMessageNow(id string) {
 		if row.Get("dataset").Get("messageId").String() != id {
 			continue
 		}
+		if row.Get("closest").Type() == js.TypeFunction {
+			list := row.Call("closest", "["+listAnchorAttr+"]")
+			if list.Truthy() {
+				list.Set("__chatScrollAwayIntent", true)
+				list.Set("__chatNearBottom", false)
+				list.Set("__chatScrollTop", list.Get("scrollTop"))
+				markAway(list, true)
+			}
+		}
 		row.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 		row.Call("scrollIntoView", js.ValueOf(map[string]any{"block": "center"}))
 		row.Get("classList").Call("add", "search-target")

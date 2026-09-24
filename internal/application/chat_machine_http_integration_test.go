@@ -23,7 +23,11 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
-func TestTodo_CHAT_043_Integration_InstalledAgentHTTP(t *testing.T) {
+// TestTodo_CHAT_043_Integration is the CHAT-043 INTEGRATION matrix test: an
+// installed, visible agent identity reaches a real durable chatappstore
+// (over pgtest PostgreSQL) through the served HTTP transport, distinct from
+// human conversation membership.
+func TestTodo_CHAT_043_Integration(t *testing.T) {
 	store := streamIntegrationStore(t)
 	clock := func() time.Time { return time.Now().UTC() }
 	ctx := context.Background()

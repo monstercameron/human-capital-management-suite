@@ -231,6 +231,32 @@ func TestRecipientQuietHoursBoundaries(t *testing.T) {
 	}
 }
 
+func TestTodo_CHAT_034_SecurityMalformedQuietHoursFailClosed(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		quiet QuietHours
+	}{
+		{name: "negative start", quiet: QuietHours{Timezone: "UTC", StartMinute: -1, EndMinute: 60, Enabled: true}},
+		{name: "start after day", quiet: QuietHours{Timezone: "UTC", StartMinute: 1440, EndMinute: 60, Enabled: true}},
+		{name: "negative end", quiet: QuietHours{Timezone: "UTC", StartMinute: 60, EndMinute: -1, Enabled: true}},
+		{name: "end after day", quiet: QuietHours{Timezone: "UTC", StartMinute: 60, EndMinute: 1440, Enabled: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ShouldNotify(OptionalMessage, AllMessages, tc.quiet, time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC))
+			if got || !errors.Is(err, chat.ErrInvalidArgument) {
+				t.Fatalf("malformed quiet hours delivered optional event: got=%v err=%v", got, err)
+			}
+		})
+	}
+
+	// A governed notice is decided on the HCM notification plane and remains
+	// deliverable even if personal chat preference data is malformed.
+	got, err := ShouldNotify(GovernedHCM, Muted, QuietHours{Timezone: "invalid", StartMinute: -1, EndMinute: 1440, Enabled: true}, time.Time{})
+	if err != nil || !got {
+		t.Fatalf("chat preferences suppressed governed notice: got=%v err=%v", got, err)
+	}
+}
+
 func TestRecipientOptionalDeliveryUsesCurrentPreferences(t *testing.T) {
 	p := chat.Principal{TenantID: "home", SubjectID: "alice"}
 	s := &Service{Conversations: conversations{allowed: true, prefs: chat.NotificationPreferences{MentionsOnly: true}}, Repo: &repo{quiet: QuietHours{Timezone: "UTC"}}}

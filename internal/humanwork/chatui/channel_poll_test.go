@@ -7,25 +7,25 @@ import (
 
 func TestChannelPollResultsExposePercentagesAndOwnSelection(t *testing.T) {
 	m := Model{State: StateReady, SelectedID: "room", ShowDetails: true, Conversations: []Conversation{{ID: "room", Kind: PublicChannel}}, ChannelPoll: ChannelPoll{Revision: 4, Question: "Where for lunch?", TotalVotes: 4, MyOptionID: "sushi", Options: []ChannelPollOption{{ID: "pizza", Text: "Pizza", Count: 3}, {ID: "sushi", Text: "Sushi", Count: 1}}}, Callbacks: Callbacks{VoteChannelPoll: func(string) {}}}
-	markup := render(t, m)
+	markup := renderWithTray(t, m, "poll")
 	for _, want := range []string{"Where for lunch?", "Pizza", "75%", "Sushi", "25%", "Your selection", "<progress", `aria-label="Channel poll"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
 		}
 	}
 	m.Conversations[0].Kind = GroupChat
-	if got := render(t, m); strings.Contains(got, "channel-poll") {
+	if got := renderWithTray(t, m, "poll"); strings.Contains(got, "channel-poll") {
 		t.Fatal("poll controls rendered in group chat")
 	}
 }
 
 func TestChannelPollVoteCountUsesSingularForOneVote(t *testing.T) {
 	m := Model{State: StateReady, SelectedID: "room", ShowDetails: true, Conversations: []Conversation{{ID: "room", Kind: PublicChannel}}, ChannelPoll: ChannelPoll{Question: "Where for lunch?", TotalVotes: 1}}
-	if got := render(t, m); !strings.Contains(got, "1 vote") || strings.Contains(got, "1 votes") {
+	if got := renderWithTray(t, m, "poll"); !strings.Contains(got, "1 vote") || strings.Contains(got, "1 votes") {
 		t.Fatalf("one-vote label missing or pluralized: %s", got)
 	}
 	m.ChannelPoll.TotalVotes = 2
-	if got := render(t, m); !strings.Contains(got, "2 votes") {
+	if got := renderWithTray(t, m, "poll"); !strings.Contains(got, "2 votes") {
 		t.Fatalf("plural vote label missing: %s", got)
 	}
 }
@@ -42,7 +42,7 @@ func TestChannelPollHeaderShortcutOpensPollSectionAndShowsActiveState(t *testing
 			}
 		}},
 	}
-	got := render(t, m)
+	got := renderWithTray(t, m, "poll")
 	for _, want := range []string{`class="channel-poll-trigger active"`, `data-action="open-poll"`, `aria-label="Channel poll: Where for lunch?"`, `class="chat-row selected"`, `data-id="room"`, `id="chat-poll-section"`, `data-loading="false"`, `tabIndex="-1"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("rendered poll shortcut/section missing %q", want)

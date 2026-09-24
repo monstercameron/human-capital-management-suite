@@ -94,27 +94,11 @@ func (s *Service) Export(ctx context.Context, actor, tenant, exportID string) (E
 	if err != nil {
 		return Export{}, err
 	}
-	holds, err := s.Repo.Holds(ctx, tenant)
-	if err != nil {
-		return Export{}, err
-	}
-	active := map[string]bool{}
-	for _, h := range holds {
-		if h.Active() {
-			active[h.HoldID] = true
-		}
-	}
+	// Export the complete tenant inventory. Legal holds govern disposition;
+	// they must not make historical records disappear from an export.
 	ids := make([]string, 0, len(rows))
 	for _, r := range rows {
-		keep := false
-		for _, h := range r.HoldIDs {
-			if active[h] {
-				keep = true
-			}
-		}
-		if keep || len(r.HoldIDs) == 0 {
-			ids = append(ids, r.RecordID)
-		}
+		ids = append(ids, r.RecordID)
 	}
 	sort.Strings(ids)
 	e := Export{TenantID: tenant, ExportID: exportID, RecordIDs: ids, CreatedAt: s.now()}
@@ -170,6 +154,31 @@ func (s *Service) Moderate(ctx context.Context, actor, tenant, caseID, action, t
 		return err
 	}
 	return s.Repo.PutCaseAction(ctx, tenant, CaseAction{CaseID: caseID, Action: action, ActorID: actor, Reason: reason, EvidenceRef: evidenceRef, At: s.now()})
+}
+
+// ModerateAudited is the served moderation path. The caller supplies the
+// current conversation revision from its authorization read; the repository
+// assigns the tenant event sequence and commits action, audit, and outbox
+// together.
+func (s *Service) ModerateAudited(ctx context.Context, actor, tenant, conversation, caseID, action, target, reason, evidenceRef string, priorRevision uint64) (AuditEvent, error) {
+	if strings.TrimSpace(evidenceRef) == "" {
+		return AuditEvent{}, ErrPrivateEvidence
+	}
+	if strings.TrimSpace(conversation) == "" || strings.TrimSpace(reason) == "" || strings.TrimSpace(caseID) == "" || strings.TrimSpace(action) == "" || strings.TrimSpace(target) == "" || priorRevision == 0 {
+		return AuditEvent{}, ErrInvalid
+	}
+	repo, ok := s.Repo.(AuditedCaseActionRepository)
+	if !ok {
+		return AuditEvent{}, ErrAuditUnavailable
+	}
+	evidence, err := s.authorize(ctx, actor, tenant, "moderation."+action, target)
+	if err != nil {
+		return AuditEvent{}, err
+	}
+	at := s.now()
+	entry := CaseAction{CaseID: caseID, Action: action, ActorID: actor, Reason: reason, EvidenceRef: evidenceRef, At: at}
+	event := AuditEvent{TenantID: tenant, ActorID: actor, Action: "moderation." + action, TargetType: "chat_post", TargetID: target, PriorRevision: priorRevision, Reason: reason, PolicyEvidence: evidence, At: at}
+	return repo.PutCaseActionAudited(ctx, tenant, conversation, entry, event)
 }
 func (s *Service) Snapshot(ctx context.Context, actor, tenant string) (Snapshot, error) {
 	if _, err := s.authorize(ctx, actor, tenant, "records.backup", tenant); err != nil {

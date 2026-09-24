@@ -73,6 +73,8 @@ type Channel struct {
 	RequiredQualifications []string
 	AllowedPrincipals      []string
 	AllowedTenants         []string
+	DeniedPrincipals       []string
+	DeniedTenants          []string
 	Classification         string
 	Residency              string
 }
@@ -201,16 +203,26 @@ func Evaluate(action Action, in Input) (Decision, error) {
 
 	foreign := in.Principal.Tenant != in.Channel.HostTenant
 	if foreign {
-		if !in.HasGrant || !in.Grant.Current(in.Now, in.Channel.ID, in.Channel.HostTenant, in.Principal.Tenant) || !grantMatches(in.Channel, in.Grant) {
+		terms := ConversationGrantTerms{
+			ConversationID: in.Channel.ID,
+			HostTenant:     in.Channel.HostTenant,
+			ConsumerTenant: in.Principal.Tenant,
+			Scope:          "conversation",
+			Classification: in.Channel.Classification,
+			Residency:      in.Channel.Residency,
+			ExpiresAt:      in.Grant.ExpiresAt,
+		}
+		if !in.HasGrant || !ConversationGrantCurrent(in.Grant, terms, in.Now) {
 			return Decision{Revision: revision(in)}, ErrNotAuthorized
 		}
 	}
-	if action != ActionDiscover || in.Channel.Private {
-		if in.Channel.Private || len(in.Channel.RequiredRoles) > 0 || len(in.Channel.RequiredQualifications) > 0 || len(in.Channel.AllowedPrincipals) > 0 || len(in.Channel.AllowedTenants) > 0 {
-			if !in.HasMembership || !in.Membership.CurrentAt(in.Channel.ID, in.Principal.ID, in.Principal.Tenant, in.Now) {
-				return Decision{Revision: revision(in)}, ErrNotAuthorized
-			}
-		}
+	if contains(in.Channel.DeniedTenants, in.Principal.Tenant) || contains(in.Channel.DeniedPrincipals, in.Principal.ID) {
+		return Decision{Revision: revision(in)}, ErrNotAuthorized
+	}
+	requiresMembership := in.Channel.Private || (action != ActionDiscover && action != ActionJoin &&
+		(len(in.Channel.RequiredRoles) > 0 || len(in.Channel.RequiredQualifications) > 0 || len(in.Channel.AllowedPrincipals) > 0 || len(in.Channel.AllowedTenants) > 0))
+	if requiresMembership && (!in.HasMembership || !in.Membership.CurrentAt(in.Channel.ID, in.Principal.ID, in.Principal.Tenant, in.Now)) {
+		return Decision{Revision: revision(in)}, ErrNotAuthorized
 	}
 	if !contains(in.Channel.AllowedTenants, in.Principal.Tenant) && len(in.Channel.AllowedTenants) > 0 {
 		return Decision{Revision: revision(in)}, ErrNotAuthorized
@@ -224,13 +236,12 @@ func Evaluate(action Action, in Input) (Decision, error) {
 	return Decision{Allowed: true, Revision: revision(in)}, nil
 }
 
-func grantMatches(c Channel, g Grant) bool {
-	return (g.Classification == "" || g.Classification == c.Classification) && (g.Residency == "" || g.Residency == c.Residency) && (g.Scope == "" || g.Scope == "conversation")
-}
-
 func rolesMatch(c Channel, held []string) bool {
 	if len(c.RequiredRoles) == 0 {
 		return true
+	}
+	if c.RoleMode != 0 && c.RoleMode != RolesAny && c.RoleMode != RolesAll {
+		return false
 	}
 	have := make(map[string]bool, len(held))
 	for _, role := range held {

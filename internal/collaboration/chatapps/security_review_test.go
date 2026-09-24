@@ -43,14 +43,38 @@ func TestTodo_CHAT_028_Security_CallbackCannotForgeInvoker(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_041_Security_CallbackCannotRetargetInstallation(t *testing.T) {
-	s, actor := fixture()
-	callback := &recordingCallback{}
-	s.Callback = callback
-	_, err := s.Invoke(context.Background(), actor, "t1:c1:app", Callback{Command: "ping", IdempotencyKey: "retarget", InstallationID: "t1:c1:other"})
-	if !errors.Is(err, ErrDenied) || callback.called {
-		t.Fatalf("retargeted callback reached client: called=%v err=%v", callback.called, err)
-	}
+// TestTodo_CHAT_041_Security is the CHAT-041 SECURITY matrix test: a
+// callback cannot retarget itself onto another installation, and a card
+// callback cannot reach the client with an untyped kind, an invalid typed
+// field or a spoofed invoker.
+func TestTodo_CHAT_041_Security(t *testing.T) {
+	t.Run("callback cannot retarget installation", func(t *testing.T) {
+		s, actor := fixture()
+		callback := &recordingCallback{}
+		s.Callback = callback
+		_, err := s.Invoke(context.Background(), actor, "t1:c1:app", Callback{Command: "ping", IdempotencyKey: "retarget", InstallationID: "t1:c1:other"})
+		if !errors.Is(err, ErrDenied) || callback.called {
+			t.Fatalf("retargeted callback reached client: called=%v err=%v", callback.called, err)
+		}
+	})
+
+	t.Run("typed card and invoker context", func(t *testing.T) {
+		s, actor := fixture()
+		callback := &recordingCallback{}
+		s.Callback = callback
+		ctx := context.Background()
+		for _, card := range []Card{{Kind: "notice"}, {Kind: "script", Values: map[string]string{"text": "bad"}}} {
+			_, err := s.Invoke(ctx, actor, "t1:c1:app", Callback{Command: "ping", IdempotencyKey: "card-check", Card: &card})
+			if !errors.Is(err, ErrInvalid) || callback.called {
+				t.Fatalf("invalid card reached callback: card=%+v err=%v", card, err)
+			}
+		}
+		card := Card{Kind: "notice", Values: map[string]string{"text": "ready"}}
+		result, err := s.Invoke(ctx, actor, "t1:c1:app", Callback{Command: "ping", IdempotencyKey: "card-valid", Card: &card})
+		if err != nil || !result.Accepted || !callback.called || callback.actor.Principal != actor.Principal {
+			t.Fatalf("valid callback result=%+v err=%v actor=%+v", result, err, callback.actor)
+		}
+	})
 }
 
 func TestTodo_CHAT_044_Security_TriggerCannotRetargetConversation(t *testing.T) {
@@ -99,7 +123,9 @@ func TestTodo_CHAT_042_Security_CursorFiltersOtherInstallations(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_040_UpgradeSuspendAndRevoke(t *testing.T) {
+// TestTodo_CHAT_040 is the CHAT-040 PRIMARY matrix test: install, upgrade,
+// suspend, resume and revoke through the versioned-manifest lifecycle.
+func TestTodo_CHAT_040(t *testing.T) {
 	s, actor := fixture()
 	ctx := context.Background()
 	initial, err := s.Repo.Get(ctx, "t1:c1:app")
@@ -136,24 +162,6 @@ func TestTodo_CHAT_040_UpgradeSuspendAndRevoke(t *testing.T) {
 	}
 	if _, err := s.ChangeStatus(ctx, actor, initial.ID, Active); !errors.Is(err, ErrRevoked) {
 		t.Fatalf("revoked install restored: %v", err)
-	}
-}
-
-func TestTodo_CHAT_041_Security_TypedCardAndInvokerContext(t *testing.T) {
-	s, actor := fixture()
-	callback := &recordingCallback{}
-	s.Callback = callback
-	ctx := context.Background()
-	for _, card := range []Card{{Kind: "notice"}, {Kind: "script", Values: map[string]string{"text": "bad"}}} {
-		_, err := s.Invoke(ctx, actor, "t1:c1:app", Callback{Command: "ping", IdempotencyKey: "card-check", Card: &card})
-		if !errors.Is(err, ErrInvalid) || callback.called {
-			t.Fatalf("invalid card reached callback: card=%+v err=%v", card, err)
-		}
-	}
-	card := Card{Kind: "notice", Values: map[string]string{"text": "ready"}}
-	result, err := s.Invoke(ctx, actor, "t1:c1:app", Callback{Command: "ping", IdempotencyKey: "card-valid", Card: &card})
-	if err != nil || !result.Accepted || !callback.called || callback.actor.Principal != actor.Principal {
-		t.Fatalf("valid callback result=%+v err=%v actor=%+v", result, err, callback.actor)
 	}
 }
 

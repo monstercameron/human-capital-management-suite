@@ -4,7 +4,8 @@ package chatui
 
 import "github.com/monstercameron/GoWebComponents/v5/ui"
 
-func rememberPersonTrigger(ui.Event) {}
-func syncPersonFocus(bool)           {}
-func FocusComposer()                 {}
-func FocusComposerFor(string)        {}
+func rememberPersonTrigger(ui.Event)  {}
+func syncPersonFocus(bool)            {}
+func syncPersonFocusFor(bool, string) {}
+func FocusComposer()                  {}
+func FocusComposerFor(string)         {}

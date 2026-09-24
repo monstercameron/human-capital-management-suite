@@ -103,7 +103,14 @@ func syncMobileRailFocus(open bool) {
 					return nil
 				}
 			} else if !rail.Call("contains", doc.Get("activeElement")).Bool() {
-				search.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+				// Land on the open conversation, not the search box: focusing a
+				// text field on a phone raises the keyboard over the list the
+				// person opened the drawer to read.
+				target := rail.Call("querySelector", ".chat-row.selected")
+				if !target.Truthy() {
+					target = search
+				}
+				target.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 				// Reconciliation can replace the focused precommit node. Verify on
 				// the next frame before declaring the drawer settled.
 				attempts++

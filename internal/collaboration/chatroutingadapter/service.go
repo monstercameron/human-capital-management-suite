@@ -92,7 +92,11 @@ func (s *Service) CreateConversation(ctx context.Context, r chat.CreateConversat
 		return chat.Conversation{}, err
 	}
 	if reserved.State == chatrouting.StatePending {
-		trustedCtx := chatrouting.WithWriteLease(ctx, chatrouting.WriteLease{Route: reserved, ExpiresAt: s.now().Add(5 * time.Minute)})
+		lease, leaseErr := s.cache.IssueLease(reserved, s.now().Add(5*time.Minute))
+		if leaseErr != nil {
+			return chat.Conversation{}, leaseErr
+		}
+		trustedCtx := chatrouting.WithWriteLease(ctx, lease)
 		created, createErr := s.ConversationService.CreateConversation(trustedCtx, r)
 		if createErr != nil {
 			return created, createErr
@@ -106,7 +110,11 @@ func (s *Service) CreateConversation(ctx context.Context, r chat.CreateConversat
 		}
 		return created, nil
 	}
-	trustedCtx := chatrouting.WithWriteLease(ctx, chatrouting.WriteLease{Route: reserved, ExpiresAt: s.now().Add(5 * time.Minute)})
+	lease, err := s.cache.IssueLease(reserved, s.now().Add(5*time.Minute))
+	if err != nil {
+		return chat.Conversation{}, err
+	}
+	trustedCtx := chatrouting.WithWriteLease(ctx, lease)
 	return s.ConversationService.CreateConversation(trustedCtx, r)
 }
 
@@ -121,10 +129,9 @@ func (s *Service) CreateConversation(ctx context.Context, r chat.CreateConversat
 // reaction, pin and membership writes and UpdateConversation came to fail
 // every time.
 //
-// A conversation the directory does not know is passed through unleased on
-// purpose. The store records no shard for it and fences it on route state
-// alone, so requiring a lease here would refuse writes the store itself
-// accepts — including every conversation created before this adapter existed.
+// An unknown route is refused before the chat service is called. The core
+// route directory is the authority for which shard owns a conversation; a
+// guessed or stale ID must never select storage implicitly.
 func (s *Service) routeContext(ctx context.Context, tenant, conversation string) (context.Context, error) {
 	if strings.TrimSpace(tenant) == "" || strings.TrimSpace(conversation) == "" {
 		// The inner service owns request validation and says so in its own
@@ -135,11 +142,11 @@ func (s *Service) routeContext(ctx context.Context, tenant, conversation string)
 	lease, err := s.cache.Resolve(ctx, s.directory, conversation, tenant)
 	if err != nil {
 		if errors.Is(err, chatrouting.ErrNotFound) {
-			return ctx, nil
+			return nil, err
 		}
 		return nil, err
 	}
-	if err = chatrouting.CheckWrite(ctx, s.directory, lease, tenant, s.now()); err != nil {
+	if err = s.cache.CheckWrite(ctx, s.directory, lease, tenant, s.now()); err != nil {
 		s.cache.Invalidate(conversation, lease.Route.Epoch)
 		// A fence refusal is a placement condition, not a bad request: the same
 		// call succeeds against the current placement. Naming it as the chat

@@ -204,20 +204,28 @@ func TestEveryConversationWriteFailsOnAStaleEpoch(t *testing.T) {
 	}
 }
 
-// TestUnplacedConversationWritesPassThroughUnleased pins the compatibility
-// decision: a conversation the route directory never placed keeps working,
-// because the store fences it on route state alone.
-func TestUnplacedConversationWritesPassThroughUnleased(t *testing.T) {
+// TestUnknownConversationWriteFailsClosedAndCreatedConversationIsRouted proves
+// unknown identifiers cannot reach chat storage while the normal create path
+// registers a route before subsequent writes.
+func TestUnknownConversationWriteFailsClosedAndCreatedConversationIsRouted(t *testing.T) {
 	passthrough := &unleasedRecorder{}
 	s, _ := newAdapter(t, passthrough)
-	if _, err := s.DeletePost(context.Background(), chat.DeletePostRequest{Principal: principalFor("t1", "u1"), TenantID: "t1", ConversationID: "unrouted", PostID: "p1", ExpectedRevision: 1}); err != nil {
-		t.Fatalf("delete on an unplaced conversation = %v", err)
+	if _, err := s.DeletePost(context.Background(), chat.DeletePostRequest{Principal: principalFor("t1", "u1"), TenantID: "t1", ConversationID: "unrouted", PostID: "p1", ExpectedRevision: 1}); !errors.Is(err, chatrouting.ErrNotFound) {
+		t.Fatalf("delete on an unknown conversation = %v, want %v", err, chatrouting.ErrNotFound)
 	}
-	if passthrough.leased {
-		t.Fatal("an unplaced conversation was given a route lease")
+	if passthrough.calls != 0 {
+		t.Fatalf("unknown conversation reached chat %d times", passthrough.calls)
 	}
-	if passthrough.calls != 1 {
-		t.Fatalf("calls = %d", passthrough.calls)
+
+	created, err := s.CreateConversation(context.Background(), chat.CreateConversationRequest{TenantID: "t1", Principal: principalFor("t1", "u1"), Kind: chat.PublicChannel, IdempotencyKey: "create-routed"})
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	if _, err := s.DeletePost(context.Background(), chat.DeletePostRequest{Principal: principalFor("t1", "u1"), TenantID: "t1", ConversationID: created.ID, PostID: "p1", ExpectedRevision: 1}); err != nil {
+		t.Fatalf("delete on a created conversation = %v", err)
+	}
+	if !passthrough.leased || passthrough.calls != 1 {
+		t.Fatalf("created conversation lease=%v calls=%d", passthrough.leased, passthrough.calls)
 	}
 }
 
@@ -231,4 +239,8 @@ func (f *unleasedRecorder) DeletePost(ctx context.Context, _ chat.DeletePostRequ
 	f.calls++
 	_, f.leased = chatrouting.WriteLeaseFromContext(ctx)
 	return chat.Post{}, nil
+}
+
+func (f *unleasedRecorder) CreateConversation(ctx context.Context, r chat.CreateConversationRequest) (chat.Conversation, error) {
+	return chat.Conversation{ID: r.ConversationID, TenantID: r.TenantID, Kind: r.Kind}, nil
 }

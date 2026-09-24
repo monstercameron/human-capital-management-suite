@@ -19,6 +19,24 @@ installation. Do not use a human login token.
 In PowerShell, set the token and exact machine subject from the authorized
 local credential issuer, then run:
 
+For the local `local-dev` profile, the supervisor below mints a 15-minute
+identity-only agent token in memory, including the existing app ID as its
+stable quota client ID. It renews the token every 10 minutes and restarts the
+listener if the API process exits during a local rebuild. It does not change
+an installation or its scopes:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy RemoteSigned -File tools/chat-pingback/run-local.ps1 `
+  -ConversationId 'f4079843-2274-5bd8-a998-20598abeba88' -Background
+```
+
+The supervisor PID is recorded under `.artifacts/chat-pingback/`. Stop it and
+its listener with the same command plus `-Stop`. Supervisor and listener logs
+are also kept under `.artifacts/chat-pingback/`; bearer tokens are not logged.
+
+To use a token from another authorized local issuer, set the environment
+variables below and run the agent directly:
+
 ```powershell
 $env:HCM_CHAT_TOKEN = '<short-lived installed-agent token>'
 $env:HCM_CHAT_AGENT_ID = '<exact token subject / installed app ID>'

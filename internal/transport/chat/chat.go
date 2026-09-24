@@ -25,6 +25,10 @@ import (
 // mounts this prefix after applying shared HTTP admission.
 const ProcedurePrefix = "/hcmnext.chat.v1.ConversationService/"
 
+type errorReportingWatcher interface {
+	WatchConversationWithErrors(context.Context, chatcore.WatchConversationRequest) (<-chan chatcore.WatchEvent, <-chan error, error)
+}
+
 // Send-path bounds. They are exported so a client can refuse an over-long
 // draft before spending a round trip on it, and they are enforced here rather
 // than only in the core so the limit holds on every composition, including a
@@ -711,7 +715,7 @@ func (s *server) watch(c context.Context, r *chatv1.WatchConversationRequest) (<
 	// transport.unclassified_failure and the log record said nothing about which
 	// condition it was. It is classified like every other chat outcome instead,
 	// and an unrecognised cause keeps its diagnostic.
-	if reporting, ok := s.deps.Service.(chatcore.ErrorReportingWatcher); ok {
+	if reporting, ok := s.deps.Service.(errorReportingWatcher); ok {
 		ch, fail, watchErr := reporting.WatchConversationWithErrors(c, req)
 		if watchErr != nil {
 			return nil, nil, callErr(watchErr)

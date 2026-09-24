@@ -3,7 +3,9 @@ package application
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatstream"
@@ -19,6 +21,68 @@ func watchService(t *testing.T) (*streamingChatService, *chatServiceStub) {
 
 func watchRequest() chatcore.WatchConversationRequest {
 	return chatcore.WatchConversationRequest{Principal: chatcore.Principal{TenantID: "t", SubjectID: "u"}, TenantID: "t", ConversationID: "c"}
+}
+
+type watchRouteEpochService struct {
+	*chatServiceStub
+	epoch atomic.Uint64
+}
+
+func (s *watchRouteEpochService) RouteEpoch(context.Context, string, string) (uint64, error) {
+	return s.epoch.Load(), nil
+}
+
+func TestTodo_CHAT_019_ApplicationRouteEpochInvalidatesResumeAndLiveWatch(t *testing.T) {
+	inner := newChatServiceStub()
+	routeService := &watchRouteEpochService{chatServiceStub: inner}
+	routeService.epoch.Store(1)
+	resolver := membershipResolverStub{member: chatcore.Membership{TenantID: "t", ConversationID: "c", HomeTenantID: "t", SubjectID: "u", Revision: 3}}
+	config := runtimeConfig("route-epoch-key")
+	config.RecheckInterval = 10 * time.Millisecond
+	config.Authorizer = chatServiceStreamAuthorizer{service: routeService, membership: resolver}
+	runtime, err := NewChatStreamRuntime(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := &streamingChatService{ConversationService: routeService, runtime: runtime, membership: resolver}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	sub, lease, err := runtime.Watch(ctx, chatstream.WatchRequest{TenantID: "t", HomeTenantID: "t", SubjectID: "u", ConversationID: "c", MembershipEpoch: 3, RouteEpoch: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor := sub.Cursor()
+	sub.Close()
+	if err := lease.Release(); err != nil {
+		t.Fatal(err)
+	}
+	routeService.epoch.Store(2)
+	resume := watchRequest()
+	resume.ResumeCursor = cursor
+	if _, _, err := service.WatchConversationWithErrors(ctx, resume); !errors.Is(err, chatcore.ErrInvalidArgument) || !errors.Is(err, chatstream.ErrInvalidCursor) {
+		t.Fatalf("resume after route epoch change = %v; want owned invalid cursor", err)
+	}
+
+	routeService.epoch.Store(1)
+	events, failures, err := service.WatchConversationWithErrors(ctx, watchRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	routeService.epoch.Store(2)
+	select {
+	case failure, ok := <-failures:
+		if !ok || !errors.Is(failure, chatcore.ErrPermissionDenied) {
+			t.Fatalf("live stream after route epoch change = %v (open=%v); want permission denied", failure, ok)
+		}
+	case event, ok := <-events:
+		if ok {
+			t.Fatalf("event delivered after route epoch change: %+v", event)
+		}
+		t.Fatal("stream closed without a route epoch failure")
+	case <-ctx.Done():
+		t.Fatal("route epoch change did not close the live stream")
+	}
 }
 
 // TestTodo_CHAT_018_WatchResumesFromAfterSequence proves a client that knows the

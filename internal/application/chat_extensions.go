@@ -24,15 +24,25 @@ import (
 type ChatExtensions struct {
 	Conversations chat.ConversationService
 	Apps          *chatapps.Service
-	Records       *chatrecords.Service
-	Recipients    *chatrecipient.Service
-	Grants        *ChatCompanyGrants
-	TodoStore     *chatstore.Store
+	// AppCommandAuthorization resolves the invoking person's current authority
+	// for one manifest command. Installation scopes never supply this decision.
+	AppCommandAuthorization ChatAppCommandAuthorization
+	Records                 *chatrecords.Service
+	Recipients              *chatrecipient.Service
+	Grants                  *ChatCompanyGrants
+	TodoStore               *chatstore.Store
 	// Admission bounds the extension lanes. Integration event pulls are derived
 	// work and are shed first; governance records take the read lane. A nil
 	// runtime leaves these calls unmetered, which is the streaming-disabled
 	// composition.
 	Admission *ChatStreamRuntime
+}
+
+// ChatAppCommandAuthorization checks a command capability against the current
+// authenticated principal and conversation policy. Implementations must use
+// current server-side authority, not installation grants or request fields.
+type ChatAppCommandAuthorization interface {
+	AuthorizeChatAppCommand(context.Context, chat.Principal, string, string, string) error
 }
 
 func (s *ChatExtensions) lease(ctx context.Context, lane chatadmission.Lane, tenant, conversation string) (*chatadmission.Lease, error) {
@@ -351,7 +361,23 @@ func (s *ChatExtensions) Invoke(ctx context.Context, p chat.Principal, conversat
 	if installation.Tenant != a.Tenant || installation.Conversation != a.Conversation {
 		return chatapps.CallbackResult{}, chat.ErrPermissionDenied
 	}
-	a.Scopes = append([]string(nil), installation.GrantedScopes...)
+	if s.AppCommandAuthorization == nil {
+		return chatapps.CallbackResult{}, chat.ErrPermissionDenied
+	}
+	var commandScope string
+	for _, command := range installation.Manifest.Commands {
+		if command.Name != cb.Command {
+			continue
+		}
+		if commandScope != "" {
+			return chatapps.CallbackResult{}, chat.ErrPermissionDenied
+		}
+		commandScope = command.Scope
+	}
+	if commandScope == "" || s.AppCommandAuthorization.AuthorizeChatAppCommand(ctx, p, conversation, installation.AppID, commandScope) != nil {
+		return chatapps.CallbackResult{}, chat.ErrPermissionDenied
+	}
+	a.Scopes = []string{commandScope}
 	cb.Actor = a
 	cb.InstallationID = id
 	return s.Apps.Invoke(ctx, a, id, cb)
@@ -433,7 +459,8 @@ func (s *ChatExtensions) Moderate(ctx context.Context, p chat.Principal, convers
 		return err
 	}
 	ctx = context.WithValue(ctx, recordAuthorizationKey{}, recordAuthorization{tenant: p.TenantID, actor: p.SubjectID, conversation: conversation, revision: c.Revision, manager: true})
-	return s.Records.Moderate(ctx, p.SubjectID, p.TenantID, caseID, action, target, reason, evidence)
+	_, err = s.Records.ModerateAudited(ctx, p.SubjectID, p.TenantID, conversation, caseID, action, target, reason, evidence, c.Revision)
+	return err
 }
 
 func (s *ChatExtensions) IssueEventCursor(ctx context.Context, p chat.Principal, conversation, installation string, after int64) (string, error) {

@@ -102,7 +102,8 @@ type DisclosureInput struct {
 }
 
 // DisclosureChecker owns classification, DLP, residency and cross-company
-// policy. A nil checker permits only same-tenant forwarding.
+// policy. When configured it is consulted for every forward; without it,
+// cross-tenant forwarding is refused.
 type DisclosureChecker interface {
 	Check(context.Context, DisclosureInput) error
 }
@@ -201,7 +202,7 @@ func (s *Service) SuggestReferences(ctx context.Context, r SuggestReferencesRequ
 				}
 			} else {
 				m, e := s.store.GetMembership(ctx, r.TenantID, r.ConversationID, x.TenantID, x.ID)
-				if e != nil || m.LeftAt != nil || m.SubjectID != x.ID {
+				if e != nil || !currentReferenceMembership(m, r.TenantID, r.ConversationID, x.TenantID, x.ID) {
 					continue
 				}
 			}
@@ -239,19 +240,29 @@ func (s *Service) validateReference(ctx context.Context, p Principal, tenant, co
 		return s.validateMediaReference(ctx, tenant, conversation, ref)
 	}
 	if ref.Kind == AgentMention {
-		if ad, ok := s.referenceDirectory.(AgentReferenceDirectory); ok && ad.AgentEligible(ctx, tenant, conversation, ref.ID) {
-			return nil
+		ad, ok := s.referenceDirectory.(AgentReferenceDirectory)
+		if !ok || !ad.AgentEligible(ctx, tenant, conversation, ref.ID) {
+			return ErrPermissionDenied
 		}
+		return nil
 	}
 	m, err := s.store.GetMembership(ctx, tenant, conversation, ref.TenantID, ref.ID)
-	if err != nil || m.LeftAt != nil || m.SubjectID != ref.ID {
+	if err != nil || !currentReferenceMembership(m, tenant, conversation, ref.TenantID, ref.ID) {
 		return ErrPermissionDenied
 	}
 	return nil
 }
 
+// currentReferenceMembership defends the boundary even when a repository
+// returns a row that does not match its lookup key. A mention's display
+// snapshot is deliberately not involved in this check.
+func currentReferenceMembership(m Membership, tenant, conversation, homeTenant, subject string) bool {
+	return m.TenantID == tenant && m.ConversationID == conversation &&
+		m.HomeTenantID == homeTenant && m.SubjectID == subject && m.LeftAt == nil
+}
+
 func (s *Service) CreateConversationLink(ctx context.Context, p Principal, tenant, conversation, post string) (ConversationLink, error) {
-	if p.TenantID == "" || p.TenantID != tenant || conversation == "" {
+	if p.TenantID == "" || tenant == "" || conversation == "" {
 		return ConversationLink{}, ErrInvalidArgument
 	}
 	c, err := s.store.GetConversation(ctx, tenant, conversation)
@@ -349,7 +360,10 @@ func (s *Service) ForwardPost(ctx context.Context, r ForwardPostRequest) (Post, 
 		if err := s.disclosureChecker.Check(ctx, DisclosureInput{Principal: r.Principal, Source: src, SourcePost: post, Destination: dst, At: s.now()}); err != nil {
 			return Post{}, ErrPermissionDenied
 		}
-	} else if src.TenantID != dst.TenantID {
+	} else if src.TenantID != dst.TenantID || (src.Kind != PublicChannel && dst.Kind == PublicChannel) {
+		// A source member's authority does not establish that a private post is
+		// safe for a public channel's wider audience. Cross-tenant destinations
+		// likewise need an explicit disclosure decision.
 		return Post{}, ErrPermissionDenied
 	}
 	attr := SourceAttribution{TenantID: post.TenantID, ConversationID: post.ConversationID, PostID: post.ID, PostRevision: post.Revision, OriginalAuthorID: post.AuthorID}

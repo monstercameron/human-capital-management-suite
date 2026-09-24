@@ -1,7 +1,11 @@
 import importlib.util
+import io
+import json
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest.mock import patch
 
 
 MODULE = Path(__file__).with_name("agent.py")
@@ -34,6 +38,33 @@ class PingbackAgentTests(unittest.TestCase):
             agent.validate_base_url("http://chat.example.test")
         with self.assertRaises(ValueError):
             agent.validate_base_url("https://user:secret@chat.example.test")
+
+    def test_invalid_resume_cursor_is_cleared_and_retried_without_cursor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "cursor.json"
+            agent.save_cursor(state, "stale-signed-cursor")
+            error = urllib.error.HTTPError(
+                "http://127.0.0.1/events", 400, "Bad Request", {},
+                io.BytesIO(json.dumps({"error": {"code": "chat.invalid_request"}}).encode()),
+            )
+            with patch.object(agent, "request_json", side_effect=[error, {"events": [], "resume_cursor": "new"}]) as request:
+                agent.run("http://127.0.0.1:8888", "room", "token", "agent", state, once=True)
+            self.assertEqual(request.call_count, 2)
+            self.assertIn("resume_cursor=stale-signed-cursor", request.call_args_list[0].args[0])
+            self.assertNotIn("resume_cursor", request.call_args_list[1].args[0])
+            self.assertEqual(agent.load_cursor(state), "new")
+
+    def test_auth_and_server_errors_preserve_resume_cursor(self):
+        error_type = urllib.error.HTTPError
+        for status in (401, 403, 500):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:
+                state = Path(directory) / "cursor.json"
+                agent.save_cursor(state, "signed-cursor")
+                error = error_type("http://127.0.0.1/events", status, "failure", {}, io.BytesIO(b"{}"))
+                with patch.object(agent, "request_json", side_effect=error):
+                    with self.assertRaises(error_type):
+                        agent.run("http://127.0.0.1:8888", "room", "token", "agent", state, once=True)
+                self.assertEqual(agent.load_cursor(state), "signed-cursor")
 
 
 if __name__ == "__main__":

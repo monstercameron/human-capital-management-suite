@@ -16,7 +16,7 @@ func TestDelegatedActionsDispatchOnlyTheirIntendedCallback(t *testing.T) {
 		{"section-up", []string{"reorder:target:-1"}}, {"section-down", []string{"reorder:target:1"}},
 		{"open-create", []string{"create"}}, {"close-create", []string{"close-create"}},
 		{"open-browse", []string{"browse"}}, {"close-browse", []string{"close-browse"}},
-		{"browse-to-create", []string{"close-browse", "create"}}, {"join", []string{"join:target"}},
+		{"browse-to-create", []string{"close-browse", "create"}}, {"join", []string{"request-join:target"}},
 		{"open-rail", []string{"sidebar:true"}}, {"close-rail", []string{"sidebar:false"}},
 		{"details", []string{"details:true"}}, {"close-details", []string{"details:false"}},
 		{"open-person", []string{"person:target"}}, {"close-person", []string{"close-person"}}, {"start-direct-message", []string{"dm:target"}},
@@ -38,7 +38,7 @@ func TestDelegatedActionsDispatchOnlyTheirIntendedCallback(t *testing.T) {
 			flag := func(s string) func(bool) { return func(v bool) { add(fmt.Sprintf("%s:%t", s, v)) } }
 			m := Model{SidebarOpen: true, Messages: []Message{{ID: "target", Revision: 7}}, Callbacks: Callbacks{
 				SelectConversation: id("select"), ToggleSection: id("section"), ReorderSection: func(s string, d int) { add(fmt.Sprintf("reorder:%s:%d", s, d)) },
-				OpenCreate: plain("create"), CloseCreate: plain("close-create"), OpenBrowse: plain("browse"), CloseBrowse: plain("close-browse"), JoinConversation: id("join"),
+				OpenCreate: plain("create"), CloseCreate: plain("close-create"), OpenBrowse: plain("browse"), CloseBrowse: plain("close-browse"), RequestJoinConversation: id("request-join"), JoinConversation: id("join"),
 				ToggleSidebar: flag("sidebar"), ToggleDetails: flag("details"), LoadMembers: plain("members"), LoadOlder: plain("older"), Retry: plain("retry"),
 				OpenThread: id("thread"), CloseThread: plain("close-thread"), SetThreadFollow: flag("follow"), OpenPicker: id("picker"), OpenMenu: id("menu"),
 				CopyLink: id("copy"), JumpToNewest: plain("newest"), React: id("react"), RemoveReaction: id("unreact"), Pin: id("pin"), Unpin: id("unpin"),

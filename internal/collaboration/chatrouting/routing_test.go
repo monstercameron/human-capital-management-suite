@@ -129,7 +129,23 @@ func TestTodo_CHAT_006_Recovery(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_006_Integration(t *testing.T) { TestTodo_CHAT_006(t) }
+func TestTodo_CHAT_006_Integration(t *testing.T) {
+	d := NewMemoryDirectory()
+	chat := &fakeCreator{}
+	c := CreateCoordinator{Directory: d, Chat: chat}
+	req := CreateRequest{ConversationID: "integration-conversation", HostTenantID: "tenant-integration", ShardID: "shard-integration", IdempotencyKey: "integration-key"}
+	result, err := c.Create(context.Background(), req)
+	if err != nil {
+		t.Fatalf("create conversation: %v", err)
+	}
+	route, err := d.Lookup(context.Background(), req.ConversationID, req.HostTenantID)
+	if err != nil {
+		t.Fatalf("lookup created route: %v", err)
+	}
+	if result.State != StateActive || route.State != StateActive || route.ShardID != req.ShardID || chat.calls != 1 {
+		t.Fatalf("create result=%+v route=%+v creator calls=%d", result, route, chat.calls)
+	}
+}
 
 func TestTodo_CHAT_007(t *testing.T) {
 	d := NewMemoryDirectory()
@@ -159,7 +175,27 @@ func TestTodo_CHAT_007_Recovery(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_007_Integration(t *testing.T) { TestTodo_CHAT_007(t) }
+func TestTodo_CHAT_007_Integration(t *testing.T) {
+	d := NewMemoryDirectory()
+	_, err := d.Reserve(context.Background(), routeReq())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Activate(context.Background(), "c1", "t1", 1); err != nil {
+		t.Fatal(err)
+	}
+	mover := &fakeMover{}
+	result, err := (MoveCoordinator{Directory: d, Shards: mover}).Move(context.Background(), "c1", "t1", 1, "s2")
+	if err != nil {
+		t.Fatalf("move route: %v", err)
+	}
+	if result.State != StateActive || result.ShardID != "s2" || result.Epoch != 3 {
+		t.Fatalf("move result=%+v", result)
+	}
+	if len(mover.events) != 3 || mover.events[0] != "copy" || mover.events[1] != "verify" || mover.events[2] != "drain" {
+		t.Fatalf("move sequence=%v", mover.events)
+	}
+}
 
 func TestTodo_CHAT_007_Race(t *testing.T) {
 	d := NewMemoryDirectory()

@@ -186,3 +186,24 @@ func TestChatSeedCommand_Integration(t *testing.T) {
 		t.Fatalf("reseed left %d posts, want %d", afterPosts, posts)
 	}
 }
+
+func TestSeedLineSaysEachTopicOnceThenVariesChatter(t *testing.T) {
+	topics := []string{"alpha", "beta"}
+	if seedLine(topics, 0, 0) != "alpha" || seedLine(topics, 0, 1) != "beta" {
+		t.Fatal("topic lines are not said first, in order")
+	}
+	seen := map[string]int{}
+	for i := 2; i < 2+len(chatterLines); i++ {
+		line := seedLine(topics, 3, i)
+		if line == "alpha" || line == "beta" {
+			t.Fatalf("topic repeated at index %d", i)
+		}
+		seen[line]++
+	}
+	if len(seen) != len(chatterLines) {
+		t.Fatalf("one pass of chatter reused lines: %d distinct of %d", len(seen), len(chatterLines))
+	}
+	if seedLine(topics, 3, 2) == seedLine(topics, 4, 2) {
+		t.Fatal("two rooms start their chatter on the same line")
+	}
+}

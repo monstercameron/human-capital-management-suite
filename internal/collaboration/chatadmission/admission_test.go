@@ -3,6 +3,7 @@ package chatadmission
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 )
 
@@ -43,6 +44,83 @@ func TestTodo_CHAT_046_Fault(t *testing.T) {
 	if _, err := a.Acquire(context.Background(), Request{TenantID: "", ConversationID: "c", Lane: LaneSend}); !errors.Is(err, ErrInvalidRequest) {
 		t.Fatal(err)
 	}
+
+	// A canceled acquisition that reserves its tenant but cannot reserve its
+	// conversation must release the partial reservation. Otherwise one canceled
+	// reconnect can consume a tenant slot until the process restarts.
+	partial, err := New(Config{TenantConcurrent: 2, ConversationConcurrent: 1, SendConcurrent: 2, WatchConcurrent: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	blocker, err := partial.Acquire(context.Background(), Request{TenantID: "t", ConversationID: "blocked", Lane: LaneSend})
+	if err != nil {
+		t.Fatal(err)
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := partial.Acquire(canceled, Request{TenantID: "t", ConversationID: "blocked", Lane: LaneSend}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled partial acquisition=%v, want context.Canceled", err)
+	}
+	if err := blocker.Release(); err != nil {
+		t.Fatal(err)
+	}
+	other, err := partial.Acquire(context.Background(), Request{TenantID: "t", ConversationID: "other", Lane: LaneSend})
+	if err != nil {
+		t.Fatalf("tenant slot leaked after canceled acquisition: %v", err)
+	}
+	if err := other.Release(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// BenchmarkTodo_CHAT_046 measures the bounded shed path while send traffic has
+// already saturated the shared per-tenant and per-conversation scopes. The
+// metric lets CI or a qualification run compare reconnect-burst admission cost
+// without involving database or workflow work.
+func BenchmarkTodo_CHAT_046(b *testing.B) {
+	a, err := New(Config{
+		TenantConcurrent: 128, ConversationConcurrent: 128,
+		SendConcurrent: 128, WatchConcurrent: 128,
+		ReadConcurrent: 128, DerivedConcurrent: 128,
+		ReadShedFraction: 0.9, DerivedShedFraction: 0.75,
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	held := make([]*Lease, 96)
+	for i := range held {
+		held[i], err = a.Acquire(context.Background(), Request{TenantID: "tenant", ConversationID: "conversation", Lane: LaneSend})
+		if err != nil {
+			b.Fatalf("saturate send scope at lease %d: %v", i, err)
+		}
+	}
+	b.ResetTimer()
+	var shed, unexpectedlyAdmitted atomic.Uint64
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			lease, acquireErr := a.Acquire(context.Background(), Request{TenantID: "tenant", ConversationID: "conversation", Lane: LaneDerived})
+			if errors.Is(acquireErr, ErrOverloaded) {
+				shed.Add(1)
+				continue
+			}
+			if acquireErr != nil {
+				b.Errorf("derived admission under saturated chat send scope: %v", acquireErr)
+				continue
+			}
+			unexpectedlyAdmitted.Add(1)
+			_ = lease.Release()
+		}
+	})
+	b.StopTimer()
+	for _, lease := range held {
+		if err := lease.Release(); err != nil {
+			b.Fatalf("release saturated send lease: %v", err)
+		}
+	}
+	if unexpectedlyAdmitted.Load() != 0 {
+		b.Fatalf("derived work admitted %d times above its shed threshold", unexpectedlyAdmitted.Load())
+	}
+	b.ReportMetric(float64(shed.Load())/float64(b.N), "shed/op")
 }
 
 // TestTodo_CHAT_046_Eviction proves the per-tenant and per-conversation pools

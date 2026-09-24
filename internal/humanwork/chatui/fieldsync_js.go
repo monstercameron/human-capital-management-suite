@@ -168,7 +168,11 @@ func installFieldSync() {
 			return nil
 		})
 		cb := js.FuncOf(func(_ js.Value, args []js.Value) any {
-			if len(args) == 0 {
+			// The observer outlives the chat page. Every attribute it acts on
+			// lives inside the chat workspace, so on any other page a
+			// mutation batch is nothing to do; walking it cost ~120 ms when a
+			// document opened after a chat visit (Agent P probe, 2782 records).
+			if len(args) == 0 || !chatWorkspaceMounted(doc) {
 				return nil
 			}
 			records := args[0]
@@ -384,6 +388,22 @@ func BeginScrollToNewest() {
 	newestJump.serial++
 	newestJump.active = true
 	scrollToEnd(list)
+}
+
+// PreserveTimelinePosition disarms bottom following before a newer page is
+// rendered. Readers who explicitly page from a search result stay on the
+// message they were inspecting; Jump to newest remains a separate action.
+func PreserveTimelinePosition() {
+	doc := js.Global().Get("document")
+	if !doc.Truthy() || doc.Get("querySelector").Type() != js.TypeFunction {
+		return
+	}
+	list := doc.Call("querySelector", "["+listAnchorAttr+"]")
+	if !list.Truthy() {
+		return
+	}
+	list.Set("__chatScrollTop", list.Get("scrollTop"))
+	setChatScrollAway(list)
 }
 
 // markAway flags the timeline's section while the reader is scrolled up, which

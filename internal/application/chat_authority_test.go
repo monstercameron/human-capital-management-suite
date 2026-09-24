@@ -2,12 +2,15 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatstream"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatauthority"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -20,13 +23,176 @@ func (r *chatRoleReader) Load(context.Context, values.TenantId, string) (roleacc
 	return r.snapshot, nil
 }
 
-type chatSessionChecker struct{ revoked bool }
+type chatSessionChecker struct {
+	revoked atomic.Bool
+	calls   atomic.Int32
+}
 
 func (c *chatSessionChecker) CheckRevocation(context.Context, string, time.Time) error {
-	if c.revoked {
+	c.calls.Add(1)
+	if c.revoked.Load() {
 		return errors.New("revoked")
 	}
 	return nil
+}
+
+type mutableChatFacts struct{ principal chatpolicy.Principal }
+
+func (f *mutableChatFacts) ResolveChatFacts(_ context.Context, tenant, subject string, _ time.Time) (chatpolicy.Principal, error) {
+	p := f.principal
+	p.ID, p.Tenant = subject, tenant
+	return p, nil
+}
+
+func TestTodo_CHAT_011(t *testing.T) {
+	at := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	p, err := trust.NewPrincipal(trust.PrincipalSpec{Tenant: "home", Subject: "subject", SubjectKind: trust.SubjectKindHuman, AuthenticationMethod: trust.AuthenticationMethodBearerToken, Assurance: trust.AssuranceSubstantial, SessionRef: "session-1", IssuedAt: at.Add(-time.Minute), ExpiresAt: at.Add(time.Hour), CredentialDigest: "digest"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roles := &chatRoleReader{snapshot: roleaccess.Snapshot{Roles: []roleaccess.Role{{ID: "employee", Version: 1, Active: true}}, Assignments: []roleaccess.Assignment{{WorkerRef: "subject", Version: 1, RoleIDs: []string{"employee"}}}}}
+	sessions := &chatSessionChecker{}
+	cache := newChatAuthorityCache(time.Minute, func() time.Time { return at })
+	facts := newCachedChatFacts(newCurrentRoleChatFacts(roles, sessions), cache)
+	source := newChatAuthoritySource(facts)
+	ctx := trust.WithPrincipal(context.Background(), p)
+	if _, err := source.Resolve(ctx, "home", "subject", at); err != nil {
+		t.Fatalf("initial authority: %v", err)
+	}
+	if len(cache.facts) != 1 || sessions.calls.Load() != 1 {
+		t.Fatalf("initial cache/session checks = %d/%d, want 1/1", len(cache.facts), sessions.calls.Load())
+	}
+	sessions.revoked.Store(true) // logout after the authority facts were cached
+	if _, err := source.Resolve(ctx, "home", "subject", at); err == nil {
+		t.Fatal("cached authority admitted a logged-out session")
+	}
+	if sessions.calls.Load() != 2 || len(cache.facts) != 0 {
+		t.Fatalf("logout check/cache state = %d/%d, want 2/0", sessions.calls.Load(), len(cache.facts))
+	}
+}
+
+func TestTodo_CHAT_011_Security(t *testing.T) {
+	at := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	p, err := trust.NewPrincipal(trust.PrincipalSpec{Tenant: "home", Subject: "subject", SubjectKind: trust.SubjectKindHuman, AuthenticationMethod: trust.AuthenticationMethodBearerToken, Assurance: trust.AssuranceSubstantial, SessionRef: "session-1", IssuedAt: at.Add(-time.Minute), ExpiresAt: at.Add(time.Hour), CredentialDigest: "digest"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := &chatSessionChecker{}
+	cache := newChatAuthorityCache(time.Minute, func() time.Time { return at })
+	roles := &chatRoleReader{snapshot: roleaccess.Snapshot{Roles: []roleaccess.Role{{ID: "employee", Version: 1, Active: true}}, Assignments: []roleaccess.Assignment{{WorkerRef: "subject", Version: 1, RoleIDs: []string{"employee"}}}}}
+	facts := newCachedChatFacts(newCurrentRoleChatFacts(roles, sessions), cache)
+	ctx := trust.WithPrincipal(context.Background(), p)
+	if _, err := facts.ResolveChatFacts(ctx, "home", "subject", at); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := facts.ResolveChatFacts(ctx, "other", "subject", at); err == nil {
+		t.Fatal("cached facts crossed tenant scope")
+	}
+	if _, err := facts.ResolveChatFacts(ctx, "home", "other", at); err == nil {
+		t.Fatal("cached facts crossed principal scope")
+	}
+	if sessions.calls.Load() != 1 {
+		t.Fatalf("untrusted cache lookups reached session checker %d times", sessions.calls.Load())
+	}
+}
+
+func TestTodo_CHAT_011_Fault(t *testing.T) {
+	at := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	now := at
+	cache := newChatAuthorityCache(DefaultChatAuthorityTTL, func() time.Time { return now })
+	facts := &mutableChatFacts{principal: chatpolicy.Principal{Active: true, Roles: []string{"employee"}, AuthorityRevision: 1}}
+	source := newChatAuthoritySource(newCachedChatFacts(facts, cache))
+	p, err := trust.NewPrincipal(trust.PrincipalSpec{Tenant: "home", Subject: "subject", SubjectKind: trust.SubjectKindHuman, AuthenticationMethod: trust.AuthenticationMethodBearerToken, Assurance: trust.AssuranceSubstantial, SessionRef: "session-1", IssuedAt: at.Add(-time.Minute), ExpiresAt: at.Add(time.Hour), CredentialDigest: "digest"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := trust.WithPrincipal(context.Background(), p)
+	if got, err := source.Resolve(ctx, "home", "subject", now); err != nil || len(got.Roles) != 1 {
+		t.Fatalf("initial roles = %+v, %v", got, err)
+	}
+	facts.principal.Roles = nil // role loss is read after the declared cache age
+	now = now.Add(DefaultChatAuthorityTTL)
+	if got, err := source.Resolve(ctx, "home", "subject", now); err != nil || len(got.Roles) != 0 {
+		t.Fatalf("role loss remained cached: %+v, %v", got, err)
+	}
+	facts.principal.Active = false // termination refuses and clears the stale principal
+	now = now.Add(DefaultChatAuthorityTTL)
+	if _, err := source.Resolve(ctx, "home", "subject", now); err == nil {
+		t.Fatal("terminated principal was admitted")
+	}
+	if len(cache.facts) != 0 {
+		t.Fatalf("terminated principal left %d cached authority entries", len(cache.facts))
+	}
+}
+
+type currentChatAuthorityStreamAuthorizer struct {
+	source chatAuthoritySource
+	at     time.Time
+}
+
+func (a currentChatAuthorityStreamAuthorizer) Authorize(ctx context.Context, access chatstream.Access) error {
+	home := access.HomeTenantID
+	if home == "" {
+		home = access.TenantID
+	}
+	_, err := a.source.Resolve(ctx, home, access.SubjectID, a.at)
+	return err
+}
+
+func TestTodo_CHAT_011_Fault_StreamClosesWithinConfiguredBudget(t *testing.T) {
+	at := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	principal, err := trust.NewPrincipal(trust.PrincipalSpec{Tenant: "tenant", Subject: "subject", SubjectKind: trust.SubjectKindHuman, AuthenticationMethod: trust.AuthenticationMethodBearerToken, Assurance: trust.AssuranceSubstantial, SessionRef: "session-1", IssuedAt: at.Add(-time.Minute), ExpiresAt: at.Add(time.Hour), CredentialDigest: "digest"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := &chatSessionChecker{}
+	roles := &chatRoleReader{snapshot: roleaccess.Snapshot{Roles: []roleaccess.Role{{ID: "employee", Version: 1, Active: true}}, Assignments: []roleaccess.Assignment{{WorkerRef: "subject", Version: 1, RoleIDs: []string{"employee"}}}}}
+	cache := newChatAuthorityCache(time.Minute, func() time.Time { return at })
+	facts := newChatAuthoritySource(newCachedChatFacts(newCurrentRoleChatFacts(roles, sessions), cache))
+	authorizer := currentChatAuthorityStreamAuthorizer{source: facts, at: at}
+	cfg := runtimeConfig("chat-011-revocation-test")
+	cfg.Authorizer = authorizer
+	cfg.RecheckInterval = 10 * time.Millisecond
+	runtime, err := NewChatStreamRuntime(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, lease, err := runtime.Watch(trust.WithPrincipal(context.Background(), principal), chatstream.WatchRequest{TenantID: "tenant", SubjectID: "subject", ConversationID: "conversation", MembershipEpoch: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Release()
+	defer sub.Close()
+	started := time.Now()
+	sessions.revoked.Store(true)
+	select {
+	case <-sub.Done():
+		if elapsed := time.Since(started); elapsed > 250*time.Millisecond {
+			t.Fatalf("revoked stream closed after %v, over the configured 10ms recheck budget", elapsed)
+		}
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("revoked idle stream stayed open beyond its configured recheck budget")
+	}
+	if _, err := sub.Next(context.Background()); !errors.Is(err, chatstream.ErrRevoked) {
+		t.Fatalf("revoked stream next = %v, want ErrRevoked", err)
+	}
+	if sessions.calls.Load() < 2 || len(cache.facts) != 0 {
+		t.Fatalf("session revocation checks/cache state = %d/%d, want at least 2/0", sessions.calls.Load(), len(cache.facts))
+	}
+}
+
+func TestTodo_CHAT_011_Golden(t *testing.T) {
+	contract, err := json.Marshal(struct {
+		AuthorityCacheMaxAgeMS int64 `json:"authority_cache_max_age_ms"`
+		StreamRecheckMS        int64 `json:"stream_recheck_ms"`
+	}{DefaultChatAuthorityTTL.Milliseconds(), DefaultChatStreamRecheckInterval.Milliseconds()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `{"authority_cache_max_age_ms":10000,"stream_recheck_ms":5000}`
+	if string(contract) != want {
+		t.Fatalf("chat authority revocation contract = %s, want %s", contract, want)
+	}
 }
 
 type chatAdminFacts struct{ role string }
@@ -80,7 +246,7 @@ func TestTodo_CHAT_010_Security_CurrentRoles(t *testing.T) {
 	if _, err := source.Resolve(ctx, "host", "worker-1", at.Add(2*time.Hour)); err == nil {
 		t.Fatal("expired credential admitted")
 	}
-	sessions.revoked = true
+	sessions.revoked.Store(true)
 	if _, err := source.Resolve(ctx, "host", "worker-1", at); err == nil {
 		t.Fatal("revoked session admitted")
 	}

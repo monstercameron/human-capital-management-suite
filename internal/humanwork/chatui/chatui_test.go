@@ -22,7 +22,7 @@ func TestChatSearchGroupsAuthorizedResultsWithoutReplacingConversationState(t *t
 	m := Model{State: StateReady, SelectedID: "old-room", Search: "launch", Draft: "keep this draft", Messages: []Message{{ID: "existing", Body: "current timeline"}}, SearchChannels: []Conversation{{ID: "room-1", Name: "Launch", Kind: PublicChannel}}, SearchPeople: []SearchPerson{{ID: "worker-1", Name: "Alex Rivera"}}, SearchMessages: []SearchMessage{{ConversationID: "room-1", ConversationName: "Launch", Message: Message{ID: "post-1", Sequence: 42, Author: "Sam Lee", Body: "launch tomorrow"}}},
 		Callbacks: Callbacks{Search: func(string) {}, SelectConversation: func(string) {}, OpenPerson: func(string) {}, OpenSearchMessage: func(string, string, uint64) {}, SearchMore: func() {}}}
 	markup := render(t, m)
-	for _, want := range []string{"Search results for launch", `aria-label="Search results for launch"`, "Channels", "People", "Messages", "#Launch", "Alex Rivera", "launch tomorrow", `data-action="open-search-message"`, `data-id="room-1"`, `data-extra="post-1"`} {
+	for _, want := range []string{"Search results for launch", `aria-label="Search results for launch"`, "Channels", "People", "Messages", `<mark class="search-hit">Launch</mark>`, "Alex Rivera", `<mark class="search-hit">launch</mark> tomorrow`, `data-action="open-search-message"`, `data-id="room-1"`, `data-extra="post-1"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("search result panel missing %q", want)
 		}
@@ -58,7 +58,7 @@ func TestTodo_CHAT_032(t *testing.T) {
 	m := Model{State: StateReady, Conversations: []Conversation{room}, Sections: []SidebarSection{{ID: "channels", Name: "Channels"}, {ID: "direct", Name: "Direct messages"}, {ID: "custom-1", Name: "Projects", Collapsed: true, Chats: []Conversation{room}}}, RailMenuID: room.ID,
 		Callbacks: Callbacks{CreateSection: func(string) {}, RemoveSection: func(string) {}, MoveConversationSection: func(string, string) {}, ToggleSection: func(string) {}, OpenRailMenu: func(string) {}}}
 	markup := render(t, m)
-	for _, want := range []string{`<details class="section-create" id="chat-section-create">`, `id="chat-new-section"`, "New group", "Create", "Cancel", `data-action="section-remove" data-id="custom-1"`, `aria-expanded="false"`, `data-action="rail-move-section"`, `data-extra="custom-1"`, "Move to Projects"} {
+	for _, want := range []string{`<details class="section-create" id="chat-section-create">`, `id="chat-new-section"`, "New section", "Create", "Cancel", `data-action="section-remove" data-id="custom-1"`, `aria-expanded="false"`, `data-action="rail-move-section"`, `data-extra="custom-1"`, "Move to Projects"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
 		}
@@ -130,6 +130,40 @@ func TestPersonDetailsOpensFromChatIdentitiesAndShowsDirectoryFields(t *testing.
 	m.CurrentUser = "ari"
 	if !strings.Contains(render(t, m), `data-action="start-direct-message" data-id="ari"`) || strings.Contains(render(t, m), `data-action="start-direct-message" data-id="ari" disabled`) {
 		t.Fatal("self direct message action was unavailable")
+	}
+}
+
+func TestPersonDetailsLinksGovernedManagerAndDirectReports(t *testing.T) {
+	m := Model{State: StateReady, ShowPerson: true,
+		PersonDetails: &PersonDetails{ID: "worker", Name: "Pat Person", Manager: "Morgan Manager", ManagerID: "manager", ManagerPhotoURL: "/photos/manager", OrgChartHref: "/workspace/app/organization?org_view=tree&person=worker", Ready: true,
+			DirectReports: []PersonLink{{ID: "report-a", Name: "Alex Rivera", PhotoURL: "/photos/alex"}, {ID: "report-b", Name: "Taylor Jones"}}},
+		Callbacks: Callbacks{OpenPerson: func(string) {}, ClosePerson: func() {}},
+	}
+	markup := render(t, m)
+	for _, want := range []string{
+		`data-action="open-person" data-id="manager"`, `aria-label="View Morgan Manager&#39;s details"`,
+		`data-action="open-person" data-id="report-a"`, `aria-label="View Alex Rivera&#39;s details"`,
+		`data-action="open-person" data-id="report-b"`, `Direct reports`,
+		`href="/workspace/app/organization?org_view=tree&amp;person=worker"`, `View in org chart`,
+		`src="/photos/manager"`, `src="/photos/alex"`, `data-id="report-b" type="button"><span aria-hidden="true" class="avatar small person-detail-avatar">TJ</span>`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("missing clickable relationship %q in %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, `src=""`) || strings.Contains(markup, `data-base-pay`) {
+		t.Fatal("person relationship rendering exposed empty or restricted profile data")
+	}
+	if strings.Contains(markup, `data-action="open-person" data-id="worker"`) {
+		t.Fatal("the current person should not be linked as their own manager or report")
+	}
+	loading := render(t, Model{ShowPerson: true, PersonDetails: &PersonDetails{ID: "worker"}})
+	if !strings.Contains(loading, `role="status"`) || !strings.Contains(loading, "Loading person details") {
+		t.Fatal("loading person details are not announced accessibly")
+	}
+	unavailable := render(t, Model{ShowPerson: true, PersonDetails: &PersonDetails{ID: "worker", Unavailable: true}})
+	if !strings.Contains(unavailable, `role="status"`) || !strings.Contains(unavailable, "Person details are unavailable") {
+		t.Fatal("unavailable person details are not announced accessibly")
 	}
 }
 
@@ -255,7 +289,7 @@ func TestTodo_CHAT_031_ThreadAndCreateControlsExposeKeyboardNames(t *testing.T) 
 	createOpened, createClosed, threadClosed := 0, 0, 0
 	m := Model{State: StateReady, ShowCreate: true, ShowThread: true, SidebarOpen: true, ThreadParentID: "root", NewKind: GroupChat, SelectedID: "c", Conversations: []Conversation{{ID: "c", Name: "Channel"}}, Messages: []Message{{ID: "root", Author: "Ari", Body: "Root"}}, ThreadMessages: []Message{{ID: "reply", Author: "Sam", Body: "Reply"}}, Callbacks: Callbacks{OpenCreate: func() { createOpened++ }, CloseCreate: func() { createClosed++ }, CloseThread: func() { threadClosed++ }, ToggleSidebar: func(bool) {}}}
 	markup := render(t, m)
-	for _, want := range []string{"chat-dialog", "Conversation type", "Members (optional)", "Thread", "Reply", "Close thread", "data-thread-open=\"true\"", "data-sidebar-open=\"true\"", "thread-root", "Root"} {
+	for _, want := range []string{"chat-dialog", "Conversation type", "Add people", "Thread", "Reply", "Close thread", "data-thread-open=\"true\"", "data-sidebar-open=\"true\"", "thread-root", "Root"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("interactive surface missing %q", want)
 		}
@@ -392,13 +426,13 @@ func TestTodo_CHAT_031_CopyResolvesThroughTextHook(t *testing.T) {
 
 func TestTodo_CHAT_032_035_ModelMutationsCoverBoundsAndCallbacks(t *testing.T) {
 	selected, sent := "", ""
-	m := Model{SelectedID: "c", Draft: "hello", Callbacks: Callbacks{SelectConversation: func(id string) { selected = id }, SendMessage: func(id, body string) { sent = id + ":" + body }, SavePreferences: func(Preferences) {}}}
+	m := Model{SelectedID: "c", Draft: "hello", Preferences: Preferences{Drafts: map[string]string{"d": "draft for d"}}, Callbacks: Callbacks{SelectConversation: func(id string) { selected = id }, SendMessage: func(id, body string) { sent = id + ":" + body }, SavePreferences: func(Preferences) {}}}
 	m.Select("d")
 	m.Send()
 	m.SetDraft("again")
 	m.ResizeRail(-1)
 	m.ResizeDetails(999)
-	if selected != "d" || sent != "d:hello" || m.Pane.Rail != 220 || m.Pane.Details != 440 {
+	if selected != "d" || sent != "d:draft for d" || m.Preferences.Drafts["c"] != "hello" || m.Pane.Rail != 220 || m.Pane.Details != 440 {
 		t.Fatal("model mutation callbacks/bounds")
 	}
 	m.Send()
@@ -463,7 +497,9 @@ func TestTodo_CHAT_031_AttachmentsRenderInlineOrAsChips(t *testing.T) {
 	if !strings.Contains(ScopedStylesheet(), `.chat-image-viewer img{`) || !strings.Contains(ScopedStylesheet(), `.chat-image-viewer-original.chat-image-original-ready{opacity:1}`) || !strings.Contains(ScopedStylesheet(), `object-fit:contain`) {
 		t.Fatal("viewer must fit the full image inside the viewport")
 	}
-	if got := strings.Count(markup, `width:360px;aspect-ratio:640/400`); got != 2 {
+	// The frame rides as data attributes (the product CSP blocks style
+	// attributes); both the pending and the loaded image carry the same one.
+	if got := min(strings.Count(markup, `data-frame-width="360"`), strings.Count(markup, `data-frame-w="640"`), strings.Count(markup, `data-frame-h="400"`)); got != 2 {
 		t.Errorf("known-size pending and loaded images have different frames: got %d shared frames", got)
 	}
 	if humanBytes(3*1024*1024) != "3 MB" || humanBytes(512) != "512 B" {
@@ -471,6 +507,24 @@ func TestTodo_CHAT_031_AttachmentsRenderInlineOrAsChips(t *testing.T) {
 	}
 	if !(Attachment{ContentType: "IMAGE/GIF"}).IsGIF() || (Attachment{ContentType: "text/plain"}).IsImage() {
 		t.Fatal("attachment kind helpers")
+	}
+}
+
+func TestChatImageViewerKeepsSmallImagesAtNaturalSizeAndOffersZoom(t *testing.T) {
+	css := ScopedStylesheet()
+	for _, want := range []string{
+		`.chat-image-viewer img{display:block;position:absolute;top:50%;left:50%;width:auto;height:auto;max-width:100%;max-height:100%`,
+		`.chat-image-viewer-media.chat-image-viewer-zoomed{display:grid;place-items:center;overflow:auto}`,
+		`.chat-image-viewer-zoomed .chat-image-viewer-original{position:relative;inset:auto;top:auto;left:auto;width:auto;height:auto;max-width:none;max-height:none`,
+		`transition:opacity var(--hcm-motion-normal) var(--hcm-motion-easing)`,
+		`@media(prefers-reduced-motion:reduce){.chat-image-viewer-full,.chat-image-viewer-original{transition:none!important}}`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("image viewer stylesheet missing %q", want)
+		}
+	}
+	if strings.Contains(css, `.chat-image-viewer img{display:block;position:absolute;inset:0;width:100%;height:100%`) {
+		t.Fatal("viewer scales small originals to fill the viewport")
 	}
 }
 

@@ -23,6 +23,33 @@ func (r testReader) Read(_ context.Context, q ReadRequest) (Page, error) {
 	return Page{Events: out, Complete: true}, nil
 }
 
+type mutableTestReader struct {
+	mu     sync.Mutex
+	events []Event
+}
+
+func (r *mutableTestReader) add(event Event) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.events = append(r.events, event)
+}
+
+func (r *mutableTestReader) Read(_ context.Context, q ReadRequest) (Page, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]Event, 0, q.Limit)
+	for _, event := range r.events {
+		if event.Sequence <= q.AfterSequence {
+			continue
+		}
+		if len(out) == q.Limit {
+			break
+		}
+		out = append(out, event)
+	}
+	return Page{Events: out, Complete: len(out) < q.Limit}, nil
+}
+
 type watermarkReader struct{}
 
 func (watermarkReader) Read(_ context.Context, q ReadRequest) (Page, error) {
@@ -135,7 +162,10 @@ func TestTodo_CHAT_019(t *testing.T) {
 	now := time.Unix(100, 0)
 	auth := &testAuth{}
 	s := newTestStream(t, auth, &now, 4, []Event{{TenantID: "tenant", ConversationID: "conversation", Sequence: 1, MembershipEpoch: 1}, {TenantID: "tenant", ConversationID: "conversation", Sequence: 2, MembershipEpoch: 1}})
-	sub, err := s.Watch(context.Background(), req())
+	request := req()
+	request.HomeTenantID = "home"
+	request.RouteEpoch = 7
+	sub, err := s.Watch(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,8 +173,17 @@ func TestTodo_CHAT_019(t *testing.T) {
 	if first == "" {
 		t.Fatal("missing cursor")
 	}
-	if _, err := s.Watch(context.Background(), WatchRequest{TenantID: "tenant", SubjectID: "other", ConversationID: "conversation", MembershipEpoch: 1, Cursor: first}); !errors.Is(err, ErrInvalidCursor) {
-		t.Fatalf("tamper scope error=%v", err)
+	for name, changed := range map[string]WatchRequest{
+		"tenant":       {TenantID: "other", HomeTenantID: "home", SubjectID: "subject", ConversationID: "conversation", MembershipEpoch: 1, RouteEpoch: 7, Cursor: first},
+		"home tenant":  {TenantID: "tenant", HomeTenantID: "other", SubjectID: "subject", ConversationID: "conversation", MembershipEpoch: 1, RouteEpoch: 7, Cursor: first},
+		"principal":    {TenantID: "tenant", HomeTenantID: "home", SubjectID: "other", ConversationID: "conversation", MembershipEpoch: 1, RouteEpoch: 7, Cursor: first},
+		"conversation": {TenantID: "tenant", HomeTenantID: "home", SubjectID: "subject", ConversationID: "other", MembershipEpoch: 1, RouteEpoch: 7, Cursor: first},
+		"membership":   {TenantID: "tenant", HomeTenantID: "home", SubjectID: "subject", ConversationID: "conversation", MembershipEpoch: 2, RouteEpoch: 7, Cursor: first},
+		"route":        {TenantID: "tenant", HomeTenantID: "home", SubjectID: "subject", ConversationID: "conversation", MembershipEpoch: 1, RouteEpoch: 8, Cursor: first},
+	} {
+		if _, err := s.Watch(context.Background(), changed); !errors.Is(err, ErrInvalidCursor) {
+			t.Errorf("changed %s scope error=%v", name, err)
+		}
 	}
 	if _, err := s.Watch(context.Background(), WatchRequest{TenantID: "tenant", SubjectID: "subject", ConversationID: "conversation", MembershipEpoch: 1, Cursor: first + "x"}); !errors.Is(err, ErrInvalidCursor) {
 		t.Fatalf("tamper bytes error=%v", err)
@@ -169,14 +208,101 @@ func TestTodo_CHAT_019_Security(t *testing.T) {
 func TestTodo_CHAT_019_Recovery(t *testing.T) {
 	now := time.Unix(100, 0)
 	auth := &testAuth{}
-	s := newTestStream(t, auth, &now, 4, []Event{{TenantID: "tenant", ConversationID: "conversation", Sequence: 4, MembershipEpoch: 1}})
-	sub, err := s.Watch(context.Background(), req())
+	reader := &mutableTestReader{events: []Event{
+		{TenantID: "tenant", ConversationID: "conversation", Sequence: 1, MembershipEpoch: 1},
+		{TenantID: "tenant", ConversationID: "conversation", Sequence: 2, MembershipEpoch: 1},
+	}}
+	s, err := New(Config{Key: []byte("secret"), Reader: reader, Authorizer: auth, QueueSize: 8, ReplayLimit: 10, CursorTTL: time.Minute, Clock: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := req()
+	request.RouteEpoch = 12
+	sub, err := s.Watch(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
 	e, err := sub.Next(context.Background())
-	if err != nil || e.Sequence != 4 {
-		t.Fatalf("replay=%+v err=%v", e, err)
+	if err != nil || e.Sequence != 1 {
+		t.Fatalf("first replay=%+v err=%v", e, err)
+	}
+	cursor := sub.Cursor()
+	sub.Close()
+	reader.add(Event{TenantID: "tenant", ConversationID: "conversation", Sequence: 3, MembershipEpoch: 1})
+	reader.add(Event{TenantID: "tenant", ConversationID: "conversation", Sequence: 4, MembershipEpoch: 1})
+
+	request.Cursor = cursor
+	request.AfterSequence = 0
+	resumed, err := s.Watch(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resumed.Close()
+	for _, want := range []uint64{2, 3, 4} {
+		event, nextErr := resumed.Next(context.Background())
+		if nextErr != nil || event.Sequence != want {
+			t.Fatalf("catch-up event = %d err=%v; want exact sequence %d", event.Sequence, nextErr, want)
+		}
+	}
+}
+
+func TestTodo_CHAT_019_RecoveryOverReplayWindow(t *testing.T) {
+	now := time.Unix(100, 0)
+	reader := &mutableTestReader{}
+	for sequence := uint64(1); sequence <= 12; sequence++ {
+		reader.add(Event{TenantID: "tenant", ConversationID: "conversation", Sequence: sequence, MembershipEpoch: 1})
+	}
+	s, err := New(Config{Key: []byte("secret"), Reader: reader, Authorizer: &testAuth{}, QueueSize: 4, ReplayLimit: 10, CursorTTL: time.Minute, Clock: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := req()
+	request.RouteEpoch = 12
+	bridge := Bridge{Stream: s, Reader: reader, PollInterval: time.Millisecond, PageLimit: 2}
+	sub, err := bridge.Watch(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-sub.Done():
+	case <-time.After(time.Second):
+		sub.Close()
+		t.Fatal("backlog larger than the replay window did not exercise bounded backpressure")
+	}
+
+	// Drain the accepted prefix before reconnecting. The catch-up cursor may
+	// replay that accepted prefix, but must let the bounded bridge recover every
+	// committed event after reconnect without a gap.
+	for want := uint64(1); want <= 4; want++ {
+		got, nextErr := sub.Next(context.Background())
+		if nextErr != nil || got.Sequence != want {
+			t.Fatalf("first subscription event=%d err=%v; want sequence %d", got.Sequence, nextErr, want)
+		}
+	}
+	_, terminalErr := sub.Next(context.Background())
+	if !errors.Is(terminalErr, ErrBackpressure) {
+		t.Fatalf("terminal error=%v, want backpressure after the accepted prefix", terminalErr)
+	}
+	var backpressure *BackpressureError
+	if !errors.As(terminalErr, &backpressure) || backpressure.Cursor == "" {
+		t.Fatalf("terminal backpressure has no catch-up cursor: %v", terminalErr)
+	}
+	cursor := backpressure.Cursor
+	decoded, err := s.h.decodeCursor(cursor)
+	if err != nil || decoded.Sequence != 0 {
+		t.Fatalf("backpressure cursor sequence=%d err=%v; want sequence 0 before queued events were consumed", decoded.Sequence, err)
+	}
+	request.Cursor = cursor
+	resumed, err := (Bridge{Stream: s, Reader: reader, PollInterval: 100 * time.Millisecond, PageLimit: 2}).Watch(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resumed.Close()
+	for want := uint64(1); want <= 12; want++ {
+		got, nextErr := resumed.Next(context.Background())
+		if nextErr != nil || got.Sequence != want {
+			t.Fatalf("resumed event=%d err=%v; want exact committed sequence %d", got.Sequence, nextErr, want)
+		}
 	}
 }
 

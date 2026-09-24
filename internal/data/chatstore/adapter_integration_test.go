@@ -2,6 +2,7 @@ package chatstore
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	chat "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/pressly/goose/v3"
 )
@@ -18,6 +20,10 @@ import (
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
 
 type forwardingAuthority struct{ store *Adapter }
+
+type allowChat030Disclosure struct{}
+
+func (allowChat030Disclosure) Check(context.Context, chat.DisclosureInput) error { return nil }
 
 func (a forwardingAuthority) Authorize(ctx context.Context, p chat.Principal, c chat.Conversation, _ chatpolicy.Action, at time.Time) (chatpolicy.Input, error) {
 	in := chatpolicy.Input{Principal: chatpolicy.Principal{ID: p.SubjectID, Tenant: p.TenantID, Active: true, AuthorityRevision: 1}, Channel: chatpolicy.Channel{ID: c.ID, HostTenant: c.TenantID, Private: c.Kind != chat.PublicChannel, Enabled: true, Revision: c.Revision}, Now: at}
@@ -29,7 +35,7 @@ func (a forwardingAuthority) Authorize(ctx context.Context, p chat.Principal, c 
 	return in, nil
 }
 
-func TestTodo_CHAT_030_IntegrationPublicPrivateForwardAndRetry(t *testing.T) {
+func TestTodo_CHAT_030_Integration(t *testing.T) {
 	store := adapterDB(t)
 	ctx := context.Background()
 	principal := chat.Principal{TenantID: "tenant-a", SubjectID: "alice"}
@@ -54,6 +60,7 @@ func TestTodo_CHAT_030_IntegrationPublicPrivateForwardAndRetry(t *testing.T) {
 	}
 	service := chat.NewService(store, func() time.Time { return time.Now().UTC() })
 	service.SetAuthority(forwardingAuthority{store: store})
+	service.SetDisclosureChecker(allowChat030Disclosure{})
 	for _, dest := range []string{"public", "private"} {
 		req := chat.ForwardPostRequest{Principal: principal, SourceTenantID: principal.TenantID, SourceConversationID: "source", SourcePostID: source.ID, DestinationTenantID: principal.TenantID, DestinationConversationID: dest, IdempotencyKey: "forward-" + dest}
 		first, err := service.ForwardPost(ctx, req)
@@ -108,7 +115,98 @@ func adapterDB(t *testing.T) *Adapter {
 	return NewAdapter(store)
 }
 
-func TestTodo_CHAT_032_Integration(t *testing.T) {
+func TestTodo_CHAT_017(t *testing.T) {
+	s := adapterDB(t)
+	ctx := context.Background()
+	c := chat.Conversation{ID: "chat-017-primary", TenantID: "tenant-a", Kind: chat.PrivateChannel, OwnerID: "alice", Revision: 1}
+	m := chat.Membership{ConversationID: c.ID, TenantID: c.TenantID, HomeTenantID: c.TenantID, SubjectID: "alice", Role: chat.Manager, HistoryVisibility: chat.FullHistory}
+	if _, err := s.CreateConversation(ctx, c, []chat.Membership{m}, ""); err != nil {
+		t.Fatal(err)
+	}
+	req := chat.SendPostRequest{Principal: chat.Principal{TenantID: c.TenantID, SubjectID: "alice"}, TenantID: c.TenantID, ConversationID: c.ID, IdempotencyKey: "retry-key"}
+	first, err := s.SendPost(ctx, req, chat.Post{AuthorID: "alice", Body: "one durable post"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	retry, err := s.SendPost(ctx, req, chat.Post{AuthorID: "alice", Body: "one durable post"})
+	if err != nil || retry.ID != first.ID || retry.Sequence != first.Sequence {
+		t.Fatalf("retry=%+v err=%v; first=%+v", retry, err, first)
+	}
+	posts, err := s.ListPosts(ctx, req.Principal, c.TenantID, c.ID, 0, chat.Page{PageSize: 10}, chat.PostWindow{})
+	if err != nil || len(posts.Posts) != 1 || posts.Posts[0].ID != first.ID || posts.Posts[0].Sequence != 1 {
+		t.Fatalf("posts=%+v err=%v", posts, err)
+	}
+}
+
+func TestTodo_CHAT_017_Integration(t *testing.T) {
+	s := adapterDB(t)
+	ctx := context.Background()
+	c := chat.Conversation{ID: "chat-017-integration", TenantID: "tenant-a", Kind: chat.PrivateChannel, OwnerID: "alice", Revision: 1}
+	m := chat.Membership{ConversationID: c.ID, TenantID: c.TenantID, HomeTenantID: c.TenantID, SubjectID: "alice", Role: chat.Manager, HistoryVisibility: chat.FullHistory}
+	if _, err := s.CreateConversation(ctx, c, []chat.Membership{m}, ""); err != nil {
+		t.Fatal(err)
+	}
+	req := chat.SendPostRequest{Principal: chat.Principal{TenantID: c.TenantID, SubjectID: "alice"}, TenantID: c.TenantID, ConversationID: c.ID, IdempotencyKey: "atomic-key"}
+	body := "one atomic post"
+	first, err := s.SendPost(ctx, req, chat.Post{AuthorID: "alice", Body: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	retry, err := s.SendPost(ctx, req, chat.Post{AuthorID: "alice", Body: body})
+	if err != nil || retry.ID != first.ID || retry.Sequence != first.Sequence {
+		t.Fatalf("retry=%+v err=%v; first=%+v", retry, err, first)
+	}
+	var postCount, revisionCount, idempotencyCount, outboxCount int
+	var conversationSequence, idemSequence int64
+	var idemPostID string
+	if err := s.Store.RunTenantTx(ctx, c.TenantID, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT
+            (SELECT count(*) FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND id=$3),
+            (SELECT count(*) FROM chat_post_revision WHERE tenant_id=$1 AND post_id=$3 AND revision=1),
+            (SELECT count(*) FROM chat_idempotency WHERE tenant_id=$1 AND conversation_id=$2 AND client_key=$4),
+            (SELECT post_sequence FROM chat_conversation WHERE tenant_id=$1 AND id=$2),
+            (SELECT post_id FROM chat_idempotency WHERE tenant_id=$1 AND conversation_id=$2 AND client_key=$4),
+            (SELECT sequence FROM chat_idempotency WHERE tenant_id=$1 AND conversation_id=$2 AND client_key=$4),
+            (SELECT count(*) FROM chat_outbox WHERE tenant_id=$1 AND aggregate_id=$3 AND event_type='post.created')`, c.TenantID, c.ID, first.ID, req.IdempotencyKey).Scan(&postCount, &revisionCount, &idempotencyCount, &conversationSequence, &idemPostID, &idemSequence, &outboxCount)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if postCount != 1 || revisionCount != 1 || idempotencyCount != 1 || outboxCount != 1 || conversationSequence != 1 || idemPostID != first.ID || idemSequence != 1 {
+		t.Fatalf("atomic rows post=%d revision=%d idempotency=%d outbox=%d conversation_sequence=%d idem=(%s,%d)", postCount, revisionCount, idempotencyCount, outboxCount, conversationSequence, idemPostID, idemSequence)
+	}
+	var payload []byte
+	if err := s.Store.RunTenantTx(ctx, c.TenantID, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT payload FROM chat_outbox WHERE tenant_id=$1 AND aggregate_id=$2 AND event_type='post.created'`, c.TenantID, first.ID).Scan(&payload)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var envelope OutboxEnvelope
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.ConversationID != c.ID || envelope.TargetID != first.ID || envelope.Revision != 1 || envelope.EventSequence <= 0 || envelope.SchemaVersion != OutboxSchemaVersion {
+		t.Fatalf("post-created envelope=%+v", envelope)
+	}
+	var value struct {
+		ID       string `json:"ID"`
+		Sequence uint64 `json:"Sequence"`
+		Body     string `json:"Body"`
+	}
+	if err := json.Unmarshal(envelope.Value, &value); err != nil {
+		t.Fatal(err)
+	}
+	if value.ID != first.ID || value.Sequence != 1 || value.Body != body {
+		t.Fatalf("outbox post value=%+v want id=%s sequence=1 body=%q", value, first.ID, body)
+	}
+}
+
+// TestPostMetadataReferencesSourceAttributionAndIdempotencyIntegration proves
+// reference, source-attribution and idempotency-key persistence for a sent and
+// edited post. Renamed from a stale TestTodo_CHAT_032_Integration label: this
+// asserts post metadata, not the CHAT-032 sidebar-section/manual-order
+// contract, which now lives under its own exact name in
+// chat_032_integration_test.go.
+func TestPostMetadataReferencesSourceAttributionAndIdempotencyIntegration(t *testing.T) {
 	s := adapterDB(t)
 	ctx := context.Background()
 	c := chat.Conversation{ID: "c1", TenantID: "tenant-a", Kind: chat.PrivateChannel, Name: "references", OwnerID: "alice", Revision: 1}
@@ -233,7 +331,7 @@ func TestTodo_CHAT_010_Integration(t *testing.T) {
 	if err != nil || m.HomeTenantID != c.TenantID || m.Revision != 1 {
 		t.Fatalf("membership=%+v %v", m, err)
 	}
-	if _, err = s.UpdateConversation(ctx, c, 2); !errors.Is(err, chat.ErrConflict) {
+	if _, err = s.UpdateConversation(ctx, chat.Principal{TenantID: c.TenantID, SubjectID: c.OwnerID}, c, 2); !errors.Is(err, chat.ErrConflict) {
 		t.Fatalf("stale update=%v", err)
 	}
 	foreign := chat.Membership{ConversationID: c.ID, TenantID: c.TenantID, HomeTenantID: "tenant-b", SubjectID: "alice", Role: chat.Member, HistoryVisibility: chat.FromJoin}
@@ -292,7 +390,7 @@ func TestTodo_CHAT_015_Integration(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_021_CurrentRevisionHistoryAndTenantScope(t *testing.T) {
+func TestTodo_CHAT_021_Integration(t *testing.T) {
 	s := adapterDB(t)
 	ctx := context.Background()
 	principalA := chat.Principal{TenantID: "tenant-a", SubjectID: "same-user"}
@@ -407,7 +505,7 @@ func TestTodo_CHAT_022_Integration(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_023_Integration(t *testing.T) {
+func TestTodo_CHAT_024_IntegrationPinsAndReactionsPersistence(t *testing.T) {
 	s := adapterDB(t)
 	ctx := context.Background()
 	c := chat.Conversation{ID: "c1", TenantID: "tenant-a", Kind: chat.PrivateChannel, Name: "pins", OwnerID: "alice", Revision: 1}
@@ -533,7 +631,8 @@ func TestTodo_CHAT_012_Integration(t *testing.T) {
 		t.Fatalf("rejoin leaked old history=%+v %v", posts, err)
 	}
 	c.Name = "renamed"
-	updated, err := s.UpdateConversation(ctx, c, 1)
+	actor := chat.Principal{TenantID: c.TenantID, SubjectID: c.OwnerID}
+	updated, err := s.UpdateConversation(ctx, actor, c, 1)
 	if err != nil || updated.Revision != 2 {
 		t.Fatalf("update=%+v %v", updated, err)
 	}
@@ -545,7 +644,7 @@ func TestTodo_CHAT_012_Integration(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.Name = "must-roll-back"
-	if _, err = s.UpdateConversation(ctx, c, 2); err == nil {
+	if _, err = s.UpdateConversation(ctx, actor, c, 2); err == nil {
 		t.Fatal("update committed without its audit event")
 	}
 	loaded, err = s.GetConversation(ctx, c.TenantID, c.ID)

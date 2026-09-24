@@ -14,6 +14,11 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// markdownParser is built once: constructing goldmark's default parser per
+// message was 15% of a timeline render's allocations. Parse keeps its state in
+// a per-call context, so one parser serves every message.
+var markdownParser = goldmark.New().Parser()
+
 // markdownMessageBody renders the supported Markdown profile as typed nodes.
 // Raw HTML and image syntax never become active HTML or remote requests.
 func markdownMessageBody(m Model, body string) []ui.Node {
@@ -21,7 +26,7 @@ func markdownMessageBody(m Model, body string) []ui.Node {
 		return []ui.Node{ui.Text(body)}
 	}
 	source := []byte(body)
-	root := goldmark.New().Parser().Parse(text.NewReader(source))
+	root := markdownParser.Parse(text.NewReader(source))
 	return markdownChildren(m, root, source)
 }
 
@@ -30,7 +35,7 @@ func markdownChildren(m Model, parent ast.Node, source []byte) []ui.Node {
 	var plain strings.Builder
 	flush := func() {
 		if plain.Len() > 0 {
-			nodes = append(nodes, channelReferenceBody(m, plain.String())...)
+			nodes = append(nodes, mentionReferenceBody(m, plain.String())...)
 			plain.Reset()
 		}
 	}
@@ -73,7 +78,7 @@ func markdownNode(m Model, node ast.Node, source []byte) []ui.Node {
 		}
 		return []ui.Node{html.Em(html.Props{}, children()...)}
 	case *ast.String:
-		return channelReferenceBody(m, string(n.Value))
+		return mentionReferenceBody(m, string(n.Value))
 	case *ast.CodeSpan:
 		return []ui.Node{html.Code(html.Props{}, ui.Text(string(n.Text(source))))}
 	case *ast.CodeBlock, *ast.FencedCodeBlock:

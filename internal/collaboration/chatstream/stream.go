@@ -52,6 +52,7 @@ type ReadRequest struct {
 type Access struct {
 	TenantID, HomeTenantID, ConversationID, SubjectID string
 	MembershipEpoch                                   uint64
+	RouteEpoch                                        uint64
 	Sequence                                          uint64
 }
 
@@ -163,7 +164,11 @@ func (b Bridge) poll(ctx context.Context, sub *Subscription, req WatchRequest) {
 type WatchRequest struct {
 	TenantID, HomeTenantID, SubjectID, ConversationID string
 	MembershipEpoch                                   uint64
-	Cursor                                            string
+	// RouteEpoch comes from the current routing authority. Zero denotes a
+	// conversation that predates route registration; it is still signed so a
+	// later route registration invalidates its cursors.
+	RouteEpoch uint64
+	Cursor     string
 	// AfterSequence is the plain starting position, for a client that knows the
 	// last sequence it rendered but holds no signed cursor — a page that has
 	// just reloaded, or one resuming after its cursor expired. It is ignored
@@ -200,6 +205,7 @@ type cursor struct {
 	SubjectID       string `json:"s"`
 	ConversationID  string `json:"c"`
 	MembershipEpoch uint64 `json:"m"`
+	RouteEpoch      uint64 `json:"r"`
 	Sequence        uint64 `json:"q"`
 	ExpiresAt       int64  `json:"e"`
 }
@@ -221,12 +227,12 @@ func (s *Stream) Watch(ctx context.Context, req WatchRequest) (*Subscription, er
 		// invalidates the cursor it was minted under. What the caller must do
 		// with that refusal is drop the token and resubscribe with
 		// AfterSequence, which is why it exists.
-		if c.TenantID != req.TenantID || c.HomeTenantID != req.HomeTenantID || c.SubjectID != req.SubjectID || c.ConversationID != req.ConversationID || c.MembershipEpoch != req.MembershipEpoch {
+		if c.TenantID != req.TenantID || c.HomeTenantID != req.HomeTenantID || c.SubjectID != req.SubjectID || c.ConversationID != req.ConversationID || c.MembershipEpoch != req.MembershipEpoch || c.RouteEpoch != req.RouteEpoch {
 			return nil, ErrInvalidCursor
 		}
 		start = c.Sequence
 	}
-	a := Access{TenantID: req.TenantID, HomeTenantID: req.HomeTenantID, SubjectID: req.SubjectID, ConversationID: req.ConversationID, MembershipEpoch: req.MembershipEpoch}
+	a := Access{TenantID: req.TenantID, HomeTenantID: req.HomeTenantID, SubjectID: req.SubjectID, ConversationID: req.ConversationID, MembershipEpoch: req.MembershipEpoch, RouteEpoch: req.RouteEpoch}
 	if err := s.h.config.Authorizer.Authorize(ctx, a); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUnauthorized, err)
 	}
@@ -259,11 +265,11 @@ func (s *Stream) Watch(ctx context.Context, req WatchRequest) (*Subscription, er
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
-			return nil, &BackpressureError{Cursor: s.h.encodeCursor(cursor{Version: 1, TenantID: a.TenantID, HomeTenantID: a.HomeTenantID, SubjectID: a.SubjectID, ConversationID: a.ConversationID, MembershipEpoch: a.MembershipEpoch, Sequence: sub.last, ExpiresAt: s.h.config.Clock().Add(s.h.config.CursorTTL).UnixNano()})}
+			return nil, &BackpressureError{Cursor: s.h.encodeCursor(cursor{Version: 1, TenantID: a.TenantID, HomeTenantID: a.HomeTenantID, SubjectID: a.SubjectID, ConversationID: a.ConversationID, MembershipEpoch: a.MembershipEpoch, RouteEpoch: a.RouteEpoch, Sequence: start, ExpiresAt: s.h.config.Clock().Add(s.h.config.CursorTTL).UnixNano()})}
 		}
 	}
 	sub.mu.Lock()
-	sub.cursor = s.h.encodeCursor(cursor{Version: 1, TenantID: a.TenantID, HomeTenantID: a.HomeTenantID, SubjectID: a.SubjectID, ConversationID: a.ConversationID, MembershipEpoch: a.MembershipEpoch, Sequence: start, ExpiresAt: s.h.config.Clock().Add(s.h.config.CursorTTL).UnixNano()})
+	sub.cursor = s.h.encodeCursor(cursor{Version: 1, TenantID: a.TenantID, HomeTenantID: a.HomeTenantID, SubjectID: a.SubjectID, ConversationID: a.ConversationID, MembershipEpoch: a.MembershipEpoch, RouteEpoch: a.RouteEpoch, Sequence: start, ExpiresAt: s.h.config.Clock().Add(s.h.config.CursorTTL).UnixNano()})
 	sub.mu.Unlock()
 	key := subscriptionKey(a.TenantID, a.ConversationID)
 	s.h.mu.Lock()
@@ -398,7 +404,7 @@ func (s *Subscription) Next(ctx context.Context) (Event, error) {
 }
 func (s *Subscription) recordConsumed(event Event) {
 	s.mu.Lock()
-	s.cursor = s.h.encodeCursor(cursor{Version: 1, TenantID: s.access.TenantID, HomeTenantID: s.access.HomeTenantID, SubjectID: s.access.SubjectID, ConversationID: s.access.ConversationID, MembershipEpoch: s.access.MembershipEpoch, Sequence: event.Sequence, ExpiresAt: s.h.config.Clock().Add(s.h.config.CursorTTL).UnixNano()})
+	s.cursor = s.h.encodeCursor(cursor{Version: 1, TenantID: s.access.TenantID, HomeTenantID: s.access.HomeTenantID, SubjectID: s.access.SubjectID, ConversationID: s.access.ConversationID, MembershipEpoch: s.access.MembershipEpoch, RouteEpoch: s.access.RouteEpoch, Sequence: event.Sequence, ExpiresAt: s.h.config.Clock().Add(s.h.config.CursorTTL).UnixNano()})
 	s.mu.Unlock()
 }
 func (s *Subscription) Cursor() string        { s.mu.Lock(); defer s.mu.Unlock(); return s.cursor }

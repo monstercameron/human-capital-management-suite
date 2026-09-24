@@ -1,6 +1,7 @@
 package chatmedia
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -27,6 +28,9 @@ func (m *MemoryStore) Quarantine(ctx context.Context, a Artifact) error {
 	if old, ok := m.values[a.ArtifactID]; ok {
 		if old.TenantID != a.TenantID || old.ConversationID != a.ConversationID {
 			return ErrUnauthorized
+		}
+		if !bytes.Equal(old.Content, a.Content) || old.MediaType != a.MediaType || old.Size != a.Size || old.Transcript != a.Transcript || old.AltText != a.AltText {
+			return ErrInvalid
 		}
 		return nil
 	}

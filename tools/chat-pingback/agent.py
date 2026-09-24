@@ -94,7 +94,24 @@ def run(base_url: str, conversation_id: str, token: str, agent_id: str,
     print(f"Pingback demo connected to conversation {conversation_id}; trigger: @pingback <message>", flush=True)
     while True:
         query = urllib.parse.urlencode({"max_events": 50, "wait_ms": wait_ms, **({"resume_cursor": cursor} if cursor else {})})
-        page = request_json(f"{root}/events?{query}", token, timeout=wait_ms / 1000 + 5)
+        try:
+            page = request_json(f"{root}/events?{query}", token, timeout=wait_ms / 1000 + 5)
+        except urllib.error.HTTPError as exc:
+            # Event cursors are signed by the running API and can become stale
+            # when a local backend rebuild changes its signing material.
+            # Retry once without the cursor; the stable per-event idempotency
+            # key prevents duplicate threaded replies while replaying history.
+            if cursor and exc.code == 400:
+                try:
+                    error = json.loads(exc.read().decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    error = {}
+                detail = error.get("error") if isinstance(error, dict) else None
+                if isinstance(detail, dict) and detail.get("code") == "chat.invalid_request":
+                    cursor = ""
+                    save_cursor(state_file, cursor)
+                    continue
+            raise
         events = page.get("events", [])
         next_cursor = page.get("resume_cursor", cursor)
         if not isinstance(events, list) or not isinstance(next_cursor, str):

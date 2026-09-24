@@ -36,8 +36,19 @@ func TestTodo_CHAT_054_Conformance(t *testing.T) {
 		mutate func(*P2PCallRequest)
 		want   error
 	}{
-		{"message-membership-does-not-authorize", func(r *P2PCallRequest) { r.Participants[1].Consent.Granted = false }, ErrConsent},
+		{"explicit-call-consent-required", func(r *P2PCallRequest) { r.Participants[1].Consent.Granted = false }, ErrConsent},
+		{"padded-call-identity-refused", func(r *P2PCallRequest) { r.CallID = " call-1" }, ErrInvalid},
+		{"padded-conversation-identity-refused", func(r *P2PCallRequest) { r.ConversationID = "conversation-1 " }, ErrInvalid},
+		{"padded-participant-identity-refused", func(r *P2PCallRequest) { r.Participants[0].Authority.PrincipalID = " alice" }, ErrAuthority},
+		{"padded-tenant-identity-refused", func(r *P2PCallRequest) { r.Participants[0].Authority.TenantID = "tenant-a " }, ErrAuthority},
+		{"duplicate-participants-refused", func(r *P2PCallRequest) { r.Participants[1].Authority.PrincipalID = "alice" }, ErrInvalid},
+		{"consent-bound-to-call", func(r *P2PCallRequest) { r.Participants[0].Consent.CallID = "other-call" }, ErrConsent},
+		{"consent-bound-to-participant", func(r *P2PCallRequest) { r.Participants[0].Consent.ParticipantID = "bob" }, ErrConsent},
+		{"video-consent-required-when-requested", func(r *P2PCallRequest) {
+			r.Media.Video = true
+		}, ErrConsent},
 		{"stale-authority-refused", func(r *P2PCallRequest) { r.Participants[0].Authority.Active = false }, ErrAuthority},
+		{"expired-authority-refused-at-boundary", func(r *P2PCallRequest) { r.Participants[0].Authority.ExpiresAt = callAt }, ErrAuthority},
 		{"recording-needs-notice-and-consent", func(r *P2PCallRequest) { r.Media.Recording = RecordingPolicy{Enabled: true} }, ErrRecordingPolicy},
 		{"recording-needs-each-participant-consent", func(r *P2PCallRequest) {
 			r.Media.Recording = RecordingPolicy{Enabled: true, ConsentRequired: true, Notice: "recording notice"}
@@ -54,6 +65,29 @@ func TestTodo_CHAT_054_Conformance(t *testing.T) {
 				t.Fatalf("error = %v, want %v", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestP2PCallAdmissionAcceptsSeparatelyConsentedAudioVideoRecording(t *testing.T) {
+	participants := [2]Participant{participant("call-1", "alice", MediaAudio, MediaVideo), participant("call-1", "bob", MediaAudio, MediaVideo)}
+	for i := range participants {
+		participants[i].Consent.RecordingGranted = true
+	}
+	req := P2PCallRequest{
+		CallID: "call-1", ConversationID: "conversation-1", At: callAt,
+		Participants: participants,
+		Media: MediaPolicy{
+			Audio: true, Video: true,
+			Recording: RecordingPolicy{Enabled: true, ConsentRequired: true, Notice: "This call is recorded."},
+		},
+		Network: P2PNetworkPolicy{ICEIdentity: "ice", DTLSPeerIdentity: "dtls", AllowedEgressZone: "us-east"},
+	}
+	got, err := AdmitP2P(req)
+	if err != nil {
+		t.Fatalf("AdmitP2P: %v", err)
+	}
+	if got.Media != req.Media || got.ParticipantIDs != [2]string{"alice", "bob"} {
+		t.Fatalf("admission did not preserve admitted call policy and pair: %+v", got)
 	}
 }
 

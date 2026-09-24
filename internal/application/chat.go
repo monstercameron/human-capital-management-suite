@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatadmission"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatapps"
@@ -17,7 +21,84 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatrecordstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
+	intentapp "github.com/monstercameron/human-capital-management-suite/internal/intent/app"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
+
+// chatAppsIntentAdapter is chatapps.BusinessIntentPort's real production
+// implementation (CHAT-045): a typed proposal from an installed chat agent
+// becomes exactly the CreateIntentRequest an authenticated human would
+// submit, through the same IntentService.CreateIntent the served intent
+// transports call. The initiator is read from the caller's own authenticated
+// context (trust.FromContext), never from anything the proposal claims about
+// itself, so the kernel's ordinary RBAC-RT-003 authorization decides it: an
+// agent installation cannot buy authority the acting principal does not
+// already have. Proposals default to EXECUTION_MODE_SIMULATE, so an agent
+// action enters normal workflow admission for review rather than committing
+// on its own say-so.
+type chatAppsIntentAdapter struct {
+	intent *intentapp.IntentService
+}
+
+func (a chatAppsIntentAdapter) Propose(ctx context.Context, p chatapps.Proposal) (chatapps.ProposalReceipt, error) {
+	if a.intent == nil {
+		return chatapps.ProposalReceipt{}, chatcore.ErrUnavailable
+	}
+	principal, ok := trust.FromContext(ctx)
+	if !ok || principal == nil {
+		return chatapps.ProposalReceipt{}, chatcore.ErrUnavailable
+	}
+	initiatorKind := intentsv1.InitiatorKind_INITIATOR_KIND_HUMAN
+	switch principal.SubjectKind() {
+	case trust.SubjectKindAgent:
+		initiatorKind = intentsv1.InitiatorKind_INITIATOR_KIND_AGENT
+	case trust.SubjectKindService:
+		initiatorKind = intentsv1.InitiatorKind_INITIATOR_KIND_SERVICE
+	case trust.SubjectKindIntegration:
+		initiatorKind = intentsv1.InitiatorKind_INITIATOR_KIND_INTEGRATION
+	}
+	subjects := make([]*intentsv1.SubjectReference, 0, len(p.Subjects))
+	for _, s := range p.Subjects {
+		subjects = append(subjects, &intentsv1.SubjectReference{
+			SubjectKind: s.Kind, SubjectId: s.ID, AuthorityDomain: s.AuthorityDomain,
+		})
+	}
+	payload := p.RequestPayload
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	raw, err := structpb.NewStruct(payload)
+	if err != nil {
+		return chatapps.ProposalReceipt{}, fmt.Errorf("application: encode chat-app proposal payload: %w", err)
+	}
+	wire, err := proto.Marshal(raw)
+	if err != nil {
+		return chatapps.ProposalReceipt{}, fmt.Errorf("application: marshal chat-app proposal payload: %w", err)
+	}
+	req := &intentsv1.CreateIntentRequest{
+		IdempotencyKey: p.IdempotencyKey,
+		Definition:     &intentsv1.DefinitionReference{IntentTypeId: p.IntentType, Version: p.SchemaVersion},
+		Initiator: &intentsv1.PrincipalReference{
+			PrincipalId: principal.Subject(), Kind: initiatorKind, IdentityAssuranceRef: principal.EvidenceID(),
+		},
+		Subjects: subjects,
+		Request: &intentsv1.TypedPayload{
+			Schema: &intentsv1.SchemaReference{
+				SchemaId: p.SchemaID, Version: p.SchemaVersion, ProtobufFullName: p.ProtoFullName,
+			},
+			ProtobufWireBytes: wire,
+		},
+		ExecutionMode: intentsv1.ExecutionMode_EXECUTION_MODE_SIMULATE,
+	}
+	resp, err := a.intent.CreateIntent(ctx, req)
+	if err != nil {
+		return chatapps.ProposalReceipt{}, err
+	}
+	return chatapps.ProposalReceipt{
+		IntentID: resp.GetIntent().GetIntentId(),
+		Status:   resp.GetIntent().GetLifecycle().GetRequest().String(),
+	}, nil
+}
 
 // unavailableChatAuthority keeps an enabled chat surface fail closed until a
 // deployment supplies its current role and qualification reader. The chat
@@ -50,7 +131,16 @@ type ChatComposition struct {
 	AuthorityTTL time.Duration
 	// PollInterval is the durable-outbox fan-out period. Zero keeps 250ms.
 	PollInterval time.Duration
+	// StreamRecheckInterval bounds how long a live subscription can outlive a
+	// principal's current role or worker status when no revocation event exists.
+	// Zero uses DefaultChatStreamRecheckInterval.
+	StreamRecheckInterval time.Duration
 }
+
+// DefaultChatStreamRecheckInterval caps idle stream authority staleness. Session
+// revocation is checked on each recheck; role and worker facts also expire from
+// the authority cache after DefaultChatAuthorityTTL.
+const DefaultChatStreamRecheckInterval = 5 * time.Second
 
 // composedChat is the optional chat boundary owned by one serve composition.
 // Its store has a separate pool and therefore a separate lifecycle from the
@@ -71,7 +161,7 @@ func chatStreamPorts(routed chatcore.ConversationService, membership chatMembers
 	return chatServiceReader{service: routed, membership: membership, events: events}, chatServiceStreamAuthorizer{service: routed, membership: membership}
 }
 
-func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts ChatAuthorityFacts, corePool *pgxadapter.Pool, composition ...ChatComposition) (composedChat, error) {
+func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts ChatAuthorityFacts, corePool *pgxadapter.Pool, intentService *intentapp.IntentService, composition ...ChatComposition) (composedChat, error) {
 	if !cfg.ChatEnabled {
 		return composedChat{}, nil
 	}
@@ -91,6 +181,12 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	adapter := chatstore.NewAdapter(store)
 	service := chatcore.NewService(adapter, now)
 	apps := &chatapps.Service{Repo: chatappstore.NewChatStore(store), Secret: []byte(cfg.ChatCursorKey), Now: now}
+	if intentService != nil {
+		// CHAT-045: an agent's proposed HCM action is carried through the real
+		// application/intent path (internal/intent/app.IntentService.CreateIntent),
+		// under the caller's own authenticated context, not a same-package fake.
+		apps.Intent = chatAppsIntentAdapter{intent: intentService}
+	}
 	service.SetReferenceDirectory(chatReferenceDirectory{store: adapter, apps: apps})
 	// One policy and grant authority over the chat database, shared by the
 	// conversation authority and the company grant surface.
@@ -127,8 +223,13 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		poll = 250 * time.Millisecond
 	}
 	reader, authorizer := chatStreamPorts(routed, adapter)
+	recheck := input.StreamRecheckInterval
+	if recheck <= 0 || recheck > DefaultChatStreamRecheckInterval {
+		recheck = DefaultChatStreamRecheckInterval
+	}
 	streamRuntime, err := NewChatStreamRuntime(ChatStreamRuntimeConfig{
 		CursorKey: cfg.ChatCursorKey, Reader: reader, Authorizer: authorizer, PollInterval: poll,
+		RecheckInterval: recheck,
 		// QueueSize is comfortably above ReplayLimit plus one poll page: a
 		// catch-up replay must not leave the queue with no room for the live
 		// events the bridge publishes immediately afterwards.

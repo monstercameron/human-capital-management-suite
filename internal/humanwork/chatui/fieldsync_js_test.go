@@ -102,6 +102,45 @@ func TestChatListReplacementKeepsReaderPosition(t *testing.T) {
 	}
 }
 
+func TestPreserveTimelinePositionDisarmsBottomFollowing(t *testing.T) {
+	global := js.Global()
+	oldDocument := global.Get("document")
+	defer global.Set("document", oldDocument)
+	list := global.Get("Object").New()
+	list.Set("scrollTop", 415)
+	classes := global.Get("Object").New()
+	var away bool
+	toggle := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 2 && args[0].String() == "away" {
+			away = args[1].Bool()
+		}
+		return nil
+	})
+	defer toggle.Release()
+	classes.Set("toggle", toggle)
+	parent := global.Get("Object").New()
+	parent.Set("classList", classes)
+	list.Set("parentElement", parent)
+	query := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) > 0 && args[0].String() == "["+listAnchorAttr+"]" {
+			return list
+		}
+		return js.Null()
+	})
+	defer query.Release()
+	doc := global.Get("Object").New()
+	doc.Set("querySelector", query)
+	global.Set("document", doc)
+
+	PreserveTimelinePosition()
+	if got := list.Get("__chatScrollTop").Int(); got != 415 {
+		t.Fatalf("saved scrollTop = %d, want 415", got)
+	}
+	if !list.Get("__chatScrollAwayIntent").Bool() || list.Get("__chatNearBottom").Bool() || !away {
+		t.Fatal("timeline still follows the newest page")
+	}
+}
+
 func TestChatMutationBatchReadsScrollGeometryOnce(t *testing.T) {
 	list := js.Global().Get("Object").New()
 	list.Set("__chatNearBottom", true)

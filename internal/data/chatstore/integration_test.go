@@ -94,28 +94,39 @@ func TestTodo_CHAT_017_Race(t *testing.T) {
 	seedConversation(t, s, "tenant-a")
 	const n = 8
 	var wg sync.WaitGroup
-	errs := make(chan error, n)
+	type result struct {
+		post Post
+		err  error
+	}
+	results := make(chan result, n)
+	req := SendRequest{TenantID: "tenant-a", ConversationID: "c-1", AuthorID: "u-1", ClientKey: "same-key", Body: "same"}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
-		go func(i int) {
+		go func() {
 			defer wg.Done()
-			_, e := s.sendPostRaw(context.Background(), SendRequest{TenantID: "tenant-a", ConversationID: "c-1", AuthorID: "u-1", ClientKey: "k-" + string(rune('a'+i)), Body: "same"})
-			errs <- e
-		}(i)
+			post, err := s.sendPostRaw(context.Background(), req)
+			results <- result{post: post, err: err}
+		}()
 	}
 	wg.Wait()
-	close(errs)
-	for e := range errs {
-		if e != nil {
-			t.Fatal(e)
+	close(results)
+	var original Post
+	for result := range results {
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		if original.ID == "" {
+			original = result.post
+		} else if result.post.ID != original.ID || result.post.Sequence != original.Sequence {
+			t.Fatalf("same idempotency key returned different posts: first=%+v retry=%+v", original, result.post)
 		}
 	}
 	listed, err := NewAdapter(s).ListPosts(context.Background(), chat.Principal{TenantID: "tenant-a", SubjectID: "u-1"}, "tenant-a", "c-1", 0, chat.Page{PageSize: 200}, chat.PostWindow{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(listed.Posts) != n {
-		t.Fatalf("posts=%d want %d", len(listed.Posts), n)
+	if len(listed.Posts) != 1 || listed.Posts[0].ID != original.ID || listed.Posts[0].Sequence != 1 {
+		t.Fatalf("posts=%+v want one post matching %+v", listed.Posts, original)
 	}
 }
 

@@ -439,8 +439,7 @@ func trackSpan(receipt *chatSeedReceipt, at time.Time) {
 // durable reference, not a substring: the body carries the display text and the
 // reference carries the subject.
 func seedBody(in seedRoomInput, index int, author string) (string, []chatcore.Reference) {
-	topic := in.room.Topics[index%len(in.room.Topics)]
-	body := topic
+	body := seedLine(in.room.Topics, in.roomIndex, index)
 	var refs []chatcore.Reference
 	if index%5 == 2 && len(in.room.Members) > 1 {
 		target := in.room.Members[(index+1)%len(in.room.Members)]
@@ -454,6 +453,16 @@ func seedBody(in seedRoomInput, index int, author string) (string, []chatcore.Re
 		body += "\n\n" + multilineTail[(in.roomIndex*5+index)%len(multilineTail)]
 	}
 	return body, refs
+}
+
+// seedLine says each of a room's topic lines once, in order, and then draws
+// ordinary replies from chatterLines. The stride is coprime with the pool size
+// so consecutive posts in one room never repeat a line.
+func seedLine(topics []string, roomIndex, index int) string {
+	if index < len(topics) {
+		return topics[index]
+	}
+	return chatterLines[(roomIndex*11+(index-len(topics))*7)%len(chatterLines)]
 }
 
 // adminIndex locates the signed-in persona in the seeded workforce, or -1.

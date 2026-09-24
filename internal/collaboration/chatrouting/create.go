@@ -25,12 +25,15 @@ type CreateCoordinator struct {
 }
 
 func (c CreateCoordinator) Create(ctx context.Context, req CreateRequest) (Route, error) {
-	if c.Directory == nil || c.Chat == nil || req.ConversationID == "" || req.HostTenantID == "" || req.IdempotencyKey == "" {
+	if c.Directory == nil || c.Chat == nil || !validCreateRequest(req) {
 		return Route{}, ErrInvalid
 	}
 	r, err := c.Directory.Reserve(ctx, ReserveRequest{ConversationID: req.ConversationID, HostTenantID: req.HostTenantID, ShardID: req.ShardID, PlacementPolicy: req.PlacementPolicy, PlacementPolicyVersion: req.PlacementPolicyVersion, IdempotencyKey: req.IdempotencyKey})
 	if err != nil {
 		return Route{}, err
+	}
+	if !matchesCreateRequest(r, req) {
+		return Route{}, ErrAlreadyExists
 	}
 	if r.State == StateActive {
 		return r, nil
@@ -44,12 +47,15 @@ func (c CreateCoordinator) Create(ctx context.Context, req CreateRequest) (Route
 // Reconcile retries the chat side after an ambiguous core/chat boundary. It
 // preserves the same idempotency key and activates only the reserved epoch.
 func (c CreateCoordinator) Reconcile(ctx context.Context, req CreateRequest) (Route, error) {
-	if c.Directory == nil || c.Chat == nil {
+	if c.Directory == nil || c.Chat == nil || !validCreateRequest(req) {
 		return Route{}, ErrInvalid
 	}
 	r, err := c.Directory.Lookup(ctx, req.ConversationID, req.HostTenantID)
 	if err != nil {
 		return Route{}, err
+	}
+	if !matchesCreateRequest(r, req) {
+		return r, ErrAlreadyExists
 	}
 	if r.State == StateActive {
 		return r, nil
@@ -61,4 +67,17 @@ func (c CreateCoordinator) Reconcile(ctx context.Context, req CreateRequest) (Ro
 		return r, err
 	}
 	return c.Directory.Activate(ctx, r.ConversationID, r.HostTenantID, r.Epoch)
+}
+
+func validCreateRequest(req CreateRequest) bool {
+	return req.ConversationID != "" && req.HostTenantID != "" && req.ShardID != "" && req.IdempotencyKey != ""
+}
+
+func matchesCreateRequest(route Route, req CreateRequest) bool {
+	return route.ConversationID == req.ConversationID &&
+		route.HostTenantID == req.HostTenantID &&
+		route.ShardID == req.ShardID &&
+		route.CreateIdempotencyKey == req.IdempotencyKey &&
+		route.PlacementPolicy == req.PlacementPolicy &&
+		route.PlacementPolicyVer == req.PlacementPolicyVersion
 }

@@ -39,11 +39,18 @@ const (
 	KeyMoveToSection                  = "chat.move_to_section"
 	KeyMoveSectionUp                  = "chat.move_section_up"
 	KeyMoveSectionDown                = "chat.move_section_down"
+	KeyMoveConversationUp             = "chat.move_conversation_up"
+	KeyMoveConversationDown           = "chat.move_conversation_down"
 	KeyBrowse                         = "chat.browse"
 	KeyBrowseTitle                    = "chat.browse_title"
 	KeyBrowseEmpty                    = "chat.browse_empty"
 	KeyJoin                           = "chat.join"
 	KeyJoined                         = "chat.joined"
+	KeyJoinChannelTitle               = "chat.join_channel_title"
+	KeyJoinChannelBody                = "chat.join_channel_body"
+	KeyJoinChannelConfirm             = "chat.join_channel_confirm"
+	KeyJoinChannelDismiss             = "chat.join_channel_dismiss"
+	KeyJoinPending                    = "chat.join_pending"
 	KeyOpenConversations              = "chat.open_conversations"
 	KeyCloseConversations             = "chat.close_conversations"
 	KeyConversation                   = "chat.conversation"
@@ -223,6 +230,8 @@ const (
 	KeyOpenImage                      = "chat.open_image"
 	KeyImageViewer                    = "chat.image_viewer"
 	KeyCloseImageViewer               = "chat.close_image_viewer"
+	KeyImageActualSize                = "chat.image_actual_size"
+	KeyImageFitToScreen               = "chat.image_fit_to_screen"
 	KeyGIF                            = "chat.gif"
 	KeyRepliesOne                     = "chat.replies_one"
 	KeyNew                            = "chat.new"
@@ -261,6 +270,11 @@ const (
 	KeyEmbedUnavailable               = "chat.embed_unavailable"
 	KeyEmbedOpen                      = "chat.embed_open"
 	KeyEmbedAttachments               = "chat.embed_attachments"
+	KeyDocEmbedTitle                  = "chat.doc_embed_title"
+	KeyDocRestricted                  = "chat.doc_restricted"
+	KeyOpenDocument                   = "chat.open_document"
+	KeyDocSuggestTitle                = "chat.doc_suggest_title"
+	KeyDocSuggestNone                 = "chat.doc_suggest_none"
 	KeyPickReaction                   = "chat.pick_reaction"
 	KeyReactionChip                   = "chat.reaction_chip"
 	KeyReactWith                      = "chat.react_with"
@@ -280,6 +294,10 @@ const (
 	KeyViewPerson                     = "chat.view_person"
 	KeyStartDirectMessage             = "chat.start_direct_message"
 	KeyManager                        = "chat.manager"
+	KeyDirectReports                  = "chat.direct_reports"
+	KeyViewOrgChart                   = "chat.view_org_chart"
+	KeyPersonLoading                  = "chat.person_loading"
+	KeyPersonUnavailable              = "chat.person_unavailable"
 	KeyDepartment                     = "chat.department"
 	KeyJobTitle                       = "chat.job_title"
 	KeyPhone                          = "chat.phone"
@@ -288,6 +306,43 @@ const (
 	KeyCompany                        = "chat.company"
 	KeyBusinessUnit                   = "chat.business_unit"
 	KeyNotAvailable                   = "chat.not_available"
+	KeyMentionTitle                   = "chat.mention_title"
+	KeyMentionNone                    = "chat.mention_none"
+	KeyMentionNotMember               = "chat.mention_not_member"
+	KeySelfName                       = "chat.self_name"
+	KeyIntroSelf                      = "chat.intro_self"
+	KeyAddChannels                    = "chat.add_channels"
+	KeyFormatToolbar                  = "chat.format_toolbar"
+	KeyFormatBold                     = "chat.format_bold"
+	KeyFormatItalic                   = "chat.format_italic"
+	KeyFormatStrike                   = "chat.format_strike"
+	KeyFormatCode                     = "chat.format_code"
+	KeyFormatLink                     = "chat.format_link"
+	KeyFormatBullets                  = "chat.format_bullets"
+	KeyFormatQuote                    = "chat.format_quote"
+	KeyMentionHint                    = "chat.mention_hint"
+	KeyViewInChannel                  = "chat.view_in_channel"
+	KeyTodoMoreOptions                = "chat.todo_more_options"
+	KeySearchInChannel                = "chat.search_in_channel"
+	KeySearchFilterHint               = "chat.search_filter_hint"
+	KeyKindPublicDesc                 = "chat.kind_public_desc"
+	KeyKindPrivateDesc                = "chat.kind_private_desc"
+	KeyKindGroupDesc                  = "chat.kind_group_desc"
+	KeyKindDirectDesc                 = "chat.kind_direct_desc"
+	KeyChannelNameHint                = "chat.channel_name_hint"
+	KeyAddPeople                      = "chat.add_people"
+	KeyAddPeoplePlaceholder           = "chat.add_people_placeholder"
+	KeyRemovePerson                   = "chat.remove_person"
+	KeyStartConversation              = "chat.start_conversation"
+	KeyCreateChannel                  = "chat.create_channel"
+	KeyBrowseNoMatch                  = "chat.browse_no_match"
+	KeyBrowseOpen                     = "chat.browse_open"
+	KeyTodoProgress                   = "chat.todo_progress"
+	KeyChannelTools                   = "chat.channel_tools"
+	KeyQuietSummary                   = "chat.quiet_summary"
+	KeyQuietHelp                      = "chat.quiet_help"
+	KeyTimezoneDevice                 = "chat.timezone_device"
+	KeyPeopleCount                    = "chat.people_count"
 )
 
 // englishCopy is the reviewed en-US source for every key above.
@@ -297,6 +352,10 @@ var englishCopy = map[string]string{
 	KeyViewPerson:                     "View {name}'s details",
 	KeyStartDirectMessage:             "Message",
 	KeyManager:                        "Manager",
+	KeyDirectReports:                  "Direct reports",
+	KeyViewOrgChart:                   "View in org chart",
+	KeyPersonLoading:                  "Loading person details…",
+	KeyPersonUnavailable:              "Person details are unavailable.",
 	KeyDepartment:                     "Department",
 	KeyJobTitle:                       "Job title",
 	KeyPhone:                          "Phone",
@@ -334,17 +393,24 @@ var englishCopy = map[string]string{
 	KeySearchMessageUnavailable:       "This message is no longer available.",
 	KeySectionChannels:                "Channels",
 	KeySectionDirect:                  "Direct messages",
-	KeyNewSection:                     "New group",
-	KeySectionName:                    "Group name",
-	KeyRemoveSection:                  "Remove group",
+	KeyNewSection:                     "New section",
+	KeySectionName:                    "Section name",
+	KeyRemoveSection:                  "Remove section",
 	KeyMoveToSection:                  "Move to {name}",
 	KeyMoveSectionUp:                  "Move section up",
 	KeyMoveSectionDown:                "Move section down",
+	KeyMoveConversationUp:             "Move conversation up",
+	KeyMoveConversationDown:           "Move conversation down",
 	KeyBrowse:                         "Browse channels",
 	KeyBrowseTitle:                    "Browse channels",
 	KeyBrowseEmpty:                    "No channels to join yet.",
 	KeyJoin:                           "Join",
 	KeyJoined:                         "Joined",
+	KeyJoinChannelTitle:               "Join #{name}?",
+	KeyJoinChannelBody:                "Join this channel to keep it in your left sidebar. You can leave whenever you like.",
+	KeyJoinChannelConfirm:             "Join channel",
+	KeyJoinChannelDismiss:             "Not now",
+	KeyJoinPending:                    "Joining…",
 	KeyOpenConversations:              "Open conversations",
 	KeyCloseConversations:             "Close conversations",
 	KeyConversation:                   "Conversation",
@@ -510,6 +576,8 @@ var englishCopy = map[string]string{
 	KeyOpenImage:             "Open image",
 	KeyImageViewer:           "Image viewer",
 	KeyCloseImageViewer:      "Close image viewer",
+	KeyImageActualSize:       "Show image at actual size",
+	KeyImageFitToScreen:      "Fit image to screen",
 	KeyGIF:                   "GIF",
 	KeyRepliesOne:            "1 reply",
 	KeyNew:                   "New",
@@ -540,6 +608,11 @@ var englishCopy = map[string]string{
 	KeyEmbedUnavailable:      "Message preview unavailable",
 	KeyEmbedOpen:             "Open source channel",
 	KeyEmbedAttachments:      "Attachments: {count}",
+	KeyDocEmbedTitle:         "Linked document",
+	KeyDocRestricted:         "Document unavailable",
+	KeyOpenDocument:          "Open document: {title}",
+	KeyDocSuggestTitle:       "Documents",
+	KeyDocSuggestNone:        "No documents you can open match",
 	KeyPickReaction:          "Choose a reaction",
 	KeyReactionChip:          "{n} reacted with {emoji}",
 	KeyReactWith:             "React with {emoji}",
@@ -553,7 +626,44 @@ var englishCopy = map[string]string{
 	KeyYou:                   "you",
 	KeyMemberFilter:          "Filter members",
 	KeyThreadIn:              "Thread · {name}",
-	KeyBrowseCount:           "{n} channels you can join",
+	KeyBrowseCount:           "{n} channels",
+	KeyMentionTitle:          "People",
+	KeyMentionNone:           "No one matches “{query}”",
+	KeyMentionNotMember:      "Not in this conversation",
+	KeySelfName:              "{name} (you)",
+	KeyIntroSelf:             "This is your space. Draft messages, keep notes and park links here. Nobody else can see it.",
+	KeyAddChannels:           "Add channels",
+	KeyFormatToolbar:         "Formatting",
+	KeyFormatBold:            "Bold",
+	KeyFormatItalic:          "Italic",
+	KeyFormatStrike:          "Strikethrough",
+	KeyFormatCode:            "Code",
+	KeyFormatLink:            "Link",
+	KeyFormatBullets:         "Bulleted list",
+	KeyFormatQuote:           "Quote",
+	KeyMentionHint:           "↑↓ choose · Enter insert · Esc close",
+	KeyViewInChannel:         "View in channel",
+	KeyTodoMoreOptions:       "More options",
+	KeySearchInChannel:       "In {channel}",
+	KeySearchFilterHint:      "Narrow with in:#channel or from:@name",
+	KeyKindPublicDesc:        "Anyone in the company can find and join it.",
+	KeyKindPrivateDesc:       "Only people you invite can see it.",
+	KeyKindGroupDesc:         "A private conversation with a few people.",
+	KeyKindDirectDesc:        "A one-to-one conversation.",
+	KeyChannelNameHint:       "Lowercase, no spaces. Use dashes, like design-reviews.",
+	KeyAddPeople:             "Add people",
+	KeyAddPeoplePlaceholder:  "Search by name",
+	KeyRemovePerson:          "Remove {name}",
+	KeyStartConversation:     "Start conversation",
+	KeyCreateChannel:         "Create channel",
+	KeyBrowseNoMatch:         "No channels match “{query}”",
+	KeyBrowseOpen:            "Open",
+	KeyTodoProgress:          "{done} of {total} done",
+	KeyChannelTools:          "Channel tools",
+	KeyQuietSummary:          "Paused {from}–{until}",
+	KeyQuietHelp:             "Messages still arrive; you just aren't notified.",
+	KeyTimezoneDevice:        "{zone} (this device)",
+	KeyPeopleCount:           "{n} people",
 }
 
 // EnglishCopy returns the reviewed source strings keyed by catalog key so the

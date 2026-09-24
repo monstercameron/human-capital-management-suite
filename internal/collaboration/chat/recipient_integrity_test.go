@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestTodo_CHAT_034_Security_RevokedPreferences(t *testing.T) {
+func TestTodo_CHAT_034_Security(t *testing.T) {
 	f := &fakeStore{conversation: conversation()}
 	s := newTestService(f, nil)
 	p := principal()

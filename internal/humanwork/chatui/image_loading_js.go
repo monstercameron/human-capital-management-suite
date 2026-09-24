@@ -10,18 +10,19 @@ import (
 const chatImageSelector = ".attachment-image-open[data-media-thumb][data-media-display][data-media-id]"
 
 type chatImageRecord struct {
-	button, image        js.Value
-	thumbURL, displayURL string
-	abort                js.Value
-	objectURL            string
+	button, image          js.Value
+	thumbURL, displayURL   string
+	abort                  js.Value
+	objectURL              string
+	failed, retryAttempted bool
 }
 
 type chatImageLoader struct {
-	root                 js.Value
-	room, principal      string
-	observer, mutations  js.Value
-	intersection, change js.Func
-	records              map[string]*chatImageRecord
+	root                                    js.Value
+	room, principal                         string
+	observer, retryObserver, mutations      js.Value
+	intersection, retryIntersection, change js.Func
+	records                                 map[string]*chatImageRecord
 }
 
 var activeChatImageLoader *chatImageLoader
@@ -63,39 +64,120 @@ func initChatImageLoading(root js.Value) {
 		principal: root.Get("dataset").Get("principal").String(), records: map[string]*chatImageRecord{},
 	}
 	activeChatImageLoader = loader
-	if constructor := js.Global().Get("IntersectionObserver"); constructor.Type() == js.TypeFunction {
-		loader.intersection = js.FuncOf(func(_ js.Value, args []js.Value) any {
-			if len(args) == 0 {
-				return nil
-			}
-			entries := args[0]
-			for i := 0; i < entries.Get("length").Int(); i++ {
-				entry := entries.Index(i)
-				if entry.Get("isIntersecting").Truthy() {
-					loader.loadThumbnail(entry.Get("target"))
-				}
-			}
+	loader.intersection = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 0 {
 			return nil
-		})
-		loader.observer = constructor.New(loader.intersection, js.ValueOf(map[string]any{"rootMargin": "400px 0px"}))
-	}
+		}
+		entries := args[0]
+		for i := 0; i < entries.Get("length").Int(); i++ {
+			entry := entries.Index(i)
+			if entry.Get("isIntersecting").Truthy() {
+				loader.loadThumbnail(entry.Get("target"))
+			}
+		}
+		return nil
+	})
+	// A prefetch can fail while the image is still inside the warm-up
+	// margin. In that case the primary observer may not report another
+	// crossing as the image moves into view. Arm one viewport-only retry.
+	loader.retryIntersection = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 0 {
+			return nil
+		}
+		entries := args[0]
+		for i := 0; i < entries.Get("length").Int(); i++ {
+			entry := entries.Index(i)
+			if entry.Get("isIntersecting").Truthy() {
+				loader.retryThumbnail(entry.Get("target"))
+			}
+		}
+		return nil
+	})
+	loader.installIntersectionObservers()
 	loader.change = js.FuncOf(func(js.Value, []js.Value) any { loader.sync(); return nil })
 	if constructor := js.Global().Get("MutationObserver"); constructor.Type() == js.TypeFunction {
 		loader.mutations = constructor.New(loader.change)
-		loader.mutations.Call("observe", root, js.ValueOf(map[string]any{"childList": true, "subtree": true, "attributes": true, "attributeFilter": []any{"data-selected-id", "data-principal", "data-media-thumb", "data-media-display"}}))
+		// The route renderer can replace the workspace node while posts arrive.
+		// Observing that node would strand the loader on a detached subtree, so
+		// watch the stable document body and resolve the current workspace in sync.
+		observationRoot := js.Null()
+		if doc := js.Global().Get("document"); doc.Truthy() {
+			observationRoot = doc.Get("body")
+		}
+		if !observationRoot.Truthy() {
+			observationRoot = root
+		}
+		loader.mutations.Call("observe", observationRoot, js.ValueOf(map[string]any{"childList": true, "subtree": true, "attributes": true, "attributeFilter": []any{"data-selected-id", "data-principal", "data-media-thumb", "data-media-display"}}))
 	}
 	loader.sync()
 }
 
+func (l *chatImageLoader) installIntersectionObservers() {
+	constructor := js.Global().Get("IntersectionObserver")
+	if constructor.Type() != js.TypeFunction {
+		l.observer = js.Undefined()
+		l.retryObserver = js.Undefined()
+		return
+	}
+	// The timeline scrolls inside #chat-main. Using the browser viewport as
+	// the observer root can leave older, virtualized rows unreported while
+	// that inner scrollport moves, so observe against the current scroller.
+	scrollRoot := js.Null()
+	if query := l.root.Get("querySelector"); query.Type() == js.TypeFunction {
+		scrollRoot = l.root.Call("querySelector", "#chat-main")
+	}
+	observerOptions := js.Global().Get("Object").New()
+	observerOptions.Set("rootMargin", "400px 0px")
+	if scrollRoot.Truthy() {
+		observerOptions.Set("root", scrollRoot)
+	}
+	l.observer = constructor.New(l.intersection, observerOptions)
+	retryOptions := js.Global().Get("Object").New()
+	retryOptions.Set("rootMargin", "0px")
+	if scrollRoot.Truthy() {
+		retryOptions.Set("root", scrollRoot)
+	}
+	l.retryObserver = constructor.New(l.retryIntersection, retryOptions)
+}
+
 func (l *chatImageLoader) sync() {
-	if l == nil || !l.root.Get("isConnected").Truthy() ||
-		l.root.Get("dataset").Get("selectedId").String() != l.room ||
-		l.root.Get("dataset").Get("principal").String() != l.principal {
+	if l == nil {
+		return
+	}
+	currentRoot := js.Null()
+	if doc := js.Global().Get("document"); doc.Truthy() && doc.Get("querySelector").Type() == js.TypeFunction {
+		currentRoot = doc.Call("querySelector", ".chat-workspace")
+	} else if l.root.Get("isConnected").Truthy() {
+		// Keep the direct-root seam available to the WASM unit tests.
+		currentRoot = l.root
+	}
+	if !currentRoot.Truthy() ||
+		!currentRoot.Get("isConnected").Truthy() ||
+		currentRoot.Get("dataset").Get("selectedId").String() != l.room ||
+		currentRoot.Get("dataset").Get("principal").String() != l.principal {
 		if activeChatImageLoader == l {
 			l.close()
 		}
 		return
 	}
+	// GWC may replace .chat-workspace while an async route refresh keeps the
+	// same room and principal. Recreate both observers too: the old root was
+	// the detached tree's #chat-main scrollport.
+	if !l.root.Equal(currentRoot) {
+		for key, record := range l.records {
+			l.releaseRecord(key, record)
+		}
+		l.records = map[string]*chatImageRecord{}
+		if l.observer.Truthy() {
+			l.observer.Call("disconnect")
+		}
+		if l.retryObserver.Truthy() {
+			l.retryObserver.Call("disconnect")
+		}
+		l.root = currentRoot
+		l.installIntersectionObservers()
+	}
+	l.root = currentRoot
 	buttons := l.root.Call("querySelectorAll", chatImageSelector)
 	present := make(map[string]bool, buttons.Get("length").Int())
 	for i := 0; i < buttons.Get("length").Int(); i++ {
@@ -107,7 +189,11 @@ func (l *chatImageLoader) sync() {
 		if button.Get("dataset").Get("mediaId").String() == "" {
 			continue
 		}
-		key := button.Get("__chatImageRecordKey").String()
+		keyValue := button.Get("__chatImageRecordKey")
+		key := ""
+		if keyValue.Type() == js.TypeString {
+			key = keyValue.String()
+		}
 		if key == "" {
 			nextChatImageRecord++
 			key = strconv.FormatUint(nextChatImageRecord, 10)
@@ -123,7 +209,7 @@ func (l *chatImageLoader) sync() {
 			continue
 		}
 		if old := l.records[key]; old != nil {
-			if !old.button.Equal(button) || old.thumbURL != thumb || old.displayURL != display {
+			if !old.button.Equal(button) || !old.image.Equal(image) || old.thumbURL != thumb || old.displayURL != display {
 				l.releaseRecord(key, old)
 			} else {
 				continue
@@ -150,7 +236,7 @@ func (l *chatImageLoader) loadThumbnail(button js.Value) {
 	}
 	key := button.Get("__chatImageRecordKey").String()
 	record := l.records[key]
-	if record == nil || record.abort.Truthy() || record.objectURL != "" {
+	if record == nil || record.abort.Truthy() || record.objectURL != "" || record.failed {
 		return
 	}
 	controller := js.Global().Get("AbortController").New()
@@ -165,12 +251,34 @@ func (l *chatImageLoader) loadThumbnail(button js.Value) {
 		}
 		record.abort = js.Undefined()
 		if objectURL == "" {
+			record.failed = true
+			if !record.retryAttempted && l.retryObserver.Truthy() {
+				l.retryObserver.Call("observe", button)
+			}
 			return
 		}
+		record.failed = false
 		record.objectURL = objectURL
 		record.image.Set("decoding", "async")
 		record.image.Set("src", objectURL)
 	})
+}
+
+func (l *chatImageLoader) retryThumbnail(button js.Value) {
+	if l == nil || activeChatImageLoader != l || !button.Get("isConnected").Truthy() {
+		return
+	}
+	key := button.Get("__chatImageRecordKey").String()
+	record := l.records[key]
+	if record == nil || !record.failed || record.retryAttempted {
+		return
+	}
+	record.retryAttempted = true
+	record.failed = false
+	if l.retryObserver.Truthy() {
+		l.retryObserver.Call("unobserve", button)
+	}
+	l.loadThumbnail(button)
 }
 
 // loadChatImageDisplay is called only after an explicit viewer open. The
@@ -350,6 +458,9 @@ func (l *chatImageLoader) releaseRecord(key string, record *chatImageRecord) {
 	if l.observer.Truthy() {
 		l.observer.Call("unobserve", record.button)
 	}
+	if l.retryObserver.Truthy() {
+		l.retryObserver.Call("unobserve", record.button)
+	}
 	if record.abort.Truthy() {
 		record.abort.Call("abort")
 	}
@@ -372,11 +483,17 @@ func (l *chatImageLoader) close() {
 	if l.observer.Truthy() {
 		l.observer.Call("disconnect")
 	}
+	if l.retryObserver.Truthy() {
+		l.retryObserver.Call("disconnect")
+	}
 	if l.mutations.Truthy() {
 		l.mutations.Call("disconnect")
 	}
 	if l.intersection.Value.Truthy() {
 		l.intersection.Release()
+	}
+	if l.retryIntersection.Value.Truthy() {
+		l.retryIntersection.Release()
 	}
 	if l.change.Value.Truthy() {
 		l.change.Release()

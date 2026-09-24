@@ -15,6 +15,17 @@ type authorityStub struct {
 	err     error
 }
 
+type hostPolicyStub struct {
+	current                  chatpolicy.Channel
+	err                      error
+	gotHost, gotConversation string
+}
+
+func (s *hostPolicyStub) Policy(_ context.Context, host, conversation string) (chatpolicy.Channel, error) {
+	s.gotHost, s.gotConversation = host, conversation
+	return s.current, s.err
+}
+
 func (s authorityStub) Resolve(context.Context, string, string, time.Time) (chatpolicy.Principal, error) {
 	return s.current, s.err
 }
@@ -59,11 +70,80 @@ func TestAdapterPreservesHomeAndHostTenantBoundary(t *testing.T) {
 	r.Principal.TenantID = "vendor"
 	r.Membership.HomeTenantID = "vendor"
 	a, _ := New(authorityStub{current: chatpolicy.Principal{ID: "alice", Tenant: "vendor", Active: true, AuthorityRevision: 1}})
-	if _, err := a.Authorize(context.Background(), r); !errors.Is(err, chatpolicy.ErrNotAuthorized) {
-		t.Fatalf("foreign tenant without grant = %v", err)
+	r.Grant = adapterGrant()
+	if _, err := a.Authorize(context.Background(), r); !errors.Is(err, ErrStaleHostFacts) {
+		t.Fatalf("foreign tenant without trusted host facts = %v", err)
 	}
-	r.Grant = &Grant{ConversationID: "c1", HostTenant: "acme", ConsumerTenant: "vendor", Version: 1, Scope: "conversation", Proposed: true, AcceptedByHost: true, AcceptedByConsumer: true}
+	facts := &hostPolicyStub{current: adapterHostPolicy()}
+	a, _ = New(authorityStub{current: chatpolicy.Principal{ID: "alice", Tenant: "vendor", Active: true, AuthorityRevision: 1}}, facts)
 	if _, err := a.Authorize(context.Background(), r); err != nil {
 		t.Fatalf("bilateral grant with matching home tenant denied: %v", err)
+	}
+	if facts.gotHost != "acme" || facts.gotConversation != "c1" {
+		t.Fatalf("host facts requested for %q/%q", facts.gotHost, facts.gotConversation)
+	}
+}
+
+func TestTodo_CHAT_012_AdapterFailsClosedWithoutExactHostTerms(t *testing.T) {
+	r := adapterRequest()
+	r.Principal.TenantID = "vendor"
+	r.Membership.HomeTenantID = "vendor"
+	r.Grant = adapterGrant()
+	principal := authorityStub{current: chatpolicy.Principal{ID: "alice", Tenant: "vendor", Active: true, AuthorityRevision: 1}}
+
+	for _, tc := range []struct {
+		name  string
+		facts chatpolicy.Channel
+		err   error
+	}{
+		{name: "missing channel identity"},
+		{name: "stale revision", facts: chatpolicy.Channel{ID: "c1", HostTenant: "acme", Revision: 0, Classification: "internal", Residency: "US"}},
+		{name: "missing classification", facts: chatpolicy.Channel{ID: "c1", HostTenant: "acme", Revision: 4, Residency: "US"}},
+		{name: "missing residency", facts: chatpolicy.Channel{ID: "c1", HostTenant: "acme", Revision: 4, Classification: "internal"}},
+		{name: "wrong host", facts: chatpolicy.Channel{ID: "c1", HostTenant: "vendor", Revision: 4, Classification: "internal", Residency: "US"}},
+		{name: "wrong conversation", facts: chatpolicy.Channel{ID: "other", HostTenant: "acme", Revision: 4, Classification: "internal", Residency: "US"}},
+		{name: "unavailable facts", err: errors.New("policy store unavailable")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			facts := &hostPolicyStub{current: tc.facts, err: tc.err}
+			a, err := New(principal, facts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := a.Authorize(context.Background(), r); !errors.Is(err, ErrStaleHostFacts) {
+				t.Fatalf("foreign grant without exact host facts = %v", err)
+			}
+		})
+	}
+
+	// A complete host snapshot is still not interchangeable with the terms the
+	// consumer accepted: a changed classification or residency revokes access.
+	for _, change := range []func(*Grant){
+		func(g *Grant) { g.Classification = "restricted" },
+		func(g *Grant) { g.Residency = "EU" },
+	} {
+		grant := adapterGrant()
+		change(grant)
+		r.Grant = grant
+		a, _ := New(principal, &hostPolicyStub{current: adapterHostPolicy()})
+		if _, err := a.Authorize(context.Background(), r); !errors.Is(err, chatpolicy.ErrNotAuthorized) {
+			t.Fatalf("grant with changed host terms = %v", err)
+		}
+	}
+}
+
+func adapterGrant() *Grant {
+	return &Grant{
+		ConversationID: "c1", HostTenant: "acme", ConsumerTenant: "vendor", Version: 1,
+		Scope: "conversation", Classification: "internal", Residency: "US",
+		Proposed: true, AcceptedByHost: true, AcceptedByConsumer: true,
+		ExpiresAt: adapterAt.Add(time.Hour),
+	}
+}
+
+func adapterHostPolicy() chatpolicy.Channel {
+	return chatpolicy.Channel{
+		ID: "c1", HostTenant: "acme", Revision: 4,
+		Classification: "internal", Residency: "US",
 	}
 }

@@ -7,7 +7,7 @@ import (
 	chat "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 )
 
-func TestTodo_CHAT_024_ReactionsReadIntegration(t *testing.T) {
+func TestTodo_CHAT_024_Integration(t *testing.T) {
 	s := adapterDB(t)
 	ctx := context.Background()
 	c := chat.Conversation{ID: "reactions", TenantID: "host", Kind: chat.PrivateChannel, OwnerID: "sam", Revision: 1}

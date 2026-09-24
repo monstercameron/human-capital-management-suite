@@ -9,6 +9,7 @@ import (
 )
 
 var personPaneWasOpen bool
+var personPanePersonID string
 var personTrigger js.Value
 var personFocusComposer bool
 var personFocusGeneration uint64
@@ -22,13 +23,21 @@ func rememberPersonTrigger(event ui.Event) {
 }
 
 func syncPersonFocus(open bool) {
+	syncPersonFocusFor(open, "")
+}
+
+func syncPersonFocusFor(open bool, personID string) {
 	if js.Global().Get("requestAnimationFrame").Type() != js.TypeFunction || !js.Global().Get("document").Truthy() {
 		return
 	}
-	if open == personPaneWasOpen {
+	if open == personPaneWasOpen && (!open || personID == personPanePersonID) {
 		return
 	}
 	personPaneWasOpen = open
+	personPanePersonID = ""
+	if open {
+		personPanePersonID = personID
+	}
 	personFocusGeneration++
 	generation := personFocusGeneration
 	attempts := 0

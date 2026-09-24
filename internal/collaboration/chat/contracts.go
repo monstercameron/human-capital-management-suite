@@ -197,6 +197,9 @@ type EditPostRequest struct {
 	Principal                              Principal
 	PostID, TenantID, ConversationID, Body string
 	ExpectedRevision                       uint64
+	// References replaces the post's references when non-nil. When nil the
+	// current references are carried over after revalidation (CHAT-025).
+	References []Reference
 }
 type DeletePostRequest struct {
 	Principal                        Principal
@@ -370,19 +373,6 @@ type ForwardPostRPCRequest struct {
 	SourceAttribution                                  *SourceAttribution
 }
 type ForwardPostResponse struct{ Post Post }
-
-// ErrorReportingWatcher is the optional extension a chat owner implements when
-// its watch can fail after the subscription opened.
-//
-// WatchConversation alone cannot say why a stream stopped: a closed event
-// channel is all the caller sees, so a failed durable read, a revoked
-// membership and a backpressure close were all indistinguishable from a healthy
-// end of stream. A transport that finds this interface reports the terminal
-// cause instead of a clean end. The error channel carries at most one value and
-// is closed with the event channel.
-type ErrorReportingWatcher interface {
-	WatchConversationWithErrors(context.Context, WatchConversationRequest) (<-chan WatchEvent, <-chan error, error)
-}
 
 // ConversationService is the application boundary implemented by chat owners.
 // WatchConversation returns a receive-only event stream and a cancellation function.

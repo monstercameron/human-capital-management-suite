@@ -15,6 +15,7 @@ func TestPersonFocusRestoresTriggerAndMovesToComposer(t *testing.T) {
 		global.Set("document", oldDocument)
 		global.Set("requestAnimationFrame", oldFrame)
 		personPaneWasOpen = false
+		personPanePersonID = ""
 		personTrigger = js.Undefined()
 		personFocusComposer = false
 	}()
@@ -62,6 +63,35 @@ func TestPersonFocusRestoresTriggerAndMovesToComposer(t *testing.T) {
 	FocusComposer()
 	if len(focused) != 3 || focused[2] != "composer" {
 		t.Fatalf("composer focus = %v", focused)
+	}
+}
+
+func TestPersonFocusMovesToHeadingWhenLinkedPersonChanges(t *testing.T) {
+	global := js.Global()
+	oldDocument, oldFrame := global.Get("document"), global.Get("requestAnimationFrame")
+	personPaneWasOpen = false
+	personPanePersonID = ""
+	defer func() {
+		global.Set("document", oldDocument)
+		global.Set("requestAnimationFrame", oldFrame)
+		personPaneWasOpen = false
+		personPanePersonID = ""
+		personTrigger = js.Undefined()
+	}()
+	focused := 0
+	headingFocus := js.FuncOf(func(js.Value, []js.Value) any { focused++; return nil })
+	defer headingFocus.Release()
+	heading := js.ValueOf(map[string]any{"isConnected": true, "focus": headingFocus})
+	query := js.FuncOf(func(_ js.Value, _ []js.Value) any { return heading })
+	defer query.Release()
+	frame := js.FuncOf(func(_ js.Value, args []js.Value) any { args[0].Invoke(); return nil })
+	defer frame.Release()
+	global.Set("document", js.ValueOf(map[string]any{"querySelector": query}))
+	global.Set("requestAnimationFrame", frame)
+	syncPersonFocusFor(true, "one")
+	syncPersonFocusFor(true, "two")
+	if focused != 2 || personPanePersonID != "two" {
+		t.Fatalf("person navigation focus count=%d selected=%q", focused, personPanePersonID)
 	}
 }
 

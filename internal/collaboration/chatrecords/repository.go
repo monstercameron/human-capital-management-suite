@@ -12,11 +12,12 @@ import (
 )
 
 var (
-	ErrInvalid         = errors.New("chatrecords: invalid request")
-	ErrConflict        = errors.New("chatrecords: append conflict")
-	ErrHeld            = errors.New("chatrecords: record is under legal hold")
-	ErrUnauthorized    = errors.New("chatrecords: unauthorized")
-	ErrPrivateEvidence = errors.New("chatrecords: private evidence requires a scoped reference")
+	ErrInvalid          = errors.New("chatrecords: invalid request")
+	ErrConflict         = errors.New("chatrecords: append conflict")
+	ErrHeld             = errors.New("chatrecords: record is under legal hold")
+	ErrUnauthorized     = errors.New("chatrecords: unauthorized")
+	ErrPrivateEvidence  = errors.New("chatrecords: private evidence requires a scoped reference")
+	ErrAuditUnavailable = errors.New("chatrecords: atomic audit repository unavailable")
 )
 
 type MemoryRepository struct {
@@ -121,6 +122,20 @@ func (r *MemoryRepository) PutCaseAction(_ context.Context, tenant string, a Cas
 	defer r.mu.Unlock()
 	r.actions[tenant] = append(r.actions[tenant], a)
 	return nil
+}
+func (r *MemoryRepository) PutCaseActionAudited(_ context.Context, tenant, conversation string, a CaseAction, event AuditEvent) (AuditEvent, error) {
+	if tenant == "" || conversation == "" || a.CaseID == "" || a.ActorID == "" || a.Action == "" || a.Reason == "" || a.EvidenceRef == "" || event.TenantID != tenant || event.ActorID != a.ActorID || event.Action != "moderation."+a.Action || event.TargetID == "" || event.PriorRevision == 0 || event.PolicyEvidence == "" || event.Reason != a.Reason || event.At != a.At {
+		return AuditEvent{}, ErrInvalid
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	event.Sequence = uint64(len(r.events[tenant]) + 1)
+	event.EventID = fmt.Sprintf("moderation:%s:%d", a.CaseID, event.Sequence)
+	event.Digest = DigestEvent(event)
+	r.actions[tenant] = append(r.actions[tenant], a)
+	r.events[tenant] = append(r.events[tenant], event)
+	r.outbox[tenant] = append(r.outbox[tenant], OutboxEvent{ID: event.EventID, Sequence: event.Sequence, EventID: event.EventID})
+	return event, nil
 }
 func (r *MemoryRepository) Snapshot(_ context.Context, tenant string) (Snapshot, error) {
 	r.mu.RLock()

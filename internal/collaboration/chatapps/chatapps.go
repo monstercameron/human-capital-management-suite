@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"html"
 	"net"
 	"net/url"
 	"sort"
@@ -268,8 +269,14 @@ func (s *Service) now() time.Time {
 	return time.Now().UTC()
 }
 func (s *Service) Install(ctx context.Context, a Actor, m Manifest, scopes []string, approver string) (Installation, error) {
-	if err := validateManifest(m); err != nil || a.Tenant == "" || a.Conversation == "" || approver == "" {
+	if err := validateManifest(m); err != nil || a.Tenant == "" || a.Conversation == "" || a.Principal == "" || approver == "" {
 		return Installation{}, ErrInvalid
+	}
+	// The approver is persisted as evidence of who reviewed this exact manifest
+	// version and grant. Bind it to the authenticated actor; a caller-supplied
+	// label must never make someone else appear to have approved the install.
+	if approver != a.Principal {
+		return Installation{}, ErrDenied
 	}
 	if s.Authority == nil {
 		return Installation{}, ErrDenied
@@ -293,9 +300,22 @@ func (s *Service) Install(ctx context.Context, a Actor, m Manifest, scopes []str
 		if old.Status == Revoked {
 			return Installation{}, ErrRevoked
 		}
+		// Upgrading a paused installation must not resume it as a side effect.
+		// A manager can explicitly reactivate it with ChangeStatus first.
+		if old.Status == Suspended {
+			return Installation{}, ErrSuspended
+		}
+		if old.Status != Active {
+			return Installation{}, ErrInvalid
+		}
+		if old.ID != id || old.Tenant != a.Tenant || old.Conversation != a.Conversation || old.AppID != m.AppID || old.Manifest.AppID != old.AppID || old.Manifest.Version != old.Version {
+			return Installation{}, ErrInvalid
+		}
 		if m.Version <= old.Version {
 			return Installation{}, ErrInvalid
 		}
+	} else if !errors.Is(err, ErrNotFound) {
+		return Installation{}, err
 	}
 	v := Installation{ID: id, Tenant: a.Tenant, Conversation: a.Conversation, AppID: m.AppID, Version: m.Version, Manifest: m, GrantedScopes: sorted(scopes), Status: Active, Approver: approver, Revision: old.Revision + 1, CreatedAt: now, UpdatedAt: now}
 	if old.CreatedAt.IsZero() {
@@ -352,7 +372,7 @@ func (s *Service) EffectiveScopes(ctx context.Context, a Actor, installID, comma
 	if c == nil {
 		return nil, ErrDenied
 	}
-	if !contains(a.Scopes, c.Scope) || !contains(v.GrantedScopes, c.Scope) {
+	if !contains(a.Scopes, c.Scope) || !contains(v.Manifest.Scopes, c.Scope) || !contains(v.GrantedScopes, c.Scope) {
 		return nil, ErrDenied
 	}
 	return []string{c.Scope}, nil
@@ -400,6 +420,9 @@ func (s *Service) Invoke(ctx context.Context, a Actor, id string, cb Callback) (
 	if err != nil {
 		return CallbackResult{}, err
 	}
+	if !validCommandArguments(v.Manifest, cb.Command, cb.Args) {
+		return CallbackResult{}, ErrInvalid
+	}
 	if cb.Card != nil && !validCard(v.Manifest, *cb.Card) {
 		return CallbackResult{}, ErrInvalid
 	}
@@ -411,8 +434,26 @@ func (s *Service) Invoke(ctx context.Context, a Actor, id string, cb Callback) (
 func validCard(m Manifest, c Card) bool {
 	for _, k := range m.Cards {
 		if k.Kind == c.Kind {
+			fields := make(map[string]Field, len(k.Fields))
 			for _, f := range k.Fields {
-				if f.Required && c.Values[f.Name] == "" {
+				// Card payloads currently carry string values only. Refuse a
+				// schema that advertises a richer type until the transport can
+				// represent and validate that type without coercion.
+				if f.Name == "" || f.Type != "string" {
+					return false
+				}
+				if _, duplicate := fields[f.Name]; duplicate {
+					return false
+				}
+				fields[f.Name] = f
+			}
+			for name, value := range c.Values {
+				if _, ok := fields[name]; !ok || value == "" && fields[name].Required {
+					return false
+				}
+			}
+			for name, f := range fields {
+				if f.Required && c.Values[name] == "" {
 					return false
 				}
 			}
@@ -420,6 +461,40 @@ func validCard(m Manifest, c Card) bool {
 		}
 	}
 	return false
+}
+
+// RenderCard is the server-owned rendering for a typed plugin card
+// (CHAT-041): it turns a validated Card instance into deterministic, fully
+// escaped markup driven only by the installed manifest's own CardType
+// schema. No app-supplied string reaches the DOM unescaped and no app kind
+// outside the reviewed manifest ever renders, so a third-party app cannot
+// smuggle a script tag or an event-handler attribute onto the chat origin;
+// an invalid card (unknown kind, undeclared field, missing required value)
+// is refused before anything is rendered.
+func RenderCard(m Manifest, c Card) (string, error) {
+	if !validCard(m, c) {
+		return "", ErrInvalid
+	}
+	var schema CardType
+	for _, k := range m.Cards {
+		if k.Kind == c.Kind {
+			schema = k
+			break
+		}
+	}
+	var b strings.Builder
+	b.WriteString(`<div class="chatapp-card" data-card-kind="`)
+	b.WriteString(html.EscapeString(c.Kind))
+	b.WriteString(`">`)
+	for _, f := range schema.Fields {
+		b.WriteString(`<div data-field="`)
+		b.WriteString(html.EscapeString(f.Name))
+		b.WriteString(`">`)
+		b.WriteString(html.EscapeString(c.Values[f.Name]))
+		b.WriteString(`</div>`)
+	}
+	b.WriteString(`</div>`)
+	return b.String(), nil
 }
 
 type Event struct {
@@ -530,6 +605,13 @@ func (s *Service) Pull(ctx context.Context, a Actor, token string, limit int) ([
 	}
 	authorized := make([]Event, 0, len(events))
 	for _, e := range events {
+		// Advance over every examined record, including records owned by a
+		// different installation or one that is no longer authorized. If the
+		// cursor followed only returned events, a filtered record at the head of
+		// a bounded page would be read forever and could starve later events.
+		if e.Sequence > uint64(c.After) {
+			c.After = int64(e.Sequence)
+		}
 		if c.Installation != "" && e.InstallationID != c.Installation {
 			continue
 		}
@@ -540,9 +622,6 @@ func (s *Service) Pull(ctx context.Context, a Actor, token string, limit int) ([
 			}
 		}
 		authorized = append(authorized, e)
-	}
-	if len(authorized) > 0 {
-		c.After = int64(authorized[len(authorized)-1].Sequence)
 	}
 	next, _ := s.IssueCursor(c)
 	return authorized, next, nil
@@ -563,7 +642,20 @@ func (s *Service) Agent(ctx context.Context, id string) (Agent, error) {
 	if v.Manifest.Agent == nil {
 		return Agent{}, ErrNotFound
 	}
-	return Agent{ID: v.AppID, DisplayName: v.Manifest.Agent.DisplayName, Description: v.Manifest.Agent.Description, InstallationID: v.ID, Status: v.Status, Capabilities: append([]string(nil), v.GrantedScopes...)}, nil
+	// The visible identity comes from the installed manifest, while status and
+	// capabilities come from the conversation-specific installation grant.
+	// Fail closed if a corrupt or mismatched row would join those records under
+	// a different identity.
+	if id == "" || v.ID != id || v.AppID == "" || v.Manifest.AppID != v.AppID || v.Manifest.Version != v.Version || strings.TrimSpace(v.Manifest.Agent.DisplayName) == "" {
+		return Agent{}, ErrInvalid
+	}
+	capabilities := make([]string, 0, len(v.GrantedScopes))
+	for _, scope := range sorted(v.GrantedScopes) {
+		if contains(v.Manifest.Scopes, scope) && !contains(capabilities, scope) {
+			capabilities = append(capabilities, scope)
+		}
+	}
+	return Agent{ID: v.AppID, DisplayName: v.Manifest.Agent.DisplayName, Description: v.Manifest.Agent.Description, InstallationID: v.ID, Status: v.Status, Capabilities: capabilities}, nil
 }
 
 type Trigger struct {
@@ -609,15 +701,51 @@ func (s *Service) AdmitTrigger(ctx context.Context, t Trigger) error {
 type BusinessIntentPort interface {
 	Propose(context.Context, Proposal) (ProposalReceipt, error)
 }
+
+// ProposalSubject names one BusinessIntent subject the proposed action is
+// about (for example the employment record a leave or promotion request
+// targets). It carries no authority of its own; the intent kernel's own
+// RBAC decides whether the authenticated caller reaching the port may act on
+// it.
+type ProposalSubject struct{ Kind, ID, AuthorityDomain string }
+
 type Proposal struct {
 	Tenant, Principal, Conversation, AgentInstallation, IntentType, IdempotencyKey string
-	Arguments                                                                      map[string]string
-	Evidence                                                                       []string
+	// Arguments is the free-form, chat-surfaced form of the proposal (what a
+	// card or command bound), kept for audit and card rendering.
+	Arguments map[string]string
+	Evidence  []string
+	// Subjects, SchemaID, SchemaVersion, ProtoFullName and RequestPayload are
+	// the typed BusinessIntent request a BusinessIntentPort implementation
+	// needs to submit a real, schema-bearing intent (internal/intent/app's
+	// CreateIntent) rather than a same-package fake. They are optional: a
+	// port that only needs the untyped Arguments may ignore them.
+	Subjects       []ProposalSubject
+	SchemaID       string
+	SchemaVersion  uint32
+	ProtoFullName  string
+	RequestPayload map[string]any
 }
 type ProposalReceipt struct{ IntentID, Status string }
 
 func (s *Service) ProposeIntent(ctx context.Context, a Actor, p Proposal) (ProposalReceipt, error) {
-	if s.Intent == nil || s.Authority == nil || s.Authority.CanUseConversation(ctx, a, a.Conversation) != nil || p.Tenant != a.Tenant || p.Principal != a.Principal || p.Conversation != a.Conversation || p.IdempotencyKey == "" {
+	if s.Intent == nil || s.Authority == nil || s.Repo == nil ||
+		a.Tenant == "" || a.Principal == "" || a.Conversation == "" ||
+		p.Tenant != a.Tenant || p.Principal != a.Principal || p.Conversation != a.Conversation ||
+		p.AgentInstallation == "" || p.IntentType == "" || p.IdempotencyKey == "" {
+		return ProposalReceipt{}, ErrDenied
+	}
+	if s.Authority.CanUseConversation(ctx, a, a.Conversation) != nil {
+		return ProposalReceipt{}, ErrDenied
+	}
+	installation, err := s.Repo.Get(ctx, p.AgentInstallation)
+	if err != nil {
+		return ProposalReceipt{}, err
+	}
+	if installation.ID != p.AgentInstallation || installation.Tenant != a.Tenant ||
+		installation.Conversation != a.Conversation || installation.Status != Active ||
+		installation.Manifest.Agent == nil || installation.Manifest.AppID != installation.AppID ||
+		installation.Manifest.Version != installation.Version {
 		return ProposalReceipt{}, ErrDenied
 	}
 	return s.Intent.Propose(ctx, p)
@@ -625,6 +753,9 @@ func (s *Service) ProposeIntent(ctx context.Context, a Actor, p Proposal) (Propo
 
 func validateManifest(m Manifest) error {
 	if strings.TrimSpace(m.AppID) == "" || m.Version == 0 {
+		return ErrInvalid
+	}
+	if m.Agent != nil && strings.TrimSpace(m.Agent.DisplayName) == "" {
 		return ErrInvalid
 	}
 	for _, c := range m.Commands {

@@ -3,6 +3,7 @@ package chatmedia
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"image"
 	"image/color"
@@ -76,6 +77,34 @@ func gifBytes() []byte {
 	_ = gif.Encode(&out, image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{color.Black}), nil)
 	return out.Bytes()
 }
+func wavBytes(seconds int) []byte {
+	const sampleRate = 8000
+	dataSize := seconds * sampleRate
+	out := make([]byte, 44+dataSize)
+	copy(out[0:4], "RIFF")
+	binary.LittleEndian.PutUint32(out[4:8], uint32(len(out)-8))
+	copy(out[8:12], "WAVE")
+	copy(out[12:16], "fmt ")
+	binary.LittleEndian.PutUint32(out[16:20], 16)
+	binary.LittleEndian.PutUint16(out[20:22], 1)
+	binary.LittleEndian.PutUint16(out[22:24], 1)
+	binary.LittleEndian.PutUint32(out[24:28], sampleRate)
+	binary.LittleEndian.PutUint32(out[28:32], sampleRate)
+	binary.LittleEndian.PutUint16(out[32:34], 1)
+	binary.LittleEndian.PutUint16(out[34:36], 8)
+	copy(out[36:40], "data")
+	binary.LittleEndian.PutUint32(out[40:44], uint32(dataSize))
+	return out
+}
+func mp3Bytes(frames int) []byte {
+	const frameSize = 417 // MPEG-1 Layer III, 128 kbit/s, 44.1 kHz.
+	frame := make([]byte, frameSize)
+	copy(frame[:4], []byte{0xff, 0xfb, 0x90, 0x64})
+	out := make([]byte, 10+frameSize*frames)
+	copy(out[:3], "ID3")
+	copy(out[10:], bytes.Repeat(frame, frames))
+	return out
+}
 func makeService(scanner Scanner, auth Authorizer) *Service {
 	return New(Config{Store: NewMemoryStore(), Scanner: scanner, Authorize: auth, Now: func() time.Time { return time.Unix(100, 0) }})
 }
@@ -120,23 +149,48 @@ func TestTodo_CHAT_036_AuthorizationPrecedesSideEffects(t *testing.T) {
 func TestTodo_CHAT_036_Integration(t *testing.T) {
 	store := NewMemoryStore()
 	s := New(Config{Store: store, Scanner: testScanner{verdict: quarantine.Verdict{Safe: true}}, Authorize: func(context.Context, AccessRequest) error { return nil }})
-	ref, err := s.Upload(context.Background(), UploadRequest{TenantID: "a", ConversationID: "c", PrincipalID: "p", DeclaredType: "audio/wav", Content: []byte("RIFFxxxxWAVEaudio"), EvidenceID: "e"})
+	ref, err := s.Upload(context.Background(), UploadRequest{TenantID: "a", ConversationID: "c", PrincipalID: "p", DeclaredType: "audio/wav", Content: wavBytes(1), EvidenceID: "e", AltText: "one second of room tone"})
 	if err != nil || ref.ArtifactID == "" {
 		t.Fatalf("wav integration = %+v %v", ref, err)
 	}
 }
 func TestTodo_CHAT_037(t *testing.T) {
 	s := makeService(testScanner{verdict: quarantine.Verdict{Safe: true}}, func(context.Context, AccessRequest) error { return nil })
-	ref, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: "c", PrincipalID: "p", DeclaredType: "audio/mpeg", Content: []byte("ID3recording"), EvidenceID: "e", Transcript: "hello"})
+	ref, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: "c", PrincipalID: "p", DeclaredType: "audio/mpeg", Content: mp3Bytes(1), EvidenceID: "e", Transcript: "hello"})
 	if err != nil || ref.Transcript != "hello" {
 		t.Fatalf("audio = %+v %v", ref, err)
 	}
 }
 func TestTodo_CHAT_037_Security(t *testing.T) {
 	s := makeService(testScanner{verdict: quarantine.Verdict{Safe: false, Reason: "malware"}}, func(context.Context, AccessRequest) error { return nil })
-	_, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: "c", PrincipalID: "p", DeclaredType: "audio/mpeg", Content: []byte("ID3bad"), EvidenceID: "e"})
+	_, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: "c", PrincipalID: "p", DeclaredType: "audio/mpeg", Content: mp3Bytes(1), EvidenceID: "e", AltText: "a recorded greeting"})
 	if !errors.Is(err, ErrQuarantined) {
 		t.Fatalf("unsafe audio = %v", err)
+	}
+}
+func TestTodo_CHAT_037_DurationBoundsAndAlternativePolicy(t *testing.T) {
+	s := makeService(testScanner{verdict: quarantine.Verdict{Safe: true}}, func(context.Context, AccessRequest) error { return nil })
+	for _, test := range []struct {
+		name, kind string
+		body       []byte
+	}{
+		{name: "mp3-too-long", kind: "audio/mpeg", body: mp3Bytes(22969)},
+		{name: "wav-too-long", kind: "audio/wav", body: wavBytes(int(MaxVoiceMessageDuration/time.Second) + 1)},
+		{name: "truncated-mp3", kind: "audio/mpeg", body: mp3Bytes(1)[:len(mp3Bytes(1))-1]},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: "c", PrincipalID: "p", DeclaredType: test.kind, Content: test.body, EvidenceID: test.name, Transcript: "recorded words"})
+			if !errors.Is(err, ErrUnsupported) {
+				t.Fatalf("unsafe audio admitted: %v", err)
+			}
+		})
+	}
+	_, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: "c", PrincipalID: "p", DeclaredType: "audio/mpeg", Content: mp3Bytes(1), EvidenceID: "no-alt"})
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("audio without transcript or alternative = %v", err)
+	}
+	if _, ok := inspectAudioDuration(wavBytes(int(MaxVoiceMessageDuration/time.Second)), MediaWAV); !ok {
+		t.Fatal("WAV at duration limit rejected")
 	}
 }
 func TestTodo_CHAT_038(t *testing.T) {
@@ -299,9 +353,9 @@ func TestTodo_CHAT_036_FilesystemStoreLifecycle(t *testing.T) {
 }
 
 func TestTodo_CHAT_037_ScannerFailureAndAllFormats(t *testing.T) {
-	for typ, content := range map[string][]byte{"audio/mpeg": []byte("ID3x"), "audio/wav": []byte("RIFFxxxxWAVEx"), "image/bmp": bmpBytes(), "image/png": pngBytes(), "image/gif": gifBytes(), "video/mp4": []byte("\x00\x00\x00\x18ftypisomx")} {
+	for typ, content := range map[string][]byte{"audio/mpeg": mp3Bytes(1), "audio/wav": wavBytes(1), "image/bmp": bmpBytes(), "image/png": pngBytes(), "image/gif": gifBytes(), "video/mp4": []byte("\x00\x00\x00\x18ftypisomx")} {
 		s := makeService(testScanner{verdict: quarantine.Verdict{Safe: true}}, func(context.Context, AccessRequest) error { return nil })
-		if _, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: typ, PrincipalID: "p", DeclaredType: typ, Content: content, EvidenceID: typ}); err != nil {
+		if _, err := s.Upload(context.Background(), UploadRequest{TenantID: "t", ConversationID: typ, PrincipalID: "p", DeclaredType: typ, Content: content, EvidenceID: typ, Transcript: "spoken words", AltText: "recorded audio"}); err != nil {
 			t.Fatalf("%s: %v", typ, err)
 		}
 	}

@@ -61,8 +61,29 @@ func TestTodo_CHAT_049_Recovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(snap.RawTables) != 31 || snap.Digest == "" {
-		t.Fatalf("incomplete snapshot: %+v", snap)
+	// Every durable chat table is captured, and only those: a new table has to
+	// be added here on purpose, so backup coverage never drifts silently.
+	durable := []string{
+		"chat_conversation", "chat_membership", "chat_conversation_idempotency",
+		"chat_post", "chat_post_revision", "chat_idempotency", "chat_outbox", "chat_outbox_receipt",
+		"chat_preference", "chat_reaction", "chat_pin", "chat_cursor",
+		"chat_channel_policy", "chat_share_grant",
+		"chat_channel_todo", "chat_channel_todo_revision",
+		"chat_channel_widget", "chat_channel_widget_revision",
+		"chat_channel_poll", "chat_channel_poll_vote", "chat_channel_poll_revision",
+		"chat_app_installation", "chat_app_event", "chat_app_event_seen",
+		"chat_thread_follow", "chat_personal_sidebar", "chat_quiet_hours",
+		"chat_record_inventory", "chat_audit_event", "chat_record_hold", "chat_record_export",
+		"chat_retention_policy",
+		"chat_moderation_report", "chat_moderation_action",
+	}
+	if len(snap.RawTables) != len(durable) || snap.Digest == "" {
+		t.Fatalf("snapshot captured %d tables, want %d: %+v", len(snap.RawTables), len(durable), snap)
+	}
+	for _, table := range durable {
+		if _, ok := snap.RawTables[table]; !ok {
+			t.Fatalf("snapshot is missing durable table %s", table)
+		}
 	}
 	if err := dst.Restore(ctx, snap); err != nil {
 		t.Fatal(err)

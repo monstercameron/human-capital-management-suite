@@ -11,7 +11,7 @@ func TestChatChannelReferenceAppearsInTimelineThreadAndDraft(t *testing.T) {
 	link := "https://hcm.example/workspace/app/chat#channel=room"
 	body := "#Q4_hiring_huddle " + link
 	root := Message{ID: "root", Body: body}
-	m := Model{State: StateReady, SelectedID: "room", EmbedOrigin: "https://hcm.example", Conversations: []Conversation{{ID: "room", Name: "Q4 hiring huddle", Kind: PublicChannel, Joined: true}}, Messages: []Message{root}, ShowThread: true, ThreadParentID: root.ID, ThreadParent: &root, ThreadMessages: []Message{{ID: "reply", Body: body}}, Draft: body}
+	m := Model{State: StateReady, CurrentTenantID: "tenant", CurrentUser: "reader", SelectedID: "room", EmbedOrigin: "https://hcm.example", Conversations: []Conversation{{ID: "room", Name: "Q4 hiring huddle", Kind: PublicChannel, Joined: true}}, Messages: []Message{root}, ShowThread: true, ThreadParentID: root.ID, ThreadParent: &root, ThreadMessages: []Message{{ID: "reply", Body: body}}, Draft: body}
 	markup := render(t, m)
 	if got := strings.Count(markup, `data-action="open-channel-reference" data-id="room"`); got != 4 {
 		t.Fatalf("linked reference count = %d, want timeline, thread root, reply, and draft", got)

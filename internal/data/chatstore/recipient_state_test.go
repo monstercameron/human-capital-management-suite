@@ -121,7 +121,7 @@ func TestTodo_CHAT_032_Integration_Recipient(t *testing.T) {
 		t.Fatalf("reload=%+v err=%v", c, err)
 	}
 }
-func TestTodo_CHAT_034_Integration_Recipient(t *testing.T) {
+func TestTodo_CHAT_034_Integration(t *testing.T) {
 	s, _ := chatFixture(t)
 	r := NewRecipientStateStore(s)
 	ctx := context.Background()

@@ -18,7 +18,9 @@ func TestFocusSearchMessageUsesBoundBrowserMethodsAndFocusesTarget(t *testing.T)
 	state := global.Get("Object").New()
 	factory := global.Get("Function").New("state", `return {querySelectorAll: function(selector) {
   state.selector = selector;
+  const list = { scrollTop: 320, parentElement: { classList: { toggle: function(name, value) { state.awayClass = name; state.away = value; } } } };
   const row = { dataset: { messageId: "post-7" }, isConnected: true,
+    closest: function(selector) { state.closest = selector; return list; },
     scrollIntoView: function(options) { state.block = options.block; },
     focus: function(options) { state.preventScroll = options.preventScroll; state.focused = true; },
     classList: { add: function(name) { state.added = name; }, remove: function(name) { state.removed = name; } }
@@ -43,6 +45,12 @@ func TestFocusSearchMessageUsesBoundBrowserMethodsAndFocusesTarget(t *testing.T)
 	}
 	if got := state.Get("block").String(); got != "center" {
 		t.Fatalf("scroll block = %q", got)
+	}
+	if got := state.Get("closest").String(); got != "[data-chat-anchor]" {
+		t.Fatalf("timeline selector = %q", got)
+	}
+	if !state.Get("away").Bool() || state.Get("awayClass").String() != "away" {
+		t.Fatal("search anchor did not disarm bottom-following")
 	}
 	if got := state.Get("added").String(); got != "search-target" {
 		t.Fatalf("highlight class = %q", got)

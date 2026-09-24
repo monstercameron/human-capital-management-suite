@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ import (
 
 var (
 	ErrCoreDatabase        = errors.New("chat database must be isolated from core database")
+	ErrCoreCredential      = errors.New("chat database must use a distinct core credential")
 	ErrIdempotencyConflict = errors.New("chat idempotency key fingerprint conflict")
 	ErrNotMember           = errors.New("chat member is not authorized")
 	// ErrNoRouteLease is returned when a write targets a conversation the route
@@ -134,6 +136,9 @@ func New(ctx context.Context, cfg Config) (*Store, error) {
 	if cfg.CoreDSN != "" && sameDatabase(cfg.DSN, cfg.CoreDSN) {
 		return nil, ErrCoreDatabase
 	}
+	if cfg.CoreDSN != "" && sameDatabaseCredential(cfg.DSN, cfg.CoreDSN) {
+		return nil, ErrCoreCredential
+	}
 	// pgxadapter owns the driver boundary and supplies a bounded pool with
 	// session hygiene. Its configured default is deliberately small for chat
 	// handlers; callers can enforce a tighter admission budget above it.
@@ -208,6 +213,47 @@ func sameDatabase(a, b string) bool {
 	}
 	return ca.Port == cb.Port && strings.EqualFold(ca.Host, cb.Host) && ca.Database == cb.Database
 }
+
+// sameDatabaseCredential compares the login roles used for chat and core when
+// both DSNs point at the same configured PostgreSQL endpoint. Separate logical
+// databases on one cluster do not isolate access if both pools authenticate
+// as the same role. Roles with the same name on independently configured
+// endpoints are separate PostgreSQL principals and may be reused. Passwords
+// are deliberately not compared because role identity is independent of
+// password rotation.
+func sameDatabaseCredential(a, b string) bool {
+	ca, ea := pgconn.ParseConfig(a)
+	cb, eb := pgconn.ParseConfig(b)
+	if ea != nil || eb != nil {
+		return false
+	}
+	return sameDatabaseEndpoint(ca, cb) && strings.EqualFold(ca.User, cb.User)
+}
+
+func sameDatabaseEndpoint(a, b *pgconn.Config) bool {
+	return databaseHostIdentity(a.Host) == databaseHostIdentity(b.Host) && a.Port == b.Port
+}
+
+// databaseHostIdentity folds spellings that are unambiguously the local
+// loopback interface. PostgreSQL DSNs commonly use localhost, 127.0.0.1, or
+// ::1 for the same local cluster; comparing the parsed host strings directly
+// would let a shared role evade the isolation guard by changing only spelling.
+// Arbitrary DNS names are left alone because resolving them here is time- and
+// network-dependent and can collapse genuinely separate configured endpoints.
+func databaseHostIdentity(host string) string {
+	host = strings.TrimSuffix(strings.TrimSpace(host), ".")
+	if strings.EqualFold(host, "localhost") {
+		return "loopback"
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() {
+			return "loopback"
+		}
+		return ip.String()
+	}
+	return strings.ToLower(host)
+}
+
 func tenant(ctx context.Context, tx dbport.Tx, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return errors.New("tenant is required")

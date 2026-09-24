@@ -94,6 +94,12 @@ type CaseAction struct {
 	At          time.Time `json:"at"`
 }
 
+// AuditedCaseActionRepository commits a moderation decision and its immutable
+// audit/outbox projection in one tenant transaction.
+type AuditedCaseActionRepository interface {
+	PutCaseActionAudited(ctx context.Context, tenantID, conversationID string, action CaseAction, event AuditEvent) (AuditEvent, error)
+}
+
 type Snapshot struct {
 	TenantID  string        `json:"tenant_id"`
 	Watermark uint64        `json:"watermark"`

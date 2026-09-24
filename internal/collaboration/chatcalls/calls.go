@@ -39,7 +39,11 @@ type Authority struct {
 }
 
 func (a Authority) current(at time.Time) bool {
-	return strings.TrimSpace(a.PrincipalID) != "" && strings.TrimSpace(a.TenantID) != "" && a.Revision > 0 && a.Active && (a.ExpiresAt.IsZero() || at.Before(a.ExpiresAt))
+	return canonicalID(a.PrincipalID) && canonicalID(a.TenantID) && a.Revision > 0 && a.Active && (a.ExpiresAt.IsZero() || at.Before(a.ExpiresAt))
+}
+
+func canonicalID(value string) bool {
+	return value != "" && strings.TrimSpace(value) == value
 }
 
 type Consent struct {
@@ -159,7 +163,7 @@ type P2PCallAdmission struct {
 }
 
 func AdmitP2P(req P2PCallRequest) (P2PCallAdmission, error) {
-	if strings.TrimSpace(req.CallID) == "" || strings.TrimSpace(req.ConversationID) == "" || req.At.IsZero() || req.Participants[0].Authority.PrincipalID == req.Participants[1].Authority.PrincipalID {
+	if !canonicalID(req.CallID) || !canonicalID(req.ConversationID) || req.At.IsZero() || req.Participants[0].Authority.PrincipalID == req.Participants[1].Authority.PrincipalID {
 		return P2PCallAdmission{}, ErrInvalid
 	}
 	if err := req.Media.validate(); err != nil {
@@ -207,7 +211,10 @@ type ServerCapacity struct {
 }
 
 func (c ServerCapacity) admits(participants int, audio, video bool) bool {
-	if participants <= 0 || c.MaxParticipants-c.ReservedParticipants < participants {
+	if participants <= 0 || c.MaxParticipants < 0 || c.ReservedParticipants < 0 || c.ReservedParticipants > c.MaxParticipants ||
+		c.AudioSlots < 0 || c.ReservedAudioSlots < 0 || c.ReservedAudioSlots > c.AudioSlots ||
+		c.VideoSlots < 0 || c.ReservedVideoSlots < 0 || c.ReservedVideoSlots > c.VideoSlots ||
+		c.MaxParticipants-c.ReservedParticipants < participants {
 		return false
 	}
 	if audio && c.AudioSlots-c.ReservedAudioSlots < participants {

@@ -28,7 +28,7 @@ type Store interface {
 	CreateConversation(context.Context, Conversation, []Membership, string) (Conversation, error)
 	ListConversations(context.Context, Principal, string, Page, ConversationScope) (ListConversationsResponse, error)
 	GetConversation(context.Context, string, string) (Conversation, error)
-	UpdateConversation(context.Context, Conversation, uint64) (Conversation, error)
+	UpdateConversation(context.Context, Principal, Conversation, uint64) (Conversation, error)
 	ListMemberships(context.Context, string, string, Page) (ListMembershipsResponse, error)
 	GetMembership(context.Context, string, string, string, string) (Membership, error)
 	GetPost(context.Context, string, string, string) (Post, error)
@@ -62,6 +62,7 @@ type Service struct {
 	disclosureChecker  DisclosureChecker
 	linkCodec          LinkCodec
 	mediaDirectory     MediaDirectory
+	contentPolicy      ContentPolicy
 }
 
 // SetAuthority installs the current-authority resolver used by subsequent
@@ -219,11 +220,14 @@ func (s *Service) UpdateConversation(ctx context.Context, r UpdateConversationRe
 	if err != nil {
 		return Conversation{}, err
 	}
-	if c.OwnerID != r.Principal.SubjectID || r.Principal.TenantID != c.TenantID {
+	if r.Principal.TenantID != c.TenantID {
 		return Conversation{}, ErrPermissionDenied
 	}
 	if err := s.authorize(ctx, r.Principal, c, chatpolicy.ActionRead); err != nil {
 		return Conversation{}, err
+	}
+	if c.Kind != PublicChannel && c.Kind != PrivateChannel {
+		return Conversation{}, ErrPermissionDenied
 	}
 	if r.Conversation.Kind != c.Kind {
 		return Conversation{}, ErrConflict
@@ -231,7 +235,27 @@ func (s *Service) UpdateConversation(ctx context.Context, r UpdateConversationRe
 	if r.Conversation.TenantID != c.TenantID {
 		return Conversation{}, ErrPermissionDenied
 	}
-	return s.store.UpdateConversation(ctx, r.Conversation, r.ExpectedRevision)
+	// Lifecycle settings are host-manager actions. The owner remains a manager
+	// while their active membership exists; a former member cannot recover
+	// authority from the stable owner_id value alone.
+	actor, err := s.store.GetMembership(ctx, c.TenantID, c.ID, r.Principal.TenantID, r.Principal.SubjectID)
+	if err != nil || actor.JoinedAt == nil || actor.LeftAt != nil || actor.Role != Manager {
+		return Conversation{}, ErrPermissionDenied
+	}
+	if name := strings.TrimSpace(r.Conversation.Name); name == "" || len(name) > 200 {
+		return Conversation{}, ErrInvalidArgument
+	}
+	desired := r.Conversation
+	if desired.OwnerID == "" {
+		desired.OwnerID = c.OwnerID
+	}
+	if desired.OwnerID != c.OwnerID {
+		target, err := s.store.GetMembership(ctx, c.TenantID, c.ID, c.TenantID, desired.OwnerID)
+		if err != nil || target.JoinedAt == nil || target.LeftAt != nil {
+			return Conversation{}, ErrInvalidArgument
+		}
+	}
+	return s.store.UpdateConversation(ctx, r.Principal, desired, r.ExpectedRevision)
 }
 
 func (s *Service) ListMemberships(ctx context.Context, r ListMembershipsRequest) (ListMembershipsResponse, error) {
@@ -365,6 +389,9 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 			return Post{}, err
 		}
 	}
+	if err := s.checkContent(ctx, ContentInput{Principal: r.Principal, Conversation: c, Body: strings.TrimSpace(r.Body), References: r.References}); err != nil {
+		return Post{}, err
+	}
 	p := Post{ID: uuid.NewString(), ConversationID: r.ConversationID, TenantID: r.TenantID, AuthorID: r.Principal.SubjectID, AuthorHomeTenantID: r.Principal.TenantID, Body: strings.TrimSpace(r.Body), ParentID: r.ParentID, Revision: 1, CreatedAt: s.now(), References: append([]Reference(nil), r.References...), SourceAttribution: cloneSourceAttribution(r.SourceAttribution)}
 	return s.store.SendPost(ctx, r, p)
 }
@@ -392,22 +419,67 @@ func (s *Service) ListPosts(ctx context.Context, r ListPostsRequest) (ListPostsR
 		// the same breath; the request contradicts itself.
 		return ListPostsResponse{}, ErrInvalidArgument
 	}
-	return s.store.ListPosts(ctx, r.Principal, r.TenantID, r.ConversationID, r.AfterSequence, r.Page, PostWindow{Descending: r.Descending, BeforeSequence: r.BeforeSequence})
+	posts, err := s.store.ListPosts(ctx, r.Principal, r.TenantID, r.ConversationID, r.AfterSequence, r.Page, PostWindow{Descending: r.Descending, BeforeSequence: r.BeforeSequence})
+	if err != nil {
+		return ListPostsResponse{}, err
+	}
+	posts.Posts = s.projectConversationReferences(ctx, r.Principal, posts.Posts)
+	return posts, nil
 }
 
+// EditPost revises the caller's own post (CHAT-025). The edit is checked the
+// way a new post is: supplied references must resolve for the current
+// audience, carried-over person and agent mentions whose subject is no longer
+// eligible are dropped rather than notified, and the content policy sees the
+// new body. The store then appends an immutable revision; it never replays the
+// original post's effects.
 func (s *Service) EditPost(ctx context.Context, r EditPostRequest) (Post, error) {
 	return s.mutatePost(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.ExpectedRevision, func() error {
 		if strings.TrimSpace(r.Body) == "" {
 			return ErrInvalidArgument
 		}
 		return nil
-	}, func() (Post, error) { return s.store.EditPost(ctx, r) })
-}
-func (s *Service) DeletePost(ctx context.Context, r DeletePostRequest) (Post, error) {
-	return s.mutatePost(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.ExpectedRevision, nil, func() (Post, error) { return s.store.DeletePost(ctx, r) })
+	}, func(c Conversation, current Post) (Post, error) {
+		refs, err := s.editReferences(ctx, r, current)
+		if err != nil {
+			return Post{}, err
+		}
+		if err := s.checkContent(ctx, ContentInput{Principal: r.Principal, Conversation: c, Body: strings.TrimSpace(r.Body), References: refs, Edit: true}); err != nil {
+			return Post{}, err
+		}
+		r.Body, r.References = strings.TrimSpace(r.Body), refs
+		return s.store.EditPost(ctx, r)
+	})
 }
 
-func (s *Service) mutatePost(ctx context.Context, p Principal, tenant, conversation, post string, revision uint64, extra func() error, fn func() (Post, error)) (Post, error) {
+// editReferences is the reference set an edit commits. Newly supplied
+// references are validated exactly as on send and refuse the edit when
+// invalid; references carried over from the current revision are revalidated
+// and silently dropped when the subject has left the audience, so an edit can
+// never re-notify someone who no longer belongs to the conversation.
+func (s *Service) editReferences(ctx context.Context, r EditPostRequest, current Post) ([]Reference, error) {
+	if r.References != nil {
+		for _, ref := range r.References {
+			if err := s.validateReference(ctx, r.Principal, r.TenantID, r.ConversationID, ref); err != nil {
+				return nil, err
+			}
+		}
+		return append([]Reference{}, r.References...), nil
+	}
+	kept := make([]Reference, 0, len(current.References))
+	for _, ref := range current.References {
+		if s.validateReference(ctx, r.Principal, r.TenantID, r.ConversationID, ref) == nil {
+			kept = append(kept, ref)
+		}
+	}
+	return kept, nil
+}
+
+func (s *Service) DeletePost(ctx context.Context, r DeletePostRequest) (Post, error) {
+	return s.mutatePost(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.ExpectedRevision, nil, func(Conversation, Post) (Post, error) { return s.store.DeletePost(ctx, r) })
+}
+
+func (s *Service) mutatePost(ctx context.Context, p Principal, tenant, conversation, post string, revision uint64, extra func() error, fn func(Conversation, Post) (Post, error)) (Post, error) {
 	if err := validatePrincipal(p, tenant); err != nil || conversation == "" || post == "" || revision == 0 {
 		return Post{}, errOr(err, ErrInvalidArgument)
 	}
@@ -433,7 +505,7 @@ func (s *Service) mutatePost(ctx context.Context, p Principal, tenant, conversat
 	if current.AuthorID != p.SubjectID || current.AuthorHomeTenantID != p.TenantID {
 		return Post{}, ErrPermissionDenied
 	}
-	return fn()
+	return fn(c, current)
 }
 
 func (s *Service) Search(ctx context.Context, r SearchRequest) (SearchResponse, error) {
@@ -460,17 +532,10 @@ func (s *Service) Search(ctx context.Context, r SearchRequest) (SearchResponse, 
 	// The store limits message hits to active memberships and channel-name hits to
 	// active memberships or active public channels. Recheck current policy before
 	// exposing any hit so these candidates cannot bypass a visibility change.
-	// Cache each action's decision per channel within this request.
-	type visibilityKey struct {
-		conversationID string
-		action         chatpolicy.Action
-	}
-	visible := make(map[visibilityKey]bool)
+	// Resolve authority for every candidate. Search may fetch multiple pages,
+	// and a grant can be revoked while that bounded scan is in flight; a cached
+	// allow decision must not disclose later hits after that revocation.
 	check := func(id string, action chatpolicy.Action) (bool, error) {
-		key := visibilityKey{conversationID: id, action: action}
-		if ok, found := visible[key]; found {
-			return ok, nil
-		}
 		var e error
 		if action == chatpolicy.ActionDiscover {
 			var c Conversation
@@ -482,13 +547,11 @@ func (s *Service) Search(ctx context.Context, r SearchRequest) (SearchResponse, 
 			_, e = s.GetConversation(ctx, GetConversationRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: id})
 		}
 		if errors.Is(e, ErrPermissionDenied) || errors.Is(e, ErrNotFound) {
-			visible[key] = false
 			return false, nil
 		}
 		if e != nil {
 			return false, e
 		}
-		visible[key] = true
 		return true, nil
 	}
 	pageSize := int(r.Page.PageSize)
@@ -566,6 +629,9 @@ func (s *Service) Search(ctx context.Context, r SearchRequest) (SearchResponse, 
 		}
 	}
 	out.ChannelNextCursor = channelCursor
+	for i := range out.Results {
+		out.Results[i].Post = s.projectConversationReferences(ctx, r.Principal, []Post{out.Results[i].Post})[0]
+	}
 	return out, nil
 }
 func (s *Service) GetReadState(ctx context.Context, r GetReadStateRequest) (ReadState, error) {
@@ -722,6 +788,7 @@ func (s *Service) ListPins(ctx context.Context, r ListPinsRequest) ([]Pin, error
 			return nil, getErr
 		}
 		if !post.Deleted && post.TenantID == r.TenantID && post.ConversationID == r.ConversationID && post.ID == pin.PostID && s.postVisibleTo(ctx, r.Principal, c, post) {
+			post = s.projectConversationReferences(ctx, r.Principal, []Post{post})[0]
 			pin.Post = &post
 			visible = append(visible, pin)
 		}
@@ -738,7 +805,12 @@ func (s *Service) WatchConversation(ctx context.Context, r WatchConversationRequ
 	if _, err := s.GetConversation(ctx, GetConversationRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: r.ConversationID}); err != nil {
 		return nil, err
 	}
-	return s.store.Watch(ctx, r)
+	events, err := s.store.Watch(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	projected, _ := s.projectWatchEvents(ctx, r.Principal, events, nil)
+	return projected, nil
 }
 
 // storeErrorWatcher is the store's reporting watch. chatstore implements it; a
@@ -765,9 +837,18 @@ func (s *Service) WatchConversationWithErrors(ctx context.Context, r WatchConver
 	reporting, ok := s.store.(storeErrorWatcher)
 	if !ok {
 		events, err := s.store.Watch(ctx, r)
-		return events, nil, err
+		if err != nil {
+			return nil, nil, err
+		}
+		projected, _ := s.projectWatchEvents(ctx, r.Principal, events, nil)
+		return projected, nil, nil
 	}
-	return reporting.WatchWithErrors(ctx, r)
+	events, failures, err := reporting.WatchWithErrors(ctx, r)
+	if err != nil {
+		return nil, nil, err
+	}
+	projected, projectedFailures := s.projectWatchEvents(ctx, r.Principal, events, failures)
+	return projected, projectedFailures, nil
 }
 
 func machinePlainWatchOffset(ctx context.Context, r WatchConversationRequest) bool {

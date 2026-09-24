@@ -30,6 +30,63 @@ func TestDatabaseIsolationComparesKeywordDSNs(t *testing.T) {
 	}
 }
 
+// TestTodo_CHAT_003 proves the storage composition rejects reuse of the core
+// login role even when chat has its own database. The guard must run before
+// network access so an unsafe deployment configuration fails closed.
+func TestTodo_CHAT_003(t *testing.T) {
+	_, err := New(t.Context(), Config{
+		DSN:     "postgres://shared:pw@127.0.0.1:1/chat",
+		CoreDSN: "postgres://shared:pw@127.0.0.1:1/workflow",
+	})
+	if err != ErrCoreCredential {
+		t.Fatalf("New with separate database but shared role = %v, want %v", err, ErrCoreCredential)
+	}
+	if sameDatabaseCredential("postgres://chat_role:pw@db.example/chat", "postgres://workflow_role:pw@db.example/workflow") {
+		t.Fatal("distinct database roles were treated as one credential")
+	}
+	if sameDatabaseCredential("postgres://shared:pw@chat-db.example/chat", "postgres://shared:pw@core-db.example/workflow") {
+		t.Fatal("same role label on independent database endpoints was treated as shared credential")
+	}
+	_, err = New(t.Context(), Config{
+		DSN:     "postgres://shared:pw@chat-db.example:1/chat",
+		CoreDSN: "postgres://shared:pw@core-db.example:1/workflow",
+	})
+	if err == ErrCoreCredential {
+		t.Fatal("New rejected the same role label on independent endpoints as a shared credential")
+	}
+}
+
+// TestTodo_CHAT_003_Security checks that varying only the secret does not
+// disguise reuse of the same PostgreSQL authorization role.
+func TestTodo_CHAT_003_Security(t *testing.T) {
+	if !sameDatabaseCredential("postgres://chat_role:first@db.example/chat", "postgres://chat_role:second@db.example/workflow") {
+		t.Fatal("same database role with rotated passwords was treated as distinct")
+	}
+	if _, err := New(t.Context(), Config{
+		DSN:     "postgres://chat_role:chat@127.0.0.1:1/chat",
+		CoreDSN: "postgres://chat_role:core@127.0.0.1:1/workflow",
+	}); err != ErrCoreCredential {
+		t.Fatalf("New with a shared role and different passwords = %v, want %v", err, ErrCoreCredential)
+	}
+}
+
+func TestTodo_CHAT_003_RejectsLoopbackHostAliases(t *testing.T) {
+	const role = "postgres://shared:pw@"
+	aliases := [][2]string{
+		{role + "localhost:5432/chat", role + "127.0.0.1:5432/workflow"},
+		{role + "localhost:5432/chat", role + "[::1]:5432/workflow"},
+		{"host=localhost port=5432 dbname=chat user=shared", role + "127.0.0.1:5432/workflow"},
+	}
+	for _, pair := range aliases {
+		if !sameDatabaseCredential(pair[0], pair[1]) {
+			t.Errorf("loopback alias pair was treated as separate credentials:\n  %s\n  %s", pair[0], pair[1])
+		}
+	}
+	if sameDatabaseCredential(role+"chat-db.example/chat", role+"core-db.example/workflow") {
+		t.Fatal("distinct named endpoints with the same role were treated as shared")
+	}
+}
+
 func TestFingerprintStableAndContentBound(t *testing.T) {
 	if fingerprint("hello") != fingerprint("hello") {
 		t.Fatal("fingerprint is not stable")

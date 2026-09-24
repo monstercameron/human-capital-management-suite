@@ -1,6 +1,7 @@
 package chatmedia
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -33,8 +34,27 @@ func (f *FilesystemStore) Quarantine(ctx context.Context, a Artifact) error {
 		return ErrInvalid
 	}
 	bp, mp := f.paths(a.ArtifactID)
-	if _, err := os.Stat(mp); err == nil {
+	if existing, err := os.ReadFile(mp); err == nil {
+		var stored Artifact
+		if err := json.Unmarshal(existing, &stored); err != nil {
+			return err
+		}
+		if stored.TenantID != a.TenantID || stored.ConversationID != a.ConversationID {
+			return ErrUnauthorized
+		}
+		if stored.MediaType != a.MediaType || stored.Size != a.Size || stored.Transcript != a.Transcript || stored.AltText != a.AltText {
+			return ErrInvalid
+		}
+		content, err := os.ReadFile(bp)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(content, a.Content) {
+			return ErrInvalid
+		}
 		return nil
+	} else if !os.IsNotExist(err) {
+		return err
 	}
 	if err := os.WriteFile(bp, a.Content, 0600); err != nil {
 		return err

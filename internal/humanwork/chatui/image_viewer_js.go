@@ -18,7 +18,7 @@ var imageViewerOriginalCleanup func()
 // The viewer lives on document.body so a timeline render cannot replace it or
 // move the scroll position. It begins with the visible thumbnail and upgrades
 // through the same protected grant when the optimized display image is ready.
-func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
+func openImageViewer(event ui.Event, title, closeLabel, downloadLabel, actualSizeLabel, fitScreenLabel string) {
 	target := event.JSValue().Get("target")
 	if !target.Truthy() {
 		return
@@ -48,6 +48,14 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
 	closeButton.Set("className", "chat-image-viewer-close")
 	closeButton.Call("setAttribute", "aria-label", closeLabel)
 	closeButton.Set("textContent", "×")
+	zoomButton := doc.Call("createElement", "button")
+	zoomButton.Set("type", "button")
+	zoomButton.Set("className", "chat-image-viewer-zoom")
+	zoomButton.Set("textContent", "1:1")
+	zoomButton.Call("setAttribute", "aria-label", actualSizeLabel)
+	zoomButton.Call("setAttribute", "aria-pressed", "false")
+	zoomButton.Set("disabled", true)
+	zoomButton.Call("setAttribute", "hidden", "")
 	media := doc.Call("createElement", "div")
 	media.Set("className", "chat-image-viewer-media")
 	preview := doc.Call("createElement", "img")
@@ -73,6 +81,7 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
 	media.Call("appendChild", full)
 	media.Call("appendChild", original)
 	backdrop.Call("appendChild", closeButton)
+	backdrop.Call("appendChild", zoomButton)
 	backdrop.Call("appendChild", media)
 	backdrop.Call("appendChild", download)
 	doc.Get("body").Call("appendChild", backdrop)
@@ -82,8 +91,21 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
 	if row := button.Call("closest", "[data-message-id]"); row.Truthy() {
 		imageViewerPost = row.Get("dataset").Get("messageId").String()
 	}
-	var onClick, onKey, onMutation js.Func
+	var onClick, onKey, onMutation, onResize js.Func
 	var observer js.Value
+	syncZoomControl := func() {
+		ready := original.Get("classList").Call("contains", "chat-image-original-ready").Bool()
+		zoomed := media.Get("classList").Call("contains", "chat-image-viewer-zoomed").Bool()
+		needsActualSize := ready && (zoomed || chatImageViewerNeedsActualSize(
+			original.Get("naturalWidth").Int(), original.Get("naturalHeight").Int(), media.Get("clientWidth").Int(), media.Get("clientHeight").Int(),
+		))
+		zoomButton.Set("disabled", !ready)
+		if needsActualSize {
+			zoomButton.Call("removeAttribute", "hidden")
+		} else {
+			zoomButton.Call("setAttribute", "hidden", "")
+		}
+	}
 	imageViewerClose = func(restore bool) {
 		if imageViewerClose == nil {
 			return
@@ -102,6 +124,7 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
 		}
 		backdrop.Call("removeEventListener", "click", onClick)
 		doc.Call("removeEventListener", "keydown", onKey, true)
+		js.Global().Get("window").Call("removeEventListener", "resize", onResize)
 		observer.Call("disconnect")
 		backdrop.Call("remove")
 		onClick.Release()
@@ -132,6 +155,21 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
 			}
 			return nil
 		}
+		if clicked.Equal(zoomButton) {
+			zoomed := media.Get("classList").Call("toggle", "chat-image-viewer-zoomed").Bool()
+			pressed := "false"
+			if zoomed {
+				pressed = "true"
+			}
+			zoomButton.Call("setAttribute", "aria-pressed", pressed)
+			if zoomed {
+				zoomButton.Call("setAttribute", "aria-label", fitScreenLabel)
+			} else {
+				zoomButton.Call("setAttribute", "aria-label", actualSizeLabel)
+			}
+			syncZoomControl()
+			return nil
+		}
 		if clicked.Equal(backdrop) || clicked.Equal(closeButton) {
 			imageViewerClose(true)
 		}
@@ -144,24 +182,32 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
 			args[0].Call("stopPropagation")
 			imageViewerClose(true)
 		} else if key == "Tab" {
-			if !download.Get("hidden").Bool() {
-				args[0].Call("preventDefault")
-				if args[0].Get("shiftKey").Truthy() {
-					if js.Global().Get("document").Get("activeElement").Equal(closeButton) {
-						download.Call("focus")
-					} else {
-						closeButton.Call("focus")
-					}
-				} else if js.Global().Get("document").Get("activeElement").Equal(download) {
-					closeButton.Call("focus")
-				} else {
-					download.Call("focus")
-				}
-			} else {
-				args[0].Call("preventDefault")
-				closeButton.Call("focus")
+			focusables := []js.Value{closeButton}
+			if !zoomButton.Get("disabled").Bool() && !zoomButton.Get("hidden").Bool() {
+				focusables = append(focusables, zoomButton)
 			}
+			if !download.Get("hidden").Bool() {
+				focusables = append(focusables, download)
+			}
+			active := js.Global().Get("document").Get("activeElement")
+			index := 0
+			for i, focusable := range focusables {
+				if active.Equal(focusable) {
+					index = i
+					break
+				}
+			}
+			step := 1
+			if args[0].Get("shiftKey").Truthy() {
+				step = -1
+			}
+			args[0].Call("preventDefault")
+			focusables[(index+step+len(focusables))%len(focusables)].Call("focus")
 		}
+		return nil
+	})
+	onResize = js.FuncOf(func(js.Value, []js.Value) any {
+		syncZoomControl()
 		return nil
 	})
 	onMutation = js.FuncOf(func(js.Value, []js.Value) any {
@@ -177,6 +223,7 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
 	observer.Call("observe", doc.Get("body"), js.ValueOf(map[string]any{"childList": true, "subtree": true, "attributes": true, "attributeFilter": []any{"data-selected-id", "data-principal", "data-media-display"}}))
 	backdrop.Call("addEventListener", "click", onClick)
 	doc.Call("addEventListener", "keydown", onKey, true)
+	js.Global().Get("window").Call("addEventListener", "resize", onResize)
 	closeButton.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 	imageViewerDisplayCleanup = loadChatImageDisplay(button, full, func(ok bool) {
 		if !ok {
@@ -187,6 +234,7 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel string) {
 		}
 		imageViewerOriginalCleanup = loadChatImageOriginal(button, original, func(loaded, downloadOnly bool) {
 			if loaded {
+				syncZoomControl()
 				if imageViewerDisplayCleanup != nil {
 					imageViewerDisplayCleanup()
 					imageViewerDisplayCleanup = nil

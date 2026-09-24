@@ -183,4 +183,51 @@ var multilineTail = []string{
 	"Numbers I want on the slide:\n- time to fill\n- offer acceptance\n- first-90-day attrition",
 }
 
+// chatterLines are the ordinary replies that fill a room once its topic lines
+// have each been said once. Without them a two-week history repeated every
+// topic six or seven times, and a search returned the same sentence from a
+// dozen people.
+var chatterLines = []string{
+	"On it. Will update here when it is done.",
+	"Can someone take a look at the doc before three?",
+	"Moving this to Thursday so the right people can be in the room.",
+	"Good catch. Fixed.",
+	"I have a conflict at ten, can we push by thirty minutes?",
+	"Adding the notes from this morning to the shared folder now.",
+	"Who owns the follow-up on this one?",
+	"That lines up with what finance told me yesterday.",
+	"Quick reminder that the survey closes tonight.",
+	"I am out tomorrow afternoon; Priya has the handover.",
+	"Just checked, the numbers in the draft are the latest ones.",
+	"Happy to pair on it after lunch.",
+	"Agree with the direction, one question on timing.",
+	"Can we keep this thread for decisions and take the debate to a call?",
+	"The template is updated. Old copies are archived.",
+	"Heads up: the room for the review moved to 4B.",
+	"Nice work on this, everyone.",
+	"I will send the summary by end of day.",
+	"Does anyone have the contact at the Portland site?",
+	"Looping in the right owner here.",
+	"Blocked on access to the reporting workspace. Ticket is filed.",
+	"This is ready for a second pair of eyes.",
+	"The link in the calendar invite is the old one; use the one in the doc.",
+	"Confirmed with legal, we are fine to proceed.",
+	"Let us revisit after the numbers come in on Friday.",
+	"Sharing the recording for anyone who missed it.",
+	"I can cover that shift if nobody else has.",
+	"Small update: the vendor pushed delivery to next week.",
+	"Please add your availability to the poll by noon.",
+	"Thanks for the quick turnaround.",
+	"Worth noting this affects the Boston team first.",
+	"First draft is up. Rip it apart.",
+	"We decided to hold this until after open enrollment.",
+	"Reminder that the office is closed Monday.",
+	"I have three open questions; putting them in the doc.",
+	"Signed off from my side.",
+	"Can we get a second approver on this before it goes out?",
+	"The dashboard refreshed and the gap closed overnight.",
+	"Anyone know why the badge reader on two is beeping?",
+	"Let me know if you need anything from me before the deadline.",
+}
+
 var seedEmoji = []string{"👍", "🎉", "❤️", "👀", "🙏", "✅", "😂", "🔥", "💡", "🚀"}

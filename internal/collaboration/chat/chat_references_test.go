@@ -120,10 +120,11 @@ func TestTodo_CHAT_030_SecurityLinkResolveRechecksHistoryAndDeletion(t *testing.
 	}
 }
 
-func TestTodo_CHAT_030_IntegrationForwardUsesDurableSendPost(t *testing.T) {
+func TestForwardPostUsesSendPost(t *testing.T) {
 	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", TenantID: "t1", ConversationID: "c1", AuthorID: "u2", Body: "source", Revision: 3}}
 	s := NewService(f, func() time.Time { return time.Unix(20, 0).UTC() })
 	s.SetAuthority(referenceAuthority{})
+	s.SetDisclosureChecker(&chat030Disclosure{})
 	_, err := s.ForwardPost(context.Background(), ForwardPostRequest{Principal: principal(), SourceTenantID: "t1", SourceConversationID: "c1", SourcePostID: "p1", DestinationConversationID: "c1", IdempotencyKey: "forward-1", SourceAttribution: SourceAttribution{PostRevision: 3}})
 	if err != nil {
 		t.Fatal(err)

@@ -10,5 +10,6 @@ func clearChatScrollMemory() {}
 
 // ScrollToNewest is a browser concern; the server-rendered tree has no
 // scroll position.
-func ScrollToNewest()      {}
-func BeginScrollToNewest() {}
+func ScrollToNewest()           {}
+func BeginScrollToNewest()      {}
+func PreserveTimelinePosition() {}

@@ -78,9 +78,10 @@ func (f *fakeStore) GetConversation(_ context.Context, _, id string) (Conversati
 	}
 	return f.conversation, nil
 }
-func (f *fakeStore) UpdateConversation(context.Context, Conversation, uint64) (Conversation, error) {
+func (f *fakeStore) UpdateConversation(_ context.Context, _ Principal, c Conversation, _ uint64) (Conversation, error) {
 	f.mutations++
-	return f.conversation, nil
+	f.conversation = c
+	return c, nil
 }
 func (f *fakeStore) ListMemberships(context.Context, string, string, Page) (ListMembershipsResponse, error) {
 	return ListMembershipsResponse{}, nil
@@ -241,7 +242,7 @@ func TestTodo_CHAT_013_CreateValidatesOwnerAndInitialMembers(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_021_SearchGlobalResultsRecheckConversationAuthorization(t *testing.T) {
+func TestTodo_CHAT_021(t *testing.T) {
 	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1"}}
 	f.search = SearchResponse{
 		Channels: []ChannelSearchResult{{ConversationID: "c1", Name: "Operations", Kind: PublicChannel}, {ConversationID: "private-secret", Name: "Secret", Kind: PrivateChannel}},
@@ -289,7 +290,7 @@ func TestTodo_CHAT_021_SearchRefillsAfterPolicyFilteredCandidates(t *testing.T) 
 	}
 }
 
-func TestTodo_CHAT_021_SearchFiltersRevokedChannel(t *testing.T) {
+func TestTodo_CHAT_021_Security(t *testing.T) {
 	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1"}}
 	f.search = SearchResponse{
 		Channels: []ChannelSearchResult{{ConversationID: "c1", Name: "Operations", Kind: PrivateChannel}},
@@ -306,7 +307,7 @@ func TestTodo_CHAT_021_SearchFiltersRevokedChannel(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_025_EditChecksPostAuthorBeforeMutation(t *testing.T) {
+func TestTodo_CHAT_025_Security(t *testing.T) {
 	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", AuthorID: "u2", AuthorHomeTenantID: "t1"}}
 	s := newTestService(f, time.Now)
 	_, err := s.EditPost(context.Background(), EditPostRequest{Principal: principal(), TenantID: "t1", ConversationID: "c1", PostID: "p1", Body: "changed", ExpectedRevision: 1})
@@ -318,15 +319,80 @@ func TestTodo_CHAT_025_EditChecksPostAuthorBeforeMutation(t *testing.T) {
 	}
 }
 
+// TestTodo_CHAT_025_Mutation is this todo's MUTATION matrix test: it pins
+// down exact boundary values a mutation of the author-attribution comparison
+// (OR vs AND) or the expected-revision guard (== 0 vs != 0) would flip
+// without any other test in this package noticing.
+func TestTodo_CHAT_025_Mutation(t *testing.T) {
+	t.Run("subject_mismatch_denied_even_when_tenant_matches", func(t *testing.T) {
+		f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", AuthorID: "someone-else", AuthorHomeTenantID: "t1"}}
+		s := newTestService(f, time.Now)
+		// A mutant that replaced the OR in the author check with AND would let
+		// this through because the tenant half of the comparison matches.
+		if _, err := s.EditPost(context.Background(), EditPostRequest{Principal: principal(), TenantID: "t1", ConversationID: "c1", PostID: "p1", Body: "changed", ExpectedRevision: 1}); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("subject mismatch err = %v, want ErrPermissionDenied", err)
+		}
+		if f.mutations != 0 {
+			t.Fatalf("store mutations = %d, want 0", f.mutations)
+		}
+	})
+	t.Run("tenant_mismatch_denied_even_when_subject_matches", func(t *testing.T) {
+		f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", AuthorID: "u1", AuthorHomeTenantID: "foreign-tenant"}}
+		s := newTestService(f, time.Now)
+		// Same mutant, other side: a same-subject-ID user from a different home
+		// tenant must not pass an AND-weakened check either.
+		if _, err := s.EditPost(context.Background(), EditPostRequest{Principal: principal(), TenantID: "t1", ConversationID: "c1", PostID: "p1", Body: "changed", ExpectedRevision: 1}); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("tenant mismatch err = %v, want ErrPermissionDenied", err)
+		}
+		if f.mutations != 0 {
+			t.Fatalf("store mutations = %d, want 0", f.mutations)
+		}
+	})
+	t.Run("exact_author_match_reaches_store", func(t *testing.T) {
+		f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", AuthorID: "u1", AuthorHomeTenantID: "t1"}}
+		s := newTestService(f, time.Now)
+		if _, err := s.EditPost(context.Background(), EditPostRequest{Principal: principal(), TenantID: "t1", ConversationID: "c1", PostID: "p1", Body: "changed", ExpectedRevision: 1}); err != nil {
+			t.Fatalf("exact match err = %v, want nil", err)
+		}
+		if f.mutations != 1 {
+			t.Fatalf("store mutations = %d, want exactly 1", f.mutations)
+		}
+	})
+	t.Run("expected_revision_zero_rejected_before_store", func(t *testing.T) {
+		f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", AuthorID: "u1", AuthorHomeTenantID: "t1"}}
+		s := newTestService(f, time.Now)
+		// A mutant that turned "revision == 0" into "revision != 0" (or dropped
+		// the guard) would let an unversioned edit request reach the store.
+		if _, err := s.EditPost(context.Background(), EditPostRequest{Principal: principal(), TenantID: "t1", ConversationID: "c1", PostID: "p1", Body: "changed", ExpectedRevision: 0}); !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("zero revision err = %v, want ErrInvalidArgument", err)
+		}
+		if f.mutations != 0 {
+			t.Fatalf("store mutations = %d, want 0", f.mutations)
+		}
+	})
+	t.Run("expected_revision_one_reaches_store", func(t *testing.T) {
+		f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", AuthorID: "u1", AuthorHomeTenantID: "t1"}}
+		s := newTestService(f, time.Now)
+		if _, err := s.EditPost(context.Background(), EditPostRequest{Principal: principal(), TenantID: "t1", ConversationID: "c1", PostID: "p1", Body: "changed", ExpectedRevision: 1}); err != nil {
+			t.Fatalf("revision 1 err = %v, want nil", err)
+		}
+		if f.mutations != 1 {
+			t.Fatalf("store mutations = %d, want exactly 1", f.mutations)
+		}
+	})
+}
+
 func TestTodo_CHAT_017_ServiceCRUDAndCollaborationPath(t *testing.T) {
 	now := time.Unix(20, 0).UTC()
-	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Role: Manager, Revision: 2}, post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", AuthorID: "u1", AuthorHomeTenantID: "t1", Revision: 1}}
+	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Role: Manager, JoinedAt: &now, Revision: 2}, post: Post{ID: "p1", ConversationID: "c1", TenantID: "t1", AuthorID: "u1", AuthorHomeTenantID: "t1", Revision: 1}}
 	s := newTestService(f, func() time.Time { return now })
 	ctx := context.Background()
 	if _, err := s.ListConversations(ctx, ListConversationsRequest{Principal: principal(), TenantID: "t1"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpdateConversation(ctx, UpdateConversationRequest{Principal: principal(), Conversation: conversation(), ExpectedRevision: 1}); err != nil {
+	updated := conversation()
+	updated.Name = "Operations"
+	if _, err := s.UpdateConversation(ctx, UpdateConversationRequest{Principal: principal(), Conversation: updated, ExpectedRevision: 1}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.ListMemberships(ctx, ListMembershipsRequest{Principal: principal(), TenantID: "t1", ConversationID: "c1"}); err != nil {
@@ -424,7 +490,7 @@ func TestTodo_CHAT_011_AuthorityResolverFailsClosed(t *testing.T) {
 	}
 }
 
-func TestTodo_CHAT_024_ReactionAndPinBoundsFailBeforeStore(t *testing.T) {
+func TestTodo_CHAT_024(t *testing.T) {
 	f := &fakeStore{conversation: conversation()}
 	s := NewService(f, time.Now)
 	_, err := s.AddReaction(context.Background(), AddReactionRequest{Principal: principal(), Reaction: Reaction{TenantID: "t1", ConversationID: "c1", PostID: "p1"}})

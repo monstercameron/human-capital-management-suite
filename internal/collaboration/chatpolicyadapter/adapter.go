@@ -6,6 +6,8 @@ package chatpolicyadapter
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"strings"
 	"time"
@@ -14,13 +16,24 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 )
 
-var ErrStaleAuthority = errors.New("chat policy: stale authority")
+var (
+	ErrStaleAuthority = errors.New("chat policy: stale authority")
+	ErrStaleHostFacts = errors.New("chat policy: stale host channel facts")
+)
 
 // AuthoritySource supplies a current, typed snapshot. Implementations must
 // obtain this from the identity/governance boundary, rather than copying
 // request profile fields.
 type AuthoritySource interface {
 	Resolve(context.Context, string, string, time.Time) (chatpolicy.Principal, error)
+}
+
+// HostChannelFactsSource supplies the current host-owned channel policy.
+// Implementations must resolve from the host's durable governance state; they
+// must not copy classification, residency, or allowlists from a request.
+// Its Policy method shape is compatible with the chatauthority store.
+type HostChannelFactsSource interface {
+	Policy(context.Context, string, string) (chatpolicy.Channel, error)
 }
 
 type Grant struct {
@@ -52,24 +65,58 @@ type Decision struct {
 	Revision uint64
 }
 
-type Adapter struct{ authority AuthoritySource }
+type Adapter struct {
+	authority AuthoritySource
+	hostFacts HostChannelFactsSource
+}
 
-func New(authority AuthoritySource) (*Adapter, error) {
+// New accepts an optional trusted host-policy source. Same-tenant decisions do
+// not need cross-company terms, but foreign decisions fail closed unless the
+// source is present and returns current, complete facts.
+func New(authority AuthoritySource, hostFacts ...HostChannelFactsSource) (*Adapter, error) {
 	if authority == nil {
 		return nil, ErrStaleAuthority
 	}
-	return &Adapter{authority: authority}, nil
+	if len(hostFacts) > 1 || len(hostFacts) == 1 && hostFacts[0] == nil {
+		return nil, ErrStaleHostFacts
+	}
+	a := &Adapter{authority: authority}
+	if len(hostFacts) == 1 {
+		a.hostFacts = hostFacts[0]
+	}
+	return a, nil
 }
 
 func (a *Adapter) Authorize(ctx context.Context, req Request) (Decision, error) {
-	if a == nil || a.authority == nil || req.Now.IsZero() || strings.TrimSpace(req.Principal.SubjectID) == "" || strings.TrimSpace(req.Principal.TenantID) == "" || strings.TrimSpace(req.Conversation.ID) == "" || strings.TrimSpace(req.Conversation.TenantID) == "" {
+	if a == nil || a.authority == nil || req.Now.IsZero() || strings.TrimSpace(req.Principal.SubjectID) == "" || strings.TrimSpace(req.Principal.TenantID) == "" || strings.TrimSpace(req.Conversation.ID) == "" || strings.TrimSpace(req.Conversation.TenantID) == "" || req.Conversation.Revision == 0 {
 		return Decision{}, chatpolicy.ErrInvalidInput
 	}
 	current, err := a.authority.Resolve(ctx, req.Principal.TenantID, req.Principal.SubjectID, req.Now)
 	if err != nil || current.ID != req.Principal.SubjectID || current.Tenant != req.Principal.TenantID || current.AuthorityRevision == 0 {
 		return Decision{}, ErrStaleAuthority
 	}
-	in := chatpolicy.Input{Principal: current, Channel: chatpolicy.Channel{ID: req.Conversation.ID, HostTenant: req.Conversation.TenantID, Enabled: !req.Conversation.Archived, Private: req.Conversation.Kind != chat.PublicChannel, Revision: req.Conversation.Revision}, Now: req.Now}
+	channel := chatpolicy.Channel{ID: req.Conversation.ID, HostTenant: req.Conversation.TenantID, Enabled: !req.Conversation.Archived, Private: req.Conversation.Kind != chat.PublicChannel, Revision: req.Conversation.Revision}
+	if req.Principal.TenantID != req.Conversation.TenantID {
+		if a.hostFacts == nil {
+			return Decision{}, ErrStaleHostFacts
+		}
+		policy, err := a.hostFacts.Policy(ctx, req.Conversation.TenantID, req.Conversation.ID)
+		if err != nil || policy.ID != req.Conversation.ID || policy.HostTenant != req.Conversation.TenantID || policy.Revision == 0 ||
+			!completeHostTerm(policy.Classification) || !completeHostTerm(policy.Residency) {
+			return Decision{}, ErrStaleHostFacts
+		}
+		channel.RequiredRoles = append([]string(nil), policy.RequiredRoles...)
+		channel.RoleMode = policy.RoleMode
+		channel.RequiredQualifications = append([]string(nil), policy.RequiredQualifications...)
+		channel.AllowedPrincipals = append([]string(nil), policy.AllowedPrincipals...)
+		channel.AllowedTenants = append([]string(nil), policy.AllowedTenants...)
+		channel.DeniedPrincipals = append([]string(nil), policy.DeniedPrincipals...)
+		channel.DeniedTenants = append([]string(nil), policy.DeniedTenants...)
+		channel.Classification = policy.Classification
+		channel.Residency = policy.Residency
+		channel.Revision = hostPolicyRevision(req.Conversation.Revision, policy.Revision)
+	}
+	in := chatpolicy.Input{Principal: current, Channel: channel, Now: req.Now}
 	if req.Membership != nil {
 		m := req.Membership
 		if m.ConversationID != req.Conversation.ID || m.SubjectID != req.Principal.SubjectID || m.HomeTenantID != req.Principal.TenantID || m.Revision == 0 {
@@ -92,6 +139,24 @@ func (a *Adapter) Authorize(ctx context.Context, req Request) (Decision, error) 
 		return Decision{}, err
 	}
 	return Decision{Allowed: decision.Allowed, Revision: decision.Revision}, nil
+}
+
+func completeHostTerm(value string) bool {
+	return value != "" && strings.TrimSpace(value) == value
+}
+
+// hostPolicyRevision binds conversation metadata and the independently
+// revisioned host policy without the collisions possible with XOR.
+func hostPolicyRevision(conversation, policy uint64) uint64 {
+	var versions [16]byte
+	binary.LittleEndian.PutUint64(versions[:8], conversation)
+	binary.LittleEndian.PutUint64(versions[8:], policy)
+	digest := sha256.Sum256(versions[:])
+	revision := binary.LittleEndian.Uint64(digest[:8])
+	if revision == 0 {
+		return 1
+	}
+	return revision
 }
 
 func valueTime(v *time.Time) time.Time {

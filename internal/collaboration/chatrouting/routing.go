@@ -19,6 +19,7 @@ var (
 	ErrNotWritable   = errors.New("chatrouting: route is not writable")
 	ErrAlreadyExists = errors.New("chatrouting: route already exists")
 	ErrMoveConflict  = errors.New("chatrouting: move conflict")
+	ErrLeaseInvalid  = errors.New("chatrouting: invalid write lease")
 )
 
 // State is the core-owned lifecycle of a conversation route.
@@ -225,6 +226,8 @@ func (d *MemoryDirectory) AbortMove(_ context.Context, id, tenant string, moveEp
 type WriteLease struct {
 	Route     Route
 	ExpiresAt time.Time
+	Version   uint32
+	Signature []byte
 }
 
 func (l WriteLease) Validate(now time.Time) error {

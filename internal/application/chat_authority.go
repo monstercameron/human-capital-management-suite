@@ -84,10 +84,8 @@ func (f currentRoleChatFacts) ResolveChatFacts(ctx context.Context, tenant, subj
 	if !ok || f.roles == nil || trusted.Subject() != subject || string(trusted.Tenant()) != tenant {
 		return chatpolicy.Principal{}, errChatIdentity
 	}
-	if f.sessions != nil {
-		if err := f.sessions.CheckRevocation(ctx, trusted.SessionRef(), at); err != nil {
-			return chatpolicy.Principal{}, err
-		}
+	if err := f.CheckChatSession(ctx, tenant, subject, at); err != nil {
+		return chatpolicy.Principal{}, err
 	}
 	var workerRevision uint64
 	if f.workers != nil {
@@ -166,6 +164,24 @@ func (f currentRoleChatFacts) ResolveChatFacts(ctx context.Context, tenant, subj
 		revision = 1
 	}
 	return chatpolicy.Principal{ID: subject, Tenant: tenant, Active: true, Roles: roles, AuthorityRevision: revision}, nil
+}
+
+// CheckChatSession is deliberately separate from the cached role and worker
+// facts. Logout must be observed on every authorization even when those slower
+// changing governance facts are still fresh in the cache.
+func (f currentRoleChatFacts) CheckChatSession(ctx context.Context, tenant, subject string, at time.Time) error {
+	trusted, ok := trust.FromContext(ctx)
+	if !ok || trusted.Subject() != subject || string(trusted.Tenant()) != tenant || at.IsZero() {
+		return errChatIdentity
+	}
+	if f.sessions != nil {
+		return f.sessions.CheckRevocation(ctx, trusted.SessionRef(), at)
+	}
+	return nil
+}
+
+type chatSessionVerifier interface {
+	CheckChatSession(context.Context, string, string, time.Time) error
 }
 
 // DefaultChatAuthorityTTL is the policy freshness contract for chat
@@ -333,11 +349,22 @@ func (f cachedChatFacts) ResolveChatFacts(ctx context.Context, tenant, subject s
 	}
 	key := chatCacheKey(tenant, subject, reference)
 	if p, ok := cachedChatGet(f.cache, f.cache.facts, key); ok && p.Current(at) {
+		if checker, ok := f.inner.(chatSessionVerifier); ok {
+			if err := checker.CheckChatSession(ctx, tenant, subject, at); err != nil {
+				f.cache.InvalidatePrincipal(tenant, subject)
+				return chatpolicy.Principal{}, err
+			}
+		}
 		return p, nil
 	}
 	p, err := f.inner.ResolveChatFacts(ctx, tenant, subject, at)
 	if err != nil {
+		f.cache.InvalidatePrincipal(tenant, subject)
 		return chatpolicy.Principal{}, err
+	}
+	if !p.Current(at) {
+		f.cache.InvalidatePrincipal(tenant, subject)
+		return chatpolicy.Principal{}, errChatIdentity
 	}
 	cachedChatPut(f.cache, f.cache.facts, key, p)
 	return p, nil
@@ -577,9 +604,13 @@ func (s *ChatCompanyGrants) SetChannelPolicy(ctx context.Context, host, conversa
 	if err := chatGrantError(s.store.PutPolicy(ctx, host, conversation, requiredRoles, qualifications, allowedPrincipals, allowedTenants, mode, classification, residency, expected, actor)); err != nil {
 		return err
 	}
-	// The next authorization must see the new policy, not the cached one. Live
-	// subscriptions are re-authorized against it by the stream's recheck.
+	// The next authorization must see the new policy, not the cached one. A
+	// policy revision can narrow access, so close every existing conversation
+	// stream before returning; queued events then fail closed as well.
 	s.cache.InvalidateConversation(host, conversation)
+	if s.streams != nil {
+		s.streams.RevokeTenant(host, "", conversation)
+	}
 	return nil
 }
 

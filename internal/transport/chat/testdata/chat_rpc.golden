@@ -1,0 +1,19 @@
+rpc CreateConversation(hcmnext.chat.v1.CreateConversationRequest) returns (hcmnext.chat.v1.CreateConversationResponse) unary
+rpc UpdateConversation(hcmnext.chat.v1.UpdateConversationRequest) returns (hcmnext.chat.v1.UpdateConversationResponse) unary
+rpc SendPost(hcmnext.chat.v1.SendPostRequest) returns (hcmnext.chat.v1.SendPostResponse) unary
+rpc WatchConversation(hcmnext.chat.v1.WatchConversationRequest) returns (hcmnext.chat.v1.WatchConversationResponse) server_stream
+error ERROR_CODE_INVALID_ARGUMENT=1
+error ERROR_CODE_UNAUTHENTICATED=2
+error ERROR_CODE_PERMISSION_DENIED=3
+error ERROR_CODE_NOT_FOUND=4
+error ERROR_CODE_ALREADY_EXISTS=5
+error ERROR_CODE_ABORTED=6
+error ERROR_CODE_FAILED_PRECONDITION=7
+error ERROR_CODE_RESOURCE_EXHAUSTED=8
+error ERROR_CODE_DEADLINE_EXCEEDED=9
+error ERROR_CODE_UNAVAILABLE=10
+detail code=1
+detail reason_ref=6
+detail field_violations=2
+detail retryable=3
+detail retry_after_seconds=7

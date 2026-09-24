@@ -210,17 +210,17 @@ func (r *recordingRevoker) RevokeTenant(host, home, conversation string) {
 // composes to nothing.
 func TestTodo_CHAT_010_ComposeChatFailsClosedWithoutAuthority(t *testing.T) {
 	cfg := ServeConfig{ChatEnabled: true, Profile: "standard", ChatDatabaseURL: "postgres://chat@127.0.0.1:1/chat", DatabaseURL: "postgres://core@127.0.0.1:1/core"}
-	_, err := composeChat(context.Background(), cfg, time.Now, nil, nil)
+	_, err := composeChat(context.Background(), cfg, time.Now, nil, nil, nil)
 	if !errors.Is(err, ErrChatAuthorityUnavailable) {
 		t.Fatalf("standard profile without facts=%v, want ErrChatAuthorityUnavailable", err)
 	}
-	disabled, err := composeChat(context.Background(), ServeConfig{}, time.Now, nil, nil)
+	disabled, err := composeChat(context.Background(), ServeConfig{}, time.Now, nil, nil, nil)
 	if err != nil || disabled.service != nil || disabled.extensions != nil || disabled.close != nil {
 		t.Fatalf("disabled chat composed something: %+v err=%v", disabled, err)
 	}
 	// Local dev is the one profile allowed to run without a governance reader,
 	// and it still fails on the unreachable chat database rather than silently.
-	if _, err := composeChat(context.Background(), ServeConfig{ChatEnabled: true, Profile: ServeProfileLocalDev, ChatDatabaseURL: cfg.ChatDatabaseURL, DatabaseURL: cfg.DatabaseURL}, time.Now, nil, nil); errors.Is(err, ErrChatAuthorityUnavailable) {
+	if _, err := composeChat(context.Background(), ServeConfig{ChatEnabled: true, Profile: ServeProfileLocalDev, ChatDatabaseURL: cfg.ChatDatabaseURL, DatabaseURL: cfg.DatabaseURL}, time.Now, nil, nil, nil); errors.Is(err, ErrChatAuthorityUnavailable) {
 		t.Fatalf("local dev refused for absent facts: %v", err)
 	}
 }

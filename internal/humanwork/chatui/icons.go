@@ -39,15 +39,37 @@ var iconPaths = map[string]string{
 	"attach":        "M20 12.5l-8 8a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8",
 	"send":          "M20 12L4 4l4 8-4 8 16-8zM16 12H8",
 	"refresh":       "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5",
+	"format-bold":   "M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z",
+	"format-italic": "M10 5h8M6 19h8M14 5l-4 14",
+	"format-code":   "M9 8l-4 4 4 4M15 8l4 4-4 4",
+	"format-list":   "M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01",
+	"format-quote":  "M5 6v12M9 8h10M9 12h10M9 16h6",
+	"checklist":     "M10 6h10M10 12h10M10 18h10M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5 2.5-2.5M3.5 18l1.5 1.5 2.5-2.5",
+	"arrow-left":    "M19 12H5M11 18l-6-6 6-6",
+	"panel-left":    "M4 5h16v14H4zM9 5v14",
+	"check":         "M5 12.5l4.5 4.5L19 7.5",
 }
 
-func icon(name string) ui.Node {
-	path, ok := iconPaths[name]
-	if !ok {
-		path = iconPaths["chat"]
+// iconSVGAttrs and iconPathAttrs are built once and only read: the renderer
+// copies Raw maps, so sharing them saves two map allocations per icon, and a
+// timeline draws several icons per message (16% of a render's allocations).
+var iconSVGAttrs = map[string]any{
+	"viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "1.8",
+	"stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", "focusable": "false",
+}
+
+var iconPathAttrs = func() map[string]map[string]any {
+	out := make(map[string]map[string]any, len(iconPaths))
+	for name, d := range iconPaths {
+		out[name] = map[string]any{"d": d}
 	}
-	return html.Tag("svg", html.Props{Class: "chat-icon icon-" + name, Raw: map[string]any{
-		"viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "1.8",
-		"stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", "focusable": "false",
-	}}, html.Tag("path", html.Props{Raw: map[string]any{"d": path}}))
+	return out
+}()
+
+func icon(name string) ui.Node {
+	attrs, ok := iconPathAttrs[name]
+	if !ok {
+		attrs = iconPathAttrs["chat"]
+	}
+	return html.Tag("svg", html.Props{Class: "chat-icon icon-" + name, Raw: iconSVGAttrs}, html.Tag("path", html.Props{Raw: attrs}))
 }

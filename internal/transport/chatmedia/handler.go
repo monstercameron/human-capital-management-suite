@@ -370,19 +370,37 @@ func byteRange(header string) (int64, *int64, error) {
 		return 0, nil, core.ErrRange
 	}
 	p := strings.Split(strings.TrimPrefix(header, "bytes="), "-")
-	start, err := strconv.ParseInt(p[0], 10, 64)
+	// RFC byte-range-spec has one explicit first byte and exactly one hyphen.
+	// Suffix ranges, multi-ranges, and a bare position are refused rather than
+	// being reinterpreted as a broader read by a downstream store.
+	if len(p) != 2 || p[0] == "" {
+		return 0, nil, core.ErrRange
+	}
+	start, err := parseRangeIndex(p[0])
 	if err != nil {
 		return 0, nil, core.ErrRange
 	}
-	if len(p) > 1 && p[1] != "" {
-		last, parseErr := strconv.ParseInt(p[1], 10, 64)
-		if parseErr != nil {
+	if p[1] != "" {
+		last, parseErr := parseRangeIndex(p[1])
+		if parseErr != nil || last == int64(^uint64(0)>>1) || last < start {
 			return 0, nil, core.ErrRange
 		}
 		last++
 		return start, &last, nil
 	}
 	return start, nil, nil
+}
+
+func parseRangeIndex(s string) (int64, error) {
+	if s == "" {
+		return 0, core.ErrRange
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0, core.ErrRange
+		}
+	}
+	return strconv.ParseInt(s, 10, 64)
 }
 
 func (h Handler) identity(r *http.Request) (string, string, string, bool) {

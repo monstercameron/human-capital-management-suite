@@ -24,13 +24,17 @@ type Sidebar struct {
 
 type sidebarLayout struct {
 	Sections []struct {
-		ID    string `json:"id"`
-		Chats []struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		Collapsed bool   `json:"collapsed"`
+		Chats     []struct {
 			HostTenantID   string `json:"hostTenantId"`
 			ConversationID string `json:"conversationId"`
 		} `json:"chats"`
 	} `json:"sections"`
-	Drafts map[string]string `json:"drafts"`
+	Starred []string          `json:"starred"`
+	Filters map[string]string `json:"filters"`
+	Drafts  map[string]string `json:"drafts"`
 }
 
 // draftHosts ties each local composer key to one unambiguous room in the
@@ -130,11 +134,44 @@ func (s *Service) Sidebar(ctx context.Context, p chat.Principal) (Sidebar, error
 	if err := json.Unmarshal(x.Layout, &layout); err != nil {
 		return Sidebar{}, chat.ErrInvalidArgument
 	}
-	if len(layout.Drafts) == 0 {
+	filtered := false
+	visibleRooms := map[string]bool{}
+	// A saved sidebar can outlive a membership. Recheck every room before
+	// returning its identifier so a revoked conversation is not disclosed or
+	// restored into the caller's rail after a later session starts.
+	for i := range layout.Sections {
+		section := &layout.Sections[i]
+		visible := section.Chats[:0]
+		for _, room := range section.Chats {
+			if room.HostTenantID == "" || room.ConversationID == "" {
+				filtered = true
+				continue
+			}
+			if _, err := s.admit(ctx, p, room.HostTenantID, room.ConversationID); err != nil {
+				if errors.Is(err, chat.ErrPermissionDenied) || errors.Is(err, chat.ErrNotFound) {
+					filtered = true
+					continue
+				}
+				return Sidebar{}, err
+			}
+			visible = append(visible, room)
+			visibleRooms[room.ConversationID] = true
+		}
+		section.Chats = visible
+	}
+	starred := layout.Starred[:0]
+	for _, id := range layout.Starred {
+		if visibleRooms[id] {
+			starred = append(starred, id)
+		} else {
+			filtered = true
+		}
+	}
+	layout.Starred = starred
+	if len(layout.Drafts) == 0 && !filtered {
 		return x, nil
 	}
 	hosts := layout.draftHosts()
-	filtered := false
 	for id := range layout.Drafts {
 		host := hosts[id]
 		if host == "" {
@@ -153,6 +190,20 @@ func (s *Service) Sidebar(ctx context.Context, p chat.Principal) (Sidebar, error
 	var document map[string]json.RawMessage
 	if err := json.Unmarshal(x.Layout, &document); err != nil {
 		return Sidebar{}, chat.ErrInvalidArgument
+	}
+	sections, err := json.Marshal(layout.Sections)
+	if err != nil {
+		return Sidebar{}, err
+	}
+	document["sections"] = sections
+	starredBytes, err := json.Marshal(layout.Starred)
+	if err != nil {
+		return Sidebar{}, err
+	}
+	if len(layout.Starred) == 0 {
+		delete(document, "starred")
+	} else {
+		document["starred"] = starredBytes
 	}
 	if len(layout.Drafts) == 0 {
 		delete(document, "drafts")
@@ -282,6 +333,9 @@ func ShouldNotify(kind NoticeKind, mode DeliveryMode, quiet QuietHours, at time.
 	}
 	if !quiet.Enabled {
 		return true, nil
+	}
+	if quiet.StartMinute < 0 || quiet.StartMinute > 1439 || quiet.EndMinute < 0 || quiet.EndMinute > 1439 {
+		return false, chat.ErrInvalidArgument
 	}
 	loc, err := time.LoadLocation(quiet.Timezone)
 	if err != nil {

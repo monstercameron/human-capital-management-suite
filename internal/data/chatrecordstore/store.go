@@ -324,6 +324,37 @@ func (s *Store) PutCaseAction(ctx context.Context, t string, a chatrecords.CaseA
 	})
 }
 
+// PutCaseActionAudited serializes on the tenant audit lock and commits the
+// moderation decision, immutable audit event, and outbox row together.
+func (s *Store) PutCaseActionAudited(ctx context.Context, t, conversation string, a chatrecords.CaseAction, event chatrecords.AuditEvent) (chatrecords.AuditEvent, error) {
+	if t == "" || conversation == "" || a.CaseID == "" || a.Action == "" || a.ActorID == "" || a.Reason == "" || a.EvidenceRef == "" || event.TenantID != t || event.ActorID != a.ActorID || event.Action != "moderation."+a.Action || event.TargetID == "" || event.PriorRevision == 0 || event.PolicyEvidence == "" || event.Reason != a.Reason || event.At != a.At {
+		return chatrecords.AuditEvent{}, chatrecords.ErrInvalid
+	}
+	err := s.txTenant(ctx, t, func(tx dbport.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "chat-audit:"+t); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(max(sequence),0)+1 FROM chat_audit_event WHERE tenant_id=$1`, t).Scan(&event.Sequence); err != nil {
+			return err
+		}
+		event.EventID = fmt.Sprintf("moderation:%s:%d", a.CaseID, event.Sequence)
+		event.Digest = chatrecords.DigestEvent(event)
+		if _, err := tx.Exec(ctx, `INSERT INTO chat_moderation_action(tenant_id,case_id,action,actor_id,reason,evidence_ref,at_time) VALUES($1,$2,$3,$4,$5,$6,$7)`, t, a.CaseID, a.Action, a.ActorID, a.Reason, a.EvidenceRef, a.At); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO chat_audit_event(tenant_id,event_id,sequence,actor_id,action,target_type,target_id,prior_revision,reason,policy_evidence,at_time,digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, event.TenantID, event.EventID, event.Sequence, event.ActorID, event.Action, event.TargetType, event.TargetID, event.PriorRevision, event.Reason, event.PolicyEvidence, event.At, event.Digest); err != nil {
+			return err
+		}
+		payload, err := json.Marshal(map[string]any{"audit_digest": event.Digest, "conversation_id": conversation, "ConversationID": conversation, "event_sequence": event.Sequence, "schema_version": 1, "event_type": "records.audit"})
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO chat_outbox(tenant_id,aggregate_id,event_type,payload) VALUES($1,$2,'records.audit',$3)`, t, event.EventID, payload)
+		return err
+	})
+	return event, err
+}
+
 // snapshotTableRowCap bounds how many rows of a single durable table Snapshot
 // will pull into memory for one tenant. Previously each table was loaded with
 // an unbounded jsonb_agg over the whole tenant partition on the send-path

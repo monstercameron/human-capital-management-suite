@@ -73,10 +73,17 @@ type SearchMessage struct {
 // PersonDetails contains only business directory fields authorized for chat.
 // Empty fields mean the directory did not provide a value.
 type PersonDetails struct {
-	ID, Name, JobTitle, Manager, Department, Phone, Email string
-	Location, Company, BusinessUnit, PhotoURL             string
-	Ready                                                 bool
+	ID, Name, JobTitle, Manager, Department, Phone, Email   string
+	Location, Company, BusinessUnit, PhotoURL, OrgChartHref string
+	ManagerPhotoURL                                         string
+	ManagerID                                               string
+	DirectReports                                           []PersonLink
+	Ready, Unavailable                                      bool
 }
+
+// PersonLink is a governed coworker reference shown in another person's
+// business details. IDs are stable worker references, never display names.
+type PersonLink struct{ ID, Name, PhotoURL string }
 
 type Message struct {
 	ID, AuthorID, Author, Avatar, Body, TimeLabel string
@@ -160,6 +167,9 @@ type ReactionChip struct {
 // reactionPalette is the quick picker: the eight reactions people reach for.
 var reactionPalette = []string{"👍", "❤️", "😂", "🎉", "👀", "🙏", "✅", "🔥"}
 
+// quickReactions lead the message hover bar as one-click reactions.
+var quickReactions = []string{"👍", "✅", "👀"}
+
 // Attachment is one media reference on a message.
 type Attachment struct {
 	ID, Name, ContentType, URL string
@@ -227,12 +237,15 @@ type Callbacks struct {
 	CreateConversation            func(ConversationKind, string, []string)
 	OpenBrowse                    func()
 	CloseBrowse                   func()
+	RequestJoinConversation       func(string)
 	JoinConversation              func(string)
+	DismissJoinPrompt             func()
 	ToggleSection                 func(string)
 	ReorderSection                func(string, int)
 	CreateSection                 func(string)
 	RemoveSection                 func(string)
 	MoveConversationSection       func(string, string)
+	MoveConversationOrder         func(string, int)
 	SendMessage                   func(string, string)
 	DraftChanged                  func(string, string)
 	OpenThread                    func(string)
@@ -315,8 +328,16 @@ type Callbacks struct {
 	ShareMessage            func()
 	OpenEmbeddedMessage     func(string)
 	// JumpToNewest scrolls the timeline to its newest message.
-	JumpToNewest       func()
-	OpenPerson         func(string)
+	JumpToNewest func()
+	OpenPerson   func(string)
+	// Navigate moves the whole application to an in-app address through
+	// the global history (a document a message links to); nil leaves the
+	// link to the browser.
+	Navigate func(string)
+	// SuggestDocuments lists documents the reader can open whose title
+	// matches query, for the composer's "[[" and "doc:" autocomplete; done
+	// runs once on the UI loop. nil turns the list off.
+	SuggestDocuments   func(query string, done func([]DocSuggestion))
 	ClosePerson        func()
 	StartDirectMessage func(string)
 }
@@ -327,10 +348,19 @@ type Model struct {
 	Notice string
 	// NoticeRetry offers a retry control beside the notice (for example when
 	// the live feed has stopped and Callbacks.Retry resubscribes).
-	NoticeRetry               bool
-	Conversations             []Conversation
-	Sections                  []SidebarSection
-	SelectedID                string
+	NoticeRetry   bool
+	Conversations []Conversation
+	// PreviewConversation is an authorized public channel the viewer can read
+	// before joining. It is intentionally kept out of the persistent rail.
+	PreviewConversation *Conversation
+	JoinPromptID        string
+	JoinPromptPending   bool
+	JoinPromptSeen      map[string]bool
+	Sections            []SidebarSection
+	SelectedID          string
+	// RevokedConversationID asks the workspace to discard only this room's
+	// unsent draft after a conversation-level authorization refusal.
+	RevokedConversationID     string
 	Messages                  []Message
 	ChannelPins               []ChannelPin
 	ChannelTodo               ChannelTodoList
@@ -425,6 +455,9 @@ type Model struct {
 	EmbedOrigin                                                                string
 	Embeds                                                                     map[string]LinkEmbed
 	EmbedRevision                                                              uint64
+	// DocPreviews contains viewer-authorized document metadata for chat unfurls,
+	// keyed by document ID. It is transient client state, never message content.
+	DocPreviews map[string]DocPreview
 	// Text resolves a catalog key to the viewer's language. When nil, or when
 	// the key is unknown to the caller's catalog, the reviewed English copy in
 	// this package is used so the tree never shows a raw key.
@@ -435,6 +468,10 @@ type Model struct {
 	Number func(n int) string
 	// MemberQuery narrows the details member list by a typed filter.
 	MemberQuery string
+	// mentions is the render's people index for mention chips, built once per
+	// Workspace render instead of once per text fragment of every message.
+	mentions      []mentionTarget
+	mentionsReady bool
 }
 
 // n formats a count for display.
@@ -451,11 +488,28 @@ func (m Model) selected() Conversation {
 			return c
 		}
 	}
+	if m.PreviewConversation != nil && m.PreviewConversation.ID == m.SelectedID {
+		return *m.PreviewConversation
+	}
 	return Conversation{ID: m.SelectedID, Kind: PublicChannel}
 }
 
 func (m *Model) Select(id string) {
+	if m.Preferences.Drafts == nil {
+		m.Preferences.Drafts = map[string]string{}
+	}
+	if m.SelectedID != "" {
+		if m.Draft == "" {
+			delete(m.Preferences.Drafts, m.SelectedID)
+		} else {
+			m.Preferences.Drafts[m.SelectedID] = m.Draft
+		}
+	}
 	m.SelectedID = id
+	m.Draft = m.Preferences.Drafts[id]
+	if m.Callbacks.DraftChanged != nil {
+		m.Callbacks.DraftChanged(id, m.Draft)
+	}
 	if m.Callbacks.SelectConversation != nil {
 		m.Callbacks.SelectConversation(id)
 	}
@@ -466,11 +520,36 @@ func (m *Model) SetDraft(value string) {
 		m.Preferences.Drafts = map[string]string{}
 	}
 	if m.SelectedID != "" {
-		m.Preferences.Drafts[m.SelectedID] = value
+		if value == "" {
+			delete(m.Preferences.Drafts, m.SelectedID)
+		} else {
+			m.Preferences.Drafts[m.SelectedID] = value
+		}
 	}
 	if m.Callbacks.DraftChanged != nil {
 		m.Callbacks.DraftChanged(m.SelectedID, value)
 	}
+}
+
+// ClearDrafts discards every in-memory conversation draft and asks the owner
+// to clear each persisted projection. Call it when chat access is revoked or
+// the authenticated identity changes.
+func (m *Model) ClearDrafts() {
+	if m == nil {
+		return
+	}
+	if m.Callbacks.DraftChanged != nil {
+		for id := range m.Preferences.Drafts {
+			m.Callbacks.DraftChanged(id, "")
+		}
+		if m.SelectedID != "" && m.Draft != "" {
+			m.Callbacks.DraftChanged(m.SelectedID, "")
+		}
+	}
+	for id := range m.Preferences.Drafts {
+		delete(m.Preferences.Drafts, id)
+	}
+	m.Draft = ""
 }
 func (m *Model) Send() {
 	body := strings.TrimSpace(m.Draft)
