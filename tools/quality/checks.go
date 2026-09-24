@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // ignoredDirNames mirrors scripts/check-go-style.mjs's own ignore list,
@@ -16,6 +17,7 @@ import (
 // that go build/vet/staticcheck already skip via "./...".
 var ignoredDirNames = map[string]bool{
 	".git":         true,
+	".artifacts":   true,
 	"node_modules": true,
 	"dist":         true,
 	"tmp":          true,
@@ -100,7 +102,15 @@ func runGoVet(root, pattern string) (string, bool) {
 	cmd := exec.Command("go", "vet", pattern)
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
-	return string(out), err == nil
+	if err != nil {
+		return string(out), false
+	}
+	// Go vet's default analyzer set omits unreachable, so opt it in explicitly
+	// to make the quality contract catch dead statements after return/panic.
+	cmd = exec.Command("go", "vet", "-unreachable", pattern)
+	cmd.Dir = root
+	unreachableOut, unreachableErr := cmd.CombinedOutput()
+	return string(out) + string(unreachableOut), unreachableErr == nil
 }
 
 // runStaticcheck runs `go tool staticcheck <pattern>` from root and returns
@@ -108,8 +118,98 @@ func runGoVet(root, pattern string) (string, bool) {
 func runStaticcheck(root, pattern string) (string, bool) {
 	cmd := exec.Command("go", "tool", "staticcheck", pattern)
 	cmd.Dir = root
+	if os.Getenv("STATICCHECK_CACHE") == "" {
+		cache := filepath.Join(root, ".artifacts", "staticcheck-cache")
+		if err := os.MkdirAll(cache, 0o755); err != nil {
+			return fmt.Sprintf("creating staticcheck cache: %v\n", err), false
+		}
+		cmd.Env = append(os.Environ(), "STATICCHECK_CACHE="+cache)
+	}
 	out, err := cmd.CombinedOutput()
 	return string(out), err == nil
+}
+
+// staticcheckSuppressionViolations finds staticcheck suppression directives
+// without an accountable owner, a useful reason, and a future expiry. Keeping
+// these records beside the suppression makes each exception reviewable and
+// naturally time-bounded.
+func staticcheckSuppressionViolations(root string, today time.Time) ([]string, error) {
+	files, err := findGoFiles(root)
+	if err != nil {
+		return nil, fmt.Errorf("finding Go files: %w", err)
+	}
+	var violations []string
+	for _, rel := range files {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, fmt.Errorf("reading %s: %w", rel, readErr)
+		}
+		for lineNo, line := range strings.Split(string(data), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if !strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			fields := strings.Fields(strings.TrimSpace(strings.TrimPrefix(trimmed, "//")))
+			if len(fields) == 0 || (fields[0] != "lint:ignore" && fields[0] != "lint:file-ignore") {
+				continue
+			}
+			if problem := validateStaticcheckSuppression(trimmed, today); problem != "" {
+				violations = append(violations, fmt.Sprintf("%s:%d: %s", rel, lineNo+1, problem))
+			}
+		}
+	}
+	return violations, nil
+}
+
+func validateStaticcheckSuppression(line string, today time.Time) string {
+	fields := strings.Fields(strings.TrimSpace(strings.TrimPrefix(line, "//")))
+	if len(fields) < 2 || (fields[0] != "lint:ignore" && fields[0] != "lint:file-ignore") {
+		return "malformed staticcheck suppression"
+	}
+	// Staticcheck requires at least one check ID. The policy metadata must be
+	// explicit tokens so a vague sentence cannot accidentally satisfy it.
+	metadata := map[string]string{}
+	var reason []string
+	for _, field := range fields[2:] {
+		if key, value, ok := strings.Cut(field, "="); ok && (key == "owner" || key == "expires") {
+			if _, exists := metadata[key]; exists {
+				return fmt.Sprintf("duplicate %s metadata in staticcheck suppression", key)
+			}
+			metadata[key] = value
+			continue
+		}
+		reason = append(reason, field)
+	}
+	if strings.TrimSpace(strings.Join(reason, " ")) == "" {
+		return "staticcheck suppression requires a reason"
+	}
+	owner := metadata["owner"]
+	if !validSuppressionOwner(owner) {
+		return "staticcheck suppression requires owner=<accountable-owner>"
+	}
+	expires := metadata["expires"]
+	date, err := time.Parse("2006-01-02", expires)
+	if err != nil || date.Format("2006-01-02") != expires {
+		return "staticcheck suppression requires expires=YYYY-MM-DD"
+	}
+	if date.Before(time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)) {
+		return fmt.Sprintf("staticcheck suppression expired on %s", expires)
+	}
+	return ""
+}
+
+func validSuppressionOwner(owner string) bool {
+	if owner == "" || strings.EqualFold(owner, "none") || strings.EqualFold(owner, "unknown") || strings.EqualFold(owner, "tbd") {
+		return false
+	}
+	for i, r := range owner {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9' && i > 0) || (i > 0 && strings.ContainsRune("._/-", r)) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // runFrontendExperienceGate executes the registry-driven production matrix

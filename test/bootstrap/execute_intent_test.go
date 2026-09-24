@@ -375,7 +375,7 @@ func TestExecuteIntentRunsThePromotionDriverUnderAuthority(t *testing.T) {
 	if receipt.GetInstanceVersion() == 0 {
 		t.Fatal("receipt names no instance version")
 	}
-	//lint:ignore SA1019 wire compatibility: the bootstrap asserts the still-supported deprecated wire field.
+	//lint:ignore SA1019 wire compatibility: the bootstrap asserts the still-supported deprecated wire field. owner=workflow-platform expires=2027-03-24
 	if len(receipt.GetParkedContinuations()) == 0 {
 		t.Fatal("receipt names no parked continuation; the driver should have parked at the first approval")
 	}
@@ -589,9 +589,9 @@ func TestTodo_WF_RUN_032(t *testing.T) {
 
 	// The deprecated string field is still populated (wire compatibility)
 	// but is never the golden shape a new caller should read.
-	//lint:ignore SA1019 wire compatibility: same compat pin as documented above.
+	//lint:ignore SA1019 wire compatibility: same compat pin as documented above. owner=workflow-platform expires=2027-03-24
 	if len(receipt.GetParkedContinuations()) != 1 {
-		//lint:ignore SA1019 wire compatibility: same compat pin as documented above.
+		//lint:ignore SA1019 wire compatibility: same compat pin as documented above. owner=workflow-platform expires=2027-03-24
 		t.Fatalf("deprecated parked_continuations = %v, want exactly one entry for compatibility", receipt.GetParkedContinuations())
 	}
 }

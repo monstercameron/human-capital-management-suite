@@ -145,13 +145,13 @@ func TestTodo_WEB_036_Conformance(t *testing.T) {
 		t.Fatalf("duplicate/out-of-order snapshot = %+v", got)
 	}
 
-	//lint:ignore SA9005 deliberate: this test proves Cursor exposes no serializable wire fields.
+	//lint:ignore SA9005 deliberate: this test proves Cursor exposes no serializable wire fields. owner=platform-engineering expires=2027-03-24
 	encoded, err := json.Marshal(cursors[0])
 	if err != nil || string(encoded) != "{}" {
 		t.Fatalf("checkpoint wire form = %q, %v; want no serializable fields", encoded, err)
 	}
 	var forged Cursor
-	//lint:ignore SA9005 deliberate: this test proves foreign cursor fields decode to the zero value.
+	//lint:ignore SA9005 deliberate: this test proves foreign cursor fields decode to the zero value. owner=platform-engineering expires=2027-03-24
 	if err := json.Unmarshal([]byte(`{"source_sequence":999,"watermark":999}`), &forged); err != nil {
 		t.Fatal(err)
 	}

@@ -447,7 +447,7 @@ func executionReceiptProto(result ExecutionResult) *intentsv1.ExecutionReceipt {
 	receipt := &intentsv1.ExecutionReceipt{
 		InstanceId:   result.InstanceID,
 		VisitedNodes: append([]string(nil), result.VisitedNodes...),
-		//lint:ignore SA1019 wire compatibility: parked_continuations stays populated from the port field until the wire format migrates.
+		//lint:ignore SA1019 wire compatibility: parked_continuations stays populated from the port field until the wire format migrates. owner=workflow-platform expires=2027-03-24
 		ParkedContinuations:    append([]string(nil), result.ParkedContinuations...),
 		InstanceVersion:        uint64(result.InstanceVersion),
 		ReceiptDigest:          receiptDigestFor(result),

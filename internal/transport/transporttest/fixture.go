@@ -348,7 +348,7 @@ func (h *IntentHandler) ExecuteIntent(ctx context.Context, req *intentsv1.Execut
 		Execution: &intentsv1.ExecutionReceipt{
 			InstanceId:   DeterministicIntentID(req.GetScope().GetTenantId()),
 			VisitedNodes: []string{"approve_promotion"},
-			//lint:ignore SA1019 wire compatibility: the fixture speaks the still-supported deprecated wire field.
+			//lint:ignore SA1019 wire compatibility: the fixture speaks the still-supported deprecated wire field. owner=transport-platform expires=2027-03-24
 			ParkedContinuations: []string{"approval.prototype.promotion/v1"},
 			InstanceVersion:     1,
 			ReceiptDigest:       "execution:" + req.GetIntentId() + ":PARKED",

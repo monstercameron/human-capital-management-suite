@@ -278,9 +278,9 @@ func TestBundle_PublicAPIs_ConstructionPoolsRotationAndRevocation(t *testing.T) 
 	}
 	roots[0] = PinnedCert{}
 	intermediates[0] = PinnedCert{}
-	//lint:ignore SA1019 deliberate Subjects use: these pools are built with AddCert (never SystemCertPool), where Subjects correctly enumerates the pins.
+	//lint:ignore SA1019 deliberate Subjects use: these pools are built with AddCert (never SystemCertPool), where Subjects correctly enumerates the pins. owner=security-trust expires=2027-03-24
 	if len(copyBundle.RootPool().Subjects()) != 1 || len(copyBundle.IntermediatePool().Subjects()) != 1 {
-		//lint:ignore SA1019 deliberate Subjects use: same enumeration as above, for the failure message.
+		//lint:ignore SA1019 deliberate Subjects use: same enumeration as above, for the failure message. owner=security-trust expires=2027-03-24
 		t.Fatalf("pools did not retain copied pins: roots=%d intermediates=%d", len(copyBundle.RootPool().Subjects()), len(copyBundle.IntermediatePool().Subjects()))
 	}
 	if got := copyBundle.StatusAt(v1ActivatesAt.Add(-time.Nanosecond)); got != StatusDraft {

@@ -991,7 +991,7 @@ func adaptExecutionResult(result execute.Result, instanceID string) app.Executio
 		InstanceID:      instanceID,
 		InstanceVersion: result.InstanceVersion,
 		VisitedNodes:    visited,
-		//lint:ignore SA1019 wire compatibility: the deprecated port field feeds parked_continuations on the wire; the typed refs beside it are the replacement.
+		//lint:ignore SA1019 wire compatibility: the deprecated port field feeds parked_continuations on the wire; the typed refs beside it are the replacement. owner=workflow-platform expires=2027-03-24
 		ParkedContinuations:    parked,
 		ParkedContinuationRefs: continuations,
 		ParkedWorkItems:        workItems,

@@ -134,7 +134,7 @@ func (v storeApprovalVerifier) VerifyApproval(got ApprovalClaim, ref string) err
 func TestMemoryStoreRefusalsAndErrorCodes(t *testing.T) {
 	store := NewMemoryStore()
 	ctx := context.Background()
-	//lint:ignore SA1012 deliberate nil context: this test proves a nil context fails closed with ErrStoreInvalid.
+	//lint:ignore SA1012 deliberate nil context: this test proves a nil context fails closed with ErrStoreInvalid. owner=compensation-incentive expires=2027-03-24
 	if err := store.SavePlan(nil, "tenant", testMemoryPlan(t)); !errors.Is(err, ErrStoreInvalid) {
 		t.Fatalf("nil context = %v", err)
 	}

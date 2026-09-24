@@ -383,7 +383,7 @@ func verifyPublic(public crypto.PublicKey, message, signature []byte) (bool, err
 		}
 		return ed25519.Verify(key, message, signature), nil
 	case *ecdsa.PublicKey:
-		//lint:ignore SA1019 read-only nil guard: the coordinates are only inspected for nil (never modified or operated on) to fail malformed keys closed before VerifyASN1.
+		//lint:ignore SA1019 read-only nil guard: the coordinates are only inspected for nil (never modified or operated on) to fail malformed keys closed before VerifyASN1. owner=security-cryptography expires=2027-03-24
 		if key == nil || key.Curve == nil || key.X == nil || key.Y == nil {
 			return false, fmt.Errorf("%w: malformed ecdsa public key", ErrUnsupportedKeyType)
 		}

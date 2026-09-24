@@ -1,5 +1,6 @@
 // Command quality is the TOOL-011 authoritative quality gate: it runs
-// gofmt -l, go vet ./..., go tool staticcheck ./..., and the registry-driven
+// gofmt -l, go vet's default and unreachable analyzers, go tool staticcheck
+// pinned through go.mod, and the registry-driven
 // frontend localization/accessibility matrix over the root
 // module and exits non-zero if any of them reports a problem. Run it with
 // `go run ./tools/quality` from the repository root.
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/tools/quality/decomposition"
 	"github.com/monstercameron/human-capital-management-suite/tools/quality/testhygiene"
@@ -72,7 +74,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Println("no formatting drift")
 	}
 
-	fmt.Println("== go vet ./... ==")
+	fmt.Println("== staticcheck suppression policy ==")
+	suppressions, err := staticcheckSuppressionViolations(root, time.Now().UTC())
+	if err != nil {
+		fmt.Fprintf(stderr, "quality: staticcheck suppression policy failed to run: %v\n", err)
+		ok = false
+	} else if len(suppressions) > 0 {
+		ok = false
+		fmt.Println("staticcheck suppressions require a reason, owner and unexpired date:")
+		for _, v := range suppressions {
+			fmt.Printf("  - %s\n", v)
+		}
+	} else {
+		fmt.Println("all staticcheck suppressions are owned and current")
+	}
+
+	fmt.Println("== go vet ./... + -unreachable ==")
 	if out, passed := runGoVet(root, "./..."); !passed {
 		ok = false
 		fmt.Print(out)

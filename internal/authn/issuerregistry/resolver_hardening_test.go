@@ -22,7 +22,7 @@ func TestResolver_RejectsNilAndSkipsInactiveTenantsUntilOneResolves(t *testing.T
 	if _, err := NewResolver(registryFailureStore{}, nil); err == nil {
 		t.Fatal("NewResolver accepted a store without a cross-tenant index")
 	}
-	//lint:ignore SA1012 deliberate nil context: this hardening test proves a nil store plus nil context fails closed.
+	//lint:ignore SA1012 deliberate nil context: this hardening test proves a nil store plus nil context fails closed. owner=identity-platform expires=2027-03-24
 	if _, err := NewTenantResolver(nil, tenantForRegistryTest, nil).ResolveIssuerKeys(nil, "issuer"); err == nil {
 		t.Fatal("nil tenant resolver store succeeded")
 	}
@@ -44,7 +44,7 @@ func TestResolver_RejectsNilAndSkipsInactiveTenantsUntilOneResolves(t *testing.T
 	if err != nil {
 		t.Fatalf("NewResolver: %v", err)
 	}
-	//lint:ignore SA1012 deliberate nil context: the resolver must tolerate a nil context when its store is healthy.
+	//lint:ignore SA1012 deliberate nil context: the resolver must tolerate a nil context when its store is healthy. owner=identity-platform expires=2027-03-24
 	keys, err := resolver.ResolveIssuerKeys(nil, first.IssuerURL)
 	if err != nil || len(keys) != 1 || keys[0].ID != "kid" {
 		t.Fatalf("ResolveIssuerKeys = %+v, err=%v, want active second tenant key", keys, err)

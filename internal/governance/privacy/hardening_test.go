@@ -21,7 +21,7 @@ func TestCanonical_EncodingAndDigest_Boundaries(t *testing.T) {
 			t.Fatal("odd field list did not panic")
 		}
 	}()
-	//lint:ignore SA5012 deliberate odd arity: this test proves appendFields panics on an odd argument count.
+	//lint:ignore SA5012 deliberate odd arity: this test proves appendFields panics on an odd argument count. owner=privacy-governance expires=2027-03-24
 	appendFields(nil, "odd")
 }
 
