@@ -11,6 +11,10 @@ func TestTodoAtomicity(t *testing.T) {
 		v := CheckAtomicity("X-001", "Implement the ledger writer and deploy the outbox consumer.", "writer emits one event; consumer drains the outbox")
 		assertHasReasonContaining(t, v, "bundles two independently shippable verbs")
 	})
+	t.Run("declared action pair with todo tags is rejected", func(t *testing.T) {
+		v := CheckAtomicity("X-001A", "[PHASE_2][SOL_HIGH] Research and publish the federal baseline.", "the report lists each source and finding")
+		assertHasReasonContaining(t, v, "bundles two independently shippable verbs")
+	})
 	t.Run("noun-phrase and is not rejected", func(t *testing.T) {
 		v := CheckAtomicity("X-002", "Establish trust and assurance boundaries.", "boundary fixture returns the expected decision")
 		for _, viol := range v {
@@ -19,12 +23,20 @@ func TestTodoAtomicity(t *testing.T) {
 			}
 		}
 	})
+	t.Run("noun-led title with incidental action is not rejected", func(t *testing.T) {
+		v := CheckAtomicity("X-002A", "Ledger and publish schema behavior.", "the returned schema contains the expected fields")
+		for _, viol := range v {
+			if strings.Contains(viol.Reason, "bundles two independently shippable verbs") {
+				t.Errorf("noun-led title incorrectly flagged: %v", v)
+			}
+		}
+	})
 	t.Run("empty GREEN is rejected", func(t *testing.T) {
 		v := CheckAtomicity("X-003", "Implement the ledger writer.", "")
 		assertHasReasonContaining(t, v, "no observable expected result")
 	})
 	t.Run("vague placeholder GREEN is rejected", func(t *testing.T) {
-		for _, vague := range []string{"TBD", "N/A", "it works", "Done."} {
+		for _, vague := range []string{"TBD", "N/A", "it works", "Done.", "works as expected", "the feature is implemented successfully"} {
 			v := CheckAtomicity("X-004", "Implement the ledger writer.", vague)
 			assertHasReasonContaining(t, v, "no observable expected result")
 		}

@@ -36,9 +36,33 @@ var actionVerbs = map[string]bool{
 var vaguePlaceholders = map[string]bool{
 	"": true, "tbd": true, "n/a": true, "na": true, "it works": true,
 	"looks good": true, "works": true, "done": true, "complete": true,
+	"it works as expected": true, "works as expected": true,
+	"the feature is implemented successfully": true,
+	"the system works correctly":              true,
 }
 
 var andSplitRe = regexp.MustCompile(`(?i)\band\b`)
+var leadingTodoTagsRe = regexp.MustCompile(`^(?:\[[^]]+\]\s*)+`)
+
+// leadingActionVerbs also includes common todo actions whose coordinated
+// verb is not in actionVerbs. Keeping the lists separate avoids expanding
+// second-verb matches based only on a title's opening word.
+var leadingActionVerbs = map[string]bool{
+	"add": true, "audit": true, "backup": true, "bind": true, "build": true, "cap": true, "carry": true,
+	"check": true, "commit": true, "compile": true, "configure": true,
+	"correct": true, "create": true, "decide": true, "define": true,
+	"deduplicate": true, "deliver": true, "design": true, "detect": true,
+	"canonicalize": true, "drive": true, "enforce": true, "evaluate": true, "execute": true,
+	"export": true, "expose": true, "gate": true, "generate": true, "govern": true, "implement": true,
+	"import": true, "ingest": true, "install": true, "intake": true, "invalidate": true,
+	"link": true, "make": true, "meter": true, "normalize": true,
+	"observe": true, "persist": true, "prevent": true, "produce": true, "propagate": true,
+	"prove": true, "publish": true, "reconcile": true, "reference": true, "reject": true,
+	"research": true, "resolve": true, "restore": true, "review": true,
+	"route": true, "run": true, "sanitize": true, "select": true,
+	"sign": true, "store": true, "terminate": true, "validate": true,
+	"version": true,
+}
 
 // Violation names one atomicity defect in a todo.
 type Violation struct {
@@ -78,6 +102,14 @@ func CheckAtomicity(id, title, green string) []Violation {
 // deploy Y." A plain noun-phrase "and" (e.g. "trust and assurance") does
 // not match because "assurance" is not an action verb.
 func secondShippableVerb(title string) (string, bool) {
+	// Todo titles begin with bracketed priority/phase tags. Require the title
+	// itself to start with an action verb so a noun phrase followed by an
+	// incidental "and <verb>" is not mistaken for two actions.
+	plain := leadingTodoTagsRe.ReplaceAllString(title, "")
+	first := firstWord(plain)
+	if !leadingActionVerbs[strings.ToLower(first)] {
+		return "", false
+	}
 	locs := andSplitRe.FindAllStringIndex(title, -1)
 	for _, loc := range locs {
 		rest := strings.TrimSpace(title[loc[1]:])
