@@ -160,13 +160,8 @@ func (j *MemoryJournal) Recover(ctx context.Context, at time.Time) ([]Operation,
 
 func (j *MemoryJournal) appendJournalLocked(op Operation, from, to State, kind string, attemptID uuid.UUID, fence uint64, credentialID, requestDigest string, at time.Time) {
 	j.journalSequence++
-	operationSequence := uint64(1)
-	for i := len(j.events) - 1; i >= 0; i-- {
-		if j.events[i].OperationID == op.OperationID {
-			operationSequence = j.events[i].OperationSequence + 1
-			break
-		}
-	}
+	operationSequence := j.operationSeqs[op.OperationID] + 1
+	j.operationSeqs[op.OperationID] = operationSequence
 	event := JournalEvent{Sequence: j.journalSequence, OperationSequence: operationSequence, OperationID: op.OperationID, TenantID: op.TenantID, Event: kind, From: from, To: to, AttemptID: attemptID, FenceToken: fence, CredentialLeaseID: credentialID, RequestDigest: requestDigest, OccurredAt: at.UTC(), PreviousDigest: j.journalDigest}
 	event.Digest = journalDigest(event, event.PreviousDigest)
 	j.events = append(j.events, event)
@@ -180,4 +175,17 @@ func journalDigest(event JournalEvent, previous string) string {
 	}, "\x00")
 	sum := sha256.Sum256([]byte(input))
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// ChainJournalEvent assigns durable chain coordinates to an event that is
+// being replayed from a process-local journal. Durable adapters use this when
+// a fresh worker has reconstructed an operation from its execution snapshot:
+// synthetic PLANNED/QUEUED events are skipped, and the next real transition
+// must continue the persisted hash chain.
+func ChainJournalEvent(event JournalEvent, sequence, operationSequence uint64, previous string) JournalEvent {
+	event.Sequence = sequence
+	event.OperationSequence = operationSequence
+	event.PreviousDigest = previous
+	event.Digest = journalDigest(event, previous)
+	return event
 }

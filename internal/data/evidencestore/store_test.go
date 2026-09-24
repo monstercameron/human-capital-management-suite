@@ -3,6 +3,8 @@ package evidencestore_test
 import (
 	"context"
 	"errors"
+	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"testing"
@@ -11,8 +13,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/evidencestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -47,6 +51,214 @@ func count(t *testing.T, db *pgtest.DB) int {
 		t.Fatalf("count evidence: %v", err)
 	}
 	return n
+}
+
+func rev09403Fixture(t *testing.T) (*pgtest.DB, uuid.UUID, *evidencestore.Store, *capability.Registry, string) {
+	t.Helper()
+	db := pgtest.New(t)
+	tenantID := seedTenant(t, db, "rev09403-"+uuid.NewString())
+	store := evidencestore.New(db.Conn, mapper(map[values.TenantId]uuid.UUID{"rev09403": tenantID}))
+	effectTable := "rev_094_03_effect_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	db.Exec(t, `CREATE TABLE `+effectTable+` (effect_key text PRIMARY KEY)`)
+	t.Cleanup(func() { db.Exec(t, `DROP TABLE IF EXISTS `+effectTable) })
+	def := rev09403Definition()
+	registry := capability.NewRegistry()
+	if err := registry.Register(def, func(ctx context.Context, payload any) (any, error) {
+		tx, ok := dbport.TxFromContext(ctx)
+		if !ok {
+			return nil, errors.New("handler has no caller transaction")
+		}
+		key, ok := payload.(string)
+		if !ok {
+			return nil, errors.New("effect key is not a string")
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO `+effectTable+` (effect_key) VALUES ($1)`, key); err != nil {
+			return nil, err
+		}
+		return key, nil
+	}); err != nil {
+		t.Fatalf("register test capability: %v", err)
+	}
+	return db, tenantID, store, registry, effectTable
+}
+
+func rev09403Definition() capability.Definition {
+	return capability.Definition{
+		ID: "hcmnext.test.rev_094_03", Version: 1, OwnerDomain: "test",
+		RequestSchema:  capability.SchemaRef{SchemaID: "hcmnext.test.v1", Version: 1, ProtobufFullName: "hcmnext.test.v1.Request"},
+		ResponseSchema: capability.SchemaRef{SchemaID: "hcmnext.test.v1", Version: 1, ProtobufFullName: "hcmnext.test.v1.Response"},
+		ErrorSchema:    capability.SchemaRef{SchemaID: "hcmnext.test.v1", Version: 1, ProtobufFullName: "hcmnext.test.v1.Error"},
+		EffectClass:    capability.EffectReadOnly, ReadData: capability.DataDomainFieldSet{DataDomains: []string{"test"}},
+		RiskClass: "LOW", IdempotencyPolicyRef: "idempotency.read-safe.v1", AuthZScopeRef: "scope:test.read",
+		LegalBasisRef: "legal.test.v1", EntitlementRef: "entitlement.test.v1", SLOClassRef: "slo.test.v1", TestRef: "test:rev-094-03",
+	}
+}
+
+const rev09403CrashChildEnv = "HCMNEXT_REV09403_CRASH_CHILD"
+
+// TestTodo_REV_094_03_Fault is a subprocess-only crash point. The parent sets
+// rev09403CrashChildEnv; this child opens the caller transaction, lets the
+// handler execute its effect SQL, then terminates before Gateway can append
+// evidence or the caller can commit. No effect has separately committed under
+// the new contract, so process death must leave both rows absent.
+func TestTodo_REV_094_03_FaultProcess(t *testing.T) {
+	if os.Getenv(rev09403CrashChildEnv) != "1" {
+		return
+	}
+	ctx := context.Background()
+	url := os.Getenv("HCMNEXT_REV09403_DATABASE_URL")
+	schema := os.Getenv("HCMNEXT_REV09403_SCHEMA")
+	table := os.Getenv("HCMNEXT_REV09403_EFFECT_TABLE")
+	tenantID, err := uuid.Parse(os.Getenv("HCMNEXT_REV09403_TENANT_ID"))
+	if url == "" || schema == "" || table == "" || err != nil {
+		t.Fatalf("missing subprocess database inputs: url=%t schema=%q table=%q tenant=%v", url != "", schema, table, err)
+	}
+	conn, err := pgxadapter.Connect(ctx, url, map[string]string{"search_path": schema})
+	if err != nil {
+		t.Fatalf("connect child process: %v", err)
+	}
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin child caller transaction: %v", err)
+	}
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		t.Fatalf("scope child caller transaction: %v", err)
+	}
+	ctx = dbport.ContextWithTx(ctx, tx)
+	registry := capability.NewRegistry()
+	if err := registry.Register(rev09403Definition(), func(handlerCtx context.Context, payload any) (any, error) {
+		callerTx, ok := dbport.TxFromContext(handlerCtx)
+		if !ok {
+			return nil, errors.New("handler has no caller transaction")
+		}
+		if _, err := callerTx.Exec(handlerCtx, `INSERT INTO `+table+` (effect_key) VALUES ($1)`, payload); err != nil {
+			return nil, err
+		}
+		os.Exit(86)
+		return nil, nil
+	}); err != nil {
+		t.Fatalf("register child capability: %v", err)
+	}
+	store := evidencestore.New(conn, mapper(map[values.TenantId]uuid.UUID{"rev09403": tenantID}))
+	def := registry.List()[0].Definition
+	_, _ = capability.NewGateway(registry, store).Invoke(ctx, capability.InvokeRequest{
+		Capability: def.Key(), Payload: "crash-point",
+		Authorization: capability.Authorization{Decision: capability.Allow, Scopes: []string{def.AuthZScopeRef}, Tenant: "rev09403", SubjectRef: "principal:test"},
+	})
+	t.Fatal("crash handler returned; expected os.Exit before evidence append")
+}
+
+func rev09403CrashAfterEffect(t *testing.T, db *pgtest.DB, tenantID uuid.UUID, effectTable string) {
+	t.Helper()
+	cmd := exec.Command(os.Args[0], "-test.run=^TestTodo_REV_094_03_FaultProcess$")
+	cmd.Env = append(os.Environ(),
+		rev09403CrashChildEnv+"=1",
+		"HCMNEXT_REV09403_DATABASE_URL="+db.URL,
+		"HCMNEXT_REV09403_SCHEMA="+db.Schema,
+		"HCMNEXT_REV09403_EFFECT_TABLE="+effectTable,
+		"HCMNEXT_REV09403_TENANT_ID="+tenantID.String(),
+	)
+	output, err := cmd.CombinedOutput()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 86 {
+		t.Fatalf("crash subprocess = %v, output %s; want process exit 86 after effect SQL", err, strings.TrimSpace(string(output)))
+	}
+}
+
+func rev09403Invoke(t *testing.T, db *pgtest.DB, tenantID uuid.UUID, registry *capability.Registry, sink capability.EvidenceSink, effectKey string) (string, dbport.Tx, error) {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := db.Conn.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin caller transaction: %v", err)
+	}
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		_ = tx.Rollback(ctx)
+		t.Fatalf("scope caller transaction: %v", err)
+	}
+	ctx = dbport.ContextWithTx(ctx, tx)
+	def := registry.List()[0].Definition
+	result, err := capability.NewGateway(registry, sink).Invoke(ctx, capability.InvokeRequest{
+		Capability: def.Key(), Payload: effectKey,
+		Authorization: capability.Authorization{Decision: capability.Allow, Scopes: []string{def.AuthZScopeRef}, Tenant: "rev09403", SubjectRef: "principal:test"},
+	})
+	if err != nil {
+		return "", tx, err
+	}
+	return result.EvidenceID, tx, nil
+}
+
+// TestTodo_REV_094_03 proves a capability handler's effect and invocation
+// evidence commit on the same caller-owned transaction.
+func TestTodo_REV_094_03(t *testing.T) {
+	db, tenantID, store, registry, effectTable := rev09403Fixture(t)
+	evidenceID, tx, err := rev09403Invoke(t, db, tenantID, registry, store, "primary")
+	if err != nil || evidenceID == "" {
+		t.Fatalf("gateway invocation = %q, %v", evidenceID, err)
+	}
+	var effects, evidence int
+	if err := tx.QueryRow(context.Background(), `SELECT count(*) FROM `+effectTable+` WHERE effect_key = 'primary'`).Scan(&effects); err != nil {
+		t.Fatalf("read effect in caller transaction: %v", err)
+	}
+	if err := tx.QueryRow(context.Background(), `SELECT count(*) FROM capability_invocation_evidence WHERE evidence_id = $1`, evidenceID).Scan(&evidence); err != nil {
+		t.Fatalf("read invocation evidence in caller transaction: %v", err)
+	}
+	if effects != 1 || evidence != 1 {
+		t.Fatalf("before commit effect/evidence = %d/%d, want 1/1", effects, evidence)
+	}
+	if err := tx.Commit(context.Background()); err != nil {
+		t.Fatalf("commit caller transaction: %v", err)
+	}
+	if got := count(t, db); got != 1 {
+		t.Fatalf("durable invocation evidence rows = %d, want 1", got)
+	}
+	var durableEffects int
+	if err := db.QueryRow(context.Background(), `SELECT count(*) FROM `+effectTable+` WHERE effect_key = 'primary'`).Scan(&durableEffects); err != nil || durableEffects != 1 {
+		t.Fatalf("durable effects = %d, %v; want one", durableEffects, err)
+	}
+}
+
+// TestTodo_REV_094_03_Fault injects an evidence write failure after the
+// handler has inserted its effect. The caller transaction can see that
+// uncommitted effect, but rolling it back leaves neither row durable.
+func TestTodo_REV_094_03_Fault(t *testing.T) {
+	db, tenantID, _, _, effectTable := rev09403Fixture(t)
+	rev09403CrashAfterEffect(t, db, tenantID, effectTable)
+	var durableEffects int
+	if err := db.QueryRow(context.Background(), `SELECT count(*) FROM `+effectTable+` WHERE effect_key = 'crash-point'`).Scan(&durableEffects); err != nil {
+		t.Fatal(err)
+	}
+	if durableEffects != 0 || count(t, db) != 0 {
+		t.Fatalf("after child-process crash effects/evidence = %d/%d, want 0/0", durableEffects, count(t, db))
+	}
+}
+
+// TestTodo_REV_094_03_Recovery retries after the fault and proves recovery
+// commits the effect and its evidence together.
+func TestTodo_REV_094_03_Recovery(t *testing.T) {
+	db, tenantID, store, registry, effectTable := rev09403Fixture(t)
+	rev09403CrashAfterEffect(t, db, tenantID, effectTable)
+	var crashedEffects int
+	if err := db.QueryRow(context.Background(), `SELECT count(*) FROM `+effectTable+` WHERE effect_key = 'crash-point'`).Scan(&crashedEffects); err != nil || crashedEffects != 0 || count(t, db) != 0 {
+		t.Fatalf("after child crash effects/evidence = %d/%d, %v; want 0/0", crashedEffects, count(t, db), err)
+	}
+	evidenceID, recovered, err := rev09403Invoke(t, db, tenantID, registry, store, "recovered")
+	if err != nil || evidenceID == "" {
+		t.Fatalf("recovery invocation = %q, %v", evidenceID, err)
+	}
+	if err := recovered.Commit(context.Background()); err != nil {
+		t.Fatalf("commit recovery: %v", err)
+	}
+	var effects, evidence int
+	if err := db.QueryRow(context.Background(), `SELECT count(*) FROM `+effectTable+` WHERE effect_key = 'recovered'`).Scan(&effects); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(context.Background(), `SELECT count(*) FROM capability_invocation_evidence WHERE evidence_id = $1`, evidenceID).Scan(&evidence); err != nil {
+		t.Fatal(err)
+	}
+	if effects != 1 || evidence != 1 {
+		t.Fatalf("recovery effect/evidence = %d/%d, want 1/1", effects, evidence)
+	}
 }
 
 // TestTodo_WF_RUN_035_Integration proves the durable evidence store against

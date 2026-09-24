@@ -107,10 +107,11 @@ func (f reconciliationFake) Reconcile(context.Context, execute.StepRequest) (Rec
 }
 
 func TestPromotionStepsCoverEveryNodeOfTheCompiledPlan(t *testing.T) {
-	// Both served versions: the 1.1.0 plan and the frozen 1.0.0 plan live
+	// All served versions, including the frozen 1.1.0 and 1.0.0 plans, live
 	// instances stay pinned to.
 	for name, compile := range map[string]func() (*workflow.CompiledWorkflow, error){
-		"1.1.0": func() (*workflow.CompiledWorkflow, error) { return promotionexec.Compile() },
+		"1.1.0": func() (*workflow.CompiledWorkflow, error) { return promotionexec.CompileV1_1() },
+		"1.2.0": func() (*workflow.CompiledWorkflow, error) { return promotionexec.Compile() },
 		"1.0.0": func() (*workflow.CompiledWorkflow, error) { return promotionexec.CompileV1_0() },
 	} {
 		plan, err := compile()

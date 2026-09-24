@@ -67,7 +67,19 @@ func TestTodo_PROVIDER_002_Golden(t *testing.T) {
 	}
 }
 func TestTodo_PROVIDER_002_Integration(t *testing.T) {
-	TestProviderDriftDetectionQuarantinesAffectedOperationsUntilReviewedCompatibility(t)
+	signed, observed := contracts(t)
+	observed.SchemaVersions["WORKER"] = "PLACEHOLDER_SCHEMA_V3"
+	report, err := Compare(signed, observed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.State != StateQuarantined || report.NewDispatchAllowed || len(report.Changes) != 1 || report.Changes[0].Path != "schema.WORKER" {
+		t.Fatalf("schema drift did not quarantine the affected operation: %+v", report)
+	}
+	review := Review{ReviewID: "PLACEHOLDER_REVIEW", Compatible: true, ProviderID: observed.ProviderID, AdapterVersion: observed.AdapterVersion, ManifestDigest: observed.ManifestDigest, ConfigDigest: "sha256:placeholder-config", ApprovedAt: time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)}
+	if resumed := Reconcile(report, review); resumed.State != StateResumed || !resumed.NewDispatchAllowed {
+		t.Fatalf("review failed to resume dispatch: %+v", resumed)
+	}
 }
 func TestTodo_PROVIDER_002_Fault(t *testing.T) {
 	signed, observed := contracts(t)
@@ -85,7 +97,18 @@ func TestTodo_PROVIDER_002_Security(t *testing.T) {
 	}
 }
 func TestTodo_PROVIDER_002_Conformance(t *testing.T) {
-	TestProviderDriftDetectionQuarantinesAffectedOperationsUntilReviewedCompatibility(t)
+	signed, observed := contracts(t)
+	first, err := Compare(signed, observed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := Compare(signed, cloneContract(observed))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.State != StateHealthy || first.Digest == "" || first.Digest != second.Digest || len(first.Changes) != 0 {
+		t.Fatalf("matching provider contract comparison is not deterministic: first=%+v second=%+v", first, second)
+	}
 }
 func TestTodo_PROVIDER_002_Recovery(t *testing.T) {
 	signed, observed := contracts(t)

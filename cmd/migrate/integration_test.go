@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	fixtureseed "github.com/monstercameron/human-capital-management-suite/internal/data/seed"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
@@ -114,22 +115,43 @@ func TestTodo_SVC_013_Integration(t *testing.T) {
 		t.Fatalf("status output = %q, want a schema-version report line", statusOut.String())
 	}
 
-	// Rolling the newest migration back must be refused, not succeed. Every
-	// migration from 00279 onward declares itself irreversible on purpose --
-	// they write durable evidence (legal-hold notices, admission-retry
-	// records, ledger payload dispositions) that cannot be safely unwound --
-	// and goose runs Down newest-first, so the newest migration is always one
-	// of them. Asserting a successful rollback here asserted behaviour the
-	// migration chain deliberately forbids, and had been failing for that
-	// reason; the command is still exercised, but against the outcome the
-	// design actually specifies. migrations.TestNewestReversibleVersionStops-
-	// BelowDeclaredIrreversibles pins the same rule from the other side.
+	// Migration 00363 permits rollback only while its durable receipt table is
+	// empty. Put a receipt in the fresh schema so this exercises the live-data
+	// guard and proves Down cannot discard it.
+	tenantID := uuid.New()
+	if _, err := db.SQL.ExecContext(ctx, `
+		INSERT INTO tenant (tenant_id, tenant_key, cell_id, display_name, status, effective_from)
+		VALUES ($1, $2, 'cell-local', $3, 'ACTIVE', timestamptz '2026-01-01T00:00:00Z')`,
+		tenantID, "migrate-down-guard-"+tenantID.String(), "migrate down guard"); err != nil {
+		t.Fatalf("insert receipt tenant: %v", err)
+	}
+	receiptID := uuid.New()
+	digest := "sha256:" + strings.Repeat("0", 64)
+	if _, err := db.SQL.ExecContext(ctx, `
+		INSERT INTO integration_webhook_receipt
+			(tenant_id, receipt_id, provider, endpoint_id, event_id, event_type, schema_ref,
+			 payload_digest, request_digest, payload_bytes, parsed_receipt, received_at)
+		VALUES ($1, $2, 'payroll', 'payroll-endpoint', 'event-durable', 'APPLIED', 'payroll.v1',
+			$3, $3, $4, '{}', $5)`,
+		tenantID, receiptID, digest, []byte(`{"event_id":"event-durable"}`), time.Now().UTC()); err != nil {
+		t.Fatalf("insert durable webhook receipt: %v", err)
+	}
+
 	var downOut bytes.Buffer
 	err := runMigrateCommand(ctx, "down", db.SQL, &downOut)
 	if err == nil {
-		t.Fatalf("down succeeded against an irreversible chain head; output = %q", downOut.String())
+		t.Fatalf("down succeeded with a durable webhook receipt; output = %q", downOut.String())
 	}
-	if !strings.Contains(err.Error(), "irreversible") {
-		t.Fatalf("down error = %v, want a refusal citing irreversibility", err)
+	if !strings.Contains(err.Error(), "cannot remove durable provider webhook receipts") {
+		t.Fatalf("down error = %v, want the durable-receipt guard", err)
+	}
+	var preserved int
+	if err := db.SQL.QueryRowContext(ctx, `
+		SELECT count(*) FROM integration_webhook_receipt WHERE tenant_id = $1 AND receipt_id = $2`,
+		tenantID, receiptID).Scan(&preserved); err != nil {
+		t.Fatalf("read receipt after refused rollback: %v", err)
+	}
+	if preserved != 1 {
+		t.Fatalf("durable receipt rows after refused rollback = %d, want 1", preserved)
 	}
 }

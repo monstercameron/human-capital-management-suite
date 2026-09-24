@@ -47,6 +47,10 @@ func newPayroll(t *testing.T, baseURL string, client Doer, timeout time.Duration
 	return c
 }
 
+type payrollDoerFunc func(*http.Request) (*http.Response, error)
+
+func (f payrollDoerFunc) Do(req *http.Request) (*http.Response, error) { return f(req) }
+
 func TestPayrollDeliverRequestShapeGolden(t *testing.T) {
 	var cap capture
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +151,7 @@ func TestPayrollTransportFailures(t *testing.T) {
 		srv := httptest.NewServer(http.NotFoundHandler())
 		url := srv.URL
 		srv.Close()
-		res, err := newPayroll(t, url, nil, time.Second).Deliver(context.Background(), "chg-1", []byte(payrollPayload), callbackURL)
+		res, err := newPayroll(t, url, payrollDoerFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("offline") }), time.Second).Deliver(context.Background(), "chg-1", []byte(payrollPayload), callbackURL)
 		if err != nil || res.Outcome != Retry || res.Class != ClassTransientNetwork || res.Reason != "network_error" {
 			t.Fatalf("res=%+v err=%v", res, err)
 		}
@@ -205,7 +209,7 @@ func TestPayrollValidationSendsNothing(t *testing.T) {
 }
 
 func TestPayrollAPIKeyNeverRendered(t *testing.T) {
-	cfg := PayrollConfig{BaseURL: "https://payroll.example.test", APIKey: testAPIKey}
+	cfg := PayrollConfig{BaseURL: "https://payroll.example.test", APIKey: testAPIKey, Client: payrollDoerFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("unused") })}
 	c, err := NewPayrollClient(cfg)
 	if err != nil {
 		t.Fatal(err)

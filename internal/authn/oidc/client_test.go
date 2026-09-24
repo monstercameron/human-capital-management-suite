@@ -85,3 +85,20 @@ func TestFlow_BeginAuthorization_RefusesInvalidClientRegistration(t *testing.T) 
 		t.Fatalf("BeginAuthorization error = %v, want ErrInvalidClientRegistration", err)
 	}
 }
+
+func TestFlow_BeginAuthorization_RefusesClientIDThatDiffersFromIssuerAudience(t *testing.T) {
+	t.Parallel()
+	keys := newTestKeys(t)
+	kid := "rsa-1"
+	fixture := newIssuerFixture(t,
+		[]trustfederation.Algorithm{trustfederation.AlgRS256},
+		[]issuerregistry.PinnedKey{keys.pinnedKey(t, trustfederation.AlgRS256, kid)},
+		nil, 0,
+	)
+	client := validClient()
+	client.ClientID = "different-oauth-client"
+	flow := newFlow(t, fixture, oidc.NewStaticClientSource().WithClient(client), newFakeIdP(), nil)
+	if _, err := flow.BeginAuthorization(context.Background(), tenantAcme, issuerAcme, baseTime); !errors.Is(err, oidc.ErrWrongAudience) {
+		t.Fatalf("BeginAuthorization mismatched client id error = %v, want ErrWrongAudience", err)
+	}
+}

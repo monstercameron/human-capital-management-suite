@@ -142,3 +142,20 @@ func TestFlow_HandleCallback_ClientDeregisteredBetweenBeginAndCallback(t *testin
 		t.Fatalf("HandleCallback error = %v, want ErrClientNotRegistered", err)
 	}
 }
+
+func TestFlow_HandleCallback_RefusesClientIDChangedBetweenBeginAndCallback(t *testing.T) {
+	t.Parallel()
+	fixture, _, _ := rsaFixture(t)
+	clients := newSwappableClientSource(oidc.NewStaticClientSource().WithClient(validClient()))
+	flow := newFlow(t, fixture, clients, newFakeIdP(), nil)
+	req, err := flow.BeginAuthorization(context.Background(), tenantAcme, issuerAcme, baseTime)
+	if err != nil {
+		t.Fatalf("BeginAuthorization: %v", err)
+	}
+	changed := validClient()
+	changed.ClientID = "attacker-client"
+	clients.swap(oidc.NewStaticClientSource().WithClient(changed))
+	if _, _, err := flow.HandleCallback(context.Background(), oidc.CallbackParams{State: req.State, Code: "code-1", Now: baseTime.Add(time.Second)}); !errors.Is(err, oidc.ErrClientNotRegistered) {
+		t.Fatalf("HandleCallback with changed client id = %v, want ErrClientNotRegistered", err)
+	}
+}

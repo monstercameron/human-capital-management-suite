@@ -2,12 +2,15 @@ package execution
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/inbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/audience"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe/observetest"
@@ -15,7 +18,15 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
+func TestTodo_REV_011_01_Integration(t *testing.T) {
+	testWorkflowMessageInboxIntegration(t)
+}
+
 func TestTodo_NAAS_001_Integration(t *testing.T) {
+	testWorkflowMessageInboxIntegration(t)
+}
+
+func testWorkflowMessageInboxIntegration(t *testing.T) {
 	db := pgtest.New(t)
 	recorder := &observetest.Recorder{}
 	ctx := recorder.Context(context.Background())
@@ -49,13 +60,54 @@ func TestTodo_NAAS_001_Integration(t *testing.T) {
 	if len(rows) != 1 || rows[0].WorkItemID != item.WorkItemID || rows[0].Purpose != "APPROVAL" {
 		t.Fatalf("routing notices: %+v", rows)
 	}
-	if err := publishWorkNotification(ctx, tx, item); err != nil {
+	otherRows, err := (inbox.Store{}).WorkflowNotices(ctx, tx, tenant, "principal:other-approver", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(otherRows) != 0 {
+		t.Fatalf("notice visible to another recipient: %+v", otherRows)
+	}
+	if err := publishWorkNotification(ctx, tx, item, factory.next); err != nil {
 		t.Fatalf("replay: %v", err)
+	}
+	var count int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM inbox_record WHERE tenant_id=$1 AND recipient_message_id=$2`, tenant, rows[0].RecipientMessageID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("replayed notice rows=%d, want exactly one", count)
+	}
+	ownerRef := values.EntityRef{Tenant: values.TenantId(tenant.String()), Kind: "principal", Id: uuid.NewSHA1(tenant, []byte("notification-principal/v1\x00"+item.Assignment.ChosenOwner)).String()}
+	unrelated := values.EntityRef{Tenant: ownerRef.Tenant, Kind: "principal", Id: uuid.NewSHA1(tenant, []byte("unrelated-audience-principal")).String()}
+	unrelatedSpec := audience.AudienceSpec{ExplicitSubjects: []values.EntityRef{unrelated}}
+	for name, resolution := range map[string]audience.Resolution{
+		"unrelated principal": {Principals: []values.EntityRef{unrelated}, Expression: unrelatedSpec.Expression(), ResultDigest: "sha256:" + strings.Repeat("0", 64), ResolvedAt: values.NewInstant(at)},
+		"empty digest":        {Principals: []values.EntityRef{ownerRef}, Expression: (audience.AudienceSpec{ExplicitSubjects: []values.EntityRef{ownerRef}}).Expression(), ResolvedAt: values.NewInstant(at)},
+	} {
+		if err := execute.PublishWorkItemMessage(ctx, tx, item, resolution); err == nil {
+			t.Errorf("accepted %s audience resolution", name)
+		}
+	}
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM inbox_record WHERE tenant_id=$1 AND recipient_message_id=$2`, tenant, rows[0].RecipientMessageID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("rejected forged resolution changed settled inbox rows to %d", count)
+	}
+	staleAuthority := promotionWorkItems{approver: "principal:replacement-owner", plan: PLAN_PROTOTYPE}
+	if err := publishWorkNotification(ctx, tx, item, staleAuthority); err == nil {
+		t.Fatal("published notice after the current route changed away from the stored recipient")
+	}
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM inbox_record WHERE tenant_id=$1 AND recipient_message_id=$2`, tenant, rows[0].RecipientMessageID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("stale-route refusal changed the settled inbox rows to %d", count)
 	}
 	for _, owner := range []string{"", "principal:not-in-resolution"} {
 		invalidItem := item
 		invalidItem.Assignment.ChosenOwner = owner
-		if err := publishWorkNotification(ctx, tx, invalidItem); err == nil {
+		if err := publishWorkNotification(ctx, tx, invalidItem, factory.next); err == nil {
 			t.Fatalf("published notice for unresolved owner %q", owner)
 		}
 	}

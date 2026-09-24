@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -180,8 +181,13 @@ func safeDetail(detail string, status Status) string {
 	if detail == "" {
 		return strings.ToLower(string(status)) + " dependency signal"
 	}
+	if credentialMaterial.MatchString(detail) {
+		return "dependency reported sensitive diagnostic detail"
+	}
 	return detail
 }
+
+var credentialMaterial = regexp.MustCompile(`(?i)(bearer\s+\S+|(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|password|api[_-]?key|token|secret|credential)\s*[:=]\s*[^&\s,;]+|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\b[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b)`)
 
 func causeSortKey(c Cause) string { return fmt.Sprintf("%s|%s|%s", c.Kind, c.Code, c.Detail) }
 func impactSortKey(i Impact) string {

@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/monstercameron/human-capital-management-suite/internal/application/documentembed"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
 	"github.com/pressly/goose/v3"
 )
@@ -33,11 +36,11 @@ func documentSubcommand(command string) string {
 
 func validateDocumentCommand(action, documentURL, coreURL, chatURL string) error {
 	switch action {
-	case "up", "status":
+	case "up", "status", "seed", "embed", "prune":
 	case "":
-		return errors.New("usage: migrate document up|status")
+		return errors.New("usage: migrate document up|status|seed|embed|prune")
 	default:
-		return fmt.Errorf("unknown document command %q; usage: migrate document up|status", action)
+		return fmt.Errorf("unknown document command %q; usage: migrate document up|status|seed|embed|prune", action)
 	}
 	if strings.TrimSpace(documentURL) == "" {
 		return fmt.Errorf("%s is not set; pass -%s or set the environment variable", EnvDocumentDatabaseURL, fieldDocumentDatabaseURL)
@@ -96,7 +99,7 @@ func runDocumentMigrateCommand(ctx context.Context, action string, db *sql.DB, o
 			fmt.Fprintf(out, "%-9s %-32s %s\n", status.State, status.Source.Path, applied)
 		}
 	default:
-		return fmt.Errorf("unknown document command %q; usage: migrate document up|status", action)
+		return fmt.Errorf("unknown document command %q; usage: migrate document up|status|seed|embed", action)
 	}
 	current, err := provider.GetDBVersion(ctx)
 	if err != nil {
@@ -108,5 +111,103 @@ func runDocumentMigrateCommand(ctx context.Context, action string, db *sql.DB, o
 		target = sources[len(sources)-1].Version
 	}
 	fmt.Fprintf(out, "document schema version %d of %d\n", current, target)
+	return nil
+}
+
+// runDocumentSeedAction opens the document store and the core persona
+// read, then runs the document demo seed. The tenant defaults to the demo
+// tenant the dev cell serves.
+func runDocumentSeedAction(ctx context.Context, documentURL, coreURL, chatURL, tenant string, out io.Writer) error {
+	if strings.TrimSpace(tenant) == "" {
+		tenant = defaultDocumentSeedTenant
+	}
+	store, err := documenthubstore.New(ctx, documenthubstore.Config{DSN: documentURL, CoreDSN: coreURL, ChatDSN: chatURL})
+	if err != nil {
+		return fmt.Errorf("open document store: %w", err)
+	}
+	defer store.Close()
+	conn, err := openSeedDB(ctx, coreURL)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = conn.Close(ctx) }()
+	people, err := loadSeedPeople(ctx, conn, tenant)
+	if err != nil {
+		return err
+	}
+	opts := documentSeedOptions{Tenant: tenant, MediaRoot: os.Getenv(EnvDocumentMediaRoot)}
+	if strings.TrimSpace(chatURL) != "" {
+		// The showcase documents link seeded chat rooms and post messages
+		// that link back; without a chat database they name rooms plainly.
+		chat, err := chatstore.New(ctx, chatstore.Config{DSN: chatURL})
+		if err != nil {
+			return fmt.Errorf("open chat store: %w", err)
+		}
+		defer chat.Close()
+		opts.Chat = chat
+	}
+	return runDocumentSeedCommand(ctx, store, people, opts, out)
+}
+
+// runDocumentEmbedAction enqueues an index job for every searchable
+// version in the tenant that has no vectors for the configured model
+// (HCMNEXT_EMBEDDING_DIR, or HCMNEXT_EMBEDDING_URL and
+// HCMNEXT_EMBEDDING_MODEL), requeueing skipped and failed ones. With drain
+// it then runs the indexer loop in process until the queue is empty,
+// tuned by the same HCMNEXT_EMBEDDING_* variables as the cell; without it
+// the cell's background indexer picks the jobs up.
+func runDocumentEmbedAction(ctx context.Context, documentURL, coreURL, chatURL, tenant string, drain bool, getenv func(string) string, out io.Writer) error {
+	if strings.TrimSpace(tenant) == "" {
+		tenant = defaultDocumentSeedTenant
+	}
+	embedder, err := documentembed.FromEnv(getenv)
+	if err != nil {
+		return fmt.Errorf("document embed: %w", err)
+	}
+	cfg, err := documentembed.IndexerConfigFromEnv(getenv)
+	if err != nil {
+		return err
+	}
+	store, err := documenthubstore.New(ctx, documenthubstore.Config{DSN: documentURL, CoreDSN: coreURL, ChatDSN: chatURL})
+	if err != nil {
+		return fmt.Errorf("open document store: %w", err)
+	}
+	defer store.Close()
+	return runDocumentEmbedCommand(ctx, store, embedder, cfg, tenant, drain, out)
+}
+
+func runDocumentEmbedCommand(ctx context.Context, store *documenthubstore.Store, embedder documentembed.Embedder, cfg documentembed.IndexerConfig, tenant string, drain bool, out io.Writer) error {
+	queued, err := store.EnqueueMissingIndexJobs(ctx, tenant, embedder.Model())
+	if err != nil {
+		return fmt.Errorf("enqueue index jobs: %w", err)
+	}
+	stats, err := store.IndexQueueStats(ctx, tenant, embedder.Model())
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "document embed %s with %s: enqueued %d; queue: %d queued, %d running, %d done, %d failed, %d skipped\n",
+		tenant, embedder.Model(), queued, stats.Queued, stats.Running, stats.Done, stats.Failed, stats.Skipped)
+	if !drain {
+		return nil
+	}
+	indexer := documentembed.NewIndexer(store, embedder, cfg, tenant)
+	lastPrint := time.Time{}
+	report := func(p documentembed.DrainProgress, final bool) {
+		if !final && time.Since(lastPrint) < time.Second {
+			return
+		}
+		lastPrint = time.Now()
+		rate := 0.0
+		if p.Elapsed > 0 {
+			rate = float64(p.Processed) / p.Elapsed.Seconds()
+		}
+		fmt.Fprintf(out, "drain: %d done, %d remaining, %d failed, %d skipped; %d jobs in %s (%.1f docs/sec)\n",
+			p.Done, p.Queued+p.Running, p.Failed, p.Skipped, p.Processed, p.Elapsed.Round(time.Millisecond), rate)
+	}
+	final, err := indexer.Drain(ctx, tenant, func(p documentembed.DrainProgress) { report(p, false) })
+	if err != nil {
+		return fmt.Errorf("drain index queue: %w", err)
+	}
+	report(final, true)
 	return nil
 }

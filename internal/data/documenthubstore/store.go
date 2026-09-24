@@ -25,7 +25,13 @@ type Config struct {
 	MaxConns, MinConns    int32
 }
 
-type Store struct{ pool *pgxadapter.Pool }
+type Store struct {
+	pool  *pgxadapter.Pool
+	texts *versionTextCache
+	// indexModel is the embedding model searchable writes enqueue index
+	// jobs for; empty enqueues nothing.
+	indexModel string
+}
 
 func New(ctx context.Context, cfg Config) (*Store, error) {
 	if strings.TrimSpace(cfg.DSN) == "" {
@@ -49,7 +55,7 @@ func New(ctx context.Context, cfg Config) (*Store, error) {
 		p.Close()
 		return nil, err
 	}
-	return &Store{pool: p}, nil
+	return &Store{pool: p, texts: &versionTextCache{}}, nil
 }
 
 func (s *Store) Close() {

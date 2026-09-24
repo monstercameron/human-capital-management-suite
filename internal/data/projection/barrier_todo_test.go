@@ -3,6 +3,7 @@ package projection_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,7 +36,75 @@ func TestTodo_DATA_021(t *testing.T) {
 	}
 }
 
-func TestTodo_DATA_021_Race(t *testing.T)     { TestTodo_DATA_021(t) }
-func TestTodo_DATA_021_Fault(t *testing.T)    { TestTodo_DATA_021(t) }
-func TestTodo_DATA_021_Recovery(t *testing.T) { TestTodo_DATA_021(t) }
-func TestTodo_DATA_021_Mutation(t *testing.T) { TestTodo_DATA_021(t) }
+func TestTodo_DATA_021_Race(t *testing.T) {
+	db, tenant := newFixture(t)
+	req := projection.ReadRequirement{Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey, MinimumSequence: 0, Deadline: time.Now().UTC().Add(time.Second)}
+	errs := make([]error, 8)
+	var wg sync.WaitGroup
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			got, err := projection.Check(context.Background(), db.Conn, req)
+			if err != nil {
+				errs[i] = err
+			} else if got.Status != projection.BarrierReady {
+				errs[i] = errors.New("concurrent read was not ready")
+			}
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("reader %d: %v", i, err)
+		}
+	}
+}
+
+func TestTodo_DATA_021_Fault(t *testing.T) {
+	db, tenant := newFixture(t)
+	req := projection.ReadRequirement{Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey, MinimumSequence: 0, Deadline: time.Now().UTC().Add(-time.Second)}
+	got, err := projection.Check(context.Background(), db.Conn, req)
+	var barrierErr projection.BarrierError
+	if !errors.As(err, &barrierErr) || barrierErr.Status != projection.BarrierTimeout || got.Status != projection.BarrierTimeout {
+		t.Fatalf("expired barrier = %+v, %v", got, err)
+	}
+}
+
+func TestTodo_DATA_021_Recovery(t *testing.T) {
+	db, tenant := newFixture(t)
+	tx, err := db.Conn.Begin(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.SetStatus(context.Background(), tx, tenant, projectionName, streamKey, "REBUILDING"); err != nil {
+		_ = tx.Rollback(context.Background())
+		t.Fatal(err)
+	}
+	if err := tx.Commit(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	tx, err = db.Conn.Begin(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.SetStatus(context.Background(), tx, tenant, projectionName, streamKey, projection.StatusCurrent); err != nil {
+		_ = tx.Rollback(context.Background())
+		t.Fatal(err)
+	}
+	if err := tx.Commit(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	got, err := projection.Check(context.Background(), db.Conn, projection.ReadRequirement{Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey, MinimumSequence: 0, Deadline: time.Now().Add(time.Second)})
+	if err != nil || got.Status != projection.BarrierReady {
+		t.Fatalf("recovered barrier = %+v, %v", got, err)
+	}
+}
+
+func TestTodo_DATA_021_Mutation(t *testing.T) {
+	db, tenant := newFixture(t)
+	_, err := projection.Check(context.Background(), db.Conn, projection.ReadRequirement{Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey, MinimumSequence: -1, Deadline: time.Now().Add(time.Second)})
+	if err == nil {
+		t.Fatal("negative required sequence was accepted")
+	}
+}

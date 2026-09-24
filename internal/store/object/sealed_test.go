@@ -2,7 +2,11 @@ package object
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -281,6 +285,79 @@ func TestTodo_ARTIFACT_004_ObjectBinding(t *testing.T) {
 	if _, err := openObject(m, ctxA, "object-2", env); !errors.Is(err, ErrObjectBinding) {
 		t.Fatalf("rebound object id open = %v, want ErrObjectBinding", err)
 	}
+}
+
+// TestLegacyEnvelopeFallback opens an old envelope whose object ID exists
+// only in the authenticated sealed payload. New envelopes still bind the
+// header ID in AAD: stripping it and taking the legacy path fails GCM.
+func TestLegacyEnvelopeFallback(t *testing.T) {
+	m, ctxA, _, provider := sealedFixture(t)
+	legacy, err := makeLegacyEnvelope(m, ctxA, provider, "object-1", []byte("legacy plaintext"))
+	if err != nil {
+		t.Fatalf("make legacy envelope: %v", err)
+	}
+	if got, err := openObject(m, ctxA, "object-1", legacy); err != nil || string(got) != "legacy plaintext" {
+		t.Fatalf("open legacy envelope = %q, %v", got, err)
+	}
+	if _, err := openObject(m, ctxA, "object-2", legacy); !errors.Is(err, ErrObjectBinding) {
+		t.Fatalf("open legacy envelope under wrong object ID = %v, want ErrObjectBinding", err)
+	}
+	tamperedLegacy := copyEnvelope(legacy)
+	tamperedLegacy.Data[0] ^= 0xff
+	if _, err := openObject(m, ctxA, "object-1", tamperedLegacy); !errors.Is(err, envelope.ErrInvalidCiphertext) {
+		t.Fatalf("tampered legacy envelope = %v, want ErrInvalidCiphertext", err)
+	}
+
+	newEnvelope, err := sealObject(m, ctxA, "object-1", []byte("new plaintext"))
+	if err != nil {
+		t.Fatalf("seal new envelope: %v", err)
+	}
+	newEnvelope.Header.ObjectID = ""
+	if _, err := openObject(m, ctxA, "object-1", newEnvelope); !errors.Is(err, envelope.ErrInvalidCiphertext) {
+		t.Fatalf("stripped new object ID = %v, want ErrInvalidCiphertext", err)
+	}
+}
+
+func makeLegacyEnvelope(m *envelope.Manager, ctx custody.Context, provider *fakeCustodyProvider, objectID string, data []byte) (envelope.Envelope, error) {
+	payload, err := json.Marshal(sealedPayload{ObjectID: objectID, Data: data})
+	if err != nil {
+		return envelope.Envelope{}, err
+	}
+	env, _, err := m.Encrypt(ctx, objectID, payload)
+	if err != nil {
+		return envelope.Envelope{}, err
+	}
+	dek, _, err := provider.Decrypt(ctx, env.WrappedDEK.Handle, env.WrappedDEK)
+	if err != nil {
+		return envelope.Envelope{}, err
+	}
+	block, err := aes.NewCipher(dek)
+	if err != nil {
+		return envelope.Envelope{}, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return envelope.Envelope{}, err
+	}
+	header := env.Header
+	header.ObjectID = ""
+	header.Nonce = make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(header.Nonce); err != nil {
+		return envelope.Envelope{}, err
+	}
+	legacyAAD, err := json.Marshal(struct {
+		Version   int    `json:"version"`
+		Tenant    string `json:"tenant"`
+		DEKID     string `json:"dek_id"`
+		Algorithm string `json:"algorithm"`
+		Nonce     []byte `json:"nonce"`
+	}{Version: header.Version, Tenant: header.Tenant, DEKID: header.DEKID, Algorithm: header.Algorithm, Nonce: header.Nonce})
+	if err != nil {
+		return envelope.Envelope{}, err
+	}
+	env.Header = header
+	env.Data = gcm.Seal(nil, header.Nonce, payload, legacyAAD)
+	return env, nil
 }
 
 // FuzzTodo_ARTIFACT_004 is the FUZZ matrix test. Its oracle is

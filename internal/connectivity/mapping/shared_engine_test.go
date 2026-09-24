@@ -15,8 +15,8 @@ func TestTodo_XFORM_008_CutoverConnectivity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Normalize: %v", err)
 	}
-	if normalized.Rules[0].Null != mapping.NullError {
-		t.Fatalf("default null policy = %q, want ERROR", normalized.Rules[0].Null)
+	if normalized.Rules[0].Null != "" {
+		t.Fatalf("omitted null policy = %q, want the legacy zero value preserved", normalized.Rules[0].Null)
 	}
 	result, err := mapping.ExecuteShared(ir, map[string]string{"worker_id": "W-1"})
 	if err != nil {

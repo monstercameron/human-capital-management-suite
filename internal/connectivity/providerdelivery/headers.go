@@ -98,14 +98,15 @@ type headerDoer struct {
 // rules as a client's HeaderSource. It exists for the OAuth token fetch:
 // pass it as oauthcc.Config.Client so the token request carries the
 // caller's traceparent too (the token source's refresh context keeps the
-// caller's values). A nil next is a fresh http.Client; a *http.Client is
-// copied with redirects disabled, because the wrapper hides it from
+// caller's values). A nil next stays nil so configuration validation can fail
+// closed; a *http.Client is copied with redirects disabled, because the wrapper hides it from
 // oauthcc's own redirect guard. A nil src returns next unchanged apart from
 // that redirect guard.
 func NewHeaderDoer(next Doer, src HeaderSource) Doer {
+	if next == nil {
+		return nil
+	}
 	switch c := next.(type) {
-	case nil:
-		next = &http.Client{CheckRedirect: noFollow}
 	case *http.Client:
 		cp := *c
 		cp.CheckRedirect = noFollow

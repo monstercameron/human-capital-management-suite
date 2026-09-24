@@ -187,7 +187,7 @@ func TestTodo_DB_020_Golden(t *testing.T) {
 		if err := os.WriteFile(golden, got, 0o644); err != nil {
 			t.Fatalf("write %s: %v", golden, err)
 		}
-		t.Skipf("wrote %s; re-run without UPDATE_QUERYPLANS_GOLDEN to verify it", golden)
+		return
 	}
 
 	want, err := os.ReadFile(golden)

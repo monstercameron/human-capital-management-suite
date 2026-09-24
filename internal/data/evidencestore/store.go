@@ -90,13 +90,25 @@ type Record struct {
 // RecordInvocation implements capability.EvidenceSink. The row is scoped to
 // the tenant key evt carries; a record without one is refused.
 func (s *Store) RecordInvocation(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
+	return s.RecordInvocationTx(ctx, evt)
+}
+
+// RecordInvocationTx is the gateway's transaction-aware invocation path. If
+// ctx carries a caller-owned transaction, the evidence joins it and its tenant
+// scope; this method never commits or re-scopes that transaction. Outside a
+// caller transaction it preserves the standalone recording contract.
+func (s *Store) RecordInvocationTx(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
 	if strings.TrimSpace(evt.Tenant) == "" {
 		return "", fmt.Errorf("%w: capability evidence for %s names no tenant", ErrTenantRequired, evt.CapabilityID)
 	}
 	if s == nil || s.tenantIDs == nil {
 		return "", fmt.Errorf("%w: tenant mapping is required", ErrInvalid)
 	}
-	return s.insert(ctx, s.tenantIDs(values.TenantId(evt.Tenant)), recordOf(evt))
+	tenantID := s.tenantIDs(values.TenantId(evt.Tenant))
+	if tx, ok := dbport.TxFromContext(ctx); ok {
+		return insertTx(ctx, tx, tenantID, recordOf(evt))
+	}
+	return s.insert(ctx, tenantID, recordOf(evt))
 }
 
 // RecordExecutionEvidence implements the workflow driver's OBS-024 port

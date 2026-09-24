@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/monstercameron/human-capital-management-suite/gen/wire"
+	provenancev1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/provenance/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 )
@@ -27,7 +29,7 @@ func recordID(tenant uuid.UUID, kind SourceKind, sourceRef string) uuid.UUID {
 
 // OutboxSchemaRef is the payload_schema this package's outbox message
 // registers under. A caller bootstrapping a tenant for this package must
-// register it (message_full_name 'google.protobuf.Struct', wire_format
+// register it (message_full_name 'hcmnext.provenance.v1.Record', wire_format
 // 'PROTOBUF', canonicalization_profile 'EVIDENCE_MANIFEST') the same way it
 // registers every other schema_ref an internal/data/outbox row cites
 // (migrations/00006, outbox_schema foreign key) - see fixtures_test.go for
@@ -173,44 +175,31 @@ func Publish(ctx context.Context, tx dbport.Tx, req PublishRequest) (Record, err
 	return record, nil
 }
 
-// marshalOutboxPayload projects record through gen/wire's temporary Struct
-// adapter. The data package owns the record facts; the generated-wire tree
-// owns protobuf construction and serialization.
+// marshalOutboxPayload serializes the concrete provenance contract. The
+// record package owns the source facts and translates them to the generated
+// message at this persistence boundary.
 func marshalOutboxPayload(r Record) ([]byte, error) {
-	digests := make([]any, len(r.Digests))
-	for i, d := range r.Digests {
-		digests[i] = map[string]any{"kind": d.Kind, "algorithm": d.Algorithm, "digest": d.Digest}
-	}
-	evidence := make([]any, len(r.EvidenceIDs))
-	for i, id := range r.EvidenceIDs {
-		evidence[i] = id
-	}
-	fields := map[string]any{
-		"record_id":        r.RecordID.String(),
-		"intent_ref":       r.IntentRef,
-		"source_kind":      string(r.SourceKind),
-		"source_ref":       r.SourceRef,
-		"source_authority": r.SourceAuthority,
-		"principal_ref":    r.PrincipalRef,
-		"evidence_ids":     evidence,
-		"digests":          digests,
-		"published_at":     r.PublishedAt.UTC().Format(time.RFC3339Nano),
-	}
-	if r.StreamKey != "" {
-		fields["stream_key"] = r.StreamKey
-		fields["sequence"] = float64(r.Sequence)
+	msg := &provenancev1.Record{
+		RecordId:        r.RecordID.String(),
+		IntentRef:       r.IntentRef,
+		SourceKind:      string(r.SourceKind),
+		SourceRef:       r.SourceRef,
+		StreamKey:       r.StreamKey,
+		Sequence:        r.Sequence,
+		ObservationRef:  r.ObservationRef,
+		ConnectorRef:    r.ConnectorRef,
+		SourceAuthority: r.SourceAuthority,
+		PrincipalRef:    r.PrincipalRef,
+		EvidenceIds:     append([]string(nil), r.EvidenceIDs...),
+		PublishedAt:     timestamppb.New(r.PublishedAt.UTC()),
 	}
 	if r.EventID != uuid.Nil {
-		fields["event_id"] = r.EventID.String()
+		msg.EventId = r.EventID.String()
 	}
-	if r.ObservationRef != "" {
-		fields["observation_ref"] = r.ObservationRef
+	for _, d := range r.Digests {
+		msg.Digests = append(msg.Digests, &provenancev1.Digest{Kind: d.Kind, Algorithm: d.Algorithm, Digest: d.Digest})
 	}
-	if r.ConnectorRef != "" {
-		fields["connector_ref"] = r.ConnectorRef
-	}
-
-	b, err := wire.MarshalStruct(fields)
+	b, err := proto.Marshal(msg)
 	if err != nil {
 		return nil, fmt.Errorf("provenance: marshal outbox payload: %w", err)
 	}

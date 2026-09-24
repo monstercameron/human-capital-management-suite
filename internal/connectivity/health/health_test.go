@@ -20,6 +20,40 @@ func TestTodo_INTG_017(t *testing.T) {
 	}
 }
 
+func TestTodo_REV_013_02_Security(t *testing.T) {
+	now := time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
+	secrets := []string{
+		"Bearer secret-token-value",
+		"provider denied access_token=secret-value&scope=worker.read",
+		"client_secret:secret-value",
+		"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvcCJ9.signaturevalue123456",
+		"-----BEGIN PRIVATE KEY-----",
+	}
+	for i, secret := range secrets {
+		t.Run(string(rune('a'+i)), func(t *testing.T) {
+			report, err := Project(Input{TenantID: "tenant-a", ConnectionID: "conn-a", Now: now, Signals: []Signal{{
+				Kind: Authentication, Status: Incident, Cause: "provider check failed: " + secret,
+			}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(report.Causes[0].Detail, secret) || strings.Contains(report.Digest, secret) {
+				t.Fatalf("report exposed credential material: %+v", report)
+			}
+			if report.Causes[0].Detail != "dependency reported sensitive diagnostic detail" {
+				t.Fatalf("sensitive provider detail was not replaced: %q", report.Causes[0].Detail)
+			}
+		})
+	}
+
+	clean, err := Project(Input{TenantID: "tenant-a", ConnectionID: "conn-a", Now: now, Signals: []Signal{{
+		Kind: Queue, Status: Degraded, Cause: "queue age exceeded budget",
+	}}})
+	if err != nil || clean.Causes[0].Detail != "queue age exceeded budget" {
+		t.Fatalf("ordinary operational detail was changed: report=%+v err=%v", clean, err)
+	}
+}
+
 func TestTodo_INTG_017_Golden(t *testing.T) {
 	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 	r, err := Project(Input{TenantID: "t", ConnectionID: "c", Now: now, Signals: []Signal{
@@ -34,7 +68,19 @@ func TestTodo_INTG_017_Golden(t *testing.T) {
 	}
 }
 
-func TestTodo_INTG_017_Integration(t *testing.T) { TestTodo_INTG_017(t) }
+func TestTodo_INTG_017_Integration(t *testing.T) {
+	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
+	report, err := Project(Input{TenantID: "tenant-integration", ConnectionID: "connection-integration", Now: now, Signals: []Signal{
+		{Kind: Authentication, Status: Healthy, Watermark: now},
+		{Kind: Permission, Status: Incident, Cause: "required scope was revoked", Workflow: "Payroll close", Capability: "payroll.submit"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Status != Incident || report.TenantID != "tenant-integration" || report.ConnectionID != "connection-integration" || len(report.Impacts) != 1 || report.Impacts[0].Workflow != "Payroll close" {
+		t.Fatalf("permission incident did not project to its workflow: %+v", report)
+	}
+}
 
 func TestTodo_INTG_017_Fault(t *testing.T) {
 	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)

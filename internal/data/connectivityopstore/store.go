@@ -104,6 +104,28 @@ func (s *Store) Claim(ctx context.Context, tenant, operationID uuid.UUID, worker
 	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
 		return operation.Lease{}, err
 	}
+	// Serialize admissions by connection, then derive the default one-slot
+	// reservation and rolling-window usage from durable queue leases and
+	// provider attempts. The in-memory ConnectorLedger still supplies the
+	// fast local fairness checks; these rows make its restart boundary safe.
+	var connectionID uuid.UUID
+	err = tx.QueryRow(ctx, `SELECT connection_id FROM connector_operation
+		WHERE tenant_id = $1 AND operation_id = $2`, tenant, operationID).Scan(&connectionID)
+	if errors.Is(err, dbport.ErrNoRows) {
+		return operation.Lease{}, ErrNotFound
+	}
+	if err != nil {
+		return operation.Lease{}, fmt.Errorf("read operation connection: %w", err)
+	}
+	if err := tx.QueryRow(ctx, `SELECT connection_id FROM connector_connection
+		WHERE tenant_id = $1 AND connection_id = $2 FOR UPDATE`, tenant, connectionID).Scan(&connectionID); err != nil {
+		return operation.Lease{}, fmt.Errorf("lock connector connection: %w", err)
+	}
+	if blocked, err := durableAdmissionBlocked(ctx, tx, tenant, operationID, connectionID, at); err != nil {
+		return operation.Lease{}, err
+	} else if blocked {
+		return operation.Lease{}, ErrNotReady
+	}
 	var state string
 	var fence int64
 	var expiresEpoch float64
@@ -155,6 +177,43 @@ func (s *Store) Claim(ctx context.Context, tenant, operationID uuid.UUID, worker
 	return operation.Lease{TenantID: tenant.String(), OperationID: operationID, Token: token, FenceToken: uint64(grantedFence), WorkerID: worker, ExpiresAt: leaseExpires}, nil
 }
 
+func durableAdmissionBlocked(ctx context.Context, tx dbport.Tx, tenant, operationID, connectionID uuid.UUID, at time.Time) (bool, error) {
+	quota := operation.UnknownConnectorQuota
+	if quota.MaxConcurrent > 0 {
+		var active bool
+		err := tx.QueryRow(ctx, `SELECT EXISTS (
+			SELECT 1
+			FROM connector_operation_queue q
+			JOIN connector_operation o ON o.tenant_id = q.tenant_id AND o.operation_id = q.operation_id
+			WHERE q.tenant_id = $1 AND o.connection_id = $2 AND q.operation_id <> $3
+			  AND q.queue_state = 'LEASED' AND q.expires_at > $4
+			  AND o.state IN ('QUEUED', 'LEASED', 'SENDING')
+		)`, tenant, connectionID, operationID, at).Scan(&active)
+		if err != nil {
+			return false, fmt.Errorf("check durable connector reservations: %w", err)
+		}
+		if active {
+			return true, nil
+		}
+	}
+	if quota.Limit > 0 && quota.Window > 0 {
+		var used bool
+		err := tx.QueryRow(ctx, `SELECT EXISTS (
+			SELECT 1
+			FROM connector_operation_attempt a
+			JOIN connector_operation o ON o.tenant_id = a.tenant_id AND o.operation_id = a.operation_id
+			WHERE a.tenant_id = $1 AND o.connection_id = $2 AND a.attempted_at > $3
+		)`, tenant, connectionID, at.Add(-quota.Window)).Scan(&used)
+		if err != nil {
+			return false, fmt.Errorf("check durable connector rate window: %w", err)
+		}
+		if used {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // AppendJournal appends one immutable transition event. The database trigger
 // rejects later UPDATE and DELETE attempts; this method only issues INSERT.
 func (s *Store) AppendJournal(ctx context.Context, tenant uuid.UUID, event operation.JournalEvent) error {
@@ -164,7 +223,7 @@ func (s *Store) AppendJournal(ctx context.Context, tenant uuid.UUID, event opera
 	if event.TenantID != "" && event.TenantID != tenant.String() {
 		return ErrInvalid
 	}
-	boundAt := event.OccurredAt.UTC()
+	boundAt := event.OccurredAt.UTC().Truncate(time.Microsecond)
 	if boundAt.IsZero() {
 		return ErrInvalid
 	}
@@ -176,18 +235,118 @@ func (s *Store) AppendJournal(ctx context.Context, tenant uuid.UUID, event opera
 	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `
+	// Serialize the tenant-wide digest-chain append across independent worker
+	// handles. The advisory lock is transaction-scoped, so rollback releases it.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`, tenant.String()); err != nil {
+		return fmt.Errorf("lock operation journal chain: %w", err)
+	}
+	// Rebase against the durable head while holding the lock. In-memory handles
+	// may have cached stale heads, so the database is authoritative on every append.
+	var globalSequence, operationSequence int64
+	if err := tx.QueryRow(ctx, `
+		SELECT (SELECT count(*) FROM connector_operation_journal WHERE tenant_id = $1),
+			COALESCE((SELECT max(operation_sequence) FROM connector_operation_journal WHERE tenant_id = $1 AND operation_id = $2), 0)`, tenant, event.OperationID).Scan(&globalSequence, &operationSequence); err != nil {
+		return fmt.Errorf("read operation journal sequence: %w", err)
+	}
+	requestDigest := digestHex(event.RequestDigest)
+	responseDigest := digestHex(event.ResponseDigest)
+	// The requested operation sequence is the idempotency key. Check it before
+	// assigning tenant-chain coordinates so a replay remains a no-op even if
+	// other operations have appended since the original commit.
+	var existingKind, existingFrom, existingTo string
+	var existingAttempt uuid.UUID
+	var existingFence int64
+	var existingCredential, existingRequest, existingResponse string
+	var existingAt time.Time
+	existingErr := tx.QueryRow(ctx, `
+		SELECT event_kind, from_state, to_state,
+			COALESCE(attempt_id, '00000000-0000-0000-0000-000000000000'), fence_token,
+			COALESCE(credential_lease_ref, ''), COALESCE(request_digest, ''),
+			COALESCE(response_digest, ''), occurred_at
+		FROM connector_operation_journal
+		WHERE tenant_id = $1 AND operation_id = $2 AND operation_sequence = $3`,
+		tenant, event.OperationID, event.OperationSequence).Scan(&existingKind, &existingFrom,
+		&existingTo, &existingAttempt, &existingFence, &existingCredential,
+		&existingRequest, &existingResponse, &existingAt)
+	if existingErr == nil {
+		if existingKind != event.Event || existingFrom != string(event.From) || existingTo != string(event.To) ||
+			existingAttempt != event.AttemptID || uint64(existingFence) != event.FenceToken ||
+			existingCredential != event.CredentialLeaseID || existingRequest != requestDigest ||
+			existingResponse != responseDigest || !existingAt.Equal(boundAt) {
+			return fmt.Errorf("%w: conflicting operation journal sequence %d", ErrInvalid, event.OperationSequence)
+		}
+		return tx.Commit(ctx)
+	}
+	if !errors.Is(existingErr, dbport.ErrNoRows) {
+		return fmt.Errorf("read requested operation journal sequence: %w", existingErr)
+	}
+	if uint64(operationSequence+1) != event.OperationSequence {
+		return fmt.Errorf("%w: operation journal sequence %d is not next after %d", ErrInvalid, event.OperationSequence, operationSequence)
+	}
+	var previousDigest string
+	if globalSequence > 0 {
+		// The tenant stream is hash linked; exactly one leaf is the current head.
+		var leafCount int64
+		if err := tx.QueryRow(ctx, `
+			SELECT count(*), COALESCE(max(current.event_digest), '')
+			FROM connector_operation_journal current
+			WHERE current.tenant_id = $1
+			  AND NOT EXISTS (
+				SELECT 1 FROM connector_operation_journal later
+				WHERE later.tenant_id = current.tenant_id
+				  AND later.previous_digest = current.event_digest)
+			`, tenant).Scan(&leafCount, &previousDigest); err != nil {
+			return fmt.Errorf("read operation journal chain head: %w", err)
+		}
+		if leafCount != 1 {
+			return fmt.Errorf("%w: durable journal has %d chain heads for tenant %s", ErrInvalid, leafCount, tenant)
+		}
+	}
+	event.OccurredAt = boundAt
+	event = operation.ChainJournalEvent(event, uint64(globalSequence+1), uint64(operationSequence+1), prefixDigest(previousDigest))
+	storedPreviousDigest := digestHexOrZero(event.PreviousDigest)
+	eventDigest := digestHex(event.Digest)
+	inserted, err := tx.Exec(ctx, `
 		INSERT INTO connector_operation_journal
 			(tenant_id, journal_id, operation_id, operation_sequence, event_kind,
 			 from_state, to_state, attempt_id, fence_token, credential_lease_ref,
 			 request_digest, response_digest, previous_digest, event_digest, occurred_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8::uuid, '00000000-0000-0000-0000-000000000000'::uuid),
-			$9, $10, NULLIF($11, ''), NULLIF($12, ''), $13, $14, $15)`,
+			$9, $10, NULLIF($11, ''), NULLIF($12, ''), $13, $14, $15)
+		ON CONFLICT (tenant_id, operation_id, operation_sequence) DO NOTHING`,
 		tenant, uuid.New(), event.OperationID, event.OperationSequence, event.Event,
 		event.From, event.To, event.AttemptID, event.FenceToken, event.CredentialLeaseID,
-		digestHex(event.RequestDigest), digestHex(event.ResponseDigest), digestHexOrZero(event.PreviousDigest), digestHex(event.Digest), boundAt)
+		requestDigest, responseDigest, storedPreviousDigest, eventDigest, boundAt)
 	if err != nil {
 		return fmt.Errorf("append operation journal: %w", err)
+	}
+	if inserted == 0 {
+		// The unique operation sequence is the retry key. Accept a retry only
+		// when it is byte-for-byte the same transition; a conflicting event at
+		// an occupied sequence is journal corruption and must fail closed.
+		var existingDigest, existingKind, existingFrom, existingTo string
+		var existingAttempt uuid.UUID
+		var existingFence int64
+		var existingCredential, existingRequest, existingResponse, existingPrevious string
+		var existingAt time.Time
+		err = tx.QueryRow(ctx, `
+			SELECT event_digest, event_kind, from_state, to_state,
+				COALESCE(attempt_id, '00000000-0000-0000-0000-000000000000'), fence_token,
+				credential_lease_ref, COALESCE(request_digest, ''), COALESCE(response_digest, ''),
+				previous_digest, occurred_at
+			FROM connector_operation_journal
+			WHERE tenant_id = $1 AND operation_id = $2 AND operation_sequence = $3`,
+			tenant, event.OperationID, event.OperationSequence).Scan(&existingDigest, &existingKind,
+			&existingFrom, &existingTo, &existingAttempt, &existingFence, &existingCredential,
+			&existingRequest, &existingResponse, &existingPrevious, &existingAt)
+		if err != nil {
+			return fmt.Errorf("read duplicate operation journal event: %w", err)
+		}
+		if existingDigest != eventDigest || existingKind != event.Event || existingFrom != string(event.From) || existingTo != string(event.To) ||
+			existingAttempt != event.AttemptID || uint64(existingFence) != event.FenceToken || existingCredential != event.CredentialLeaseID ||
+			existingRequest != requestDigest || existingResponse != responseDigest || existingPrevious != previousDigest || !existingAt.Equal(boundAt) {
+			return fmt.Errorf("%w: conflicting operation journal sequence %d", ErrInvalid, event.OperationSequence)
+		}
 	}
 	return tx.Commit(ctx)
 }
@@ -213,7 +372,7 @@ func (s *Store) Journal(ctx context.Context, tenant, operationID uuid.UUID) ([]o
 			COALESCE(response_digest, ''), previous_digest, event_digest, occurred_at
 		FROM connector_operation_journal
 		WHERE tenant_id = $1 AND ($2::uuid = '00000000-0000-0000-0000-000000000000'::uuid OR operation_id = $2::uuid)
-		ORDER BY journal_id`, tenant, operationID)
+		ORDER BY operation_id, operation_sequence`, tenant, operationID)
 	if err != nil {
 		return nil, fmt.Errorf("read operation journal: %w", err)
 	}

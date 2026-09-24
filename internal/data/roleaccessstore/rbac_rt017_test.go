@@ -48,17 +48,17 @@ func TestTodo_RBAC_RT_017_Integration(t *testing.T) {
 	}
 	renamed := admin
 	renamed.Name = "HCM administrator (renamed)"
-	if _, err := store.SaveRole(ctx, tenant, "admin", renamed); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveRole(store, ctx, tenant, "admin", renamed); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("system role rename = %v", err)
 	}
 	deactivated := admin
 	deactivated.Active = false
-	if _, err := store.SaveRole(ctx, tenant, "admin", deactivated); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveRole(store, ctx, tenant, "admin", deactivated); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("system role deactivation = %v", err)
 	}
 	desystemed := admin
 	desystemed.System = false
-	if _, err := store.SaveRole(ctx, tenant, "admin", desystemed); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveRole(store, ctx, tenant, "admin", desystemed); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("system role designation stripping = %v", err)
 	}
 	if kept := roleOf("hcm_admin"); kept.Name != admin.Name || !kept.Active || !kept.System || kept.Version != admin.Version {
@@ -66,27 +66,27 @@ func TestTodo_RBAC_RT_017_Integration(t *testing.T) {
 	}
 	edited := admin
 	edited.Description = "Updated duty description."
-	edited, err := store.SaveRole(ctx, tenant, "admin", edited)
+	edited, err := testSaveRole(store, ctx, tenant, "admin", edited)
 	if err != nil || edited.Version != admin.Version+1 || !edited.System || !edited.Active || edited.Description != "Updated duty description." {
 		t.Fatalf("system role description edit = %#v, %v", edited, err)
 	}
 
-	custom, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "rt017_viewer", Name: "RT017 viewer", Description: "Inactive-role probe.", Active: true})
+	custom, err := testSaveRole(store, ctx, tenant, "admin", roleaccess.Role{ID: "rt017_viewer", Name: "RT017 viewer", Description: "Inactive-role probe.", Active: true})
 	if err != nil || custom.Version != 1 {
 		t.Fatalf("save custom role = %+v, %v", custom, err)
 	}
-	page, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "rt017_viewer", PageID: "people", View: true})
+	page, err := testSavePagePermission(store, ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "rt017_viewer", PageID: "people", View: true})
 	if err != nil || page.Version != 1 {
 		t.Fatalf("save custom page grant = %+v, %v", page, err)
 	}
-	feature, err := store.SaveFeaturePermission(ctx, tenant, "admin", roleaccess.FeaturePermission{RoleID: "rt017_viewer", PageID: "people", FeatureID: "content", View: true})
+	feature, err := testSaveFeaturePermission(store, ctx, tenant, "admin", roleaccess.FeaturePermission{RoleID: "rt017_viewer", PageID: "people", FeatureID: "content", View: true})
 	if err != nil || feature.Version != 1 {
 		t.Fatalf("save custom feature grant = %+v, %v", feature, err)
 	}
-	if _, err := store.SaveVisibility(ctx, tenant, "org:rt017", "admin", roleaccess.VisibilityPolicy{RoleID: "rt017_viewer", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"engineering"}}); err != nil {
+	if _, err := testSaveVisibility(store, ctx, tenant, "org:rt017", "admin", roleaccess.VisibilityPolicy{RoleID: "rt017_viewer", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"engineering"}}); err != nil {
 		t.Fatalf("save custom visibility = %v", err)
 	}
-	if _, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "rt017-worker", RoleIDs: []string{"rt017_viewer"}}); err != nil {
+	if _, err := testSaveAssignment(store, ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "rt017-worker", RoleIDs: []string{"rt017_viewer"}}); err != nil {
 		t.Fatalf("save custom assignment = %v", err)
 	}
 	loaded, err := store.Load(ctx, tenant, "org:rt017")
@@ -98,7 +98,7 @@ func TestTodo_RBAC_RT_017_Integration(t *testing.T) {
 	}
 
 	custom.Active = false
-	custom, err = store.SaveRole(ctx, tenant, "admin", custom)
+	custom, err = testSaveRole(store, ctx, tenant, "admin", custom)
 	if err != nil || custom.Active {
 		t.Fatalf("custom role deactivation = %+v, %v", custom, err)
 	}
@@ -115,18 +115,18 @@ func TestTodo_RBAC_RT_017_Integration(t *testing.T) {
 	if got := roleaccess.PoliciesForRoles(loaded, []string{"rt017_viewer"}); len(got) != 0 {
 		t.Fatalf("inactive role kept visibility: %#v", got)
 	}
-	if _, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "rt017-other", RoleIDs: []string{"rt017_viewer"}}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveAssignment(store, ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "rt017-other", RoleIDs: []string{"rt017_viewer"}}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("inactive role assignment = %v", err)
 	}
-	if _, err := store.SaveVisibility(ctx, tenant, "org:rt017", "admin", roleaccess.VisibilityPolicy{RoleID: "rt017_viewer", Mode: roleaccess.VisibilityAll}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveVisibility(store, ctx, tenant, "org:rt017", "admin", roleaccess.VisibilityPolicy{RoleID: "rt017_viewer", Mode: roleaccess.VisibilityAll}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("inactive role visibility = %v", err)
 	}
-	if _, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "rt017_viewer", PageID: "people", View: true}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSavePagePermission(store, ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "rt017_viewer", PageID: "people", View: true}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("inactive role page grant = %v", err)
 	}
 
 	custom.Active = true
-	if _, err := store.SaveRole(ctx, tenant, "admin", custom); err != nil {
+	if _, err := testSaveRole(store, ctx, tenant, "admin", custom); err != nil {
 		t.Fatalf("custom role reactivation = %v", err)
 	}
 	loaded, err = store.Load(ctx, tenant, "org:rt017")

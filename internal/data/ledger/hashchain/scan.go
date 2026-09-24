@@ -196,7 +196,7 @@ func scanStream(digester *Digester, mode ScanMode, stream StreamView, report *Sc
 	prevHash := GenesisHash
 	for i, link := range links {
 		if continuous {
-			wantSequence := links[0].Sequence + int64(i)
+			wantSequence := int64(i + 1)
 			if link.Sequence != wantSequence {
 				emit(FindingSequenceGap, "high", []string{fmt.Sprintf("sequence %d", wantSequence)}, verified)
 				return
@@ -235,24 +235,29 @@ func scanStream(digester *Digester, mode ScanMode, stream StreamView, report *Sc
 	if verified > report.Watermark {
 		report.Watermark = verified
 	}
-	outbox := map[uuid.UUID]bool{}
-	for _, id := range stream.Outbox {
-		outbox[id] = true
-	}
-	for _, event := range stream.Events {
-		if !outbox[event.EventID] {
-			emit(FindingOrphanOutbox, "medium", []string{event.EventID.String()}, verified)
+	// nil means this source does not expose a trustworthy event-to-outbox
+	// relationship. An empty but non-nil slice means the relation was scanned
+	// and contains no rows.
+	if stream.Outbox != nil {
+		outbox := map[uuid.UUID]bool{}
+		for _, id := range stream.Outbox {
+			outbox[id] = true
 		}
-	}
-	for id := range outbox {
-		known := false
 		for _, event := range stream.Events {
-			if event.EventID == id {
-				known = true
+			if !outbox[event.EventID] {
+				emit(FindingOrphanOutbox, "medium", []string{event.EventID.String()}, verified)
 			}
 		}
-		if !known {
-			emit(FindingOrphanEvent, "medium", []string{id.String()}, verified)
+		for id := range outbox {
+			known := false
+			for _, event := range stream.Events {
+				if event.EventID == id {
+					known = true
+				}
+			}
+			if !known {
+				emit(FindingOrphanEvent, "medium", []string{id.String()}, verified)
+			}
 		}
 	}
 	if stream.ProjectedThrough < verified {

@@ -231,7 +231,7 @@ type idTokenResult struct {
 // [keys] resolved for this exact issuer, and only afterward are the
 // remaining claims (issuer, audience, validity window, nonce, at_hash)
 // trusted.
-func validateIDToken(ctx context.Context, keys trustfederation.IssuerResolver, issuer issuerregistry.Issuer, rawToken, expectedNonce, accessToken string, now time.Time) (idTokenResult, error) {
+func validateIDToken(ctx context.Context, keys trustfederation.IssuerResolver, issuer issuerregistry.Issuer, expectedClientID, rawToken, expectedNonce, accessToken string, now time.Time) (idTokenResult, error) {
 	h, signingInput, payload, sig, err := splitCompactJWS(rawToken, maxIDTokenBytes)
 	if err != nil {
 		return idTokenResult{}, err
@@ -298,11 +298,14 @@ func validateIDToken(ctx context.Context, keys trustfederation.IssuerResolver, i
 	if strings.TrimSpace(std.Subject) == "" {
 		return idTokenResult{}, fmt.Errorf("%w: sub", ErrIDTokenMalformed)
 	}
-	if len(std.Audience) == 0 || !slices.Contains(std.Audience, issuer.Audience) {
-		return idTokenResult{}, fmt.Errorf("%w: %v does not contain %q", ErrWrongAudience, []string(std.Audience), issuer.Audience)
+	if expectedClientID == "" || expectedClientID != issuer.Audience || len(std.Audience) == 0 || !slices.Contains(std.Audience, expectedClientID) {
+		return idTokenResult{}, fmt.Errorf("%w: %v does not contain configured client id %q", ErrWrongAudience, []string(std.Audience), expectedClientID)
 	}
-	if len(std.Audience) > 1 && std.AuthorizedParty != issuer.Audience {
-		return idTokenResult{}, fmt.Errorf("%w: multiple audiences require azp == %q, got %q", ErrWrongAudience, issuer.Audience, std.AuthorizedParty)
+	if std.AuthorizedParty != "" && std.AuthorizedParty != expectedClientID {
+		return idTokenResult{}, fmt.Errorf("%w: azp names %q, configured client id is %q", ErrWrongAudience, std.AuthorizedParty, expectedClientID)
+	}
+	if len(std.Audience) > 1 && std.AuthorizedParty != expectedClientID {
+		return idTokenResult{}, fmt.Errorf("%w: multiple audiences require azp == configured client id %q, got %q", ErrWrongAudience, expectedClientID, std.AuthorizedParty)
 	}
 	if std.IssuedAtUnix == 0 || std.ExpiresAtUnix == 0 {
 		return idTokenResult{}, fmt.Errorf("%w: validity window is not stated", ErrIDTokenExpired)

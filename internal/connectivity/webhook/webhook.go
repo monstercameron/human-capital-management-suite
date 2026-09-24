@@ -108,7 +108,18 @@ type Store struct {
 }
 
 func NewStore() *Store {
-	return &Store{endpoints: make(map[string]Endpoint), receipts: make(map[string]Receipt), byReplay: make(map[string]string), payloads: make(map[string][]byte), lifecycle: idempotency.NewRegistry()}
+	return NewStoreWithRegistry(idempotency.NewRegistry())
+}
+
+// NewStoreWithRegistry composes webhook admission with a shared lifecycle.
+// A production receiver can pass a registry backed by a durable idempotency
+// store so its event key remains reserved across process restarts. Receipt
+// payload quarantine still belongs to the receiver's separate receipt store.
+func NewStoreWithRegistry(lifecycle *idempotency.Registry) *Store {
+	if lifecycle == nil {
+		lifecycle = idempotency.NewRegistry()
+	}
+	return &Store{endpoints: make(map[string]Endpoint), receipts: make(map[string]Receipt), byReplay: make(map[string]string), payloads: make(map[string][]byte), lifecycle: lifecycle}
 }
 
 // RegisterEndpoint publishes a validation policy. Re-registering an endpoint

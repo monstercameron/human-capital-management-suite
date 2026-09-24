@@ -1,13 +1,18 @@
 package contentregistrystore_test
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/commercial"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/commercialstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/contentregistrystore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
@@ -25,8 +30,8 @@ var contentRegistryTime = time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 func newDB(t *testing.T) *pgtest.DB {
 	t.Helper()
 	db := pgtest.NewEmpty(t)
-	if _, err := db.Provider(t).UpTo(context.Background(), 82); err != nil {
-		t.Fatalf("apply migrations through 00082: %v", err)
+	if _, err := db.Provider(t).UpTo(context.Background(), 341); err != nil {
+		t.Fatalf("apply migrations through 00341: %v", err)
 	}
 	return db
 }
@@ -101,6 +106,71 @@ func bindingFixture(t *testing.T, pack industrypack.IndustryPack, content indust
 	return binding
 }
 
+func TestTodo_REV_047_02_PostgreSQLPublicationActivation(t *testing.T) {
+	ctx := context.Background()
+	db := newDB(t)
+	tenant := insertTenant(t, db, "industry-pack-pg-lifecycle")
+	contractRevision := commercial.ContractRevision{
+		TenantID: tenant.String(), ContractID: "industry-pilot", Revision: 1,
+		EffectiveFrom: contentRegistryTime.Add(-time.Hour), EffectiveTo: contentRegistryTime.Add(30 * 24 * time.Hour),
+		Capabilities: []string{industrypack.IndustryEntitlementCapability(industrypack.IndustryHealthcare)},
+		Bound:        commercial.EntitlementBound{Seats: 5}, PriceCents: 10000, Currency: "USD",
+	}
+	contracts := commercialstore.New(appConn(t, db))
+	if err := contracts.PutContractRevision(ctx, contractRevision); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := commercial.NewEntitlementSnapshot(contractRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := contracts.PutEntitlementSnapshot(ctx, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	authority, err := industrypack.NewIndustryEntitlementAuthority(contracts,
+		industrypack.ContractRevisionResolverFunc(func(_ context.Context, tenantID string) (industrypack.ContractRevisionRef, error) {
+			if tenantID != tenant.String() {
+				return industrypack.ContractRevisionRef{}, commercial.ErrStoreNotFound
+			}
+			return industrypack.ContractRevisionRef{ContractID: contractRevision.ContractID, Revision: contractRevision.Revision}, nil
+		}), industrypack.EntitlementClockFunc(func() time.Time { return contentRegistryTime }), time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := contentregistrystore.New(appConn(t, db))
+	pack := manifest(t, "healthcare-pg", 1)
+	report, effects, err := industrypack.PublishChecked(ctx, store, authority, tenant.String(), industrypack.PublicationCheck{
+		TenantID: tenant.String(), Candidate: pack, Installed: map[string]string{"hcmnext": "1.8"},
+	})
+	if err != nil || effects.AuthoritativeRows != 1 || report.Entitlement.Fingerprint() != snapshot.Fingerprint() {
+		t.Fatalf("publication report=%+v effects=%+v err=%v", report, effects, err)
+	}
+	private := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{47}, ed25519.SeedSize))
+	target := industrypack.PackTarget{Tenant: tenant.String(), Cell: "cell-local"}
+	bundleDigest := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	envelope := industrypack.SignPackVersion(industrypack.SignedPackVersion{
+		PackID: pack.PackID, Industry: pack.Industry, Version: pack.Version, BundleDigest: bundleDigest,
+		Target: target, EffectiveAt: contentRegistryTime.Add(time.Minute), RollbackVersion: 0,
+		Publisher: "publisher:one", Approver: "approver:two", SignedAt: contentRegistryTime.Add(-time.Minute),
+	}, "industry-test-key", private)
+	receipt, effects, err := industrypack.ActivateSigned(ctx, store, authority, industrypack.ActivationRequest{
+		Envelope: envelope, Target: target, TrustedKeys: map[string]ed25519.PublicKey{"industry-test-key": private.Public().(ed25519.PublicKey)},
+	})
+	if err != nil || effects.AuthoritativeRows != 1 || receipt.Entitlement.Fingerprint() != snapshot.Fingerprint() {
+		t.Fatalf("activation receipt=%+v effects=%+v err=%v", receipt, effects, err)
+	}
+	var publicationCount, activationCount int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM industry_pack_publication WHERE tenant_id=$1 AND pack_id=$2`, tenant, pack.PackID).Scan(&publicationCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM industry_pack_activation WHERE tenant_id=$1 AND pack_id=$2`, tenant, pack.PackID).Scan(&activationCount); err != nil {
+		t.Fatal(err)
+	}
+	if publicationCount != 1 || activationCount != 1 {
+		t.Fatalf("durable lifecycle rows publication=%d activation=%d", publicationCount, activationCount)
+	}
+}
+
 func articleFixture(t *testing.T, id string) knowledge.ArticleRevision {
 	t.Helper()
 	instant := func(text string) values.Instant {
@@ -112,6 +182,7 @@ func articleFixture(t *testing.T, id string) knowledge.ArticleRevision {
 	}
 	return knowledge.ArticleRevision{
 		ArticleID: id, Revision: 1, Locale: "en-US", AudienceScope: "EMPLOYEES",
+		AuthorizedRoles: []string{"worker_self"}, RetentionScheduleRef: "records:knowledge/current",
 		Classification: "INTERNAL", Owner: "policy-owner", SourceAuthority: "policy-authority",
 		SourceRefs:   []knowledge.SourceRef{{System: "policy", Identifier: "source-1", Authority: "authority-1"}},
 		Jurisdiction: "US", EffectiveInterval: knowledge.EffectiveInterval{EffectiveFrom: instant("2026-01-01T00:00:00Z"), EffectiveTo: instant("2027-01-01T00:00:00Z")},
@@ -158,7 +229,7 @@ func TestTodo_PERSIST_CONTENTREGISTRY_001(t *testing.T) {
 		t.Fatalf("append event: %v", err)
 	}
 	activation := knowledge.ActivationBinding{ArticleID: article.ArticleID, Revision: 1, Locale: article.Locale, BundleID: "bundle-1", BundleDigest: "sha256:4444444444444444444444444444444444444444444444444444444444444444", ActivationEpoch: 1, ActivatedAt: contentRegistryTime}
-	if err := store.SaveActivation(context.Background(), tenantID.String(), activation); err != nil {
+	if err := store.SaveKnowledgeActivation(context.Background(), tenantID.String(), activation); err != nil {
 		t.Fatalf("save activation: %v", err)
 	}
 	gotBinding, err := store.LoadBinding(context.Background(), tenantID.String(), binding.CanonicalDigest)
@@ -176,6 +247,68 @@ func TestTodo_PERSIST_CONTENTREGISTRY_001(t *testing.T) {
 	gotActivation, err := store.LoadActivation(context.Background(), tenantID.String(), article.ArticleID, article.Locale)
 	if err != nil || gotActivation.ActivationEpoch != 1 {
 		t.Fatalf("activation=%+v err=%v", gotActivation, err)
+	}
+	candidates, err := store.SearchCandidates(context.Background(), tenantID.String(), article.Locale, "leave", article.AudienceScope, []string{"worker_self"}, contentRegistryTime)
+	if err != nil || len(candidates) != 1 || candidates[0].Article.ArticleID != article.ArticleID {
+		t.Fatalf("authorized active search candidates=%+v err=%v", candidates, err)
+	}
+	results, err := (knowledge.SearchService{Source: store}).Search(context.Background(), knowledge.SearchRequest{
+		TenantID: tenantID.String(), Query: "leave", Locale: article.Locale,
+		Audience: article.AudienceScope, Roles: []string{"worker_self"}, At: contentRegistryTime,
+	})
+	if err != nil || len(results) != 1 || results[0].ArticleID != article.ArticleID {
+		t.Fatalf("authorized durable search results=%+v err=%v", results, err)
+	}
+	candidates, err = store.SearchCandidates(context.Background(), tenantID.String(), article.Locale, "leave", article.AudienceScope, []string{"comp_admin"}, contentRegistryTime)
+	if err != nil || len(candidates) != 0 {
+		t.Fatalf("role-mismatched search candidates=%+v err=%v", candidates, err)
+	}
+	otherTenant := insertTenant(t, db, "content-search-other-tenant")
+	otherStore := contentregistrystore.New(appConn(t, db))
+	candidates, err = otherStore.SearchCandidates(context.Background(), otherTenant.String(), article.Locale, "leave", article.AudienceScope, []string{"worker_self"}, contentRegistryTime)
+	if err != nil || len(candidates) != 0 {
+		t.Fatalf("foreign tenant search candidates=%+v err=%v", candidates, err)
+	}
+}
+
+func TestTodo_REV_077_02_Integration_StaleCandidatesDoNotStarveCurrentArticle(t *testing.T) {
+	db := newDB(t)
+	tenantID := insertTenant(t, db, "knowledge-stale-candidate-search")
+	store := contentregistrystore.New(appConn(t, db))
+	current := articleFixture(t, "current-leave-article")
+	current.Title = "Z Leave policy current"
+	if err := store.SaveArticle(context.Background(), tenantID.String(), current); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveKnowledgeActivation(context.Background(), tenantID.String(), knowledge.ActivationBinding{
+		ArticleID: current.ArticleID, Revision: current.Revision, Locale: current.Locale,
+		BundleID: "current-bundle", BundleDigest: "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+		ActivationEpoch: 1, ActivatedAt: contentRegistryTime,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 205; i++ {
+		stale := articleFixture(t, fmt.Sprintf("stale-leave-%03d", i))
+		stale.Title = fmt.Sprintf("A stale leave article %03d", i)
+		stale.EffectiveInterval.EffectiveTo = values.NewInstant(time.Date(2026, 1, 4, 0, 0, 0, 0, time.UTC))
+		stale.Review.ExpiresAt = values.NewInstant(time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC))
+		if err := store.SaveArticle(context.Background(), tenantID.String(), stale); err != nil {
+			t.Fatalf("save stale article %d: %v", i, err)
+		}
+		if err := store.SaveKnowledgeActivation(context.Background(), tenantID.String(), knowledge.ActivationBinding{
+			ArticleID: stale.ArticleID, Revision: stale.Revision, Locale: stale.Locale,
+			BundleID: fmt.Sprintf("stale-bundle-%03d", i), BundleDigest: "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+			ActivationEpoch: 1, ActivatedAt: contentRegistryTime,
+		}); err != nil {
+			t.Fatalf("activate stale article %d: %v", i, err)
+		}
+	}
+	results, err := (knowledge.SearchService{Source: store}).Search(context.Background(), knowledge.SearchRequest{
+		TenantID: tenantID.String(), Query: "leave", Locale: current.Locale,
+		Audience: current.AudienceScope, Roles: []string{"worker_self"}, At: contentRegistryTime,
+	})
+	if err != nil || len(results) != 1 || results[0].ArticleID != current.ArticleID {
+		t.Fatalf("current article after more than 200 stale matching candidates=%+v err=%v", results, err)
 	}
 }
 
@@ -272,11 +405,11 @@ func TestTodo_PERSIST_CONTENTREGISTRY_001_Fault(t *testing.T) {
 		t.Fatalf("duplicate=%v typed=%+v", err, typed)
 	}
 	activation := knowledge.ActivationBinding{ArticleID: article.ArticleID, Revision: 1, Locale: article.Locale, ActivationEpoch: 2, ActivatedAt: contentRegistryTime}
-	if err := store.SaveActivation(context.Background(), tenantID.String(), activation); err != nil {
+	if err := store.SaveKnowledgeActivation(context.Background(), tenantID.String(), activation); err != nil {
 		t.Fatal(err)
 	}
 	activation.ActivationEpoch = 1
-	err = store.SaveActivation(context.Background(), tenantID.String(), activation)
+	err = store.SaveKnowledgeActivation(context.Background(), tenantID.String(), activation)
 	if !errors.Is(err, contentregistrystore.ErrStaleCAS) {
 		t.Fatalf("stale activation=%v", err)
 	}

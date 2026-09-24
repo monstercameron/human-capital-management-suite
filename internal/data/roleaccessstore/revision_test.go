@@ -17,12 +17,15 @@ func TestTodo_RBAC_RT_021(t *testing.T) {
 	before := roleaccess.PagePermission{Version: 1, RoleID: "manager", PageID: "journeys", View: true}
 	after := roleaccess.PagePermission{Version: 2, RoleID: "manager", PageID: "journeys", View: true, Update: true}
 
-	entry, err := NewRevision(revisionID, "system:test", RevisionPagePermission, "manager", "", "journeys", "", before, after, &priorID)
+	entry, err := NewRevision(revisionID, "system:test", RevisionPagePermission, "manager", "", "journeys", "", before, after, &priorID, "Expanded page access for the regional review team")
 	if err != nil {
 		t.Fatalf("NewRevision: %v", err)
 	}
 	if entry.Kind != RevisionPagePermission || entry.ActorRef != "system:test" || entry.PageID != "journeys" {
 		t.Fatalf("entry identity = %+v, want kind/page/actor carried", entry)
+	}
+	if entry.Reason != "Expanded page access for the regional review team" {
+		t.Fatalf("reason = %q, want the supplied audit rationale", entry.Reason)
 	}
 	if entry.PriorRevision == nil || *entry.PriorRevision != priorID {
 		t.Fatal("entry dropped the prior revision link")
@@ -35,7 +38,7 @@ func TestTodo_RBAC_RT_021(t *testing.T) {
 		t.Fatalf("after image = %s (err=%v), want %+v", entry.After, err, after)
 	}
 
-	genesis, err := NewRevision(uuid.New(), "system:test", RevisionRole, "manager", "", "", "", nil, roleaccess.Role{ID: "manager", Active: true}, nil)
+	genesis, err := NewRevision(uuid.New(), "system:test", RevisionRole, "manager", "", "", "", nil, roleaccess.Role{ID: "manager", Active: true}, nil, "Initial role creation for regional review")
 	if err != nil {
 		t.Fatalf("genesis NewRevision: %v", err)
 	}
@@ -44,7 +47,7 @@ func TestTodo_RBAC_RT_021(t *testing.T) {
 	}
 
 	for _, kind := range []ChangeKind{RevisionRole, RevisionAssignment, RevisionVisibility, RevisionPagePermission, RevisionFeaturePermission} {
-		if _, err := NewRevision(uuid.New(), "system:test", kind, "manager", "", "", "", nil, nil, nil); err != nil {
+		if _, err := NewRevision(uuid.New(), "system:test", kind, "manager", "", "", "", nil, nil, nil, "Permission correction requested by the administrator"); err != nil {
 			t.Fatalf("NewRevision(%s): %v", kind, err)
 		}
 	}
@@ -61,6 +64,12 @@ func TestTodo_RBAC_RT_021(t *testing.T) {
 		},
 		"missing role": func() (RevisionEntry, error) {
 			return NewRevision(uuid.New(), "system:test", RevisionRole, "", "", "", "", nil, nil, nil)
+		},
+		"missing reason": func() (RevisionEntry, error) {
+			return NewRevision(uuid.New(), "system:test", RevisionRole, "manager", "", "", "", nil, nil, nil)
+		},
+		"multiline reason": func() (RevisionEntry, error) {
+			return NewRevision(uuid.New(), "system:test", RevisionRole, "manager", "", "", "", nil, nil, nil, "changed\nwithout rationale")
 		},
 		"unencodable image": func() (RevisionEntry, error) {
 			return NewRevision(uuid.New(), "system:test", RevisionRole, "manager", "", "", "", func() {}, nil, nil)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -15,9 +16,11 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	transactioncancel "github.com/monstercameron/human-capital-management-suite/internal/transaction/cancel"
 	transactioncommit "github.com/monstercameron/human-capital-management-suite/internal/transaction/commit"
+	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/plan"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation"
@@ -27,6 +30,40 @@ import (
 )
 
 var rev002At = time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)
+
+func rev002LedgerEvents(t *testing.T, db *pgtest.DB, tenantID uuid.UUID) []compensate.Event {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := db.Conn.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin compensation event read: %v", err)
+	}
+	defer tx.Rollback(ctx)
+	if err := tenancy.WithTenant(ctx, tx, tenantID); err != nil {
+		t.Fatalf("scope compensation event read: %v", err)
+	}
+	rows, err := tx.Query(ctx, `SELECT payload FROM workflow_compensation_event WHERE tenant_id=$1 ORDER BY recorded_at,event_ref`, tenantID)
+	if err != nil {
+		t.Fatalf("query compensation events: %v", err)
+	}
+	defer rows.Close()
+	events := make([]compensate.Event, 0)
+	for rows.Next() {
+		var payload []byte
+		if err := rows.Scan(&payload); err != nil {
+			t.Fatalf("scan compensation event: %v", err)
+		}
+		var event compensate.Event
+		if err := json.Unmarshal(payload, &event); err != nil {
+			t.Fatalf("decode compensation event: %v", err)
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("read compensation events: %v", err)
+	}
+	return events
+}
 
 func rev002Clock() func() time.Time { return func() time.Time { return rev002At } }
 
@@ -75,7 +112,7 @@ func TestTodo_WF_REV_002(t *testing.T) {
 	if released.Status != "COMPENSATED" {
 		t.Fatalf("served COMPENSATE node status = %q, want COMPENSATED", released.Status)
 	}
-	events := served.LedgerEvents()
+	events := rev002LedgerEvents(t, db, tenantID)
 	if len(events) != 1 || events[0].Status != "COMPENSATED" ||
 		events[0].OriginalHistoryRef != "proposal-hold:"+materialDigest {
 		t.Fatalf("ledger after the COMPENSATE node = %+v, want one COMPENSATED event naming the countered hold", events)
@@ -106,16 +143,28 @@ func TestTodo_WF_REV_002(t *testing.T) {
 	if served.CapabilityCalls() != 1 {
 		t.Fatalf("capability calls = %d, want 1: an unserved inverse reached the capability", served.CapabilityCalls())
 	}
-	if got := len(served.LedgerEvents()); got != 1 {
+	if got := len(rev002LedgerEvents(t, db, tenantID)); got != 1 {
 		t.Fatalf("ledger after the unserved discharge holds %d events, want 1: an unserved inverse minted an event", got)
 	}
 	// Then the positive half: the served hold ref discharges through the
 	// shared executor, sharing its ledger and capability counter.
+	dischargeScope := idempotency.Scope{Tenant: tenantID, Capability: "promotion.flow", EffectScope: instanceID.String(), Key: "execute-promotion-original"}
 	ext001InTx(t, db, tenantID, func(tx dbport.Tx) error {
+		store := idempotency.PostgresStore{}
+		if _, created, err := store.Reserve(ctx, tx, dischargeScope, strings.Repeat("b", 64),
+			idempotency.RetentionPolicy{Retention: 72 * time.Hour, RetryWindow: time.Hour}, rev002At); err != nil || !created {
+			return fmt.Errorf("reserve source effect scope: created=%v err=%w", created, err)
+		}
+		if _, err := store.Complete(ctx, tx, dischargeScope, idempotency.ResultIdentity{ResultRef: "execute-promotion-result", EventRef: "execute-promotion-event"}, rev002At); err != nil {
+			return err
+		}
 		gated := withCompensationIdentity(withStepTx(ctx, tx), tenantID, intentID)
 		item := cancellation.CompensationItem{
 			ObligationID: uuid.New(), EffectID: "execute_promotion#1",
 			NodeID: "execute_promotion", Attempt: 1, Compensation: ServedHoldReleaseCapability + "@1",
+			TenantID: tenantID, WorkflowID: dischargeScope.Capability, InstanceID: instanceID,
+			PlanDigest: strings.Repeat("c", 64), CapabilityExecutionID: "execute-promotion-run-1",
+			OriginalScope: dischargeScope, OriginalEffectRefs: []string{"execute_promotion#1"},
 		}
 		res, err := served.Compensate(gated, tx, item)
 		if err != nil {
@@ -129,11 +178,26 @@ func TestTodo_WF_REV_002(t *testing.T) {
 	if served.CapabilityCalls() != 2 {
 		t.Fatalf("capability calls = %d, want 2: the discharge path bypassed the shared executor", served.CapabilityCalls())
 	}
-	events = served.LedgerEvents()
-	if len(events) != 2 || events[1].Status != "COMPENSATED" ||
-		events[1].OriginalHistoryRef != "effect:execute_promotion#1" {
+	events = rev002LedgerEvents(t, db, tenantID)
+	var discharged bool
+	for _, event := range events {
+		if event.OriginalHistoryRef == "workflow-effect:promotion.flow/"+instanceID.String()+"/execute_promotion#1" && event.Status == compensate.StatusCompensated {
+			discharged = true
+		}
+	}
+	if len(events) != 2 || !discharged {
 		t.Fatalf("ledger after the discharge = %+v, want the compensation event naming the countered effect", events)
 	}
+	ext001InTx(t, db, tenantID, func(tx dbport.Tx) error {
+		closed, found, err := (idempotency.PostgresStore{}).Lookup(ctx, tx, dischargeScope)
+		if err != nil {
+			return err
+		}
+		if !found || closed.Status != idempotency.StatusCompensated {
+			return fmt.Errorf("discharged source scope=%+v found=%v, want COMPENSATED", closed, found)
+		}
+		return nil
+	})
 
 	// A cancel before the commit point returns CANCELLED with no writes and
 	// never launches the served compensator.
@@ -148,7 +212,7 @@ func TestTodo_WF_REV_002(t *testing.T) {
 		preRes.Decision.CompensationLaunched {
 		t.Fatalf("pre-commit governed cancel = %+v, want CANCELLED/BEFORE_COMMIT with no launch", preRes.Decision)
 	}
-	if got := len(served.LedgerEvents()); got != 2 {
+	if got := len(rev002LedgerEvents(t, db, tenantID)); got != 2 {
 		t.Fatalf("ledger after the pre-commit cancel holds %d events, want 2: the compensator ran before the commit point", got)
 	}
 
@@ -179,11 +243,13 @@ func TestTodo_WF_REV_002(t *testing.T) {
 		!govRes.Decision.CompensationLaunched {
 		t.Fatalf("post-commit governed cancel = %+v, want COMMITTED/AFTER_COMMIT with a launch", govRes.Decision)
 	}
-	events = served.LedgerEvents()
+	events = rev002LedgerEvents(t, db, tenantID)
 	var governed bool
+	var governedEventRef string
 	for _, ev := range events {
 		if ev.OriginalHistoryRef == "commit:"+govRes.Decision.CommitIdentity {
 			governed = true
+			governedEventRef = ev.EventRef
 			if ev.Status != "COMPENSATED" {
 				t.Fatalf("governed compensation event = %+v, want COMPENSATED", ev)
 			}
@@ -192,6 +258,17 @@ func TestTodo_WF_REV_002(t *testing.T) {
 	if !governed {
 		t.Fatalf("ledger after the governed cancel = %+v, want one event naming the countered commit", events)
 	}
+	commitScope := idempotency.Scope{Tenant: tenantID, Capability: "transaction.commit", EffectScope: postPlan.PlanID, Key: postPlan.IdempotencyKey}
+	ext001InTx(t, db, tenantID, func(tx dbport.Tx) error {
+		closed, found, err := (idempotency.PostgresStore{}).Lookup(ctx, tx, commitScope)
+		if err != nil {
+			return err
+		}
+		if !found || closed.Status != idempotency.StatusCompensated || closed.CompensatedByRef != governedEventRef {
+			return fmt.Errorf("production commit scope closure=%+v found=%v, want COMPENSATED by event %q", closed, found, governedEventRef)
+		}
+		return nil
+	})
 	ext001InTx(t, db, tenantID, func(tx dbport.Tx) error {
 		reservation, err := aggregates.CompensationStore{}.ReservationForProposal(ctx, tx, tenantID, govProposal, ext001EffectiveStart)
 		if err != nil {
@@ -276,6 +353,20 @@ func rev002SeedInstance(t *testing.T, db *pgtest.DB, tenantID uuid.UUID, p *work
 			if !ok {
 				return fmt.Errorf("plan carries no node %q", node.ID)
 			}
+			if cn.CompensationRef != nil {
+				scope := idempotency.Scope{Tenant: tenantID, Capability: p.WorkflowID,
+					EffectScope: workflow.NodeEffectScope(node.ID), Key: workflow.StepActivationKey(instanceID, node.ID, 1)}
+				store := idempotency.PostgresStore{}
+				if _, created, err := store.Reserve(ctx, tx, scope, strings.Repeat("a", 64),
+					idempotency.RetentionPolicy{Retention: 72 * time.Hour, RetryWindow: time.Hour}, at); err != nil || !created {
+					return fmt.Errorf("reserve source effect %s: created=%v err=%w", node.ID, created, err)
+				}
+				if _, err := store.Complete(ctx, tx, scope, idempotency.ResultIdentity{
+					ResultRef: "effect:" + node.ID, EventRef: "event:" + node.ID,
+				}, at); err != nil {
+					return err
+				}
+			}
 			exec := runtime.NewNodeExecution(tenantID, instanceID, node.ID, 1, cn.Type, runtime.NodeReady)
 			exec.RecordedAt = at
 			var v int64
@@ -355,9 +446,9 @@ func rev002CancelAt(t *testing.T, served *ServedCompensation, db *pgtest.DB, ten
 	if decided.Decision != wantDecision {
 		t.Fatalf("cancel at %s: decision = %s, want %s (refs %+v)", frontier, decided.Decision, wantDecision, decided.CompensationRefs)
 	}
-	before := len(served.LedgerEvents())
+	before := len(rev002LedgerEvents(t, db, tenantID))
 	if wantDecision != workflow.CompensationRequired {
-		if got := len(served.LedgerEvents()) - before; got != 0 {
+		if got := len(rev002LedgerEvents(t, db, tenantID)) - before; got != 0 {
 			t.Fatalf("cancel at %s recorded %d compensation events, want none", frontier, got)
 		}
 		if status := rev002InstanceStatus(t, db, tenantID, instanceID); status != runtime.InstanceCancelled {
@@ -369,7 +460,7 @@ func rev002CancelAt(t *testing.T, served *ServedCompensation, db *pgtest.DB, ten
 	if drained.Decision != workflow.Cancelled {
 		t.Fatalf("discharge at %s: decision = %s, want CANCELLED", frontier, drained.Decision)
 	}
-	fresh := served.LedgerEvents()[before:]
+	fresh := rev002LedgerEvents(t, db, tenantID)[before:]
 	if len(fresh) != len(wantHistory) {
 		t.Fatalf("cancel at %s recorded %d compensation events, want %d: %+v", frontier, len(fresh), len(wantHistory), fresh)
 	}
@@ -378,12 +469,16 @@ func rev002CancelAt(t *testing.T, served *ServedCompensation, db *pgtest.DB, ten
 		seen[ev.OriginalHistoryRef] = string(ev.Status)
 	}
 	for _, history := range wantHistory {
-		status, ok := seen[history]
+		historyRef := history
+		if strings.HasPrefix(history, "effect:") {
+			historyRef = "workflow-effect:" + plan.WorkflowID + "/" + instanceID.String() + "/" + strings.TrimPrefix(history, "effect:")
+		}
+		status, ok := seen[historyRef]
 		if !ok {
-			t.Fatalf("cancel at %s: no compensation event names %q: %+v", frontier, history, fresh)
+			t.Fatalf("cancel at %s: no compensation event names %q: %+v", frontier, historyRef, fresh)
 		}
 		if status != "COMPENSATED" {
-			t.Fatalf("cancel at %s: event for %q has status %s, want COMPENSATED", frontier, history, status)
+			t.Fatalf("cancel at %s: event for %q has status %s, want COMPENSATED", frontier, historyRef, status)
 		}
 	}
 	if status := rev002InstanceStatus(t, db, tenantID, instanceID); status != runtime.InstanceCancelled {
@@ -461,12 +556,12 @@ func TestTodo_WF_REV_002_Integration(t *testing.T) {
 	if decided.Decision != workflow.CompensationRequired {
 		t.Fatalf("unknown-compensation cancel: decision = %s, want COMPENSATION_REQUIRED", decided.Decision)
 	}
-	before := len(served.LedgerEvents())
+	before := len(rev002LedgerEvents(t, db, tenantID))
 	drained := rev002Discharge(t, served, db, tenantID, holdIntent, instanceID)
 	if drained.Decision != workflow.RepairRequired {
 		t.Fatalf("unknown-compensation discharge: decision = %s, want REPAIR_REQUIRED", drained.Decision)
 	}
-	if got := len(served.LedgerEvents()) - before; got != 0 {
+	if got := len(rev002LedgerEvents(t, db, tenantID)) - before; got != 0 {
 		t.Fatalf("unknown-compensation discharge minted %d events, want none", got)
 	}
 	if status := rev002InstanceStatus(t, db, tenantID, instanceID); status != runtime.InstanceRepairRequired {
@@ -514,6 +609,12 @@ func (o *rev002FakeObserver) ObserveCompensation(_ context.Context, req compensa
 	}, nil
 }
 
+type rev002CloseableOperations struct{ *servedOperations }
+
+func (rev002CloseableOperations) CloseCompensated(context.Context, idempotency.Scope, string) error {
+	return nil
+}
+
 // TestTodo_WF_REV_002_Golden pins the served compensation's wire contract:
 // the discharge request the served cell builds for a recorded obligation
 // item, the compensation event the shared executor mints for it, and the
@@ -522,9 +623,15 @@ func (o *rev002FakeObserver) ObserveCompensation(_ context.Context, req compensa
 func TestTodo_WF_REV_002_Golden(t *testing.T) {
 	tenant := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	obligation := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	instanceID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	workflowID := "promotion.flow"
 	item := cancellation.CompensationItem{
 		ObligationID: obligation, EffectID: "execute_promotion#1",
 		NodeID: "execute_promotion", Attempt: 1, Compensation: "test.compensation.reverse@3",
+		TenantID: tenant, WorkflowID: workflowID, InstanceID: instanceID, PlanDigest: strings.Repeat("a", 64),
+		CapabilityExecutionID: "cap-exec:golden", OriginalScope: idempotency.Scope{
+			Tenant: tenant, Capability: workflowID, EffectScope: "workflow-node:execute_promotion", Key: "execute-promotion-key",
+		}, OriginalEffectRefs: []string{"execute_promotion#1"},
 	}
 	fingerprint := servedAuthorityFingerprint("sha256:rev002-authority")
 	req := dischargeCompensateRequest(tenant, item, "sha256:rev002-manifest", fingerprint)
@@ -543,6 +650,7 @@ func TestTodo_WF_REV_002_Golden(t *testing.T) {
 		Capability: &rev002FakeCapability{ref: "test.compensation.reverse"},
 		Observer:   &rev002FakeObserver{now: rev002At},
 		Clock:      rev002Clock(), AuthorityDigest: "sha256:rev002-authority",
+		Operations: &rev002CloseableOperations{servedOperations: &servedOperations{}},
 	})
 	if err != nil {
 		t.Fatalf("ComposeServedCompensation: %v", err)
@@ -557,7 +665,7 @@ func TestTodo_WF_REV_002_Golden(t *testing.T) {
 	if result.Event.Digest != rev002GoldenEventDigest {
 		t.Fatalf("compensation event digest = %s, want %s", result.Event.Digest, rev002GoldenEventDigest)
 	}
-	if result.Event.OriginalHistoryRef != "effect:execute_promotion#1" {
+	if result.Event.OriginalHistoryRef != "workflow-effect:"+workflowID+"/"+instanceID.String()+"/execute_promotion#1" {
 		t.Fatalf("event history ref = %q, want the countered effect", result.Event.OriginalHistoryRef)
 	}
 
@@ -572,6 +680,6 @@ func TestTodo_WF_REV_002_Golden(t *testing.T) {
 }
 
 const (
-	rev002GoldenRequestDigest = "fa8af3ec6e177e511b0f6f8076d467a67aacba21eef06aa6e0610aba5ff64438"
-	rev002GoldenEventDigest   = "20f4903926eae7f2f7fda1a4bc923df70967a93a59690b6e4120b89c0f07e4dc"
+	rev002GoldenRequestDigest = "017ed32f7cf2a454a13bcc1b607fbf067641ea08548cb98d0e11c9f93853612e"
+	rev002GoldenEventDigest   = "db3bdd20afce25c7342dbc58624e97127b1a36c56aac803e403412d0660f260e"
 )

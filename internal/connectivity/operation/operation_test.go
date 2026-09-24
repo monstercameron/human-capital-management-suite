@@ -3,6 +3,7 @@ package operation_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -80,7 +81,18 @@ func TestTodo_INTG_011_Golden(t *testing.T) {
 	}
 }
 
-func TestTodo_INTG_011_Integration(t *testing.T) { TestTodo_INTG_011(t) }
+func TestTodo_INTG_011_Integration(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:integration", 1, operation.OrderingStrict)
+	rows, err := j.List(context.Background(), "tenant-promotion")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].OperationID != id || rows[0].ExternalResourceKey != "worker:integration" {
+		t.Fatalf("listed operation=%+v", rows)
+	}
+}
 func TestTodo_INTG_011_Fault(t *testing.T) {
 	j := newJournal()
 	id := uuid.New()
@@ -145,7 +157,20 @@ func TestTodo_INTG_012(t *testing.T) {
 		t.Fatalf("lease = %+v", lease)
 	}
 }
-func TestTodo_INTG_012_Integration(t *testing.T) { TestTodo_INTG_012(t) }
+func TestTodo_INTG_012_Integration(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:lease", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	got, err := j.Get(context.Background(), "tenant-promotion", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.State != operation.StateLeased || got.FenceToken != lease.FenceToken {
+		t.Fatalf("lease was not recorded: operation=%+v lease=%+v", got, lease)
+	}
+}
 func TestTodo_INTG_012_Fault(t *testing.T) {
 	j := newJournal()
 	id := uuid.New()
@@ -174,8 +199,56 @@ func TestTodo_INTG_012_Security(t *testing.T) {
 		t.Fatalf("plan mismatch = %v", err)
 	}
 }
-func TestTodo_INTG_012_Mutation(t *testing.T) { TestTodo_INTG_012_Fault(t) }
-func TestTodo_INTG_012_Race(t *testing.T)     { TestTodo_INTG_011_Race(t) }
+func TestTodo_INTG_012_Mutation(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:lease-mutation", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	lease.FenceToken++
+	if _, err := j.Dispatch(context.Background(), lease, operation.NewPayrollSync()); !errors.Is(err, operation.ErrLeaseExpired) {
+		t.Fatalf("modified fence token dispatch error=%v", err)
+	}
+	got, err := j.Get(context.Background(), "tenant-promotion", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.State != operation.StateLeased {
+		t.Fatalf("invalid lease changed operation to %s", got.State)
+	}
+}
+func TestTodo_INTG_012_Race(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:lease-race", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	start := make(chan struct{})
+	results := make(chan error, 12)
+	var wg sync.WaitGroup
+	for i := 0; i < cap(results); i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			_, err := j.Lease(context.Background(), operation.LeaseRequest{TenantID: "tenant-promotion", OperationID: id, WorkerID: fmt.Sprintf("worker-%d", i), At: testNow, Duration: time.Minute, Revalidate: confirmed})
+			results <- err
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	successes := 0
+	for err := range results {
+		if err == nil {
+			successes++
+		} else if !errors.Is(err, operation.ErrLeaseFenced) {
+			t.Fatalf("unexpected lease contention error: %v", err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("successful leases=%d, want 1", successes)
+	}
+}
 func FuzzTodo_INTG_012(f *testing.F) {
 	f.Add("BLOCK")
 	f.Fuzz(func(t *testing.T, reason string) {
@@ -229,7 +302,17 @@ func TestTodo_TX_010_Race(t *testing.T) {
 	}
 	wg.Wait()
 }
-func TestTodo_TX_010_Mutation(t *testing.T) { TestTodo_TX_010(t) }
+func TestTodo_TX_010_Mutation(t *testing.T) {
+	j := newJournal()
+	a, b := uuid.New(), uuid.New()
+	planned(t, j, a, "worker:ordered", 1, operation.OrderingStrict)
+	planned(t, j, b, "worker:ordered", 2, operation.OrderingStrict)
+	queued(t, j, a)
+	queued(t, j, b)
+	if _, err := j.Lease(context.Background(), operation.LeaseRequest{TenantID: "tenant-promotion", OperationID: b, WorkerID: "worker-b", At: testNow, Duration: time.Minute, Revalidate: confirmed}); !errors.Is(err, operation.ErrCausalBlocked) {
+		t.Fatalf("sequence mutation bypassed predecessor: %v", err)
+	}
+}
 
 func leaseFor(t *testing.T, j *operation.MemoryJournal, id uuid.UUID) operation.Lease {
 	t.Helper()
@@ -261,7 +344,21 @@ func TestTodo_INTG_013(t *testing.T) {
 		t.Fatal("provider did not receive stable governed request")
 	}
 }
-func TestTodo_INTG_013_Integration(t *testing.T) { TestTodo_INTG_013(t) }
+func TestTodo_INTG_013_Integration(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:dispatch-integration", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	writer := operation.NewPayrollSync()
+	result, err := j.Dispatch(context.Background(), lease, writer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Operation.State != operation.StateProviderAccepted || result.Attempt.ProviderResult != operation.ResponseSuccess || result.Attempt.ProviderRequestID == "" {
+		t.Fatalf("dispatch evidence incomplete: %+v", result)
+	}
+}
 func TestTodo_INTG_013_Fault(t *testing.T) {
 	j := newJournal()
 	id := uuid.New()
@@ -278,9 +375,83 @@ func TestTodo_INTG_013_Fault(t *testing.T) {
 		t.Fatalf("timeout state = %s", result.Operation.State)
 	}
 }
-func TestTodo_INTG_013_Recovery(t *testing.T) { TestTodo_INTG_013(t) }
-func TestTodo_INTG_013_Mutation(t *testing.T) { TestTodo_INTG_013(t) }
-func TestTodo_INTG_013_Race(t *testing.T)     { TestTodo_INTG_011_Race(t) }
+func TestTodo_INTG_013_Recovery(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:dispatch-recovery", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	writer := operation.NewPayrollSync()
+	writer.TimeoutAfterSend = true
+	first, err := j.Dispatch(context.Background(), lease, writer)
+	if err == nil || first.Operation.State != operation.StateAmbiguous {
+		t.Fatalf("ambiguous send result=%+v err=%v", first, err)
+	}
+	resolved, err := j.RecordObservation(context.Background(), operation.Observation{TenantID: "tenant-promotion", ObservationID: uuid.New(), OperationID: id, ExternalResourceKey: "worker:dispatch-recovery", Verdict: operation.ObservationApplied, ObservedAt: testNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.State != operation.StateReconciled || len(writer.Calls()) != 1 {
+		t.Fatalf("recovery=%+v calls=%d", resolved, len(writer.Calls()))
+	}
+}
+func TestTodo_INTG_013_Mutation(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:payload-copy", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	writer := operation.NewPayrollSync()
+	if _, err := j.Dispatch(context.Background(), lease, writer); err != nil {
+		t.Fatal(err)
+	}
+	calls := writer.Calls()
+	calls[0].Payload[0] = 'X'
+	if string(writer.Calls()[0].Payload) == string(calls[0].Payload) {
+		t.Fatal("writer exposed mutable call payload")
+	}
+}
+func TestTodo_INTG_013_Race(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:dispatch-race", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	writer := operation.NewPayrollSync()
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	type dispatchResult struct {
+		providerCall bool
+		err          error
+	}
+	results := make(chan dispatchResult, 2)
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			result, err := j.Dispatch(context.Background(), lease, writer)
+			results <- dispatchResult{providerCall: result.ProviderCall, err: err}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	success, already := 0, 0
+	for result := range results {
+		if result.providerCall {
+			success++
+		}
+		if errors.Is(result.err, operation.ErrLeaseRequired) || (result.err == nil && !result.providerCall) {
+			already++
+		} else if result.err != nil {
+			t.Fatalf("unexpected concurrent dispatch error: %v", result.err)
+		}
+	}
+	if success != 1 || already != 1 || len(writer.Calls()) != 1 {
+		t.Fatalf("dispatch successes=%d rejected=%d calls=%d", success, already, len(writer.Calls()))
+	}
+}
 func FuzzTodo_INTG_013(f *testing.F) {
 	f.Add("payroll")
 	f.Fuzz(func(t *testing.T, key string) { _ = operation.Explain(operation.Operation{IdempotencyKey: key}) })
@@ -308,7 +479,25 @@ func TestTodo_INTG_014(t *testing.T) {
 		t.Fatal("observation caused a blind provider retry")
 	}
 }
-func TestTodo_INTG_014_Integration(t *testing.T) { TestTodo_INTG_014(t) }
+func TestTodo_INTG_014_Integration(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:observe-integration", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	writer := operation.NewPayrollSync()
+	writer.TimeoutAfterSend = true
+	if _, err := j.Dispatch(context.Background(), lease, writer); err == nil {
+		t.Fatal("expected ambiguous provider outcome")
+	}
+	result, err := j.RecordObservation(context.Background(), operation.Observation{TenantID: "tenant-promotion", ObservationID: uuid.New(), OperationID: id, ExternalResourceKey: "worker:observe-integration", Verdict: operation.ObservationApplied, ObservedDigest: "sha256:observed", ObservedAt: testNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.CompletionState != "COMPLETE" || result.ResponseClass != operation.ResponseSuccess {
+		t.Fatalf("observation did not complete operation: %+v", result)
+	}
+}
 func TestTodo_INTG_014_Fault(t *testing.T) {
 	j := newJournal()
 	id := uuid.New()
@@ -365,7 +554,23 @@ func TestTodo_INTG_016(t *testing.T) {
 		t.Fatalf("sibling changed = %+v", sibling)
 	}
 }
-func TestTodo_INTG_016_Integration(t *testing.T) { TestTodo_INTG_016(t) }
+func TestTodo_INTG_016_Integration(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:redrive-integration", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	if _, err := j.Dispatch(context.Background(), lease, &failWriter{}); err == nil {
+		t.Fatal("expected provider failure")
+	}
+	preview, err := j.PreviewRedrive(context.Background(), operation.RedriveRequest{TenantID: "tenant-promotion", OperationID: id, CurrentMappingProfileVersion: "payroll-map-v1", CurrentMappedPayloadDigest: "sha256:mapped", CurrentAuthorityPolicyFingerprint: "authz-v1", CurrentWriterFenceEpoch: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !preview.Compatible || preview.OperationID != id {
+		t.Fatalf("redrive preview=%+v", preview)
+	}
+}
 func TestTodo_INTG_016_Fault(t *testing.T) {
 	j := newJournal()
 	id := uuid.New()
@@ -378,8 +583,35 @@ func TestTodo_INTG_016_Fault(t *testing.T) {
 		t.Fatalf("unapproved material redrive = %v", err)
 	}
 }
-func TestTodo_INTG_016_Security(t *testing.T) { TestTodo_INTG_016_Fault(t) }
-func TestTodo_INTG_016_Mutation(t *testing.T) { TestTodo_INTG_016(t) }
+func TestTodo_INTG_016_Security(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:redrive-security", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	if rows, err := j.List(context.Background(), "another-tenant"); err != nil || len(rows) != 0 {
+		t.Fatalf("other tenant listed operation: rows=%+v err=%v", rows, err)
+	}
+}
+func TestTodo_INTG_016_Mutation(t *testing.T) {
+	j := newJournal()
+	id := uuid.New()
+	planned(t, j, id, "worker:redrive-mutation", 1, operation.OrderingStrict)
+	queued(t, j, id)
+	lease := leaseFor(t, j, id)
+	if _, err := j.Dispatch(context.Background(), lease, &failWriter{}); err == nil {
+		t.Fatal("expected provider failure")
+	}
+	if _, err := j.Redrive(context.Background(), operation.RedriveRequest{TenantID: "tenant-promotion", OperationID: id, ActorRef: "operator:payroll", At: testNow, CurrentMappingProfileVersion: "changed", CurrentMappedPayloadDigest: "sha256:changed", CurrentAuthorityPolicyFingerprint: "changed", CurrentWriterFenceEpoch: 2}); !errors.Is(err, operation.ErrRedriveApprovalRequired) {
+		t.Fatalf("material redrive without approval error=%v", err)
+	}
+	got, err := j.Get(context.Background(), "tenant-promotion", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RedriveCount != 0 || got.State != operation.StateFailed {
+		t.Fatalf("rejected redrive mutated operation: %+v", got)
+	}
+}
 func FuzzTodo_INTG_016(f *testing.F) {
 	f.Add("mapping")
 	f.Fuzz(func(t *testing.T, change string) {

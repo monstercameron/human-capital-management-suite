@@ -29,7 +29,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/edge"
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/providertelemetry/providerwire"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/admission"
 )
 
 // Contract constants shared by the intake and callback halves. They are the
@@ -110,9 +113,17 @@ type Config struct {
 	// case. It is used for the apply delay and retry backoff so tests can
 	// observe the schedule without waiting it out.
 	Sleep func(ctx context.Context, d time.Duration) error
-	// HTTPClient delivers callbacks. The default does not follow redirects,
-	// because a provider treating a 3xx as delivery would lose the event.
+	// HTTPClient is the injected callback port used by simulator fixtures.
+	// Production composition should set Gateway; no direct client is created
+	// when neither port is supplied.
 	HTTPClient *http.Client
+	// Gateway routes callback delivery through centralized DNS, TLS, proxy,
+	// trust and DLP enforcement. When present it takes precedence over
+	// HTTPClient.
+	Gateway *egress.Gateway
+	// Overload coordinates callback attempts. Nil installs a bounded local
+	// retry budget and circuit breaker for this simulator instance.
+	Overload *edge.Coordinator
 	// Logger receives structured intake, callback and retry logs
 	// (default: discarded).
 	Logger *slog.Logger
@@ -128,7 +139,9 @@ type Server struct {
 	random       func() float64
 	newID        func() string
 	sleep        func(ctx context.Context, d time.Duration) error
-	client       *http.Client
+	client       Doer
+	gateway      *egress.Gateway
+	overload     *edge.Coordinator
 	log          *slog.Logger
 	mux          *http.ServeMux
 
@@ -164,7 +177,8 @@ func New(cfg Config) *Server {
 		random:       cfg.Random,
 		newID:        cfg.NewID,
 		sleep:        cfg.Sleep,
-		client:       cfg.HTTPClient,
+		gateway:      cfg.Gateway,
+		overload:     cfg.Overload,
 		log:          cfg.Logger,
 		changes:      make(map[string]*change),
 	}
@@ -172,6 +186,9 @@ func New(cfg Config) *Server {
 		s.scenario = *cfg.Scenario
 	} else {
 		s.scenario = DefaultScenario()
+	}
+	if cfg.HTTPClient != nil {
+		s.client = cfg.HTTPClient
 	}
 	if s.maxAttempts <= 0 {
 		s.maxAttempts = defaultMaxAttempts
@@ -195,10 +212,15 @@ func New(cfg Config) *Server {
 	if s.sleep == nil {
 		s.sleep = sleepContext
 	}
-	if s.client == nil {
-		s.client = &http.Client{
-			Timeout:       15 * time.Second,
-			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	if s.gateway != nil {
+		// Never downgrade to the injected client when the enforcing gateway is
+		// configured alongside it.
+		s.client = nil
+	}
+	if s.overload == nil {
+		s.overload = &edge.Coordinator{
+			Breaker: edge.NewCircuitBreaker(edge.CircuitConfig{FailureThreshold: 5, Cooldown: 30 * time.Second}),
+			Retry:   edge.RetryLedger{Provisioner: admission.NewProvisioner(), Allowed: min(3, max(0, s.maxAttempts-1)), Version: "payrollsim-callback-v1"},
 		}
 	}
 	if s.log == nil {
@@ -218,6 +240,11 @@ func New(cfg Config) *Server {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	s.mux = mux
 	return s
+}
+
+// Doer is the narrow outbound callback port.
+type Doer interface {
+	Do(*http.Request) (*http.Response, error)
 }
 
 // ServeHTTP routes a request.

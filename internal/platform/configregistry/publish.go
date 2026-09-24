@@ -16,48 +16,76 @@ package configregistry
 // idempotent: Publish returns the existing record rather than minting (or
 // rejecting) a second one for identical content.
 func Publish(store Store, obj ConfigurationObject) (ConfigurationObject, error) {
+	prepared, err := Prepare(store, obj)
+	if err != nil {
+		return ConfigurationObject{}, err
+	}
+	if prepared.existing {
+		return prepared.object.clone(), nil
+	}
+	if err := store.PutObject(prepared.object); err != nil {
+		return ConfigurationObject{}, err
+	}
+	return prepared.object.clone(), nil
+}
+
+// PreparedObject is a validated, content-addressed configuration object that
+// has not been written to the registry. Its fields are private so callers
+// cannot substitute data between preparation and commit.
+type PreparedObject struct {
+	object   ConfigurationObject
+	existing bool
+}
+
+// Object returns the exact immutable value compilation should consume.
+func (p PreparedObject) Object() ConfigurationObject { return p.object.clone() }
+
+// Prepare validates and mints an object without publishing it. It also checks
+// any prior immutable revision for conflicts. Callers can compile from
+// PreparedObject.Object and only publish after compilation succeeds.
+func Prepare(store Store, obj ConfigurationObject) (PreparedObject, error) {
 	if store == nil {
-		return ConfigurationObject{}, refuse(CodeNoStore, obj.ID, "no store supplied")
+		return PreparedObject{}, refuse(CodeNoStore, obj.ID, "no store supplied")
 	}
 	if !obj.Kind.Valid() {
-		return ConfigurationObject{}, refuse(CodeInvalidKind, obj.ID, "kind %q is not in the closed vocabulary", obj.Kind)
+		return PreparedObject{}, refuse(CodeInvalidKind, obj.ID, "kind %q is not in the closed vocabulary", obj.Kind)
 	}
 	if obj.ID == "" {
-		return ConfigurationObject{}, refuse(CodeMissingID, "", "configuration object has no id")
+		return PreparedObject{}, refuse(CodeMissingID, "", "configuration object has no id")
 	}
 	if obj.Revision == 0 {
-		return ConfigurationObject{}, refuse(CodeInvalidRevision, obj.ID, "revision must be >= 1")
+		return PreparedObject{}, refuse(CodeInvalidRevision, obj.ID, "revision must be >= 1")
 	}
 	if !obj.Scope.valid() {
-		return ConfigurationObject{}, refuse(CodeMissingScope, obj.ID, "configuration object has no tenant scope")
+		return PreparedObject{}, refuse(CodeMissingScope, obj.ID, "configuration object has no tenant scope")
 	}
 	if obj.SchemaRef == "" {
-		return ConfigurationObject{}, refuse(CodeMissingSchemaRef, obj.ID, "configuration object has no schema ref")
+		return PreparedObject{}, refuse(CodeMissingSchemaRef, obj.ID, "configuration object has no schema ref")
 	}
 	if obj.PublisherPrincipal == "" {
-		return ConfigurationObject{}, refuse(CodeMissingPublisher, obj.ID, "configuration object has no publisher principal")
+		return PreparedObject{}, refuse(CodeMissingPublisher, obj.ID, "configuration object has no publisher principal")
 	}
 	if obj.PublishedAt.IsZero() {
-		return ConfigurationObject{}, refuse(CodeMissingPublishedAt, obj.ID, "configuration object has no published-at time")
+		return PreparedObject{}, refuse(CodeMissingPublishedAt, obj.ID, "configuration object has no published-at time")
 	}
 	if len(obj.Body) == 0 {
-		return ConfigurationObject{}, refuse(CodeEmptyBody, obj.ID, "configuration object has no body")
+		return PreparedObject{}, refuse(CodeEmptyBody, obj.ID, "configuration object has no body")
 	}
 
 	bodyDigest := computeBodyDigest(obj.Body)
 	if obj.CanonicalBodyDigest != "" && obj.CanonicalBodyDigest != bodyDigest {
-		return ConfigurationObject{}, refuse(CodeBodyDigestMismatch, obj.ID,
+		return PreparedObject{}, refuse(CodeBodyDigestMismatch, obj.ID,
 			"supplied canonical body digest %s does not match the body's own digest %s", obj.CanonicalBodyDigest, bodyDigest)
 	}
 
 	ref := obj.Ref()
 	if existing, found, err := store.GetObject(ref); err != nil {
-		return ConfigurationObject{}, err
+		return PreparedObject{}, err
 	} else if found {
 		if existing.CanonicalBodyDigest == bodyDigest {
-			return existing, nil
+			return PreparedObject{object: existing.clone(), existing: true}, nil
 		}
-		return ConfigurationObject{}, refuse(CodeRevisionConflict, obj.ID,
+		return PreparedObject{}, refuse(CodeRevisionConflict, obj.ID,
 			"revision %d of %s/%s is already published with different content", obj.Revision, obj.Kind, obj.ID)
 	}
 
@@ -65,10 +93,34 @@ func Publish(store Store, obj ConfigurationObject) (ConfigurationObject, error) 
 	minted.CanonicalBodyDigest = bodyDigest
 	minted.digest = computeRecordDigest(minted)
 
-	if err := store.PutObject(minted); err != nil {
-		return ConfigurationObject{}, err
+	return PreparedObject{object: minted}, nil
+}
+
+// AtomicActivationStore commits the candidate object and its activation
+// evidence in one storage transaction. Production adapters implement this
+// contract; no non-atomic fallback is provided for activation workflows.
+type AtomicActivationStore interface {
+	CommitObjectActivation(ConfigurationObject, ActivationEvidence) (ActivationRecord, error)
+}
+
+// CommitActivation durably appends activation only for the exact prepared
+// object. Adapters perform both immutable object publication and activation
+// append atomically.
+func CommitActivation(store Store, prepared PreparedObject, evidence ActivationEvidence) (ActivationRecord, error) {
+	if store == nil {
+		return ActivationRecord{}, refuse(CodeNoStore, prepared.object.ID, "no store supplied")
 	}
-	return minted, nil
+	if evidence.ActivatedBy == "" {
+		return ActivationRecord{}, refuse(CodeUnauthorizedActivation, prepared.object.ID, "activation has no activating principal")
+	}
+	if evidence.ActivatedAt.IsZero() {
+		return ActivationRecord{}, refuse(CodeMissingActivationTime, prepared.object.ID, "activation has no activation time")
+	}
+	committer, ok := store.(AtomicActivationStore)
+	if !ok {
+		return ActivationRecord{}, refuse(CodeNoStore, prepared.object.ID, "store does not support atomic object activation")
+	}
+	return committer.CommitObjectActivation(prepared.object.clone(), evidence)
 }
 
 // Activate appends an [ActivationRecord] naming ref as the newly active

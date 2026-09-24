@@ -68,7 +68,7 @@ func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
 	for _, grant := range snapshot.PagePermissions {
 		if grant.RoleID == "payroll_manager" && grant.PageID == "organization" {
 			grant.View = true
-			if _, err := store.SavePagePermission(ctx, tenant, "admin", grant); err != nil {
+			if _, err := testSavePagePermission(store, ctx, tenant, "admin", grant); err != nil {
 				t.Fatal(err)
 			}
 			break
@@ -93,38 +93,38 @@ func TestStorePersistsRolesAssignmentsAndScopedVisibilityWithCAS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	role, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "regional_auditor", Name: "Regional auditor", Description: "Supports regional reviews", Active: true})
+	role, err := testSaveRole(store, ctx, tenant, "admin", roleaccess.Role{ID: "regional_auditor", Name: "Regional auditor", Description: "Supports regional reviews", Active: true})
 	if err != nil || role.Version != 1 {
 		t.Fatalf("save role = %+v, %v", role, err)
 	}
-	if _, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "regional_auditor", Name: "Duplicate", Active: true}); !errors.Is(err, roleaccess.ErrVersionConflict) {
+	if _, err := testSaveRole(store, ctx, tenant, "admin", roleaccess.Role{ID: "regional_auditor", Name: "Duplicate", Active: true}); !errors.Is(err, roleaccess.ErrVersionConflict) {
 		t.Fatalf("duplicate role = %v", err)
 	}
 
-	assignment, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker-1", RoleIDs: []string{"worker_self", "regional_auditor"}})
+	assignment, err := testSaveAssignment(store, ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker-1", RoleIDs: []string{"worker_self", "regional_auditor"}})
 	if err != nil || assignment.Version != 1 {
 		t.Fatalf("save assignment = %+v, %v", assignment, err)
 	}
 	updated := assignment
 	updated.RoleIDs = []string{"regional_auditor"}
-	updated, err = store.SaveAssignment(ctx, tenant, "admin", updated)
+	updated, err = testSaveAssignment(store, ctx, tenant, "admin", updated)
 	if err != nil || updated.Version != 2 {
 		t.Fatalf("update assignment = %+v, %v", updated, err)
 	}
-	if _, err := store.SaveAssignment(ctx, tenant, "admin", assignment); !errors.Is(err, roleaccess.ErrVersionConflict) {
+	if _, err := testSaveAssignment(store, ctx, tenant, "admin", assignment); !errors.Is(err, roleaccess.ErrVersionConflict) {
 		t.Fatalf("stale assignment = %v", err)
 	}
 
-	policy, err := store.SaveVisibility(ctx, tenant, "org:north", "admin", roleaccess.VisibilityPolicy{RoleID: "regional_auditor", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance", "finance"}})
+	policy, err := testSaveVisibility(store, ctx, tenant, "org:north", "admin", roleaccess.VisibilityPolicy{RoleID: "regional_auditor", Mode: roleaccess.VisibilityAllowlist, OrganizationUnits: []string{"Finance", "finance"}})
 	if err != nil || policy.Version != 1 || len(policy.OrganizationUnits) != 1 {
 		t.Fatalf("save visibility = %+v, %v", policy, err)
 	}
-	page, err := store.SavePagePermission(ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "regional_auditor", PageID: "insights", View: true})
+	page, err := testSavePagePermission(store, ctx, tenant, "admin", roleaccess.PagePermission{RoleID: "regional_auditor", PageID: "insights", View: true})
 	if err != nil || page.Version != 1 || page.Create {
 		t.Fatalf("save page permission = %+v, %v", page, err)
 	}
 	page.Create = true
-	page, err = store.SavePagePermission(ctx, tenant, "admin", page)
+	page, err = testSavePagePermission(store, ctx, tenant, "admin", page)
 	if err != nil || page.Version != 2 || !page.Create {
 		t.Fatalf("update page permission = %+v, %v", page, err)
 	}
@@ -173,22 +173,22 @@ func TestTodo_WEB_241_Integration(t *testing.T) {
 		t.Fatalf("bootstrap feature permission = %#v", permission)
 	}
 	permission.Create = false
-	updated, err := store.SaveFeaturePermission(ctx, tenant, "admin", permission)
+	updated, err := testSaveFeaturePermission(store, ctx, tenant, "admin", permission)
 	if err != nil || updated.Version != 2 || updated.Create {
 		t.Fatalf("update feature permission = %#v, %v", updated, err)
 	}
-	if _, err := store.SaveFeaturePermission(ctx, tenant, "admin", permission); !errors.Is(err, roleaccess.ErrVersionConflict) {
+	if _, err := testSaveFeaturePermission(store, ctx, tenant, "admin", permission); !errors.Is(err, roleaccess.ErrVersionConflict) {
 		t.Fatalf("stale feature update = %v", err)
 	}
 	unsupported := updated
 	unsupported.Delete = true
-	if _, err := store.SaveFeaturePermission(ctx, tenant, "admin", unsupported); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveFeaturePermission(store, ctx, tenant, "admin", unsupported); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("feature grant beyond its declared ceiling = %v", err)
 	}
-	if _, err := store.SaveFeaturePermission(ctx, tenant, "admin", roleaccess.FeaturePermission{RoleID: "comp_admin", PageID: "people", FeatureID: "unknown", View: true}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveFeaturePermission(store, ctx, tenant, "admin", roleaccess.FeaturePermission{RoleID: "comp_admin", PageID: "people", FeatureID: "unknown", View: true}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("unregistered feature = %v", err)
 	}
-	if _, err := store.SaveFeaturePermission(ctx, tenant, "admin", roleaccess.FeaturePermission{RoleID: "comp_admin", PageID: "missing-page", FeatureID: "content", View: true}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveFeaturePermission(store, ctx, tenant, "admin", roleaccess.FeaturePermission{RoleID: "comp_admin", PageID: "missing-page", FeatureID: "content", View: true}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("feature without page grant = %v", err)
 	}
 }
@@ -210,54 +210,54 @@ func TestStore_ValidationBootstrapAndUpdates(t *testing.T) {
 		t.Fatal(err)
 	}
 	role := roleaccess.Role{ID: "custom_role", Name: "Custom", Description: "Description", Active: true}
-	if _, err := store.SaveRole(ctx, tenant, " ", role); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveRole(store, ctx, tenant, " ", role); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("blank role actor = %v", err)
 	}
-	if _, err := store.SaveRole(ctx, tenant, "admin", roleaccess.Role{ID: "bad role", Name: "Bad", Active: true}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveRole(store, ctx, tenant, "admin", roleaccess.Role{ID: "bad role", Name: "Bad", Active: true}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("invalid role = %v", err)
 	}
-	saved, err := store.SaveRole(ctx, tenant, "admin", role)
+	saved, err := testSaveRole(store, ctx, tenant, "admin", role)
 	if err != nil || saved.Version != 1 {
 		t.Fatalf("save custom role = %+v, %v", saved, err)
 	}
 	saved.Description = "Updated"
-	saved, err = store.SaveRole(ctx, tenant, "admin", saved)
+	saved, err = testSaveRole(store, ctx, tenant, "admin", saved)
 	if err != nil || saved.Version != 2 || saved.Description != "Updated" {
 		t.Fatalf("update custom role = %+v, %v", saved, err)
 	}
-	if _, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker", RoleIDs: nil}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveAssignment(store, ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker", RoleIDs: nil}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("empty assignment = %v", err)
 	}
-	assignment, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker", RoleIDs: []string{"custom_role"}})
+	assignment, err := testSaveAssignment(store, ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "worker", RoleIDs: []string{"custom_role"}})
 	if err != nil || assignment.Version != 1 {
 		t.Fatalf("save assignment = %+v, %v", assignment, err)
 	}
 	updated := assignment
 	updated.RoleIDs = []string{"custom_role"}
-	updated, err = store.SaveAssignment(ctx, tenant, "admin", updated)
+	updated, err = testSaveAssignment(store, ctx, tenant, "admin", updated)
 	if err != nil || updated.Version != 2 {
 		t.Fatalf("update assignment = %+v, %v", updated, err)
 	}
-	if _, err := store.SaveVisibility(ctx, tenant, "org", "admin", roleaccess.VisibilityPolicy{RoleID: "custom_role", Mode: "unknown"}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveVisibility(store, ctx, tenant, "org", "admin", roleaccess.VisibilityPolicy{RoleID: "custom_role", Mode: "unknown"}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("invalid visibility = %v", err)
 	}
-	policy, err := store.SaveVisibility(ctx, tenant, "org", "admin", roleaccess.VisibilityPolicy{RoleID: "custom_role", Mode: roleaccess.VisibilityOwnUnit, OrganizationUnits: []string{"Finance"}})
+	policy, err := testSaveVisibility(store, ctx, tenant, "org", "admin", roleaccess.VisibilityPolicy{RoleID: "custom_role", Mode: roleaccess.VisibilityOwnUnit, OrganizationUnits: []string{"Finance"}})
 	if err != nil || policy.Version != 1 {
 		t.Fatalf("save visibility = %+v, %v", policy, err)
 	}
 	policy.Mode = roleaccess.VisibilityDenylist
-	policy, err = store.SaveVisibility(ctx, tenant, "org", "admin", policy)
+	policy, err = testSaveVisibility(store, ctx, tenant, "org", "admin", policy)
 	if err != nil || policy.Version != 2 {
 		t.Fatalf("update visibility = %+v, %v", policy, err)
 	}
-	if _, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "inactive", RoleIDs: []string{"custom_role"}}); err != nil {
+	if _, err := testSaveAssignment(store, ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "inactive", RoleIDs: []string{"custom_role"}}); err != nil {
 		t.Fatal(err)
 	}
 	db.Exec(t, `UPDATE access_role SET active=false WHERE tenant_id=$1 AND role_id=$2`, tenantID, "custom_role")
-	if _, err := store.SaveAssignment(ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "blocked", RoleIDs: []string{"custom_role"}}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveAssignment(store, ctx, tenant, "admin", roleaccess.Assignment{WorkerRef: "blocked", RoleIDs: []string{"custom_role"}}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("inactive assigned role = %v", err)
 	}
-	if _, err := store.SaveVisibility(ctx, tenant, "org", "admin", roleaccess.VisibilityPolicy{RoleID: "custom_role", Mode: roleaccess.VisibilityAll}); !errors.Is(err, roleaccess.ErrInvalid) {
+	if _, err := testSaveVisibility(store, ctx, tenant, "org", "admin", roleaccess.VisibilityPolicy{RoleID: "custom_role", Mode: roleaccess.VisibilityAll}); !errors.Is(err, roleaccess.ErrInvalid) {
 		t.Fatalf("inactive visibility role = %v", err)
 	}
 }

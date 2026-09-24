@@ -167,6 +167,7 @@ func Catalog() []Entry {
 		ledgerStreamReplayEntry(),
 		ledgerEffectiveAsOfEntry(),
 		jobsPartitionListByRunEntry(),
+		jobsLoadOpenRunEntry(),
 		intentcontrolContextLoadEntry(),
 	}
 }
@@ -521,6 +522,58 @@ func jobsPartitionListByRunEntry() Entry {
 			}
 			return func(ctx context.Context, q dbport.Conn) error {
 				_, err := (jobs.PartitionStore{}).ListByRun(ctx, q, tenant, targetRun)
+				return err
+			}, nil
+		},
+	}
+}
+
+func seedOpenJobRuns(ctx context.Context, ex dbport.Conn, tenant uuid.UUID, n int) error {
+	const jobID = "queryplans-seed-open-job"
+	if _, err := ex.Exec(ctx, `
+		INSERT INTO job_definition (
+			tenant_id, job_id, version, definition_digest, trigger_digest,
+			target_definition_ref, target_definition_version, body,
+			published_by, published_at)
+		VALUES ($1, $2, 1, $3, $4, 'queryplans-seed-target', 1, '\x00'::bytea, 'queryplans-seed', now())`,
+		tenant, jobID, hex64("queryplans-open-job-definition"), hex64("queryplans-open-job-trigger")); err != nil {
+		return fmt.Errorf("queryplans: seed open job definition: %w", err)
+	}
+	runIDs := make([]string, n)
+	declaredAt := make([]time.Time, n)
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i := range n {
+		runIDs[i] = uuid.NewString()
+		declaredAt[i] = base.Add(time.Duration(i) * time.Second)
+	}
+	if _, err := ex.Exec(ctx, `
+		INSERT INTO job_run (tenant_id, run_id, job_id, job_version, run_state, declared_by, declared_at)
+		SELECT $1, r.id::uuid, $2, 1, 'DECLARED', 'queryplans-seed', r.declared_at
+		FROM unnest($3::text[], $4::timestamptz[]) AS r(id, declared_at)`, tenant, jobID, runIDs, declaredAt); err != nil {
+		return fmt.Errorf("queryplans: seed open job runs: %w", err)
+	}
+	if _, err := ex.Exec(ctx, "ANALYZE job_run"); err != nil {
+		return fmt.Errorf("queryplans: analyze job_run: %w", err)
+	}
+	return nil
+}
+
+func jobsLoadOpenRunEntry() Entry {
+	return Entry{
+		Name:         "JOBS_LOAD_OPEN_RUN_BY_JOB",
+		Owner:        "internal/data/jobs.RunStore.LoadOpenByJob (internal/data/jobs/jobs.go)",
+		Table:        "job_run",
+		RowThreshold: DefaultRowThreshold,
+		// The primary key's tenant_id prefix also bounds this lookup to the
+		// requesting tenant's runs; the planner currently chooses it over the
+		// job and state indexes when the seeded tenant slice is selective.
+		ExpectedIndexSubstrings: []string{"job_run_pkey", "job_run_job", "job_run_state"},
+		Prepare: func(ctx context.Context, ex dbport.Conn, tenant uuid.UUID, n int) (func(context.Context, dbport.Conn) error, error) {
+			if err := seedWithDecoys(ctx, ex, tenant, n, seedOpenJobRuns); err != nil {
+				return nil, err
+			}
+			return func(ctx context.Context, q dbport.Conn) error {
+				_, err := (jobs.RunStore{}).LoadOpenByJob(ctx, q, tenant, "queryplans-seed-open-job")
 				return err
 			}, nil
 		},

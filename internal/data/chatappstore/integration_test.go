@@ -35,7 +35,10 @@ func appStoreFixture(t *testing.T) (*Store, context.Context) {
 	return New(db.Conn), WithTenant(context.Background(), "tenant-a")
 }
 
-func TestTodo_CHAT_040_Integration_DurableInstallAndTenantIsolation(t *testing.T) {
+// TestTodo_CHAT_040_Integration is the CHAT-040 INTEGRATION matrix test:
+// durable install/read through the real pgtest-backed chatappstore, scoped
+// by tenant.
+func TestTodo_CHAT_040_Integration(t *testing.T) {
 	store, ctx := appStoreFixture(t)
 	now := time.Now().UTC()
 	v := chatapps.Installation{ID: "tenant-a:conversation:app", Tenant: "tenant-a", Conversation: "conversation", AppID: "app", Version: 1, Manifest: chatapps.Manifest{AppID: "app", Version: 1}, GrantedScopes: []string{}, Status: chatapps.Active, Approver: "manager", Revision: 1, CreatedAt: now, UpdatedAt: now}

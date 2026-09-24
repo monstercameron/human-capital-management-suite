@@ -10,11 +10,25 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity"
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/health"
 )
 
 // The INTG-003 matrix is kept in this package so every provider adapter is
 // exercised against the same normalized diagnostic contract.
-func TestTodo_INTG_003(t *testing.T) { TestRunNormalizesFindingsAndImpacts(t) }
+func TestTodo_INTG_003(t *testing.T) {
+	probe := &fakeProbe{scopes: []string{"worker.read", "worker.read"}}
+	runner, err := NewRunner(probe)
+	if err != nil {
+		t.Fatalf("new runner: %v", err)
+	}
+	report, err := runner.Run(context.Background(), Request{Connection: testConnection(t), RequiredScopes: []string{"worker.read"}})
+	if err != nil {
+		t.Fatalf("run diagnostics: %v", err)
+	}
+	if !report.Healthy() || len(report.Findings) != 3 || report.Findings[2].Code != "SCOPES_OK" || len(report.Findings[2].Actual) != 1 {
+		t.Fatalf("unexpected normalized report: %+v", report)
+	}
+}
 
 func TestTodo_INTG_003_Golden(t *testing.T) {
 	p := &fakeProbe{scopes: []string{"worker.read"}}
@@ -41,10 +55,104 @@ func TestTodo_INTG_003_Golden(t *testing.T) {
 	}
 }
 
-func TestTodo_INTG_003_Integration(t *testing.T) { TestRunNormalizesFindingsAndImpacts(t) }
-func TestTodo_INTG_003_Fault(t *testing.T)       { TestRunRedactsProviderErrorsAndDoesNotMutateConnection(t) }
+func TestTodo_INTG_003_Integration(t *testing.T) {
+	connection := testConnection(t)
+	probe := &fakeProbe{scopes: []string{"worker.read"}}
+	runner, err := NewRunner(probe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := runner.Run(context.Background(), Request{Connection: connection, RequiredScopes: []string{"worker.read"}, Capabilities: []CapabilityImpact{{Capability: connectivity.Capability{Object: connectivity.ObjectWorker, Operation: connectivity.OperationRead}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.ConnectionID != connection.ID() || report.TenantID != connection.TenantID() || len(probe.checked) != 1 || report.Findings[len(report.Findings)-1].Check != CheckCapability {
+		t.Fatalf("diagnostic integration mismatch: report=%+v checked=%v", report, probe.checked)
+	}
+}
+func TestTodo_INTG_003_Fault(t *testing.T) {
+	runner, err := NewRunner(&fakeProbe{scopeErr: errors.New("scope service unavailable")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := runner.Run(context.Background(), Request{Connection: testConnection(t), RequiredScopes: []string{"worker.read"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Healthy() || report.Findings[2].Status != Unknown || report.Findings[2].Code != "PROVIDER_CHECK_FAILED" {
+		t.Fatalf("scope probe failure was not reported as unknown: %+v", report.Findings)
+	}
+}
 func TestTodo_INTG_003_Security(t *testing.T) {
-	TestRunRedactsProviderErrorsAndDoesNotMutateConnection(t)
+	secret := "client_secret=diagnostic-sensitive"
+	runner, err := NewRunner(&fakeProbe{auth: errors.New(secret), reach: errors.New(secret), scopeErr: errors.New(secret), capErr: errors.New(secret)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := runner.Run(context.Background(), Request{Connection: testConnection(t), RequiredScopes: []string{"worker.read"}, Capabilities: []CapabilityImpact{{Capability: connectivity.Capability{Object: connectivity.ObjectWorker, Operation: connectivity.OperationRead}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range report.Findings {
+		if strings.Contains(finding.Code, secret) || strings.Contains(finding.Detail, secret) {
+			t.Fatalf("provider error leaked: %+v", finding)
+		}
+	}
+}
+
+func TestTodo_REV_013_02_Integration(t *testing.T) {
+	connection := testConnection(t)
+	probe := &fakeProbe{scopes: []string{"worker.read"}}
+	diagnostic, err := Diagnose(context.Background(), probe, Request{
+		Connection:     connection,
+		RequiredScopes: []string{"worker.read"},
+		Capabilities: []CapabilityImpact{{
+			Capability: connectivity.Capability{Object: connectivity.ObjectWorker, Operation: connectivity.OperationRead},
+			Workflows:  []string{"Onboarding v9"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("diagnose test connection: %v", err)
+	}
+	if !diagnostic.Healthy() || diagnostic.ConnectionID != connection.ID() || diagnostic.TenantID != connection.TenantID() {
+		t.Fatalf("diagnostic does not describe the test connection: %+v", diagnostic)
+	}
+
+	now := time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
+	projection, err := health.Project(health.Input{
+		TenantID: connection.TenantID(), ConnectionID: connection.ID(), Now: now,
+		Signals: []health.Signal{{Kind: health.Authentication, Status: health.Healthy, Watermark: now}},
+	})
+	if err != nil {
+		t.Fatalf("project test connection health: %v", err)
+	}
+	if projection.Status != health.Healthy || projection.ConnectionID != diagnostic.ConnectionID || projection.TenantID != diagnostic.TenantID {
+		t.Fatalf("health projection does not align with the diagnostic: diagnostic=%+v health=%+v", diagnostic, projection)
+	}
+}
+
+func TestTodo_REV_013_02(t *testing.T) {
+	connection := testConnection(t)
+	diagnostic, err := Diagnose(context.Background(), &fakeProbe{scopes: []string{"worker.read"}}, Request{
+		Connection:     connection,
+		RequiredScopes: []string{"worker.read"},
+	})
+	if err != nil {
+		t.Fatalf("diagnose test connection: %v", err)
+	}
+	if !diagnostic.Healthy() || diagnostic.ConnectionID != "conn-1" || diagnostic.TenantID != "tenant-1" {
+		t.Fatalf("unexpected operator diagnostic result: %+v", diagnostic)
+	}
+	projection, err := health.Project(health.Input{
+		TenantID: connection.TenantID(), ConnectionID: connection.ID(), Now: time.Unix(1, 0),
+		Signals: []health.Signal{{Kind: health.Observation, Status: health.Healthy}},
+	})
+	if err != nil {
+		t.Fatalf("project test connection health: %v", err)
+	}
+	if projection.Status != health.Healthy || projection.ConnectionID != diagnostic.ConnectionID || projection.TenantID != diagnostic.TenantID {
+		t.Fatalf("operator health result does not describe the diagnosed connection: %+v", projection)
+	}
 }
 
 func FuzzTodo_INTG_003(f *testing.F) {

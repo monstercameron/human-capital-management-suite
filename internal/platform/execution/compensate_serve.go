@@ -28,14 +28,13 @@ package execution
 //     with no writes and never invokes the compensator; a cancel after the
 //     commit point releases the hold through the executor.
 //
-// Bounds, stated not implied. The executor's operation owner and ledger are
-// process-scoped: the owner scopes reserve/effect/complete to one execution,
-// and a repeated execution re-presents safely because the release itself is
-// idempotent (each execution records its own ledger event). Crash-resume
+// Bounds, stated not implied. A database-backed served composition stores
+// operation state, compensation events, and the original idempotency closure
+// in the caller's PostgreSQL transaction. A recorded event is provisional
+// until that transaction commits; readers join it against node outcomes.
+// Database-less compositions use in-memory ports for isolated tests. Crash-resume
 // authority stays where WF-REV-001 put it -- the node's recorded
-// COMPENSATED transition inside the governing transaction. A recorded ledger
-// event is provisional until its governing transaction commits; readers join
-// it against node outcomes. The served
+// COMPENSATED transition inside the governing transaction. The served
 // capability implements the one production compensation that exists today,
 // the budget-hold release; any other compensation ref fails closed into
 // REPAIR_REQUIRED (its inverse capability is WF-REV-006/016 territory,
@@ -61,6 +60,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps"
 	transactioncancel "github.com/monstercameron/human-capital-management-suite/internal/transaction/cancel"
+	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/cancellation"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -141,7 +141,6 @@ type ServedCompensationOptions struct {
 // the cancellation discharge path and the governed cancel path.
 type ServedCompensation struct {
 	exec            *compensate.Executor
-	ledger          *recordingLedger
 	capability      *servedHoldCapability
 	clock           func() time.Time
 	authorityDigest string
@@ -156,9 +155,11 @@ func ComposeServedCompensation(opts ServedCompensationOptions) (*ServedCompensat
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
-	ledger := &recordingLedger{}
+	var ledger *recordingLedger
+	if opts.DB == nil {
+		ledger = &recordingLedger{}
+	}
 	s := &ServedCompensation{
-		ledger:          ledger,
 		capability:      &servedHoldCapability{clock: clock},
 		clock:           clock,
 		authorityDigest: opts.AuthorityDigest,
@@ -166,10 +167,21 @@ func ComposeServedCompensation(opts ServedCompensationOptions) (*ServedCompensat
 		intentForPlan:   opts.IntentForPlan,
 	}
 	operations := opts.Operations
+	ledgerPort := opts.Ledger
+	if opts.DB != nil {
+		// The production composition binds all three persistence ports to the
+		// governing transaction carried by the served entry points.
+		postgres := postgresCompensationStore{}
+		if operations == nil {
+			operations = postgres
+		}
+		if ledgerPort == nil {
+			ledgerPort = postgres
+		}
+	}
 	if operations == nil {
 		operations = &servedOperations{}
 	}
-	ledgerPort := opts.Ledger
 	if ledgerPort == nil {
 		ledgerPort = ledger
 	}
@@ -202,15 +214,6 @@ func (s *ServedCompensation) Executor() *compensate.Executor {
 	return s.exec
 }
 
-// LedgerEvents returns the compensation events the shared executor has
-// recorded, in recording order.
-func (s *ServedCompensation) LedgerEvents() []compensate.Event {
-	if s == nil || s.ledger == nil {
-		return nil
-	}
-	return s.ledger.snapshot()
-}
-
 // CapabilityCalls reports how many times the served hold capability ran.
 func (s *ServedCompensation) CapabilityCalls() int {
 	if s == nil || s.capability == nil {
@@ -222,7 +225,7 @@ func (s *ServedCompensation) CapabilityCalls() int {
 // holdReleaseRequest is the pure COMPENSATE-node mapping: a step request
 // becomes the executor's governed compensation request. Pure so the GOLDEN
 // test pins it without a database.
-func holdReleaseRequest(tenant, intent uuid.UUID, actor, nodeID string, attempt int, proposalDigest, manifestDigest, fingerprint string) compensate.Request {
+func holdReleaseRequest(tenant, intent, instanceID, proposalRevisionID uuid.UUID, workflowID, planDigest, actor, nodeID string, attempt int, proposalDigest, manifestDigest, fingerprint string) compensate.Request {
 	return compensate.Request{
 		TenantID: tenant.String(), ActorID: actor,
 		TargetExecutionRef:         nodeID + "#" + strconv.Itoa(attempt),
@@ -239,6 +242,11 @@ func holdReleaseRequest(tenant, intent uuid.UUID, actor, nodeID string, attempt 
 		OriginalHistoryRef:         "proposal-hold:" + proposalDigest,
 		Strategy:                   compensate.StrategyCorrection,
 		ObservationMaxAge:          servedObservationMaxAge,
+		WorkflowID:                 workflowID,
+		InstanceID:                 instanceID,
+		PlanDigest:                 planDigest,
+		OriginalEffectKind:         compensate.OriginalEffectProposalHold,
+		OriginalEffectEvidenceRef:  "budget-reservation:" + promotionbudget.ReservationID(proposalRevisionID).String(),
 	}
 }
 
@@ -252,7 +260,10 @@ func dischargeCompensateRequest(tenant uuid.UUID, item cancellation.Compensation
 	if strings.Contains(capabilityID, ".supersede") {
 		strategy = compensate.StrategySupersedingRevision
 	}
-	payload := sha256.Sum256([]byte(strings.Join([]string{tenant.String(), item.EffectID, item.Compensation, item.ObligationID.String()}, "\x00")))
+	provenance := []string{tenant.String(), item.WorkflowID, item.InstanceID.String(), item.PlanDigest,
+		item.OriginalScope.String(), item.CapabilityExecutionID}
+	provenance = append(provenance, item.OriginalEffectRefs...)
+	payload := sha256.Sum256([]byte(strings.Join(append([]string{item.EffectID, item.Compensation, item.ObligationID.String()}, provenance...), "\x00")))
 	return compensate.Request{
 		TenantID: tenant.String(), ActorID: servedDischargeActor,
 		TargetExecutionRef: item.EffectID, TargetEffectRef: item.EffectID,
@@ -265,16 +276,22 @@ func dischargeCompensateRequest(tenant uuid.UUID, item cancellation.Compensation
 		CapabilityManifestDigest:   manifestDigest,
 		PayloadDigest:              hex.EncodeToString(payload[:]),
 		IdempotencyKey:             item.ObligationID.String() + ":" + item.EffectID,
-		OriginalHistoryRef:         "effect:" + item.EffectID,
+		OriginalHistoryRef:         "workflow-effect:" + item.WorkflowID + "/" + item.InstanceID.String() + "/" + item.EffectID,
 		Strategy:                   strategy,
 		ObservationMaxAge:          servedObservationMaxAge,
+		WorkflowID:                 item.WorkflowID,
+		InstanceID:                 item.InstanceID,
+		PlanDigest:                 item.PlanDigest,
+		OriginalScope:              item.OriginalScope,
+		OriginalEffectKind:         compensate.OriginalEffectIdempotencyScope,
+		OriginalEffectRefs:         append([]string(nil), item.OriginalEffectRefs...),
 	}
 }
 
 // governedCompensateRequest is the pure governed-cancel mapping: one
 // post-commit cancellation becomes the executor's request, bound to the
 // committed transaction it counters.
-func governedCompensateRequest(tenant uuid.UUID, commitIdentity, planID, manifestDigest, fingerprint string) compensate.Request {
+func governedCompensateRequest(tenant uuid.UUID, commitIdentity, planID, planDigest, originalKey, manifestDigest, fingerprint string) compensate.Request {
 	payload := sha256.Sum256([]byte(strings.Join([]string{tenant.String(), commitIdentity, planID}, "\x00")))
 	return compensate.Request{
 		TenantID: tenant.String(), ActorID: servedDischargeActor,
@@ -291,6 +308,10 @@ func governedCompensateRequest(tenant uuid.UUID, commitIdentity, planID, manifes
 		OriginalHistoryRef:         "commit:" + commitIdentity,
 		Strategy:                   compensate.StrategyCorrection,
 		ObservationMaxAge:          servedObservationMaxAge,
+		PlanDigest:                 planDigest,
+		OriginalScope: idempotency.Scope{Tenant: tenant, Capability: "transaction.commit",
+			EffectScope: planID, Key: originalKey},
+		OriginalEffectKind: compensate.OriginalEffectIdempotencyScope,
 	}
 }
 
@@ -363,7 +384,14 @@ func (s *ServedCompensation) ReleaseHoldViaExecutor(ctx context.Context, req exe
 	if err != nil {
 		return promotionsteps.HoldReleaseResult{}, fmt.Errorf("platform execution: served compensation manifest: %w", err)
 	}
-	compensateReq := holdReleaseRequest(req.TenantID, intentID, delegation.Subject,
+	proposalID, err := uuid.Parse(req.Proposal.Revision.ProposalRevisionID)
+	if err != nil {
+		return promotionsteps.HoldReleaseResult{}, fmt.Errorf("platform execution: compensate_budget_hold needs a UUID proposal revision: %w", err)
+	}
+	if req.Plan == nil || strings.TrimSpace(req.Plan.WorkflowID) == "" {
+		return promotionsteps.HoldReleaseResult{}, fmt.Errorf("platform execution: compensate_budget_hold needs its pinned workflow identity")
+	}
+	compensateReq := holdReleaseRequest(req.TenantID, intentID, req.InstanceID, proposalID, req.Plan.WorkflowID, req.Plan.Digest(), delegation.Subject,
 		req.Node.ID, req.Attempt, proposalDigest, manifest.Digest, servedAuthorityFingerprint(s.authorityDigest))
 	ctx = withCallOwner(withCompensationIdentity(ctx, req.TenantID, intentID))
 	result, err := s.exec.Execute(ctx, compensateReq)
@@ -426,7 +454,7 @@ func (s *ServedCompensation) Compensate(ctx context.Context, ex cancellation.Exe
 	if strings.TrimSpace(evidence) == "" {
 		return cancellation.CompensationResult{Compensated: false}, nil
 	}
-	return cancellation.CompensationResult{Compensated: true, EvidenceRef: evidence}, nil
+	return cancellation.CompensationResult{Compensated: true, EvidenceRef: evidence, EventRef: result.Event.EventRef}, nil
 }
 
 // Discharge drains one recorded compensation obligation through the shared
@@ -483,6 +511,7 @@ func (s *ServedCompensation) GovernedCompensator() transactioncancel.Compensator
 			return fmt.Errorf("platform execution: served compensation manifest: %w", err)
 		}
 		compensateReq := governedCompensateRequest(tenant, req.CommitIdentity, req.Request.PlanID,
+			req.Request.PlanDigest, req.Request.IdempotencyKey,
 			manifest.Digest, servedAuthorityFingerprint(s.authorityDigest))
 		ctx = withCallOwner(withCompensationIdentity(withStepTx(ctx, tx), tenant, intent))
 		result, err := s.exec.Execute(ctx, compensateReq)
@@ -617,6 +646,10 @@ func (a *servedAuthorizer) Authorize(_ context.Context, r compensate.Request) (c
 	if r.AuthorityPolicyFingerprint != servedAuthorityFingerprint(a.authorityDigest) {
 		return compensate.AuthorizationDecision{}, nil
 	}
+	if r.OriginalEffectKind == compensate.OriginalEffectProposalHold &&
+		(r.CompensationCapabilityRef != ServedHoldReleaseCapability || !strings.HasPrefix(r.OriginalEffectEvidenceRef, "budget-reservation:")) {
+		return compensate.AuthorizationDecision{}, nil
+	}
 	return compensate.AuthorizationDecision{
 		Allowed: true, TenantID: r.TenantID, ActorID: r.ActorID,
 		TargetEffectRef: r.TargetEffectRef, CapabilityRef: r.CompensationCapabilityRef,
@@ -670,26 +703,18 @@ func (o *servedHoldObserver) ObserveCompensation(ctx context.Context, req compen
 	}, nil
 }
 
-// recordingLedger is the executor's compensation-event record: one entry
-// per executed compensation, in recording order. It is process-scoped (see
-// the package bound above); the governing transaction's recorded node
-// outcome is the durable authority it indexes.
+// recordingLedger supports isolated compositions without a database. Served
+// compositions always use PostgreSQL for authoritative event persistence.
 type recordingLedger struct {
 	mu     sync.Mutex
 	events []compensate.Event
 }
 
-func (l *recordingLedger) AppendCompensation(_ context.Context, e compensate.Event) error {
+func (l *recordingLedger) AppendCompensation(_ context.Context, e compensate.Event) (string, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.events = append(l.events, e)
-	return nil
-}
-
-func (l *recordingLedger) snapshot() []compensate.Event {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return append([]compensate.Event(nil), l.events...)
+	return e.EventRef, nil
 }
 
 // callOwner is one governing transaction's operation scope for the

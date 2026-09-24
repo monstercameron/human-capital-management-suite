@@ -62,6 +62,7 @@ func machinePrincipal(token string, claims machine.Claims) (*Principal, error) {
 	return NewPrincipal(PrincipalSpec{
 		Tenant:               values.TenantId(claims.Tenant),
 		Subject:              claims.Subject,
+		ClientID:             claims.Client,
 		SubjectKind:          SubjectKindIntegration,
 		AuthenticationMethod: AuthenticationMethodBearerToken,
 		Assurance:            assurance,

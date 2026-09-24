@@ -117,19 +117,25 @@ func (s *Store) RevokeGrant(ctx context.Context, tenantID, grantID, revoker stri
 		return errors.New("document grant: revoker is required")
 	}
 	return s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
-		var docID, subjectKind, subjectID, action, effect string
-		if err := tx.QueryRow(ctx, `SELECT document_id,subject_kind,subject_id,action,effect FROM document_grant WHERE tenant_id=$1 AND id=$2 AND revoked=false`, tenantID, grantID).Scan(&docID, &subjectKind, &subjectID, &action, &effect); err != nil {
-			return errors.New("document grant: unknown or already revoked grant")
-		}
-		n, err := tx.Exec(ctx, `UPDATE document_grant SET revoked=true, revoked_at=now(), revoked_by=$1, revision=revision+1 WHERE tenant_id=$2 AND id=$3 AND revoked=false`, revoker, tenantID, grantID)
-		if err != nil {
-			return err
-		}
-		if n != 1 {
-			return errors.New("document grant: unknown or already revoked grant")
-		}
-		return bumpPolicyEpochTx(ctx, tx, tenantID, docID, grantID, subjectKind, subjectID, action, effect, true)
+		return revokeGrantTx(ctx, tx, tenantID, grantID, revoker)
 	})
+}
+
+// revokeGrantTx is the transaction-scoped revocation shared by RevokeGrant
+// and the access changes that revoke several rows in one commit.
+func revokeGrantTx(ctx context.Context, tx dbport.Tx, tenantID, grantID, revoker string) error {
+	var docID, subjectKind, subjectID, action, effect string
+	if err := tx.QueryRow(ctx, `SELECT document_id,subject_kind,subject_id,action,effect FROM document_grant WHERE tenant_id=$1 AND id=$2 AND revoked=false`, tenantID, grantID).Scan(&docID, &subjectKind, &subjectID, &action, &effect); err != nil {
+		return errors.New("document grant: unknown or already revoked grant")
+	}
+	n, err := tx.Exec(ctx, `UPDATE document_grant SET revoked=true, revoked_at=now(), revoked_by=$1, revision=revision+1 WHERE tenant_id=$2 AND id=$3 AND revoked=false`, revoker, tenantID, grantID)
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return errors.New("document grant: unknown or already revoked grant")
+	}
+	return bumpPolicyEpochTx(ctx, tx, tenantID, docID, grantID, subjectKind, subjectID, action, effect, true)
 }
 
 // Authorize reports whether a subject may take an action on a document. A
@@ -153,6 +159,21 @@ func (s *Store) Authorize(ctx context.Context, tenantID, docID, subjectKind, sub
 // authorizeTx is the transaction-scoped grant check shared by Authorize and
 // Deploy, so deploys evaluate access inside their own commit.
 func authorizeTx(ctx context.Context, tx dbport.Tx, tenantID, docID, subjectKind, subjectID, action string) error {
+	// A company-scoped grant only ever works inside a live bilateral
+	// cross-company grant (HUB-015/HUB-045). Checking it here means no surface
+	// that authorizes through this function can be reached by a company grant
+	// written without the propose/accept exchange, or after it expired or was
+	// revoked.
+	if subjectKind == "company" {
+		var live int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM document_crosscompany_grant WHERE tenant_id=$1 AND document_id=$2 AND consumer_tenant=$3 AND proposed AND accepted_by_host AND accepted_by_consumer AND revoked_at IS NULL AND expires_at>now()`,
+			tenantID, docID, subjectID).Scan(&live); err != nil {
+			return err
+		}
+		if live == 0 {
+			return ErrDenied
+		}
+	}
 	var denies int
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM document_grant WHERE tenant_id=$1 AND document_id=$2 AND subject_kind=$3 AND subject_id=$4 AND action=$5 AND effect='deny' AND revoked=false AND (expires_at IS NULL OR expires_at>now())`,
 		tenantID, docID, subjectKind, subjectID, action).Scan(&denies); err != nil {

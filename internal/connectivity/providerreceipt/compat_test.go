@@ -87,7 +87,7 @@ func TestPayrollSimulatorCallbacksParse(t *testing.T) {
 			rc := newReceiver(t, v)
 			sc := payrollsim.DefaultScenario()
 			sc.Mode, sc.ApplyDelayMS, sc.DuplicateCallbacks, sc.RejectReason = mode, 0, true, "pay above band"
-			sim := payrollsim.New(payrollsim.Config{Secret: secret, Scenario: &sc, Sleep: noSleep, MaxAttempts: 1})
+			sim := payrollsim.New(payrollsim.Config{Secret: secret, Scenario: &sc, Sleep: noSleep, MaxAttempts: 1, HTTPClient: rc.srv.Client()})
 			change := payrollsim.PayChangeRequest{ChangeRef: "payroll:rev-1", Tenant: "harborcare-demo", WorkerRef: "worker-42",
 				BasePay: payrollsim.Money{Amount: "160000.00", Currency: "USD"}, EffectiveDate: "2026-12-01", CorrelationKey: "corr-abc", CallbackURL: rc.srv.URL}
 			raw, _ := json.Marshal(change)
@@ -140,7 +140,7 @@ func TestIAMSimulatorCallbacksParse(t *testing.T) {
 			rc := newReceiver(t, v)
 			sc := iamsim.DefaultScenario()
 			sc.Mode, sc.GrantDelayMS, sc.DuplicateCallbacks, sc.RejectReason = mode, 0, true, "grade not allowed"
-			sim := iamsim.New(iamsim.Config{ClientID: "hcm", ClientSecret: "client-secret", WebhookSecret: secret, Scenario: &sc, Sleep: noSleep, MaxAttempts: 1})
+			sim := iamsim.New(iamsim.Config{ClientID: "hcm", ClientSecret: "client-secret", WebhookSecret: secret, Scenario: &sc, Sleep: noSleep, MaxAttempts: 1, HTTPClient: rc.srv.Client()})
 
 			treq := httptest.NewRequest(http.MethodPost, "/oauth2/token", bytes.NewReader([]byte("grant_type=client_credentials")))
 			treq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -223,7 +223,7 @@ func TestSimulatorUndoCallbacksParse(t *testing.T) {
 		rc := newReceiver(t, v)
 		sc := payrollsim.DefaultScenario()
 		sc.ApplyDelayMS, sc.DuplicateCallbacks = 0, false
-		sim := payrollsim.New(payrollsim.Config{Secret: previous, Scenario: &sc, Sleep: noSleep, MaxAttempts: 1})
+		sim := payrollsim.New(payrollsim.Config{Secret: previous, Scenario: &sc, Sleep: noSleep, MaxAttempts: 1, HTTPClient: rc.srv.Client()})
 		change := payrollsim.PayChangeRequest{ChangeRef: "payroll:rev-9", Tenant: "harborcare-demo", WorkerRef: "worker-42",
 			BasePay: payrollsim.Money{Amount: "160000.00", Currency: "USD"}, EffectiveDate: "2026-12-01", CorrelationKey: "corr-undo", CallbackURL: rc.srv.URL}
 		raw, _ := json.Marshal(change)
@@ -255,7 +255,7 @@ func TestSimulatorUndoCallbacksParse(t *testing.T) {
 		rc := newReceiver(t, v)
 		sc := iamsim.DefaultScenario()
 		sc.GrantDelayMS, sc.DuplicateCallbacks = 0, false
-		sim := iamsim.New(iamsim.Config{ClientID: "hcm", ClientSecret: "client-secret", WebhookSecret: previous, Scenario: &sc, Sleep: noSleep, MaxAttempts: 1})
+		sim := iamsim.New(iamsim.Config{ClientID: "hcm", ClientSecret: "client-secret", WebhookSecret: previous, Scenario: &sc, Sleep: noSleep, MaxAttempts: 1, HTTPClient: rc.srv.Client()})
 		treq := httptest.NewRequest(http.MethodPost, "/oauth2/token", bytes.NewReader([]byte("grant_type=client_credentials")))
 		treq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		treq.SetBasicAuth("hcm", "client-secret")

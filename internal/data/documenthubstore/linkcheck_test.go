@@ -3,7 +3,10 @@ package documenthubstore
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 )
 
 func setupLinkedDocs(t *testing.T, s *Store) (docA, vA, docB, vB string) {
@@ -125,5 +128,120 @@ func TestTodo_HUB_020_Property(t *testing.T) {
 		if errCount != tc.errors {
 			t.Fatalf("%s: %d errors, want %d (%+v)", tc.name, errCount, tc.errors, report.Findings)
 		}
+	}
+}
+
+// TestTodo_HUB_020_Integration proves deployment consults link rows that
+// were committed independently of the deploy transaction and rolls back
+// every publication side effect when one persisted target is private.
+func TestTodo_HUB_020_Integration(t *testing.T) {
+	s, _ := documentFixture(t)
+	ctx := context.Background()
+	source, err := s.CreateDocument(ctx, "tenant-a", "u-author", "PERSONAL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := s.CreateDocument(ctx, "tenant-a", "u-author", "PERSONAL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, err := s.SubmitCandidate(ctx, "tenant-a", Version{DocumentID: source, CreatorID: "u-author", Markdown: "public version\n"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RecordReview(ctx, "tenant-a", ReviewInput{DocumentID: source, VersionID: old.ID, ScopeKind: "default", ReviewerID: "u-reviewer", Authority: "team:leads", Decision: "approved"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GrantAction(ctx, "tenant-a", GrantInput{DocumentID: source, SubjectKind: "person", SubjectID: "u-deployer", Action: ActionDeploy, Effect: EffectAllow, Issuer: "u-owner"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Deploy(ctx, "tenant-a", DeployInput{DocumentID: source, VersionID: old.ID, ScopeKind: "default", DeployerID: "u-deployer"}); err != nil {
+		t.Fatal(err)
+	}
+	private, err := s.SubmitCandidate(ctx, "tenant-a", Version{DocumentID: target, CreatorID: "u-author", Markdown: "confidential title\n"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidate, err := s.SubmitCandidate(ctx, "tenant-a", Version{DocumentID: source, CreatorID: "u-author", Markdown: "See [Confidential acquisition](doc:" + target + "@" + private.ID + "#terms).\n"}, old.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.StoreLinks(ctx, "tenant-a", source, candidate.ID, ExtractLinks("See [Confidential acquisition](doc:"+target+"@"+private.ID+"#terms).\n")); err != nil {
+		t.Fatal(err)
+	}
+	var persisted int
+	if err := s.RunTenantTx(ctx, "tenant-a", func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM document_link WHERE tenant_id=$1 AND source_document_id=$2 AND source_version_id=$3 AND target_document_id=$4`, "tenant-a", source, candidate.ID, target).Scan(&persisted)
+	}); err != nil || persisted != 1 {
+		t.Fatalf("link row was not persisted before deployment: count=%d err=%v", persisted, err)
+	}
+	if _, err := s.RecordReview(ctx, "tenant-a", ReviewInput{DocumentID: source, VersionID: candidate.ID, ScopeKind: "default", ReviewerID: "u-reviewer", Authority: "team:leads", Decision: "approved"}); err != nil {
+		t.Fatal(err)
+	}
+	beforeOutbox := 0
+	if err := s.RunTenantTx(ctx, "tenant-a", func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM document_outbox WHERE tenant_id=$1 AND aggregate_id=$2 AND event_type='deployment.published'`, "tenant-a", source).Scan(&beforeOutbox)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Deploy(ctx, "tenant-a", DeployInput{DocumentID: source, VersionID: candidate.ID, ScopeKind: "default", DeployerID: "u-deployer", ExpectedLive: old.ID}); !errors.Is(err, ErrLinksUnresolved) {
+		t.Fatalf("official deployment with persisted private link error = %v, want ErrLinksUnresolved", err)
+	}
+	current, err := s.ResolveDeployment(ctx, "tenant-a", source, "default", "")
+	if err != nil || current.VersionID != old.ID {
+		t.Fatalf("refused deployment changed active pointer: %+v err=%v", current, err)
+	}
+	var afterOutbox int
+	if err := s.RunTenantTx(ctx, "tenant-a", func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM document_outbox WHERE tenant_id=$1 AND aggregate_id=$2 AND event_type='deployment.published'`, "tenant-a", source).Scan(&afterOutbox)
+	}); err != nil || afterOutbox != beforeOutbox {
+		t.Fatalf("refused deployment emitted event: before=%d after=%d err=%v", beforeOutbox, afterOutbox, err)
+	}
+}
+
+// TestTodo_HUB_020_Security proves a restricted link gives its source
+// audience no attacker controlled label, target, version, or block metadata.
+func TestTodo_HUB_020_Security(t *testing.T) {
+	s, _ := documentFixture(t)
+	ctx := context.Background()
+	source, err := s.CreateDocument(ctx, "tenant-a", "u-author", "PERSONAL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := s.CreateDocument(ctx, "tenant-a", "u-author", "PERSONAL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	private, err := s.SubmitCandidate(ctx, "tenant-a", Version{DocumentID: target, CreatorID: "u-author", Title: "Secret target title", Markdown: "private\n"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	version, err := s.SubmitCandidate(ctx, "tenant-a", Version{DocumentID: source, CreatorID: "u-author", Markdown: "private reference"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := DocLink{Label: "Secret acquisition plan", TargetDocID: target, PinnedVersion: private.ID, Block: "secret-terms", State: LinkValid}
+	if err := s.StoreLinks(ctx, "tenant-a", source, version.ID, []DocLink{link}); err != nil {
+		t.Fatal(err)
+	}
+	report, err := s.ValidateLinks(ctx, "tenant-a", source, version.ID, "default", "", "person", "u-deployer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Findings) != 1 {
+		t.Fatalf("findings = %+v, want one restricted-reference finding", report.Findings)
+	}
+	finding := report.Findings[0]
+	if finding.Code != LinkInaccessible || finding.Label != "Restricted reference" || finding.Severity != SeverityError {
+		t.Fatalf("restricted finding = %+v", finding)
+	}
+	serialized := finding.Label + " " + finding.TargetDocID + " " + finding.PinnedVersion + " " + finding.Block + " " + finding.Detail
+	for _, secret := range []string{"Secret acquisition plan", target, private.ID, "secret-terms", "Secret target title"} {
+		if strings.Contains(serialized, secret) {
+			t.Errorf("restricted finding leaked %q: %+v", secret, finding)
+		}
+	}
+	if finding.TargetDocID != "" || finding.PinnedVersion != "" || finding.Block != "" {
+		t.Fatalf("restricted finding contains target metadata: %+v", finding)
 	}
 }

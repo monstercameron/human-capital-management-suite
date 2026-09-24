@@ -2,7 +2,9 @@ package commit_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -119,43 +121,107 @@ func TestTodo_LEDGER_008(t *testing.T) {
 
 func TestTodo_LEDGER_008_Race(t *testing.T) {
 	f := newFixture(t)
-	for _, stage := range []string{"after-event", "after-projection", "after-outbox", "after-provenance"} {
-		t.Run(stage, func(t *testing.T) {
-			stage := stage
+	req := f.request(nil)
+	start := make(chan struct{})
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			conn := f.db.NewConn(t)
+			<-start
+			tx, err := conn.Begin(context.Background())
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			_, err = ledgercommit.Commit(context.Background(), tx, ledger.New(), req)
+			if err == nil {
+				err = tx.Commit(context.Background())
+			} else {
+				_ = tx.Rollback(context.Background())
+			}
+			errs[i] = err
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("writer %d: %v", i, err)
+		}
+	}
+	var events int
+	if err := f.db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM ledger_event WHERE tenant_id=$1`, f.tenant).Scan(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 {
+		t.Fatalf("concurrent idempotent commits stored %d events, want one", events)
+	}
+}
+
+func TestTodo_LEDGER_008_Integration(t *testing.T) {
+	f := newFixture(t)
+	for _, tc := range []struct {
+		stage string
+		want  string
+	}{{"after-event", "ledger_event"}, {"after-projection", "projection_checkpoint"}, {"after-outbox", "outbox"}, {"after-provenance", "provenance_record"}} {
+		t.Run(tc.stage, func(t *testing.T) {
 			tx, err := f.db.Conn.Begin(context.Background())
 			if err != nil {
 				t.Fatal(err)
 			}
 			req := f.request(func(got string) error {
-				if got == stage {
-					return fmt.Errorf("stop at %s", stage)
+				if got == tc.stage {
+					return fmt.Errorf("injected %s failure", tc.stage)
 				}
 				return nil
 			})
-			req.Outbox.EffectIdentity = "promotion:" + f.stream + stage
-			req.Outbox.OrderingKey = f.stream + stage
-			req.Provenance.IntentRef = "intent:" + f.stream + stage
-			req.Provenance.EvidenceIDs = []string{"evidence:" + f.stream + stage}
 			if _, err := ledgercommit.Commit(context.Background(), tx, ledger.New(), req); err == nil {
-				t.Fatal("failpoint commit succeeded")
+				_ = tx.Rollback(context.Background())
+				t.Fatal("injected failure was ignored")
 			}
-			if err := tx.Commit(context.Background()); err != nil {
+			if err := tx.Rollback(context.Background()); err != nil {
 				t.Fatal(err)
 			}
-			var events int
-			if err := f.db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM ledger_event WHERE tenant_id = $1`, f.tenant).Scan(&events); err != nil {
+			var count int
+			if err := f.db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM `+tc.want+` WHERE tenant_id=$1`, f.tenant).Scan(&count); err != nil {
 				t.Fatal(err)
 			}
-			if events != 0 {
-				t.Fatalf("failpoint %s left %d ledger events", stage, events)
+			if count != 0 {
+				t.Fatalf("failed commit left %d rows in %s", count, tc.want)
 			}
 		})
 	}
 }
 
-func TestTodo_LEDGER_008_Integration(t *testing.T) { TestTodo_LEDGER_008(t) }
-
-func TestTodo_LEDGER_008_Fault(t *testing.T) { TestTodo_LEDGER_008_Race(t) }
+func TestTodo_LEDGER_008_Fault(t *testing.T) {
+	f := newFixture(t)
+	tx, err := f.db.Conn.Begin(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := errors.New("provenance unavailable")
+	req := f.request(func(stage string) error {
+		if stage == "after-provenance" {
+			return want
+		}
+		return nil
+	})
+	if _, err := ledgercommit.Commit(context.Background(), tx, ledger.New(), req); !errors.Is(err, want) {
+		_ = tx.Rollback(context.Background())
+		t.Fatalf("commit error = %v, want injected cause", err)
+	}
+	_ = tx.Rollback(context.Background())
+	var count int
+	if err := f.db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM ledger_event WHERE tenant_id=$1`, f.tenant).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("faulted transaction left %d events", count)
+	}
+}
 
 func TestTodo_LEDGER_008_Mutation(t *testing.T) {
 	f := newFixture(t)

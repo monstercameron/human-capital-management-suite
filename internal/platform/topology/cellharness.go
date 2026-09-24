@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/monstercameron/human-capital-management-suite/tools/policy/processroles"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/processroles"
 )
 
 // PinnedCellCommands are the six process-manifest commands that form a

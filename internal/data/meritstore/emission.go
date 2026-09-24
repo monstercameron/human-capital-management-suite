@@ -40,6 +40,34 @@ func marshalCompensationIntent(i merit.CompensationChangeIntent) ([]byte, error)
 	return b, nil
 }
 
+func emittedIntentDigests(ctx context.Context, tx dbport.Tx, tenantID string, children []merit.CompensationChangeIntent) (map[string]string, error) {
+	digests := make(map[string]string, len(children))
+	if len(children) == 0 {
+		return digests, nil
+	}
+	intentIDs := make([]string, len(children))
+	for i, child := range children {
+		intentIDs[i] = child.IntentID
+	}
+	rows, err := tx.Query(ctx, `SELECT intent_id,canonical_digest FROM merit_compensation_intent_emission
+		WHERE tenant_id=$1 AND intent_id=ANY($2::text[])`, tenantID, intentIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var intentID, digest string
+		if err := rows.Scan(&intentID, &digest); err != nil {
+			return nil, err
+		}
+		digests[intentID] = digest
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return digests, nil
+}
+
 // EnqueueCompensationChangeIntentsTx durably fences child intents inside a
 // transaction owned by the caller. The caller may atomically add its own
 // downstream handoff before committing. Only newly inserted intents return.
@@ -66,14 +94,13 @@ func (s *Store) EnqueueCompensationChangeIntentsTx(ctx context.Context, tx dbpor
 	if persistedState != string(merit.CycleFinalized) || domainDigest(persistedDigest) != cycle.CanonicalDigest {
 		return nil, invalid("cycle does not match the persisted finalized revision")
 	}
+	existing, err := emittedIntentDigests(ctx, tx, tid.String(), children)
+	if err != nil {
+		return nil, fmt.Errorf("meritstore: inspect compensation intents: %w", err)
+	}
 	for _, child := range children {
-		var digest string
-		err := tx.QueryRow(ctx, `SELECT canonical_digest FROM merit_compensation_intent_emission WHERE tenant_id=$1 AND intent_id=$2`, tid, child.IntentID).Scan(&digest)
-		if err == nil && domainDigest(digest) != child.CanonicalDigest {
+		if digest, ok := existing[child.IntentID]; ok && domainDigest(digest) != child.CanonicalDigest {
 			return nil, merit.ErrIntentConflict
-		}
-		if err != nil && !errors.Is(err, dbport.ErrNoRows) {
-			return nil, fmt.Errorf("meritstore: inspect compensation intent: %w", err)
 		}
 	}
 	fresh := make([]merit.CompensationChangeIntent, 0, len(children))
@@ -96,17 +123,24 @@ func (s *Store) EnqueueCompensationChangeIntentsTx(ctx context.Context, tx dbpor
 		}
 		return nil, fmt.Errorf("meritstore: enqueue compensation intent: %w", err)
 	}
+	conflicts := make([]merit.CompensationChangeIntent, 0)
 	for i, child := range children {
 		if counts[i] == 1 {
 			fresh = append(fresh, child)
 			continue
 		}
-		var storedDigest string
-		if err := tx.QueryRow(ctx, `SELECT canonical_digest FROM merit_compensation_intent_emission WHERE tenant_id=$1 AND intent_id=$2`, tid, child.IntentID).Scan(&storedDigest); err != nil {
-			return nil, fmt.Errorf("meritstore: verify compensation intent retry: %w", err)
+		conflicts = append(conflicts, child)
+	}
+	if len(conflicts) > 0 {
+		stored, err := emittedIntentDigests(ctx, tx, tid.String(), conflicts)
+		if err != nil {
+			return nil, fmt.Errorf("meritstore: verify compensation intent retries: %w", err)
 		}
-		if domainDigest(storedDigest) != child.CanonicalDigest {
-			return nil, merit.ErrIntentConflict
+		for _, child := range conflicts {
+			storedDigest, ok := stored[child.IntentID]
+			if !ok || domainDigest(storedDigest) != child.CanonicalDigest {
+				return nil, merit.ErrIntentConflict
+			}
 		}
 	}
 	return fresh, nil

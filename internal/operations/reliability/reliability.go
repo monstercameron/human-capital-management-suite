@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -97,6 +98,7 @@ type Result struct {
 	Capability, SLI, SLO, Status, Reason, BreachAction string
 	Availability, ErrorBudgetRemaining                 float64
 	LatencyP95Ms                                       int64
+	Actions                                            []string
 }
 
 func Load(path string) (*Manifest, error) {
@@ -171,6 +173,28 @@ func Load(path string) (*Manifest, error) {
 	}
 	flush()
 	return &m, nil
+}
+
+// LoadDefault finds the checked-in pilot manifest from the current working
+// directory or one of its parents, which supports both repository commands
+// and package tests without depending on their current directory.
+func LoadDefault() (*Manifest, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("reliability: locating working directory: %w", err)
+	}
+	for dir := wd; ; dir = filepath.Dir(dir) {
+		path := filepath.Join(dir, DefaultManifestPath)
+		if _, err := os.Stat(path); err == nil {
+			return Load(path)
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("reliability: locating %s: %w", path, err)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return nil, fmt.Errorf("reliability: locating %s from %s: file not found", DefaultManifestPath, wd)
+		}
+	}
 }
 
 func scalar(value string) string {
@@ -322,15 +346,28 @@ func Validate(m *Manifest, now time.Time) Readiness {
 	}
 	slis := map[string]SLI{}
 	for _, s := range m.SLIs {
+		if strings.TrimSpace(s.ID) == "" {
+			add("", "id", "MISSING", s.Version, "id is required")
+		}
 		if _, ok := slis[s.ID]; ok {
 			add(s.ID, "id", "DUPLICATE", s.Version, "SLI id is duplicated")
 		}
 		slis[s.ID] = s
 		validateSLI(s, add, now)
 	}
+	seenSLOs := map[string]bool{}
 	for _, s := range m.SLOs {
+		if strings.TrimSpace(s.ID) == "" {
+			add("", "id", "MISSING", s.Version, "id is required")
+		}
+		if seenSLOs[s.ID] {
+			add(s.ID, "id", "DUPLICATE", s.Version, "SLO id is duplicated")
+		}
+		seenSLOs[s.ID] = true
 		if _, ok := slis[s.SLI]; !ok {
 			add(s.ID, "sli", "UNKNOWN", s.Version, "SLO references an unknown SLI")
+		} else if sli := slis[s.SLI]; sli.Window != s.Window {
+			add(s.ID, "window", "MISMATCH", s.Version, "SLO window must match its SLI measurement window")
 		}
 		validateSLO(s, add)
 	}
@@ -448,16 +485,47 @@ func Evaluate(m Manifest, measurements map[string]Measurement, now time.Time) []
 		}
 		r.Availability = float64(x.Good) / float64(x.Valid)
 		r.LatencyP95Ms = x.LatencyP95Ms
-		r.ErrorBudgetRemaining = (r.Availability - slo.Target) / (1 - slo.Target)
+		if slo.Target == 1 {
+			if r.Availability == 1 {
+				r.ErrorBudgetRemaining = 1
+			}
+		} else {
+			r.ErrorBudgetRemaining = (r.Availability - slo.Target) / (1 - slo.Target)
+		}
+		if r.ErrorBudgetRemaining < 0 {
+			r.ErrorBudgetRemaining = 0
+		} else if r.ErrorBudgetRemaining > 1 {
+			r.ErrorBudgetRemaining = 1
+		}
+		addAction := func(action string) {
+			action = strings.TrimSpace(action)
+			if action == "" {
+				return
+			}
+			for _, existing := range r.Actions {
+				if existing == action {
+					return
+				}
+			}
+			r.Actions = append(r.Actions, action)
+		}
 		if r.Availability < slo.Target || x.LatencyP95Ms > slo.LatencyTargetMs {
 			r.Status = StatusBreached
 			r.Reason = "availability or latency target breached"
+			addAction(slo.BreachAction)
 		} else if r.Availability < slo.Target+(1-slo.Target)*0.5 {
 			r.Status = StatusAtRisk
 			r.Reason = "more than half of error budget is consumed"
+			addAction(slo.AtRiskAction)
 		} else {
 			r.Status = StatusHealthy
 			r.Reason = "measurement satisfies objective"
+		}
+		consumed := 1 - r.ErrorBudgetRemaining
+		for _, action := range m.Actions {
+			if action.Threshold <= consumed && action.ID != "" && strings.TrimSpace(action.Action) != "" {
+				addAction(action.Action)
+			}
 		}
 		out = append(out, r)
 	}

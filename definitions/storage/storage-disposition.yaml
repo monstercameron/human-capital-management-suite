@@ -45,7 +45,7 @@
 
 version: 1
 module: github.com/monstercameron/human-capital-management-suite
-source: migrations/00001_platform_control.sql .. migrations/00323_rev10203_permanent_immutability.sql
+source: migrations/00001_platform_control.sql .. migrations/00346_rev084_action_plan_binding.sql
 
 disposition: >-
   Every row is either PERMANENT (an append-only historical or evidentiary
@@ -671,7 +671,7 @@ tables:
     retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
-    notes: "TX-006: durable semantic idempotency keyed by (tenant, capability, effect_scope, idempotency_key), the table's own primary key; RESERVED to COMPLETED in place under Guard's reserve/effect/complete pattern inside the caller's transaction; expiry is a caller-declared RetentionPolicy applied by an explicit Store.Expire DELETE, the one live table in this plane whose grant includes DELETE as a documented write."
+    notes: "TX-006 / REV-102-06 / WF-REV-010 / REV-084-02: durable semantic idempotency keyed by (tenant, capability, effect_scope, idempotency_key); completed execution results may carry an action_plan_binding_ref to the append-only binding row committed in the same transaction. A verified reversal transitions COMPLETED to COMPENSATED with a tenant-bound compensation event reference. Expired compensated records compact their original result references while preserving COMPENSATED and the compensation reference; other protected records compact to TOMBSTONE."
 
   - table: work_item
     migration: 00017_work_item.sql
@@ -1269,6 +1269,32 @@ tables:
     rebuild_source: null
     notes: >-
       DB-011: a governance or human decision bound to one proposal revision, distinct from 00022's work_item_decision; UNIQUE per (revision, requirement, decider) so the same principal cannot vote twice and a vote is never rewritten.
+  - table: intent_accepted_action
+    migration: 00346_rev084_action_plan_binding.sql
+    owner_package: internal/data/intentcontrol
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-084-02: immutable intent.execute acceptance derived from one approved HUMAN_APPROVAL intent_decision, carrying its decision identity, exact proposal and digest, actor/time, and the deterministic execution idempotency key; tenant_isolation RLS and forbid_mutation.
+  - table: intent_action_plan_binding
+    migration: 00346_rev084_action_plan_binding.sql
+    owner_package: internal/data/intentcontrol
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-084-02: full canonical ActionPlanBinding payload plus its digest, linked to the durable accepted action and exact transaction_plan, inserted in the same transaction as commit; tenant_isolation RLS and forbid_mutation.
   - table: intent_certificate
     migration: 00024_intent_control.sql
     owner_package: internal/data/intentcontrol
@@ -1762,7 +1788,7 @@ tables:
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
-      DB-014: a governed connector operation whose COMPLETED state requires a verified external observation (connector_operation_completion_requires_observation), so provider acceptance never counts as business completion.
+      DB-014: a governed connector operation whose COMPLETED state requires a verified external observation (connector_operation_completion_requires_observation), so provider acceptance never counts as business completion. REV-013-01 adds a tenant-scoped execution_payload snapshot with mapped request bytes and no credential bytes so a fresh worker can restore PLANNED/QUEUED dispatch state.
   - table: connector_operation_attempt
     migration: 00031_integration_messaging_document_metadata.sql
     owner_package: internal/data/integrationmeta
@@ -1854,6 +1880,7 @@ tables:
     rebuild_source: null
     notes: >-
       DB-014: one message to one recipient; SATISFIED requires a delivery receipt (recipient_message_satisfaction_requires_receipt), so provider acceptance never satisfies it.
+      MSG-011 (00362): optional tenant-scoped conversation_thread_id binds a reply-capable recipient message to its canonical thread; ingress refuses replies without the binding.
   - table: delivery_attempt
     migration: 00031_integration_messaging_document_metadata.sql
     owner_package: internal/data/messagingmeta
@@ -2419,6 +2446,37 @@ tables:
     rebuild_source: null
     notes: >-
       SECARCH-002: append-only session lifecycle and replay evidence; tenant_isolation RLS; forbid_mutation.
+  - table: oidc_pending_authorization
+    migration: 00344_oidc_pending_authorization.sql
+    owner_package: internal/authn/oidc/pgstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-033-01: short-lived PKCE authorization transaction data (issuer,
+      nonce and challenge digest only; never the code verifier); tenant_isolation
+      RLS; atomically consumed on callback, expiry checked by AUTHN-002.
+  - table: oidc_pending_authorization_pointer
+    migration: 00344_oidc_pending_authorization.sql
+    owner_package: internal/authn/oidc/pgstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: null
+    isolation_package: null
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-033-01: opaque random state to tenant pointer with no authorization
+      secrets; permits tenant resolution before app.tenant_id is set, matching
+      the trust_session_pointer lookup pattern; deleted in the same transaction
+      as the one-time PKCE state consumption.
   - table: position_reservation
     migration: 00043_position_reservation.sql
     owner_package: internal/data/positionstore
@@ -4079,7 +4137,7 @@ tables:
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
-      Registered from migration 00082_contentregistry.sql at wave-37 close: mutable aggregate table owned by internal/data/contentregistrystore.
+      Registered from migration 00082_contentregistry.sql at wave-37 close; REV-077-02 migration 00333 adds immutable-revision role scopes, governed retention schedule references and retention cutoffs used by authorized active-article search. Search remains tenant-local and returns only projected metadata.
   - table: knowledge_localized_revision
     migration: 00082_contentregistry.sql
     owner_package: internal/data/contentregistrystore
@@ -4487,6 +4545,32 @@ tables:
     rebuild_source: null
     notes: >-
       Registered from migration 00118_subscription.sql at wave-37 close: append-only (forbid_mutation) ledger table owned by internal/data/subscriptionstore.
+  - table: security_siem_feed_head
+    migration: 00360_security_siem_feed.sql
+    owner_package: internal/data/siemstore
+    plane: DATA
+    data_role: AGGREGATE
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      Tenant-scoped head for the ordered SIEM event digest chain; updated atomically with each immutable feed event.
+  - table: security_siem_feed_event
+    migration: 00360_security_siem_feed.sql
+    owner_package: internal/data/siemstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      Tenant-scoped append-only signed-feed source records; each committed event is paired with a durable outbox dispatch reference.
   - table: survey_question_bank_revision
     migration: 00122_survey.sql
     owner_package: internal/data/surveystore
@@ -4972,7 +5056,7 @@ tables:
       WEB-241: mutable role CRUD grants for stable page-local feature IDs;
       the containing role_page_permission remains the outer authority boundary.
   - table: access_role_revision
-    migration: 00327_role_access_revision_ledger.sql
+    migration: 00359_role_access_revision_reason.sql
     owner_package: internal/data/roleaccessstore
     plane: DATA
     data_role: LEDGER
@@ -4981,11 +5065,17 @@ tables:
     append_only: true
     retention_class: PERMANENT
     encryption_class: PLATFORM_MANAGED
+    notes: >-
+      RBAC-RT-021 extends the permanent permission ledger with a required
+      single-line administrator rationale and organization visibility scope;
+      historical grants are reconstructed from the append-only before/after
+      images. Each new revision also emits a typed tenant ledger event in the
+      same transaction as the permission row and its append-only revision.
   - table: promotion_threshold_decision
     migration: 00328_promotion_threshold_decision.sql
     owner_package: internal/data/rulethreshold
     plane: DATA
-    data_role: EVIDENCE
+    data_role: LEDGER
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
     append_only: true
@@ -4993,9 +5083,21 @@ tables:
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
-      RBAC-RT-021: append-only permission revision ledger; one row per role
-      per change with before/after images, written in the same transaction
-      as the permission change.
+      RULE-003: immutable approval-time threshold decision evidence keyed by
+      proposal revision and attempt; RULE-004 re-evaluates these frozen inputs.
+  - table: cycle_restatement
+    migration: 00329_cycle_restatement.sql
+    owner_package: internal/data/balancestore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-039-01: append-only cycle restatement CAS rows.
   - table: operation
     migration: 00261_operation_store.sql
     owner_package: internal/data/operationstore
@@ -5854,3 +5956,476 @@ tables:
       key with capability-specific expiry. Rows mutate once
       (in_progress to completed) and expired rows are reclaimed, so
       DELETE stays granted for reclaim and sweeps; no forbid_mutation.
+  - table: page_definition_revision
+    migration: 00332_page_revision_rollout_ledger.sql
+    owner_package: internal/data/pageledgerstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-067-02: tenant-scoped immutable page snapshots keyed by page and
+      version; productui verifies the content digest when recovering rows.
+  - table: page_rollout
+    migration: 00332_page_revision_rollout_ledger.sql
+    owner_package: internal/data/pageledgerstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-067-02: tenant-scoped immutable rollout records pin a page revision
+      digest and persist integrity-protected scope and effective-date payloads.
+  - table: page_rollout_event
+    migration: 00338_page_rollout_event_sequence.sql
+    owner_package: internal/data/pageledgerstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-067-02: immutable append-sequenced rollout events preserve rollback
+      history independently of the target revision version.
+  - table: page_retirement
+    migration: 00338_page_rollout_event_sequence.sql
+    owner_package: internal/data/pageledgerstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-067-02: immutable per-tenant page retirement evidence survives
+      workspace handler restart and fails closed when its digest changes.
+  - table: workflow_definition_compilation
+    migration: 00337_workflow_definition_compilation.sql
+    owner_package: internal/data/workflowversionstore
+    plane: DATA
+    data_role: REGISTRY
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-EXT-008: tenant-scoped immutable linkage from one authoring definition
+      revision to the exact compiled-plan digest produced at publication;
+      tenant activation remains in definition_active_pointer.
+  - table: workflow_compensation_event
+    migration: 00334_workflow_compensation_ledger.sql
+    owner_package: internal/data/workflowcompensation
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-REV-010: immutable, tenant-scoped compensation events with stable
+      content-derived references; idempotency closures bind to these events.
+  - table: workflow_compensation_operation
+    migration: 00334_workflow_compensation_ledger.sql
+    owner_package: internal/data/workflowcompensation
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-REV-010 / REV-102-03: mutable recovery state for compensation
+      operations. Every reservation and state/payload update is retained in
+      workflow_compensation_operation_history, allowing exact reconstruction.
+  - table: workflow_compensation_operation_history
+    migration: 00345_rev10203_compensation_operation_history.sql
+    owner_package: internal/data/workflowcompensation
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-102-03: immutable snapshots of each compensation operation and every
+      state/payload update, written transactionally with the operation change.
+  - table: sending_domain_profile
+    migration: 00335_sending_domain_authentication.sql
+    owner_package: internal/data/sendingdomainstore
+    plane: DATA
+    data_role: REGISTRY
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-058-01: current active sending-domain authentication profile,
+      persisted verification state, and last successful/failed DNS check time;
+      scheduled re-verification updates this row and SMTP reads it as a
+      freshness-enforced send gate. Owned operational alerts use
+      operational_incident.
+  - table: workflow_executable_payload
+    migration: 00336_workflow_executable_payload.sql
+    owner_package: internal/data/rulepayloadstore
+    plane: DATA
+    data_role: REGISTRY
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-EXT-006: immutable published decision-table, bounded-expression and
+      transformation IR bodies, resolved by exact reference, version and
+      content digest for deterministic workflow evaluation.
+  - table: configbundle_kill_switch
+    migration: 00339_configbundle_kill_switch.sql
+    owner_package: internal/data/configbundlekill
+    plane: DATA
+    data_role: REGISTRY
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-031-01 and REV-043-03: signed CP-008 applied switch and receipt
+      records are durable recovery evidence used to reconstruct active kill
+      state after process restart.
+  - table: industry_pack_publication
+    migration: 00341_industry_pack_publication_activation.sql
+    owner_package: internal/data/contentregistrystore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-047-02: accepted industry pack publication with the exact commercial
+      entitlement fingerprint and evaluated time.
+  - table: industry_pack_activation
+    migration: 00341_industry_pack_publication_activation.sql
+    owner_package: internal/data/contentregistrystore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-047-02: accepted signed industry pack activation and optional proven
+      composition with the exact commercial entitlement fingerprint.
+  - table: intelligence_metric_publication
+    migration: 00343_intelligence_metric_publication.sql
+    owner_package: internal/data/intelligencestore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-026-02: immutable typed metric calculation and descriptive decision-to-outcome
+      link, persisted together as one tenant-scoped publication.
+  - table: ledger_invariant_scan_state
+    migration: 00347_ledger_invariant_scan_incidents.sql
+    owner_package: internal/data/opsmeta
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: ledger_invariant_scan_observation
+    notes: >-
+      REV-012-03: current tenant-scoped ledger finding lifecycle and stable
+      incident generation, linked to the routed operational_incident row.
+  - table: ledger_invariant_scan_observation
+    migration: 00347_ledger_invariant_scan_incidents.sql
+    owner_package: internal/data/opsmeta
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-012-03: immutable digest and redacted finding snapshot for each
+      completed recurring ledger invariant scan.
+  - table: ledger_invariant_scan_cursor
+    migration: 00349_ledger_invariant_repair_handoff.sql
+    owner_package: internal/data/opsmeta
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: ledger_invariant_scan_observation
+    notes: >-
+      REV-012-03: monotonic per-tenant scan-start fence; rejects delayed older
+      scanner snapshots before they can regress current finding state.
+  - table: ledger_invariant_repair_work
+    migration: 00349_ledger_invariant_repair_handoff.sql
+    owner_package: internal/data/opsmeta
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: ledger_invariant_scan_observation
+    notes: >-
+      REV-012-03: stable tenant-scoped operator repair handoff linked to its
+      durable operational incident and finding generation.
+  - table: performance_participant_reviewer_graph
+    migration: 00348_performance_frozen_participant_reviewer_graph.sql
+    owner_package: internal/data/performancestore
+    plane: DATA
+    data_role: AGGREGATE
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-075-02: immutable frozen graph snapshots bound to exact tenant-scoped
+      performance-cycle revisions; amendments are appended as new revisions.
+  - table: schedopt_self_service_state
+    migration: 00351_schedopt_self_service_fence.sql
+    owner_package: internal/data/schedulingstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-045-03: current published schedule digest and monotonic claim fence;
+      tenant-isolated mutable state advanced by compare-and-swap.
+  - table: schedopt_self_service_offer
+    migration: 00351_schedopt_self_service_fence.sql
+    owner_package: internal/data/schedulingstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-045-03: tenant-scoped mutable offer state bound to a published
+      schedule digest and offer fence; acceptance is durable compare-and-swap.
+  - table: activated_translation_catalog_revision
+    migration: 00350_activated_translation_catalog.sql
+    owner_package: internal/data/i18ncatalogstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      I18N-004: immutable reviewed product-copy revisions are qualified by
+      tenant, product and locale and survive process restart.
+  - table: activated_translation_catalog_event
+    migration: 00350_activated_translation_catalog.sql
+    owner_package: internal/data/i18ncatalogstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      I18N-004: append-only activation events retain the active-revision
+      history and identify the publisher who activated each scoped revision.
+  - table: tenant_parameter_value_revision
+    migration: 00352_tenant_parameter_value_revisions.sql
+    owner_package: internal/data/configparamstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      WF-DATA-037: immutable environment-specific parameter values are bound
+      to exact qualified scopes and retained as revision history.
+  - table: dataops_import_batch
+    migration: 00353_dataops_import_batches.sql
+    owner_package: internal/data/dataopsstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-030-01: immutable tenant-scoped imported source batches retain
+      idempotency, digest, provenance and original payload for audit.
+  - table: dataops_diagnostic_artifact
+    migration: 00355_dataops_diagnostic_artifacts.sql
+    owner_package: internal/data/dataopsartifactstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-030-01: bounded immutable tenant-scoped diagnostic payloads retain
+      content-addressed diff and repair-plan evidence.
+  - table: published_connector_definition
+    migration: 00356_published_connector_definition_registry.sql
+    owner_package: internal/data/integrationregistry
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-030-01: complete immutable INTG-001 connector contracts are
+      versioned per tenant and optional organization scope for registry recovery.
+  - table: schedopt_published_schedule_revision
+    migration: 00357_schedopt_published_schedule_snapshots.sql
+    owner_package: internal/data/schedulingstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-045-03: immutable tenant-scoped published schedule revisions retain
+      their content-addressed snapshots for recovery and audit.
+  - table: schedopt_published_schedule_current
+    migration: 00357_schedopt_published_schedule_snapshots.sql
+    owner_package: internal/data/schedulingstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-045-03: mutable tenant-scoped pointer tracks the current published
+      schedule revision.
+  - table: platform_idempotency_record
+    migration: 00358_platform_idempotency_registry.sql
+    owner_package: internal/data/platformidempotencystore
+    plane: DATA
+    data_role: REGISTRY
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      REV-060-01: shared ingress/effect idempotency identity, digest, lifecycle,
+      and expiry references. Tenant-scoped updates compact expired references;
+      permanent tombstones retain only key and digest protection.
+  - table: form_draft
+    migration: 00361_form_draft.sql
+    owner_package: internal/data/formdraftstore
+    plane: DATA
+    data_role: AGGREGATE
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: FIELD_LEVEL
+    rebuild_source: null
+    notes: >-
+      REV-025-01: mutable encrypted form answers are tenant- and principal-scoped,
+      pinned to a form version, revisioned with CAS, and expire by timestamp.
+  - table: integration_webhook_receipt
+    migration: 00363_integration_webhook_receipt_inbox.sql
+    owner_package: internal/data/webhookreceipts
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      INTG-018: authenticated provider webhook receipt with exact signed bytes,
+      parsed event, payload digest, and envelope digest; immutable replay evidence
+      keyed by tenant, provider, and provider event identity.
+  - table: integration_webhook_outbox
+    migration: 00363_integration_webhook_receipt_inbox.sql
+    owner_package: internal/data/webhookreceipts
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: integration_webhook_receipt
+    notes: >-
+      INTG-018: transactional pending dispatch for a verified receipt; one
+      effect identity per receipt, with mutable lease, attempt, and completion
+      state. Rebuildable from immutable receipt records; consumers enforce
+      receipt idempotency after a requeue.

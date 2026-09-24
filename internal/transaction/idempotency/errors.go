@@ -16,6 +16,15 @@ const (
 	// effect scope, key) was reserved under a different canonical request
 	// digest. Nothing is mutated when this code is returned.
 	CodeConflict = "IDEMPOTENCY_CONFLICT"
+	// CodeTombstoned means the key remains permanently bound to its request
+	// digest, but its detailed result was compacted after expiry.
+	CodeTombstoned = "IDEMPOTENCY_TOMBSTONED"
+	// CodeRetentionPolicyMissing means a protected capability has no
+	// authoritative entry in the capability retention registry.
+	CodeRetentionPolicyMissing = "IDEMPOTENCY_RETENTION_POLICY_MISSING"
+	// CodeRetentionPolicyConflict means a caller-provided class disagrees with
+	// the class registered for that capability.
+	CodeRetentionPolicyConflict = "IDEMPOTENCY_RETENTION_POLICY_CONFLICT"
 	// CodeRetentionTooShort reports a [RetentionPolicy] whose Retention would
 	// expire before its own declared RetryWindow closes. Refused at Reserve
 	// time, before any row is written.

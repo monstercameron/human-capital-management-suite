@@ -10,6 +10,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/providerreceipt"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/webhook"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/idempotency"
 )
 
 var (
@@ -126,6 +127,33 @@ func TestParseDuplicates(t *testing.T) {
 	other := strings.Replace(payrollBody, "PSIM-1", "PSIM-2", 1)
 	if _, err := v.Parse(okHeader(other), []byte(other), wall); !errors.Is(err, providerreceipt.ErrDuplicateDifferent) {
 		t.Fatalf("different bytes same id: err = %v", err)
+	}
+}
+
+func TestVerifierWithRegistry(t *testing.T) {
+	ep := providerreceipt.PayrollEndpoint("ep-1", "tenant-a", testSecret)
+	if _, err := providerreceipt.NewVerifierWithRegistry(ep, nil); !errors.Is(err, providerreceipt.ErrInvalidEndpoint) {
+		t.Fatalf("nil lifecycle error = %v, want ErrInvalidEndpoint", err)
+	}
+	lifecycle := idempotency.NewRegistry()
+	first, err := providerreceipt.NewVerifierWithRegistry(ep, lifecycle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.Parse(okHeader(payrollBody), []byte(payrollBody), wall); err != nil {
+		t.Fatalf("first callback = %v", err)
+	}
+
+	// A newly composed verifier receives only the shared lifecycle. It must
+	// still reject a changed body under the previously reserved event identity.
+	restarted, err := providerreceipt.NewVerifierWithRegistry(ep, lifecycle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := strings.Replace(payrollBody, "PSIM-1", "PSIM-2", 1)
+	changedHeader := signed(testSecret, "evt-1", providerreceipt.PayrollEventApplied, providerreceipt.PayrollSchema, "tenant-a", wall.Add(time.Second), changed)
+	if _, err := restarted.Parse(changedHeader, []byte(changed), wall.Add(time.Second)); !errors.Is(err, providerreceipt.ErrDuplicateDifferent) {
+		t.Fatalf("recomposed verifier accepted changed replay: %v", err)
 	}
 }
 

@@ -24,6 +24,7 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -684,6 +685,52 @@ type promotionWorkItems struct {
 	financePartner  string
 	managers        ManagerResolver
 	plan            PromotionPlan
+}
+
+// CurrentWorkItemAudience re-resolves the owner from the same trusted route
+// facts used by CreateAndRoute. It is used immediately before notice release,
+// in the routing transaction, so a stale routed owner cannot receive a notice.
+func (f promotionWorkItems) CurrentWorkItemAudience(ctx context.Context, ex workitem.Executor, item workitem.WorkItem) (string, string, error) {
+	plan := f.plan
+	if plan == "" {
+		plan = PLAN_PROTOTYPE
+	}
+	owner, policy := f.approver, "execution-authority.configured/1"
+	if item.Kind == workitem.KindApproval && plan == PLAN_EXECUTE {
+		switch item.NodeID {
+		case promotionexec.NodeApproveFinance:
+			route, err := f.financeRoute()
+			if err != nil {
+				return "", "", err
+			}
+			owner, policy = route.principal, route.directoryVersion
+		case promotionexec.NodeApproveManager:
+			if len(item.SubjectRefs) == 0 {
+				return "", "", errors.New("platform execution: approval has no current manager subject")
+			}
+			route, _, err := f.managerRoute(ctx, ex, item.TenantID, item.SubjectRefs[0])
+			if err != nil {
+				return "", "", err
+			}
+			owner, policy = route.principal, route.directoryVersion
+		default:
+			return "", "", errors.New("platform execution: unsupported approval audience route")
+		}
+	} else if item.Kind == workitem.KindTask {
+		owner = f.managerApprover
+		if owner == "" {
+			var err error
+			owner, err = promotionexec.ManagerApproverFor(f.approver)
+			if err != nil {
+				return "", "", err
+			}
+		}
+		policy = "execution-authority.reapproval/1"
+	}
+	if owner == "" || item.Assignment.ChosenOwner != owner {
+		return "", "", errors.New("platform execution: current message recipient differs from routed owner")
+	}
+	return owner, policy, nil
 }
 
 // managerFallback preserves configured demo authorities only for subjects

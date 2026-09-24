@@ -32,6 +32,14 @@ func (s *Store) ResolveLink(ctx context.Context, tenantID, scopeKind, scopeID st
 			return err
 		}
 		if link.PinnedVersion != "" {
+			// A pinned citation is meaningful only when this exact version
+			// was deployed in the requested context. A read grant alone must
+			// not make candidate or unrelated-scope content resolvable.
+			var deployed int
+			if err := tx.QueryRow(ctx, `SELECT 1 FROM document_deployment WHERE tenant_id=$1 AND document_id=$2 AND version_id=$3 AND scope_kind=$4 AND scope_id=$5 LIMIT 1`,
+				tenantID, link.TargetDocID, link.PinnedVersion, scopeKind, scopeID).Scan(&deployed); err != nil {
+				return ErrNoResolution
+			}
 			version, err := loadVersionByID(ctx, tx, tenantID, link.PinnedVersion)
 			if err != nil {
 				return ErrNoResolution

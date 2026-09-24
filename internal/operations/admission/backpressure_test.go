@@ -2,6 +2,7 @@ package admission
 
 import (
 	"errors"
+	"sync"
 	"testing"
 )
 
@@ -31,10 +32,21 @@ func TestTodo_ADMISSION_002(t *testing.T) {
 func TestTodo_ADMISSION_002_Race(t *testing.T) {
 	signal := BackpressureSignal{Source: "workflow", Dependency: "messages", State: BackpressureSlow, RecommendedRate: 12}
 	want := DecideBackpressure(signal, []string{"b", "a"})
-	for i := 0; i < 100; i++ {
-		got := DecideBackpressure(signal, []string{"a", "b"})
-		if got.Action != want.Action || got.Reason != want.Reason || got.RecommendedRate != want.RecommendedRate || len(got.Targets) != len(want.Targets) {
-			t.Fatalf("non-deterministic propagation: got=%+v want=%+v", got, want)
+	const workers = 32
+	var wg sync.WaitGroup
+	results := make(chan BackpressureDecision, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- DecideBackpressure(signal, []string{"a", "b"})
+		}()
+	}
+	wg.Wait()
+	close(results)
+	for got := range results {
+		if got.Action != want.Action || got.Reason != want.Reason || got.RecommendedRate != want.RecommendedRate || len(got.Targets) != len(want.Targets) || got.Targets[0] != want.Targets[0] || got.Targets[1] != want.Targets[1] {
+			t.Fatalf("non-deterministic concurrent propagation: got=%+v want=%+v", got, want)
 		}
 	}
 }

@@ -3,6 +3,7 @@ package diagnostic
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -64,11 +65,31 @@ func TestTodo_OBS_018_Golden(t *testing.T) {
 func TestTodo_OBS_018_Race(t *testing.T) {
 	controller := NewController()
 	request := testRequest()
+	request.VolumeBudget = 3
 	if _, err := controller.Apply(request); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := controller.Apply(request); !errors.Is(err, ErrStaleRevision) {
-		t.Fatalf("replayed revision error=%v", err)
+	const workers = 16
+	var wg sync.WaitGroup
+	allowed := make(chan bool, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			decision := controller.Decide(request.Scope, LevelInfo, request.StartsAt.Add(time.Minute))
+			allowed <- decision.Allowed
+		}()
+	}
+	wg.Wait()
+	close(allowed)
+	count := 0
+	for ok := range allowed {
+		if ok {
+			count++
+		}
+	}
+	if count != request.VolumeBudget {
+		t.Fatalf("concurrent diagnostic grants=%d, want exact budget %d", count, request.VolumeBudget)
 	}
 }
 

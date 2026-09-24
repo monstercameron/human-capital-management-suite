@@ -154,11 +154,13 @@ func (b *rev089Batch) Queue(string, ...any) { b.tx.queued++ }
 // rev089Tx is a Batcher tx double: the revision check reads back the
 // finalized cycle, every batched insert reports one fresh row.
 type rev089Tx struct {
-	digest  string
-	state   string
-	batches int
-	queued  int
-	execs   int
+	digest    string
+	state     string
+	batches   int
+	queued    int
+	execs     int
+	queries   int
+	queryRows int
 }
 
 func (tx *rev089Tx) Exec(context.Context, string, ...any) (int64, error) {
@@ -167,10 +169,12 @@ func (tx *rev089Tx) Exec(context.Context, string, ...any) (int64, error) {
 }
 
 func (tx *rev089Tx) Query(context.Context, string, ...any) (dbport.Rows, error) {
-	return nil, errors.New("rev089: unexpected query")
+	tx.queries++
+	return &rev089Rows{}, nil
 }
 
 func (tx *rev089Tx) QueryRow(context.Context, string, ...any) dbport.Row {
+	tx.queryRows++
 	return rev089Row{digest: tx.digest, state: tx.state}
 }
 
@@ -182,6 +186,13 @@ func (tx *rev089Tx) SendBatch(_ context.Context, fn func(dbport.Batch)) (dbport.
 
 func (tx *rev089Tx) Commit(context.Context) error   { return nil }
 func (tx *rev089Tx) Rollback(context.Context) error { return nil }
+
+type rev089Rows struct{}
+
+func (*rev089Rows) Next() bool        { return false }
+func (*rev089Rows) Scan(...any) error { return errors.New("rev089: empty rows cannot scan") }
+func (*rev089Rows) Err() error        { return nil }
+func (*rev089Rows) Close()            {}
 
 // TestTodo_REV_089_01_Integration proves the batched emission path on real
 // PostgreSQL: a three-child finalize persists three rows, and re-enqueuing
@@ -282,9 +293,10 @@ func TestTodo_REV_089_01_Integration(t *testing.T) {
 	}
 }
 
-// BenchmarkTodo_REV_089_01 pins the one-batch-per-finalize shape: a
-// five-child finalize issues exactly one SendBatch carrying five statements,
-// where the row-at-a-time loop issued five Exec round trips.
+// BenchmarkTodo_REV_089_01 counts all database round trips in emission: the
+// finalized-revision lookup, the batched preflight query, and the child insert
+// batch. A fresh five-child finalize uses three round trips for seven SQL statements;
+// the old per-child preflight and insert loops used eleven round trips.
 func BenchmarkTodo_REV_089_01(b *testing.B) {
 	finalized := rev089Finalize(b, rev089Cycle(b, "rev089-bench", 5), 5)
 	children, err := finalized.CompensationChangeIntents()
@@ -299,15 +311,22 @@ func BenchmarkTodo_REV_089_01(b *testing.B) {
 	if _, err := store.EnqueueCompensationChangeIntentsTx(context.Background(), once, uuid.NewString(), finalized); err != nil {
 		b.Fatalf("enqueue: %v", err)
 	}
-	if once.batches != 1 || once.queued != 5 || once.execs != 0 {
-		b.Fatalf("batches=%d queued=%d execs=%d, want one batch of five with no row-at-a-time Exec", once.batches, once.queued, once.execs)
+	if once.queryRows != 1 || once.queries != 1 || once.batches != 1 || once.queued != 5 || once.execs != 0 {
+		b.Fatalf("QueryRow=%d Query=%d batches=%d queued=%d Exec=%d, want 1+1+1 round trips and a five-statement insert batch", once.queryRows, once.queries, once.batches, once.queued, once.execs)
 	}
-	b.ReportMetric(float64(once.queued)/float64(once.batches), "statements/batch")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		tx := &rev089Tx{digest: finalized.CanonicalDigest, state: string(merit.CycleFinalized)}
 		if _, err := store.EnqueueCompensationChangeIntentsTx(context.Background(), tx, uuid.NewString(), finalized); err != nil {
 			b.Fatalf("enqueue: %v", err)
 		}
+		if tx.queryRows != 1 || tx.queries != 1 || tx.batches != 1 || tx.queued != 5 || tx.execs != 0 {
+			b.Fatalf("iteration %d QueryRow=%d Query=%d batches=%d queued=%d Exec=%d", i, tx.queryRows, tx.queries, tx.batches, tx.queued, tx.execs)
+		}
 	}
+	b.ReportMetric(float64(once.queryRows+once.queries+once.batches), "roundtrips/finalize")
+	b.ReportMetric(11, "baseline_roundtrips/finalize")
+	b.ReportMetric(float64(once.queued+once.queries+once.queryRows), "sql_statements/finalize")
+	b.ReportMetric(float64(once.batches), "insert_roundtrips/finalize")
+	b.ReportMetric(float64(once.queued), "insert_statements/finalize")
 }

@@ -77,6 +77,13 @@ func newDB(t *testing.T) *pgtest.DB {
 	up := strings.SplitN(string(migration), "-- +goose Up", 2)[1]
 	up = strings.SplitN(up, "-- +goose Down", 2)[0]
 	db.Exec(t, up)
+	graphMigration, err := migrations.FS.ReadFile("00348_performance_frozen_participant_reviewer_graph.sql")
+	if err != nil {
+		t.Fatalf("read frozen graph migration: %v", err)
+	}
+	graphUp := strings.SplitN(string(graphMigration), "-- +goose Up", 2)[1]
+	graphUp = strings.SplitN(graphUp, "-- +goose Down", 2)[0]
+	db.Exec(t, graphUp)
 	return db
 }
 
@@ -136,6 +143,74 @@ func saveFixture(t *testing.T, f fixture) {
 	}
 	if err := f.store.SaveFinalRating(ctx, f.tenant, f.caseRow.CaseID, f.final); err != nil {
 		t.Fatalf("SaveFinalRating: %v", err)
+	}
+}
+
+func TestTodo_REV_075_02_PerformanceStore(t *testing.T) {
+	db := newDB(t)
+	tenant := addTenant(t, db)
+	store := performancestore.New(appConn(t, db))
+	cycle, err := performance.NewPerformanceCycle("cycle-review",
+		performance.PopulationBindingRef{DefinitionID: "population", RevisionVersion: "1", Digest: "sha256:population"},
+		performance.CalendarBindingRef{Ref: "calendar", Version: "1", Digest: "sha256:calendar"},
+		performance.RatingScaleVersionRef{ID: "scale", Version: "1", Digest: "sha256:scale"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	initialRow := performance.CycleRevision{CycleID: cycle.CycleID, Revision: cycle.Revision, State: cycle.State, CanonicalDigest: cycle.CanonicalDigest}
+	if err := store.SaveCycle(context.Background(), tenant, initialRow); err != nil {
+		t.Fatal(err)
+	}
+	cycle, err = cycle.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cycleRow := performance.CycleRevision{CycleID: cycle.CycleID, Revision: cycle.Revision, State: cycle.State, SupersedesRevision: cycle.Revision - 1, CanonicalDigest: cycle.CanonicalDigest}
+	if err := store.SaveCycle(context.Background(), tenant, cycleRow); err != nil {
+		t.Fatal(err)
+	}
+	graph, err := performance.FreezeParticipantReviewerGraph(cycle,
+		[]performance.ParticipantRef{{ID: "worker-1"}},
+		[]performance.ReviewerAssignment{{ParticipantID: "worker-1", ReviewerID: "reviewer-1", Relationship: performance.ReviewerRelationshipManager}},
+		performance.DefaultReviewerGraphRules(), instant())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveParticipantReviewerGraph(context.Background(), tenant, graph); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.ExecErr(`UPDATE performance_participant_reviewer_graph SET graph_digest = graph_digest`); err == nil {
+		t.Fatal("frozen participant/reviewer graph accepted UPDATE")
+	}
+	if err := db.ExecErr(`DELETE FROM performance_participant_reviewer_graph`); err == nil {
+		t.Fatal("frozen participant/reviewer graph accepted DELETE")
+	}
+	reader := performancestore.New(appConn(t, db))
+	for _, member := range []string{"worker-1", "reviewer-1"} {
+		got, err := reader.ListOpenParticipantReviewerGraphsForMember(context.Background(), tenant, member)
+		if err != nil || len(got) != 1 || got[0].Digest != graph.Digest {
+			t.Fatalf("member %s graph = %+v, %v", member, got, err)
+		}
+	}
+	for _, member := range []string{"outsider", ""} {
+		got, err := reader.ListOpenParticipantReviewerGraphsForMember(context.Background(), tenant, member)
+		if member == "" {
+			if err == nil {
+				t.Fatal("empty member reference was accepted")
+			}
+			continue
+		}
+		if err != nil || len(got) != 0 {
+			t.Fatalf("outsider graph = %+v, %v", got, err)
+		}
+	}
+	otherTenant := addTenant(t, db)
+	got, err := reader.ListOpenParticipantReviewerGraphsForMember(context.Background(), otherTenant, "reviewer-1")
+	if err != nil || len(got) != 0 {
+		t.Fatalf("cross-tenant graph = %+v, %v", got, err)
+	}
+	if err := reader.SaveParticipantReviewerGraph(context.Background(), tenant, graph); !errors.Is(err, performance.ErrDuplicateRevision) {
+		t.Fatalf("duplicate graph snapshot = %v", err)
 	}
 }
 
@@ -229,7 +304,7 @@ func TestTodo_PERSIST_PERFORMANCE_001_Recovery(t *testing.T) {
 func TestTodo_PERSIST_PERFORMANCE_001_Mutation(t *testing.T) {
 	f := newFixture(t)
 	saveFixture(t, f)
-	for _, table := range []string{"performance_cycle", "performance_rating_event", "performance_final_rating", "performance_calibration_session", "performance_review", "performance_outcome_link"} {
+	for _, table := range []string{"performance_cycle", "performance_rating_event", "performance_final_rating", "performance_calibration_session", "performance_review", "performance_outcome_link", "performance_participant_reviewer_graph"} {
 		if err := f.db.ExecErr(`UPDATE ` + table + ` SET row_id = row_id`); err == nil {
 			t.Errorf("%s accepted UPDATE", table)
 		}

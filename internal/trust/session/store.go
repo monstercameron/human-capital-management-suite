@@ -258,9 +258,15 @@ func (m *PersistentManager) Create(ctx context.Context, spec CreateSpec) (Record
 		return Record{}, "", fmt.Errorf("%w: idle timeout %s exceeds absolute timeout %s", ErrInvalidCreateSpec, idle, absolute)
 	}
 
-	id, err := newID()
-	if err != nil {
-		return Record{}, "", err
+	id := spec.ID
+	if id == "" {
+		var err error
+		id, err = newID()
+		if err != nil {
+			return Record{}, "", err
+		}
+	} else if !validID(id) {
+		return Record{}, "", fmt.Errorf("%w: invalid session id", ErrInvalidCreateSpec)
 	}
 	raw, hash, err := newOpaqueToken()
 	if err != nil {

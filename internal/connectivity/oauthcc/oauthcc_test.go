@@ -299,7 +299,7 @@ type doerFunc func(*http.Request) (*http.Response, error)
 func (f doerFunc) Do(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestRedactionAndValidation(t *testing.T) {
-	cfg := Config{TokenURL: "https://idp.example.test/token", ClientID: testID, ClientSecret: testSecret}
+	cfg := Config{TokenURL: "https://idp.example.test/token", ClientID: testID, ClientSecret: testSecret, Client: doerFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("unused") })}
 	ts, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)

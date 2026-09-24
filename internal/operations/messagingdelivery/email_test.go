@@ -298,7 +298,7 @@ func seedEmailStatus(t *testing.T, tracker *EmailTracker, messageID string, star
 }
 
 const (
-	pinnedDomainDigest = "0a766df92d970e8856499ea3fb2c03e615253971e1f40824cc5d99ed9a1fa955"
+	pinnedDomainDigest = "7928ef18c20f87c4e9e5974594d83462fab9142fea9823c8a46d851fd25bacb3"
 	pinnedEmailDigest  = "ec6c9227bdcd68843308088a527bd0e6784d5973cade872621a75d633c1360ac"
 )
 

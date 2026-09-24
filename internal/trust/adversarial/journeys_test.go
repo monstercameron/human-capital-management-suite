@@ -83,7 +83,20 @@ func TestAdversarialJourneysDenyWithoutExistenceMetadataOrTelemetryLeakage(t *te
 }
 
 func TestTodo_THREAT_002(t *testing.T) {
-	TestAdversarialJourneysDenyWithoutExistenceMetadataOrTelemetryLeakage(t)
+	engine := NewEngine(DefaultDenyHandler)
+	journeys := PresetJourneys()
+	results := engine.RunAll(context.Background(), journeys)
+	if len(results) != len(journeys) {
+		t.Fatalf("evaluated %d journeys, want %d", len(results), len(journeys))
+	}
+	if err := VerifyNoLeakage(results); err != nil {
+		t.Fatalf("preset attack corpus leaked sensitive data: %v", err)
+	}
+	for i, result := range results {
+		if !result.Denied || !result.NonDisclosing || result.UnauthorizedEffects != 0 {
+			t.Fatalf("preset journey %d bypassed deny boundary: %+v", i, result)
+		}
+	}
 }
 
 func TestTodo_THREAT_002_Property(t *testing.T) {

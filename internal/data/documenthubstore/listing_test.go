@@ -49,8 +49,8 @@ func TestPersonalDocumentKeysetSearch_Integration(t *testing.T) {
 		t.Fatalf("walked %d of 112 original documents", len(seen))
 	}
 	found, err := s.ListPersonalDocumentsPage(ctx, tenant, owner, ListOptions{Limit: 51, Collection: "private", Query: "Needle"})
-	if err != nil || len(found) != 0 {
-		t.Fatalf("private document searchable = %+v, %v", found, err)
+	if err != nil || len(found) != 1 || found[0].Title != "Needle policy" {
+		t.Fatalf("owner search of own private draft = %+v, %v", found, err)
 	}
 	other, err := s.ListPersonalDocumentsPage(ctx, tenant, "other", ListOptions{Limit: 51, Query: "Needle"})
 	if err != nil || len(other) != 0 {
@@ -142,7 +142,8 @@ func TestTodo_HUB_012_OwnerShareSearch_Integration(t *testing.T) {
 			t.Fatalf("search as %s = %+v, %v; want %d", actor, rows, err, want)
 		}
 	}
-	assertSearch(owner, 0)
+	assertSearch(owner, 1) // The owner finds their own private draft.
+	assertSearch(reader, 0)
 	if err := s.SharePersonalDocument(ctx, tenant, id, reader, "stranger"); err != ErrDenied {
 		t.Fatalf("reader shared owner's draft: %v", err)
 	}
@@ -165,10 +166,15 @@ func TestTodo_HUB_012_OwnerShareSearch_Integration(t *testing.T) {
 		t.Fatal(err)
 	}
 	secret, err := s.ListPersonalDocumentsPage(ctx, tenant, owner, ListOptions{Limit: 10, Query: "Secret"})
-	if err != nil || len(secret) != 0 {
-		t.Fatalf("private revision searched = %+v, %v", secret, err)
+	if err != nil || len(secret) != 1 || secret[0].Title != "Secret revision" {
+		t.Fatalf("owner search of own latest draft = %+v, %v", secret, err)
 	}
-	assertSearch(owner, 1)
+	readerSecret, err := s.ListPersonalDocumentsPage(ctx, tenant, reader, ListOptions{Limit: 10, Query: "Secret"})
+	if err != nil || len(readerSecret) != 0 {
+		t.Fatalf("reader searched unpublished revision = %+v, %v", readerSecret, err)
+	}
+	assertSearch(owner, 0) // The owner's latest draft no longer says Orientation.
+	assertSearch(reader, 1)
 	_, readVersion, err = s.ReadPersonalDocument(ctx, tenant, reader, id)
 	if err != nil || readVersion.ID != version.ID {
 		t.Fatalf("reader saw draft version = %+v, %v", readVersion, err)

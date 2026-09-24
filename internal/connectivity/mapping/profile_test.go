@@ -115,3 +115,27 @@ func TestTodo_INTG_006_Integration(t *testing.T) {
 		}
 	}
 }
+
+// FuzzTodo_INTG_006 checks that arbitrary profile identifiers and transform
+// digests either fail compilation cleanly or produce repeatable versions.
+func FuzzTodo_INTG_006(f *testing.F) {
+	f.Add("worker.external_id", IdentityTransformation)
+	f.Add("worker.unknown", "sha256:not-an-ir")
+	f.Add("", "")
+	f.Fuzz(func(t *testing.T, target, transform string) {
+		profile := validProfile()
+		profile.FieldMappings[0].TargetField = target
+		profile.FieldMappings[0].TransformationIRDigest = transform
+		first, err := Compile(profile)
+		if err != nil {
+			return
+		}
+		second, err := Compile(profile)
+		if err != nil {
+			t.Fatalf("same profile failed second compilation: %v", err)
+		}
+		if first.Digest() == "" || first.Digest() != second.Digest() {
+			t.Fatalf("compilation digest is empty or unstable: %q != %q", first.Digest(), second.Digest())
+		}
+	})
+}

@@ -12,6 +12,7 @@ package configuration
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -44,19 +45,36 @@ type Bundle struct {
 	Digest    string       `json:"digest"`
 }
 
-// Approval seals one bundle digest to one approver and expiry.
+// Approval is signed evidence from an external approval authority. This
+// package verifies it through an injected verifier; it never mints approval.
 type Approval struct {
-	Bundle   string `json:"bundle"`
-	Approver string `json:"approver"`
-	Expiry   string `json:"expiry"`
-	Seal     string `json:"seal"`
+	Bundle    string `json:"bundle"`
+	Action    string `json:"action"`
+	Approver  string `json:"approver"`
+	Authority string `json:"authority"`
+	Expiry    string `json:"expiry"`
+	Signature []byte `json:"signature"`
 }
 
-// ActivationRecord binds one activation or rollback to its bundle digest.
+// ApprovalVerifier verifies the authority signature over an Approval's
+// bundle, approver, authority and expiry fields.
+type ApprovalVerifier interface {
+	Verify(Approval) error
+}
+
+// ApprovalVerifierFunc adapts a function to ApprovalVerifier.
+type ApprovalVerifierFunc func(Approval) error
+
+func (f ApprovalVerifierFunc) Verify(approval Approval) error { return f(approval) }
+
+// ActivationRecord binds an activation or rollback to its bundle digest and
+// records the separately authorized actor and externally verified approval.
 type ActivationRecord struct {
-	Bundle   string   `json:"bundle"`
-	Approval Approval `json:"approval"`
-	Rollback bool     `json:"rollback"`
+	Bundle      string    `json:"bundle"`
+	ActivatedBy string    `json:"activated_by"`
+	ActivatedAt time.Time `json:"activated_at"`
+	Approval    Approval  `json:"approval"`
+	Rollback    bool      `json:"rollback"`
 }
 
 // Change is one deterministic bundle diff entry.
@@ -73,6 +91,9 @@ func (f Finding) String() string { return f.Code + "|" + f.Field + "|" + f.Detai
 
 // Finding codes.
 const (
+	ApprovalActionActivate = "ACTIVATE"
+	ApprovalActionRollback = "ROLLBACK"
+
 	UnknownBundle         = "UNKNOWN_BUNDLE"
 	UnresolvedDependency  = "UNRESOLVED_DEPENDENCY"
 	MissingApproval       = "MISSING_APPROVAL"
@@ -80,6 +101,15 @@ const (
 	BrokenSeal            = "BROKEN_SEAL"
 	UnknownActivation     = "UNKNOWN_ACTIVATION"
 	UnknownRollbackTarget = "UNKNOWN_ROLLBACK_TARGET"
+	InvalidApproval       = "INVALID_APPROVAL"
+	ExpiredApproval       = "EXPIRED_APPROVAL"
+	SelfApproval          = "SELF_APPROVAL"
+)
+
+var (
+	ErrInvalidApproval = errors.New("configuration: invalid approval")
+	ErrExpiredApproval = errors.New("configuration: expired approval")
+	ErrSelfApproval    = errors.New("configuration: approver and activator must differ")
 )
 
 func digest(parts ...string) string {
@@ -103,13 +133,14 @@ func SnapshotDefinition(def Definition, content []byte) (Snapshot, error) {
 
 // Registry holds bundles, approvals and the activation log.
 type Registry struct {
-	bundles map[string]Bundle
-	log     []ActivationRecord
+	bundles   map[string]Bundle
+	approvals map[string]Approval
+	log       []ActivationRecord
 }
 
 // NewRegistry returns an empty registry.
 func NewRegistry() Registry {
-	return Registry{bundles: make(map[string]Bundle)}
+	return Registry{bundles: make(map[string]Bundle), approvals: make(map[string]Approval)}
 }
 
 // Assemble freezes one bundle. Every dependency digest must already
@@ -148,64 +179,73 @@ func (r *Registry) Assemble(name string, snaps []Snapshot, deps []Dependency) (B
 	return bundle, nil
 }
 
-// Approve seals one known bundle to one approver and RFC3339 expiry:
-// the publication-and-approval gate customer configuration must pass.
-func (r *Registry) Approve(bundleDigest, approver, expiry string) (Approval, error) {
-	if _, ok := r.bundles[bundleDigest]; !ok {
-		return Approval{}, fmt.Errorf("cannot approve unknown bundle %q", bundleDigest)
+// RecordApproval records externally signed approval for a known bundle. The
+// verifier is supplied by the control plane's trusted approval authority.
+func (r *Registry) RecordApproval(approval Approval, verifier ApprovalVerifier, now time.Time) error {
+	if _, ok := r.bundles[approval.Bundle]; !ok {
+		return fmt.Errorf("cannot approve unknown bundle %q: %w", approval.Bundle, ErrInvalidApproval)
 	}
-	if strings.TrimSpace(approver) == "" {
-		return Approval{}, fmt.Errorf("approver is required")
+	if verifier == nil || (approval.Action != ApprovalActionActivate && approval.Action != ApprovalActionRollback) || strings.TrimSpace(approval.Approver) == "" || strings.TrimSpace(approval.Authority) == "" || len(approval.Signature) == 0 {
+		return ErrInvalidApproval
 	}
-	if _, err := time.Parse(time.RFC3339, strings.TrimSpace(expiry)); err != nil {
-		return Approval{}, fmt.Errorf("expiry %q is not RFC3339", expiry)
+	expires, err := time.Parse(time.RFC3339, strings.TrimSpace(approval.Expiry))
+	if err != nil {
+		return fmt.Errorf("approval expiry is not RFC3339: %w", ErrInvalidApproval)
 	}
-	return Approval{
-		Bundle:   bundleDigest,
-		Approver: approver,
-		Expiry:   expiry,
-		Seal:     digest("approval", bundleDigest, approver, expiry),
-	}, nil
+	if !now.Before(expires) {
+		return ErrExpiredApproval
+	}
+	if err := verifier.Verify(approval); err != nil {
+		return fmt.Errorf("approval signature verification failed: %w", ErrInvalidApproval)
+	}
+	approval.Signature = append([]byte(nil), approval.Signature...)
+	r.approvals[approvalKey(approval.Bundle, approval.Action)] = approval
+	return nil
 }
 
-func validSeal(approval Approval) bool {
-	if strings.TrimSpace(approval.Approver) == "" {
-		return false
-	}
-	return approval.Seal == digest("approval", approval.Bundle, approval.Approver, approval.Expiry)
+func approvalKey(bundle, action string) string { return bundle + "\x00" + action }
+
+// Activate binds an exact bundle digest to a previously verified approval.
+// Approval and activation must be performed by distinct principals.
+func (r *Registry) Activate(bundleDigest, activatedBy string, at time.Time) (ActivationRecord, error) {
+	return r.activate(bundleDigest, activatedBy, at, ApprovalActionActivate)
 }
 
-// Activate binds one exact bundle digest to its sealed approval and logs
-// the activation. Anything without a matching sealed approval fails.
-func (r *Registry) Activate(bundleDigest string, approval Approval) (ActivationRecord, error) {
+func (r *Registry) activate(bundleDigest, activatedBy string, at time.Time, action string) (ActivationRecord, error) {
 	if _, ok := r.bundles[bundleDigest]; !ok {
 		return ActivationRecord{}, fmt.Errorf("cannot activate unknown bundle %q", bundleDigest)
 	}
-	if approval.Bundle == "" || strings.TrimSpace(approval.Approver) == "" {
-		return ActivationRecord{}, fmt.Errorf("activation requires a sealed approval")
+	approval, ok := r.approvals[approvalKey(bundleDigest, action)]
+	if !ok {
+		return ActivationRecord{}, fmt.Errorf("activation requires a verified approval: %w", ErrInvalidApproval)
 	}
-	if approval.Bundle != bundleDigest {
-		return ActivationRecord{}, fmt.Errorf("approval seals %q, not %q", approval.Bundle, bundleDigest)
+	if strings.TrimSpace(activatedBy) == "" {
+		return ActivationRecord{}, fmt.Errorf("activator is required: %w", ErrInvalidApproval)
 	}
-	if !validSeal(approval) {
-		return ActivationRecord{}, fmt.Errorf("approval seal is broken for %q", bundleDigest)
+	if activatedBy == approval.Approver {
+		return ActivationRecord{}, ErrSelfApproval
 	}
-	record := ActivationRecord{Bundle: bundleDigest, Approval: approval}
+	expires, err := time.Parse(time.RFC3339, approval.Expiry)
+	if err != nil || !at.Before(expires) {
+		return ActivationRecord{}, ErrExpiredApproval
+	}
+	record := ActivationRecord{Bundle: bundleDigest, ActivatedBy: activatedBy, ActivatedAt: at, Approval: approval}
 	r.log = append(r.log, record)
+	delete(r.approvals, approvalKey(bundleDigest, action))
 	return record, nil
 }
 
-// Rollback binds one prior bundle digest to its sealed approval and logs
-// the rollback activation. Both digests must resolve; the approval must
-// seal the rollback target.
-func (r *Registry) Rollback(from, to string, approval Approval) (ActivationRecord, error) {
+// Rollback binds one prior bundle digest to an externally verified rollback
+// approval and logs the activation. Both digests must resolve; the approval
+// must specifically authorize rollback of the target.
+func (r *Registry) Rollback(from, to, activatedBy string, at time.Time) (ActivationRecord, error) {
 	if _, ok := r.bundles[from]; !ok {
 		return ActivationRecord{}, fmt.Errorf("cannot roll back unknown bundle %q", from)
 	}
 	if _, ok := r.bundles[to]; !ok {
 		return ActivationRecord{}, fmt.Errorf("cannot roll back to unknown bundle %q", to)
 	}
-	record, err := r.Activate(to, approval)
+	record, err := r.activate(to, activatedBy, at, ApprovalActionRollback)
 	if err != nil {
 		return ActivationRecord{}, err
 	}

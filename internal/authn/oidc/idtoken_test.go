@@ -55,7 +55,8 @@ func TestFlow_HandleCallback_IDTokenValidation(t *testing.T) {
 		wantErr error
 	}{
 		{"wrong issuer", func(c map[string]any) { c["iss"] = "https://attacker.invalid/" }, oidc.ErrWrongIssuer},
-		{"wrong audience", func(c map[string]any) { c["aud"] = "some-other-client" }, oidc.ErrWrongAudience},
+		{"wrong OAuth client id", func(c map[string]any) { c["aud"] = "some-other-client" }, oidc.ErrWrongAudience},
+		{"single audience with wrong azp", func(c map[string]any) { c["azp"] = "some-other-client" }, oidc.ErrWrongAudience},
 		{"expired", func(c map[string]any) {
 			c["iat"] = baseTime.Add(-2 * time.Hour).Unix()
 			c["exp"] = baseTime.Add(-time.Hour).Unix()
@@ -70,6 +71,10 @@ func TestFlow_HandleCallback_IDTokenValidation(t *testing.T) {
 			c["aud"] = []string{audienceAcme, "another-client"}
 			c["azp"] = audienceAcme
 		}, nil},
+		{"multi-audience with wrong client azp", func(c map[string]any) {
+			c["aud"] = []string{audienceAcme, "another-client"}
+			c["azp"] = "some-other-client"
+		}, oidc.ErrWrongAudience},
 		{"bad at_hash", func(c map[string]any) { c["at_hash"] = "not-the-right-hash" }, oidc.ErrAccessTokenMismatch},
 		{"correct at_hash", func(c map[string]any) { c["at_hash"] = computeAtHashForTest("at-1") }, nil},
 	}

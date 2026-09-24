@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
+	datalogger "github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger/lineage"
 )
 
@@ -317,5 +319,101 @@ func fmtDepth(depth int) string {
 		return "depth_2"
 	default:
 		return "depth_5"
+	}
+}
+
+// TestTodo_LEDGER_005_Mutation proves correction edges and their source events
+// cannot be rewritten or removed after append.
+func TestTodo_LEDGER_005_Mutation(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	original := f.mustAppend(t, f.request(streamKey, 0, "original assertion"))
+	correction := f.mustAppendLineage(t, f.correction(streamKey, 1, ref(streamKey, original.Sequence), "corrected assertion"))
+	read := func(sequence int64) (string, *string, *int64) {
+		t.Helper()
+		var payload []byte
+		var targetStream *string
+		var targetSequence *int64
+		if err := f.db.QueryRow(context.Background(), `SELECT payload, corrects_stream_key, corrects_sequence
+			FROM ledger_event WHERE tenant_id = $1 AND stream_key = $2 AND sequence = $3`,
+			f.tenant, streamKey, sequence).Scan(&payload, &targetStream, &targetSequence); err != nil {
+			t.Fatalf("read lineage event %d: %v", sequence, err)
+		}
+		return string(payload), targetStream, targetSequence
+	}
+	originalPayload, originalTargetStream, originalTargetSequence := read(original.Sequence)
+	correctionPayload, correctionTargetStream, correctionTargetSequence := read(correction.Sequence)
+	if err := f.db.ExecErr(`UPDATE ledger_event SET payload = $1, corrects_sequence = 99
+		WHERE tenant_id = $2 AND stream_key = $3 AND sequence = $4`, []byte("rewritten"), f.tenant, streamKey, correction.Sequence); err == nil {
+		t.Fatal("rewriting a correction and its target succeeded")
+	}
+	if err := f.db.ExecErr(`DELETE FROM ledger_event WHERE tenant_id = $1 AND stream_key = $2 AND sequence = $3`,
+		f.tenant, streamKey, original.Sequence); err == nil {
+		t.Fatal("deleting the original assertion succeeded")
+	}
+	if afterPayload, afterStream, afterSequence := read(original.Sequence); afterPayload != originalPayload || afterStream != nil || afterSequence != nil {
+		t.Fatalf("original assertion changed: before=(%q,%v,%v) after=(%q,%v,%v)", originalPayload, originalTargetStream, originalTargetSequence, afterPayload, afterStream, afterSequence)
+	}
+	if afterPayload, afterStream, afterSequence := read(correction.Sequence); afterPayload != correctionPayload || afterStream == nil || afterSequence == nil ||
+		correctionTargetStream == nil || correctionTargetSequence == nil || *afterStream != *correctionTargetStream || *afterSequence != *correctionTargetSequence {
+		t.Fatalf("correction lineage changed: before=(%q,%v,%v) after=(%q,%v,%v)", correctionPayload, correctionTargetStream, correctionTargetSequence, afterPayload, afterStream, afterSequence)
+	}
+}
+
+// TestTodo_LEDGER_005_Race races two corrections against one stream head. Both
+// can reference the preserved original, but only one may become the next event.
+func TestTodo_LEDGER_005_Race(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	original := f.mustAppend(t, f.request(streamKey, 0, "original"))
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wg sync.WaitGroup
+	for _, reason := range []string{"first correction", "second correction"} {
+		conn := f.db.NewConn(t)
+		req := f.correction(streamKey, 1, ref(streamKey, original.Sequence), reason)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			tx, err := conn.Begin(context.Background())
+			if err == nil {
+				_, err = lineage.Append(context.Background(), tx, f.tenant, req)
+				if err != nil {
+					_ = tx.Rollback(context.Background())
+				} else {
+					err = tx.Commit(context.Background())
+				}
+			}
+			results <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	accepted, stale := 0, 0
+	for err := range results {
+		if err == nil {
+			accepted++
+			continue
+		}
+		var conflict datalogger.ErrStaleStream
+		if !errors.As(err, &conflict) || conflict.Expected != 1 || conflict.Actual != 2 {
+			t.Fatalf("losing correction returned %v, want stale head 1/2", err)
+		}
+		stale++
+	}
+	if accepted != 1 || stale != 1 {
+		t.Fatalf("correction race accepted=%d stale=%d, want one of each", accepted, stale)
+	}
+	if got := f.sequences(t, streamKey); len(got) != 2 || got[0] != 1 || got[1] != 2 {
+		t.Fatalf("sequences after correction race are %v, want [1 2]", got)
+	}
+	current, path, err := lineage.EffectiveCurrent(context.Background(), f.db.Conn, f.tenant, ref(streamKey, original.Sequence))
+	if err != nil {
+		t.Fatalf("resolve effective current after correction race: %v", err)
+	}
+	if current.Ref != ref(streamKey, 2) || len(path) != 1 || path[0].Ref != current.Ref {
+		t.Fatalf("effective current is %+v with path %+v, want the single accepted correction", current, path)
 	}
 }

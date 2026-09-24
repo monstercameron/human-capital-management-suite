@@ -16,6 +16,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/ledger/lineage"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
 )
@@ -70,12 +71,14 @@ type Request struct {
 // it. Target is returned so callers can explain the chronology without a
 // second read.
 type Result struct {
-	Target       ledger.EventRecord
-	Correction   ledger.AppendReceipt
-	Projection   projection.ApplyResult
-	Obligations  []outbox.Record
-	CorrectionID uuid.UUID
-	Replayed     bool
+	Target        ledger.EventRecord
+	Correction    ledger.AppendReceipt
+	Effective     lineage.Node
+	EffectivePath []lineage.Node
+	Projection    projection.ApplyResult
+	Obligations   []outbox.Record
+	CorrectionID  uuid.UUID
+	Replayed      bool
 }
 
 var (
@@ -109,16 +112,20 @@ func Append(ctx context.Context, tx dbport.Tx, req Request, now func() time.Time
 		correctionID = uuid.NewSHA1(correctionNamespace, []byte(fmt.Sprintf("%s/%s/%d/%s", req.Tenant, req.StreamKey, req.Target.Sequence, req.IdempotencyKey)))
 	}
 	appender := ledger.New(ledger.WithClock(func() time.Time { return now().UTC() }))
-	receipt, err := appender.Append(ctx, tx, ledger.AppendRequest{
+	receipt, err := lineage.Append(ctx, tx, req.Tenant, ledger.AppendRequest{
 		Tenant: req.Tenant, StreamKey: req.StreamKey, ExpectedHead: req.ExpectedHead,
 		AssertionClass: ledger.Correction, Authority: req.Authority, SourceRef: req.SourceRef,
 		SchemaRef: req.SchemaRef, Payload: req.Payload, ArtifactRef: req.ArtifactRef,
 		OccurredAt: req.OccurredAt, EffectiveAt: req.EffectiveAt,
 		CorrelationID: req.CorrelationID, CausationID: target.EventID,
 		IdempotencyKey: req.IdempotencyKey, Corrects: &req.Target,
-	})
+	}, appender)
 	if err != nil {
 		return Result{}, fmt.Errorf("transaction correction: append successor: %w", err)
+	}
+	effective, effectivePath, err := lineage.EffectiveCurrent(ctx, tx, req.Tenant, req.Target)
+	if err != nil {
+		return Result{}, fmt.Errorf("transaction correction: resolve effective successor: %w", err)
 	}
 
 	var applied projection.ApplyResult
@@ -141,7 +148,7 @@ func Append(ctx context.Context, tx dbport.Tx, req Request, now func() time.Time
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{Target: target, Correction: receipt, Projection: applied,
+	return Result{Target: target, Correction: receipt, Effective: effective, EffectivePath: effectivePath, Projection: applied,
 		Obligations: obligations, CorrectionID: correctionID, Replayed: receipt.Replayed}, nil
 }
 

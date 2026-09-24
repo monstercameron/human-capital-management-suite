@@ -60,10 +60,35 @@ func (s *Store) ShareDocument(ctx context.Context, tenantID, docID, actorID stri
 	return grant, nil
 }
 
-// SharePersonalDocument grants one person access to the current published
-// version. The first owner share publishes the latest personal candidate in
-// the same transaction; later drafts stay private until separately published.
+// Share roles. A viewer holds read; a commenter holds read and comment.
+const (
+	RoleViewer    = "viewer"
+	RoleCommenter = "commenter"
+)
+
+// ErrInvalidRole is returned for a share role other than viewer or
+// commenter.
+var ErrInvalidRole = errors.New("document share: role must be viewer or commenter")
+
+// SharePersonalDocument grants one person commenter access to the current
+// published version. The first owner share publishes the latest personal
+// candidate in the same transaction; later drafts stay private until
+// separately published.
 func (s *Store) SharePersonalDocument(ctx context.Context, tenantID, docID, ownerID, recipientID string) error {
+	return s.SharePersonalDocumentRole(ctx, tenantID, docID, ownerID, recipientID, RoleCommenter)
+}
+
+// SharePersonalDocumentRole shares with one person in one role. An empty
+// role means commenter. Sharing again with a different role changes the
+// person's live allows in place: a viewer's comment allows are revoked, a
+// commenter gains the comment allow they lack, and nothing is duplicated.
+func (s *Store) SharePersonalDocumentRole(ctx context.Context, tenantID, docID, ownerID, recipientID, role string) error {
+	if role == "" {
+		role = RoleCommenter
+	}
+	if role != RoleViewer && role != RoleCommenter {
+		return ErrInvalidRole
+	}
 	recipientID = strings.TrimSpace(recipientID)
 	if recipientID == "" || recipientID == ownerID {
 		return errors.New("document share: a distinct recipient is required")
@@ -108,16 +133,53 @@ func (s *Store) SharePersonalDocument(ctx context.Context, tenantID, docID, owne
 			if _, err := tx.Exec(ctx, `INSERT INTO document_outbox(tenant_id,aggregate_id,event_type,payload) VALUES($1,$2,'deployment.published',jsonb_build_object('document_id',$2::text,'version_id',$3::text,'deployment_id',$4::text,'deployer_id',$5::text,'scope_kind','default','scope_id',''))`, tenantID, docID, versionID, deploymentID, ownerID); err != nil {
 				return err
 			}
+			if err := s.enqueueIndexTx(ctx, tx, tenantID, docID, versionID); err != nil {
+				return err
+			}
 		} else if err != nil {
 			return err
 		}
-		for _, action := range []string{ActionRead, ActionComment} {
-			if _, err := grantActionTx(ctx, tx, tenantID, GrantInput{DocumentID: docID, SubjectKind: "person", SubjectID: recipientID, Action: action, Effect: EffectAllow, Issuer: ownerID, Purpose: "owner_share"}); err != nil {
+		return setPersonRoleTx(ctx, tx, tenantID, docID, recipientID, role, ownerID)
+	})
+}
+
+// setPersonRoleTx converges one person's live read and comment allows on a
+// role, inserting only what is missing and revoking only what the role no
+// longer carries.
+func setPersonRoleTx(ctx context.Context, tx dbport.Tx, tenantID, docID, subjectID, role, issuer string) error {
+	rows, err := tx.Query(ctx, `SELECT id,action FROM document_grant WHERE tenant_id=$1 AND document_id=$2 AND subject_kind='person' AND subject_id=$3 AND action IN ('read','comment') AND effect='allow' AND revoked=false AND (expires_at IS NULL OR expires_at>now()) ORDER BY created_at,id`, tenantID, docID, subjectID)
+	if err != nil {
+		return err
+	}
+	live := map[string][]string{}
+	for rows.Next() {
+		var id, action string
+		if err := rows.Scan(&id, &action); err != nil {
+			rows.Close()
+			return err
+		}
+		live[action] = append(live[action], id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	want := map[string]bool{ActionRead: true, ActionComment: role == RoleCommenter}
+	for _, action := range []string{ActionRead, ActionComment} {
+		if want[action] && len(live[action]) == 0 {
+			if _, err := grantActionTx(ctx, tx, tenantID, GrantInput{DocumentID: docID, SubjectKind: "person", SubjectID: subjectID, Action: action, Effect: EffectAllow, Issuer: issuer, Purpose: "owner_share"}); err != nil {
 				return err
 			}
 		}
-		return nil
-	})
+		if !want[action] {
+			for _, id := range live[action] {
+				if err := revokeGrantTx(ctx, tx, tenantID, id, issuer); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // Audience returns the live (unrevoked) grant rows for a document to its

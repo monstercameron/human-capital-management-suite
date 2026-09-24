@@ -43,6 +43,14 @@ type preflightSignalTx struct {
 	once   *sync.Once
 }
 
+func (t *preflightSignalTx) Query(ctx context.Context, query string, args ...any) (dbport.Rows, error) {
+	rows, err := t.Tx.Query(ctx, query, args...)
+	if strings.Contains(query, "SELECT intent_id,canonical_digest FROM merit_compensation_intent_emission") {
+		t.once.Do(func() { close(t.signal) })
+	}
+	return rows, err
+}
+
 func (t *preflightSignalTx) QueryRow(ctx context.Context, query string, args ...any) dbport.Row {
 	row := t.Tx.QueryRow(ctx, query, args...)
 	if strings.Contains(query, "SELECT canonical_digest FROM merit_compensation_intent_emission") {

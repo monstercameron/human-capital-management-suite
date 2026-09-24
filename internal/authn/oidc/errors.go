@@ -108,9 +108,9 @@ var (
 	ErrWrongIssuer = errors.New("oidc: id token issuer does not match the issuer this flow began with")
 
 	// ErrWrongAudience is returned when the ID token's aud claim does not
-	// contain this issuer's registered audience, or when aud names more
-	// than one party and azp does not equal that audience.
-	ErrWrongAudience = errors.New("oidc: id token audience does not match the issuer's configured audience")
+	// contain the registered OAuth client id, or when aud names more than
+	// one party and azp does not equal that client id.
+	ErrWrongAudience = errors.New("oidc: id token audience does not match the registered OAuth client id")
 
 	// ErrIDTokenExpired is returned when the ID token's validity window
 	// (iat/exp, and nbf when present) does not cover the current time

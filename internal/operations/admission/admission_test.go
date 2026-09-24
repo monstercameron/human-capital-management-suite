@@ -3,6 +3,7 @@ package admission
 import (
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -116,9 +117,21 @@ func TestTodo_ADMISSION_001_Security(t *testing.T) {
 func TestTodo_ADMISSION_001_Race(t *testing.T) {
 	r, s := base()
 	want := Decide(r, s, Policy{})
-	for i := 0; i < 100; i++ {
-		if got := Decide(r, s, Policy{}); !reflect.DeepEqual(got, want) {
-			t.Fatal("same snapshot changed decision")
+	const workers = 32
+	var wg sync.WaitGroup
+	results := make(chan Decision, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- Decide(r, s, Policy{})
+		}()
+	}
+	wg.Wait()
+	close(results)
+	for got := range results {
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("concurrent same-snapshot decision = %+v, want %+v", got, want)
 		}
 	}
 }

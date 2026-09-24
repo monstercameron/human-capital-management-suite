@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry"
@@ -74,10 +75,26 @@ func TestTodo_OBS_014_Integration(t *testing.T) {
 }
 
 func TestTodo_OBS_014_Race(t *testing.T) {
-	sink := &fakeSink{}
-	for i := 0; i < 16; i++ {
-		if _, err := Instrument(context.Background(), sink, Spec{Kind: KindWorker, Operation: "tick"}, func(context.Context) (struct{}, error) { return struct{}{}, nil }); err != nil {
-			t.Fatal(err)
+	const workers = 16
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sink := &fakeSink{}
+			value, err := Instrument(context.Background(), sink, Spec{Kind: KindWorker, Operation: "tick"}, func(context.Context) (int, error) { return 7, nil })
+			if err == nil && (value != 7 || sink.name != telemetry.SpanJobPartition || sink.span.outcome != telemetry.OutcomeSuccess) {
+				err = errors.New("concurrent instrumentation lost result or signal")
+			}
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Error(err)
 		}
 	}
 }

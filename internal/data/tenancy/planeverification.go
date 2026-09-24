@@ -159,7 +159,7 @@ func (v KeysVerifier) Verify(_ context.Context, req tenant.VerificationRequest) 
 	if err != nil {
 		return tenant.Verified{}, fmt.Errorf("tenancy: keys plane: seal a marker through tenant %s's KEK: %w", req.Tenant, err)
 	}
-	plaintext, _, err := v.Manager.Decrypt(rc, env)
+	plaintext, _, err := v.Manager.Decrypt(rc, env, "tenant-kek-plane-check")
 	if err != nil {
 		return tenant.Verified{}, fmt.Errorf("tenancy: keys plane: open the sealed marker for tenant %s: %w", req.Tenant, err)
 	}

@@ -24,6 +24,10 @@ func (s *recordingSink) RecordInvocation(_ context.Context, evt capability.Invoc
 	return "evidence-" + string(rune('a'+len(s.records)-1)), nil
 }
 
+func (s *recordingSink) RecordInvocationTx(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
+	return s.RecordInvocation(ctx, evt)
+}
+
 func (s *recordingSink) count() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()

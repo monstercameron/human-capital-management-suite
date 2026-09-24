@@ -44,6 +44,14 @@ func TestTodo_OPS_001(t *testing.T) {
 	if r := reliability.Validate(m, time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)); !r.Ready() {
 		t.Fatalf("manifest rejected: %v", r.Diagnostics)
 	}
+	if len(m.SLIs) != 2 || len(m.SLOs) != 2 || len(m.Actions) != 1 {
+		t.Fatalf("pilot contract incomplete: SLIs=%d SLOs=%d actions=%d", len(m.SLIs), len(m.SLOs), len(m.Actions))
+	}
+	for _, sli := range m.SLIs {
+		if sli.Version == "" || sli.Query == "" || sli.Denominator == "" || sli.Window == "" || sli.StalenessBound == "" || sli.Owner == "" {
+			t.Fatalf("SLI lacks a versioned query/denominator/window/owner: %+v", sli)
+		}
+	}
 }
 func TestTodo_OPS_001_Golden(t *testing.T) {
 	m, _ := reliability.Load(filepath.Join(root(t), reliability.DefaultManifestPath))
@@ -53,6 +61,12 @@ func TestTodo_OPS_001_Golden(t *testing.T) {
 	got := reliability.Evaluate(*m, x, now)
 	if got[0].Status != reliability.StatusHealthy || got[1].Status != reliability.StatusAtRisk {
 		t.Fatalf("results=%+v", got)
+	}
+	if got[1].ErrorBudgetRemaining != .2 || len(got[1].Actions) != 1 || got[1].Actions[0] != "increase sampling and review capacity" {
+		t.Fatalf("at-risk budget action was not applied deterministically: %+v", got[1])
+	}
+	if got[0].ErrorBudgetRemaining != 1 || len(got[0].Actions) != 0 {
+		t.Fatalf("healthy budget should be full with no action: %+v", got[0])
 	}
 }
 func TestTodo_OPS_001_UnknownTelemetry(t *testing.T) {
@@ -73,6 +87,16 @@ func TestTodo_OPS_001_WindowAndActionValidation(t *testing.T) {
 	m.SLIs[0].Denominator = ""
 	if got := reliability.Validate(m, now); got.Ready() {
 		t.Fatal("missing denominator must be rejected")
+	}
+	m.SLIs[0].Denominator = "valid observations"
+	m.SLIs[0].Window = "2h"
+	if got := reliability.Validate(m, now); got.Ready() {
+		t.Fatal("SLO window that differs from its SLI window must be rejected")
+	}
+	m.SLIs[0].Window = "1h"
+	m.SLOs = append(m.SLOs, m.SLOs[0])
+	if got := reliability.Validate(m, now); got.Ready() {
+		t.Fatal("duplicate SLO ID must be rejected")
 	}
 }
 

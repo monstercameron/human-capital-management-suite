@@ -15,14 +15,24 @@ import (
 )
 
 // CommentInput carries a new comment; the version hash is server-resolved.
+// A non-empty Quote anchors the comment to a passage of VersionID (see
+// comment_threads.go); ParentID makes it a reply. Start and End are filled
+// by the store.
 type CommentInput struct {
 	DocumentID, VersionID, AuthorID, AnchorBlock, Quote, Body string
+	Prefix, Suffix, ParentID                                  string
+	Start, End                                                int
 }
 
 // Comment is one stored comment with its mentions and consents.
+// Start and End are code-point offsets of the quote in the version being
+// read (-1 when unanchored or orphaned).
 type Comment struct {
 	ID, DocumentID, VersionID, VersionHash string
 	AuthorID, AnchorBlock, Quote, Body     string
+	Prefix, Suffix, ParentID               string
+	Start, End                             int
+	Resolved, Orphaned                     bool
 	Mentions, Consented                    []string
 	CreatedAt                              time.Time
 }
@@ -67,14 +77,19 @@ func (s *Store) AddComment(ctx context.Context, tenantID string, in CommentInput
 		if err != nil {
 			return err
 		}
+		if err := prepareCommentTx(ctx, tx, tenantID, version, &in); err != nil {
+			return err
+		}
 		comment = Comment{
 			ID: "docc-" + uuid.NewString(), DocumentID: in.DocumentID, VersionID: in.VersionID,
 			VersionHash: version.Hash, AuthorID: in.AuthorID,
 			AnchorBlock: in.AnchorBlock, Quote: in.Quote, Body: in.Body,
+			Prefix: in.Prefix, Suffix: in.Suffix, ParentID: in.ParentID, Start: in.Start, End: in.End,
 			Mentions: extractMentions(in.Body),
 		}
-		if err := tx.QueryRow(ctx, `INSERT INTO document_comment(id,tenant_id,document_id,version_id,version_hash,author_id,anchor_block,quote,body) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING created_at`,
-			comment.ID, tenantID, comment.DocumentID, comment.VersionID, comment.VersionHash, comment.AuthorID, comment.AnchorBlock, comment.Quote, comment.Body).Scan(&comment.CreatedAt); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO document_comment(id,tenant_id,document_id,version_id,version_hash,author_id,anchor_block,quote,body,anchor_prefix,anchor_suffix,anchor_start,anchor_end,parent_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING created_at`,
+			comment.ID, tenantID, comment.DocumentID, comment.VersionID, comment.VersionHash, comment.AuthorID, comment.AnchorBlock, comment.Quote, comment.Body,
+			comment.Prefix, comment.Suffix, comment.Start, comment.End, comment.ParentID).Scan(&comment.CreatedAt); err != nil {
 			return err
 		}
 		for _, m := range comment.Mentions {

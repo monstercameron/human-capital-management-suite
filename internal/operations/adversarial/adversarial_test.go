@@ -2,6 +2,7 @@ package adversarial
 
 import (
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -45,7 +46,41 @@ func FuzzTodo_THREAT_002(f *testing.F) {
 		}
 	})
 }
-func TestTodo_THREAT_002_Race(t *testing.T)        { runThreat002(t) }
+func TestTodo_THREAT_002_Race(t *testing.T) {
+	const workers = 16
+	var wg sync.WaitGroup
+	reports := make(chan Report, workers)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			report, err := Run(DefaultJourneys())
+			reports <- report
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(reports)
+	close(errs)
+	var digest string
+	for report := range reports {
+		if digest == "" {
+			digest = report.Digest
+		}
+		if report.Digest != digest || !report.AllDeniedWithoutDisclosure || report.UnauthorizedPersistence != 0 || report.UnauthorizedEffects != 0 || report.TelemetryLeaks != 0 {
+			t.Fatalf("concurrent adversarial report = %+v", report)
+		}
+		if strings.Contains(report.Explain(), "PLACEHOLDER_TENANT") || strings.Contains(report.Explain(), "PLACEHOLDER_ACTOR") {
+			t.Fatalf("concurrent adversarial report leaked identity: %s", report.Explain())
+		}
+	}
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent adversarial evaluation: %v", err)
+		}
+	}
+}
 func TestTodo_THREAT_002_Integration(t *testing.T) { runThreat002(t) }
 func TestTodo_THREAT_002_Fault(t *testing.T) {
 	journey := DefaultJourneys()[0]

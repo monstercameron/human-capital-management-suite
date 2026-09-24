@@ -58,6 +58,18 @@ func TestInterfaces(t *testing.T) {
 	var _ Beginner = mockBeginner{}
 }
 
+func TestTransactionContextRoundtrip(t *testing.T) {
+	want := mockTx{}
+	ctx := ContextWithTx(context.Background(), want)
+	got, ok := TxFromContext(ctx)
+	if !ok || got == nil {
+		t.Fatalf("TxFromContext() = %v, %v; want transaction", got, ok)
+	}
+	if _, ok := TxFromContext(context.Background()); ok {
+		t.Fatal("TxFromContext() found a transaction in an empty context")
+	}
+}
+
 func TestMockConnExec(t *testing.T) {
 	var c Conn = mockConn{}
 	n, err := c.Exec(context.Background(), "select 1")

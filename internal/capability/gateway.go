@@ -69,6 +69,10 @@ type InvocationEvidence struct {
 // package.
 type EvidenceSink interface {
 	RecordInvocation(ctx context.Context, evt InvocationEvidence) (evidenceID string, err error)
+	// RecordInvocationTx is the transaction-aware recording path. Implementors
+	// must join a caller-owned transaction carried by ctx when one is present;
+	// they may use their ordinary durable transaction when it is absent.
+	RecordInvocationTx(ctx context.Context, evt InvocationEvidence) (evidenceID string, err error)
 }
 
 // InvokeRequest is one call into the governed gateway.
@@ -171,7 +175,7 @@ func (g *Gateway) Invoke(ctx context.Context, req InvokeRequest) (InvokeResult, 
 		return g.refuse(ctx, req, CodeHandlerFailed, err.Error())
 	}
 
-	evidenceID, evErr := g.evidence.RecordInvocation(ctx, req.Invocation.evidenceOf(InvocationEvidence{
+	evidenceID, evErr := g.evidence.RecordInvocationTx(ctx, req.Invocation.evidenceOf(InvocationEvidence{
 		CapabilityID:      req.Capability.ID,
 		CapabilityVersion: req.Capability.Version,
 		SubjectRef:        req.Authorization.SubjectRef,
@@ -190,7 +194,7 @@ func (g *Gateway) Invoke(ctx context.Context, req InvokeRequest) (InvokeResult, 
 // never calls the handler.
 func (g *Gateway) refuse(ctx context.Context, req InvokeRequest, code, reason string) (InvokeResult, error) {
 	rec, found := g.registry.Lookup(req.Capability)
-	evidenceID, evErr := g.evidence.RecordInvocation(ctx, req.Invocation.evidenceOf(InvocationEvidence{
+	evidenceID, evErr := g.evidence.RecordInvocationTx(ctx, req.Invocation.evidenceOf(InvocationEvidence{
 		CapabilityID:      req.Capability.ID,
 		CapabilityVersion: req.Capability.Version,
 		SubjectRef:        req.Authorization.SubjectRef,
@@ -200,7 +204,7 @@ func (g *Gateway) refuse(ctx context.Context, req InvokeRequest, code, reason st
 		OccurredAt:        g.now(),
 	}, rec.Definition, found))
 	if evErr != nil {
-		evidenceID = ""
+		return InvokeResult{}, evErr
 	}
 	return InvokeResult{}, &GatewayError{
 		Code:       code,

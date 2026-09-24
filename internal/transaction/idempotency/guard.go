@@ -61,7 +61,14 @@ func Guard(
 				Detail:         "idempotency key is already bound to a different request",
 			}
 		}
+		if reserved.Status == StatusTombstone {
+			return Record{}, refuse(CodeTombstoned, scope,
+				"idempotency key is permanently bound to this request, but its result has expired; use a new key or perform an explicit duplication-risk check")
+		}
 		if reserved.Status == StatusCompleted {
+			return reserved, nil
+		}
+		if reserved.Status == StatusCompensated {
 			return reserved, nil
 		}
 		return Record{}, refuse(CodeInProgress, scope,

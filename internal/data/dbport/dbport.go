@@ -32,6 +32,20 @@ import (
 	"errors"
 )
 
+// ContextWithTx carries a transaction across adapter boundaries. The caller
+// still owns its lifetime; consumers must never commit or roll it back.
+func ContextWithTx(ctx context.Context, tx Tx) context.Context {
+	return context.WithValue(ctx, transactionContextKey{}, tx)
+}
+
+// TxFromContext returns a caller-owned transaction carried by ContextWithTx.
+func TxFromContext(ctx context.Context) (Tx, bool) {
+	tx, ok := ctx.Value(transactionContextKey{}).(Tx)
+	return tx, ok && tx != nil
+}
+
+type transactionContextKey struct{}
+
 // ErrNoRows is what [Row.Scan] returns when a single-row query selected
 // nothing. It carries pgx's own wording so an error string logged before this
 // port existed reads identically after it, but it is this package's sentinel:

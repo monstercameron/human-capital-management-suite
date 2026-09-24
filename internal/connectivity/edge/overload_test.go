@@ -226,16 +226,18 @@ func TestTodo_EDGE_007_Fault(t *testing.T) {
 func TestTodo_EDGE_007_Race(t *testing.T) {
 	now := time.Now()
 
-	t.Run("concurrent replays of the same attempt collide on one charge", func(t *testing.T) {
+	{
 		c := newTestCoordinator(5, time.Minute, 3)
 		req := OverloadRequest{TenantID: "t1", Dependency: "vendor", LogicalOperationID: "race-op", OperationKind: "sync", Signal: healthySignal("vendor"), Attempt: 1, Failure: FailureRateLimited}
 		const goroutines = 50
 		var wg sync.WaitGroup
+		start := make(chan struct{})
 		results := make([]admission.Outcome, goroutines)
 		for i := 0; i < goroutines; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
+				<-start
 				d, err := c.Decide(now, req)
 				if err != nil {
 					t.Errorf("goroutine %d: unexpected error: %v", i, err)
@@ -244,6 +246,7 @@ func TestTodo_EDGE_007_Race(t *testing.T) {
 				results[i] = d.Outcome
 			}(i)
 		}
+		close(start)
 		wg.Wait()
 		for i, outcome := range results {
 			if outcome != admission.Admit {
@@ -258,18 +261,20 @@ func TestTodo_EDGE_007_Race(t *testing.T) {
 		if budget.Consumed != 1 {
 			t.Fatalf("%d concurrent replays of the same attempt must charge the budget exactly once, got Consumed=%d", goroutines, budget.Consumed)
 		}
-	})
+	}
 
-	t.Run("concurrent distinct attempts never exceed the budget", func(t *testing.T) {
+	{
 		c := newTestCoordinator(5, time.Minute, 3)
 		const attempts = 20 // far more than the configured budget of 3
 		var wg sync.WaitGroup
+		start := make(chan struct{})
 		var mu sync.Mutex
 		admittedCount := 0
 		for attempt := 1; attempt <= attempts; attempt++ {
 			wg.Add(1)
 			go func(attempt int) {
 				defer wg.Done()
+				<-start
 				req := OverloadRequest{TenantID: "t2", Dependency: "vendor", LogicalOperationID: "race-op-2", OperationKind: "sync", Signal: healthySignal("vendor"), Attempt: attempt, Failure: FailureUnavailable}
 				d, err := c.Decide(now, req)
 				if err != nil {
@@ -283,6 +288,7 @@ func TestTodo_EDGE_007_Race(t *testing.T) {
 				}
 			}(attempt)
 		}
+		close(start)
 		wg.Wait()
 
 		var consumed int
@@ -297,7 +303,7 @@ func TestTodo_EDGE_007_Race(t *testing.T) {
 		if admittedCount > 3 {
 			t.Fatalf("no more than 3 concurrent distinct attempts may be admitted, got %d", admittedCount)
 		}
-	})
+	}
 }
 
 func TestTodo_EDGE_007_Security(t *testing.T) {

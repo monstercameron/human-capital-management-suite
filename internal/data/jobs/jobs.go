@@ -612,6 +612,22 @@ func (s RunStore) checkTransition(ctx context.Context, ex Executor, tenantID, ru
 
 // Load returns one run.
 func (s RunStore) Load(ctx context.Context, ex Executor, tenantID, runID uuid.UUID) (JobRun, error) {
+	out, err := readJobRun(ctx, ex, `
+		SELECT tenant_id, run_id, job_id, job_version, run_state, attempt,
+			run_version, declared_by, declared_at, started_at, completed_at, failure_detail,
+			correlation_id, causation_id, logical_operation_id, attempt_id, trace_id, trace_span_id, trace_flags, trace_state, trace_link_expires_at
+		FROM job_run
+		WHERE tenant_id = $1 AND run_id = $2`, tenantID, runID)
+	if err != nil {
+		if isNoRows(err) {
+			return JobRun{}, fmt.Errorf("%w: job_run %s", ErrNotFound, runID)
+		}
+		return JobRun{}, fmt.Errorf("jobs: load run %s: %w", runID, err)
+	}
+	return out, nil
+}
+
+func readJobRun(ctx context.Context, ex Executor, query string, args ...any) (JobRun, error) {
 	var (
 		out                                                                   JobRun
 		jobVersion                                                            int64
@@ -623,20 +639,12 @@ func (s RunStore) Load(ctx context.Context, ex Executor, tenantID, runID uuid.UU
 		traceFlags                                                            *int16
 		expires                                                               *time.Time
 	)
-	err := ex.QueryRow(ctx, `
-		SELECT tenant_id, run_id, job_id, job_version, run_state, attempt,
-			run_version, declared_by, declared_at, started_at, completed_at, failure_detail,
-			correlation_id, causation_id, logical_operation_id, attempt_id, trace_id, trace_span_id, trace_flags, trace_state, trace_link_expires_at
-		FROM job_run
-		WHERE tenant_id = $1 AND run_id = $2`, tenantID, runID).Scan(
+	err := ex.QueryRow(ctx, query, args...).Scan(
 		&out.TenantID, &out.RunID, &out.JobID, &jobVersion, &out.State, &out.Attempt,
 		&version, &out.DeclaredBy, &out.DeclaredAt, &startedAt, &completedAt, &failure,
 		&correlation, &causation, &logical, &attempt, &traceID, &spanID, &traceFlags, &traceState, &expires)
 	if err != nil {
-		if isNoRows(err) {
-			return JobRun{}, fmt.Errorf("%w: job_run %s", ErrNotFound, runID)
-		}
-		return JobRun{}, fmt.Errorf("jobs: load run %s: %w", runID, err)
+		return JobRun{}, err
 	}
 	out.JobVersion, out.Version = uint64(jobVersion), uint64(version)
 	out.DeclaredAt = out.DeclaredAt.UTC()
@@ -651,6 +659,30 @@ func (s RunStore) Load(ctx context.Context, ex Executor, tenantID, runID uuid.UU
 	}
 	out.Causal = causalFromPointers(correlation, causation, logical, attempt, traceID, spanID, traceFlags, traceState, expires)
 	return out, nil
+}
+
+// LoadOpenByJob returns the oldest declared or running run for one tenant
+// and job. A restarted worker uses it before declaring a fresh cadence run,
+// so an unfinished execution is recovered even when its original cadence
+// window has passed.
+func (s RunStore) LoadOpenByJob(ctx context.Context, ex Executor, tenantID uuid.UUID, jobID string) (JobRun, error) {
+	if tenantID == uuid.Nil || !validIdentifier(jobID) {
+		return JobRun{}, invalid("job_id", "an open run lookup is tenant scoped and names a job")
+	}
+	run, err := readJobRun(ctx, ex, `
+		SELECT tenant_id, run_id, job_id, job_version, run_state, attempt,
+			run_version, declared_by, declared_at, started_at, completed_at, failure_detail,
+			correlation_id, causation_id, logical_operation_id, attempt_id, trace_id, trace_span_id, trace_flags, trace_state, trace_link_expires_at
+		FROM job_run
+		WHERE tenant_id = $1 AND job_id = $2 AND run_state IN ($3, $4)
+		ORDER BY declared_at, run_id LIMIT 1`, tenantID, jobID, RunDeclared, RunRunning)
+	if err != nil {
+		if isNoRows(err) {
+			return JobRun{}, fmt.Errorf("%w: open job_run for %s", ErrNotFound, jobID)
+		}
+		return JobRun{}, fmt.Errorf("jobs: find open run for %s: %w", jobID, err)
+	}
+	return run, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -768,6 +800,48 @@ func (s PartitionStore) ClaimPartition(ctx context.Context, ex Executor, tenantI
 		return claimed, nil
 	}
 	return JobPartition{}, s.classifyUnmatchedTransition(ctx, ex, tenantID, partitionID, expectedVersion, PartitionClaimed)
+}
+
+// ReclaimExpiredPartition transfers a partition whose claim timestamp is
+// older than staleBefore to a recovering worker. The partition version is
+// advanced, fencing checkpoints from the previous owner. Callers must derive
+// staleBefore from their configured claim lifetime, never from untrusted job
+// input.
+func (s PartitionStore) ReclaimExpiredPartition(ctx context.Context, ex Executor, tenantID, partitionID uuid.UUID, expectedVersion uint64, staleBefore time.Time, holder string, at time.Time) (JobPartition, error) {
+	if tenantID == uuid.Nil || partitionID == uuid.Nil {
+		return JobPartition{}, invalid("tenant_id", "a recovery claim is tenant scoped and names its partition")
+	}
+	if !validIdentifier(holder) {
+		return JobPartition{}, invalid("claimed_by", "a recovery claim names its holder with an unpadded identifier")
+	}
+	if staleBefore.IsZero() || at.IsZero() || staleBefore.After(at) {
+		return JobPartition{}, invalid("stale_before", "a recovery claim has an elapsed positive lease window")
+	}
+	newAttemptID := uuid.NewString()
+	affected, err := ex.Exec(ctx, `
+		UPDATE job_partition
+		SET claimed_by = $5, claimed_at = $6, attempt = attempt + 1,
+			partition_version = partition_version + 1, attempt_id = $7
+		WHERE tenant_id = $1 AND partition_id = $2 AND partition_version = $3
+			AND partition_state = $4 AND claimed_at < $8`,
+		tenantID, partitionID, int64(expectedVersion), PartitionClaimed, holder, at.UTC(), newAttemptID, staleBefore.UTC())
+	if err != nil {
+		return JobPartition{}, fmt.Errorf("jobs: reclaim expired partition %s: %w", partitionID, err)
+	}
+	if affected == 1 {
+		return s.Load(ctx, ex, tenantID, partitionID)
+	}
+	current, err := s.Load(ctx, ex, tenantID, partitionID)
+	if err != nil {
+		return JobPartition{}, err
+	}
+	if current.Version != expectedVersion {
+		return JobPartition{}, fmt.Errorf("%w: job_partition %s expected version %d", ErrVersionConflict, partitionID, expectedVersion)
+	}
+	if current.State != PartitionClaimed {
+		return JobPartition{}, fmt.Errorf("%w: job_partition %s: %s -> recovery claim", ErrIllegalTransition, partitionID, current.State)
+	}
+	return JobPartition{}, fmt.Errorf("%w: partition %s claim has not expired", ErrLeaseHeld, partitionID)
 }
 
 // classifyUnmatchedTransition tells a lost compare-and-swap apart from a
@@ -1013,7 +1087,9 @@ func (s CheckpointStore) PruneExpiredTraceLinks(ctx context.Context, ex Executor
 	return affected, nil
 }
 
-// Checkpoint records one immutable checkpoint. A repeated sequence is
+// Checkpoint records one immutable checkpoint. The caller must pass its
+// tenant-scoped transaction: the partition generation is locked and checked
+// in that transaction before the append. A repeated sequence is
 // [ErrDuplicate]: a safe point that could be rewritten is not a safe point,
 // and the table's forbid_mutation trigger refuses the rewrite regardless.
 func (s CheckpointStore) Checkpoint(ctx context.Context, ex Executor, in JobCheckpoint) (JobCheckpoint, error) {
@@ -1034,6 +1110,19 @@ func (s CheckpointStore) Checkpoint(ctx context.Context, ex Executor, in JobChec
 	}
 	if in.TakenAt.IsZero() {
 		return JobCheckpoint{}, invalid("taken_at", "timestamp is unset")
+	}
+	// Lock the live partition row in the caller's tenant transaction while
+	// checking its generation. A recovering worker advances this version, so
+	// an old process cannot append a checkpoint after losing ownership.
+	var currentVersion int64
+	if err := ex.QueryRow(ctx, `SELECT partition_version FROM job_partition WHERE tenant_id = $1 AND partition_id = $2 FOR UPDATE`, in.TenantID, in.PartitionID).Scan(&currentVersion); err != nil {
+		if isNoRows(err) {
+			return JobCheckpoint{}, fmt.Errorf("%w: job_partition %s", ErrNotFound, in.PartitionID)
+		}
+		return JobCheckpoint{}, fmt.Errorf("jobs: fence checkpoint %d of %s: %w", in.Sequence, in.PartitionID, err)
+	}
+	if uint64(currentVersion) != in.PartitionVersion {
+		return JobCheckpoint{}, fmt.Errorf("%w: partition %s generation %d is no longer current", ErrStaleFence, in.PartitionID, in.PartitionVersion)
 	}
 	in.Causal = normalizeCausal(in.Causal)
 	if err := requireLinkExpiry(in.Causal); err != nil {

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -136,6 +137,51 @@ func TestTodo_LEDGER_002(t *testing.T) {
 			t.Fatalf("an undeclared assertion class returned %v, want ErrInvalidAssertionClass", err)
 		}
 	})
+}
+
+// TestTodo_LEDGER_002_Race proves that independent transactions racing at the
+// same expected head cannot both allocate sequence one.
+func TestTodo_LEDGER_002_Race(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wg sync.WaitGroup
+	for range 2 {
+		conn := f.db.NewConn(t)
+		req := f.request(0)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			err := f.inTxErr(conn, func(tx dbport.Tx) error {
+				_, appendErr := ledger.Append(context.Background(), tx, req)
+				return appendErr
+			})
+			results <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	accepted, stale := 0, 0
+	for err := range results {
+		if err == nil {
+			accepted++
+			continue
+		}
+		var conflict ledger.ErrStaleStream
+		if !errors.As(err, &conflict) || conflict.Expected != 0 || conflict.Actual != 1 {
+			t.Fatalf("losing concurrent append returned %v, want stale head 0/1", err)
+		}
+		stale++
+	}
+	if accepted != 1 || stale != 1 {
+		t.Fatalf("concurrent append accepted=%d stale=%d, want one of each", accepted, stale)
+	}
+	if got := f.sequences(t); len(got) != 1 || got[0] != 1 {
+		t.Fatalf("sequences after concurrent append are %v, want [1]", got)
+	}
 }
 
 // TestTodo_LEDGER_002_Recovery proves a failed append leaves nothing behind: the

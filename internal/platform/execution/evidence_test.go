@@ -121,6 +121,10 @@ func (s *plainCapabilitySink) RecordInvocation(_ context.Context, evt capability
 	return "ev:plain", nil
 }
 
+func (s *plainCapabilitySink) RecordInvocationTx(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
+	return s.RecordInvocation(ctx, evt)
+}
+
 // TestCapabilityEvidenceAdapterPacksOntoAPlainCapabilitySink proves the
 // adapter's fallback path: a sink that cannot record a storage tenant
 // receives the OBS-024 packing with the clock filling a zero instant, and

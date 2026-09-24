@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	connectivitymapping "github.com/monstercameron/human-capital-management-suite/internal/connectivity/mapping"
 )
 
 var (
@@ -26,7 +28,6 @@ var (
 
 var allowedDateLayouts = map[string]bool{"2006-01-02": true, time.RFC3339: true, "2006/01/02": true, "01/02/2006": true, "20060102": true}
 var currencyRE = regexp.MustCompile(`^[A-Z]{3}$`)
-var moneyRE = regexp.MustCompile(`^-?[0-9]+(\.[0-9]{1,2})?$`)
 
 // Profile is the source representation accepted by Compile.
 type Profile struct {
@@ -138,7 +139,7 @@ func Compile(p Profile) (Compiled, error) {
 	return Compiled{profile: p, digest: "sha256:" + hex.EncodeToString(h[:])}, nil
 }
 
-func (c Compiled) Execute(input map[string]string) (Result, error) {
+func (c Compiled) MapShared(input map[string]string) (Result, error) {
 	fields := make([]Field, 0, len(c.profile.Rules))
 	diags := []Diagnostic{}
 	for _, r := range c.profile.Rules {
@@ -170,9 +171,10 @@ func (c Compiled) Execute(input map[string]string) (Result, error) {
 			}
 			continue
 		}
-		v, err := apply(r, raw, c.profile.Lookups)
+		mapped, err := c.applyShared(r, raw)
 		if err != nil {
-			diags = append(diags, Diagnostic{r.Target, "transform.failed", err.Error()})
+			detail := err.Error()
+			diags = append(diags, Diagnostic{r.Target, "transform.failed", detail})
 			if r.Null == NullError {
 				return Result{}, fmt.Errorf("%w: %s: %v", ErrTransform, r.Target, err)
 			}
@@ -181,6 +183,7 @@ func (c Compiled) Execute(input map[string]string) (Result, error) {
 			}
 			continue
 		}
+		v := mapped
 		if v == "" && r.DeleteIfEmpty {
 			fields = append(fields, Field{Target: r.Target, Deleted: true})
 			continue
@@ -198,53 +201,70 @@ func (c Compiled) Execute(input map[string]string) (Result, error) {
 	sort.Slice(diags, func(i, j int) bool { return diags[i].Target < diags[j].Target })
 	return Result{Fields: fields, Diagnostics: diags, Digest: resultDigest(c.digest, fields)}, nil
 }
-func (c Compiled) Map(input map[string]string) (Result, error) { return c.Execute(input) }
 
-func apply(r Rule, s string, lookups map[string]map[string]string) (string, error) {
+func (c Compiled) Map(input map[string]string) (Result, error) { return c.MapShared(input) }
+
+func (c Compiled) applyShared(r Rule, raw string) (string, error) {
 	op := strings.ToUpper(r.Op)
+	connOp := connectivitymapping.OpIdentity
+	arg := r.Argument
+	lookup := r.Lookup
+	moneyMode := ""
 	switch op {
-	case "IDENTITY", "RENAME":
-		return s, nil
+	case "IDENTITY", "RENAME", "TYPE", "CONDITION", "CONDITIONAL":
+		connOp = connectivitymapping.OpIdentity
 	case "TRIM":
-		return strings.TrimSpace(s), nil
+		connOp = connectivitymapping.OpTrim
 	case "UPPER":
-		return strings.ToUpper(strings.TrimSpace(s)), nil
+		connOp = connectivitymapping.OpUpper
 	case "LOWER":
-		return strings.ToLower(strings.TrimSpace(s)), nil
+		connOp = connectivitymapping.OpLower
 	case "CONSTANT", "DEFAULT":
-		return r.Argument, nil
+		// Compose is the shared engine's literal-preserving operation. Unlike
+		// the connectivity CONSTANT op, it also represents the valid empty
+		// literal accepted by mapping profiles.
+		connOp = connectivitymapping.OpCompose
+		arg = "${value}"
 	case "COMPOSE":
-		return strings.ReplaceAll(r.Argument, "${value}", s), nil
+		connOp = connectivitymapping.OpCompose
 	case "LOOKUP", "ENUM", "REFERENCE":
-		m := r.Lookup
-		if m == nil {
-			m = lookups[r.LookupRef]
+		connOp = connectivitymapping.OpLookup
+		if lookup == nil {
+			lookup = c.profile.Lookups[r.LookupRef]
 		}
-		v, ok := m[strings.TrimSpace(s)]
-		if !ok {
-			return "", errors.New("lookup unresolved")
-		}
-		return v, nil
 	case "DATE":
-		t, e := time.Parse(r.Argument, strings.TrimSpace(s))
-		if e != nil {
-			return "", e
-		}
-		return t.UTC().Format(time.RFC3339Nano), nil
+		connOp = connectivitymapping.OpDate
 	case "MONEY":
-		if !moneyRE.MatchString(strings.ReplaceAll(strings.TrimSpace(s), ",", "")) {
-			return "", errors.New("invalid money")
-		}
-		return strings.ReplaceAll(strings.TrimSpace(s), ",", ""), nil
-	case "TYPE":
-		if r.Type == "string" || r.Type == "" {
-			return s, nil
-		}
-		return s, nil
-	case "CONDITION", "CONDITIONAL":
-		return s, nil
+		connOp = connectivitymapping.OpMoney
+		moneyMode = "PROFILE"
+	default:
+		return "", ErrUnsupported
 	}
-	return "", ErrUnsupported
+	if op == "CONSTANT" {
+		raw = r.Argument
+	}
+	null := connectivitymapping.NullError
+	if raw == "" {
+		// ExecuteShared applies ERROR to empty results. For the empty literal,
+		// OMIT lets the shared executor produce no field; this adapter maps
+		// that exact case back to the profile's historical empty string.
+		null = connectivitymapping.NullOmit
+	}
+	rule := connectivitymapping.Rule{Source: "value", Target: r.Target, Op: connOp, Argument: arg, Lookup: lookup, MoneyMode: moneyMode, Null: null}
+	result, err := connectivitymapping.ExecuteShared(connectivitymapping.IR{Version: "mappingprofile." + c.profile.Version, Rules: []connectivitymapping.Rule{rule}}, map[string]string{"value": raw})
+	if err != nil {
+		return "", err
+	}
+	if len(result.Diagnostics) > 0 {
+		return "", errors.New(result.Diagnostics[0].Detail)
+	}
+	if len(result.Fields) != 1 {
+		if raw == "" && len(result.Fields) == 0 && len(result.Diagnostics) == 0 {
+			return "", nil
+		}
+		return "", errors.New("mappingprofile: shared transform produced no value")
+	}
+	return result.Fields[0].Value, nil
 }
 func condition(expr string, in map[string]string) bool {
 	if expr == "" {

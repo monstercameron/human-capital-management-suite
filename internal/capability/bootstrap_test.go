@@ -7,8 +7,22 @@ func TestBootstrap_NewBootstrapRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewBootstrapRegistry: %v", err)
 	}
-	if len(r.List()) != 10 {
-		t.Fatalf("expected 10 definitions got %d", len(r.List()))
+	if len(r.List()) != 11 {
+		t.Fatalf("expected 11 definitions got %d", len(r.List()))
+	}
+}
+
+func TestTodo_REV_014_01(t *testing.T) {
+	r, err := NewBootstrapRegistry()
+	if err != nil {
+		t.Fatalf("NewBootstrapRegistry: %v", err)
+	}
+	rec, ok := r.Lookup(Key{ID: "hcmnext.dataops.explain_field_history", Version: 1})
+	if !ok {
+		t.Fatal("effective-date debugger capability is not published")
+	}
+	if rec.Definition.EffectClass != EffectReadOnly || len(rec.Definition.WriteData.DataDomains) != 0 || len(rec.Definition.WriteData.FieldPaths) != 0 {
+		t.Fatalf("debugger capability is not read-only: %+v", rec.Definition)
 	}
 }
 

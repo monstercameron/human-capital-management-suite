@@ -86,7 +86,7 @@ func ingestDemoPhotos(ctx context.Context, employees []demoworkforce.Employee, s
 		if proxyName := filepath.Base(employee.PhotoProxyRef); proxyName != "" && proxyName != "." {
 			switch info, err := os.Stat(filepath.Join(assetDir, proxyName)); {
 			case err == nil && !info.IsDir() && info.Size() > 0:
-				// Already published. The checked-in proxy is the
+				// Already published by a development seed. The proxy is the
 				// authoritative demo fixture; re-deriving it from the
 				// source photo and requiring byte-identical JPEG output
 				// would make seeding fail whenever the source photo has

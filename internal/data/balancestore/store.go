@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/balance"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/cycle"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -29,6 +31,103 @@ type Executor interface {
 type Store struct{}
 
 func New() Store { return Store{} }
+
+// AppendRestatement persists a previously computed cycle correction through
+// the caller's transaction. The unique tenant/cycle/prior-sequence key is its
+// compare-and-swap: concurrent transactions can append only one successor.
+// Repeating the same restatement ID and digest returns the original row.
+func (s Store) AppendRestatement(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, restatement cycle.CycleRestatement) (RestatementRecord, error) {
+	if tenant == uuid.Nil || restatement.Prior.TenantID != tenant.String() {
+		return RestatementRecord{}, invalid("tenant_id", "must match the prior cycle close")
+	}
+	if err := restatement.Verify(); err != nil {
+		return RestatementRecord{}, fmt.Errorf("%w: restatement: %v", ErrInvalid, err)
+	}
+	if restatement.Revision > math.MaxInt64 || restatement.Prior.Sequence > math.MaxInt64 {
+		return RestatementRecord{}, invalid("revision", "exceeds durable storage range")
+	}
+	body, err := restatement.Canonical()
+	if err != nil {
+		return RestatementRecord{}, fmt.Errorf("canonicalize cycle restatement: %w", err)
+	}
+	var record RestatementRecord
+	err = tx.QueryRow(ctx, `
+		INSERT INTO cycle_restatement
+			(row_id, tenant_id, restatement_id, revision, cycle_id, prior_sequence,
+			 prior_close_digest, digest, correction_at, canonical_body)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)
+		ON CONFLICT DO NOTHING
+		RETURNING row_id, recorded_at`,
+		uuid.New(), tenant, restatement.RestatementID, int64(restatement.Revision), restatement.Prior.CycleID,
+		int64(restatement.Prior.Sequence), restatement.Prior.CloseResultDigest, restatement.Digest,
+		restatement.CorrectionAt.UTC().Format(time.RFC3339Nano), string(body)).Scan(&record.RowID, &record.RecordedAt)
+	if err == nil {
+		record.TenantID, record.Restatement = tenant, restatement
+		return record, nil
+	}
+	if !errors.Is(err, dbport.ErrNoRows) {
+		return RestatementRecord{}, fmt.Errorf("append cycle restatement: %w", err)
+	}
+	existing, found, err := s.loadRestatement(ctx, tx, tenant, restatement.RestatementID)
+	if err != nil {
+		return RestatementRecord{}, err
+	}
+	if found {
+		if existing.Restatement.Digest != restatement.Digest {
+			return RestatementRecord{}, codedError{code: CodeIdempotencyConflict, err: ErrIdempotencyConflict,
+				text: fmt.Sprintf("%s: restatement %s", CodeIdempotencyConflict, restatement.RestatementID)}
+		}
+		existing.Replay = true
+		return existing, nil
+	}
+	return RestatementRecord{}, codedError{code: CodeRestatementConflict, err: ErrRestatementConflict,
+		text: fmt.Sprintf("%s: cycle %s sequence %d", CodeRestatementConflict, restatement.Prior.CycleID, restatement.Prior.Sequence)}
+}
+
+// LoadRestatement loads and verifies an immutable correction after a process
+// restart. Tenant scoping is supplied by both the explicit key and caller tx.
+func (s Store) LoadRestatement(ctx context.Context, q dbport.Querier, tenant uuid.UUID, restatementID string) (RestatementRecord, error) {
+	if tenant == uuid.Nil || strings.TrimSpace(restatementID) == "" {
+		return RestatementRecord{}, invalid("restatement", "tenant and id are required")
+	}
+	record, found, err := s.loadRestatement(ctx, q, tenant, restatementID)
+	if err != nil {
+		return RestatementRecord{}, err
+	}
+	if !found {
+		return RestatementRecord{}, codedError{code: CodeRestatementNotFound, err: ErrRestatementNotFound,
+			text: CodeRestatementNotFound + ": " + restatementID}
+	}
+	return record, nil
+}
+
+func (s Store) loadRestatement(ctx context.Context, q dbport.Querier, tenant uuid.UUID, restatementID string) (RestatementRecord, bool, error) {
+	var record RestatementRecord
+	var body string
+	var digest, cycleID, priorDigest string
+	var revision, priorSequence int64
+	var correctionAt string
+	err := q.QueryRow(ctx, `SELECT row_id, tenant_id, restatement_id, revision, cycle_id,
+		prior_sequence, prior_close_digest, digest, correction_at, canonical_body::text, recorded_at
+		FROM cycle_restatement WHERE tenant_id=$1 AND restatement_id=$2`, tenant, restatementID).Scan(
+		&record.RowID, &record.TenantID, &restatementID, &revision, &cycleID,
+		&priorSequence, &priorDigest, &digest, &correctionAt, &body, &record.RecordedAt)
+	if errors.Is(err, dbport.ErrNoRows) {
+		return RestatementRecord{}, false, nil
+	}
+	if err != nil {
+		return RestatementRecord{}, false, fmt.Errorf("load cycle restatement: %w", err)
+	}
+	restored, err := cycle.DecodeRestatement([]byte(body), digest)
+	if err != nil {
+		return RestatementRecord{}, false, fmt.Errorf("verify stored cycle restatement: %w", err)
+	}
+	if restored.RestatementID != restatementID || int64(restored.Revision) != revision || restored.Prior.CycleID != cycleID || int64(restored.Prior.Sequence) != priorSequence || restored.Prior.CloseResultDigest != priorDigest || restored.CorrectionAt.UTC().Format(time.RFC3339Nano) != correctionAt {
+		return RestatementRecord{}, false, errors.New("balancestore: cycle restatement index does not match canonical body")
+	}
+	record.Restatement = restored
+	return record, true, nil
+}
 
 // DefinitionRecord is the durable envelope around a balance definition.
 type DefinitionRecord struct {
@@ -48,6 +147,15 @@ type LifecycleRecord struct {
 	RecordedAt    time.Time
 }
 
+// RestatementRecord is the durable envelope around an immutable cycle correction.
+type RestatementRecord struct {
+	TenantID    uuid.UUID
+	RowID       uuid.UUID
+	Restatement cycle.CycleRestatement
+	RecordedAt  time.Time
+	Replay      bool
+}
+
 var (
 	ErrInvalid             = errors.New("balancestore: invalid request")
 	ErrDuplicateRevision   = errors.New("balancestore: duplicate definition revision")
@@ -58,6 +166,8 @@ var (
 	ErrCorrectionConflict  = errors.New("balancestore: correction parent already superseded")
 	ErrSequenceGap         = errors.New("balancestore: event sequence gap")
 	ErrDuplicateEvent      = errors.New("balancestore: duplicate lifecycle event")
+	ErrRestatementConflict = errors.New("balancestore: prior cycle close already restated")
+	ErrRestatementNotFound = errors.New("balancestore: restatement not found")
 )
 
 const (
@@ -69,6 +179,8 @@ const (
 	CodeCorrectionConflict  = "BALANCE_CORRECTION_CONFLICT"
 	CodeSequenceGap         = "BALANCE_SEQUENCE_GAP"
 	CodeDuplicateEvent      = "BALANCE_DUPLICATE_EVENT"
+	CodeRestatementConflict = "CYCLE_RESTATEMENT_CONFLICT"
+	CodeRestatementNotFound = "CYCLE_RESTATEMENT_NOT_FOUND"
 )
 
 type codedError struct {

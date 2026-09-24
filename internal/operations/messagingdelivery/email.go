@@ -109,16 +109,19 @@ type DNSRecords struct {
 // DomainProfile is one verified sending-domain version. Rotation links
 // versions through PreviousDigest so a retired key cannot silently resume.
 type DomainProfile struct {
-	Domain         string `json:"domain"`
-	Version        uint64 `json:"version"`
-	SPFVerified    bool   `json:"spf_verified"`
-	DKIMVerified   bool   `json:"dkim_verified"`
-	DMARCVerified  bool   `json:"dmarc_verified"`
-	RecordDigest   string `json:"record_digest"`
-	Verified       bool   `json:"verified"`
-	VerifiedAt     string `json:"verified_at"`
-	PreviousDigest string `json:"previous_digest,omitempty"`
-	Digest         string `json:"digest"`
+	Domain  string `json:"domain"`
+	Version uint64 `json:"version"`
+	// DKIMSelectors are the published selectors that the live verifier must
+	// resolve again on each scheduled pass.
+	DKIMSelectors  []string `json:"dkim_selectors"`
+	SPFVerified    bool     `json:"spf_verified"`
+	DKIMVerified   bool     `json:"dkim_verified"`
+	DMARCVerified  bool     `json:"dmarc_verified"`
+	RecordDigest   string   `json:"record_digest"`
+	Verified       bool     `json:"verified"`
+	VerifiedAt     string   `json:"verified_at"`
+	PreviousDigest string   `json:"previous_digest,omitempty"`
+	Digest         string   `json:"digest"`
 }
 
 // VerifyDomain authenticates one sending domain from its DNS evidence.
@@ -149,13 +152,22 @@ func VerifyDomain(domain string, dns DNSRecords, now time.Time) (DomainProfile, 
 	if !strings.HasPrefix(dmarc, "v=DMARC1;") || !strings.Contains(dmarc, "p=") {
 		return DomainProfile{}, fmt.Errorf("%w: DMARC record is missing or has no enforcement policy", ErrDomainUnverified)
 	}
+	selectors := sortedKeys(dns.DKIMSelectors)
+	selectorKeys := make([]string, 0, len(selectors))
+	verifiedSelectorNames := make([]string, 0, len(selectors))
+	for _, selector := range selectors {
+		if strings.TrimSpace(selector) != "" && strings.TrimSpace(dns.DKIMSelectors[selector]) != "" {
+			selectorKeys = append(selectorKeys, selector+"="+strings.TrimSpace(dns.DKIMSelectors[selector]))
+			verifiedSelectorNames = append(verifiedSelectorNames, selector)
+		}
+	}
 	recordDigest := hashEmail(struct {
 		SPF   string   `json:"spf"`
 		DKIM  []string `json:"dkim"`
 		DMARC string   `json:"dmarc"`
-	}{spf, sortedKeys(dns.DKIMSelectors), dmarc})
+	}{spf, selectorKeys, dmarc})
 	profile := DomainProfile{
-		Domain: domain, Version: 1,
+		Domain: domain, Version: 1, DKIMSelectors: verifiedSelectorNames,
 		SPFVerified: true, DKIMVerified: true, DMARCVerified: true,
 		RecordDigest: recordDigest, Verified: true,
 		VerifiedAt: now.UTC().Format(time.RFC3339),
@@ -180,6 +192,7 @@ func (p DomainProfile) Rotate(next DNSRecords, now time.Time) (DomainProfile, er
 		return DomainProfile{}, err
 	}
 	rotated.Version = p.Version + 1
+	rotated.DKIMSelectors = append([]string(nil), rotated.DKIMSelectors...)
 	rotated.PreviousDigest = p.Digest
 	rotated.Digest = hashEmail(struct {
 		Domain         string `json:"domain"`

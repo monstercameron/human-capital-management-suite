@@ -1,0 +1,1687 @@
+{
+  "ReleaseDigest": "37c01593a1f8b959ba952f876cde1c776d88eca4b83aae85864e4087e18e7813",
+  "Entries": [
+    {
+      "Version": 1,
+      "Name": "00001_platform_control",
+      "Checksum": "ca24305466e56b4dce280baac7c3b46efdf233023282f3349ba4768692267ba6",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": null
+    },
+    {
+      "Version": 2,
+      "Name": "00002_tenant_primitives",
+      "Checksum": "16e80683106df22e233cb1a3299bd8ab4728f12cf608f3babfa60784a09b8fb9",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [1]
+    },
+    {
+      "Version": 3,
+      "Name": "00003_definition_registry",
+      "Checksum": "857cead55df693bbef8977b6330aa76ae335a522c61e8524d077decb7a853fe2",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [2]
+    },
+    {
+      "Version": 4,
+      "Name": "00004_intent_and_proposal",
+      "Checksum": "1f927fc2d1361f7ad168ab3f7093c00844db9cd52120133fb2dc69acbeb57f97",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [3]
+    },
+    {
+      "Version": 5,
+      "Name": "00005_ledger",
+      "Checksum": "e89b9f57f67d257d6066dfec847813305c4d8fdfd55d489cf187f8085806e2fc",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [4]
+    },
+    {
+      "Version": 6,
+      "Name": "00006_projection_and_outbox",
+      "Checksum": "086673e57d458bd860e23320d3a2ebf051e67ac7dea38b44229feab674d80007",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [5]
+    },
+    {
+      "Version": 7,
+      "Name": "00007_connectivity",
+      "Checksum": "1ddf9a01a9cc9d83e2470c42424dc82d10b17c29fea418af06a814685e7f91b2",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [6]
+    },
+    {
+      "Version": 8,
+      "Name": "00008_tenant_isolation",
+      "Checksum": "50b3bd48c29fcbaf7422505d03223b4ef2f73e4b773967a1cf8e34c512f8c4af",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [7]
+    },
+    {
+      "Version": 10,
+      "Name": "00010_artifacts",
+      "Checksum": "4fd9fc9efb38906863c75a040f55182a9f84e4826390b92a1a88e3f1e02055ad",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [8]
+    },
+    {
+      "Version": 11,
+      "Name": "00011_people_aggregates",
+      "Checksum": "b5297fb92c26a637f776a25acab8453c001ff8735dd9ecedce9faff63742d4f3",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [10]
+    },
+    {
+      "Version": 12,
+      "Name": "00012_organization_aggregates",
+      "Checksum": "3e1003d0c80fabda838ae709a8cc744eb170e242958cbde2580373ba8fa17b05",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [11]
+    },
+    {
+      "Version": 13,
+      "Name": "00013_compensation_aggregates",
+      "Checksum": "a244c4a34c4983d956624d0d01f6ed3dae0eb8d8878a6b185bf18c6f2b422ed9",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [12]
+    },
+    {
+      "Version": 14,
+      "Name": "00014_ledger_hash_chain",
+      "Checksum": "f8dab651139f3f7a4ba8ac7dabec319bd3d8954da7bc1b8db0073bd5f8e7cc0c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [13]
+    },
+    {
+      "Version": 15,
+      "Name": "00015_provenance",
+      "Checksum": "f2c0a632a1b0e0fcad54de2a1bbf6627e9b35805224de4de7d3009152d55b852",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [14]
+    },
+    {
+      "Version": 16,
+      "Name": "00016_workflow_runtime",
+      "Checksum": "81a61c5338d0f9935b97e9347eb30a83f2c4b7e52cfb76a113dbcdebcb04652e",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [15]
+    },
+    {
+      "Version": 17,
+      "Name": "00017_work_item",
+      "Checksum": "a301c5b624734bf794b266edf78a3f651bbbb5c114e40fd1e7e0cd0b3eb9b392",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [16]
+    },
+    {
+      "Version": 18,
+      "Name": "00018_workflow_continuation",
+      "Checksum": "00c8bd149724dcaadcb9a0bdb27d387241f9465cac82e0a50c95845b7aaa3214",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [17]
+    },
+    {
+      "Version": 19,
+      "Name": "00019_idempotency_record",
+      "Checksum": "81306e2a4904a3ae7e385a6098bcdb3136d97ad2f048e5059fe85cbf9fb56bae",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [18]
+    },
+    {
+      "Version": 20,
+      "Name": "00020_workflow_advancement_receipt",
+      "Checksum": "66456f272426dd4be67b53c22a1fe22c5ce034b2d8b0a253dae07312c6940582",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [19]
+    },
+    {
+      "Version": 21,
+      "Name": "00021_governance_authz_legal_evidence",
+      "Checksum": "7b7ab81f101960235e1d11ebbfc71e3029eb0e3c6f27563c34a96c4ae28c9008",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [20]
+    },
+    {
+      "Version": 22,
+      "Name": "00022_work_item_decision",
+      "Checksum": "7d5b5f3a9f8481bc3ca402acf6725939da7e051f302e71b6b81c72035c3d2d76",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [21]
+    },
+    {
+      "Version": 23,
+      "Name": "00023_journey_workforce",
+      "Checksum": "f5441ad9e8a599edfbbfd2d6e94b43aeb08746c26fe781d5d1befe9a9b0954c9",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [22]
+    },
+    {
+      "Version": 24,
+      "Name": "00024_intent_control",
+      "Checksum": "91ef6e90aa9647fb956e3724821092a7d92178b02bcb9cb7815a94bc94d4f008",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [23]
+    },
+    {
+      "Version": 25,
+      "Name": "00025_schema_snapshot",
+      "Checksum": "578eaf430926cd4c7469e0203944fb1affb91738cf3d3365b9ce77ab28ce9f9e",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [24]
+    },
+    {
+      "Version": 26,
+      "Name": "00026_workflow_scheduling_state",
+      "Checksum": "def59c9766401b47175a7aaa93230a0dfeda67d535e8dac7b7571ee687d8a426",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [25]
+    },
+    {
+      "Version": 27,
+      "Name": "00027_config_object",
+      "Checksum": "1c2d20e8944ac43217f7511e0e14e80c762d573fe446b0331dd15e4288613aed",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [26]
+    },
+    {
+      "Version": 28,
+      "Name": "00028_ledger_checkpoint_epoch",
+      "Checksum": "561902f4e4639bcf42809866b8d9fd4cef1b41b59c238a98ca67d4a7c90d521b",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [27]
+    },
+    {
+      "Version": 29,
+      "Name": "00029_tenant_bootstrap_receipt",
+      "Checksum": "139f01e6efdd48953d52fdf72bfb7992684887fa030d6ab242bbee44f08babf8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [28]
+    },
+    {
+      "Version": 30,
+      "Name": "00030_artifact_quarantine",
+      "Checksum": "4d14cc8138a2928c0db236694d882bca3248d66523152eb03158679dc0b2a2e9",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [29]
+    },
+    {
+      "Version": 31,
+      "Name": "00031_integration_messaging_document_metadata",
+      "Checksum": "3bd80d4a86c2a4785bc5517043139d18f907b0cf51129a4f548b2712a9f1a1e5",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [30]
+    },
+    {
+      "Version": 32,
+      "Name": "00032_privacy_records_operations_assurance",
+      "Checksum": "d9e87cc7f17453e090768639380291fea2c57fbcbcae05b497fc35165e0fb822",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [31]
+    },
+    {
+      "Version": 33,
+      "Name": "00033_inbox_record",
+      "Checksum": "9416309a177ea6f90c1481f71b201a96e7665f7cd06fb32f3ebe7330e63d239f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [32]
+    },
+    {
+      "Version": 34,
+      "Name": "00034_job_definitions",
+      "Checksum": "a59be31762251ee88f90567cd430c0325fdc9a7664a80c6051bd68c799ce3d7e",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [33]
+    },
+    {
+      "Version": 35,
+      "Name": "00035_inbound_reply",
+      "Checksum": "20ef7a58307d14b3746a0156f77abccfb6b79703f55959daf919423e2ffbcabe",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [34]
+    },
+    {
+      "Version": 37,
+      "Name": "00037_lexical_search",
+      "Checksum": "d1bf4fbc4693b53e9bb46f37947a695183133463c1647344e53ed2d5ad51d01c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [35]
+    },
+    {
+      "Version": 38,
+      "Name": "00038_issuer_registry",
+      "Checksum": "7858e0e72e88f5f4e41ef9ad6f65c1e571b4d3ff40a0a515d5af21d799792137",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [37]
+    },
+    {
+      "Version": 40,
+      "Name": "00040_effect_reconciliation_job",
+      "Checksum": "8efc1a58e468b13d0cde1ccef5e815a70fbab41511bc19fad5b2bdd06d2742d8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [38]
+    },
+    {
+      "Version": 41,
+      "Name": "00041_session_store",
+      "Checksum": "0672f392bbe49e8fedfe37e2ae4129ba6c6625f28b1729d9efb3f4407a35de6a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [40]
+    },
+    {
+      "Version": 43,
+      "Name": "00043_position_reservation",
+      "Checksum": "ef1411a3a2356d4e3c692e7285bb77fa98126d17645ca9ab2ef9d2bbff040e44",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [41]
+    },
+    {
+      "Version": 44,
+      "Name": "00044_budget_reservation",
+      "Checksum": "4f23346e1253c7836b6995e3872a3a1ff86e3e1291a0f2fb7435900002ffa274",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [43]
+    },
+    {
+      "Version": 45,
+      "Name": "00045_attestation",
+      "Checksum": "131d54858eee13d57bfe446dd866e7099cf106a8a5774b8e25e59b4957ddcf8a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [44]
+    },
+    {
+      "Version": 46,
+      "Name": "00046_payroll_run",
+      "Checksum": "20ddba54b257281d7063b6dd6ffae02fadbde31869a029ac79a5958cef4021ef",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [45]
+    },
+    {
+      "Version": 47,
+      "Name": "00047_paygl_labor",
+      "Checksum": "6f158904dc2ca55dc707afff6ae640da254591d5e8b84dd387aaf76956288f4c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [46]
+    },
+    {
+      "Version": 48,
+      "Name": "00048_job_architecture",
+      "Checksum": "51e160a2539cccee22a28a3f065616dee03e3f25997285420e807718cf476083",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [47]
+    },
+    {
+      "Version": 49,
+      "Name": "00049_location",
+      "Checksum": "c124600010dda817b1d8d9aae75b9ee8d7b3b9978f50733939fd8b2bdefcfdba",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [48]
+    },
+    {
+      "Version": 50,
+      "Name": "00050_tenant_placement",
+      "Checksum": "72c6ac080ee0259fa50710cec0956c1e3c7a2c6150c43ea0cd720ca67bbb2790",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [49]
+    },
+    {
+      "Version": 51,
+      "Name": "00051_balance_accumulator",
+      "Checksum": "e13eac678077b0c099fb4bcde021f683b5d199332bbc430ca619f4903d317459",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [50]
+    },
+    {
+      "Version": 52,
+      "Name": "00052_access_identity",
+      "Checksum": "823de1e84b99160027491ab6b939cc16542fd153a394af2eb9de36296901e2cd",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [51]
+    },
+    {
+      "Version": 53,
+      "Name": "00053_legal_evidence",
+      "Checksum": "5d76fe9f592cda48ec2debe2f97796fd38041dbc1d3379c56a9e8e14523e4cc7",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [52]
+    },
+    {
+      "Version": 54,
+      "Name": "00054_data_008_outbox_lease_fence",
+      "Checksum": "20855e4486b1430fabf884db6d2cae6e45d28570fe87a3d08b4aa864917abbe7",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [53]
+    },
+    {
+      "Version": 55,
+      "Name": "00055_data_009_consumer_position",
+      "Checksum": "2212315730fd5c3a2595c2619847180daa29288d1a4497cae39d7d10edb8879c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [54]
+    },
+    {
+      "Version": 56,
+      "Name": "00056_data_018_record_copy_links",
+      "Checksum": "b5e44a996fdcf1d429ffea614536cf985fa3951d124aca8fa1f517deed0a773b",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [55]
+    },
+    {
+      "Version": 57,
+      "Name": "00057_data_013_replay_snapshots",
+      "Checksum": "5d7e97436cb1a6669fc4ef3f1c81dbba8ecd7bccb79cb761421fbd1c003fc008",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [56]
+    },
+    {
+      "Version": 61,
+      "Name": "00061_promotion_people_write_evidence",
+      "Checksum": "83c260e88f5b36a12eec8e023cf3dad27912e0cd0a142cc509776c2ba6537966",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [57]
+    },
+    {
+      "Version": 62,
+      "Name": "00062_promotion_organization_manager_evidence",
+      "Checksum": "e9e7a6712972dd562c8219c1921479b6b146299a63440c189461e66196f77cd9",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [61]
+    },
+    {
+      "Version": 63,
+      "Name": "00063_promotion_compensation_evidence",
+      "Checksum": "d81edf1c0dd0dc0084cc83b01419a2ade2d5b723c45cbccc5f3824eec3e018bc",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [62]
+    },
+    {
+      "Version": 64,
+      "Name": "00064_promotion_invariant_evaluation",
+      "Checksum": "287766ff9d87d3255fedeea34929ebf225951d8b496c8a64240b60c0b4915080",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [63]
+    },
+    {
+      "Version": 65,
+      "Name": "00065_connector_operation_dispatch_lease",
+      "Checksum": "a9380b8a1d91378aafa560cc3e722ab05323074f142de194b6e58d4eb5d9fefb",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [64]
+    },
+    {
+      "Version": 66,
+      "Name": "00066_connector_operation_resource_order",
+      "Checksum": "4467bb957b67dd4b4b43a3e3d4efcf4406464ea5184684f20f2c302ea2b2544f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [65]
+    },
+    {
+      "Version": 67,
+      "Name": "00067_connector_operation_observation_requirement",
+      "Checksum": "f1ee43c8564232ecebb257eb73523e6bd4564180582aadf7fae42ddf33c9ce06",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [66]
+    },
+    {
+      "Version": 68,
+      "Name": "00068_connector_operation_redrive",
+      "Checksum": "6791ed0cadfe4ee9e74712cfd027b78c144f1dcfbd6bc26e6a732d4b2efd99bb",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [67]
+    },
+    {
+      "Version": 69,
+      "Name": "00069_intent_outcome_refs",
+      "Checksum": "7ff9c321f08cb3ad92f3b98e62ebeab223c90c6d12a3ecf0c94e3f4104f31494",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [68]
+    },
+    {
+      "Version": 70,
+      "Name": "00070_worker_profile_photo_refs",
+      "Checksum": "f353496968fee9ae94d39122536061f572b6d340f886f2c58cc3a4791dc7a2b0",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [69]
+    },
+    {
+      "Version": 71,
+      "Name": "00071_asset_inventory",
+      "Checksum": "0135482e88dd60b98582aa9a7a064e72e0010266cdd207f81976fa710adc03ef",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [70]
+    },
+    {
+      "Version": 72,
+      "Name": "00072_benefits",
+      "Checksum": "3a7fdc0a6d227e3b3fbfae3ab74ba6d95ee368b6453b4160a5b22c55f626ff1d",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [71]
+    },
+    {
+      "Version": 74,
+      "Name": "00074_career",
+      "Checksum": "e85b39f64d0269caf853375804e17b0fe52a6ffc1adec3257ba44b9dc8436ca8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [72]
+    },
+    {
+      "Version": 76,
+      "Name": "00076_cba",
+      "Checksum": "66bcc2111a488147c93b5cc19b9ab106f4ef6544a03af225c94d547ec2b56529",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [74]
+    },
+    {
+      "Version": 78,
+      "Name": "00078_commercial",
+      "Checksum": "edc9eaad35d3f51b6caeea251f1ecd291b0611a2cab1749a08aa64d54aa72c1b",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [76]
+    },
+    {
+      "Version": 80,
+      "Name": "00080_contact",
+      "Checksum": "9af5a77d977f6ba2c1d4b664ae51536510352c4d706aa855ab39da35fb7b1b41",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [78]
+    },
+    {
+      "Version": 82,
+      "Name": "00082_contentregistry",
+      "Checksum": "95ce8aab6428d60179c889380210f53f64e964d13304ad9f0c1f5ff32e8819ef",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [80]
+    },
+    {
+      "Version": 84,
+      "Name": "00084_crm",
+      "Checksum": "2bd36c9fa77f428a39a3da204fac56f430d3512f2a2d66dad7e26f6114adf37c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [82]
+    },
+    {
+      "Version": 86,
+      "Name": "00086_custom",
+      "Checksum": "8d4820d94131aa66b09976b41be9e334e5360a342b28f74671f59a638a5240e7",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [84]
+    },
+    {
+      "Version": 88,
+      "Name": "00088_employeerelations",
+      "Checksum": "0a5c947026b92706d362cb65ce8731ee18c08f56cf0bfef4cb97fff50297725a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [86]
+    },
+    {
+      "Version": 90,
+      "Name": "00090_equity",
+      "Checksum": "458906431ecea057127d688333cd51c3ebe438410c8f24b4f33a1b5b3e517f93",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [88]
+    },
+    {
+      "Version": 92,
+      "Name": "00092_fx",
+      "Checksum": "17c8b78998bccc5393c9501f4a8f4c6738493516de75318cda0a315a93930f5d",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [90]
+    },
+    {
+      "Version": 94,
+      "Name": "00094_hrcase",
+      "Checksum": "de5966dcb4d64d64e896d8eb2aaf89f835ffd87d6f1998a4f98f949e1ce03842",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [92]
+    },
+    {
+      "Version": 96,
+      "Name": "00096_identityprivacy",
+      "Checksum": "65704797b6441abf6a794d16d53ec5cd3a2198b4a94c1a2420baf114e5b9a261",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [94]
+    },
+    {
+      "Version": 98,
+      "Name": "00098_incentive",
+      "Checksum": "e860d22aebfe5fd8dad91d14a1da17f6a4ae45ce93bdc39002053ef78b348834",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [96]
+    },
+    {
+      "Version": 100,
+      "Name": "00100_merit",
+      "Checksum": "e6e71557e432407874f91538157e118daa541b0de1c7f90182fd7818f2ed8bf2",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [98]
+    },
+    {
+      "Version": 102,
+      "Name": "00102_mobility",
+      "Checksum": "8ede873de44f93ece7d40e80fda95482e5325adf2485f940b48a4bdff1563339",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [100]
+    },
+    {
+      "Version": 104,
+      "Name": "00104_payinput",
+      "Checksum": "b1dcd87d732f718cee378eff9b44fa67417ffb20d5c788b2f3c4fec2a6261789",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [102]
+    },
+    {
+      "Version": 106,
+      "Name": "00106_paymethod",
+      "Checksum": "82658e6260beb8580f9f28565e9775483731ea880f48fbfff8317d521fec05c9",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [104]
+    },
+    {
+      "Version": 108,
+      "Name": "00108_performance",
+      "Checksum": "a57ef3ddb6048b9fdf3fa4ff9f88776825d3274d7fb4b1fcb6b1aeb537116dac",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [106]
+    },
+    {
+      "Version": 110,
+      "Name": "00110_planning",
+      "Checksum": "dd965ceb15d4ffdcbf4ab85f9c9a20438792e27cb2b878f6211ce87cae6056ac",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [108]
+    },
+    {
+      "Version": 112,
+      "Name": "00112_safety",
+      "Checksum": "4051342d923374cc37f89b684f01c0521f7729264727a77d9d9cc602017c419e",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [110]
+    },
+    {
+      "Version": 114,
+      "Name": "00114_scheduling",
+      "Checksum": "ae19d88905709edd30b0c896773333fd2dfbe2383d4f579574fa3ada5316978e",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [112]
+    },
+    {
+      "Version": 116,
+      "Name": "00116_skill",
+      "Checksum": "a2fe0fd9cace04a9a00891944e84338758db4561ef4381f16b136ea3fc1560d6",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [114]
+    },
+    {
+      "Version": 118,
+      "Name": "00118_subscription",
+      "Checksum": "6838bde0e395235c41350de69be0e641240b5e1adcf9b6812e0614d6e46aa574",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [116]
+    },
+    {
+      "Version": 120,
+      "Name": "00120_succession",
+      "Checksum": "181a2f136a4d5161dbab56eaf6376b69a54e6bf53ae79574e3b496a821a40417",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [118]
+    },
+    {
+      "Version": 122,
+      "Name": "00122_survey",
+      "Checksum": "6fbcb6adb61db847b02c558bc83a53dd99b5edeb74f4d16b2b31e5cc393525a8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [120]
+    },
+    {
+      "Version": 124,
+      "Name": "00124_taxprofile",
+      "Checksum": "6e517f2663bafe60e9f2999187bd0b173cd9dfe115902d080cffa23e1c4f1921",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [122]
+    },
+    {
+      "Version": 126,
+      "Name": "00126_trust",
+      "Checksum": "1c2f8ed687e00da32790dc83b5fe2cdf10aa5a215964f63c8361e470d1b564df",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [124]
+    },
+    {
+      "Version": 128,
+      "Name": "00128_attestation_response",
+      "Checksum": "fa883f2f779c52e5516dea481f075c4c28c0132830f510e1d0e18b3272cf75d7",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [126]
+    },
+    {
+      "Version": 130,
+      "Name": "00130_reference_dataset_release",
+      "Checksum": "c7475900eb1b640aa480bccf8dce40264dda7438bb2a86d27da718417121ecf3",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [128]
+    },
+    {
+      "Version": 131,
+      "Name": "00131_reference_dataset_adoption",
+      "Checksum": "67e4f0ba497f70527b48fdb00c8ac11d14801dbbea8d4e6516727ce87ca7b361",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [130]
+    },
+    {
+      "Version": 132,
+      "Name": "00132_presentation_preferences",
+      "Checksum": "f52a144bfb71a53c109389117c3ae4d6f7223fb7078df275f813d73bb4cab44a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [131]
+    },
+    {
+      "Version": 156,
+      "Name": "00156_workflow_signal_durability",
+      "Checksum": "059dcabb5a9754207b563e2432079eb75699b29784456467a3a6b9e97b5f9589",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [132]
+    },
+    {
+      "Version": 168,
+      "Name": "00168_outbox_claim_state",
+      "Checksum": "26fa64d41f5e7d3654503cef63ee744f3a68d95db35199eae4981857996312f1",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [156]
+    },
+    {
+      "Version": 169,
+      "Name": "00169_outbox_claim_indexes",
+      "Checksum": "20bfb31c61ee7345a4c2212909b2a03ce7c961d21afc7e0f0e247a9b0d775af3",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [168]
+    },
+    {
+      "Version": 170,
+      "Name": "00170_outbox_claim_protocol",
+      "Checksum": "20bd8535e5c863b83c95d8f613ac50b773809d4fbf787812ccd3e4b3300f342f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [169]
+    },
+    {
+      "Version": 177,
+      "Name": "00177_schema_upgrade_control",
+      "Checksum": "15c5baffbdb2f2d46d15d21f62c982e494152bdcb552a51b0669fb11ab00ae92",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [170]
+    },
+    {
+      "Version": 178,
+      "Name": "00178_telemetry_backend_registry",
+      "Checksum": "49e2b8603969f29d300d99bf282b30182e664c996fc7017660b0b079f24332ef",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [177]
+    },
+    {
+      "Version": 179,
+      "Name": "00179_telemetry_copy_inventory",
+      "Checksum": "88c6aede0e984dd0e1db7c3f22a68511d316c93363b795031233b7218599b360",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [178]
+    },
+    {
+      "Version": 180,
+      "Name": "00180_organization_scoped_appearance",
+      "Checksum": "dfdc07a2dbf7af20fb49910ab9e2e31b803a042e32bb1ff868d6c863060695c2",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [179]
+    },
+    {
+      "Version": 181,
+      "Name": "00181_worker_id_policy",
+      "Checksum": "ab8d45bac97fedcdf8a19612074452351306a815d290b4d02a1f17a0142fd17c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [180]
+    },
+    {
+      "Version": 182,
+      "Name": "00182_organization_visibility",
+      "Checksum": "e79b6764860329f285ff59ba2631b078d60919aaa73b78e79719c363c6edc98a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [181]
+    },
+    {
+      "Version": 235,
+      "Name": "00235_connector_operation_queue",
+      "Checksum": "4d12d9c7a18fcfe06edf8f551aaf9f834e071d882b4838bc80e8302cec9cd397",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [182]
+    },
+    {
+      "Version": 236,
+      "Name": "00236_connector_operation_journal",
+      "Checksum": "3fdd45ad722f926c525ab72d9073aaeacb1ac9c555e9f9c578fe51eb66c9c915",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [235]
+    },
+    {
+      "Version": 237,
+      "Name": "00237_connector_operation_credential_lease",
+      "Checksum": "248c5e0766785cad58ed1b107dde66de83a3d71bfae114ba7433f775be09b85a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [236]
+    },
+    {
+      "Version": 238,
+      "Name": "00238_role_access_control",
+      "Checksum": "414528b394b772097d0921313327722012850877e3f9467c7719340cf20550d3",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [237]
+    },
+    {
+      "Version": 239,
+      "Name": "00239_role_page_permissions",
+      "Checksum": "6cd9eab4dce186d8bba3f9a8e1f7a9c298077ab154e2e5f98022259e69f9afc2",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [238]
+    },
+    {
+      "Version": 261,
+      "Name": "00261_operation_store",
+      "Checksum": "43a86b47c2dac4b81aa8aacf16312d569c0cf12bcc80047b04d3094a2679d709",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [239]
+    },
+    {
+      "Version": 262,
+      "Name": "00262_fk_indexes",
+      "Checksum": "2664d26ed789c4b68617e82af9ee12d95486b3cf8bb0596294f3863fcfd559af",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [261]
+    },
+    {
+      "Version": 263,
+      "Name": "00263_tax_election_successor_fence",
+      "Checksum": "c186218502584f7be551fe9f61d3852aad8b8ae7ccdb2c1faa25cd95db7e01da",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [262]
+    },
+    {
+      "Version": 264,
+      "Name": "00264_outbox_causal_metadata",
+      "Checksum": "4c08520381637566acb2e2c05264cf9c10de5ad09ffa98b6c4e37837e09a4e19",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [263]
+    },
+    {
+      "Version": 265,
+      "Name": "00265_fx_conversion_profile_policy",
+      "Checksum": "d916c0e64046851412190c5cac7ec95748b3f9e23d9e2945cba619b80e839a07",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [264]
+    },
+    {
+      "Version": 266,
+      "Name": "00266_skill_evidence_supersession",
+      "Checksum": "26e5a89e3dad11536173aae65e8f6d1f6346818d4183cfc49d7a9d6372a8da29",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [265]
+    },
+    {
+      "Version": 267,
+      "Name": "00267_runtime_causal_metadata",
+      "Checksum": "3af3ca5eb4e728104ff65d1909e6b4fd4723eabbd4547e562f154b2669fc24e8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [266]
+    },
+    {
+      "Version": 268,
+      "Name": "00268_merit_decision_outcomes",
+      "Checksum": "d53537bb65e0c22a73d21d9e68ec7ed86179448e0705b8cd32cc7d7d5a762290",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [267]
+    },
+    {
+      "Version": 269,
+      "Name": "00269_conflict_write_intent_fences",
+      "Checksum": "153a2b732f665cb2845a09ed5391de3d692772f6f1002d386b69afb6cf69583c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [268]
+    },
+    {
+      "Version": 270,
+      "Name": "00270_merit_compensation_intent_emission",
+      "Checksum": "a2cf57a8d0c35ffa2be5cdce2526e4e4eac08fc017cef20bcc9d7183828f8cc5",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [269]
+    },
+    {
+      "Version": 271,
+      "Name": "00271_signal_causal_metadata",
+      "Checksum": "a59f19c2b84b61cdc279262d5e81f2be61c5b3e7545e959b6b683101c81e6542",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [270]
+    },
+    {
+      "Version": 272,
+      "Name": "00272_jobs_causal_metadata",
+      "Checksum": "9b24ba3927b98f9eb9788a13687ca2acafbead4be98dd9ba8e88a14f98b8c425",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [271]
+    },
+    {
+      "Version": 273,
+      "Name": "00273_intent_legal_evaluation_binding",
+      "Checksum": "2051d02262d5c070e7e036bc99cb754e8d635f0a874198bb60b1e6ced75246cb",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [272]
+    },
+    {
+      "Version": 274,
+      "Name": "00274_records_copy_discovery_coverage",
+      "Checksum": "60efab3205dec7fe857d233ca622a22dc63c6aafcc26c78ed29c42cdb85343f0",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [273]
+    },
+    {
+      "Version": 275,
+      "Name": "00275_legal_evaluation_receipts",
+      "Checksum": "455a76573bf569edb54ef5f7d23b163845292132b7b214e8dd9cd29a4ad88e8f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [274]
+    },
+    {
+      "Version": 276,
+      "Name": "00276_fx003_quote_successors",
+      "Checksum": "de5a038664572f7b46d7fceddee8718f7256ae9bf665eb0d036982c899772f25",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [275]
+    },
+    {
+      "Version": 277,
+      "Name": "00277_proposal_write_semantics",
+      "Checksum": "d977edc3641774ef5fed556e9d432b2e77aff1b74a72f0f70ff6eb34266b9365",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [276]
+    },
+    {
+      "Version": 278,
+      "Name": "00278_safety_conformance_records",
+      "Checksum": "b61b7bcbf474121dfdf89314d62e4de160474b0ebd948417e8c2b2773dd31655",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [277]
+    },
+    {
+      "Version": 279,
+      "Name": "00279_balance_correction_lineage",
+      "Checksum": "141e774a2f7949326ba7a979bbceb80bc5fe49098e9d6dd857afda4aea1813fa",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [278]
+    },
+    {
+      "Version": 280,
+      "Name": "00280_admission_retry_budgets",
+      "Checksum": "74bf9a4c02a583899dcb7958b726518ad54f2631c4066b6237dd7d3531b20afe",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [279]
+    },
+    {
+      "Version": 281,
+      "Name": "00281_medical_leave_return_to_work",
+      "Checksum": "24cb5433af872a806da2e5b1ae0a71ea7c398857118f6a4fdab066ad3be467e8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [280]
+    },
+    {
+      "Version": 282,
+      "Name": "00282_admission_retry_tenant_pk",
+      "Checksum": "496cdabaec1f381e01726889ff36e76c0bcb52e2454d7747f912326472c33e48",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [281]
+    },
+    {
+      "Version": 283,
+      "Name": "00283_admission_retry_force_rls",
+      "Checksum": "2920b205aa78e1f02c52aa144b1cca3e91a912291518f02b9d62acbdc82e7fc8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [282]
+    },
+    {
+      "Version": 284,
+      "Name": "00284_records_hold_001_release_and_notices",
+      "Checksum": "8b353078fa51e06e077a3b9a1b164cf92d61ac4fec56ccff7a511cce5993c5af",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [283]
+    },
+    {
+      "Version": 285,
+      "Name": "00285_ledger_011_payload_disposition",
+      "Checksum": "7969ebd2cda3746b94dea1c5150d57573632761dbe89c4731098aad9b7c65bd5",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [284]
+    },
+    {
+      "Version": 286,
+      "Name": "00286_promoux002_active_promotion_guard",
+      "Checksum": "e4f27dc27f2692a7dc8921aa18774bb505278a69e8d1ac062e5a7df92a70e93c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [285]
+    },
+    {
+      "Version": 287,
+      "Name": "00287_promoux004_position_slot_guard",
+      "Checksum": "98670a3ca1e35ce7c0f6d135b7f1d6bd5d5ae9548fc77d11ad3eef2cd39536a8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [286]
+    },
+    {
+      "Version": 288,
+      "Name": "00288_promoux011_transition_sequence",
+      "Checksum": "05eceb91a09b5a468533e9e07f5114cffc9fc2af9fa750196a212d010b68d433",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [287]
+    },
+    {
+      "Version": 289,
+      "Name": "00289_operator_control_receipt",
+      "Checksum": "2fd955fdf262af673f95f77f9f6d1788d45346c16c7047286fa4dcdcf5687eb4",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [288]
+    },
+    {
+      "Version": 290,
+      "Name": "00290_role_page_feature_permissions",
+      "Checksum": "f17c8eae7e8766f586a96387c6b258ebddf005350dba4436ed4e311d2427c518",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [289]
+    },
+    {
+      "Version": 291,
+      "Name": "00291_workflow_execution_context",
+      "Checksum": "f10704a5bad20ccbd4b0b7ae5d1ed43b73837e7a99f9afb8d64d8f7e38f3cb06",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [290]
+    },
+    {
+      "Version": 292,
+      "Name": "00292_workflow_version_registry",
+      "Checksum": "51db9f627e092f34dab626d963eedae664f80580396ad9a5530e4f4c0b31d3c4",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [291]
+    },
+    {
+      "Version": 293,
+      "Name": "00293_workflow_version_quarantine",
+      "Checksum": "bcfaed5d538db573155f85578b2e42be384ad82dc9f46ef9d7d82a8eee5a9f82",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [292]
+    },
+    {
+      "Version": 294,
+      "Name": "00294_workflow_execution_fingerprint",
+      "Checksum": "f14c3699d4d6dde2c63cd9c2df997f35cfec29c1c1585a21ed7702dc1ec5ddac",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [293]
+    },
+    {
+      "Version": 295,
+      "Name": "00295_workflow_variable_revision",
+      "Checksum": "0cd66d2df46683dee71939313f11a50f09cb703f60e7465d64f466be38c4cf9a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [294]
+    },
+    {
+      "Version": 296,
+      "Name": "00296_workflow_node_input_artifact",
+      "Checksum": "d3cb2da11a7028f97e1568bf1e2e79d2cd54916a284aabe572b363e33e3ce258",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [295]
+    },
+    {
+      "Version": 297,
+      "Name": "00297_workflow_quarantined_work",
+      "Checksum": "e75ef017bef8cf981f33fe9a45b6749d2be520db5f214edbd55971d07fb1eb3c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [296]
+    },
+    {
+      "Version": 298,
+      "Name": "00298_workflow_execution_context_forbid_mutation",
+      "Checksum": "fabddbf61a913a48c924b1d8b6ec2e84004da8435e1e3506c99aff4a5a8f1246",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [297]
+    },
+    {
+      "Version": 302,
+      "Name": "00302_workflow_execution_delegation",
+      "Checksum": "84887bac0dd535ee6d3cac19de2127a4657075ab46a8b71efa96e8d2a46462d8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [298]
+    },
+    {
+      "Version": 303,
+      "Name": "00303_capability_invocation_evidence",
+      "Checksum": "8b3dc24d8718be223aafd1d6bda387a058d34a69be837d626de4c0b960751cd1",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [302]
+    },
+    {
+      "Version": 304,
+      "Name": "00304_workflow_cancellation_decision",
+      "Checksum": "76c5095200730a378a72326b6f4ca0ca36d191b46713dccd47ee4411dda9f641",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [303]
+    },
+    {
+      "Version": 305,
+      "Name": "00305_workflow_approval_withdrawal",
+      "Checksum": "614e268fb6515eac132373258a185cc74155997032c8a9c2617ea45092d0ef6e",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [304]
+    },
+    {
+      "Version": 306,
+      "Name": "00306_workflow_effect_role_settlement",
+      "Checksum": "8de628c2d05aa59003ee6da6b4163202e0ffcf721e40493c1f0cc80cc4c28bd8",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [305]
+    },
+    {
+      "Version": 307,
+      "Name": "00307_workflow_intervention_decision",
+      "Checksum": "f2944396be13071341d5c41f3050b109a85dc70a809589de8e085416c580a2af",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [306]
+    },
+    {
+      "Version": 308,
+      "Name": "00308_workflow_version_approval_fixture_report",
+      "Checksum": "c0b906416fb98e149a67aea0e6ae459f8b5fb8cd3797a24ad98bb5d5668e08dd",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [307]
+    },
+    {
+      "Version": 309,
+      "Name": "00309_promotion_approval_governance",
+      "Checksum": "70cc50b64a2ce1786d3d23205c93d9cf54494f21faef6c1e608d17f8da71635f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [308]
+    },
+    {
+      "Version": 310,
+      "Name": "00310_operator_bypass_obligation",
+      "Checksum": "69a2512738f62a1f4e24b87e8e941825bb6d42ddd649d96f9fbddedc2f7735e4",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [309]
+    },
+    {
+      "Version": 311,
+      "Name": "00311_wfrun016_repair_execution_record",
+      "Checksum": "44e7c5be9b9e139b2ef629ae9fedbd3368df5aa144b0e2dea5e2683f4035c7cd",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [310]
+    },
+    {
+      "Version": 312,
+      "Name": "00312_journey_note",
+      "Checksum": "dfb5ae2c320bae003f4d6562e05e020446649db9bf438d610c628ae23a739a5b",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [311]
+    },
+    {
+      "Version": 313,
+      "Name": "00313_integration_provider_receipt",
+      "Checksum": "f5d244dc587c99e5a07bda426476e2b7ccab45b2a9d7428ba499951a05d21de5",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [312]
+    },
+    {
+      "Version": 314,
+      "Name": "00314_workflow_designer_draft",
+      "Checksum": "e22dfc22d00996410bd6b5be4f9a7f96c90223c69a8fc23e2c1fb44a6a684321",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [313]
+    },
+    {
+      "Version": 315,
+      "Name": "00315_workflow_semantic_version_identity",
+      "Checksum": "e9f4a97afc4bd431d1b73aad10b90b008da032c1a29b4ed232222ec882e18663",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [314]
+    },
+    {
+      "Version": 316,
+      "Name": "00316_journey_worker_employment_facts",
+      "Checksum": "9905c2cf2d96434434d27f627c6a4160592d0dd9a2d3c746fed159656eaa62c5",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [315]
+    },
+    {
+      "Version": 317,
+      "Name": "00317_promotion_path_edge",
+      "Checksum": "73095e2b1ed1f601a6d1d1d9a2d996f1f1b676aced5776f5b3e09ed2afb9a5f2",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [316]
+    },
+    {
+      "Version": 318,
+      "Name": "00318_workflow_designer_history",
+      "Checksum": "02c399369c09e63378cd6f02492830df9941898c4f62fc1559a5fddcccea1dfb",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [317]
+    },
+    {
+      "Version": 319,
+      "Name": "00319_controlled_data_plane_deletion",
+      "Checksum": "42ab1b6d532bbae1041e84bba1bb06fa6bfdf15f7dac718a42a63a9be473cc23",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [318]
+    },
+    {
+      "Version": 320,
+      "Name": "00320_referenced_foreign_key_indexes",
+      "Checksum": "2167893bf6b3190ae316d72fbafabeff80eced07cd5756cfbff63084eeb5dded",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [319]
+    },
+    {
+      "Version": 321,
+      "Name": "00321_inbox_feed_indexes",
+      "Checksum": "802cc369d45c75e950cffd3a2c011a9d442fe1e8a42b5bf1820719a27f96d8ae",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [320]
+    },
+    {
+      "Version": 322,
+      "Name": "00322_workflow_data_plane_artifacts",
+      "Checksum": "1d3997baef2d409e5ef13b430862b53da563d25e25884df23f910c9143dbbece",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [321]
+    },
+    {
+      "Version": 323,
+      "Name": "00323_rev10203_permanent_immutability",
+      "Checksum": "8865a778c9d583a35bbbc2fe0e221497398e0e0480ff8f47812aa496fa54820f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [322]
+    },
+    {
+      "Version": 324,
+      "Name": "00324_machine_client_registry",
+      "Checksum": "dcf5e5457f6629d945c5e040e7bf2a5486aaeed45be1d092f764d04a21705865",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [323]
+    },
+    {
+      "Version": 325,
+      "Name": "00325_machine_token_use",
+      "Checksum": "196ce33ee96adda462bf3796831a93814420cb4bbf7d9a0a9a010eb708f35657",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [324]
+    },
+    {
+      "Version": 326,
+      "Name": "00326_idempotency_keys",
+      "Checksum": "16d4961d1f9e5871500724c0fcc53e22b76cd1aba5189b90676cb479f53c3c8d",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [325]
+    },
+    {
+      "Version": 327,
+      "Name": "00327_role_access_revision_ledger",
+      "Checksum": "e3656b7d160e0061daefe57fcb9e6da8256b9b7bc796fb42a0269aaf68ca0bb1",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [326]
+    },
+    {
+      "Version": 328,
+      "Name": "00328_promotion_threshold_decision",
+      "Checksum": "a31ee76fe47debd4abace7944fb504982f7bc8a81ec54d982ac37aee25bc3ed4",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [327]
+    },
+    {
+      "Version": 329,
+      "Name": "00329_cycle_restatement",
+      "Checksum": "109979160baeb77dcf916ad7ff917e93bd3fa29a4fc0e343f4c08e3da9763497",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [328]
+    },
+    {
+      "Version": 330,
+      "Name": "00330_idempotency_tombstones",
+      "Checksum": "fb9258db4117ae683d3cf117df7b51e0c604345e61fb6d3c381fef160a461b59",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [329]
+    },
+    {
+      "Version": 331,
+      "Name": "00331_idempotency_policy_backfill",
+      "Checksum": "075d3348ef964e504673139fa14504ac660f640e9ab9477764b995f750834524",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [330]
+    },
+    {
+      "Version": 332,
+      "Name": "00332_page_revision_rollout_ledger",
+      "Checksum": "94346c06392ca8896b70b0dd12e50ad64b0de40ed9b3742774c930d461e3c9ff",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [331]
+    },
+    {
+      "Version": 333,
+      "Name": "00333_knowledge_search_authorization",
+      "Checksum": "44510879d998eeb317059808a9eb8dc98cf97b8bf7934af54900c660d12193f6",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [332]
+    },
+    {
+      "Version": 334,
+      "Name": "00334_workflow_compensation_ledger",
+      "Checksum": "b5a3f8f5ce0ccbac1ff1424f438ab25a10d6280439a1a3cf05833b64d9a64691",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [333]
+    },
+    {
+      "Version": 335,
+      "Name": "00335_sending_domain_authentication",
+      "Checksum": "13b76602ed5fed523d4d596960cf2b88c593d3108f477a2312caeca06968974b",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [334]
+    },
+    {
+      "Version": 336,
+      "Name": "00336_workflow_executable_payload",
+      "Checksum": "24438c331127783be1984e2a8e3383811f51f9e27983d20cad96c180636d9282",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [335]
+    },
+    {
+      "Version": 337,
+      "Name": "00337_workflow_definition_compilation",
+      "Checksum": "2162aee48a715fdc45f8bb3337c2b430f00118d87442813509e05e6ff1805367",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [336]
+    },
+    {
+      "Version": 338,
+      "Name": "00338_page_rollout_event_sequence",
+      "Checksum": "b546d6316f1a38efd5ef05efac0b311496e5018c7e8b1cc90d8895e93003faa1",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [337]
+    },
+    {
+      "Version": 339,
+      "Name": "00339_configbundle_kill_switch",
+      "Checksum": "28d96515d9e4632ec934628c7b77c3550fe1e7980b2c2148bedfd11672f2be5c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [338]
+    },
+    {
+      "Version": 340,
+      "Name": "00340_commercial_contract_status",
+      "Checksum": "06683169c4ca642086031f604eca311a70039d38f8060880c9ced2d4e4e2b890",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [339]
+    },
+    {
+      "Version": 341,
+      "Name": "00341_industry_pack_publication_activation",
+      "Checksum": "8c365abed9b989d039792148b751fffbd20dda62ed7eb1cff8b1b3abcf14e585",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [340]
+    },
+    {
+      "Version": 342,
+      "Name": "00342_connector_operation_execution_payload",
+      "Checksum": "5d38d2eaaccc974483be28c539c94ad8aef53d7752a6655afc04dd2cca9bcfcc",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [341]
+    },
+    {
+      "Version": 343,
+      "Name": "00343_intelligence_metric_publication",
+      "Checksum": "40b882a5469c8cf2f43746fb7c326810191171b53a5b7bf2c925797422d11f09",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [342]
+    },
+    {
+      "Version": 344,
+      "Name": "00344_oidc_pending_authorization",
+      "Checksum": "28e4d2647977c15530331b62ebe90754ec5fc76584a66f146f31284bf204d935",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [343]
+    },
+    {
+      "Version": 345,
+      "Name": "00345_rev10203_compensation_operation_history",
+      "Checksum": "2ef0833bdf3e42a3fd03ab3a03c193401d7218c36f598b3089abe357a640999d",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [344]
+    },
+    {
+      "Version": 346,
+      "Name": "00346_rev084_action_plan_binding",
+      "Checksum": "6805e5fa5fef8e14cd4709217685f8bc50338950665df1e13ec8f203ea1c6555",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [345]
+    },
+    {
+      "Version": 347,
+      "Name": "00347_ledger_invariant_scan_incidents",
+      "Checksum": "2c65fac7c1a4d345cdbecafc3df8762a62489fa94b4e7d35901f688642383c43",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [346]
+    },
+    {
+      "Version": 348,
+      "Name": "00348_performance_frozen_participant_reviewer_graph",
+      "Checksum": "3f5bc2009c953d037ca8abb06cd9180d83f5957e9ca77ff370cd2d55986a94f1",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [347]
+    },
+    {
+      "Version": 349,
+      "Name": "00349_ledger_invariant_repair_handoff",
+      "Checksum": "c8630207914bdc7b2931cb2fef7aa0b9aa731eae23bd2edd0a8bf9724f975629",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [348]
+    },
+    {
+      "Version": 350,
+      "Name": "00350_activated_translation_catalog",
+      "Checksum": "49f9815bbed2ddbbcc7a20cc6bf934fec979507810a57a96fa1a77ae6fb4a6b4",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [349]
+    },
+    {
+      "Version": 351,
+      "Name": "00351_schedopt_self_service_fence",
+      "Checksum": "c360e10dfc37d31057106408c9c8cd95ca3441fc18578df5cfafa04644b63e7b",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [350]
+    },
+    {
+      "Version": 352,
+      "Name": "00352_tenant_parameter_value_revisions",
+      "Checksum": "78d79464f5cc1373349fcb23e29ae66da0e7613b4a4a91b7ec858967d4bd3b55",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [351]
+    },
+    {
+      "Version": 353,
+      "Name": "00353_dataops_import_batches",
+      "Checksum": "5b81ef96c88149f4d6f3081d33b4c2859d17accb203f8b969157f36885fff99b",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [352]
+    },
+    {
+      "Version": 355,
+      "Name": "00355_dataops_diagnostic_artifacts",
+      "Checksum": "3d6a17dab707ed95e4ac0d834555b3f91e8f2659fb1d9161144a62b4d0c122cc",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [353]
+    },
+    {
+      "Version": 356,
+      "Name": "00356_published_connector_definition_registry",
+      "Checksum": "4190e16a2ac4cbb6c9532474dd5e079b60932d103aa9d2eae3bb88e6891774e9",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [355]
+    },
+    {
+      "Version": 357,
+      "Name": "00357_schedopt_published_schedule_snapshots",
+      "Checksum": "919ed76f97b68c94db2a85e808c672e098d58d1b0d43749edb149b033dba237f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [356]
+    },
+    {
+      "Version": 358,
+      "Name": "00358_platform_idempotency_registry",
+      "Checksum": "ac9b6b7bf7e48582fb65d69c1088c58469786e268d9798ab391dcc792dfc0fc6",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [357]
+    },
+    {
+      "Version": 359,
+      "Name": "00359_role_access_revision_reason",
+      "Checksum": "37bb995e1a7f20dd8eefa48cc20de70eba738b6273ec527501e0b450d6317eea",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [358]
+    },
+    {
+      "Version": 360,
+      "Name": "00360_security_siem_feed",
+      "Checksum": "665d6f2bfa8c70a9c65fd06bdd197cf046cb7535e41145da2cae110f8f7b5017",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [359]
+    },
+    {
+      "Version": 361,
+      "Name": "00361_form_draft",
+      "Checksum": "023a00fe6cce275a7d9de77c90423e3a37c4afb8216a73f0126b969448d4e0bc",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [360]
+    },
+    {
+      "Version": 362,
+      "Name": "00362_inbound_reply_thread_binding",
+      "Checksum": "8f11a876e703cc05283043d6de72b541e6b692407ea3662921170f21ee474b79",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [361]
+    },
+    {
+      "Version": 363,
+      "Name": "00363_integration_webhook_receipt_inbox",
+      "Checksum": "e798a32a15ee538cdc1fc780eee587141a87df8f17fc98da649d80a7cc334167",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [362]
+    }
+  ],
+  "Phases": ["EXPAND", "BACKFILL", "SHADOW", "CUTOVER", "CONTRACT"],
+  "AdoptionWatermark": 0
+}

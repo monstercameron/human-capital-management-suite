@@ -49,15 +49,14 @@ func TestIngestDemoPhotosUsesPrivateOriginalsAndPublicProxies(t *testing.T) {
 // failure. Without this, ingestDemoPhotos would call profilephoto.Upload,
 // which would in turn hit FileStore.atomicWrite's fail-closed "already
 // exists with different content" error the moment the freshly computed JPEG
-// bytes disagree with what is on disk -- exactly the failure this todo's
-// brief reports for hc-042.png/hc-055.png.
+// bytes disagree with an already-seeded development proxy.
 func TestIngestDemoPhotosSkipsAlreadyPublishedProxy(t *testing.T) {
 	t.Parallel()
 
 	sourceDir, assetDir, originalDir := t.TempDir(), t.TempDir(), t.TempDir()
-	// A source photo that would NOT reproduce the tracked proxy's bytes: a
+	// A source photo that would NOT reproduce the existing proxy's bytes: a
 	// single flat color the pipeline could never have produced (the
-	// checked-in proxy is a fixed, unrelated marker string). If
+	// existing proxy is a fixed, unrelated marker string). If
 	// ingestDemoPhotos attempted to regenerate and byte-compare, this would
 	// fail with FileStore's "already exists with different content" error.
 	if err := os.WriteFile(filepath.Join(sourceDir, "hc-002.png"), demoPNG(t), 0o644); err != nil {

@@ -2,17 +2,34 @@ package capability
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
 
 type stubSink struct {
-	called int
+	called   int
+	txCalled int
 }
 
 func (s *stubSink) RecordInvocation(_ context.Context, evt InvocationEvidence) (string, error) {
 	s.called++
 	return "ev-1", nil
+}
+
+func (s *stubSink) RecordInvocationTx(ctx context.Context, evt InvocationEvidence) (string, error) {
+	s.txCalled++
+	return s.RecordInvocation(ctx, evt)
+}
+
+type failingSink struct{ err error }
+
+func (s failingSink) RecordInvocation(context.Context, InvocationEvidence) (string, error) {
+	return "", s.err
+}
+
+func (s failingSink) RecordInvocationTx(context.Context, InvocationEvidence) (string, error) {
+	return "", s.err
 }
 
 func TestGateway_NewGateway(t *testing.T) {
@@ -49,6 +66,45 @@ func TestGateway_InvokeUnknown(t *testing.T) {
 	}
 	if ge.Code != CodeUnknownCapability {
 		t.Fatalf("code %s", ge.Code)
+	}
+	if sink.txCalled != 1 {
+		t.Fatalf("transaction-aware evidence calls = %d, want one for refusal", sink.txCalled)
+	}
+}
+
+func TestGateway_HandlerFailureEvidenceFailureIsReturned(t *testing.T) {
+	want := errors.New("evidence append failed")
+	def := Definition{
+		ID: "hcmnext.test.failure", Version: 1, OwnerDomain: "test",
+		RequestSchema:  SchemaRef{SchemaID: "hcmnext.test.v1", Version: 1, ProtobufFullName: "hcmnext.test.v1.Request"},
+		ResponseSchema: SchemaRef{SchemaID: "hcmnext.test.v1", Version: 1, ProtobufFullName: "hcmnext.test.v1.Response"},
+		ErrorSchema:    SchemaRef{SchemaID: "hcmnext.test.v1", Version: 1, ProtobufFullName: "hcmnext.test.v1.Error"},
+		EffectClass:    EffectReadOnly, ReadData: DataDomainFieldSet{DataDomains: []string{"test"}},
+		RiskClass: "LOW", IdempotencyPolicyRef: "idempotency.read-safe.v1", AuthZScopeRef: "scope:test.read",
+		LegalBasisRef: "legal.test.v1", EntitlementRef: "entitlement.test.v1", SLOClassRef: "slo.test.v1", TestRef: "test:gateway-failure",
+	}
+	registry := NewRegistry()
+	handlerCalled := false
+	if err := registry.Register(def, func(context.Context, any) (any, error) {
+		handlerCalled = true // the handler may have staged an effect before failing
+		return nil, errors.New("handler failed after effect")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	g := NewGateway(registry, failingSink{err: want})
+	_, err := g.Invoke(context.Background(), InvokeRequest{
+		Capability:    def.Key(),
+		Authorization: Authorization{Decision: Allow, Scopes: []string{def.AuthZScopeRef}},
+	})
+	if !errors.Is(err, want) {
+		t.Fatalf("post-handler evidence failure = %v, want %v", err, want)
+	}
+	var refusal *GatewayError
+	if errors.As(err, &refusal) {
+		t.Fatalf("evidence failure after handler execution was masked as a normal refusal: %+v", refusal)
+	}
+	if !handlerCalled {
+		t.Fatal("test did not reach the handler before evidence failed")
 	}
 }
 
@@ -93,5 +149,8 @@ func TestGateway_InvokeAllowed(t *testing.T) {
 	}
 	if m, ok := res.Response.(map[string]any); !ok || m["capability"] != key.ID {
 		t.Fatalf("response %+v", res.Response)
+	}
+	if sink.txCalled != 1 {
+		t.Fatalf("transaction-aware evidence calls = %d, want one for invocation", sink.txCalled)
 	}
 }

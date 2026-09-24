@@ -172,6 +172,45 @@ migrationfiles:
   - 00321_inbox_feed_indexes.sql
   - 00322_workflow_data_plane_artifacts.sql
   - 00323_rev10203_permanent_immutability.sql
+  - 00324_machine_client_registry.sql
+  - 00325_machine_token_use.sql
+  - 00326_idempotency_keys.sql
+  - 00327_role_access_revision_ledger.sql
+  - 00328_promotion_threshold_decision.sql
+  - 00329_cycle_restatement.sql
+  - 00330_idempotency_tombstones.sql
+  - 00331_idempotency_policy_backfill.sql
+  - 00332_page_revision_rollout_ledger.sql
+  - 00333_knowledge_search_authorization.sql
+  - 00334_workflow_compensation_ledger.sql
+  - 00335_sending_domain_authentication.sql
+  - 00336_workflow_executable_payload.sql
+  - 00337_workflow_definition_compilation.sql
+  - 00338_page_rollout_event_sequence.sql
+  - 00339_configbundle_kill_switch.sql
+  - 00340_commercial_contract_status.sql
+  - 00341_industry_pack_publication_activation.sql
+  - 00342_connector_operation_execution_payload.sql
+  - 00343_intelligence_metric_publication.sql
+  - 00344_oidc_pending_authorization.sql
+  - 00345_rev10203_compensation_operation_history.sql
+  - 00346_rev084_action_plan_binding.sql
+  - 00347_ledger_invariant_scan_incidents.sql
+  - 00348_performance_frozen_participant_reviewer_graph.sql
+  - 00349_ledger_invariant_repair_handoff.sql
+  - 00350_activated_translation_catalog.sql
+  - 00351_schedopt_self_service_fence.sql
+  - 00352_tenant_parameter_value_revisions.sql
+  - 00353_dataops_import_batches.sql
+  - 00355_dataops_diagnostic_artifacts.sql
+  - 00356_published_connector_definition_registry.sql
+  - 00357_schedopt_published_schedule_snapshots.sql
+  - 00358_platform_idempotency_registry.sql
+  - 00359_role_access_revision_reason.sql
+  - 00360_security_siem_feed.sql
+  - 00361_form_draft.sql
+  - 00362_inbound_reply_thread_binding.sql
+  - 00363_integration_webhook_receipt_inbox.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

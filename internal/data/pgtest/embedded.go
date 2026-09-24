@@ -217,6 +217,8 @@ type lockOptions struct {
 	poll     time.Duration
 	wait     time.Duration
 	staleAge time.Duration
+	now      func() time.Time
+	sleep    func(time.Duration)
 }
 
 var defaultLockOptions = lockOptions{
@@ -249,7 +251,15 @@ func withDirectoryLockOpts(dir string, opts lockOptions, fn func() error) error 
 		return fmt.Errorf("create cache directory %s: %w", dir, err)
 	}
 	lockPath := filepath.Join(dir, "prepare.lock")
-	deadline := time.Now().Add(opts.wait)
+	now := opts.now
+	if now == nil {
+		now = time.Now
+	}
+	sleep := opts.sleep
+	if sleep == nil {
+		sleep = time.Sleep
+	}
+	deadline := now().Add(opts.wait)
 	attempts := 0
 	for {
 		file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
@@ -263,15 +273,15 @@ func withDirectoryLockOpts(dir string, opts lockOptions, fn func() error) error 
 			return fmt.Errorf("acquire lock %s: %w", lockPath, err)
 		}
 		// Reclaim a lock left behind by a killed process.
-		if info, statErr := os.Stat(lockPath); statErr == nil && time.Since(info.ModTime()) > opts.staleAge {
+		if info, statErr := os.Stat(lockPath); statErr == nil && now().Sub(info.ModTime()) > opts.staleAge {
 			_ = os.Remove(lockPath)
 			continue
 		}
-		if time.Now().After(deadline) {
+		if now().After(deadline) {
 			return fmt.Errorf("timed out waiting for lock %s after %d attempt(s) over %s (last error: %v)",
 				lockPath, attempts, opts.wait, err)
 		}
-		time.Sleep(opts.poll)
+		sleep(opts.poll)
 	}
 }
 

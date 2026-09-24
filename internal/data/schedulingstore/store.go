@@ -1,7 +1,8 @@
 // Package schedulingstore persists appointment requirements, resource types,
-// worker availability facts and clock-device registrations from migration
-// 00114. It owns no scheduling decisions; it only validates, tenant-scopes,
-// appends immutable revisions and reads them back.
+// worker availability facts, clock-device registrations, published schedule
+// snapshots, and the durable fencing state for worker-initiated shift offers.
+// It owns no scheduling decisions; it validates, tenant-scopes, and applies
+// storage transitions.
 package schedulingstore
 
 import (
@@ -76,7 +77,7 @@ type Executor interface {
 	dbport.Querier
 }
 
-// Store is the PostgreSQL implementation of appointment.Repository.
+// Store is the PostgreSQL implementation of scheduling domain storage ports.
 type Store struct{ db DB }
 
 var _ appointment.Repository = (*Store)(nil)

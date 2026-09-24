@@ -54,7 +54,7 @@ func (f *Flow) HandleCallback(ctx context.Context, params CallbackParams) (*trus
 	if params.Error != "" {
 		return f.deny("", "", "", now, fmt.Errorf("%w: %s: %s", ErrAuthorizationDenied, params.Error, params.ErrorDescription))
 	}
-	if params.State == "" || params.Code == "" {
+	if params.State == "" || len(params.State) > 128 || params.Code == "" || len(params.Code) > 4096 {
 		return f.deny("", "", "", now, ErrCallbackMalformed)
 	}
 
@@ -79,6 +79,12 @@ func (f *Flow) HandleCallback(ctx context.Context, params CallbackParams) (*trus
 	}
 	if !found {
 		return f.deny(pending.Tenant, pending.IssuerURL, "", now, ErrClientNotRegistered)
+	}
+	if client.Tenant != pending.Tenant || client.IssuerURL != pending.IssuerURL || client.ClientID != pending.ClientID || client.RedirectURI != pending.RedirectURI {
+		return f.deny(pending.Tenant, pending.IssuerURL, "", now, ErrClientNotRegistered)
+	}
+	if client.ClientID != issuer.Audience {
+		return f.deny(pending.Tenant, pending.IssuerURL, "", now, ErrWrongAudience)
 	}
 
 	verifier := deriveVerifier(f.secret, pending.State)
@@ -107,7 +113,7 @@ func (f *Flow) HandleCallback(ctx context.Context, params CallbackParams) (*trus
 		return f.deny(pending.Tenant, pending.IssuerURL, "", now, ErrMissingIDToken)
 	}
 
-	result, err := validateIDToken(ctx, f.keys, issuer, tokenResp.IDToken, pending.Nonce, tokenResp.AccessToken, now)
+	result, err := validateIDToken(ctx, f.keys, issuer, client.ClientID, tokenResp.IDToken, pending.Nonce, tokenResp.AccessToken, now)
 	if err != nil {
 		return f.deny(pending.Tenant, pending.IssuerURL, "", now, err)
 	}

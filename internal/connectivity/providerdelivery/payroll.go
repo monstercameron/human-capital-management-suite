@@ -8,6 +8,11 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/lease"
 )
 
 // APIKeyHeader carries the payroll provider API key.
@@ -19,9 +24,16 @@ type PayrollConfig struct {
 	BaseURL string
 	// APIKey authenticates every request. It is required.
 	APIKey string
-	// Client performs requests (default: a fresh http.Client). Redirects
-	// are never followed.
+	// Client is the injected HTTP port used by protocol fixtures and adapters.
+	// Configure Client or Gateway; a nil port never opens a direct client.
 	Client Doer
+	// Gateway routes the provider call through centralized DNS, TLS, proxy,
+	// outbound trust, DLP and receipt enforcement. When set, Client must be nil
+	// and Principal and Tenant are required.
+	Gateway   *egress.Gateway
+	Principal string
+	Tenant    string
+	Lease     *lease.CredentialLease
 	// Timeout bounds one Deliver, Reverse or Status attempt (default 15s).
 	Timeout time.Duration
 	// Now is the clock used for HTTP-date Retry-After (default time.Now).
@@ -63,7 +75,11 @@ func NewPayrollClient(cfg PayrollConfig) (*PayrollClient, error) {
 	if cfg.APIKey == "" {
 		return nil, errors.New("providerdelivery: payroll APIKey is required")
 	}
-	send := newSender(cfg.Client, cfg.Timeout, cfg.Now)
+	client, err := providerDoer(cfg.Gateway, cfg.Client, cfg.Principal, cfg.Tenant, string(PurposePayrollDelivery), []dlp.DataClass{dlp.ClassPII, dlp.ClassCompensation}, cfg.Lease)
+	if err != nil {
+		return nil, err
+	}
+	send := newSender(client, cfg.Timeout, cfg.Now)
 	send.headers = cfg.Headers
 	return &PayrollClient{
 		endpoint: base + "/v1/pay-changes",
@@ -71,6 +87,10 @@ func NewPayrollClient(cfg PayrollConfig) (*PayrollClient, error) {
 		send:     send,
 	}, nil
 }
+
+// PurposePayrollDelivery is the established workforce authorization purpose
+// used to deliver payroll records.
+const PurposePayrollDelivery Purpose = authz.PurposePayrollProcessing
 
 // String redacts the API key.
 func (c *PayrollClient) String() string {

@@ -11,7 +11,7 @@ import "sort"
 // Three sources of evidence feed the table:
 //
 //  1. internal/transport/manifest/dispositions.go, which records that the
-//     eight P1A domain capabilities are CategoryGenericIntentLifecycleOnly
+//     nine P1A domain capabilities are CategoryGenericIntentLifecycleOnly
 //     (reachable only through IntentService's six generic lifecycle
 //     methods, dispatched by the DefinitionReference in the request) and
 //     that the two registry capabilities are CategoryTypedPublicMethod
@@ -61,7 +61,7 @@ const (
 	registryPairRationale     = "internal/transport/manifest/dispositions.go typedRegistryEndpointIDs serves this capability from a pair of RegistryService methods, and internal/intent/app/capabilities.go handlerFor has no arm for it (its default returns ErrCapabilityUnbound), so the registry publishes it with no typed handler bound"
 )
 
-// Claims returns the reviewed claim table for the ten BOOTSTRAP
+// Claims returns the reviewed claim table for the eleven BOOTSTRAP
 // capabilities, sorted by capability id.
 func Claims() []Claim {
 	claims := []Claim{
@@ -140,6 +140,16 @@ func Claims() []Claim {
 			WireMethods:       genericIntentLifecycleMethods(),
 			Handlers:          []HandlerSymbol{appHandler("simulateRepair")},
 			Rationale:         genericLifecycleRationale,
+		},
+		{
+			CapabilityID:      "hcmnext.dataops.explain_field_history",
+			CapabilityVersion: 1,
+			// This diagnostic capability has a live handler in the composition
+			// cell, but no drafted intent definition or generated model binding.
+			DefinitionRef: "",
+			WireMethods:   genericIntentLifecycleMethods(),
+			Handlers:      []HandlerSymbol{appHandler("explainFieldHistory")},
+			Rationale:     genericLifecycleRationale + "; internal/intent/app/diagnostics.go binds the dataops handler, while the intent catalog has no drafted definition for this capability",
 		},
 		{
 			CapabilityID:      "hcmnext.registry.resolve_capability",

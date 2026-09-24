@@ -120,6 +120,7 @@ func TestTodo_STORE_001_Integration(t *testing.T) {
 		e := e
 		t.Run(e.Table, func(t *testing.T) {
 			if e.TenantScoped() {
+				assertLiveTenantRLS(t, db, e.Table, *e.TenantScopingColumn)
 				var nullable string
 				err := db.Conn.QueryRow(ctx, `
 					SELECT is_nullable FROM information_schema.columns

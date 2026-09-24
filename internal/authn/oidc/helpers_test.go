@@ -26,10 +26,11 @@ import (
 
 // Fixture identifiers shared across this package's test files.
 const (
-	tenantAcme    = values.TenantId("acme-corp")
-	issuerAcme    = "https://login.acme.invalid/"
-	audienceAcme  = "human-capital-management-suite-oidc-web"
-	clientIDAcme  = "hcmnext-web"
+	tenantAcme   = values.TenantId("acme-corp")
+	issuerAcme   = "https://login.acme.invalid/"
+	clientIDAcme = "hcmnext-web"
+	// An OIDC ID token's audience is the registered OAuth client ID.
+	audienceAcme  = clientIDAcme
 	redirectURI   = "https://app.hcm-next.invalid/oidc/callback"
 	authEndpoint  = "https://login.acme.invalid/authorize"
 	tokenEndpoint = "https://login.acme.invalid/token"

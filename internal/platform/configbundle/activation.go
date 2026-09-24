@@ -353,7 +353,11 @@ func (a *Activator) verifyRequest(request ActivationRequest, signed SignedBundle
 	if floor != "" && compareRuntimeVersion(signed.Bundle.MinimumRuntimeVersion, floor) < 0 {
 		return activationRefusal("BELOW_ROLLBACK_FLOOR", "minimum_runtime_version", "bundle runtime floor is below the anti-rollback floor", ErrBelowRollbackFloor)
 	}
-	if request.RuntimeVersion != "" && compareRuntimeVersion(request.RuntimeVersion, signed.Bundle.MinimumRuntimeVersion) < 0 {
+	runtimeVersion := request.RuntimeVersion
+	if runtimeVersion == "" {
+		runtimeVersion = a.policy.RuntimeVersion
+	}
+	if runtimeVersion != "" && compareRuntimeVersion(runtimeVersion, signed.Bundle.MinimumRuntimeVersion) < 0 {
 		return activationRefusal("RUNTIME_BELOW_BUNDLE_FLOOR", "runtime_version", "activation runtime is below the bundle minimum", ErrBelowRollbackFloor)
 	}
 	return nil

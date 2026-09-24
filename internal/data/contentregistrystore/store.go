@@ -314,6 +314,21 @@ func (s *Store) SaveArticle(ctx context.Context, tenantID string, article knowle
 	if err := article.Validate(); err != nil {
 		return refusal(CodeInvalid, ErrInvalid, err.Error())
 	}
+	if len(article.AuthorizedRoles) == 0 || strings.TrimSpace(article.RetentionScheduleRef) == "" {
+		return refusal(CodeInvalid, ErrInvalid, "authorized roles and a governed retention schedule are required")
+	}
+	roleSeen := make(map[string]struct{}, len(article.AuthorizedRoles))
+	for _, role := range article.AuthorizedRoles {
+		role = strings.TrimSpace(role)
+		if role == "" {
+			return refusal(CodeInvalid, ErrInvalid, "authorized roles cannot be blank")
+		}
+		key := strings.ToLower(role)
+		if _, duplicate := roleSeen[key]; duplicate {
+			return refusal(CodeInvalid, ErrInvalid, "authorized roles cannot be duplicated")
+		}
+		roleSeen[key] = struct{}{}
+	}
 	payload, err := marshalArticle(article)
 	if err != nil {
 		return err
@@ -322,16 +337,18 @@ func (s *Store) SaveArticle(ctx context.Context, tenantID string, article knowle
 		affected, execErr := tx.Exec(ctx, `
 			INSERT INTO knowledge_article_revision (
 				row_id, tenant_id, article_id, revision, locale, audience_scope,
+				authorized_roles, retention_schedule_ref, retain_until,
 				classification, owner, source_authority, source_refs, jurisdiction,
 				effective_from, effective_to, known_from, known_to, body_digest,
 				title, summary, review, supersession)
-			VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10::jsonb,$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb,$20::jsonb)
+			VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23::jsonb)
 			ON CONFLICT (tenant_id, article_id, revision) DO NOTHING`,
 			uuid.New(), tid, article.ArticleID, int64(article.Revision), article.Locale,
-			payload.audience, article.Classification, article.Owner, article.SourceAuthority,
+			payload.audience, payload.authorizedRoles, article.RetentionScheduleRef, payload.retainUntil,
+			article.Classification, article.Owner, article.SourceAuthority,
 			payload.sourceRefs, article.Jurisdiction, payload.effectiveFrom, payload.effectiveTo,
 			payload.knownFrom, payload.knownTo, storageDigest(article.BodyDigest), article.Title,
-			article.Summary, payload.review, nullableJSON(payload.supersession))
+			article.Summary, payload.review, nullableJSONString(payload.supersession))
 		if execErr != nil {
 			return fmt.Errorf("contentregistrystore: save article: %w", execErr)
 		}
@@ -359,12 +376,14 @@ func (s *Store) LoadArticle(ctx context.Context, tenantID, articleID string, rev
 		var row articleRow
 		if scanErr := tx.QueryRow(ctx, `
 			SELECT article_id, revision, locale, audience_scope, classification, owner,
+				authorized_roles, retention_schedule_ref, retain_until,
 				source_authority, source_refs, jurisdiction, effective_from, effective_to,
 				known_from, known_to, body_digest, title, summary, review, supersession
 			FROM knowledge_article_revision
-			WHERE tenant_id=$1 AND article_id=$2 AND revision=$3`, tid, articleID, int64(revision)).Scan(
+				WHERE tenant_id=$1 AND article_id=$2 AND revision=$3`, tid, articleID, int64(revision)).Scan(
 			&row.articleID, &row.revision, &row.locale, &row.audience, &row.classification,
-			&row.owner, &row.sourceAuthority, &row.sourceRefs, &row.jurisdiction,
+			&row.owner, &row.roles, &row.retentionScheduleRef, &row.retainUntil,
+			&row.sourceAuthority, &row.sourceRefs, &row.jurisdiction,
 			&row.effectiveFrom, &row.effectiveTo, &row.knownFrom, &row.knownTo,
 			&row.bodyDigest, &row.title, &row.summary, &row.review, &row.supersession); scanErr != nil {
 			if errors.Is(scanErr, dbport.ErrNoRows) {
@@ -385,6 +404,84 @@ func (s *Store) LoadArticle(ctx context.Context, tenantID, articleID string, rev
 	return out, err
 }
 
+// SearchCandidates returns activated article revisions that pass tenant,
+// locale, role, audience, retention, review, supersession, and effective-time
+// checks before the bounded candidate limit. The caller repeats those policy
+// checks in knowledge.SearchService before projecting a result.
+func (s *Store) SearchCandidates(ctx context.Context, tenantID, locale, query, audience string, roles []string, at time.Time) ([]knowledge.SearchableArticle, error) {
+	tid, err := parseTenant(tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(locale) == "" || strings.TrimSpace(query) == "" || strings.TrimSpace(audience) == "" || len(roles) == 0 {
+		return nil, refusal(CodeInvalid, ErrInvalid, "locale, query, audience and roles are required")
+	}
+	var out []knowledge.SearchableArticle
+	err = s.withTenant(ctx, tid, func(tx dbport.Tx) error {
+		rows, queryErr := tx.Query(ctx, `
+			SELECT a.article_id, a.revision, a.locale, a.audience_scope, a.classification, a.owner,
+				a.authorized_roles, a.retention_schedule_ref, a.retain_until,
+				a.source_authority, a.source_refs, a.jurisdiction, a.effective_from, a.effective_to,
+				a.known_from, a.known_to, a.body_digest, a.title, a.summary, a.review, a.supersession
+			FROM knowledge_article_revision a
+		JOIN knowledge_activation active
+		  ON active.tenant_id=a.tenant_id AND active.article_id=a.article_id
+		 AND active.revision=a.revision AND active.locale=a.locale
+		WHERE a.tenant_id=$1 AND a.locale=$2
+		  AND a.retention_schedule_ref <> '' AND jsonb_array_length(a.authorized_roles) > 0
+		  AND (a.retain_until IS NULL OR a.retain_until > $3)
+		  AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(a.authorized_roles) article_role
+			              WHERE lower(btrim(article_role)) = ANY($5::text[]))
+		  AND CASE upper(btrim(a.audience_scope #>> '{}'))
+		        WHEN 'PUBLIC' THEN 0 WHEN 'EMPLOYEES' THEN 1 WHEN 'MANAGERS' THEN 2 ELSE 99 END
+		      <= CASE upper(btrim($4::text))
+		        WHEN 'PUBLIC' THEN 0 WHEN 'EMPLOYEES' THEN 1 WHEN 'MANAGERS' THEN 2 ELSE -1 END
+		  AND a.effective_from <= $3
+		  AND (a.effective_to IS NULL OR a.effective_to > $3)
+		  AND (a.review->>'expires_at')::timestamptz > $3
+		  AND a.supersession IS NULL
+		  AND to_tsvector('simple', coalesce(a.title,'') || ' ' || coalesce(a.summary,''))
+		      @@ plainto_tsquery('simple',$6)
+		ORDER BY a.title, a.article_id, a.revision DESC LIMIT 200`, tid, locale, at.UTC(), audience, normalizedRoles(roles), query)
+		if queryErr != nil {
+			return fmt.Errorf("contentregistrystore: search articles: %w", queryErr)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var row articleRow
+			if scanErr := rows.Scan(&row.articleID, &row.revision, &row.locale, &row.audience,
+				&row.classification, &row.owner, &row.roles, &row.retentionScheduleRef, &row.retainUntil,
+				&row.sourceAuthority, &row.sourceRefs, &row.jurisdiction, &row.effectiveFrom, &row.effectiveTo,
+				&row.knownFrom, &row.knownTo, &row.bodyDigest, &row.title, &row.summary, &row.review, &row.supersession); scanErr != nil {
+				return fmt.Errorf("contentregistrystore: scan search candidate: %w", scanErr)
+			}
+			article, decodeErr := unmarshalArticle(row)
+			if decodeErr != nil {
+				return decodeErr
+			}
+			if validateErr := article.Validate(); validateErr != nil {
+				return refusal(CodeIntegrityViolation, ErrIntegrity, validateErr.Error())
+			}
+			out = append(out, knowledge.SearchableArticle{Article: article})
+		}
+		if rowsErr := rows.Err(); rowsErr != nil {
+			return fmt.Errorf("contentregistrystore: read search candidates: %w", rowsErr)
+		}
+		return nil
+	})
+	return out, err
+}
+
+func normalizedRoles(roles []string) []string {
+	out := make([]string, 0, len(roles))
+	for _, role := range roles {
+		if value := strings.ToLower(strings.TrimSpace(role)); value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
 // SaveLocalized appends the sparse localized revision row defined by the
 // migration. The source article and source digest are checked before insert.
 func (s *Store) SaveLocalized(ctx context.Context, tenantID string, localized knowledge.LocalizedRevision) error {
@@ -399,12 +496,14 @@ func (s *Store) SaveLocalized(ctx context.Context, tenantID string, localized kn
 		var sourceRow articleRow
 		if err := tx.QueryRow(ctx, `
 			SELECT article_id, revision, locale, audience_scope, classification, owner,
+				authorized_roles, retention_schedule_ref, retain_until,
 				source_authority, source_refs, jurisdiction, effective_from, effective_to,
 				known_from, known_to, body_digest, title, summary, review, supersession
 			FROM knowledge_article_revision
 			WHERE tenant_id=$1 AND article_id=$2 AND revision=$3`, tid, localized.ArticleID, int64(localized.Revision)).Scan(
 			&sourceRow.articleID, &sourceRow.revision, &sourceRow.locale, &sourceRow.audience, &sourceRow.classification,
-			&sourceRow.owner, &sourceRow.sourceAuthority, &sourceRow.sourceRefs, &sourceRow.jurisdiction,
+			&sourceRow.owner, &sourceRow.roles, &sourceRow.retentionScheduleRef, &sourceRow.retainUntil,
+			&sourceRow.sourceAuthority, &sourceRow.sourceRefs, &sourceRow.jurisdiction,
 			&sourceRow.effectiveFrom, &sourceRow.effectiveTo, &sourceRow.knownFrom, &sourceRow.knownTo,
 			&sourceRow.bodyDigest, &sourceRow.title, &sourceRow.summary, &sourceRow.review, &sourceRow.supersession); err != nil {
 			if errors.Is(err, dbport.ErrNoRows) {
@@ -553,7 +652,7 @@ func (s *Store) ListLifecycleEvents(ctx context.Context, tenantID, articleID str
 
 // SaveActivation writes the current activation for an article/locale. A
 // lower or equal epoch is refused, making retries and stale writers explicit.
-func (s *Store) SaveActivation(ctx context.Context, tenantID string, activation knowledge.ActivationBinding) error {
+func (s *Store) SaveKnowledgeActivation(ctx context.Context, tenantID string, activation knowledge.ActivationBinding) error {
 	tid, err := parseTenant(tenantID)
 	if err != nil {
 		return err
@@ -643,26 +742,73 @@ func parseTenant(raw string) (uuid.UUID, error) {
 }
 
 func (s *Store) checkBindingRefs(ctx context.Context, tx dbport.Tx, binding industrypack.Binding) error {
+	packIDs := make([]string, 0, len(binding.Packs))
+	packVersions := make([]int32, 0, len(binding.Packs))
 	for _, pack := range binding.Packs {
 		packID := strings.TrimSpace(pack.PackID)
 		if packID == "" {
 			packID = strings.TrimSpace(pack.ID)
 		}
-		var exists bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM industry_pack_manifest WHERE pack_id=$1 AND version=$2)`, packID, pack.Version).Scan(&exists); err != nil {
-			return fmt.Errorf("contentregistrystore: check manifest reference: %w", err)
+		packIDs = append(packIDs, packID)
+		packVersions = append(packVersions, int32(pack.Version))
+	}
+	if len(packIDs) > 0 {
+		rows, err := tx.Query(ctx, `
+			SELECT pack_id, version
+			FROM industry_pack_manifest
+			WHERE (pack_id, version) IN (SELECT * FROM unnest($1::text[], $2::integer[]))`, packIDs, packVersions)
+		if err != nil {
+			return fmt.Errorf("contentregistrystore: check manifest references: %w", err)
 		}
-		if !exists {
-			return refusal(CodeReferenceNotFound, ErrReferenceNotFound, fmt.Sprintf("pack %s/%d is absent", packID, pack.Version))
+		found := make(map[string]struct{}, len(packIDs))
+		for rows.Next() {
+			var id string
+			var version int32
+			if err := rows.Scan(&id, &version); err != nil {
+				rows.Close()
+				return fmt.Errorf("contentregistrystore: scan manifest reference: %w", err)
+			}
+			found[fmt.Sprintf("%s/%d", id, version)] = struct{}{}
+		}
+		rowsErr := rows.Err()
+		rows.Close()
+		if rowsErr != nil {
+			return fmt.Errorf("contentregistrystore: read manifest references: %w", rowsErr)
+		}
+		for i, id := range packIDs {
+			key := fmt.Sprintf("%s/%d", id, packVersions[i])
+			if _, ok := found[key]; !ok {
+				return refusal(CodeReferenceNotFound, ErrReferenceNotFound, fmt.Sprintf("pack %s is absent", key))
+			}
 		}
 	}
+	contentRefs := make([]string, 0, len(binding.Contents))
 	for _, content := range binding.Contents {
-		var exists bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM content_registry_entry WHERE ref=$1)`, content.Ref.Key()).Scan(&exists); err != nil {
-			return fmt.Errorf("contentregistrystore: check content reference: %w", err)
+		contentRefs = append(contentRefs, content.Ref.Key())
+	}
+	if len(contentRefs) > 0 {
+		rows, err := tx.Query(ctx, `SELECT ref FROM content_registry_entry WHERE ref = ANY($1::text[])`, contentRefs)
+		if err != nil {
+			return fmt.Errorf("contentregistrystore: check content references: %w", err)
 		}
-		if !exists {
-			return refusal(CodeReferenceNotFound, ErrReferenceNotFound, fmt.Sprintf("content %s is absent", content.Ref.Key()))
+		found := make(map[string]struct{}, len(contentRefs))
+		for rows.Next() {
+			var ref string
+			if err := rows.Scan(&ref); err != nil {
+				rows.Close()
+				return fmt.Errorf("contentregistrystore: scan content reference: %w", err)
+			}
+			found[ref] = struct{}{}
+		}
+		rowsErr := rows.Err()
+		rows.Close()
+		if rowsErr != nil {
+			return fmt.Errorf("contentregistrystore: read content references: %w", rowsErr)
+		}
+		for _, ref := range contentRefs {
+			if _, ok := found[ref]; !ok {
+				return refusal(CodeReferenceNotFound, ErrReferenceNotFound, fmt.Sprintf("content %s is absent", ref))
+			}
 		}
 	}
 	return nil
@@ -738,8 +884,9 @@ func unmarshalBinding(packsJSON, contentsJSON []byte, digest string) (industrypa
 }
 
 type articlePayload struct {
-	audience, sourceRefs, review, supersession     string
-	effectiveFrom, effectiveTo, knownFrom, knownTo *time.Time
+	audience, authorizedRoles, sourceRefs, review, supersession string
+	retentionScheduleRef                                        string
+	effectiveFrom, effectiveTo, knownFrom, knownTo, retainUntil *time.Time
 }
 
 type supersessionJSON struct {
@@ -759,6 +906,10 @@ func marshalArticle(article knowledge.ArticleRevision) (articlePayload, error) {
 	if err != nil {
 		return articlePayload{}, fmt.Errorf("contentregistrystore: marshal audience: %w", err)
 	}
+	roles, err := json.Marshal(article.AuthorizedRoles)
+	if err != nil {
+		return articlePayload{}, fmt.Errorf("contentregistrystore: marshal authorized roles: %w", err)
+	}
 	sourceRefs, err := json.Marshal(article.SourceRefs)
 	if err != nil {
 		return articlePayload{}, fmt.Errorf("contentregistrystore: marshal source refs: %w", err)
@@ -777,15 +928,16 @@ func marshalArticle(article knowledge.ArticleRevision) (articlePayload, error) {
 	}
 	effectiveFrom, effectiveTo := article.EffectiveInterval.EffectiveFrom.Time(), nullableInstant(article.EffectiveInterval.EffectiveTo)
 	knownFrom, knownTo := article.KnownInterval.KnownFrom.Time(), nullableInstant(article.KnownInterval.KnownTo)
-	return articlePayload{audience: string(audience), sourceRefs: string(sourceRefs), review: string(review), supersession: supersession, effectiveFrom: &effectiveFrom, effectiveTo: effectiveTo, knownFrom: &knownFrom, knownTo: knownTo}, nil
+	return articlePayload{audience: string(audience), authorizedRoles: string(roles), retentionScheduleRef: article.RetentionScheduleRef, retainUntil: nullableInstant(article.RetainUntil), sourceRefs: string(sourceRefs), review: string(review), supersession: supersession, effectiveFrom: &effectiveFrom, effectiveTo: effectiveTo, knownFrom: &knownFrom, knownTo: knownTo}, nil
 }
 
 type articleRow struct {
 	articleID                                                    string
 	revision                                                     int64
 	locale, classification, owner, sourceAuthority, jurisdiction string
-	audience, sourceRefs                                         []byte
-	effectiveFrom, effectiveTo, knownFrom, knownTo               *time.Time
+	audience, roles, sourceRefs                                  []byte
+	retentionScheduleRef                                         string
+	effectiveFrom, effectiveTo, knownFrom, knownTo, retainUntil  *time.Time
 	bodyDigest, title, summary                                   string
 	review, supersession                                         []byte
 }
@@ -799,6 +951,12 @@ func unmarshalArticle(row articleRow) (knowledge.ArticleRevision, error) {
 	if err := json.Unmarshal(row.sourceRefs, &sourceRefs); err != nil {
 		return knowledge.ArticleRevision{}, refusal(CodeIntegrityViolation, ErrIntegrity, "article source references are invalid JSON")
 	}
+	var roles []string
+	if len(row.roles) != 0 {
+		if err := json.Unmarshal(row.roles, &roles); err != nil {
+			return knowledge.ArticleRevision{}, refusal(CodeIntegrityViolation, ErrIntegrity, "article authorized roles are invalid JSON")
+		}
+	}
 	review := reviewJSON{}
 	if err := json.Unmarshal(row.review, &review); err != nil {
 		return knowledge.ArticleRevision{}, refusal(CodeIntegrityViolation, ErrIntegrity, "article review is invalid JSON")
@@ -811,7 +969,10 @@ func unmarshalArticle(row articleRow) (knowledge.ArticleRevision, error) {
 	if err != nil {
 		return knowledge.ArticleRevision{}, refusal(CodeIntegrityViolation, ErrIntegrity, "article expires_at is invalid")
 	}
-	article := knowledge.ArticleRevision{ArticleID: row.articleID, Revision: uint64(row.revision), Locale: row.locale, AudienceScope: audience, Classification: row.classification, Owner: row.owner, SourceAuthority: row.sourceAuthority, SourceRefs: sourceRefs, Jurisdiction: row.jurisdiction, BodyDigest: domainDigest(row.bodyDigest), Title: row.title, Summary: row.summary, Review: knowledge.ReviewMetadata{ReviewedBy: review.ReviewedBy, ReviewedAt: values.NewInstant(reviewedAt), ExpiresAt: values.NewInstant(expiresAt), ApprovalRef: review.ApprovalRef}}
+	article := knowledge.ArticleRevision{ArticleID: row.articleID, Revision: uint64(row.revision), Locale: row.locale, AudienceScope: audience, AuthorizedRoles: roles, RetentionScheduleRef: row.retentionScheduleRef, Classification: row.classification, Owner: row.owner, SourceAuthority: row.sourceAuthority, SourceRefs: sourceRefs, Jurisdiction: row.jurisdiction, BodyDigest: domainDigest(row.bodyDigest), Title: row.title, Summary: row.summary, Review: knowledge.ReviewMetadata{ReviewedBy: review.ReviewedBy, ReviewedAt: values.NewInstant(reviewedAt), ExpiresAt: values.NewInstant(expiresAt), ApprovalRef: review.ApprovalRef}}
+	if row.retainUntil != nil {
+		article.RetainUntil = values.NewInstant(row.retainUntil.UTC())
+	}
 	if row.effectiveFrom == nil || row.knownFrom == nil {
 		return knowledge.ArticleRevision{}, refusal(CodeIntegrityViolation, ErrIntegrity, "article interval boundary is null")
 	}
@@ -876,7 +1037,7 @@ func nullableDigest(value string) *string {
 	normalized := storageDigest(value)
 	return &normalized
 }
-func nullableJSON(value string) any {
+func nullableJSONString(value string) any {
 	if value == "" {
 		return nil
 	}

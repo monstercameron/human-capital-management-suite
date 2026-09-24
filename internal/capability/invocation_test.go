@@ -14,6 +14,10 @@ func (s *recordingSink) RecordInvocation(_ context.Context, evt InvocationEviden
 	return "ev-invocation", nil
 }
 
+func (s *recordingSink) RecordInvocationTx(ctx context.Context, evt InvocationEvidence) (string, error) {
+	return s.RecordInvocation(ctx, evt)
+}
+
 func invocationGateway(t *testing.T, at time.Time) (*Gateway, *recordingSink, Key, *int) {
 	t.Helper()
 	calls := 0

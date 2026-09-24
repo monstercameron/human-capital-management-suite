@@ -21,6 +21,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	transactioncommit "github.com/monstercameron/human-capital-management-suite/internal/transaction/commit"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/conflict"
+	"github.com/monstercameron/human-capital-management-suite/internal/transaction/idempotency"
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/plan"
 )
 
@@ -251,6 +252,57 @@ func commitFixture(t *testing.T) (*pgtest.DB, plan.TransactionPlan, uuid.UUID) {
 func committer(t *testing.T, db *pgtest.DB) *transactioncommit.Committer {
 	t.Helper()
 	return transactioncommit.New(db.Conn, transactioncommit.Options{Clock: func() time.Time { return commitAt }})
+}
+
+// TestTodo_REV_102_06_TransactionCommitPath proves the production generic
+// transaction.commit capability is governed as permanent even when its
+// caller supplies only a duration. The committed key compacts after expiry.
+func TestTodo_REV_102_06_TransactionCommitPath(t *testing.T) {
+	db, prepared, tenant := commitFixture(t)
+	if _, err := committer(t, db).Commit(context.Background(), prepared); err != nil {
+		t.Fatalf("commit prepared transaction: %v", err)
+	}
+
+	scope := idempotency.Scope{
+		Tenant: tenant, Capability: "transaction.commit",
+		EffectScope: prepared.PlanID, Key: prepared.IdempotencyKey,
+	}
+	store := idempotency.PostgresStore{}
+	var rec idempotency.Record
+	var found bool
+	if err := db.Conn.QueryRow(context.Background(), `SELECT request_digest, status, retention_class
+		FROM idempotency_record WHERE tenant_id=$1 AND capability_id=$2 AND effect_scope=$3 AND idempotency_key=$4`,
+		scope.Tenant, scope.Capability, scope.EffectScope, scope.Key).Scan(&rec.RequestDigest, &rec.Status, &rec.RetentionClass); err != nil {
+		t.Fatal(err)
+	}
+	if rec.Status != idempotency.StatusCompleted || rec.RetentionClass != idempotency.RetentionPermanentTombstone {
+		t.Fatalf("transaction.commit record = status %q class %q", rec.Status, rec.RetentionClass)
+	}
+
+	processed, err := store.Expire(context.Background(), db.Conn, tenant, commitAt.Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("expire transaction.commit record: %v", err)
+	}
+	if processed != 1 {
+		t.Fatalf("Expire processed %d rows, want 1", processed)
+	}
+	rec, found, err = store.Lookup(context.Background(), db.Conn, scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || rec.Status != idempotency.StatusTombstone || rec.RequestDigest == "" || !rec.Identity.Empty() {
+		t.Fatalf("transaction.commit tombstone = %+v, found %v", rec, found)
+	}
+	if _, err := committer(t, db).Commit(context.Background(), prepared); idempotency.CodeOf(err) != idempotency.CodeTombstoned {
+		t.Fatalf("commit replay after tombstoning = %v, want %s", err, idempotency.CodeTombstoned)
+	}
+	var eventCount int
+	if err := db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM ledger_event WHERE tenant_id=$1`, tenant).Scan(&eventCount); err != nil {
+		t.Fatal(err)
+	}
+	if eventCount != 2 {
+		t.Fatalf("ledger contains %d events after tombstoned replay, want 2", eventCount)
+	}
 }
 
 // TestTodo_TX_004 proves ledger, critical checkpoints, outbox and the durable

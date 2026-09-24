@@ -38,7 +38,7 @@ func TestServedVerifierComposite(t *testing.T) {
 
 	token, err := issuer.Issue(machine.IssueRequest{
 		Issuer: "https://cell.example", Audience: []string{"hcm-next-api"},
-		Subject: "client-a", Client: "client-a", Tenant: "tenant-a",
+		Subject: "service-subject-a", Client: "client-a", Tenant: "tenant-a",
 		Session: "mcs-1", Assurance: "substantial", TokenID: "tok-1", Lifetime: 10 * time.Minute,
 	})
 	if err != nil {
@@ -51,7 +51,7 @@ func TestServedVerifierComposite(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Verify: %v", err)
 		}
-		if p.Subject() != "client-a" || string(p.Tenant()) != "tenant-a" {
+		if p.Subject() != "service-subject-a" || p.ClientID() != "client-a" || string(p.Tenant()) != "tenant-a" {
 			t.Fatalf("principal = %s", p)
 		}
 		if p.SubjectKind() != SubjectKindIntegration {

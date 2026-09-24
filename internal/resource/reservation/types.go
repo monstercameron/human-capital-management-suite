@@ -17,14 +17,21 @@ import (
 type Status string
 
 const (
-	Held     Status = "HELD"
-	Consumed Status = "CONSUMED"
-	Released Status = "RELEASED"
-	Expired  Status = "EXPIRED"
+	Held      Status = "HELD"
+	Committed Status = "COMMITTED"
+	Consumed  Status = "CONSUMED"
+	Released  Status = "RELEASED"
+	Expired   Status = "EXPIRED"
 )
 
 func (s Status) Terminal() bool { return s == Consumed || s == Released || s == Expired }
-func (s Status) Valid() bool    { return s == Held || s.Terminal() }
+func (s Status) Valid() bool    { return s == Held || s == Committed || s.Terminal() }
+
+// Fence is the compare-and-swap identity required for a lifecycle transition.
+type Fence struct {
+	ID    uuid.UUID
+	Token uint64
+}
 
 type Interval struct{ From, To time.Time }
 
@@ -99,6 +106,7 @@ func (r Request) Validate(now time.Time) error {
 type Reservation struct {
 	ID        uuid.UUID
 	Request   Request
+	Capacity  Quantity
 	Status    Status
 	Fence     uint64
 	CreatedAt time.Time

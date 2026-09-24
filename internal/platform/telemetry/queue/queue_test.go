@@ -2,6 +2,8 @@ package queue
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -79,14 +81,36 @@ func TestTodo_OBS_019_Race(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pipeline.Submit(testItem("one", PriorityNormal)); err != nil {
-		t.Fatal(err)
+	const workers = 16
+	var wg sync.WaitGroup
+	results := make(chan SubmitResult, workers)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		id := fmt.Sprintf("item-%02d", i)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result, err := pipeline.Submit(testItem(id, PriorityNormal))
+			results <- result
+			errs <- err
+		}()
 	}
-	first := pipeline.Health()
-	second := pipeline.Health()
-	second.DropReasons[DropQueueFull] = 99
-	if first.DropReasons[DropQueueFull] == 99 {
-		t.Fatal("Health exposed mutable drop reasons")
+	wg.Wait()
+	close(results)
+	close(errs)
+	accepted := 0
+	for result := range results {
+		if result.Accepted {
+			accepted++
+		}
+	}
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if accepted != 2 || pipeline.Health().QueueDepth != 2 {
+		t.Fatalf("concurrent capacity admitted %d items, queue depth %d; want 2 each", accepted, pipeline.Health().QueueDepth)
 	}
 }
 

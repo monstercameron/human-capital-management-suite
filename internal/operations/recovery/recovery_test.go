@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,21 @@ func TestTodo_RECOVERY_001(t *testing.T) {
 	if got, want := len(matrix.Contracts), 10; got != want {
 		t.Fatalf("contract count = %d, want %d", got, want)
 	}
+	want := []Contract{
+		{Plane: Keys, Store: "key-reference-store", Owner: "platform-security", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 30}, DependencyOrder: 1, SemanticChecks: []string{"key references resolve to the pinned version", "decryptability check passes"}},
+		{Plane: Config, Store: "configuration-store", Owner: "platform-configuration", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 60}, DependencyOrder: 2, Dependencies: []Plane{Keys}, SemanticChecks: []string{"schema and policy versions are pinned", "configuration digest matches the approved revision"}},
+		{Plane: Ledger, Store: "canonical-ledger", Owner: "data-ledger", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 60}, DependencyOrder: 3, Dependencies: []Plane{Keys, Config}, SemanticChecks: []string{"event chain and stream heads are contiguous", "ledger invariants and tenant boundaries pass"}},
+		{Plane: Artifacts, Store: "content-addressed-artifacts", Owner: "data-artifacts", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOB, RPO: Target{Minutes: 15}, RTO: Target{Minutes: 120}, DependencyOrder: 4, Dependencies: []Plane{Keys, Config}, SemanticChecks: []string{"content digests and retention metadata match", "classification and tenant references resolve"}},
+		{Plane: Runtime, Store: "workflow-runtime-state", Owner: "workflow-runtime", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 60}, DependencyOrder: 5, Dependencies: []Plane{Keys, Config, Ledger}, SemanticChecks: []string{"frontiers, timers and leases satisfy epoch fences", "workflow definitions and instance references resolve"}},
+		{Plane: Outbox, Store: "transactional-outbox", Owner: "event-delivery", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 30}, DependencyOrder: 6, Dependencies: []Plane{Keys, Config, Ledger}, SemanticChecks: []string{"outbox rows remain idempotent against ledger events", "delivery leases are safe to resume"}},
+		{Plane: Projection, Store: "critical-projections", Owner: "projection-platform", Authority: Rebuildable, Method: ModeReplay, RPOClass: RPOC, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 90}, Replayable: true, DependencyOrder: 7, Dependencies: []Plane{Ledger, Config}, SemanticChecks: []string{"replay watermark reaches the ledger head", "projection digest matches the reference conformance check"}},
+		{Plane: Search, Store: "search-index", Owner: "search-platform", Authority: Rebuildable, Method: ModeRebuild, RPOClass: RPOC, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 180}, Replayable: true, DependencyOrder: 8, Dependencies: []Plane{Ledger, Artifacts, Config}, SemanticChecks: []string{"index is rebuilt only from authorized source rows", "document and field digests match the source snapshot"}},
+		{Plane: Analytics, Store: "analytics-views", Owner: "analytics-platform", Authority: Rebuildable, Method: ModeRebuild, RPOClass: RPOC, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 240}, Replayable: true, DependencyOrder: 9, Dependencies: []Plane{Ledger, Projection}, SemanticChecks: []string{"source watermark and schema version are recorded", "aggregate counts and sample values reconcile"}},
+		{Plane: Cache, Store: "runtime-cache", Owner: "runtime-platform", Authority: Rebuildable, Method: ModeRebuild, RPOClass: RPONone, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 30}, Replayable: false, DependencyOrder: 10, Dependencies: []Plane{Projection}, SemanticChecks: []string{"cache is empty or derived after the source is healthy", "tenant and authorization keys are scoped"}},
+	}
+	if got := matrix.Ordered(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("recovery matrix differs from the declared source-of-truth contract:\n got=%+v\nwant=%+v", got, want)
+	}
 	for _, plane := range []Plane{Ledger, Artifacts, Config, Keys, Runtime, Outbox, Projection, Search, Analytics, Cache} {
 		contract, ok := matrix.Contract(plane)
 		if !ok {
@@ -25,11 +41,11 @@ func TestTodo_RECOVERY_001(t *testing.T) {
 		if contract.Owner == "" || contract.RTO.Minutes <= 0 || len(contract.SemanticChecks) == 0 {
 			t.Fatalf("incomplete contract for %s: %+v", plane, contract)
 		}
-		if contract.RPO.NotApplicable && (!contract.Replayable || contract.Authority != Rebuildable) {
+		if contract.RPO.NotApplicable && (contract.Authority != Rebuildable || (contract.RPOClass == RPOC && !contract.Replayable) || (contract.RPOClass == RPONone && contract.Replayable)) {
 			t.Fatalf("RPO=N/A is not justified for %s: %+v", plane, contract)
 		}
 	}
-	if explanation := matrix.Explain(); !strings.Contains(explanation, "ledger") || !strings.Contains(explanation, "rpo=N/A") {
+	if explanation := matrix.Explain(); !strings.Contains(explanation, "ledger") || !strings.Contains(explanation, "class=RPO-A rpo=0m") || !strings.Contains(explanation, "class=RPO-C rpo=N/A") || !strings.Contains(explanation, "class=NONE rpo=N/A") {
 		t.Fatalf("matrix explanation is incomplete: %s", explanation)
 	}
 }
@@ -51,6 +67,18 @@ func TestTodo_RECOVERY_001_Fault(t *testing.T) {
 	matrix.Contracts[2].Dependencies = append(matrix.Contracts[2].Dependencies, Plane("missing"))
 	if err := matrix.Validate(); !errors.Is(err, ErrUnknownPlane) {
 		t.Fatalf("unknown dependency error = %v, want ErrUnknownPlane", err)
+	}
+
+	matrix = DefaultMatrix()
+	matrix.Contracts[2].RPO.Minutes = 1
+	if err := matrix.Validate(); !errors.Is(err, ErrInvalidContract) {
+		t.Fatalf("RPO-A data-loss target error = %v, want ErrInvalidContract", err)
+	}
+
+	matrix = DefaultMatrix()
+	matrix.Contracts[3].RPO.NotApplicable = true
+	if err := matrix.Validate(); !errors.Is(err, ErrInvalidContract) {
+		t.Fatalf("RPO-B N/A target error = %v, want ErrInvalidContract", err)
 	}
 }
 
@@ -89,6 +117,8 @@ func TestTodo_RECOVERY_001_Mutation(t *testing.T) {
 		func(m *Matrix) { m.Contracts[0].SemanticChecks = nil },
 		func(m *Matrix) { m.Contracts[0].Method = ModeRebuild },
 		func(m *Matrix) { m.Contracts[0].Dependencies = []Plane{Projection} },
+		func(m *Matrix) { m.Contracts[0].RPOClass = RPOB },
+		func(m *Matrix) { m.Contracts[0].RPO.Minutes = 1 },
 	}
 	for i, mutate := range mutations {
 		matrix := DefaultMatrix()
@@ -129,6 +159,21 @@ func TestTodo_RECOVERY_002_Golden(t *testing.T) {
 	}
 	if _, err := VerifyReadable(first, publicKey, encryptionKey, VerifyOptions{Now: fixedNow(), SampleCount: 3}); err != nil {
 		t.Fatalf("full sample verification failed: %v", err)
+	}
+}
+
+func TestTodo_RECOVERY_002_SampleSeed(t *testing.T) {
+	first, publicKey, encryptionKey := testBackup(t)
+	options := VerifyOptions{Now: fixedNow(), SampleCount: 2, SampleSeed: []byte("repeatable-check")}
+	left := Verify(first, publicKey, encryptionKey, options)
+	right := Verify(first, publicKey, encryptionKey, options)
+	if !left.Verified() || !right.Verified() || !reflect.DeepEqual(left.SampledIndices, right.SampledIndices) {
+		t.Fatalf("seeded sample was not repeatable: left=%+v right=%+v", left, right)
+	}
+	for _, index := range left.SampledIndices {
+		if index < 0 || index >= first.Manifest.BlockCount {
+			t.Fatalf("sample index %d is outside the backup inventory", index)
+		}
 	}
 }
 

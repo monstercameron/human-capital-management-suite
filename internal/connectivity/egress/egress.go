@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/netip"
@@ -80,14 +81,67 @@ type Gateway struct {
 // Request is one outbound effect. Payload is consumed for digest/inspection
 // and is never retained by Gateway or the receipt log.
 type Request struct {
-	Method      string
-	Target      string
-	Purpose     string
-	Principal   string
+	Method    string
+	Target    string
+	Purpose   string
+	Principal string
+	// Tenant binds adapter-based calls to the tenant whose provider data is
+	// being sent. A credential lease, when present, must agree with it.
+	Tenant      string
 	Payload     []byte
 	DataClasses []dlp.DataClass
 	Lease       *lease.CredentialLease
 	Headers     http.Header
+	// NoRedirect returns a 3xx response to the caller without following it.
+	// Credentialed HTTP adapters should set this to avoid forwarding provider
+	// authentication headers to a redirect destination.
+	NoRedirect bool
+}
+
+// HTTPDoer is the http.Client-shaped port for code that already speaks
+// net/http. It converts each request into a gateway request; it never opens a
+// connection itself. Identity and classification are fixed at construction
+// so callers cannot downgrade policy per request.
+type HTTPDoer struct {
+	gateway     *Gateway
+	purpose     string
+	principal   string
+	tenant      string
+	dataClasses []dlp.DataClass
+	lease       *lease.CredentialLease
+}
+
+// NewHTTPDoer adapts a Gateway to the small Doer interface used by net/http
+// clients. All identity fields are mandatory and immutable for the adapter.
+func NewHTTPDoer(gateway *Gateway, purpose, principal, tenant string, classes []dlp.DataClass, credentialLease *lease.CredentialLease) (*HTTPDoer, error) {
+	if gateway == nil || strings.TrimSpace(purpose) == "" || strings.TrimSpace(principal) == "" || strings.TrimSpace(tenant) == "" || len(classes) == 0 {
+		return nil, ErrInvalidGateway
+	}
+	if credentialLease != nil && (credentialLease.Tenant != tenant || credentialLease.Purpose != purpose) {
+		return nil, ErrInvalidRequest
+	}
+	return &HTTPDoer{gateway: gateway, purpose: purpose, principal: principal, tenant: tenant, dataClasses: append([]dlp.DataClass(nil), classes...), lease: credentialLease}, nil
+}
+
+// Do implements net/http's Doer surface while routing through Gateway.Do.
+func (d *HTTPDoer) Do(req *http.Request) (*http.Response, error) {
+	if d == nil || d.gateway == nil || req == nil || req.URL == nil {
+		return nil, ErrInvalidRequest
+	}
+	var payload []byte
+	if req.Body != nil && req.Body != http.NoBody {
+		defer req.Body.Close()
+		var err error
+		payload, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+	}
+	result, err := d.gateway.Do(req.Context(), Request{Method: req.Method, Target: req.URL.String(), Purpose: d.purpose, Principal: d.principal, Tenant: d.tenant, Payload: payload, DataClasses: d.dataClasses, Lease: d.lease, Headers: req.Header, NoRedirect: true})
+	if err != nil {
+		return nil, err
+	}
+	return result.Response, nil
 }
 
 type Result struct {
@@ -129,6 +183,9 @@ func (g *Gateway) Do(ctx context.Context, in Request) (Result, error) {
 	}
 	if err := validateRequest(in); err != nil {
 		return Result{}, err
+	}
+	if in.Lease != nil && in.Tenant != "" && in.Lease.Tenant != in.Tenant {
+		return Result{}, fmt.Errorf("%w: lease tenant does not match dispatch tenant", ErrInvalidRequest)
 	}
 	current, err := url.Parse(in.Target)
 	if err != nil {
@@ -173,6 +230,9 @@ func (g *Gateway) Do(ctx context.Context, in Request) (Result, error) {
 			return Result{Receipts: receipts}, err
 		}
 		if resp.StatusCode < http.StatusMultipleChoices || resp.StatusCode >= http.StatusBadRequest || resp.Header.Get("Location") == "" {
+			return Result{Response: resp, Receipts: receipts}, nil
+		}
+		if in.NoRedirect {
 			return Result{Response: resp, Receipts: receipts}, nil
 		}
 		if redirects >= g.maxRedirects {
@@ -229,7 +289,11 @@ func (g *Gateway) authorize(in Request, target *url.URL, payload []byte) (dlp.Eg
 			}
 		}
 	}
-	receipt, err := g.receipts.Append(dlp.ReceiptInput{Destination: target.Hostname(), Purpose: in.Purpose, Principal: in.Principal, Payload: payload, Inspection: inspection, Decision: decision})
+	principal := in.Principal
+	if in.Tenant != "" {
+		principal = "tenant=" + in.Tenant + ";principal=" + in.Principal
+	}
+	receipt, err := g.receipts.Append(dlp.ReceiptInput{Destination: target.Hostname(), Purpose: in.Purpose, Principal: principal, Payload: payload, Inspection: inspection, Decision: decision})
 	if err != nil {
 		return dlp.EgressReceipt{}, err
 	}

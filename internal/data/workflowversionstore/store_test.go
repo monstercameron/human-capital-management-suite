@@ -11,10 +11,15 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/managerchange"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/releasefixture"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/simulate"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -332,5 +337,78 @@ func TestBindTxJoinsTheCallerTransaction(t *testing.T) {
 	}
 	if registry := version.NewRegistry(); version.BindTx(ctx, tx, registry) != version.Store(registry) {
 		t.Fatal("BindTx wrapped a store that has no transaction to join")
+	}
+}
+
+// TestTodo_WF_EXT_008_Integration proves tenant authoring bytes, compilation,
+// activation and start selection survive a fresh store composition.
+func TestTodo_WF_EXT_008_Integration(t *testing.T) {
+	ctx := context.Background()
+	db := pgtest.New(t)
+	tenant := uuid.New()
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from)
+		VALUES ($1,$2,'cell-wfext008',$3,'ACTIVE',$4)`, tenant, tenant.String(), tenant.String(), at)
+	appConn := db.NewConn(t)
+	if _, err := appConn.Exec(ctx, "SET ROLE "+tenancy.AppRole); err != nil {
+		t.Fatalf("SET ROLE %s: %v", tenancy.AppRole, err)
+	}
+	store := workflowversionstore.Store{DB: appConn}
+	setup, err := managerchange.NewSetup()
+	if err != nil {
+		t.Fatalf("Manager Change setup: %v", err)
+	}
+	d := managerchange.ReferenceDefinition()
+	d.IntentType = "hcmnext.people.change_manager/v1"
+	d.MatchPredicate = map[string]string{"change_kind": "MANAGER"}
+	meta := version.PublishMeta{SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: publisher, FixtureRefs: []string{fixtureRef}}
+	published, err := store.PublishDefinition(ctx, workflowversionstore.DefinitionPublication{
+		TenantID: tenant, Definition: d,
+		Options: workflow.Options{Phase: workflow.PhaseP1A, Capabilities: setup.Options.Capabilities}, Metadata: meta,
+	})
+	if err != nil {
+		t.Fatalf("PublishDefinition: %v", err)
+	}
+	if published.Compiled.Status != version.StatusDraft {
+		t.Fatalf("published compiled status = %s, want DRAFT", published.Compiled.Status)
+	}
+	if err := store.RecordApproval(ctx, approval(t, store, published.Compiled.CompiledPlanDigest, "principal:reviewer")); err != nil {
+		t.Fatalf("RecordApproval: %v", err)
+	}
+	if _, err := store.ActivateApproved(ctx, published.Compiled.CompiledPlanDigest, false); err != nil {
+		t.Fatalf("ActivateApproved: %v", err)
+	}
+	if err := store.ActivateTenantDefinition(ctx, tenant, d.WorkflowID, d.Version, at); err != nil {
+		t.Fatalf("ActivateTenantDefinition: %v", err)
+	}
+	reader := db.NewConn(t)
+	if _, err := reader.Exec(ctx, "SET ROLE "+tenancy.AppRole); err != nil {
+		t.Fatalf("SET ROLE %s: %v", tenancy.AppRole, err)
+	}
+	readerStore := workflowversionstore.Store{DB: reader}
+	resolver := execution.ActiveDefinitionResolver{
+		Definitions: readerStore,
+		Facts: execution.DefinitionFactsFunc(func(context.Context, runtime.StartRequest) (map[string]string, error) {
+			return map[string]string{"change_kind": "MANAGER"}, nil
+		}),
+	}
+	selection, err := resolver.ResolveWorkflow(ctx, runtime.StartRequest{
+		TenantID: tenant, CreatedAt: at,
+		Source: &runtime.StartSource{Kind: runtime.StartSourceProposal, IntentType: d.IntentType, Proposal: &runtime.ProposalBinding{}},
+	})
+	if err != nil {
+		t.Fatalf("resolve active Manager Change from served selector: %v", err)
+	}
+	if selection.WorkflowID != d.WorkflowID || selection.Pin.CompiledPlanDigest != published.Compiled.CompiledPlanDigest || selection.Plan.Digest() != published.Compiled.CompiledPlanDigest {
+		t.Fatalf("resolved tenant definition does not retain published identity: %+v", selection)
+	}
+	receipt, err := simulate.Run(ctx, selection.Plan, setup.Inputs, setup.Options)
+	if err != nil || receipt.Terminal.TerminalCode != "SIMULATION_COMPLETE" {
+		t.Fatalf("served stored Manager Change run terminal=%+v err=%v", receipt.Terminal, err)
+	}
+	if _, found, err := store.ResolveActiveDefinition(ctx, tenant, d.IntentType, map[string]string{"change_kind": "TRANSFER"}, at); err != nil || found {
+		t.Fatalf("non-matching predicate selected a workflow: found %v, err %v", found, err)
+	}
+	if _, found, err := readerStore.ResolveActiveDefinition(ctx, uuid.New(), d.IntentType, map[string]string{"change_kind": "MANAGER"}, at); err != nil || found {
+		t.Fatalf("cross-tenant workflow selected: found %v, err %v", found, err)
 	}
 }

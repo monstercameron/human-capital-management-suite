@@ -5,7 +5,7 @@
 // tenant key-encryption key (KEK); the root custody key reference is retained
 // as the root of the hierarchy but is never resolved by this package. A
 // ciphertext carries only opaque custody output and a header binding tenant,
-// KEK version, and DEK identity.
+// object identity, KEK version, and DEK identity.
 package envelope
 
 import (
@@ -36,6 +36,7 @@ var (
 	ErrTenantMismatch    = errors.New("envelope: tenant separation check failed")
 	ErrKeyUnavailable    = errors.New("envelope: tenant key is unavailable")
 	ErrKeyRotation       = errors.New("envelope: key rotation failed")
+	ErrObjectMismatch    = errors.New("envelope: object identity check failed")
 )
 
 // Header is authenticated as AES-GCM additional data. KEKID and KEKVersion
@@ -43,6 +44,7 @@ var (
 type Header struct {
 	Version    int    `json:"version"`
 	Tenant     string `json:"tenant"`
+	ObjectID   string `json:"object_id,omitempty"`
 	KEKID      string `json:"kek_id"`
 	KEKVersion string `json:"kek_version"`
 	DEKID      string `json:"dek_id"`
@@ -175,7 +177,7 @@ func (m *Manager) Encrypt(ctx custody.Context, objectID string, plaintext []byte
 	if err != nil {
 		return Envelope{}, Evidence{}, fmt.Errorf("%w: generate DEK id: %v", ErrInvalidRequest, err)
 	}
-	header := Header{Version: Version, Tenant: ctx.Tenant, KEKID: kek.ID, KEKVersion: kek.Version, DEKID: "dek-" + hex.EncodeToString(dekIDBytes), Algorithm: dataAlgorithm, Nonce: nonce}
+	header := Header{Version: Version, Tenant: ctx.Tenant, ObjectID: objectID, KEKID: kek.ID, KEKVersion: kek.Version, DEKID: "dek-" + hex.EncodeToString(dekIDBytes), Algorithm: dataAlgorithm, Nonce: nonce}
 	aad, err := headerBytes(header)
 	if err != nil {
 		return Envelope{}, Evidence{}, err
@@ -198,8 +200,12 @@ func (m *Manager) Seal(ctx custody.Context, objectID string, plaintext []byte) (
 }
 
 // Decrypt authenticates the header and opens an envelope only when its
-// tenant, KEK reference, and custody context all agree.
-func (m *Manager) Decrypt(ctx custody.Context, envelope Envelope) ([]byte, Evidence, error) {
+// tenant, KEK reference, and custody context all agree. Object-bound
+// envelopes require the expected objectID so a caller cannot accidentally
+// open a valid envelope belonging to another object. The optional argument
+// preserves source compatibility and supports legacy envelopes whose header
+// predates object identity binding.
+func (m *Manager) Decrypt(ctx custody.Context, envelope Envelope, objectID ...string) ([]byte, Evidence, error) {
 	if err := m.validateContext(ctx); err != nil {
 		return nil, Evidence{}, err
 	}
@@ -208,6 +214,12 @@ func (m *Manager) Decrypt(ctx custody.Context, envelope Envelope) ([]byte, Evide
 	}
 	if envelope.Header.Tenant != ctx.Tenant || envelope.WrappedDEK.Handle.Tenant != ctx.Tenant {
 		return nil, Evidence{}, ErrTenantMismatch
+	}
+	if (len(objectID) == 0 && envelope.Header.ObjectID != "") || len(objectID) > 1 || (len(objectID) == 1 && (strings.TrimSpace(objectID[0]) == "" || envelope.Header.ObjectID != objectID[0])) {
+		return nil, Evidence{}, fmt.Errorf("%w: %w: expected %q, envelope names %q", ErrInvalidCiphertext, ErrObjectMismatch, firstObjectID(objectID), envelope.Header.ObjectID)
+	}
+	if len(objectID) == 1 && envelope.Header.ObjectID == "" {
+		return nil, Evidence{}, fmt.Errorf("%w: %w: legacy envelope has no object identity", ErrInvalidCiphertext, ErrObjectMismatch)
 	}
 	kek, err := m.keyFor(ctx.Tenant, envelope.Header.KEKID, envelope.Header.KEKVersion)
 	if err != nil {
@@ -243,8 +255,15 @@ func (m *Manager) Decrypt(ctx custody.Context, envelope Envelope) ([]byte, Evide
 }
 
 // Open is the concise alias for Decrypt.
-func (m *Manager) Open(ctx custody.Context, envelope Envelope) ([]byte, Evidence, error) {
-	return m.Decrypt(ctx, envelope)
+func (m *Manager) Open(ctx custody.Context, envelope Envelope, objectID ...string) ([]byte, Evidence, error) {
+	return m.Decrypt(ctx, envelope, objectID...)
+}
+
+func firstObjectID(ids []string) string {
+	if len(ids) == 0 {
+		return ""
+	}
+	return ids[0]
 }
 
 // RotateKEK rotates the current tenant KEK through custody and rewraps the
@@ -417,10 +436,11 @@ func headerBytes(header Header) ([]byte, error) {
 	data, err := json.Marshal(struct {
 		Version   int    `json:"version"`
 		Tenant    string `json:"tenant"`
+		ObjectID  string `json:"object_id,omitempty"`
 		DEKID     string `json:"dek_id"`
 		Algorithm string `json:"algorithm"`
 		Nonce     []byte `json:"nonce"`
-	}{Version: header.Version, Tenant: header.Tenant, DEKID: header.DEKID, Algorithm: header.Algorithm, Nonce: header.Nonce})
+	}{Version: header.Version, Tenant: header.Tenant, ObjectID: header.ObjectID, DEKID: header.DEKID, Algorithm: header.Algorithm, Nonce: header.Nonce})
 	if err != nil {
 		return nil, fmt.Errorf("%w: encode authenticated header: %v", ErrInvalidCiphertext, err)
 	}
@@ -438,5 +458,5 @@ func randomBytes(n int) ([]byte, error) {
 // Explain describes the hierarchy and its security boundary for policy and
 // operator evidence.
 func Explain() string {
-	return "envelope: root custody key reference -> tenant KEK versions -> per-object AES-GCM DEKs; DEKs are wrapped through custody, headers bind tenant/KEK version/DEK id, and KEK rotation rewraps without re-encrypting data"
+	return "envelope: root custody key reference -> tenant KEK versions -> per-object AES-GCM DEKs; DEKs are wrapped through custody, headers bind tenant/object/KEK version/DEK id, and KEK rotation rewraps without re-encrypting data"
 }

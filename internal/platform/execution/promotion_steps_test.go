@@ -260,6 +260,16 @@ func TestTodo_WF_RUN_034_Security(t *testing.T) {
 	}
 }
 
+func TestTodo_REV_057_01_TransactionalStepRequiresRecordedAt(t *testing.T) {
+	runner := promotionStepRunner{plan: PLAN_EXECUTE, ports: &promotionStepPorts{}}
+	_, _, err := runner.RunInTx(context.Background(), nil, execute.StepRequest{
+		Node: workflow.CompiledNode{ID: promotionexec.NodeRaiseThreshold},
+	})
+	if err == nil || !strings.Contains(err.Error(), "transactional step raise_threshold has no recorded_at instant") {
+		t.Fatalf("RunInTx without RecordedAt = %v, want a fail-closed timestamp diagnostic", err)
+	}
+}
+
 // TestTodo_WF_RUN_034_Fault proves the commit runs only inside the advance
 // transaction, a refused commit authorization or an unresolvable command
 // fails the node (routing its compiled failure route), and an observation

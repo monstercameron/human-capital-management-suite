@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -72,16 +73,30 @@ func TestTodo_TX_005_Golden(t *testing.T) {
 }
 
 func TestTodo_TX_005_Race(t *testing.T) {
-	// The resolver is a read-only deterministic function of one committed
-	// snapshot. Repeating it proves no lookup can create a second effect.
+	// Concurrent readers of one durable snapshot must agree on the recovery
+	// decision and evidence, even while callers resolve it at the same time.
 	db, prepared, tenant := recoveryFixture(t)
-	for i := 0; i < 8; i++ {
-		result, err := recovery.Resolve(context.Background(), db.Conn, recovery.Request{Tenant: tenant, PlanID: prepared.PlanID, Key: prepared.IdempotencyKey})
-		if err != nil {
-			t.Fatalf("lookup %d: %v", i, err)
+	const workers = 8
+	start := make(chan struct{})
+	results := make([]recovery.Result, workers)
+	errs := make([]error, workers)
+	var wg sync.WaitGroup
+	for i := range results {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			results[i], errs[i] = recovery.Resolve(context.Background(), db.Conn, recovery.Request{Tenant: tenant, PlanID: prepared.PlanID, Key: prepared.IdempotencyKey})
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	for i, result := range results {
+		if errs[i] != nil {
+			t.Fatalf("concurrent lookup %d: %v", i, errs[i])
 		}
-		if result.Outcome != recovery.OutcomeNotCommitted {
-			t.Fatalf("lookup %d outcome = %q, want NOT_COMMITTED", i, result.Outcome)
+		if result.Outcome != recovery.OutcomeNotCommitted || len(result.Evidence.LedgerEvents) != 0 || result.Evidence.IdempotencyFound {
+			t.Fatalf("concurrent lookup %d = %+v, want stable absent outcome", i, result)
 		}
 	}
 }

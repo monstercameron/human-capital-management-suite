@@ -54,6 +54,9 @@ var (
 	// ErrProviderAcceptanceNotCompletion is returned when a caller tries to
 	// satisfy a delivery requirement without a qualifying receipt.
 	ErrProviderAcceptanceNotCompletion = errors.New("messagingmeta: provider acceptance is not business completion")
+	// ErrReplyRequiresThread is returned when an intent that expects a human
+	// response has no canonical conversation thread on its recipient copy.
+	ErrReplyRequiresThread = errors.New("messagingmeta: response-required recipient message must be bound to a conversation thread")
 	// ErrInvalidEnum is returned for a value outside its declared set.
 	ErrInvalidEnum = errors.New("messagingmeta: value outside its declared set")
 	// ErrInvalidInterval is returned for a reversed or empty interval.
@@ -283,19 +286,20 @@ func LoadDeliveryEndpoint(ctx context.Context, q dbport.Querier, tenantID, endpo
 // RecipientMessage is one recipient's independent copy of an intent, with its
 // own lifecycle.
 type RecipientMessage struct {
-	TenantID            uuid.UUID  `json:"tenant_id"`
-	RecipientMessageID  uuid.UUID  `json:"recipient_message_id"`
-	MessageIntentID     uuid.UUID  `json:"message_intent_id"`
-	RecipientRef        string     `json:"recipient_ref"`
-	EndpointID          uuid.UUID  `json:"endpoint_id"`
-	RenderedDigest      string     `json:"rendered_digest"`
-	Classification      string     `json:"classification"`
-	CorrelationKey      string     `json:"correlation_key"`
-	RecipientState      string     `json:"recipient_state"`
-	SatisfactionState   string     `json:"satisfaction_state"`
-	SatisfyingReceiptID *uuid.UUID `json:"satisfying_receipt_id"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
+	TenantID             uuid.UUID  `json:"tenant_id"`
+	RecipientMessageID   uuid.UUID  `json:"recipient_message_id"`
+	MessageIntentID      uuid.UUID  `json:"message_intent_id"`
+	ConversationThreadID *uuid.UUID `json:"conversation_thread_id,omitempty"`
+	RecipientRef         string     `json:"recipient_ref"`
+	EndpointID           uuid.UUID  `json:"endpoint_id"`
+	RenderedDigest       string     `json:"rendered_digest"`
+	Classification       string     `json:"classification"`
+	CorrelationKey       string     `json:"correlation_key"`
+	RecipientState       string     `json:"recipient_state"`
+	SatisfactionState    string     `json:"satisfaction_state"`
+	SatisfyingReceiptID  *uuid.UUID `json:"satisfying_receipt_id"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
 func (r RecipientMessage) Validate() error {
@@ -330,16 +334,23 @@ func InsertRecipientMessage(ctx context.Context, tx dbport.Tx, r RecipientMessag
 	if err := ensureTenant(ctx, tx, r.TenantID); err != nil {
 		return err
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO recipient_message (tenant_id, recipient_message_id, message_intent_id, recipient_ref, endpoint_id, rendered_digest, classification, correlation_key, recipient_state, satisfaction_state, satisfying_receipt_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-		r.TenantID, r.RecipientMessageID, r.MessageIntentID, r.RecipientRef, r.EndpointID, r.RenderedDigest, r.Classification, r.CorrelationKey, r.RecipientState, r.SatisfactionState, r.SatisfyingReceiptID, r.CreatedAt, r.UpdatedAt)
+	var responseRequirement string
+	if err := tx.QueryRow(ctx, `SELECT response_requirement FROM message_intent WHERE tenant_id=$1 AND message_intent_id=$2`, r.TenantID, r.MessageIntentID).Scan(&responseRequirement); err != nil {
+		return fmt.Errorf("messagingmeta: load response requirement for message intent %s: %w", r.MessageIntentID, err)
+	}
+	if responseRequirement != "NONE" && r.ConversationThreadID == nil {
+		return ErrReplyRequiresThread
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO recipient_message (tenant_id, recipient_message_id, message_intent_id, conversation_thread_id, recipient_ref, endpoint_id, rendered_digest, classification, correlation_key, recipient_state, satisfaction_state, satisfying_receipt_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+		r.TenantID, r.RecipientMessageID, r.MessageIntentID, r.ConversationThreadID, r.RecipientRef, r.EndpointID, r.RenderedDigest, r.Classification, r.CorrelationKey, r.RecipientState, r.SatisfactionState, r.SatisfyingReceiptID, r.CreatedAt, r.UpdatedAt)
 	return err
 }
 
 func LoadRecipientMessage(ctx context.Context, q dbport.Querier, tenantID, messageID uuid.UUID) (RecipientMessage, error) {
 	var r RecipientMessage
 	var receipt *uuid.UUID
-	err := q.QueryRow(ctx, `SELECT tenant_id, recipient_message_id, message_intent_id, recipient_ref, endpoint_id, rendered_digest, classification, correlation_key, recipient_state, satisfaction_state, satisfying_receipt_id, created_at, updated_at FROM recipient_message WHERE tenant_id=$1 AND recipient_message_id=$2`, tenantID, messageID).
-		Scan(&r.TenantID, &r.RecipientMessageID, &r.MessageIntentID, &r.RecipientRef, &r.EndpointID, &r.RenderedDigest, &r.Classification, &r.CorrelationKey, &r.RecipientState, &r.SatisfactionState, &receipt, &r.CreatedAt, &r.UpdatedAt)
+	err := q.QueryRow(ctx, `SELECT tenant_id, recipient_message_id, message_intent_id, conversation_thread_id, recipient_ref, endpoint_id, rendered_digest, classification, correlation_key, recipient_state, satisfaction_state, satisfying_receipt_id, created_at, updated_at FROM recipient_message WHERE tenant_id=$1 AND recipient_message_id=$2`, tenantID, messageID).
+		Scan(&r.TenantID, &r.RecipientMessageID, &r.MessageIntentID, &r.ConversationThreadID, &r.RecipientRef, &r.EndpointID, &r.RenderedDigest, &r.Classification, &r.CorrelationKey, &r.RecipientState, &r.SatisfactionState, &receipt, &r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
 		return RecipientMessage{}, err
 	}

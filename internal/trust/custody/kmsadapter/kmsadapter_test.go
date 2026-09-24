@@ -343,7 +343,7 @@ func TestTodo_SECARCH_004_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plain, _, err := envelopeManager.Open(ctx, env)
+	plain, _, err := envelopeManager.Open(ctx, env, "object-1")
 	if err != nil || string(plain) != "confidential" {
 		t.Fatalf("envelope Open = %q, %v", plain, err)
 	}

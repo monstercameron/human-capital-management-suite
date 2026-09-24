@@ -40,6 +40,10 @@ func (discardSink) RecordInvocation(context.Context, capability.InvocationEviden
 	return "binding-probe", nil
 }
 
+func (sink discardSink) RecordInvocationTx(ctx context.Context, evt capability.InvocationEvidence) (string, error) {
+	return sink.RecordInvocation(ctx, evt)
+}
+
 // ProbeResultTypes invokes every capability in reg through the governed
 // gateway with a nil payload and an authorization that grants exactly the
 // scope the capability publishes, and reports what came back.

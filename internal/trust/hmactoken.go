@@ -41,6 +41,7 @@ type Claims struct {
 	Issuer               string   `json:"iss"`
 	Audience             string   `json:"aud"`
 	Subject              string   `json:"sub"`
+	ClientID             string   `json:"client_id,omitempty"`
 	SubjectKind          string   `json:"sub_kind"`
 	Tenant               string   `json:"tenant"`
 	OrganizationScopeID  string   `json:"org_scope,omitempty"`
@@ -239,6 +240,7 @@ func (v *HMACVerifier) Verify(_ context.Context, cred Credential) (*Principal, e
 	p, err := NewPrincipal(PrincipalSpec{
 		Tenant:               values.TenantId(claims.Tenant),
 		Subject:              claims.Subject,
+		ClientID:             claims.ClientID,
 		SubjectKind:          kind,
 		OrganizationScopeID:  claims.OrganizationScopeID,
 		Roles:                claims.Roles,

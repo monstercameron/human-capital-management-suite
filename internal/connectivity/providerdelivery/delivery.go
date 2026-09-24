@@ -26,10 +26,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/lease"
 )
 
 // Outcome is what the queue should do with a change after one attempt.
 type Outcome int
+
+// Purpose is one policy purpose used on outbound provider calls.
+type Purpose string
 
 const (
 	// Delivered: the provider accepted the change (202) or confirmed an
@@ -110,6 +117,22 @@ type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
+// providerDoer selects the enforcing gateway adapter when configured. The
+// injectable Doer remains available for deterministic provider protocol
+// fixtures; production composition supplies Gateway and workload identity.
+func providerDoer(gateway *egress.Gateway, client Doer, principal, tenant, purpose string, classes []dlp.DataClass, credentialLease *lease.CredentialLease) (Doer, error) {
+	if gateway == nil {
+		if client == nil {
+			return nil, errors.New("providerdelivery: Gateway or Client HTTP port is required")
+		}
+		return client, nil
+	}
+	if client != nil {
+		return nil, errors.New("providerdelivery: configure either Gateway or Client, not both")
+	}
+	return egress.NewHTTPDoer(gateway, purpose, principal, tenant, classes, credentialLease)
+}
+
 func noFollow(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 
 // sender is the transport shared by both clients.
@@ -121,15 +144,11 @@ type sender struct {
 	headers HeaderSource
 }
 
-// newSender applies defaults. Redirects are never followed: a *http.Client
-// is copied with CheckRedirect replaced, so a 3xx reaches classify and
-// becomes a Retry instead of the payload being re-sent to another location.
-// A custom Doer must itself refuse redirects; any 3xx it returns is still
-// classified as Retry.
+// newSender applies timing defaults. Redirects are never followed: an
+// injected *http.Client is copied with CheckRedirect replaced, so a 3xx
+// reaches classify instead of re-sending payloads to another location.
 func newSender(client Doer, timeout time.Duration, now func() time.Time) sender {
 	switch c := client.(type) {
-	case nil:
-		client = &http.Client{CheckRedirect: noFollow}
 	case *http.Client:
 		cp := *c
 		cp.CheckRedirect = noFollow
@@ -153,6 +172,9 @@ type response struct {
 // do sends one request (body nil for a GET). On a transport failure it
 // returns a Retry Result instead of a response.
 func (s sender) do(ctx context.Context, method, endpoint string, header http.Header, body []byte) (response, *Result) {
+	if s.client == nil {
+		return response{}, &Result{Outcome: Retry, Class: ClassTransientNetwork, Reason: "http_port_not_configured"}
+	}
 	var rd io.Reader = http.NoBody
 	if body != nil {
 		rd = bytes.NewReader(body)

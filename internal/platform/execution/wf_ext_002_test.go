@@ -30,8 +30,8 @@ import (
 // execute node set rather than a copied package.
 func TestTodo_WF_EXT_002(t *testing.T) {
 	regs := ShippedRegistrations()
-	if len(regs) != 4 {
-		t.Fatalf("ShippedRegistrations = %d entries, want 4 (prototype, execute v1.0, execute current, high-performer variant)", len(regs))
+	if len(regs) != 5 {
+		t.Fatalf("ShippedRegistrations = %d entries, want 5 (prototype, execute v1.0/v1.1/current, high-performer variant)", len(regs))
 	}
 	byName := map[string]WorkflowRegistration{}
 	for _, reg := range regs {
@@ -43,7 +43,7 @@ func TestTodo_WF_EXT_002(t *testing.T) {
 		}
 		byName[reg.Name] = reg
 	}
-	for _, name := range []string{"promotion-approval", "promotion-execute-v1.0", "promotion-execute", "promotion-high-performer"} {
+	for _, name := range []string{"promotion-approval", "promotion-execute-v1.0", "promotion-execute-v1.1", "promotion-execute", "promotion-high-performer"} {
 		if _, ok := byName[name]; !ok {
 			t.Fatalf("ShippedRegistrations carries no %q registration", name)
 		}
@@ -216,7 +216,7 @@ func TestTodo_WF_EXT_002(t *testing.T) {
 	if digests["promotion-execute"] == digests["promotion-high-performer"] {
 		t.Fatalf("variant digest equals the execute digest: the variant must differ by its market-rate node")
 	}
-	current, v1_0, variantPinned, prototypePinned := pinned[2], pinned[1], pinned[3], pinned[0]
+	current, v1_0, v1_1, variantPinned, prototypePinned := pinned[3], pinned[1], pinned[2], pinned[4], pinned[0]
 	resolve := func(pin string) string {
 		sel, err := resolver.ResolveWorkflow(context.Background(), runtime.StartRequest{PinnedCompiledPlanDigest: pin})
 		if err != nil {
@@ -229,6 +229,9 @@ func TestTodo_WF_EXT_002(t *testing.T) {
 	}
 	if got := resolve(v1_0.Pin.CompiledPlanDigest); got != v1_0.Pin.CompiledPlanDigest {
 		t.Fatalf("v1.0 continuation resolves %q, want %q", got, v1_0.Pin.CompiledPlanDigest)
+	}
+	if got := resolve(v1_1.Pin.CompiledPlanDigest); got != v1_1.Pin.CompiledPlanDigest {
+		t.Fatalf("v1.1 continuation resolves %q, want %q", got, v1_1.Pin.CompiledPlanDigest)
 	}
 	if got := resolve(variantPinned.Pin.CompiledPlanDigest); got != variantPinned.Pin.CompiledPlanDigest {
 		t.Fatalf("variant continuation resolves %q, want %q", got, variantPinned.Pin.CompiledPlanDigest)

@@ -237,7 +237,10 @@ func Verify(set BackupSet, publicKey ed25519.PublicKey, encryptionKey []byte, op
 		return fail("content-inventory", fmt.Errorf("%w: content hash mismatch", ErrInvalidBackup))
 	}
 	result.Checks = append(result.Checks, Check{Name: "content-inventory", Passed: true})
-	indices := sampleIndices(set.Manifest.BlockCount, opts.SampleCount, opts.SampleSeed, set.Manifest.Digest)
+	indices, err := sampleIndices(set.Manifest.BlockCount, opts.SampleCount, opts.SampleSeed)
+	if err != nil {
+		return fail("sample", fmt.Errorf("%w: sample selection: %v", ErrUnreadable, err))
+	}
 	result.SampledIndices = append([]int(nil), indices...)
 	if err := decryptSamples(set, encryptionKey, indices); err != nil {
 		return fail("decrypt-sample", err)
@@ -456,7 +459,7 @@ func decryptSamples(set BackupSet, key []byte, indices []int) error {
 	return nil
 }
 
-func sampleIndices(count, requested int, seed []byte, manifestDigest string) []int {
+func sampleIndices(count, requested int, seed []byte) ([]int, error) {
 	if requested <= 0 || requested > count {
 		requested = count
 		if requested > 3 {
@@ -464,7 +467,10 @@ func sampleIndices(count, requested int, seed []byte, manifestDigest string) []i
 		}
 	}
 	if len(seed) == 0 {
-		seed = []byte(manifestDigest)
+		seed = make([]byte, sha256.Size)
+		if _, err := io.ReadFull(rand.Reader, seed); err != nil {
+			return nil, err
+		}
 	}
 	type candidate struct {
 		index int
@@ -486,7 +492,7 @@ func sampleIndices(count, requested int, seed []byte, manifestDigest string) []i
 		indices[i] = candidates[i].index
 	}
 	sort.Ints(indices)
-	return indices
+	return indices, nil
 }
 
 func digest(value []byte) string {

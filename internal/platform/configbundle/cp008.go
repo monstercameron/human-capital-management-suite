@@ -112,12 +112,45 @@ type KillDecision struct {
 // KillSwitchStore is a concurrency-safe, in-memory control-plane and local
 // receiver. It retains switches and applied receipts; it never deletes them.
 type KillSwitchStore struct {
-	signer    ReceiptSigner
-	publicKey ed25519.PublicKey
-	now       func() time.Time
-	mu        sync.RWMutex
-	switches  map[string]SignedKillSwitch
-	receipts  map[string]AppliedKillSwitchReceipt
+	signer         ReceiptSigner
+	publicKey      ed25519.PublicKey
+	now            func() time.Time
+	mu             sync.RWMutex
+	switches       map[string]SignedKillSwitch
+	receipts       map[string]AppliedKillSwitchReceipt
+	persistApplied func(SignedKillSwitch, AppliedKillSwitchReceipt) error
+}
+
+// SetAppliedWriter installs the durable commit boundary. Apply publishes the
+// signed switch and receipt to this writer before exposing them as applied in
+// memory. Composition must install it before serving requests.
+func (s *KillSwitchStore) SetAppliedWriter(writer func(SignedKillSwitch, AppliedKillSwitchReceipt) error) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.persistApplied = writer
+	s.mu.Unlock()
+}
+
+// RestoreApplied rehydrates a durable applied record after verifying both
+// signatures and their shared identity. Conflicting records are rejected.
+func (s *KillSwitchStore) RestoreApplied(switchValue SignedKillSwitch, receipt AppliedKillSwitchReceipt) error {
+	if s == nil || s.signer == nil || switchValue.Verify(s.publicKey) != nil || receipt.Verify(s.publicKey) != nil ||
+		receipt.SwitchID != switchValue.Request.SwitchID || receipt.SwitchDigest != switchValue.Digest || receipt.Target != switchValue.Request.Target {
+		return ErrKillSwitchReceipt
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if prior, ok := s.switches[switchValue.Request.SwitchID]; ok && prior.Digest != switchValue.Digest {
+		return ErrKillSwitchConflict
+	}
+	if prior, ok := s.receipts[switchValue.Request.SwitchID]; ok && prior.Digest != receipt.Digest {
+		return ErrKillSwitchConflict
+	}
+	s.switches[switchValue.Request.SwitchID] = cloneSignedKillSwitch(switchValue)
+	s.receipts[switchValue.Request.SwitchID] = cloneKillSwitchReceipt(receipt)
+	return nil
 }
 
 // NewKillSwitchStore creates a pure store. The public key is optional for
@@ -228,6 +261,11 @@ func (s *KillSwitchStore) Apply(switchValue SignedKillSwitch, appliedAt ...time.
 	if prior, ok := s.receipts[switchValue.Request.SwitchID]; ok {
 		return cloneKillSwitchReceipt(prior), nil
 	}
+	if s.persistApplied != nil {
+		if err := s.persistApplied(cloneSignedKillSwitch(switchValue), cloneKillSwitchReceipt(receipt)); err != nil {
+			return AppliedKillSwitchReceipt{}, fmt.Errorf("configbundle: persist applied kill switch: %w", err)
+		}
+	}
 	s.switches[switchValue.Request.SwitchID] = cloneSignedKillSwitch(switchValue)
 	s.receipts[switchValue.Request.SwitchID] = cloneKillSwitchReceipt(receipt)
 	return cloneKillSwitchReceipt(receipt), nil
@@ -252,6 +290,23 @@ func (s *KillSwitchStore) Evaluate(subject KillSwitchTarget, now time.Time) Kill
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.evaluateLocked(subject, now)
+}
+
+// Guard evaluates the applied CP-008 state and runs proceed while the
+// switch state is read-locked. Applying a switch therefore cannot race past
+// a guarded stage transition.
+func (s *KillSwitchStore) Guard(subject KillSwitchTarget, proceed func(KillDecision) error) error {
+	if s == nil || proceed == nil {
+		return ErrKillSwitchInvalid
+	}
+	s.mu.RLock()
+	now := s.now().UTC()
+	defer s.mu.RUnlock()
+	return proceed(s.evaluateLocked(subject, now))
+}
+
+func (s *KillSwitchStore) evaluateLocked(subject KillSwitchTarget, now time.Time) KillDecision {
 	var candidates []SignedKillSwitch
 	for id, switchValue := range s.switches {
 		if _, applied := s.receipts[id]; !applied || !switchValue.Request.Target.Matches(subject) || !now.Before(switchValue.Request.ExpiresAt) {

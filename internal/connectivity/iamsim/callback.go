@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/webhook"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
 )
 
 // ResultEvent is the callback body; its marshalled bytes are exactly what is
@@ -174,7 +177,23 @@ func (s *Server) attempt(ctx context.Context, ch *change, d *delivery, eventID, 
 	req.Header.Set("Webhook-Tenant", ch.req.Tenant)
 	req.Header.Set("Webhook-Signature", sig)
 	d.echo.ApplyEcho(req.Header)
-	resp, err := s.client.Do(req)
+	var resp *http.Response
+	if s.gateway != nil {
+		result, gatewayErr := s.gateway.Do(ctx, egress.Request{
+			Method: http.MethodPost, Target: ch.req.CallbackURL,
+			Purpose: "iamsim_callback_delivery", Principal: "iamsim_callback",
+			Tenant: ch.req.Tenant, Payload: body, DataClasses: []dlp.DataClass{dlp.ClassPII},
+			Headers: req.Header, NoRedirect: true,
+		})
+		if gatewayErr != nil {
+			return 0, gatewayErr
+		}
+		resp = result.Response
+	} else if s.client != nil {
+		resp, err = s.client.Do(req)
+	} else {
+		return 0, errors.New("iamsim: callback HTTP port is not configured")
+	}
 	if err != nil {
 		return 0, err
 	}

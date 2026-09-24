@@ -2,6 +2,7 @@ package workload
 
 import (
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -39,9 +40,39 @@ func TestTodo_IAC_005_Golden(t *testing.T) {
 
 func TestTodo_IAC_005_Race(t *testing.T) {
 	m := validManifest()
-	for i := 0; i < 20; i++ {
-		if err := Check(m); err != nil {
-			t.Fatal(err)
+	want, err := Digest(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const workers = 20
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	digests := make(chan string, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := Check(m); err != nil {
+				errs <- err
+				return
+			}
+			digest, err := Digest(m)
+			if err != nil {
+				errs <- err
+				return
+			}
+			digests <- digest
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	close(digests)
+	for err := range errs {
+		t.Error(err)
+	}
+	for got := range digests {
+		if got != want {
+			t.Errorf("concurrent digest=%q, want %q", got, want)
 		}
 	}
 }

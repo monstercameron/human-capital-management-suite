@@ -2,6 +2,7 @@ package revalidation
 
 import (
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -102,14 +103,35 @@ func TestTodo_CONFIG_010_Race(t *testing.T) {
 	if err := r.Put(w); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 20; i++ {
-		if _, err := r.Revalidate(w.ID, current, graph); err != nil {
+	current[0].Active = false
+	var wg sync.WaitGroup
+	decisions := make(chan Decision, 20)
+	errs := make(chan error, 20)
+	for i := 0; i < cap(decisions); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			decision, err := r.Revalidate(w.ID, current, graph)
+			decisions <- decision
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(decisions)
+	close(errs)
+	for err := range errs {
+		if err != nil {
 			t.Fatal(err)
 		}
 	}
+	for decision := range decisions {
+		if decision.Status != StatusInvalidated || decision.FenceToken == 0 {
+			t.Fatalf("concurrent decision = %+v", decision)
+		}
+	}
 	stored, ok := r.Get(w.ID)
-	if !ok || stored.FenceToken != 0 {
-		t.Fatalf("unchanged workload unexpectedly fenced: %+v", stored)
+	if !ok || stored.FenceToken != 20 || !stored.Fenced {
+		t.Fatalf("concurrent revocations lost a fence update: %+v", stored)
 	}
 }
 

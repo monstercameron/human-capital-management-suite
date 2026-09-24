@@ -12,6 +12,11 @@
 //	migrate chat status report the chat schema version and per-migration state
 //	migrate document up apply the independent document database's migration set
 //	migrate document status report the document schema version
+//	migrate document seed load the HarborCare demo document library (-tenant
+//	defaults to harborcare-demo; personas come from -database-url)
+//	migrate document embed enqueue meaning-search index jobs for -tenant with
+//	the model named by HCMNEXT_EMBEDDING_DIR (or HCMNEXT_EMBEDDING_URL and
+//	HCMNEXT_EMBEDDING_MODEL); -drain also runs the indexer until done
 //	migrate seed    load the deterministic Promotion fixture for -tenant
 //	migrate demo-people load HarborCare's demo workforce and processed photos
 //	migrate upgrade drive one rolling schema/binary upgrade through the
@@ -62,11 +67,14 @@ const (
 	fieldPhotoSource = "photo-source"
 	// The chat seed's own flags. They live beside the other seed flags because
 	// bootstrap declares one flag set per role, not one per subcommand.
-	fieldChatSeedScale     = "scale"
-	fieldChatSeedReset     = "reset"
-	fieldChatSeedMediaRoot = "chat-media-root"
-	fieldAssetDir          = "asset-dir"
-	fieldOriginalDir       = "original-dir"
+	fieldChatSeedScale = "scale"
+	fieldChatSeedReset = "reset"
+	// fieldDocumentEmbedDrain makes `document embed` run the indexer in
+	// process until the queue is empty.
+	fieldDocumentEmbedDrain = "drain"
+	fieldChatSeedMediaRoot  = "chat-media-root"
+	fieldAssetDir           = "asset-dir"
+	fieldOriginalDir        = "original-dir"
 )
 
 // migrationTimeout bounds one migrate invocation, matching the original
@@ -146,6 +154,12 @@ func migrateConfigFields() []bootstrap.Field {
 			Default: "full",
 		},
 		{
+			Name:    fieldDocumentEmbedDrain,
+			Usage:   "document embed: run the indexer in process until the queue is empty",
+			Kind:    bootstrap.KindBool,
+			Default: "false",
+		},
+		{
 			Name:    fieldChatSeedReset,
 			Usage:   "chat seed: wipe and recreate the demo rooms instead of refusing when they exist",
 			Kind:    bootstrap.KindBool,
@@ -193,7 +207,7 @@ func spec(command string, rest []string) bootstrap.Spec {
 	return bootstrap.Spec{
 		Role:         bootstrap.RoleMigrate,
 		Args:         rest,
-		ConfigFields: migrateConfigFields(),
+		ConfigFields: append(migrateConfigFields(), documentPruneFields()...),
 		Validate:     validateConfig(command),
 		// No DatabaseURLField/DBPoolFactory: Goose and schema.Journal both
 		// need a database/sql.DB (via pgx's stdlib adapter), not
@@ -256,6 +270,19 @@ func spec(command string, rest []string) bootstrap.Spec {
 						return runChatMigrateCommand(ctx, action, db, os.Stdout)
 					}
 					if action := documentSubcommand(command); action != "" || command == documentCommandPrefix {
+						if action == "seed" {
+							return runDocumentSeedAction(ctx, deps.Values.String(fieldDocumentDatabaseURL), url, deps.Values.String(fieldChatDatabaseURL), deps.Values.String(fieldTenant), os.Stdout)
+						}
+						if action == "prune" {
+							return runDocumentPruneAction(ctx, deps.Values, url, os.Stdout)
+						}
+						if action == "embed" {
+							drain, drainErr := deps.Values.Bool(fieldDocumentEmbedDrain)
+							if drainErr != nil {
+								return drainErr
+							}
+							return runDocumentEmbedAction(ctx, deps.Values.String(fieldDocumentDatabaseURL), url, deps.Values.String(fieldChatDatabaseURL), deps.Values.String(fieldTenant), drain, os.Getenv, os.Stdout)
+						}
 						db, err := openDocumentMigrateDB(ctx, deps.Values.String(fieldDocumentDatabaseURL))
 						if err != nil {
 							return err
@@ -335,9 +362,9 @@ func validateConfig(command string) func(*bootstrap.Values) error {
 			// database, so it is validated without a database URL.
 			return nil
 		case "":
-			return fmt.Errorf("usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status|document up|document status")
+			return fmt.Errorf("usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status|document up|document status|document seed|document embed")
 		default:
-			return fmt.Errorf("unknown command %q; usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status|document up|document status", command)
+			return fmt.Errorf("unknown command %q; usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status|document up|document status|document seed|document embed", command)
 		}
 		if v.String("database-url") == "" {
 			return fmt.Errorf("%s is not set; pass -database-url or set the environment variable", EnvDatabaseURL)

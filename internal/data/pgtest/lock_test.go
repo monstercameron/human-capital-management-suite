@@ -139,7 +139,15 @@ func TestWithDirectoryLockPropagatesFnError(t *testing.T) {
 func TestWithDirectoryLockRetriesWhileHeld(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	opts := lockOptions{poll: 15 * time.Millisecond, wait: 5 * time.Second, staleAge: time.Hour}
+	enteredWait := make(chan struct{}, 1)
+	releaseWait := make(chan struct{})
+	opts := lockOptions{
+		poll: 15 * time.Millisecond, wait: 5 * time.Second, staleAge: time.Hour,
+		sleep: func(time.Duration) {
+			enteredWait <- struct{}{}
+			<-releaseWait
+		},
+	}
 
 	lockPath := filepath.Join(dir, "prepare.lock")
 	if err := os.WriteFile(lockPath, []byte("held by another process"), 0o644); err != nil {
@@ -156,10 +164,11 @@ func TestWithDirectoryLockRetriesWhileHeld(t *testing.T) {
 	}()
 
 	select {
+	case <-enteredWait:
 	case err := <-done:
 		t.Fatalf("withDirectoryLockOpts returned (err=%v) while the lock was still held; it must wait", err)
-	case <-time.After(150 * time.Millisecond):
-		// Still (correctly) blocked.
+	case <-time.After(3 * time.Second):
+		t.Fatal("withDirectoryLockOpts did not reach its retry wait")
 	}
 	if atomic.LoadInt32(&called) != 0 {
 		t.Fatal("fn ran before the held lock was released")
@@ -168,6 +177,7 @@ func TestWithDirectoryLockRetriesWhileHeld(t *testing.T) {
 	if err := os.Remove(lockPath); err != nil {
 		t.Fatalf("release held lock: %v", err)
 	}
+	close(releaseWait)
 
 	select {
 	case err := <-done:
@@ -197,12 +207,17 @@ func TestWithDirectoryLockTimesOutWithClearError(t *testing.T) {
 	}
 
 	called := false
-	start := time.Now()
+	now := time.Unix(100, 0)
+	waits := 0
+	opts.now = func() time.Time { return now }
+	opts.sleep = func(d time.Duration) {
+		waits++
+		now = now.Add(d)
+	}
 	err := withDirectoryLockOpts(dir, opts, func() error {
 		called = true
 		return nil
 	})
-	elapsed := time.Since(start)
 
 	if err == nil {
 		t.Fatal("expected a timeout error while the lock file is held for longer than the wait budget")
@@ -213,8 +228,8 @@ func TestWithDirectoryLockTimesOutWithClearError(t *testing.T) {
 	if !strings.Contains(err.Error(), lockPath) {
 		t.Fatalf("error %q does not name the lock path %q", err.Error(), lockPath)
 	}
-	if elapsed > 2*time.Second {
-		t.Fatalf("withDirectoryLockOpts took %s to give up on a 100ms wait budget; retries are not bounded", elapsed)
+	if waits == 0 || now.Before(time.Unix(100, 0).Add(opts.wait)) {
+		t.Fatalf("lock wait did not advance through the configured %s timeout: waits=%d now=%s", opts.wait, waits, now)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/admission"
 )
 
@@ -21,6 +22,10 @@ const DefaultLease = 30 * time.Second
 
 // DefaultBatchSize bounds how many messages one Poll claims at a time.
 const DefaultBatchSize = 32
+
+// CompensationHoldDelay bounds how quickly an early compensation is checked
+// again while keeping it pending without consuming a delivery attempt.
+const CompensationHoldDelay = time.Second
 
 // Beginner opens transactions. A pooled handle and a single connection both
 // implement it.
@@ -132,6 +137,41 @@ func NewConsumer(db Beginner, opts ...ConsumerOption) *Consumer {
 		opt(c)
 	}
 	return c
+}
+
+// EffectDelivered reports whether the tenant-scoped outbox row for one
+// effect identity has been acknowledged. The leased worker uses this as the
+// durable prerequisite for applying a compensating effect after its original.
+func (c *Consumer) EffectDelivered(ctx context.Context, tenant uuid.UUID, effectIdentity string) (bool, error) {
+	if err := c.validate(); err != nil {
+		return false, err
+	}
+	if tenant == uuid.Nil || effectIdentity == "" {
+		return false, fmt.Errorf("outbox: delivered effect lookup requires tenant and effect identity")
+	}
+	tx, err := c.db.Begin(ctx)
+	if err != nil {
+		return false, fmt.Errorf("outbox: delivered effect lookup: begin: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
+		return false, fmt.Errorf("outbox: delivered effect lookup: scope: %w", err)
+	}
+	var status string
+	err = tx.QueryRow(ctx, `SELECT status FROM outbox WHERE tenant_id=$1 AND effect_identity=$2`, tenant, effectIdentity).Scan(&status)
+	if err != nil && !errors.Is(err, dbport.ErrNoRows) {
+		return false, fmt.Errorf("outbox: delivered effect lookup: read: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, fmt.Errorf("outbox: delivered effect lookup: commit: %w", err)
+	}
+	committed = true
+	return status == StatusDelivered, nil
 }
 
 func (c *Consumer) validate() error {
@@ -665,6 +705,17 @@ func (c *Consumer) Run(ctx context.Context, tenant uuid.UUID, handler Handler, p
 			continue
 		}
 		for _, msg := range batch {
+			if original, compensation := IdentityCompensationLink(msg); compensation {
+				applied, lookupErr := c.EffectDelivered(ctx, tenant, original)
+				if lookupErr != nil {
+					_ = c.FailLease(ctx, tenant, msg.OutboxID, msg.LeaseToken, lookupErr)
+					continue
+				}
+				if !applied {
+					_ = c.Defer(ctx, tenant, msg.OutboxID, msg.LeaseToken, c.now().Add(CompensationHoldDelay), "original effect has not been delivered")
+					continue
+				}
+			}
 			if err := handler(ctx, msg); err != nil {
 				_ = c.FailLease(ctx, tenant, msg.OutboxID, msg.LeaseToken, err)
 				continue

@@ -55,7 +55,10 @@ func newTestServer(t *testing.T, mutate func(*Config)) (*Server, *fakeSleep) {
 	fs := &fakeSleep{}
 	sc := DefaultScenario()
 	sc.ApplyDelayMS = 0
-	cfg := Config{Secret: []byte(testSecret), APIKey: testAPIKey, Scenario: &sc, Sleep: fs.sleep}
+	cfg := Config{
+		Secret: []byte(testSecret), APIKey: testAPIKey, Scenario: &sc, Sleep: fs.sleep,
+		HTTPClient: &http.Client{Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+	}
 	if mutate != nil {
 		mutate(&cfg)
 	}
@@ -67,6 +70,17 @@ func newTestServer(t *testing.T, mutate func(*Config)) (*Server, *fakeSleep) {
 		_ = s.Shutdown(ctx)
 	})
 	return s, fs
+}
+
+func TestTodo_REV_033_02_SimulatorNoDefaultClient(t *testing.T) {
+	s := New(Config{Secret: []byte(testSecret)})
+	if s.client != nil {
+		t.Fatal("simulator constructed an outbound client without an injected port or egress gateway")
+	}
+	ch := &change{req: PayChangeRequest{CallbackURL: "https://receiver.example.test/callback", Tenant: "tenant-1"}}
+	if _, err := s.attempt(context.Background(), ch, &delivery{}, "event-1", EventApplied, []byte("{}")); err == nil {
+		t.Fatal("callback without an outbound port unexpectedly succeeded")
+	}
 }
 
 // drain waits for all background processing and delivery to finish.

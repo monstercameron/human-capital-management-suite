@@ -22,8 +22,9 @@
 // adversarial by construction. [Store.Bind] is the only path a
 // reply_binding row can leave UNRESOLVED: it looks up the recipient_message
 // that the channel's own correlation token names, and only reaches BOUND
-// when that message exists in this same tenant and belongs to the
-// participant claimed to be replying. Any other outcome -- no match, a
+// when that message exists in this same tenant, belongs to the participant
+// claimed to be replying, and has the exact thread id claimed by the inbound
+// receipt (migration 00362). Any other outcome -- no match, a
 // token that happens to belong to a different tenant (which simply never
 // appears in a tenant-scoped lookup) or to a different participant's
 // message -- reaches REJECTED with a reason, never BOUND. The schema itself
@@ -40,13 +41,10 @@
 //
 // # Thread visibility
 //
-// [Store.ListThread] proves that a participant sees only threads they
-// belong to. It checks migration 00031's thread_participant membership
-// before running any query against inbound_message, and a caller who is not
-// an active participant of the named thread observes an empty result with
-// no error -- indistinguishable from a thread that exists but has no
-// messages, or does not exist at all, exactly the non-leaking shape
-// internal/data/inbox already uses for a wrong subject.
+// [Store.ListThread] checks active migration 00031 thread_participant
+// membership and only returns messages whose binding is BOUND to a
+// recipient_message carrying the same canonical thread id (migration 00362).
+// A forged thread claim or unresolved/rejected reply is invisible.
 //
 // # Executor
 //
@@ -86,6 +84,10 @@ var (
 	// ErrAlreadyResolved reports a Bind attempted against a binding that has
 	// already left UNRESOLVED. A binding resolves exactly once.
 	ErrAlreadyResolved = errors.New("inboundmsg: binding already resolved")
+
+	// ErrReplayConflict reports provider reuse of one message identity for
+	// different immutable receipt bytes or correlation metadata.
+	ErrReplayConflict = errors.New("inboundmsg: provider message replay conflicts with stored receipt")
 )
 
 // Reply-binding states reply_binding.state may hold.
@@ -240,6 +242,16 @@ func (s Store) Ingest(ctx context.Context, ex Executor, in InboundMessage, corre
 		if loadErr != nil {
 			return InboundMessage{}, false, loadErr
 		}
+		if !sameInboundReceipt(existing, in) {
+			return InboundMessage{}, false, fmt.Errorf("%w: %s/%s", ErrReplayConflict, in.Channel, in.ProviderMessageID)
+		}
+		binding, loadErr := s.LoadBinding(ctx, ex, in.TenantID, existing.InboundMessageID)
+		if loadErr != nil {
+			return InboundMessage{}, false, loadErr
+		}
+		if binding.CorrelationToken != correlationToken {
+			return InboundMessage{}, false, fmt.Errorf("%w: correlation token changed for %s/%s", ErrReplayConflict, in.Channel, in.ProviderMessageID)
+		}
 		return existing, false, nil
 	}
 	in.InboundMessageID = stored
@@ -251,6 +263,15 @@ func (s Store) Ingest(ctx context.Context, ex Executor, in InboundMessage, corre
 		return InboundMessage{}, false, fmt.Errorf("inboundmsg: seed binding for %s: %w", in.InboundMessageID, err)
 	}
 	return in, true, nil
+}
+
+func sameInboundReceipt(stored, candidate InboundMessage) bool {
+	return stored.ThreadID == candidate.ThreadID &&
+		stored.SenderEndpointDigest == candidate.SenderEndpointDigest &&
+		stored.ReceivedAt.Equal(candidate.ReceivedAt) &&
+		stored.ContentDigest == candidate.ContentDigest &&
+		stored.ContentRef == candidate.ContentRef &&
+		stored.Classification == candidate.Classification
 }
 
 // LoadMessage returns one inbound message by its id.
@@ -355,12 +376,14 @@ func (s Store) Bind(ctx context.Context, ex Executor, tenantID, inboundMessageID
 		correlationToken string
 		state            string
 		version          int64
+		claimedThreadID  uuid.UUID
 	)
 	err := ex.QueryRow(ctx, `
-		SELECT correlation_token, state, version
-		FROM reply_binding
-		WHERE tenant_id=$1 AND inbound_message_id=$2`,
-		tenantID, inboundMessageID).Scan(&correlationToken, &state, &version)
+		SELECT rb.correlation_token, rb.state, rb.version, im.thread_id
+		FROM reply_binding rb
+		JOIN inbound_message im USING (tenant_id, inbound_message_id)
+		WHERE rb.tenant_id=$1 AND rb.inbound_message_id=$2`,
+		tenantID, inboundMessageID).Scan(&correlationToken, &state, &version, &claimedThreadID)
 	if err != nil {
 		if isNoRows(err) {
 			return ReplyBinding{}, fmt.Errorf("%w: reply_binding for inbound_message %s", ErrNotFound, inboundMessageID)
@@ -375,7 +398,7 @@ func (s Store) Bind(ctx context.Context, ex Executor, tenantID, inboundMessageID
 	}
 
 	rows, err := ex.Query(ctx, `
-		SELECT recipient_message_id, recipient_ref
+		SELECT recipient_message_id, recipient_ref, conversation_thread_id
 		FROM recipient_message
 		WHERE tenant_id=$1 AND correlation_key=$2`,
 		tenantID, correlationToken)
@@ -383,13 +406,14 @@ func (s Store) Bind(ctx context.Context, ex Executor, tenantID, inboundMessageID
 		return ReplyBinding{}, fmt.Errorf("inboundmsg: resolve correlation %s: %w", correlationToken, err)
 	}
 	var (
-		matches            int
-		recipientMessageID uuid.UUID
-		recipientRef       string
+		matches              int
+		recipientMessageID   uuid.UUID
+		recipientRef         string
+		conversationThreadID *uuid.UUID
 	)
 	for rows.Next() {
 		matches++
-		if scanErr := rows.Scan(&recipientMessageID, &recipientRef); scanErr != nil {
+		if scanErr := rows.Scan(&recipientMessageID, &recipientRef, &conversationThreadID); scanErr != nil {
 			rows.Close()
 			return ReplyBinding{}, fmt.Errorf("inboundmsg: scan correlation match: %w", scanErr)
 		}
@@ -415,6 +439,12 @@ func (s Store) Bind(ctx context.Context, ex Executor, tenantID, inboundMessageID
 	case recipientRef != claimedSenderRef:
 		newState = Rejected
 		reason = fmt.Sprintf("correlation token names recipient %q, not the claimed sender %q", recipientRef, claimedSenderRef)
+	case conversationThreadID == nil:
+		newState = Rejected
+		reason = "correlated recipient message has no canonical conversation thread"
+	case *conversationThreadID != claimedThreadID:
+		newState = Rejected
+		reason = "claimed conversation thread does not match the correlated recipient message"
 	default:
 		newState = Bound
 		id := recipientMessageID
@@ -474,8 +504,17 @@ func (s Store) ListThread(ctx context.Context, ex Executor, tenantID uuid.UUID, 
 	}
 
 	rows, err := ex.Query(ctx, `SELECT `+selectInboundMessageColumns+`
-		FROM inbound_message
-		WHERE tenant_id=$1 AND thread_id=$2
+		FROM inbound_message im
+		WHERE im.tenant_id=$1 AND im.thread_id=$2
+		  AND EXISTS (
+			SELECT 1 FROM reply_binding rb
+			WHERE rb.tenant_id=im.tenant_id AND rb.inbound_message_id=im.inbound_message_id
+			  AND rb.state='BOUND'
+		  AND rb.recipient_message_id IN (
+			SELECT rm.recipient_message_id FROM recipient_message rm
+			WHERE rm.tenant_id=im.tenant_id AND rm.conversation_thread_id=im.thread_id
+		  )
+		  )
 		ORDER BY received_at, inbound_message_id`, tenantID, threadID)
 	if err != nil {
 		return nil, fmt.Errorf("inboundmsg: list thread %s: %w", threadID, err)

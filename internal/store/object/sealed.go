@@ -26,14 +26,10 @@ var (
 	// error: bytes are never written or returned in the clear as a
 	// fallback.
 	ErrEncryptionUnavailable = errors.New("object: encryption unavailable, refusing to expose object bytes")
-	// ErrObjectBinding is returned when a stored envelope authenticates and
-	// decrypts, but the logical object identity bound inside its payload
-	// does not match the identity the caller requested. envelope.Manager
-	// authenticates tenant, DEK id, algorithm, and nonce as AES-GCM AAD but
-	// takes no per-object AAD, so an envelope swapped onto a different
-	// object of the same tenant would otherwise decrypt "successfully" with
-	// the wrong logical content; this binding, checked after every open,
-	// is what turns that into a hard failure.
+	// ErrObjectBinding is returned when an authenticated payload names a
+	// different logical object than the caller requested. envelope.Manager
+	// binds that identity in AES-GCM AAD; this plaintext assertion remains a
+	// second, independent check after every open.
 	ErrObjectBinding = errors.New("object: decrypted envelope is not bound to the requested object")
 	// ErrSealedEnvelope is returned when stored bytes cannot be parsed as a
 	// sealed envelope at all (corrupt JSON, wrong shape).
@@ -44,9 +40,8 @@ var (
 )
 
 // sealedPayload is the plaintext actually handed to envelope.Manager. It
-// binds ObjectID to Data so that object identity travels inside the
-// AES-GCM-authenticated ciphertext even though envelope.Manager's own
-// header AAD does not carry a per-object field.
+// keeps an independent object identity assertion inside the encrypted
+// payload as defense in depth alongside the envelope header AAD.
 type sealedPayload struct {
 	ObjectID string `json:"object_id"`
 	Data     []byte `json:"data"`
@@ -84,8 +79,20 @@ func openObject(manager *envelope.Manager, cctx custody.Context, objectID string
 	if manager == nil {
 		return nil, ErrEncryptionUnavailable
 	}
-	payloadBytes, _, err := manager.Open(cctx, env)
+	var payloadBytes []byte
+	var err error
+	if env.Header.ObjectID == "" {
+		// Older envelopes authenticated object identity only inside the
+		// plaintext payload. Open that legacy format with its original AAD;
+		// the authenticated payload check below still must match objectID.
+		payloadBytes, _, err = manager.Open(cctx, env)
+	} else {
+		payloadBytes, _, err = manager.Open(cctx, env, objectID)
+	}
 	if err != nil {
+		if errors.Is(err, envelope.ErrObjectMismatch) {
+			return nil, fmt.Errorf("%w: %w", ErrObjectBinding, err)
+		}
 		return nil, err
 	}
 	var payload sealedPayload

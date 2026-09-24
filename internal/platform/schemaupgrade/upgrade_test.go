@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -77,12 +78,21 @@ func TestTodo_DB_021_Golden(t *testing.T) {
 
 func TestTodo_DB_021_Race(t *testing.T) {
 	state := completeUpgrade(t)
-	first := state.Snapshot()
-	copy := state.Snapshot()
-	copy.History[0].Detail = "tampered"
-	if first.History[0].Detail == copy.History[0].Detail {
-		t.Fatal("Snapshot exposed mutable history")
+	const readers = 16
+	var wg sync.WaitGroup
+	for i := 0; i < readers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			copy := state.Snapshot()
+			copy.History[0].Detail = "tampered"
+			copy.Plan.Binaries[0].Reads[0] = 99
+			if state.History[0].Detail == "tampered" || state.Plan.Binaries[0].Reads[0] == 99 {
+				t.Errorf("snapshot %d shares mutable state", i)
+			}
+		}(i)
 	}
+	wg.Wait()
 }
 
 func TestTodo_DB_021_Integration(t *testing.T) {

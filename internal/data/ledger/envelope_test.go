@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -406,6 +407,123 @@ func TestTodo_LEDGER_004_Security(t *testing.T) {
 	var unassigned ledger.ErrAuthorityNotAssigned
 	if _, err := f.append(t, req); !errors.As(err, &unassigned) {
 		t.Fatalf("borrowing another tenant's authority returned %v, want ErrAuthorityNotAssigned", err)
+	}
+}
+
+// FuzzTodo_LEDGER_004 exercises arbitrary assertion labels through validation
+// and verifies that each declared class has the expected authority requirement.
+func FuzzTodo_LEDGER_004(fz *testing.F) {
+	for _, class := range []string{"TRANSACTION_FACT", "DOMAIN_FACT", "EXTERNAL_OBSERVATION", "CLAIM", "CORRECTION", "OPINION", "domain_fact", ""} {
+		fz.Add(class)
+	}
+	fz.Fuzz(func(t *testing.T, label string) {
+		f := newFixture(t)
+		f.mustAppend(t, f.request(0)) // correction seeds an exact valid target
+		req := f.request(1)
+		req.AssertionClass = ledger.AssertionClass(label)
+		if req.AssertionClass == ledger.Correction {
+			req.Corrects = &ledger.EventRef{StreamKey: streamKey, Sequence: 1}
+		}
+		if !req.AssertionClass.Valid() {
+			var invalid ledger.ErrInvalidAssertionClass
+			if _, err := f.append(t, req); !errors.As(err, &invalid) {
+				t.Fatalf("undeclared assertion label %q returned %v, want ErrInvalidAssertionClass", label, err)
+			}
+			if got := f.sequences(t); len(got) != 1 {
+				t.Fatalf("invalid assertion label %q changed sequences to %v", label, got)
+			}
+			return
+		}
+		if req.AssertionClass.RequiresAuthority() {
+			withoutAuthority := req
+			withoutAuthority.Authority = ""
+			var unassigned ledger.ErrAuthorityNotAssigned
+			if _, err := f.append(t, withoutAuthority); !errors.As(err, &unassigned) {
+				t.Fatalf("%s without authority returned %v, want ErrAuthorityNotAssigned", label, err)
+			}
+			req.Authority = authorityRef
+		}
+		receipt := f.mustAppend(t, req)
+		stored := f.read(t, receipt.Sequence)
+		if stored.assertionClass != label {
+			t.Fatalf("stored assertion class %q, want %q", stored.assertionClass, label)
+		}
+		if req.AssertionClass.RequiresAuthority() && (stored.authorityRef == nil || *stored.authorityRef != authorityRef) {
+			t.Fatalf("stored authority %v, want %q", stored.authorityRef, authorityRef)
+		}
+	})
+}
+
+// TestTodo_LEDGER_004_Mutation proves callers cannot mutate persisted assertion
+// provenance by changing the payload or authority after the append.
+func TestTodo_LEDGER_004_Mutation(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	req := f.request(0)
+	req.AssertionClass = ledger.DomainFact
+	req.Authority = authorityRef
+	receipt := f.mustAppend(t, req)
+	before := f.read(t, receipt.Sequence)
+	if err := f.db.ExecErr(`UPDATE ledger_event SET payload = $1, authority_ref = 'authority:forged'
+		WHERE tenant_id = $2 AND stream_key = $3 AND sequence = $4`, []byte("forged"), f.tenant, streamKey, receipt.Sequence); err == nil {
+		t.Fatal("mutation of assertion payload and provenance succeeded")
+	}
+	after := f.read(t, receipt.Sequence)
+	if string(before.payload) != string(after.payload) || before.authorityRef == nil || after.authorityRef == nil || *before.authorityRef != *after.authorityRef {
+		t.Fatalf("assertion changed after refused mutation: before=%+v after=%+v", before, after)
+	}
+}
+
+// TestTodo_LEDGER_004_Race races two authority-backed facts on one stream. The
+// accepted event must retain its tenant's assignment and the head must advance
+// exactly once.
+func TestTodo_LEDGER_004_Race(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wg sync.WaitGroup
+	for range 2 {
+		conn := f.db.NewConn(t)
+		req := f.request(0)
+		req.AssertionClass = ledger.DomainFact
+		req.Authority = authorityRef
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			err := f.inTxErr(conn, func(tx dbport.Tx) error {
+				_, appendErr := ledger.Append(context.Background(), tx, req)
+				return appendErr
+			})
+			results <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	accepted, stale := 0, 0
+	for err := range results {
+		if err == nil {
+			accepted++
+			continue
+		}
+		var conflict ledger.ErrStaleStream
+		if !errors.As(err, &conflict) || conflict.Expected != 0 || conflict.Actual != 1 {
+			t.Fatalf("losing authority-backed append returned %v, want stale head 0/1", err)
+		}
+		stale++
+	}
+	if accepted != 1 || stale != 1 {
+		t.Fatalf("authority-backed race accepted=%d stale=%d, want one of each", accepted, stale)
+	}
+	events := f.sequences(t)
+	if len(events) != 1 || events[0] != 1 {
+		t.Fatalf("sequences after authority race are %v, want [1]", events)
+	}
+	stored := f.read(t, 1)
+	if stored.authorityRef == nil || *stored.authorityRef != authorityRef || stored.assertionClass != string(ledger.DomainFact) {
+		t.Fatalf("persisted event lost assertion provenance: %+v", stored)
 	}
 }
 

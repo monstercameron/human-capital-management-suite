@@ -10,7 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
+
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/oauthcc"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/lease"
 )
 
 // AccessConfig wires an AccessClient.
@@ -20,9 +24,16 @@ type AccessConfig struct {
 	// Tokens supplies bearer tokens. It is required and may be shared by
 	// every client of the same provider.
 	Tokens *oauthcc.TokenSource
-	// Client performs requests (default: a fresh http.Client). Redirects
-	// are never followed.
+	// Client is the injected HTTP port used by protocol fixtures and adapters.
+	// Configure Client or Gateway; a nil port never opens a direct client.
 	Client Doer
+	// Gateway routes the provider call through centralized DNS, TLS, proxy,
+	// outbound trust, DLP and receipt enforcement. When set, Client must be nil
+	// and Principal and Tenant are required.
+	Gateway   *egress.Gateway
+	Principal string
+	Tenant    string
+	Lease     *lease.CredentialLease
 	// Timeout bounds one Deliver, Reverse or Status attempt, token fetch
 	// and the single invalid_token retry included (default 15s).
 	Timeout time.Duration
@@ -43,6 +54,10 @@ type AccessClient struct {
 	send     sender
 }
 
+// PurposeAccessChangeDelivery is the narrow policy purpose for IAM changes.
+// It is distinct from payroll processing so outbound allowlists can scope it.
+const PurposeAccessChangeDelivery Purpose = "access_change_delivery"
+
 // NewAccessClient validates cfg and returns a client.
 func NewAccessClient(cfg AccessConfig) (*AccessClient, error) {
 	base, err := validateBaseURL(cfg.BaseURL)
@@ -52,7 +67,11 @@ func NewAccessClient(cfg AccessConfig) (*AccessClient, error) {
 	if cfg.Tokens == nil {
 		return nil, errors.New("providerdelivery: access Tokens is required")
 	}
-	send := newSender(cfg.Client, cfg.Timeout, cfg.Now)
+	client, err := providerDoer(cfg.Gateway, cfg.Client, cfg.Principal, cfg.Tenant, string(PurposeAccessChangeDelivery), []dlp.DataClass{dlp.ClassPII}, cfg.Lease)
+	if err != nil {
+		return nil, err
+	}
+	send := newSender(client, cfg.Timeout, cfg.Now)
 	send.headers = cfg.Headers
 	return &AccessClient{
 		endpoint: base + "/v1/access-changes",

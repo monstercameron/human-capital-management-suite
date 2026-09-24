@@ -73,11 +73,11 @@ func TestEncryptDecryptOpenAndMalformedEnvelopeBranches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opened, _, err := m.Open(ctxA, env)
+	opened, _, err := m.Open(ctxA, env, "id")
 	if err != nil || string(opened) != "plaintext" {
 		t.Fatalf("Open = %q, %v", opened, err)
 	}
-	if _, _, err := m.Decrypt(ctxB, env); !errors.Is(err, ErrTenantMismatch) {
+	if _, _, err := m.Decrypt(ctxB, env, "id"); !errors.Is(err, ErrTenantMismatch) {
 		t.Fatalf("cross-tenant Decrypt = %v", err)
 	}
 	malformed := []struct {
@@ -90,24 +90,24 @@ func TestEncryptDecryptOpenAndMalformedEnvelopeBranches(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			copyEnv := env
 			tc.mut(&copyEnv)
-			if _, _, err := m.Decrypt(ctxA, copyEnv); !errors.Is(err, ErrInvalidCiphertext) {
+			if _, _, err := m.Decrypt(ctxA, copyEnv, "id"); !errors.Is(err, ErrInvalidCiphertext) {
 				t.Fatalf("malformed Decrypt = %v", err)
 			}
 		})
 	}
 	wrongWrapper := env
 	wrongWrapper.WrappedDEK.Handle.ID = "different"
-	if _, _, err := m.Decrypt(ctxA, wrongWrapper); !errors.Is(err, ErrInvalidCiphertext) {
+	if _, _, err := m.Decrypt(ctxA, wrongWrapper, "id"); !errors.Is(err, ErrInvalidCiphertext) {
 		t.Fatalf("wrapper/header mismatch = %v", err)
 	}
 	tampered := env
 	tampered.Header.Tenant = "tenant-b"
-	if _, _, err := m.Decrypt(ctxA, tampered); !errors.Is(err, ErrTenantMismatch) {
+	if _, _, err := m.Decrypt(ctxA, tampered, "id"); !errors.Is(err, ErrTenantMismatch) {
 		t.Fatalf("tenant tamper = %v", err)
 	}
 	tampered = env
 	tampered.Data[0] ^= 1
-	if _, _, err := m.Decrypt(ctxA, tampered); !errors.Is(err, ErrInvalidCiphertext) {
+	if _, _, err := m.Decrypt(ctxA, tampered, "id"); !errors.Is(err, ErrInvalidCiphertext) {
 		t.Fatalf("data tamper = %v", err)
 	}
 }
@@ -147,7 +147,7 @@ func TestRotationRewrapAndProviderFailureBranches(t *testing.T) {
 	if err != nil || rewrapped.Header.KEKVersion != "v2" || string(rewrapped.Data) != string(env.Data) {
 		t.Fatalf("Rewrap = %+v, %v", rewrapped.Header, err)
 	}
-	if got, _, err := m.Open(ctxA, rewrapped); err != nil || string(got) != "data" {
+	if got, _, err := m.Open(ctxA, rewrapped, "object"); err != nil || string(got) != "data" {
 		t.Fatalf("opened rewrapped = %q, %v", got, err)
 	}
 	if _, _, err := m.Rewrap(ctxB, env); !errors.Is(err, ErrTenantMismatch) {
@@ -194,7 +194,7 @@ func TestRotationRewrapAndProviderFailureBranches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := manager.Decrypt(ctxA, badEnv); !errors.Is(err, ErrInvalidCiphertext) {
+	if _, _, err := manager.Decrypt(ctxA, badEnv, "id"); !errors.Is(err, ErrInvalidCiphertext) {
 		t.Fatalf("invalid DEK = %v", err)
 	}
 }

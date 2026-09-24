@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -87,6 +88,10 @@ func NewManager(cfg ManagerConfig) (*Manager, error) {
 
 // CreateSpec is everything [Manager.Create] needs to open a new session.
 type CreateSpec struct {
+	// ID is an optional server-generated identifier reserved by a caller that
+	// needs to bind the session reference into a credential before creating
+	// the durable row. Empty keeps the manager-generated identifier behavior.
+	ID                   ID
 	Tenant               values.TenantId
 	Subject              string
 	PrincipalFingerprint string
@@ -129,9 +134,15 @@ func (m *Manager) Create(_ context.Context, spec CreateSpec) (Record, RefreshTok
 		return Record{}, "", fmt.Errorf("%w: idle timeout %s exceeds absolute timeout %s", ErrInvalidCreateSpec, idle, absolute)
 	}
 
-	id, err := newID()
-	if err != nil {
-		return Record{}, "", err
+	id := spec.ID
+	if id == "" {
+		var err error
+		id, err = newID()
+		if err != nil {
+			return Record{}, "", err
+		}
+	} else if !validID(id) {
+		return Record{}, "", fmt.Errorf("%w: invalid session id", ErrInvalidCreateSpec)
 	}
 	raw, hash, err := newOpaqueToken()
 	if err != nil {
@@ -158,6 +169,18 @@ func (m *Manager) Create(_ context.Context, spec CreateSpec) (Record, RefreshTok
 
 	return *rec, RefreshToken(raw), nil
 }
+
+func validID(id ID) bool {
+	if !strings.HasPrefix(string(id), "sess_") {
+		return false
+	}
+	decoded, err := tokenEncoding.DecodeString(strings.TrimPrefix(string(id), "sess_"))
+	return err == nil && len(decoded) == 16
+}
+
+// NewID mints an opaque session identifier for authorities that must bind the
+// identifier into a signed credential before creating its session row.
+func NewID() (ID, error) { return newID() }
 
 // Get returns the current snapshot of a session, first re-evaluating
 // whether it has silently crossed an idle or absolute deadline since it was

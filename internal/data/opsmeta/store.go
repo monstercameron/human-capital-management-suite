@@ -256,6 +256,21 @@ func RouteAlert(ctx context.Context, tx dbport.Tx, a AlertIncident) (AlertIncide
 	return AlertIncidentResult{Incident: existing}, nil
 }
 
+// ResolveIncidentsByKeyPrefix closes every active incident owned by a
+// recurring operational check. The prefix must be a stable owner-scoped key;
+// tenant scoping is enforced here and again by row-level security.
+func ResolveIncidentsByKeyPrefix(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, prefix string, at time.Time) error {
+	if tenant == uuid.Nil || strings.TrimSpace(prefix) == "" || at.IsZero() {
+		return ErrMissingScope
+	}
+	if err := ensureTenant(ctx, tx, tenant); err != nil {
+		return err
+	}
+	at = at.UTC()
+	_, err := tx.Exec(ctx, `UPDATE operational_incident SET contained_at=COALESCE(contained_at,$3), resolved_at=$3, status='RESOLVED', impact_revision=impact_revision+1 WHERE tenant_id=$1 AND left(incident_key,length($2))=$2 AND status IN ('OPEN','CONTAINED')`, tenant, prefix, at)
+	return err
+}
+
 func sameAlert(existing OperationalIncident, a AlertIncident) error {
 	if existing.Severity != a.Severity || existing.CorrelationKey != a.CorrelationKey || existing.EvidenceDigest != a.EvidenceDigest || !existing.DeclaredAt.Equal(a.DeclaredAt) {
 		return ErrAlertConflict

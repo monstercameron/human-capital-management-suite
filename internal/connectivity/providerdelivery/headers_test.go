@@ -209,8 +209,8 @@ func TestNewHeaderDoerDoesNotMutateCallerOrFollowRedirects(t *testing.T) {
 		t.Fatal("NewHeaderDoer mutated the caller's request headers")
 	}
 
-	if _, ok := NewHeaderDoer(nil, nil).(*http.Client); !ok {
-		t.Fatal("NewHeaderDoer(nil, nil) should be a redirect-safe *http.Client")
+	if NewHeaderDoer(nil, nil) != nil {
+		t.Fatal("NewHeaderDoer(nil, nil) created a direct client without an HTTP port")
 	}
 }
 

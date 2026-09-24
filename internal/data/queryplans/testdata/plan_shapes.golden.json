@@ -9,6 +9,26 @@
       }
     ]
   },
+  "JOBS_LOAD_OPEN_RUN_BY_JOB": {
+    "node": "Limit",
+    "children": [
+      {
+        "node": "Sort",
+        "children": [
+          {
+            "node": "Result",
+            "children": [
+              {
+                "node": "Index Scan",
+                "relation": "job_run",
+                "index": "job_run_pkey"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "JOBS_PARTITION_LIST_BY_RUN": {
     "node": "Sort",
     "children": [

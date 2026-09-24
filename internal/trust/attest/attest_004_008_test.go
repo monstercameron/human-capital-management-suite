@@ -29,7 +29,13 @@ func testRecorder(t *testing.T) (*Recorder, *MemoryResponseStore, *int) {
 	t.Helper()
 	store := NewMemoryResponseStore()
 	calls := 0
-	clock := TrustedClockFunc(func() (TrustedTime, error) { calls++; return testTrustedAt, nil })
+	var callsMu sync.Mutex
+	clock := TrustedClockFunc(func() (TrustedTime, error) {
+		callsMu.Lock()
+		defer callsMu.Unlock()
+		calls++
+		return testTrustedAt, nil
+	})
 	recorder, err := NewRecorder(store, clock)
 	if err != nil {
 		t.Fatal(err)
@@ -188,7 +194,9 @@ func TestTodo_ATTEST_005_Mutation(t *testing.T) {
 
 func TestTodo_ATTEST_006(t *testing.T) {
 	recorder, _, _ := testRecorder(t)
-	response, err := recorder.RecordResponse(context.Background(), testResponseRequest(ResponseAccepted))
+	accepted := testResponseRequest(ResponseAccepted)
+	accepted.AffectedObligations = []string{"obligation-1"}
+	response, err := recorder.RecordResponse(context.Background(), accepted)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +311,25 @@ func TestTodo_ATTEST_008_Security(t *testing.T) {
 	}
 }
 
-func TestTodo_ATTEST_008_Conformance(t *testing.T) { TestTodo_ATTEST_008(t) }
+func TestTodo_ATTEST_008_Conformance(t *testing.T) {
+	recorder, _, _ := testRecorder(t)
+	response, err := recorder.RecordResponse(context.Background(), testResponseRequest(ResponseAccepted))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []ConformanceCase{
+		{Domain: DomainTime, Claim: ClaimTimecardAccuracy, Response: response},
+		{Domain: DomainPayroll, Claim: ClaimPayrollInputCompleteness, Response: response},
+		{Domain: DomainLegal, Claim: ClaimLegalFact, Response: response},
+	}
+	report, err := ProveConformance(cases)
+	if err != nil || !report.Valid || report.Cases != len(cases) || report.Domains[0] != DomainTime || report.Domains[1] != DomainPayroll || report.Domains[2] != DomainLegal {
+		t.Fatalf("shared acknowledgement did not retain three domain claims: report=%+v err=%v", report, err)
+	}
+	if !report.SharedEvidence || !report.DistinctFromApproval || !report.DistinctFromSignature || !report.DistinctFromForm {
+		t.Fatalf("conformance blurred acknowledgement with another control: %+v", report)
+	}
+}
 func TestTodo_ATTEST_008_Mutation(t *testing.T) {
 	recorder, _, _ := testRecorder(t)
 	response, err := recorder.RecordResponse(context.Background(), testResponseRequest(ResponseAccepted))

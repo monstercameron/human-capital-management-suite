@@ -193,7 +193,9 @@ func checkLeaseShape(lease Lease) error {
 // when lease is still the current generation: the fence is checked before
 // any statement runs, so a stale or expired worker's write never reaches
 // the store. The checkpoint must belong to the leased tenant and
-// partition; anything else is refused as invalid, not as stale.
+// partition; anything else is refused as invalid, not as stale. ex must be
+// the caller's tenant-scoped transaction so the durable partition version
+// lock and checkpoint append share one commit.
 func (m *LeaseManager) Checkpoint(ctx context.Context, ex Executor, lease Lease, in JobCheckpoint) (JobCheckpoint, error) {
 	if err := m.Check(lease); err != nil {
 		return JobCheckpoint{}, err

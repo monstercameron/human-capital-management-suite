@@ -60,12 +60,12 @@ func TestTodo_WF_COMP_006_ShippedFixtures(t *testing.T) {
 	// fixtures, and the @v1 fixtures (frozen 1.0.0) fail on 1.1.0 and the @v2
 	// fixtures fail on 1.0.0.
 	published, err := PublishShippedVersions(version.NewRegistry(), releaseAt)
-	if err != nil || len(published) != 3 {
-		t.Fatalf("PublishShippedVersions = %d versions, %v; want prototype plus execute 1.0.0 and 1.1.0", len(published), err)
+	if err != nil || len(published) != 4 {
+		t.Fatalf("PublishShippedVersions = %d versions, %v; want prototype plus execute 1.0.0, 1.1.0 and 1.2.0", len(published), err)
 	}
-	v1, v11 := published[1], published[2]
-	if v1.SemanticVersion != promotionexec.SemanticVersionV1_0 || v11.SemanticVersion != promotionexec.SemanticVersion || v11.CompiledPlanDigest != execute.CompiledPlanDigest {
-		t.Fatalf("execute versions = %s/%s, want %s then %s", v1.SemanticVersion, v11.SemanticVersion, promotionexec.SemanticVersionV1_0, promotionexec.SemanticVersion)
+	v1, v11, v12 := published[1], published[2], published[3]
+	if v1.SemanticVersion != promotionexec.SemanticVersionV1_0 || v11.SemanticVersion != promotionexec.SemanticVersionV1_1 || v12.SemanticVersion != promotionexec.SemanticVersion || v12.CompiledPlanDigest != execute.CompiledPlanDigest {
+		t.Fatalf("execute versions = %s/%s/%s, want 1.0.0, 1.1.0, then %s", v1.SemanticVersion, v11.SemanticVersion, v12.SemanticVersion, promotionexec.SemanticVersion)
 	}
 	frozen, _ := promotionexec.CompileV1_0()
 	if v1.CompiledPlanDigest != frozen.Digest() {
@@ -77,6 +77,7 @@ func TestTodo_WF_COMP_006_ShippedFixtures(t *testing.T) {
 	}{
 		{v1, v11, []string{FixtureExecuteCompile, FixtureExecuteGraph}},
 		{v11, v1, []string{FixtureExecuteCompileV1_1, FixtureExecuteGraphV1_1}},
+		{v12, v11, []string{FixtureExecuteCompileV1_2, FixtureExecuteGraphV1_2}},
 	} {
 		if report := releasefixture.Run(suite, pair.own, "runner:test", releaseAt); !report.Passed() {
 			t.Fatalf("execute %s fixtures = %+v, want every declared fixture to pass", pair.own.SemanticVersion, report.Results)
@@ -196,23 +197,21 @@ func TestTodo_WF_COMP_006_BootstrapDev(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BootstrapDevVersions: %v", err)
 	}
-	// The prototype and promotion execute 1.1.0 end ACTIVE; the frozen
-	// promotion execute 1.0.0 was activated first and then superseded, so it
-	// stands QUARANTINED by supersession, still serving its pinned instances.
-	// Local development also releases the reference new-hire workflow
-	// (WF-HIRE-001), which ends ACTIVE beside them.
-	if len(out) != 4 {
-		t.Fatalf("bootstrap returned %d versions, want prototype, execute 1.0.0 and 1.1.0, and new hire", len(out))
+	// The prototype and promotion execute 1.2.0 end ACTIVE; frozen promotion
+	// execute 1.0.0 and 1.1.0 stand QUARANTINED by supersession. The reference
+	// new-hire 1.1.0 is ACTIVE beside its frozen 1.0.0 publication.
+	if len(out) != 6 {
+		t.Fatalf("bootstrap returned %d versions, want prototype, execute 1.0.0/1.1.0/1.2.0, and new-hire 1.0.0/1.1.0", len(out))
 	}
-	wantStatus := []version.ActivationStatus{version.StatusActive, version.StatusQuarantined, version.StatusActive, version.StatusActive}
-	wantSemver := []string{"1.0.0", promotionexec.SemanticVersionV1_0, promotionexec.SemanticVersion, hireexec.SemanticVersion}
+	wantStatus := []version.ActivationStatus{version.StatusActive, version.StatusQuarantined, version.StatusQuarantined, version.StatusActive, version.StatusQuarantined, version.StatusActive}
+	wantSemver := []string{"1.0.0", promotionexec.SemanticVersionV1_0, promotionexec.SemanticVersionV1_1, promotionexec.SemanticVersion, hireexec.SemanticVersionV1_0, hireexec.SemanticVersion}
 	for i, v := range out {
 		if v.Status != wantStatus[i] || v.SemanticVersion != wantSemver[i] || v.Approvals[0].ApprovedBy != DevReleaseApprover {
 			t.Fatalf("%s %s bootstrapped to %s by %+v, want %s", v.WorkflowID, v.SemanticVersion, v.Status, v.Approvals, wantStatus[i])
 		}
 	}
-	if !out[1].QuarantinedBySupersession() {
-		t.Fatalf("execute 1.0.0 = %+v, want quarantined by the 1.1.0 supersession", out[1].Approvals)
+	if !out[1].QuarantinedBySupersession() || !out[2].QuarantinedBySupersession() {
+		t.Fatalf("execute prior versions = %+v/%+v, want quarantined by supersession", out[1].Approvals, out[2].Approvals)
 	}
 	if active, found, err := store.GetActiveForWorkflow(promotionexec.WorkflowID); err != nil || !found || active.SemanticVersion != promotionexec.SemanticVersion {
 		t.Fatalf("active promotion execute = %s (found %t, %v), want %s", active.SemanticVersion, found, err, promotionexec.SemanticVersion)
@@ -224,14 +223,16 @@ func TestTodo_WF_COMP_006_BootstrapDev(t *testing.T) {
 		}
 		return n
 	}
-	// Four approvals with reports; five transitions: prototype ACTIVE,
-	// execute 1.0.0 ACTIVE, 1.0.0 QUARANTINED by supersession, 1.1.0 ACTIVE,
-	// new hire ACTIVE.
-	if n := counts(); n != 9 {
-		t.Fatalf("bootstrap wrote %d approvals with reports plus transitions, want 4 + 5", n)
+	// Six approvals with reports and nine transitions, including supersession
+	// between the three promotion versions and the two new-hire versions.
+	if n := counts(); n != 15 {
+		t.Fatalf("bootstrap wrote %d approvals with reports plus transitions, want 6 + 9", n)
 	}
 	if active, found, err := store.GetActiveForWorkflow(hireexec.WorkflowID); err != nil || !found || active.SemanticVersion != hireexec.SemanticVersion {
 		t.Fatalf("active new hire = %s (found %t, %v), want %s", active.SemanticVersion, found, err, hireexec.SemanticVersion)
+	}
+	if !out[4].QuarantinedBySupersession() {
+		t.Fatalf("new-hire 1.0.0 = %+v, want quarantined by supersession", out[4].Approvals)
 	}
 	quarantined := out[0]
 	if _, err := store.Quarantine(ctx, workflowversionstore.QuarantineDeclaration{

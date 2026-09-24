@@ -3,6 +3,7 @@ package attest
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -59,6 +60,9 @@ func ValidateRequired(req ExecutionRequirement, response Response, now TrustedTi
 	if response.Kind != AssertionResponse {
 		return refuse("response_is_not_original_acceptance")
 	}
+	if !slices.Contains(response.AffectedObligations, req.ObligationID) {
+		return refuse("obligation_not_covered")
+	}
 	if req.TransactionID != "" && response.TransactionID != req.TransactionID {
 		return refuse("transaction_mismatch")
 	}
@@ -68,7 +72,25 @@ func ValidateRequired(req ExecutionRequirement, response Response, now TrustedTi
 	if response.RecordedAt.At.Before(now.At) && response.RecordedAt.Health == "" {
 		return refuse("response_time_evidence_missing")
 	}
+	// The durable receipt is content-addressed. Recompute both digests at the
+	// boundary so corrupt or internally inconsistent rows are refused.
+	if err := ValidateResponse(response); err != nil || response.RequestDigest != requestDigest(responseRequest(response)) || response.Digest == "" || response.Digest != responseDigest(response) {
+		return refuse("response_integrity_mismatch")
+	}
 	return ExecutionDecision{Allowed: true, Reason: "ATTESTATION_ACCEPTED", ObligationID: req.ObligationID, ResponseDigest: response.Digest, StatementDigest: req.StatementDigest, BindingDigest: req.BindingDigest, CheckedAt: now}, nil
+}
+
+func responseRequest(response Response) ResponseRequest {
+	return ResponseRequest{
+		Tenant: response.Tenant, ResponseID: response.ResponseID,
+		StatementID: response.StatementID, StatementVersion: response.StatementVersion,
+		StatementDigest: response.StatementDigest, BindingDigest: response.BindingDigest,
+		Status: response.Status, Kind: response.Kind, Reason: response.Reason,
+		EvidenceReceipt: response.EvidenceReceipt, IdempotencyKey: response.IdempotencyKey,
+		CorrectsResponseID: response.CorrectsResponseID, Authority: response.Authority,
+		AffectedObligations: append([]string(nil), response.AffectedObligations...),
+		TransactionID:       response.TransactionID,
+	}
 }
 
 // RevalidateAtExecution loads the exact persisted receipt and applies the
@@ -91,6 +113,26 @@ func RevalidateAtExecution(ctx context.Context, store ResponseStore, clock Trust
 // EnforceRequired is the concise name for the execution gate.
 func EnforceRequired(ctx context.Context, store ResponseStore, clock TrustedClock, req ExecutionRequirement) (ExecutionDecision, error) {
 	return RevalidateAtExecution(ctx, store, clock, req)
+}
+
+// EnforceBeforeEffect revalidates the required receipt immediately before
+// invoking effect. Any lookup, clock, integrity, or policy failure prevents
+// the callback from running.
+func EnforceBeforeEffect(ctx context.Context, store ResponseStore, clock TrustedClock, req ExecutionRequirement, effect func(context.Context, ExecutionDecision) error) (ExecutionDecision, error) {
+	if effect == nil {
+		return ExecutionDecision{}, fmt.Errorf("%w: dependent effect is required", ErrRequiredAttestation)
+	}
+	decision, err := EnforceRequired(ctx, store, clock, req)
+	if err != nil {
+		return decision, err
+	}
+	if !decision.Allowed {
+		return decision, fmt.Errorf("%w: %s", ErrRequiredAttestation, decision.Reason)
+	}
+	if err := effect(ctx, decision); err != nil {
+		return decision, err
+	}
+	return decision, nil
 }
 
 // FixedTrustedTime is useful for deterministic conformance callers.

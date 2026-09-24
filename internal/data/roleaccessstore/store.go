@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -31,22 +32,41 @@ func (s *Store) Bootstrap(ctx context.Context, tenant values.TenantId, actor str
 		actor = "system:bootstrap"
 	}
 	return s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
+		const bootstrapReason = "Provision default role authorization during tenant bootstrap"
 		for _, role := range roleaccess.DefaultRoles() {
-			_, err := tx.Exec(ctx, `INSERT INTO access_role (tenant_id,role_id,version,name,description,system_role,active,updated_by) VALUES ($1,$2,1,$3,$4,true,true,$5) ON CONFLICT DO NOTHING`, tenantID, role.ID, role.Name, role.Description, actor)
+			affected, err := tx.Exec(ctx, `INSERT INTO access_role (tenant_id,role_id,version,name,description,system_role,active,updated_by) VALUES ($1,$2,1,$3,$4,true,true,$5) ON CONFLICT DO NOTHING`, tenantID, role.ID, role.Name, role.Description, actor)
 			if err != nil {
 				return fmt.Errorf("roleaccessstore: bootstrap %s: %w", role.ID, err)
 			}
+			if affected > 0 {
+				role.Version, role.System, role.Active = 1, true, true
+				if err := appendRevision(ctx, tx, tenantID, actor, bootstrapReason, RevisionRole, role.ID, "", "", "", "", nil, role); err != nil {
+					return err
+				}
+			}
 		}
 		for _, permission := range roleaccess.DefaultPagePermissions() {
-			_, err := tx.Exec(ctx, `INSERT INTO role_page_permission (tenant_id,role_id,page_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,1,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING`, tenantID, permission.RoleID, permission.PageID, permission.View, permission.Create, permission.Update, permission.Delete, actor)
+			affected, err := tx.Exec(ctx, `INSERT INTO role_page_permission (tenant_id,role_id,page_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,1,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING`, tenantID, permission.RoleID, permission.PageID, permission.View, permission.Create, permission.Update, permission.Delete, actor)
 			if err != nil {
 				return fmt.Errorf("roleaccessstore: bootstrap page %s for %s: %w", permission.PageID, permission.RoleID, err)
 			}
+			if affected > 0 {
+				permission.Version = 1
+				if err := appendRevision(ctx, tx, tenantID, actor, bootstrapReason, RevisionPagePermission, permission.RoleID, "", "", permission.PageID, "", nil, permission); err != nil {
+					return err
+				}
+			}
 		}
 		for _, permission := range roleaccess.DefaultFeaturePermissions(s.features, roleaccess.DefaultPagePermissions()) {
-			_, err := tx.Exec(ctx, `INSERT INTO role_page_feature_permission (tenant_id,role_id,page_id,feature_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,$4,1,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`, tenantID, permission.RoleID, permission.PageID, permission.FeatureID, permission.View, permission.Create, permission.Update, permission.Delete, actor)
+			affected, err := tx.Exec(ctx, `INSERT INTO role_page_feature_permission (tenant_id,role_id,page_id,feature_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,$4,1,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`, tenantID, permission.RoleID, permission.PageID, permission.FeatureID, permission.View, permission.Create, permission.Update, permission.Delete, actor)
 			if err != nil {
 				return fmt.Errorf("roleaccessstore: bootstrap feature %s/%s for %s: %w", permission.PageID, permission.FeatureID, permission.RoleID, err)
+			}
+			if affected > 0 {
+				permission.Version = 1
+				if err := appendRevision(ctx, tx, tenantID, actor, bootstrapReason, RevisionFeaturePermission, permission.RoleID, "", "", permission.PageID, permission.FeatureID, nil, permission); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -60,22 +80,53 @@ func (s *Store) Bootstrap(ctx context.Context, tenant values.TenantId, actor str
 // This is called only by the local-dev composition, never for production.
 func (s *Store) BootstrapLocalDevPersonaPermissions(ctx context.Context, tenant values.TenantId) error {
 	return s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
+		const actor = "system:local-dev-personas"
+		const reason = "Narrow demo persona grants to prevent unintended administrative access"
 		for _, roleID := range []string{"payroll_manager", "promotion_operator"} {
 			for _, pageID := range []string{"organization", "org-explorer", "org-outline", "org-responsive"} {
-				if _, err := tx.Exec(ctx, `UPDATE role_page_permission SET can_view=false,version=version+1,updated_by='system:local-dev-personas',updated_at=clock_timestamp()
-					WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3 AND version=1
-					AND can_view=true AND can_create=false AND can_update=false AND can_delete=false`, tenantID, roleID, pageID); err != nil {
+				if err := narrowLocalDevPermission(ctx, tx, tenantID, roleID, pageID, actor, reason, "can_view"); err != nil {
 					return fmt.Errorf("roleaccessstore: narrow local-dev %s access for %s: %w", pageID, roleID, err)
 				}
 			}
 		}
-		if _, err := tx.Exec(ctx, `UPDATE role_page_permission SET can_create=false,version=version+1,updated_by='system:local-dev-personas',updated_at=clock_timestamp()
-			WHERE tenant_id=$1 AND role_id='payroll_manager' AND page_id='journeys' AND version=1
-			AND can_view=true AND can_create=true AND can_update=true AND can_delete=false`, tenantID); err != nil {
+		if err := narrowLocalDevPermission(ctx, tx, tenantID, "payroll_manager", "journeys", actor, reason, "can_create"); err != nil {
 			return fmt.Errorf("roleaccessstore: narrow local-dev payroll initiation: %w", err)
 		}
 		return nil
 	})
+}
+
+func narrowLocalDevPermission(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, roleID, pageID, actor, reason, field string) error {
+	if field != "can_view" && field != "can_create" {
+		return roleaccess.ErrInvalid
+	}
+	var before roleaccess.PagePermission
+	if err := tx.QueryRow(ctx, `SELECT version,role_id,page_id,can_view,can_create,can_update,can_delete FROM role_page_permission WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3`, tenantID, roleID, pageID).Scan(&before.Version, &before.RoleID, &before.PageID, &before.View, &before.Create, &before.Update, &before.Delete); err != nil {
+		if errors.Is(err, dbport.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if before.Version != 1 || (field == "can_view" && (!before.View || before.Create || before.Update || before.Delete)) ||
+		(field == "can_create" && (!before.View || !before.Create || !before.Update || before.Delete)) {
+		return nil
+	}
+	query := `UPDATE role_page_permission SET ` + field + `=false,version=version+1,updated_by=$4,updated_at=clock_timestamp() WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3 AND version=1`
+	affected, err := tx.Exec(ctx, query, tenantID, roleID, pageID, actor)
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return nil
+	}
+	after := before
+	after.Version++
+	if field == "can_view" {
+		after.View = false
+	} else {
+		after.Create = false
+	}
+	return appendRevision(ctx, tx, tenantID, actor, reason, RevisionPagePermission, roleID, "", "", pageID, "", before, after)
 }
 
 func (s *Store) Load(ctx context.Context, tenant values.TenantId, organization string) (roleaccess.Snapshot, error) {
@@ -177,11 +228,15 @@ func (s *Store) Load(ctx context.Context, tenant values.TenantId, organization s
 
 func (s *Store) SaveFeaturePermission(ctx context.Context, tenant values.TenantId, actor string, permission roleaccess.FeaturePermission) (roleaccess.FeaturePermission, error) {
 	actor = strings.TrimSpace(actor)
+	reason := strings.TrimSpace(permission.Reason)
 	permission = roleaccess.NormalizeFeaturePermission(permission)
 	definition, registered := s.featureDefinition(permission.PageID, permission.FeatureID)
 	if actor == "" || roleaccess.ValidateFeaturePermission(permission) != nil || !registered ||
 		permission.View && !definition.View || permission.Create && !definition.Create ||
 		permission.Update && !definition.Update || permission.Delete && !definition.Delete {
+		return roleaccess.FeaturePermission{}, roleaccess.ErrInvalid
+	}
+	if !validRevisionReason(reason) {
 		return roleaccess.FeaturePermission{}, roleaccess.ErrInvalid
 	}
 	err := s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
@@ -198,7 +253,14 @@ func (s *Store) SaveFeaturePermission(ctx context.Context, tenant values.TenantI
 				return roleaccess.ErrVersionConflict
 			}
 			permission.Version = 1
-			return nil
+			return appendRevision(ctx, tx, tenantID, actor, reason, RevisionFeaturePermission, permission.RoleID, "", "", permission.PageID, permission.FeatureID, nil, permission)
+		}
+		before := permission
+		if err := tx.QueryRow(ctx, `SELECT version,can_view,can_create,can_update,can_delete FROM role_page_feature_permission WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3 AND feature_id=$4`, tenantID, permission.RoleID, permission.PageID, permission.FeatureID).Scan(&before.Version, &before.View, &before.Create, &before.Update, &before.Delete); err != nil {
+			if errors.Is(err, dbport.ErrNoRows) {
+				return roleaccess.ErrVersionConflict
+			}
+			return err
 		}
 		affected, err := tx.Exec(ctx, `UPDATE role_page_feature_permission SET version=version+1,can_view=$5,can_create=$6,can_update=$7,can_delete=$8,updated_by=$9,updated_at=clock_timestamp() WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3 AND feature_id=$4 AND version=$10`, tenantID, permission.RoleID, permission.PageID, permission.FeatureID, permission.View, permission.Create, permission.Update, permission.Delete, actor, permission.Version)
 		if err != nil {
@@ -208,7 +270,7 @@ func (s *Store) SaveFeaturePermission(ctx context.Context, tenant values.TenantI
 			return roleaccess.ErrVersionConflict
 		}
 		permission.Version++
-		return nil
+		return appendRevision(ctx, tx, tenantID, actor, reason, RevisionFeaturePermission, permission.RoleID, "", "", permission.PageID, permission.FeatureID, before, permission)
 	})
 	return permission, err
 }
@@ -225,8 +287,12 @@ func (s *Store) featureDefinition(pageID, featureID string) (roleaccess.FeatureD
 
 func (s *Store) SavePagePermission(ctx context.Context, tenant values.TenantId, actor string, permission roleaccess.PagePermission) (roleaccess.PagePermission, error) {
 	actor = strings.TrimSpace(actor)
+	reason := strings.TrimSpace(permission.Reason)
 	permission = roleaccess.NormalizePagePermission(permission)
 	if actor == "" || roleaccess.ValidatePagePermission(permission) != nil {
+		return roleaccess.PagePermission{}, roleaccess.ErrInvalid
+	}
+	if !validRevisionReason(reason) {
 		return roleaccess.PagePermission{}, roleaccess.ErrInvalid
 	}
 	err := s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
@@ -243,7 +309,14 @@ func (s *Store) SavePagePermission(ctx context.Context, tenant values.TenantId, 
 				return roleaccess.ErrVersionConflict
 			}
 			permission.Version = 1
-			return nil
+			return appendRevision(ctx, tx, tenantID, actor, reason, RevisionPagePermission, permission.RoleID, "", "", permission.PageID, "", nil, permission)
+		}
+		before := permission
+		if err := tx.QueryRow(ctx, `SELECT version,can_view,can_create,can_update,can_delete FROM role_page_permission WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3`, tenantID, permission.RoleID, permission.PageID).Scan(&before.Version, &before.View, &before.Create, &before.Update, &before.Delete); err != nil {
+			if errors.Is(err, dbport.ErrNoRows) {
+				return roleaccess.ErrVersionConflict
+			}
+			return err
 		}
 		affected, err := tx.Exec(ctx, `UPDATE role_page_permission SET version=version+1,can_view=$4,can_create=$5,can_update=$6,can_delete=$7,updated_by=$8,updated_at=clock_timestamp() WHERE tenant_id=$1 AND role_id=$2 AND page_id=$3 AND version=$9`, tenantID, permission.RoleID, permission.PageID, permission.View, permission.Create, permission.Update, permission.Delete, actor, permission.Version)
 		if err != nil {
@@ -253,15 +326,19 @@ func (s *Store) SavePagePermission(ctx context.Context, tenant values.TenantId, 
 			return roleaccess.ErrVersionConflict
 		}
 		permission.Version++
-		return nil
+		return appendRevision(ctx, tx, tenantID, actor, reason, RevisionPagePermission, permission.RoleID, "", "", permission.PageID, "", before, permission)
 	})
 	return permission, err
 }
 
 func (s *Store) SaveRole(ctx context.Context, tenant values.TenantId, actor string, role roleaccess.Role) (roleaccess.Role, error) {
 	actor = strings.TrimSpace(actor)
+	reason := strings.TrimSpace(role.Reason)
 	role = roleaccess.NormalizeRole(role)
 	if actor == "" || roleaccess.ValidateRole(role) != nil {
+		return roleaccess.Role{}, roleaccess.ErrInvalid
+	}
+	if !validRevisionReason(reason) {
 		return roleaccess.Role{}, roleaccess.ErrInvalid
 	}
 	err := s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
@@ -274,7 +351,7 @@ func (s *Store) SaveRole(ctx context.Context, tenant values.TenantId, actor stri
 				return roleaccess.ErrVersionConflict
 			}
 			role.Version, role.System, role.Active = 1, false, true
-			return nil
+			return appendRevision(ctx, tx, tenantID, actor, reason, RevisionRole, role.ID, "", "", "", "", nil, role)
 		}
 		// System roles are built-in duties, not editable identity: renaming
 		// one, deactivating it (which would strip its effective grants) or
@@ -282,11 +359,14 @@ func (s *Store) SaveRole(ctx context.Context, tenant values.TenantId, actor stri
 		// touched. Custom roles may be renamed or deactivated.
 		var existing roleaccess.Role
 		existing.ID = role.ID
-		if err := tx.QueryRow(ctx, `SELECT name,system_role,active FROM access_role WHERE tenant_id=$1 AND role_id=$2`, tenantID, role.ID).Scan(&existing.Name, &existing.System, &existing.Active); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT version,name,description,system_role,active FROM access_role WHERE tenant_id=$1 AND role_id=$2`, tenantID, role.ID).Scan(&existing.Version, &existing.Name, &existing.Description, &existing.System, &existing.Active); err != nil {
 			if errors.Is(err, dbport.ErrNoRows) {
 				return roleaccess.ErrVersionConflict
 			}
 			return err
+		}
+		if existing.Version != role.Version {
+			return roleaccess.ErrVersionConflict
 		}
 		if err := roleaccess.ValidateRoleUpdate(existing, role); err != nil {
 			return err
@@ -299,18 +379,42 @@ func (s *Store) SaveRole(ctx context.Context, tenant values.TenantId, actor stri
 			return roleaccess.ErrVersionConflict
 		}
 		role.Version++
-		return nil
+		return appendRevision(ctx, tx, tenantID, actor, reason, RevisionRole, role.ID, "", "", "", "", existing, role)
 	})
 	return role, err
 }
 
 func (s *Store) SaveAssignment(ctx context.Context, tenant values.TenantId, actor string, assignment roleaccess.Assignment) (roleaccess.Assignment, error) {
 	actor = strings.TrimSpace(actor)
+	reason := strings.TrimSpace(assignment.Reason)
 	assignment = roleaccess.NormalizeAssignment(assignment)
 	if actor == "" || roleaccess.ValidateAssignment(assignment) != nil {
 		return roleaccess.Assignment{}, roleaccess.ErrInvalid
 	}
+	if !validRevisionReason(reason) {
+		return roleaccess.Assignment{}, roleaccess.ErrInvalid
+	}
 	err := s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
+		beforeRoles := make(map[string]bool)
+		if assignment.Version > 0 {
+			rows, err := tx.Query(ctx, `SELECT role_id FROM worker_access_role_assignment WHERE tenant_id=$1 AND worker_ref=$2 ORDER BY role_id`, tenantID, assignment.WorkerRef)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				var roleID string
+				if err := rows.Scan(&roleID); err != nil {
+					rows.Close()
+					return err
+				}
+				beforeRoles[roleID] = true
+			}
+			if err := rows.Err(); err != nil {
+				rows.Close()
+				return err
+			}
+			rows.Close()
+		}
 		for _, roleID := range assignment.RoleIDs {
 			var active bool
 			if err := tx.QueryRow(ctx, `SELECT active FROM access_role WHERE tenant_id=$1 AND role_id=$2`, tenantID, roleID).Scan(&active); err != nil || !active {
@@ -344,6 +448,28 @@ func (s *Store) SaveAssignment(ctx context.Context, tenant values.TenantId, acto
 				return err
 			}
 		}
+		allRoleIDs := make(map[string]struct{}, len(beforeRoles)+len(assignment.RoleIDs))
+		for roleID := range beforeRoles {
+			allRoleIDs[roleID] = struct{}{}
+		}
+		for _, roleID := range assignment.RoleIDs {
+			allRoleIDs[roleID] = struct{}{}
+		}
+		orderedRoleIDs := make([]string, 0, len(allRoleIDs))
+		for roleID := range allRoleIDs {
+			orderedRoleIDs = append(orderedRoleIDs, roleID)
+		}
+		sort.Strings(orderedRoleIDs)
+		for _, roleID := range orderedRoleIDs {
+			var before any
+			if assignment.Version > 1 || beforeRoles[roleID] {
+				before = membershipImage{Version: assignment.Version - 1, Present: beforeRoles[roleID]}
+			}
+			after := membershipImage{Version: assignment.Version, Present: containsRole(assignment.RoleIDs, roleID)}
+			if err := appendRevision(ctx, tx, tenantID, actor, reason, RevisionAssignment, roleID, assignment.WorkerRef, "", "", "", before, after); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	return assignment, err
@@ -351,8 +477,12 @@ func (s *Store) SaveAssignment(ctx context.Context, tenant values.TenantId, acto
 
 func (s *Store) SaveVisibility(ctx context.Context, tenant values.TenantId, organization, actor string, policy roleaccess.VisibilityPolicy) (roleaccess.VisibilityPolicy, error) {
 	organization, actor = strings.TrimSpace(organization), strings.TrimSpace(actor)
+	reason := strings.TrimSpace(policy.Reason)
 	policy = roleaccess.NormalizeVisibility(policy)
 	if organization == "" || actor == "" || roleaccess.ValidateVisibility(policy) != nil {
+		return roleaccess.VisibilityPolicy{}, roleaccess.ErrInvalid
+	}
+	if !validRevisionReason(reason) {
 		return roleaccess.VisibilityPolicy{}, roleaccess.ErrInvalid
 	}
 	err := s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
@@ -369,7 +499,14 @@ func (s *Store) SaveVisibility(ctx context.Context, tenant values.TenantId, orga
 				return roleaccess.ErrVersionConflict
 			}
 			policy.Version = 1
-			return nil
+			return appendRevision(ctx, tx, tenantID, actor, reason, RevisionVisibility, policy.RoleID, "", organization, "", "", nil, policy)
+		}
+		before := policy
+		if err := tx.QueryRow(ctx, `SELECT version,mode,organization_units FROM role_organization_visibility WHERE tenant_id=$1 AND organization_scope_id=$2 AND role_id=$3`, tenantID, organization, policy.RoleID).Scan(&before.Version, &before.Mode, &before.OrganizationUnits); err != nil {
+			if errors.Is(err, dbport.ErrNoRows) {
+				return roleaccess.ErrVersionConflict
+			}
+			return err
 		}
 		affected, err := tx.Exec(ctx, `UPDATE role_organization_visibility SET version=version+1,mode=$5,organization_units=$6,updated_by=$7,updated_at=clock_timestamp() WHERE tenant_id=$1 AND organization_scope_id=$2 AND role_id=$3 AND version=$4`, tenantID, organization, policy.RoleID, policy.Version, policy.Mode, policy.OrganizationUnits, actor)
 		if err != nil {
@@ -379,7 +516,7 @@ func (s *Store) SaveVisibility(ctx context.Context, tenant values.TenantId, orga
 			return roleaccess.ErrVersionConflict
 		}
 		policy.Version++
-		return nil
+		return appendRevision(ctx, tx, tenantID, actor, reason, RevisionVisibility, policy.RoleID, "", organization, "", "", before, policy)
 	})
 	return policy, err
 }

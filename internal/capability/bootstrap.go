@@ -55,9 +55,10 @@ func bootstrapDefinition(id, ownerDomain string, readDomains []string) Definitio
 
 // bootstrapDefinitions is the compiled-in P1A table: the eight executable
 // P1A intent contracts (planning/next-steps.md "P1A - paid observation,
-// preflight and simulation") plus the registry's own resolve/explain
-// capabilities, so the registry discovers itself through the same path a
-// UI, agent or connector uses (CAP-001 REFACTOR).
+// preflight and simulation"), the separately callable effective-date
+// debugger, and the registry's resolve/explain capabilities, so the registry
+// discovers itself through the same path a UI, agent or connector uses
+// (CAP-001 REFACTOR).
 func bootstrapDefinitions() []Definition {
 	return []Definition{
 		bootstrapDefinition("hcmnext.people.explain_worker_state", "people", []string{"worker", "employment"}),
@@ -68,6 +69,7 @@ func bootstrapDefinitions() []Definition {
 		bootstrapDefinition("hcmnext.operations.detect_drift", "operations", []string{"projection", "ledger"}),
 		bootstrapDefinition("hcmnext.operations.create_repair_plan", "operations", []string{"projection", "ledger"}),
 		bootstrapDefinition("hcmnext.operations.simulate_repair", "operations", []string{"projection", "ledger"}),
+		bootstrapDefinition("hcmnext.dataops.explain_field_history", "dataops", []string{"field_history"}),
 		bootstrapDefinition("hcmnext.registry.resolve_capability", "registry", []string{"capability_registry"}),
 		bootstrapDefinition("hcmnext.registry.explain_capability", "registry", []string{"capability_registry"}),
 	}

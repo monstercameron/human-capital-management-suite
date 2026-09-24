@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -73,19 +74,23 @@ type ruleInputDeriver interface {
 // currentThresholdInputs re-derives RULE-003's inputs for the recorded
 // instance through the governed threshold-inputs path, so the derivation
 // the guard compares against is the same one the threshold port evaluated.
-func (s *ServedRuleFacts) currentThresholdInputs(ctx context.Context, record rulethreshold.Decision, tenantID uuid.UUID, rev intent.ProposalRevision) (rules.PromotionApprovalInput, error) {
+func (s *ServedRuleFacts) currentThresholdInputs(ctx context.Context, record rulethreshold.Decision, tenantID uuid.UUID, rev intent.ProposalRevision, checkedAt time.Time) (rules.PromotionApprovalInput, error) {
+	if checkedAt.IsZero() {
+		return rules.PromotionApprovalInput{}, fmt.Errorf("platform execution: RULE-004 threshold revalidation has no checked_at instant")
+	}
 	req := execute.StepRequest{
 		TenantID:   tenantID,
 		InstanceID: record.InstanceID,
 		Attempt:    record.Attempt,
 		Node:       workflow.CompiledNode{ID: promotionexec.NodeRaiseThreshold, Type: workflow.StepDecision},
 		Proposal:   runtime.ProposalBinding{Revision: rev},
+		RecordedAt: checkedAt.UTC(),
 	}
 	return s.Thresholds.thresholdInputs(ctx, req)
 }
 
 // Lookup implements [execute.RuleFacts].
-func (s *ServedRuleFacts) Lookup(ctx context.Context, ex runtime.Executor, tenantID uuid.UUID, rev intent.ProposalRevision) (execute.RuleApproval, error) {
+func (s *ServedRuleFacts) Lookup(ctx context.Context, ex runtime.Executor, tenantID uuid.UUID, rev intent.ProposalRevision, checkedAt time.Time) (execute.RuleApproval, error) {
 	if s.Thresholds == nil || s.Approval == nil {
 		return execute.RuleApproval{}, fmt.Errorf("platform execution: served rule facts need threshold inputs and approval facts ports")
 	}
@@ -119,7 +124,7 @@ func (s *ServedRuleFacts) Lookup(ctx context.Context, ex runtime.Executor, tenan
 	if approvalDigest == "" {
 		return execute.RuleApproval{}, nil
 	}
-	current, err := s.currentThresholdInputs(ctx, record, tenantID, rev)
+	current, err := s.currentThresholdInputs(ctx, record, tenantID, rev, checkedAt)
 	if err != nil {
 		return execute.RuleApproval{}, err
 	}

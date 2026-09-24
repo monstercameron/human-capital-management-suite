@@ -216,7 +216,17 @@ func (c *Committer) CommitInTx(ctx context.Context, tx dbport.Tx, prepared plan.
 				}
 				writes := make([]conflict.WriteBaseline, len(prepared.Writes))
 				for i, write := range prepared.Writes {
-					writes[i] = conflict.WriteBaseline{ResourceCanonical: write.ResourceKey.String(), FieldPath: conflict.FieldPath(write.FieldPath), StreamKey: write.ExpectedRevision.Stream(), AuthorityDomain: write.Subject.AuthorityDomain, SourceAuthorityDecision: write.SourceAuthorityDecision, Operation: conflict.Operation(write.Operation), EffectiveInterval: write.EffectiveInterval}
+					footprint := conflict.WriteFootprint{
+						Resource: write.ResourceKey, Field: conflict.FieldPath(write.FieldPath),
+						Interval: write.EffectiveInterval, Operation: conflict.Operation(write.Operation),
+						ExpectedRevision: write.ExpectedRevision,
+						Authority:        conflict.AuthorityScope{Domain: write.Subject.AuthorityDomain, PolicyRef: write.SourceAuthorityDecision},
+					}
+					baseline, err := conflict.BaselineFromFootprint(footprint)
+					if err != nil {
+						return idempotency.ResultIdentity{}, fmt.Errorf("%w: invalid conflict footprint: %v", ErrInvalidPlan, err)
+					}
+					writes[i] = baseline
 				}
 				if _, err := c.opts.ConflictFence.ValidateAtCommit(ctx, tx, conflict.CommitRequest{
 					TenantID: tenant.String(), IntentID: prepared.ConflictIntentID, SnapshotDigest: prepared.ConflictSnapshotDigest,

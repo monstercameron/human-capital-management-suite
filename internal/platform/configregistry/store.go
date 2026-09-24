@@ -56,6 +56,7 @@ type Registry struct {
 }
 
 var _ Store = (*Registry)(nil)
+var _ AtomicActivationStore = (*Registry)(nil)
 
 // NewRegistry returns an empty in-memory store.
 func NewRegistry() *Registry {
@@ -121,6 +122,43 @@ func (r *Registry) PutActivation(rec ActivationRecord) error {
 	defer r.mu.Unlock()
 	r.activations[gk] = append(r.activations[gk], rec.clone())
 	return nil
+}
+
+// CommitObjectActivation stores a validated object and appends its activation
+// while holding one registry lock. It is the in-memory equivalent of the
+// database adapter's transaction.
+func (r *Registry) CommitObjectActivation(o ConfigurationObject, evidence ActivationEvidence) (ActivationRecord, error) {
+	if r == nil {
+		return ActivationRecord{}, refuse(CodeNoStore, o.ID, "no registry supplied")
+	}
+	if err := o.Verify(); err != nil {
+		return ActivationRecord{}, err
+	}
+	if evidence.ActivatedBy == "" {
+		return ActivationRecord{}, refuse(CodeUnauthorizedActivation, o.ID, "activation has no activating principal")
+	}
+	if evidence.ActivatedAt.IsZero() {
+		return ActivationRecord{}, refuse(CodeMissingActivationTime, o.ID, "activation has no activation time")
+	}
+	ref := o.Ref()
+	gk := objectGroupKey(o.Scope, o.Kind, o.ID)
+	rec := ActivationRecord{
+		Scope: o.Scope, Kind: o.Kind, ID: o.ID, Revision: o.Revision,
+		ActivatedBy: evidence.ActivatedBy, Authority: evidence.Authority,
+		Reason: evidence.Reason, ActivatedAt: evidence.ActivatedAt, ObjectDigest: o.Digest(),
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if prior, exists := r.objects[ref]; exists {
+		if prior.Digest() != o.Digest() {
+			return ActivationRecord{}, refuse(CodeRevisionConflict, o.ID, "revision %d is already published with different content", o.Revision)
+		}
+	} else {
+		r.objects[ref] = o.clone()
+		r.revisionOrder[gk] = append(r.revisionOrder[gk], o.Revision)
+	}
+	r.activations[gk] = append(r.activations[gk], rec.clone())
+	return rec, nil
 }
 
 // GetLatestActivation implements [Store].

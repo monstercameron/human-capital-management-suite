@@ -35,6 +35,7 @@ package operation
 // config we happened to write down.
 
 import (
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -178,10 +179,42 @@ func sortScheduleCandidates(candidates []ScheduleCandidate) []ScheduleCandidate 
 	return sorted
 }
 
-type connectorWindow struct {
-	used    int
-	resetAt time.Time
+// QuotaWindow is the shared fixed-window counter used by connector dispatch
+// and inbound application-credential admission.
+type QuotaWindow struct {
+	Used    int
+	StartAt time.Time
+	ResetAt time.Time
 }
+
+// AdvanceQuotaWindow opens the current fixed window or preserves an active
+// one. The returned value has a zero Used count when a new window begins.
+func AdvanceQuotaWindow(window QuotaWindow, now time.Time, duration time.Duration) QuotaWindow {
+	if duration <= 0 {
+		duration = time.Minute
+	}
+	if window.StartAt.IsZero() || !now.Before(window.ResetAt) {
+		start := now.Truncate(duration)
+		return QuotaWindow{StartAt: start, ResetAt: start.Add(duration)}
+	}
+	return window
+}
+
+// QuotaRetryAfterSeconds returns the whole-second delay until reset, rounded
+// up so a caller never retries before the quota window actually resets.
+func QuotaRetryAfterSeconds(now, reset time.Time) int {
+	remaining := reset.Sub(now)
+	if remaining <= 0 {
+		return 1
+	}
+	seconds := int(math.Ceil(remaining.Seconds()))
+	if seconds < 1 {
+		return 1
+	}
+	return seconds
+}
+
+type connectorWindow = QuotaWindow
 
 type connectorClaim struct {
 	connection  string
@@ -258,13 +291,11 @@ func (l *ConnectorLedger) quotaFor(connection string) ConnectorQuota {
 // elapsed. The caller must hold l.mu.
 func (l *ConnectorLedger) windowFor(connection string, now time.Time, window time.Duration) *connectorWindow {
 	w, ok := l.windows[connection]
-	if !ok || !now.Before(w.resetAt) {
-		if window <= 0 {
-			window = time.Minute
-		}
-		w = &connectorWindow{resetAt: now.Add(window)}
+	if !ok {
+		w = &connectorWindow{}
 		l.windows[connection] = w
 	}
+	*w = AdvanceQuotaWindow(*w, now, window)
 	return w
 }
 
@@ -350,7 +381,7 @@ func (l *ConnectorLedger) TryReserve(now time.Time, c ScheduleCandidate) (bool, 
 	var win *connectorWindow
 	if quota.Limit > 0 {
 		win = l.windowFor(c.ConnectionID, now, quota.Window)
-		if win.used >= quota.Limit {
+		if win.Used >= quota.Limit {
 			return false, ScheduleReasonRateLimited
 		}
 	}
@@ -374,7 +405,7 @@ func (l *ConnectorLedger) TryReserve(now time.Time, c ScheduleCandidate) (bool, 
 	}
 
 	if win != nil {
-		win.used++
+		win.Used++
 	}
 	l.inFlight[c.ConnectionID]++
 	if l.byTenant[c.ConnectionID] == nil {

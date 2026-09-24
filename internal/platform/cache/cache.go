@@ -184,6 +184,45 @@ type Cache[V any] struct {
 	backend Backend[V]
 }
 
+// TenantReadCache binds a cache to one tenant and one pair of authorization
+// and content versions. Use it for tenant-scoped reads whose loader remains
+// the source of truth. The authorize callback is evaluated on every hit and
+// after every load.
+type TenantReadCache[V any] struct {
+	cache          Store[V]
+	tenant         string
+	policyVersion  string
+	contentVersion string
+	namespace      string
+}
+
+// NewTenantReadCache binds a read adapter to a complete tenant/version
+// identity. Invalid identity is rejected before any reads can occur.
+func NewTenantReadCache[V any](cache Store[V], tenant, policyVersion, contentVersion, namespace string) (*TenantReadCache[V], error) {
+	if cache == nil {
+		return nil, ErrKeyInvalid
+	}
+	if _, err := NewKey(tenant, policyVersion, contentVersion, namespace, "identity-check"); err != nil {
+		return nil, err
+	}
+	return &TenantReadCache[V]{cache: cache, tenant: tenant, policyVersion: policyVersion, contentVersion: contentVersion, namespace: namespace}, nil
+}
+
+// GetOrLoad reads one tenant-owned value, falling back to the authoritative
+// loader on a miss. Caller authorization is mandatory and checked again for
+// cached values by the underlying store.
+func (r *TenantReadCache[V]) GetOrLoad(id string, load func() (V, error), authorize func(V) bool) (V, error) {
+	var zero V
+	if r == nil || r.cache == nil || authorize == nil {
+		return zero, ErrKeyInvalid
+	}
+	key, err := NewKey(r.tenant, r.policyVersion, r.contentVersion, r.namespace, id)
+	if err != nil {
+		return zero, err
+	}
+	return r.cache.GetOrLoad(key, load, authorize)
+}
+
 func New[V any](cfg Config) *Cache[V] {
 	cfg = cfg.normalized()
 	return &Cache[V]{

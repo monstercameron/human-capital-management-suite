@@ -14,21 +14,29 @@ import (
 func TestTodo_WF_HIRE_001_Published(t *testing.T) {
 	store := version.NewRegistry()
 	first, err := PublishReferenceVersions(store, releaseAt)
-	if err != nil || len(first) != 1 {
+	if err != nil || len(first) != 2 {
 		t.Fatalf("PublishReferenceVersions = %+v, %v", first, err)
 	}
-	hire := first[0]
-	if hire.WorkflowID != hireexec.WorkflowID || hire.SemanticVersion != hireexec.SemanticVersion || hire.Status != version.StatusDraft {
-		t.Fatalf("published %s %s as %s", hire.WorkflowID, hire.SemanticVersion, hire.Status)
-	}
-	if len(hire.FixtureRefs) != 1 || hire.FixtureRefs[0] != FixtureHireCompile {
-		t.Fatalf("fixtures = %v", hire.FixtureRefs)
-	}
-	if err := ShippedFixtures()[FixtureHireCompile](hire); err != nil {
-		t.Fatalf("the published plan does not reproduce: %v", err)
+	fixtures := ShippedFixtures()
+	wantVersions := []string{hireexec.SemanticVersionV1_0, hireexec.SemanticVersion}
+	wantFixtures := []string{FixtureHireCompile, FixtureHireCompileV1_1}
+	for i, hire := range first {
+		if hire.WorkflowID != hireexec.WorkflowID || hire.SemanticVersion != wantVersions[i] || hire.Status != version.StatusDraft {
+			t.Fatalf("published %s %s as %s", hire.WorkflowID, hire.SemanticVersion, hire.Status)
+		}
+		if len(hire.FixtureRefs) != 1 || hire.FixtureRefs[0] != wantFixtures[i] {
+			t.Fatalf("%s fixtures = %v, want [%s]", hire.SemanticVersion, hire.FixtureRefs, wantFixtures[i])
+		}
+		fixture := fixtures[wantFixtures[i]]
+		if fixture == nil {
+			t.Fatalf("fixture %q is not registered", wantFixtures[i])
+		}
+		if err := fixture(hire); err != nil {
+			t.Fatalf("the %s plan does not reproduce: %v", hire.SemanticVersion, err)
+		}
 	}
 	again, err := PublishReferenceVersions(store, releaseAt)
-	if err != nil || again[0].CompiledPlanDigest != hire.CompiledPlanDigest {
+	if err != nil || len(again) != len(first) || again[0].CompiledPlanDigest != first[0].CompiledPlanDigest || again[1].CompiledPlanDigest != first[1].CompiledPlanDigest {
 		t.Fatalf("second publication = %+v, %v; want the same version", again, err)
 	}
 	shipped, err := PublishShippedVersions(version.NewRegistry(), releaseAt)

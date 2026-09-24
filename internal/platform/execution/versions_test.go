@@ -49,8 +49,8 @@ func TestTodo_WF_COMP_006_ServeBootNeverApproves(t *testing.T) {
 	if len(registry.approvals) != 0 || len(registry.activated) != 0 {
 		t.Fatalf("composition recorded approvals %+v and activations %v, want none", registry.approvals, registry.activated)
 	}
-	// The executable promotion ships 1.0.0 (frozen) and 1.1.0 side by side.
-	for workflowID, want := range map[string]int{prototype.ApprovalWorkflowID: 1, promotionexec.WorkflowID: 2} {
+	// The executable promotion ships frozen 1.0.0 and 1.1.0 plus current 1.2.0.
+	for workflowID, want := range map[string]int{prototype.ApprovalWorkflowID: 1, promotionexec.WorkflowID: 3} {
 		versions, err := registry.List(workflowID)
 		if err != nil {
 			t.Fatal(err)

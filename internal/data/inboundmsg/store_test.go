@@ -124,25 +124,6 @@ func seedChain(t *testing.T, conn *pgxadapter.Conn, tenant uuid.UUID, recipientR
 		if err := messagingmeta.InsertDeliveryEndpoint(ctx, tx, endpoint); err != nil {
 			return err
 		}
-		message := messagingmeta.RecipientMessage{
-			TenantID:           tenant,
-			RecipientMessageID: uuid.New(),
-			MessageIntentID:    intent.MessageIntentID,
-			RecipientRef:       recipientRef,
-			EndpointID:         endpoint.EndpointID,
-			RenderedDigest:     digestOf("rendered-" + uuid.NewString()),
-			Classification:     "INTERNAL",
-			CorrelationKey:     correlationKey,
-			RecipientState:     "UNSEEN",
-			SatisfactionState:  "PENDING",
-			CreatedAt:          fixedInstant,
-			UpdatedAt:          fixedInstant,
-		}
-		if err := messagingmeta.InsertRecipientMessage(ctx, tx, message); err != nil {
-			return err
-		}
-		c.recipientMessageID = message.RecipientMessageID
-
 		thread := messagingmeta.ConversationThread{
 			TenantID:       tenant,
 			ThreadID:       uuid.New(),
@@ -156,6 +137,26 @@ func seedChain(t *testing.T, conn *pgxadapter.Conn, tenant uuid.UUID, recipientR
 			return err
 		}
 		c.threadID = thread.ThreadID
+
+		message := messagingmeta.RecipientMessage{
+			TenantID:             tenant,
+			RecipientMessageID:   uuid.New(),
+			MessageIntentID:      intent.MessageIntentID,
+			ConversationThreadID: &c.threadID,
+			RecipientRef:         recipientRef,
+			EndpointID:           endpoint.EndpointID,
+			RenderedDigest:       digestOf("rendered-" + uuid.NewString()),
+			Classification:       "INTERNAL",
+			CorrelationKey:       correlationKey,
+			RecipientState:       "UNSEEN",
+			SatisfactionState:    "PENDING",
+			CreatedAt:            fixedInstant,
+			UpdatedAt:            fixedInstant,
+		}
+		if err := messagingmeta.InsertRecipientMessage(ctx, tx, message); err != nil {
+			return err
+		}
+		c.recipientMessageID = message.RecipientMessageID
 
 		participant := messagingmeta.ThreadParticipant{
 			TenantID:             tenant,
@@ -242,6 +243,16 @@ func TestTodo_MSG_011(t *testing.T) {
 			firstID = stored.InboundMessageID
 			return nil
 		})
+
+		conflictingReplay := in
+		conflictingReplay.ContentDigest = digestOf("different bytes for reused provider id")
+		err := inTenantTxErr(conn, tenant, func(tx dbport.Tx) error {
+			_, _, err := inboundmsg.Store{}.Ingest(ctx, tx, conflictingReplay, c.correlationKey)
+			return err
+		})
+		if !errors.Is(err, inboundmsg.ErrReplayConflict) {
+			t.Fatalf("provider id replay with different content returned %v, want ErrReplayConflict", err)
+		}
 
 		inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
 			stored, created, err := inboundmsg.Store{}.Ingest(ctx, tx, in, c.correlationKey)
@@ -343,10 +354,18 @@ func TestTodo_MSG_011(t *testing.T) {
 
 		inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
 			store := inboundmsg.Store{}
-			if _, _, err := store.Ingest(ctx, tx, second, "corr:"+uuid.NewString()); err != nil {
+			secondStored, _, err := store.Ingest(ctx, tx, second, c.correlationKey)
+			if err != nil {
 				return err
 			}
-			_, _, err := store.Ingest(ctx, tx, first, "corr:"+uuid.NewString())
+			if _, err := store.Bind(ctx, tx, tenant, secondStored.InboundMessageID, recipientRef, 1, fixedInstant.Add(time.Minute)); err != nil {
+				return err
+			}
+			firstStored, _, err := store.Ingest(ctx, tx, first, c.correlationKey)
+			if err != nil {
+				return err
+			}
+			_, err = store.Bind(ctx, tx, tenant, firstStored.InboundMessageID, recipientRef, 1, fixedInstant.Add(2*time.Minute))
 			return err
 		})
 
@@ -711,7 +730,11 @@ func TestTodo_MSG_011_Security(t *testing.T) {
 		c := seedChain(t, conn, tenant, member, "corr:"+uuid.NewString())
 		in := newInboundMessage(tenant, c.threadID)
 		inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
-			_, _, err := inboundmsg.Store{}.Ingest(ctx, tx, in, "corr:"+uuid.NewString())
+			stored, _, err := inboundmsg.Store{}.Ingest(ctx, tx, in, c.correlationKey)
+			if err != nil {
+				return err
+			}
+			_, err = inboundmsg.Store{}.Bind(ctx, tx, tenant, stored.InboundMessageID, member, 1, fixedInstant.Add(time.Minute))
 			return err
 		})
 
@@ -736,6 +759,36 @@ func TestTodo_MSG_011_Security(t *testing.T) {
 			}
 			if len(list) != 1 {
 				t.Fatalf("the thread's own member ListThread returned %d messages, want 1", len(list))
+			}
+			return nil
+		})
+	})
+
+	t.Run("a claimed thread cannot redirect a correlated reply", func(t *testing.T) {
+		member := "principal:" + uuid.NewString()
+		canonical := seedChain(t, conn, tenant, member, "corr:"+uuid.NewString())
+		other := seedChain(t, conn, tenant, member, "corr:"+uuid.NewString())
+		in := newInboundMessage(tenant, other.threadID)
+		var inboundID uuid.UUID
+		inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
+			stored, _, err := inboundmsg.Store{}.Ingest(ctx, tx, in, canonical.correlationKey)
+			inboundID = stored.InboundMessageID
+			return err
+		})
+		inTenantTx(t, conn, tenant, func(tx dbport.Tx) error {
+			binding, err := inboundmsg.Store{}.Bind(ctx, tx, tenant, inboundID, member, 1, fixedInstant.Add(time.Minute))
+			if err != nil {
+				return err
+			}
+			if binding.State != inboundmsg.Rejected || binding.RecipientMessageID != nil {
+				t.Fatalf("thread-mismatched reply binding = %+v, want REJECTED without recipient", binding)
+			}
+			list, err := inboundmsg.Store{}.ListThread(ctx, tx, tenant, member, other.threadID)
+			if err != nil {
+				return err
+			}
+			if len(list) != 0 {
+				t.Fatalf("claimed thread exposed %d unresolved reply messages, want 0", len(list))
 			}
 			return nil
 		})

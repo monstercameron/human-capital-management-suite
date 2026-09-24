@@ -16,15 +16,20 @@ import (
 // EventID is the semantic dedupe key; stream and sequence are the ordering
 // fence used to reject gaps and reordered delivery.
 type ConsumerEvent struct {
-	Tenant          uuid.UUID
-	ConsumerGroup   string
-	StreamKey       string
-	Partition       string
-	Sequence        int64
-	EventID         uuid.UUID
-	SchemaRef       string
-	Digest          string
-	SourceWatermark int64
+	Tenant        uuid.UUID
+	ConsumerGroup string
+	StreamKey     string
+	Partition     string
+	Sequence      int64
+	EventID       uuid.UUID
+	// CompensatesEventID links a compensating event to the original event
+	// whose effect it reverses. Process admits the compensation only after
+	// that original is durably present in consumer_dedupe for this tenant
+	// and consumer group.
+	CompensatesEventID uuid.UUID
+	SchemaRef          string
+	Digest             string
+	SourceWatermark    int64
 }
 
 // Position is the durable progress of one consumer group on one source.
@@ -51,6 +56,10 @@ var (
 	ErrConsumerInvalid = errors.New("outbox: invalid consumer event")
 	ErrConsumerGap     = errors.New("outbox: consumer position gap")
 	ErrConsumerOrder   = errors.New("outbox: consumer position out of order")
+	// ErrConsumerCompensationPending means the original event has not yet
+	// been admitted. The transaction is rolled back, leaving the compensation
+	// eligible for redelivery after its original is processed.
+	ErrConsumerCompensationPending = errors.New("outbox: compensating event is waiting for its original")
 )
 
 // ConsumerHandler applies the event's projection/effect inside the same
@@ -101,6 +110,15 @@ func Process(ctx context.Context, db dbport.Beginner, event ConsumerEvent, handl
 		return ProcessResult{}, fmt.Errorf("outbox: consumer dedupe lookup: %w", err)
 	}
 	if !duplicate {
+		if event.CompensatesEventID != uuid.Nil {
+			applied, lookupErr := consumerEventApplied(ctx, tx, event.Tenant, event.ConsumerGroup, event.CompensatesEventID)
+			if lookupErr != nil {
+				return ProcessResult{}, lookupErr
+			}
+			if !applied {
+				return ProcessResult{}, fmt.Errorf("outbox: compensation %s: %w", event.EventID, ErrConsumerCompensationPending)
+			}
+		}
 		if event.Sequence > position.Sequence+1 {
 			return ProcessResult{}, fmt.Errorf("%w: stream %s is at %d, received %d", ErrConsumerGap, event.StreamKey, position.Sequence, event.Sequence)
 		}
@@ -134,7 +152,22 @@ func validateConsumerEvent(event ConsumerEvent) error {
 	if event.Sequence < 1 || event.SourceWatermark < event.Sequence {
 		return fmt.Errorf("%w: sequence and source watermark are invalid", ErrConsumerInvalid)
 	}
+	if event.CompensatesEventID != uuid.Nil && event.CompensatesEventID == event.EventID {
+		return fmt.Errorf("%w: an event cannot compensate itself", ErrConsumerInvalid)
+	}
 	return nil
+}
+
+func consumerEventApplied(ctx context.Context, q dbport.Querier, tenant uuid.UUID, group string, eventID uuid.UUID) (bool, error) {
+	var found uuid.UUID
+	err := q.QueryRow(ctx, `SELECT event_id FROM consumer_dedupe WHERE tenant_id=$1 AND consumer_group=$2 AND event_id=$3`, tenant, group, eventID).Scan(&found)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, dbport.ErrNoRows) {
+		return false, nil
+	}
+	return false, fmt.Errorf("outbox: compensation original lookup: %w", err)
 }
 
 func ensureConsumerPosition(ctx context.Context, tx dbport.Tx, event ConsumerEvent) error {

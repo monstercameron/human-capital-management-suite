@@ -4,12 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/edge"
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/webhook"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/admission"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
 )
 
 // ResultEvent is the callback body; its marshalled bytes are exactly what is
@@ -108,15 +114,31 @@ func (s *Server) send(ctx context.Context, ch *change, d *delivery, sc Scenario,
 // judged them invalid cannot succeed.
 func (s *Server) deliver(ctx context.Context, ch *change, d *delivery, eventID, eventType string, body []byte) bool {
 	ref := ch.req.ChangeRef
+	dependency := callbackDependency(ch.req.CallbackURL)
+	var previousFailure edge.FailureSignal
 	for attempt := 1; attempt <= s.maxAttempts; attempt++ {
+		request := edge.OverloadRequest{
+			TenantID: ch.req.Tenant, Dependency: dependency,
+			LogicalOperationID: eventID, OperationKind: eventType,
+			Attempt: attempt - 1, Failure: previousFailure,
+			Signal: admission.BackpressureSignal{Source: "payrollsim-callback", Dependency: dependency, State: admission.BackpressureHealthy},
+		}
+		decision, decisionErr := s.overload.Decide(s.now(), request)
+		if decisionErr != nil || !decision.PerformEffect {
+			s.log.Warn("callback attempt refused by overload coordinator", "change_ref", ref, "event_id", eventID, "attempt", attempt, "reason", decision.Reason, "err", errText(decisionErr))
+			return false
+		}
 		status, err := s.attempt(ctx, ch, d, eventID, eventType, body)
 		ok := err == nil && status >= 200 && status < 300
+		failure := callbackFailure(status, err)
+		s.overload.Breaker.Report(ch.req.Tenant, dependency, s.now(), failure == "")
 		s.mu.Lock()
 		d.attempts++
 		d.lastStatus = status
 		if ok {
 			d.delivered = true
 		}
+		previousFailure = failure
 		s.mu.Unlock()
 		if ok {
 			s.log.Info("callback delivered", "change_ref", ref, "event_id", eventID, "attempt", attempt, "status", status)
@@ -142,6 +164,35 @@ func (s *Server) deliver(ctx context.Context, ch *change, d *delivery, eventID, 
 	}
 	s.log.Error("callback gave up", "change_ref", ref, "event_id", eventID, "attempts", s.maxAttempts)
 	return false
+}
+
+// callbackDependency gives breaker state a stable, bounded key without
+// retaining callback paths or query parameters.
+func callbackDependency(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Hostname() == "" {
+		return "callback"
+	}
+	return u.Hostname()
+}
+
+// callbackFailure translates only retryable transport outcomes into EDGE-007
+// signals. Permanent HTTP responses demonstrate reachability and do not trip
+// the dependency breaker.
+func callbackFailure(status int, err error) edge.FailureSignal {
+	if err != nil {
+		return edge.FailureTimeout
+	}
+	switch {
+	case status == http.StatusTooManyRequests:
+		return edge.FailureRateLimited
+	case status == http.StatusRequestTimeout:
+		return edge.FailureTimeout
+	case status >= http.StatusInternalServerError:
+		return edge.FailureUnavailable
+	default:
+		return ""
+	}
 }
 
 // attempt performs one signed POST. The timestamp and signature are fresh per
@@ -172,7 +223,24 @@ func (s *Server) attempt(ctx context.Context, ch *change, d *delivery, eventID, 
 	req.Header.Set("Webhook-Tenant", ch.req.Tenant)
 	req.Header.Set("Webhook-Signature", sig)
 	d.echo.ApplyEcho(req.Header)
-	resp, err := s.client.Do(req)
+	var resp *http.Response
+	if s.gateway != nil {
+		result, gatewayErr := s.gateway.Do(ctx, egress.Request{
+			Method: http.MethodPost, Target: ch.req.CallbackURL,
+			Purpose: "payrollsim_callback_delivery", Principal: "payrollsim_callback",
+			Tenant: ch.req.Tenant, Payload: body,
+			DataClasses: []dlp.DataClass{dlp.ClassPII, dlp.ClassCompensation},
+			Headers:     req.Header, NoRedirect: true,
+		})
+		if gatewayErr != nil {
+			return 0, gatewayErr
+		}
+		resp = result.Response
+	} else if s.client != nil {
+		resp, err = s.client.Do(req)
+	} else {
+		return 0, errors.New("payrollsim: callback HTTP port is not configured")
+	}
 	if err != nil {
 		return 0, err
 	}

@@ -21,7 +21,7 @@ import (
 // ever admits more than its configured capacity, or admits the same
 // outbox row more than once, under genuine concurrent contention.
 func TestTodo_EVENT_003_Race(t *testing.T) {
-	t.Run("capacity holds under concurrent admission", func(t *testing.T) {
+	{
 		const total = 200
 		const capacity = 50
 		ledger := outbox.NewResourceLedger(map[string]outbox.ResourcePolicy{"shared-dep": {Capacity: capacity}})
@@ -31,15 +31,18 @@ func TestTodo_EVENT_003_Race(t *testing.T) {
 		}
 		admittedFlags := make([]int32, total)
 		var wg sync.WaitGroup
+		start := make(chan struct{})
 		for i := 0; i < total; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
+				<-start
 				if ok, _ := ledger.TryAdmit("shared-dep", uuid.New(), ids[i]); ok {
 					atomic.AddInt32(&admittedFlags[i], 1)
 				}
 			}(i)
 		}
+		close(start)
 		wg.Wait()
 
 		var admittedCount int
@@ -55,30 +58,33 @@ func TestTodo_EVENT_003_Race(t *testing.T) {
 		if got := ledger.InFlight("shared-dep"); got != capacity {
 			t.Fatalf("in-flight = %d, want %d", got, capacity)
 		}
-	})
+	}
 
-	t.Run("one row is never double-admitted under contention", func(t *testing.T) {
+	{
 		ledger := outbox.NewResourceLedger(map[string]outbox.ResourcePolicy{"dedup-dep": {Capacity: 1000}})
 		dup := uuid.New()
 		const racers = 64
 		var dupAdmits int32
 		var wg sync.WaitGroup
+		start := make(chan struct{})
 		for i := 0; i < racers; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				<-start
 				if ok, _ := ledger.TryAdmit("dedup-dep", uuid.New(), dup); ok {
 					atomic.AddInt32(&dupAdmits, 1)
 				}
 			}()
 		}
+		close(start)
 		wg.Wait()
 		if dupAdmits != 1 {
 			t.Fatalf("duplicate outbox id admitted %d times by %d racing goroutines, want exactly 1", dupAdmits, racers)
 		}
-	})
+	}
 
-	t.Run("no admission is lost when capacity covers every candidate", func(t *testing.T) {
+	{
 		const total = 100
 		ledger := outbox.NewResourceLedger(map[string]outbox.ResourcePolicy{"roomy-dep": {Capacity: total}})
 		ids := make([]uuid.UUID, total)
@@ -87,20 +93,23 @@ func TestTodo_EVENT_003_Race(t *testing.T) {
 		}
 		var admitted int32
 		var wg sync.WaitGroup
+		start := make(chan struct{})
 		for i := 0; i < total; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
+				<-start
 				if ok, _ := ledger.TryAdmit("roomy-dep", uuid.New(), ids[i]); ok {
 					atomic.AddInt32(&admitted, 1)
 				}
 			}(i)
 		}
+		close(start)
 		wg.Wait()
 		if int(admitted) != total {
 			t.Fatalf("admitted = %d, want all %d candidates admitted when capacity is not the constraint", admitted, total)
 		}
-	})
+	}
 }
 
 func event003TenantFixture(t *testing.T) (*pgtest.DB, func(tenant uuid.UUID)) {

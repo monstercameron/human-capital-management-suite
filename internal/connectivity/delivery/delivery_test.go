@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/delivery"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/idempotency"
 )
 
 var deliveryAt = time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
@@ -16,6 +17,21 @@ type fakeStore struct {
 	observations  []delivery.Observation
 	duplicate     bool
 	cancelOnClaim context.CancelFunc
+}
+
+func TestGovernedRegistryFencesRunnerReplay(t *testing.T) {
+	store := &fakeStore{}
+	transport := &fakeTransport{}
+	registry := idempotency.NewRegistry()
+	runner := delivery.Runner{Store: store, Transport: transport, Idempotency: registry, Clock: func() time.Time { return deliveryAt }}
+	first, err := runner.Deliver(context.Background(), validEnvelope())
+	if err != nil || first.State != delivery.StateSubmitted || transport.calls != 1 {
+		t.Fatalf("first delivery = %+v, %v; calls=%d", first, err, transport.calls)
+	}
+	replay, err := runner.Deliver(context.Background(), validEnvelope())
+	if err != nil || replay.State != delivery.StateAlreadyObserved || replay.ProviderRef != "provider-1" || transport.calls != 1 || store.claims != 2 {
+		t.Fatalf("registry replay = %+v, %v; calls=%d claims=%d", replay, err, transport.calls, store.claims)
+	}
 }
 
 func (s *fakeStore) Claim(_ context.Context, _ delivery.Envelope, attempt int) (delivery.Claim, error) {
@@ -33,6 +49,16 @@ func (s *fakeStore) Observe(_ context.Context, _ delivery.Envelope, _ delivery.C
 type fakeTransport struct {
 	calls int
 	err   error
+}
+
+type failOnceTransport struct{ calls int }
+
+func (t *failOnceTransport) Deliver(context.Context, delivery.Envelope) (delivery.ProviderResult, error) {
+	t.calls++
+	if t.calls == 1 {
+		return delivery.ProviderResult{}, &delivery.ProviderError{Err: errors.New("temporary"), Retryable: true}
+	}
+	return delivery.ProviderResult{ProviderRef: "provider-recovered"}, nil
 }
 
 type fakeRetryAdmission struct {
@@ -56,6 +82,16 @@ func (t *fakeTransport) Deliver(context.Context, delivery.Envelope) (delivery.Pr
 
 func validEnvelope() delivery.Envelope {
 	return delivery.Envelope{TenantID: "tenant-1", IntentID: "intent-1", RecipientRef: "recipient-1", EndpointRef: "endpoint-1", TemplateRef: "template-1", ParametersRef: "params-1", Purpose: "APPROVAL_REQUIRED", Classification: "INTERNAL", Channel: delivery.ChannelEmail, IdempotencyKey: "intent-1:endpoint-1", CorrelationID: "correlation-1", ContentDigest: "sha256:abc", ExpiresAt: deliveryAt.Add(time.Hour)}
+}
+
+func TestGovernedRegistryAllowsDistinctAdmittedRetryAttempt(t *testing.T) {
+	store := &fakeStore{}
+	transport := &failOnceTransport{}
+	runner := delivery.Runner{Store: store, Transport: transport, Idempotency: idempotency.NewRegistry(), Clock: func() time.Time { return deliveryAt }, MaxAttempts: 2}
+	got, err := runner.Deliver(context.Background(), validEnvelope())
+	if err != nil || got.State != delivery.StateSubmitted || got.ProviderRef != "provider-recovered" || transport.calls != 2 || len(store.observations) != 2 {
+		t.Fatalf("retry with governed registry = %+v, %v; calls=%d observations=%d", got, err, transport.calls, len(store.observations))
+	}
 }
 
 func TestTodo_SVC_010(t *testing.T) {

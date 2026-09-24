@@ -125,7 +125,9 @@ func validateLinksTx(ctx context.Context, tx dbport.Tx, tenantID, docID, version
 			}
 		}
 		if err := authorizeTx(ctx, tx, tenantID, l.target, subjectKind, subjectID, ActionRead); err != nil {
-			finding.Code, finding.Detail = LinkInaccessible, "target is not readable in current policy"
+			// The stored label, target ID, version and block may themselves
+			// disclose private material. Return only a stable restricted marker.
+			finding = LinkFinding{Label: "Restricted reference", Code: LinkInaccessible, Severity: SeverityError, Detail: "reference is restricted by current policy"}
 			findings = append(findings, finding)
 			continue
 		}

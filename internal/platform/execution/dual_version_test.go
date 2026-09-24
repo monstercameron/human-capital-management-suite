@@ -72,10 +72,10 @@ func TestPromotionStartedOn1_0ResumesAfter1_1IsActivated(t *testing.T) {
 	database.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,'dual-version','cell-local','Dual version tenant','ACTIVE',$2)`, tenant, at.Add(-time.Hour))
 	store := workflowversionstore.Store{DB: database.Conn}
 	published, err := PublishShippedVersions(store, at)
-	if err != nil || len(published) != 3 {
+	if err != nil || len(published) != 4 {
 		t.Fatalf("PublishShippedVersions = %d, %v", len(published), err)
 	}
-	v1, v11 := published[1], published[2]
+	v1, v11, v12 := published[1], published[2], published[3]
 	frozen, err := promotionexec.CompileV1_0()
 	if err != nil {
 		t.Fatal(err)
@@ -84,8 +84,12 @@ func TestPromotionStartedOn1_0ResumesAfter1_1IsActivated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v1.CompiledPlanDigest != frozen.Digest() || v11.CompiledPlanDigest != current.Digest() {
-		t.Fatalf("published execute versions %s/%s, want the frozen and current plans", v1.SemanticVersion, v11.SemanticVersion)
+	frozen11, err := promotionexec.CompileV1_1()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v1.CompiledPlanDigest != frozen.Digest() || v11.CompiledPlanDigest != frozen11.Digest() || v12.CompiledPlanDigest != current.Digest() {
+		t.Fatalf("published execute versions %s/%s/%s, want frozen v1.0, v1.1 and current v1.2 plans", v1.SemanticVersion, v11.SemanticVersion, v12.SemanticVersion)
 	}
 
 	// The previous release: 1.0.0 is the ACTIVE version, served by a
@@ -162,9 +166,9 @@ func TestPromotionStartedOn1_0ResumesAfter1_1IsActivated(t *testing.T) {
 		return nil
 	})
 
-	// This release: 1.1.0 is activated and supersedes 1.0.0.
+	// This release: 1.2.0 is activated and supersedes the frozen versions.
 	later := at.Add(time.Hour)
-	releaseVersion(t, ctx, store, v11, later)
+	releaseVersion(t, ctx, store, v12, later)
 	superseded, _, err := store.GetByDigest(frozen.Digest())
 	if err != nil || superseded.Status != version.StatusQuarantined || !superseded.QuarantinedBySupersession() {
 		t.Fatalf("1.0.0 after the 1.1.0 activation = %s (%v), want QUARANTINED by supersession", superseded.Status, err)
@@ -187,10 +191,10 @@ func TestPromotionStartedOn1_0ResumesAfter1_1IsActivated(t *testing.T) {
 	continuation := start
 	continuation.Resolver = promotionExecuteResolver(current, frozen)
 
-	// Without its pin the continuation resolves 1.1.0, which is not the plan
+	// Without its pin the continuation resolves 1.2.0, which is not the plan
 	// the instance pinned: refused before any step runs.
 	if _, err := driver.RedeliverReady(ctx, execute.RedeliverRequest{Start: continuation, InstanceID: instanceID, ExpectedInstanceVersion: instanceVersion}); err == nil {
-		t.Fatal("an unpinned continuation advanced a 1.0.0 instance on the 1.1.0 plan")
+		t.Fatal("an unpinned continuation advanced a 1.0.0 instance on the 1.2.0 plan")
 	}
 	if len(runner.ran) != 0 {
 		t.Fatalf("a refused continuation ran %v", runner.ran)
@@ -229,6 +233,6 @@ func TestPromotionStartedOn1_0ResumesAfter1_1IsActivated(t *testing.T) {
 	// A new start resolves the current version.
 	selection, err := continuation.Resolver.ResolveWorkflow(ctx, runtime.StartRequest{})
 	if err != nil || selection.Plan.Digest() != current.Digest() {
-		t.Fatalf("new start resolves %v (%v), want 1.1.0", selection.Pin, err)
+		t.Fatalf("new start resolves %v (%v), want 1.2.0", selection.Pin, err)
 	}
 }

@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/idempotency"
 )
 
 type fakeProvider struct {
@@ -42,6 +46,98 @@ func TestTodo_MSG_006(t *testing.T) {
 	}
 }
 
+type sharedLifecycleStore struct{ registry *idempotency.Registry }
+
+func (s sharedLifecycleStore) Reserve(req idempotency.Request) (idempotency.Resolution, error) {
+	return s.registry.Reserve(req)
+}
+func (s sharedLifecycleStore) Complete(identity idempotency.Identity, digest, result, effect string, now time.Time) (idempotency.Record, error) {
+	return s.registry.Complete(identity, digest, result, effect, now)
+}
+func (s sharedLifecycleStore) Lookup(identity idempotency.Identity) (idempotency.Record, error) {
+	return s.registry.Lookup(identity)
+}
+
+func TestTodo_REV_060_01(t *testing.T) {
+	if _, err := NewDispatcherWithRegistry(&fakeProvider{}, Policy{}, nil); err == nil {
+		t.Fatal("durable dispatcher accepted a nil idempotency registry")
+	}
+
+	store := sharedLifecycleStore{registry: idempotency.NewRegistry()}
+	firstProvider := &fakeProvider{}
+	first, err := NewDispatcherWithRegistry(firstProvider, Policy{}, idempotency.NewRegistryWithStore(store))
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := testIntent()
+	in.CreatedAt = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	initial, err := first.Dispatch(context.Background(), in)
+	if err != nil || initial.Attempt.State != AcceptedByProvider {
+		t.Fatalf("initial dispatch = %+v, %v", initial, err)
+	}
+
+	// A new dispatcher has no in-process attempt map. A second registry object
+	// must recover the completed lifecycle record without calling its provider.
+	secondProvider := &fakeProvider{}
+	second, err := NewDispatcherWithRegistry(secondProvider, Policy{}, idempotency.NewRegistryWithStore(store))
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := second.Dispatch(context.Background(), in)
+	if err != nil || recovered.Attempt.State != AcceptedByProvider || recovered.Attempt.ID != initial.Attempt.ID || recovered.Attempt.ProviderRef != initial.Attempt.ProviderRef {
+		t.Fatalf("recovered dispatch = %+v, %v; initial=%+v", recovered, err, initial)
+	}
+	if len(firstProvider.calls) != 1 || len(secondProvider.calls) != 0 {
+		t.Fatalf("provider calls after restart = (%d,%d), want (1,0)", len(firstProvider.calls), len(secondProvider.calls))
+	}
+}
+
+type blockingProvider struct {
+	calls   atomic.Int32
+	entered chan struct{}
+	resume  chan struct{}
+}
+
+func (p *blockingProvider) Send(context.Context, Delivery) (ProviderResult, error) {
+	p.calls.Add(1)
+	close(p.entered)
+	<-p.resume
+	return ProviderResult{Reference: "provider-blocked-1", Accepted: true}, nil
+}
+
+func TestTodo_REV_060_01_Fault(t *testing.T) {
+	store := sharedLifecycleStore{registry: idempotency.NewRegistry()}
+	provider := &blockingProvider{entered: make(chan struct{}), resume: make(chan struct{})}
+	first, err := NewDispatcherWithRegistry(provider, Policy{}, idempotency.NewRegistryWithStore(store))
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := testIntent()
+	in.CreatedAt = time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	firstDone := make(chan error, 1)
+	go func() {
+		_, dispatchErr := first.Dispatch(context.Background(), in)
+		firstDone <- dispatchErr
+	}()
+	<-provider.entered
+
+	secondProvider := &fakeProvider{}
+	second, err := NewDispatcherWithRegistry(secondProvider, Policy{}, idempotency.NewRegistryWithStore(store))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := second.Dispatch(context.Background(), in); !errors.Is(err, ErrIdempotencyInProgress) {
+		t.Fatalf("concurrent restarted dispatcher error = %v, want ErrIdempotencyInProgress", err)
+	}
+	if len(secondProvider.calls) != 0 || provider.calls.Load() != 1 {
+		t.Fatalf("provider calls = first:%d second:%d, want 1 and 0", provider.calls.Load(), len(secondProvider.calls))
+	}
+	close(provider.resume)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("initial dispatch completion = %v", err)
+	}
+}
+
 func TestTodo_MSG_006_Race(t *testing.T) {
 	p := &fakeProvider{}
 	d, _ := NewDispatcher(p, Policy{ProviderMaximumClassification: "INTERNAL"})
@@ -75,7 +171,24 @@ func TestTodo_MSG_006_Race(t *testing.T) {
 	}
 }
 
-func TestTodo_MSG_006_Integration(t *testing.T) { TestTodo_MSG_006(t) }
+func TestTodo_MSG_006_Integration(t *testing.T) {
+	p := &fakeProvider{}
+	d, err := NewDispatcher(p, Policy{ProviderMaximumClassification: "INTERNAL"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := testIntent()
+	r, err := d.Dispatch(context.Background(), in)
+	if err != nil {
+		t.Fatalf("dispatch committed intent: %v", err)
+	}
+	if r.Attempt.State != AcceptedByProvider || r.Attempt.ProviderRef != "provider-1" || len(p.calls) != 1 {
+		t.Fatalf("integration delivery receipt=%+v provider calls=%d", r, len(p.calls))
+	}
+	if p.calls[0].TenantID != in.TenantID || p.calls[0].IdempotencyKey != in.IdempotencyKey {
+		t.Fatalf("provider request lost tenant/idempotency binding: %+v", p.calls[0])
+	}
+}
 
 func TestTodo_MSG_006_Fault(t *testing.T) {
 	p := &fakeProvider{err: errors.New("provider offline")}

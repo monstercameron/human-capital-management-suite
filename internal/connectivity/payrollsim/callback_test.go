@@ -7,6 +7,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/edge"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/admission"
 )
 
 func TestCallbackSignatureVerifiesWithWebhookStore(t *testing.T) {
@@ -169,6 +172,82 @@ func TestCallbackNetworkErrorRecordsZeroStatus(t *testing.T) {
 	_, st := getStatus(t, s, req.ChangeRef)
 	if st.Callback != (CallbackStatus{Attempts: 2, Delivered: false, LastStatus: 0}) {
 		t.Fatalf("callback = %+v", st.Callback)
+	}
+}
+
+// TestTodo_REV_033_04 verifies the simulator's real signed callback path
+// consults the shared overload coordinator and stops on an OPEN circuit.
+func TestTodo_REV_033_04(t *testing.T) {
+	rc := newReceiver(t, http.StatusServiceUnavailable, http.StatusOK)
+	coordinator := payrollCallbackCoordinator(1, 3)
+	s, _ := newTestServer(t, func(c *Config) {
+		c.MaxAttempts = 5
+		c.Overload = coordinator
+	})
+	req := validRequest(rc.url())
+	post(t, s, req.ChangeRef, req)
+	drain(t, s)
+	if n := len(rc.calls()); n != 1 {
+		t.Fatalf("callback attempts = %d, want 1 after the first 503 trips the breaker", n)
+	}
+	_, st := getStatus(t, s, req.ChangeRef)
+	if st.Callback.Attempts != 1 || st.Callback.LastStatus != http.StatusServiceUnavailable {
+		t.Fatalf("callback status = %+v", st.Callback)
+	}
+	if allowed, state := coordinator.Breaker.Admit(req.Tenant, callbackDependency(req.CallbackURL), time.Now()); allowed || state != edge.CircuitOpen {
+		t.Fatalf("breaker after refused retry = %v/%s, want refused/OPEN", allowed, state)
+	}
+}
+
+// TestTodo_REV_033_04_Integration verifies a retry after 503 is permitted by
+// the shared retry budget and success closes the circuit on the same path.
+func TestTodo_REV_033_04_Integration(t *testing.T) {
+	rc := newReceiver(t, http.StatusServiceUnavailable, http.StatusOK)
+	coordinator := payrollCallbackCoordinator(3, 2)
+	s, _ := newTestServer(t, func(c *Config) {
+		c.MaxAttempts = 5
+		c.Overload = coordinator
+	})
+	req := validRequest(rc.url())
+	post(t, s, req.ChangeRef, req)
+	drain(t, s)
+	if n := len(rc.calls()); n != 2 {
+		t.Fatalf("callback attempts = %d, want 2", n)
+	}
+	_, st := getStatus(t, s, req.ChangeRef)
+	if !st.Callback.Delivered || st.Callback.LastStatus != http.StatusOK {
+		t.Fatalf("callback status = %+v", st.Callback)
+	}
+	if allowed, state := coordinator.Breaker.Admit(req.Tenant, callbackDependency(req.CallbackURL), time.Now()); !allowed || state != edge.CircuitClosed {
+		t.Fatalf("breaker after successful callback = %v/%s, want allowed/CLOSED", allowed, state)
+	}
+}
+
+// TestTodo_REV_033_04_Fault verifies retry budget exhaustion bounds calls
+// despite a much larger configured transport attempt ceiling.
+func TestTodo_REV_033_04_Fault(t *testing.T) {
+	rc := newReceiver(t, http.StatusServiceUnavailable, http.StatusServiceUnavailable, http.StatusOK)
+	coordinator := payrollCallbackCoordinator(5, 1)
+	s, _ := newTestServer(t, func(c *Config) {
+		c.MaxAttempts = 8
+		c.Overload = coordinator
+	})
+	req := validRequest(rc.url())
+	post(t, s, req.ChangeRef, req)
+	drain(t, s)
+	if n := len(rc.calls()); n != 2 {
+		t.Fatalf("callback attempts = %d, want 2 before breaker refusal", n)
+	}
+	_, st := getStatus(t, s, req.ChangeRef)
+	if st.Callback.Attempts != 2 || st.Callback.LastStatus != http.StatusServiceUnavailable {
+		t.Fatalf("callback status = %+v", st.Callback)
+	}
+}
+
+func payrollCallbackCoordinator(failureThreshold, retryAllowance int) *edge.Coordinator {
+	return &edge.Coordinator{
+		Breaker: edge.NewCircuitBreaker(edge.CircuitConfig{FailureThreshold: failureThreshold, Cooldown: time.Minute}),
+		Retry:   edge.RetryLedger{Provisioner: admission.NewProvisioner(), Allowed: retryAllowance, Version: "rev-033-04-test"},
 	}
 }
 

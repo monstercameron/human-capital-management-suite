@@ -130,7 +130,21 @@ func TestTelemetryBaggageAllowlistStripsSensitiveUntrustedAndThirdPartyFields(t 
 }
 
 func TestTodo_OBS_022(t *testing.T) {
-	TestTelemetryBaggageAllowlistStripsSensitiveUntrustedAndThirdPartyFields(t)
+	s := testEgressSanitizer(t)
+	input := map[string]string{"correlation_id": "corr-safe", "request_id": "req-safe", "worker_id": "person-42", "authz_role": "admin", "vendor_trace": "opaque"}
+	result := s.Sanitize(input)
+	if result.Kept["correlation_id"] != "corr-safe" || result.Kept["request_id"] != "req-safe" {
+		t.Fatalf("safe correlation fields were lost: %#v", result.Kept)
+	}
+	for _, key := range []string{"worker_id", "authz_role", "vendor_trace"} {
+		if _, ok := result.Kept[key]; ok {
+			t.Fatalf("untrusted field %q survived: %#v", key, result.Kept)
+		}
+	}
+	thirdParty := s.SanitizeForThirdParty(result.Kept)
+	if len(thirdParty.Kept) != 1 || thirdParty.Kept["correlation_id"] != "corr-safe" {
+		t.Fatalf("third-party allowlist = %#v, want correlation ID only", thirdParty.Kept)
+	}
 }
 
 func TestTodo_OBS_022_Property(t *testing.T) {

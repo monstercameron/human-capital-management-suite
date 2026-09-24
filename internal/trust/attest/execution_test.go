@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 func executionFixture(t *testing.T) (*MemoryResponseStore, Response, ExecutionRequirement) {
@@ -14,7 +16,9 @@ func executionFixture(t *testing.T) (*MemoryResponseStore, Response, ExecutionRe
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := recorder.RecordResponse(context.Background(), testResponseRequest(ResponseAccepted))
+	request := testResponseRequest(ResponseAccepted)
+	request.AffectedObligations = []string{"obligation-1"}
+	response, err := recorder.RecordResponse(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,6 +48,16 @@ func TestValidateRequired_RefusesIdentityStateAndTimeBranches(t *testing.T) {
 		{"refused", nil, func(r *Response) { r.Status = ResponseRefused }, "response_not_accepted"},
 		{"correction", nil, func(r *Response) { r.Kind = AssertionCorrection }, "response_is_not_original_acceptance"},
 		{"transaction", func(r *ExecutionRequirement) { r.TransactionID = "other" }, nil, "transaction_mismatch"},
+		{"missing obligation coverage", nil, func(r *Response) {
+			r.AffectedObligations = nil
+			r.RequestDigest = requestDigest(responseRequest(*r))
+			r.Digest = responseDigest(*r)
+		}, "obligation_not_covered"},
+		{"wrong obligation coverage", nil, func(r *Response) {
+			r.AffectedObligations = []string{"obligation-other"}
+			r.RequestDigest = requestDigest(responseRequest(*r))
+			r.Digest = responseDigest(*r)
+		}, "obligation_not_covered"},
 		{"future", nil, func(r *Response) { r.RecordedAt.At = testTrustedAt.At.Add(time.Second) }, "response_recorded_in_future"},
 		{"missing old evidence", nil, func(r *Response) { r.RecordedAt.At = testTrustedAt.At.Add(-time.Second); r.RecordedAt.Health = "" }, "response_time_evidence_missing"},
 	}
@@ -129,4 +143,83 @@ func TestFixedTrustedTimeAndClockAdapter(t *testing.T) {
 	if _, err := clock.TrustedNow(); err != nil || !called {
 		t.Fatalf("TrustedClockFunc err=%v called=%v", err, called)
 	}
+}
+
+func TestTodo_REV_041_02(t *testing.T) {
+	store, response, req := executionFixture(t)
+	called := false
+	decision, err := EnforceBeforeEffect(context.Background(), store, TrustedClockFunc(func() (TrustedTime, error) {
+		return testTrustedAt, nil
+	}), req, func(_ context.Context, got ExecutionDecision) error {
+		called = true
+		if !got.Allowed || got.ResponseDigest != response.Digest || got.ObligationID != req.ObligationID {
+			t.Fatalf("effect received unbound decision: %+v", got)
+		}
+		return nil
+	})
+	if err != nil || !decision.Allowed || !called {
+		t.Fatalf("decision=%+v called=%v err=%v", decision, called, err)
+	}
+
+	refused := response
+	refused.Status = ResponseRefused
+	refused.Reason = "worker declined"
+	refused.RequestDigest = requestDigest(responseRequest(refused))
+	refused.Digest = responseDigest(refused)
+	refusedStore := &executionResponseStore{response: refused}
+	called = false
+	decision, err = EnforceBeforeEffect(context.Background(), refusedStore, TrustedClockFunc(func() (TrustedTime, error) {
+		return testTrustedAt, nil
+	}), req, func(context.Context, ExecutionDecision) error {
+		called = true
+		return nil
+	})
+	if !errors.Is(err, ErrRequiredAttestation) || decision.Allowed || called {
+		t.Fatalf("refused response decision=%+v called=%v err=%v", decision, called, err)
+	}
+}
+
+func TestTodo_REV_041_02_Security(t *testing.T) {
+	store, response, req := executionFixture(t)
+	// A content edit with an unchanged receipt digest must fail closed before
+	// the dependent callback.
+	response.EvidenceReceipt = "forged-evidence"
+	forged := &executionResponseStore{response: response}
+	called := false
+	decision, err := EnforceBeforeEffect(context.Background(), forged, TrustedClockFunc(func() (TrustedTime, error) {
+		return testTrustedAt, nil
+	}), req, func(context.Context, ExecutionDecision) error {
+		called = true
+		return nil
+	})
+	if !errors.Is(err, ErrRequiredAttestation) || decision.Allowed || decision.Reason != "response_integrity_mismatch" || called {
+		t.Fatalf("forged receipt decision=%+v called=%v err=%v", decision, called, err)
+	}
+
+	called = false
+	_, err = EnforceBeforeEffect(context.Background(), store, TrustedClockFunc(func() (TrustedTime, error) {
+		return TrustedTime{}, errors.New("untrusted clock")
+	}), req, func(context.Context, ExecutionDecision) error {
+		called = true
+		return nil
+	})
+	if !errors.Is(err, ErrRequiredAttestation) || called {
+		t.Fatalf("clock failure called effect=%v err=%v", called, err)
+	}
+}
+
+type executionResponseStore struct{ response Response }
+
+func (s *executionResponseStore) GetResponse(_ context.Context, _ values.TenantId, _ string, _ uint64) (Response, error) {
+	return s.response, nil
+}
+
+func (*executionResponseStore) AppendResponse(context.Context, Response) (Response, error) {
+	return Response{}, errors.New("not implemented")
+}
+func (*executionResponseStore) GetResponseByIdempotency(context.Context, values.TenantId, string) (Response, error) {
+	return Response{}, ErrResponseNotFound
+}
+func (*executionResponseStore) ListResponseHistory(context.Context, values.TenantId, string) ([]Response, error) {
+	return nil, ErrResponseNotFound
 }

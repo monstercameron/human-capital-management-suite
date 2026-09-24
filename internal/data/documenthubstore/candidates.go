@@ -83,7 +83,10 @@ func (s *Store) CreatePersonalDocumentVersion(ctx context.Context, tenantID, doc
 			Title: title, Markdown: markdown, Locale: tip.Locale,
 			Classification: tip.Classification, Renderer: tip.Renderer,
 		})
-		return err
+		if err != nil {
+			return err
+		}
+		return s.enqueueIndexTx(ctx, tx, tenantID, docID, stored.ID)
 	})
 	if err != nil {
 		return Version{}, err
@@ -125,7 +128,10 @@ func (s *Store) SubmitCandidate(ctx context.Context, tenantID string, v Version,
 			return &VersionConflict{Expected: expected, Current: current}
 		}
 		stored, err = insertVersionTx(ctx, tx, tenantID, v)
-		return err
+		if err != nil {
+			return err
+		}
+		return s.enqueueIndexTx(ctx, tx, tenantID, v.DocumentID, stored.ID)
 	})
 	if err != nil {
 		return Version{}, err

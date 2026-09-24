@@ -16,6 +16,23 @@ func candidateAt(id uuid.UUID, tenant, connection, resource, criticality string,
 	return operation.ScheduleCandidate{OperationID: id, TenantID: tenant, ConnectionID: connection, ResourceKey: resource, Criticality: criticality, QueuedAt: at}
 }
 
+func TestQuotaWindowMechanicsAreSharedAndBounded(t *testing.T) {
+	now := time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
+	window := operation.AdvanceQuotaWindow(operation.QuotaWindow{}, now, time.Minute)
+	window.Used = 4
+	active := operation.AdvanceQuotaWindow(window, now.Add(30*time.Second), time.Minute)
+	if active.Used != 4 || !active.ResetAt.Equal(now.Add(time.Minute)) {
+		t.Fatalf("active quota window changed: %+v", active)
+	}
+	next := operation.AdvanceQuotaWindow(active, now.Add(time.Minute), time.Minute)
+	if next.Used != 0 || !next.StartAt.Equal(now.Add(time.Minute)) || !next.ResetAt.Equal(now.Add(2*time.Minute)) {
+		t.Fatalf("expired quota window did not reset: %+v", next)
+	}
+	if got := operation.QuotaRetryAfterSeconds(now, now.Add(1001*time.Millisecond)); got != 2 {
+		t.Fatalf("retry interval = %d, want ceiling-rounded 2 seconds", got)
+	}
+}
+
 // TestTodo_INTG_015 is the PRIMARY test: per-tenant/connection/resource/
 // criticality limits are honored together, a P0 operation is scheduled
 // ahead of (and into capacity reserved from) a P3 backlog rather than

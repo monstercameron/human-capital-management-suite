@@ -2,6 +2,7 @@ package projection_test
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -73,12 +74,30 @@ func TestTodo_LEDGER_013_Golden(t *testing.T) {
 func TestTodo_LEDGER_013_Race(t *testing.T) {
 	tenant := uuid.New()
 	stream := "workflow:promotion"
-	rebuilt, err := projection.RebuildPromotionOutcome(promotionEvents(tenant, stream, 2), tenant, stream)
+	events := promotionEvents(tenant, stream, 2)
+	want, err := projection.RebuildPromotionOutcome(events, tenant, stream)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := projection.ComparePromotionOutcomeDigests(rebuilt, 1, rebuilt.Digest); err == nil {
-		t.Fatal("row-count mismatch was accepted")
+	errs := make([]error, 8)
+	var wg sync.WaitGroup
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			got, err := projection.RebuildPromotionOutcome(events, tenant, stream)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			errs[i] = projection.ComparePromotionOutcomeDigests(got, want.RowCount, want.Digest)
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("parallel replay %d: %v", i, err)
+		}
 	}
 }
 

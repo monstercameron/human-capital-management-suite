@@ -7,10 +7,9 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/transformation/adapters"
 )
 
-// Normalize applies the mapping IR's documented default policy to a deep
-// copy. IR.Validate historically defaulted a loop variable, leaving the
-// executable rule unchanged; this boundary makes the default part of the
-// value that is actually handed to the shared engine.
+// Normalize validates and deep-copies the mapping IR without rewriting its
+// null policy. An omitted policy historically behaves as OMIT for missing or
+// failed rules, so changing the zero value here would change mapped bytes.
 func Normalize(value IR) (IR, error) {
 	out := value
 	out.Rules = make([]Rule, len(value.Rules))
@@ -22,9 +21,6 @@ func Normalize(value IR) (IR, error) {
 				out.Rules[i].Lookup[key] = mapped
 			}
 		}
-		if out.Rules[i].Null == "" {
-			out.Rules[i].Null = NullError
-		}
 	}
 	if err := out.Validate(); err != nil {
 		return IR{}, err
@@ -32,11 +28,9 @@ func Normalize(value IR) (IR, error) {
 	return out, nil
 }
 
-// ExecuteShared is the mapping IR cutover. It lowers the validated mapping
-// rules onto the shared transformation engine and converts its canonical text
-// output back to the mapping result contract. Unsupported normalization,
-// lookup, money, composition and output-shape rules are refused by the
-// adapter; no second interpreter is selected as a fallback.
+// ExecuteShared lowers and runs each rule through the shared engine. Rules
+// are isolated so site null policies retain their legacy row-level behavior
+// when one transform fails.
 func ExecuteShared(value IR, input map[string]string) (Result, error) {
 	normalized, err := Normalize(value)
 	if err != nil {
@@ -49,48 +43,83 @@ func ExecuteShared(value IR, input map[string]string) (Result, error) {
 			}
 		}
 	}
-	lowered, err := adapters.LowerConnectivityRules(adapters.ConnectivityRules{
+	_, err = adapters.LowerConnectivityRules(adapters.ConnectivityRules{
 		Version: normalized.Version,
 		Rules:   connectivityRules(normalized.Rules),
 	})
 	if err != nil {
 		return Result{}, err
 	}
-	row := make(map[string]string, len(input))
+	fields := make([]Field, 0, len(normalized.Rules))
+	diags := make([]Diagnostic, 0)
 	for _, rule := range normalized.Rules {
-		if rule.Op == OpConstant {
-			continue
+		if rule.Op != OpConstant {
+			if _, ok := input[rule.Source]; !ok {
+				diags = append(diags, Diagnostic{rule.Target, "source.missing", rule.Source})
+				if rule.Null == NullError {
+					return Result{Diagnostics: diags}, fmt.Errorf("%w: %s", ErrMissingSource, rule.Source)
+				}
+				if rule.Null == NullDelete {
+					fields = append(fields, Field{Target: rule.Target, Deleted: true})
+				}
+				continue
+			}
 		}
-		if source, ok := input[rule.Source]; ok {
+		lowered, err := adapters.LowerConnectivityRules(adapters.ConnectivityRules{Version: normalized.Version, Rules: connectivityRules([]Rule{rule})})
+		if err != nil {
+			return Result{}, err
+		}
+		row := make(map[string]string, 1)
+		if rule.Op != OpConstant {
 			for _, binding := range lowered.Bindings {
-				if binding.Target == rule.Target {
-					row[binding.SourceKey] = source
-					break
+				if binding.SourceKey != "" {
+					row[binding.SourceKey] = input[rule.Source]
 				}
 			}
 		}
-	}
-	rows, err := lowered.Run([]map[string]string{row})
-	if err != nil {
-		return Result{}, err
-	}
-	texts, err := lowered.Texts(rows[0])
-	if err != nil {
-		return Result{}, err
-	}
-	fields := make([]Field, 0, len(texts))
-	for _, rule := range normalized.Rules {
+		rows, runErr := lowered.Run([]map[string]string{row})
+		if runErr != nil {
+			detail := runErr.Error()
+			diags = append(diags, Diagnostic{rule.Target, "transform.failed", detail})
+			if rule.Null == NullError {
+				return Result{Diagnostics: diags}, fmt.Errorf("%w: %s: %s", ErrTransform, rule.Target, detail)
+			}
+			if rule.Null == NullDelete {
+				fields = append(fields, Field{Target: rule.Target, Deleted: true})
+			}
+			continue
+		}
+		texts, err := lowered.Texts(rows[0])
+		if err != nil {
+			return Result{}, err
+		}
 		text, ok := texts[rule.Target]
 		if !ok {
 			continue
 		}
-		if text == "" && rule.Null == NullError {
-			return Result{}, fmt.Errorf("%w: %s: empty output", ErrTransform, rule.Target)
+		if text == "" {
+			if rule.Null == NullError {
+				diags = append(diags, Diagnostic{rule.Target, "value.empty", "empty output"})
+				return Result{Diagnostics: diags}, fmt.Errorf("%w: %s: empty output", ErrTransform, rule.Target)
+			}
+			if rule.Null == NullOmit {
+				continue
+			}
+			if rule.Null == NullDelete {
+				fields = append(fields, Field{Target: rule.Target, Deleted: true})
+				continue
+			}
 		}
 		fields = append(fields, Field{Target: rule.Target, Value: text})
 	}
 	sort.Slice(fields, func(i, j int) bool { return fields[i].Target < fields[j].Target })
-	return Result{Fields: fields, PayloadDigest: digest(normalized, fields)}, nil
+	sort.Slice(diags, func(i, j int) bool {
+		if diags[i].Target != diags[j].Target {
+			return diags[i].Target < diags[j].Target
+		}
+		return diags[i].Code < diags[j].Code
+	})
+	return Result{Fields: fields, Diagnostics: diags, PayloadDigest: digest(normalized, fields)}, nil
 }
 
 func connectivityRules(rules []Rule) []adapters.ConnectivityRule {
@@ -102,7 +131,7 @@ func connectivityRules(rules []Rule) []adapters.ConnectivityRule {
 		}
 		out[i] = adapters.ConnectivityRule{
 			Source: rule.Source, Target: rule.Target, Op: adapters.ConnectivityOp(rule.Op),
-			Argument: rule.Argument, Lookup: lookup, Null: adapters.ConnectivityNullPolicy(rule.Null),
+			Argument: rule.Argument, MoneyMode: rule.MoneyMode, Lookup: lookup, Null: adapters.ConnectivityNullPolicy(rule.Null),
 		}
 	}
 	return out

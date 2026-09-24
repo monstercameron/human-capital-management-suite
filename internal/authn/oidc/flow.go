@@ -161,6 +161,9 @@ func (f *Flow) BeginAuthorization(ctx context.Context, tenant values.TenantId, i
 	if client.Tenant != tenant || client.IssuerURL != issuer.IssuerURL {
 		return AuthorizationRequest{}, fmt.Errorf("%w: registration is bound to a different tenant or issuer", ErrClientNotRegistered)
 	}
+	if client.ClientID != issuer.Audience {
+		return AuthorizationRequest{}, fmt.Errorf("%w: configured OIDC audience must equal the registered client id", ErrWrongAudience)
+	}
 	if err := client.validate(); err != nil {
 		return AuthorizationRequest{}, err
 	}

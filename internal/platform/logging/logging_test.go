@@ -369,6 +369,27 @@ func TestTodo_OBS_009_Security(t *testing.T) {
 	})
 }
 
+// TestTodo_OBS_009_Mutation checks that deriving a handler cannot weaken the
+// base handler's privacy policy: denied values remain redacted in inherited
+// attributes and per-record attributes, including case variants.
+func TestTodo_OBS_009_Mutation(t *testing.T) {
+	var buf bytes.Buffer
+	base := logging.NewHandler(&buf, logging.WithService("mutation"), logging.WithDeniedKeys("custom_secret"))
+	derived := base.WithAttrs([]slog.Attr{slog.String("PASSWORD", "inherited-secret")})
+	slog.New(derived).Info("record", "CuStOm_SeCrEt", "record-secret", "safe", "visible")
+	line := buf.String()
+	for _, secret := range []string{"inherited-secret", "record-secret"} {
+		if strings.Contains(line, secret) {
+			t.Fatalf("derived handler leaked %q: %s", secret, line)
+		}
+	}
+	env := decodeLine(t, lastLine(t, &buf))
+	attrs, _ := env["attrs"].(map[string]any)
+	if attrs["PASSWORD"] != "[REDACTED]" || attrs["CuStOm_SeCrEt"] != "[REDACTED]" || attrs["safe"] != "visible" {
+		t.Fatalf("derived handler did not preserve redaction policy: %#v", attrs)
+	}
+}
+
 // FuzzTodo_OBS_009 proves the handler never panics and always emits valid,
 // versioned JSON for arbitrary message and attribute content.
 func FuzzTodo_OBS_009(f *testing.F) {

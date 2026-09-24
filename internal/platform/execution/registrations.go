@@ -36,6 +36,7 @@ import (
 const (
 	RegistrationPromotionApproval      = "promotion-approval"
 	RegistrationPromotionExecuteV1_0   = "promotion-execute-v1.0"
+	RegistrationPromotionExecuteV1_1   = "promotion-execute-v1.1"
 	RegistrationPromotionExecute       = "promotion-execute"
 	RegistrationPromotionHighPerformer = "promotion-high-performer"
 )
@@ -217,6 +218,16 @@ func ShippedRegistrations() []WorkflowRegistration {
 			AdmittedIntentTypes: promotionIntentTypes(),
 		},
 		{
+			Name:                RegistrationPromotionExecuteV1_1,
+			WorkflowID:          promotionexec.WorkflowID,
+			SemanticVersion:     promotionexec.SemanticVersionV1_1,
+			Definition:          promotionexec.DefinitionV1_1,
+			Compile:             func() (*workflow.CompiledWorkflow, error) { return promotionexec.CompileV1_1() },
+			StepHandlers:        handlers,
+			ApprovalCompilers:   promotionApprovalCompilers(),
+			AdmittedIntentTypes: promotionIntentTypes(),
+		},
+		{
 			Name:                RegistrationPromotionExecute,
 			WorkflowID:          promotionexec.WorkflowID,
 			SemanticVersion:     promotionexec.SemanticVersion,
@@ -277,10 +288,13 @@ func ComposeWorkflowRegistrations(plan PromotionPlan) ([]PinnedRegistration, err
 			}
 		}
 	}
-	v1_0, current, variant, approval := digests[RegistrationPromotionExecuteV1_0], digests[RegistrationPromotionExecute], digests[RegistrationPromotionHighPerformer], digests[RegistrationPromotionApproval]
+	v1_0, v1_1, current, variant, approval := digests[RegistrationPromotionExecuteV1_0], digests[RegistrationPromotionExecuteV1_1], digests[RegistrationPromotionExecute], digests[RegistrationPromotionHighPerformer], digests[RegistrationPromotionApproval]
 	if plan == PLAN_EXECUTE {
 		bind(RegistrationPromotionExecuteV1_0, func(req runtime.StartRequest) bool {
 			return req.PinnedCompiledPlanDigest == v1_0
+		})
+		bind(RegistrationPromotionExecuteV1_1, func(req runtime.StartRequest) bool {
+			return req.PinnedCompiledPlanDigest == v1_1
 		})
 		bind(RegistrationPromotionHighPerformer, func(req runtime.StartRequest) bool {
 			return req.PinnedCompiledPlanDigest == variant

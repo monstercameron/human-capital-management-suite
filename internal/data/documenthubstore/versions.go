@@ -79,7 +79,10 @@ func (s *Store) InsertVersion(ctx context.Context, tenantID string, v Version) (
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
 		var err error
 		stored, err = insertVersionTx(ctx, tx, tenantID, v)
-		return err
+		if err != nil {
+			return err
+		}
+		return s.enqueueIndexTx(ctx, tx, tenantID, v.DocumentID, stored.ID)
 	})
 	if err != nil {
 		return Version{}, err

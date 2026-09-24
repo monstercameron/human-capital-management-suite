@@ -102,6 +102,50 @@ func TestStore_Journal_IsAppendOnlyAndTenantScoped(t *testing.T) {
 	}
 }
 
+func TestStore_JournalAppend_IsIdempotentPerTenantAndSequence(t *testing.T) {
+	db := pgtest.New(t)
+	alpha := storeTenant(t, db, "journal-retry-alpha")
+	beta := storeTenant(t, db, "journal-retry-beta")
+	op := storeOperation(t, db, alpha)
+	store := New(db.Conn)
+	otherHandle := New(db.NewConn(t))
+	event := operation.JournalEvent{
+		OperationID: op, TenantID: alpha.String(), OperationSequence: 1, Event: "PLANNED",
+		To: operation.StatePlanned, OccurredAt: time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC),
+		Digest: strings.Repeat("2", 64),
+	}
+	if err := store.AppendJournal(context.Background(), alpha, event); err != nil {
+		t.Fatal(err)
+	}
+	// Concurrent exact replays from independent connections are successful no-ops.
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	go func() { <-start; results <- store.AppendJournal(context.Background(), alpha, event) }()
+	go func() { <-start; results <- otherHandle.AppendJournal(context.Background(), alpha, event) }()
+	close(start)
+	for range 2 {
+		if err := <-results; err != nil {
+			t.Fatalf("idempotent concurrent append: %v", err)
+		}
+	}
+	// A different event cannot occupy an already committed sequence.
+	conflict := event
+	conflict.Event = "TAMPERED"
+	if err := otherHandle.AppendJournal(context.Background(), alpha, conflict); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("conflicting append err = %v, want ErrInvalid", err)
+	}
+	if got, err := store.Journal(context.Background(), alpha, op); err != nil || len(got) != 1 || got[0].Event != "PLANNED" {
+		t.Fatalf("journal after retries = %+v, err=%v", got, err)
+	}
+	// The same operation identifier is not visible under another tenant.
+	if got, err := store.Journal(context.Background(), beta, op); err != nil || len(got) != 0 {
+		t.Fatalf("cross-tenant journal = %+v, err=%v", got, err)
+	}
+	if err := store.AppendJournal(context.Background(), beta, event); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("cross-tenant append err = %v, want ErrInvalid", err)
+	}
+}
+
 func TestStore_CredentialBinding_IsReferenceOnly(t *testing.T) {
 	db := pgtest.New(t)
 	tenant := storeTenant(t, db, "binding-alpha")

@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"math/big"
+	"sync"
 	"testing"
 	"time"
 
@@ -121,9 +122,25 @@ func TestTodo_TRUST_027_Security(t *testing.T) {
 func TestTodo_TRUST_027_Race(t *testing.T) {
 	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 	b, peer, handle := bootstrapFixture(t, now, true)
-	result, err := b.Acquire(context.Background(), peer, Request{Handle: handle, Tenant: "tenant-a", Region: "us-east", Purpose: "connector.read", Destination: "provider-a", Operation: custody.LeaseOperation, TTL: time.Minute})
-	if err == nil || result.Ready || !errors.Is(err, ErrBootstrapDenied) {
-		t.Fatalf("custody denial did not keep process unready: result=%+v err=%v", result, err)
+	const workers = 16
+	start := make(chan struct{})
+	results := make([]Result, workers)
+	errs := make([]error, workers)
+	var wg sync.WaitGroup
+	for i := range results {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			results[i], errs[i] = b.Acquire(context.Background(), peer, Request{Handle: handle, Tenant: "tenant-a", Region: "us-east", Purpose: "connector.read", Destination: "provider-a", Operation: custody.LeaseOperation, TTL: time.Minute})
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	for i, result := range results {
+		if errs[i] == nil || result.Ready || result.Lease.ID != "" || !errors.Is(errs[i], ErrBootstrapDenied) {
+			t.Fatalf("concurrent custody denial %d became ready: result=%+v err=%v", i, result, errs[i])
+		}
 	}
 }
 

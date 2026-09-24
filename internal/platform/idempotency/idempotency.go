@@ -78,17 +78,18 @@ const (
 
 // Record stores hashes and references, not the canonical request bytes.
 type Record struct {
-	Identity      Identity  `json:"identity"`
-	RequestDigest string    `json:"request_digest"`
-	State         State     `json:"state"`
-	Layer         string    `json:"layer"`
-	ExecutionRef  string    `json:"execution_ref,omitempty"`
-	ResultRef     string    `json:"result_ref,omitempty"`
-	EffectRef     string    `json:"effect_ref,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	ExpiresAt     time.Time `json:"expires_at"`
-	ReplayCount   int       `json:"replay_count"`
-	Tombstone     bool      `json:"tombstone"`
+	Identity      Identity   `json:"identity"`
+	RequestDigest string     `json:"request_digest"`
+	State         State      `json:"state"`
+	ExpiryMode    ExpiryMode `json:"expiry_mode"`
+	Layer         string     `json:"layer"`
+	ExecutionRef  string     `json:"execution_ref,omitempty"`
+	ResultRef     string     `json:"result_ref,omitempty"`
+	EffectRef     string     `json:"effect_ref,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	ExpiresAt     time.Time  `json:"expires_at"`
+	ReplayCount   int        `json:"replay_count"`
+	Tombstone     bool       `json:"tombstone"`
 }
 
 type Resolution struct {
@@ -99,12 +100,45 @@ type Resolution struct {
 type Registry struct {
 	mu      sync.Mutex
 	records map[string]Record
+	store   Store
 }
 
 func NewRegistry() *Registry { return &Registry{records: make(map[string]Record)} }
 
+// Store is the durable boundary used by shared ingress and effect adapters.
+// The pure registry remains useful for bounded tests and local decisions;
+// production composition can inject a tenant-scoped durable implementation.
+type Store interface {
+	Reserve(Request) (Resolution, error)
+	Complete(Identity, string, string, string, time.Time) (Record, error)
+	Lookup(Identity) (Record, error)
+}
+
+// TenantExpirer is the explicit tenant-scoped reclamation capability exposed
+// by durable stores. A caller must choose the tenant and cutoff under its
+// retention authority; the registry never discovers tenants or reads a clock.
+type TenantExpirer interface {
+	ExpireTenant(string, time.Time) (int64, error)
+}
+
+// NewRegistryWithStore binds lifecycle calls to a durable store. The store
+// must provide atomic Reserve semantics across processes.
+func NewRegistryWithStore(store Store) *Registry {
+	return &Registry{store: store}
+}
+
+// NewRegistryWithRecord creates an isolated decision kernel initialized from
+// one persisted row. It lets storage adapters reuse exactly the pure
+// transition semantics while holding their database's identity lock.
+func NewRegistryWithRecord(record Record) *Registry {
+	return &Registry{records: map[string]Record{identityKey(record.Identity): record}}
+}
+
 // Reserve binds a canonical request before an effect begins.
 func (r *Registry) Reserve(req Request) (Resolution, error) {
+	if r != nil && r.store != nil {
+		return r.store.Reserve(req)
+	}
 	if r == nil || strings.TrimSpace(req.Identity.Tenant) == "" || strings.TrimSpace(req.Identity.Capability) == "" || strings.TrimSpace(req.Identity.EffectScope) == "" || strings.TrimSpace(req.Identity.Key) == "" || len(req.Canonical) == 0 || req.Now.IsZero() {
 		return Resolution{}, ErrInvalidRequest
 	}
@@ -118,6 +152,9 @@ func (r *Registry) Reserve(req Request) (Resolution, error) {
 	if old, ok := r.records[mapKey]; ok {
 		if old.RequestDigest != digest {
 			return Resolution{Decision: Conflict, Record: old}, ErrConflict
+		}
+		if old.State == Tombstone || old.State == Expired {
+			return Resolution{Decision: ExpiredDecision, Record: old}, ErrExpired
 		}
 		if !req.Now.Before(old.ExpiresAt) {
 			if old.Tombstone || req.Retention.Tombstone || req.Retention.Mode == RejectReuse {
@@ -147,13 +184,16 @@ func (r *Registry) Reserve(req Request) (Resolution, error) {
 		return Resolution{}, ErrRetentionInvalid
 	}
 	execution := "execution://" + digestText(mapKey+"|"+digest)
-	record := Record{Identity: req.Identity, RequestDigest: digest, State: InProgress, Layer: req.Layer, ExecutionRef: execution, CreatedAt: req.Now.UTC(), ExpiresAt: req.Retention.ExpiresAt.UTC(), Tombstone: req.Retention.Tombstone}
+	record := Record{Identity: req.Identity, RequestDigest: digest, State: InProgress, ExpiryMode: req.Retention.Mode, Layer: req.Layer, ExecutionRef: execution, CreatedAt: req.Now.UTC(), ExpiresAt: req.Retention.ExpiresAt.UTC(), Tombstone: req.Retention.Tombstone}
 	r.records[mapKey] = record
 	return Resolution{Decision: Reserved, Record: record}, nil
 }
 
 // Complete records the single business result/effect identity.
 func (r *Registry) Complete(identity Identity, requestDigest, resultRef, effectRef string, now time.Time) (Record, error) {
+	if r != nil && r.store != nil {
+		return r.store.Complete(identity, requestDigest, resultRef, effectRef, now)
+	}
 	if r == nil || strings.TrimSpace(requestDigest) == "" || strings.TrimSpace(resultRef) == "" || strings.TrimSpace(effectRef) == "" || now.IsZero() {
 		return Record{}, ErrInvalidRequest
 	}
@@ -185,6 +225,9 @@ func (r *Registry) Complete(identity Identity, requestDigest, resultRef, effectR
 
 // Lookup returns a copy without allowing callers to mutate lifecycle state.
 func (r *Registry) Lookup(identity Identity) (Record, error) {
+	if r != nil && r.store != nil {
+		return r.store.Lookup(identity)
+	}
 	if r == nil {
 		return Record{}, ErrNotFound
 	}
@@ -223,6 +266,20 @@ func (r *Registry) Expire(now time.Time) int {
 		}
 	}
 	return count
+}
+
+// ExpireTenant invokes the durable store's tenant-scoped reclamation path.
+// In-memory registries continue to use Expire(now), which sweeps their own
+// bounded test state.
+func (r *Registry) ExpireTenant(tenant string, cutoff time.Time) (int64, error) {
+	if r == nil || r.store == nil || strings.TrimSpace(tenant) == "" || cutoff.IsZero() {
+		return 0, ErrInvalidRequest
+	}
+	expirer, ok := r.store.(TenantExpirer)
+	if !ok {
+		return 0, ErrInvalidRequest
+	}
+	return expirer.ExpireTenant(tenant, cutoff.UTC())
 }
 
 func Explain(record Record) string {

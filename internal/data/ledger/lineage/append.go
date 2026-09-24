@@ -2,6 +2,7 @@ package lineage
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -22,12 +23,27 @@ import (
 //
 // Append writes nothing itself and exposes no update or delete: the only
 // effect of a successful call is the single INSERT
-// internal/data/ledger.Append performs.
-func Append(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, req datalogger.AppendRequest) (datalogger.AppendReceipt, error) {
+// internal/data/ledger.Appender.Append performs. An optional appender lets a
+// caller preserve its configured clock and digest behavior; absent one, the
+// default ledger appender is used.
+func Append(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, req datalogger.AppendRequest, appenders ...*datalogger.Appender) (datalogger.AppendReceipt, error) {
+	if req.Tenant != tenant {
+		return datalogger.AppendReceipt{}, fmt.Errorf("lineage: tenant argument does not match append request")
+	}
+	if len(appenders) > 1 {
+		return datalogger.AppendReceipt{}, fmt.Errorf("lineage: at most one ledger appender may be supplied")
+	}
 	if req.AssertionClass == datalogger.Correction && req.Corrects != nil {
 		if _, err := ValidateCorrectionTarget(ctx, tx, tenant, *req.Corrects); err != nil {
 			return datalogger.AppendReceipt{}, err
 		}
 	}
-	return datalogger.Append(ctx, tx, req)
+	appender := datalogger.New()
+	if len(appenders) == 1 {
+		if appenders[0] == nil {
+			return datalogger.AppendReceipt{}, fmt.Errorf("lineage: supplied ledger appender is nil")
+		}
+		appender = appenders[0]
+	}
+	return appender.Append(ctx, tx, req)
 }

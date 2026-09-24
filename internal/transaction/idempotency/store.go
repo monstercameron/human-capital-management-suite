@@ -3,6 +3,7 @@ package idempotency
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,21 +50,26 @@ type Store interface {
 	// same answer at the SQL level.
 	Lookup(ctx context.Context, ex Executor, scope Scope) (rec Record, found bool, err error)
 
-	// Expire deletes every record for tenant whose expires_at is strictly
-	// before cutoff, and reports how many were removed. It is the whole of
-	// this package's retention sweep: policy-owned, explicit, and never
-	// triggered by a clock this package reads itself.
-	Expire(ctx context.Context, ex Executor, tenant uuid.UUID, cutoff time.Time) (removed int64, err error)
+	// Expire processes every record for tenant whose expires_at is strictly
+	// before cutoff. Expiring records are deleted; permanent-tombstone records
+	// lose their result references and keep only the keyed request digest.
+	// It is an explicit, policy-owned sweep and never reads a wall clock.
+	Expire(ctx context.Context, ex Executor, tenant uuid.UUID, cutoff time.Time) (processed int64, err error)
 }
 
-// PostgresStore implements [Store] over migrations/00019_idempotency_record.sql.
-// It holds no state; every method takes its [Executor] explicitly.
-type PostgresStore struct{}
+// PostgresStore implements [Store] over the idempotency migrations. Its
+// retention registry is immutable policy configuration; every method still
+// takes its database [Executor] explicitly.
+type PostgresStore struct {
+	// RetentionRegistry controls class selection by capability. The zero value
+	// uses [DefaultCapabilityRetentionRegistry].
+	RetentionRegistry CapabilityRetentionRegistry
+}
 
 var _ Store = PostgresStore{}
 
 const recordColumns = `tenant_id, capability_id, effect_scope, idempotency_key,
-	request_digest, status, result_ref, event_ref, effect_identity, evidence_id,
+	request_digest, status, retention_class, result_ref, event_ref, effect_identity, evidence_id, action_plan_binding_ref, compensated_by_event_ref,
 	created_at, expires_at`
 
 // Reserve implements [Store.Reserve] with one statement: an
@@ -74,7 +80,7 @@ const recordColumns = `tenant_id, capability_id, effect_scope, idempotency_key,
 // row now visible (and this INSERT returns no row) or finds it gone (and
 // this INSERT proceeds normally) -- so the race is decided entirely by the
 // database's own MVCC, never by a lock this package takes itself.
-func (PostgresStore) Reserve(
+func (s PostgresStore) Reserve(
 	ctx context.Context, ex Executor, scope Scope, digest string, policy RetentionPolicy, now time.Time,
 ) (Record, bool, error) {
 	if err := scope.Validate(); err != nil {
@@ -83,6 +89,11 @@ func (PostgresStore) Reserve(
 	if !ValidDigest(digest) {
 		return Record{}, false, refuse(CodeInvalidRecord, scope, "request digest %q is not a well-formed canonical digest", digest)
 	}
+	class, err := s.retentionClass(scope, policy.Class)
+	if err != nil {
+		return Record{}, false, err
+	}
+	policy.Class = class
 	if err := policy.Validate(); err != nil {
 		return Record{}, false, err
 	}
@@ -92,11 +103,11 @@ func (PostgresStore) Reserve(
 
 	row := ex.QueryRow(ctx, `
 		INSERT INTO idempotency_record (`+recordColumns+`)
-		VALUES ($1, $2, $3, $4, $5, 'RESERVED', NULL, NULL, NULL, NULL, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, 'RESERVED', $6, NULL, NULL, NULL, NULL, NULL, NULL, $7, $8)
 		ON CONFLICT (tenant_id, capability_id, effect_scope, idempotency_key) DO NOTHING
 		RETURNING `+recordColumns,
 		scope.Tenant, scope.Capability, scope.EffectScope, scope.Key,
-		digest, createdAt, expiresAt)
+		digest, class, createdAt, expiresAt)
 
 	rec, err := scanRecord(row)
 	if err != nil {
@@ -117,6 +128,55 @@ func (PostgresStore) Reserve(
 		return Record{}, false, wrap(CodeStorageFailed, scope, err, "insert idempotency reservation")
 	}
 	return rec, true, nil
+}
+
+// CloseCompensated binds a completed original effect to its verified inverse.
+// The caller supplies the same transaction that wrote the compensation event.
+func (PostgresStore) CloseCompensated(ctx context.Context, ex Executor, scope Scope, eventRef string) (Record, error) {
+	if err := scope.Validate(); err != nil {
+		return Record{}, err
+	}
+	if strings.TrimSpace(eventRef) == "" {
+		return Record{}, refuse(CodeInvalidRecord, scope, "compensation event reference is required")
+	}
+	row := ex.QueryRow(ctx, `UPDATE idempotency_record SET status='COMPENSATED', compensated_by_event_ref=$1
+		WHERE tenant_id=$2 AND capability_id=$3 AND effect_scope=$4 AND idempotency_key=$5 AND status='COMPLETED'
+		RETURNING `+recordColumns, eventRef, scope.Tenant, scope.Capability, scope.EffectScope, scope.Key)
+	rec, err := scanRecord(row)
+	if err == nil {
+		return rec, nil
+	}
+	if !errors.Is(err, dbport.ErrNoRows) {
+		return Record{}, wrap(CodeStorageFailed, scope, err, "close compensated idempotency record")
+	}
+	current, found, lookupErr := (PostgresStore{}).Lookup(ctx, ex, scope)
+	if lookupErr != nil {
+		return Record{}, lookupErr
+	}
+	if found && current.Status == StatusCompensated && current.CompensatedByRef == eventRef {
+		return current, nil
+	}
+	return Record{}, refuse(CodeNotReserved, scope, "no completed original record to close or compensation event conflicts")
+}
+
+func (s PostgresStore) retentionClass(scope Scope, requested RetentionClass) (RetentionClass, error) {
+	registry := s.RetentionRegistry
+	if registry.exact == nil && registry.prefixes == nil {
+		registry = DefaultCapabilityRetentionRegistry()
+	}
+	class, found := registry.classFor(scope.Capability)
+	if !found {
+		if protectedCapabilityName(scope.Capability) {
+			return "", refuse(CodeRetentionPolicyMissing, scope,
+				"capability requires an entry in the authoritative retention registry")
+		}
+		class = RetentionExpiring
+	}
+	if requested != "" && requested != class {
+		return "", refuse(CodeRetentionPolicyConflict, scope,
+			"per-request retention class conflicts with the authoritative capability policy")
+	}
+	return class, nil
 }
 
 // Complete implements [Store.Complete]. The UPDATE only ever matches a row
@@ -143,12 +203,13 @@ func (PostgresStore) Complete(
 			result_ref = $1,
 			event_ref = $2,
 			effect_identity = $3,
-			evidence_id = $4
-		WHERE tenant_id = $5 AND capability_id = $6 AND effect_scope = $7 AND idempotency_key = $8
+			evidence_id = $4,
+			action_plan_binding_ref = $5
+		WHERE tenant_id = $6 AND capability_id = $7 AND effect_scope = $8 AND idempotency_key = $9
 		  AND status = 'RESERVED'
 		RETURNING `+recordColumns,
 		nullableText(identity.ResultRef), nullableText(identity.EventRef),
-		nullableText(identity.EffectIdentity), nullableText(identity.EvidenceID),
+		nullableText(identity.EffectIdentity), nullableText(identity.EvidenceID), nullableText(identity.ActionPlanBindingRef),
 		scope.Tenant, scope.Capability, scope.EffectScope, scope.Key)
 
 	rec, err := scanRecord(row)
@@ -186,36 +247,57 @@ func (PostgresStore) Expire(ctx context.Context, ex Executor, tenant uuid.UUID, 
 	if tenant == uuid.Nil {
 		return 0, refuse(CodeInvalidScope, Scope{}, "expire requires a tenant")
 	}
-	n, err := ex.Exec(ctx, `DELETE FROM idempotency_record WHERE tenant_id = $1 AND expires_at < $2`,
+	compensated, err := ex.Exec(ctx, `UPDATE idempotency_record SET
+		result_ref = NULL, event_ref = NULL, effect_identity = NULL, evidence_id = NULL, expires_at = NULL
+		WHERE tenant_id = $1 AND retention_class = 'PERMANENT_TOMBSTONE'
+		  AND expires_at < $2 AND status = 'COMPENSATED'`, tenant, cutoff.UTC())
+	if err != nil {
+		return 0, wrap(CodeStorageFailed, Scope{Tenant: tenant}, err, "compact expired compensated idempotency records")
+	}
+	tombstones, err := ex.Exec(ctx, `UPDATE idempotency_record SET
+		status = 'TOMBSTONE', result_ref = NULL, event_ref = NULL, compensated_by_event_ref = NULL,
+		effect_identity = NULL, evidence_id = NULL, expires_at = NULL
+		WHERE tenant_id = $1 AND retention_class = 'PERMANENT_TOMBSTONE'
+		  AND expires_at < $2 AND status IN ('RESERVED', 'COMPLETED')`, tenant, cutoff.UTC())
+	if err != nil {
+		return 0, wrap(CodeStorageFailed, Scope{Tenant: tenant}, err, "compact expired idempotency records")
+	}
+	removed, err := ex.Exec(ctx, `DELETE FROM idempotency_record
+		WHERE tenant_id = $1 AND retention_class = 'EXPIRING' AND expires_at < $2`,
 		tenant, cutoff.UTC())
 	if err != nil {
 		return 0, wrap(CodeStorageFailed, Scope{Tenant: tenant}, err, "expire idempotency records")
 	}
-	return n, nil
+	return compensated + tombstones + removed, nil
 }
 
 func scanRecord(row dbport.Row) (Record, error) {
 	var (
-		rec                                             Record
-		status                                          string
-		resultRef, eventRef, effectIdentity, evidenceID *string
+		rec                                                                                          Record
+		status                                                                                       string
+		resultRef, eventRef, effectIdentity, evidenceID, actionPlanBindingRef, compensatedByEventRef *string
+		expiresAt                                                                                    *time.Time
 	)
 	err := row.Scan(
 		&rec.Scope.Tenant, &rec.Scope.Capability, &rec.Scope.EffectScope, &rec.Scope.Key,
-		&rec.RequestDigest, &status, &resultRef, &eventRef, &effectIdentity, &evidenceID,
-		&rec.CreatedAt, &rec.ExpiresAt)
+		&rec.RequestDigest, &status, &rec.RetentionClass, &resultRef, &eventRef, &effectIdentity, &evidenceID, &actionPlanBindingRef, &compensatedByEventRef,
+		&rec.CreatedAt, &expiresAt)
 	if err != nil {
 		return Record{}, err
 	}
 	rec.Status = Status(status)
 	rec.Identity = ResultIdentity{
-		ResultRef:      derefText(resultRef),
-		EventRef:       derefText(eventRef),
-		EffectIdentity: derefText(effectIdentity),
-		EvidenceID:     derefText(evidenceID),
+		ResultRef:            derefText(resultRef),
+		EventRef:             derefText(eventRef),
+		EffectIdentity:       derefText(effectIdentity),
+		EvidenceID:           derefText(evidenceID),
+		ActionPlanBindingRef: derefText(actionPlanBindingRef),
 	}
+	rec.CompensatedByRef = derefText(compensatedByEventRef)
 	rec.CreatedAt = rec.CreatedAt.UTC()
-	rec.ExpiresAt = rec.ExpiresAt.UTC()
+	if expiresAt != nil {
+		rec.ExpiresAt = expiresAt.UTC()
+	}
 	return rec, nil
 }
 

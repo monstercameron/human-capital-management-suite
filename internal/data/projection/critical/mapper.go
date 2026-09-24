@@ -4,8 +4,13 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/monstercameron/human-capital-management-suite/gen/wire"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projection/wire"
 )
+
+// SchemaRefFullProposalSnapshot names the complete proposal JSON stored in
+// proposal_revision.payload when a revision event carries the expanded
+// snapshot alongside its canonical material payload.
+const SchemaRefFullProposalSnapshot = wire.FullProposalSnapshotSchemaRef
 
 // Schema references this package's default [Mapper] recognizes. They follow
 // the "<message full name>@<schema version>" convention used by the ledger.
@@ -23,7 +28,8 @@ type Mapper interface {
 }
 
 // ProtoMapper is the critical-projection adapter for the two declared
-// generated intent payloads. The Protobuf runtime lives in gen/wire; this
+// generated intent payloads. The Protobuf runtime lives in the internal
+// projection wire adapter; this
 // storage package owns only row validation and transactional projection.
 type ProtoMapper struct{}
 

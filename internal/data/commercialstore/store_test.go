@@ -1,7 +1,9 @@
 package commercialstore_test
 
 import (
+	"bytes"
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/industrypack"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/partnerapp"
 )
 
@@ -24,8 +27,8 @@ var testAt = time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
 func newDB(t *testing.T) *pgtest.DB {
 	t.Helper()
 	db := pgtest.NewEmpty(t)
-	if _, err := db.Provider(t).UpTo(context.Background(), 78); err != nil {
-		t.Fatalf("apply migrations through 00078: %v", err)
+	if _, err := db.Provider(t).UpTo(context.Background(), 340); err != nil {
+		t.Fatalf("apply migrations through 00340: %v", err)
 	}
 	return db
 }
@@ -283,6 +286,100 @@ func TestTodo_PERSIST_COMMERCIAL_001_Recovery(t *testing.T) {
 	got, err := fresh.GetEntitlementSnapshot(context.Background(), tenant.String(), first.ContractID, 1)
 	if err != nil || got.Fingerprint() != snapshot.Fingerprint() {
 		t.Fatalf("recovered=%q err=%v", got.Fingerprint(), err)
+	}
+}
+
+func TestTodo_REV_047_02_CommercialStoreSuspension(t *testing.T) {
+	db := newDB(t)
+	tenant := insertTenant(t, db, "industry-pack-suspended-entitlement")
+	store := commercialstore.New(appConn(t, db))
+	c := contract(tenant, 1)
+	c.Status = commercial.StatusSuspended
+	c.Capabilities = []string{"hcmnext.industrypack.healthcare/v1"}
+	if err := store.PutContractRevision(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := commercial.NewEntitlementSnapshot(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutEntitlementSnapshot(context.Background(), snapshot); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.GetEntitlementSnapshot(context.Background(), tenant.String(), c.ContractID, 1)
+	if err != nil || loaded.Status() != commercial.StatusSuspended || loaded.Fingerprint() != snapshot.Fingerprint() {
+		t.Fatalf("suspended snapshot=%+v status=%s err=%v", loaded.Contract(), loaded.Status(), err)
+	}
+	decision := loaded.Resolve(commercial.EntitlementRequest{TenantID: tenant.String(), Capability: c.Capabilities[0], At: testAt.Add(time.Hour)})
+	if decision.Code != commercial.CodeContractSuspended {
+		t.Fatalf("suspended entitlement decision=%s, want %s", decision.Code, commercial.CodeContractSuspended)
+	}
+}
+
+type rev047PublicationEffects struct{ calls int }
+
+func (s *rev047PublicationEffects) SavePublication(context.Context, string, industrypack.PublicationReport) (industrypack.ActivationEffects, error) {
+	s.calls++
+	return industrypack.ActivationEffects{AuthoritativeRows: 1}, nil
+}
+
+type rev047ActivationEffects struct{ calls int }
+
+func (s *rev047ActivationEffects) SaveActivation(context.Context, industrypack.ActivationReceipt) (industrypack.ActivationEffects, error) {
+	s.calls++
+	return industrypack.ActivationEffects{AuthoritativeRows: 1, OutboxEntries: 1}, nil
+}
+
+func TestTodo_REV_047_02_CommercialStoreComposition(t *testing.T) {
+	ctx := context.Background()
+	db := newDB(t)
+	tenant := insertTenant(t, db, "industry-pack-entitlement-composition")
+	commercialRepo := commercialstore.New(appConn(t, db))
+	contractRevision := contract(tenant, 1)
+	contractRevision.Capabilities = []string{industrypack.IndustryEntitlementCapability(industrypack.IndustryHealthcare)}
+	if err := commercialRepo.PutContractRevision(ctx, contractRevision); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := commercial.NewEntitlementSnapshot(contractRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := commercialRepo.PutEntitlementSnapshot(ctx, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	authority, err := industrypack.NewIndustryEntitlementAuthority(commercialRepo,
+		industrypack.ContractRevisionResolverFunc(func(_ context.Context, got string) (industrypack.ContractRevisionRef, error) {
+			if got != tenant.String() {
+				return industrypack.ContractRevisionRef{}, commercial.ErrStoreNotFound
+			}
+			return industrypack.ContractRevisionRef{ContractID: contractRevision.ContractID, Revision: contractRevision.Revision}, nil
+		}), industrypack.EntitlementClockFunc(func() time.Time { return testAt }), 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pack, err := industrypack.NewIndustryPack(industrypack.IndustryPack{PackID: "healthcare-base", Version: 1, Industry: industrypack.IndustryHealthcare,
+		Owner: "hcmnext", Scope: "healthcare-us", Support: "maintained",
+		Compatibility: []industrypack.CompatibilityDeclaration{{Component: "hcmnext", MinimumVersion: "1", MaximumVersion: "2"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicationStore := &rev047PublicationEffects{}
+	report, pubEffects, err := industrypack.PublishChecked(ctx, publicationStore, authority, tenant.String(), industrypack.PublicationCheck{
+		TenantID: tenant.String(), Candidate: pack, Installed: map[string]string{"hcmnext": "1.8"},
+	})
+	if err != nil || publicationStore.calls != 1 || pubEffects.AuthoritativeRows != 1 || report.Entitlement.Fingerprint() != snapshot.Fingerprint() {
+		t.Fatalf("publication report=%+v effects=%+v calls=%d err=%v", report, pubEffects, publicationStore.calls, err)
+	}
+	private := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{23}, ed25519.SeedSize))
+	target := industrypack.PackTarget{Tenant: tenant.String(), Cell: "cell-local"}
+	envelope := industrypack.SignPackVersion(industrypack.SignedPackVersion{PackID: pack.PackID, Industry: pack.Industry, Version: pack.Version,
+		BundleDigest: "sha256:healthcare-bundle", Target: target, EffectiveAt: testAt.Add(time.Minute), RollbackVersion: 0,
+		Publisher: "publisher:one", Approver: "approver:two", SignedAt: testAt.Add(-time.Minute)}, "key-1", private)
+	activationStore := &rev047ActivationEffects{}
+	receipt, effects, err := industrypack.ActivateSigned(ctx, activationStore, authority, industrypack.ActivationRequest{Envelope: envelope,
+		Target: target, TrustedKeys: map[string]ed25519.PublicKey{"key-1": private.Public().(ed25519.PublicKey)}})
+	if err != nil || activationStore.calls != 1 || effects.AuthoritativeRows != 1 || receipt.Entitlement.Fingerprint() != snapshot.Fingerprint() {
+		t.Fatalf("activation receipt=%+v effects=%+v calls=%d err=%v", receipt, effects, activationStore.calls, err)
 	}
 }
 

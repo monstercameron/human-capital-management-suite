@@ -10,21 +10,27 @@ import (
 )
 
 // Status is the lifecycle status of one idempotency record. There are
-// exactly two: a caller has reserved the scope and not yet completed it, or
-// it has completed with a stored result identity. There is no third,
-// "failed" status -- a caller whose effect fails rolls its whole transaction
-// back, and the reservation never becomes visible to anyone else.
+// RESERVED and COMPLETED describe active requests. COMPENSATED closes a
+// completed scope after its inverse is durably recorded. TOMBSTONE is the
+// compact permanent form of an expired request: it retains uniqueness and
+// digest while dropping result references. There is no FAILED state; a caller
+// whose effect fails rolls its whole transaction back.
 type Status string
 
-// The two declared statuses. There is no third.
+// The declared lifecycle statuses.
 const (
 	StatusReserved  Status = "RESERVED"
 	StatusCompleted Status = "COMPLETED"
+	StatusTombstone Status = "TOMBSTONE"
+	// StatusCompensated permanently closes an effect scope after its inverse
+	// was verified. Identity retains the original result; CompensatedByRef
+	// identifies the durable compensation event.
+	StatusCompensated Status = "COMPENSATED"
 )
 
 // Valid reports whether s is one of the two declared statuses.
 func (s Status) Valid() bool {
-	return s == StatusReserved || s == StatusCompleted
+	return s == StatusReserved || s == StatusCompleted || s == StatusTombstone || s == StatusCompensated
 }
 
 // Scope names the semantic uniqueness scope TX-006 declares: tenant,
@@ -101,11 +107,14 @@ type ResultIdentity struct {
 	EffectIdentity string
 	// EvidenceID references governed evidence the effect recorded.
 	EvidenceID string
+	// ActionPlanBindingRef names a durable, canonical accepted-action to
+	// transaction-plan binding persisted by the same commit transaction.
+	ActionPlanBindingRef string
 }
 
 // Empty reports whether the identity carries no reference at all.
 func (r ResultIdentity) Empty() bool {
-	return r.ResultRef == "" && r.EventRef == "" && r.EffectIdentity == "" && r.EvidenceID == ""
+	return r.ResultRef == "" && r.EventRef == "" && r.EffectIdentity == "" && r.EvidenceID == "" && r.ActionPlanBindingRef == ""
 }
 
 // RetentionPolicy is the caller-declared lifecycle policy for one guarded
@@ -125,7 +134,19 @@ type RetentionPolicy struct {
 	// RetryWindow is the maximum window the request's own source may still
 	// retry or redeliver it. Zero means the source never redelivers.
 	RetryWindow time.Duration
+	// Class is an optional assertion about the capability's registered policy.
+	// It cannot override [CapabilityRetentionRegistry]; an empty value derives
+	// the class from the registry.
+	Class RetentionClass
 }
+
+// RetentionClass is the capability's declared post-expiry behavior.
+type RetentionClass string
+
+const (
+	RetentionExpiring           RetentionClass = "EXPIRING"
+	RetentionPermanentTombstone RetentionClass = "PERMANENT_TOMBSTONE"
+)
 
 // Validate rejects a policy that cannot be honored: non-positive retention,
 // a negative retry window, or a retention shorter than the declared retry
@@ -136,6 +157,8 @@ func (p RetentionPolicy) Validate() error {
 		return &Error{Code: CodeInvalidRecord, Detail: "retention must be positive"}
 	case p.RetryWindow < 0:
 		return &Error{Code: CodeInvalidRecord, Detail: "retry window cannot be negative"}
+	case p.Class != "" && p.Class != RetentionExpiring && p.Class != RetentionPermanentTombstone:
+		return &Error{Code: CodeInvalidRecord, Detail: fmt.Sprintf("unknown retention class %q", p.Class)}
 	case p.Retention < p.RetryWindow:
 		return &Error{
 			Code: CodeRetentionTooShort,
@@ -152,10 +175,12 @@ func (p RetentionPolicy) Validate() error {
 // the result identity a completed record carries, and its recording and
 // expiry instants.
 type Record struct {
-	Scope         Scope
-	RequestDigest string
-	Status        Status
-	Identity      ResultIdentity
-	CreatedAt     time.Time
-	ExpiresAt     time.Time
+	Scope            Scope
+	RequestDigest    string
+	Status           Status
+	RetentionClass   RetentionClass
+	Identity         ResultIdentity
+	CompensatedByRef string
+	CreatedAt        time.Time
+	ExpiresAt        time.Time
 }

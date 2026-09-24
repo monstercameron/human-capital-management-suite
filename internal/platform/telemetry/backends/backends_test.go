@@ -2,6 +2,7 @@ package backends
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 )
@@ -34,14 +35,25 @@ func TestTodo_OBS_003_Race(t *testing.T) {
 		t.Fatal(err)
 	}
 	signal := testSignal("same", "tenant-token-a", KindLogs)
-	if err := stack.Ingest(signal); err != nil {
-		t.Fatal(err)
+	const workers = 16
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- stack.Ingest(signal)
+		}()
 	}
-	if err := stack.Ingest(signal); err != nil {
-		t.Fatal(err)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
-	if got := len(stack.Query(signal.TenantToken, signal.Kind, time.Time{})); got != 1 {
-		t.Fatalf("duplicate ingest created %d records", got)
+	if got := stack.Query(signal.TenantToken, signal.Kind, time.Time{}); len(got) != 1 || got[0].Digest != signal.Digest {
+		t.Fatalf("concurrent duplicate ingest produced %#v", got)
 	}
 }
 

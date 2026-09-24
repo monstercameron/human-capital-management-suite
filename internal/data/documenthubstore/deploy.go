@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
@@ -25,8 +26,13 @@ var (
 
 // DeployInput names the version, the scope, who deploys, and the live
 // version the deployer saw, or empty when the scope has no deployment yet.
+// CustodianID and ReviewDueAt are optional; PlaceDocument (HUB-014) sets
+// both to bind an official team/channel placement, and any other deploy
+// leaves them empty.
 type DeployInput struct {
 	DocumentID, VersionID, ScopeKind, ScopeID, DeployerID, ExpectedLive string
+	CustodianID                                                         string
+	ReviewDueAt                                                         time.Time
 }
 
 // Deploy publishes one reviewed version to one scope.
@@ -66,10 +72,16 @@ func (s *Store) Deploy(ctx context.Context, tenantID string, in DeployInput) (De
 			ScopeKind:   in.ScopeKind,
 			ScopeID:     in.ScopeID,
 			DeployerID:  in.DeployerID,
+			CustodianID: in.CustodianID,
 			EffectiveAt: version.CreatedAt,
+			ReviewDueAt: in.ReviewDueAt,
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO document_deployment(id,tenant_id,document_id,version_id,scope_kind,scope_id,deployer_id,prior_deployment_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
-			deployment.ID, tenantID, deployment.DocumentID, deployment.VersionID, deployment.ScopeKind, deployment.ScopeID, deployment.DeployerID, currentDeployment); err != nil {
+		var reviewDue any
+		if !in.ReviewDueAt.IsZero() {
+			reviewDue = in.ReviewDueAt
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO document_deployment(id,tenant_id,document_id,version_id,scope_kind,scope_id,deployer_id,prior_deployment_id,custodian_id,review_due_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+			deployment.ID, tenantID, deployment.DocumentID, deployment.VersionID, deployment.ScopeKind, deployment.ScopeID, deployment.DeployerID, currentDeployment, deployment.CustodianID, reviewDue); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO document_active_pointer(tenant_id,document_id,scope_kind,scope_id,deployment_id,version_id) VALUES($1,$2,$3,$4,$5,$6)
@@ -97,6 +109,9 @@ func (s *Store) Deploy(ctx context.Context, tenantID string, in DeployInput) (De
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO document_outbox(tenant_id,aggregate_id,event_type,payload) VALUES($1,$2,'deployment.published',$3)`, tenantID, in.DocumentID, payload); err != nil {
+			return err
+		}
+		if err := s.enqueueIndexTx(ctx, tx, tenantID, in.DocumentID, in.VersionID); err != nil {
 			return err
 		}
 		result = deployment

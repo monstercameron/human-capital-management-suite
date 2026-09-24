@@ -134,6 +134,9 @@ type PrincipalSpec struct {
 	Tenant values.TenantId
 	// Subject is the opaque, stable, tenant-scoped subject identifier.
 	Subject string
+	// ClientID is the stable client identity resolved from a verified
+	// machine credential. It remains constant when access tokens rotate.
+	ClientID string
 	// SubjectKind classifies the authenticated actor.
 	SubjectKind SubjectKind
 	// OrganizationScopeID is the organization scope the subject acts within.
@@ -188,6 +191,7 @@ var (
 type Principal struct {
 	tenant               values.TenantId
 	subject              string
+	clientID             string
 	subjectKind          SubjectKind
 	organizationScopeID  string
 	roles                []string
@@ -219,6 +223,9 @@ func NewPrincipal(spec PrincipalSpec) (*Principal, error) {
 	if !printableASCII(spec.Subject, 1, 200) {
 		return nil, ErrPrincipalSubject
 	}
+	if spec.ClientID != "" && !printableASCII(spec.ClientID, 1, 200) {
+		return nil, ErrPrincipalSubject
+	}
 	if !spec.SubjectKind.valid() {
 		return nil, ErrPrincipalSubjectKind
 	}
@@ -241,6 +248,7 @@ func NewPrincipal(spec PrincipalSpec) (*Principal, error) {
 	p := &Principal{
 		tenant:               spec.Tenant,
 		subject:              spec.Subject,
+		clientID:             spec.ClientID,
 		subjectKind:          spec.SubjectKind,
 		organizationScopeID:  spec.OrganizationScopeID,
 		roles:                normalizeSet(spec.Roles),
@@ -265,6 +273,10 @@ func (p *Principal) Tenant() values.TenantId { return p.tenant }
 
 // Subject returns the opaque stable subject identifier.
 func (p *Principal) Subject() string { return p.subject }
+
+// ClientID returns the stable, verifier-derived machine client identity, or
+// the empty string when the verified credential is not a machine credential.
+func (p *Principal) ClientID() string { return p.clientID }
 
 // SubjectKind returns the authenticated actor kind.
 func (p *Principal) SubjectKind() SubjectKind { return p.subjectKind }
@@ -383,6 +395,7 @@ func (p *Principal) computeFingerprint() string {
 	}
 	write("tenant", p.tenant.String())
 	write("subject", p.subject)
+	write("client", p.clientID)
 	write("kind", p.subjectKind.String())
 	write("orgscope", p.organizationScopeID)
 	writeSet("roles", p.roles)

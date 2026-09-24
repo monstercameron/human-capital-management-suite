@@ -194,6 +194,9 @@ func (s *Store) PutContractRevision(ctx context.Context, contract commercial.Con
 	if len(expected) > 1 {
 		return storeError(CodeInvalid, "at most one expected revision is allowed", nil)
 	}
+	if contract.Status == "" {
+		contract.Status = commercial.StatusActive
+	}
 	if err := contract.Validate(); err != nil {
 		return storeError(CodeInvalid, "contract revision: "+err.Error(), err)
 	}
@@ -226,9 +229,9 @@ func (s *Store) PutContractRevision(ctx context.Context, contract commercial.Con
 		}
 		_, err = tx.Exec(ctx, `
 			INSERT INTO commercial_contract_revision
-				(tenant_id,row_id,contract_id,revision,effective_from,effective_to,capabilities,bound,price_cents,currency,fingerprint)
-			VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11)`,
-			tenantID, uuid.New(), contract.ContractID, int64(contract.Revision), contract.EffectiveFrom.UTC(), contract.EffectiveTo.UTC(), payload, contract.Bound.Valid(), contract.PriceCents, contract.Currency, snapshot.Fingerprint())
+			(tenant_id,row_id,contract_id,revision,effective_from,effective_to,status,capabilities,bound,price_cents,currency,fingerprint)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12)`,
+			tenantID, uuid.New(), contract.ContractID, int64(contract.Revision), contract.EffectiveFrom.UTC(), contract.EffectiveTo.UTC(), contract.Status, payload, contract.Bound.Valid(), contract.PriceCents, contract.Currency, snapshot.Fingerprint())
 		if err != nil {
 			return mapDuplicate("commercial_contract_revision", contract.ContractID, err)
 		}
@@ -240,6 +243,7 @@ type contractRow struct {
 	TenantID    uuid.UUID
 	ContractID  string
 	Revision    int64
+	Status      string
 	From        *time.Time
 	To          *time.Time
 	Payload     []byte
@@ -259,7 +263,7 @@ func materializeContract(row contractRow) (commercial.ContractRevision, error) {
 	}
 	contract := commercial.ContractRevision{
 		TenantID: row.TenantID.String(), ContractID: row.ContractID, Revision: uint64(row.Revision), EffectiveFrom: row.From.UTC(), EffectiveTo: row.To.UTC(),
-		Capabilities: append([]string(nil), payload.Values...), Bound: payload.Bound, PriceCents: *row.Price, Currency: *row.Currency,
+		Status: commercial.ContractStatus(row.Status), Capabilities: append([]string(nil), payload.Values...), Bound: payload.Bound, PriceCents: *row.Price, Currency: *row.Currency,
 	}
 	if !row.Bound || !contract.Bound.Valid() {
 		return commercial.ContractRevision{}, storeError(CodeInvalid, "stored contract bound does not match its payload", nil)
@@ -277,10 +281,10 @@ func materializeContract(row contractRow) (commercial.ContractRevision, error) {
 func loadContract(ctx context.Context, q dbport.Querier, tenantID uuid.UUID, id string, revision uint64) (commercial.ContractRevision, error) {
 	var row contractRow
 	err := q.QueryRow(ctx, `
-		SELECT tenant_id,contract_id,revision,effective_from,effective_to,capabilities::text,bound,price_cents,currency,fingerprint
+		SELECT tenant_id,contract_id,revision,effective_from,effective_to,status,capabilities::text,bound,price_cents,currency,fingerprint
 		FROM commercial_contract_revision
 		WHERE tenant_id=$1 AND contract_id=$2 AND revision=$3`, tenantID, id, int64(revision)).Scan(
-		&row.TenantID, &row.ContractID, &row.Revision, &row.From, &row.To, &row.Payload, &row.Bound, &row.Price, &row.Currency, &row.Fingerprint)
+		&row.TenantID, &row.ContractID, &row.Revision, &row.From, &row.To, &row.Status, &row.Payload, &row.Bound, &row.Price, &row.Currency, &row.Fingerprint)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return commercial.ContractRevision{}, storeError(CodeNotFound, "contract revision not found", ErrNotFound)
 	}
@@ -314,7 +318,7 @@ func (s *Store) ListContractRevisions(ctx context.Context, tenant, id string) ([
 	var out []commercial.ContractRevision
 	err = s.withTenant(ctx, tenantID, func(tx dbport.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT tenant_id,contract_id,revision,effective_from,effective_to,capabilities::text,bound,price_cents,currency,fingerprint
+			SELECT tenant_id,contract_id,revision,effective_from,effective_to,status,capabilities::text,bound,price_cents,currency,fingerprint
 			FROM commercial_contract_revision WHERE tenant_id=$1 AND contract_id=$2 ORDER BY revision`, tenantID, id)
 		if err != nil {
 			return err
@@ -322,7 +326,7 @@ func (s *Store) ListContractRevisions(ctx context.Context, tenant, id string) ([
 		defer rows.Close()
 		for rows.Next() {
 			var row contractRow
-			if err := rows.Scan(&row.TenantID, &row.ContractID, &row.Revision, &row.From, &row.To, &row.Payload, &row.Bound, &row.Price, &row.Currency, &row.Fingerprint); err != nil {
+			if err := rows.Scan(&row.TenantID, &row.ContractID, &row.Revision, &row.From, &row.To, &row.Status, &row.Payload, &row.Bound, &row.Price, &row.Currency, &row.Fingerprint); err != nil {
 				return err
 			}
 			contract, err := materializeContract(row)

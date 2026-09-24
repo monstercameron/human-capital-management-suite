@@ -44,10 +44,12 @@ const (
 	FixtureExecuteCompile = "fixture:workflow.promotion-execute/reproducible-compile@v1"
 	FixtureExecuteGraph   = "fixture:workflow.promotion-execute/graph-and-simulation@v1"
 	// FixtureExecuteCompileV1_1 and FixtureExecuteGraphV1_1 are the 1.1.0
-	// execute version's fixtures: they compare against promotionexec.Compile.
+	// execute version's fixtures: they compare against promotionexec.CompileV1_1.
 	FixtureExecuteCompileV1_1 = "fixture:workflow.promotion-execute/reproducible-compile@v2"
 	FixtureExecuteGraphV1_1   = "fixture:workflow.promotion-execute/graph-and-simulation@v2"
-	// FixtureExecuteApprovals holds for both execute versions: their approval
+	FixtureExecuteCompileV1_2 = "fixture:workflow.promotion-execute/reproducible-compile@v3"
+	FixtureExecuteGraphV1_2   = "fixture:workflow.promotion-execute/graph-and-simulation@v3"
+	// FixtureExecuteApprovals holds for all execute versions: their approval
 	// requirements are the same.
 	FixtureExecuteApprovals = "fixture:workflow.promotion-execute/approval-separation@v1"
 )
@@ -90,8 +92,11 @@ func ShippedFixtures() releasefixture.Suite {
 		FixtureExecuteGraph:        executeV1_0.graphFixture,
 		FixtureExecuteCompileV1_1:  executeV1_1.compileFixture,
 		FixtureExecuteGraphV1_1:    executeV1_1.graphFixture,
+		FixtureExecuteCompileV1_2:  executeV1_2.compileFixture,
+		FixtureExecuteGraphV1_2:    executeV1_2.graphFixture,
 		FixtureExecuteApprovals:    executeApprovalsFixture,
 		FixtureHireCompile:         hireCompileFixture,
+		FixtureHireCompileV1_1:     hireCompileFixture,
 	}
 }
 
@@ -117,34 +122,43 @@ var (
 		nodeOrder:       promotionexec.NodeOrderV1_0,
 		fixtures:        []string{FixtureExecuteCompile, FixtureExecuteGraph, FixtureExecuteApprovals},
 	}
-	// executeV1_1 is the current graph with the provider-confirmation waits.
+	// executeV1_1 is the frozen schema-v1 graph pinned by existing records.
 	executeV1_1 = shippedExecute{
+		semanticVersion: promotionexec.SemanticVersionV1_1,
+		definition:      promotionexec.DefinitionV1_1,
+		compile:         func() (*workflow.CompiledWorkflow, error) { return promotionexec.CompileV1_1() },
+		simulate:        promotionexec.CompileSimulationV1_1,
+		nodeOrder:       promotionexec.NodeOrderV1_1,
+		fixtures:        []string{FixtureExecuteCompileV1_1, FixtureExecuteGraphV1_1, FixtureExecuteApprovals},
+	}
+	executeV1_2 = shippedExecute{
 		semanticVersion: promotionexec.SemanticVersion,
 		definition:      promotionexec.Definition,
 		compile:         func() (*workflow.CompiledWorkflow, error) { return promotionexec.Compile() },
 		simulate:        func() (*workflow.CompiledWorkflow, error) { return promotionexec.CompileSimulation() },
 		nodeOrder:       promotionexec.NodeOrder,
-		fixtures:        []string{FixtureExecuteCompileV1_1, FixtureExecuteGraphV1_1, FixtureExecuteApprovals},
+		fixtures:        []string{FixtureExecuteCompileV1_2, FixtureExecuteGraphV1_2, FixtureExecuteApprovals},
 	}
 	// shippedExecuteVersions is publication order: the frozen version first,
 	// so a superseding activation of the current one is the last word.
-	shippedExecuteVersions = []shippedExecute{executeV1_0, executeV1_1}
+	shippedExecuteVersions = []shippedExecute{executeV1_0, executeV1_1, executeV1_2}
 )
 
 // PublishShippedVersions publishes the prototype approval and the executable
 // promotion workflows into store as DRAFT versions, idempotently: a version
 // already published under the same compiled-plan digest is returned as it is
 // stored, whatever its status. It approves and activates nothing. The
-// executable promotion ships two versions side by side, in order: the frozen
-// 1.0.0 its live instances pinned, then 1.1.0 for new starts.
+// executable promotion ships three versions side by side, in order: frozen
+// 1.0.0 and 1.1.0 pins, then 1.2.0 for new starts.
 func PublishShippedVersions(store version.Store, at time.Time) ([]version.CompiledVersion, error) {
 	prototypePlan, err := prototype.CompileApproval()
 	if err != nil {
 		return nil, fmt.Errorf("platform execution: compile the promotion approval workflow: %w", err)
 	}
+	approvalCompileOptions := workflow.Options{Phase: workflow.PhaseP1B, IRSchemaVersion: prototype.ApprovalIRSchemaV1}
 	tools := map[string]string{"go": goruntime.Version(), "publisher": "internal/platform/execution"}
 	approval, err := version.Publish(store, prototype.ApprovalDefinition(), prototypePlan,
-		workflow.Options{Phase: workflow.PhaseP1B}, version.PublishMeta{
+		approvalCompileOptions, version.PublishMeta{
 			SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: versionPublisher, ToolVersions: tools,
 			FixtureRefs: []string{FixtureApprovalCompile, FixtureApprovalRequirement},
 		})
@@ -157,8 +171,12 @@ func PublishShippedVersions(store version.Store, at time.Time) ([]version.Compil
 		if err != nil {
 			return nil, fmt.Errorf("platform execution: compile the promotion execute workflow %s: %w", shipped.semanticVersion, err)
 		}
+		compileOptions, err := promotionPublishOptionsFor(shipped.semanticVersion)
+		if err != nil {
+			return nil, fmt.Errorf("platform execution: resolve compile options for promotion execute workflow %s: %w", shipped.semanticVersion, err)
+		}
 		executed, err := version.Publish(store, promotionPublishDefinition(shipped.definition()), executePlan,
-			promotionPublishOptions(), version.PublishMeta{
+			compileOptions, version.PublishMeta{
 				SemanticVersion: shipped.semanticVersion, PublishedAt: at, PublishedBy: versionPublisher, ToolVersions: tools,
 				FixtureRefs: append([]string(nil), shipped.fixtures...),
 			})
@@ -168,6 +186,23 @@ func PublishShippedVersions(store version.Store, at time.Time) ([]version.Compil
 		out = append(out, executed)
 	}
 	return out, nil
+}
+
+// promotionPublishOptionsFor keeps publication validation identical to the
+// compiler that minted each plan. The frozen 1.0.0 digest uses schema 1 and
+// its compatibility manifest snapshot; current versions use the registry's
+// published manifests and the default current schema.
+func promotionPublishOptionsFor(semanticVersion string) (workflow.Options, error) {
+	if semanticVersion == promotionexec.SemanticVersionV1_0 || semanticVersion == promotionexec.SemanticVersionV1_1 {
+		options := promotionPublishOptions()
+		options.IRSchemaVersion = 1
+		return options, nil
+	}
+	registry, err := promotionexec.ManifestRegistry()
+	if err != nil {
+		return workflow.Options{}, err
+	}
+	return workflow.Options{Phase: workflow.PhaseP1B, Capabilities: registry}, nil
 }
 
 // ReleaseApproval is an operator's approval of one published version on the
@@ -268,7 +303,7 @@ func BootstrapDevVersions(ctx context.Context, registry VersionRegistry, at time
 		out = append(out, active)
 	}
 	// A later shipped version may have superseded an earlier one this run
-	// activated (promotion execute 1.1.0 supersedes 1.0.0): report each as it
+	// activated (1.1.0 supersedes 1.0.0; 1.2.0 supersedes 1.1.0): report each as it
 	// stands now.
 	for i, v := range out {
 		current, found, err := registry.GetByDigest(v.CompiledPlanDigest)
@@ -379,7 +414,11 @@ func approvalStepFixture(v version.CompiledVersion) error {
 // runs for it.
 func (e shippedExecute) compileFixture(v version.CompiledVersion) error {
 	publication := func() (*workflow.CompiledWorkflow, error) {
-		return workflow.Compile(promotionPublishDefinition(e.definition()), promotionPublishOptions())
+		options, err := promotionPublishOptionsFor(v.SemanticVersion)
+		if err != nil {
+			return nil, err
+		}
+		return workflow.Compile(promotionPublishDefinition(e.definition()), options)
 	}
 	if err := reproducesPlan(v, publication); err != nil {
 		return err

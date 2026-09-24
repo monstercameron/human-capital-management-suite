@@ -2,7 +2,9 @@ package synthetic
 
 import (
 	"errors"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -44,9 +46,45 @@ func assertSynthetic(t *testing.T) {
 func TestProductionSyntheticJourneyMeasuresRealPathButCannotMutateOrLeakTenantState(t *testing.T) {
 	assertSynthetic(t)
 }
-func TestTodo_SYNTH_001_Property(t *testing.T)    { assertSynthetic(t) }
-func TestTodo_SYNTH_001_Golden(t *testing.T)      { assertSynthetic(t) }
-func TestTodo_SYNTH_001_Race(t *testing.T)        { assertSynthetic(t) }
+func TestTodo_SYNTH_001_Property(t *testing.T) { assertSynthetic(t) }
+func TestTodo_SYNTH_001_Golden(t *testing.T)   { assertSynthetic(t) }
+func TestTodo_SYNTH_001_Race(t *testing.T) {
+	journey := placeholderJourney()
+	before := placeholderJourney()
+	want, err := Evaluate(journey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const workers = 24
+	var wg sync.WaitGroup
+	results := make(chan Result, workers)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result, err := Evaluate(journey)
+			results <- result
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(results)
+	close(errs)
+	for result := range results {
+		if !reflect.DeepEqual(result, want) {
+			t.Fatalf("concurrent evaluation diverged: got=%+v want=%+v", result, want)
+		}
+	}
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent journey evaluation: %v", err)
+		}
+	}
+	if !reflect.DeepEqual(journey, before) {
+		t.Fatalf("concurrent evaluation mutated the shared input: got=%+v want=%+v", journey, before)
+	}
+}
 func TestTodo_SYNTH_001_Integration(t *testing.T) { assertSynthetic(t) }
 func TestTodo_SYNTH_001_Fault(t *testing.T) {
 	j := placeholderJourney()

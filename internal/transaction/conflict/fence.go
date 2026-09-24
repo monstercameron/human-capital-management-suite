@@ -64,10 +64,61 @@ type WriteBaseline struct {
 	ResourceCanonical       string
 	FieldPath               FieldPath
 	StreamKey               string
+	ExpectedSequence        uint64
 	AuthorityDomain         string
 	SourceAuthorityDecision string
 	Operation               Operation
 	EffectiveInterval       values.EffectiveInterval
+}
+
+// BaselineFromFootprint converts one validated write footprint to the compact
+// commit-bound representation. Expected sequence is carried explicitly so a
+// reconstructed footprint retains the approved stream revision.
+func BaselineFromFootprint(footprint WriteFootprint) (WriteBaseline, error) {
+	if err := footprint.Validate(); err != nil {
+		return WriteBaseline{}, err
+	}
+	sequence, ok := footprint.ExpectedRevision.Sequence()
+	if !ok {
+		return WriteBaseline{}, fmt.Errorf("%w: footprint revision is not a sequence", ErrInvalidFootprint)
+	}
+	return WriteBaseline{
+		ResourceCanonical:       footprint.Resource.String(),
+		FieldPath:               footprint.Field,
+		StreamKey:               footprint.ExpectedRevision.Stream(),
+		ExpectedSequence:        sequence,
+		AuthorityDomain:         footprint.Authority.Domain,
+		SourceAuthorityDecision: footprint.Authority.PolicyRef,
+		Operation:               footprint.Operation,
+		EffectiveInterval:       footprint.Interval,
+	}, nil
+}
+
+// Footprint reconstructs a validated write footprint from the representation
+// carried by a transaction plan or the durable conflict fence.
+func (baseline WriteBaseline) Footprint() (WriteFootprint, error) {
+	var resource values.ResourceKey
+	if err := resource.UnmarshalText([]byte(baseline.ResourceCanonical)); err != nil {
+		return WriteFootprint{}, fmt.Errorf("%w: resource: %v", ErrInvalidFootprint, err)
+	}
+	revision, err := values.NewSequenceRevision(baseline.StreamKey, baseline.ExpectedSequence)
+	if err != nil {
+		return WriteFootprint{}, fmt.Errorf("%w: expected revision: %v", ErrInvalidFootprint, err)
+	}
+	footprint := WriteFootprint{
+		Resource:         resource,
+		Field:            baseline.FieldPath,
+		Interval:         baseline.EffectiveInterval,
+		Operation:        baseline.Operation,
+		ExpectedRevision: revision,
+		Authority: AuthorityScope{
+			Domain: baseline.AuthorityDomain, PolicyRef: baseline.SourceAuthorityDecision,
+		},
+	}
+	if err := footprint.Validate(); err != nil {
+		return WriteFootprint{}, err
+	}
+	return footprint, nil
 }
 
 type CommitResult struct {

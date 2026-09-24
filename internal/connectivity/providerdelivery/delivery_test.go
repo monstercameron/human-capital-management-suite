@@ -113,8 +113,8 @@ func TestNewSenderNeverFollowsRedirects(t *testing.T) {
 	if s.timeout != defaultTimeout || s.now == nil {
 		t.Fatal("defaults not applied")
 	}
-	if d, ok := newSender(nil, 0, nil).client.(*http.Client); !ok || d.CheckRedirect == nil {
-		t.Fatal("default client follows redirects")
+	if newSender(nil, 0, nil).client != nil {
+		t.Fatal("sender created a direct client without an injected HTTP port")
 	}
 }
 

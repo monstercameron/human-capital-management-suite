@@ -444,6 +444,7 @@ type RedriveRecord struct {
 type MemoryJournal struct {
 	mu              sync.RWMutex
 	operations      map[uuid.UUID]Operation
+	operationSeqs   map[uuid.UUID]uint64
 	redrives        map[uuid.UUID][]RedriveRecord
 	activeLeases    map[uuid.UUID]Lease
 	events          []JournalEvent
@@ -457,7 +458,23 @@ func NewMemoryJournal(now func() time.Time) *MemoryJournal {
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}
-	return &MemoryJournal{operations: make(map[uuid.UUID]Operation), redrives: make(map[uuid.UUID][]RedriveRecord), activeLeases: make(map[uuid.UUID]Lease), now: now}
+	return &MemoryJournal{operations: make(map[uuid.UUID]Operation), operationSeqs: make(map[uuid.UUID]uint64), redrives: make(map[uuid.UUID][]RedriveRecord), activeLeases: make(map[uuid.UUID]Lease), now: now}
+}
+
+// SeedOperationSequence advances the next transition sequence for a restored
+// operation. Durable adapters call it after replaying the original plan into
+// a fresh semantic journal so synthetic restore events never collide with
+// transitions already stored by a prior process.
+func (j *MemoryJournal) SeedOperationSequence(id uuid.UUID, sequence uint64) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if _, ok := j.operations[id]; !ok {
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+	if sequence > j.operationSeqs[id] {
+		j.operationSeqs[id] = sequence
+	}
+	return nil
 }
 
 // Plan durably records a complete operation before it can be queued or leased.

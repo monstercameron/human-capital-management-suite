@@ -33,6 +33,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/providertelemetry/providerwire"
 )
 
@@ -129,9 +130,13 @@ type Config struct {
 	// case. It is used for the grant delay and retry backoff so tests can
 	// observe the schedule without waiting it out.
 	Sleep func(ctx context.Context, d time.Duration) error
-	// HTTPClient delivers callbacks. The default does not follow redirects,
-	// because a provider treating a 3xx as delivery would lose the event.
-	HTTPClient *http.Client
+	// HTTPClient delivers callbacks through the injected HTTP port. It is
+	// intended for deterministic simulator fixtures; production composition
+	// should provide Gateway so outbound policy is enforced.
+	HTTPClient Doer
+	// Gateway routes callbacks through DNS/address, TLS, proxy, trust and DLP
+	// enforcement. HTTPClient and Gateway are mutually exclusive.
+	Gateway *egress.Gateway
 	// Logger receives structured logs (default: discarded). Secrets and raw
 	// tokens are never logged; tokens appear only as a short hash prefix.
 	Logger *slog.Logger
@@ -150,7 +155,8 @@ type Server struct {
 	random       func() float64
 	newID        func() string
 	sleep        func(ctx context.Context, d time.Duration) error
-	client       *http.Client
+	client       Doer
+	gateway      *egress.Gateway
 	log          *slog.Logger
 	mux          *http.ServeMux
 
@@ -193,6 +199,7 @@ func New(cfg Config) *Server {
 		newID:         cfg.NewID,
 		sleep:         cfg.Sleep,
 		client:        cfg.HTTPClient,
+		gateway:       cfg.Gateway,
 		log:           cfg.Logger,
 		changes:       make(map[string]*change),
 		tokens:        make(map[tokenHash]tokenRecord),
@@ -230,11 +237,10 @@ func New(cfg Config) *Server {
 	if s.sleep == nil {
 		s.sleep = sleepContext
 	}
-	if s.client == nil {
-		s.client = &http.Client{
-			Timeout:       15 * time.Second,
-			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-		}
+	if s.gateway != nil {
+		// The enforcing gateway wins if a caller accidentally supplies both;
+		// never silently downgrade to the raw injected client.
+		s.client = nil
 	}
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
@@ -255,6 +261,11 @@ func New(cfg Config) *Server {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	s.mux = mux
 	return s
+}
+
+// Doer is the narrow outbound request port used by callback delivery.
+type Doer interface {
+	Do(*http.Request) (*http.Response, error)
 }
 
 // ServeHTTP routes a request.

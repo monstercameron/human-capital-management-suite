@@ -143,6 +143,9 @@ func (c Client) Do(ctx context.Context, in Request) (Response, error) {
 	if ctx == nil {
 		return out, c.fail(ErrInvalid, errors.New("context is required"))
 	}
+	if c.HTTP == nil {
+		return out, c.fail(ErrTransport, errors.New("HTTP boundary is not configured"))
+	}
 	if err := c.Trust.Validate(in.URL); err != nil {
 		return out, c.fail(ErrDestination, err)
 	}
@@ -159,10 +162,6 @@ func (c Client) Do(ctx context.Context, in Request) (Response, error) {
 	for k, v := range in.Headers {
 		req.Header.Set(k, v)
 	}
-	d := c.HTTP
-	if d == nil {
-		d = http.DefaultClient
-	}
 	deadline := lim.Timeout
 	if dl, ok := ctx.Deadline(); ok && time.Until(dl) < deadline {
 		deadline = time.Until(dl)
@@ -173,7 +172,7 @@ func (c Client) Do(ctx context.Context, in Request) (Response, error) {
 	callCtx, cancel := context.WithTimeout(req.Context(), deadline)
 	defer cancel()
 	req = req.WithContext(callCtx)
-	r, err := d.Do(req)
+	r, err := c.HTTP.Do(req)
 	if err != nil {
 		if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
 			return out, c.fail(ErrDeadline, callCtx.Err())

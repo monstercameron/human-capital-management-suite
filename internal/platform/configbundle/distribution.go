@@ -86,6 +86,7 @@ type Snapshot struct {
 	CellID          string
 	BundleID        string
 	BundleDigest    string
+	DesiredDigest   string
 	Epoch           uint64
 	PlacementDigest string
 	AppliedAt       time.Time
@@ -237,12 +238,12 @@ func (r *Receiver) Receive(record DesiredStateRecord, placements ...tenant.Place
 	}
 	bundle := desiredBundle(record).Bundle
 	if record.Epoch == currentEpoch && r.active != nil {
-		if bundle.Digest == r.active.BundleDigest {
+		if record.Digest == r.active.DesiredDigest {
 			return ApplyResult{Decision: ApplyIdempotent, State: r.stateLocked(r.now().UTC()), Snapshot: cloneSnapshot(*r.active), HasSnapshot: true}, nil
 		}
-		return r.refusedLocked(distributionRefusal("EPOCH_CONFLICT", "epoch", "the active epoch already names another bundle", ErrEpochConflict))
+		return r.refusedLocked(distributionRefusal("EPOCH_CONFLICT", "epoch", "the active epoch already names another desired state", ErrEpochConflict))
 	}
-	snapshot := Snapshot{TenantID: record.TenantID, CellID: record.CellID, BundleID: bundle.BundleID, BundleDigest: bundle.Digest, Epoch: record.Epoch, PlacementDigest: record.PlacementDigest, AppliedAt: r.now().UTC(), Bundle: cloneBundle(bundle), Objects: objects}
+	snapshot := Snapshot{TenantID: record.TenantID, CellID: record.CellID, BundleID: bundle.BundleID, BundleDigest: bundle.Digest, DesiredDigest: record.Digest, Epoch: record.Epoch, PlacementDigest: record.PlacementDigest, AppliedAt: r.now().UTC(), Bundle: cloneBundle(bundle), Objects: objects}
 	r.active = &snapshot
 	return ApplyResult{Decision: ApplyAccepted, State: r.stateLocked(snapshot.AppliedAt), Snapshot: cloneSnapshot(snapshot), HasSnapshot: true}, nil
 }

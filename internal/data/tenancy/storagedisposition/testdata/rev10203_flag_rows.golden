@@ -20,4 +20,6 @@ succession_critical_role append_only=true retention=PERMANENT
 succession_readiness_revision append_only=true retention=PERMANENT
 succession_slate append_only=true retention=PERMANENT
 time_device_registration append_only=true retention=PERMANENT
+workflow_compensation_operation append_only=false retention=OPERATIONAL
+workflow_compensation_operation_history append_only=true retention=PERMANENT
 workflow_compiled_version append_only=false retention=PERMANENT

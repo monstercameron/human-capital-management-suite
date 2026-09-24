@@ -3,6 +3,7 @@ package correction_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -85,8 +86,8 @@ func TestTodo_TX_007(t *testing.T) {
 
 func TestTodo_TX_007_Race(t *testing.T) {
 	f := newFixture(t)
-	// A replay of the same correction key returns the original successor and
-	// does not advance the stream a second time.
+	// Competing corrections prepared against the same stream head must elect
+	// exactly one successor; every stale writer must fail closed.
 	request := correction.Request{
 		Tenant: f.tenant, StreamKey: "worker:promotion", ExpectedHead: 1,
 		Target:    ledger.EventRef{StreamKey: "worker:promotion", Sequence: 1},
@@ -96,24 +97,53 @@ func TestTodo_TX_007_Race(t *testing.T) {
 		CorrelationID: uuid.New(), IdempotencyKey: "same-correction",
 		Reason: "wrong level", CorrectedBy: "steward:people",
 	}
-	tx := f.dbTx(t)
-	first, err := correction.Append(context.Background(), tx, request, func() time.Time { return correctionRecorded })
-	if err != nil {
+	const workers = 8
+	start := make(chan struct{})
+	results := make([]correction.Result, workers)
+	errs := make([]error, workers)
+	var wg sync.WaitGroup
+	for i := range results {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			tx, err := f.db.Conn.Begin(context.Background())
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			results[i], errs[i] = correction.Append(context.Background(), tx, request, func() time.Time { return correctionRecorded })
+			if errs[i] != nil {
+				_ = tx.Rollback(context.Background())
+				return
+			}
+			errs[i] = tx.Commit(context.Background())
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	var committed correction.Result
+	commits := 0
+	for i, result := range results {
+		if errs[i] == nil {
+			commits++
+			committed = result
+			continue
+		}
+		var stale ledger.ErrStaleStream
+		if !errors.As(errs[i], &stale) {
+			t.Fatalf("concurrent correction %d error = %v, want stale stream head", i, errs[i])
+		}
+	}
+	if commits != 1 || committed.Correction.Sequence != 2 || committed.Correction.EventID == uuid.Nil {
+		t.Fatalf("concurrent correction commits=%d result=%+v, want exactly one successor", commits, committed.Correction)
+	}
+	var total int
+	if err := f.db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM ledger_event WHERE tenant_id = $1 AND stream_key = 'worker:promotion'`, f.tenant).Scan(&total); err != nil {
 		t.Fatal(err)
 	}
-	if err := tx.Commit(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	tx2 := f.dbTx(t)
-	second, err := correction.Append(context.Background(), tx2, request, func() time.Time { return correctionRecorded })
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := tx2.Commit(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if !second.Replayed || second.Correction.EventID != first.Correction.EventID {
-		t.Fatalf("replay = %+v, want original successor", second)
+	if total != 2 {
+		t.Fatalf("concurrent correction ledger rows = %d, want original plus one correction", total)
 	}
 }
 

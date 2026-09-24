@@ -219,6 +219,133 @@ func (s *Store) LoadCycle(ctx context.Context, tenant performance.TenantID, cycl
 	return out, err
 }
 
+func (s *Store) SaveParticipantReviewerGraph(ctx context.Context, tenant performance.TenantID, graph performance.FrozenParticipantReviewerGraph) error {
+	return s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
+		if err := graph.Validate(); err != nil {
+			return refuse("PERFORMANCE_INVALID_GRAPH", "graph", "frozen participant/reviewer graph is invalid", err)
+		}
+		if graph.GraphRevision == 0 || graph.SupersedesGraphRevision+1 != graph.GraphRevision {
+			return refuse(performance.ErrStaleRevision.Error(), "graph_revision", "graph revision must extend its frozen predecessor", performance.ErrStaleRevision)
+		}
+		var latestCycleRevision int64
+		var latestCycleState string
+		err := tx.QueryRow(ctx, `SELECT revision,state FROM performance_cycle WHERE tenant_id=$1 AND cycle_id=$2 ORDER BY revision DESC LIMIT 1`, tenantID, graph.CycleID).Scan(&latestCycleRevision, &latestCycleState)
+		if errors.Is(err, dbport.ErrNoRows) {
+			return notFound("cycle_id", "frozen graph cycle was not found")
+		}
+		if err != nil {
+			return fmt.Errorf("performancestore: inspect graph cycle: %w", err)
+		}
+		if uint64(latestCycleRevision) != graph.CycleRevision || performance.PerformanceCycleState(latestCycleState) != performance.PerformanceCycleOpen {
+			return refuse(performance.ErrStaleRevision.Error(), "cycle_revision", "graph must bind the current open cycle revision", performance.ErrStaleRevision)
+		}
+		var latestGraphRevision int64
+		err = tx.QueryRow(ctx, `SELECT graph_revision FROM performance_participant_reviewer_graph WHERE tenant_id=$1 AND cycle_id=$2 AND cycle_revision=$3 ORDER BY graph_revision DESC LIMIT 1`, tenantID, graph.CycleID, int64(graph.CycleRevision)).Scan(&latestGraphRevision)
+		if err != nil && !errors.Is(err, dbport.ErrNoRows) {
+			return fmt.Errorf("performancestore: inspect frozen graph revisions: %w", err)
+		}
+		if uint64(latestGraphRevision) >= graph.GraphRevision {
+			if uint64(latestGraphRevision) == graph.GraphRevision {
+				return refuse(performance.ErrDuplicateRevision.Error(), "graph_revision", "participant/reviewer graph revision is already stored", performance.ErrDuplicateRevision)
+			}
+			return refuse(performance.ErrStaleRevision.Error(), "graph_revision", "participant/reviewer graph revision is behind the current chain", performance.ErrStaleRevision)
+		}
+		if graph.GraphRevision != uint64(latestGraphRevision)+1 || graph.SupersedesGraphRevision != uint64(latestGraphRevision) {
+			return refuse(performance.ErrStaleRevision.Error(), "supersedes_graph_revision", "graph revision does not extend the current chain", performance.ErrStaleRevision)
+		}
+		encoded, err := json.Marshal(graph)
+		if err != nil {
+			return fmt.Errorf("performancestore: encode frozen graph: %w", err)
+		}
+		storedDigest, err := digest(graph.Digest)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO performance_participant_reviewer_graph (tenant_id,row_id,cycle_id,cycle_revision,graph_revision,supersedes_graph_revision,graph_digest,graph) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`, tenantID, uuid.New(), graph.CycleID, int64(graph.CycleRevision), int64(graph.GraphRevision), int64(graph.SupersedesGraphRevision), storedDigest, string(encoded))
+		return mapWriteError("save participant/reviewer graph", graph.CycleID, err)
+	})
+}
+
+// ListOpenParticipantReviewerGraphsForMember reads only the latest graph of
+// each current OPEN cycle to which memberID belongs. The database predicate
+// is tenant-scoped and narrows by graph membership before any snapshot leaves
+// the store.
+func (s *Store) ListOpenParticipantReviewerGraphsForMember(ctx context.Context, tenant performance.TenantID, memberID string) ([]performance.FrozenParticipantReviewerGraph, error) {
+	if strings.TrimSpace(memberID) == "" {
+		return nil, refuse("PERFORMANCE_INVALID_MEMBER", "member_id", "member reference is required", performance.ErrStoreRefused)
+	}
+	participantFilter, err := json.Marshal(struct {
+		Participants []performance.ParticipantRef `json:"participants"`
+	}{Participants: []performance.ParticipantRef{{ID: memberID}}})
+	if err != nil {
+		return nil, fmt.Errorf("performancestore: encode graph member filter: %w", err)
+	}
+	reviewerFilter, err := json.Marshal(map[string]any{
+		"reviewers": []map[string]string{{"reviewer_id": memberID}},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("performancestore: encode graph reviewer filter: %w", err)
+	}
+	result := make([]performance.FrozenParticipantReviewerGraph, 0)
+	err = s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
+		rows, err := tx.Query(ctx, `
+			SELECT g.cycle_id,g.cycle_revision,g.graph_revision,g.supersedes_graph_revision,g.graph_digest,g.graph
+			FROM performance_participant_reviewer_graph g
+			JOIN performance_cycle c ON c.tenant_id=g.tenant_id AND c.cycle_id=g.cycle_id AND c.revision=g.cycle_revision
+			WHERE g.tenant_id=$1
+			  AND c.state='OPEN'
+			  AND c.revision=(SELECT max(current_cycle.revision) FROM performance_cycle current_cycle WHERE current_cycle.tenant_id=g.tenant_id AND current_cycle.cycle_id=g.cycle_id)
+			  AND g.graph_revision=(SELECT max(current_graph.graph_revision) FROM performance_participant_reviewer_graph current_graph WHERE current_graph.tenant_id=g.tenant_id AND current_graph.cycle_id=g.cycle_id AND current_graph.cycle_revision=g.cycle_revision)
+			  AND (g.graph @> $2::jsonb OR g.graph @> $3::jsonb)
+			ORDER BY g.cycle_id`, tenantID, string(participantFilter), string(reviewerFilter))
+		if err != nil {
+			return fmt.Errorf("performancestore: list member graph snapshots: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var cycleID, storedDigest string
+			var cycleRevision, graphRevision, supersedes int64
+			var raw []byte
+			if err := rows.Scan(&cycleID, &cycleRevision, &graphRevision, &supersedes, &storedDigest, &raw); err != nil {
+				return fmt.Errorf("performancestore: scan member graph snapshot: %w", err)
+			}
+			var graph performance.FrozenParticipantReviewerGraph
+			if err := json.Unmarshal(raw, &graph); err != nil {
+				return fmt.Errorf("performancestore: decode member graph snapshot: %w", err)
+			}
+			if graph.CycleID != cycleID || graph.CycleRevision != uint64(cycleRevision) || graph.GraphRevision != uint64(graphRevision) || graph.SupersedesGraphRevision != uint64(supersedes) || graph.Digest != domainDigest(storedDigest) {
+				return refuse("PERFORMANCE_INVALID_GRAPH", "graph", "stored graph metadata does not match its snapshot", performance.ErrStoreRefused)
+			}
+			if err := graph.Validate(); err != nil {
+				return refuse("PERFORMANCE_INVALID_GRAPH", "graph", "stored participant/reviewer graph is invalid", err)
+			}
+			if !graphMember(graph, memberID) {
+				return refuse("PERFORMANCE_INVALID_GRAPH", "graph", "stored graph membership filter returned an unrelated snapshot", performance.ErrStoreRefused)
+			}
+			result = append(result, graph)
+		}
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("performancestore: read member graph snapshots: %w", err)
+		}
+		return nil
+	})
+	return result, err
+}
+
+func graphMember(graph performance.FrozenParticipantReviewerGraph, memberID string) bool {
+	for _, participant := range graph.Participants {
+		if participant.ID == memberID {
+			return true
+		}
+	}
+	for _, reviewer := range graph.Reviewers {
+		if reviewer.ReviewerID == memberID {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Store) SaveRatingCase(ctx context.Context, tenant performance.TenantID, c performance.RatingCaseRecord) error {
 	return s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
 		if err := validCase(c); err != nil {

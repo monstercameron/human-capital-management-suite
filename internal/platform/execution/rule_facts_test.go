@@ -27,11 +27,25 @@ type stubRuleDeriver struct {
 	input rules.PromotionApprovalInput
 	err   error
 	calls int
+	last  execute.StepRequest
 }
 
-func (s *stubRuleDeriver) thresholdInputs(context.Context, execute.StepRequest) (rules.PromotionApprovalInput, error) {
+func (s *stubRuleDeriver) thresholdInputs(_ context.Context, req execute.StepRequest) (rules.PromotionApprovalInput, error) {
 	s.calls++
+	s.last = req
 	return s.input, s.err
+}
+
+func TestServedRuleFactsCurrentThresholdInputsRejectsZeroCheckedAt(t *testing.T) {
+	deriver := &stubRuleDeriver{}
+	facts := &ServedRuleFacts{Thresholds: deriver}
+	_, err := facts.currentThresholdInputs(context.Background(), rulethreshold.Decision{}, uuid.New(), intent.ProposalRevision{}, time.Time{})
+	if err == nil || !strings.Contains(err.Error(), "has no checked_at instant") {
+		t.Fatalf("currentThresholdInputs with zero CheckedAt = %v, want fail-closed timestamp diagnostic", err)
+	}
+	if deriver.calls != 0 {
+		t.Fatalf("threshold deriver calls = %d, want no call for zero CheckedAt", deriver.calls)
+	}
 }
 
 // stubServedApprovalFacts reports one canned standing-approval set for
@@ -130,6 +144,7 @@ func TestServedRuleFactsLookupResolvesTheFrozenDecision(t *testing.T) {
 	frozen := servedFactsInput(t, "12.50")
 	live := servedFactsInput(t, "15.00")
 	rev := servedFactsRevision(intentID, 3, materialDigest)
+	checkedAt := time.Date(2026, 9, 23, 17, 30, 0, 123000000, time.FixedZone("test", -4*60*60))
 
 	servedFactsTx(t, db, tenantID, func(tx dbport.Tx) error {
 		return rulethreshold.Record(context.Background(), tx, servedFactsRecord(t, tenantID, intentID, frozen))
@@ -144,7 +159,7 @@ func TestServedRuleFactsLookupResolvesTheFrozenDecision(t *testing.T) {
 	var got execute.RuleApproval
 	servedFactsTx(t, db, tenantID, func(tx dbport.Tx) error {
 		var err error
-		got, err = facts.Lookup(context.Background(), tx, tenantID, rev)
+		got, err = facts.Lookup(context.Background(), tx, tenantID, rev, checkedAt)
 		return err
 	})
 	if !got.Resolved {
@@ -162,6 +177,9 @@ func TestServedRuleFactsLookupResolvesTheFrozenDecision(t *testing.T) {
 	}
 	if facts.Thresholds.(*stubRuleDeriver).calls != 1 {
 		t.Fatal("Lookup did not re-derive the live inputs through the governed path")
+	}
+	if gotAt := facts.Thresholds.(*stubRuleDeriver).last.RecordedAt; !gotAt.Equal(checkedAt) || gotAt.Location() != time.UTC {
+		t.Fatalf("threshold revalidation RecordedAt = %s (%s), want %s normalized to UTC", gotAt.Format(time.RFC3339Nano), gotAt.Location(), checkedAt.Format(time.RFC3339Nano))
 	}
 }
 
@@ -182,7 +200,7 @@ func TestServedRuleFactsLookupSilentWithoutDecisionOrApproval(t *testing.T) {
 		Approval:   stubServedApprovalFacts{},
 	}
 	servedFactsTx(t, db, tenantID, func(tx dbport.Tx) error {
-		got, err := silent.Lookup(context.Background(), tx, tenantID, rev)
+		got, err := silent.Lookup(context.Background(), tx, tenantID, rev, time.Date(2026, 9, 23, 16, 0, 0, 0, time.UTC))
 		if err != nil {
 			return err
 		}
@@ -197,7 +215,7 @@ func TestServedRuleFactsLookupSilentWithoutDecisionOrApproval(t *testing.T) {
 		return rulethreshold.Record(context.Background(), tx, servedFactsRecord(t, tenantID, intentID, servedFactsInput(t, "12.50")))
 	})
 	servedFactsTx(t, db, tenantID, func(tx dbport.Tx) error {
-		got, err := silent.Lookup(context.Background(), tx, tenantID, rev)
+		got, err := silent.Lookup(context.Background(), tx, tenantID, rev, time.Date(2026, 9, 23, 16, 0, 0, 0, time.UTC))
 		if err != nil {
 			return err
 		}
@@ -218,15 +236,15 @@ func TestServedRuleFactsLookupRefusesMiscomposition(t *testing.T) {
 	rev := servedFactsRevision(intentID, 3, "sha256:"+strings.Repeat("f", 64))
 
 	servedFactsTx(t, db, tenantID, func(tx dbport.Tx) error {
-		if _, err := (&ServedRuleFacts{Approval: stubServedApprovalFacts{}}).Lookup(context.Background(), tx, tenantID, rev); err == nil {
+		if _, err := (&ServedRuleFacts{Approval: stubServedApprovalFacts{}}).Lookup(context.Background(), tx, tenantID, rev, time.Date(2026, 9, 23, 16, 0, 0, 0, time.UTC)); err == nil {
 			t.Fatal("nil threshold inputs resolved")
 		}
-		if _, err := (&ServedRuleFacts{Thresholds: &stubRuleDeriver{}}).Lookup(context.Background(), tx, tenantID, rev); err == nil {
+		if _, err := (&ServedRuleFacts{Thresholds: &stubRuleDeriver{}}).Lookup(context.Background(), tx, tenantID, rev, time.Date(2026, 9, 23, 16, 0, 0, 0, time.UTC)); err == nil {
 			t.Fatal("nil approval facts resolved")
 		}
 		bad := servedFactsRevision(uuid.Nil, 3, "sha256:"+strings.Repeat("a", 64))
 		bad.IntentID = "intent:retry:synthetic"
-		if _, err := (&ServedRuleFacts{Thresholds: &stubRuleDeriver{}, Approval: stubServedApprovalFacts{}}).Lookup(context.Background(), tx, tenantID, bad); err == nil {
+		if _, err := (&ServedRuleFacts{Thresholds: &stubRuleDeriver{}, Approval: stubServedApprovalFacts{}}).Lookup(context.Background(), tx, tenantID, bad, time.Date(2026, 9, 23, 16, 0, 0, 0, time.UTC)); err == nil {
 			t.Fatal("a non-uuid intent id keyed the threshold table")
 		}
 		return nil

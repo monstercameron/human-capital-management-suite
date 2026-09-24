@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
-	"github.com/monstercameron/human-capital-management-suite/internal/data/inbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/audience"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -19,6 +18,10 @@ import (
 // failure rolls back the caller's entire work-item/advancement transaction.
 type notifyingWorkItems struct{ next execute.WorkItemFactory }
 
+type currentWorkItemAudienceResolver interface {
+	CurrentWorkItemAudience(context.Context, workitem.Executor, workitem.WorkItem) (string, string, error)
+}
+
 func (f notifyingWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Executor, req execute.WorkItemRequest) (result workitem.WorkItem, retErr error) {
 	ctx, op := observe.Begin(ctx, "workflow.notification.route", req)
 	defer func() { observe.DoneWith(op, retErr, result) }()
@@ -29,52 +32,47 @@ func (f notifyingWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Exec
 	if err != nil {
 		return workitem.WorkItem{}, err
 	}
-	if err := publishWorkNotification(ctx, ex, item); err != nil {
+	if err := publishWorkNotification(ctx, ex, item, f.next); err != nil {
 		return workitem.WorkItem{}, err
 	}
 	return item, nil
 }
 
-func publishWorkNotification(ctx context.Context, ex workitem.Executor, item workitem.WorkItem) (retErr error) {
+func publishWorkNotification(ctx context.Context, ex workitem.Executor, item workitem.WorkItem, authorities ...execute.WorkItemFactory) (retErr error) {
 	ctx, op := observe.Begin(ctx, "workflow.notification.publish", item)
 	defer func() { observe.Done(op, retErr) }()
 	tx, ok := ex.(dbport.Tx)
 	if !ok {
 		return fmt.Errorf("workflow notification: routing requires a transaction")
 	}
-	owner := item.Assignment.ChosenOwner
-	if owner == "" {
-		return fmt.Errorf("workflow notification: resolved recipient is required")
+	if len(authorities) != 1 || authorities[0] == nil {
+		return fmt.Errorf("workflow notification: current audience authority is unavailable")
 	}
-	if _, authorized := item.Assignment.Resolution.Authorizes(owner); !authorized {
-		return fmt.Errorf("workflow notification: owner is outside the resolved assignment")
+	resolver, ok := authorities[0].(currentWorkItemAudienceResolver)
+	if !ok {
+		return fmt.Errorf("workflow notification: current audience authority is unavailable")
+	}
+	owner, policy, err := resolver.CurrentWorkItemAudience(ctx, tx, item)
+	if err != nil {
+		return err
+	}
+	if owner == "" || policy == "" {
+		return fmt.Errorf("workflow notification: current audience authority returned no recipient")
 	}
 	tenant := values.TenantId(item.TenantID.String())
-	// Authentication subject keys need not be UUIDs. Use a tenant-scoped,
-	// deterministic opaque reference only for the audience resolver; the
-	// inbox remains addressed to the exact authenticated subject key.
 	ref := values.EntityRef{Tenant: tenant, Kind: "principal", Id: uuid.NewSHA1(item.TenantID, []byte("notification-principal/v1\x00"+owner)).String()}
+	spec := audience.AudienceSpec{ExplicitSubjects: []values.EntityRef{ref}}
 	resolution, err := audience.Resolve(ctx, audience.Request{
-		Tenant: tenant, AsOf: values.NewInstant(item.RecordedAt), ResolvedAt: values.NewInstant(item.RecordedAt),
-		Spec: audience.AudienceSpec{ExplicitSubjects: []values.EntityRef{ref}},
-		Scope: func(candidate values.EntityRef, _ audience.SourceKind) audience.DisclosureDecision {
-			return audience.DisclosureDecision{Allowed: candidate == ref, Reason: "work_item.assignment", PolicyVersion: item.Assignment.GovernancePolicyRef}
+		Tenant: tenant, AsOf: values.NewInstant(item.RecordedAt), ResolvedAt: values.NewInstant(item.RecordedAt), Spec: spec,
+		Scope: func(candidate values.EntityRef, source audience.SourceKind) audience.DisclosureDecision {
+			return audience.DisclosureDecision{Allowed: candidate == ref && source == audience.SourceExplicit, Reason: "current_work_item_route", PolicyVersion: policy}
 		},
 	})
 	if err != nil {
 		return err
 	}
-	if len(resolution.Principals) != 1 {
-		return fmt.Errorf("workflow notification: no authorized recipient")
+	if resolution.Expression != spec.Expression() {
+		return fmt.Errorf("workflow notification: audience expression changed during resolution")
 	}
-	purpose := "TASK"
-	if item.Kind == workitem.KindApproval {
-		purpose = "APPROVAL"
-	}
-	_, err = (inbox.Store{}).PublishWorkflow(ctx, tx, inbox.WorkflowNotice{
-		TenantID: item.TenantID, WorkItemID: item.WorkItemID, InstanceID: item.WorkflowInstanceID,
-		SubjectRef: owner, Purpose: purpose, CorrelationID: item.CorrelationID,
-		AudienceDigest: resolution.ResultDigest, CreatedAt: item.RecordedAt,
-	})
-	return err
+	return execute.PublishWorkItemMessage(ctx, tx, item, resolution)
 }

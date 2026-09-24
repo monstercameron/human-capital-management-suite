@@ -14,6 +14,7 @@ package storagedisposition_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy/storagedisposition"
 )
@@ -188,6 +190,149 @@ func rev10203AssertAgreement(t *testing.T, db *pgtest.DB, reg *storagedispositio
 	if bad := rev10203SealedUpdateGrants(rev10203LiveTriggers(t, db), granted); len(bad) > 0 {
 		t.Errorf("forbid_mutation-sealed tables with a stray live UPDATE grant: %v", bad)
 	}
+	rev10203AssertCompensationHistoryCatalog(t, db, reg)
+}
+
+// rev10203AssertCompensationHistoryCatalog checks the live durable history
+// needed to classify compensation operation state as mutable operational
+// recovery data instead of permanent history.
+func rev10203AssertCompensationHistoryCatalog(t *testing.T, db *pgtest.DB, reg *storagedisposition.Registry) {
+	t.Helper()
+	operation, ok := reg.Lookup("workflow_compensation_operation")
+	if !ok || operation.RetentionClass != storagedisposition.RetentionOperational || operation.AppendOnly {
+		t.Errorf("workflow_compensation_operation disposition = %+v, want mutable OPERATIONAL state", operation)
+	}
+	history, ok := reg.Lookup("workflow_compensation_operation_history")
+	if !ok || history.RetentionClass != storagedisposition.RetentionPermanent || !history.AppendOnly {
+		t.Errorf("workflow_compensation_operation_history disposition = %+v, want immutable PERMANENT history", history)
+	}
+
+	var enabled, forced bool
+	err := db.Conn.QueryRow(context.Background(), `
+		SELECT c.relrowsecurity, c.relforcerowsecurity
+		FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE n.nspname = current_schema() AND c.relname = 'workflow_compensation_operation_history'`).Scan(&enabled, &forced)
+	if err != nil {
+		t.Fatalf("read compensation history RLS state: %v", err)
+	}
+	if !enabled || !forced {
+		t.Errorf("compensation history RLS enabled=%v forced=%v, want both true", enabled, forced)
+	}
+	var isolated bool
+	if err := db.Conn.QueryRow(context.Background(), `
+		SELECT EXISTS (
+			SELECT 1 FROM pg_policies
+			WHERE schemaname = current_schema() AND tablename = 'workflow_compensation_operation_history'
+			  AND policyname = 'tenant_isolation'
+			  AND qual LIKE '%tenant_id%' AND with_check LIKE '%tenant_id%'
+		)`).Scan(&isolated); err != nil {
+		t.Fatalf("read compensation history tenant policy: %v", err)
+	}
+	if !isolated {
+		t.Error("compensation history has no tenant-isolation policy covering reads and writes")
+	}
+	if !rev10203LiveUpdateGuarded(t, db)["workflow_compensation_operation"] {
+		t.Error("workflow_compensation_operation has no live BEFORE UPDATE history guard")
+	}
+}
+
+type rev10203OperationIdentity struct {
+	tenant, capability, effect, idempotency, digest string
+}
+
+func rev10203InsertCompensationOperation(t *testing.T, db *pgtest.DB) rev10203OperationIdentity {
+	t.Helper()
+	identity := rev10203OperationIdentity{
+		tenant:      uuid.NewString(),
+		capability:  "workflow.compensate",
+		effect:      "effect-" + uuid.NewString(),
+		idempotency: "idem-" + uuid.NewString(),
+		digest:      strings.Repeat("a", 64),
+	}
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from)
+		VALUES ($1,$2,'cell-rev10203',$3,'ACTIVE',now())`, identity.tenant, "rev10203-"+identity.tenant, "REV-102-03 test tenant")
+	db.Exec(t, `INSERT INTO workflow_compensation_operation
+		(tenant_id,capability_id,effect_ref,idempotency_key,request_digest,state,payload)
+		VALUES ($1,$2,$3,$4,$5,'RESERVED','{}'::jsonb)`,
+		identity.tenant, identity.capability, identity.effect, identity.idempotency, identity.digest)
+	return identity
+}
+
+func rev10203CheckCompensationHistoryReconstructsLatest(t *testing.T, db *pgtest.DB, identity rev10203OperationIdentity) {
+	t.Helper()
+	for _, step := range []struct {
+		state   string
+		payload string
+	}{
+		{state: "EFFECT_RECORDED", payload: `{"receipt":"r1"}`},
+		{state: "COMPLETED", payload: `{"result":"done"}`},
+	} {
+		db.Exec(t, `UPDATE workflow_compensation_operation SET state=$1,payload=$2::jsonb,updated_at=now()
+			WHERE tenant_id=$3 AND capability_id=$4 AND effect_ref=$5 AND idempotency_key=$6 AND request_digest=$7`,
+			step.state, step.payload, identity.tenant, identity.capability, identity.effect, identity.idempotency, identity.digest)
+	}
+
+	rows, err := db.Conn.Query(context.Background(), `
+		SELECT operation_version, change_kind, prior_state, state, prior_payload::text, payload::text
+		FROM workflow_compensation_operation_history
+		WHERE tenant_id=$1 AND capability_id=$2 AND effect_ref=$3 AND idempotency_key=$4
+		ORDER BY operation_version`, identity.tenant, identity.capability, identity.effect, identity.idempotency)
+	if err != nil {
+		t.Fatalf("read compensation history: %v", err)
+	}
+	defer rows.Close()
+	want := []struct {
+		version               int64
+		kind, prior, state    string
+		priorPayload, payload string
+	}{
+		{version: 1, kind: "INSERT", state: "RESERVED", payload: "{}"},
+		{version: 2, kind: "UPDATE", prior: "RESERVED", state: "EFFECT_RECORDED", priorPayload: "{}", payload: `{"receipt": "r1"}`},
+		{version: 3, kind: "UPDATE", prior: "EFFECT_RECORDED", state: "COMPLETED", priorPayload: `{"receipt": "r1"}`, payload: `{"result": "done"}`},
+	}
+	var got int
+	for rows.Next() {
+		var version int64
+		var kind, state, payload string
+		var prior, priorPayload sql.NullString
+		if err := rows.Scan(&version, &kind, &prior, &state, &priorPayload, &payload); err != nil {
+			t.Fatalf("scan compensation history: %v", err)
+		}
+		if got >= len(want) {
+			t.Fatalf("unexpected extra history row at version %d", version)
+		}
+		w := want[got]
+		gotPrior, gotPriorPayload := prior.String, priorPayload.String
+		if version != w.version || kind != w.kind || gotPrior != w.prior || state != w.state || gotPriorPayload != w.priorPayload || payload != w.payload {
+			t.Errorf("history[%d] = (%d,%s,%s,%s,%s,%s), want (%d,%s,%s,%s,%s,%s)", got, version, kind, gotPrior, state, gotPriorPayload, payload, w.version, w.kind, w.prior, w.state, w.priorPayload, w.payload)
+		}
+		got++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate compensation history: %v", err)
+	}
+	if got != len(want) {
+		t.Fatalf("history row count = %d, want %d", got, len(want))
+	}
+
+	var liveVersion, historyVersion int64
+	var liveState, historyState, livePayload, historyPayload string
+	if err := db.Conn.QueryRow(context.Background(), `
+		SELECT operation_version, state, payload::text FROM workflow_compensation_operation
+		WHERE tenant_id=$1 AND capability_id=$2 AND effect_ref=$3 AND idempotency_key=$4`,
+		identity.tenant, identity.capability, identity.effect, identity.idempotency).Scan(&liveVersion, &liveState, &livePayload); err != nil {
+		t.Fatalf("read live compensation operation: %v", err)
+	}
+	if err := db.Conn.QueryRow(context.Background(), `
+		SELECT operation_version, state, payload::text FROM workflow_compensation_operation_history
+		WHERE tenant_id=$1 AND capability_id=$2 AND effect_ref=$3 AND idempotency_key=$4
+		ORDER BY operation_version DESC LIMIT 1`,
+		identity.tenant, identity.capability, identity.effect, identity.idempotency).Scan(&historyVersion, &historyState, &historyPayload); err != nil {
+		t.Fatalf("read latest compensation history state: %v", err)
+	}
+	if historyVersion != liveVersion || historyState != liveState || historyPayload != livePayload {
+		t.Fatalf("latest history (%d,%s,%s) cannot reconstruct live operation (%d,%s,%s)", historyVersion, historyState, historyPayload, liveVersion, liveState, livePayload)
+	}
 }
 
 // TestTodo_REV_102_03 proves the GREEN contract against the live schema.
@@ -229,6 +374,8 @@ var rev10203PinnedTables = []string{
 	"succession_slate",
 	"time_device_registration",
 	"workflow_compiled_version",
+	"workflow_compensation_operation",
+	"workflow_compensation_operation_history",
 }
 
 // TestTodo_REV_102_03_Golden pins the corrected REV-102-03 rows byte for
@@ -326,6 +473,40 @@ func TestTodo_REV_102_03_Fault(t *testing.T) {
 			t.Fatal("DELETE against a forbid_mutation trigger committed")
 		}
 	})
+
+	t.Run("compensation history rejects identity and invalid state rewrites", func(t *testing.T) {
+		t.Parallel()
+		db := pgtest.New(t)
+		identity := rev10203InsertCompensationOperation(t, db)
+		if _, err := db.Conn.Exec(context.Background(), `UPDATE workflow_compensation_operation
+			SET state='RESERVED', request_digest=$1
+			WHERE tenant_id=$2 AND capability_id=$3 AND effect_ref=$4 AND idempotency_key=$5`,
+			strings.Repeat("b", 64), identity.tenant, identity.capability, identity.effect, identity.idempotency); err == nil {
+			t.Fatal("workflow compensation operation accepted an identity rewrite")
+		}
+		if _, err := db.Conn.Exec(context.Background(), `UPDATE workflow_compensation_operation
+			SET state='COMPLETED', payload='{"result":"done"}'::jsonb
+			WHERE tenant_id=$1 AND capability_id=$2 AND effect_ref=$3 AND idempotency_key=$4`,
+			identity.tenant, identity.capability, identity.effect, identity.idempotency); err != nil {
+			t.Fatalf("workflow compensation operation refused a valid completion transition: %v", err)
+		}
+		if _, err := db.Conn.Exec(context.Background(), `UPDATE workflow_compensation_operation
+			SET state='RESERVED', payload='{"forged":true}'::jsonb
+			WHERE tenant_id=$1 AND capability_id=$2 AND effect_ref=$3 AND idempotency_key=$4`,
+			identity.tenant, identity.capability, identity.effect, identity.idempotency); err == nil {
+			t.Fatal("workflow compensation operation accepted a state regression")
+		}
+		var historyRows int
+		if err := db.Conn.QueryRow(context.Background(), `
+			SELECT count(*) FROM workflow_compensation_operation_history
+			WHERE tenant_id=$1 AND capability_id=$2 AND effect_ref=$3 AND idempotency_key=$4`,
+			identity.tenant, identity.capability, identity.effect, identity.idempotency).Scan(&historyRows); err != nil {
+			t.Fatalf("count compensation history after refused updates: %v", err)
+		}
+		if historyRows != 2 {
+			t.Fatalf("refused updates left %d history rows, want the initial reservation and valid completion", historyRows)
+		}
+	})
 }
 
 // TestTodo_REV_102_03_Recovery proves the corrected state is durable and
@@ -357,6 +538,13 @@ func TestTodo_REV_102_03_Recovery(t *testing.T) {
 		if bad := rev10203SealedUpdateGrants(rev10203LiveTriggers(t, db), granted); len(bad) > 0 {
 			t.Fatalf("reloaded registry leaves stray UPDATE grants on sealed tables: %v", bad)
 		}
+	})
+
+	t.Run("mutable compensation state reconstructs from immutable revisions", func(t *testing.T) {
+		t.Parallel()
+		db := pgtest.New(t)
+		identity := rev10203InsertCompensationOperation(t, db)
+		rev10203CheckCompensationHistoryReconstructsLatest(t, db, identity)
 	})
 
 	t.Run("a rebuilt schema reaches the agreeing state", func(t *testing.T) {

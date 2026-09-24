@@ -47,6 +47,9 @@ type RollbackRequest struct {
 // Rollback revalidates the exact prior bundle, re-signs it, activates it
 // at the new epoch and proves prior history unchanged.
 func Rollback(activator *Activator, request RollbackRequest) (ActivationReceipt, error) {
+	if strings.TrimSpace(request.Tenant) == "" || request.Scope.TenantID != request.Tenant || strings.TrimSpace(request.Scope.CellID) == "" {
+		return ActivationReceipt{}, refuse("ROLLBACK_SCOPE_MISMATCH", "scope", ErrActivationScopeMismatch, "rollback tenant and tenant/cell scope must identify the same target")
+	}
 	if !strings.HasPrefix(request.PriorDigest, "sha256:") {
 		return ActivationReceipt{}, refuse("MUTABLE_ROLLBACK_LABEL", "", ErrInvalidRequest, "rollback selects the pinned digest %q, never a mutable label", request.PriorDigest)
 	}

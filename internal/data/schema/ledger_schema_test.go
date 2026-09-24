@@ -3,6 +3,7 @@ package schema_test
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -164,6 +165,93 @@ func TestTodo_LEDGER_001(t *testing.T) {
 			t.Fatal("a negative head sequence was accepted")
 		}
 	})
+}
+
+// TestTodo_LEDGER_001_Mutation proves that the append-only rule protects the
+// exact persisted bytes, including the digest and event identity.
+func TestTodo_LEDGER_001_Mutation(t *testing.T) {
+	t.Parallel()
+	db := pgtest.New(t)
+	f := newLedgerFixture(t, db)
+	f.append(t, f.event(1, "TRANSACTION_FACT"))
+
+	type row struct {
+		eventID uuid.UUID
+		digest  string
+		payload []byte
+	}
+	read := func() row {
+		t.Helper()
+		var got row
+		if err := db.QueryRow(context.Background(), `
+			SELECT event_id, digest, payload FROM ledger_event
+			WHERE tenant_id = $1 AND stream_key = $2 AND sequence = 1`, f.tenant, f.streamKey).
+			Scan(&got.eventID, &got.digest, &got.payload); err != nil {
+			t.Fatalf("read ledger event: %v", err)
+		}
+		return got
+	}
+	before := read()
+	if err := db.ExecErr(`UPDATE ledger_event SET payload = $1, digest = $2
+		WHERE tenant_id = $3 AND stream_key = $4 AND sequence = 1`, []byte("forged"), fixtureDigestB, f.tenant, f.streamKey); err == nil {
+		t.Fatal("mutating persisted payload and digest succeeded")
+	}
+	if err := db.ExecErr(`DELETE FROM ledger_event WHERE tenant_id = $1 AND stream_key = $2 AND sequence = 1`, f.tenant, f.streamKey); err == nil {
+		t.Fatal("deleting the persisted event succeeded")
+	}
+	after := read()
+	if before.eventID != after.eventID || before.digest != after.digest || string(before.payload) != string(after.payload) {
+		t.Fatalf("event changed after refused mutation: before=%+v after=%+v", before, after)
+	}
+}
+
+// TestTodo_LEDGER_001_Race races two writes for the same tenant/stream/sequence.
+// The unique key must serialize them into exactly one accepted event.
+func TestTodo_LEDGER_001_Race(t *testing.T) {
+	t.Parallel()
+	db := pgtest.New(t)
+	f := newLedgerFixture(t, db)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	results := make(chan error, 2)
+	for range 2 {
+		conn := db.NewConn(t)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := conn.Exec(context.Background(), `
+				INSERT INTO ledger_event (
+					tenant_id, stream_key, sequence, event_id, assertion_class, source_ref,
+					schema_ref, payload, canonical_length, digest, digest_algorithm,
+					occurred_at, effective_at, correlation_id, idempotency_key)
+				VALUES ($1, $2, 1, $3, 'TRANSACTION_FACT', 'test', $4, $5, 4, $6,
+					'sha256', now(), now(), $7, $8)`, f.tenant, f.streamKey, uuid.New(),
+				f.schemaRef, []byte("body"), fixtureDigestA, uuid.New(), uuid.NewString())
+			results <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	accepted, rejected := 0, 0
+	for err := range results {
+		if err == nil {
+			accepted++
+		} else {
+			rejected++
+		}
+	}
+	if accepted != 1 || rejected != 1 {
+		t.Fatalf("concurrent writes accepted=%d rejected=%d, want one of each", accepted, rejected)
+	}
+	var count int
+	if err := db.QueryRow(context.Background(), `SELECT count(*) FROM ledger_event WHERE tenant_id = $1 AND stream_key = $2`, f.tenant, f.streamKey).Scan(&count); err != nil {
+		t.Fatalf("count persisted events: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("persisted %d events after same-sequence race, want 1", count)
+	}
 }
 
 // TestTodo_LEDGER_001_Security proves the authority and payload rules the

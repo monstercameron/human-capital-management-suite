@@ -5,10 +5,14 @@ package delivery
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/idempotency"
 )
 
 type Channel string
@@ -30,10 +34,11 @@ const (
 )
 
 var (
-	ErrInvalidEnvelope = errors.New("delivery: invalid semantic envelope")
-	ErrNoStore         = errors.New("delivery: attempt store is required")
-	ErrNoTransport     = errors.New("delivery: transport is required")
-	ErrRetryAdmission  = errors.New("delivery: retry admission denied")
+	ErrInvalidEnvelope       = errors.New("delivery: invalid semantic envelope")
+	ErrNoStore               = errors.New("delivery: attempt store is required")
+	ErrNoTransport           = errors.New("delivery: transport is required")
+	ErrRetryAdmission        = errors.New("delivery: retry admission denied")
+	ErrIdempotencyInProgress = errors.New("delivery: idempotent operation is already in progress")
 )
 
 // Envelope contains only semantic references and a content digest. It has no
@@ -142,6 +147,7 @@ type RetryAdmission interface {
 type Runner struct {
 	Store          AttemptStore
 	Transport      Transport
+	Idempotency    *idempotency.Registry
 	Clock          func() time.Time
 	MaxAttempts    int
 	RetryAdmission RetryAdmission
@@ -173,9 +179,51 @@ func (r Runner) Deliver(ctx context.Context, envelope Envelope) (Observation, er
 		if err != nil {
 			return Observation{}, fmt.Errorf("delivery: claim attempt %d: %w", attempt, err)
 		}
+		var lifecycleIdentity idempotency.Identity
+		var lifecycleDigest string
+		var lifecycleResolution idempotency.Resolution
+		if r.Idempotency != nil {
+			canonical, err := json.Marshal(envelope)
+			if err != nil {
+				return Observation{}, fmt.Errorf("delivery: encode idempotency request: %w", err)
+			}
+			claimAttempt := claim.Attempt
+			if claimAttempt < 1 {
+				claimAttempt = attempt
+			}
+			lifecycleIdentity = idempotency.Identity{Tenant: envelope.TenantID, Capability: "communications.notify", EffectScope: "intent:" + envelope.IntentID + ":attempt:" + strconv.Itoa(claimAttempt), Key: envelope.IdempotencyKey}
+			// The durable AttemptStore owns the message-level replay fence. This
+			// layer scopes records to one provider attempt so a failed attempt may
+			// advance under retry policy and expired attempt rows can be reclaimed.
+			lifecycleResolution, err = r.Idempotency.Reserve(idempotency.Request{Identity: lifecycleIdentity, Layer: "messaging-delivery", Canonical: canonical, Retention: idempotency.RetentionPolicy{ExpiresAt: envelope.ExpiresAt.UTC(), Mode: idempotency.AllowReuse, Tombstone: false}, Now: now})
+			if err != nil {
+				return Observation{}, fmt.Errorf("delivery: reserve idempotency: %w", err)
+			}
+			lifecycleDigest = lifecycleResolution.Record.RequestDigest
+		}
 		if claim.AlreadyObserved {
 			obs := Observation{AttemptID: claim.AttemptID, Attempt: claim.Attempt, State: StateAlreadyObserved, RecordedAt: now}
+			if r.Idempotency != nil {
+				if lifecycleResolution.Decision == idempotency.InFlight || lifecycleResolution.Decision == idempotency.Reserved {
+					if _, err := r.Idempotency.Complete(lifecycleIdentity, lifecycleDigest, "observed:"+claim.AttemptID, claim.AttemptID, now); err != nil {
+						return Observation{}, fmt.Errorf("delivery: complete recovered idempotency: %w", err)
+					}
+				} else if lifecycleResolution.Decision == idempotency.Replay {
+					obs.ProviderRef = lifecycleResolution.Record.ResultRef
+				}
+			}
 			return obs, nil
+		}
+		if r.Idempotency != nil {
+			switch lifecycleResolution.Decision {
+			case idempotency.Replay:
+				return Observation{AttemptID: lifecycleResolution.Record.EffectRef, Attempt: claim.Attempt, State: StateAlreadyObserved, ProviderRef: lifecycleResolution.Record.ResultRef, RecordedAt: now}, nil
+			case idempotency.InFlight:
+				return Observation{}, ErrIdempotencyInProgress
+			case idempotency.Reserved:
+			default:
+				return Observation{}, fmt.Errorf("delivery: unsupported idempotency decision %q", lifecycleResolution.Decision)
+			}
 		}
 		if err := ctx.Err(); err != nil {
 			return Observation{}, err
@@ -187,6 +235,11 @@ func (r Runner) Deliver(ctx context.Context, envelope Envelope) (Observation, er
 			if err := r.Store.Observe(ctx, envelope, claim, obs); err != nil {
 				return Observation{}, fmt.Errorf("delivery: record submitted observation: %w", err)
 			}
+			if r.Idempotency != nil {
+				if _, err := r.Idempotency.Complete(lifecycleIdentity, lifecycleDigest, idempotencyResult(obs.ProviderRef, "submitted", claim.AttemptID), claim.AttemptID, now); err != nil {
+					return Observation{}, fmt.Errorf("delivery: complete idempotency: %w", err)
+				}
+			}
 			return obs, nil
 		}
 		var providerErr *ProviderError
@@ -195,11 +248,21 @@ func (r Runner) Deliver(ctx context.Context, envelope Envelope) (Observation, er
 			if err := r.Store.Observe(ctx, envelope, claim, obs); err != nil {
 				return Observation{}, fmt.Errorf("delivery: record ambiguous observation: %w", err)
 			}
+			if r.Idempotency != nil {
+				if _, err := r.Idempotency.Complete(lifecycleIdentity, lifecycleDigest, idempotencyResult(obs.ProviderRef, "review-required", claim.AttemptID), claim.AttemptID, now); err != nil {
+					return Observation{}, fmt.Errorf("delivery: complete ambiguous idempotency: %w", err)
+				}
+			}
 			return obs, sendErr
 		}
 		obs.State, obs.Reason = StateFailed, sendErr.Error()
 		if err := r.Store.Observe(ctx, envelope, claim, obs); err != nil {
 			return Observation{}, fmt.Errorf("delivery: record failed observation: %w", err)
+		}
+		if r.Idempotency != nil {
+			if _, err := r.Idempotency.Complete(lifecycleIdentity, lifecycleDigest, "failed:"+claim.AttemptID, claim.AttemptID, now); err != nil {
+				return Observation{}, fmt.Errorf("delivery: complete failed idempotency: %w", err)
+			}
 		}
 		if !isRetryable(sendErr) || attempt == max {
 			return obs, sendErr
@@ -215,6 +278,13 @@ func (r Runner) Deliver(ctx context.Context, envelope Envelope) (Observation, er
 		}
 	}
 	return Observation{}, errors.New("delivery: exhausted attempts")
+}
+
+func idempotencyResult(providerRef, outcome, attemptID string) string {
+	if strings.TrimSpace(providerRef) != "" {
+		return providerRef
+	}
+	return outcome + ":" + attemptID
 }
 
 func isRetryable(err error) bool {

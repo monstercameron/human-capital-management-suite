@@ -437,7 +437,7 @@ func reverseClaims(in []Claim) []Claim {
 // generated model registry changed a bound property. Any of those is a real
 // change to what this system exposes, and re-pinning it is the point at
 // which someone looks.
-const goldenLiveDigest = "7b98a464740026da87266b80bcb4dd90c1d71047f7ab90437f83733e0d9f46b6"
+const goldenLiveDigest = "47906f206f420a9f81d296d1707f85c2d0d010ecf1baf20cb48925f9a284d125"
 
 // goldenLiveShape pins the counts, so a digest change reads as "what moved"
 // rather than "something moved".
@@ -447,10 +447,10 @@ var goldenLiveShape = struct {
 	Entries      int
 	Gaps         int
 }{
-	Capabilities: 10,
-	WireMethods:  60,
+	Capabilities: 11,
+	WireMethods:  66,
 	Entries:      0,
-	Gaps:         64,
+	Gaps:         72,
 }
 
 func TestTodo_BIND_001_Golden(t *testing.T) {
@@ -525,6 +525,7 @@ func TestTodo_BIND_001_Integration(t *testing.T) {
 
 	untyped := UntypedResultCapabilities(results)
 	want := []string{
+		"hcmnext.dataops.explain_field_history/v1",
 		"hcmnext.intelligence.explain_transaction/v1",
 		"hcmnext.operations.create_repair_plan/v1",
 		"hcmnext.operations.detect_drift/v1",

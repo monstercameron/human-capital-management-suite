@@ -54,7 +54,7 @@ func newFixture(t *testing.T) fixture {
 		tenant, eventSchemaRef)
 	db.Exec(t, `
 		INSERT INTO payload_schema (tenant_id, schema_ref, schema_id, schema_version, message_full_name, wire_format, canonicalization_profile)
-		VALUES ($1, $2, 'google.protobuf.Struct', 1, 'google.protobuf.Struct', 'PROTOBUF', 'EVIDENCE_MANIFEST')`,
+		VALUES ($1, $2, 'hcmnext.provenance.v1.Record', 1, 'hcmnext.provenance.v1.Record', 'PROTOBUF', 'EVIDENCE_MANIFEST')`,
 		tenant, provenance.OutboxSchemaRef)
 
 	f := fixture{db: db, tenant: tenant, reader: ledger.NewReader(), streamKey: streamKey, intentRef: intentRef}

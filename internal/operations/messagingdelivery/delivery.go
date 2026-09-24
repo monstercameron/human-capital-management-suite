@@ -19,11 +19,12 @@ import (
 func Version() int { return 1 }
 
 var (
-	ErrInvalidIntent       = errors.New("delivery: invalid message intent")
-	ErrNotCommitted        = errors.New("delivery: intent/outbox commit is required before provider call")
-	ErrIdempotencyConflict = errors.New("delivery: idempotency key is bound to different request")
-	ErrDLPBlocked          = errors.New("delivery: protected content cannot be sent through provider")
-	ErrProviderFailed      = errors.New("delivery: provider attempt failed")
+	ErrInvalidIntent         = errors.New("delivery: invalid message intent")
+	ErrNotCommitted          = errors.New("delivery: intent/outbox commit is required before provider call")
+	ErrIdempotencyConflict   = errors.New("delivery: idempotency key is bound to different request")
+	ErrIdempotencyInProgress = errors.New("delivery: idempotent dispatch is already in progress")
+	ErrDLPBlocked            = errors.New("delivery: protected content cannot be sent through provider")
+	ErrProviderFailed        = errors.New("delivery: provider attempt failed")
 )
 
 // Intent is the semantic message committed by the caller's transaction.
@@ -107,8 +108,19 @@ type Dispatcher struct {
 }
 
 func NewDispatcher(provider Provider, policy Policy) (*Dispatcher, error) {
+	return NewDispatcherWithRegistry(provider, policy, idempotency.NewRegistry())
+}
+
+// NewDispatcherWithRegistry binds dispatch dedupe to the caller's lifecycle.
+// Production composition must inject a registry backed by the durable
+// platform store; NewDispatcher remains a process-local convenience for
+// isolated tests and simulations.
+func NewDispatcherWithRegistry(provider Provider, policy Policy, lifecycle *idempotency.Registry) (*Dispatcher, error) {
 	if provider == nil {
 		return nil, errors.New("delivery: nil provider")
+	}
+	if lifecycle == nil {
+		return nil, errors.New("delivery: idempotency registry is required")
 	}
 	if strings.TrimSpace(policy.ProviderMaximumClassification) == "" {
 		policy.ProviderMaximumClassification = "INTERNAL"
@@ -116,7 +128,7 @@ func NewDispatcher(provider Provider, policy Policy) (*Dispatcher, error) {
 	if policy.AttentionOnlyClassifications == nil {
 		policy.AttentionOnlyClassifications = map[string]bool{"CONFIDENTIAL": true, "RESTRICTED": true}
 	}
-	return &Dispatcher{provider: provider, policy: policy, attempts: make(map[string]Attempt), lifecycle: idempotency.NewRegistry()}, nil
+	return &Dispatcher{provider: provider, policy: policy, attempts: make(map[string]Attempt), lifecycle: lifecycle}, nil
 }
 
 // Dispatch performs admission synchronously but invokes the provider only as
@@ -156,7 +168,34 @@ func (d *Dispatcher) Dispatch(ctx context.Context, in Intent) (DispatchResult, e
 		}
 		return DispatchResult{}, reserveErr
 	}
-	if reservation.Decision != idempotency.Reserved {
+	switch reservation.Decision {
+	case idempotency.Replay:
+		attempt := Attempt{ID: reservation.Record.EffectRef, TenantID: in.TenantID, IntentID: in.IntentID, IdempotencyKey: in.IdempotencyKey, RequestHash: hash, CreatedAt: reservation.Record.CreatedAt.UTC()}
+		switch reservation.Record.ResultRef {
+		case "dlp-blocked":
+			attempt.State, attempt.ErrorCode = Failed, "DLP_BLOCKED"
+			d.attempts[identity] = attempt
+			d.mu.Unlock()
+			return DispatchResult{Attempt: attempt}, ErrDLPBlocked
+		case "provider-failed":
+			attempt.State, attempt.ErrorCode = Failed, "PROVIDER_FAILED"
+			d.attempts[identity] = attempt
+			d.mu.Unlock()
+			return DispatchResult{Attempt: attempt}, ErrProviderFailed
+		default:
+			attempt.State, attempt.ProviderRef = AcceptedByProvider, reservation.Record.ResultRef
+			if message, messageErr := d.providerMessage(in); messageErr == nil {
+				attempt.AttentionOnly = message.AttentionOnly
+			}
+			d.attempts[identity] = attempt
+			d.mu.Unlock()
+			return DispatchResult{Attempt: attempt}, nil
+		}
+	case idempotency.InFlight:
+		d.mu.Unlock()
+		return DispatchResult{}, ErrIdempotencyInProgress
+	case idempotency.Reserved:
+	default:
 		d.mu.Unlock()
 		return DispatchResult{}, ErrIdempotencyConflict
 	}

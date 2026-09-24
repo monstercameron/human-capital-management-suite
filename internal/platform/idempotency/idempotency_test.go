@@ -37,7 +37,25 @@ func TestCrossLayerIdempotencyLifecyclePreservesOneLogicalActionAcrossRetentionA
 }
 
 func TestTodo_IDEMP_001_Property(t *testing.T) {
-	TestCrossLayerIdempotencyLifecyclePreservesOneLogicalActionAcrossRetentionAndReplayBoundaries(t)
+	now := time.Unix(100, 0).UTC()
+	registry := NewRegistry()
+	request := idRequest(now)
+	first, err := registry.Reserve(request)
+	if err != nil || first.Decision != Reserved {
+		t.Fatalf("first reserve = %+v, %v", first, err)
+	}
+	changedLayer := request
+	changedLayer.Layer = "provider-redelivery"
+	replay, err := registry.Reserve(changedLayer)
+	if err != nil || replay.Decision != InFlight || replay.Record.ExecutionRef != first.Record.ExecutionRef {
+		t.Fatalf("layer metadata changed logical identity: first=%+v replay=%+v err=%v", first, replay, err)
+	}
+	changedEffect := request
+	changedEffect.Identity.EffectScope = "promotion:worker-2"
+	separate, err := registry.Reserve(changedEffect)
+	if err != nil || separate.Decision != Reserved || separate.Record.ExecutionRef == first.Record.ExecutionRef {
+		t.Fatalf("distinct effect scope was deduplicated: first=%+v separate=%+v err=%v", first, separate, err)
+	}
 }
 
 func TestTodo_IDEMP_001_Golden(t *testing.T) {
@@ -137,7 +155,26 @@ func TestTodo_IDEMP_001_ModelBased(t *testing.T) {
 	}
 }
 
-func TestTodo_IDEMP_001_Mutation(t *testing.T) { TestTodo_IDEMP_001_Conformance(t) }
+func TestTodo_IDEMP_001_Mutation(t *testing.T) {
+	now := time.Unix(100, 0).UTC()
+	registry := NewRegistry()
+	request := idRequest(now)
+	reserved, err := registry.Reserve(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Canonical[2] ^= 1
+	if _, err := registry.Reserve(request); !errors.Is(err, ErrConflict) {
+		t.Fatalf("mutated canonical request error = %v, want conflict", err)
+	}
+	stored, err := registry.Lookup(request.Identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.RequestDigest != reserved.Record.RequestDigest || stored.State != InProgress || stored.ReplayCount != 0 {
+		t.Fatalf("conflicting mutation changed original reservation: %+v", stored)
+	}
+}
 
 func TestTodo_IDEMP_001_Race(t *testing.T) {
 	now := time.Unix(100, 0).UTC()

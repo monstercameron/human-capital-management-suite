@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -35,6 +36,21 @@ func TestTodo_CONN_RT_002(t *testing.T) {
 		t.Fatalf("response=%q err=%v", r.Body, err)
 	}
 }
+
+func TestTodo_REV_033_02_TransportNoDefaultClient(t *testing.T) {
+	c := Client{Kind: KindREST, Trust: trusted()}
+	_, err := c.Do(context.Background(), Request{URL: "https://api.example.test/v1"})
+	var transportErr *Error
+	if !errors.As(err, &transportErr) || transportErr.Kind != ErrTransport || transportErr.Cause == nil || transportErr.Cause.Error() != "HTTP boundary is not configured" {
+		t.Fatalf("missing HTTP port error = %v, want fail-closed transport error", err)
+	}
+	if safe := c.WithDNSResolver(ResolverFunc(func(context.Context, string) ([]net.IP, error) {
+		return []net.IP{net.ParseIP("203.0.113.10")}, nil
+	})); safe.HTTP == nil {
+		t.Fatal("resolver-aware safe client was not installed")
+	}
+}
+
 func TestTodo_CONN_RT_002_Property(t *testing.T) {
 	for _, tc := range []struct {
 		name string

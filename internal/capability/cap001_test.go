@@ -155,8 +155,8 @@ func TestTodo_CAP_001_Golden(t *testing.T) {
 		t.Fatalf("NewBootstrapRegistry: %v", err)
 	}
 	list := r.List()
-	if len(list) != 10 {
-		t.Fatalf("bootstrap table has %d capabilities, want 10 (eight P1A intents plus registry resolve/explain)", len(list))
+	if len(list) != 11 {
+		t.Fatalf("bootstrap table has %d capabilities, want 11 (eight P1A intents, the effective-date debugger, plus registry resolve/explain)", len(list))
 	}
 	ids := make([]string, len(list))
 	for i, rec := range list {
@@ -172,6 +172,7 @@ func TestTodo_CAP_001_Golden(t *testing.T) {
 		t.Fatalf("bootstrap listing is not sorted: %v", ids)
 	}
 	want := []string{
+		"hcmnext.dataops.explain_field_history",
 		"hcmnext.intelligence.explain_transaction",
 		"hcmnext.operations.create_repair_plan",
 		"hcmnext.operations.detect_drift",

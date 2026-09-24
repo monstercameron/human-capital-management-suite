@@ -75,19 +75,19 @@ type claims struct {
 	ExpiresAtUnix int64  `json:"exp"`
 }
 
-// Identity is one immutable, verified workload identity. It is created only
-// by [Verifier.Verify], exactly as a [trust.Principal] is created only by a
-// [trust.Verifier] — there is no code path that builds one from a bare node
-// or network identity.
+// Identity is one immutable workload identity. A signed identity is created
+// only by [Verifier.Verify]; a verified mTLS identity can also be adapted
+// for service authorization, and [BindMTLSIdentity] combines both proofs.
 type Identity struct {
-	issuer      string
-	subject     string
-	role        ProcessRole
-	cell        string
-	keyID       string
-	issuedAt    time.Time
-	expiresAt   time.Time
-	fingerprint string
+	issuer             string
+	subject            string
+	role               ProcessRole
+	cell               string
+	keyID              string
+	issuedAt           time.Time
+	expiresAt          time.Time
+	fingerprint        string
+	credentialVerified bool
 }
 
 // Issuer returns the workload identity authority that signed this identity.
@@ -424,13 +424,14 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (Identity, error) {
 	}
 
 	return Identity{
-		issuer:      c.Issuer,
-		subject:     c.Subject,
-		role:        ProcessRole(c.Role),
-		cell:        c.Cell,
-		keyID:       c.KeyID,
-		issuedAt:    issuedAt,
-		expiresAt:   expiresAt,
-		fingerprint: computeFingerprint(c),
+		issuer:             c.Issuer,
+		subject:            c.Subject,
+		role:               ProcessRole(c.Role),
+		cell:               c.Cell,
+		keyID:              c.KeyID,
+		issuedAt:           issuedAt,
+		expiresAt:          expiresAt,
+		fingerprint:        computeFingerprint(c),
+		credentialVerified: true,
 	}, nil
 }

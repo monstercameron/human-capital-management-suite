@@ -242,13 +242,13 @@ func TestValidateIDToken_RefusalMatrix(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := validateIDToken(context.Background(), tc.keys, tc.iss, tc.token(), "nonce", "", now)
+			_, err := validateIDToken(context.Background(), tc.keys, tc.iss, tc.iss.Audience, tc.token(), "nonce", "", now)
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("validateIDToken() = %v, want errors.Is(...,%v)", err, tc.want)
 			}
 		})
 	}
-	result, err := validateIDToken(context.Background(), &hardResolver{keys: []trustfederation.SigningKey{validKey}}, issuer, sign(`{"alg":"RS256","kid":"kid-1"}`, baseClaims()), "nonce", "access", now)
+	result, err := validateIDToken(context.Background(), &hardResolver{keys: []trustfederation.SigningKey{validKey}}, issuer, issuer.Audience, sign(`{"alg":"RS256","kid":"kid-1"}`, baseClaims()), "nonce", "access", now)
 	if err != nil || result.standard.Subject != "user" || len(result.raw) == 0 {
 		t.Fatalf("valid validateIDToken() = %+v,%v", result, err)
 	}
@@ -467,7 +467,7 @@ func TestFlowAuthorizationURLAndCallbackRefusals(t *testing.T) {
 
 	registry := &hardRegistry{issuer: issuerregistry.Issuer{Tenant: values.TenantId("tenant-a"), IssuerURL: "https://issuer.example/", Audience: "client", Algorithms: []trustfederation.Algorithm{trustfederation.AlgRS256}}, active: true}
 	clients := &hardClientSource{client: ClientRegistration{Tenant: values.TenantId("tenant-a"), IssuerURL: registry.issuer.IssuerURL, ClientID: "client", RedirectURI: "https://app.example/cb"}}
-	basePending := PendingAuthorization{Tenant: registry.issuer.Tenant, IssuerURL: registry.issuer.IssuerURL, State: "state", CodeChallengeDigest: codeChallengeS256(deriveVerifier([]byte("01234567890123456789012345678901"), "state")), ExpiresAt: time.Now().Add(time.Hour)}
+	basePending := PendingAuthorization{Tenant: registry.issuer.Tenant, IssuerURL: registry.issuer.IssuerURL, ClientID: clients.client.ClientID, RedirectURI: clients.client.RedirectURI, State: "state", CodeChallengeDigest: codeChallengeS256(deriveVerifier([]byte("01234567890123456789012345678901"), "state")), ExpiresAt: time.Now().Add(time.Hour)}
 	badPKCEPending := basePending
 	badPKCEPending.CodeChallengeDigest = "wrong-challenge"
 	newHardFlow := func(states StateStore, reg issuerregistry.Store, source ClientSource, exchanger TokenExchanger) *Flow {

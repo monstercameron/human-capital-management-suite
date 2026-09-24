@@ -96,11 +96,11 @@ func TestTodo_TRUST_028(t *testing.T) {
 	if ev.DEKID == "" || env.Header.Tenant != "tenant-a" || env.Header.KEKVersion != "v1" || env.Header.DEKID == "" {
 		t.Fatalf("incomplete envelope header: %+v", env.Header)
 	}
-	got, _, err := m.Decrypt(ctxA, env)
+	got, _, err := m.Decrypt(ctxA, env, "object-1")
 	if err != nil || string(got) != "sensitive payroll" {
 		t.Fatalf("decrypt = %q, %v", got, err)
 	}
-	if _, _, err := m.Decrypt(ctxB, env); !errors.Is(err, ErrTenantMismatch) {
+	if _, _, err := m.Decrypt(ctxB, env, "object-1"); !errors.Is(err, ErrTenantMismatch) {
 		t.Fatalf("cross-tenant decrypt = %v, want ErrTenantMismatch", err)
 	}
 	oldData := append([]byte(nil), env.Data...)
@@ -111,7 +111,7 @@ func TestTodo_TRUST_028(t *testing.T) {
 	if len(rotated) != 1 || string(rotated[0].Data) != string(oldData) || rotated[0].Header.DEKID != env.Header.DEKID || rotated[0].Header.KEKVersion == env.Header.KEKVersion {
 		t.Fatalf("rotation changed data/dek incorrectly: old=%+v new=%+v", env.Header, rotated[0].Header)
 	}
-	got, _, err = m.Decrypt(ctxA, rotated[0])
+	got, _, err = m.Decrypt(ctxA, rotated[0], "object-1")
 	if err != nil || string(got) != "sensitive payroll" {
 		t.Fatalf("decrypt after rewrap = %q, %v", got, err)
 	}
@@ -125,17 +125,17 @@ func TestTodo_TRUST_028_Security(t *testing.T) {
 	}
 	tampered := env
 	tampered.Header.Tenant = "tenant-b"
-	if _, _, err := m.Decrypt(ctxA, tampered); !errors.Is(err, ErrTenantMismatch) {
+	if _, _, err := m.Decrypt(ctxA, tampered, "object-1"); !errors.Is(err, ErrTenantMismatch) {
 		t.Fatalf("tenant tamper = %v", err)
 	}
 	tampered = env
 	tampered.Data[0] ^= 1
-	if _, _, err := m.Decrypt(ctxA, tampered); err == nil {
+	if _, _, err := m.Decrypt(ctxA, tampered, "object-1"); err == nil {
 		t.Fatal("tampered ciphertext decrypted")
 	}
 	tampered = env
 	tampered.Header.KEKVersion = "v99"
-	if _, _, err := m.Decrypt(ctxA, tampered); !errors.Is(err, ErrKeyUnavailable) {
+	if _, _, err := m.Decrypt(ctxA, tampered, "object-1"); !errors.Is(err, ErrKeyUnavailable) {
 		t.Fatalf("unknown KEK version = %v", err)
 	}
 }
@@ -148,7 +148,7 @@ func TestTodo_TRUST_028_Mutation(t *testing.T) {
 	}
 	before := append([]byte(nil), env.Data...)
 	delete(p.keys, env.WrappedDEK.Handle)
-	if _, _, err := m.Decrypt(ctxA, env); err == nil {
+	if _, _, err := m.Decrypt(ctxA, env, "object-1"); err == nil {
 		t.Fatal("revoked/unavailable KEK unexpectedly opened envelope")
 	}
 	if string(before) != string(env.Data) {
@@ -165,7 +165,7 @@ func FuzzTodo_TRUST_028(f *testing.F) {
 			t.Fatal(err)
 		}
 		env.Header.KEKVersion = "tampered"
-		_, _, _ = m.Decrypt(ctxA, env)
+		_, _, _ = m.Decrypt(ctxA, env, "object")
 	})
 }
 

@@ -136,3 +136,48 @@ func TestTodo_HUB_021_Property(t *testing.T) {
 		}
 	}
 }
+
+// TestTodo_HUB_021_Security proves resolution rechecks live reader policy,
+// hides non-deployed candidates, and returns no link metadata after revoke.
+func TestTodo_HUB_021_Security(t *testing.T) {
+	s, _ := documentFixture(t)
+	ctx := context.Background()
+	doc, err := s.CreateDocument(ctx, "tenant-a", "u-author", "PERSONAL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidate, err := s.SubmitCandidate(ctx, "tenant-a", Version{DocumentID: doc, CreatorID: "u-author", Title: "Private candidate", Markdown: "candidate bytes\n"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinned := DocLink{Label: "Restricted citation", TargetDocID: doc, PinnedVersion: candidate.ID, Block: "private-block", State: LinkValid}
+	if got, err := s.ResolveLink(ctx, "tenant-a", "default", "", pinned, "person", "u-outsider"); !errors.Is(err, ErrDenied) || got != (LinkResolution{}) {
+		t.Fatalf("unauthorized resolution = %+v, %v; want empty denial", got, err)
+	}
+	grant, err := s.GrantAction(ctx, "tenant-a", GrantInput{DocumentID: doc, SubjectKind: "person", SubjectID: "u-reader", Action: ActionRead, Effect: EffectAllow, Issuer: "u-owner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.ResolveLink(ctx, "tenant-a", "default", "", pinned, "person", "u-reader"); !errors.Is(err, ErrNoResolution) || got != (LinkResolution{}) {
+		t.Fatalf("candidate resolution = %+v, %v; want empty unresolved result", got, err)
+	}
+	if _, err := s.RecordReview(ctx, "tenant-a", ReviewInput{DocumentID: doc, VersionID: candidate.ID, ScopeKind: "default", ReviewerID: "u-reviewer", Authority: "team:leads", Decision: ReviewApproved}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GrantAction(ctx, "tenant-a", GrantInput{DocumentID: doc, SubjectKind: "person", SubjectID: "u-deployer", Action: ActionDeploy, Effect: EffectAllow, Issuer: "u-owner"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Deploy(ctx, "tenant-a", DeployInput{DocumentID: doc, VersionID: candidate.ID, ScopeKind: "default", DeployerID: "u-deployer"}); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := s.ResolveLink(ctx, "tenant-a", "default", "", pinned, "person", "u-reader")
+	if err != nil || resolved.TargetDocID != doc || resolved.ResolvedVersionID != candidate.ID || resolved.VersionHash != candidate.Hash || resolved.Block != pinned.Block || !resolved.Pinned {
+		t.Fatalf("deployed pinned version did not resolve for current reader: %+v err=%v", resolved, err)
+	}
+	if err := s.RevokeGrant(ctx, "tenant-a", grant.ID, "u-owner"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.ResolveLink(ctx, "tenant-a", "default", "", pinned, "person", "u-reader"); !errors.Is(err, ErrDenied) || got != (LinkResolution{}) {
+		t.Fatalf("revoked reader resolution = %+v, %v; want empty denial", got, err)
+	}
+}

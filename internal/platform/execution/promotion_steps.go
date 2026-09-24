@@ -189,7 +189,7 @@ func (p *promotionStepPorts) runner() *promotionsteps.Runner {
 type txKey struct{}
 
 func withStepTx(ctx context.Context, tx dbport.Tx) context.Context {
-	return context.WithValue(ctx, txKey{}, tx)
+	return dbport.ContextWithTx(context.WithValue(ctx, txKey{}, tx), tx)
 }
 
 func stepTx(ctx context.Context) (dbport.Tx, bool) {
@@ -932,6 +932,9 @@ func (r promotionStepRunner) RunsInTransaction(node workflow.CompiledNode) bool 
 func (r promotionStepRunner) RunInTx(ctx context.Context, ex runtime.Executor, req execute.StepRequest) (ret0 frontier.NodeOutcome, ret1 runtime.GovernanceRefs, retErr error) {
 	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_step_runner.run_in_tx", req)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0, ret1) }()
+	if req.RecordedAt.IsZero() {
+		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("platform execution: transactional step %s has no recorded_at instant", req.Node.ID)
+	}
 	tx, ok := ex.(dbport.Tx)
 	if !ok {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("platform execution: execute_promotion needs the advance transaction, got %T", ex)

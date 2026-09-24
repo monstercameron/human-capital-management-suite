@@ -21,6 +21,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
 )
 
 const (
@@ -54,9 +57,15 @@ type Config struct {
 	ClientSecret string
 	// Scope is the space-delimited scope requested; empty omits it.
 	Scope string
-	// Client performs the token request. Nil uses a fresh http.Client that
-	// does not follow redirects.
+	// Client performs the token request. Supply this injection port for a
+	// deterministic fixture or adapter; nil requires Gateway.
 	Client Doer
+	// Gateway routes token exchanges through centralized outbound policy.
+	// Client and Gateway are mutually exclusive; Client is the injection port
+	// used by deterministic protocol fixtures and composed adapters.
+	Gateway   *egress.Gateway
+	Principal string
+	Tenant    string
 	// Skew is subtracted from expiry when deciding a token is stale
 	// (default DefaultSkew; negative is treated as zero).
 	Skew time.Duration
@@ -143,12 +152,22 @@ func New(cfg Config) (*TokenSource, error) {
 		fetchTimeout: cfg.FetchTimeout,
 		now:          cfg.Now,
 	}
+	if cfg.Gateway != nil {
+		if cfg.Client != nil {
+			return nil, errors.New("oauthcc: configure either Gateway or Client, not both")
+		}
+		client, err := egress.NewHTTPDoer(cfg.Gateway, "oauth_client_credentials", cfg.Principal, cfg.Tenant, []dlp.DataClass{dlp.ClassPII}, nil)
+		if err != nil {
+			return nil, err
+		}
+		ts.client = client
+	}
 	// Redirects are never followed: a 3xx from the token endpoint surfaces
 	// as a *TokenError rather than re-posting the client credentials to
 	// another location. A caller's *http.Client is copied, not mutated.
 	switch c := ts.client.(type) {
 	case nil:
-		ts.client = &http.Client{CheckRedirect: noFollow}
+		return nil, errors.New("oauthcc: Gateway or Client is required")
 	case *http.Client:
 		cp := *c
 		cp.CheckRedirect = noFollow

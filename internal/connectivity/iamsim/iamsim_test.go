@@ -103,6 +103,7 @@ func newHarness(t *testing.T, mutate func(*Config)) *harness {
 		ClientSecret:  testClientSecret,
 		WebhookSecret: []byte(testWebhookSecret),
 		Scenario:      &sc,
+		HTTPClient:    &http.Client{Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 		Sleep:         h.sleep.sleep,
 		Now:           h.clock.Now,
 		Logger:        slog.New(slog.NewTextHandler(h.logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
@@ -390,6 +391,7 @@ func TestTwoStageFlowEndToEnd(t *testing.T) {
 	srv := httptest.NewServer(sim)
 	defer srv.Close()
 	client := srv.Client()
+	sim.client = client
 
 	// Stage 1.
 	treq, _ := http.NewRequest(http.MethodPost, srv.URL+"/oauth2/token", strings.NewReader("grant_type=client_credentials"))

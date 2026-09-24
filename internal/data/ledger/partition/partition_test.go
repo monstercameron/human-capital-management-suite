@@ -3,6 +3,7 @@ package partition_test
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -107,8 +108,31 @@ func TestTodo_LEDGER_009(t *testing.T) {
 
 func TestTodo_LEDGER_009_Race(t *testing.T) {
 	tenant := uuid.New()
-	if err := (ledgerpartition.AtomicScope{Tenant: tenant, Streams: []string{"a", "b"}}).Validate(); err != nil {
-		t.Fatalf("same-tenant multi-stream scope rejected: %v", err)
+	rows := []ledgerpartition.Identity{{Tenant: tenant, StreamKey: "a", Sequence: 1, EventID: uuid.New(), Digest: "a", DigestAlgorithm: "sha256"}}
+	want := ledgerpartition.ChainDigest(rows)
+	errs := make([]error, 8)
+	var wg sync.WaitGroup
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if err := (ledgerpartition.AtomicScope{Tenant: tenant, Streams: []string{"a", "b"}}).Validate(); err != nil {
+				errs[i] = err
+				return
+			}
+			if got := ledgerpartition.ChainDigest(rows); got != want {
+				errs[i] = fmt.Errorf("digest %s differs from %s", got, want)
+			}
+			if err := ledgerpartition.Compare(rows, append([]ledgerpartition.Identity(nil), rows...)); err != nil {
+				errs[i] = err
+			}
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent maintenance check %d: %v", i, err)
+		}
 	}
 }
 

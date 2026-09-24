@@ -224,3 +224,90 @@ func TestTodo_JOB_003(t *testing.T) {
 		t.Fatalf("failure watermark = %d, want 5", res2.Watermark)
 	}
 }
+
+func TestTodo_REV_035_02_Recovery(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	fx := newJob003Fixture(t, "rev035-02-recovery")
+	items := []jobs.WorkItem{{Index: 0, Key: "stream-a"}, {Index: 1, Key: "stream-b"}}
+	firstNow := fixedInstant.Add(3 * time.Minute)
+	firstLeases, err := jobs.NewLeaseManager(10*time.Minute, func() time.Time { return firstNow })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var firstApplied []string
+	first, err := jobs.ExecutePartition(ctx, fx.conn, jobs.PartitionExecution{
+		TenantID: fx.tenant, PartitionID: fx.partition.PartitionID, Holder: "worker-a",
+		LeaseTTL: 10 * time.Minute, Now: func() time.Time { return firstNow }, Items: items, Leases: firstLeases,
+		Process: func(_ context.Context, _ jobs.Executor, item jobs.WorkItem) (string, error) {
+			if item.Index == 1 {
+				return "", errors.New("simulated process crash before next item")
+			}
+			firstApplied = append(firstApplied, item.Key)
+			return digestOf(item.Key), nil
+		},
+	})
+	if err == nil {
+		t.Fatal("first process did not stop at the simulated failure")
+	}
+	if len(first.Processed) != 1 || first.Processed[0] != 0 || len(firstApplied) != 1 || firstApplied[0] != "stream-a" {
+		t.Fatalf("first pass = %+v, effects=%v; want stream-a checkpointed before failure", first, firstApplied)
+	}
+	var openRun jobs.JobRun
+	inTenantTx(t, fx.conn, fx.tenant, func(tx dbport.Tx) error {
+		var err error
+		openRun, err = (jobs.RunStore{}).LoadOpenByJob(ctx, tx, fx.tenant, fx.run.JobID)
+		return err
+	})
+	if openRun.RunID != fx.run.RunID || openRun.State != jobs.RunRunning {
+		t.Fatalf("open run lookup = %+v, want the original running run %s", openRun, fx.run.RunID)
+	}
+
+	// A new process starts after the persisted claim expires. Its new
+	// generation resumes at checkpoint 1 and cannot write with generation 2.
+	secondNow := fixedInstant.Add(13 * time.Minute)
+	secondLeases, err := jobs.NewLeaseManager(10*time.Minute, func() time.Time { return secondNow })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var secondApplied []string
+	second, err := jobs.ExecutePartition(ctx, fx.conn, jobs.PartitionExecution{
+		TenantID: fx.tenant, PartitionID: fx.partition.PartitionID, Holder: "worker-b",
+		LeaseTTL: 10 * time.Minute, Now: func() time.Time { return secondNow }, Items: items, Leases: secondLeases,
+		Process: func(_ context.Context, _ jobs.Executor, item jobs.WorkItem) (string, error) {
+			secondApplied = append(secondApplied, item.Key)
+			return digestOf(item.Key), nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("recover partition: %v", err)
+	}
+	if len(second.Processed) != 1 || second.Processed[0] != 1 || len(secondApplied) != 1 || secondApplied[0] != "stream-b" {
+		t.Fatalf("recovered pass = %+v, effects=%v; want only stream-b", second, secondApplied)
+	}
+	var part jobs.JobPartition
+	var checkpoints []jobs.JobCheckpoint
+	inTenantTx(t, fx.conn, fx.tenant, func(tx dbport.Tx) error {
+		var err error
+		part, err = (jobs.PartitionStore{}).Load(ctx, tx, fx.tenant, fx.partition.PartitionID)
+		if err != nil {
+			return err
+		}
+		checkpoints, err = (jobs.CheckpointStore{}).List(ctx, tx, fx.tenant, fx.partition.PartitionID)
+		return err
+	})
+	if part.State != jobs.PartitionCompleted || part.Attempt != 2 || len(checkpoints) != 2 || checkpoints[1].StateDigest != digestOf("stream-b") {
+		t.Fatalf("recovered state = part %+v checkpoints %+v; want completed attempt 2 with two durable outputs", part, checkpoints)
+	}
+	err = inTenantTxErr(fx.conn, fx.tenant, func(tx dbport.Tx) error {
+		_, err := (jobs.CheckpointStore{}).Checkpoint(ctx, tx, jobs.JobCheckpoint{
+			TenantID: fx.tenant, PartitionID: fx.partition.PartitionID, Sequence: 3,
+			StateDigest: digestOf("stale-worker"), PartitionVersion: fx.partition.Version,
+			TakenAt: secondNow.Add(time.Minute),
+		})
+		return err
+	})
+	if !errors.Is(err, jobs.ErrStaleFence) {
+		t.Fatalf("old generation checkpoint err = %v, want ErrStaleFence", err)
+	}
+}

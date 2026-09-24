@@ -35,6 +35,17 @@ const (
 	ModeRebuild Method = "REBUILD"
 )
 
+// RPOClass maps an entry to the recovery classes defined by the platform
+// recovery plan. Class targets are evaluated separately from actual minutes.
+type RPOClass string
+
+const (
+	RPOA    RPOClass = "RPO-A"
+	RPOB    RPOClass = "RPO-B"
+	RPOC    RPOClass = "RPO-C"
+	RPONone RPOClass = "NONE"
+)
+
 // Plane identifies one recovery boundary in the production data plane.
 type Plane string
 
@@ -65,6 +76,7 @@ type Contract struct {
 	Owner           string
 	Authority       AuthorityClass
 	Method          Method
+	RPOClass        RPOClass
 	RPO             Target
 	RTO             Target
 	Replayable      bool
@@ -91,16 +103,16 @@ var (
 // the runtime has already measured those objectives in production.
 func DefaultMatrix() Matrix {
 	return Matrix{Contracts: []Contract{
-		{Plane: Keys, Store: "key-reference-store", Owner: "platform-security", Authority: Authoritative, Method: ModeRestore, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 30}, DependencyOrder: 1, SemanticChecks: []string{"key references resolve to the pinned version", "decryptability check passes"}},
-		{Plane: Config, Store: "configuration-store", Owner: "platform-configuration", Authority: Authoritative, Method: ModeRestore, RPO: Target{Minutes: 15}, RTO: Target{Minutes: 60}, DependencyOrder: 2, Dependencies: []Plane{Keys}, SemanticChecks: []string{"schema and policy versions are pinned", "configuration digest matches the approved revision"}},
-		{Plane: Ledger, Store: "canonical-ledger", Owner: "data-ledger", Authority: Authoritative, Method: ModeRestore, RPO: Target{Minutes: 5}, RTO: Target{Minutes: 60}, DependencyOrder: 3, Dependencies: []Plane{Keys, Config}, SemanticChecks: []string{"event chain and stream heads are contiguous", "ledger invariants and tenant boundaries pass"}},
-		{Plane: Artifacts, Store: "content-addressed-artifacts", Owner: "data-artifacts", Authority: Authoritative, Method: ModeRestore, RPO: Target{Minutes: 15}, RTO: Target{Minutes: 120}, DependencyOrder: 4, Dependencies: []Plane{Keys, Config}, SemanticChecks: []string{"content digests and retention metadata match", "classification and tenant references resolve"}},
-		{Plane: Runtime, Store: "workflow-runtime-state", Owner: "workflow-runtime", Authority: Authoritative, Method: ModeRestore, RPO: Target{Minutes: 1}, RTO: Target{Minutes: 60}, DependencyOrder: 5, Dependencies: []Plane{Keys, Config, Ledger}, SemanticChecks: []string{"frontiers, timers and leases satisfy epoch fences", "workflow definitions and instance references resolve"}},
-		{Plane: Outbox, Store: "transactional-outbox", Owner: "event-delivery", Authority: Authoritative, Method: ModeRestore, RPO: Target{Minutes: 1}, RTO: Target{Minutes: 30}, DependencyOrder: 6, Dependencies: []Plane{Keys, Config, Ledger}, SemanticChecks: []string{"outbox rows remain idempotent against ledger events", "delivery leases are safe to resume"}},
-		{Plane: Projection, Store: "critical-projections", Owner: "projection-platform", Authority: Rebuildable, Method: ModeReplay, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 90}, Replayable: true, DependencyOrder: 7, Dependencies: []Plane{Ledger, Config}, SemanticChecks: []string{"replay watermark reaches the ledger head", "projection digest matches the reference conformance check"}},
-		{Plane: Search, Store: "search-index", Owner: "search-platform", Authority: Rebuildable, Method: ModeRebuild, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 180}, Replayable: true, DependencyOrder: 8, Dependencies: []Plane{Ledger, Artifacts, Config}, SemanticChecks: []string{"index is rebuilt only from authorized source rows", "document and field digests match the source snapshot"}},
-		{Plane: Analytics, Store: "analytics-views", Owner: "analytics-platform", Authority: Rebuildable, Method: ModeRebuild, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 240}, Replayable: true, DependencyOrder: 9, Dependencies: []Plane{Ledger, Projection}, SemanticChecks: []string{"source watermark and schema version are recorded", "aggregate counts and sample values reconcile"}},
-		{Plane: Cache, Store: "runtime-cache", Owner: "runtime-platform", Authority: Rebuildable, Method: ModeRebuild, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 30}, Replayable: true, DependencyOrder: 10, Dependencies: []Plane{Projection}, SemanticChecks: []string{"cache is empty or derived after the source is healthy", "tenant and authorization keys are scoped"}},
+		{Plane: Keys, Store: "key-reference-store", Owner: "platform-security", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 30}, DependencyOrder: 1, SemanticChecks: []string{"key references resolve to the pinned version", "decryptability check passes"}},
+		{Plane: Config, Store: "configuration-store", Owner: "platform-configuration", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 60}, DependencyOrder: 2, Dependencies: []Plane{Keys}, SemanticChecks: []string{"schema and policy versions are pinned", "configuration digest matches the approved revision"}},
+		{Plane: Ledger, Store: "canonical-ledger", Owner: "data-ledger", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 60}, DependencyOrder: 3, Dependencies: []Plane{Keys, Config}, SemanticChecks: []string{"event chain and stream heads are contiguous", "ledger invariants and tenant boundaries pass"}},
+		{Plane: Artifacts, Store: "content-addressed-artifacts", Owner: "data-artifacts", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOB, RPO: Target{Minutes: 15}, RTO: Target{Minutes: 120}, DependencyOrder: 4, Dependencies: []Plane{Keys, Config}, SemanticChecks: []string{"content digests and retention metadata match", "classification and tenant references resolve"}},
+		{Plane: Runtime, Store: "workflow-runtime-state", Owner: "workflow-runtime", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 60}, DependencyOrder: 5, Dependencies: []Plane{Keys, Config, Ledger}, SemanticChecks: []string{"frontiers, timers and leases satisfy epoch fences", "workflow definitions and instance references resolve"}},
+		{Plane: Outbox, Store: "transactional-outbox", Owner: "event-delivery", Authority: Authoritative, Method: ModeRestore, RPOClass: RPOA, RPO: Target{Minutes: 0}, RTO: Target{Minutes: 30}, DependencyOrder: 6, Dependencies: []Plane{Keys, Config, Ledger}, SemanticChecks: []string{"outbox rows remain idempotent against ledger events", "delivery leases are safe to resume"}},
+		{Plane: Projection, Store: "critical-projections", Owner: "projection-platform", Authority: Rebuildable, Method: ModeReplay, RPOClass: RPOC, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 90}, Replayable: true, DependencyOrder: 7, Dependencies: []Plane{Ledger, Config}, SemanticChecks: []string{"replay watermark reaches the ledger head", "projection digest matches the reference conformance check"}},
+		{Plane: Search, Store: "search-index", Owner: "search-platform", Authority: Rebuildable, Method: ModeRebuild, RPOClass: RPOC, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 180}, Replayable: true, DependencyOrder: 8, Dependencies: []Plane{Ledger, Artifacts, Config}, SemanticChecks: []string{"index is rebuilt only from authorized source rows", "document and field digests match the source snapshot"}},
+		{Plane: Analytics, Store: "analytics-views", Owner: "analytics-platform", Authority: Rebuildable, Method: ModeRebuild, RPOClass: RPOC, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 240}, Replayable: true, DependencyOrder: 9, Dependencies: []Plane{Ledger, Projection}, SemanticChecks: []string{"source watermark and schema version are recorded", "aggregate counts and sample values reconcile"}},
+		{Plane: Cache, Store: "runtime-cache", Owner: "runtime-platform", Authority: Rebuildable, Method: ModeRebuild, RPOClass: RPONone, RPO: Target{NotApplicable: true}, RTO: Target{Minutes: 30}, Replayable: false, DependencyOrder: 10, Dependencies: []Plane{Projection}, SemanticChecks: []string{"cache is empty or derived after the source is healthy", "tenant and authorization keys are scoped"}},
 	}}
 }
 
@@ -134,15 +146,26 @@ func (m Matrix) Validate() error {
 		if c.Method != ModeRestore && c.Method != ModeReplay && c.Method != ModeRebuild {
 			return fmt.Errorf("%w: plane %q has method %q", ErrInvalidContract, c.Plane, c.Method)
 		}
+		if c.RPOClass != RPOA && c.RPOClass != RPOB && c.RPOClass != RPOC && c.RPOClass != RPONone {
+			return fmt.Errorf("%w: plane %q has RPO class %q", ErrInvalidContract, c.Plane, c.RPOClass)
+		}
 		if c.RTO.NotApplicable || c.RTO.Minutes <= 0 {
 			return fmt.Errorf("%w: plane %q needs a positive numeric RTO", ErrInvalidContract, c.Plane)
 		}
 		if c.RPO.NotApplicable {
-			if c.RPO.Minutes != 0 || c.Authority != Rebuildable || !c.Replayable || (c.Method != ModeReplay && c.Method != ModeRebuild) {
+			if c.RPO.Minutes != 0 || c.Authority != Rebuildable || (c.Method != ModeReplay && c.Method != ModeRebuild) ||
+				(c.RPOClass == RPOC && !c.Replayable) || (c.RPOClass == RPONone && c.Replayable) ||
+				(c.RPOClass != RPOC && c.RPOClass != RPONone) {
 				return fmt.Errorf("%w: plane %q marks a non-replayable RPO as N/A", ErrInvalidContract, c.Plane)
 			}
 		} else if c.RPO.Minutes < 0 {
 			return fmt.Errorf("%w: plane %q has a negative RPO", ErrInvalidContract, c.Plane)
+		}
+		if (c.RPOClass == RPOA && (c.RPO.NotApplicable || c.RPO.Minutes != 0)) ||
+			(c.RPOClass == RPOB && (c.RPO.NotApplicable || c.RPO.Minutes <= 0)) ||
+			(c.RPOClass == RPOC && (!c.RPO.NotApplicable || !c.Replayable)) ||
+			(c.RPOClass == RPONone && !c.RPO.NotApplicable) {
+			return fmt.Errorf("%w: plane %q RPO target does not satisfy class %q", ErrInvalidContract, c.Plane, c.RPOClass)
 		}
 		if c.Authority == Authoritative && c.Method != ModeRestore {
 			return fmt.Errorf("%w: authoritative plane %q must be restored", ErrInvalidContract, c.Plane)
@@ -208,7 +231,7 @@ func (m Matrix) Explain() string {
 		if c.RPO.NotApplicable {
 			rpo = "N/A"
 		}
-		parts = append(parts, fmt.Sprintf("%d:%s[%s/%s rpo=%s rto=%dm owner=%s checks=%d]", c.DependencyOrder, c.Plane, c.Authority, c.Method, rpo, c.RTO.Minutes, c.Owner, len(c.SemanticChecks)))
+		parts = append(parts, fmt.Sprintf("%d:%s[%s/%s class=%s rpo=%s rto=%dm owner=%s checks=%d]", c.DependencyOrder, c.Plane, c.Authority, c.Method, c.RPOClass, rpo, c.RTO.Minutes, c.Owner, len(c.SemanticChecks)))
 	}
 	return "recovery matrix v1 " + strings.Join(parts, "; ")
 }

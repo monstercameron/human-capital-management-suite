@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/webhook"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/idempotency"
 )
 
 // Outcome is the provider's statement about one change.
@@ -180,6 +181,17 @@ type Verifier struct {
 
 // NewVerifier validates ep, applies defaults and registers it.
 func NewVerifier(ep Endpoint) (*Verifier, error) {
+	return NewVerifierWithRegistry(ep, idempotency.NewRegistry())
+}
+
+// NewVerifierWithRegistry composes callback verification with a shared
+// idempotency lifecycle. Runtime receivers must pass a registry backed by a
+// durable store; this constructor refuses a nil registry rather than silently
+// falling back to process-local replay protection.
+func NewVerifierWithRegistry(ep Endpoint, lifecycle *idempotency.Registry) (*Verifier, error) {
+	if lifecycle == nil {
+		return nil, fmt.Errorf("%w: durable idempotency registry is required", ErrInvalidEndpoint)
+	}
 	if ep.MaxBytes == 0 {
 		ep.MaxBytes = DefaultMaxBytes
 	}
@@ -222,7 +234,7 @@ func NewVerifier(ep Endpoint) (*Verifier, error) {
 	if _, err := rand.Read(relayKey); err != nil {
 		return nil, fmt.Errorf("%w: relay key: %v", ErrInvalidEndpoint, err)
 	}
-	store := webhook.NewStore()
+	store := webhook.NewStoreWithRegistry(lifecycle)
 	if err := store.RegisterEndpoint(webhook.Endpoint{ID: ep.EndpointID, TenantID: ep.TenantID, ConnectionID: ep.Provider + ":" + ep.EndpointID,
 		Secret: relayKey, AllowedSchemas: []string{ep.WebhookSchema}, MaxPayloadBytes: ep.MaxBytes, ReplayWindow: ep.Window}); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidEndpoint, err)

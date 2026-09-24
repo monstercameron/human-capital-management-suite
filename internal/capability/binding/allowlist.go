@@ -25,7 +25,7 @@ type AllowlistEntry struct {
 //
 // The shape of today's state, in one sentence: no published capability has
 // exactly one wire descriptor and exactly one typed Go handler, because the
-// eight P1A domain capabilities are dispatched generically by
+// nine P1A domain capabilities are dispatched generically by
 // DefinitionReference across six IntentService methods (with three of them
 // additionally answerable through a dedicated admin/journey route), and the
 // two registry self-description capabilities are served by a *pair* of
@@ -107,6 +107,7 @@ func genericLifecycleAllowlist() []AllowlistEntry {
 		{capabilityID: "hcmnext.operations.detect_drift", handler: appHandler("detectDrift")},
 		{capabilityID: "hcmnext.operations.create_repair_plan", handler: appHandler("createRepairPlan")},
 		{capabilityID: "hcmnext.operations.simulate_repair", handler: appHandler("simulateRepair")},
+		{capabilityID: "hcmnext.dataops.explain_field_history", handler: appHandler("explainFieldHistory")},
 	}
 
 	out := make([]AllowlistEntry, 0, len(rows)*2)
@@ -116,6 +117,13 @@ func genericLifecycleAllowlist() []AllowlistEntry {
 			OwnerTodo: ownerEndpoint009,
 			Rationale: "GENERIC_INTENT_LIFECYCLE_ONLY: the capability is dispatched by the DefinitionReference in the request across the six IntentService lifecycle methods, so no single descriptor is its own; closing this needs a per-capability typed method in the .proto",
 		})
+		if r.capabilityID == "hcmnext.dataops.explain_field_history" {
+			out = append(out, AllowlistEntry{
+				GapID:     Gap{Kind: GapNoModelBinding, Capability: r.capabilityID}.ID(),
+				OwnerTodo: ownerBind001,
+				Rationale: "the published field-history diagnostic has a live handler but no drafted intent definition in internal/intent/definitions, so modelbinding has no generated model footprint to resolve",
+			})
+		}
 		if len(r.extraHandler) == 0 {
 			continue
 		}
@@ -212,7 +220,7 @@ func unboundWireAllowlist() []AllowlistEntry {
 		},
 		{
 			owner:     ownerProto010,
-			rationale: "the AdminService is outside internal/transport/manifest's governedServices list, so no endpoint manifest row binds it to a capability; the operator surface reaches the domain packages directly",
+			rationale: "this AdminService RPC is an operator or inspection surface without a dedicated published capability contract; its service implementation is outside the capability gateway and endpoint disposition must continue to identify that fact",
 			refs: []string{
 				"hcmnext.admin.v1.AdminService/ConfigDiff",
 				"hcmnext.admin.v1.AdminService/ConfigInspect",
@@ -233,7 +241,7 @@ func unboundWireAllowlist() []AllowlistEntry {
 		},
 		{
 			owner:     ownerProto010,
-			rationale: "the JourneyService is outside internal/transport/manifest's governedServices list; its journey/worker routes are an experience surface with no published capability standing behind them",
+			rationale: "this JourneyService RPC is an experience or support surface without a dedicated published capability contract; its service implementation is outside the capability gateway and endpoint disposition must continue to identify that fact",
 			refs: []string{
 				"hcmnext.journey.v1.JourneyService/AcknowledgeJourney",
 				"hcmnext.journey.v1.JourneyService/AddJourneyNote",
@@ -263,6 +271,24 @@ func unboundWireAllowlist() []AllowlistEntry {
 				"hcmnext.journey.v1.JourneyService/SaveWorkerRoleAssignment",
 				"hcmnext.journey.v1.JourneyService/WatchJourney",
 				"hcmnext.journey.v1.JourneyService/WatchPromotionInvalidations",
+			},
+		},
+		{
+			owner:     ownerProto010,
+			rationale: "these typed intent support endpoints operate on authorized intent projections or analytics, not on a published capability invocation; their contracts live in internal/intent/app/analysis_surface_endpoints.go",
+			refs: []string{
+				"hcmnext.intents.v1.IntentService/ExportIntentFields",
+				"hcmnext.intents.v1.IntentService/GetIntentDeepLink",
+				"hcmnext.intents.v1.IntentService/InspectIntentFields",
+				"hcmnext.intents.v1.IntentService/RecommendIntentAction",
+			},
+		},
+		{
+			owner:     ownerProto010,
+			rationale: "these journey service reads support tenant scoped directory and knowledge discovery outside the capability invocation gateway; the behavior is implemented in internal/transport/journey/server.go and knowledge.go",
+			refs: []string{
+				"hcmnext.journey.v1.JourneyService/ListChatDirectory",
+				"hcmnext.journey.v1.JourneyService/SearchKnowledge",
 			},
 		},
 	}
