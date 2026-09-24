@@ -12,6 +12,9 @@ import (
 // generation.
 var ErrDrift = errors.New("openapi: document is stale")
 
+// EmbeddedOutputPath is the generated copy embedded by the serving binary.
+const EmbeddedOutputPath = "internal/transport/openapidoc/rpcs.openapi.yaml"
+
 // Write generates the document and writes it to outPath (relative paths are
 // resolved against repoRoot).
 func Write(repoRoot, outPath string) error {
@@ -23,7 +26,15 @@ func Write(repoRoot, outPath string) error {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(target, data, 0o644)
+	if err := os.WriteFile(target, data, 0o644); err != nil {
+		return err
+	}
+	if outPath == DefaultOutputPath {
+		if err := os.WriteFile(resolve(repoRoot, EmbeddedOutputPath), data, 0o644); err != nil {
+			return fmt.Errorf("openapi: write embedded publication: %w", err)
+		}
+	}
+	return nil
 }
 
 // Check returns ErrDrift when the document at outPath differs from a fresh
@@ -39,6 +50,12 @@ func Check(repoRoot, outPath string) error {
 	}
 	if !bytes.Equal(bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")), want) {
 		return fmt.Errorf("%w: %s differs from a fresh generation; regenerate with `%s`", ErrDrift, outPath, RegenerateCommand)
+	}
+	if outPath == DefaultOutputPath {
+		embedded, err := os.ReadFile(resolve(repoRoot, EmbeddedOutputPath))
+		if err != nil || !bytes.Equal(bytes.ReplaceAll(embedded, []byte("\r\n"), []byte("\n")), want) {
+			return fmt.Errorf("%w: %s differs from a fresh generation; regenerate with `%s`", ErrDrift, EmbeddedOutputPath, RegenerateCommand)
+		}
 	}
 	return nil
 }
