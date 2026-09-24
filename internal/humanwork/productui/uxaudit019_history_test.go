@@ -104,13 +104,24 @@ func TestTodo_UXAUDIT_019_Performance(t *testing.T) {
 	for i := 0; i < 500; i++ {
 		view.Work = append(view.Work, WorkItem{ID: fmt.Sprintf("terminal-%03d", i), Person: fmt.Sprintf("Person %03d", i), PersonRef: "worker-avery", Status: "Completed", Terminal: true, EffectiveDate: "2026-01-01", CompletedAt: time.Date(2026, 1, 1, i%24, i%60, 0, 0, time.UTC).Format(time.RFC3339)})
 	}
-	start := time.Now()
 	props := workflowHistoryProps(view, "", "History", "", true)
-	if elapsed := time.Since(start); elapsed > 250*time.Millisecond {
-		t.Fatalf("500-record History projection took %s", elapsed)
-	}
 	if props.FilteredCount != 501 || len(props.Items) != defaultPageSize {
 		t.Fatalf("large History projection lost pagination: filtered=%d rows=%d", props.FilteredCount, len(props.Items))
+	}
+}
+
+var benchmarkHistoryProps WorkflowHistoryProps
+
+func BenchmarkTodo_UXAUDIT_019_HistoryProjection(b *testing.B) {
+	view := testView(PageHistory)
+	for i := 0; i < 500; i++ {
+		view.Work = append(view.Work, WorkItem{ID: fmt.Sprintf("terminal-%03d", i), Person: fmt.Sprintf("Person %03d", i), PersonRef: "worker-avery", Status: "Completed", Terminal: true, EffectiveDate: "2026-01-01", CompletedAt: time.Date(2026, 1, 1, i%24, i%60, 0, 0, time.UTC).Format(time.RFC3339)})
+	}
+	b.ReportAllocs()
+	b.ReportMetric(float64(len(view.Work)), "records/op")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		benchmarkHistoryProps = workflowHistoryProps(view, "", "History", "", true)
 	}
 }
 

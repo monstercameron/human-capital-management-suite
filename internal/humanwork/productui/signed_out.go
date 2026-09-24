@@ -20,6 +20,13 @@ type SignedOutProps struct {
 	Navigate   func(string)
 }
 
+// UnauthenticatedRecovery builds the shared recovery projection for an
+// UNAUTHENTICATED response. The server did not provide revoked grants or a
+// safe detail, so this mapping supplies only the application's sign-in route.
+func UnauthenticatedRecovery() *SignedOutProps {
+	return &SignedOutProps{SignInHref: "/workspace/login"}
+}
+
 // signedOutState reports whether the shell is in the converged signed-out
 // state. Every authority surface — the session warning, step-up prompt,
 // authority banner, break-glass prompt, simulation panel, context
@@ -61,7 +68,7 @@ func SignedOut(props SignedOutProps) ui.Node {
 		nodes = append(nodes, html.Div(html.Props{Class: "signed-out-actions"},
 			softwareLink(props.Navigate, html.Props{Class: "signed-out-signin"}, props.SignInHref, ui.Text(props.Text("signed_out.signin")))))
 	}
-	return html.Section(html.Props{ID: "signed-out", Class: "signed-out", Aria: map[string]string{"labelledby": "signed-out-title"}},
+	return html.Section(html.Props{ID: "signed-out", Class: "signed-out", Role: "alert", Aria: map[string]string{"labelledby": "signed-out-title"}},
 		append([]ui.Node{html.H2(html.Props{ID: "signed-out-title", Class: "signed-out-title"}, ui.Text(props.Text("signed_out.title")))}, nodes...)...,
 	)
 }

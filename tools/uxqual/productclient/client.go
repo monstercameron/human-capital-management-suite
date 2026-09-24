@@ -19,6 +19,7 @@ import (
 
 	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	positionv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
@@ -36,11 +37,18 @@ type Service struct {
 	GetDocument                  func(context.Context, *documentv1.GetDocumentRequest) (*documentv1.GetDocumentResponse, error)
 	ListDocumentComments         func(context.Context, *documentv1.ListDocumentCommentsRequest) (*documentv1.ListDocumentCommentsResponse, error)
 	ShareDocument                func(context.Context, *documentv1.ShareDocumentRequest) (*documentv1.ShareDocumentResponse, error)
+	GetDocumentLibrary           func(context.Context, *documentv1.GetDocumentLibraryRequest) (*documentv1.GetDocumentLibraryResponse, error)
+	GetPositionObject            func(context.Context, string) (*productui.PositionObjectProjection, error)
+	GetPositionOccupancy         func(context.Context, string) (*productui.PositionOccupancyProjection, error)
+	ListPositionObjectOptions    func(context.Context, *positionv1.ListPositionObjectOptionsRequest) (*positionv1.ListPositionObjectOptionsResponse, error)
+	ListPositionOccupancyOptions func(context.Context, *positionv1.ListPositionOccupancyOptionsRequest) (*positionv1.ListPositionOccupancyOptionsResponse, error)
+	GetReviewParticipants        func(context.Context) (*productui.ReviewParticipantsProjection, error)
 	ListJourneys                 func(context.Context, *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error)
 	ListWorkers                  func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error)
 	GetPreferences               func(context.Context, *journeyv1.GetProductPreferencesRequest) (*journeyv1.GetProductPreferencesResponse, error)
 	GetWorkerIDPolicy            func(context.Context, *journeyv1.GetWorkerIDPolicyRequest) (*journeyv1.GetWorkerIDPolicyResponse, error)
 	GetRoleAccess                func(context.Context, *journeyv1.GetRoleAccessRequest) (*journeyv1.GetRoleAccessResponse, error)
+	SearchKnowledge              func(context.Context, *journeyv1.SearchKnowledgeRequest) (*journeyv1.SearchKnowledgeResponse, error)
 	ListWorkflowPublications     func(context.Context, *workflowv1.ListWorkflowPublicationsRequest) (*workflowv1.ListWorkflowPublicationsResponse, error)
 	GetWorkflowDefinitionView    func(context.Context, *workflowv1.GetWorkflowDefinitionViewRequest) (*workflowv1.GetWorkflowDefinitionViewResponse, error)
 	ListWorkflowBlocks           func(context.Context, *workflowv1.ListWorkflowBlocksRequest) (*workflowv1.ListWorkflowBlocksResponse, error)
@@ -93,6 +101,7 @@ type State struct {
 // address state without manufacturing any business records or counts.
 func LoadingView(session Session, state State) productui.View {
 	view := productui.NewView(state.Page, displayLabel(session.Tenant), displayLabel(session.Principal), displayLabel(session.Scope))
+	view.ViewerSubject = strings.TrimSpace(session.Principal)
 	view.LogoutHref = session.LogoutHref
 	if session.EnforceRoleVisibility {
 		view = productui.ApplyRoleVisibility(view, session.Roles)
@@ -185,6 +194,14 @@ func ParseState(pathname, rawQuery string) (State, error) {
 	if err != nil {
 		return State{}, err
 	}
+	documentPage, err := parsePositiveRouteInt(values, "docs_page", 1)
+	if err != nil {
+		return State{}, err
+	}
+	documentPerPage, err := parsePositiveRouteInt(values, "docs_size", 0)
+	if err != nil {
+		return State{}, err
+	}
 	historyPageSize, err := parsePageSizeRouteInt(values, "history_page_size")
 	if err != nil {
 		return State{}, err
@@ -197,13 +214,15 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		SelectedWork: routeValue(values, "selected"), SelectedPerson: routeValue(values, "person"),
 		PeoplePage: peoplePage, PeoplePageSize: peoplePageSize, PeopleTeam: routeValue(values, "team"), PeopleLocation: routeValue(values, "location"), PeopleEligibleOnly: routeValue(values, "eligible") == "1", PeopleSort: routeValue(values, "sort"), PeopleDirection: routeValue(values, "dir"),
 		PeopleColumns:    routeValue(values, "columns"),
-		OrganizationView: routeValue(values, "org_view"),
-		WorkflowQuery:    routeValue(values, "workflow_q"), HistoryQuery: routeValue(values, "history_q"), HistoryOutcome: routeValue(values, "outcome"),
+		OrganizationView: routeValue(values, "org_view"), OrganizationAsOf: routeValue(values, "as_of"), OrganizationUnit: routeValue(values, "unit"),
+		WorkflowQuery: routeValue(values, "workflow_q"), HistoryQuery: routeValue(values, "history_q"), HistoryOutcome: routeValue(values, "outcome"),
 		HistoryPerson: routeValue(values, "history_person"), HistoryYear: routeValue(values, "history_year"), HistorySort: routeValue(values, "history_sort"), HistoryDirection: routeValue(values, "history_dir"), HistoryPage: historyPage, HistoryPageSize: historyPageSize,
 		WorkFilter: routeValue(values, "filter"), NavCollapsed: routeValue(values, "nav") == "collapsed",
 		JourneyID: routeValue(values, "journey"), JourneyWorker: routeValue(values, "worker"), JourneyMode: routeValue(values, "mode"),
 		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"), DocumentID: routeValue(values, "document"), DocumentQuery: routeValue(values, "docs_q"), DocumentCollection: routeValue(values, "collection"), DocumentPageToken: routeValue(values, "cursor"),
-		MenuQuery: routeValue(values, "menu_q"), FavoritePages: parseFavoritePages(routeValue(values, "favorites")),
+		DocumentFolder: routeValue(values, "folder"), DocumentSort: routeValue(values, "docs_sort"), DocumentOwner: routeValue(values, "docs_owner"), DocumentPage: documentPage, DocumentPerPage: documentPerPage, DocumentSearchMode: routeValue(values, "docs_mode"), DocumentEditing: routeValue(values, "docs_edit") == "1",
+		PositionReference: routeValue(values, "position_ref"),
+		MenuQuery:         routeValue(values, "menu_q"), FavoritePages: parseFavoritePages(routeValue(values, "favorites")),
 	}}
 	if routeProfile.StateProfile().Journeys {
 		state.Request.JourneyList = productui.JourneyListFilterFromValues(values)
@@ -263,6 +282,11 @@ func CanonicalHref(state State) string {
 		return productui.Path(state.Page)
 	}
 	values := routeProfile.CanonicalValues(state.Request, state.Provided)
+	if state.Page == productui.PagePositionObject || state.Page == productui.PagePositionOccupancy {
+		if reference := strings.TrimSpace(state.Request.PositionReference); reference != "" {
+			values.Set("position_ref", reference)
+		}
+	}
 	href := productui.Path(state.Page)
 	if query := values.Encode(); query != "" {
 		return href + "?" + query
@@ -365,10 +389,14 @@ func LoadWithBaseline(ctx context.Context, service Service, session Session, sta
 }
 
 type pageDataRequirements struct {
-	journeys  bool
-	workers   bool
-	workflows bool
-	documents bool
+	journeys           bool
+	workers            bool
+	workflows          bool
+	documents          bool
+	knowledge          bool
+	positionObject     bool
+	positionOccupancy  bool
+	reviewParticipants bool
 }
 
 func requirementsForPage(page productui.PageID) pageDataRequirements {
@@ -377,15 +405,27 @@ func requirementsForPage(page productui.PageID) pageDataRequirements {
 		return pageDataRequirements{}
 	}
 	requirements := dataProfile.Requirements()
-	return pageDataRequirements{journeys: requirements.Journeys, workers: requirements.Workers, workflows: page == productui.PageWorkflowDesigner, documents: page == productui.PageDocs}
+	return pageDataRequirements{
+		journeys: requirements.Journeys, workers: requirements.Workers,
+		workflows: page == productui.PageWorkflowDesigner, documents: page == productui.PageDocs,
+		knowledge:      page == productui.PageKnowledgeSearch,
+		positionObject: page == productui.PagePositionObject, positionOccupancy: page == productui.PagePositionOccupancy,
+		reviewParticipants: page == productui.PageReviewParticipants,
+	}
 }
 
 func load(ctx context.Context, service Service, session Session, state State, baseline *productui.View) (productui.View, error) {
 	view := LoadingView(session, state)
-	requirements := pageDataRequirements{journeys: true, workers: true, workflows: state.Page == productui.PageWorkflowDesigner, documents: state.Page == productui.PageDocs}
+	requirements := pageDataRequirements{
+		journeys: true, workers: true, workflows: state.Page == productui.PageWorkflowDesigner,
+		documents: state.Page == productui.PageDocs, knowledge: state.Page == productui.PageKnowledgeSearch,
+		positionObject: state.Page == productui.PagePositionObject, positionOccupancy: state.Page == productui.PagePositionOccupancy,
+		reviewParticipants: state.Page == productui.PageReviewParticipants,
+	}
 	if baseline != nil && baselineMatchesSession(*baseline, view) {
 		requirements = requirementsForPage(state.Page)
 		seedBaselineProjection(&view, *baseline)
+		view.DocumentUnavailable = false
 		if state.Page == productui.PageDocs && strings.TrimSpace(state.Request.DocumentID) == "" {
 			view.Document = nil
 		}
@@ -419,19 +459,109 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	var workflowBlocksResponse *workflowv1.ListWorkflowBlocksResponse
 	var workflowDraftResponse *workflowv1.GetWorkflowDraftResponse
 	var documentsResponse *documentv1.ListDocumentsResponse
+	var libraryResponse *documentv1.GetDocumentLibraryResponse
 	var documentResponse *documentv1.GetDocumentResponse
 	var documentCommentsResponse *documentv1.ListDocumentCommentsResponse
+	var knowledgeResponse *journeyv1.SearchKnowledgeResponse
+	var positionObject *productui.PositionObjectProjection
+	var positionOccupancy *productui.PositionOccupancyProjection
+	var positionObjectOptions *positionv1.ListPositionObjectOptionsResponse
+	var positionOccupancyOptions *positionv1.ListPositionOccupancyOptionsResponse
+	var reviewParticipants *productui.ReviewParticipantsProjection
 	var journeysErr, workersErr, preferencesErr error
 	var documentsErr error
 	var documentCursorReset bool
 	var documentErr error
 	var documentCommentsErr error
+	var knowledgeErr error
+	var positionObjectErr, positionOccupancyErr error
+	var positionOptionsErr error
+	var reviewParticipantsErr error
 	var workerIDErr error
 	var roleAccessErr error
 	var workflowCatalogErr error
 	var workflowBlocksErr error
 	var workflowDraftErr error
 	var reads sync.WaitGroup
+	if requirements.positionObject {
+		if service.ListPositionObjectOptions == nil {
+			positionOptionsErr = errors.New("PositionService.ListPositionObjectOptions is not connected")
+		} else {
+			reads.Add(1)
+			go func() {
+				defer reads.Done()
+				positionObjectOptions, positionOptionsErr = service.ListPositionObjectOptions(ctx, &positionv1.ListPositionObjectOptionsRequest{})
+				if positionOptionsErr != nil {
+					positionOptionsErr = fmt.Errorf("list position object options: %w", positionOptionsErr)
+				}
+			}()
+		}
+		if strings.TrimSpace(state.Request.PositionReference) != "" {
+			if service.GetPositionObject == nil {
+				positionObjectErr = errors.New("PositionService.GetPositionObject is not connected")
+			} else {
+				reads.Add(1)
+				go func() {
+					defer reads.Done()
+					positionObject, positionObjectErr = service.GetPositionObject(ctx, state.Request.PositionReference)
+					if positionObjectErr != nil {
+						positionObjectErr = fmt.Errorf("load position object: %w", positionObjectErr)
+					}
+				}()
+			}
+		}
+	}
+	if requirements.positionOccupancy {
+		if service.ListPositionOccupancyOptions == nil {
+			positionOptionsErr = errors.New("PositionService.ListPositionOccupancyOptions is not connected")
+		} else {
+			reads.Add(1)
+			go func() {
+				defer reads.Done()
+				positionOccupancyOptions, positionOptionsErr = service.ListPositionOccupancyOptions(ctx, &positionv1.ListPositionOccupancyOptionsRequest{})
+				if positionOptionsErr != nil {
+					positionOptionsErr = fmt.Errorf("list position occupancy options: %w", positionOptionsErr)
+				}
+			}()
+		}
+		if strings.TrimSpace(state.Request.PositionReference) != "" {
+			if service.GetPositionOccupancy == nil {
+				positionOccupancyErr = errors.New("PositionService.GetPositionOccupancy is not connected")
+			} else {
+				reads.Add(1)
+				go func() {
+					defer reads.Done()
+					positionOccupancy, positionOccupancyErr = service.GetPositionOccupancy(ctx, state.Request.PositionReference)
+					if positionOccupancyErr != nil {
+						positionOccupancyErr = fmt.Errorf("load position occupancy: %w", positionOccupancyErr)
+					}
+				}()
+			}
+		}
+	}
+	if requirements.reviewParticipants {
+		if service.GetReviewParticipants == nil {
+			reviewParticipantsErr = errors.New("ReviewParticipantsService.GetReviewParticipants is not connected")
+		} else {
+			reads.Add(1)
+			go func() {
+				defer reads.Done()
+				reviewParticipants, reviewParticipantsErr = service.GetReviewParticipants(ctx)
+				if reviewParticipantsErr != nil {
+					reviewParticipantsErr = fmt.Errorf("load review participants: %w", reviewParticipantsErr)
+				}
+			}()
+		}
+	}
+	if requirements.documents && service.GetDocumentLibrary != nil && strings.TrimSpace(state.Request.DocumentID) == "" {
+		// The library (folders and counts) only decorates the list; a
+		// failure leaves the list usable without its navigation badges.
+		reads.Add(1)
+		go func() {
+			defer reads.Done()
+			libraryResponse, _ = service.GetDocumentLibrary(ctx, &documentv1.GetDocumentLibraryRequest{})
+		}()
+	}
 	if requirements.documents {
 		if service.ListDocuments == nil {
 			documentsErr = errors.New("DocumentService.ListDocuments is not connected")
@@ -439,7 +569,7 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 			reads.Add(1)
 			go func() {
 				defer reads.Done()
-				request := &documentv1.ListDocumentsRequest{PageSize: 50, Query: state.Request.DocumentQuery, Collection: state.Request.DocumentCollection, PageToken: state.Request.DocumentPageToken}
+				request := documentListRequest(state.Request)
 				documentsResponse, documentsErr = service.ListDocuments(ctx, request)
 				if documentsErr != nil && request.PageToken != "" && status.Code(documentsErr) == codes.InvalidArgument {
 					request.PageToken = ""
@@ -470,6 +600,19 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 					}
 				}()
 			}
+		}
+	}
+	if requirements.knowledge && strings.TrimSpace(state.Request.Query) != "" {
+		if service.SearchKnowledge == nil {
+			knowledgeErr = errors.New("JourneyService.SearchKnowledge is not connected")
+		} else {
+			reads.Add(1)
+			go func() {
+				defer reads.Done()
+				knowledgeResponse, knowledgeErr = service.SearchKnowledge(ctx, &journeyv1.SearchKnowledgeRequest{
+					Query: state.Request.Query, Locale: state.Request.Locale,
+				})
+			}()
 		}
 	}
 	if !requirements.journeys {
@@ -586,6 +729,57 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	reads.Wait()
+	if positionOptionsErr != nil {
+		failures = append(failures, positionOptionsErr)
+		view.PositionOptions = nil
+	} else if positionObjectOptions != nil || positionOccupancyOptions != nil {
+		options := []*positionv1.PositionOption{}
+		if positionObjectOptions != nil {
+			options = positionObjectOptions.GetOptions()
+		} else {
+			options = positionOccupancyOptions.GetOptions()
+		}
+		view.PositionOptions = make([]productui.PositionOptionProjection, 0, len(options))
+		for _, option := range options {
+			if option != nil {
+				view.PositionOptions = append(view.PositionOptions, productui.PositionOptionProjection{
+					Reference: option.GetPositionRevisionRef(), PositionID: option.GetPositionId(), Title: option.GetTitle(),
+					Organization: option.GetOrganization(), JobCode: option.GetJobCode(), OrgUnit: option.GetOrgUnit(),
+				})
+			}
+		}
+	} else {
+		view.PositionOptions = nil
+	}
+	if requirements.positionObject {
+		if positionObjectErr != nil {
+			failures = append(failures, positionObjectErr)
+			view.PositionObject = nil
+		} else {
+			view.PositionObject = positionObject
+		}
+		view.PositionOccupancy = nil
+	} else if requirements.positionOccupancy {
+		if positionOccupancyErr != nil {
+			failures = append(failures, positionOccupancyErr)
+			view.PositionOccupancy = nil
+		} else {
+			view.PositionOccupancy = positionOccupancy
+		}
+		view.PositionObject = nil
+	} else {
+		view.PositionObject, view.PositionOccupancy = nil, nil
+	}
+	if requirements.reviewParticipants {
+		if reviewParticipantsErr != nil {
+			failures = append(failures, reviewParticipantsErr)
+			view.ReviewParticipants = nil
+		} else {
+			view.ReviewParticipants = reviewParticipants
+		}
+	} else {
+		view.ReviewParticipants = nil
+	}
 	if documentsErr != nil {
 		failures = append(failures, documentsErr)
 		view.Documents = nil
@@ -594,11 +788,24 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		view.Documents = projectDocuments(documentsResponse.GetDocuments())
 		view.DocumentsReady = true
 		view.DocumentNextPageToken = documentsResponse.GetNextPageToken()
+		view.DocumentTotal = int(documentsResponse.GetTotalCount())
+		view.DocumentSearchModeUsed = documentsResponse.GetSearchMode()
+		view.DocumentSemanticAvailable = documentsResponse.GetSemanticAvailable()
+		view.DocumentSemanticPending = int(documentsResponse.GetSemanticPending())
+		if view.DocumentTotal < len(view.Documents) {
+			view.DocumentTotal = len(view.Documents)
+		}
+		view.DocumentLibrary = projectDocumentLibrary(libraryResponse)
 		if documentCursorReset {
 			view.DocumentPageToken = ""
 		}
 	}
-	if documentErr != nil {
+	if documentErr != nil && (status.Code(errors.Unwrap(documentErr)) == codes.NotFound || status.Code(errors.Unwrap(documentErr)) == codes.PermissionDenied || status.Code(documentErr) == codes.NotFound) {
+		// A document the reader cannot open (removed, or never shared with
+		// them) is an answer, not an outage: the page says so plainly.
+		view.Document = nil
+		view.DocumentUnavailable = true
+	} else if documentErr != nil {
 		failures = append(failures, documentErr)
 		view.Document = nil
 	} else if documentResponse != nil {
@@ -751,9 +958,15 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		if person.WorkerID != "" && person.Name != "" {
 			ownerNames[person.WorkerID] = person.Name
 		}
+		if person.SubjectID != "" && person.Name != "" {
+			ownerNames[person.SubjectID] = person.Name
+		}
 	}
 	if view.Principal != "" && view.Viewer.Name != "" {
 		ownerNames[view.Principal] = view.Viewer.Name
+	}
+	if view.ViewerSubject != "" && view.Viewer.Name != "" && ownerNames[view.ViewerSubject] == "" {
+		ownerNames[view.ViewerSubject] = view.Viewer.Name
 	}
 	for i := range view.Documents {
 		if name := ownerNames[view.Documents[i].OwnerID]; name != "" {
@@ -789,6 +1002,32 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	view = productui.ApplyRequest(view, state.Request)
+	if requirements.knowledge {
+		// Search is a request-scoped projection. The renderer invokes this
+		// callback with its current query; it exposes only the response fields
+		// the authorized JourneyService returned for this exact route query.
+		requestedQuery := strings.TrimSpace(state.Request.Query)
+		response, searchErr := knowledgeResponse, knowledgeErr
+		view.SearchKnowledge = func(query string) ([]productui.KnowledgeSearchResult, error) {
+			if strings.TrimSpace(query) != requestedQuery || requestedQuery == "" {
+				return nil, nil
+			}
+			if searchErr != nil {
+				return nil, searchErr
+			}
+			if response == nil {
+				return nil, errors.New("JourneyService.SearchKnowledge returned no response")
+			}
+			results := make([]productui.KnowledgeSearchResult, 0, len(response.GetMatches()))
+			for _, match := range response.GetMatches() {
+				if match == nil {
+					continue
+				}
+				results = append(results, productui.KnowledgeSearchResult{ArticleID: match.GetArticleId(), Revision: match.GetRevision(), Locale: match.GetLocale(), Title: match.GetTitle(), Summary: match.GetSummary()})
+			}
+			return results, nil
+		}
+	}
 	if view.WorkflowView != nil {
 		// An absent selector deliberately resolves to the server's preferred
 		// publication without rewriting the address. Preserve that resolved
@@ -800,7 +1039,11 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		view.Work[index].Href = productui.JourneyDetailHref(view, view.Work[index].ID)
 	}
 	view.PersonWorkflows = projectPersonWorkflows(view, view.SelectedPerson)
-	return view, errors.Join(failures...)
+	loadErr := errors.Join(failures...)
+	if journeyclient.ErrorHasCode(loadErr, codes.Unauthenticated) {
+		view.SignedOut = productui.UnauthenticatedRecovery()
+	}
+	return view, loadErr
 }
 
 // linkJourneyWorkers only rewrites a journey's person link when exactly one
@@ -836,8 +1079,10 @@ func projectDocuments(records []*documentv1.DocumentSummary) []productui.Documen
 		item := productui.DocumentSummary{
 			ID: record.GetDocumentId(), Title: record.GetTitle(), Owner: record.GetOwnerId(), OwnerID: record.GetOwnerId(),
 			Version: record.GetVersionId(), VersionID: record.GetVersionId(), ScopeKind: record.GetScopeKind(), ScopeID: record.GetScopeId(),
-			Sharing: record.GetSharingState(), ReviewDue: documentTimestamp(record.GetReviewDueAt()), UpdatedAt: documentTimestamp(record.GetUpdatedAt()), CanComment: record.GetCanComment(), CanEdit: record.GetCanEdit(),
+			Sharing: record.GetSharingState(), ReviewDue: documentDate(record.GetReviewDueAt()), UpdatedAt: documentTimestamp(record.GetUpdatedAt()), CanComment: record.GetCanComment(), CanEdit: record.GetCanEdit(),
 			Status: productui.DocumentStatus(record.GetStatus()), CanManageAccess: record.GetCanManageAccess(),
+			Starred: record.GetStarred(), FolderID: record.GetFolderId(), ReaderCount: int(record.GetReaderCount()),
+			Snippet: record.GetSnippet(), Match: record.GetMatch(),
 		}
 		if item.ScopeKind != "" {
 			item.Scope = item.ScopeKind
@@ -862,7 +1107,23 @@ func projectDocument(response *documentv1.GetDocumentResponse, commentsResponse 
 	if commentsResponse != nil {
 		detail.Comments = projectDocumentComments(commentsResponse.GetComments())
 	}
+	detail.Chat = projectDocumentChatRefs(response)
+	detail.Links = projectDocumentLinks(response.GetLinks())
 	return detail
+}
+
+// projectDocumentLinks is the reader's safe view of every doc: target this
+// version names (HUB-035): a target the caller cannot read carries readable
+// = false and no title, exactly as the server already withheld it.
+func projectDocumentLinks(records []*documentv1.DocumentLinkTarget) []productui.DocumentLinkTarget {
+	links := make([]productui.DocumentLinkTarget, 0, len(records))
+	for _, record := range records {
+		if record == nil || strings.TrimSpace(record.GetDocumentId()) == "" {
+			continue
+		}
+		links = append(links, productui.DocumentLinkTarget{DocumentID: record.GetDocumentId(), Title: record.GetTitle(), Readable: record.GetReadable()})
+	}
+	return links
 }
 
 func projectDocumentComments(records []*documentv1.DocumentComment) []productui.DocumentComment {
@@ -871,7 +1132,15 @@ func projectDocumentComments(records []*documentv1.DocumentComment) []productui.
 		if record == nil || strings.TrimSpace(record.GetId()) == "" {
 			continue
 		}
-		comments = append(comments, productui.DocumentComment{ID: record.GetId(), AuthorID: record.GetAuthorId(), Body: record.GetBody(), CreatedAt: documentCommentTimestamp(record.GetCreatedAt()), VersionID: record.GetVersionId()})
+		comment := productui.DocumentComment{ID: record.GetId(), AuthorID: record.GetAuthorId(), Body: record.GetBody(), CreatedAt: documentCommentTimestamp(record.GetCreatedAt()), VersionID: record.GetVersionId(),
+			ParentID: record.GetParentCommentId(), Resolved: record.GetResolved(), Orphaned: record.GetAnchorOrphaned(), Start: -1}
+		if anchor := record.GetAnchor(); anchor != nil && anchor.GetQuote() != "" {
+			comment.Quote, comment.Prefix, comment.Suffix = anchor.GetQuote(), anchor.GetPrefix(), anchor.GetSuffix()
+			if !comment.Orphaned {
+				comment.Start = int(anchor.GetStart())
+			}
+		}
+		comments = append(comments, comment)
 	}
 	return comments
 }
@@ -884,6 +1153,14 @@ func documentCommentTimestamp(value *timestamppb.Timestamp) string {
 }
 
 func documentTimestamp(value *timestamppb.Timestamp) string {
+	if value == nil || !value.IsValid() {
+		return ""
+	}
+	return value.AsTime().UTC().Format(time.RFC3339)
+}
+
+// documentDate is a calendar date for fields read as a day (review due).
+func documentDate(value *timestamppb.Timestamp) string {
 	if value == nil || !value.IsValid() {
 		return ""
 	}
@@ -907,6 +1184,10 @@ func baselineMatchesSession(baseline, current productui.View) bool {
 }
 
 func seedBaselineProjection(view *productui.View, baseline productui.View) {
+	view.PositionOptions = nil
+	if baseline.Page == view.Page && baseline.PositionReference == view.PositionReference {
+		view.PositionOptions = append([]productui.PositionOptionProjection(nil), baseline.PositionOptions...)
+	}
 	view.Work = baseline.Work
 	view.JourneyPopulation = baseline.JourneyPopulation
 	view.WorkflowNotifications = baseline.WorkflowNotifications
@@ -927,6 +1208,23 @@ func seedBaselineProjection(view *productui.View, baseline productui.View) {
 	view.SelectedWorkflowRunID = baseline.SelectedWorkflowRunID
 	view.WorkflowDraft = baseline.WorkflowDraft
 	view.SelectedWorkflowDraftID = baseline.SelectedWorkflowDraftID
+	if baseline.PositionObject != nil {
+		copy := *baseline.PositionObject
+		view.PositionObject = &copy
+	}
+	if baseline.PositionOccupancy != nil {
+		copy := *baseline.PositionOccupancy
+		copy.Occupants = append([]productui.PositionOccupantProjection(nil), baseline.PositionOccupancy.Occupants...)
+		view.PositionOccupancy = &copy
+	}
+	if baseline.ReviewParticipants != nil {
+		copy := *baseline.ReviewParticipants
+		copy.Cycles = append([]productui.ReviewParticipantsCycleProjection(nil), baseline.ReviewParticipants.Cycles...)
+		for index := range copy.Cycles {
+			copy.Cycles[index].Assignments = append([]productui.ReviewParticipantAssignmentProjection(nil), baseline.ReviewParticipants.Cycles[index].Assignments...)
+		}
+		view.ReviewParticipants = &copy
+	}
 	view.Source = baseline.Source
 }
 
@@ -1043,9 +1341,7 @@ func applyPreferences(view *productui.View, state *State, response *journeyv1.Ge
 		}
 		view.StoredPreferences = stored
 		request := &state.Request
-		if !state.Provided["locale"] && user.GetLocale() != "" {
-			request.Locale = user.GetLocale()
-		}
+		request.Locale = productui.ResolveProductLocalePreference(request.Locale, user.GetLocale()).Resolved
 		if !state.Provided["nav"] {
 			request.NavCollapsed = user.GetNavCollapsed()
 		}
@@ -1193,7 +1489,7 @@ func projectJourneys(journeys []*journeyv1.Journey) ([]productui.WorkItem, error
 		dimension := journeyclient.JourneyStatusDimension(journey)
 		items = append(items, productui.WorkItem{
 			NextStep: string(dimension.NextStep), WaitingOn: string(dimension.WaitingOn), AwaitsPerson: dimension.AwaitsPerson,
-			ID: journey.GetIntentId(), Initials: uicomponents.Initials(journey.GetWorkerName()), PhotoURL: employeePhotoURL(journey.GetWorkerRef(), journey.GetWorkerName()), Title: "Promotion journey", TitleKey: "journey.detail_title",
+			ID: journey.GetIntentId(), Initials: uicomponents.Initials(journey.GetWorkerName()), Title: "Promotion journey", TitleKey: "journey.detail_title",
 			Person: journey.GetWorkerName(), PersonRef: journey.GetWorkerRef(), Summary: summary, Status: status, StatusKey: journeyStageKey(journey.GetStage()), Tone: tone, Terminal: terminal,
 			Due: journey.GetEffectiveDate(), EffectiveDate: journey.GetEffectiveDate(), CompletedAt: timestampLabel(journey.GetUpdatedAt()),
 			InstanceID: journey.GetInstanceId(), InstanceVersion: journey.GetInstanceVersion(), MaterialDigest: journey.GetMaterialDigest(),
@@ -1272,9 +1568,6 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 		}
 		role := strings.TrimSpace(title + " · " + worker.GetGrade())
 		photoURL := strings.TrimSpace(worker.GetProfilePhotoUrl())
-		if photoURL == "" {
-			photoURL = employeePhotoURL(worker.GetWorkerRef(), name)
-		}
 		basePay, err := moneyFromWire(worker.GetBasePay(), worker.GetCurrency())
 		if err != nil {
 			failures = append(failures, fmt.Errorf("project worker %s base pay: %w", worker.GetWorkerRef(), err))
@@ -1284,7 +1577,7 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 			failures = append(failures, relationshipErr)
 		}
 		people = append(people, productui.Person{
-			ID: worker.GetWorkerRef(), WorkerID: worker.GetWorkerId(), Initials: uicomponents.Initials(name), PhotoURL: photoURL, Name: name,
+			ID: worker.GetWorkerRef(), WorkerID: worker.GetWorkerId(), SubjectID: worker.GetSubjectId(), Initials: uicomponents.Initials(name), PhotoURL: photoURL, Name: name,
 			LegalName: worker.GetLegalName(), PreferredName: worker.GetPreferredName(), Role: role,
 			Team: orgUnitLabel(worker.GetOrgUnit()), Manager: managerName, ManagerID: workerIDByRef[managerRef], ManagerRelationship: managerState, ManagerWorkerRef: managerRef, Location: worker.GetLocation(), WorkerNumber: worker.GetWorkerNumber(),
 			JobCode: worker.GetJobCode(), Grade: worker.GetGrade(), PositionID: worker.GetPositionId(),
@@ -1358,27 +1651,6 @@ func concisePlacementLabel(jobCode, grade string) string {
 		}
 	}
 	return strings.TrimSpace(jobCode + " " + strings.TrimSpace(grade))
-}
-
-// employeePhotoURL binds the stable demo employees exposed by the seeded cell
-// to same-origin product assets. Unknown workers retain the shared initials
-// fallback instead of receiving a misleading stock portrait.
-func employeePhotoURL(workerRef, name string) string {
-	identity := strings.ToLower(strings.TrimSpace(workerRef + " " + name))
-	for _, employee := range []struct {
-		key, asset string
-	}{
-		{"priya", "person-priya-small.jpg"},
-		{"jane", "person-jane-small.jpg"},
-		{"omar", "person-omar-small.jpg"},
-		{"lena", "person-lena-small.jpg"},
-		{"noor", "person-noor-small.jpg"},
-	} {
-		if strings.Contains(identity, employee.key) {
-			return "/workspace/assets/" + employee.asset
-		}
-	}
-	return ""
 }
 
 // moneyFromWire is the only product-UI boundary that accepts the journey
@@ -1479,4 +1751,33 @@ func orgUnitLabel(code string) string {
 		return label
 	}
 	return displayLabel(code)
+}
+
+// documentListRequest maps the docs route onto one list selection. "starred"
+// is a collection in the address but a filter on the wire.
+func documentListRequest(request productui.PageRequest) *documentv1.ListDocumentsRequest {
+	collection := request.DocumentCollection
+	starred := collection == "starred"
+	if starred {
+		collection = "all"
+	}
+	return &documentv1.ListDocumentsRequest{
+		Query: request.DocumentQuery, Collection: collection, PageToken: request.DocumentPageToken,
+		FolderId: request.DocumentFolder, StarredOnly: starred, Sort: request.DocumentSort, OwnerId: request.DocumentOwner,
+		SearchMode: request.DocumentSearchMode, Page: int32(max(request.DocumentPage, 1)), PageSize: int32(productui.NormalizeDocumentPerPage(request.DocumentPerPage)),
+	}
+}
+
+func projectDocumentLibrary(response *documentv1.GetDocumentLibraryResponse) *productui.DocumentLibrary {
+	if response == nil {
+		return nil
+	}
+	library := &productui.DocumentLibrary{All: int(response.GetAllCount()), Mine: int(response.GetMineCount()), Shared: int(response.GetSharedCount()), Starred: int(response.GetStarredCount())}
+	for _, folder := range response.GetFolders() {
+		if strings.TrimSpace(folder.GetFolderId()) == "" || strings.TrimSpace(folder.GetName()) == "" {
+			continue
+		}
+		library.Folders = append(library.Folders, productui.DocumentFolder{ID: folder.GetFolderId(), Name: folder.GetName(), Count: int(folder.GetDocumentCount())})
+	}
+	return library
 }

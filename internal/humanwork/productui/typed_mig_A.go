@@ -1595,7 +1595,10 @@ func declareworkerIDStylesStyles() {
 		gwccss.Raw("align-items", "start"),
 	)
 	declareGlobal(".worker-id-rules",
-		gwccss.Raw("overflow", "hidden"),
+		// Keep rounded contents clipped without creating a non-scrolling
+		// overflow ancestor. `hidden` becomes the sticky footer's nearest
+		// scroll container and prevents it from following the page scroll.
+		gwccss.Raw("overflow", "clip"),
 	)
 	declareGlobal(".worker-id-rules .section-head p",
 		gwccss.Raw("margin", "4px 0 0"),
@@ -1668,6 +1671,9 @@ func declareworkerIDStylesStyles() {
 		gwccss.PaddingY(gwccss.Px(16)), gwccss.PaddingX(gwccss.Px(22)),
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
+		gwccss.Position.Sticky,
+		gwccss.Bottom(gwccss.Zero),
+		gwccss.Raw("z-index", "2"),
 	)
 	declareGlobal(".worker-id-actions p",
 		gwccss.Margin(gwccss.Zero),
@@ -1749,7 +1755,23 @@ func declareworkerIDStylesStyles() {
 		mediaRule(gwccss.MaxW(620), gwccss.GridCols(gwccss.Fr(1))),
 	)
 	declareGlobal(".worker-id-actions",
-		mediaRule(gwccss.MaxW(620), gwccss.Items.Stretch, gwccss.FlexDir.Col),
+		mediaRule(gwccss.MaxW(620),
+			gwccss.Items.Stretch,
+			gwccss.FlexDir.Col,
+			// The action bar is the last child of its edit fieldset, so sticky
+			// positioning is constrained by the fieldset end on short screens.
+			// Pin it to the mobile visual viewport; page padding below keeps the
+			// final fields reachable above it, including on safe-area devices.
+			gwccss.Raw("position", "fixed"),
+			gwccss.Raw("left", "12px"),
+			gwccss.Raw("right", "12px"),
+			gwccss.Raw("bottom", "max(12px, env(safe-area-inset-bottom, 0px))"),
+			gwccss.Raw("z-index", "20"),
+			gwccss.Raw("box-shadow", "0 8px 24px rgba(0,0,0,.18)"),
+		),
+	)
+	declareGlobal(".worker-id-page",
+		mediaRule(gwccss.MaxW(620), gwccss.Raw("padding-bottom", "190px")),
 	)
 	declareGlobal(".worker-id-actions .button",
 		mediaRule(gwccss.MaxW(620), gwccss.W(gwccss.Percent(100))),

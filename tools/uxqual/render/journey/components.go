@@ -498,6 +498,9 @@ func noticeRegion(p Page) ui.Node {
 						htmlIf(n.Detail != "", func() ui.Node {
 							return html.P(html.Props{Class: "jn-notice-detail"}, html.Text(n.Detail))
 						}),
+						htmlIf(n.RecoveryHref != "" && n.RecoveryLabel != "", func() ui.Node {
+							return html.P(html.Props{Class: "jn-notice-recovery"}, html.A(html.Props{Href: n.RecoveryHref}, html.Text(n.RecoveryLabel)))
+						}),
 						htmlIf(len(links) > 0, func() ui.Node {
 							return html.Nav(html.Props{Class: "jn-notice-fields", Aria: map[string]string{"label": productui.ResolveProductLocale(locale).Text("journey.invalid_fields")}},
 								html.P(html.Props{Class: "jn-notice-fields-title"}, html.Text(productui.ResolveProductLocale(locale).Text("journey.invalid_fields"))),

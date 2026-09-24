@@ -18,7 +18,7 @@ func TestTodo_HUB_032_ProductClientProjectsAuthorizedDocumentSummaries(t *testin
 		t.Fatalf("projected rows = %+v", rows)
 	}
 	got := rows[0]
-	if got.ID != "doc-1" || got.OwnerID != "person-1" || got.VersionID != "version-3" || got.Scope != "TEAM:people" || got.ReviewDue != "2026-10-01" || got.UpdatedAt != "2026-09-22" || got.Status != productui.DocumentTeamOfficial {
+	if got.ID != "doc-1" || got.OwnerID != "person-1" || got.VersionID != "version-3" || got.Scope != "TEAM:people" || got.ReviewDue != "2026-10-01" || got.UpdatedAt != "2026-09-22T12:00:00Z" || got.Status != productui.DocumentTeamOfficial {
 		t.Fatalf("projection lost authorized fields: %+v", got)
 	}
 }

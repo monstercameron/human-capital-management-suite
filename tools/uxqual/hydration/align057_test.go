@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/ssr"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/testdata"

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	xhtml "golang.org/x/net/html"
 	"strings"
 	"testing"
 )
@@ -37,11 +38,27 @@ func TestTodo_WEB_148(t *testing.T) {
 	if strings.Contains(doc, "⟦") {
 		t.Fatal("time approval exposes an unresolved message key")
 	}
+	content := webMainVisibleText(t, doc)
 	for _, invented := range []string{"pending:", "0 requests", "approved:", "rejected ✓"} {
-		if strings.Contains(doc, invented) {
+		if strings.Contains(content, invented) {
 			t.Fatalf("time approval invents approval data: %q", invented)
 		}
 	}
+}
+
+// The page document includes shared stylesheet text in <head>. Check the
+// rendered main content so CSS selectors cannot masquerade as business data.
+func webMainVisibleText(t *testing.T, document string) string {
+	t.Helper()
+	root, err := xhtml.Parse(strings.NewReader(document))
+	if err != nil {
+		t.Fatal(err)
+	}
+	main := findElementByID(root, "main-content")
+	if main == nil {
+		t.Fatal("rendered page has no main content region")
+	}
+	return nodeText(main)
 }
 
 // Golden: the registered time approval definition and its

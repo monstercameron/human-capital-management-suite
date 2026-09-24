@@ -1,9 +1,11 @@
 package workspace
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pageledger"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
@@ -22,6 +24,46 @@ type PageGovernance struct {
 // NewPageGovernance returns an empty governance view.
 func NewPageGovernance() *PageGovernance {
 	return &PageGovernance{log: &productui.PageRevisionLog{}}
+}
+
+// NewDurablePageGovernance loads one tenant's immutable page ledger before
+// serving or publishing through it.
+func NewDurablePageGovernance(ctx context.Context, tenant string, store pageledger.Store) (*PageGovernance, error) {
+	log, err := productui.NewDurablePageRevisionLog(ctx, tenant, store)
+	if err != nil {
+		return nil, err
+	}
+	governance := &PageGovernance{log: log, rollouts: make(map[productui.PageID][]productui.PageRollout)}
+	for _, rollout := range log.Rollouts() {
+		governance.rollouts[rollout.Page] = append(governance.rollouts[rollout.Page], rollout)
+	}
+	governance.retirements = make(map[productui.PageID]productui.PageRetirement)
+	for _, retirement := range log.Retirements() {
+		governance.retirements[retirement.Page] = retirement
+	}
+	return governance, nil
+}
+
+// governanceForTenant returns this handler's process cache for a tenant's
+// durable page ledger. Failed recovery is never cached.
+func (h *Handler) governanceForTenant(ctx context.Context, tenant string) (*PageGovernance, error) {
+	if h.pageLedger == nil {
+		return h.pages, nil
+	}
+	if tenant == "" {
+		return nil, fmt.Errorf("workspace: verified tenant is required for page governance")
+	}
+	h.pageGovernanceMu.Lock()
+	defer h.pageGovernanceMu.Unlock()
+	if existing := h.pageGovernanceByTenant[tenant]; existing != nil {
+		return existing, nil
+	}
+	governance, err := NewDurablePageGovernance(ctx, tenant, h.pageLedger)
+	if err != nil {
+		return nil, fmt.Errorf("workspace: recover page governance for tenant %q: %w", tenant, err)
+	}
+	h.pageGovernanceByTenant[tenant] = governance
+	return governance, nil
 }
 
 // PublishRevision records one page snapshot at one version in the ledger.
@@ -53,12 +95,14 @@ func (g *PageGovernance) PublishRollout(rollout productui.PageRollout) error {
 		}
 	}
 	for _, staged := range existing {
-		if staged.Version == rollout.Version {
-			if staged.Digest != rollout.Digest {
-				return fmt.Errorf("workspace: rollout conflict for page %q version %d", rollout.Page, rollout.Version)
-			}
+		if staged.Version == rollout.Version && staged.Digest == rollout.Digest && sameScopes(staged.Scopes, rollout.Scopes) {
 			return nil
 		}
+	}
+	var err error
+	rollout, err = g.log.RecordRolloutEventContext(context.Background(), rollout)
+	if err != nil {
+		return fmt.Errorf("workspace: persist page rollout: %w", err)
 	}
 	if g.rollouts == nil {
 		g.rollouts = make(map[productui.PageID][]productui.PageRollout)
@@ -79,18 +123,28 @@ func (g *PageGovernance) PublishRollback(live, rollback productui.PageRollout) e
 	if err := productui.VerifyRollbackTarget(g.log, live, rollback); err != nil {
 		return fmt.Errorf("workspace: %w", err)
 	}
-	kept := g.rollouts[rollback.Page][:0]
-	for _, staged := range g.rollouts[rollback.Page] {
-		if rolloutScopesOverlap(staged, rollback) {
-			continue
-		}
-		kept = append(kept, staged)
+	var err error
+	rollback, err = g.log.RecordRollbackEventContext(context.Background(), rollback)
+	if err != nil {
+		return fmt.Errorf("workspace: persist page rollback rollout: %w", err)
 	}
 	if g.rollouts == nil {
 		g.rollouts = make(map[productui.PageID][]productui.PageRollout)
 	}
-	g.rollouts[rollback.Page] = append(kept, rollback)
+	g.rollouts[rollback.Page] = append(g.rollouts[rollback.Page], rollback)
 	return nil
+}
+
+func sameScopes(first, second []productui.RolloutScope) bool {
+	if len(first) != len(second) {
+		return false
+	}
+	for i := range first {
+		if first[i] != second[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // rolloutScopesOverlap reports whether two rollouts name a shared scope.
@@ -121,6 +175,9 @@ func (g *PageGovernance) PublishRetirement(retirement productui.PageRetirement) 
 	if g.retirements == nil {
 		g.retirements = make(map[productui.PageID]productui.PageRetirement)
 	}
+	if err := g.log.RecordRetirementContext(context.Background(), retirement); err != nil {
+		return fmt.Errorf("workspace: persist page retirement: %w", err)
+	}
 	g.retirements[retirement.Page] = retirement
 	return nil
 }
@@ -132,7 +189,7 @@ func (g *PageGovernance) PublishRetirement(retirement productui.PageRetirement) 
 // The defined fallback policy: a page with no published rollout is
 // ungoverned and serves the compiled registry definition, preserving the
 // serving path that predates the ledger. A governed page serves only the
-// highest-versioned rollout that is both live for the scope and digest-pinned
+// latest recorded rollout that is both live for the scope and digest-pinned
 // to the ledger with no active retirement darkening it; anything else is
 // refused so a retired or rolled-back page is never served.
 func (g *PageGovernance) Resolve(page productui.PageID, scope string, now int64) (productui.PageDefinitionRevision, bool, bool, string) {
@@ -156,7 +213,7 @@ func (g *PageGovernance) Resolve(page productui.PageID, scope string, now int64)
 		if err := productui.VerifyRolloutTarget(g.log, candidate); err != nil {
 			continue
 		}
-		if live == nil || candidate.Version > live.Version {
+		if live == nil || candidate.RecordVersion > live.RecordVersion {
 			next := candidate
 			live = &next
 		}
@@ -178,9 +235,14 @@ func (g *PageGovernance) Resolve(page productui.PageID, scope string, now int64)
 // page-serving handler and any future studio/admin API share, rather than
 // duplicating rollout/retirement checks at each call site. A nil governance
 // view serves the compiled registry, matching the pre-ledger behavior.
-func (h *Handler) resolveGovernedRevision(page productui.PageID, scope string, now int64) (productui.PageDefinitionRevision, bool, bool, string) {
-	if h == nil || h.pages == nil {
-		return productui.PageDefinitionRevision{}, false, true, ""
+func (h *Handler) resolveGovernedRevision(ctx context.Context, tenant string, page productui.PageID, scope string, now int64) (productui.PageDefinitionRevision, bool, bool, string, error) {
+	if h == nil || h.pageLedger == nil && h.pages == nil {
+		return productui.PageDefinitionRevision{}, false, true, "", nil
 	}
-	return h.pages.Resolve(page, scope, now)
+	governance, err := h.governanceForTenant(ctx, tenant)
+	if err != nil {
+		return productui.PageDefinitionRevision{}, false, false, "page publication could not be recovered", err
+	}
+	revision, governed, servable, reason := governance.Resolve(page, scope, now)
+	return revision, governed, servable, reason, nil
 }

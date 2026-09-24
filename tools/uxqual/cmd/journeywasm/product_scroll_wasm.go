@@ -13,7 +13,8 @@ const productMainScrollOwnerID = "main-content"
 
 // productRestoreFrames bounds how long a Back/Forward restore waits for the
 // destination's content to grow tall enough to hold the saved position.
-const productRestoreFrames = 12
+// A list returning from a document can take most of a second to render.
+const productRestoreFrames = 60
 
 var productScroll *browserProductScrollController
 

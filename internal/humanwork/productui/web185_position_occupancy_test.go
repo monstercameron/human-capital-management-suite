@@ -8,17 +8,9 @@ import (
 	"testing"
 )
 
-// RED for WEB-185: position occupancy presentation. The
-// registry owns every product surface, but no occupancy
-// presentation exists: showing who holds a position has
-// no exposure point and the first surface invents
-// occupancy data by convention. The compiler needs the
-// registered surface — canonical identity, route, and an
-// honest fallback that presents nothing until the
-// governed position service publishes, with occupancy
-// truth staying server authority — so the surface
-// resolves today without a second source of business
-// authority.
+// WEB-185 keeps the position occupancy route and presentation contract
+// stable. Occupancy facts are rendered only from the server-authorized
+// projection.
 func TestTodo_WEB_185(t *testing.T) {
 	definition, ok := LookupPage(PagePositionOccupancy)
 	if !ok {
@@ -45,8 +37,8 @@ func TestTodo_WEB_185(t *testing.T) {
 	}
 }
 
-// Golden: the registered position occupancy definition
-// and its fallback copy.
+// Golden: the registered position occupancy definition and its selection
+// copy.
 func TestTodo_WEB_185_Golden(t *testing.T) {
 	locale := ResolveProductLocale("en-US")
 	definition, ok := LookupPage(PagePositionOccupancy)
@@ -56,14 +48,15 @@ func TestTodo_WEB_185_Golden(t *testing.T) {
 	golden := fmt.Sprintf("%s|%s|%s|%s|%s|%d\x00%s\x00%s\x00%s\x00%s\x00",
 		definition.ID, definition.Route, definition.Label, definition.Title, definition.Subtitle, definition.RenderOrder,
 		locale.Text(definition.LabelKey), locale.Text(definition.TitleKey), locale.Text(definition.SubtitleKey),
-		locale.Text("position_occupancy.unavailable_title"))
+		locale.Text("position_occupancy.select_title"))
 	for _, code := range []string{"de-DE", "ar"} {
 		other := ResolveProductLocale(code)
-		golden += fmt.Sprintf("%s|%s|%s\x00", code, other.Text(definition.TitleKey), other.Text("position_occupancy.unavailable_title"))
+		golden += fmt.Sprintf("%s|%s|%s\x00", code, other.Text(definition.TitleKey), other.Text("position_occupancy.select_title"))
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "d5b8885c025faf6294fe3b72b2c4e82ed9ee1f5ffe9fd4c11fbd3e2b7152976a"
+	// Re-pinned 2026-09-24 after reviewing the occupancy selection copy.
+	const want = "cd8e8b0442e6fb8b6c44307da530fa360f5bf9e6b4c7e7bfffcfb56b5f27de67"
 	if got != want {
 		t.Fatalf("position occupancy digest = %s, want %s", got, want)
 	}
@@ -90,10 +83,8 @@ func TestTodo_WEB_185_Browser(t *testing.T) {
 	}
 }
 
-// Conformance: position occupancy presentation keeps
-// the registry contract — visible to the employee,
-// hidden from the role-less baseline, ordered, and
-// honest in every locale.
+// Conformance: the route remains role-scoped and its selection copy resolves
+// in every supported locale.
 func TestTodo_WEB_185_Conformance(t *testing.T) {
 	if !PageVisible(PagePositionOccupancy, []string{"worker_self"}) {
 		t.Fatal("position occupancy presentation hidden from the employee")

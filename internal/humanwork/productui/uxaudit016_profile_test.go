@@ -33,6 +33,41 @@ func TestTodo_UXAUDIT_016(t *testing.T) {
 	}
 }
 
+func TestTodo_UXAUDIT_016_Accessibility(t *testing.T) {
+	locale := ResolveProductLocale("en-US")
+	markup, err := ui.RenderToString(ui.CreateElement(EmploymentDetails, EmploymentDetailsProps{
+		I18nProps: I18nProps{Locale: locale}, Title: "Employment overview", Description: "Current details",
+		Facts: []ProfileFactProps{
+			{Label: "Worker number", Value: "HC-21059", Status: WorkerFactPresent},
+			{Label: "Job level", Value: "Level 4", Status: WorkerFactUnknown},
+			{Label: "Manager", Value: "Restricted", Status: WorkerFactWithheld},
+			{Label: "Employment type", Value: "Not reported", Status: WorkerFactMissing},
+			{Label: "Time type", Value: "Not reported", Status: WorkerFactMissing},
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, semantic := range []string{
+		`<section class="surface person-details">`,
+		`<h2>Employment overview</h2>`,
+		`<dl class="person-fact-grid">`,
+		`<details class="profile-missing-details">`,
+		`<summary class="profile-missing-summary">2 fields not reported`,
+		`<dt>Worker number</dt>`, `<dd>HC-21059</dd>`,
+		`<span class="profile-fact-status status fact-unknown">Unknown</span>`,
+		`<span class="profile-fact-status status fact-withheld">Restricted</span>`,
+	} {
+		if !strings.Contains(markup, semantic) {
+			t.Errorf("profile is missing accessible semantic %q: %s", semantic, markup)
+		}
+	}
+	if strings.Contains(markup, `class="profile-fact-status status fact-present"`) ||
+		strings.Contains(markup, `class="profile-fact-status status fact-missing"`) {
+		t.Fatalf("available and missing values gained redundant status text: %s", markup)
+	}
+}
+
 func TestTodo_UXAUDIT_016_Security(t *testing.T) {
 	locale := ResolveProductLocale("en-US")
 	person := Person{ID: "worker-secure", Name: "Authorized Name", LegalName: "Raw Legal Name", Role: "Engineer"}

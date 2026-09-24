@@ -1,11 +1,103 @@
 package productui
 
 import (
+	"errors"
+	"slices"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/organization"
 )
 
 const defaultPageSize = 20
+
+type organizationGraphProjection struct {
+	Units          []organization.OrganizationUnit
+	Edges          []organization.RelationshipEdge
+	UnitByID       map[string]organization.OrganizationUnit
+	LocationIDs    map[string]bool
+	LocationByUnit map[string]string
+	AsOf           time.Time
+	Err            error
+}
+
+// readOrganizationGraph resolves every authorized unit and its active edges
+// through the canonical domain reader. The supplied authorizer is bound by
+// the authenticated server composition; missing authority fails closed.
+func readOrganizationGraph(view View) organizationGraphProjection {
+	projection := organizationGraphProjection{UnitByID: map[string]organization.OrganizationUnit{}, LocationIDs: map[string]bool{}, LocationByUnit: map[string]string{}}
+	if view.OrganizationGraph == nil {
+		projection.Err = organization.ErrInvalidGraph
+		return projection
+	}
+	if view.AuthorizeOrganizationUnit == nil {
+		projection.Err = organization.ErrUnauthorized
+		return projection
+	}
+	if strings.TrimSpace(view.OrganizationTenant) == "" || view.OrganizationTenant != view.OrganizationGraph.Tenant {
+		projection.Err = organization.ErrTenantBoundary
+		return projection
+	}
+	if strings.TrimSpace(view.OrganizationAsOf) == "" {
+		projection.Err = organization.ErrInvalidGraph
+		return projection
+	}
+	asOf, err := time.Parse("2006-01-02", strings.TrimSpace(view.OrganizationAsOf))
+	if err != nil {
+		projection.Err = organization.ErrInvalidGraph
+		return projection
+	}
+	projection.AsOf = asOf.UTC()
+	if err := view.OrganizationGraph.Validate(projection.AsOf); err != nil {
+		projection.Err = err
+		return projection
+	}
+	for _, root := range view.OrganizationGraph.Units {
+		if root.EffectiveFrom.After(projection.AsOf) || (root.EffectiveTo != nil && !projection.AsOf.Before(*root.EffectiveTo)) {
+			continue
+		}
+		result, err := view.OrganizationGraph.Read(organization.ReadRequest{
+			Tenant: view.OrganizationTenant, Root: root.ID, AsOf: projection.AsOf,
+			Authorize: view.AuthorizeOrganizationUnit,
+		})
+		if errors.Is(err, organization.ErrUnauthorized) || errors.Is(err, organization.ErrOrphan) {
+			continue
+		}
+		if err != nil {
+			projection.Err = err
+			return projection
+		}
+		for _, unit := range result.Units {
+			projection.UnitByID[unit.ID] = unit
+		}
+		for _, edge := range result.Edges {
+			projection.Edges = append(projection.Edges, edge)
+		}
+	}
+	seenEdges := map[string]bool{}
+	uniqueEdges := projection.Edges[:0]
+	for _, edge := range projection.Edges {
+		if seenEdges[edge.ID] {
+			continue
+		}
+		seenEdges[edge.ID] = true
+		uniqueEdges = append(uniqueEdges, edge)
+		if edge.Type == organization.Geographic {
+			projection.LocationIDs[edge.Target] = true
+			if location, ok := projection.UnitByID[edge.Target]; ok {
+				projection.LocationByUnit[edge.Source] = location.Name
+			}
+		}
+	}
+	projection.Edges = uniqueEdges
+	for _, unit := range projection.UnitByID {
+		projection.Units = append(projection.Units, unit)
+	}
+	sort.Slice(projection.Units, func(i, j int) bool { return projection.Units[i].ID < projection.Units[j].ID })
+	sort.Slice(projection.Edges, func(i, j int) bool { return projection.Edges[i].ID < projection.Edges[j].ID })
+	return projection
+}
 
 const (
 	peopleSortName       = "name"
@@ -223,17 +315,17 @@ func sortPeopleValues(people []Person, field string, descending bool) []Person {
 			name: normalized.name, id: person.ID,
 		}
 	}
-	sort.SliceStable(decorated, func(left, right int) bool {
-		comparison := compareSortText(decorated[left].primary, decorated[right].primary, descending)
+	slices.SortStableFunc(decorated, func(left, right sortablePerson) int {
+		comparison := compareSortText(left.primary, right.primary, descending)
 		if comparison == 0 {
 			// Secondary ordering is always ascending so equal roles, teams, and
 			// locations do not visually jump when the primary direction flips.
-			comparison = compareSortText(decorated[left].name, decorated[right].name, false)
+			comparison = compareSortText(left.name, right.name, false)
 		}
 		if comparison == 0 {
-			comparison = strings.Compare(decorated[left].id, decorated[right].id)
+			comparison = strings.Compare(left.id, right.id)
 		}
-		return comparison < 0
+		return comparison
 	})
 	result := make([]Person, len(decorated))
 	for index := range decorated {

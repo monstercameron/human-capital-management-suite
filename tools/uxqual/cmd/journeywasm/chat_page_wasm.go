@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 )
@@ -49,6 +50,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 		js.Global().Call("addEventListener", "popstate", popstate)
 		hashChanged := js.FuncOf(func(js.Value, []js.Value) any {
 			openChatChannelFragment(chatBrowser.config(journeyclient.Config{}))
+			openChatPersonFragment(chatBrowser.config(journeyclient.Config{}))
 			return nil
 		})
 		js.Global().Call("addEventListener", "hashchange", hashChanged)
@@ -86,6 +88,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 			js.Global().Call("removeEventListener", "hashchange", hashChanged)
 			hashChanged.Release()
 			resetChatChannelFragment()
+			chatPersonFragments.claim("")
 			chatHistory.reset()
 			if chatRerenderEpoch == epoch {
 				chatRerenderEpoch++
@@ -106,6 +109,16 @@ func renderChatPage(props chatPageProps) ui.Node {
 	// model carries its tenant and viewer. Retry on renders until that identity
 	// exists; empty identity would make the first chat entry unsafe to restore.
 	chatHistory.seed(model)
+	ui.UseEffectOf(func() func() {
+		if model.State == chatui.StateReady {
+			recordSelectedChatVisit(model.CurrentTenantID, model.CurrentUser, model.SelectedID)
+		}
+		return func() { releaseSelectedChatVisit(model.CurrentTenantID, model.CurrentUser) }
+	}, struct {
+		Tenant, Principal, Selected string
+		Ready                       bool
+	}{model.CurrentTenantID, model.CurrentUser, model.SelectedID, model.State == chatui.StateReady})
 	ui.UseEffectOf(func() func() { resolveVisibleChatEmbeds(chatBrowser.config(journeyclient.Config{})); return nil }, chatEmbedFingerprint(model))
+	ui.UseEffectOf(func() func() { resolveVisibleChatDocs(chatBrowser.config(journeyclient.Config{})); return nil }, chatDocPreviewFingerprint(model))
 	return productui.BuildChatPage(props.View, model)
 }

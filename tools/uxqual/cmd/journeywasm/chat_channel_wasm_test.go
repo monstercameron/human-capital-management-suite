@@ -18,6 +18,7 @@ import (
 type channelLinkClient struct {
 	chatv1.ConversationServiceClient
 	get   chan string
+	add   chan *chatv1.AddMembershipRequest
 	allow bool
 }
 
@@ -27,6 +28,15 @@ func (c *channelLinkClient) GetConversation(_ context.Context, request *chatv1.G
 		return nil, errors.New("permission denied")
 	}
 	return &chatv1.GetConversationResponse{Conversation: &chatv1.Conversation{Id: request.GetConversationId(), TenantId: request.GetTenantId(), Kind: chatv1.ConversationKind_CONVERSATION_KIND_PUBLIC_CHANNEL, Name: "Authorized"}}, nil
+}
+func (c *channelLinkClient) ListConversations(_ context.Context, request *chatv1.ListConversationsRequest, _ ...grpc.CallOption) (*chatv1.ListConversationsResponse, error) {
+	return &chatv1.ListConversationsResponse{Conversations: []*chatv1.Conversation{{Id: "room-101", TenantId: request.GetTenantId(), Kind: chatv1.ConversationKind_CONVERSATION_KIND_PUBLIC_CHANNEL, Name: "Authorized", Joined: false}}}, nil
+}
+func (c *channelLinkClient) AddMembership(_ context.Context, request *chatv1.AddMembershipRequest, _ ...grpc.CallOption) (*chatv1.AddMembershipResponse, error) {
+	if c.add != nil {
+		c.add <- request
+	}
+	return &chatv1.AddMembershipResponse{Membership: request.GetMembership()}, nil
 }
 func (*channelLinkClient) ListPosts(context.Context, *chatv1.ListPostsRequest, ...grpc.CallOption) (*chatv1.ListPostsResponse, error) {
 	return &chatv1.ListPostsResponse{}, nil
@@ -38,11 +48,15 @@ func (*channelLinkClient) WatchConversation(context.Context, *chatv1.WatchConver
 	return nil, errors.New("test stream unavailable")
 }
 
-func TestChatChannelFragmentOpensAuthorizedRoomBeyondFirstListPage(t *testing.T) {
+func TestUnjoinedPublicChannelLinkAsksBeforeAddingRoomToRail(t *testing.T) {
 	oldModel, oldClient := chatBrowser.snapshot(), chatBrowser.conversationClient()
 	oldCfg := chatBrowser.config(journeyclient.Config{})
+	chatRecipientBrowser.Lock()
+	oldSidebarClient, oldSidebarLayout, oldSidebarLoadedAt := chatRecipientBrowser.client, chatRecipientBrowser.layout, chatRecipientBrowser.loadedAt
+	chatRecipientBrowser.client, chatRecipientBrowser.layout, chatRecipientBrowser.loadedAt = nil, recipientLayout{}, time.Time{}
+	chatRecipientBrowser.Unlock()
 	oldLocation := js.Global().Get("location")
-	client := &channelLinkClient{get: make(chan string, 1), allow: true}
+	client := &channelLinkClient{get: make(chan string, 1), add: make(chan *chatv1.AddMembershipRequest, 1), allow: true}
 	cfg := journeyclient.Config{Tenant: "tenant", Subject: "reader", Locale: "en-US"}
 	chatBrowser.reset(client, cfg, nil)
 	js.Global().Set("location", js.ValueOf(map[string]any{"origin": "https://hcm.example", "hash": "#channel=room-101"}))
@@ -53,6 +67,9 @@ func TestChatChannelFragmentOpensAuthorizedRoomBeyondFirstListPage(t *testing.T)
 		js.Global().Set("location", oldLocation)
 		chatBrowser.reset(oldClient, oldCfg, nil)
 		chatBrowser.mutate(func(model *chatui.Model) { *model = oldModel })
+		chatRecipientBrowser.Lock()
+		chatRecipientBrowser.client, chatRecipientBrowser.layout, chatRecipientBrowser.loadedAt = oldSidebarClient, oldSidebarLayout, oldSidebarLoadedAt
+		chatRecipientBrowser.Unlock()
 	})
 	openChatChannelFragment(cfg)
 	select {
@@ -72,8 +89,30 @@ func TestChatChannelFragmentOpensAuthorizedRoomBeyondFirstListPage(t *testing.T)
 			time.Sleep(time.Millisecond)
 		}
 	}
-	if len(chatBrowser.snapshot().Conversations) != 1 {
-		t.Fatal("authorized room was not added to rail")
+	model := chatBrowser.snapshot()
+	if len(model.Conversations) != 0 {
+		t.Fatalf("unjoined public channel appeared in rail before consent: %+v", model.Conversations)
+	}
+	if model.JoinPromptID != "room-101" || model.PreviewConversation == nil || model.PreviewConversation.Name != "Authorized" {
+		t.Fatalf("channel preview did not ask to join: %+v", model)
+	}
+	select {
+	case request := <-client.add:
+		t.Fatalf("channel joined before the reader accepted the prompt: %+v", request)
+	default:
+	}
+	joinChatConversation(cfg, "room-101")
+	select {
+	case request := <-client.add:
+		if request.GetMembership().GetConversationId() != "room-101" || request.GetMembership().GetSubjectId() != "reader" {
+			t.Fatalf("join request = %+v", request)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("accepting the prompt did not persist membership")
+	}
+	model = chatBrowser.snapshot()
+	if model.JoinPromptID != "" || len(model.Conversations) != 1 || !model.Conversations[0].Joined {
+		t.Fatalf("accepted room did not move into the rail: %+v", model)
 	}
 }
 

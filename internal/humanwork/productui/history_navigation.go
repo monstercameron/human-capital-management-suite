@@ -32,8 +32,15 @@ func historyNavigationButton(direction, label string, enabled bool, action func(
 		Type:  "button", Title: label, Disabled: !enabled,
 		Aria: map[string]string{"label": label},
 	}
+	// The handler hook runs on every render: hooks are positional, so one
+	// that appears only once the button enables breaks the hooks after it.
+	click := ui.UseEvent(func(ui.MouseEvent) {
+		if enabled && action != nil {
+			action()
+		}
+	})
 	if enabled && action != nil {
-		button.OnClick = ui.UseEvent(func(ui.MouseEvent) { action() })
+		button.OnClick = click
 	}
 	icon := "history-back"
 	if direction == "forward" {

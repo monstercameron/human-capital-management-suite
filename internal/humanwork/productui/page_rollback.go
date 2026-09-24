@@ -11,9 +11,9 @@ import (
 // evidence, never optional: an unexplained end-of-life cannot be
 // reviewed.
 type PageRetirement struct {
-	Page          PageID
-	EffectiveFrom int64
-	Reason        string
+	Page          PageID `json:"page"`
+	EffectiveFrom int64  `json:"effective_from"`
+	Reason        string `json:"reason"`
 }
 
 // RetirementVerdict is the retirement answer: compatible plus the

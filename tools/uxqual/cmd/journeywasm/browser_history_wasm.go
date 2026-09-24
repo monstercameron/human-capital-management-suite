@@ -95,6 +95,27 @@ func (controller *browserProductHistoryController) Navigate(navigate func(string
 	controller.maxIndex = controller.index
 	controller.replaceCurrentState(controller.index)
 	controller.writeMax()
+	// A query-only move (search, filter, list to document) re-renders only
+	// the route, not the shell, so the header arrows are told directly.
+	refreshProductHistoryControls()
+}
+
+// Replace delegates a history-replacing navigation (search as you type) to
+// the router and restores this entry's ledger annotation, which the router's
+// replaceState would otherwise overwrite with null.
+func (controller *browserProductHistoryController) Replace(replace func(string), href string) {
+	if replace == nil {
+		return
+	}
+	if controller != nil {
+		controller.pendingSoftwareNavigation = normalizedProductHistoryHref(href)
+	}
+	replace(href)
+	if controller == nil || controller.id == "" {
+		return
+	}
+	controller.replaceCurrentState(controller.index)
+	refreshProductHistoryControls()
 }
 
 // RecordSameRoutePush advances the app-level history controls after a
@@ -182,15 +203,33 @@ func (controller *browserProductHistoryController) Props(locale productui.Locale
 	}
 	state, stateOK := browserHistoryState(history)
 	id, index, stateOK := productHistoryState(state)
-	if !stateOK || id != controller.id {
+	if !stateOK || !controller.adopt(id, index) {
 		return props
 	}
-	controller.index = index
 	props.CanGoBack = controller.index > 0
 	props.CanGoForward = controller.index < controller.maxIndex
 	props.GoBack = func() { controller.Go(-1) }
 	props.GoForward = func() { controller.Go(1) }
 	return props
+}
+
+// adopt follows the ledger of the entry the browser is on. A reload mints a
+// new ledger for new entries, but Back then lands on entries stamped by the
+// earlier load; they are still this tab's history, so the controls adopt
+// that ledger (with its stored forward mark) instead of switching off.
+func (controller *browserProductHistoryController) adopt(id string, index int) bool {
+	if id == "" {
+		return false
+	}
+	if id != controller.id {
+		controller.id = id
+		controller.maxIndex = maxInt(index, readProductHistoryMax(id))
+	}
+	controller.index = index
+	if index > controller.maxIndex {
+		controller.maxIndex = index
+	}
+	return true
 }
 
 func (controller *browserProductHistoryController) Go(offset int) {
@@ -203,10 +242,9 @@ func (controller *browserProductHistoryController) Go(offset int) {
 	}
 	state, stateOK := browserHistoryState(history)
 	id, index, stateOK := productHistoryState(state)
-	if !stateOK || id != controller.id {
+	if !stateOK || !controller.adopt(id, index) {
 		return
 	}
-	controller.index = index
 	if offset < 0 && controller.index <= 0 || offset > 0 && controller.index >= controller.maxIndex {
 		return
 	}
@@ -447,7 +485,7 @@ func browserStorageGet(storage js.Value, key string) (value string, ok bool) {
 			ok = false
 		}
 	}()
-	if storage.Type() != js.TypeObject || key == "" || productclient.ValidateHistoryStorageEntry(key, "0") != nil {
+	if storage.Type() != js.TypeObject || key == "" || productclient.ValidateBrowserStorageRead(key) != nil {
 		return "", false
 	}
 	raw, callOK := browserCall(storage, "getItem", key)
@@ -458,7 +496,9 @@ func browserStorageGet(storage js.Value, key string) (value string, ok bool) {
 }
 
 func applyBrowserHistoryNavigation(view *productui.View) {
-	if view != nil && productHistory != nil {
+	// Until the shell hydrates, the arrows keep the server's disabled state;
+	// see renderProductShellLayout.
+	if view != nil && productHistory != nil && productHistoryMounted {
 		view.HistoryNavigation = productHistory.Props(view.Locale)
 	}
 }

@@ -51,13 +51,17 @@ type SupportRequestCategory struct {
 }
 
 type KnowledgeSearchPageProps struct {
-	Query       string
-	Action      string
-	Placeholder string
-	Label       string
-	SubmitLabel string
-	Unavailable EmptyStateProps
-	Navigate    func(string)
+	Query           string
+	Action          string
+	Placeholder     string
+	Label           string
+	SubmitLabel     string
+	Unavailable     EmptyStateProps
+	Navigate        func(string)
+	Results         []KnowledgeSearchResult
+	ResultsLabel    string
+	NoResults       EmptyStateProps
+	SearchCompleted bool
 }
 
 type HRServiceRequestPageProps struct {
@@ -186,13 +190,26 @@ func KnowledgeSearchPage(props KnowledgeSearchPageProps) ui.Node {
 			}
 		})
 	}
-	return html.Div(html.Props{Class: "support-search-page"},
+	children := []ui.Node{
 		html.Form(form,
 			html.Label(html.Props{For: input.ID}, ui.Text(props.Label)),
 			html.Div(html.Props{Class: "support-search-controls"}, ui.CreateElement(SearchInput, input), html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.SubmitLabel))),
 		),
-		ui.CreateElement(EmptyState, props.Unavailable),
-	)
+	}
+	if len(props.Results) > 0 {
+		items := make([]ui.Node, 0, len(props.Results))
+		for _, result := range props.Results {
+			items = append(items, html.Li(html.Props{}, html.H3(html.Props{}, ui.Text(result.Title)), html.P(html.Props{}, ui.Text(result.Summary))))
+		}
+		children = append(children, html.Section(html.Props{Class: "support-search-results", Raw: map[string]any{"aria-label": props.ResultsLabel}},
+			html.H2(html.Props{}, ui.Text(props.ResultsLabel)), html.Ul(html.Props{}, items...),
+		))
+	} else if props.SearchCompleted {
+		children = append(children, ui.CreateElement(EmptyState, props.NoResults))
+	} else {
+		children = append(children, ui.CreateElement(EmptyState, props.Unavailable))
+	}
+	return html.Div(html.Props{Class: "support-search-page"}, children...)
 }
 
 func HRServiceRequestPage(props HRServiceRequestPageProps) ui.Node {
@@ -287,7 +304,7 @@ func ViewerProfileCard(props ViewerProfileProps) ui.Node {
 }
 
 func AccessContext(props AccessContextProps) ui.Node {
-	return html.Aside(html.Props{Class: "settings-context", Data: map[string]string{"hcm-setting-group": "account-security"}, Aria: map[string]string{"labelledby": "settings-access-title"}},
+	return html.Aside(html.Props{Class: "settings-context", Aria: map[string]string{"labelledby": "settings-access-title"}},
 		html.H3(html.Props{ID: "settings-access-title"}, ui.Text(props.Title)),
 		html.P(html.Props{Class: "muted"}, ui.Text(props.Description)),
 		FactList(props.Facts),

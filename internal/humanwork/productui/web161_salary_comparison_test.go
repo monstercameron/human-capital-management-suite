@@ -37,8 +37,9 @@ func TestTodo_WEB_161(t *testing.T) {
 	if strings.Contains(doc, "⟦") {
 		t.Fatal("salary comparison exposes an unresolved message key")
 	}
+	content := webMainVisibleText(t, doc)
 	for _, invented := range []string{"range:", "band:", "$0.00", "within ✓"} {
-		if strings.Contains(doc, invented) {
+		if strings.Contains(content, invented) {
 			t.Fatalf("salary comparison invents band data: %q", invented)
 		}
 	}

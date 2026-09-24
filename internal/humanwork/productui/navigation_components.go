@@ -202,6 +202,11 @@ func navigationToggleProps(view View) NavigationToggleProps {
 	toggle := NavigationToggleProps{
 		Label: view.Locale.Text("nav.collapse"), Icon: "collapse", Href: currentPageHref(view, true), Navigate: view.Navigate,
 	}
+	// Collapsing the navigation is presentation, not a destination: it
+	// replaces the current history entry so Back never re-toggles it.
+	if view.NavigateReplace != nil {
+		toggle.Navigate = view.NavigateReplace
+	}
 	if view.NavCollapsed {
 		toggle.Label, toggle.Icon = view.Locale.Text("nav.expand"), "expand"
 		toggle.Href = withExplicitQueryValue(currentPageHref(view, false), []string{"nav"}, "expanded")
@@ -365,7 +370,7 @@ func favoriteToggleHref(view View, page PageID) string {
 func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 	// The browser enhancement turns this same aside into an overlay drawer at
 	// narrow widths. SSR keeps the ordinary document-order navigation intact.
-	useMobileNavigationDrawer("workspace-navigation", "header-nav-toggle", "mobile-navigation-backdrop")
+	useMobileNavigationDrawer("workspace-navigation", "nav-drawer-trigger", "mobile-navigation-backdrop")
 	query := ui.UseState(props.Filter.Query)
 	propQuery := props.Filter.Query
 	ui.UseEffectOf(func() func() {
@@ -505,14 +510,10 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 		rawAttrs = attrs
 		role = "dialog"
 	}
-	// UIPOLISH-004 "drawer": at narrow viewports ".primary-nav" gives up its
-	// own overflow (declared overflow:visible!important there, see
-	// navigation_components_test.go's coverage of that breakpoint) and this
-	// aside becomes the sole scroll owner instead -- two independently
-	// scrolling regions nested inside each other is exactly the "page and
-	// table compete for the same gesture" pattern RED forbids. Rendering it
-	// through the same ScrollRegion component as every other scroll owner
-	// keeps it keyboard-reachable there too.
+	// UIPOLISH-004 "drawer": at narrow viewports the primary nav gives up its
+	// own overflow and this aside becomes the sole scroll owner. Sticky search
+	// and support controls stay available while every destination can scroll
+	// through the same keyboard-focusable region.
 	return html.Fragment(backdrop, ui.CreateElement(ScrollRegion, ScrollRegionProps{
 		Tag: "aside", ID: "workspace-navigation", Class: class, Role: role, Focusable: true, RestoreScroll: true,
 		Aria: map[string]string{"label": props.Text("nav.workspace")}, Raw: rawAttrs, OnKeyDown: onEscape, Children: children,

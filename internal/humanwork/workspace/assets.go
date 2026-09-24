@@ -16,19 +16,9 @@ const (
 	// because the two pages are different products: uxqual.wasm re-renders
 	// an already-complete server-rendered document, journey.wasm is the
 	// whole page and reaches the cell over the gRPC tunnel.
-	assetJourneyWasm      = "journey.wasm"
-	assetWasmExec         = "wasm_exec.js"
-	assetHarborcareLogo   = "harborcare-logo.svg"
-	assetPersonPriya      = "person-priya.png"
-	assetPersonJane       = "person-jane.png"
-	assetPersonOmar       = "person-omar.png"
-	assetPersonLena       = "person-lena.png"
-	assetPersonNoor       = "person-noor.png"
-	assetPersonPriyaSmall = "person-priya-small.jpg"
-	assetPersonJaneSmall  = "person-jane-small.jpg"
-	assetPersonOmarSmall  = "person-omar-small.jpg"
-	assetPersonLenaSmall  = "person-lena-small.jpg"
-	assetPersonNoorSmall  = "person-noor-small.jpg"
+	assetJourneyWasm    = "journey.wasm"
+	assetWasmExec       = "wasm_exec.js"
+	assetHarborcareLogo = "harborcare-logo.svg"
 )
 
 // assetsFS is the embedded bundle directory.
@@ -52,19 +42,6 @@ func asset(name string) ([]byte, bool) {
 		return nil, false
 	}
 	if _, ok := FrontendAssetContentType(name); !ok {
-		return nil, false
-	}
-	return embeddedAsset(name)
-}
-
-// employeePhotoOriginal reads an immutable source photo for controlled proxy
-// generation. Originals are deliberately not accepted by asset, so knowing a
-// source filename cannot turn the public asset route into an original-image
-// download endpoint.
-func employeePhotoOriginal(name string) ([]byte, bool) {
-	switch name {
-	case assetPersonPriya, assetPersonJane, assetPersonOmar, assetPersonLena, assetPersonNoor:
-	default:
 		return nil, false
 	}
 	return embeddedAsset(name)
@@ -116,8 +93,7 @@ func compressedAsset(name string) ([]byte, bool) {
 // source originals and legacy fixtures cannot enter the release manifest.
 func FrontendAssetContentType(name string) (string, bool) {
 	switch name {
-	case assetJourneyWasm, assetWasmExec, assetHarborcareLogo,
-		assetPersonPriyaSmall, assetPersonJaneSmall, assetPersonOmarSmall, assetPersonLenaSmall, assetPersonNoorSmall:
+	case assetJourneyWasm, assetWasmExec, assetHarborcareLogo:
 	default:
 		if !isSeedPhotoProxy(name) {
 			return "", false

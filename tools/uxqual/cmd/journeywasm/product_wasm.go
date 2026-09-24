@@ -15,6 +15,8 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	positionv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
+	reviewparticipantsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/reviewparticipants/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
@@ -23,6 +25,13 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/taskmux"
 	"google.golang.org/grpc"
 )
+
+// knowledgeSearchService is the optional knowledge facet consumed by this
+// product entrypoint. It stays beside the consumer so journeyclient remains
+// focused on the workflow client seam.
+type knowledgeSearchService interface {
+	SearchKnowledge(context.Context, *journeyv1.SearchKnowledgeRequest) (*journeyv1.SearchKnowledgeResponse, error)
+}
 
 const (
 	productPathPrefix = "/workspace/app/"
@@ -73,6 +82,74 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// Docs uses the same authenticated gRPC connection as the rest of the
 	// workspace. A disabled document service reports UNAVAILABLE server-side.
 	documentService := documentv1.NewDocumentServiceClient(conn)
+	positionService := positionv1.NewPositionServiceClient(conn)
+	liveService.ListPositionObjectOptions = func(ctx context.Context, request *positionv1.ListPositionObjectOptionsRequest) (*positionv1.ListPositionObjectOptionsResponse, error) {
+		return positionService.ListPositionObjectOptions(chatRPCContext(ctx, cfg), request)
+	}
+	liveService.ListPositionOccupancyOptions = func(ctx context.Context, request *positionv1.ListPositionOccupancyOptionsRequest) (*positionv1.ListPositionOccupancyOptionsResponse, error) {
+		return positionService.ListPositionOccupancyOptions(chatRPCContext(ctx, cfg), request)
+	}
+	reviewParticipantsService := reviewparticipantsv1.NewReviewParticipantsServiceClient(conn)
+	liveService.GetReviewParticipants = func(ctx context.Context) (*productui.ReviewParticipantsProjection, error) {
+		response, err := reviewParticipantsService.GetReviewParticipants(chatRPCContext(ctx, cfg), &reviewparticipantsv1.GetReviewParticipantsRequest{})
+		if err != nil {
+			return nil, err
+		}
+		projection := &productui.ReviewParticipantsProjection{Cycles: make([]productui.ReviewParticipantsCycleProjection, 0, len(response.GetCycles()))}
+		for _, cycle := range response.GetCycles() {
+			if cycle == nil {
+				continue
+			}
+			item := productui.ReviewParticipantsCycleProjection{
+				CycleID: cycle.GetCycleId(), CycleRevision: cycle.GetCycleRevision(),
+				GraphRevision: cycle.GetGraphRevision(), GraphDigest: cycle.GetGraphDigest(),
+				Assignments: make([]productui.ReviewParticipantAssignmentProjection, 0, len(cycle.GetAssignments())),
+			}
+			for _, assignment := range cycle.GetAssignments() {
+				if assignment != nil {
+					item.Assignments = append(item.Assignments, productui.ReviewParticipantAssignmentProjection{
+						ParticipantID: assignment.GetParticipantId(), ReviewerID: assignment.GetReviewerId(), Relationship: assignment.GetRelationship(),
+					})
+				}
+			}
+			projection.Cycles = append(projection.Cycles, item)
+		}
+		return projection, nil
+	}
+	liveService.GetPositionObject = func(ctx context.Context, ref string) (*productui.PositionObjectProjection, error) {
+		response, err := positionService.GetPositionObject(chatRPCContext(ctx, cfg), &positionv1.GetPositionObjectRequest{PositionRevisionRef: ref})
+		if err != nil {
+			return nil, err
+		}
+		if !response.GetExists() {
+			return nil, nil
+		}
+		return &productui.PositionObjectProjection{
+			PositionID: response.GetPositionId(), Revision: response.GetRevision(), JobCode: response.GetJobCode(),
+			OrgUnit: response.GetOrgUnit(), Lifecycle: response.GetLifecycle(), Compatible: response.GetCompatible(),
+		}, nil
+	}
+	liveService.GetPositionOccupancy = func(ctx context.Context, ref string) (*productui.PositionOccupancyProjection, error) {
+		response, err := positionService.GetPositionOccupancy(chatRPCContext(ctx, cfg), &positionv1.GetPositionOccupancyRequest{PositionRevisionRef: ref})
+		if err != nil {
+			return nil, err
+		}
+		if !response.GetExists() {
+			return nil, nil
+		}
+		projection := &productui.PositionOccupancyProjection{
+			PositionID: response.GetPositionId(), CapacityFTE: response.GetCapacityFte(), CapacityHeads: response.GetCapacityHeads(),
+			ConsumedFTE: response.GetConsumedFte(), ConsumedHeads: response.GetConsumedHeads(),
+			AvailableFTE: response.GetAvailableFte(), AvailableHeads: response.GetAvailableHeads(),
+			Occupants: make([]productui.PositionOccupantProjection, 0, len(response.GetOccupants())),
+		}
+		for _, occupant := range response.GetOccupants() {
+			if occupant != nil {
+				projection.Occupants = append(projection.Occupants, productui.PositionOccupantProjection{WorkerID: occupant.GetWorkerId(), FTE: occupant.GetFte()})
+			}
+		}
+		return projection, nil
+	}
 	createDocument := documentService.CreateDocument
 	liveService.ListDocuments = func(ctx context.Context, request *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
 		return documentService.ListDocuments(chatRPCContext(ctx, cfg), request)
@@ -86,10 +163,16 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	liveService.ShareDocument = func(ctx context.Context, request *documentv1.ShareDocumentRequest) (*documentv1.ShareDocumentResponse, error) {
 		return documentService.ShareDocument(chatRPCContext(ctx, cfg), request)
 	}
+	liveService.GetDocumentLibrary = func(ctx context.Context, request *documentv1.GetDocumentLibraryRequest) (*documentv1.GetDocumentLibraryResponse, error) {
+		return documentService.GetDocumentLibrary(chatRPCContext(ctx, cfg), request)
+	}
 	if preferenceService, ok := service.(journeyclient.PreferenceService); ok {
 		liveService.GetPreferences = preferenceService.GetProductPreferences
 		liveService.GetWorkerIDPolicy = preferenceService.GetWorkerIDPolicy
 		liveService.GetRoleAccess = preferenceService.GetRoleAccess
+	}
+	if knowledgeService, ok := service.(knowledgeSearchService); ok {
+		liveService.SearchKnowledge = knowledgeService.SearchKnowledge
 	}
 	if workflowService, ok := service.(journeyclient.WorkflowViewerService); ok {
 		liveService.ListWorkflowPublications = workflowService.ListWorkflowPublications
@@ -173,10 +256,41 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	productHistory = newBrowserProductHistoryController()
 	productScroll = newBrowserProductScrollController()
 	productScroll.Bind()
+	// Server-backed search-as-you-type reruns the route loader in place:
+	// NavigateReplace reads the next result set without adding a history
+	// entry per pause, and any deliberate navigation cancels a pending one.
+	// A search that starts a typing session is a new history step; later
+	// keystrokes in the session update that step in place.
+	searchPush := false
+	searchDebounce := newNavigationDebouncerWithScheduler(func(href string) {
+		if searchPush {
+			searchPush = false
+			productScroll.BeginSoftwareNavigation()
+			productHistory.Navigate(productRouter.Navigate, href)
+			return
+		}
+		productHistory.Replace(productRouter.NavigateReplace, href)
+	}, browserDebounceScheduler)
+	scheduleSearch := func(href string, push bool) {
+		if push {
+			searchPush = true
+		}
+		searchDebounce.Schedule(href)
+	}
+	docsReplaceRoute = func(href string) { productHistory.Replace(productRouter.NavigateReplace, href) }
 	navigateProduct := func(href string) {
+		searchDebounce.Cancel()
+		searchPush = false
 		productScroll.BeginSoftwareNavigation()
 		productHistory.Navigate(productRouter.Navigate, href)
 	}
+	// replaceProduct is navigateProduct without a new history step.
+	replaceProduct := func(href string) {
+		searchDebounce.Cancel()
+		searchPush = false
+		productHistory.Replace(productRouter.NavigateReplace, href)
+	}
+	bindProductLinkFallback(navigateProduct)
 	// Menu filtering is local component state. Debounce only its shareable URL
 	// state so typing never reruns page loaders or refetches workforce data.
 	navigationDebounce := newNavigationDebouncerWithScheduler(browserReplaceURL, browserDebounceScheduler)
@@ -294,9 +408,12 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				view.PeopleColumnDraft = peopleColumnDraft
 				view.Chat = chatModel
 				view.Navigate = navigateProduct
+				view.NavigateReplace = replaceProduct
 				applyBrowserHistoryNavigation(&view)
 				view.NavigateDebounced = navigationDebounce.Schedule
 				view.CancelDebouncedNavigation = navigationDebounce.Cancel
+				view.SearchDebounced = scheduleSearch
+				view.CancelSearchDebounced = searchDebounce.Cancel
 				preferences.Adopt(view)
 				appearance.SetPersonalDensity(view.StoredPreferences.Density)
 				appearance.Load(view.Appearance)
@@ -455,7 +572,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 							}
 							done(err)
 							if err == nil {
-								productRouteRetry()
+								docsQuietRefresh()
 							}
 						}()
 					}
@@ -463,10 +580,14 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				if view.Page == productui.PageDocs {
 					view.AddDocumentComment = func(request productui.DocumentCommentCreateRequest, done func(error)) {
 						go func() {
-							_, err := documentService.AddDocumentComment(chatRPCContext(ctx, cfg), &documentv1.AddDocumentCommentRequest{DocumentId: request.DocumentID, VersionId: request.VersionID, Body: request.Body})
+							add := &documentv1.AddDocumentCommentRequest{DocumentId: request.DocumentID, VersionId: request.VersionID, Body: request.Body, ParentCommentId: request.ParentID}
+							if request.Quote != "" {
+								add.Anchor = &documentv1.CommentAnchor{Quote: request.Quote, Prefix: request.Prefix, Suffix: request.Suffix}
+							}
+							_, err := documentService.AddDocumentComment(chatRPCContext(ctx, cfg), add)
 							done(err)
 							if err == nil {
-								productRouteRetry()
+								docsQuietRefresh()
 							}
 						}()
 					}
@@ -478,8 +599,41 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 							}
 							done(err)
 							if err == nil {
-								productRouteRetry()
+								docsQuietRefresh()
 							}
+						}()
+					}
+					view.CompareDocumentVersions = func(documentID, versionID string, done func(productui.DocumentVersionProjection, error)) {
+						go func() {
+							response, err := documentService.GetDocumentVersion(chatRPCContext(ctx, cfg), &documentv1.GetDocumentVersionRequest{DocumentId: documentID, VersionId: versionID})
+							if err != nil {
+								done(productui.DocumentVersionProjection{}, err)
+								return
+							}
+							done(productui.DocumentVersionProjection{
+								DocumentID: response.GetDocumentId(), VersionID: response.GetVersionId(),
+								Title: response.GetTitle(), Markdown: response.GetMarkdown(), Readable: response.GetReadable(),
+							}, nil)
+						}()
+					}
+					view.LoadDocumentBacklinks = func(documentID string, done func([]productui.DocumentBacklink, error)) {
+						go func() {
+							response, err := documentService.GetDocumentBacklinks(chatRPCContext(ctx, cfg), &documentv1.GetDocumentBacklinksRequest{DocumentId: documentID})
+							if err != nil {
+								done(nil, err)
+								return
+							}
+							rows := make([]productui.DocumentBacklink, 0, len(response.GetBacklinks()))
+							for _, row := range response.GetBacklinks() {
+								if row == nil {
+									continue
+								}
+								rows = append(rows, productui.DocumentBacklink{
+									SourceDocumentID: row.GetSourceDocumentId(), SourceVersionID: row.GetSourceVersionId(), SourceTitle: row.GetSourceTitle(),
+									Label: row.GetLabel(), Block: row.GetBlockId(), State: row.GetState(),
+								})
+							}
+							done(rows, nil)
 						}()
 					}
 				}
@@ -489,13 +643,16 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					}
 					view.ShareDocument = func(request productui.DocumentShareRequest, done func(error)) {
 						go func() {
-							_, err := liveService.ShareDocument(chatRPCContext(ctx, cfg), &documentv1.ShareDocumentRequest{DocumentId: request.DocumentID, RecipientId: request.RecipientID})
+							_, err := liveService.ShareDocument(chatRPCContext(ctx, cfg), &documentv1.ShareDocumentRequest{DocumentId: request.DocumentID, RecipientId: request.RecipientID, Role: request.Role})
 							done(err)
-							if err == nil {
-								productRouteRetry()
-							}
 						}()
 					}
+				}
+				if view.Page == productui.PageDocs {
+					rememberDocsListHref(&view)
+					wireDocumentLibrary(&view, documentService, func(ctx context.Context) context.Context { return chatRPCContext(ctx, cfg) }, ctx)
+					view.DocumentMedia = documentMediaPort(cfg)
+					wireDocsReferenceSuggest(&view, documentService, cfg)
 				}
 				if view.WorkflowDraft != nil {
 					draft := *view.WorkflowDraft
@@ -647,6 +804,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				resolved.RefreshingRegion = ""
 				lastResolvedProductView = &resolved
 				lastProductRouteFailed = loadErr != nil
+				if loadErr == nil {
+					productViews.Put(canonicalHref, resolved)
+				}
 				setActiveProductLayout(resolved, state.Page != productui.PageJourneys && !productui.PageOwnsHeading(state.Page))
 				if shouldSettleWorkflowAuthoringBusy(state.Page, loadErr) {
 					// An idle editor is a saved one and says so; a refusal held
@@ -672,6 +832,15 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				// A failed read is not a resolved projection to refresh in place:
 				// retrying it shows the loading shape, not the empty page.
 				warmRefresh := lastResolvedProductView != nil && !lastProductRouteFailed && keepResolvedProductViewDuringLoad(*lastResolvedProductView, state, journeys.fragment, productclient.JourneyFragment(state.Request))
+				var warmView productui.View
+				if warmRefresh {
+					warmView = *lastResolvedProductView
+				} else if cached, ok := productViews.Get(productclient.CanonicalHref(state)); ok && lastResolvedProductView != nil {
+					// Returning to a page already seen (Back, Forward, the header
+					// arrows, a link back to it) paints it as it was while the
+					// loader re-reads, instead of flashing a loading proxy.
+					warmRefresh, warmView = true, cached
+				}
 				// REV-091-03: a live-update revalidation keeps the page exactly
 				// as it is while the loader re-reads.
 				quietRefresh := consumeProductQuietRefresh()
@@ -680,7 +849,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					// Same-page network effects retain the last authorized projection.
 					// This avoids a skeleton flash for fast filters, sorts and paging;
 					// the resolved response still replaces the tree atomically.
-					view = *lastResolvedProductView
+					view = warmView
 					view.Refreshing = true
 					currentRoute := currentPath() + "?" + currentQuery()
 					if peopleDirectoryOnlyRouteChange(lastFocusedProductRoute, currentRoute) {
@@ -688,6 +857,8 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						// Keep the shell and page heading mounted and scope busy/progress
 						// semantics to the table-plus-pagination component.
 						view.RefreshingRegion = productui.RefreshRegionPeopleDirectory
+					} else if docsLibraryOnlyRouteChange(lastFocusedProductRoute, currentRoute) {
+						view.RefreshingRegion = productui.RefreshRegionDocuments
 					}
 				} else if contentTransition {
 					// Cross-page navigation reuses the authorized shell and only swaps
@@ -696,9 +867,12 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					view = productclient.ContentLoadingView(*lastResolvedProductView, state)
 				}
 				view.Navigate = navigateProduct
+				view.NavigateReplace = replaceProduct
 				applyBrowserHistoryNavigation(&view)
 				view.NavigateDebounced = navigationDebounce.Schedule
 				view.CancelDebouncedNavigation = navigationDebounce.Cancel
+				view.SearchDebounced = scheduleSearch
+				view.CancelSearchDebounced = searchDebounce.Cancel
 				view.Appearance = appearance.Saved()
 				view.Accessibility = accessibility.Saved()
 				if productNavigationGroups != nil {
@@ -963,7 +1137,10 @@ func productRouteComponent(_ router.Attrs) *router.Element {
 // enter through the same component boundary, or the reconciler unmounts the
 // entire workspace (including every image and focused control) on each click.
 func warmProductRouteContent(view productui.View) *router.Element {
-	if view.Page == productui.PageChat {
+	// Chat and Docs hold local state across refreshes (drafts, open dialogs,
+	// selections), so their warm render goes through the same component as
+	// the resolved route; a different element type would remount the page.
+	if view.Page == productui.PageChat || view.Page == productui.PageDocs {
 		return ui.CreateElement(renderProductRoute, router.Attrs{productViewKey: view})
 	}
 	return productui.BuildPageContent(view)
@@ -1033,7 +1210,19 @@ func productShellLayoutComponent(_ router.Attrs) *router.Element {
 	if outlet == nil {
 		outlet = productui.LoadingProxy(productui.LoadingProxyProps{Page: activeProductLayoutView.Page})
 	}
-	return ui.CreateElement(renderProductShellLayout, productShellLayoutProps{Outlet: outlet, View: activeProductLayoutView, ShowHeading: activeProductLayoutShowHeading})
+	return ui.CreateElement(renderProductShellLayoutOnce, &productShellLayoutProps{Outlet: outlet, View: activeProductLayoutView, ShowHeading: activeProductLayoutShowHeading})
+}
+
+// renderProductShellLayoutOnce takes the shell's props by pointer. GWC
+// compares a component's props before re-rendering it, and the value struct
+// (a View full of funcs) never compared equal, so every state update
+// anywhere in the app -- a chat repaint, a list keystroke -- re-rendered the
+// whole shell: 4 to 9 times per chat room switch (Agent P render counts).
+// The router re-uses this element until it runs the factory again, so the
+// pointer is equal exactly when the props are the ones already rendered;
+// the shell's own history state still re-renders it.
+func renderProductShellLayoutOnce(props *productShellLayoutProps) ui.Node {
+	return renderProductShellLayout(*props)
 }
 
 type productShellLayoutProps struct {
@@ -1042,24 +1231,71 @@ type productShellLayoutProps struct {
 	ShowHeading bool
 }
 
+// productViews paints revisited addresses while their route reloads.
+var productViews = newProductViewCache(24, 5*time.Minute, time.Now)
+
+// productHistoryMounted is set once the shell has hydrated; before that the
+// arrows must render exactly as the server did.
+var productHistoryMounted bool
+
 func renderProductShellLayout(props productShellLayoutProps) ui.Node {
 	historyControlsTick := ui.UseState(0)
+	// The arrows this shell last rendered. A same-route push (every chat room
+	// switch) or a search-as-you-type replace asks for a refresh, but the
+	// arrows rarely change; re-rendering the whole shell and its outlet for
+	// nothing cost ~175 ms per chat room switch (Agent P CPU profile).
+	renderedArrows := ui.UseRef(productHistoryArrows{})
+	// The server renders the history arrows disabled (it cannot see the
+	// browser's history). Hydration trusts the server markup to match the
+	// first client render, so that render must also be disabled; the arrows
+	// take their real state on the render after mount. Otherwise a reload
+	// onto an entry with history leaves them stuck disabled. A state update
+	// made while hydrating is dropped, so the flag is a package variable and
+	// the refresh that applies it runs on the next task.
 	ui.UseEffectOf(func() func() {
 		productHistoryControlsRefresh = func() {
+			if productHistory != nil && productHistoryMounted && productHistoryArrowsOf(productHistory.Props(productui.LocaleContext{})) == renderedArrows.Get() {
+				return
+			}
 			historyControlsTick.Update(func(tick int) int { return tick + 1 })
 		}
+		// Browser back/forward (and the header arrows, which call
+		// history.go) land here; recompute the arrows for the entry reached.
+		popstate := js.FuncOf(func(js.Value, []js.Value) any {
+			refreshProductHistoryControls()
+			return nil
+		})
+		js.Global().Call("addEventListener", "popstate", popstate)
+		productHistoryMounted = true
+		var afterHydration js.Func
+		afterHydration = js.FuncOf(func(js.Value, []js.Value) any {
+			afterHydration.Release()
+			refreshProductHistoryControls()
+			return nil
+		})
+		js.Global().Call("setTimeout", afterHydration, 0)
 		return func() {
+			js.Global().Call("removeEventListener", "popstate", popstate)
+			popstate.Release()
 			productHistoryControlsRefresh = nil
 		}
 	}, struct{}{})
 	view := props.View
-	if productHistory != nil {
+	if productHistory != nil && productHistoryMounted {
 		view.HistoryNavigation = productHistory.Props(view.Locale)
 	}
 	if view.Page == "" {
 		view = productui.NewView(productui.PageHome, "", "", "")
 		view.Loading = true
 	}
+	// Record the arrows only once this render has committed: a render that
+	// is superseded before commit (a route change mid-navigation) must not
+	// make a later refresh believe the header already shows the new state.
+	arrows := productHistoryArrowsOf(view.HistoryNavigation)
+	ui.UseLayoutEffect(func() func() {
+		renderedArrows.Set(arrows)
+		return nil
+	})
 	// A page that owns its heading never gets the shell's, not even on the
 	// very first client render before a route has resolved: the default
 	// layout flag is true, and a chat surface must not flash the document
@@ -1130,11 +1366,12 @@ func focusProductRouteAfterNavigation() {
 	js.Global().Call("requestAnimationFrame", callback)
 }
 
-// keepRouteFocus re-applies route focus for a few frames if a late commit
-// replaced the focused heading and dropped focus to <body>. It never takes
-// focus from an element the reader has since moved to.
+// keepRouteFocus re-applies route focus for about a second and a half if a
+// late commit replaced the focused heading and dropped focus to <body> (a
+// document's heading arrives with its data, well after the route commits).
+// It never takes focus from an element the reader has since moved to.
 func keepRouteFocus(selector string, frame int) {
-	if frame >= 6 {
+	if frame >= 90 {
 		return
 	}
 	var callback js.Func

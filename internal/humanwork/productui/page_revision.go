@@ -1,11 +1,16 @@
 package productui
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pageledger"
 )
 
 // PageDefinitionSnapshot is the render-free, storable projection of one
@@ -114,8 +119,14 @@ func MarshalRevision(revision PageDefinitionRevision) []byte {
 // Tampered, truncated, or foreign bytes fail closed.
 func ParseRevision(encoded []byte) (PageDefinitionRevision, error) {
 	var stored persistedRevision
-	if err := json.Unmarshal(encoded, &stored); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(encoded))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&stored); err != nil {
 		return PageDefinitionRevision{}, fmt.Errorf("productui: revision bytes do not parse: %w", err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return PageDefinitionRevision{}, fmt.Errorf("productui: trailing revision bytes")
 	}
 	if stored.Digest == "" || stored.Digest != DigestRevision(stored.Snapshot, stored.Version) {
 		return PageDefinitionRevision{}, fmt.Errorf("productui: revision digest mismatch for page %q version %d", stored.Snapshot.Page, stored.Version)
@@ -124,13 +135,77 @@ func ParseRevision(encoded []byte) (PageDefinitionRevision, error) {
 	return PageDefinitionRevision(stored), nil
 }
 
-// PageRevisionLog is the presentation projection of published page
-// revisions: append-only, keyed by page and version, addressed by
-// digest. It records what the governed service published; durable
-// truth stays with the owning service. The zero value is ready to
-// record.
+// PageRevisionLog is the append-only ledger of published page revisions,
+// keyed by tenant, page and version, addressed by digest. The zero value is
+// an in-memory log; NewDurablePageRevisionLog binds a persistent tenant store.
 type PageRevisionLog struct {
-	revisions map[PageID]map[int64]PageDefinitionRevision
+	revisions   map[PageID]map[int64]PageDefinitionRevision
+	rollouts    []PageRollout
+	retirements map[PageID]PageRetirement
+	tenant      string
+	store       pageledger.Store
+}
+
+// NewDurablePageRevisionLog recovers one tenant's append-only revision and
+// rollout ledger. The returned log is tenant-bound for its lifetime.
+func NewDurablePageRevisionLog(ctx context.Context, tenant string, store pageledger.Store) (*PageRevisionLog, error) {
+	if tenant == "" || store == nil {
+		return nil, fmt.Errorf("productui: durable page log requires tenant and store")
+	}
+	log := &PageRevisionLog{tenant: tenant}
+	revisions, err := store.LoadRevisions(ctx, tenant)
+	if err != nil {
+		return nil, fmt.Errorf("productui: load page revisions: %w", err)
+	}
+	for _, row := range revisions {
+		revision, err := ParseRevision(row.Payload)
+		if err != nil {
+			return nil, err
+		}
+		if revision.Snapshot.Page == "" || revision.Version <= 0 || row.Page != string(revision.Snapshot.Page) || row.Version != revision.Version || row.Digest != revision.Digest {
+			return nil, fmt.Errorf("productui: invalid stored revision key")
+		}
+		if _, err := log.Record(revision.Snapshot.Page, revision.Snapshot, revision.Version); err != nil {
+			return nil, err
+		}
+	}
+	rollouts, err := store.LoadRollouts(ctx, tenant)
+	if err != nil {
+		return nil, fmt.Errorf("productui: load page rollouts: %w", err)
+	}
+	seenRollouts := make(map[string]struct{}, len(rollouts))
+	for _, row := range rollouts {
+		rollout, err := ParsePageRollout(row.Payload)
+		if err != nil {
+			return nil, err
+		}
+		// 00338 backfills 00332 rollout bytes unchanged. Their database row
+		// sequence is the trusted append order because the original payload
+		// predates the record_version field.
+		if rollout.RecordVersion == 0 {
+			rollout.RecordVersion = row.RecordVersion
+		}
+		if err := VerifyRolloutTarget(log, rollout); err != nil {
+			return nil, err
+		}
+		if verdict := ValidatePageRollout(rollout); !verdict.Compatible {
+			return nil, fmt.Errorf("productui: invalid stored rollout: %v", verdict.Reasons)
+		}
+		if row.Page != string(rollout.Page) || row.RecordVersion != rollout.RecordVersion || row.TargetVersion != rollout.Version || row.Digest != rollout.Digest || rollout.RecordVersion <= 0 {
+			return nil, fmt.Errorf("productui: invalid stored rollout key")
+		}
+		key := fmt.Sprintf("%s\x00%d", rollout.Page, rollout.RecordVersion)
+		if _, exists := seenRollouts[key]; exists {
+			return nil, fmt.Errorf("productui: duplicate stored rollout for page %q version %d", rollout.Page, rollout.Version)
+		}
+		seenRollouts[key] = struct{}{}
+		log.rollouts = append(log.rollouts, clonePageRollout(rollout))
+	}
+	if err := loadRetirements(ctx, log, store, tenant); err != nil {
+		return nil, err
+	}
+	log.store = store
+	return log, nil
 }
 
 // Record persists one snapshot at one version. Re-recording the
@@ -138,6 +213,15 @@ type PageRevisionLog struct {
 // an existing version is a conflict and refused — published history
 // is immutable. Non-positive versions are refused.
 func (log *PageRevisionLog) Record(page PageID, snapshot PageDefinitionSnapshot, version int64) (PageDefinitionRevision, error) {
+	return log.RecordContext(context.Background(), page, snapshot, version)
+}
+
+// RecordContext records one immutable revision and persists it first when the
+// log was constructed with NewDurablePageRevisionLog.
+func (log *PageRevisionLog) RecordContext(ctx context.Context, page PageID, snapshot PageDefinitionSnapshot, version int64) (PageDefinitionRevision, error) {
+	if page == "" || snapshot.Page != page {
+		return PageDefinitionRevision{}, fmt.Errorf("productui: revision page key %q does not match snapshot page %q", page, snapshot.Page)
+	}
 	if version <= 0 {
 		return PageDefinitionRevision{}, fmt.Errorf("productui: revision version must be positive, got %d", version)
 	}
@@ -156,6 +240,11 @@ func (log *PageRevisionLog) Record(page PageID, snapshot PageDefinitionSnapshot,
 			return PageDefinitionRevision{}, fmt.Errorf("productui: revision conflict for page %q version %d", page, version)
 		}
 		return existing, nil
+	}
+	if log.store != nil {
+		if err := log.store.PutRevision(ctx, log.tenant, string(page), version, revision.Digest, MarshalRevision(revision)); err != nil {
+			return PageDefinitionRevision{}, fmt.Errorf("productui: persist revision: %w", err)
+		}
 	}
 	versions[version] = revision
 	return revision, nil

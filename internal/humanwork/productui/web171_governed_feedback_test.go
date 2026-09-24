@@ -37,8 +37,9 @@ func TestTodo_WEB_171(t *testing.T) {
 	if strings.Contains(doc, "⟦") {
 		t.Fatal("governed feedback exposes an unresolved message key")
 	}
+	content := webMainVisibleText(t, doc)
 	for _, invented := range []string{"feedback:", "quote:", "praise:", "shared ✓"} {
-		if strings.Contains(doc, invented) {
+		if strings.Contains(content, invented) {
 			t.Fatalf("governed feedback invents feedback data: %q", invented)
 		}
 	}

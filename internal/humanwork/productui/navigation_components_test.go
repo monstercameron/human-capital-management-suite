@@ -20,9 +20,10 @@ func TestNavigationRegistryBuildsReusableSubmenus(t *testing.T) {
 	// operations, Reconciliation workbench, Privacy telemetry, Performance
 	// budgets, Browser matrix, Assistive tech, Disaster recovery, Release
 	// gate) keep their ParentNav wiring to Admin but declare no admitted
-	// capability, so only the four real admin destinations remain.
+	// capability. The published Chat settings page is the fifth admitted
+	// destination after the overview.
 	admin, ok := projectedNavigationItem(items, PageAdmin)
-	if !ok || len(admin.Children) != 5 || admin.Children[1].Page != PageWorkerIDs || admin.Children[2].Page != PageRoles || admin.Children[3].Page != PageOrganizationVisibility || admin.Children[4].Page != PageAppearance {
+	if !ok || len(admin.Children) != 6 || admin.Children[1].Page != PageWorkerIDs || admin.Children[2].Page != PageRoles || admin.Children[3].Page != PageOrganizationVisibility || admin.Children[4].Page != PageAppearance || admin.Children[5].Page != PageChatSettings {
 		t.Fatalf("Admin submenu = %+v, present=%t", admin, ok)
 	}
 	for _, unadmitted := range []PageID{PageStudio, PagePolicyStudio, PagePolicySimulation, PageConfigurationCenter, PageIntegrationOperations, PageReconciliationWorkbench, PagePrivacyTelemetry, PagePerformanceBudgets, PageBrowserMatrix, PageAssistiveTech, PageDisasterRecovery, PageReleaseGate} {

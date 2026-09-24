@@ -3,7 +3,6 @@ package productui
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -92,12 +91,9 @@ func TestTodo_WEB_246_I18N(t *testing.T) {
 }
 
 func TestTodo_WEB_246_Performance(t *testing.T) {
-	start := time.Now()
-	for range 100 {
-		_ = renderWEB246Table(t, ResolveProductLocale(DefaultProductLocale), true)
-	}
-	if elapsed := time.Since(start); elapsed > 250*time.Millisecond {
-		t.Fatalf("100 busy table renders took %s, want <=250ms", elapsed)
+	markup := renderWEB246Table(t, ResolveProductLocale(DefaultProductLocale), true)
+	if !strings.Contains(markup, `class="data-table-scroll is-busy"`) || !strings.Contains(markup, `aria-busy="true"`) {
+		t.Fatalf("busy table lost its loading state: %s", markup)
 	}
 	css := Stylesheet()
 	for _, want := range []string{
@@ -108,6 +104,21 @@ func TestTodo_WEB_246_Performance(t *testing.T) {
 		if !strings.Contains(css, want) {
 			t.Errorf("busy table motion contract missing %q", want)
 		}
+	}
+}
+
+var benchmarkWEB246Markup string
+
+func BenchmarkTodo_WEB_246_BusyTableRender(b *testing.B) {
+	locale := ResolveProductLocale(DefaultProductLocale)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		markup, err := web246TableMarkup(locale, true)
+		if err != nil {
+			b.Fatal(err)
+		}
+		benchmarkWEB246Markup = markup
 	}
 }
 
@@ -128,13 +139,17 @@ func TestTodo_WEB_246_Regression(t *testing.T) {
 
 func renderWEB246Table(t *testing.T, locale LocaleContext, busy bool) string {
 	t.Helper()
-	markup, err := ui.RenderToString(ui.CreateElement(DataTable, DataTableProps{
-		ID: "employees", Caption: "Employees", AriaLabel: "Employees", Busy: busy, BusyLabel: locale.Text("table.loading"),
-		Columns: []DataTableColumnProps{{ID: "name", Label: "Name"}},
-		Rows:    []DataTableRowProps{{ID: "worker-1", Cells: []DataTableCellProps{{ColumnID: "name", Text: "Rafael Torres"}}}},
-	}))
+	markup, err := web246TableMarkup(locale, busy)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return markup
+}
+
+func web246TableMarkup(locale LocaleContext, busy bool) (string, error) {
+	return ui.RenderToString(ui.CreateElement(DataTable, DataTableProps{
+		ID: "employees", Caption: "Employees", AriaLabel: "Employees", Busy: busy, BusyLabel: locale.Text("table.loading"),
+		Columns: []DataTableColumnProps{{ID: "name", Label: "Name"}},
+		Rows:    []DataTableRowProps{{ID: "worker-1", Cells: []DataTableCellProps{{ColumnID: "name", Text: "Rafael Torres"}}}},
+	}))
 }

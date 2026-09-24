@@ -43,6 +43,7 @@ func withChatPersonCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Confi
 		chatPersonActions.authorized = false
 		chatPersonActions.Unlock()
 		chatBrowser.mutate(func(model *chatui.Model) { model.ShowPerson = false; model.PersonDetails = nil })
+		chatHistory.push(chatBrowser.snapshot())
 		refreshChatRoute()
 	}
 	callbacks.StartDirectMessage = func(subjectID string) { go startChatPersonDM(cfg, subjectID) }
@@ -50,6 +51,13 @@ func withChatPersonCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Confi
 }
 
 func openChatPerson(cfg journeyclient.Config, subjectID string) {
+	openChatPersonRecorded(cfg, subjectID, chatHistory.push)
+}
+
+// openChatPersonRecorded opens the person pane and records it with record:
+// a click in chat pushes a Back stop; a "#person=" link that already made
+// its own browser entry replaces it, so Back returns to where the link was.
+func openChatPersonRecorded(cfg journeyclient.Config, subjectID string, record func(chatui.Model)) {
 	subjectID = strings.TrimSpace(subjectID)
 	workersClient := chatWorkers
 	if subjectID == "" || workersClient == nil {
@@ -65,11 +73,12 @@ func openChatPerson(cfg journeyclient.Config, subjectID string) {
 		model.ShowPerson = true
 		model.PersonDetails = &chatui.PersonDetails{ID: subjectID}
 	})
+	record(chatBrowser.snapshot())
 	refreshChatRoute()
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		result, err := workersClient.ListWorkers(chatRPCContext(ctx, active), &journeyv1.ListWorkersRequest{})
+		result, err := workersClient.ListChatDirectory(chatRPCContext(ctx, active), &journeyv1.ListChatDirectoryRequest{})
 		// The read completes outside the UI event loop. A direct state update
 		// there can leave the mounted component's render queued until the next
 		// user click, with the panel stuck on its initial placeholders.
@@ -79,11 +88,24 @@ func openChatPerson(cfg journeyclient.Config, subjectID string) {
 			}
 			if err != nil {
 				chatActionFailed("read this person's business details", err)
+				chatBrowser.mutate(func(model *chatui.Model) {
+					if model.ShowPerson && model.PersonDetails != nil && model.PersonDetails.ID == subjectID {
+						model.PersonDetails = &chatui.PersonDetails{ID: subjectID, Unavailable: true}
+					}
+				})
+				refreshChatRoute()
 				return
 			}
 			person, ok := chatPersonDetailsFromWorkers(result.GetWorkers(), subjectID)
 			if !ok {
-				chatActionSucceeded("This person's business details are unavailable")
+				// The pane itself says the details are unavailable; a second
+				// banner above the timeline only pushed the messages down.
+				chatBrowser.mutate(func(model *chatui.Model) {
+					if model.ShowPerson && model.PersonDetails != nil && model.PersonDetails.ID == subjectID {
+						model.PersonDetails = &chatui.PersonDetails{ID: subjectID, Unavailable: true}
+					}
+				})
+				refreshChatRoute()
 				return
 			}
 			chatPersonActions.Lock()

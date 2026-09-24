@@ -39,6 +39,9 @@ func BuildChatPage(view View, model chatui.Model) ui.Node {
 	if model.CurrentUserName == "" {
 		model.CurrentUserName = strings.TrimSpace(view.Viewer.Name)
 	}
+	if model.Callbacks.Navigate == nil {
+		model.Callbacks.Navigate = view.Navigate
+	}
 	if model.Text == nil {
 		locale := view.Locale
 		model.Text = func(key string) string { return locale.Text(key) }

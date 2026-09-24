@@ -12,6 +12,13 @@ type PageRequest struct {
 	DocumentQuery      string
 	DocumentCollection string
 	DocumentPageToken  string
+	DocumentFolder     string
+	DocumentSort       string
+	DocumentOwner      string
+	DocumentPage       int
+	DocumentPerPage    int
+	DocumentSearchMode string
+	DocumentEditing    bool
 	RolePage           int
 	PeoplePage         int
 	PeoplePageSize     int
@@ -22,6 +29,8 @@ type PageRequest struct {
 	PeopleColumns      string
 	PeopleDirection    string
 	OrganizationView   string
+	OrganizationAsOf   string
+	OrganizationUnit   string
 	WorkflowQuery      string
 	HistoryQuery       string
 	HistoryOutcome     string
@@ -34,6 +43,7 @@ type PageRequest struct {
 	Mode               string
 	SelectedWork       string
 	SelectedPerson     string
+	PositionReference  string
 	WorkFilter         string
 	JourneyID          string
 	JourneyWorker      string
@@ -54,10 +64,32 @@ type PageRequest struct {
 func ApplyRequest(view View, request PageRequest) View {
 	view = ApplyLocale(view, ResolveProductLocale(request.Locale))
 	view.Query = strings.TrimSpace(request.Query)
+	positionReference := strings.TrimSpace(request.PositionReference)
+	if positionReference != view.PositionReference {
+		view.PositionObject = nil
+		view.PositionOccupancy = nil
+	}
+	view.PositionReference = positionReference
+	if view.Page != PagePositionObject {
+		view.PositionObject = nil
+	}
+	if view.Page != PagePositionOccupancy {
+		view.PositionOccupancy = nil
+	}
+	if view.Page != PagePositionObject && view.Page != PagePositionOccupancy {
+		view.PositionOptions = nil
+	}
 	view.DocumentID = strings.TrimSpace(request.DocumentID)
 	view.DocumentQuery = strings.TrimSpace(request.DocumentQuery)
 	view.DocumentCollection = strings.TrimSpace(request.DocumentCollection)
 	view.DocumentPageToken = strings.TrimSpace(request.DocumentPageToken)
+	view.DocumentFolder = strings.TrimSpace(request.DocumentFolder)
+	view.DocumentSort = strings.TrimSpace(request.DocumentSort)
+	view.DocumentOwner = strings.TrimSpace(request.DocumentOwner)
+	view.DocumentPage = max(request.DocumentPage, 1)
+	view.DocumentPerPage = NormalizeDocumentPerPage(request.DocumentPerPage)
+	view.DocumentSearchMode = strings.TrimSpace(request.DocumentSearchMode)
+	view.DocumentEditing = request.DocumentEditing && strings.TrimSpace(request.DocumentID) != ""
 	view.RolePage = request.RolePage
 	if view.RolePage < 1 {
 		view.RolePage = 1
@@ -74,6 +106,8 @@ func ApplyRequest(view View, request PageRequest) View {
 	view.PeopleColumns = NormalizePeopleColumns(request.PeopleColumns)
 	view.PeopleDirection = normalizePeopleDirection(request.PeopleDirection)
 	view.OrganizationView = normalizeOrganizationView(request.OrganizationView)
+	view.OrganizationAsOf = strings.TrimSpace(request.OrganizationAsOf)
+	view.SelectedOrganizationUnit = strings.TrimSpace(request.OrganizationUnit)
 	routeProfile, _, hasProfile := PageProfiles(view.Page)
 	stateProfile := RouteStateProfile{}
 	if hasProfile {

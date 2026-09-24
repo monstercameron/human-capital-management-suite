@@ -15,7 +15,7 @@ import (
 	"bytes"
 	"html/template"
 
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/page"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )

@@ -28,16 +28,15 @@ func TestTodo_WEB_046(t *testing.T) {
 		t.Fatalf("history parent label = %q, want registry My Work", related.Items[0].Label)
 	}
 
-	// UXAUDIT-011 removed Studio and the ten other unbuilt admin fallback
-	// surfaces from navigation, so Roles now has only three real siblings
-	// (Worker IDs, Organization visibility, Brand & appearance) plus the
-	// Admin parent.
+	// UXAUDIT-011 removed unbuilt admin fallback surfaces from navigation.
+	// Roles now has four published siblings (Worker IDs, Organization
+	// visibility, Brand & appearance, and Chat settings) plus the Admin parent.
 	roles := ApplyRoleVisibility(testView(PageRoles), []string{RoleHCMAdmin})
 	adminSections := utilityDrawerSections(roles)
 	adminRelated := findDrawerSection(adminSections, "related")
-	if adminRelated == nil || len(adminRelated.Items) != 4 {
+	if adminRelated == nil || len(adminRelated.Items) != 5 {
 
-		t.Fatalf("roles drawer related = %#v, want Admin parent plus 3 siblings", adminSections)
+		t.Fatalf("roles drawer related = %#v, want Admin parent plus 4 published siblings", adminSections)
 	}
 	if adminRelated.Items[0].Href != "/workspace/app/admin" {
 		t.Fatalf("roles drawer first item = %#v, want Admin parent first", adminRelated.Items[0])
@@ -86,19 +85,16 @@ func TestTodo_WEB_046_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(node))
 	got := hex.EncodeToString(digest[:])
 
-	// UXAUDIT-011 removed Studio and the ten other unbuilt admin fallback
-	// surfaces from navigation, shrinking the roles page's "Related pages"
-	// section from 16 items to 4 (Admin, Worker IDs, Organization
-	// visibility, Brand & appearance); re-pinned after inspecting the
-	// rendered markup to confirm no stub page or unresolved key leaked in.
-	// Re-pinned 2026-09-15: the rendered markup was already this digest at
-	// main; inspected, it still lists exactly those four related pages.
+	// UXAUDIT-011 removed unbuilt admin fallback surfaces from navigation.
+	// Re-pinned after inspecting the rendered markup: the roles page lists
+	// Admin, Worker IDs, Organization visibility, Brand & appearance, and
+	// Chat settings, with no unresolved key.
 	// Re-pinned 2026-09-18: the drawer now renders inside a root element (the
 	// anchor for its popover and the "inside" for focus dismissal), is no
 	// longer aria-modal, and has a head with its title and an icon close
-	// button, matching the Start an action launcher. Inspected: the same four
+	// button, matching the Start an action launcher. Inspected: the same five
 	// related pages, no unresolved key.
-	const want = "c4a3706d87e5974a069c6cc41eeb5511653ed4c9fc7f544663c514a35dc85da5"
+	const want = "98f67909d47e17095344e5e474e7ca3510705e19254a59bd1c58dbbc372e9027"
 	if got != want {
 		t.Fatalf("utility drawer golden digest = %s, want %s", got, want)
 	}
@@ -186,9 +182,9 @@ func TestTodo_WEB_046_Browser(t *testing.T) {
 			t.Fatalf("drawer link leaves the page registry: %q", xhtmlAttr(link, "href"))
 		}
 	}
-	if len(collectElements(dialog, "a")) != 4 {
+	if len(collectElements(dialog, "a")) != 5 {
 
-		t.Fatalf("drawer links = %d, want 4 related and no actions on roles page", len(collectElements(dialog, "a")))
+		t.Fatalf("drawer links = %d, want 5 related and no actions on roles page", len(collectElements(dialog, "a")))
 	}
 
 	homeDoc, err := Render(testView(PageHome))

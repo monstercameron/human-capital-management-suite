@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/organization"
 )
 
 func organizationPage(view View) ui.Node {
@@ -20,6 +21,26 @@ func organizationRoutePage(view View, forceTree bool) ui.Node {
 func organizationPageWithCopy(view View, title, description string, forceTree bool) ui.Node {
 	population := admittedPeople(view)
 	filtered := filterOrganizationPeople(population, view.Query)
+	graph := readOrganizationGraph(view)
+	graphBacked := view.OrganizationGraph != nil
+	if graphBacked && graph.Err != nil {
+		// A wired but invalid/unauthorized snapshot must never fall back to
+		// free-text Team or Location values. Fail closed for this render.
+		population = nil
+		filtered = nil
+	}
+	if graphBacked {
+		for index := range population {
+			if unit, ok := graph.UnitByID[view.OrganizationMemberships[population[index].ID]]; ok {
+				population[index].Team = unit.Name
+				population[index].Location = graph.LocationByUnit[unit.ID]
+			} else {
+				population[index].Team = ""
+				population[index].Location = ""
+			}
+		}
+		filtered = filterOrganizationPeople(population, view.Query)
+	}
 	scoped := view
 	scoped.People = population
 	relationships := newOrganizationRelationshipIndex(scoped)
@@ -37,9 +58,11 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 	locations := map[string]bool{}
 	payZones := map[string]bool{}
 	for index, person := range relationships.people {
-		units[valueOrUnavailable(person.Team)] = true
-		if value := strings.TrimSpace(person.Location); value != "" {
-			locations[value] = true
+		if !graphBacked {
+			units[valueOrUnavailable(person.Team)] = true
+			if value := strings.TrimSpace(person.Location); value != "" {
+				locations[value] = true
+			}
 		}
 		if value := strings.TrimSpace(person.PayZone); value != "" {
 			payZones[value] = true
@@ -49,6 +72,22 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 		}
 		team := valueOrUnavailable(person.Team)
 		members[team] = append(members[team], relationships.annotate(scoped, index))
+	}
+	if graphBacked {
+		units = map[string]bool{}
+		if graph.Err == nil {
+			for _, edge := range graph.Edges {
+				if edge.Type == organization.Hierarchy {
+					units[edge.Source] = true
+					units[edge.Target] = true
+				}
+			}
+		}
+		for locationID := range graph.LocationIDs {
+			if location, ok := graph.UnitByID[locationID]; ok && strings.TrimSpace(location.Name) != "" {
+				locations[location.Name] = true
+			}
+		}
 	}
 	names := make([]string, 0, len(members))
 	for name := range members {
@@ -71,11 +110,11 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 			CompactLabel: densityLabel(view.Locale, "compact"), ComfortableLabel: densityLabel(view.Locale, "comfortable"), SpaciousLabel: densityLabel(view.Locale, "spacious"),
 			ExpandAllLabel: view.Locale.Text("nav.expand"), CollapseAllLabel: view.Locale.Text("nav.collapse")}, Density: view.EffectiveAppearance().Density,
 		ViewLabel: view.Locale.Text("organization.view_label"), TreeActive: forceTree || view.OrganizationView == organizationViewTree, TreeLocked: forceTree,
-		FlatAction: ActionLinkProps{Label: view.Locale.Text("organization.view_flat"), Href: statefulHref(view, view.Page, "org_view", organizationViewFlat, "q", view.Query, "person", view.SelectedPerson), Class: "organization-view-option", Navigate: view.Navigate},
-		TreeAction: ActionLinkProps{Label: view.Locale.Text("organization.view_tree"), Href: statefulHref(view, view.Page, "org_view", organizationViewTree, "q", view.Query, "person", view.SelectedPerson), Class: "organization-view-option", Navigate: view.Navigate},
+		FlatAction: ActionLinkProps{Label: view.Locale.Text("organization.view_flat"), Href: organizationStateHref(view, "org_view", organizationViewFlat), Class: "organization-view-option", Navigate: view.Navigate},
+		TreeAction: ActionLinkProps{Label: view.Locale.Text("organization.view_tree"), Href: organizationStateHref(view, "org_view", organizationViewTree), Class: "organization-view-option", Navigate: view.Navigate},
 		Search: OrganizationSearchProps{
-			Query: view.Query, Action: statefulHref(view, view.Page, "org_view", normalizeOrganizationView(view.OrganizationView), "person", view.SelectedPerson),
-			ClearHref: withExplicitEmptyQuery(statefulHref(view, view.Page, "org_view", normalizeOrganizationView(view.OrganizationView), "person", view.SelectedPerson), "q"),
+			Query: view.Query, Action: organizationStateHref(view, "org_view", normalizeOrganizationView(view.OrganizationView)),
+			ClearHref: withExplicitEmptyQuery(organizationStateHref(view, "org_view", normalizeOrganizationView(view.OrganizationView)), "q"),
 			Summary:   organizationSearchSummary(view, len(filtered), len(population)), HiddenInputs: organizationSearchHiddenInputs(view), Navigate: view.Navigate,
 			OnFilter: func(query string) {
 				if view.Navigate != nil {
@@ -112,16 +151,28 @@ func withKnownAccessScope(view View, items []BusinessMetadataItemProps) []Busine
 }
 
 func organizationFilterHref(view View, query string) string {
-	href := statefulHref(view, view.Page, "org_view", normalizeOrganizationView(view.OrganizationView), "person", view.SelectedPerson, "q", strings.TrimSpace(query))
+	href := organizationStateHref(view, "q", strings.TrimSpace(query))
 	if strings.TrimSpace(query) == "" {
 		return withExplicitEmptyQuery(href, "q")
 	}
 	return href
 }
 
+func organizationStateHref(view View, keyValues ...string) string {
+	values := []string{"org_view", normalizeOrganizationView(view.OrganizationView), "person", view.SelectedPerson, "as_of", view.OrganizationAsOf, "unit", view.SelectedOrganizationUnit}
+	values = append(values, keyValues...)
+	return statefulHref(view, view.Page, values...)
+}
+
 func organizationSearchHiddenInputs(view View) map[string]string {
 	values := currentPageAddressState(view, view.NavCollapsed)
 	values.Del("q")
+	if view.OrganizationAsOf != "" {
+		values.Set("as_of", view.OrganizationAsOf)
+	}
+	if view.SelectedOrganizationUnit != "" {
+		values.Set("unit", view.SelectedOrganizationUnit)
+	}
 	result := make(map[string]string, len(values))
 	for name, entries := range values {
 		if len(entries) != 0 && entries[0] != "" {

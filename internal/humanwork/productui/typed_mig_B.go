@@ -714,7 +714,30 @@ func declareresponsiveComponentStylesStyles() {
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("flex", "1"), gwccss.W(gwccss.Percent(100)), gwccss.MinWidth(gwccss.Zero), gwccss.MaxWidth(gwccss.Percent(100)), gwccss.Raw("overflow", "hidden")),
 	)
 	declareGlobal(".sidebar.nav-drawer-open .primary-nav,.sidebar.nav-drawer-open nav:first-of-type",
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("overflow", "visible"), gwccss.Raw("overscroll-behavior", "auto"), gwccss.Raw("scroll-padding-block", "16px"), gwccss.Raw("scrollbar-width", "none"), gwccss.Raw("scrollbar-gutter", "auto")),
+	)
+	declareGlobal(".sidebar.nav-drawer-open",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("overflow-x", "hidden"), gwccss.Raw("overflow-y", "auto"), gwccss.Raw("overscroll-behavior", "contain"), gwccss.Raw("scroll-padding-block", "16px"), gwccss.Raw("scrollbar-width", "thin"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track)"), gwccss.Raw("scrollbar-gutter", "stable")),
+	)
+	declareGlobal(".sidebar.nav-drawer-open .menu-filter",
+		mediaRule(gwccss.MaxW(760), gwccss.Position.Sticky, gwccss.Raw("inset-block-start", "0"), gwccss.ZIndex(2), gwccss.Bg(gwccss.Var("surface"))),
+	)
+	declareGlobal(".sidebar.nav-drawer-open .nav-bottom",
+		mediaRule(gwccss.MaxW(760), gwccss.Position.Sticky, gwccss.Raw("inset-block-end", "0"), gwccss.ZIndex(2), gwccss.Bg(gwccss.Var("surface"))),
+	)
+	// GWC can replace the class attribute during a later render. Keep the
+	// enhanced open state tied to its durable data marker as well.
+	declareGlobal(".sidebar[data-hcm-mobile-open='true']",
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("inset-inline-start", "0!important"), gwccss.Raw("visibility", "visible!important"), gwccss.Raw("overflow-x", "hidden"), gwccss.Raw("overflow-y", "auto"), gwccss.Raw("overscroll-behavior", "contain"), gwccss.Raw("scroll-padding-block", "16px"), gwccss.Raw("scrollbar-width", "thin"), gwccss.Raw("scrollbar-color", "var(--hcm-nav-scrollbar-thumb) var(--hcm-nav-scrollbar-track)"), gwccss.Raw("scrollbar-gutter", "stable")),
+	)
+	declareGlobal(".sidebar[data-hcm-mobile-open='true'] .primary-nav,.sidebar[data-hcm-mobile-open='true'] nav:first-of-type",
+		mediaRule(gwccss.MaxW(760), gwccss.Raw("overflow", "visible"), gwccss.Raw("overscroll-behavior", "auto"), gwccss.Raw("scroll-padding-block", "16px"), gwccss.Raw("scrollbar-width", "none"), gwccss.Raw("scrollbar-gutter", "auto")),
+	)
+	declareGlobal(".sidebar[data-hcm-mobile-open='true'] .menu-filter",
+		mediaRule(gwccss.MaxW(760), gwccss.Position.Sticky, gwccss.Raw("inset-block-start", "0"), gwccss.ZIndex(2), gwccss.Bg(gwccss.Var("surface"))),
+	)
+	declareGlobal(".sidebar[data-hcm-mobile-open='true'] .nav-bottom",
+		mediaRule(gwccss.MaxW(760), gwccss.Position.Sticky, gwccss.Raw("inset-block-end", "0"), gwccss.ZIndex(2), gwccss.Bg(gwccss.Var("surface"))),
 	)
 	declareGlobal(".primary-nav>ul,.sidebar nav:first-of-type>ul",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("display", "grid!important"), gwccss.W(gwccss.RawLength("100%!important")), gwccss.MaxWidth(gwccss.RawLength("100%!important"))),

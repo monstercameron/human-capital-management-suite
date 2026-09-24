@@ -62,6 +62,8 @@ func TestTodo_UXLIVE_020_Browser(t *testing.T) {
 		t.Fatalf("read package directory: %v", err)
 	}
 	dialogID := regexp.MustCompile(`ID:\s*"([a-z-]+-dialog)"`)
+	docsModalCall := regexp.MustCompile(`useDocsModal\([^\n]*"([a-z-]+-dialog)"`)
+	docsModalWiring := false
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
@@ -70,8 +72,31 @@ func TestTodo_UXLIVE_020_Browser(t *testing.T) {
 		source := uxlive020Source(t, name)
 		for _, match := range dialogID.FindAllStringSubmatch(source, -1) {
 			id := match[1]
-			if !strings.Contains(source, `useDrawerFocusTrap("`+id+`"`) {
+			if strings.Contains(source, `useDrawerFocusTrap("`+id+`"`) {
+				continue
+			}
+			wrapped := false
+			for _, call := range docsModalCall.FindAllStringSubmatch(source, -1) {
+				if call[1] == id {
+					wrapped = true
+					docsModalWiring = true
+					break
+				}
+			}
+			if !wrapped {
 				t.Fatalf("%s renders dialog %q without the shared focus contract", name, id)
+			}
+		}
+	}
+	if docsModalWiring {
+		shared := uxlive020Source(t, "docs_focus.go")
+		if !strings.Contains(shared, "func useDocsModal(") || !strings.Contains(shared, "docsTrapModal(dialogID, initial, fallbacks)") {
+			t.Fatal("Docs dialog wrapper no longer delegates to its shared modal focus contract")
+		}
+		wasm := uxlive020Source(t, "docs_focus_wasm.go")
+		for _, contract := range []string{"func docsTrapModal(", "doc.Call(\"addEventListener\", \"keydown\"", "returnTo.Call(\"focus\")"} {
+			if !strings.Contains(wasm, contract) {
+				t.Fatalf("Docs shared modal focus contract lost %q", contract)
 			}
 		}
 	}

@@ -165,6 +165,7 @@ func bindMobileNavigationDrawer(rootID, triggerID, backdropID string) func() {
 	media := js.Global().Call("matchMedia", "(max-width: 760px)")
 	open := false
 	wasMobile := false
+	var focusTrapCleanup func()
 	var apply func(bool, bool)
 	apply = func(next, focus bool) {
 		defer func() { _ = recover() }()
@@ -200,6 +201,14 @@ func bindMobileNavigationDrawer(rootID, triggerID, backdropID string) func() {
 			backdrop.Get("style").Call("removeProperty", "background")
 			backdrop.Get("style").Call("removeProperty", "display")
 			root.Call("removeAttribute", "data-hcm-mobile-open")
+			root.Get("classList").Call("remove", "nav-drawer-open")
+			backdrop.Get("classList").Call("remove", "nav-drawer-open")
+			root.Call("removeAttribute", "aria-modal")
+			root.Call("removeAttribute", "role")
+			if focusTrapCleanup != nil {
+				focusTrapCleanup()
+				focusTrapCleanup = nil
+			}
 			return
 		}
 		style := root.Get("style")
@@ -228,6 +237,10 @@ func bindMobileNavigationDrawer(rootID, triggerID, backdropID string) func() {
 			content.Get("style").Call("removeProperty", "overflow-x")
 		}
 		if next {
+			root.Call("setAttribute", "role", "dialog")
+			root.Call("setAttribute", "aria-modal", "true")
+			root.Get("classList").Call("add", "nav-drawer-open")
+			backdrop.Get("classList").Call("add", "nav-drawer-open")
 			style.Set("transform", "translateX(0)")
 			root.Call("setAttribute", "data-hcm-mobile-open", "true")
 			backdrop.Call("removeAttribute", "hidden")
@@ -237,13 +250,19 @@ func bindMobileNavigationDrawer(rootID, triggerID, backdropID string) func() {
 			backdrop.Get("style").Set("background", "rgba(16,34,56,.32)")
 			backdrop.Get("style").Set("display", "block")
 			trigger.Set("aria-expanded", "true")
-			if focus {
-				if first := root.Call("querySelector", "input, a, button, summary"); first.Truthy() {
-					first.Call("focus")
-				}
+			if focusTrapCleanup == nil {
+				focusTrapCleanup = bindDrawerFocusTrap(rootID, triggerID)
 			}
 		} else {
 			root.Call("removeAttribute", "data-hcm-mobile-open")
+			root.Get("classList").Call("remove", "nav-drawer-open")
+			backdrop.Get("classList").Call("remove", "nav-drawer-open")
+			root.Call("removeAttribute", "aria-modal")
+			root.Call("removeAttribute", "role")
+			if focusTrapCleanup != nil {
+				focusTrapCleanup()
+				focusTrapCleanup = nil
+			}
 			backdrop.Set("hidden", true)
 			trigger.Set("aria-expanded", "false")
 			if focus {

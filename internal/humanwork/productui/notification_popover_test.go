@@ -33,6 +33,35 @@ func TestNotificationMenuPublishesItsTransientPopoverBehavior(t *testing.T) {
 	}
 }
 
+func TestTodo_REV_064_02(t *testing.T) {
+	view := testView(PageWork)
+	actionable := view.Work[0]
+	tracked := actionable
+	tracked.ID = "tracked"
+	tracked.ViewerResponsibility = "TRACKING"
+	completed := actionable
+	completed.ID = "completed"
+	completed.Terminal = true
+	view.Work = []WorkItem{actionable, tracked, completed}
+
+	// Open lifecycle summaries still partition the stream, while the live
+	// notification surface counts only work the viewer must act on.
+	if len(OpenWorkItems(view.Work))+len(RecentWork(view.Work)) != len(view.Work) {
+		t.Fatal("open and recent work no longer partition the admitted stream")
+	}
+	if got := len(ActionableWorkItems(view.Work)); got != 1 {
+		t.Fatalf("actionable work = %d, want 1", got)
+	}
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `aria-label="` + view.Locale.Text("shell.work_overview") + ", " + view.Locale.Plural("shell.work_count", 1) + `"`
+	if !strings.Contains(doc, want) {
+		t.Fatalf("notification summary missing live actionable count %q", want)
+	}
+}
+
 func TestTodo_NAAS_001_NotificationDisclosureAccessibility(t *testing.T) {
 	css := PopoverStylesheet()
 	rule := regexp.MustCompile(`\.popover-root\[open\]::details-content\{[^}]*\}`).FindString(css)

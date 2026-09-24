@@ -1,9 +1,12 @@
 package productui
 
+import "github.com/monstercameron/GoWebComponents/v5/ui"
+
 // ListDetailLayout is the responsive layout behind the My
-// Work list-detail panes. Pixels stay in CSS; Go governs
-// which panes a layout shows. The zero value is unknown and
-// fails closed to the list so navigation is never stranded.
+// Work list-detail panes. The browser measures the viewport;
+// Go governs which panes the measured layout renders. The
+// zero value is unknown and fails closed to the list so
+// navigation is never stranded.
 type ListDetailLayout int
 
 const (
@@ -27,4 +30,20 @@ func ResolveListDetailPanes(layout ListDetailLayout, hasSelection bool) (showLis
 		return !hasSelection, hasSelection
 	}
 	return true, false
+}
+
+func workLayoutName(layout ListDetailLayout) string {
+	if layout == ListDetailNarrow {
+		return "narrow"
+	}
+	if layout == ListDetailWide {
+		return "wide"
+	}
+	return "unknown"
+}
+
+func useResponsiveWorkLayout(initial ListDetailLayout) ListDetailLayout {
+	state := ui.UseState(initial)
+	bindWorkLayoutViewport(state)
+	return state.Get()
 }

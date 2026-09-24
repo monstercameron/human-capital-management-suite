@@ -35,7 +35,7 @@ func TestTodo_WEB_099(t *testing.T) {
 	}
 
 	// The admitted stream partitions exactly.
-	attention := AttentionList(items)
+	attention := OpenWorkItems(items)
 	seen := map[string]bool{}
 	for _, item := range attention {
 		seen[item.ID] = true
@@ -126,7 +126,7 @@ func TestTodo_WEB_099_Conformance(t *testing.T) {
 		{ID: "a", Title: "T", Person: "P", CompletedAt: "C"},
 		{ID: "b", Title: "U", Person: "Q", CompletedAt: "D", Terminal: true},
 	}
-	if len(AttentionList(stream))+len(RecentWork(stream)) != len(stream) {
+	if len(OpenWorkItems(stream))+len(RecentWork(stream)) != len(stream) {
 		t.Fatal("attention plus recent drops or doubles items")
 	}
 	recent := RecentWork(stream)

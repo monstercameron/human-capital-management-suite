@@ -8,6 +8,7 @@ import (
 	gwccss "github.com/monstercameron/GoWebComponents/v5/css"
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 )
 
 const (
@@ -294,7 +295,30 @@ type ActionLauncherProps struct {
 	Items        []ActionLauncherItem
 	Navigate     func(string)
 	InitialQuery string
+	Page         PageID
+	Tenant       string
+	Principal    string
+	// RefreshChatItems reads the current chat projection when the launcher is
+	// opened. The shell is outside the live chat component, so its initial View
+	// cannot be trusted as a current membership snapshot.
+	RefreshChatItems func() []ActionLauncherItem
 }
+
+// ActionLauncherChatVisit is a minimal, already-authorized chat destination
+// projection supplied by the live chat client. Counts affect ranking only;
+// they never grant access to a conversation.
+type ActionLauncherChatVisit struct {
+	Conversation chatui.Conversation
+	Count        int
+}
+
+// ActionLauncherChatVisitsProvider is nil during native/server rendering.
+// The browser installs a provider that reads the current authenticated chat
+// model and its bounded, viewer-scoped visit ledger.
+// ActionLauncherChatVisitsProvider reads visits from the active, authenticated
+// chat projection. View.Tenant and View.Principal are display labels and must
+// not be used as durable identity keys here.
+var ActionLauncherChatVisitsProvider func() []ActionLauncherChatVisit
 
 type semanticLauncherDefinition struct {
 	ID             string
@@ -344,9 +368,95 @@ func actionLauncherProps(view View) ActionLauncherProps {
 	seen := map[PageID]bool{view.Page: true}
 	items = appendActionLauncherDestinations(items, view, view.Navigation, seen)
 	items = appendActionLauncherDestinations(items, view, view.NavigationSupport, seen)
-	return ActionLauncherProps{
-		I18nProps: I18nProps{Locale: view.Locale}, Items: items, Navigate: view.Navigate,
+	if view.Page == PageChat {
+		// The header control is a page-contextual Go to menu on chat, so it
+		// contains destinations rather than unrelated workforce actions.
+		navigationItems := items[:0]
+		for _, item := range items {
+			if item.Kind != ActionLauncherAction {
+				navigationItems = append(navigationItems, item)
+			}
+		}
+		items = navigationItems
+		visits := chatLauncherVisits(view.Chat.Conversations, nil)
+		if ActionLauncherChatVisitsProvider != nil {
+			visits = ActionLauncherChatVisitsProvider()
+		}
+		items = append(items, chatLauncherItems(view, visits)...)
 	}
+	props := ActionLauncherProps{
+		I18nProps: I18nProps{Locale: view.Locale}, Items: items, Navigate: view.Navigate,
+		Page: view.Page, Tenant: view.Tenant, Principal: view.Principal,
+	}
+	if view.Page == PageChat {
+		props.RefreshChatItems = func() []ActionLauncherItem {
+			visits := chatLauncherVisits(view.Chat.Conversations, nil)
+			if ActionLauncherChatVisitsProvider != nil {
+				visits = ActionLauncherChatVisitsProvider()
+			}
+			return authorizedActionLauncherItems(view, chatLauncherItems(view, visits))
+		}
+	}
+	return props
+}
+
+func chatLauncherVisits(conversations []chatui.Conversation, counts map[string]int) []ActionLauncherChatVisit {
+	visits := make([]ActionLauncherChatVisit, 0, len(conversations))
+	seen := make(map[string]bool, len(conversations))
+	for _, conversation := range conversations {
+		id := strings.TrimSpace(conversation.ID)
+		if id == "" || seen[id] || !conversation.Joined || counts[id] < 1 {
+			continue
+		}
+		seen[id] = true
+		visits = append(visits, ActionLauncherChatVisit{Conversation: conversation, Count: counts[id]})
+	}
+	sort.SliceStable(visits, func(i, j int) bool {
+		if visits[i].Count != visits[j].Count {
+			return visits[i].Count > visits[j].Count
+		}
+		return visits[i].Conversation.Name < visits[j].Conversation.Name
+	})
+	if len(visits) > actionLauncherInitialLimit {
+		visits = visits[:actionLauncherInitialLimit]
+	}
+	return visits
+}
+
+func chatLauncherItems(view View, visits []ActionLauncherChatVisit) []ActionLauncherItem {
+	items := make([]ActionLauncherItem, 0, len(visits))
+	seen := make(map[string]bool, len(visits))
+	for _, visit := range visits {
+		conversation := visit.Conversation
+		id := strings.TrimSpace(conversation.ID)
+		label := strings.TrimSpace(conversation.Name)
+		if id == "" || label == "" || seen[id] || !conversation.Joined || visit.Count < 1 {
+			continue
+		}
+		seen[id] = true
+		description := view.Locale.Text("page.chat.label")
+		if view.Chat.Text != nil {
+			switch conversation.Kind {
+			case chatui.PublicChannel:
+				description = view.Chat.Text(chatui.KeyKindPublic)
+			case chatui.PrivateChannel:
+				description = view.Chat.Text(chatui.KeyKindPrivate)
+			case chatui.DirectMessage:
+				description = view.Chat.Text(chatui.KeyKindDirect)
+			case chatui.GroupChat:
+				description = view.Chat.Text(chatui.KeyKindGroup)
+			}
+		}
+		priority := int64(1000 + min(max(visit.Count, 0), 999))
+		items = append(items, ActionLauncherItem{
+			Page: PageChat, Kind: ActionLauncherDestination, Action: "view",
+			ID: "chat:" + id, Label: label, Description: description,
+			Href: chatui.ChannelReferenceURL(id), Icon: "chat",
+			Keywords: []string{label, string(conversation.Kind), "channel", "direct message", "conversation"},
+			Priority: priority, Availability: ActionState{Availability: ActionAvailable}, IsNavigationDestination: true,
+		})
+	}
+	return items
 }
 
 // personActionLauncherItems ranks one authorized action per person per
@@ -643,6 +753,15 @@ func actionLauncherScore(item ActionLauncherItem, tokens []string) int {
 // opening a non-modal dialog that filters the authorized starts locally.
 func ActionLauncher(props ActionLauncherProps) ui.Node {
 	props.Items = presentableActionLauncherItems(props.Items)
+	if props.Page == PageChat && props.RefreshChatItems != nil {
+		items := make([]ActionLauncherItem, 0, len(props.Items))
+		for _, item := range props.Items {
+			if !strings.HasPrefix(item.ID, "chat:") {
+				items = append(items, item)
+			}
+		}
+		props.Items = append(items, presentableActionLauncherItems(props.RefreshChatItems())...)
+	}
 	query := ui.UseState(props.InitialQuery)
 	open := ui.UseState(strings.TrimSpace(props.InitialQuery) != "")
 	active := ui.UseState(0)
@@ -694,7 +813,7 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	// focus wherever it had been, so a keyboard user who dismissed it
 	// resumed somewhere else entirely (UXLIVE-020).
 	useDrawerFocusTrap("action-launcher-dialog", "action-launcher-trigger", open.Get())
-	triggerKey, dialogKey, filterKey, placeholderKey := actionLauncherCopyKeys(props.Items)
+	triggerKey, dialogKey, filterKey, placeholderKey := actionLauncherCopyKeysForPage(props.Page, props.Items)
 	trigger := html.Button(html.Props{
 		ID: "action-launcher-trigger", Class: "action-launcher-trigger", Type: "button",
 		Aria: map[string]string{
@@ -819,6 +938,13 @@ func actionLauncherCopyKeys(items []ActionLauncherItem) (trigger, dialog, filter
 	return "action_launcher.navigation_trigger", "action_launcher.navigation_title", "action_launcher.navigation_filter_label", "action_launcher.navigation_filter_placeholder"
 }
 
+func actionLauncherCopyKeysForPage(page PageID, items []ActionLauncherItem) (trigger, dialog, filter, placeholder string) {
+	if page == PageChat {
+		return "action_launcher.navigation_trigger", "action_launcher.navigation_title", "action_launcher.navigation_filter_label", "action_launcher.navigation_filter_placeholder"
+	}
+	return actionLauncherCopyKeys(items)
+}
+
 func actionLauncherItemAvailable(item ActionLauncherItem) bool {
 	return item.Availability.Availability == ActionAvailable
 }
@@ -895,7 +1021,7 @@ func actionLauncherResults(props ActionLauncherProps, results []ActionLauncherIt
 
 	listbox := ui.CreateElement(PopoverSurface, PopoverSurfaceProps{
 		ID: "action-launcher-results", Class: "action-launcher-panel",
-		Raw: map[string]any{"role": "listbox", "aria-label": props.Text(actionLauncherListboxLabelKey(props.Items))}, Children: children,
+		Raw: map[string]any{"role": "listbox", "aria-label": props.Text(actionLauncherListboxLabelKeyForPage(props.Page, props.Items))}, Children: children,
 	})
 	if len(recoveries) == 0 {
 		return listbox
@@ -927,5 +1053,10 @@ func actionLauncherHasAction(items []ActionLauncherItem) bool {
 
 func actionLauncherListboxLabelKey(items []ActionLauncherItem) string {
 	_, dialog, _, _ := actionLauncherCopyKeys(items)
+	return dialog
+}
+
+func actionLauncherListboxLabelKeyForPage(page PageID, items []ActionLauncherItem) string {
+	_, dialog, _, _ := actionLauncherCopyKeysForPage(page, items)
 	return dialog
 }

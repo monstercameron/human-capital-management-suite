@@ -3,6 +3,7 @@ package productui
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -42,6 +43,60 @@ func TestTodo_WEB_194(t *testing.T) {
 		if strings.Contains(doc, invented) {
 			t.Fatalf("authorized knowledge search invents search data: %q", invented)
 		}
+	}
+}
+
+// TestTodo_REV_077_02 proves the served renderer invokes the request-bound
+// authorized knowledge service and renders only its presentation projection.
+func TestTodo_REV_077_02(t *testing.T) {
+	view := testView(PageKnowledgeSearch)
+	view.Query = "leave policy"
+	var requested string
+	view.SearchKnowledge = func(query string) ([]KnowledgeSearchResult, error) {
+		requested = query
+		return []KnowledgeSearchResult{{ArticleID: "leave-policy", Revision: 3, Locale: "en-US", Title: "Annual leave policy", Summary: "How employees request annual leave."}}, nil
+	}
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requested != "leave policy" {
+		t.Fatalf("service query=%q", requested)
+	}
+	if !strings.Contains(doc, "Annual leave policy") || !strings.Contains(doc, "How employees request annual leave.") {
+		t.Fatalf("authorized result missing from rendered document: %s", doc)
+	}
+	if strings.Contains(doc, "leave-policy") || strings.Contains(doc, "revision=3") {
+		t.Fatalf("internal knowledge identity leaked into rendered document: %s", doc)
+	}
+}
+
+func TestTodo_REV_077_02_Security(t *testing.T) {
+	view := testView(PageKnowledgeSearch)
+	view.Query = "leave"
+	view.SearchKnowledge = func(string) ([]KnowledgeSearchResult, error) {
+		return nil, nil // The service hides both unauthorized and unmatched articles.
+	}
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"restricted-secret", "Sensitive manager leave complaint", "hr_partner", "employee-only result"} {
+		if strings.Contains(doc, secret) {
+			t.Fatalf("nondisclosing empty state exposed %q", secret)
+		}
+	}
+	if !strings.Contains(doc, "No articles are available for this search") {
+		t.Fatalf("empty authorized result state is missing: %s", doc)
+	}
+
+	view.SearchKnowledge = func(string) ([]KnowledgeSearchResult, error) { return nil, errors.New("sensitive database detail") }
+	doc, err = Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(doc, "sensitive database detail") || strings.Contains(doc, "restricted-secret") {
+		t.Fatalf("service failure details leaked: %s", doc)
 	}
 }
 

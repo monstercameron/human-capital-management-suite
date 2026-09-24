@@ -78,7 +78,12 @@ type Config struct {
 	LogoutPath string `json:"logout_path,omitempty"`
 	// GiphyAPIKey is the optional public browser client key for the GIF picker.
 	// An empty value means no GIPHY requests are permitted by the UI.
-	GiphyAPIKey string `json:"giphy_api_key,omitempty"`
+	GiphyAPIKey     string            `json:"giphy_api_key,omitempty"`
+	CatalogLocale   string            `json:"catalog_locale,omitempty"`
+	CatalogVersion  string            `json:"catalog_version,omitempty"`
+	CatalogRevision string            `json:"catalog_revision,omitempty"`
+	CatalogDigest   string            `json:"catalog_digest,omitempty"`
+	CatalogMessages map[string]string `json:"catalog_messages,omitempty"`
 }
 
 // LauncherAction mirrors the server-resolved presentation-safe action

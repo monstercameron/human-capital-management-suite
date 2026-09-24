@@ -1,7 +1,7 @@
 package forms
 
 import (
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/testdata"
 )
 

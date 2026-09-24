@@ -140,7 +140,9 @@ func publishedApproval(t *testing.T) version.CompiledVersion {
 		t.Fatalf("CompileApproval: %v", err)
 	}
 	registry := version.NewRegistry()
-	published, err := version.Publish(registry, definition, plan, workflow.Options{Phase: workflow.PhaseP1B}, version.PublishMeta{
+	published, err := version.Publish(registry, definition, plan, workflow.Options{
+		Phase: workflow.PhaseP1B, IRSchemaVersion: prototype.ApprovalIRSchemaV1,
+	}, version.PublishMeta{
 		SemanticVersion: "1.0.0", PublishedAt: viewInstant, PublishedBy: "principal:release-manager",
 	})
 	if err != nil {

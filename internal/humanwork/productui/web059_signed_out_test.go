@@ -105,8 +105,8 @@ func TestTodo_WEB_059_Golden(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256([]byte(node))
-	if got := hex.EncodeToString(digest[:]); got != "21b09c50a06720ecfcef64c3935a7fd8b3201046de7380daf4bf658e8f1fce58" {
-		t.Fatalf("signed-out golden mismatch:\n%s\nwant digest 21b09c50a06720ecfcef64c3935a7fd8b3201046de7380daf4bf658e8f1fce58", node)
+	if got := hex.EncodeToString(digest[:]); got != "1f9a5519a109be08adf4c64d8c560afa4d747b96e08bbb86824c8adaef795ffc" {
+		t.Fatalf("signed-out golden mismatch:\n%s\nwant digest 1f9a5519a109be08adf4c64d8c560afa4d747b96e08bbb86824c8adaef795ffc", node)
 	}
 }
 

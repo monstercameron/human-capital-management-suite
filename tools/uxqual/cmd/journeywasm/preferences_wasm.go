@@ -5,7 +5,9 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
+	"syscall/js"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
@@ -111,8 +113,15 @@ func (c *serverPreferenceController) SaveAccessRole(role productui.AccessRole, d
 		}
 		return
 	}
+	reason, ok := permissionChangeReason()
+	if !ok {
+		if done != nil {
+			done(errors.New("a reason is required to change role access"))
+		}
+		return
+	}
 	c.enqueue(func() {
-		_, err := c.service.SaveAccessRole(c.ctx, &journeyv1.SaveAccessRoleRequest{Role: &journeyv1.AccessRole{Version: role.Version, RoleId: role.ID, Name: role.Name, Description: role.Description, System: role.System, Active: role.Active}})
+		_, err := c.service.SaveAccessRole(c.ctx, &journeyv1.SaveAccessRoleRequest{Role: &journeyv1.AccessRole{Version: role.Version, RoleId: role.ID, Name: role.Name, Description: role.Description, System: role.System, Active: role.Active}, Reason: reason})
 		if done != nil {
 			done(err)
 		}
@@ -126,8 +135,15 @@ func (c *serverPreferenceController) SaveWorkerRoleAssignment(assignment product
 		}
 		return
 	}
+	reason, ok := permissionChangeReason()
+	if !ok {
+		if done != nil {
+			done(errors.New("a reason is required to change role access"))
+		}
+		return
+	}
 	c.enqueue(func() {
-		_, err := c.service.SaveWorkerRoleAssignment(c.ctx, &journeyv1.SaveWorkerRoleAssignmentRequest{Assignment: &journeyv1.WorkerRoleAssignment{Version: assignment.Version, WorkerRef: assignment.WorkerRef, RoleIds: append([]string(nil), assignment.RoleIDs...)}})
+		_, err := c.service.SaveWorkerRoleAssignment(c.ctx, &journeyv1.SaveWorkerRoleAssignmentRequest{Assignment: &journeyv1.WorkerRoleAssignment{Version: assignment.Version, WorkerRef: assignment.WorkerRef, RoleIds: append([]string(nil), assignment.RoleIDs...)}, Reason: reason})
 		if done != nil {
 			done(err)
 		}
@@ -141,8 +157,15 @@ func (c *serverPreferenceController) SaveRoleVisibility(policy productui.Organiz
 		}
 		return
 	}
+	reason, ok := permissionChangeReason()
+	if !ok {
+		if done != nil {
+			done(errors.New("a reason is required to change role access"))
+		}
+		return
+	}
 	c.enqueue(func() {
-		_, err := c.service.SaveRoleOrganizationVisibility(c.ctx, &journeyv1.SaveRoleOrganizationVisibilityRequest{Policy: &journeyv1.RoleOrganizationVisibilityPolicy{Version: policy.Version, RoleId: policy.RoleID, Mode: policy.Mode, OrganizationUnits: append([]string(nil), policy.OrganizationUnits...)}})
+		_, err := c.service.SaveRoleOrganizationVisibility(c.ctx, &journeyv1.SaveRoleOrganizationVisibilityRequest{Policy: &journeyv1.RoleOrganizationVisibilityPolicy{Version: policy.Version, RoleId: policy.RoleID, Mode: policy.Mode, OrganizationUnits: append([]string(nil), policy.OrganizationUnits...)}, Reason: reason})
 		if done != nil {
 			done(err)
 		}
@@ -156,8 +179,15 @@ func (c *serverPreferenceController) SaveRolePagePermission(permission productui
 		}
 		return
 	}
+	reason, ok := permissionChangeReason()
+	if !ok {
+		if done != nil {
+			done(errors.New("a reason is required to change role access"))
+		}
+		return
+	}
 	c.enqueue(func() {
-		_, err := c.service.SaveRolePagePermission(c.ctx, &journeyv1.SaveRolePagePermissionRequest{Permission: &journeyv1.RolePagePermission{
+		_, err := c.service.SaveRolePagePermission(c.ctx, &journeyv1.SaveRolePagePermissionRequest{Reason: reason, Permission: &journeyv1.RolePagePermission{
 			Version: permission.Version, RoleId: permission.RoleID, PageId: string(permission.Page),
 			CanView: permission.View, CanCreate: permission.Create, CanUpdate: permission.Update, CanDelete: permission.Delete,
 		}})
@@ -174,8 +204,15 @@ func (c *serverPreferenceController) SaveRoleFeaturePermission(permission produc
 		}
 		return
 	}
+	reason, ok := permissionChangeReason()
+	if !ok {
+		if done != nil {
+			done(errors.New("a reason is required to change role access"))
+		}
+		return
+	}
 	c.enqueue(func() {
-		_, err := c.service.SaveRoleFeaturePermission(c.ctx, &journeyv1.SaveRoleFeaturePermissionRequest{Permission: &journeyv1.RoleFeaturePermission{
+		_, err := c.service.SaveRoleFeaturePermission(c.ctx, &journeyv1.SaveRoleFeaturePermissionRequest{Reason: reason, Permission: &journeyv1.RoleFeaturePermission{
 			Version: permission.Version, RoleId: permission.RoleID, PageId: string(permission.Page), FeatureId: string(permission.Feature),
 			CanView: permission.View, CanCreate: permission.Create, CanUpdate: permission.Update, CanDelete: permission.Delete,
 		}})
@@ -183,6 +220,19 @@ func (c *serverPreferenceController) SaveRoleFeaturePermission(permission produc
 			done(err)
 		}
 	})
+}
+
+func permissionChangeReason() (string, bool) {
+	prompt := js.Global().Get("prompt")
+	if prompt.Type() != js.TypeFunction {
+		return "", false
+	}
+	result := prompt.Invoke("Why is this role or permission change needed?")
+	if result.IsNull() || result.IsUndefined() {
+		return "", false
+	}
+	reason := strings.TrimSpace(result.String())
+	return reason, reason != "" && len(reason) <= 500 && !strings.ContainsAny(reason, "\r\n\x00")
 }
 
 func (c *serverPreferenceController) SaveTheme(theme productui.CustomerTheme, done func(error)) {

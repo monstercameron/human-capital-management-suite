@@ -3,17 +3,19 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"html"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/i18n"
+	journey "github.com/monstercameron/human-capital-management-suite/internal/experience/journeycss"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 )
 
 const (
@@ -52,7 +54,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	access, loadErr := h.resolveProductAccess(admitted.Context(), principal)
 	if loadErr != nil {
-		h.writeProblem(w, http.StatusServiceUnavailable, "Access unavailable", "The role policy could not be resolved for this page.")
+		h.writeProductProblem(w, r, http.StatusServiceUnavailable, productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), ""))
 		return
 	}
 	config.Roles, config.PagePermissions = access.roles, access.permissions
@@ -61,7 +63,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	config.LauncherActions = resolveProductLauncherActions(access.configured, access.permissions)
 	if !access.can(definition.ID, roleaccess.ActionView) && !assignedJourneyDetail(definition.ID, r.URL.Query(), access) {
-		h.writeProblem(w, http.StatusForbidden, "Page unavailable", "Your current role does not grant access to this workspace page.")
+		h.writeProductProblem(w, r, http.StatusForbidden, productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), ""))
 		return
 	}
 	// REV-067-01: resolve the served page through the governed rollout
@@ -76,25 +78,31 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 			revisionScope = string(principal.Tenant())
 		}
 	}
-	if revision, governed, servable, reason := h.resolveGovernedRevision(definition.ID, revisionScope, h.now().Unix()); governed {
+	revision, governed, servable, _, governanceErr := h.resolveGovernedRevision(admitted.Context(), config.Tenant, definition.ID, revisionScope, h.now().Unix())
+	if governanceErr != nil {
+		h.writeProductProblem(w, r, http.StatusServiceUnavailable, productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), ""))
+		return
+	}
+	if governed {
 		if !servable {
-			h.writeProblem(w, http.StatusNotFound, "Page unavailable", reason)
+			h.writeProductProblem(w, r, http.StatusNotFound, productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), ""))
 			return
 		}
 		w.Header().Set("X-Page-Revision-Digest", revision.Digest)
 	}
 	query := r.URL.Query()
-	locale := productui.ResolveProductLocale(query.Get("locale"))
+	locale := productui.ResolveProductLocalePreference(query.Get("locale"), "")
 	nav := ""
 	if values := query["nav"]; len(values) == 1 && values[0] == "collapsed" {
 		nav = "collapsed"
 	}
 	appearance := productui.DefaultCustomerTheme()
 	accessibility := productui.DefaultAccessibilityPreferences()
+	savedLocale := ""
 	if h.preferences != nil && principal != nil {
 		snapshot, loadErr := h.preferences.Load(admitted.Context(), principal.Tenant(), principal.OrganizationScopeID(), principal.Subject())
 		if loadErr != nil {
-			h.writeProblem(w, http.StatusServiceUnavailable, "Appearance unavailable", "Organization appearance could not be loaded.")
+			h.writeProductProblem(w, r, http.StatusServiceUnavailable, productui.ResolveProductLocalePreference(query.Get("locale"), ""))
 			return
 		}
 		// REV-092-01: the person's own density overrides the organization's
@@ -110,6 +118,33 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		accessibility = productui.NormalizeAccessibilityPreferences(productui.AccessibilityPreferences{
 			TextSize: stored.TextSize, Contrast: stored.Contrast, Motion: stored.Motion, Links: stored.Links,
 		})
+		savedLocale = snapshot.User.Locale
+	}
+	locale = productui.ResolveProductLocalePreference(query.Get("locale"), savedLocale)
+	if h.catalogs != nil && config.Tenant != "" {
+		revision, catalogErr := h.catalogs.Active(admitted.Context(), i18n.Scope{Tenant: config.Tenant, Product: "workspace"}, locale.Resolved, h.now().UTC())
+		if catalogErr != nil && !errors.Is(catalogErr, i18n.ErrNoActiveRevision) {
+			h.writeProductProblem(w, r, http.StatusServiceUnavailable, locale)
+			return
+		}
+		if catalogErr == nil {
+			locale, catalogErr = productui.ApplyActivatedCatalog(locale, i18n.Scope{Tenant: config.Tenant, Product: "workspace"}, revision, h.now().UTC())
+			if catalogErr != nil {
+				h.writeProductProblem(w, r, http.StatusServiceUnavailable, productui.ResolveProductLocalePreference(query.Get("locale"), savedLocale))
+				return
+			}
+			config.CatalogLocale = locale.Resolved
+			config.CatalogVersion = locale.CatalogVersion
+			config.CatalogRevision = revision.ID
+			config.CatalogDigest = revision.CanonicalDigest
+			config.CatalogMessages = make(map[string]string, len(revision.Translations))
+			at := h.now().UTC()
+			for _, translation := range revision.Translations {
+				if (translation.EffectiveFrom.IsZero() || !at.Before(translation.EffectiveFrom)) && (translation.EffectiveUntil.IsZero() || at.Before(translation.EffectiveUntil)) {
+					config.CatalogMessages[translation.Key] = translation.Text
+				}
+			}
+		}
 	}
 	appearance = productui.NormalizeCustomerTheme(appearance)
 	if productui.ValidateCustomerTheme(appearance) != nil {
@@ -117,15 +152,43 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	stylesheet, err := productStylesheetForTheme(appearance)
 	if err != nil {
-		h.writeProblem(w, http.StatusServiceUnavailable, "Appearance unavailable", "Organization appearance could not be qualified.")
+		h.writeProductProblem(w, r, http.StatusServiceUnavailable, locale)
 		return
 	}
 	doc, err := productShellDocumentForRouteStateWithPreferences(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, accessibility, stylesheet)
 	if err != nil {
-		h.writeProblem(w, http.StatusInternalServerError, "Workspace unavailable", err.Error())
+		h.writeProductProblem(w, r, http.StatusInternalServerError, locale)
 		return
 	}
 	writeHTMLDocument(w, http.StatusOK, doc, productContentSecurityPolicyForStylesheetAndGiphy(h.policyHost(r), stylesheet, h.giphyAPIKey != ""))
+}
+
+// writeProductProblem renders a product-context error in the locale already
+// trusted by this request. Before the preference snapshot is available, the
+// caller supplies only a supported URL locale or the English default. In
+// particular, a failed preference read never invents a locale from a cookie,
+// header, tenant setting, or another principal's record.
+func (h *Handler) writeProductProblem(w http.ResponseWriter, r *http.Request, status int, locale productui.LocaleContext) {
+	if locale.Resolved == "" {
+		locale = productui.ResolveProductLocale("")
+	}
+	stylesheet := productStylesheet()
+	title := locale.Text("shell.page_unavailable")
+	copy := locale.Text("shell.load_recovery")
+	recovery := locale.Text("shell.page_recovery")
+	doc := `<!doctype html><html lang="` + html.EscapeString(locale.Resolved) + `" dir="` + html.EscapeString(string(locale.Direction)) + `" data-hcm-locale="` + html.EscapeString(locale.Resolved) + `" data-hcm-catalog="` + html.EscapeString(locale.CatalogVersion) + `"`
+	if locale.CatalogRevision != "" {
+		doc += ` data-hcm-catalog-revision="` + html.EscapeString(locale.CatalogRevision) + `"`
+	}
+	if locale.Fallback != productui.LocaleFallbackNone {
+		doc += ` data-hcm-locale-fallback="` + html.EscapeString(string(locale.Fallback)) + `" data-hcm-requested-locale="` + html.EscapeString(locale.Requested) + `"`
+	}
+	if missing := len(productui.MissingProductTranslations(locale.Resolved)); missing > 0 {
+		doc += ` data-hcm-message-fallback="en-US" data-hcm-message-fallback-count="` + strconv.Itoa(missing) + `"`
+	}
+	doc += `><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><title>` + html.EscapeString(title) + `</title><style>` + stylesheet + `</style></head><body>`
+	doc += `<div class="app-shell"><main id="main-content"><section class="surface empty-state" role="alert"><h1>` + html.EscapeString(title) + `</h1><p>` + html.EscapeString(copy) + `</p><p><a href="` + PathProductHome + `">` + html.EscapeString(recovery) + `</a></p></section></main></div></body></html>`
+	writeHTMLDocument(w, status, doc, productContentSecurityPolicyForStylesheet(h.policyHost(r), stylesheet))
 }
 
 func productThemeFromPreference(value preferences.Theme) productui.CustomerTheme {
@@ -234,6 +297,9 @@ func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bund
 	}
 	var b strings.Builder
 	b.WriteString(`<!doctype html><html lang="` + html.EscapeString(locale.Resolved) + `" dir="` + html.EscapeString(string(locale.Direction)) + `" data-hcm-locale="` + html.EscapeString(locale.Resolved) + `" data-hcm-catalog="` + html.EscapeString(locale.CatalogVersion) + `"`)
+	if locale.CatalogRevision != "" {
+		b.WriteString(` data-hcm-catalog-revision="` + html.EscapeString(locale.CatalogRevision) + `"`)
+	}
 	if locale.Fallback != productui.LocaleFallbackNone {
 		b.WriteString(` data-hcm-locale-fallback="` + html.EscapeString(string(locale.Fallback)) + `"`)
 	}
@@ -250,7 +316,11 @@ func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bund
 	}
 	b.WriteString(`><head><meta charset="utf-8"><meta name="color-scheme" content="` + html.EscapeString(productui.ColorSchemeContent(appearance["data-hcm-color-mode"])) + `">`)
 	b.WriteString(`<meta name="viewport" content="width=device-width, initial-scale=1">`)
-	b.WriteString("<title>Human Capital Management Suite</title><style>")
+	title := "Human Capital Management Suite"
+	if definition, ok := productui.LookupPage(page); ok && definition.TitleKey != "" {
+		title = locale.Text(definition.TitleKey)
+	}
+	b.WriteString("<title>" + html.EscapeString(title) + "</title><style>")
 	b.WriteString(stylesheet)
 	b.WriteString("</style></head><body>")
 	b.WriteString(`<div id="` + JourneyRootElementID + `">`)

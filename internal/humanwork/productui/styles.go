@@ -63,6 +63,7 @@ func initPlatformStyles() {
 	platformStyles += workflowViewerStylesheet()
 	platformStyles += chatui.ScopedStylesheet() + chatShellStylesheet()
 	platformStyles += ChatRetentionStylesheet()
+	platformStyles += positionSelectorStylesheet()
 	platformStyles += workflowDesignerStylesheet()
 	platformStyles += workflowEditorStylesheet()
 	platformStyles += columnChooserStylesheet()

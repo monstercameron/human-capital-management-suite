@@ -1,8 +1,7 @@
 package journey
 
 import (
-	"strings"
-	"sync"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/journeycss"
 )
 
 // This file holds the Promotion journey page's design tokens twice over: as
@@ -192,20 +191,4 @@ func UIPairs() []ColorPair {
 // literal const gave (exact rule order, hashed @keyframes names) are
 // preserved by TestStylesheetAnimationNamesHaveKeyframes and the content
 // assertions below.
-var stylesheetOnce = sync.OnceValue(journeyTypedStylesheet)
-
-func Stylesheet() string { return stylesheetOnce() }
-
-// journeyTypedStylesheet assembles the whole page's CSS in original rule
-// order: tokens and base rules, forms and tables, then motion and print.
-func journeyTypedStylesheet() string {
-	var out strings.Builder
-	grow := func(declare func()) string { return buildTypedSheet(declare) }
-	out.WriteString(grow(declareJourneyTokens))
-	out.WriteString(grow(declareJourneyForms))
-	out.WriteString(grow(declareJourneyNotes))
-	out.WriteString(grow(declareJourneyMotion))
-	out.WriteString(grow(declareJourneyTracker))
-	out.WriteString(grow(declareJourneyReview))
-	return out.String()
-}
+func Stylesheet() string { return journeycss.Stylesheet() }

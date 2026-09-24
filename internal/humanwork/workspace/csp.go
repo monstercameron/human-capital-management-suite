@@ -159,6 +159,8 @@ func cspConnectSources(rawHost string, allowAssets, allowTunnel, allowMedia bool
 		sources = append(sources,
 			"http://"+authority+PathChatMediaPrefix,
 			"https://"+authority+PathChatMediaPrefix,
+			"http://"+authority+PathDocumentMediaPrefix,
+			"https://"+authority+PathDocumentMediaPrefix,
 		)
 	}
 	if allowTunnel {

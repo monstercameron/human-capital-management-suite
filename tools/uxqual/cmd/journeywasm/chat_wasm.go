@@ -72,6 +72,7 @@ func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Confi
 		chatBrowser.mutate(func(m *chatui.Model) { m.EmbedOrigin = origin.String() })
 	}
 	configureChatRecipientBrowser(conn, cfg)
+	configureChatDocuments(conn)
 }
 
 // loadChatDirectory reads the worker directory once per session.
@@ -167,7 +168,8 @@ func loadMoreChatSearch(cfg journeyclient.Config) {
 		active := chatBrowser.config(cfg)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		result, err := client.Search(chatRPCContext(ctx, active), &chatv1.SearchRequest{TenantId: active.Tenant, Query: query, Cursor: cursor, PageSize: 50})
+		searchText, searchIn, searchFrom := chatui.SearchFilters(chatBrowser.snapshot(), query)
+		result, err := client.Search(chatRPCContext(ctx, active), &chatv1.SearchRequest{TenantId: active.Tenant, Query: searchText, ConversationId: searchIn, AuthorId: searchFrom, Cursor: cursor, PageSize: 50})
 		if !chatBrowser.generationActive(generation) {
 			return
 		}
@@ -236,7 +238,8 @@ func loadMoreChatSearchChannels(cfg journeyclient.Config) {
 		active := chatBrowser.config(cfg)
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		result, err := client.Search(chatRPCContext(ctx, active), &chatv1.SearchRequest{TenantId: active.Tenant, Query: query, ChannelCursor: cursor, PageSize: 50})
+		searchText, searchIn, searchFrom := chatui.SearchFilters(chatBrowser.snapshot(), query)
+		result, err := client.Search(chatRPCContext(ctx, active), &chatv1.SearchRequest{TenantId: active.Tenant, Query: searchText, ConversationId: searchIn, AuthorId: searchFrom, ChannelCursor: cursor, PageSize: 50})
 		if !chatBrowser.generationActive(generation) {
 			return
 		}
@@ -395,7 +398,7 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	// and Messages over the newer one.
 	generation := chatBrowser.currentGeneration()
 	callCtx := chatRPCContext(ctx, cfg)
-	list, err := client.ListConversations(callCtx, &chatv1.ListConversationsRequest{TenantId: cfg.Tenant, PageSize: 100})
+	list, err := client.ListConversations(callCtx, &chatv1.ListConversationsRequest{TenantId: cfg.Tenant, PageSize: 100, IncludeDiscoverable: true})
 	if err != nil {
 		message := chatLoadFailureMessage("your conversations", err)
 		chatBrowser.setLoadError(message)
@@ -413,12 +416,18 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 
 	local := chatBrowser.snapshot()
 	conversations := make([]chatui.Conversation, 0, len(list.GetConversations()))
+	discoverable := make(map[string]chatui.Conversation)
 	for _, conversation := range list.GetConversations() {
 		if conversation == nil {
 			continue
 		}
-		room := chatConversation(conversation)
-		conversations = append(conversations, chatDirectoryNamedDirect(room, local.PeerIDs, directory))
+		room := chatBrowseConversation(conversation)
+		room = chatDirectoryNamedDirect(room, local.PeerIDs, directory)
+		if room.Joined {
+			conversations = append(conversations, room)
+		} else if room.Kind == chatui.PublicChannel {
+			discoverable[room.ID] = room
+		}
 	}
 
 	model := chatBrowser.snapshot()
@@ -434,10 +443,20 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	model.EditDrafts = chatBrowser.editDraftSnapshot()
 	previous := model.SelectedID
 	model.SelectedID = ""
+	var previewAccess *chatui.Conversation
 	for _, conversation := range conversations {
 		if conversation.ID == previous {
 			model.SelectedID = previous
 			break
+		}
+	}
+	model.PreviewConversation = nil
+	if model.SelectedID == "" {
+		if preview, ok := discoverable[previous]; ok {
+			model.SelectedID = previous
+			model.PreviewConversation = &preview
+			previewCopy := preview
+			previewAccess = &previewCopy
 		}
 	}
 	if model.SelectedID == "" && len(conversations) > 0 {
@@ -484,10 +503,14 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	if cursor.ConversationID != "" {
 		subscribeChatConversation(cursor.ConversationID)
 	}
-	startChatRecipientProjection(cfg, list.GetConversations())
+	if previewAccess != nil {
+		promptChatChannelAccess(cfg, *previewAccess)
+	}
+	startChatRecipientProjection(cfg, chatMembershipRows(list.GetConversations()))
 	startChatDMPeers(cfg, conversations)
 	openChatShareFragment(cfg)
 	openChatChannelFragment(cfg)
+	openChatPersonFragment(cfg)
 	return chatBrowser.snapshot(), nil
 }
 
@@ -536,6 +559,16 @@ func startChatDMPeers(cfg journeyclient.Config, rooms []chatui.Conversation) {
 			})
 		}(room.ID)
 	}
+}
+
+func chatMembershipRows(rows []*chatv1.Conversation) []*chatv1.Conversation {
+	joined := make([]*chatv1.Conversation, 0, len(rows))
+	for _, row := range rows {
+		if row != nil && row.GetJoined() {
+			joined = append(joined, row)
+		}
+	}
+	return joined
 }
 
 // A direct conversation with only the viewer as an active member is a DM to
@@ -589,21 +622,36 @@ func loadChatPosts(ctx context.Context, client chatv1.ConversationServiceClient,
 	if model.SelectedID == "" {
 		return cursor, nil
 	}
-	// One backward page. A room opens on its newest posts, which is what the
-	// reader came for; walking forward from the beginning of a long channel
-	// used to cost ten pages to reach the same place, and stopped short of it.
-	request := &chatv1.ListPostsRequest{
-		TenantId: cfg.Tenant, ConversationId: model.SelectedID, PageSize: chatPageSize, Descending: true,
-	}
+	// Ordinary opens show the newest page. Search opens read equal context on
+	// both sides of the hit so paging newer cannot immediately move it out of
+	// view or make it look like the newest message.
+	model.HasNewer = false
+	var posts []*chatv1.Post
+	var olderCursor, newerCursor string
 	if len(anchors) > 0 && anchors[0].sequence > 0 {
-		request.BeforeSequence = anchors[0].sequence + 1
+		olderRequest, newerRequest := chatSearchAnchorRequests(cfg.Tenant, model.SelectedID, anchors[0].sequence)
+		olderResult, err := client.ListPosts(ctx, olderRequest)
+		if err != nil {
+			return cursor, err
+		}
+		newerResult, err := client.ListPosts(ctx, newerRequest)
+		if err != nil {
+			return cursor, err
+		}
+		posts = mergeChatSearchAnchorPosts(olderResult.GetPosts(), newerResult.GetPosts())
+		olderCursor, newerCursor = olderResult.GetNextCursor(), newerResult.GetNextCursor()
+		model.HasNewer = newerCursor != ""
+	} else {
+		result, err := client.ListPosts(ctx, &chatv1.ListPostsRequest{
+			TenantId: cfg.Tenant, ConversationId: model.SelectedID, PageSize: chatPageSize, Descending: true,
+		})
+		if err != nil {
+			return cursor, err
+		}
+		posts = chatInConversationOrder(result.GetPosts())
+		olderCursor = result.GetNextCursor()
 	}
-	result, err := client.ListPosts(ctx, request)
-	if err != nil {
-		return cursor, err
-	}
-	posts := chatInConversationOrder(result.GetPosts())
-	chatBrowser.setOlderCursor(result.GetNextCursor())
+	chatBrowser.setOlderCursor(olderCursor)
 	now := time.Now()
 	reactions := chatBrowser.reactionSnapshot()
 	model.Messages = chatMessages(posts, cfg.Locale, directory, reactions, now)
@@ -619,10 +667,9 @@ func loadChatPosts(ctx context.Context, client chatv1.ConversationServiceClient,
 			return cursor, fmt.Errorf("the message is no longer available")
 		}
 		model.FocusMessageID = anchors[0].postID
-		model.HasNewer = true
 	}
 	window := chatBrowser.retainedWindow()
-	model.Messages, model.HasOlder = boundChatMessages(model.Messages, window, result.GetNextCursor() != "")
+	model.Messages, model.HasOlder = boundChatMessages(model.Messages, window, olderCursor != "")
 	if model.ShowThread && model.ThreadParentID != "" {
 		for i := range model.Messages {
 			if model.Messages[i].ID == model.ThreadParentID {
@@ -632,7 +679,7 @@ func loadChatPosts(ctx context.Context, client chatv1.ConversationServiceClient,
 			}
 		}
 		model.ThreadMessages = chatThreadMessages(posts, model.ThreadParentID, cfg.Locale, directory, now)
-		if boundLiveChatThread(model) || result.GetNextCursor() != "" {
+		if boundLiveChatThread(model) || olderCursor != "" {
 			model.ThreadHasOlder = true
 		}
 	}
@@ -799,6 +846,11 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				model.NewName = ""
 			})
 			refreshChatRoute()
+			// The member picker searches the governed directory; read it now
+			// if the session has not needed it yet.
+			if len(chatBrowser.snapshot().SearchDirectory) == 0 {
+				go loadChatDirectory(cfg)
+			}
 		},
 		CloseCreate: func() {
 			chatBrowser.mutate(func(model *chatui.Model) { model.ShowCreate = false })
@@ -809,10 +861,19 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			navigation.SelectedID = id
 			navigation.Search = ""
 			navigation.ShowThread, navigation.ThreadParentID = false, ""
+			navigation.FocusMessageID = ""
 			chatHistory.push(navigation)
 			openChatConversation(cfg, id)
 		},
 		OpenSearchMessage: func(conversationID, postID string, sequence uint64) {
+			navigation := chatBrowser.snapshot()
+			navigation.SelectedID = conversationID
+			navigation.Search = ""
+			navigation.ShowThread, navigation.ThreadParentID = false, ""
+			navigation.FocusMessageID = postID
+			state := chatNavigationStateFromModel(navigation)
+			state.FocusSequence = sequence
+			chatHistory.pushState(state)
 			chatBrowser.beginGeneration()
 			chatBrowser.mutate(func(model *chatui.Model) {
 				model.Search, model.SearchLoading, model.SearchError = "", false, ""
@@ -826,6 +887,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			navigation := chatBrowser.snapshot()
 			navigation.SelectedID, navigation.ShowDetails = id, true
 			navigation.ShowThread, navigation.ThreadParentID = false, ""
+			navigation.FocusMessageID = ""
 			chatHistory.push(navigation)
 			openChatConversation(cfg, id)
 			chatBrowser.mutate(func(model *chatui.Model) { model.ShowDetails = true; model.RailMenuID = ""; model.SidebarOpen = false })
@@ -1001,7 +1063,10 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 					return
 				}
 				active := chatBrowser.config(cfg)
-				result, err := client.Search(chatRPCContext(ctx, active), &chatv1.SearchRequest{TenantId: active.Tenant, Query: query, PageSize: 50})
+				// Slack-style "in:#channel" and "from:@name" filters narrow the
+				// server search; the remaining words are the query.
+				searchText, searchIn, searchFrom := chatui.SearchFilters(chatBrowser.snapshot(), query)
+				result, err := client.Search(chatRPCContext(ctx, active), &chatv1.SearchRequest{TenantId: active.Tenant, Query: searchText, ConversationId: searchIn, AuthorId: searchFrom, PageSize: 50})
 				directory := chatDirectorySnapshot()
 				people := chatSearchVisibleWorkers(chatBrowser.snapshot().SearchDirectory, query, 20)
 				now := time.Now()
@@ -1099,21 +1164,22 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				go loadChatMembers(cfg)
 			}
 		},
+		// The to-do list and poll open inline in the chat (chatui's channel
+		// tray), not in the details pane; these only load and focus them.
 		OpenChannelTodo: func() {
-			chatBrowser.mutate(func(model *chatui.Model) { model.ShowDetails = true })
-			refreshChatRoute()
 			chatui.FocusChannelTodo()
 		},
 		OpenChannelPoll: func(conversationID string) {
 			current := chatBrowser.snapshot()
 			startPollLoad := !current.ChannelPollLoading && current.ChannelPoll.Revision == 0 && current.ChannelPollError == ""
-			chatBrowser.mutate(func(model *chatui.Model) {
-				model.ShowDetails = true
-				if startPollLoad && model.SelectedID == conversationID {
-					model.ChannelPollLoading = true
-				}
-			})
-			refreshChatRoute()
+			if startPollLoad {
+				chatBrowser.mutate(func(model *chatui.Model) {
+					if model.SelectedID == conversationID {
+						model.ChannelPollLoading = true
+					}
+				})
+				refreshChatRoute()
+			}
 			if startPollLoad {
 				go loadChannelPoll(cfg, conversationID)
 			}
@@ -1250,7 +1316,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			}()
 		},
 	}
-	return withChannelPollCallbacks(withChannelWidgetCallbacks(withChannelTodoCallbacks(withChatPersonCallbacks(withChatRecipientCallbacks(withChatDiscoveryCallbacks(callbacks, cfg), cfg, refreshChatRoute), cfg), cfg), cfg), cfg)
+	return withChatDocCallbacks(withChannelPollCallbacks(withChannelWidgetCallbacks(withChannelTodoCallbacks(withChatPersonCallbacks(withChatRecipientCallbacks(withChatDiscoveryCallbacks(callbacks, cfg), cfg, refreshChatRoute), cfg), cfg), cfg), cfg), cfg)
 }
 
 func closeChatDetailsForPinJump(viewportWidth int) {
@@ -1268,6 +1334,9 @@ func sendChatMessage(cfg journeyclient.Config, conversationID, body string) {
 		return
 	}
 	active := chatBrowser.config(cfg)
+	if !chatDraftIdentityMatches(cfg.Tenant, cfg.Subject, active.Tenant, active.Subject) {
+		return
+	}
 	// No parent, ever. This is the main composer; a reply goes through
 	// ReplyInThread with the root the reader is looking at, so an open thread
 	// pane can no longer swallow a message meant for the conversation.
@@ -1340,6 +1409,11 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 		}
 		return
 	}
+	// Count an actual navigation immediately, including search-driven opens.
+	// The page-selection observer covers route entry and history restoration;
+	// the visit state de-duplicates the same open when both paths fire.
+	visitModel := chatBrowser.snapshot()
+	recordSelectedChatVisit(visitModel.CurrentTenantID, visitModel.CurrentUser, id)
 	cancelChatSubscription()
 	clearChatMediaCache()
 	chatBrowser.releaseReactionRead()

@@ -97,6 +97,10 @@ type Notice struct {
 	Busy       bool
 	TitleKey   string
 	MessageKey string
+	// RecoveryHref and RecoveryLabel are set for an unauthenticated response.
+	// They use the same signed-out destination as the product shell panel.
+	RecoveryHref  string
+	RecoveryLabel string
 	// SupportReference is an opaque server-issued request id. The renderer
 	// exposes it only inside a closed, copyable support disclosure, never in
 	// the ordinary status sentence.

@@ -224,7 +224,9 @@ func CheckKeyboard(doc string) CriterionResult {
 }
 
 // CheckScreenReaderSemantics verifies landmarks exist, every text input has
-// an associated <label for>, and a live region exists for simulation
+// an accessible name (an associated <label for>, or its own aria-label /
+// aria-labelledby -- both are standard WCAG 4.1.2 name-computation
+// techniques, not just the first), and a live region exists for simulation
 // status.
 func CheckScreenReaderSemantics(doc string) CriterionResult {
 	root, err := html.Parse(strings.NewReader(doc))
@@ -235,6 +237,7 @@ func CheckScreenReaderSemantics(doc string) CriterionResult {
 	landmarks := map[atom.Atom]int{}
 	labelFor := map[string]bool{}
 	inputIDs := map[string]bool{}
+	selfLabeled := map[string]bool{}
 	liveRegions := 0
 
 	var walk func(*html.Node)
@@ -251,10 +254,16 @@ func CheckScreenReaderSemantics(doc string) CriterionResult {
 			case atom.Input:
 				if attrs["type"] != "hidden" && attrs["id"] != "" {
 					inputIDs[attrs["id"]] = true
+					if strings.TrimSpace(attrs["aria-label"]) != "" || strings.TrimSpace(attrs["aria-labelledby"]) != "" {
+						selfLabeled[attrs["id"]] = true
+					}
 				}
 			case atom.Textarea:
 				if attrs["id"] != "" {
 					inputIDs[attrs["id"]] = true
+					if strings.TrimSpace(attrs["aria-label"]) != "" || strings.TrimSpace(attrs["aria-labelledby"]) != "" {
+						selfLabeled[attrs["id"]] = true
+					}
 				}
 			}
 			if _, ok := attrs["aria-live"]; ok {
@@ -277,12 +286,12 @@ func CheckScreenReaderSemantics(doc string) CriterionResult {
 	}
 	var unlabeled []string
 	for id := range inputIDs {
-		if !labelFor[id] {
+		if !labelFor[id] && !selfLabeled[id] {
 			unlabeled = append(unlabeled, id)
 		}
 	}
 	if len(unlabeled) > 0 {
-		problems = append(problems, "inputs with no associated <label for>: "+strings.Join(unlabeled, ", "))
+		problems = append(problems, "inputs with no accessible name (<label for>, aria-label or aria-labelledby): "+strings.Join(unlabeled, ", "))
 	}
 	if liveRegions == 0 {
 		problems = append(problems, "no live region (role=status/alert or aria-live) for simulation status")

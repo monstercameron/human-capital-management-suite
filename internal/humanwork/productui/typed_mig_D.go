@@ -775,6 +775,11 @@ func darkModeDeclarationRules() []gwccss.Rule {
 		gwccss.Custom("accent", "color-mix(in srgb,var(--hcm-color-brand-primary) 40%,#fff)"),
 		gwccss.Custom("accent-hover", "color-mix(in srgb,var(--hcm-color-brand-hover) 32%,#fff)"),
 		gwccss.Custom("soft", "color-mix(in srgb,var(--hcm-color-brand-primary) 18%,#16202a)"),
+		// Components that read the registered token directly must get the
+		// same dark selected surface darkThemeValues qualifies, not #eaf3ef.
+		// Spelled out rather than var(--soft): print resets --soft to this
+		// token on the same element, and a reference back would be a cycle.
+		gwccss.Custom("hcm-color-brand-soft", "color-mix(in srgb,var(--hcm-color-brand-primary) 18%,#16202a)"),
 		gwccss.Custom("ink", "#f3f7fb"),
 		gwccss.Custom("muted", "#aebdcb"),
 		gwccss.Custom("canvas", "#0b1118"),
@@ -805,6 +810,8 @@ func lightPrintDeclarationRules() []gwccss.Rule {
 		gwccss.Raw("color-scheme", "light"),
 		gwccss.Custom("accent", "var(--hcm-color-brand-primary)"),
 		gwccss.Custom("accent-hover", "var(--hcm-color-brand-hover)"),
+		// Undo the dark brand-soft override so print gets the light default.
+		gwccss.Custom("hcm-color-brand-soft", "#eaf3ef"),
 		gwccss.Custom("soft", "var(--hcm-color-brand-soft)"),
 		gwccss.Custom("ink", "var(--hcm-color-text)"),
 		gwccss.Custom("muted", "var(--hcm-color-text-muted)"),

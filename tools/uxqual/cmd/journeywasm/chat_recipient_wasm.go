@@ -29,11 +29,12 @@ type recipientSection struct {
 	Chats     []recipientChatRef `json:"chats"`
 }
 type recipientLayout struct {
-	Sections      []recipientSection          `json:"sections"`
-	Panes         chatui.PaneSizes            `json:"panes"`
-	PanesByDevice map[string]chatui.PaneSizes `json:"panesByDevice,omitempty"`
-	Starred       []string                    `json:"starred,omitempty"`
-	Filters       map[string]string           `json:"filters,omitempty"`
+	Sections             []recipientSection          `json:"sections"`
+	Panes                chatui.PaneSizes            `json:"panes"`
+	PanesByDevice        map[string]chatui.PaneSizes `json:"panesByDevice,omitempty"`
+	Starred              []string                    `json:"starred,omitempty"`
+	Filters              map[string]string           `json:"filters,omitempty"`
+	DismissedJoinPrompts []string                    `json:"dismissedJoinPrompts,omitempty"`
 	// Drafts is the reader's unsent composer text, keyed by conversation.
 	// Chat has no drafts store of its own: NotificationPreferences has no
 	// such field and the product preference schema is closed, so the sidebar
@@ -260,6 +261,15 @@ func applyCachedChatRecipientProjection(model *chatui.Model) {
 }
 
 func applyRecipientLayout(model *chatui.Model, layout recipientLayout, hosts map[string]string) {
+	model.JoinPromptSeen = make(map[string]bool, len(layout.DismissedJoinPrompts))
+	for _, id := range layout.DismissedJoinPrompts {
+		if id != "" {
+			model.JoinPromptSeen[id] = true
+		}
+	}
+	if model.JoinPromptID != "" && model.JoinPromptSeen[model.JoinPromptID] {
+		model.JoinPromptID, model.JoinPromptPending = "", false
+	}
 	starred := make(map[string]bool, len(layout.Starred))
 	for _, id := range layout.Starred {
 		starred[id] = true
@@ -443,6 +453,30 @@ func withChatRecipientCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Co
 		})
 		persistChatRecipientSidebar(cfg, model)
 		refresh()
+	}
+	callbacks.MoveConversationOrder = func(chatID string, delta int) {
+		moved := false
+		model := chatBrowser.mutate(func(model *chatui.Model) {
+			ensureRecipientSections(model)
+			for i := range model.Sections {
+				for j, conversation := range model.Sections[i].Chats {
+					if conversation.ID != chatID {
+						continue
+					}
+					target := j + delta
+					if delta == 0 || target < 0 || target >= len(model.Sections[i].Chats) {
+						return
+					}
+					model.Sections[i].Chats[j], model.Sections[i].Chats[target] = model.Sections[i].Chats[target], model.Sections[i].Chats[j]
+					moved = true
+					return
+				}
+			}
+		})
+		if moved {
+			persistChatRecipientSidebar(cfg, model)
+			refresh()
+		}
 	}
 	callbacks.ResizeRail = func(px int) {
 		changeRecipientPane(cfg, refresh, func(p *chatui.PaneSizes) { p.Rail = clampChatPane(px, chatRailMin, chatRailMax) })
@@ -716,6 +750,7 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 		}
 		ensureRecipientSections(&model)
 		layout := recipientLayout{Panes: model.Pane, Sections: make([]recipientSection, 0, len(model.Sections))}
+		layout.DismissedJoinPrompts = chatDismissedJoinPromptIDs(model.JoinPromptSeen)
 		chatRecipientBrowser.Lock()
 		layout.PanesByDevice = make(map[string]chatui.PaneSizes, len(chatRecipientBrowser.layout.PanesByDevice)+1)
 		for device, pane := range chatRecipientBrowser.layout.PanesByDevice {

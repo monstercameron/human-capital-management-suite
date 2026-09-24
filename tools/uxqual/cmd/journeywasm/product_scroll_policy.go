@@ -113,6 +113,8 @@ type productScrollLedger struct {
 	pendingSince time.Time
 	traversal    bool
 	now          func() time.Time
+	// docsLists keeps the Docs library's positions by list address.
+	docsLists docsListMemory
 }
 
 func newProductScrollLedger(now func() time.Time) *productScrollLedger {
@@ -169,6 +171,7 @@ func (ledger *productScrollLedger) Settle(key, route string) (productScrollActio
 	previousRoute := ledger.activeRoute
 	saved, hasSaved := ledger.positions[key]
 	action, top := decideProductScroll(previousRoute, route, ledger.traversal, saved, hasSaved)
+	action, top = decideDocsScroll(previousRoute, route, ledger.traversal, action, top, saved, hasSaved, &ledger.docsLists)
 	if previousRoute == "" {
 		// The cold document keeps the browser's natural position.
 		action, top = productScrollKeep, ledger.lastTop
@@ -204,4 +207,5 @@ func (ledger *productScrollLedger) save(key string, top float64) {
 		}
 	}
 	ledger.positions[key] = top
+	ledger.docsLists.save(ledger.activeRoute, top)
 }

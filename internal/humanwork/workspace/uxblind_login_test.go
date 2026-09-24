@@ -1,14 +1,17 @@
 package workspace
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 func TestUXBLIND001PersonaLoginUsesServerOwnedCredential(t *testing.T) {
@@ -26,6 +29,50 @@ func TestUXBLIND001PersonaLoginUsesServerOwnedCredential(t *testing.T) {
 	}
 	if strings.Contains(rec.Body.String(), token) {
 		t.Fatal("persona credential was disclosed")
+	}
+}
+
+func TestUXBLIND006PersonaLoginRenewsExpiredStartupCredential(t *testing.T) {
+	h, startupToken := newShellHandler(t, true)
+	now := shellNow
+	verifier, err := trust.NewHMACVerifier(trust.HMACVerifierConfig{
+		Key: shellSigningKey, Issuer: shellIssuer, Audience: shellAudience,
+		Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.config.Verifier = verifier
+	h.config.Audience = shellAudience
+	h.now = func() time.Time { return now }
+	h.devPersonas = map[string]DevPersona{
+		"admin": {
+			ID: "admin", Name: "Rafael Torres", Access: "HCM administrator", Token: startupToken,
+			IssueToken: func() (string, error) {
+				issuedAt := now.Add(-time.Minute)
+				return verifier.Issue(trust.Claims{
+					Issuer: shellIssuer, Audience: shellAudience, Subject: shellSubject, SubjectKind: "human",
+					Tenant: shellTenant, OrganizationScopeID: "org-north-america", Roles: []string{"intent_author", "comp_admin"},
+					Purposes: []string{shellPurpose}, AuthenticationMethod: "bearer_token", Assurance: "substantial",
+					SessionRef: "session-local-persona-admin", IssuedAtUnix: issuedAt.Unix(), ExpiresAtUnix: issuedAt.Add(8 * time.Hour).Unix(),
+				})
+			},
+		},
+	}
+	now = shellNow.Add(9 * time.Hour)
+	if _, err := verifier.Verify(context.Background(), trust.Credential{Token: startupToken, Audience: shellAudience}); err == nil {
+		t.Fatal("startup credential still verifies after its eight-hour lifetime")
+	}
+	form := url.Values{paramLoginPersona: {"admin"}}
+	req := httptest.NewRequest(http.MethodPost, "http://cell.test"+PathLogin, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != PathProductHome {
+		t.Fatalf("renewed persona login = %d location %q body %s", rec.Code, rec.Header().Get("Location"), rec.Body.String())
+	}
+	if cookie := rec.Result().Cookies(); len(cookie) == 0 || cookie[0].Name != loginSessionCookie || cookie[0].Value == startupToken {
+		t.Fatal("renewed login did not establish a fresh workspace session")
 	}
 }
 

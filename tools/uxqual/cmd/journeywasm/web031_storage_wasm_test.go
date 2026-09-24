@@ -3,6 +3,7 @@
 package main
 
 import (
+	"strings"
 	"syscall/js"
 	"testing"
 
@@ -54,6 +55,14 @@ func TestTodo_WEB_031_Browser(t *testing.T) {
 	}
 	if got := readProductHistoryMax(controller.id); got != 31 {
 		t.Fatalf("production adapter read watermark = %d, want 31", got)
+	}
+	visitKey := productclient.ChatVisitsStorageKey(strings.Repeat("a", 64))
+	visitValue, valid := productclient.EncodeChatVisits([]productclient.ChatVisit{{ConversationID: strings.Repeat("b", 64), Count: 4}})
+	if !valid || !browserStorageSet(storage, visitKey, visitValue) {
+		t.Fatal("production adapter rejected a bounded chat visit presentation record")
+	}
+	if got, ok := browserStorageGet(storage, visitKey); !ok || got != visitValue {
+		t.Fatalf("production adapter chat visit read = %q/%v, want the written record", got, ok)
 	}
 	if browserStorageSet(storage, "hcm-next.workflow.truth", "1") {
 		t.Fatal("production adapter accepted an authority-shaped key")

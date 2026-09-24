@@ -24,6 +24,30 @@ func TestTodo_UXAUDIT_021(t *testing.T) {
 	}
 }
 
+func TestTodo_UXAUDIT_021_Accessibility(t *testing.T) {
+	view := testView(PageWorkerIDs)
+	view.WorkerIDPolicy = WorkerIDPolicy{Version: 4, Prefix: "HC", SequenceDigits: 6, StartAt: 10, IncrementBy: 1}
+	view.WorkerIDValidation = ValidationState{SubmissionAttempted: true, Issues: []ValidationIssue{{FieldID: "worker-prefix", MessageKey: "validation.required"}}}
+	doc, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`<fieldset class="admin-form-section" data-field-group="worker-id-identity">`,
+		`<legend>`,
+		`for="worker-prefix"`,
+		`id="worker-prefix"`, `aria-describedby="worker-prefix-help worker-prefix-error"`,
+		`id="worker-id-validation-summary"`, `href="#worker-prefix"`,
+		`class="surface worker-id-preview"`, `aria-live="polite"`,
+		`class="worker-id-actions sticky-actions"`,
+		`aria-describedby="worker-id-status"`,
+	} {
+		if !strings.Contains(doc, want) {
+			t.Errorf("worker ID editor missing accessible form behavior %q", want)
+		}
+	}
+}
+
 func TestTodo_UXAUDIT_021_I18N(t *testing.T) {
 	for _, locale := range []string{"de-DE", "ar"} {
 		view := testView(PageWorkerIDs)

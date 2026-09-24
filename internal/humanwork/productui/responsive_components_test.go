@@ -39,9 +39,9 @@ func TestSharedHeaderBalancesTabletIdentityAndWideSearch(t *testing.T) {
 // by default (fail-closed — nothing about NavCollapsed's value changes
 // that), the header accounts for every child (using two rows below 360px),
 // the persistent desktop toggle and the drawer trigger are mutually
-// exclusive so brand-cluster never has to size a third visible item, and a
-// closed drawer's own nav contributes no scrollable region — only an open
-// one may scroll internally.
+// exclusive so brand-cluster never has to size a third visible item. A closed
+// drawer contributes no scrollable region; when open, the drawer itself owns
+// scrolling while its primary-nav child remains visible overflow.
 func TestMobileShellKeepsOneBoundedNavigableTree(t *testing.T) {
 	css := Stylesheet()
 	contracts := []string{
@@ -57,13 +57,25 @@ func TestMobileShellKeepsOneBoundedNavigableTree(t *testing.T) {
 		`.nav-drawer-backdrop{display:none;}`,
 		`.nav-drawer-backdrop.nav-drawer-open{background:color-mix(in srgb,var(--ink) 42%,transparent);display:block!important;inset:0;position:fixed;z-index:54;}`,
 		`.primary-nav,.sidebar nav:first-of-type{flex:1;max-width:100%;min-width:0;overflow:hidden;width:100%;}`,
-		`.sidebar.nav-drawer-open .primary-nav,.sidebar.nav-drawer-open nav:first-of-type{overflow-x:hidden;overflow-y:auto;`,
+		`.sidebar.nav-drawer-open{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;`,
+		`.sidebar.nav-drawer-open .primary-nav,.sidebar.nav-drawer-open nav:first-of-type{overflow:visible;`,
 		`.topbar>.header-navigation-tools{flex:1 1 auto;flex-wrap:nowrap;grid-column:auto;grid-row:auto;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;padding:0;}`,
 		`.primary-nav>ul,.sidebar nav:first-of-type>ul{display:grid!important;max-width:100%!important;width:100%!important;}`,
 	}
 	for _, contract := range contracts {
 		if !strings.Contains(css, contract) {
 			t.Errorf("mobile navigation contract missing %q", contract)
+		}
+	}
+	for _, selector := range []string{`.sidebar.nav-drawer-open .menu-filter{`, `.sidebar.nav-drawer-open .nav-bottom{`} {
+		start := strings.Index(css, selector)
+		if start < 0 {
+			t.Errorf("mobile drawer is missing sticky control selector %q", selector)
+			continue
+		}
+		end := strings.Index(css[start:], "}")
+		if end < 0 || !strings.Contains(css[start:start+end], "position:sticky;") {
+			t.Errorf("mobile drawer control %q is not sticky", selector)
 		}
 	}
 	if strings.Count(css, `id="workspace-navigation"`) != 0 {

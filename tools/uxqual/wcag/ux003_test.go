@@ -30,22 +30,26 @@ func rendered(t *testing.T) (string, string) {
 // naming, masking and contrast invariants.
 func TestTodo_UX_003(t *testing.T) {
 	ssrDoc, gwcDoc := rendered(t)
-	for renderer, doc := range map[string]string{"ssr": ssrDoc, "gwc": gwcDoc} {
-		for _, result := range Score(doc) {
-			t.Logf("[%s] %s: pass=%v (%s)", renderer, result.Name, result.Pass, result.Detail)
-			if renderer == "ssr" && !result.Pass {
+	ssrResults, gwcResults := Score(ssrDoc), Score(gwcDoc)
+	for _, surface := range []struct {
+		name    string
+		results []qual.CriterionResult
+	}{{"ssr", ssrResults}, {"gwc", gwcResults}} {
+		for _, result := range surface.results {
+			t.Logf("[%s] %s: pass=%v (%s)", surface.name, result.Name, result.Pass, result.Detail)
+			if surface.name == "ssr" && !result.Pass {
 				t.Errorf("UX-003 SSR failed %s: %s", result.Name, result.Detail)
 			}
 		}
 	}
-	evidence, err := LoadEvidence()
+	loadedEvidence, err := LoadEvidence()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := evidence.Validate(); err != nil {
+	if err := loadedEvidence.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if err := evidence.ReleaseReady(); err == nil {
+	if err := loadedEvidence.ReleaseReady(); err == nil {
 		t.Fatal("repository evidence must not claim release readiness before browser and assistive-technology runs")
 	}
 	broken := strings.Replace(ssrDoc, `aria-describedby="proposedCompensation-error"`, `aria-describedby="missing-error"`, 1)

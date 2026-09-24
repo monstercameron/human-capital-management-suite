@@ -86,7 +86,44 @@ func withChatDiscoveryCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Co
 		chatBrowser.filterChatBrowseQuery(query)
 		refreshChatRoute()
 	}
+	callbacks.RequestJoinConversation = func(id string) {
+		current := chatBrowser.snapshot()
+		if current.JoinPromptSeen[id] {
+			go joinChatConversation(cfg, id)
+			return
+		}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			defer cancel()
+			dismissed := chatChannelJoinPromptDismissed(ctx, chatBrowser.config(cfg), id)
+			if dismissed {
+				chatBrowser.mutate(func(model *chatui.Model) {
+					if model.JoinPromptSeen == nil {
+						model.JoinPromptSeen = make(map[string]bool)
+					}
+					model.JoinPromptSeen[id] = true
+				})
+				go joinChatConversation(cfg, id)
+				return
+			}
+			chatBrowser.mutate(func(model *chatui.Model) { requestChatJoinPrompt(model, id) })
+			refreshChatRoute()
+		}()
+	}
 	callbacks.JoinConversation = func(id string) { go joinChatConversation(cfg, id) }
+	callbacks.DismissJoinPrompt = func() {
+		updated := chatBrowser.mutate(func(model *chatui.Model) {
+			if id := model.JoinPromptID; id != "" {
+				if model.JoinPromptSeen == nil {
+					model.JoinPromptSeen = make(map[string]bool)
+				}
+				model.JoinPromptSeen[id] = true
+			}
+			model.JoinPromptID, model.JoinPromptPending = "", false
+		})
+		persistChatRecipientSidebar(cfg, updated)
+		refreshChatRoute()
+	}
 	callbacks.Unpin = func(postID string) { go unpinChatPost(cfg, postID) }
 	callbacks.RemoveReaction = func(postID string) { go removeChatReaction(cfg, postID, chatDefaultReaction) }
 	callbacks.RemoveReactionWith = func(postID, emoji string) { go removeChatReaction(cfg, postID, emoji) }
@@ -172,6 +209,38 @@ func loadChatBrowse(cfg journeyclient.Config, targetIDs ...string) {
 	refreshChatRoute()
 }
 
+func requestChatJoinPrompt(model *chatui.Model, id string) {
+	if model == nil || id == "" {
+		return
+	}
+	var channel *chatui.Conversation
+	for i := range model.Browse {
+		if model.Browse[i].ID == id {
+			channel = &model.Browse[i]
+			break
+		}
+	}
+	if channel == nil && model.PreviewConversation != nil && model.PreviewConversation.ID == id {
+		channel = model.PreviewConversation
+	}
+	if channel == nil {
+		for i := range model.Conversations {
+			if model.Conversations[i].ID == id {
+				channel = &model.Conversations[i]
+				break
+			}
+		}
+	}
+	if channel == nil || channel.Kind != chatui.PublicChannel || channel.Joined {
+		return
+	}
+	copy := *channel
+	model.PreviewConversation = &copy
+	if model.JoinPromptSeen == nil || !model.JoinPromptSeen[id] {
+		model.JoinPromptID = id
+	}
+}
+
 // joinChatConversation adds the reader to a public channel and selects it.
 func joinChatConversation(cfg journeyclient.Config, id string) {
 	client := chatBrowser.conversationClient()
@@ -179,6 +248,11 @@ func joinChatConversation(cfg journeyclient.Config, id string) {
 		return
 	}
 	active := chatBrowser.config(cfg)
+	chatBrowser.mutate(func(model *chatui.Model) {
+		if model.JoinPromptID == id {
+			model.JoinPromptPending = true
+		}
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	// HomeTenantID is the only tenant field the wire Membership carries; the
@@ -195,6 +269,8 @@ func joinChatConversation(cfg journeyclient.Config, id string) {
 		},
 	})
 	if chatActionFailed("join this channel", err) {
+		chatBrowser.mutate(func(model *chatui.Model) { model.JoinPromptPending = false })
+		refreshChatRoute()
 		return
 	}
 	// The joined room goes into the rail and opens, the same way a created one
@@ -203,13 +279,27 @@ func joinChatConversation(cfg journeyclient.Config, id string) {
 	joined := chatui.Conversation{ID: id, Kind: chatui.PublicChannel, Joined: true}
 	activity := chatBrowser.activitySnapshot()
 	chatBrowser.mutate(func(model *chatui.Model) {
-		model.ShowBrowse, model.Browse, model.BrowseQuery = false, nil, ""
 		for _, row := range model.Browse {
 			if row.ID == id {
 				joined = row
-				joined.Joined = true
+				break
 			}
 		}
+		if model.PreviewConversation != nil && model.PreviewConversation.ID == id {
+			joined = *model.PreviewConversation
+		}
+		model.ShowBrowse, model.Browse, model.BrowseQuery = false, nil, ""
+		if model.JoinPromptSeen == nil {
+			model.JoinPromptSeen = make(map[string]bool)
+		}
+		model.JoinPromptSeen[id] = true
+		if model.JoinPromptID == id {
+			model.JoinPromptID, model.JoinPromptPending = "", false
+		}
+		if model.PreviewConversation != nil && model.PreviewConversation.ID == id {
+			model.PreviewConversation = nil
+		}
+		joined.Joined = true
 		for i := range model.Conversations {
 			if model.Conversations[i].ID == id {
 				return

@@ -13,16 +13,21 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/authn/oidc"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pageledger"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/i18n"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/tokens"
+	"github.com/monstercameron/human-capital-management-suite/internal/forms/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace/gwc"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/forms"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )
 
 // sessionCookie carries the workspace session the CSRF token is bound to.
@@ -40,8 +45,7 @@ const EnvGiphyAPIKey = "HCMNEXT_GIPHY_API_KEY"
 // maxFormBytes bounds a submitted request form.
 const maxFormBytes = 64 << 10
 
-// effectClassReadOnly is the effect class every workspace route declares. It
-// is the same on all of them, and that is the claim: nothing here writes.
+// effectClassReadOnly marks workspace routes that only read or render data.
 const effectClassReadOnly = "READ_ONLY"
 
 // Options configures [NewHandler].
@@ -104,6 +108,28 @@ type Options struct {
 	// design and is included only in authenticated product page configuration.
 	// Empty disables GIPHY requests and keeps its origins out of the product CSP.
 	GiphyAPIKey string
+	// PageLedger is the tenant-scoped durable publication ledger. Nil keeps
+	// the in-memory governance used by isolated previews and tests.
+	PageLedger pageledger.Store
+	// Catalogs resolves the durable active product catalog revision per tenant.
+	// Nil retains the reviewed build-time product catalog.
+	Catalogs i18n.ActivatedCatalogStore
+	// OIDCFlow is the configured tenant authorization-code flow. When set,
+	// OIDCTenant, OIDCIssuerURL, and OIDCSessionIssuer are also required.
+	OIDCFlow          *oidc.Flow
+	OIDCTenant        values.TenantId
+	OIDCIssuerURL     string
+	OIDCSessionIssuer OIDCSessionIssuer
+}
+
+// OIDCSessionIssuer binds a verified OIDC principal to a server-side session
+// and mints a credential accepted by the shared transport verifier.
+type OIDCSessionIssuer interface {
+	Issue(context.Context, *trust.Principal) (string, error)
+}
+
+type OIDCSessionRevoker interface {
+	Revoke(context.Context, string) error
 }
 
 // Handler serves the Promotion workspace over one live cell.
@@ -131,12 +157,21 @@ type Handler struct {
 	directory   DevDirectory
 	roleAccess  roleaccess.Store
 	preferences preferences.Store
+	catalogs    i18n.ActivatedCatalogStore
 	giphyAPIKey string
 	// pages is the governed page-revision and rollout ledger the live
 	// page-serving handler resolves through (REV-067-01). Nil or empty
 	// preserves the pre-ledger behavior: pages with no published rollout
 	// serve the compiled registry definition.
-	pages *PageGovernance
+	pages                  *PageGovernance
+	pageLedger             pageledger.Store
+	pageGovernanceMu       sync.Mutex
+	pageGovernanceByTenant map[string]*PageGovernance
+	oidcFlow               *oidc.Flow
+	oidcTenant             values.TenantId
+	oidcIssuerURL          string
+	oidcSessionIssuer      OIDCSessionIssuer
+	loginEnabled           bool
 	// publicScheme and publicAuthority are Options.PublicOrigin resolved:
 	// its scheme and its sanitized host[:port]. Empty means the shell
 	// derives both from each request.
@@ -148,6 +183,10 @@ type Handler struct {
 // deliberately never rendered; only ID crosses the browser boundary.
 type DevPersona struct {
 	ID, Name, Access, Description, Token string
+	// IssueToken mints a fresh server-owned credential when the persona signs
+	// in. Local development servers may run longer than a credential's
+	// lifetime, so startup credentials are only a preview fallback.
+	IssueToken func() (string, error)
 	// Roles are the exact roles signed into Token. loginPersonaDescription
 	// derives the persona's sign-in copy from these against the live
 	// productui page registry (UXAUDIT-014), so the rendered promise can
@@ -168,6 +207,12 @@ func NewHandler(opts Options) (*Handler, error) {
 		return nil, errors.New("workspace: a Cell is required")
 	case opts.Config.Verifier == nil:
 		return nil, errors.New("workspace: a credential verifier is required; an unauthenticated workspace must not be served")
+	case opts.OIDCFlow != nil && (opts.OIDCTenant == "" || strings.TrimSpace(opts.OIDCIssuerURL) == "" || opts.OIDCSessionIssuer == nil):
+		return nil, errors.New("workspace: OIDC login requires a tenant, issuer URL, and session issuer")
+	case opts.OIDCFlow == nil && (opts.OIDCTenant != "" || strings.TrimSpace(opts.OIDCIssuerURL) != "" || opts.OIDCSessionIssuer != nil):
+		return nil, errors.New("workspace: incomplete OIDC login configuration")
+	case opts.OIDCFlow != nil && func() bool { _, ok := opts.OIDCSessionIssuer.(trust.Verifier); return !ok }():
+		return nil, errors.New("workspace: OIDC session issuer must verify issued credentials")
 	}
 	key := opts.SessionKey
 	if len(key) == 0 {
@@ -210,6 +255,7 @@ func NewHandler(opts Options) (*Handler, error) {
 	if !opts.DevBrowserLogin {
 		directory = nil
 	}
+	loginEnabled := opts.DevBrowserLogin || opts.OIDCFlow != nil
 	publicScheme, publicAuthority, err := parsePublicOrigin(opts.PublicOrigin)
 	if err != nil {
 		return nil, err
@@ -219,29 +265,41 @@ func NewHandler(opts Options) (*Handler, error) {
 		giphyAPIKey = strings.TrimSpace(os.Getenv(EnvGiphyAPIKey))
 	}
 	h := &Handler{
-		cell:              opts.Cell,
-		config:            opts.Config,
-		now:               now,
-		sessionKey:        key,
-		secure:            opts.Secure,
-		receipts:          newReceiptStore(),
-		enhanced:          BundleBuilt(),
-		assetManifestJSON: assetManifestJSON,
-		assetIndex:        indexAssetIntegrityManifest(assetManifest),
-		assetManifestETag: `"` + assetManifestDigest + `"`,
-		devBrowserLogin:   opts.DevBrowserLogin,
-		devPersonas:       personas,
-		directory:         directory,
-		roleAccess:        opts.RoleAccess,
-		preferences:       opts.Preferences,
-		giphyAPIKey:       giphyAPIKey,
-		publicScheme:      publicScheme,
-		publicAuthority:   publicAuthority,
-		pages:             NewPageGovernance(),
+		cell:                   opts.Cell,
+		config:                 opts.Config,
+		now:                    now,
+		sessionKey:             key,
+		secure:                 opts.Secure,
+		receipts:               newReceiptStore(),
+		enhanced:               BundleBuilt(),
+		assetManifestJSON:      assetManifestJSON,
+		assetIndex:             indexAssetIntegrityManifest(assetManifest),
+		assetManifestETag:      `"` + assetManifestDigest + `"`,
+		devBrowserLogin:        opts.DevBrowserLogin,
+		devPersonas:            personas,
+		directory:              directory,
+		roleAccess:             opts.RoleAccess,
+		preferences:            opts.Preferences,
+		catalogs:               opts.Catalogs,
+		giphyAPIKey:            giphyAPIKey,
+		publicScheme:           publicScheme,
+		publicAuthority:        publicAuthority,
+		pages:                  nil,
+		pageLedger:             opts.PageLedger,
+		pageGovernanceByTenant: make(map[string]*PageGovernance),
+		oidcFlow:               opts.OIDCFlow, oidcTenant: opts.OIDCTenant, oidcIssuerURL: strings.TrimSpace(opts.OIDCIssuerURL),
+		oidcSessionIssuer: opts.OIDCSessionIssuer, loginEnabled: loginEnabled,
+	}
+	if verifier, ok := opts.OIDCSessionIssuer.(trust.Verifier); ok {
+		h.config.Verifier = verifier
+	}
+	if opts.PageLedger == nil {
+		h.pages = NewPageGovernance()
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+PathPromotion, h.servePromotion)
 	mux.HandleFunc("GET "+PathJourney, h.serveJourney)
+	mux.HandleFunc("POST "+PathCatalogPublication, h.publishCatalog)
 	// Product routes may be nested (for example, Admin-owned configuration
 	// pages). Capture the complete suffix so a cold reload reaches the same
 	// registered route as client-side navigation.
@@ -249,9 +307,15 @@ func NewHandler(opts Options) (*Handler, error) {
 	mux.HandleFunc("POST "+PathSimulate, h.serveSimulate)
 	mux.HandleFunc("GET "+PathReceiptPrefix+"{digest}", h.serveReceipt)
 	mux.HandleFunc("GET "+PathAssetPrefix+"{name}", h.serveAsset)
-	if h.devBrowserLogin {
+	if h.loginEnabled {
 		mux.HandleFunc("GET "+PathLogin, h.serveLoginForm)
-		mux.HandleFunc("POST "+PathLogin, h.serveLoginSubmit)
+		if h.devBrowserLogin {
+			mux.HandleFunc("POST "+PathLogin, h.serveLoginSubmit)
+		}
+		if h.oidcFlow != nil {
+			mux.HandleFunc("GET "+PathOIDCLogin, h.serveOIDCLogin)
+			mux.HandleFunc("GET "+PathOIDCCallback, h.serveOIDCCallback)
+		}
 		mux.HandleFunc("GET "+PathLogout, h.serveLogout)
 	}
 	mux.HandleFunc("/", h.serveNotFound)
@@ -269,6 +333,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // a published route is always a route that exists.
 func Routes() []Route {
 	return []Route{
+		{
+			Path: PathCatalogPublication, Method: http.MethodPost,
+			Description: "Publish and activate one immutable reviewed product catalog revision for the authenticated tenant.",
+			EffectClass: "CONTROLLED_WRITE",
+		},
 		{
 			Path: PathProductPrefix + "{page}", Method: http.MethodGet,
 			Description: "Serve the signed-in workspace shell and the workforce data it is authorized to show.",
@@ -307,8 +376,7 @@ type Route struct {
 	Path        string `json:"path"`
 	Method      string `json:"method"`
 	Description string `json:"description"`
-	// EffectClass is stated on every route because it is the same on every
-	// route and that is the point: the workspace reads.
+	// EffectClass declares whether the route reads or writes governed state.
 	EffectClass string `json:"effect_class"`
 }
 
@@ -323,7 +391,7 @@ func (h *Handler) admit(w http.ResponseWriter, r *http.Request) (*http.Request, 
 		h.admissionMetadata(r), r.URL.Path)
 	if ownedErr != nil {
 		status := ownedErr.HTTPStatus()
-		if status == http.StatusUnauthorized && h.devBrowserLogin && r.Method == http.MethodGet && strings.TrimSpace(r.Header.Get("Authorization")) == "" {
+		if status == http.StatusUnauthorized && h.loginEnabled && r.Method == http.MethodGet && strings.TrimSpace(r.Header.Get("Authorization")) == "" {
 			writeRedirect(w, r, PathLogin, http.StatusSeeOther)
 			return nil, false
 		}
@@ -351,7 +419,7 @@ func (h *Handler) admit(w http.ResponseWriter, r *http.Request) (*http.Request, 
 // on its upgrade request and must apply the identical rule; one exported
 // function is how "the one and only place" stays true across two surfaces.
 func (h *Handler) admissionMetadata(r *http.Request) transport.Metadata {
-	return AdmissionMetadata(r, h.devBrowserLogin)
+	return AdmissionMetadata(r, h.loginEnabled)
 }
 
 // ---------------------------------------------------------------------------
@@ -609,6 +677,7 @@ func (h *Handler) serveNotFound(w http.ResponseWriter, r *http.Request) {
 // nothing on its own), this cookie's value is the credential itself, so it is
 // never logged and is cleared outright by PathLogout rather than rotated.
 const loginSessionCookie = "hcmnext_session"
+const oidcStateCookie = "hcmnext_oidc_state"
 
 // maxLoginFormBytes bounds the pasted-token submission.
 const maxLoginFormBytes = 8 << 10
@@ -622,6 +691,60 @@ const paramLoginPersona = "persona"
 func (h *Handler) serveLoginForm(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	h.writeLoginPageQuery(w, http.StatusOK, "", query.Get(paramDirectoryQuery), query.Get(paramDirectoryRole))
+}
+
+func (h *Handler) serveOIDCLogin(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	http.SetCookie(w, &http.Cookie{Name: oidcStateCookie, Value: "", Path: PathOIDCCallback,
+		HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	request, err := h.oidcFlow.BeginAuthorization(r.Context(), h.oidcTenant, h.oidcIssuerURL, h.now())
+	if err != nil {
+		h.writeLoginPage(w, http.StatusServiceUnavailable, "Enterprise sign-in is temporarily unavailable. Try again later.")
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: oidcStateCookie, Value: request.State, Path: PathOIDCCallback,
+		HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode,
+		Expires: request.ExpiresAt, MaxAge: int(request.ExpiresAt.Sub(h.now()).Seconds())})
+	http.Redirect(w, r, request.URL, http.StatusFound)
+}
+
+func (h *Handler) serveOIDCCallback(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	stateCookie, cookieErr := r.Cookie(oidcStateCookie)
+	queryState := r.URL.Query().Get("state")
+	http.SetCookie(w, &http.Cookie{Name: oidcStateCookie, Value: "", Path: PathOIDCCallback,
+		HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	if cookieErr != nil || stateCookie == nil || queryState == "" || !hmac.Equal([]byte(stateCookie.Value), []byte(queryState)) {
+		h.writeLoginPage(w, http.StatusUnauthorized, "We couldn't sign you in. Try again or contact the workspace administrator.")
+		return
+	}
+	principal, _, err := h.oidcFlow.HandleCallback(r.Context(), oidc.CallbackParams{
+		State: queryState, Code: r.URL.Query().Get("code"),
+		Error: r.URL.Query().Get("error"), ErrorDescription: r.URL.Query().Get("error_description"), Now: h.now(),
+	})
+	if err != nil || principal == nil || principal.Tenant() != h.oidcTenant {
+		h.writeLoginPage(w, http.StatusUnauthorized, "We couldn't sign you in. Try again or contact the workspace administrator.")
+		return
+	}
+	token, err := h.oidcSessionIssuer.Issue(r.Context(), principal)
+	if err != nil || strings.TrimSpace(token) == "" {
+		h.writeLoginPage(w, http.StatusServiceUnavailable, "A workspace session couldn't be created. Try again later.")
+		return
+	}
+	verified, err := h.config.Verifier.Verify(r.Context(), trust.Credential{Scheme: "Bearer", Token: token, Audience: h.config.Audience})
+	if err != nil || verified == nil || verified.Tenant() != principal.Tenant() || verified.Subject() != principal.Subject() || verified.Assurance() != principal.Assurance() || verified.SessionRef() == "" {
+		h.writeLoginPage(w, http.StatusServiceUnavailable, "A workspace session couldn't be validated. Try again later.")
+		return
+	}
+	h.setLoginSessionCookie(w, token, 10*time.Minute)
+	writeRedirect(w, r, PathProductHome, http.StatusSeeOther)
+}
+
+func (h *Handler) setLoginSessionCookie(w http.ResponseWriter, token string, lifetime time.Duration) {
+	http.SetCookie(w, &http.Cookie{Name: loginSessionCookie, Value: token, Path: RoutePrefix, HttpOnly: true,
+		Secure: h.secure, SameSite: http.SameSiteStrictMode, Expires: h.now().Add(lifetime), MaxAge: int(lifetime.Seconds())})
 }
 
 // serveLoginSubmit verifies a pasted credential with the same trust.Verifier
@@ -644,7 +767,12 @@ func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 			h.writeLoginPage(w, http.StatusUnauthorized, "We couldn't find that workspace persona. Try again, or use a bearer credential or contact the workspace administrator.")
 			return
 		}
-		token = persona.Token
+		issuedToken, issueErr := devPersonaToken(persona)
+		if issueErr != nil {
+			h.writeLoginPage(w, http.StatusServiceUnavailable, "A workspace session couldn't be created. Try again later.")
+			return
+		}
+		token = issuedToken
 		selected = &persona
 	} else {
 		token = normalizeBearerInput(r.PostFormValue(paramLoginToken))
@@ -717,6 +845,11 @@ func loginPersonaLanding(access productAccess) string {
 
 // serveLogout clears the session cookie PathLogin set.
 func (h *Handler) serveLogout(w http.ResponseWriter, r *http.Request) {
+	if revoker, ok := h.oidcSessionIssuer.(OIDCSessionRevoker); ok {
+		if cookie, err := r.Cookie(loginSessionCookie); err == nil && cookie.Value != "" {
+			_ = revoker.Revoke(r.Context(), cookie.Value)
+		}
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     loginSessionCookie,
 		Value:    "",
@@ -776,9 +909,20 @@ func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem
 	if problem != "" {
 		credentialDisclosure = " open"
 	}
-	credentialForm := `<details class="advanced" id="credential-sign-in"` + credentialDisclosure + `><summary>Use a bearer credential</summary><p>Paste the credential provided by your workspace administrator. It is used only to start this session.</p><form method="post" action="` + PathLogin + `"><label for="` + paramLoginToken + `">Bearer credential</label><input type="password" id="` + paramLoginToken + `" name="` + paramLoginToken + `" autocomplete="off"><button type="submit">Sign in</button></form></details>`
-	if len(h.devPersonas) == 0 {
+	credentialForm := ""
+	if h.devBrowserLogin {
+		credentialForm = `<details class="advanced" id="credential-sign-in"` + credentialDisclosure + `><summary>Use a bearer credential</summary><p>Development fallback: paste the bearer credential provided by your workspace administrator.</p><form method="post" action="` + PathLogin + `"><label for="` + paramLoginToken + `">Bearer credential</label><input type="password" id="` + paramLoginToken + `" name="` + paramLoginToken + `" autocomplete="off"><button type="submit">Sign in</button></form></details>`
+	}
+	if h.devBrowserLogin && len(h.devPersonas) == 0 {
 		credentialForm = `<form id="credential-sign-in" method="post" action="` + PathLogin + `"><label for="` + paramLoginToken + `">Bearer credential</label><input type="password" id="` + paramLoginToken + `" name="` + paramLoginToken + `" autocomplete="off" required><button type="submit">Sign in</button></form>`
+	}
+	oidcLink := ""
+	if h.oidcFlow != nil {
+		oidcLink = `<p><a class="oidc-sign-in" href="` + PathOIDCLogin + `">Sign in with your organization</a></p>`
+	}
+	heading := "Sign in to your workspace"
+	if h.devBrowserLogin && len(h.devPersonas) > 0 {
+		heading = "Choose a workspace persona"
 	}
 	stylesheet := loginStylesheet()
 	doc := `<!doctype html>
@@ -792,9 +936,9 @@ func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem
 <body>
 <main id="main-content" class="login-shell"><section class="login-card">
 <div class="login-brand"><span class="login-mark" aria-hidden="true">H</span><strong>HarborCare</strong></div>
-<p class="persona-access">Local development</p><h1>Choose a workspace persona</h1>
+<p class="persona-access">` + map[bool]string{true: "Local development", false: "Organization sign-in"}[h.devBrowserLogin] + `</p><h1>` + heading + `</h1>
 <p class="login-intro">Each persona starts a signed server session with different permissions. Production deployments use the configured enterprise identity provider.</p>
-<h2 id="quick-pick-heading">Quick picks</h2><p class="login-intro">The fixed identities the reference promotion is wired to: a proposer, a manager approver, a finance approver, and the employee.</p>
+` + oidcLink + `<h2 id="quick-pick-heading">Quick picks</h2><p class="login-intro">The fixed identities the reference promotion is wired to: a proposer, a manager approver, a finance approver, and the employee.</p>
 <div class="persona-grid" role="group" aria-labelledby="quick-pick-heading">` + personaForms.String() + `</div>
 ` + banner + h.loginDirectorySection(directoryQuery, directoryRole) + credentialForm + `
 </section></main>
@@ -894,8 +1038,12 @@ func joinWithAnd(labels []string) string {
 // IDs may carry different roles and the card must never promise access merely
 // because an ID happens to be named "admin".
 func (h *Handler) loginPersonaCopy(persona DevPersona) (string, string) {
+	token, err := devPersonaToken(persona)
+	if err != nil {
+		return "Workspace member", "Access is temporarily unavailable. Try again later."
+	}
 	principal, err := h.config.Verifier.Verify(context.Background(), trust.Credential{
-		Token: persona.Token, Audience: h.config.Audience,
+		Token: token, Audience: h.config.Audience,
 	})
 	if err != nil || principal == nil {
 		return "Workspace member", "Available pages and actions depend on your assigned access."
@@ -923,6 +1071,13 @@ func (h *Handler) loginPersonaCopy(persona DevPersona) (string, string) {
 		return title, "Support your assigned units and the workers in them. Reaches " + joinWithAnd(labels) + "."
 	}
 	return title, "Reaches " + joinWithAnd(labels) + "."
+}
+
+func devPersonaToken(persona DevPersona) (string, error) {
+	if persona.IssueToken != nil {
+		return persona.IssueToken()
+	}
+	return persona.Token, nil
 }
 
 // personaAccessTitle names what a resolved credential IS, in one phrase.

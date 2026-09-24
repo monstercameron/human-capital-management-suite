@@ -31,10 +31,7 @@ func navIcon(name string) ui.Node {
 }
 
 func productIcon(name, class string) ui.Node {
-	return html.Tag("svg", html.Props{Class: class, Raw: map[string]any{
-		"viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "1.8",
-		"stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", "focusable": "false",
-	}}, html.Tag("path", html.Props{Raw: map[string]any{"d": iconPath(name)}}))
+	return html.Tag("svg", html.Props{Class: class, Raw: productIconSVGAttrs}, html.Tag("path", html.Props{Raw: productIconPathAttr(name)}))
 }
 
 func unavailablePanel(title, detail string) ui.Node {

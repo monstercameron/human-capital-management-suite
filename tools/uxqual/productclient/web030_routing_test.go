@@ -232,9 +232,10 @@ func TestTodo_WEB_030_Security(t *testing.T) {
 		"ApplyWorkflowTemplateOverlay": true,
 		"ShareDocument":                true,
 	}
+	explicitReads := map[string]bool{"SearchKnowledge": true}
 	for index := 0; index < serviceType.NumField(); index++ {
 		name := serviceType.Field(index).Name
-		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") && !explicitMutations[name] {
+		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") && !explicitReads[name] && !explicitMutations[name] {
 			t.Fatalf("route projection acquired mutation capability %q", name)
 		}
 	}

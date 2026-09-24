@@ -447,20 +447,6 @@ func workNavigationCount(items []productui.NavItem) int {
 	return -1
 }
 
-func TestEmployeePhotoURLUsesKnownIdentityAndUnknownFallback(t *testing.T) {
-	for _, test := range []struct {
-		ref, name, want string
-	}{
-		{"eref:v1:demo:worker:444", "Noor Haddad", "/workspace/assets/person-noor-small.jpg"},
-		{"priya-01a07058", "", "/workspace/assets/person-priya-small.jpg"},
-		{"worker-live", "Riley Chen", ""},
-	} {
-		if got := employeePhotoURL(test.ref, test.name); got != test.want {
-			t.Errorf("employeePhotoURL(%q, %q) = %q, want %q", test.ref, test.name, got, test.want)
-		}
-	}
-}
-
 // TestFinanceApproverMyWorkLoadsWithoutTheDirectory: a finance approver can
 // see My Work but neither Journeys nor the People directory. The client
 // skipped the journey read (it only asked whether Journeys was visible),

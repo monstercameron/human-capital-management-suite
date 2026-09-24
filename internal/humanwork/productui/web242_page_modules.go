@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -47,25 +48,27 @@ type PageAccessPolicy struct {
 type RouteProfile string
 
 const (
-	RouteProfileWorkspace    RouteProfile = "workspace"
-	RouteProfileNested       RouteProfile = "nested"
-	RouteProfileSupport      RouteProfile = "support"
-	RouteProfileAdmin        RouteProfile = "admin"
-	RouteProfilePublic       RouteProfile = "public"
-	RouteProfileHome         RouteProfile = "home"
-	RouteProfileInsights     RouteProfile = "insights"
-	RouteProfileMyself       RouteProfile = "myself"
-	RouteProfileJourneys     RouteProfile = "journeys"
-	RouteProfileWork         RouteProfile = "work"
-	RouteProfileHistory      RouteProfile = "history"
-	RouteProfilePeople       RouteProfile = "people"
-	RouteProfilePerson       RouteProfile = "person"
-	RouteProfileOrganization RouteProfile = "organization"
-	RouteProfileOrgOutline   RouteProfile = "organization_outline"
-	RouteProfileRoles        RouteProfile = "roles"
-	RouteProfileStudio       RouteProfile = "studio"
-	RouteProfileWorkflow     RouteProfile = "workflow_designer"
-	RouteProfileDocs         RouteProfile = "docs"
+	RouteProfileWorkspace       RouteProfile = "workspace"
+	RouteProfileNested          RouteProfile = "nested"
+	RouteProfileSupport         RouteProfile = "support"
+	RouteProfileKnowledgeSearch RouteProfile = "knowledge_search"
+	RouteProfileAdmin           RouteProfile = "admin"
+	RouteProfilePublic          RouteProfile = "public"
+	RouteProfileHome            RouteProfile = "home"
+	RouteProfileInsights        RouteProfile = "insights"
+	RouteProfileMyself          RouteProfile = "myself"
+	RouteProfileJourneys        RouteProfile = "journeys"
+	RouteProfileWork            RouteProfile = "work"
+	RouteProfileHistory         RouteProfile = "history"
+	RouteProfilePeople          RouteProfile = "people"
+	RouteProfilePerson          RouteProfile = "person"
+	RouteProfileOrganization    RouteProfile = "organization"
+	RouteProfileOrgOutline      RouteProfile = "organization_outline"
+	RouteProfileRoles           RouteProfile = "roles"
+	RouteProfileStudio          RouteProfile = "studio"
+	RouteProfileWorkflow        RouteProfile = "workflow_designer"
+	RouteProfileDocs            RouteProfile = "docs"
+	RouteProfilePosition        RouteProfile = "position"
 )
 
 // DataProfile identifies a reusable authorized dataset contract. It carries
@@ -112,6 +115,7 @@ type RouteStateProfile struct {
 	Studio                bool
 	WorkflowDesigner      bool
 	Person                bool
+	Position              bool
 	// CarriesDirectoryQuery declares that this page adopts the People
 	// directory's remembered search (the stored table filter) when its own
 	// address names none, and that the adopted search is written back into
@@ -121,7 +125,7 @@ type RouteStateProfile struct {
 }
 
 var shellRouteStateKeys = []string{"locale", "nav", "menu_q", "favorites"}
-var organizationRouteStateKeys = []string{"org_view", "q", "person"}
+var organizationRouteStateKeys = []string{"org_view", "q", "person", "as_of", "unit"}
 
 func routeStateProfile(profile RouteProfile) RouteStateProfile {
 	result := RouteStateProfile{}
@@ -162,7 +166,12 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.WorkflowDesigner = true
 		result.QueryKeys = []string{"workflow", "run", "draft", "node"}
 	case RouteProfileDocs:
-		result.QueryKeys = []string{"document", "docs_q", "collection", "cursor"}
+		result.QueryKeys = []string{"document", "docs_q", "collection", "cursor", "folder", "docs_sort", "docs_owner", "docs_page", "docs_size", "docs_mode", "docs_edit"}
+	case RouteProfilePosition:
+		result.Position = true
+		result.QueryKeys = []string{"position_ref"}
+	case RouteProfileKnowledgeSearch:
+		result.QueryKeys = []string{"q"}
 	}
 	result.QueryKeys = append(append([]string(nil), shellRouteStateKeys...), result.QueryKeys...)
 	return result
@@ -201,7 +210,20 @@ func (profile RouteProfile) ValidControlledValues(values url.Values) bool {
 	if spec.Organization && !oneOf("org_view", "flat", "tree") {
 		return false
 	}
+	if spec.Organization {
+		if asOf := strings.TrimSpace(values.Get("as_of")); asOf != "" {
+			if _, err := time.Parse("2006-01-02", asOf); err != nil || len(asOf) != len("2006-01-02") {
+				return false
+			}
+		}
+		if len(values.Get("unit")) > 256 {
+			return false
+		}
+	}
 	if spec.Studio && !oneOf("mode", "preview", "validate") {
+		return false
+	}
+	if profile == RouteProfileDocs && (!oneOf("docs_sort", "relevance", "updated", "updated_asc", "title", "title_desc", "owner", "owner_desc") || !oneOf("docs_size", "25", "50", "100") || !oneOf("docs_mode", "smart", "contains", "fuzzy", "meaning") || !oneOf("collection", "all", "private", "shared", "starred") || !oneOf("docs_edit", "1")) {
 		return false
 	}
 	return true
@@ -311,6 +333,18 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 		setProfileValue(values, provided, "docs_q", request.DocumentQuery)
 		setProfileValue(values, provided, "collection", request.DocumentCollection)
 		setProfileValue(values, provided, "cursor", request.DocumentPageToken)
+		setProfileValue(values, provided, "folder", request.DocumentFolder)
+		setProfileValue(values, provided, "docs_sort", request.DocumentSort)
+		setProfileValue(values, provided, "docs_owner", request.DocumentOwner)
+		setProfileInt(values, provided, "docs_page", request.DocumentPage)
+		setProfileInt(values, provided, "docs_size", request.DocumentPerPage)
+		setProfileValue(values, provided, "docs_mode", request.DocumentSearchMode)
+		if request.DocumentEditing {
+			setProfileValue(values, provided, "docs_edit", "1")
+		}
+	}
+	if spec.Position {
+		setProfileValue(values, provided, "position_ref", request.PositionReference)
 	}
 	return values
 }
@@ -442,6 +476,12 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 		}
 	}
 	if profile == RouteProfileDocs {
+		// The open document is the page's subject: shell links that restate
+		// the current address (the navigation toggle, locale, favorites)
+		// must keep it, or they land on the library instead.
+		if view.DocumentID != "" {
+			values.Set("document", view.DocumentID)
+		}
 		if view.DocumentQuery != "" {
 			values.Set("docs_q", view.DocumentQuery)
 		}
@@ -451,6 +491,30 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 		if view.DocumentPageToken != "" {
 			values.Set("cursor", view.DocumentPageToken)
 		}
+		if view.DocumentFolder != "" {
+			values.Set("folder", view.DocumentFolder)
+		}
+		if view.DocumentSort != "" {
+			values.Set("docs_sort", view.DocumentSort)
+		}
+		if view.DocumentOwner != "" {
+			values.Set("docs_owner", view.DocumentOwner)
+		}
+		if view.DocumentPage > 1 {
+			values.Set("docs_page", strconv.Itoa(view.DocumentPage))
+		}
+		if view.DocumentPerPage != 0 && view.DocumentPerPage != DocumentPageSize {
+			values.Set("docs_size", strconv.Itoa(view.DocumentPerPage))
+		}
+		if view.DocumentSearchMode != "" {
+			values.Set("docs_mode", view.DocumentSearchMode)
+		}
+		if view.DocumentEditing {
+			values.Set("docs_edit", "1")
+		}
+	}
+	if spec.Position && strings.TrimSpace(view.PositionReference) != "" {
+		values.Set("position_ref", strings.TrimSpace(view.PositionReference))
 	}
 }
 
@@ -474,7 +538,11 @@ func (profile RouteProfile) IdentityMatches(view View, request PageRequest) bool
 	if spec.WorkflowDesigner && !workflowDesignerIdentityMatches(view, request) {
 		return false
 	}
-	if profile == RouteProfileDocs && (!trimmedEqual(view.DocumentID, request.DocumentID) || !trimmedEqual(view.DocumentQuery, request.DocumentQuery) || !trimmedEqual(view.DocumentCollection, request.DocumentCollection) || !trimmedEqual(view.DocumentPageToken, request.DocumentPageToken)) {
+	// Docs is one library the reader is already authorized for: moving
+	// between the list and a document, or between documents, keeps the page
+	// on screen with a progress line until the next view is ready, instead
+	// of swapping to a differently sized loading skeleton and back.
+	if spec.Position && !trimmedEqual(view.PositionReference, request.PositionReference) {
 		return false
 	}
 	return true
@@ -525,6 +593,8 @@ func routeProfileFor(route string) RouteProfile {
 		return RouteProfileInsights
 	case "/workspace/app/docs":
 		return RouteProfileDocs
+	case "/workspace/app/help/knowledge-search":
+		return RouteProfileKnowledgeSearch
 	case "/workspace/app/myself":
 		return RouteProfileMyself
 	case "/workspace/app/journeys":
@@ -547,6 +617,8 @@ func routeProfileFor(route string) RouteProfile {
 		return RouteProfileStudio
 	case "/workspace/app/admin/workflows":
 		return RouteProfileWorkflow
+	case "/workspace/app/organization/position", "/workspace/app/organization/position-occupancy":
+		return RouteProfilePosition
 	}
 	switch {
 	case strings.Contains(route, "/admin/"):
@@ -755,10 +827,10 @@ func validFeatureID(id FeatureID) bool {
 
 func validRouteProfile(profile RouteProfile) bool {
 	switch profile {
-	case RouteProfileWorkspace, RouteProfileNested, RouteProfileSupport, RouteProfileAdmin, RouteProfilePublic,
+	case RouteProfileWorkspace, RouteProfileNested, RouteProfileSupport, RouteProfileKnowledgeSearch, RouteProfileAdmin, RouteProfilePublic,
 		RouteProfileHome, RouteProfileInsights, RouteProfileMyself, RouteProfileJourneys, RouteProfileWork,
 		RouteProfileHistory, RouteProfilePeople, RouteProfilePerson, RouteProfileOrganization, RouteProfileOrgOutline,
-		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow, RouteProfileDocs:
+		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow, RouteProfileDocs, RouteProfilePosition:
 		return true
 	default:
 		return false

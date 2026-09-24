@@ -15,7 +15,7 @@ package testdata
 import (
 	"time"
 
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
 )
 
 // SourceRecord returns the full, unmasked record a capability would resolve

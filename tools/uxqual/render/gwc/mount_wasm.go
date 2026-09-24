@@ -11,7 +11,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
 )
 
 // Mount renders the workspace live into the given CSS selector, injecting

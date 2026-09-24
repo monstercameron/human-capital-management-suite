@@ -11,6 +11,9 @@ type chatNavigationState struct {
 	ShowDetails    bool
 	ShowThread     bool
 	ThreadParentID string
+	PersonID       string
+	FocusMessageID string
+	FocusSequence  uint64
 }
 
 func chatNavigationStateFromModel(model chatui.Model) chatNavigationState {
@@ -19,17 +22,26 @@ func chatNavigationStateFromModel(model chatui.Model) chatNavigationState {
 		state.ShowThread = true
 		state.ThreadParentID = model.ThreadParentID
 	}
+	if model.ShowPerson && model.PersonDetails != nil {
+		state.PersonID = model.PersonDetails.ID
+	}
+	if model.FocusMessageID != "" {
+		state.FocusMessageID = model.FocusMessageID
+	}
 	return state
 }
 
 func validChatNavigationState(state chatNavigationState) bool {
-	if len(state.OwnerTenantID) > 256 || len(state.OwnerSubject) > 256 || len(state.ConversationID) > 256 || len(state.ThreadParentID) > 256 {
+	if len(state.OwnerTenantID) > 256 || len(state.OwnerSubject) > 256 || len(state.ConversationID) > 256 || len(state.ThreadParentID) > 256 || len(state.PersonID) > 256 || len(state.FocusMessageID) > 256 {
 		return false
 	}
 	if state.OwnerTenantID == "" || state.OwnerSubject == "" {
 		return false
 	}
 	if state.ShowThread && (state.ConversationID == "" || state.ThreadParentID == "") {
+		return false
+	}
+	if state.FocusSequence > 0 && (state.ConversationID == "" || state.FocusMessageID == "") {
 		return false
 	}
 	return true

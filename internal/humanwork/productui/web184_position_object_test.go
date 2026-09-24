@@ -8,16 +8,8 @@ import (
 	"testing"
 )
 
-// RED for WEB-184: the position object page. The
-// registry owns every product surface, but no position
-// object exists: viewing a governed position has no
-// exposure point and the first surface invents position
-// data by convention. The compiler needs the registered
-// surface — canonical identity, route, and an honest
-// fallback that shows nothing until the governed
-// position service publishes, with position truth
-// staying server authority — so the surface resolves
-// today without a second source of business authority.
+// WEB-184 keeps the position object route and presentation contract stable.
+// Position facts are rendered only from the server-authorized projection.
 func TestTodo_WEB_184(t *testing.T) {
 	definition, ok := LookupPage(PagePositionObject)
 	if !ok {
@@ -44,8 +36,7 @@ func TestTodo_WEB_184(t *testing.T) {
 	}
 }
 
-// Golden: the registered position object definition
-// and its fallback copy.
+// Golden: the registered position object definition and its selection copy.
 func TestTodo_WEB_184_Golden(t *testing.T) {
 	locale := ResolveProductLocale("en-US")
 	definition, ok := LookupPage(PagePositionObject)
@@ -55,14 +46,15 @@ func TestTodo_WEB_184_Golden(t *testing.T) {
 	golden := fmt.Sprintf("%s|%s|%s|%s|%s|%d\x00%s\x00%s\x00%s\x00%s\x00",
 		definition.ID, definition.Route, definition.Label, definition.Title, definition.Subtitle, definition.RenderOrder,
 		locale.Text(definition.LabelKey), locale.Text(definition.TitleKey), locale.Text(definition.SubtitleKey),
-		locale.Text("position_object.unavailable_title"))
+		locale.Text("position_object.select_title"))
 	for _, code := range []string{"de-DE", "ar"} {
 		other := ResolveProductLocale(code)
-		golden += fmt.Sprintf("%s|%s|%s\x00", code, other.Text(definition.TitleKey), other.Text("position_object.unavailable_title"))
+		golden += fmt.Sprintf("%s|%s|%s\x00", code, other.Text(definition.TitleKey), other.Text("position_object.select_title"))
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "a3a62dc9d911532e544c91778973e71f42231ea09fee18ca7893f84f0d6342a1"
+	// Re-pinned 2026-09-24 after reviewing the position selection copy.
+	const want = "e997e758a67ed9f28c649813b3f152ecb13299594df4ebf583edc5393d16aa7e"
 	if got != want {
 		t.Fatalf("position object digest = %s, want %s", got, want)
 	}
@@ -89,10 +81,8 @@ func TestTodo_WEB_184_Browser(t *testing.T) {
 	}
 }
 
-// Conformance: position object page keeps the registry
-// contract — visible to the employee, hidden from the
-// role-less baseline, ordered, and honest in every
-// locale.
+// Conformance: the route remains role-scoped and its selection copy resolves
+// in every supported locale.
 func TestTodo_WEB_184_Conformance(t *testing.T) {
 	if !PageVisible(PagePositionObject, []string{"worker_self"}) {
 		t.Fatal("position object page hidden from the employee")

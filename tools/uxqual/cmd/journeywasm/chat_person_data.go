@@ -1,12 +1,27 @@
 package main
 
 import (
+	"net/url"
 	"sort"
 	"strings"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
+
+// chatPersonOrgChartHref uses the existing organization route's tree view and
+// selected-person query contract, so the chart opens rooted on this coworker.
+func chatPersonOrgChartHref(workerRef string) string {
+	workerRef = strings.TrimSpace(workerRef)
+	if workerRef == "" {
+		return ""
+	}
+	query := url.Values{}
+	query.Set("org_view", "tree")
+	query.Set("person", workerRef)
+	return productui.Path(productui.PageOrganization) + "?" + query.Encode()
+}
 
 // chatSearchVisibleWorkers searches only the session's already-governed worker
 // projection. Names and identifiers come from ListWorkers; callers must not
@@ -55,22 +70,28 @@ func chatSearchDirectoryFromWorkers(workers []*journeyv1.Worker) []chatui.Search
 		if worker == nil {
 			continue
 		}
-		id := strings.TrimSpace(worker.GetWorkerRef())
-		if id == "" {
-			id = strings.TrimSpace(worker.GetWorkerId())
-		}
+		id := chatWorkerSubject(worker)
 		name := strings.TrimSpace(names[id])
 		if id == "" || name == "" || seen[id] {
 			continue
 		}
 		seen[id] = true
-		aliases := []string{strings.TrimSpace(worker.GetWorkerId())}
-		if aliases[0] == id {
-			aliases = nil
+		var aliases []string
+		for _, alias := range []string{worker.GetWorkerRef(), worker.GetWorkerId()} {
+			if alias = strings.TrimSpace(alias); alias != "" && alias != id {
+				aliases = append(aliases, alias)
+			}
 		}
 		out = append(out, chatui.SearchPerson{ID: id, Name: name, Aliases: aliases})
 	}
 	return out
+}
+
+// chatWorkerSubject is the identity chat names a directory worker by: the
+// principal subject they sign in and post as. worker_ref is a display slug
+// no other service shares, so it is never used in its place.
+func chatWorkerSubject(worker *journeyv1.Worker) string {
+	return strings.TrimSpace(worker.GetSubjectId())
 }
 
 // chatPersonDetailsFromWorkers uses only the already governed ListWorkers
@@ -84,6 +105,7 @@ func chatPersonDetailsFromWorkers(workers []*journeyv1.Worker, subjectID string)
 	directory := chatDirectoryFromWorkers(workers)
 	var person *journeyv1.Worker
 	counts := make(map[string]int, len(workers))
+	byRef := make(map[string]*journeyv1.Worker, len(workers))
 	for _, worker := range workers {
 		if worker == nil {
 			continue
@@ -93,7 +115,8 @@ func chatPersonDetailsFromWorkers(workers []*journeyv1.Worker, subjectID string)
 			continue
 		}
 		counts[ref]++
-		if ref == subjectID || strings.TrimSpace(worker.GetWorkerId()) == subjectID {
+		byRef[ref] = worker
+		if chatWorkerSubject(worker) == subjectID {
 			if person != nil {
 				return chatui.PersonDetails{}, false
 			}
@@ -105,7 +128,8 @@ func chatPersonDetailsFromWorkers(workers []*journeyv1.Worker, subjectID string)
 	}
 	personRef := strings.TrimSpace(person.GetWorkerRef())
 	detail := chatui.PersonDetails{
-		ID: personRef, Name: directory[personRef],
+		ID: subjectID, Name: directory[subjectID],
+		OrgChartHref: chatPersonOrgChartHref(personRef),
 		Ready:        true,
 		JobTitle:     strings.TrimSpace(person.GetJobTitle()),
 		Department:   strings.TrimSpace(person.GetOrgUnit()),
@@ -117,10 +141,33 @@ func chatPersonDetailsFromWorkers(workers []*journeyv1.Worker, subjectID string)
 	rel := person.GetManagerRelationship()
 	if rel.GetDisposition() == journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE {
 		ref := strings.TrimSpace(rel.GetManagerWorkerRef())
-		if ref != "" && ref != detail.ID && counts[ref] == 1 {
-			detail.Manager = directory[ref]
+		if manager := byRef[ref]; ref != "" && ref != personRef && counts[ref] == 1 && directory[chatWorkerSubject(manager)] != "" {
+			detail.ManagerID = chatWorkerSubject(manager)
+			detail.Manager = directory[detail.ManagerID]
+			detail.ManagerPhotoURL = strings.TrimSpace(byRef[ref].GetProfilePhotoUrl())
 		}
 	}
+	for _, worker := range workers {
+		if worker == nil || worker == person {
+			continue
+		}
+		ref := strings.TrimSpace(worker.GetWorkerRef())
+		subject := chatWorkerSubject(worker)
+		if ref == "" || ref == personRef || counts[ref] != 1 || directory[subject] == "" {
+			continue
+		}
+		relationship := worker.GetManagerRelationship()
+		if relationship.GetDisposition() != journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE || strings.TrimSpace(relationship.GetManagerWorkerRef()) != personRef {
+			continue
+		}
+		detail.DirectReports = append(detail.DirectReports, chatui.PersonLink{ID: subject, Name: directory[subject], PhotoURL: strings.TrimSpace(worker.GetProfilePhotoUrl())})
+	}
+	sort.Slice(detail.DirectReports, func(i, j int) bool {
+		if strings.EqualFold(detail.DirectReports[i].Name, detail.DirectReports[j].Name) {
+			return detail.DirectReports[i].ID < detail.DirectReports[j].ID
+		}
+		return strings.ToLower(detail.DirectReports[i].Name) < strings.ToLower(detail.DirectReports[j].Name)
+	})
 	return detail, true
 }
 

@@ -52,6 +52,14 @@ func workPage(view View) ui.Node {
 	if len(collection.Rows) == 0 && (len(scoped.EffectivePermissions) == 0 || scoped.Can(PageJourneys, "view")) {
 		collection.Footer.Action = ActionLinkProps{Label: scoped.Locale.Text("work.track_requests"), Href: statefulHref(scoped, PageJourneys), Navigate: scoped.Navigate}
 	}
+	selected := selectedOpenWork(scoped)
+	// A default preview on desktop is useful, but a narrow viewport starts in
+	// the list until the address explicitly names an authorized selection.
+	// The selected item itself is resolved from the admitted list above, so a
+	// forged or filtered-out ID never opens a detail pane.
+	hasSelection := strings.TrimSpace(scoped.SelectedWork) != "" && selected.ID != ""
+	showList, showDetail := ResolveListDetailPanes(scoped.WorkLayout, hasSelection)
+	hidePreview := len(collection.Rows) == 0
 	buckets := pageWorkBuckets(scoped.Work, scoped.Viewer)
 	draftsView := scoped
 	draftsView.Work = buckets.Drafts
@@ -63,9 +71,12 @@ func workPage(view View) ui.Node {
 	return ui.CreateElement(WorkPage, WorkPageProps{
 		I18nProps:   I18nProps{Locale: scoped.Locale},
 		Collection:  collection,
-		Preview:     workPreviewProps(scoped, selectedOpenWork(scoped)),
-		HidePreview: len(collection.Rows) == 0,
-		Drafts:      drafts, Tracked: tracked,
+		Preview:     workPreviewProps(scoped, selected),
+		HidePreview: hidePreview,
+		Layout:      scoped.WorkLayout, HasSelection: hasSelection,
+		ShowList: showList, ShowDetail: showDetail, PaneVisibilityResolved: true,
+		BackToList: ActionLinkProps{Label: scoped.Locale.Text("work.show_all"), Href: workFilterHref(scoped, scoped.WorkFilter), Class: "button secondary", Navigate: scoped.Navigate},
+		Drafts:     drafts, Tracked: tracked,
 		// A filtered queue must not silently append unrelated tracked people
 		// beneath its result set; the explicit Tracked tab owns those rows.
 		ShowSecondary: scoped.WorkFilter == "" && len(drafts.Rows) > 0,

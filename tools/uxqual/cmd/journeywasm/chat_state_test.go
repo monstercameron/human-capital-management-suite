@@ -60,20 +60,19 @@ func TestChatPhotosFollowAuthorizedWorkerDirectory(t *testing.T) {
 	if got := state.photoSnapshot()["id"]; got != "/people.jpg" {
 		t.Fatalf("people fallback = %q", got)
 	}
-	workers := chatPhotosFromWorkers([]*journeyv1.Worker{{WorkerRef: "ref", WorkerId: "id", ProfilePhotoUrl: "/worker.jpg"}})
+	workers := chatPhotosFromWorkers([]*journeyv1.Worker{{WorkerRef: "ref", WorkerId: "id", SubjectId: "ref", ProfilePhotoUrl: "/worker.jpg"}})
 	state.mergePhotos(workers, true)
 	state.mergePhotos(people, false)
 	if got := state.snapshot().PhotoURLs["ref"]; got != "/worker.jpg" {
 		t.Fatalf("worker photo = %q", got)
 	}
-	state.mergePhotos(chatPhotosFromWorkers([]*journeyv1.Worker{{WorkerRef: "ref", WorkerId: "id"}}), true)
+	state.mergePhotos(chatPhotosFromWorkers([]*journeyv1.Worker{{WorkerRef: "ref", WorkerId: "id", SubjectId: "ref"}}), true)
 	state.mergePhotos(people, false)
 	if _, ok := state.photoSnapshot()["ref"]; ok {
 		t.Fatal("removed worker photo survived")
 	}
-	if _, ok := state.snapshot().PhotoURLs["id"]; ok {
-		t.Fatal("removed worker ID photo survived")
-	}
+	// The directory keys photos by chat subject only; the entity id is the
+	// people page's own key and the directory does not govern it.
 }
 
 func TestChatPhotoArrivingDuringProjectionReadSurvivesAdoption(t *testing.T) {
@@ -222,6 +221,18 @@ func TestChatLoadErrorClearsOnTheNextSuccessfulLoad(t *testing.T) {
 	state.setLoadError("")
 	if got := state.loadError(); got != "" {
 		t.Fatalf("load error = %q after a successful load, want it cleared; the latched actionErr this replaces was re-applied by every load", got)
+	}
+}
+
+func TestSearchFocusClearsWhenConversationChanges(t *testing.T) {
+	state := newChatStateForTest(t)
+	state.mutate(func(model *chatui.Model) {
+		model.SelectedID = "room-a"
+		model.FocusMessageID = "search-hit"
+	})
+	model, _ := state.selectChatConversation("room-b")
+	if model.FocusMessageID != "" {
+		t.Fatalf("search highlight %q survived navigation to another conversation", model.FocusMessageID)
 	}
 }
 
@@ -1500,17 +1511,17 @@ func TestChatResolvesAuthorNamesWithoutThePeoplePage(t *testing.T) {
 
 	// The session's own worker read lands.
 	state.mergeDirectory(chatDirectoryFromWorkers([]*journeyv1.Worker{
-		{WorkerRef: "hc-050-rafael-torres", WorkerId: "hc-050", PreferredName: "Rafael", LegalName: "Rafael Torres"},
-		{WorkerRef: "hc-051-dana-whitfield", LegalName: "Dana Whitfield"},
-		{WorkerRef: "hc-052-8f1b9c7d4e2a"},
+		{WorkerRef: "rafael-8f1b9c7d", WorkerId: "hc-050", SubjectId: "hc-050-rafael-torres", PreferredName: "Rafael", LegalName: "Rafael Torres"},
+		{WorkerRef: "dana-2c4e6a80", SubjectId: "hc-051-dana-whitfield", LegalName: "Dana Whitfield"},
+		{WorkerRef: "worker-4e2a", SubjectId: "hc-052-8f1b9c7d4e2a"},
 		nil,
 	}))
 	directory := state.directorySnapshot()
 	if got := chatMessage(post, "ar", directory, now).Author; got != "Rafael Torres" {
 		t.Fatalf("author after the directory read = %q, want the preferred name with the surname", got)
 	}
-	if got := chatDisplayName(directory, "hc-050"); got != "Rafael Torres" {
-		t.Fatalf("worker-id lookup = %q", got)
+	if got := chatDisplayName(directory, "rafael-8f1b9c7d"); got == "Rafael Torres" {
+		t.Fatalf("the display slug resolved as a chat identity: %q", got)
 	}
 	if got := chatDisplayName(directory, "hc-051-dana-whitfield"); got != "Dana Whitfield" {
 		t.Fatalf("legal-name fallback = %q", got)
@@ -1612,7 +1623,7 @@ func TestLoadedChatProjectionKeepsDirectoryThatCompletedDuringItsRPC(t *testing.
 	if !claimed {
 		t.Fatal("directory read was not claimed")
 	}
-	workers := []*journeyv1.Worker{{WorkerRef: "worker-anika-desai", WorkerId: "anika", PreferredName: "Anika", LegalName: "Desai"}}
+	workers := []*journeyv1.Worker{{WorkerRef: "worker-anika-desai", WorkerId: "anika", SubjectId: "worker-anika-desai", PreferredName: "Anika", LegalName: "Desai"}}
 	if !state.completeDirectoryRead(epoch, cfg, chatDirectoryFromWorkers(workers), nil, chatSearchDirectoryFromWorkers(workers)) {
 		t.Fatal("directory completion was rejected")
 	}
@@ -1980,7 +1991,7 @@ func TestChatIdentityResolvesToOneNameEverywhere(t *testing.T) {
 	// "Rafael Torres" on a message and "Rafa Torres" in the member list because
 	// only some of them were re-resolved.
 	directory := chatDirectoryFromWorkers([]*journeyv1.Worker{
-		{WorkerRef: ref, PreferredName: "Rafa", LegalName: "Rafael Torres"},
+		{WorkerRef: ref, SubjectId: ref, PreferredName: "Rafa", LegalName: "Rafael Torres"},
 	})
 	state.mergeDirectory(directory)
 	if !state.applyChatDirectory(state.directorySnapshot()) {

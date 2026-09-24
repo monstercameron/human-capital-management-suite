@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/GoGRPCBridge/pkg/wasm/dialer"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/i18n"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
@@ -63,6 +64,13 @@ func start() error {
 	cfg, err := journeyclient.ParseConfig([]byte(raw))
 	if err != nil {
 		return err
+	}
+	if cfg.CatalogRevision != "" {
+		version, catalogErr := productui.RegisterActivatedCatalog(cfg.CatalogLocale, i18n.Scope{Tenant: cfg.Tenant, Product: "workspace"}, cfg.CatalogRevision, cfg.CatalogDigest, cfg.CatalogMessages)
+		if catalogErr != nil || version != cfg.CatalogVersion {
+			return errors.New("activated product catalog failed integrity validation")
+		}
+		productui.SelectActivatedCatalog(cfg.CatalogLocale, version)
 	}
 	installChatMediaImageBridge(cfg)
 	if root := js.Global().Get("document").Get("documentElement"); root.Truthy() {

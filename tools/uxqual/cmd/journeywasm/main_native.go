@@ -21,6 +21,7 @@ package main
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -57,6 +58,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("journeywasm", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	out := flags.String("out", "", "directory to write "+wasmFile+" and "+wasmExecFile+" into (required)")
+	root := flags.String("root", ".", "module root used to create an embed overlay")
+	overlay := flags.String("overlay", "", "optional Go build overlay mapping workspace embed inputs to -out")
 	flags.Usage = func() {
 		fmt.Fprintf(stderr, "usage: go run ./tools/uxqual/cmd/journeywasm -out <dir>\n\n"+
 			"Builds the Promotion journey page's wasm client and the matching Go\n"+
@@ -75,7 +78,51 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "journeywasm: %v\n", err)
 		return 1
 	}
+	if strings.TrimSpace(*overlay) != "" {
+		if err := writeGoOverlay(*root, *out, *overlay); err != nil {
+			fmt.Fprintf(stderr, "journeywasm: %v\n", err)
+			return 1
+		}
+	}
 	return 0
+}
+
+type goOverlay struct {
+	Replace map[string]string `json:"Replace"`
+}
+
+// writeGoOverlay makes Go embed the build outputs directly from -out without
+// copying build products into the checked-in source asset directory.
+func writeGoOverlay(root, outDir, overlayPath string) error {
+	rootPath, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("resolve module root: %w", err)
+	}
+	outputPath, err := filepath.Abs(outDir)
+	if err != nil {
+		return fmt.Errorf("resolve output directory: %w", err)
+	}
+	assetsPath := filepath.Join(rootPath, "internal", "humanwork", "workspace", "assets")
+	replace := make(map[string]string, 5)
+	for _, name := range []string{wasmFile, wasmFile + ".gz", wasmExecFile, wasmExecFile + ".gz", workspace.AssetIntegrityManifestName} {
+		virtual := filepath.Join(assetsPath, name)
+		built := filepath.Join(outputPath, name)
+		if _, err := os.Stat(built); err != nil {
+			return fmt.Errorf("overlay input %s: %w", built, err)
+		}
+		replace[virtual] = built
+	}
+	body, err := json.MarshalIndent(goOverlay{Replace: replace}, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode Go overlay: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(overlayPath), 0o755); err != nil {
+		return fmt.Errorf("create overlay directory: %w", err)
+	}
+	if err := os.WriteFile(overlayPath, append(body, '\n'), 0o644); err != nil {
+		return fmt.Errorf("write Go overlay: %w", err)
+	}
+	return nil
 }
 
 // build writes both halves of the bundle into outDir.

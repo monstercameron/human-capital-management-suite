@@ -3,6 +3,7 @@ package productui
 import (
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/organization"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -263,8 +264,11 @@ type WorkItem struct {
 }
 
 type Person struct {
-	ID            string
-	WorkerID      string
+	ID       string
+	WorkerID string
+	// SubjectID is the principal subject the person signs in as; document
+	// owners, grants and comment authors are keyed by it.
+	SubjectID     string
 	Initials      string
 	PhotoURL      string
 	Name          string
@@ -471,8 +475,32 @@ type View struct {
 	Subtitle  string
 	Tenant    string
 	Principal string
-	Viewer    ViewerProfile
-	Scope     string
+	// ViewerSubject is the signed-in principal subject exactly as services key
+	// it (document owners, grants, comment authors); Principal is its label.
+	ViewerSubject string
+	Viewer        ViewerProfile
+	// PaySummary and PayStatements are request-scoped, authenticated pay
+	// projections. The UI renders only VALUE fields admitted by the server's
+	// governed read; zero values remain unavailable.
+	PaySummary    PaySummaryProjection
+	PayStatements PayStatementsProjection
+	// PayDiscrepancy is the server-composed governed intake boundary. Its
+	// callback receives only statement/period selection and user-entered
+	// category/reason; identity and tenant are always server-derived.
+	PayDiscrepancy PayDiscrepancyProjection
+	// ManagerCompensation is the authenticated manager's per-subject domain
+	// read projection and governed change-intent adapter.
+	ManagerCompensation *ManagerCompensationProjection
+	// PositionObject and PositionOccupancy are server-authorized views of
+	// the position named by the current route reference.
+	PositionObject    *PositionObjectProjection
+	PositionOccupancy *PositionOccupancyProjection
+	PositionOptions   []PositionOptionProjection
+	// ReviewParticipants contains only the authenticated viewer's incident
+	// edges from the current frozen review-cycle graph. Nil is an unavailable
+	// projection; an empty non-nil projection is an authorized empty result.
+	ReviewParticipants *ReviewParticipantsProjection
+	Scope              string
 	// Chat is the authenticated chat projection for this route. It is carried
 	// by the request-owned view so SSR never shares conversation state between
 	// principals.
@@ -485,15 +513,60 @@ type View struct {
 	DocumentCollection    string
 	DocumentPageToken     string
 	DocumentNextPageToken string
-	DocumentSearch        DocumentSearchProjection
-	DocumentReviews       []DocumentReviewProjection
-	Document              *DocumentDetail
-	DocumentID            string
-	DocumentOrigin        string
-	CreateDocument        func(DocumentCreateRequest, func(error))
-	ShareDocument         func(DocumentShareRequest, func(error))
-	AddDocumentComment    func(DocumentCommentCreateRequest, func(error))
-	CreateDocumentVersion func(DocumentEditRequest, func(error))
+	// DocumentFolder, DocumentSort and DocumentOwner narrow the list; they are
+	// the viewer's own organization and never widen access. DocumentPage
+	// and DocumentPerPage place the list; DocumentTotal is every match.
+	// DocumentSearchMode is what the viewer asked for and
+	// DocumentSearchModeUsed what the server ran.
+	DocumentFolder         string
+	DocumentSort           string
+	DocumentOwner          string
+	DocumentPage           int
+	DocumentPerPage        int
+	DocumentSearchMode     string
+	DocumentSearchModeUsed string
+	// DocumentEditing opens the open document in the editor; it is part of
+	// the address so Back leaves the editor.
+	DocumentEditing           bool
+	DocumentSemanticAvailable bool
+	DocumentSemanticPending   int
+	DocumentTotal             int
+	DocumentLibrary           *DocumentLibrary
+	// DocumentReturnHref is the library list (search, filters, sort and page
+	// included) the open document was reached from.
+	DocumentReturnHref string
+	// DocumentUnavailable reports that the requested document does not exist
+	// or is not readable by this person.
+	DocumentUnavailable    bool
+	DocumentSearch         DocumentSearchProjection
+	DocumentReviews        []DocumentReviewProjection
+	Document               *DocumentDetail
+	DocumentID             string
+	DocumentOrigin         string
+	CreateDocument         func(DocumentCreateRequest, func(error))
+	ShareDocument          func(DocumentShareRequest, func(error))
+	AddDocumentComment     func(DocumentCommentCreateRequest, func(error))
+	CreateDocumentVersion  func(DocumentEditRequest, func(error))
+	CreateDocumentFolder   func(name string, done func(DocumentFolder, error))
+	RenameDocumentFolder   func(folderID, name string, done func(error))
+	DeleteDocumentFolder   func(folderID string, done func(error))
+	MoveDocuments          func(documentIDs []string, folderID string, done func(error))
+	SetDocumentStarred     func(documentID string, starred bool, done func(error))
+	ListDocumentAccess     func(documentID string, done func([]DocumentAccessEntry, error))
+	RevokeDocumentAccess   func(documentID, subjectID string, done func(error))
+	ResolveDocumentComment func(documentID, commentID string, resolved bool, done func(error))
+	// DocumentMedia is the attachment and export boundary (docs_media.go);
+	// nil on the server and wherever no client is mounted.
+	DocumentMedia *DocumentMediaPort
+	// SuggestDocsReferences feeds the split editor's "@", "#" and "[["
+	// autocomplete (docs_editor_suggest.go); nil turns it off.
+	SuggestDocsReferences DocsReferenceSuggester
+	// CompareDocumentVersions reads one immutable version by ID for the
+	// version-compare flow (docs_compare.go, HUB-033); nil hides compare.
+	CompareDocumentVersions func(documentID, versionID string, done func(DocumentVersionProjection, error))
+	// LoadDocumentBacklinks reads the authorized inbound links to an open
+	// document (docs_backlinks.go, HUB-035); nil hides the backlinks panel.
+	LoadDocumentBacklinks func(documentID string, done func([]DocumentBacklink, error))
 	Roles                 []string
 	LogoutHref            string
 	Navigation            []NavItem
@@ -519,15 +592,24 @@ type View struct {
 	// authorized for the viewing principal; page composition
 	// passes it through GovernAnnouncements, never hand-splits
 	// it. Nil or empty announces nothing.
-	Announcements  []Announcement
-	SelectedWork   string
-	SelectedPerson string
-	Query          string
-	RolePage       int
-	PeoplePage     int
-	PeoplePageSize int
-	PeopleTeam     string
-	PeopleLocation string
+	Announcements []Announcement
+	SelectedWork  string
+	// WorkLayout is measured by the interactive renderer and remains
+	// request-local. SSR starts wide so its semantic panes remain available
+	// until the browser reports its actual viewport.
+	WorkLayout        ListDetailLayout
+	SelectedPerson    string
+	PositionReference string
+	Query             string
+	// SearchKnowledge is injected by the authenticated request composition.
+	// Its closure binds tenant, roles and audience from verified principal
+	// claims; renderers pass only the untrusted query string.
+	SearchKnowledge func(string) ([]KnowledgeSearchResult, error)
+	RolePage        int
+	PeoplePage      int
+	PeoplePageSize  int
+	PeopleTeam      string
+	PeopleLocation  string
 	// PeopleStatus is the raw directory lifecycle opt-in
 	// ("terminated", "on-leave", "all"); empty resolves to the
 	// documented active-only default through
@@ -537,46 +619,59 @@ type View struct {
 	// PromotionAvailability resolves to PromotionEligible for the current
 	// viewer, so an authorized reader can find candidates without knowing
 	// their names in advance.
-	PeopleEligibleOnly      bool
-	PeopleSort              string
-	PeopleColumns           string
-	PeopleColumnDraft       *ColumnChooserDraft
-	PeopleDirection         string
-	OrganizationView        string
-	WorkflowQuery           string
-	HistoryQuery            string
-	HistoryOutcome          string
-	HistoryPerson           string
-	HistoryYear             string
-	HistorySort             string
-	HistoryDirection        string
-	HistoryPage             int
-	HistoryPageSize         int
-	WorkflowUses            map[string]int64
-	PreferenceVersion       int64
-	AppearanceVersion       int64
-	WorkerIDPolicy          WorkerIDPolicy
-	ChatRetentionConfigured bool
-	ChatRetentionPolicy     ChatRetentionPolicy
-	ChatRetentionLoading    bool
-	ChatRetentionError      string
-	ChatRetentionNotice     string
-	WorkerIDValidation      ValidationState
-	OrganizationVisibility  OrganizationVisibilityPolicy
-	AccessRoles             []AccessRole
-	RoleAssignments         []WorkerRoleAssignment
-	RoleVisibilityPolicies  []OrganizationVisibilityPolicy
-	RolePagePermissions     []RolePagePermission
-	EffectivePermissions    []RolePagePermission
-	RoleFeaturePermissions  []RoleFeaturePermission
-	EffectiveFeatures       []RoleFeaturePermission
-	StoredPreferences       StoredUserPreferences
-	Mode                    string
-	WorkFilter              string
-	JourneyID               string
-	JourneyWorker           string
-	JourneyMode             string
-	JourneyList             JourneyListFilter
+	PeopleEligibleOnly bool
+	PeopleSort         string
+	PeopleColumns      string
+	PeopleColumnDraft  *ColumnChooserDraft
+	PeopleDirection    string
+	OrganizationView   string
+	// OrganizationGraph is a tenant-bound, request-scoped canonical graph
+	// snapshot supplied by the authorized read adapter. The UI re-runs the
+	// domain traversal at the caller's requested effective date.
+	OrganizationGraph  *organization.Snapshot
+	OrganizationTenant string
+	// OrganizationMemberships maps admitted person IDs to canonical unit IDs;
+	// it is populated from effective-dated worker assignment facts, never Team.
+	OrganizationMemberships map[string]string
+	// AuthorizeOrganizationUnit is bound by the server to the current caller.
+	// Graph reads fail closed when it is absent.
+	AuthorizeOrganizationUnit organization.Authorizer
+	OrganizationAsOf          string
+	SelectedOrganizationUnit  string
+	WorkflowQuery             string
+	HistoryQuery              string
+	HistoryOutcome            string
+	HistoryPerson             string
+	HistoryYear               string
+	HistorySort               string
+	HistoryDirection          string
+	HistoryPage               int
+	HistoryPageSize           int
+	WorkflowUses              map[string]int64
+	PreferenceVersion         int64
+	AppearanceVersion         int64
+	WorkerIDPolicy            WorkerIDPolicy
+	ChatRetentionConfigured   bool
+	ChatRetentionPolicy       ChatRetentionPolicy
+	ChatRetentionLoading      bool
+	ChatRetentionError        string
+	ChatRetentionNotice       string
+	WorkerIDValidation        ValidationState
+	OrganizationVisibility    OrganizationVisibilityPolicy
+	AccessRoles               []AccessRole
+	RoleAssignments           []WorkerRoleAssignment
+	RoleVisibilityPolicies    []OrganizationVisibilityPolicy
+	RolePagePermissions       []RolePagePermission
+	EffectivePermissions      []RolePagePermission
+	RoleFeaturePermissions    []RoleFeaturePermission
+	EffectiveFeatures         []RoleFeaturePermission
+	StoredPreferences         StoredUserPreferences
+	Mode                      string
+	WorkFilter                string
+	JourneyID                 string
+	JourneyWorker             string
+	JourneyMode               string
+	JourneyList               JourneyListFilter
 	// PublishedWorkflows and WorkflowView are authorized, read-only
 	// projections for the workflow designer. The product layer never parses a
 	// draft or reconstructs runtime state from URLs; adapters populate these
@@ -649,10 +744,20 @@ type View struct {
 	RefreshingRegion string
 	// Navigate is installed by the WASM history router. A nil callback keeps
 	// server rendering and tests as ordinary progressive-enhancement links.
-	Navigate                  func(string)
+	Navigate func(string)
+	// NavigateReplace moves to href in software without adding a history
+	// step, for presentation changes (the navigation toggle) that Back
+	// should not undo.
+	NavigateReplace           func(string)
 	NavigateDebounced         func(string)
 	CancelDebouncedNavigation func()
-	HistoryNavigation         HistoryNavigationProps
+	// SearchDebounced reruns the route's loader for a server-backed search
+	// after typing pauses. push adds a history entry (the first search of a
+	// typing session); otherwise the session's entry is updated in place.
+	// NavigateDebounced only rewrites the address for client-side filters.
+	SearchDebounced       func(href string, push bool)
+	CancelSearchDebounced func()
+	HistoryNavigation     HistoryNavigationProps
 	// ContextSwitcher is the server-resolved tenant and acting-authority
 	// projection. It is intentionally separate from Tenant/Scope strings so
 	// presentation cannot mint a context or authority from a URL value.
@@ -692,6 +797,16 @@ type View struct {
 	// discovery surfaces admit only disclosable records and project
 	// their labels. Presentation never authors verdicts.
 	RecordVerdicts map[string]AuthorizedRecord
+}
+
+// KnowledgeSearchResult is the authorized presentation projection returned
+// by the knowledge domain service.
+type KnowledgeSearchResult struct {
+	ArticleID string
+	Revision  uint64
+	Locale    string
+	Title     string
+	Summary   string
 }
 
 type DocumentCreateRequest struct {
@@ -778,6 +893,7 @@ func NewView(page PageID, tenant, principal, scope string) View {
 		Page: page, Tenant: tenant,
 		Principal: principal, Scope: scope, Source: "Workforce directory",
 		Locale: ResolveProductLocale(""), Accessibility: DefaultAccessibilityPreferences(),
+		WorkLayout: ListDetailWide,
 	}
 	return ApplyLocale(view, view.Locale)
 }

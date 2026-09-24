@@ -9,8 +9,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
+	"github.com/monstercameron/human-capital-management-suite/internal/forms/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/forms"
 )
 
 // ErrQueryInvalid is returned when a [Query] cannot be turned into the typed

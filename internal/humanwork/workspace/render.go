@@ -8,8 +8,8 @@ import (
 	"html"
 	"strings"
 
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace/gwc"
 )
 
 // Route paths this workspace serves. They are constants because the
@@ -33,6 +33,9 @@ const (
 	// at the origin root. The product shell's connect-src names it so the wasm
 	// client can mint grants and read bytes with its bearer.
 	PathChatMediaPrefix = "/v1/chat/media/"
+	// PathDocumentMediaPrefix is the document attachment and export boundary
+	// (internal/transport/documentmedia); it rides the same media allowance.
+	PathDocumentMediaPrefix = "/v1/documents/media/"
 	// PathWasm is the GWC/WASM bundle.
 	PathWasm = PathAssetPrefix + assetWasm
 	// PathWasmExec is the Go WASM runtime shim the bundle needs.
@@ -42,7 +45,9 @@ const (
 	// PathLogin renders (GET) and accepts (POST) the dev-only pasted-token
 	// sign-in form. It is registered only when Options.DevBrowserLogin is
 	// set; otherwise this cell serves no route here at all.
-	PathLogin = "/workspace/login"
+	PathLogin        = "/workspace/login"
+	PathOIDCLogin    = "/workspace/login/oidc"
+	PathOIDCCallback = "/workspace/login/oidc/callback"
 	// PathLogout clears the session cookie PathLogin set. Registered under
 	// the same condition as PathLogin.
 	PathLogout = "/workspace/logout"
@@ -71,7 +76,7 @@ const (
 // Render produces the served HTML document for one page.
 //
 // The document is produced by the GWC renderer's native SSR path
-// (tools/uxqual/render/gwc.Document) - the same component tree its wasm
+// (workspace/gwc.Document) - the same component tree its wasm
 // build mounts live in the browser - and then bound to this workspace's
 // routes by [bindForms]. When the progressive-enhancement bundle is served,
 // [contractIsland] is embedded too, so the live renderer has to mount exactly
@@ -231,7 +236,7 @@ type liveBinding struct {
 
 // contractIsland is the data island the enhanced document carries: the very
 // contract the rendered tree shows, and the binding the live renderer
-// (tools/uxqual/render/gwc.MountLive) applies to the tree it mounts over it.
+// live build applies to the tree it mounts over it.
 // The document remains complete without the island; the island only tells the
 // browser how to re-bind what it already has in front of it.
 //

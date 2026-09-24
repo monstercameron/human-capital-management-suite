@@ -1,9 +1,19 @@
 package main
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
+
+// chatDraftIdentityMatches fences callbacks captured by an older chat render.
+// In particular, an asynchronous send queued by that render must not borrow a
+// newly configured session's credentials after an identity switch.
+func chatDraftIdentityMatches(expectedTenant, expectedSubject, currentTenant, currentSubject string) bool {
+	expectedTenant, expectedSubject = strings.TrimSpace(expectedTenant), strings.TrimSpace(expectedSubject)
+	currentTenant, currentSubject = strings.TrimSpace(currentTenant), strings.TrimSpace(currentSubject)
+	return expectedTenant != "" && expectedSubject != "" && expectedTenant == currentTenant && expectedSubject == currentSubject
+}
 
 // chatDraftWriter is the composer's persistence, and it exists because a
 // debounced write is a race with the send that empties the draft.

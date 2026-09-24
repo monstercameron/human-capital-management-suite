@@ -46,8 +46,8 @@ func TestTodo_WEB_106(t *testing.T) {
 			closed++
 		}
 	}
-	if open != len(AttentionList(items)) || closed != len(RecentWork(items)) {
-		t.Fatalf("tracking %d/%d vs lists %d/%d", open, closed, len(AttentionList(items)), len(RecentWork(items)))
+	if open != len(OpenWorkItems(items)) || closed != len(RecentWork(items)) {
+		t.Fatalf("tracking %d/%d vs lists %d/%d", open, closed, len(OpenWorkItems(items)), len(RecentWork(items)))
 	}
 }
 
@@ -121,7 +121,7 @@ func TestTodo_WEB_106_Conformance(t *testing.T) {
 			closed++
 		}
 	}
-	if open != len(AttentionList(stream)) || closed != len(RecentWork(stream)) {
+	if open != len(OpenWorkItems(stream)) || closed != len(RecentWork(stream)) {
 		t.Fatal("tracking disagrees with the governed lists")
 	}
 	if !reflect.DeepEqual(summaries, SummarizeTracked(stream)) {

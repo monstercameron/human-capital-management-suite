@@ -7,7 +7,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
 )
 
 // Action identifiers this workspace declares.

@@ -134,6 +134,10 @@ func watchChatConversation(ctx context.Context, conversationID string, generatio
 		}
 		if err != nil {
 			logChatStream(chatStreamEvent{Conversation: conversationID, Event: "open-failed", Cause: chatStreamCause(err), Attempt: attempts + 1})
+			if chatStreamAccessFailure(err) {
+				chatStreamHandleAccessLoss(conversationID, generation, cfg, err)
+				return
+			}
 			if resume != "" && chatCursorRejected(err) {
 				// The server refused the resume cursor. It is a stale token,
 				// not an outage: drop it and resubscribe from the sequence at
@@ -158,6 +162,10 @@ func watchChatConversation(ctx context.Context, conversationID string, generatio
 		delivered, reason, termination := receiveChatEvents(ctx, stream, conversationID, generation, cfg)
 		gap := reason == chatStreamEndGap
 		if chatStreamEnded(ctx, generation, conversationID) {
+			return
+		}
+		if chatStreamAccessFailure(termination) {
+			chatStreamHandleAccessLoss(conversationID, generation, cfg, termination)
 			return
 		}
 		// Only a stream that actually worked says the stream is healthy.
@@ -218,6 +226,26 @@ func watchChatConversation(ctx context.Context, conversationID string, generatio
 			return
 		}
 	}
+}
+
+func chatStreamHandleAccessLoss(conversationID string, generation uint64, cfg journeyclient.Config, err error) {
+	if err == nil || !chatBrowser.generationActive(generation) {
+		return
+	}
+	active := chatBrowser.config(cfg)
+	if active.Tenant != cfg.Tenant || active.Subject != cfg.Subject || active.Bearer != cfg.Bearer {
+		return
+	}
+	applied := false
+	committed := chatBrowser.commit(generation, func(model *chatui.Model) {
+		applied = chatStreamApplyAccessLoss(model, conversationID, cfg.Tenant, cfg.Subject, err)
+	})
+	if !committed || !applied {
+		return
+	}
+	chatBrowser.invalidateChatEmbeds()
+	clearChatMediaCache()
+	chatStreamRender.Schedule()
 }
 
 // chatStreamGaveUp tells the reader the conversation has stopped updating.
@@ -424,6 +452,7 @@ func loadNewerChatMessages(cfg journeyclient.Config) {
 		messages := chatMessages(chatInConversationOrder(result.GetPosts()), active.Locale, chatDirectorySnapshot(), chatBrowser.reactionSnapshot(), time.Now())
 		scannedMax := chatLastSequence(result.GetPosts())
 		if chatBrowser.appendNewerChatMessages(conversationID, messages, result.GetNextCursor(), scannedMax, fence) {
+			chatui.PreserveTimelinePosition()
 			refreshChatRoute()
 			queuePagedChatReactions(active, conversationID, fence.generation, messages)
 		}

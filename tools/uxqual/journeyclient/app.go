@@ -1745,6 +1745,14 @@ func noticeFromError(err error, copy productui.LocaleContext) *journey.Notice {
 		return nil
 	}
 	st := status.Convert(err)
+	if ErrorHasCode(err, codes.Unauthenticated) {
+		recovery := productui.UnauthenticatedRecovery()
+		return &journey.Notice{
+			Tone: toneDanger, Title: copy.Text("signed_out.title"),
+			TitleKey: "signed_out.title", RecoveryHref: recovery.SignInHref,
+			RecoveryLabel: copy.Text("signed_out.signin"),
+		}
+	}
 	key := refusalCopyKey(st.Code())
 	// A few refusals share a transport code with conditions that read nothing
 	// like them. Where the server names one of those owned reasons, its own

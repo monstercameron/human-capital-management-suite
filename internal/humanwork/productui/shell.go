@@ -8,6 +8,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 )
 
@@ -49,7 +50,7 @@ func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
 			page,
 		)
 	}
-	announcement := view.Locale.Text("shell.page_loaded", map[string]string{"title": view.Title})
+	announcement := view.Locale.Text("shell.page_loaded", map[string]string{"title": routeAnnouncementTitle(view)})
 	if view.Loading || view.ContentLoading || view.Refreshing {
 		announcement = view.Locale.Text("shell.loading_authorized")
 	}
@@ -291,6 +292,31 @@ func authorizedActionLauncherItems(view View, items []ActionLauncherItem) []Acti
 // trusted, and page CRUD never manufactures action authority. Safe-to-disclose
 // denials require both an explicit reason and an authorized recovery route.
 func actionLauncherItemPolicy(view View, item ActionLauncherItem, people *canonicalPersonLauncherItems) (ActionState, bool) {
+	if strings.HasPrefix(item.ID, "chat:") {
+		conversationID := strings.TrimPrefix(item.ID, "chat:")
+		if item.Kind != ActionLauncherDestination || item.Page != PageChat || item.Action != "view" ||
+			!item.IsNavigationDestination || item.Href != chatui.ChannelReferenceURL(conversationID) ||
+			!view.Allows(PageChat, "view") {
+			return ActionState{Availability: ActionHidden}, false
+		}
+		for _, conversation := range view.Chat.Conversations {
+			if conversation.ID == conversationID && conversation.Joined && strings.TrimSpace(conversation.Name) == item.Label {
+				return ActionState{Availability: ActionAvailable}, true
+			}
+		}
+		// The persistent shell can retain a route View while the chat page
+		// updates locally. The active chat provider reads the authenticated,
+		// current membership projection and is the fallback for that live model.
+		if ActionLauncherChatVisitsProvider != nil {
+			for _, visit := range ActionLauncherChatVisitsProvider() {
+				conversation := visit.Conversation
+				if conversation.ID == conversationID && conversation.Joined && strings.TrimSpace(conversation.Name) == item.Label {
+					return ActionState{Availability: ActionAvailable}, true
+				}
+			}
+		}
+		return ActionState{Availability: ActionHidden}, false
+	}
 	if item.Kind == ActionLauncherAction {
 		if strings.HasPrefix(item.ID, "action:") || strings.HasPrefix(item.ID, "action-unavailable:") {
 			if canonical, ok := people.lookup(item.ID); ok &&
@@ -377,6 +403,11 @@ func actionLauncherDestinationValid(item ActionLauncherItem) bool {
 	definition, ok := LookupPage(item.Page)
 	if !ok {
 		return false
+	}
+	if strings.HasPrefix(item.ID, "chat:") {
+		conversationID := strings.TrimPrefix(item.ID, "chat:")
+		return item.Page == PageChat && item.Kind == ActionLauncherDestination && item.Action == "view" &&
+			item.IsNavigationDestination && conversationID != "" && item.Href == chatui.ChannelReferenceURL(conversationID)
 	}
 	if item.Href == "" && strings.HasPrefix(item.ID, "action-unavailable:") && item.Availability.Availability == ActionUnavailable {
 		return true // policy already compared the entire item with its canonical denial.
@@ -606,7 +637,9 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 			Raw:   map[string]any{"aria-hidden": "true"},
 		}))
 	}
-	if showHeading {
+	// An open document renders its own title as the page's h1#page-title,
+	// so the shell's "Documents" head would only repeat the list above it.
+	if showHeading && !docsOwnsPageHeading(view) {
 		children = append(children, html.WithKey(PageIdentityHeader(view), "page-identity"))
 	}
 	// A full-bleed page (chat) is an application surface: it takes the whole

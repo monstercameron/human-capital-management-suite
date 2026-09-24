@@ -37,7 +37,7 @@ func mediaRule(query gwccss.MediaQuery, parts ...any) []gwccss.Rule {
 }
 
 // loginSpecificStylesheet is the login page's own CSS, kept separate from
-// tokens.WorkspaceCSS (owned by tools/uxqual/tokens) so this package converts
+// tokens.WorkspaceCSS (owned by internal/experience/tokens) so this package converts
 // only its own literal. loginStylesheet concatenates the two.
 func loginSpecificStylesheet() string {
 	return buildTypedSheet(declareLoginStyles)

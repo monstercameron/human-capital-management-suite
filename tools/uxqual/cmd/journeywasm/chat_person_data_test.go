@@ -10,10 +10,15 @@ import (
 
 func TestChatPersonDetailsFromAuthorizedWorkers(t *testing.T) {
 	workers := []*journeyv1.Worker{
-		{WorkerRef: "manager", PreferredName: "Morgan", LegalName: "Morgan Manager"},
-		{WorkerRef: "peer", WorkerId: "canonical-peer", PreferredName: "Pat", LegalName: "Pat Person", JobTitle: "Analyst", OrgUnit: "Finance", Location: "Boston", Company: "Example", BusinessUnit: "Operations", ProfilePhotoUrl: "/photos/peer", ManagerRef: "private-raw-edge", ManagerRelationship: &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE, ManagerWorkerRef: "manager"}, BasePay: "123456", Currency: "USD"},
+		{WorkerRef: "manager", SubjectId: "manager", PreferredName: "Morgan", LegalName: "Morgan Manager"},
+		{WorkerRef: "peer", WorkerId: "canonical-peer", SubjectId: "peer", PreferredName: "Pat", LegalName: "Pat Person", JobTitle: "Analyst", OrgUnit: "Finance", Location: "Boston", Company: "Example", BusinessUnit: "Operations", ProfilePhotoUrl: "/photos/peer", ManagerRef: "private-raw-edge", ManagerRelationship: &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_VISIBLE, ManagerWorkerRef: "manager"}, BasePay: "123456", Currency: "USD"},
 	}
-	for _, id := range []string{"peer", "canonical-peer"} {
+	// Chat names people by principal subject only; the entity id and the
+	// display slug are not identities it joins on.
+	if _, ok := chatPersonDetailsFromWorkers(workers, "canonical-peer"); ok {
+		t.Fatal("the entity id resolved a chat person")
+	}
+	for _, id := range []string{"peer"} {
 		got, ok := chatPersonDetailsFromWorkers(workers, id)
 		if !ok || got.ID != "peer" || got.Name != "Pat Person" || got.Manager != "Morgan Manager" || got.Department != "Finance" || got.JobTitle != "Analyst" || got.Company != "Example" || got.BusinessUnit != "Operations" || got.Location != "Boston" || got.PhotoURL != "/photos/peer" {
 			t.Fatalf("projection for %q = %+v, %v", id, got, ok)
@@ -26,8 +31,8 @@ func TestChatPersonDetailsFromAuthorizedWorkers(t *testing.T) {
 
 func TestChatSearchUsesGovernedCanonicalVisibleWorkers(t *testing.T) {
 	workers := []*journeyv1.Worker{
-		{WorkerRef: "peer-ref", WorkerId: "peer-entity", PreferredName: "Alex", LegalName: "Alex Rivera"},
-		{WorkerRef: "other", PreferredName: "Taylor", LegalName: "Taylor Jones"},
+		{WorkerRef: "peer-ref", WorkerId: "peer-entity", SubjectId: "peer-ref", PreferredName: "Alex", LegalName: "Alex Rivera"},
+		{WorkerRef: "other", SubjectId: "other", PreferredName: "Taylor", LegalName: "Taylor Jones"},
 	}
 	directory := chatSearchDirectoryFromWorkers(workers)
 	if len(directory) != 2 || directory[0].ID != "peer-ref" || directory[0].Name != "Alex Rivera" {
@@ -58,8 +63,8 @@ func TestChatSearchUsesGovernedCanonicalVisibleWorkers(t *testing.T) {
 }
 
 func TestChatPersonDetailsManagerFailsClosed(t *testing.T) {
-	worker := &journeyv1.Worker{WorkerRef: "peer", LegalName: "Pat", ManagerRef: "secret", ManagerRelationship: &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD, ManagerWorkerRef: "manager"}}
-	got, ok := chatPersonDetailsFromWorkers([]*journeyv1.Worker{worker, {WorkerRef: "manager", LegalName: "Morgan"}}, "peer")
+	worker := &journeyv1.Worker{WorkerRef: "peer", SubjectId: "peer", LegalName: "Pat", ManagerRef: "secret", ManagerRelationship: &journeyv1.ManagerRelationshipProjection{Disposition: journeyv1.ManagerRelationshipProjection_DISPOSITION_WITHHELD, ManagerWorkerRef: "manager"}}
+	got, ok := chatPersonDetailsFromWorkers([]*journeyv1.Worker{worker, {WorkerRef: "manager", SubjectId: "manager", LegalName: "Morgan"}}, "peer")
 	if !ok || got.Manager != "" {
 		t.Fatalf("withheld manager leaked: %+v, %v", got, ok)
 	}

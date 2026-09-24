@@ -1,12 +1,15 @@
 package productui
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"math/big"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/i18n"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/localize"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -28,13 +31,14 @@ const (
 // LocaleContext is immutable presentation state shared by every component.
 // It deliberately carries no jurisdiction or policy authority.
 type LocaleContext struct {
-	Requested      string
-	Resolved       string
-	TimeZone       string
-	Calendar       string
-	CatalogVersion string
-	Direction      localize.Direction
-	Fallback       LocaleFallback
+	Requested       string
+	Resolved        string
+	TimeZone        string
+	Calendar        string
+	CatalogVersion  string
+	CatalogRevision string
+	Direction       localize.Direction
+	Fallback        LocaleFallback
 }
 
 // I18nProps is embedded in component props that own product copy. The zero
@@ -62,13 +66,136 @@ func ResolveProductLocale(requested string) LocaleContext {
 		locale = DefaultProductLocale
 		fallback = LocaleFallbackUnsupported
 	}
+	version := productCatalogVersion
+	if active, ok := productLocaleCatalogVersions.Load(locale); ok {
+		version = active.(string)
+	}
 	return LocaleContext{
 		Requested: requested, Resolved: locale, TimeZone: "UTC", Calendar: "gregorian",
-		CatalogVersion: productCatalogVersion, Direction: localize.DirectionFor(locale), Fallback: fallback,
+		CatalogVersion: version, Direction: localize.DirectionFor(locale), Fallback: fallback,
 	}
 }
 
+var productLocaleCatalogVersions sync.Map
+
+// SelectActivatedCatalog is used by the single-tenant browser client after it
+// installs the catalog payload carried by its authenticated shell.
+func SelectActivatedCatalog(locale, version string) {
+	locale = canonicalProductLocale(strings.ReplaceAll(strings.TrimSpace(locale), "_", "-"))
+	if locale != "" && version != "" {
+		productLocaleCatalogVersions.Store(locale, version)
+	}
+}
+
+// ResolveProductLocalePreference applies the same presentation-only
+// precedence at the HTTP and client boundaries: an explicit route locale
+// wins when supported, then the authenticated user's saved locale, then
+// English. Unsupported values remain visible as a presentation fallback and
+// never select legal or authorization context.
+func ResolveProductLocalePreference(explicit, saved string) LocaleContext {
+	if strings.TrimSpace(explicit) != "" {
+		requested := ResolveProductLocale(explicit)
+		if requested.Fallback == LocaleFallbackNone {
+			return requested
+		}
+		stored := ResolveProductLocale(saved)
+		if strings.TrimSpace(saved) != "" && stored.Fallback == LocaleFallbackNone {
+			stored.Requested = requested.Requested
+			stored.Fallback = LocaleFallbackUnsupported
+			return stored
+		}
+		return requested
+	}
+	return ResolveProductLocale(saved)
+}
+
 func SupportedProductLocales() []string { return []string{"en-US", "de-DE", "ar"} }
+
+// ApplyActivatedCatalog validates and registers one immutable tenant/product
+// revision in the same resolver used by native Go rendering and the WASM UI.
+// The scoped version prevents one tenant's active copy from being selected by
+// another tenant's presentation context.
+func ApplyActivatedCatalog(locale LocaleContext, scope i18n.Scope, revision i18n.CatalogRevision, at time.Time) (LocaleContext, error) {
+	if err := scope.Validate(); err != nil {
+		return LocaleContext{}, err
+	}
+	if at.IsZero() {
+		return LocaleContext{}, i18n.ErrInvalidRevision
+	}
+	if err := revision.Validate(); err != nil {
+		return LocaleContext{}, err
+	}
+	if !revision.VerifyDigest() || !revision.Effective(at) {
+		return LocaleContext{}, i18n.ErrInvalidRevision
+	}
+	if canonicalProductLocale(revision.Locale) != canonicalProductLocale(locale.Resolved) {
+		return LocaleContext{}, i18n.ErrUnsupportedLocale
+	}
+	messages := make(map[string]string, len(revision.Translations))
+	for _, item := range revision.Translations {
+		if item.MeaningID != item.Key {
+			return LocaleContext{}, i18n.ErrMeaningChanged
+		}
+		if !item.EffectiveFrom.IsZero() && at.Before(item.EffectiveFrom) || !item.EffectiveUntil.IsZero() && !at.Before(item.EffectiveUntil) {
+			continue
+		}
+		messages[item.Key] = item.Text
+	}
+	version, err := RegisterActivatedCatalog(locale.Resolved, scope, revision.ID, revision.CanonicalDigest, messages)
+	if err != nil {
+		return LocaleContext{}, err
+	}
+	locale.CatalogVersion = version
+	locale.CatalogRevision = revision.ID
+	return locale, nil
+}
+
+// RegisterActivatedCatalog installs the same server-validated payload in a
+// Go or WASM resolver and returns its scope-qualified version.
+func RegisterActivatedCatalog(locale string, scope i18n.Scope, revisionID, revisionDigest string, messages map[string]string) (string, error) {
+	if err := scope.Validate(); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(revisionID) == "" || len(revisionDigest) != 64 || strings.Trim(revisionDigest, "0123456789abcdef") != "" {
+		return "", i18n.ErrInvalidRevision
+	}
+	known := make(map[string]bool)
+	for _, key := range ProductCatalogKeys() {
+		known[key] = true
+	}
+	localized := make(map[string]localize.Message, len(messages))
+	for key, text := range messages {
+		if !known[key] || strings.TrimSpace(text) == "" {
+			return "", i18n.ErrMeaningChanged
+		}
+		localized[key] = localize.Message{Text: text}
+	}
+	if len(localized) == 0 {
+		return "", i18n.ErrInvalidRevision
+	}
+	versionMaterial := scope.Tenant + "\x00" + scope.Product + "\x00" + revisionID + "\x00" + revisionDigest
+	digest := sha256.Sum256([]byte(versionMaterial))
+	version := "activated." + hex.EncodeToString(digest[:])
+	locale = canonicalProductLocale(strings.ReplaceAll(strings.TrimSpace(locale), "_", "-"))
+	if err := productMessageRegistry.Register(localize.Catalog{Locale: locale, Version: version, Messages: mergeProductCatalog(locale, localized)}); err != nil {
+		return "", err
+	}
+	if locale != DefaultProductLocale {
+		english := productCatalogMessages(DefaultProductLocale, productMessages[DefaultProductLocale])
+		if err := productMessageRegistry.Register(localize.Catalog{Locale: DefaultProductLocale, Version: version, Messages: english}); err != nil {
+			return "", err
+		}
+	}
+	return version, nil
+}
+
+func mergeProductCatalog(locale string, overlay map[string]localize.Message) map[string]localize.Message {
+	base := productCatalogMessages(locale, productMessages[locale])
+	for key, message := range overlay {
+		base[key] = message
+	}
+	return base
+}
 
 // canonicalProductLocale maps language-only and regional BCP-47 requests to
 // the reviewed product catalogs. Product language is deliberately narrower
@@ -137,9 +264,11 @@ var productCatalogCoverageByLocale = func() map[string]func() ProductCatalogCove
 // that case from a complete English catalog.
 func ProductCatalogCoverage(locale string) ProductCatalogCoverageReport {
 	resolved := ResolveProductLocale(locale).Resolved
-	report := buildProductCatalogCoverage(resolved)
+	var report ProductCatalogCoverageReport
 	if memo, ok := productCatalogCoverageByLocale[resolved]; ok {
 		report = memo()
+	} else {
+		report = buildProductCatalogCoverage(resolved)
 	}
 	// The caller receives its own slice: the memoized report is shared.
 	report.MissingKeys = append([]string(nil), report.MissingKeys...)
@@ -621,10 +750,21 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"return_to_work.unavailable_title": {Text: "Return to work unavailable"}, "return_to_work.unavailable_detail": {Text: "Planning a return from leave requires the governed leave service, which is not published yet. Plan truth stays server authority and the UI will not simulate it."}, "return_to_work.return_home": {Text: "Return to live workspace"},
 		"page.pay_summary.label": {Text: "Pay summary"}, "page.pay_summary.title": {Text: "Employee pay summary"}, "page.pay_summary.subtitle": {Text: "Pay figures from the governed pay service."},
 		"pay_summary.unavailable_title": {Text: "Pay summary unavailable"}, "pay_summary.unavailable_detail": {Text: "Pay figures require the governed pay service, which is not published yet. Pay truth stays server authority and the UI will not simulate it."}, "pay_summary.return_home": {Text: "Return to live workspace"},
+		"pay_summary.no_record_title": {Text: "No pay details are available"}, "pay_summary.no_record_detail": {Text: "The pay service returned no compensation record for this worker."}, "pay_summary.read_error_title": {Text: "Pay details could not be loaded"}, "pay_summary.read_error_detail": {Text: "The pay service could not complete this authorized read. Try again later."},
 		"page.pay_statements.label": {Text: "Pay statements"}, "page.pay_statements.title": {Text: "Accessible pay statements"}, "page.pay_statements.subtitle": {Text: "Statements from the governed pay service."},
 		"pay_statements.unavailable_title": {Text: "Pay statements unavailable"}, "pay_statements.unavailable_detail": {Text: "Pay statements require the governed pay service, which is not published yet. Statement truth stays server authority and the UI will not simulate it."}, "pay_statements.return_home": {Text: "Return to live workspace"},
+		"pay_statements.no_record_title": {Text: "No pay statements are available"}, "pay_statements.no_record_detail": {Text: "The pay service returned no statements for this worker."}, "pay_statements.read_error_title": {Text: "Pay statements could not be loaded"}, "pay_statements.read_error_detail": {Text: "The pay service could not complete this authorized read. Try again later."},
 		"page.pay_discrepancy.label": {Text: "Pay discrepancy"}, "page.pay_discrepancy.title": {Text: "Pay-discrepancy intake"}, "page.pay_discrepancy.subtitle": {Text: "Report a pay problem through the governed pay service."},
 		"pay_discrepancy.unavailable_title": {Text: "Pay discrepancy unavailable"}, "pay_discrepancy.unavailable_detail": {Text: "Reporting a pay problem requires the governed pay service, which is not published yet. Case truth stays server authority and the UI will not simulate it."}, "pay_discrepancy.return_home": {Text: "Return to live workspace"},
+		"pay_ui.loading_title": {Text: "Loading pay details"}, "pay_ui.loading_detail": {Text: "Your authorized pay information is loading."},
+		"pay_ui.withheld_title": {Text: "Pay details are restricted"}, "pay_ui.withheld_detail": {Text: "The pay service did not authorize these details for this session."},
+		"pay_ui.details_unavailable_title": {Text: "Pay details unavailable"}, "pay_ui.details_unavailable_detail": {Text: "The authorized projection did not return any displayable pay fields."}, "pay_ui.details_title": {Text: "Compensation details"},
+		"pay_ui.amount_label": {Text: "Base pay"}, "pay_ui.basis_label": {Text: "Pay basis"}, "pay_ui.frequency_label": {Text: "Pay frequency"}, "pay_ui.effective_label": {Text: "Effective period"}, "pay_ui.known_at_label": {Text: "Known as of"},
+		"pay_ui.restricted": {Text: "Restricted"}, "pay_ui.unknown": {Text: "Not available"}, "pay_ui.statements_title": {Text: "Available pay statements"},
+		"pay_ui.period_label": {Text: "Pay period"}, "pay_ui.pay_date_label": {Text: "Pay date"}, "pay_ui.net_pay_label": {Text: "Net pay"},
+		"pay_ui.intake_title": {Text: "Report a pay problem"}, "pay_ui.intake_detail": {Text: "Choose an authorized statement and describe the issue. Your identity is attached by the pay service."},
+		"pay_ui.statement_label": {Text: "Statement"}, "pay_ui.category_label": {Text: "Issue type"}, "pay_ui.reason_label": {Text: "What happened?"}, "pay_ui.choose_statement": {Text: "Choose a statement"}, "pay_ui.choose_category": {Text: "Choose an issue type"},
+		"pay_ui.submit_label": {Text: "Submit report"}, "pay_ui.submitting": {Text: "Submitting your report…"}, "pay_ui.submitted": {Text: "Your report was submitted to the pay service."}, "pay_ui.submit_failed": {Text: "We could not submit your report. Review the details and try again."},
 		"page.comp_proposals.label": {Text: "Comp proposals"}, "page.comp_proposals.title": {Text: "Manager compensation proposals"}, "page.comp_proposals.subtitle": {Text: "Propose compensation through the governed compensation service."},
 		"comp_proposals.unavailable_title": {Text: "Comp proposals unavailable"}, "comp_proposals.unavailable_detail": {Text: "Proposing compensation requires the governed compensation service, which is not published yet. Proposal truth stays server authority and the UI will not simulate it."}, "comp_proposals.return_home": {Text: "Return to live workspace"},
 		"page.salary_comparison.label": {Text: "Salary comparison"}, "page.salary_comparison.title": {Text: "Salary-range and budget comparison"}, "page.salary_comparison.subtitle": {Text: "Compare ranges and budgets through the governed compensation service."},
@@ -653,8 +793,9 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"manager_checkins.unavailable_title": {Text: "Manager check-ins unavailable"}, "manager_checkins.unavailable_detail": {Text: "Running check-ins requires the governed growth service, which is not published yet. Check-in truth stays server authority and the UI will not simulate it."}, "manager_checkins.return_home": {Text: "Return to live workspace"},
 		"page.perf_review.label": {Text: "Perf review"}, "page.perf_review.title": {Text: "Performance-review workspace"}, "page.perf_review.subtitle": {Text: "Review performance through the governed growth service."},
 		"perf_review.unavailable_title": {Text: "Perf review unavailable"}, "perf_review.unavailable_detail": {Text: "Reviewing performance requires the governed growth service, which is not published yet. Review truth stays server authority and the UI will not simulate it."}, "perf_review.return_home": {Text: "Return to live workspace"},
-		"page.review_participants.label": {Text: "Review participants"}, "page.review_participants.title": {Text: "Review-participant visibility"}, "page.review_participants.subtitle": {Text: "Disclose participants through the governed growth service."},
-		"review_participants.unavailable_title": {Text: "Review participants unavailable"}, "review_participants.unavailable_detail": {Text: "Disclosing review participants requires the governed growth service, which is not published yet. Participant truth stays server authority and the UI will not simulate it."}, "review_participants.return_home": {Text: "Return to live workspace"},
+		"page.review_participants.label": {Text: "Review participants"}, "page.review_participants.title": {Text: "Review-participant visibility"}, "page.review_participants.subtitle": {Text: "See the participants and reviewers in a review cycle."},
+		"review_participants.unavailable_title": {Text: "Review participants unavailable"}, "review_participants.unavailable_detail": {Text: "Review participants cannot be shown here yet. No participant details will be guessed."}, "review_participants.return_home": {Text: "Return to live workspace"},
+		"review_participants.empty_title": {Text: "No review participants to show"}, "review_participants.empty_detail": {Text: "No review-cycle participants are available in this view."}, "review_participants.cycle_heading": {Text: "Review cycle · revision {revision}"}, "review_participants.relationship.MANAGER": {Text: "Manager review"}, "review_participants.relationship.PEER": {Text: "Peer review"}, "review_participants.relationship.DIRECT_REPORT": {Text: "Direct-report review"}, "review_participants.relationship.PROJECT_PARTNER": {Text: "Project-partner review"}, "review_participants.relationship.HR_PARTNER": {Text: "HR-partner review"},
 		"page.skills_profile.label": {Text: "Skills profile"}, "page.skills_profile.title": {Text: "Governed skills profile"}, "page.skills_profile.subtitle": {Text: "Skills from the governed growth service."},
 		"skills_profile.unavailable_title": {Text: "Skills profile unavailable"}, "skills_profile.unavailable_detail": {Text: "Employee skills require the governed growth service, which is not published yet. Skill truth stays server authority and the UI will not simulate it."}, "skills_profile.return_home": {Text: "Return to live workspace"},
 		"page.assigned_learning.label": {Text: "Assigned learning"}, "page.assigned_learning.title": {Text: "Assigned learning"}, "page.assigned_learning.subtitle": {Text: "Assignments from the governed learning service."},
@@ -673,10 +814,11 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"org_outline.unavailable_title": {Text: "Org outline unavailable"}, "org_outline.unavailable_detail": {Text: "Outlining the organization requires the governed organization service, which is not published yet. Org truth stays server authority and the UI will not simulate it."}, "org_outline.return_home": {Text: "Return to live workspace"},
 		"page.org_effective_date.label": {Text: "Org effective date"}, "page.org_effective_date.title": {Text: "Effective-date organization navigation"}, "page.org_effective_date.subtitle": {Text: "Navigate the organization as of a date through the governed organization service."},
 		"org_effective_date.unavailable_title": {Text: "Effective-date navigation is not published yet"}, "org_effective_date.unavailable_detail": {Text: "Navigating the organization as of a date requires the governed organization service, which is not published yet. Org truth stays server authority and the UI will not simulate it."}, "org_effective_date.return_home": {Text: "Return to live workspace"},
-		"page.position_object.label": {Text: "Position object"}, "page.position_object.title": {Text: "Position object"}, "page.position_object.subtitle": {Text: "Inspect a governed position through the governed position service."},
-		"position_object.unavailable_title": {Text: "Position object is not published yet"}, "position_object.unavailable_detail": {Text: "Inspecting a governed position requires the governed position service, which is not published yet. Position truth stays server authority and the UI will not simulate it."}, "position_object.return_home": {Text: "Return to live workspace"},
-		"page.position_occupancy.label": {Text: "Position occupancy"}, "page.position_occupancy.title": {Text: "Position occupancy presentation"}, "page.position_occupancy.subtitle": {Text: "Present position occupancy through the governed position service."},
-		"position_occupancy.unavailable_title": {Text: "Position occupancy is not published yet"}, "position_occupancy.unavailable_detail": {Text: "Presenting position occupancy requires the governed position service, which is not published yet. Occupancy truth stays server authority and the UI will not simulate it."}, "position_occupancy.return_home": {Text: "Return to live workspace"},
+		"page.position_object.label": {Text: "Position object"}, "page.position_object.title": {Text: "Position object"}, "page.position_object.subtitle": {Text: "Review a position's current revision and compatibility."},
+		"position_object.select_title": {Text: "Choose a position"}, "position_object.select_detail": {Text: "Select a position to inspect its current revision."}, "position_object.details": {Text: "Position details"}, "position_object.position": {Text: "Position"}, "position_object.revision": {Text: "Revision"}, "position_object.job": {Text: "Job"}, "position_object.organization_unit": {Text: "Organization unit"}, "position_object.lifecycle": {Text: "Lifecycle"}, "position_object.compatibility": {Text: "Compatibility"}, "position_object.compatible": {Text: "Compatible"}, "position_object.incompatible": {Text: "Not compatible"},
+		"position_selector.label": {Text: "Select a position"}, "position_selector.choose": {Text: "Choose a position"}, "position_selector.help": {Text: "Choose an authorized position to open its current details."}, "position_selector.empty": {Text: "No positions are available in this view."}, "position_selector.open": {Text: "Open position"},
+		"page.position_occupancy.label": {Text: "Position occupancy"}, "page.position_occupancy.title": {Text: "Position occupancy presentation"}, "page.position_occupancy.subtitle": {Text: "Review current occupants and available capacity for a position."},
+		"position_occupancy.select_title": {Text: "Choose a position"}, "position_occupancy.select_detail": {Text: "Select a position to review its occupants and available capacity."}, "position_occupancy.details": {Text: "Position occupancy"}, "position_occupancy.position": {Text: "Position"}, "position_occupancy.capacity": {Text: "Capacity (heads · FTE)"}, "position_occupancy.consumed": {Text: "Occupied (heads · FTE)"}, "position_occupancy.vacancies": {Text: "Available (heads · FTE)"}, "position_occupancy.occupants": {Text: "Occupants"}, "position_occupancy.no_occupants": {Text: "No current occupants"}, "position_occupancy.fte": {Text: "FTE"},
 		"page.headcount_plan.label": {Text: "Headcount plan"}, "page.headcount_plan.title": {Text: "Headcount-plan workspace"}, "page.headcount_plan.subtitle": {Text: "Plan headcount through the governed headcount service."},
 		"headcount_plan.unavailable_title": {Text: "Headcount plan is not published yet"}, "headcount_plan.unavailable_detail": {Text: "Planning headcount requires the governed headcount service, which is not published yet. Plan truth stays server authority and the UI will not simulate it."}, "headcount_plan.return_home": {Text: "Return to live workspace"},
 		"page.workforce_scenario.label": {Text: "Workforce scenario"}, "page.workforce_scenario.title": {Text: "Workforce scenario authoring"}, "page.workforce_scenario.subtitle": {Text: "Author workforce scenarios through the governed headcount service."},
@@ -695,6 +837,7 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"help_hub.unavailable_title": {Text: "Employee Help hub is not published yet"}, "help_hub.unavailable_detail": {Text: "Reaching employee help requires the governed help service, which is not published yet. Help truth stays server authority and the UI will not simulate it."}, "help_hub.return_home": {Text: "Return to live workspace"},
 		"page.knowledge_search.label": {Text: "Knowledge search"}, "page.knowledge_search.title": {Text: "Authorized knowledge search"}, "page.knowledge_search.subtitle": {Text: "Search help knowledge through the governed help service."},
 		"knowledge_search.unavailable_title": {Text: "Authorized knowledge search is not published yet"}, "knowledge_search.unavailable_detail": {Text: "Searching help knowledge requires the governed help service, which is not published yet. Knowledge truth stays server authority and the UI will not simulate it."}, "knowledge_search.return_home": {Text: "Return to live workspace"},
+		"knowledge_search.results": {Text: "Search results"}, "knowledge_search.no_results_title": {Text: "No articles are available for this search"}, "knowledge_search.no_results_detail": {Text: "Try another search phrase or return to the Help hub."},
 		"page.hr_service_request.label": {Text: "HR service request"}, "page.hr_service_request.title": {Text: "HR service-request intake"}, "page.hr_service_request.subtitle": {Text: "Raise HR service requests through the governed help service."},
 		"hr_service_request.unavailable_title": {Text: "HR service-request intake is not published yet"}, "hr_service_request.unavailable_detail": {Text: "Raising HR service requests requires the governed help service, which is not published yet. Request truth stays server authority and the UI will not simulate it."}, "hr_service_request.return_home": {Text: "Return to live workspace"},
 		"page.confidential_case.label": {Text: "Confidential case"}, "page.confidential_case.title": {Text: "Confidential case intake"}, "page.confidential_case.subtitle": {Text: "Raise confidential cases through the governed help service."},
@@ -1848,10 +1991,38 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 		messages["page.chat_settings.label"] = localize.Message{Text: "Chat-Einstellungen"}
 		messages["page.chat_settings.title"] = localize.Message{Text: "Chat-Einstellungen"}
 		messages["page.chat_settings.subtitle"] = localize.Message{Text: "Verwalten Sie die mandantenweiten Einstellungen zur Chat-Aufbewahrung."}
+		messages["knowledge_search.results"] = localize.Message{Text: "Suchergebnisse"}
+		messages["knowledge_search.no_results_title"] = localize.Message{Text: "Für diese Suche sind keine Artikel verfügbar"}
+		messages["knowledge_search.no_results_detail"] = localize.Message{Text: "Versuchen Sie eine andere Suchanfrage oder kehren Sie zum Hilfezentrum zurück."}
+		for key, text := range map[string]string{
+			"page.position_object.label": "Positionsobjekt", "page.position_object.title": "Positionsobjekt", "page.position_object.subtitle": "Prüfen Sie eine Position anhand der aktuellen Revision und Kompatibilität.",
+			"page.review_participants.label": "Review-Teilnehmende", "page.review_participants.title": "Sichtbarkeit der Review-Teilnehmenden", "page.review_participants.subtitle": "Sehen Sie die Teilnehmenden und Reviews Ihres Zyklus.", "review_participants.unavailable_title": "Review-Teilnehmende nicht verfügbar", "review_participants.unavailable_detail": "Die Teilnehmenden können derzeit nicht geladen werden. Versuchen Sie es später erneut.", "review_participants.return_home": "Zum Arbeitsbereich zurückkehren",
+			"review_participants.empty_title": "Keine Review-Teilnehmenden anzuzeigen", "review_participants.empty_detail": "In dieser Ansicht sind keine Teilnehmenden aus einem Review-Zyklus verfügbar.", "review_participants.cycle_heading": "Review-Zyklus · Revision {revision}", "review_participants.relationship.MANAGER": "Review durch Führungskraft", "review_participants.relationship.PEER": "Review durch Kollegin oder Kollegen", "review_participants.relationship.DIRECT_REPORT": "Review durch direkt unterstellte Person", "review_participants.relationship.PROJECT_PARTNER": "Review durch Projektpartnerin oder Projektpartner", "review_participants.relationship.HR_PARTNER": "Review durch HR-Partnerin oder HR-Partner",
+			"position_object.select_title": "Position auswählen", "position_object.select_detail": "Wählen Sie eine Position aus, um die aktuelle Revision zu prüfen.", "position_object.details": "Positionsdetails", "position_object.position": "Position", "position_object.revision": "Revision", "position_object.job": "Stelle", "position_object.organization_unit": "Organisationseinheit", "position_object.lifecycle": "Lebenszyklus", "position_object.compatibility": "Kompatibilität", "position_object.compatible": "Kompatibel", "position_object.incompatible": "Nicht kompatibel",
+			"position_selector.label": "Position auswählen", "position_selector.choose": "Position auswählen", "position_selector.help": "Wählen Sie eine berechtigte Position aus, um ihre aktuellen Details zu öffnen.", "position_selector.empty": "In dieser Ansicht sind keine Positionen verfügbar.", "position_selector.open": "Position öffnen",
+			"page.position_occupancy.label": "Positionsbesetzung", "page.position_occupancy.title": "Positionsbesetzung", "page.position_occupancy.subtitle": "Prüfen Sie aktuelle Besetzungen und freie Kapazität einer Position.",
+			"position_occupancy.select_title": "Position auswählen", "position_occupancy.select_detail": "Wählen Sie eine Position aus, um Besetzung und freie Kapazität zu prüfen.", "position_occupancy.details": "Positionsbesetzung", "position_occupancy.position": "Position", "position_occupancy.capacity": "Kapazität (Köpfe · FTE)", "position_occupancy.consumed": "Besetzt (Köpfe · FTE)", "position_occupancy.vacancies": "Verfügbar (Köpfe · FTE)", "position_occupancy.occupants": "Besetzungen", "position_occupancy.no_occupants": "Derzeit keine Besetzungen", "position_occupancy.fte": "FTE",
+		} {
+			messages[key] = localize.Message{Text: text}
+		}
 	case "ar":
 		messages["page.chat_settings.label"] = localize.Message{Text: "إعدادات الدردشة"}
 		messages["page.chat_settings.title"] = localize.Message{Text: "إعدادات الدردشة"}
 		messages["page.chat_settings.subtitle"] = localize.Message{Text: "أدر إعدادات الاحتفاظ برسائل الدردشة على مستوى المستأجر."}
+		messages["knowledge_search.results"] = localize.Message{Text: "نتائج البحث"}
+		messages["knowledge_search.no_results_title"] = localize.Message{Text: "لا تتوفر مقالات لهذا البحث"}
+		messages["knowledge_search.no_results_detail"] = localize.Message{Text: "جرّب عبارة بحث أخرى أو عُد إلى مركز المساعدة."}
+		for key, text := range map[string]string{
+			"page.position_object.label": "ملف المنصب", "page.position_object.title": "ملف المنصب", "page.position_object.subtitle": "راجع المنصب وفق مراجعته الحالية ومدى توافقه.",
+			"page.review_participants.label": "مشاركو المراجعة", "page.review_participants.title": "عرض المشاركين في المراجعة", "page.review_participants.subtitle": "اعرض المشاركين والمراجعين في دورة المراجعة الخاصة بك.", "review_participants.unavailable_title": "تعذر عرض المشاركين في المراجعة", "review_participants.unavailable_detail": "تعذر تحميل المشاركين حاليًا. حاول مرة أخرى لاحقًا.", "review_participants.return_home": "العودة إلى مساحة العمل",
+			"review_participants.empty_title": "لا يوجد مشاركون في المراجعة لعرضهم", "review_participants.empty_detail": "لا يتوفر مشاركون في دورة مراجعة ضمن هذا العرض.", "review_participants.cycle_heading": "دورة المراجعة · الإصدار {revision}", "review_participants.relationship.MANAGER": "مراجعة من المدير", "review_participants.relationship.PEER": "مراجعة من زميل", "review_participants.relationship.DIRECT_REPORT": "مراجعة من موظف ضمن الفريق", "review_participants.relationship.PROJECT_PARTNER": "مراجعة من شريك المشروع", "review_participants.relationship.HR_PARTNER": "مراجعة من شريك الموارد البشرية",
+			"position_object.select_title": "اختر منصبًا", "position_object.select_detail": "اختر منصبًا محكومًا لمراجعة نسخته الحالية.", "position_object.details": "تفاصيل المنصب", "position_object.position": "المنصب", "position_object.revision": "المراجعة", "position_object.job": "الوظيفة", "position_object.organization_unit": "الوحدة التنظيمية", "position_object.lifecycle": "الحالة", "position_object.compatibility": "التوافق", "position_object.compatible": "متوافق", "position_object.incompatible": "غير متوافق",
+			"position_selector.label": "اختر منصبًا", "position_selector.choose": "اختر منصبًا", "position_selector.help": "اختر منصبًا مصرحًا به لفتح تفاصيله الحالية.", "position_selector.empty": "لا توجد مناصب متاحة في هذا العرض.", "position_selector.open": "افتح المنصب",
+			"page.position_occupancy.label": "شاغلو المنصب", "page.position_occupancy.title": "شاغلو المنصب", "page.position_occupancy.subtitle": "راجع شاغلي المنصب الحاليين والسعة المتاحة.",
+			"position_occupancy.select_title": "اختر منصبًا", "position_occupancy.select_detail": "اختر منصبًا محكومًا لمراجعة شاغليه والسعة المتاحة.", "position_occupancy.details": "إشغال المنصب", "position_occupancy.position": "المنصب", "position_occupancy.capacity": "السعة (عدد الأشخاص · مكافئ الدوام الكامل)", "position_occupancy.consumed": "المشغول (عدد الأشخاص · مكافئ الدوام الكامل)", "position_occupancy.vacancies": "المتاح (عدد الأشخاص · مكافئ الدوام الكامل)", "position_occupancy.occupants": "الشاغلون", "position_occupancy.no_occupants": "لا يوجد شاغلون حاليًا", "position_occupancy.fte": "مكافئ الدوام الكامل",
+		} {
+			messages[key] = localize.Message{Text: text}
+		}
 	}
 	for key, message := range messages {
 		if strings.HasSuffix(key, ".unavailable_detail") && key != "myself.unavailable_detail" {
@@ -1883,7 +2054,11 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 		}
 	}
 	for key, baseline := range productMessages[DefaultProductLocale] {
-		if strings.HasPrefix(key, "page.") && strings.HasSuffix(key, ".subtitle") && strings.Contains(strings.ToLower(baseline.Text), "governed") {
+		// These pages now have authorized reads and task-specific empty states.
+		// Keep their descriptions instead of replacing them with generic
+		// unavailable copy for governed surfaces that are not yet wired.
+		if strings.HasPrefix(key, "page.") && strings.HasSuffix(key, ".subtitle") && strings.Contains(strings.ToLower(baseline.Text), "governed") &&
+			key != "page.position_object.subtitle" && key != "page.position_occupancy.subtitle" && key != "page.review_participants.subtitle" {
 			messages[key] = localize.Message{Text: ordinaryUnavailableCopy(locale)}
 		}
 	}
@@ -2112,6 +2287,33 @@ func ordinaryCopy(locale, key string) string {
 			"studio.unavailable_title":                   "Eigene Seiten können hier noch nicht bearbeitet werden",
 			"studio.unavailable_description":             "Sie können weiterhin Marke und Erscheinungsbild anpassen sowie Rollen und Zugriff in der Administration verwalten.",
 			"studio.return_home":                         "Zurück zum Arbeitsbereich",
+			"page.position_object.label":                 "Positionsobjekt",
+			"page.position_object.title":                 "Positionsobjekt",
+			"page.position_object.subtitle":              "Prüfen Sie eine Position anhand der aktuellen Revision und Kompatibilität.",
+			"position_object.select_title":               "Position auswählen",
+			"position_object.select_detail":              "Wählen Sie eine Position aus, um die aktuelle Revision zu prüfen.",
+			"position_object.details":                    "Positionsdetails",
+			"position_object.position":                   "Position",
+			"position_object.revision":                   "Revision",
+			"position_object.job":                        "Stelle",
+			"position_object.organization_unit":          "Organisationseinheit",
+			"position_object.lifecycle":                  "Lebenszyklus",
+			"position_object.compatibility":              "Kompatibilität",
+			"position_object.compatible":                 "Kompatibel",
+			"position_object.incompatible":               "Nicht kompatibel",
+			"page.position_occupancy.label":              "Positionsbesetzung",
+			"page.position_occupancy.title":              "Positionsbesetzung",
+			"page.position_occupancy.subtitle":           "Prüfen Sie aktuelle Besetzungen und freie Kapazität einer Position.",
+			"position_occupancy.select_title":            "Position auswählen",
+			"position_occupancy.select_detail":           "Wählen Sie eine Position aus, um Besetzung und freie Kapazität zu prüfen.",
+			"position_occupancy.details":                 "Positionsbesetzung",
+			"position_occupancy.position":                "Position",
+			"position_occupancy.capacity":                "Kapazität (Köpfe · FTE)",
+			"position_occupancy.consumed":                "Besetzt (Köpfe · FTE)",
+			"position_occupancy.vacancies":               "Verfügbar (Köpfe · FTE)",
+			"position_occupancy.occupants":               "Besetzungen",
+			"position_occupancy.no_occupants":            "Derzeit keine Besetzungen",
+			"position_occupancy.fte":                     "FTE",
 			"page.governed_feedback.label":               "Feedback",
 			"page.governed_feedback.title":               "Feedback",
 			"governed_feedback.unavailable_title":        "Feedback ist noch nicht verfügbar",
@@ -2273,6 +2475,33 @@ func ordinaryCopy(locale, key string) string {
 			"studio.unavailable_title":                   "لا يمكن تحرير الصفحات المخصصة هنا بعد",
 			"studio.unavailable_description":             "لا يزال بإمكانك تخصيص العلامة والمظهر وإدارة الأدوار والوصول من إعدادات الإدارة.",
 			"studio.return_home":                         "العودة إلى مساحة العمل",
+			"page.position_object.label":                 "ملف المنصب",
+			"page.position_object.title":                 "ملف المنصب",
+			"page.position_object.subtitle":              "راجع المنصب وفق مراجعته الحالية ومدى توافقه.",
+			"position_object.select_title":               "اختر منصبًا",
+			"position_object.select_detail":              "اختر منصبًا محكومًا لمراجعة نسخته الحالية.",
+			"position_object.details":                    "تفاصيل المنصب",
+			"position_object.position":                   "المنصب",
+			"position_object.revision":                   "المراجعة",
+			"position_object.job":                        "الوظيفة",
+			"position_object.organization_unit":          "الوحدة التنظيمية",
+			"position_object.lifecycle":                  "الحالة",
+			"position_object.compatibility":              "التوافق",
+			"position_object.compatible":                 "متوافق",
+			"position_object.incompatible":               "غير متوافق",
+			"page.position_occupancy.label":              "شاغلو المنصب",
+			"page.position_occupancy.title":              "شاغلو المنصب",
+			"page.position_occupancy.subtitle":           "راجع شاغلي المنصب الحاليين والسعة المتاحة.",
+			"position_occupancy.select_title":            "اختر منصبًا",
+			"position_occupancy.select_detail":           "اختر منصبًا محكومًا لمراجعة شاغليه والسعة المتاحة.",
+			"position_occupancy.details":                 "إشغال المنصب",
+			"position_occupancy.position":                "المنصب",
+			"position_occupancy.capacity":                "السعة (عدد الأشخاص · مكافئ الدوام الكامل)",
+			"position_occupancy.consumed":                "المشغول (عدد الأشخاص · مكافئ الدوام الكامل)",
+			"position_occupancy.vacancies":               "المتاح (عدد الأشخاص · مكافئ الدوام الكامل)",
+			"position_occupancy.occupants":               "الشاغلون",
+			"position_occupancy.no_occupants":            "لا يوجد شاغلون حاليًا",
+			"position_occupancy.fte":                     "مكافئ الدوام الكامل",
 			"page.governed_feedback.label":               "الملاحظات",
 			"page.governed_feedback.title":               "الملاحظات",
 			"governed_feedback.unavailable_title":        "الملاحظات غير متاحة بعد",

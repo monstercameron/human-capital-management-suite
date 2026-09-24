@@ -89,9 +89,11 @@ func TestTodo_UXAUDIT_001(t *testing.T) {
 		// the drawer trigger are mutually exclusive by viewport.
 		`.header-nav-toggle,.app-shell.nav-collapsed .header-nav-toggle{display:none;}`,
 		`.nav-drawer-trigger{display:none;}`,
-		// A closed drawer contributes no second page-level scroller.
+		// A closed drawer contributes no second page-level scroller; the open
+		// drawer owns the scrolling region so search/support remain outside it.
 		`.primary-nav,.sidebar nav:first-of-type{flex:1;max-width:100%;min-width:0;overflow:hidden;width:100%;}`,
-		`.sidebar.nav-drawer-open .primary-nav,.sidebar.nav-drawer-open nav:first-of-type{overflow-x:hidden;overflow-y:auto;`,
+		`.sidebar.nav-drawer-open{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;`,
+		`.sidebar.nav-drawer-open .primary-nav,.sidebar.nav-drawer-open nav:first-of-type{overflow:visible;`,
 		// The backdrop restates display on the open rule (display:none from
 		// the base rule wins over an override that never mentions display).
 		`.nav-drawer-backdrop{display:none;}`,

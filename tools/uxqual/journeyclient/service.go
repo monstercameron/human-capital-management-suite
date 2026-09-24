@@ -134,6 +134,10 @@ func (s *grpcService) ListWorkflowPublications(ctx context.Context, in *workflow
 	return s.workflow.ListWorkflowPublications(ctx, in)
 }
 
+func (s *grpcService) SearchKnowledge(ctx context.Context, in *journeyv1.SearchKnowledgeRequest) (*journeyv1.SearchKnowledgeResponse, error) {
+	return s.client.SearchKnowledge(ctx, in)
+}
+
 func (s *grpcService) GetWorkflowDefinitionView(ctx context.Context, in *workflowv1.GetWorkflowDefinitionViewRequest) (*workflowv1.GetWorkflowDefinitionViewResponse, error) {
 	return s.workflow.GetWorkflowDefinitionView(ctx, in)
 }

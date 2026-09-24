@@ -25,6 +25,7 @@ var uxaudit011BaselineDestinations = []string{
 	"/workspace/app/admin/roles",
 	"/workspace/app/admin/organization-visibility",
 	"/workspace/app/appearance",
+	"/workspace/app/admin/chat-settings",
 }
 
 // TestTodo_UXAUDIT_011 is the PRIMARY: Experience Studio must not remain a
@@ -125,8 +126,8 @@ func TestTodo_UXAUDIT_011_Browser(t *testing.T) {
 			navLinks++
 		}
 	})
-	if navLinks != 5 {
-		t.Fatalf("Admin subnav has %d nav-link anchors, want 5 (overview plus 4 admitted children)", navLinks)
+	if navLinks != 6 {
+		t.Fatalf("Admin subnav has %d nav-link anchors, want 6 (overview plus 5 admitted children)", navLinks)
 	}
 
 	// Direct navigation to the unadmitted route claims no active

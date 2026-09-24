@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/candidate"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -44,20 +45,20 @@ const (
 )
 
 // CandidateSource says how a principal reached the candidate set.
-type CandidateSource string
+type CandidateSource = candidate.Source
 
 // Candidate sources.
 const (
 	// SourceUnspecified is the zero value and never appears on a candidate.
-	SourceUnspecified CandidateSource = ""
+	SourceUnspecified = candidate.SourceUnspecified
 	// SourceDirect means the resolution expression named them.
-	SourceDirect CandidateSource = "DIRECT"
+	SourceDirect = candidate.SourceDirect
 	// SourceDelegated means they hold an in-scope, unexpired delegation from a
 	// principal the expression named.
-	SourceDelegated CandidateSource = "DELEGATED"
+	SourceDelegated = candidate.SourceDelegated
 	// SourceFallback means the requirement's escalation fallback reached them
 	// after the primary set could not form quorum.
-	SourceFallback CandidateSource = "FALLBACK"
+	SourceFallback = candidate.SourceFallback
 )
 
 // ResolutionOutcome is the verdict of one resolution.

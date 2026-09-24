@@ -322,7 +322,7 @@ func safeLoadingPageClass(page PageID) string {
 
 func isFocusedRefreshRegion(region string) bool {
 	switch region {
-	case RefreshRegionPeopleDirectory:
+	case RefreshRegionPeopleDirectory, RefreshRegionDocuments:
 		return true
 	default:
 		return false

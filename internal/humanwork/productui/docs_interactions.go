@@ -1,6 +1,7 @@
 package productui
 
 import (
+	"net/url"
 	"strings"
 	"time"
 
@@ -173,22 +174,67 @@ func docsCommentForm(props docsCommentFormProps) ui.Node {
 	)
 }
 
+// docsSearchProvenance turns a raw match reason ("keyword", "semantic",
+// "title", "fuzzy") into a locale-appropriate label. An unrecognized reason
+// is shown verbatim rather than suppressed, so a reader always sees why a
+// result appeared.
+func docsSearchProvenance(locale, why string) string {
+	switch strings.ToLower(strings.TrimSpace(why)) {
+	case "semantic", "meaning":
+		return docsText(locale, "provenance_semantic")
+	case "keyword", "text":
+		return docsText(locale, "provenance_keyword")
+	case "title":
+		return docsText(locale, "provenance_title")
+	case "fuzzy":
+		return docsText(locale, "provenance_fuzzy")
+	default:
+		return why
+	}
+}
+
 func docsSearch(view View) ui.Node {
 	locale, search := view.Locale.Resolved, view.DocumentSearch
 	searchQuery := search.Query
+	filters := search.Filters
 	queryProps := html.Props{ID: "docs-search-query", Name: "docs_q", Type: "search", Value: search.Query, Raw: map[string]any{"aria-describedby": "docs-search-help"}}
 	queryProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { searchQuery = event.GetValue() })
 	query := html.Input(queryProps)
 	mode := html.Select(html.Props{ID: "docs-search-mode", Name: "mode"},
 		html.Option(html.Props{Value: "keyword", Selected: search.Mode != "semantic"}, ui.Text(docsText(locale, "keyword"))),
 		html.Option(html.Props{Value: "semantic", Selected: search.Mode == "semantic", Disabled: !search.SemanticAvailable}, ui.Text(docsText(locale, "semantic"))))
+	teamProps := html.Props{ID: "docs-search-team", Name: "team", Value: filters.Team}
+	teamProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { filters.Team = event.GetValue() })
+	channelProps := html.Props{ID: "docs-search-channel", Name: "channel", Value: filters.Channel}
+	channelProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { filters.Channel = event.GetValue() })
+	ownerProps := html.Props{ID: "docs-search-owner", Name: "owner", Value: filters.Owner}
+	ownerProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { filters.Owner = event.GetValue() })
+	statusProps := html.Props{ID: "docs-search-status", Name: "status", Value: filters.Status}
+	statusProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { filters.Status = event.GetValue() })
+	dateFromProps := html.Props{ID: "docs-search-date-from", Name: "date_from", Type: "date", Value: filters.DateFrom}
+	dateFromProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { filters.DateFrom = event.GetValue() })
+	dateToProps := html.Props{ID: "docs-search-date-to", Name: "date_to", Type: "date", Value: filters.DateTo}
+	dateToProps.OnInput = ui.UseEvent(func(event ui.InputEvent) { filters.DateTo = event.GetValue() })
+	filterFields := html.Tag("fieldset", html.Props{Class: "docs-search-filters"},
+		html.Tag("legend", html.Props{}, ui.Text(docsText(locale, "search_filters"))),
+		html.Label(html.Props{For: "docs-search-team"}, ui.Text(docsText(locale, "filter_team"))), html.Input(teamProps),
+		html.Label(html.Props{For: "docs-search-channel"}, ui.Text(docsText(locale, "filter_channel"))), html.Input(channelProps),
+		html.Label(html.Props{For: "docs-search-owner"}, ui.Text(docsText(locale, "filter_owner"))), html.Input(ownerProps),
+		html.Label(html.Props{For: "docs-search-status"}, ui.Text(docsText(locale, "filter_status"))), html.Input(statusProps),
+		html.Label(html.Props{For: "docs-search-date-from"}, ui.Text(docsText(locale, "filter_date_from"))), html.Input(dateFromProps),
+		html.Label(html.Props{For: "docs-search-date-to"}, ui.Text(docsText(locale, "filter_date_to"))), html.Input(dateToProps),
+	)
 	children := []ui.Node{
 		html.Label(html.Props{For: "docs-search-query"}, ui.Text(docsText(locale, "search"))),
 		html.Div(html.Props{Class: "docs-search-row"}, query, mode, html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(docsText(locale, "search_action")))),
 		html.P(html.Props{ID: "docs-search-help", Class: "muted"}, ui.Text(docsText(locale, "search_help"))),
+		filterFields,
 	}
 	if search.FallbackUsed {
 		children = append(children, html.P(html.Props{Class: "docs-notice", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(locale, "keyword_fallback"))))
+	}
+	if search.Ready && len(search.Results) == 0 {
+		children = append(children, html.P(html.Props{Class: "docs-empty", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(locale, "search_no_results"))))
 	}
 	for _, result := range search.Results {
 		title := ui.Node(ui.Text(result.Title))
@@ -197,8 +243,12 @@ func docsSearch(view View) ui.Node {
 		}
 		children = append(children, html.Article(html.Props{Class: "docs-search-result"},
 			html.H3(html.Props{}, title),
+			html.Span(html.Props{Class: "docs-search-provenance"}, ui.Text(docsSearchProvenance(locale, result.Why))),
 			docsField(locale, "owner", result.Owner), docsField(locale, "scope", result.Scope),
 			docsField(locale, "version", result.VersionID), docsField(locale, "why", result.Why),
+			// Snippet is authorized server-supplied plain text rendered through
+			// ui.Text, so it can never execute even when it contains markup
+			// characters -- the same guarantee the reader body relies on.
 			html.P(html.Props{Class: "docs-snippet"}, ui.Text(result.Snippet))))
 	}
 	formChildren := append([]ui.Node{html.H2(html.Props{ID: "docs-search-heading"}, ui.Text(docsText(locale, "search_heading")))}, children...)
@@ -206,7 +256,33 @@ func docsSearch(view View) ui.Node {
 	if view.Navigate != nil {
 		formProps.OnSubmit = ui.UseEvent(func(event ui.FormEvent) {
 			event.PreventDefault()
-			view.Navigate(docsBrowseHref(strings.TrimSpace(searchQuery), "all", ""))
+			values := url.Values{}
+			if q := strings.TrimSpace(searchQuery); q != "" {
+				values.Set("docs_q", q)
+			}
+			if v := strings.TrimSpace(filters.Team); v != "" {
+				values.Set("team", v)
+			}
+			if v := strings.TrimSpace(filters.Channel); v != "" {
+				values.Set("channel", v)
+			}
+			if v := strings.TrimSpace(filters.Owner); v != "" {
+				values.Set("owner", v)
+			}
+			if v := strings.TrimSpace(filters.Status); v != "" {
+				values.Set("status", v)
+			}
+			if v := strings.TrimSpace(filters.DateFrom); v != "" {
+				values.Set("date_from", v)
+			}
+			if v := strings.TrimSpace(filters.DateTo); v != "" {
+				values.Set("date_to", v)
+			}
+			href := "/workspace/app/docs"
+			if encoded := values.Encode(); encoded != "" {
+				href += "?" + encoded
+			}
+			view.Navigate(href)
 		})
 	}
 	return html.Form(formProps, formChildren...)
@@ -215,17 +291,37 @@ func docsSearch(view View) ui.Node {
 func docsReviewControls(locale string, reviews []DocumentReviewProjection) ui.Node {
 	items := make([]ui.Node, 0, len(reviews))
 	for _, review := range reviews {
-		if strings.TrimSpace(review.DocumentID) == "" || (!review.CanReview && !review.CanDeploy) {
+		if strings.TrimSpace(review.DocumentID) == "" {
 			continue
 		}
 		actions := make([]ui.Node, 0, 2)
+		// CanReview and CanDeploy are independent, per-render authority
+		// checks: a reviewer without current deploy authority sees no deploy
+		// form even if they already reviewed this exact version, and deploy
+		// authority revoked after an earlier review removes the deploy form
+		// the next time this authorized projection is rendered.
 		if review.CanReview {
 			actions = append(actions, docsActionForm(review.ReviewAction, docsText(locale, "review"), review))
 		}
 		if review.CanDeploy {
 			actions = append(actions, docsActionForm(review.DeployAction, docsText(locale, "deploy"), review))
 		}
-		items = append(items, html.Li(html.Props{Class: "docs-review-item"}, html.H3(html.Props{}, ui.Text(review.Title)), docsField(locale, "review_state", review.ReviewState), docsField(locale, "version", review.VersionID), html.Div(html.Props{Class: "docs-actions"}, actions...)))
+		if !review.CanReview && !review.CanDeploy {
+			continue
+		}
+		facts := []ui.Node{
+			docsField(locale, "review_state", review.ReviewState),
+			docsField(locale, "version", review.VersionID),
+			docsField(locale, "review_hash", review.VersionHash),
+			docsField(locale, "review_scope", review.Scope),
+		}
+		var diff ui.Node
+		if strings.TrimSpace(review.Diff) != "" {
+			diff = html.Div(html.Props{Class: "docs-review-diff-wrap"},
+				html.Strong(html.Props{}, ui.Text(docsText(locale, "review_diff"))),
+				html.Tag("pre", html.Props{Class: "docs-review-diff"}, ui.Text(review.Diff)))
+		}
+		items = append(items, html.Li(html.Props{Class: "docs-review-item"}, append(append([]ui.Node{html.H3(html.Props{}, ui.Text(review.Title))}, facts...), diff, html.Div(html.Props{Class: "docs-actions"}, actions...))...))
 	}
 	if len(items) == 0 {
 		return nil
@@ -258,9 +354,11 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 		update(&next)
 		state.Set(next)
 	}
-	title := html.Props{ID: "docs-create-title", Name: "title", Required: true, MaxLength: 200, Value: state.Get().Title}
+	// The fields are uncontrolled: a Value prop re-applied on every render
+	// drops keystrokes typed while a render is in flight.
+	title := html.Props{ID: "docs-create-title", Name: "title", Required: true, MaxLength: 200}
 	title.OnInput = ui.UseEvent(func(event ui.InputEvent) { edit(func(next *DocumentCreateRequest) { next.Title = event.GetValue() }) })
-	body := html.Props{ID: "docs-create-markdown", Name: "markdown", Required: true, Value: state.Get().Markdown, Raw: map[string]any{"aria-describedby": "docs-create-help"}}
+	body := html.Props{ID: "docs-create-markdown", Name: "markdown", Required: true, Raw: map[string]any{"aria-describedby": "docs-create-help"}}
 	body.OnInput = ui.UseEvent(func(event ui.InputEvent) {
 		edit(func(next *DocumentCreateRequest) { next.Markdown = event.GetValue() })
 	})
@@ -289,22 +387,67 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 	} else if busy.Get() {
 		status = html.P(html.Props{ID: "docs-create-status", Class: "muted", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(props.Locale, "create_busy")))
 	}
+	confirming := ui.UseState(false)
+	focus := useDocsFocus()
+	isOpen := open.Get()
+	ui.UseLayoutEffect(func() func() {
+		if isOpen {
+			draft := state.Get()
+			setDocsFieldValue("docs-create-title", draft.Title)
+			setDocsFieldValue("docs-create-markdown", draft.Markdown)
+		}
+		return nil
+	}, isOpen)
+	useDocsModal(isOpen, "docs-create-dialog", "#docs-create-title", "#docs-browse-query")
+	discard := func() {
+		state.Set(DocumentCreateRequest{})
+		failed.Set(false)
+		confirming.Set(false)
+		open.Set(false)
+		restoreFocus.Set(true)
+	}
+	// Closing never drops a draft silently: with text in either field the
+	// dialog asks first, and the question starts on "Keep editing". Asked
+	// again (Escape, the scrim) while the question shows, it keeps editing.
+	requestClose := func() {
+		if busy.Get() {
+			return
+		}
+		if confirming.Get() {
+			confirming.Set(false)
+			focus(false, "#docs-create-title")
+			return
+		}
+		draft := state.Get()
+		if strings.TrimSpace(draft.Title) != "" || strings.TrimSpace(draft.Markdown) != "" {
+			confirming.Set(true)
+			focus(false, "#docs-create-keep")
+			return
+		}
+		discard()
+	}
+	latestClose := ui.UseRef(requestClose)
+	latestClose.Set(requestClose)
+	// Escape closes the dialog wherever focus is, not only inside it.
+	ui.UseEffectOf(func() func() {
+		if !isOpen {
+			return nil
+		}
+		return docsListenEscape(func() { latestClose.Get()() })
+	}, isOpen)
 	openClick := ui.UseEvent(func(ui.MouseEvent) {
 		if open.Get() {
-			state.Set(DocumentCreateRequest{})
-			failed.Set(false)
-			open.Set(false)
-			restoreFocus.Set(true)
+			requestClose()
 			return
 		}
 		restoreFocus.Set(false)
 		open.Set(true)
 	})
-	cancelClick := ui.UseEvent(func(ui.MouseEvent) {
-		state.Set(DocumentCreateRequest{})
-		failed.Set(false)
-		open.Set(false)
-		restoreFocus.Set(true)
+	cancelClick := ui.UseEvent(func(ui.MouseEvent) { requestClose() })
+	discardClick := ui.UseEvent(func(ui.MouseEvent) { discard() })
+	keepClick := ui.UseEvent(func(ui.MouseEvent) {
+		confirming.Set(false)
+		focus(false, "#docs-create-title")
 	})
 	submitEvent := ui.UseEvent(submit)
 	trigger := html.Div(html.Props{Class: "docs-create-trigger"},
@@ -313,17 +456,33 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 	if !open.Get() {
 		return trigger
 	}
-	return html.Div(html.Props{Class: "docs-create-stack"}, trigger, html.Section(html.Props{ID: "docs-create-panel", Class: "docs-create", Raw: map[string]any{"aria-labelledby": "docs-create-heading"}},
-		html.Div(html.Props{Class: "docs-create-header"},
-			html.Div(html.Props{}, html.H2(html.Props{ID: "docs-create-heading"}, ui.Text(docsText(props.Locale, "create_heading"))), html.P(html.Props{ID: "docs-create-help", Class: "muted"}, ui.Text(docsText(props.Locale, "create_help")))),
-			html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: busy.Get(), OnClick: cancelClick}, ui.Text(docsText(props.Locale, "create_cancel"))),
-		),
-		html.Form(html.Props{Class: "docs-create-form", OnSubmit: submitEvent},
-			html.Label(html.Props{For: title.ID}, ui.Text(docsText(props.Locale, "title"))), html.Input(html.WithProps(title, html.Ref(titleRef))),
-			html.Label(html.Props{For: body.ID}, ui.Text(docsText(props.Locale, "markdown"))), html.Textarea(body),
-			status,
-			html.Div(html.Props{Class: "docs-create-actions"}, html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: busy.Get()}, ui.Text(docsText(props.Locale, "create_action"))))),
-	))
+	actions := html.Div(html.Props{Class: "docs-create-actions"},
+		html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: busy.Get(), OnClick: cancelClick}, ui.Text(docsText(props.Locale, "create_cancel"))),
+		html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: busy.Get()}, ui.Text(docsText(props.Locale, "create_action"))))
+	if confirming.Get() {
+		actions = html.Div(html.Props{Class: "docs-create-discard", Role: "group", Aria: map[string]string{"labelledby": "docs-create-discard-text"}},
+			html.P(html.Props{ID: "docs-create-discard-text", Role: "alert"}, ui.Text(docsText(props.Locale, "create_discard_confirm"))),
+			html.Div(html.Props{Class: "docs-create-discard-actions"},
+				html.Button(html.Props{ID: "docs-create-keep", Class: "button secondary", Type: "button", OnClick: keepClick}, ui.Text(docsText(props.Locale, "create_keep"))),
+				html.Button(html.Props{Class: "button secondary docs-danger", Type: "button", OnClick: discardClick}, ui.Text(docsText(props.Locale, "create_discard"))),
+			))
+	}
+	return html.Div(html.Props{Class: "docs-create-stack"}, trigger,
+		html.Div(html.Props{ID: "docs-create-panel", Class: "docs-dialog-layer"},
+			html.Div(html.Props{Class: "docs-dialog-scrim", OnClick: cancelClick, Raw: map[string]any{"aria-hidden": "true"}}),
+			html.Section(html.Props{ID: "docs-create-dialog", Class: "docs-dialog docs-dialog-wide", Role: "dialog", TabIndex: -1, Aria: map[string]string{"modal": "true", "labelledby": "docs-create-heading"}},
+				html.Header(html.Props{Class: "docs-dialog-head"},
+					html.H2(html.Props{ID: "docs-create-heading"}, ui.Text(docsText(props.Locale, "create_heading"))),
+					html.Button(html.Props{Class: "docs-dialog-close", Type: "button", Disabled: busy.Get(), OnClick: cancelClick, Aria: map[string]string{"label": docsText(props.Locale, "create_cancel")}}, productIcon("close", "docs-button-icon")),
+				),
+				html.Form(html.Props{Class: "docs-dialog-body docs-create-form", OnSubmit: submitEvent},
+					html.P(html.Props{ID: "docs-create-help", Class: "docs-dialog-lede"}, ui.Text(docsText(props.Locale, "create_help"))),
+					html.Label(html.Props{For: title.ID}, ui.Text(docsText(props.Locale, "title"))), html.Input(html.WithProps(title, html.Ref(titleRef))),
+					html.Label(html.Props{For: body.ID}, ui.Text(docsText(props.Locale, "markdown"))), html.Textarea(body),
+					status,
+					actions),
+			),
+		))
 }
 
 type docsShareFormProps struct {
@@ -414,9 +573,19 @@ func docsShareForm(props docsShareFormProps) ui.Node {
 	return html.Section(html.Props{Class: "docs-share", Raw: map[string]any{"aria-labelledby": "docs-share-heading"}}, children...)
 }
 
+// docsActionForm posts the exact document, version and content hash the
+// projection just displayed. Review and deploy forms for one review item
+// always read VersionHash from the same DocumentReviewProjection value, so
+// this UI layer has no code path that could show a reviewer one hash and
+// submit a different one for deploy.
 func docsActionForm(action, label string, review DocumentReviewProjection) ui.Node {
-	return html.Form(html.Props{Action: action, Method: "post", Class: "docs-action-form"},
+	children := []ui.Node{
 		html.Input(html.Props{Name: "document_id", Type: "hidden", Value: review.DocumentID}),
 		html.Input(html.Props{Name: "version_id", Type: "hidden", Value: review.VersionID}),
-		html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(label)))
+	}
+	if strings.TrimSpace(review.VersionHash) != "" {
+		children = append(children, html.Input(html.Props{Name: "version_hash", Type: "hidden", Value: review.VersionHash}))
+	}
+	children = append(children, html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(label)))
+	return html.Form(html.Props{Action: action, Method: "post", Class: "docs-action-form"}, children...)
 }

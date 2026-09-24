@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	xhtml "golang.org/x/net/html"
 )
 
 // UXAUDIT-008: give the People directory one stable, high-density table
@@ -229,11 +231,24 @@ func TestTodo_UXAUDIT_008_Accessibility(t *testing.T) {
 	// aria-sort tracks the actual sort state: exactly one header carries it,
 	// and it is the descending Role column this test requested -- not a
 	// static or stale value.
-	if got, want := strings.Count(doc, `aria-sort=`), 1; got != want {
-		t.Fatalf("aria-sort attribute count = %d, want %d (only the active column)", got, want)
+	root, err := xhtml.Parse(strings.NewReader(doc))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(doc, `aria-sort="descending"`) {
-		t.Fatalf("active Role/descending column did not render aria-sort=\"descending\": %s", doc)
+	var sortedHeaders []string
+	walkElements(root, func(node *xhtml.Node) {
+		if node.Data != "th" {
+			return
+		}
+		if value := attr(node, "aria-sort"); value != "" {
+			sortedHeaders = append(sortedHeaders, value)
+		}
+	})
+	if len(sortedHeaders) != 1 {
+		t.Fatalf("rendered table has %d sorted header cells, want 1 (only the active column)", len(sortedHeaders))
+	}
+	if sortedHeaders[0] != "descending" {
+		t.Fatalf("active Role/descending column rendered aria-sort=%q, want descending", sortedHeaders[0])
 	}
 
 	// The sticky-header CSS this todo adds is scoped to the stylesheet and

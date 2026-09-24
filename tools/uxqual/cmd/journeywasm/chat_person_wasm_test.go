@@ -25,9 +25,9 @@ type personWorkerClient struct {
 	read chan struct{}
 }
 
-func (f *personWorkerClient) ListWorkers(context.Context, *journeyv1.ListWorkersRequest, ...grpc.CallOption) (*journeyv1.ListWorkersResponse, error) {
+func (f *personWorkerClient) ListChatDirectory(context.Context, *journeyv1.ListChatDirectoryRequest, ...grpc.CallOption) (*journeyv1.ListChatDirectoryResponse, error) {
 	close(f.read)
-	return &journeyv1.ListWorkersResponse{Workers: []*journeyv1.Worker{{WorkerRef: "hc-050-rafael-torres", PreferredName: "Rafael", LegalName: "Rafael Torres", JobTitle: "Director of People Operations", OrgUnit: "People Operations"}}}, nil
+	return &journeyv1.ListChatDirectoryResponse{Workers: []*journeyv1.Worker{{WorkerRef: "hc-050-rafael-torres", PreferredName: "Rafael", LegalName: "Rafael Torres", JobTitle: "Director of People Operations", OrgUnit: "People Operations"}}}, nil
 }
 
 func TestChatPersonAsyncReadRepaintsMountedPanel(t *testing.T) {

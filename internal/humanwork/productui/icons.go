@@ -46,6 +46,12 @@ var registeredIcons = []IconDefinition{
 	// generic ring, which at phone and tablet widths -- where the label is
 	// hidden -- left a bare circle that read as a stalled spinner.
 	{Name: "actions", Path: "M13 2 3 14h9l-1 8 10-12h-9l1-8z"},
+	{Name: "folder", Path: "M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.2h8.5A1.5 1.5 0 0 1 21 8.7v9.8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"},
+	{Name: "document", Path: "M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"},
+	{Name: "copy", Path: "M9 9h11v11H9zM5 15H4V4h11v1"},
+	{Name: "link", Path: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"},
+	{Name: "share", Path: "M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20M9 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19 8v6M22 11h-6"},
+	{Name: "more", Path: "M5 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM12 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM19 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6z"},
 }
 
 const fallbackIconPath = "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"

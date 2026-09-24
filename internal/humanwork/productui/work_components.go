@@ -10,12 +10,20 @@ import (
 
 type WorkPageProps struct {
 	I18nProps
-	Collection    WorkCollectionProps
-	Preview       WorkPreviewProps
-	HidePreview   bool
-	Drafts        WorkCollectionProps
-	Tracked       TrackedRequestsProps
-	ShowSecondary bool
+	Collection   WorkCollectionProps
+	Preview      WorkPreviewProps
+	HidePreview  bool
+	Layout       ListDetailLayout
+	HasSelection bool
+	ShowList     bool
+	ShowDetail   bool
+	// PaneVisibilityResolved distinguishes the live My Work composition from
+	// older isolated component previews that intentionally render both panes.
+	PaneVisibilityResolved bool
+	BackToList             ActionLinkProps
+	Drafts                 WorkCollectionProps
+	Tracked                TrackedRequestsProps
+	ShowSecondary          bool
 }
 
 type WorkCollectionProps struct {
@@ -151,15 +159,37 @@ type WorkPreviewProps struct {
 func WorkPage(props WorkPageProps) ui.Node {
 	props.Collection.I18nProps = props.I18nProps
 	props.Preview.I18nProps = props.I18nProps
-	var primary ui.Node
-	if props.HidePreview {
-		primary = html.Div(html.Props{Class: "page-stack"}, ui.CreateElement(WorkCollection, props.Collection))
-	} else {
-		primary = html.Div(html.Props{Class: "workbench"},
-			ui.CreateElement(WorkCollection, props.Collection),
-			ui.CreateElement(WorkPreview, props.Preview),
-		)
+	showList, showDetail := true, !props.HidePreview
+	layout := ListDetailWide
+	if props.PaneVisibilityResolved {
+		layout = useResponsiveWorkLayout(props.Layout)
+		showList, showDetail = props.ShowList, props.ShowDetail
+		if layout != props.Layout {
+			showList, showDetail = ResolveListDetailPanes(layout, props.HasSelection)
+		}
+		showDetail = showDetail && !props.HidePreview
 	}
+	panes := make([]ui.Node, 0, 3)
+	if !showList && showDetail && props.BackToList.Href != "" {
+		panes = append(panes, ui.CreateElement(ActionLink, props.BackToList))
+	}
+	if showList {
+		panes = append(panes, ui.CreateElement(WorkCollection, props.Collection))
+	}
+	if showDetail {
+		panes = append(panes, ui.CreateElement(WorkPreview, props.Preview))
+	}
+	primaryClass := "page-stack"
+	if showList && showDetail {
+		primaryClass = "workbench"
+	}
+	selection := "none"
+	if props.HasSelection {
+		selection = "selected"
+	}
+	primary := html.Div(html.Props{Class: primaryClass, Data: map[string]string{
+		"work-list-detail": "true", "work-layout": workLayoutName(layout), "work-selection": selection,
+	}}, panes...)
 	if !props.ShowSecondary {
 		return primary
 	}

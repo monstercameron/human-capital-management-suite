@@ -377,6 +377,17 @@ type JourneyInstance struct {
 	CompletedAt     *time.Time
 }
 
+// JourneyRecordFamily reports how one durable workflow family was observed
+// for this journey. The state vocabulary matches workflow/inspect's durable
+// record manifest without exposing that package's loaded data structure.
+type JourneyRecordFamily struct {
+	Family  string
+	Section string
+	State   string
+	Count   int32
+	Reason  string
+}
+
 // JourneyNode is one durable node execution row.
 type JourneyNode struct {
 	NodeID      string
@@ -432,10 +443,11 @@ type JourneyDetail struct {
 
 	// Instance, Nodes, WorkItems and Transitions are nil/empty until the
 	// journey has been executed.
-	Instance    *JourneyInstance
-	Nodes       []JourneyNode
-	WorkItems   []workitem.WorkItem
-	Transitions []JourneyTransition
+	Instance       *JourneyInstance
+	DurableRecords []JourneyRecordFamily
+	Nodes          []JourneyNode
+	WorkItems      []workitem.WorkItem
+	Transitions    []JourneyTransition
 
 	// Ledger is nil until the END node's terminal write has been recorded.
 	Ledger *JourneyLedgerEvent
@@ -462,6 +474,24 @@ type JourneyDetail struct {
 	// Review is the reporting-line impact and compensation guardrail a
 	// reviewer checks (REV-091-02); nil when the engine produced none.
 	Review *JourneyPromotionReview
+
+	// Submission is populated after a durable approval has been accepted for
+	// product execution. Retries expose the original semantic submission.
+	Submission *JourneySubmissionRecord
+}
+
+// JourneySubmissionRecord is the product submission retained for an
+// approved proposal. It is included in Decide results so the caller can
+// observe the idempotent submission effect.
+type JourneySubmissionRecord struct {
+	IntentID           string
+	ProposalRevisionID string
+	ProposalDigest     string
+	MaterialDigest     string
+	SubmittedBy        string
+	SubmittedAt        time.Time
+	IdempotencyKey     string
+	Digest             string
 }
 
 // Decision is the approver's answer.
@@ -635,6 +665,10 @@ type WorkerSummary struct {
 	WorkerRef string
 	// WorkerID is the entity id the governed read names the worker by.
 	WorkerID string
+	// SubjectID is the principal subject the worker signs in and chats as:
+	// the stored worker key. WorkerRef is a display slug, so services that
+	// name people by principal subject, such as chat, join on this.
+	SubjectID string
 	// SubjectRevision is the server-projected revision a canonical promotion
 	// proposal must bind through expected_subject_revision.
 	SubjectRevision string

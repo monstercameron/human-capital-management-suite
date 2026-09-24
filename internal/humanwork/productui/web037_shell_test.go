@@ -147,7 +147,10 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// icon path instead of the fallback circle. The chat page itself is
 	// full-bleed (PageDefinition.FullBleed) but this fixture renders Home,
 	// so nothing else in the shell document changed.
-	const want = "733f9dedf5ec9556e7c9de025720581ff84dba6ca77a3be133bd85f14378afe5"
+	// Re-pinned 2026-09-24 after the shell's route announcement was resolved
+	// from the active page projection. The structural checks above continue to
+	// pin landmarks, navigation authorization, and loading semantics.
+	const want = "83913b36ed65a6ee44ef68149a781fd87e7566e1d9443e3bef7897979f3d1495"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

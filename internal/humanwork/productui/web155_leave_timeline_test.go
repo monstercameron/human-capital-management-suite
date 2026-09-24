@@ -37,8 +37,9 @@ func TestTodo_WEB_155(t *testing.T) {
 	if strings.Contains(doc, "⟦") {
 		t.Fatal("leave timeline exposes an unresolved message key")
 	}
+	content := webMainVisibleText(t, doc)
 	for _, invented := range []string{"timeline:", "opened:", "approved:", "closed ✓"} {
-		if strings.Contains(doc, invented) {
+		if strings.Contains(content, invented) {
 			t.Fatalf("leave timeline invents case history: %q", invented)
 		}
 	}

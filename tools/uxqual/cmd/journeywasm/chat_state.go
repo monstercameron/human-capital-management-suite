@@ -1263,6 +1263,7 @@ func (s *chatState) selectChatConversation(id string) (chatui.Model, uint64) {
 		}
 		model.HasOlder = false
 		model.HasNewer = false
+		model.FocusMessageID = ""
 		s.newerScanSequence = 0
 		s.pageLoading = false
 		model.UnreadFromID, model.PickerID, model.MenuID = "", "", ""
@@ -1946,10 +1947,8 @@ func chatPhotosFromWorkers(workers []*journeyv1.Worker) map[string]string {
 		if worker == nil {
 			continue
 		}
-		for _, id := range []string{worker.GetWorkerRef(), worker.GetWorkerId()} {
-			if id = strings.TrimSpace(id); id != "" {
-				photos[id] = worker.GetProfilePhotoUrl()
-			}
+		if id := chatWorkerSubject(worker); id != "" {
+			photos[id] = worker.GetProfilePhotoUrl()
 		}
 	}
 	return photos
@@ -2132,8 +2131,8 @@ func (s *chatState) completeDirectoryRead(epoch uint64, cfg journeyclient.Config
 	return true
 }
 
-// chatDirectoryFromWorkers indexes the worker directory by both identifiers a
-// chat subject id can take. A preferred name wins over a legal one, which is
+// chatDirectoryFromWorkers indexes the worker directory by the principal
+// subject chat names people by. A preferred name wins over a legal one, which is
 // the same rule the People page renders by.
 func chatDirectoryFromWorkers(workers []*journeyv1.Worker) map[string]string {
 	directory := make(map[string]string, len(workers)*2)
@@ -2142,20 +2141,18 @@ func chatDirectoryFromWorkers(workers []*journeyv1.Worker) map[string]string {
 			continue
 		}
 		// The governed read may withhold the legal name (it is a restricted
-		// field); the worker reference still carries the surname, so the
+		// field); a persona subject still carries the surname, so the
 		// preferred name is completed from it rather than shown bare.
 		legal := worker.GetLegalName()
 		if strings.TrimSpace(legal) == "" {
-			legal = humanizeChatSubjectID(worker.GetWorkerRef())
+			legal = humanizeChatSubjectID(chatWorkerSubject(worker))
 		}
 		name := chatWorkerDisplayName(worker.GetPreferredName(), legal)
 		if name == "" {
 			continue
 		}
-		for _, id := range []string{worker.GetWorkerRef(), worker.GetWorkerId()} {
-			if id = strings.TrimSpace(id); id != "" {
-				directory[id] = name
-			}
+		if id := chatWorkerSubject(worker); id != "" {
+			directory[id] = name
 		}
 	}
 	return directory

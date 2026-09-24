@@ -15,6 +15,11 @@ func productRouteFocusTarget(previous, current string) (selector string, caretAt
 	if menuFilterOnlyRouteChange(previous, current) {
 		return menuFilterFocusSelector, true
 	}
+	if docsPagerOnlyRouteChange(previous, current) {
+		// A new page of the Docs list starts at its top; reading continues
+		// from the list's heading, not from the pager link at the bottom.
+		return docsListHeadingSelector, false
+	}
 	if !productRouteDestinationChanged(previous, current) {
 		// Same-destination query changes belong to the control that initiated
 		// them. Keep focus and scroll where they are for sorting, filtering,
@@ -58,6 +63,10 @@ func productResourceRouteKeys(path string) []string {
 		return []string{"person"}
 	case "/workspace/app/journeys":
 		return []string{"journey", "mode", "worker"}
+	case docsPath:
+		// Opening a document is a new destination; the list's own filters,
+		// sort and page are presentation state.
+		return []string{"document"}
 	default:
 		return nil
 	}
@@ -79,6 +88,15 @@ func peopleDirectoryOnlyRouteChange(previous, current string) bool {
 	return queryOnlyRouteChange(previous, current, peoplePath, map[string]bool{
 		"q": true, "team": true, "location": true, "eligible": true,
 		"sort": true, "dir": true, "page": true, "page_size": true, "columns": true,
+	})
+}
+
+// docsLibraryOnlyRouteChange reports a search, filter, sort, folder or page
+// change within the Docs library, which refreshes only the list.
+func docsLibraryOnlyRouteChange(previous, current string) bool {
+	return queryOnlyRouteChange(previous, current, "/workspace/app/docs", map[string]bool{
+		"docs_q": true, "collection": true, "folder": true, "docs_sort": true, "docs_owner": true,
+		"docs_page": true, "docs_size": true, "docs_mode": true, "cursor": true,
 	})
 }
 

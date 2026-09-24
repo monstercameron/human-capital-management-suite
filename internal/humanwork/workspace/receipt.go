@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/evidence"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
 )
 
 // Receipt is one zero-effect receipt as this workspace shows it: the domain's

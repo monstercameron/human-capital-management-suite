@@ -82,8 +82,31 @@ func TestTodo_FORM_006_Browser(t *testing.T) { // browser/manual matrix shares t
 	}
 }
 
-func TestTodo_FORM_006_Integration(t *testing.T) { TestTodo_FORM_006(t) }
-func TestTodo_FORM_006_Mutation(t *testing.T)    { TestTodo_FORM_006_Fault(t) }
+func TestTodo_FORM_006_Integration(t *testing.T) {
+	in := validRequest()
+	record, err := Route(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Outcome != OutcomeSafe || record.Channel != ChannelPhone || record.Deadline() != in.OriginalDeadline || record.AuthorityRef != in.Authority.AuthorityRef || record.RespondentID != in.Identity.PrincipalID {
+		t.Fatalf("alternate route did not preserve canonical contract: %+v", record)
+	}
+}
+
+func TestTodo_FORM_006_Mutation(t *testing.T) {
+	in := validRequest()
+	record, err := Establish(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.AlternateChannel = ChannelPostal
+	in.OriginalDeadline = in.OriginalDeadline.Add(24 * time.Hour)
+	in.Identity.PrincipalID = "principal:changed"
+	in.Validation.SchemaDigest = "sha256:changed"
+	if record.Channel != ChannelPhone || record.OriginalDeadline != validRequest().OriginalDeadline || record.RespondentID != "principal:worker-1" || record.SchemaDigest != "sha256:schema" {
+		t.Fatalf("established record changed with caller input: %+v", record)
+	}
+}
 
 func FuzzTodo_FORM_006(f *testing.F) {
 	f.Add("principal:worker-1", "authority:leave-2026")

@@ -123,7 +123,19 @@ func declarePermissionBoundaryStyles() {
 		gwccss.BorderColor(gwccss.Var("line")), gwccss.Raw("cursor", "not-allowed"),
 		gwccss.Raw("transform", "none"), gwccss.Raw("box-shadow", "none"),
 	)
-	declareGlobal(".appearance-edit-boundary,.worker-id-edit-boundary", gwccss.Raw("display", "contents"))
+	declareGlobal(".appearance-edit-boundary", gwccss.Raw("display", "contents"))
+	// The worker editor owns its sticky action bar. Keep the fieldset as a
+	// real box spanning the rules and actions so sticky positioning has a
+	// containing block tall enough to remain in view while the form scrolls.
+	declareGlobal(".worker-id-edit-boundary",
+		gwccss.Display.Grid,
+		gwccss.Raw("align-content", "start"),
+		gwccss.Raw("gap", "var(--theme-section-gap,1rem)"),
+		gwccss.Raw("min-width", "0"),
+		gwccss.Raw("border", "0"),
+		gwccss.Raw("margin", "0"),
+		gwccss.Raw("padding", "0"),
+	)
 	declareGlobal(".appearance-edit-boundary:disabled", gwccss.OpacityNum(gwccss.Num(0.82)))
 	declareGlobal(".worker-id-edit-boundary:disabled", gwccss.OpacityNum(gwccss.Num(0.82)))
 	declareGlobal(".appearance-edit-boundary:disabled :is(input,select,textarea,button)", gwccss.Raw("cursor", "not-allowed"))

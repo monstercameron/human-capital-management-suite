@@ -17,7 +17,7 @@ var unpublishedAdminPages = []PageID{
 
 func TestTodo_UXAUDIT_005(t *testing.T) {
 	items := navigationForRoles(ResolveProductLocale("en-US"), []string{RoleHCMAdmin})
-	wantPrimary := []PageID{PageHome, PageMyself, PageJourneys, PageWorkflowDesigner, PageChat, PageWork, PagePeople, PageOrganization, PageInsights, PageAdmin}
+	wantPrimary := []PageID{PageHome, PageMyself, PageJourneys, PageWorkflowDesigner, PageChat, PageDocs, PageWork, PagePeople, PageOrganization, PageInsights, PageAdmin}
 	if len(items) != len(wantPrimary) {
 		t.Fatalf("primary destinations = %d, want %d: %+v", len(items), len(wantPrimary), items)
 	}
@@ -27,7 +27,7 @@ func TestTodo_UXAUDIT_005(t *testing.T) {
 		}
 	}
 	admin := items[len(items)-1]
-	wantAdmin := []PageID{PageAdmin, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance}
+	wantAdmin := []PageID{PageAdmin, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings}
 	if len(admin.Children) != len(wantAdmin) {
 		t.Fatalf("Admin children = %+v, want published configuration only", admin.Children)
 	}
@@ -50,7 +50,7 @@ func TestTodo_UXAUDIT_005_Golden(t *testing.T) {
 			actual.WriteString("  " + string(child.Page) + ":" + child.Label + "\n")
 		}
 	}
-	const want = "home:Home\nmyself:Myself\njourneys:Journeys\nworkflow-designer:Workflow editor\nchat:Chat\nwork:My Work\n  work:Work queue\n  history:Work History\npeople:People\norganization:Organization\ninsights:Insights\nadmin:Admin\n  admin:Admin overview\n  worker-ids:Worker IDs\n  roles:Roles & access\n  organization-visibility:Organization visibility\n  appearance:Brand & appearance\n"
+	const want = "home:Home\nmyself:Myself\njourneys:Journeys\nworkflow-designer:Workflow editor\nchat:Chat\ndocs:Docs\nwork:My Work\n  work:Work queue\n  history:Work History\npeople:People\norganization:Organization\ninsights:Insights\nadmin:Admin\n  admin:Admin overview\n  worker-ids:Worker IDs\n  roles:Roles & access\n  organization-visibility:Organization visibility\n  appearance:Brand & appearance\n  chat-settings:Chat settings\n"
 	if actual.String() != want {
 		t.Fatalf("published navigation changed:\n%s", actual.String())
 	}
@@ -74,7 +74,7 @@ func TestTodo_UXAUDIT_005_Browser(t *testing.T) {
 	if err := xhtml.Render(&markup, navigation); err != nil {
 		t.Fatal(err)
 	}
-	for _, page := range []PageID{PageWorkflowDesigner, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance} {
+	for _, page := range []PageID{PageWorkflowDesigner, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings} {
 		if !strings.Contains(markup.String(), pageHref(page)) {
 			t.Fatalf("published Admin destination %s is missing from rendered navigation", page)
 		}

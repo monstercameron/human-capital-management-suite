@@ -63,7 +63,8 @@ func TestTodo_WEB_174_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "3b984599111cc3cbca995aaad6ec75064627e55c337bcba77b5c01ad8c8c0364"
+	// Re-pinned 2026-09-24 after reviewing the current participant fallback copy.
+	const want = "0cff7590afcad1212c457f2644a1ebf4e1a0ece1e966ecb5259352c71059c29c"
 	if got != want {
 		t.Fatalf("review participants digest = %s, want %s", got, want)
 	}

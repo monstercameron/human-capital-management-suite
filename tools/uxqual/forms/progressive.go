@@ -27,8 +27,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/contract"
 )
 
 // Stable form-control names shared with the normal workspace POST. These are

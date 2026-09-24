@@ -19,6 +19,12 @@ func productRouteFailure(view productui.View, page productui.PageID, loadErr err
 		return view, false
 	}
 	view.Page = page
+	if view.SignedOut != nil {
+		// An authentication refusal converges the shell to its sign-in
+		// recovery panel; the route's ordinary retry region must not cover it.
+		view.LoadError = ""
+		return view, false
+	}
 	if productui.AsyncRegionFailureCovered(page) {
 		view.LoadError = ""
 		return view, true

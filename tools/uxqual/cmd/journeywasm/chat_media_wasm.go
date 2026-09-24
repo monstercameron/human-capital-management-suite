@@ -180,7 +180,10 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 	model := chatBrowser.snapshot()
 	conversationID := model.SelectedID
 	active := chatBrowser.config(cfg)
-	if conversationID == "" || !chatMediaCache.Wanted(id) {
+	if conversationID == "" {
+		return ""
+	}
+	if !chatMediaCache.Wanted(id) {
 		return ""
 	}
 	select {
@@ -209,8 +212,14 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 				}
 			} else {
 				token, expires, minted := mintChatMediaGrant(active, conversationID, id, signal)
-				if !minted || signal.Get("aborted").Truthy() || conversationID != chatBrowser.selectedID() || !chatMediaCache.PutIfEpoch(id, chatMediaGrant{Token: token, ExpiresAt: expires}, epoch) {
+				if !minted {
+					return ""
+				}
+				if signal.Get("aborted").Truthy() || conversationID != chatBrowser.selectedID() {
 					chatMediaCache.ReleaseIfEpoch(id, epoch)
+					return ""
+				}
+				if !chatMediaCache.PutIfEpoch(id, chatMediaGrant{Token: token, ExpiresAt: expires}, epoch) {
 					return ""
 				}
 				grant, ok = chatMediaCache.Get(id, time.Now())
@@ -255,7 +264,11 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 		if conversationID != chatBrowser.selectedID() || active.Subject != chatBrowser.config(cfg).Subject || active.Tenant != chatBrowser.config(cfg).Tenant {
 			return ""
 		}
-		return js.Global().Get("URL").Call("createObjectURL", blob).String()
+		objectURL := js.Global().Get("URL").Call("createObjectURL", blob).String()
+		if objectURL == "" {
+			return ""
+		}
+		return objectURL
 	}
 	return ""
 }
@@ -321,7 +334,10 @@ func fetchChatMedia(cfg journeyclient.Config, conversationID, id string, epoch u
 // mintChatMediaGrant asks the media boundary for a download authorization.
 func mintChatMediaGrant(cfg journeyclient.Config, conversationID, id string, signal js.Value) (grant string, expiresAt time.Time, ok bool) {
 	response, err := chatMediaFetch(chatMediaRoute+id+"/grant", cfg, conversationID, "", signal)
-	if err != nil || !response.Truthy() || response.Get("status").Int() != 200 {
+	if err != nil || !response.Truthy() {
+		return "", time.Time{}, false
+	}
+	if response.Get("status").Int() != 200 {
 		return "", time.Time{}, false
 	}
 	body := awaitChatJS(response.Call("json"))

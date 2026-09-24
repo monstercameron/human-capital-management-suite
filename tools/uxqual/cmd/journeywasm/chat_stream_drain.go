@@ -3,8 +3,45 @@ package main
 import (
 	"context"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 )
+
+func chatStreamAccessFailure(err error) bool {
+	code := status.Code(err)
+	return code == codes.Unauthenticated || code == codes.PermissionDenied
+}
+
+// chatStreamApplyAccessLoss removes the private projection for the room whose
+// live watch was refused. Drafts are left in the snapshot for chatui's
+// revocation effect to tombstone through the normal owner callback.
+func chatStreamApplyAccessLoss(model *chatui.Model, conversationID, tenant, subject string, err error) bool {
+	if model == nil || !chatStreamAccessFailure(err) || conversationID == "" || model.SelectedID != conversationID || model.CurrentTenantID != tenant || model.CurrentUser != subject {
+		return false
+	}
+	model.State = chatui.StateError
+	model.Error = chatLoadFailureMessage("this conversation", err)
+	if status.Code(err) == codes.PermissionDenied {
+		model.RevokedConversationID = conversationID
+	} else {
+		model.RevokedConversationID = ""
+	}
+	model.Messages = nil
+	model.Members = nil
+	model.ThreadParentID, model.ThreadParent = "", nil
+	model.ThreadMessages = nil
+	model.ThreadLoading = false
+	model.ThreadHasOlder, model.ThreadHasNewer = false, false
+	model.ShowThread, model.ShowPerson, model.ShowDetails = false, false, false
+	model.PersonDetails = nil
+	model.SearchChannels, model.SearchPeople, model.SearchMessages = nil, nil, nil
+	model.DocPreviews, model.Embeds = nil, nil
+	model.EditDrafts = nil
+	return true
+}
 
 // chatEventStream is the receiving half of a WatchConversation stream. The
 // generated client satisfies it; a test supplies its own.

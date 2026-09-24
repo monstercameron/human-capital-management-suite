@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/tokens"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/latencygate"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/gwc"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/tokens"
 )
 
 func TestTodo_WEB_033(t *testing.T) {
@@ -235,7 +235,7 @@ func TestTodo_WEB_033_Conformance(t *testing.T) {
 						t.Errorf("WebSocket source is not path scoped: %q", source)
 					}
 				case strings.HasPrefix(source, "http://"), strings.HasPrefix(source, "https://"):
-					if !strings.HasSuffix(source, PathAssetPrefix) && !strings.HasSuffix(source, PathChatMediaPrefix) {
+					if !strings.HasSuffix(source, PathAssetPrefix) && !strings.HasSuffix(source, PathChatMediaPrefix) && !strings.HasSuffix(source, PathDocumentMediaPrefix) {
 						t.Errorf("HTTP source is not asset- or media-prefix scoped: %q", source)
 					}
 				}
@@ -397,12 +397,12 @@ func TestTodo_WEB_033_Fault(t *testing.T) {
 	if sanitizeHostAuthority(maxHost) == "" {
 		t.Fatal("maximum bounded host fixture was not a valid authority")
 	}
-	// The product policy names six path-scoped connect sources (assets, chat
-	// media and the tunnel, each over both schemes), so the bound leaves room
-	// for them at the longest valid authority while staying well under the
-	// 4 KiB header line common proxies enforce.
-	if got := len(ProductContentSecurityPolicy(maxHost)); got > 2560 {
-		t.Fatalf("maximum valid CSP header is %d bytes, want <= 2560", got)
+	// The product policy names eight path-scoped connect sources (assets,
+	// chat media, document media and the tunnel, each over both schemes), so
+	// the bound leaves room for them at the longest valid authority while
+	// staying well under the 4 KiB header line common proxies enforce.
+	if got := len(ProductContentSecurityPolicy(maxHost)); got > 3072 {
+		t.Fatalf("maximum valid CSP header is %d bytes, want <= 3072", got)
 	}
 }
 

@@ -46,8 +46,8 @@ func TestTodo_WEB_100(t *testing.T) {
 		active += summary.Active
 		completed += summary.Completed
 	}
-	if active != len(AttentionList(items)) || completed != len(RecentWork(items)) {
-		t.Fatalf("rollup %d/%d vs lists %d/%d", active, completed, len(AttentionList(items)), len(RecentWork(items)))
+	if active != len(OpenWorkItems(items)) || completed != len(RecentWork(items)) {
+		t.Fatalf("rollup %d/%d vs lists %d/%d", active, completed, len(OpenWorkItems(items)), len(RecentWork(items)))
 	}
 }
 
@@ -124,7 +124,7 @@ func TestTodo_WEB_100_Conformance(t *testing.T) {
 	if active+completed != len(stream) {
 		t.Fatal("summaries drop or double items")
 	}
-	if active != len(AttentionList(stream)) || completed != len(RecentWork(stream)) {
+	if active != len(OpenWorkItems(stream)) || completed != len(RecentWork(stream)) {
 		t.Fatal("summaries disagree with the governed lists")
 	}
 	if !reflect.DeepEqual(SummarizePersonal(stream), SummarizePersonal(stream)) {

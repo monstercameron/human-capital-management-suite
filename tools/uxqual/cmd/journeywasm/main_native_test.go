@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -90,6 +91,44 @@ func TestBuildProducesBothHalvesOfTheBundle(t *testing.T) {
 	for _, want := range []string{wasmFile, wasmFile + ".gz", wasmExecFile, wasmExecFile + ".gz", "bytes"} {
 		if !strings.Contains(printed, want) {
 			t.Errorf("the command printed %q, which does not mention %q", printed, want)
+		}
+	}
+}
+
+func TestWriteGoOverlayEmbedsBuiltArtifactsWithoutSourceCopies(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(root, ".artifacts", "embed")
+	assets := filepath.Join(root, "internal", "humanwork", "workspace", "assets")
+	if err := os.MkdirAll(assets, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{wasmFile, wasmFile + ".gz", wasmExecFile, wasmExecFile + ".gz", "manifest.json"} {
+		if err := os.WriteFile(filepath.Join(out, name), []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	overlayPath := filepath.Join(root, ".artifacts", "embed", "assets.overlay.json")
+	if err := writeGoOverlay(root, out, overlayPath); err != nil {
+		t.Fatalf("writeGoOverlay: %v", err)
+	}
+	body, err := os.ReadFile(overlayPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var overlay goOverlay
+	if err := json.Unmarshal(body, &overlay); err != nil {
+		t.Fatal(err)
+	}
+	if len(overlay.Replace) != 5 {
+		t.Fatalf("overlay replacements = %d, want 5", len(overlay.Replace))
+	}
+	for _, name := range []string{wasmFile, wasmFile + ".gz", wasmExecFile, wasmExecFile + ".gz", "manifest.json"} {
+		virtual := filepath.Join(assets, name)
+		if got, want := overlay.Replace[virtual], filepath.Join(out, name); got != want {
+			t.Errorf("overlay[%q] = %q, want %q", virtual, got, want)
 		}
 	}
 }

@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"strings"
 
+	journey "github.com/monstercameron/human-capital-management-suite/internal/experience/journeycss"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
-	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 )
 
 // The Promotion journey page is served as a shell, not as a rendered page.
@@ -100,7 +100,7 @@ const (
 // journeyBuildCommand is the command that produces the missing half of this
 // page. It is named in the served document because the person looking at a
 // shell with no client is the person who needs to run it.
-const journeyBuildCommand = "go run ./tools/uxqual/cmd/journeywasm -out internal/humanwork/workspace/assets"
+const journeyBuildCommand = "scripts/build.sh hcmnext"
 
 // JourneyConfig is the schema of the JSON island the journey page carries.
 //
@@ -141,7 +141,12 @@ type JourneyConfig struct {
 	LogoutPath string `json:"logout_path,omitempty"`
 	// GiphyAPIKey is GIPHY's public browser client key, present only when the
 	// operator explicitly configures the optional chat GIF picker.
-	GiphyAPIKey string `json:"giphy_api_key,omitempty"`
+	GiphyAPIKey     string            `json:"giphy_api_key,omitempty"`
+	CatalogLocale   string            `json:"catalog_locale,omitempty"`
+	CatalogVersion  string            `json:"catalog_version,omitempty"`
+	CatalogRevision string            `json:"catalog_revision,omitempty"`
+	CatalogDigest   string            `json:"catalog_digest,omitempty"`
+	CatalogMessages map[string]string `json:"catalog_messages,omitempty"`
 }
 
 // LauncherActionConfig is the JSON-island form of one launcher verdict. Copy

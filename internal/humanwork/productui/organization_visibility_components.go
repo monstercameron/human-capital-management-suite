@@ -297,7 +297,10 @@ func roleVisibilityEditor(props OrganizationVisibilityPageProps, role AccessRole
 		formChildren = append(formChildren, saveActions(props, role, diffChanged, len(validation) > 0))
 	}
 	return html.Tag("details", detailsProps,
-		html.Tag("summary", html.Props{}, html.Div(html.Props{}, html.Strong(html.Props{}, ui.Text(role.Name)), html.Code(html.Props{}, ui.Text(role.ID))), html.Span(html.Props{Class: "status"}, ui.Text(summaryStatus))),
+		html.Tag("summary", html.Props{},
+			html.Div(html.Props{}, html.Strong(html.Props{}, ui.Text(role.Name)), html.Code(html.Props{}, ui.Text(role.ID))),
+			html.Span(html.Props{Class: "organization-visibility-summary-prompt"}, ui.Text(props.Text("organization_visibility.scope_title"))),
+			html.Span(html.Props{Class: "status"}, ui.Text(summaryStatus))),
 		html.Form(html.Props{Class: formClass, OnSubmit: onSubmit}, formChildren...),
 	)
 }
