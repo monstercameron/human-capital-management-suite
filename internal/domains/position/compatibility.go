@@ -97,8 +97,10 @@ type CompatibilityRequest struct {
 	// caller that read this position earlier and is replaying a decision
 	// against it names the revision its decision was based on, and a position
 	// revised since then is reported STALE_REVISION rather than compatible.
-	// It is compared with CompareInStream, so it must name the same revision
-	// stream the reader answers with.
+	// An identical token always passes - opaque content digests are
+	// comparable for equality but never for order, so only a different
+	// token reaches the CompareInStream ordering, where it must name the
+	// same revision stream the reader answers with.
 	MinRevision values.RevisionToken
 
 	// Authorize is an optional fail-closed scope gate. A nil Authorize means
@@ -224,7 +226,14 @@ func CheckCompatibility(ctx context.Context, reader PositionFacts, req Compatibi
 	if ok, cerr := rev.Effective.ContainsDate(req.AsOf.EffectiveOn); cerr == nil && !ok {
 		findings = append(findings, Finding{Code: FindingNotEffective, Detail: "position revision does not cover the requested effective date"})
 	}
-	if req.MinRevision.IsSpecified() {
+	if req.MinRevision.IsSpecified() && !rev.Revision.Equal(req.MinRevision) {
+		// Opaque revision tokens (content digests, as issued by the
+		// durable reader) are comparable for equality but never for
+		// order: an identical digest names the same revision the caller
+		// saw, which the Equal check above already accepted. Only a
+		// different token reaches the in-stream ordering, where a
+		// genuinely older revision - or a baseline that cannot be
+		// compared at all - is still reported stale, never compatible.
 		cmp, cerr := rev.Revision.CompareInStream(req.MinRevision)
 		if cerr != nil || cmp < 0 {
 			findings = append(findings, Finding{Code: FindingStaleRevision, Detail: "position has been revised since the caller's baseline, or the baseline cannot be compared"})

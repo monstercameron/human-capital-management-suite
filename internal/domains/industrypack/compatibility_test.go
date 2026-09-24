@@ -53,6 +53,7 @@ func publicationCheck(t *testing.T) PublicationCheck {
 	content := fixtureSpec(t)
 	return PublicationCheck{
 		Candidate:       publicationPack(t, 2, "4", "2"),
+		TenantID:        "acme",
 		Prior:           &prior,
 		Installed:       map[string]string{"hcmnext": "1.9.2", "us-country": "2026.2", "customer-acme": "3.1"},
 		Published:       []PublishedPack{{ID: "us-country", Version: "2026.2", Digest: "sha256:us"}},
@@ -84,7 +85,7 @@ func wantBlock(t *testing.T, err error, field, state, version string) *Publicati
 func TestTodo_PACK_004(t *testing.T) {
 	ctx := context.Background()
 	store := &countingPublication{}
-	report, effects, err := PublishChecked(ctx, store, "acme", publicationCheck(t))
+	report, effects, err := PublishChecked(ctx, store, authorityForIndustry(t, IndustryHealthcare), "acme", publicationCheck(t))
 	if err != nil || store.calls != 1 || effects.AuthoritativeRows != 1 || report.Version != 2 || len(report.Changed) != 2 || !strings.HasPrefix(report.Digest, "sha256:") {
 		t.Fatalf("publish = %+v, %+v, %v (calls %d)", report, effects, err, store.calls)
 	}
@@ -101,7 +102,7 @@ func TestTodo_PACK_004(t *testing.T) {
 		"mandatory country rule override": {mandatory, "FORM:credential-attestation.overrides_content", StateMandatoryOverride, "2"},
 	} {
 		store := &countingPublication{}
-		_, effects, err := PublishChecked(ctx, store, "acme", tc.check)
+		_, effects, err := PublishChecked(ctx, store, authorityForIndustry(t, IndustryHealthcare), "acme", tc.check)
 		wantBlock(t, err, tc.field, tc.state, tc.version)
 		if store.calls != 0 || effects != (ActivationEffects{}) {
 			t.Fatalf("%s: a block persisted", name)
@@ -117,7 +118,7 @@ func TestTodo_PACK_004_Golden(t *testing.T) {
 	check.Published = nil
 	check.Migrations = nil
 	check.Content, check.Experience = nil, nil
-	_, err := CheckPublication(check)
+	_, err := CheckPublication(context.Background(), authorityForIndustry(t, IndustryHealthcare), check)
 	b := wantBlock(t, err, "compatibility[0]", ImpactIncompatibleVersion, "2.1")
 	var got []string
 	for _, i := range b.Impacted {
@@ -154,7 +155,7 @@ func TestTodo_PACK_004_Conformance(t *testing.T) {
 	}
 	first := publicationCheck(t)
 	first.Prior, first.Migrations, first.ActiveWorkflows = nil, nil, nil
-	if r, err := CheckPublication(first); err != nil || len(r.Changed) != 0 {
+	if r, err := CheckPublication(context.Background(), authorityForIndustry(t, IndustryHealthcare), first); err != nil || len(r.Changed) != 0 {
 		t.Fatalf("first publication = %+v, %v", r, err)
 	}
 	dropped := publicationCheck(t)
@@ -162,7 +163,7 @@ func TestTodo_PACK_004_Conformance(t *testing.T) {
 	dropped.Candidate.WorkflowDefinitionRefs = nil
 	dropped.Candidate.CanonicalDigest = ""
 	if dropped.Candidate, _ = NewIndustryPack(dropped.Candidate); true {
-		_, err := CheckPublication(dropped)
+		_, err := CheckPublication(context.Background(), authorityForIndustry(t, IndustryHealthcare), dropped)
 		b := wantBlock(t, err, "workflow_definition_refs", ImpactActiveWorkflowBreak, "3")
 		if !strings.Contains(b.Impacted[0].Detail, "drops it") {
 			t.Fatalf("detail = %q", b.Impacted[0].Detail)
@@ -202,18 +203,18 @@ func TestTodo_PACK_004_Mutation(t *testing.T) {
 			check := publicationCheck(t)
 			tc.mutate(&check)
 			store := &countingPublication{}
-			_, effects, err := PublishChecked(context.Background(), store, "acme", check)
+			_, effects, err := PublishChecked(context.Background(), store, authorityForIndustry(t, IndustryHealthcare), "acme", check)
 			wantBlock(t, err, tc.field, tc.state, tc.version)
 			if store.calls != 0 || effects != (ActivationEffects{}) {
 				t.Fatal("a blocked publication persisted")
 			}
 		})
 	}
-	if _, _, err := PublishChecked(context.Background(), nil, "acme", publicationCheck(t)); !errors.Is(err, ErrPublicationBlocked) {
+	if _, _, err := PublishChecked(context.Background(), nil, authorityForIndustry(t, IndustryHealthcare), "acme", publicationCheck(t)); !errors.Is(err, ErrPublicationBlocked) {
 		t.Fatalf("nil store = %v", err)
 	}
 	boom := errors.New("db down")
-	if _, _, err := PublishChecked(context.Background(), &countingPublication{err: boom}, "acme", publicationCheck(t)); !errors.Is(err, boom) {
+	if _, _, err := PublishChecked(context.Background(), &countingPublication{err: boom}, authorityForIndustry(t, IndustryHealthcare), "acme", publicationCheck(t)); !errors.Is(err, boom) {
 		t.Fatalf("store failure = %v", err)
 	}
 }

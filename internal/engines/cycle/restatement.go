@@ -253,3 +253,18 @@ func (r CycleRestatement) Canonical() ([]byte, error) {
 	}
 	return b, nil
 }
+
+// DecodeRestatement reconstructs a sealed restatement from its canonical body
+// and separately stored digest. Durable adapters use this to verify records
+// after a process restart.
+func DecodeRestatement(body []byte, digest string) (CycleRestatement, error) {
+	var r CycleRestatement
+	if err := json.Unmarshal(body, &r); err != nil {
+		return CycleRestatement{}, fmt.Errorf("%w: decode canonical body: %v", ErrRestatementInvalid, err)
+	}
+	r.Digest = digest
+	if err := r.Verify(); err != nil {
+		return CycleRestatement{}, err
+	}
+	return r, nil
+}

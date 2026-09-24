@@ -7,13 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/payroll"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/sod"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/stepup"
 )
 
-const releaseSchemaVersion = 1
+const releaseSchemaVersion = 2
 
 // PaymentReleaseOperation is the stable sensitive operation bound by the
 // release authorization. A release is an approval of a fixed batch, not a
@@ -95,6 +96,9 @@ type PaymentReleaseBatch struct {
 	TenantID           values.TenantId
 	InstructionDigests []string
 	InstructionAmounts []values.Decimal
+	Instructions       []PaymentInstruction
+	PayrollRun         payroll.PayrollRun
+	Population         payroll.FrozenPopulation
 	InstructionDigest  string
 	FundingDigest      string
 	PayeeDigest        string
@@ -106,8 +110,8 @@ type PaymentReleaseBatch struct {
 }
 
 // NewPaymentReleaseBatch seals a batch from already validated payment
-// instructions and server-held funding/payee digests.
-func NewPaymentReleaseBatch(batchID string, tenant values.TenantId, instructions []PaymentInstruction, fundingDigest, payeeDigest string, limits ReleaseLimits) (PaymentReleaseBatch, error) {
+// instructions, a frozen affected-worker population, and funding evidence.
+func NewPaymentReleaseBatch(batchID string, tenant values.TenantId, instructions []PaymentInstruction, run payroll.PayrollRun, fundingDigest string, population payroll.FrozenPopulation, limits ReleaseLimits) (PaymentReleaseBatch, error) {
 	if strings.TrimSpace(batchID) == "" || batchID != strings.TrimSpace(batchID) {
 		return PaymentReleaseBatch{}, fmt.Errorf("%w: batch id is required", ErrInvalidReleaseBatch)
 	}
@@ -117,16 +121,26 @@ func NewPaymentReleaseBatch(batchID string, tenant values.TenantId, instructions
 	if len(instructions) == 0 {
 		return PaymentReleaseBatch{}, fmt.Errorf("%w: at least one instruction is required", ErrInvalidReleaseBatch)
 	}
-	if strings.TrimSpace(fundingDigest) == "" || strings.TrimSpace(payeeDigest) == "" {
-		return PaymentReleaseBatch{}, fmt.Errorf("%w: funding and payee digests are required", ErrInvalidReleaseBatch)
+	if strings.TrimSpace(fundingDigest) == "" {
+		return PaymentReleaseBatch{}, fmt.Errorf("%w: funding digest is required", ErrInvalidReleaseBatch)
+	}
+	if err := population.Validate(); err != nil || population.State != payroll.PopulationStateFrozen {
+		return PaymentReleaseBatch{}, fmt.Errorf("%w: authoritative frozen worker population is required", ErrInvalidReleaseBatch)
 	}
 	if err := limits.Validate(); err != nil {
 		return PaymentReleaseBatch{}, err
 	}
+	if err := run.Validate(); err != nil || (run.State != payroll.PayrollRunStateReleased && run.State != payroll.PayrollRunStateSettled && run.State != payroll.PayrollRunStateReversed) {
+		return PaymentReleaseBatch{}, fmt.Errorf("%w: released payroll run is required", ErrInvalidReleaseBatch)
+	}
+	if population.RunID != run.RunID || population.Binding != run.Population {
+		return PaymentReleaseBatch{}, fmt.Errorf("%w: frozen worker roster does not match payroll run", ErrInvalidReleaseBatch)
+	}
 
 	type instructionEntry struct {
-		digest string
-		amount values.Decimal
+		digest      string
+		amount      values.Decimal
+		instruction PaymentInstruction
 	}
 	entries := make([]instructionEntry, 0, len(instructions))
 	var total values.Decimal
@@ -137,6 +151,9 @@ func NewPaymentReleaseBatch(batchID string, tenant values.TenantId, instructions
 		if instruction.Currency != limits.Currency {
 			return PaymentReleaseBatch{}, fmt.Errorf("%w: instruction %d currency differs from release currency", ErrInvalidReleaseBatch, n)
 		}
+		if instruction.PayrollRunRef != run.CanonicalDigest || instruction.PayrollRunID != run.RunID || instruction.PayrollRunRevision != run.Revision || instruction.PopulationBinding != run.Population {
+			return PaymentReleaseBatch{}, fmt.Errorf("%w: instruction %d is not bound to the released payroll run", ErrInvalidReleaseBatch, n)
+		}
 		if n == 0 {
 			total = instruction.Amount
 		} else {
@@ -146,29 +163,35 @@ func NewPaymentReleaseBatch(batchID string, tenant values.TenantId, instructions
 				return PaymentReleaseBatch{}, fmt.Errorf("%w: total: %v", ErrInvalidReleaseBatch, err)
 			}
 		}
-		entries = append(entries, instructionEntry{digest: instruction.CanonicalDigest, amount: instruction.Amount})
+		entries = append(entries, instructionEntry{digest: instruction.CanonicalDigest, amount: instruction.Amount, instruction: instruction})
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].digest < entries[j].digest })
 	digests := make([]string, 0, len(entries))
 	amounts := make([]values.Decimal, 0, len(entries))
+	orderedInstructions := make([]PaymentInstruction, 0, len(entries))
 	for _, entry := range entries {
 		digests = append(digests, entry.digest)
 		amounts = append(amounts, entry.amount)
+		orderedInstructions = append(orderedInstructions, entry.instruction)
 	}
 	b := PaymentReleaseBatch{
 		BatchID: batchID, TenantID: tenant, InstructionDigests: digests,
-		InstructionAmounts: amounts, FundingDigest: fundingDigest, PayeeDigest: payeeDigest,
+		InstructionAmounts: amounts, Instructions: orderedInstructions, PayrollRun: run, Population: population,
+		FundingDigest: fundingDigest, PayeeDigest: population.Digest,
 		Total: total, Currency: limits.Currency, Limits: limits,
 		LimitsDigest: limits.digest(),
 	}
 	b.InstructionDigest = instructionSetDigest(b.InstructionDigests, b.InstructionAmounts)
 	b.CanonicalDigest = b.digest()
+	if err := b.Validate(); err != nil {
+		return PaymentReleaseBatch{}, err
+	}
 	return b, nil
 }
 
 // NewReleaseBatch is the concise constructor alias.
-func NewReleaseBatch(batchID string, tenant values.TenantId, instructions []PaymentInstruction, fundingDigest, payeeDigest string, limits ReleaseLimits) (PaymentReleaseBatch, error) {
-	return NewPaymentReleaseBatch(batchID, tenant, instructions, fundingDigest, payeeDigest, limits)
+func NewReleaseBatch(batchID string, tenant values.TenantId, instructions []PaymentInstruction, run payroll.PayrollRun, fundingDigest string, population payroll.FrozenPopulation, limits ReleaseLimits) (PaymentReleaseBatch, error) {
+	return NewPaymentReleaseBatch(batchID, tenant, instructions, run, fundingDigest, population, limits)
 }
 
 // Validate verifies the sealed batch and its limit binding.
@@ -181,6 +204,44 @@ func (b PaymentReleaseBatch) Validate() error {
 	}
 	if len(b.InstructionDigests) == 0 || len(b.InstructionDigests) != len(b.InstructionAmounts) {
 		return fmt.Errorf("%w: instruction digests and amounts are incomplete", ErrInvalidReleaseBatch)
+	}
+	if err := b.Population.Validate(); err != nil || b.Population.State != payroll.PopulationStateFrozen {
+		return fmt.Errorf("%w: authoritative frozen worker population is invalid", ErrInvalidReleaseBatch)
+	}
+	if err := b.PayrollRun.Validate(); err != nil || (b.PayrollRun.State != payroll.PayrollRunStateReleased && b.PayrollRun.State != payroll.PayrollRunStateSettled && b.PayrollRun.State != payroll.PayrollRunStateReversed) {
+		return fmt.Errorf("%w: released payroll run is invalid", ErrInvalidReleaseBatch)
+	}
+	if b.Population.RunID != b.PayrollRun.RunID || b.Population.Binding != b.PayrollRun.Population {
+		return fmt.Errorf("%w: worker roster is not bound to the released payroll run", ErrInvalidReleaseBatch)
+	}
+	if b.PayeeDigest != b.Population.Digest || len(b.Instructions) != len(b.InstructionDigests) || len(b.Instructions) != len(b.Population.Members) {
+		return fmt.Errorf("%w: instruction set does not cover the affected-worker roster", ErrInvalidReleaseBatch)
+	}
+	workers := make(map[string]struct{}, len(b.Instructions))
+	for n, instruction := range b.Instructions {
+		if err := instruction.Validate(); err != nil {
+			return fmt.Errorf("%w: instruction %d: %v", ErrInvalidReleaseBatch, n, err)
+		}
+		if instruction.CanonicalDigest != b.InstructionDigests[n] || !instruction.Amount.Equal(b.InstructionAmounts[n]) {
+			return fmt.Errorf("%w: instruction %d differs from its sealed digest or amount", ErrInvalidReleaseBatch, n)
+		}
+		if instruction.PayrollRunRef != b.PayrollRun.CanonicalDigest || instruction.PayrollRunID != b.PayrollRun.RunID || instruction.PayrollRunRevision != b.PayrollRun.Revision || instruction.PopulationBinding != b.PayrollRun.Population {
+			return fmt.Errorf("%w: instruction %d is bound to another payroll population", ErrInvalidReleaseBatch, n)
+		}
+		worker := instruction.PaymentMethodElection.WorkerRef
+		if _, exists := workers[worker]; exists {
+			return fmt.Errorf("%w: duplicate affected-worker instruction %q", ErrInvalidReleaseBatch, worker)
+		}
+		workers[worker] = struct{}{}
+	}
+	for _, member := range b.Population.MemberList() {
+		worker := member.WorkerRef
+		if worker == "" {
+			worker = member.MemberRef
+		}
+		if _, exists := workers[worker]; !exists {
+			return fmt.Errorf("%w: affected worker %q has no validated payment instruction", ErrInvalidReleaseBatch, worker)
+		}
 	}
 	if strings.TrimSpace(b.FundingDigest) == "" || strings.TrimSpace(b.PayeeDigest) == "" {
 		return fmt.Errorf("%w: funding and payee digests are required", ErrInvalidReleaseBatch)
@@ -222,7 +283,8 @@ func (b PaymentReleaseBatch) digest() string {
 	w := canonicalbytes.New("hcmnext.domains.settlement.PaymentReleaseBatch", releaseSchemaVersion).
 		String("batch_id", b.BatchID).String("tenant_id", b.TenantID.String()).
 		String("instruction_digest", b.InstructionDigest).String("funding_digest", b.FundingDigest).
-		String("payee_digest", b.PayeeDigest).Value("total", b.Total).
+		String("payroll_run_digest", b.PayrollRun.CanonicalDigest).
+		String("payee_digest", b.PayeeDigest).String("population_digest", b.Population.Digest).Value("total", b.Total).
 		String("currency", b.Currency).String("limits_digest", b.LimitsDigest)
 	raw, err := w.Bytes()
 	if err != nil {

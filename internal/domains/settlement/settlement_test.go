@@ -39,7 +39,17 @@ func releasedRun(t *testing.T) payroll.PayrollRun {
 }
 
 func instructionSpec(id string) PaymentInstructionSpec {
-	return PaymentInstructionSpec{InstructionID: id, PayeeRef: "worker:payee-1", Amount: settlementAmountForTest("125.00"), Currency: "USD", FundingSourceRef: "funding:operating", Rail: RailACH, BankDetailRef: "bank-detail:token-1", ScheduleRef: "schedule:2026-11-30"}
+	worker := "worker:payee-1"
+	destination := "bank-detail:token-1"
+	return PaymentInstructionSpec{InstructionID: id, PayeeRef: worker, Amount: settlementAmountForTest("125.00"), Currency: "USD", FundingSourceRef: "funding:operating", Rail: RailACH, BankDetailRef: destination, ScheduleRef: "schedule:2026-11-30", PaymentMethodElection: settlementElection(worker, destination), SettlementPolicy: settlementPolicy()}
+}
+
+func settlementElection(worker, destination string) PaymentMethodElection {
+	return PaymentMethodElection{ElectionID: "election:" + worker, WorkerRef: worker, Method: MethodDirectDeposit, Consented: true, ConsentEvidenceRef: "consent:" + worker, DestinationRef: destination, Jurisdiction: "US-CA", RulePackRef: "rules:ca-v1"}
+}
+
+func settlementPolicy() SettlementPolicy {
+	return SettlementPolicy{Jurisdiction: "US-CA", RulePackRef: "rules:ca-v1", PaperCheckAllowed: true, PayCardAllowed: true}
 }
 
 func settlementAmountForTest(text string) values.Decimal {
@@ -133,6 +143,11 @@ func TestTodo_SETTLE_001_Fault(t *testing.T) {
 	if _, err := NewPaymentInstruction(releasedRun(t), spec); !errors.Is(err, ErrInvalidPaymentInstruction) {
 		t.Fatalf("unknown rail = %v", err)
 	}
+	missingElection := instructionSpec("instruction-no-election")
+	missingElection.PaymentMethodElection = PaymentMethodElection{}
+	if _, err := NewPaymentInstruction(releasedRun(t), missingElection); !errors.Is(err, ErrInvalidPaymentInstruction) {
+		t.Fatalf("missing governed election = %v", err)
+	}
 	if _, err := validInstruction(t).Transition(StateSettled, "too-soon"); !errors.Is(err, ErrSettlementTransition) {
 		t.Fatalf("illegal edge = %v", err)
 	}
@@ -155,7 +170,7 @@ func TestTodo_SETTLE_001_Security(t *testing.T) {
 // TestTodo_SETTLE_001_Conformance records the closed rail/state vocabularies
 // and typed conformance refusal.
 func TestTodo_SETTLE_001_Conformance(t *testing.T) {
-	for _, rail := range []SettlementRail{RailACH, RailWire, RailSEPA, RailRTP, RailFedNow, RailInternal} {
+	for _, rail := range []SettlementRail{RailACH, RailWire, RailSEPA, RailRTP, RailFedNow, RailInternal, RailCheck, RailPayCard} {
 		if !rail.Valid() {
 			t.Errorf("rail %s invalid", rail)
 		}

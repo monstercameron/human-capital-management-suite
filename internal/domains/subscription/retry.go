@@ -8,6 +8,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/operation"
 )
 
 // Retry and dead-letter errors are stable so workers can route a poisoned
@@ -317,15 +320,68 @@ func (g *DeliveryGate) Admit(request DeliveryRequest) error {
 	return nil
 }
 
+// DeliveryCapacity composes the shared connector ledger with validated
+// destination policies. A configured destination must leave at least one
+// concurrency slot outside any single tenant's share.
+type DeliveryCapacity struct {
+	ledger *operation.ConnectorLedger
+}
+
+// NewDeliveryCapacity creates the shared reservation pool used by delivery
+// workers. Every configured destination has a finite concurrency budget and,
+// when it has multiple slots, a tenant share strictly smaller than the pool.
+// Unconfigured destinations retain ConnectorLedger's conservative fallback.
+func NewDeliveryCapacity(policies map[string]operation.ConnectorPolicy) (*DeliveryCapacity, error) {
+	copyPolicies := make(map[string]operation.ConnectorPolicy, len(policies))
+	for destination, policy := range policies {
+		if strings.TrimSpace(destination) == "" || strings.TrimSpace(destination) != destination {
+			return nil, fmt.Errorf("%w: destination is required and may not be padded", ErrInvalidCapacity)
+		}
+		if policy.Quota.MaxConcurrent < 2 {
+			return nil, fmt.Errorf("%w: destination %s needs at least two concurrency slots for tenant fairness", ErrInvalidCapacity, destination)
+		}
+		if policy.Quota.MaxConcurrent > 1 && (policy.PerTenantShare <= 0 || policy.PerTenantShare >= policy.Quota.MaxConcurrent) {
+			return nil, fmt.Errorf("%w: destination %s tenant share must be positive and below concurrency limit", ErrInvalidCapacity, destination)
+		}
+		if policy.PerTenantShare < 0 || policy.PerResourceShare < 0 || policy.ReserveForP0P1 < 0 {
+			return nil, fmt.Errorf("%w: destination %s shares may not be negative", ErrInvalidCapacity, destination)
+		}
+		copyPolicies[destination] = policy
+	}
+	return &DeliveryCapacity{ledger: operation.NewConnectorLedger(copyPolicies)}, nil
+}
+
+func (c *DeliveryCapacity) tryReserve(now time.Time, candidate operation.ScheduleCandidate) (bool, string) {
+	if c == nil || c.ledger == nil {
+		return false, "CAPACITY_UNAVAILABLE"
+	}
+	return c.ledger.TryReserve(now, candidate)
+}
+
+func (c *DeliveryCapacity) release(operationID uuid.UUID, tenant string) bool {
+	return c != nil && c.ledger != nil && c.ledger.Release(operationID, tenant)
+}
+
+// InFlight reports reserved destination slots for operations and health tests.
+func (c *DeliveryCapacity) InFlight(destination string) int {
+	if c == nil || c.ledger == nil {
+		return 0
+	}
+	return c.ledger.InFlight(destination)
+}
+
 // Dispatcher is the delivery worker loop: one journal, one fence, one
 // dead-letter queue and one bounded policy. Attempts are counted on the
 // journal lineage, so concurrent workers still stop at the policy bound;
 // exhausted lineages dead-letter instead of retrying, and dead-lettered
 // lineages never retry without a replay (SUB-006).
 type Dispatcher struct {
-	Journal         *DeliveryJournal
-	Gate            *DeliveryGate
-	DLQ             *DeadLetterQueue
+	Journal *DeliveryJournal
+	Gate    *DeliveryGate
+	DLQ     *DeadLetterQueue
+	// Capacity is shared by workers using this dispatcher. Its connection
+	// key is the destination, so each slow endpoint has an independent pool.
+	Capacity        *DeliveryCapacity
 	Policy          RetryPolicy
 	DeadLetterOwner string
 }
@@ -333,8 +389,8 @@ type Dispatcher struct {
 // Validate rejects a dispatcher that could retry without evidence or
 // dead-letter without an accountable owner.
 func (d Dispatcher) Validate() error {
-	if d.Journal == nil || d.DLQ == nil {
-		return fmt.Errorf("%w: journal and dead-letter queue are required", ErrInvalidRetryPolicy)
+	if d.Journal == nil || d.DLQ == nil || d.Capacity == nil {
+		return fmt.Errorf("%w: journal, dead-letter queue and shared capacity ledger are required", ErrInvalidRetryPolicy)
 	}
 	if err := d.Policy.Validate(); err != nil {
 		return err
@@ -375,7 +431,17 @@ func (d Dispatcher) Dispatch(ctx context.Context, provider DeliveryProvider, req
 			operation.State != OperationAcked && uint32(len(operation.Attempts)) >= d.Policy.MaxAttempts {
 			return d.exhaust(operation)
 		}
+		claimID := deliveryClaimID(effective)
+		candidate := operation.ScheduleCandidate{
+			OperationID: claimID, TenantID: effective.Envelope.Tenant,
+			ConnectionID: effective.Destination, ResourceKey: effective.Destination,
+			Criticality: "P2", QueuedAt: time.Now().UTC(),
+		}
+		if admitted, reason := d.Capacity.tryReserve(time.Now().UTC(), candidate); !admitted {
+			return DispatchResult{}, fmt.Errorf("%w: %s", ErrDeliveryCapacity, reason)
+		}
 		result, err := d.Journal.Deliver(ctx, provider, effective)
+		d.Capacity.release(claimID, effective.Envelope.Tenant)
 		if err == nil {
 			return DispatchResult{DeliveryResult: result}, nil
 		}
@@ -389,6 +455,19 @@ func (d Dispatcher) Dispatch(ctx context.Context, provider DeliveryProvider, req
 			return d.exhaust(result.Operation)
 		}
 	}
+}
+
+// deliveryClaimID keeps connector-ledger identities scoped to the same
+// tenant and destination as the capacity they reserve. The journal still
+// owns the caller's idempotency key and detects any invalid key reuse.
+func deliveryClaimID(request DeliveryRequest) uuid.UUID {
+	identity := strings.Join([]string{
+		"hcmnext.subscription.delivery.capacity/v1",
+		request.Envelope.Tenant,
+		request.Destination,
+		request.IdempotencyKey,
+	}, "\x00")
+	return uuid.NewSHA1(uuid.NameSpaceURL, []byte(identity))
 }
 
 // exhaust retains an exhausted lineage. An already dead-lettered lineage

@@ -10,7 +10,7 @@ import (
 
 const (
 	articleRevisionSchema = "hcmnext.domains.knowledge.ArticleRevision"
-	schemaVersion         = 1
+	schemaVersion         = 2
 )
 
 // Knowledge errors.
@@ -188,6 +188,15 @@ type ArticleRevision struct {
 	Locale string
 	// AudienceScope is the intended audience (e.g., "EMPLOYEES", "MANAGERS", "PUBLIC").
 	AudienceScope string
+	// AuthorizedRoles lists the roles from the governed authorization vocabulary
+	// that may read this revision. It is always checked in addition to audience.
+	AuthorizedRoles []string
+	// RetentionScheduleRef identifies the approved records schedule for this
+	// article revision. Search excludes undeclared records.
+	RetentionScheduleRef string
+	// RetainUntil is an optional schedule cutoff after which this revision is
+	// no longer eligible for search; zero means the schedule has no cutoff.
+	RetainUntil values.Instant
 	// Classification is the data classification (e.g., "INTERNAL", "CONFIDENTIAL", "PUBLIC").
 	Classification string
 	// Owner is the principal responsible for the article's accuracy and lifecycle.
@@ -284,6 +293,12 @@ func (a ArticleRevision) Canonical() []byte {
 		Int("revision", int64(a.Revision)).
 		String("locale", a.Locale).
 		String("audience_scope", a.AudienceScope).
+		Count("authorized_roles", len(a.AuthorizedRoles))
+	for i, role := range a.AuthorizedRoles {
+		w.String(fmt.Sprintf("authorized_roles[%d]", i), role)
+	}
+	w.String("retention_schedule_ref", a.RetentionScheduleRef).
+		Optional("retain_until", a.RetainUntil.IsSet(), a.RetainUntil).
 		String("classification", a.Classification).
 		String("owner", a.Owner).
 		String("source_authority", a.SourceAuthority).

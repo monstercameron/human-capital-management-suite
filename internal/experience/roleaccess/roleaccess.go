@@ -38,6 +38,7 @@ var (
 )
 
 type Role struct {
+	Reason      string `json:"-"`
 	Version     int64
 	ID          string
 	Name        string
@@ -47,12 +48,14 @@ type Role struct {
 }
 
 type Assignment struct {
+	Reason    string `json:"-"`
 	Version   int64
 	WorkerRef string
 	RoleIDs   []string
 }
 
 type VisibilityPolicy struct {
+	Reason            string `json:"-"`
 	Version           int64
 	RoleID            string
 	Mode              string
@@ -63,6 +66,7 @@ type VisibilityPolicy struct {
 // The four operations are deliberately independent: a role may, for example,
 // view reports without being able to create or change them.
 type PagePermission struct {
+	Reason  string `json:"-"`
 	Version int64
 	RoleID  string
 	PageID  string
@@ -77,6 +81,7 @@ type PagePermission struct {
 // labels or route fragments. The four operations are deliberately independent
 // and are evaluated in addition to the containing page's permission.
 type FeaturePermission struct {
+	Reason    string `json:"-"`
 	Version   int64
 	RoleID    string
 	PageID    string
@@ -532,17 +537,20 @@ func DefaultPagePermissions() []PagePermission {
 		for _, page := range pages {
 			grant(role, page, true, true, true)
 		}
+		for _, page := range []string{"review-participants", "position-object", "position-occupancy"} {
+			grant(role, page, false, false, false)
+		}
 	}
 	for _, role := range []string{"manager", "hr_partner", "hiring_manager", "payroll_manager", "worker_self", "finance_partner", "intent_author", "promotion_operator"} {
 		grant(role, "docs", false, false, false)
 	}
 	for _, role := range []string{"manager", "hr_partner", "hiring_manager", "payroll_manager"} {
-		for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "chat", "help", "settings"} {
+		for _, page := range []string{"home", "myself", "journeys", "work", "history", "people", "person", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "chat", "help", "settings", "review-participants", "position-object", "position-occupancy"} {
 			create, update := page == "journeys", page == "journeys" || page == "work" || page == "settings"
 			grant(role, page, create, update, false)
 		}
 	}
-	for _, page := range []string{"home", "myself", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "chat", "help", "settings"} {
+	for _, page := range []string{"home", "myself", "organization", "org-explorer", "org-outline", "org-responsive", "insights", "chat", "help", "settings", "position-object", "position-occupancy"} {
 		grant("worker_self", page, false, page == "settings", false)
 	}
 	// PROMOUX-015: a finance partner decides the approvals routed to them

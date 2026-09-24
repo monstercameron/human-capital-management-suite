@@ -964,6 +964,7 @@ func eventForActivation(binding ActivationBinding, kind EventKind, state Lifecyc
 func cloneArticle(article ArticleRevision) ArticleRevision {
 	out := article
 	out.SourceRefs = append([]SourceRef(nil), article.SourceRefs...)
+	out.AuthorizedRoles = append([]string(nil), article.AuthorizedRoles...)
 	if article.Supersession != nil {
 		supersession := *article.Supersession
 		out.Supersession = &supersession

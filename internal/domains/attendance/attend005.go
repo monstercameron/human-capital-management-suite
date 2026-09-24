@@ -36,15 +36,16 @@ const (
 )
 
 // ConsumerInputs declares the dependency graph: which finding kinds feed
-// each downstream consumer. Pay is the union of every kind; overtime tracks
-// measured overtime facts; balances track meal and rest facts; hours track
-// schedule-adherence facts.
+// each downstream consumer. Pay tracks measured attendance minutes, while
+// statutory meal/rest amounts are emitted as separate premium lines by
+// RecalculateDownstreamWithPremiums. Overtime tracks overtime facts; balances
+// track meal and rest facts; hours track schedule adherence.
 func ConsumerInputs() map[DownstreamConsumer][]ExceptionKind {
 	return map[DownstreamConsumer][]ExceptionKind{
 		ConsumerHours:    {LateException, EarlyException, MissingException, UnscheduledException},
 		ConsumerOvertime: {OvertimeException},
 		ConsumerBalances: {MealException, BreakException},
-		ConsumerPay:      {LateException, EarlyException, MissingException, UnscheduledException, MealException, BreakException, OvertimeException},
+		ConsumerPay:      {LateException, EarlyException, MissingException, UnscheduledException, OvertimeException},
 	}
 }
 
@@ -61,11 +62,36 @@ type ConsumerDelta struct {
 // per declared consumer plus a stable receipt over the prior digest, the
 // fresh digest and the deltas.
 type Recalculation struct {
-	WorkID      string
-	PriorDigest string
-	NewDigest   string
-	Deltas      []ConsumerDelta
-	Receipt     string
+	WorkID       string
+	PriorDigest  string
+	NewDigest    string
+	Deltas       []ConsumerDelta
+	PremiumLines []PremiumLine
+	Receipt      string
+}
+
+// RecalculateDownstreamWithPremiums adds explicitly governed meal/rest
+// premiums to the pay recalculation while retaining the minute delta.
+func RecalculateDownstreamWithPremiums(workID, jurisdiction string, prior, fresh Result, rule PremiumRule, workdayIDs map[string]string) (Recalculation, Outcome, error) {
+	r, err := RecalculateDownstream(workID, prior, fresh)
+	if err != nil {
+		return Recalculation{}, Unknown, err
+	}
+	lines, outcome, err := CalculateBreakPremiums(fresh, jurisdiction, rule, workdayIDs)
+	if err != nil || outcome == Unknown {
+		return Recalculation{}, outcome, err
+	}
+	r.PremiumLines = lines
+	h := sha256.New()
+	fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\x00%s\x00%s\x00%d:%d:%d:%d", workID, prior.InputDigest, fresh.InputDigest, jurisdiction, rule.RuleRef.ID, rule.RuleRef.Version, rule.MealHours, rule.RestHours, rule.MaxMealPerWorkday, rule.MaxRestPerWorkday)
+	for _, d := range r.Deltas {
+		fmt.Fprintf(h, "\x00%s=%d:%d:%d", d.Consumer, d.PriorMinutes, d.NewMinutes, d.DeltaMinutes)
+	}
+	for _, p := range lines {
+		fmt.Fprintf(h, "\x00premium=%s:%s:%d:%d", p.WorkdayID, p.Kind, p.Count, p.Hours)
+	}
+	r.Receipt = "sha256:" + hex.EncodeToString(h.Sum(nil))
+	return r, outcome, nil
 }
 
 func minutesByKind(res Result) map[ExceptionKind]int {

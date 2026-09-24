@@ -41,6 +41,88 @@ type MealBreakPolicy struct {
 	WaiverAllowed      bool
 }
 
+// PremiumRule is an explicitly versioned jurisdiction rule for statutory
+// meal/rest premium pay. WorkdayIDs must identify each finding's local legal
+// workday; an absent mapping makes the premium calculation unknown.
+type PremiumRule struct {
+	JurisdictionCode  string
+	RuleRef           VersionedRef
+	MealHours         int
+	RestHours         int
+	MaxMealPerWorkday int
+	MaxRestPerWorkday int
+}
+
+// PremiumLine records capped premium units for one workday and violation kind.
+type PremiumLine struct {
+	WorkdayID string
+	Kind      ExceptionKind
+	Count     int
+	Hours     int
+}
+
+// CalculateBreakPremiums applies versioned per-occurrence hours and independent
+// meal and rest caps per workday. Unknown jurisdiction, incomplete workday evidence, or an
+// invalid rule returns unknown rather than zero premium.
+func CalculateBreakPremiums(res Result, jurisdiction string, rule PremiumRule, workdayIDs map[string]string) ([]PremiumLine, Outcome, error) {
+	if rule.JurisdictionCode == "" || rule.JurisdictionCode != jurisdiction || rule.RuleRef.ID == "" || rule.RuleRef.Version == "" {
+		return nil, Unknown, nil
+	}
+	if rule.MealHours < 0 || rule.RestHours < 0 || rule.MaxMealPerWorkday < 0 || rule.MaxRestPerWorkday < 0 ||
+		(rule.MealHours > 0 && rule.MaxMealPerWorkday == 0) || (rule.RestHours > 0 && rule.MaxRestPerWorkday == 0) || (rule.MealHours == 0 && rule.RestHours == 0) {
+		return nil, Unknown, fmt.Errorf("%w: invalid premium rule", ErrInvalidEvidence)
+	}
+	if err := res.Validate(); err != nil {
+		return nil, Unknown, fmt.Errorf("%w: premium source evaluation: %v", ErrInvalidEvidence, err)
+	}
+	type key struct {
+		day  string
+		kind ExceptionKind
+	}
+	counts := make(map[key]int)
+	for _, finding := range res.Exceptions {
+		if finding.Kind != MealException && finding.Kind != BreakException {
+			continue
+		}
+		day := workdayIDs[finding.ShiftID]
+		if day == "" {
+			return nil, Unknown, nil
+		}
+		counts[key{day, finding.Kind}]++
+	}
+	lines := make([]PremiumLine, 0, len(counts))
+	keys := make([]key, 0, len(counts))
+	for k := range counts {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].day != keys[j].day {
+			return keys[i].day < keys[j].day
+		}
+		return keys[i].kind < keys[j].kind
+	})
+	for _, k := range keys {
+		cap := rule.MaxMealPerWorkday
+		per := rule.MealHours
+		if k.kind == BreakException {
+			cap = rule.MaxRestPerWorkday
+			per = rule.RestHours
+		}
+		capLeft := cap
+		count := counts[k]
+		if count > capLeft {
+			count = capLeft
+		}
+		if count < 0 {
+			count = 0
+		}
+		if count > 0 && per > 0 {
+			lines = append(lines, PremiumLine{WorkdayID: k.day, Kind: k.kind, Count: count, Hours: count * per})
+		}
+	}
+	return lines, res.Outcome, nil
+}
+
 func (p MealBreakPolicy) knownFor(req Request) bool {
 	if p.JurisdictionCode == "" || p.JurisdictionCode != req.Jurisdiction.Code {
 		return false

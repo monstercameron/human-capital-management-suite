@@ -127,7 +127,7 @@ func TestTodo_FILING_001_Golden(t *testing.T) {
 	path := filepath.Join("testdata", "filing_001_golden.json")
 	want, err := os.ReadFile(path)
 	if err != nil {
-		t.Skipf("golden file not checked in yet: %v", err)
+		t.Fatalf("read required golden file %s: %v", path, err)
 	}
 	if string(want) != string(raw)+"\n" {
 		t.Fatalf("golden mismatch:\n got %s\nwant %s", raw, want)

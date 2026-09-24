@@ -86,19 +86,28 @@ const (
 type Function string
 
 const (
-	FuncDefault Function = "default"
-	FuncConcat  Function = "concat"
-	FuncEquals  Function = "equals"
-	FuncNotNull Function = "not_null"
-	FuncSum     Function = "sum"
-	FuncCount   Function = "count"
-	FuncMin     Function = "min"
-	FuncMax     Function = "max"
+	FuncDefault    Function = "default"
+	FuncConcat     Function = "concat"
+	FuncEquals     Function = "equals"
+	FuncNotNull    Function = "not_null"
+	FuncSum        Function = "sum"
+	FuncCount      Function = "count"
+	FuncMin        Function = "min"
+	FuncMax        Function = "max"
+	FuncTrim       Function = "trim"
+	FuncUpper      Function = "upper"
+	FuncLower      Function = "lower"
+	FuncLookup     Function = "lookup"
+	FuncDateParse  Function = "date_parse"
+	FuncMoneyParse Function = "money_parse"
+	FuncCompose    Function = "compose"
 )
 
 var declaredFunctions = map[Function]bool{
 	FuncDefault: true, FuncConcat: true, FuncEquals: true, FuncNotNull: true,
 	FuncSum: true, FuncCount: true, FuncMin: true, FuncMax: true,
+	FuncTrim: true, FuncUpper: true, FuncLower: true, FuncLookup: true,
+	FuncDateParse: true, FuncMoneyParse: true, FuncCompose: true,
 }
 
 // Instruction is one bounded step. Not every field applies to every OpCode;
@@ -111,6 +120,7 @@ type Instruction struct {
 	Literal     string                `json:"literal,omitempty"`
 	TargetType  transformation.Type   `json:"target_type,omitempty"`
 	JoinKey     string                `json:"join_key,omitempty"`
+	Lookup      map[string]string     `json:"lookup,omitempty"`
 }
 
 // Limits are declared, checked bounds. There is no unbounded loop and no
@@ -179,6 +189,9 @@ func compileOperation(op transformation.Operation) (Instruction, error) {
 		return Instruction{Op: OpCoerce, Sources: []transformation.Path{*op.Source}, Destination: op.Destination, TargetType: op.TargetType}, nil
 	case transformation.OpDefault:
 		return Instruction{Op: OpMap, Function: FuncDefault, Literal: op.Literal, Destination: op.Destination}, nil
+	case transformation.OpTransform:
+		return Instruction{Op: OpMap, Sources: []transformation.Path{*op.Source}, Destination: op.Destination,
+			Function: Function(op.Function), Literal: op.Argument, Lookup: op.Lookup}, nil
 	case transformation.OpConcat:
 		return Instruction{Op: OpAggregate, Function: FuncConcat, Sources: append([]transformation.Path(nil), op.Sources...), Destination: op.Destination}, nil
 	default:
@@ -266,14 +279,14 @@ func (instr Instruction) validateShape() error {
 	}
 	switch instr.Op {
 	case OpProject:
-		if len(instr.Sources) != 1 || instr.Function != "" || instr.Literal != "" || instr.TargetType != "" || instr.JoinKey != "" {
+		if len(instr.Sources) != 1 || instr.Function != "" || instr.Literal != "" || instr.TargetType != "" || instr.JoinKey != "" || len(instr.Lookup) != 0 {
 			return fmt.Errorf("%w: project takes exactly one source and no function/literal/target type/join key", ErrInvalidProgram)
 		}
 		if instr.Sources[0].Type != instr.Destination.Type {
 			return fmt.Errorf("%w: project source and destination types differ", ErrUnresolved)
 		}
 	case OpCoerce:
-		if len(instr.Sources) != 1 || instr.Function != "" || instr.JoinKey != "" {
+		if len(instr.Sources) != 1 || instr.Function != "" || instr.JoinKey != "" || len(instr.Lookup) != 0 {
 			return fmt.Errorf("%w: coerce takes exactly one source and no function/join key", ErrInvalidProgram)
 		}
 		if instr.TargetType == "" || instr.TargetType != instr.Destination.Type {
@@ -289,19 +302,44 @@ func (instr Instruction) validateShape() error {
 		if len(instr.Sources) == 0 && instr.Literal == "" {
 			return fmt.Errorf("%w: map with no source requires a literal", ErrInvalidProgram)
 		}
+		switch instr.Function {
+		case FuncDefault:
+			if len(instr.Lookup) != 0 {
+				return fmt.Errorf("%w: default map cannot carry lookup entries", ErrInvalidProgram)
+			}
+		case FuncTrim, FuncUpper, FuncLower, FuncCompose:
+			if len(instr.Sources) != 1 || len(instr.Lookup) != 0 {
+				return fmt.Errorf("%w: %s map requires one source and no lookup", ErrInvalidProgram, instr.Function)
+			}
+		case FuncLookup:
+			if len(instr.Sources) != 1 || len(instr.Lookup) == 0 || instr.Literal != "" {
+				return fmt.Errorf("%w: lookup map requires one source and entries", ErrInvalidProgram)
+			}
+			for k, v := range instr.Lookup {
+				if k == "" || v == "" {
+					return fmt.Errorf("%w: lookup map has empty key or value", ErrInvalidProgram)
+				}
+			}
+		case FuncDateParse, FuncMoneyParse:
+			if len(instr.Sources) != 1 || instr.Literal == "" || len(instr.Lookup) != 0 {
+				return fmt.Errorf("%w: %s map requires one source and a declared argument", ErrInvalidProgram, instr.Function)
+			}
+		default:
+			return fmt.Errorf("%w: function %q is not defined for map", ErrUnresolved, instr.Function)
+		}
 	case OpFilter:
-		if len(instr.Sources) != 1 || instr.JoinKey != "" || instr.TargetType != "" {
+		if len(instr.Sources) != 1 || instr.JoinKey != "" || instr.TargetType != "" || len(instr.Lookup) != 0 {
 			return fmt.Errorf("%w: filter takes exactly one source and no join key/target type", ErrInvalidProgram)
 		}
 		if instr.Function == "" {
 			return fmt.Errorf("%w: filter must declare a predicate function", ErrUnresolved)
 		}
 	case OpJoinByKey:
-		if len(instr.Sources) != 2 || instr.JoinKey == "" || instr.TargetType != "" {
+		if len(instr.Sources) != 2 || instr.JoinKey == "" || instr.TargetType != "" || len(instr.Lookup) != 0 {
 			return fmt.Errorf("%w: join_by_key takes exactly two sources and a declared join key", ErrInvalidProgram)
 		}
 	case OpAggregate:
-		if len(instr.Sources) < 1 || instr.JoinKey != "" || instr.TargetType != "" {
+		if len(instr.Sources) < 1 || instr.JoinKey != "" || instr.TargetType != "" || len(instr.Lookup) != 0 {
 			return fmt.Errorf("%w: aggregate takes at least one source and no join key/target type", ErrInvalidProgram)
 		}
 		if instr.Function == "" {

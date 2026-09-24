@@ -74,7 +74,7 @@ func industryComposition(t *testing.T, industry Industry, packID, workflowID, re
 	}}
 	experience.Content, _ = Bind(content)
 	return IndustryComposition{
-		Publication: PublicationCheck{Candidate: pack, Installed: map[string]string{"hcmnext": "1.8", "us-country": "1"},
+		Publication: PublicationCheck{Candidate: pack, TenantID: "acme", Installed: map[string]string{"hcmnext": "1.8", "us-country": "1"},
 			Published: []PublishedPack{{ID: "us-country", Version: "1", Digest: countryDigest}}, Content: &content, Experience: &experience},
 		Content:    content,
 		Experience: experience,
@@ -111,11 +111,10 @@ func representativeIndustries(t *testing.T) map[Industry]IndustryComposition {
 
 func signedFor(res IndustryResult) ActivationRequest {
 	target := PackTarget{Tenant: "acme", Cell: "cell-us-1"}
-	env := SignPackVersion(SignedPackVersion{PackID: res.PackID, Version: res.Version, BundleDigest: res.BundleDigest, Target: target,
+	env := SignPackVersion(SignedPackVersion{PackID: res.PackID, Industry: res.Industry, Version: res.Version, BundleDigest: res.BundleDigest, Target: target,
 		EffectiveAt: publishNow.Add(time.Hour), RollbackVersion: 0, Publisher: "release:ana", Approver: "release:ben", SignedAt: publishNow.Add(-time.Minute)},
 		"pack-2026", publishKey)
-	return ActivationRequest{Envelope: env, Target: target, TrustedKeys: map[string]ed25519.PublicKey{"pack-2026": publishKey.Public().(ed25519.PublicKey)},
-		Now: publishNow, MaxAge: 24 * time.Hour}
+	return ActivationRequest{Envelope: env, Target: target, TrustedKeys: map[string]ed25519.PublicKey{"pack-2026": publishKey.Public().(ed25519.PublicKey)}}
 }
 
 func wantConformanceRejection(t *testing.T, err error, stage, field, state, version string) {
@@ -136,12 +135,13 @@ func wantConformanceRejection(t *testing.T, err error, stage, field, state, vers
 func TestTodo_PACK_007(t *testing.T) {
 	ctx := context.Background()
 	for industry, spec := range representativeIndustries(t) {
-		res, err := ComposeIndustry(spec)
+		authority := authorityForIndustry(t, industry)
+		res, err := ComposeIndustry(ctx, authority, spec)
 		if err != nil {
 			t.Fatalf("%s: %v", industry, err)
 		}
 		store := &countingIndustryActivations{}
-		activated, receipt, effects, err := ActivateIndustry(ctx, store, spec, signedFor(res))
+		activated, receipt, effects, err := ActivateIndustry(ctx, store, authority, spec, signedFor(res))
 		if err != nil || store.calls != 1 || effects.AuthoritativeRows != 3 || activated.BundleDigest != res.BundleDigest || receipt.BundleDigest != res.BundleDigest {
 			t.Fatalf("%s: activate = %+v, %+v, %v", industry, receipt, effects, err)
 		}
@@ -170,7 +170,8 @@ func TestTodo_PACK_007(t *testing.T) {
 		"mandatory country rule override": {override, "publication", "FORM:shift-certification-form.overrides_content", StateMandatoryOverride, "1"},
 	} {
 		store := &countingIndustryActivations{}
-		_, _, effects, err := ActivateIndustry(ctx, store, tc.spec, ActivationRequest{})
+		authority := authorityForIndustry(t, tc.spec.Publication.Candidate.Industry)
+		_, _, effects, err := ActivateIndustry(ctx, store, authority, tc.spec, ActivationRequest{})
 		wantConformanceRejection(t, err, tc.stage, tc.field, tc.state, tc.version)
 		if store.calls != 0 || effects != (ActivationEffects{}) {
 			t.Fatalf("%s: a rejected composition persisted", name)
@@ -184,11 +185,11 @@ func TestTodo_PACK_007_Golden(t *testing.T) {
 	var lines []string
 	for _, industry := range []Industry{IndustryHealthcare, IndustryManufacturing, IndustryRetail} {
 		spec := representativeIndustries(t)[industry]
-		res, err := ComposeIndustry(spec)
+		res, err := ComposeIndustry(context.Background(), authorityForIndustry(t, spec.Publication.Candidate.Industry), spec)
 		if err != nil {
 			t.Fatal(err)
 		}
-		again, err := ComposeIndustry(representativeIndustries(t)[industry])
+		again, err := ComposeIndustry(context.Background(), authorityForIndustry(t, industry), representativeIndustries(t)[industry])
 		if err != nil || again.BundleDigest != res.BundleDigest {
 			t.Fatalf("%s: composition is not deterministic", industry)
 		}
@@ -207,7 +208,7 @@ func TestTodo_PACK_007_Conformance(t *testing.T) {
 	shared := map[string]bool{}
 	bundles := map[string]Industry{}
 	for industry, spec := range representativeIndustries(t) {
-		res, err := ComposeIndustry(spec)
+		res, err := ComposeIndustry(context.Background(), authorityForIndustry(t, industry), spec)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -270,21 +271,23 @@ func TestTodo_PACK_007_Mutation(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			spec := base(t)
-			proven, err := ComposeIndustry(spec)
+			authority := authorityForIndustry(t, spec.Publication.Candidate.Industry)
+			proven, err := ComposeIndustry(context.Background(), authority, spec)
 			if err != nil {
 				t.Fatal(err)
 			}
 			act := signedFor(proven)
 			tc.mutate(&spec, &act)
 			store := &countingIndustryActivations{}
-			_, _, effects, err := ActivateIndustry(context.Background(), store, spec, act)
+			_, _, effects, err := ActivateIndustry(context.Background(), store, authority, spec, act)
 			wantConformanceRejection(t, err, tc.stage, tc.field, tc.state, tc.version)
 			if store.calls != 0 || effects != (ActivationEffects{}) {
 				t.Fatal("a rejected composition persisted")
 			}
 		})
 	}
-	if _, _, _, err := ActivateIndustry(context.Background(), nil, base(t), ActivationRequest{}); !errors.Is(err, ErrConformanceRejected) {
+	baseSpec := base(t)
+	if _, _, _, err := ActivateIndustry(context.Background(), nil, authorityForIndustry(t, IndustryHealthcare), baseSpec, ActivationRequest{}); !errors.Is(err, ErrConformanceRejected) {
 		t.Fatalf("nil store = %v", err)
 	}
 	if err := conformanceReject("x", errors.New("plain")); !strings.Contains(err.Error(), "x.x") {

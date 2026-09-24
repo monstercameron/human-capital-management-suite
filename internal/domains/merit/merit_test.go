@@ -1,7 +1,9 @@
 package merit
 
 import (
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -103,6 +105,28 @@ func TestTodo_MERIT_001_Race(t *testing.T) {
 	store := NewMemoryCycleStore()
 	if err := store.Save(c); err != nil {
 		t.Fatal(err)
+	}
+	const readers = 16
+	var wg sync.WaitGroup
+	errs := make(chan error, readers)
+	for i := 0; i < readers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, err := store.Current(c.CycleID)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if got.CanonicalDigest != c.CanonicalDigest {
+				errs <- fmt.Errorf("current digest = %q, want %q", got.CanonicalDigest, c.CanonicalDigest)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 

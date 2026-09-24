@@ -61,20 +61,24 @@ type Path struct {
 type OperationKind string
 
 const (
-	OpCopy    OperationKind = "copy"
-	OpConvert OperationKind = "convert"
-	OpRename  OperationKind = "rename"
-	OpDefault OperationKind = "default"
-	OpConcat  OperationKind = "concat"
+	OpCopy      OperationKind = "copy"
+	OpConvert   OperationKind = "convert"
+	OpRename    OperationKind = "rename"
+	OpDefault   OperationKind = "default"
+	OpConcat    OperationKind = "concat"
+	OpTransform OperationKind = "transform"
 )
 
 type Operation struct {
-	Kind        OperationKind `json:"kind"`
-	Source      *Path         `json:"source,omitempty"`
-	Destination Path          `json:"destination"`
-	TargetType  Type          `json:"target_type,omitempty"`
-	Literal     string        `json:"literal,omitempty"`
-	Sources     []Path        `json:"sources,omitempty"`
+	Kind        OperationKind     `json:"kind"`
+	Source      *Path             `json:"source,omitempty"`
+	Destination Path              `json:"destination"`
+	TargetType  Type              `json:"target_type,omitempty"`
+	Literal     string            `json:"literal,omitempty"`
+	Sources     []Path            `json:"sources,omitempty"`
+	Function    string            `json:"function,omitempty"`
+	Argument    string            `json:"argument,omitempty"`
+	Lookup      map[string]string `json:"lookup,omitempty"`
 }
 
 type Compatibility struct {
@@ -204,6 +208,34 @@ func (d TransformationDefinition) Validate() error {
 				if !pathIn(p, d.Source) {
 					return ErrUntypedPath
 				}
+			}
+		case OpTransform:
+			if op.Source == nil || !pathIn(*op.Source, d.Source) || !pathIn(op.Destination, d.Destination) || op.Source.Type != TypeString || op.Destination.Type != TypeString || op.Function == "" {
+				return fmt.Errorf("%w: transform", ErrUntypedPath)
+			}
+			if len(op.Sources) != 0 || op.TargetType != "" || op.Literal != "" {
+				return fmt.Errorf("%w: transform carries unrelated operands", ErrInvalidDefinition)
+			}
+			switch op.Function {
+			case "trim", "upper", "lower", "compose":
+				if len(op.Lookup) != 0 {
+					return fmt.Errorf("%w: transform lookup not allowed", ErrInvalidDefinition)
+				}
+			case "lookup":
+				if len(op.Lookup) == 0 || op.Argument != "" {
+					return fmt.Errorf("%w: transform lookup", ErrInvalidDefinition)
+				}
+				for k, v := range op.Lookup {
+					if k == "" || v == "" {
+						return fmt.Errorf("%w: transform lookup entry", ErrInvalidDefinition)
+					}
+				}
+			case "date_parse", "money_parse":
+				if op.Argument == "" || len(op.Lookup) != 0 {
+					return fmt.Errorf("%w: transform argument", ErrInvalidDefinition)
+				}
+			default:
+				return fmt.Errorf("%w: transform function %q", ErrUnknownOperation, op.Function)
 			}
 		default:
 			return fmt.Errorf("%w: %q", ErrUnknownOperation, op.Kind)

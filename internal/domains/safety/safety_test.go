@@ -3,6 +3,7 @@ package safety
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -84,9 +85,21 @@ func TestTodo_SAFETY_001_Race(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := NewMemoryStore()
-	for i := 0; i < 16; i++ {
-		if err := store.SaveIncident(incident); err != nil {
-			t.Fatal(err)
+	const writers = 16
+	var wait sync.WaitGroup
+	errs := make(chan error, writers)
+	for i := 0; i < writers; i++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			errs <- store.SaveIncident(incident)
+		}()
+	}
+	wait.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Error(err)
 		}
 	}
 	if _, ok := store.GetIncident("i", 1); !ok {

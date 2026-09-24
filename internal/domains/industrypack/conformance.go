@@ -74,8 +74,9 @@ type IndustryResult struct {
 	ModelDigest    string   `json:"model_digest"`
 	// Mandatory lists the non-overridable rules and mandatory settings the
 	// composition preserved, with their composed values.
-	Mandatory    []string `json:"mandatory"`
-	BundleDigest string   `json:"bundle_digest"`
+	Mandatory    []string                   `json:"mandatory"`
+	BundleDigest string                     `json:"bundle_digest"`
+	Entitlement  IndustryEntitlementBinding `json:"-"`
 }
 
 func conformanceReject(stage string, err error) error {
@@ -86,6 +87,7 @@ func conformanceReject(stage string, err error) error {
 		lay  *LayerRefusal
 		act  *ActivationRefusal
 		cont *Refusal
+		ent  *EntitlementRejection
 	)
 	switch {
 	case errors.As(err, &pub):
@@ -98,6 +100,8 @@ func conformanceReject(stage string, err error) error {
 		r.Field, r.State, r.Version = act.Field, act.State, act.Version
 	case errors.As(err, &cont):
 		r.Field, r.State, r.Version = cont.Ref.Key(), ConformanceContentRefused, cont.Ref.Version
+	case errors.As(err, &ent):
+		r.Field, r.State, r.Version = "commercial_entitlement", ent.State, ""
 	default:
 		r.Field, r.State = stage, ConformanceContentRefused
 	}
@@ -105,8 +109,8 @@ func conformanceReject(stage string, err error) error {
 }
 
 // ComposeIndustry proves one industry composition without effects.
-func ComposeIndustry(spec IndustryComposition) (IndustryResult, error) {
-	pub, err := CheckPublication(spec.Publication)
+func ComposeIndustry(ctx context.Context, authority *IndustryEntitlementAuthority, spec IndustryComposition) (IndustryResult, error) {
+	pub, err := CheckPublication(ctx, authority, spec.Publication)
 	if err != nil {
 		return IndustryResult{}, conformanceReject("publication", err)
 	}
@@ -123,7 +127,7 @@ func ComposeIndustry(spec IndustryComposition) (IndustryResult, error) {
 		return IndustryResult{}, conformanceReject("layers", err)
 	}
 	res := IndustryResult{Industry: spec.Publication.Candidate.Industry, PackID: pub.PackID, Version: pub.Version, PackDigest: pub.Digest,
-		ConfigDigest: layered.Digest, WorkflowDigest: experience.Digest, ModelDigest: content.CanonicalDigest}
+		ConfigDigest: layered.Digest, WorkflowDigest: experience.Digest, ModelDigest: content.CanonicalDigest, Entitlement: pub.Entitlement}
 	for _, c := range content.Contents {
 		if c.Ref.Kind == ContentRule && !c.Overridable {
 			res.Mandatory = append(res.Mandatory, "rule:"+c.Ref.Key()+"="+c.Digest)
@@ -148,11 +152,11 @@ type IndustryActivationStore interface {
 
 // ActivateIndustry proves the composition, requires a signed envelope over
 // exactly its bundle, and only then persists.
-func ActivateIndustry(ctx context.Context, store IndustryActivationStore, spec IndustryComposition, activation ActivationRequest) (IndustryResult, ActivationReceipt, ActivationEffects, error) {
+func ActivateIndustry(ctx context.Context, store IndustryActivationStore, authority *IndustryEntitlementAuthority, spec IndustryComposition, activation ActivationRequest) (IndustryResult, ActivationReceipt, ActivationEffects, error) {
 	if store == nil {
 		return IndustryResult{}, ActivationReceipt{}, ActivationEffects{}, fmt.Errorf("%w: store is required", ErrConformanceRejected)
 	}
-	res, err := ComposeIndustry(spec)
+	res, err := ComposeIndustry(ctx, authority, spec)
 	if err != nil {
 		return IndustryResult{}, ActivationReceipt{}, ActivationEffects{}, err
 	}
@@ -162,9 +166,13 @@ func ActivateIndustry(ctx context.Context, store IndustryActivationStore, spec I
 			Field: "bundle_digest", State: ConformanceBundleMismatch, Version: strconv.Itoa(env.Version),
 			Cause: fmt.Errorf("envelope %s@%d %s does not sign the proven bundle %s@%d %s", env.PackID, env.Version, env.BundleDigest, res.PackID, res.Version, res.BundleDigest)}
 	}
-	receipt, err := VerifyActivation(activation)
+	receipt, err := VerifyActivation(ctx, authority, activation)
 	if err != nil {
 		return IndustryResult{}, ActivationReceipt{}, ActivationEffects{}, conformanceReject("activation", err)
+	}
+	if receipt.Entitlement.Fingerprint() != res.Entitlement.Fingerprint() {
+		return IndustryResult{}, ActivationReceipt{}, ActivationEffects{}, &ConformanceRejection{Code: ConformanceRejectionCode, Stage: "activation",
+			Field: "entitlement_fingerprint", State: EntitlementSnapshotAbsent, Version: strconv.Itoa(env.Version), Cause: ErrEntitlementRejected}
 	}
 	effects, err := store.SaveIndustryActivation(ctx, res, receipt)
 	if err != nil {

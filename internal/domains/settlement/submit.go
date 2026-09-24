@@ -11,7 +11,8 @@ import (
 
 var (
 	// ErrSubmitRejected identifies a submission that cannot be journaled.
-	ErrSubmitRejected = errors.New("settlement: submission rejected")
+	ErrSubmitRejected            = errors.New("settlement: submission rejected")
+	ErrManualFulfillmentRequired = errors.New("settlement: rail requires governed non-provider fulfillment")
 )
 
 // ProviderOutcome is the provider-side verdict observed for one send.
@@ -136,6 +137,9 @@ func (j *Journal) Lookup(key string) (JournalEntry, bool) {
 func (j *Journal) Submit(ctx context.Context, req SubmitRequest, provider Provider) (JournalEntry, error) {
 	if err := req.Instruction.Validate(); err != nil {
 		return JournalEntry{}, fmt.Errorf("%w: %v", ErrSubmitRejected, err)
+	}
+	if req.Instruction.FulfillmentAction() != ActionSubmitPayment {
+		return JournalEntry{}, fmt.Errorf("%w: %s", ErrManualFulfillmentRequired, req.Instruction.FulfillmentAction())
 	}
 	if req.Now.IsZero() {
 		return JournalEntry{}, fmt.Errorf("%w: reference time is required", ErrSubmitRejected)

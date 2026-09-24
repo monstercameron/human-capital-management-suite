@@ -90,11 +90,11 @@ func (c SigningCredential) usableAt(at time.Time) error {
 // digest that a recipient must verify. It is safe to log as metadata except
 // for the signature value itself, which remains provider output.
 type SignedDelivery struct {
-	Destination   string
-	Profile       string
-	Version       string
-	MessageDigest string
-	Signature     string
+	Destination   string `json:"destination"`
+	Profile       string `json:"profile"`
+	Version       string `json:"version"`
+	MessageDigest string `json:"message_digest"`
+	Signature     string `json:"signature"`
 }
 
 func (s SignedDelivery) validate() error {
@@ -249,6 +249,14 @@ func (r *CredentialRing) CurrentVersion() string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.active
+}
+
+// Destination returns the endpoint this credential ring is bound to.
+func (r *CredentialRing) Destination() string {
+	if r == nil {
+		return ""
+	}
+	return r.destination
 }
 
 // Sign signs a canonical message digest with the current credential.

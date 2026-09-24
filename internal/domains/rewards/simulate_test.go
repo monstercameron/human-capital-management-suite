@@ -635,6 +635,67 @@ func TestTodo_COMP_006_Property(t *testing.T) {
 	})
 }
 
+// TestTodo_COMP_006_Conformance verifies the result invariants shared by the
+// standalone intent contract: exact deltas reconcile to projections, all
+// governing versions and snapshot marks are pinned, and the receipt proves a
+// zero-effect simulation.
+func TestTodo_COMP_006_Conformance(t *testing.T) {
+	in := baseInput(t)
+	got, err := rewards.SimulateCompensation(context.Background(), catalog(t), in)
+	if err != nil {
+		t.Fatalf("SimulateCompensation: %v", err)
+	}
+	checks := []struct{ name, got, want string }{
+		{"base delta", got.Delta.AnnualizedBase.Amount().String(), "5000.00"},
+		{"bonus delta", got.Delta.AnnualizedBonusTarget.Amount().String(), "250.00"},
+		{"cash delta", got.Delta.AnnualizedTotalCash.Amount().String(), "5250.00"},
+	}
+	for _, c := range checks {
+		if c.got != c.want {
+			t.Errorf("%s = %s, want %s", c.name, c.got, c.want)
+		}
+	}
+	if got.CurrentSnapshotMark != in.Current.Watermark || got.ProposedSnapshotMark != in.Proposed.Watermark {
+		t.Fatalf("snapshot marks do not match request: %v/%v", got.CurrentSnapshotMark, got.ProposedSnapshotMark)
+	}
+	if got.RulePackVersion != rewards.CompensationRulePackVersion || got.AnnualizationVersion != in.Annualization.Version || got.CatalogVersion != catalog(t).CatalogVersion() {
+		t.Fatalf("unpinned calculation controls: rule=%q annualization=%q catalog=%q", got.RulePackVersion, got.AnnualizationVersion, got.CatalogVersion)
+	}
+	if !got.Effects.IsZero() || got.Receipt.Mode != evidence.ModeSimulate || got.Receipt.ExecutionState != evidence.ExecutionStateNotPlanned || got.Receipt.ResultDigest != got.ResultDigest {
+		t.Fatalf("nonconforming simulation receipt: effects=%v receipt=%+v", got.Effects.NonZero(), got.Receipt)
+	}
+	if err := got.Receipt.Validate(); err != nil {
+		t.Fatalf("receipt invalid: %v", err)
+	}
+}
+
+// TestTodo_COMP_006_Mutation verifies changing a material input changes both
+// the computed amount and the digest, while a malformed snapshot is refused
+// before a result can be emitted.
+func TestTodo_COMP_006_Mutation(t *testing.T) {
+	ctx := context.Background()
+	in := baseInput(t)
+	first, err := rewards.SimulateCompensation(ctx, catalog(t), in)
+	if err != nil {
+		t.Fatalf("first simulation: %v", err)
+	}
+	in.Proposed = snapshot(t, "99000.00", "USD", rewards.PayBasisAnnualSalary, "0.0500", 11)
+	second, err := rewards.SimulateCompensation(ctx, catalog(t), in)
+	if err != nil {
+		t.Fatalf("changed simulation: %v", err)
+	}
+	if first.Proposed.AnnualizedBase.Amount().String() == second.Proposed.AnnualizedBase.Amount().String() {
+		t.Fatal("changed proposed base did not change annualized output")
+	}
+	if first.ResultDigest == second.ResultDigest || bytes.Equal(first.Canonical(), second.Canonical()) {
+		t.Fatal("changed proposed base retained the original digest/canonical result")
+	}
+	in.Proposed.Complete = false
+	if _, err := rewards.SimulateCompensation(ctx, catalog(t), in); !errors.Is(err, rewards.ErrSnapshotIncomplete) {
+		t.Fatalf("incomplete mutated snapshot error = %v, want ErrSnapshotIncomplete", err)
+	}
+}
+
 func TestTodo_COMP_006_Golden(t *testing.T) {
 	ctx := context.Background()
 

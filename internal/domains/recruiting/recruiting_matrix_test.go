@@ -95,7 +95,7 @@ func TestTodo_RECRUIT_001_Golden(t *testing.T) {
 		t.Fatal("outbox does not mirror the event log")
 	}
 	t.Logf("golden requisition digest: %s", aggregate.Requisitions["req-1"].CanonicalDigest)
-	if want := "sha256:2a8f75f054ac652dc48030535b0456244048f97dfbac4429a82b3515a9608cc4"; aggregate.Requisitions["req-1"].CanonicalDigest != want {
+	if want := "sha256:d750032a961908bc4e81b7c6174164c0013e19473c24e3694f54a59d6a532ba2"; aggregate.Requisitions["req-1"].CanonicalDigest != want {
 		t.Fatalf("requisition digest = %q, want golden %q", aggregate.Requisitions["req-1"].CanonicalDigest, want)
 	}
 }

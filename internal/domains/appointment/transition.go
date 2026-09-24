@@ -97,14 +97,17 @@ func bindDigest(res Reservation, expectedDigest string) error {
 
 // expireIfDue lazily moves a HELD reservation past its fence time to
 // EXPIRED. Callers must hold l.mu. It reports whether the hold is still live.
-func (l *ReservationLedger) expireIfDue(res *Reservation, now time.Time) bool {
+func (l *ReservationLedger) expireIfDue(res *Reservation, now time.Time) (bool, error) {
 	if res.State == ReservationHeld && !values.NewInstant(now).Before(res.ExpiresAt) {
+		if err := l.expireShared(res.ID, now); err != nil {
+			return false, err
+		}
 		res.State = ReservationExpired
 		res.Digest = res.computedDigest()
 		l.holds[res.ID] = *res
-		return false
+		return false, nil
 	}
-	return res.State == ReservationHeld || res.State == ReservationConfirmed
+	return res.State == ReservationHeld || res.State == ReservationConfirmed, nil
 }
 
 // Confirm moves a live HELD reservation to CONFIRMED and emits one CONFIRMED
@@ -127,11 +130,18 @@ func (l *ReservationLedger) Confirm(id, expectedDigest, idempotencyKey string, n
 	if version == "" {
 		version = "v1"
 	}
-	if !l.expireIfDue(&res, now) {
+	live, expiryErr := l.expireIfDue(&res, now)
+	if expiryErr != nil {
+		return Reservation{}, rejectTransition("state", "STALE_FENCE", version, expiryErr.Error())
+	}
+	if !live {
 		return Reservation{}, rejectTransition("state", string(res.State), version, fmt.Sprintf("only a live HELD reservation can confirm, not %s", res.State))
 	}
 	if res.State != ReservationHeld {
 		return Reservation{}, rejectTransition("state", string(res.State), version, fmt.Sprintf("only a HELD reservation can confirm, not %s", res.State))
+	}
+	if err := l.commitShared(id, now); err != nil {
+		return Reservation{}, rejectTransition("state", "STALE_FENCE", version, err.Error())
 	}
 	res.State = ReservationConfirmed
 	res.Digest = res.computedDigest()
@@ -161,7 +171,11 @@ func (l *ReservationLedger) Reschedule(id, expectedDigest string, newSlot values
 	if version == "" {
 		version = "v1"
 	}
-	if !l.expireIfDue(&res, now) {
+	live, expiryErr := l.expireIfDue(&res, now)
+	if expiryErr != nil {
+		return Reservation{}, rejectTransition("state", "STALE_FENCE", version, expiryErr.Error())
+	}
+	if !live {
 		return Reservation{}, rejectTransition("state", string(res.State), version, fmt.Sprintf("only a live reservation can reschedule, not %s", res.State))
 	}
 	if res.State != ReservationHeld && res.State != ReservationConfirmed {
@@ -192,6 +206,9 @@ func (l *ReservationLedger) Reschedule(id, expectedDigest string, newSlot values
 			}
 		}
 	}
+	if err := l.rescheduleShared(id, newSlot, now); err != nil {
+		return Reservation{}, conflictTransition("slot", "CONFLICT", version, err.Error())
+	}
 	res.Slot = newSlot
 	res.Digest = res.computedDigest()
 	l.holds[id] = res
@@ -220,7 +237,11 @@ func (l *ReservationLedger) Cancel(id, expectedDigest, idempotencyKey string, no
 	if version == "" {
 		version = "v1"
 	}
-	if !l.expireIfDue(&res, now) {
+	live, expiryErr := l.expireIfDue(&res, now)
+	if expiryErr != nil {
+		return Reservation{}, rejectTransition("state", "STALE_FENCE", version, expiryErr.Error())
+	}
+	if !live {
 		return Reservation{}, rejectTransition("state", string(res.State), version, fmt.Sprintf("only a live reservation can cancel, not %s", res.State))
 	}
 	if res.State != ReservationHeld && res.State != ReservationConfirmed {
@@ -235,6 +256,9 @@ func (l *ReservationLedger) Cancel(id, expectedDigest, idempotencyKey string, no
 	}
 	if nowTime := now.UTC(); nowTime.After(start.Time().Add(-res.Cancellation.Notice)) {
 		return Reservation{}, rejectTransition("cancellation_policy", "LATE", version, "cancellation falls inside the contracted notice window")
+	}
+	if err := l.releaseShared(id, now); err != nil {
+		return Reservation{}, rejectTransition("state", "STALE_FENCE", version, err.Error())
 	}
 	res.State = ReservationCancelled
 	res.Digest = res.computedDigest()

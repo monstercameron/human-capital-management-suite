@@ -3,6 +3,7 @@ package schedopt
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -102,9 +103,31 @@ func TestTodo_SCHED_OPT_002_Race(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 20; i++ {
-		if _, err := instance.Digest(); err != nil {
-			t.Fatalf("iteration %d: %v", i, err)
+	const workers = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	digests := make(chan string, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			digest, err := instance.Digest()
+			if err != nil {
+				errs <- err
+				return
+			}
+			digests <- digest
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	close(digests)
+	for err := range errs {
+		t.Errorf("concurrent imported problem digest: %v", err)
+	}
+	for digest := range digests {
+		if digest != instance.CanonicalDigest {
+			t.Errorf("concurrent digest = %q, want %q", digest, instance.CanonicalDigest)
 		}
 	}
 }

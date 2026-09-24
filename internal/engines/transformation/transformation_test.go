@@ -49,7 +49,22 @@ func TestDigestStableAcrossSchemaFieldOrder(t *testing.T) {
 // The registry's XFORM-001 matrix is intentionally kept beside the contract;
 // these tests are small independent checks so a future implementation cannot
 // satisfy the primary case while dropping one of the safety boundaries.
-func TestTodo_XFORM_001(t *testing.T) { TestValidateAndDigest(t) }
+func TestTodo_XFORM_001(t *testing.T) {
+	d := definition()
+	if err := d.Validate(); err != nil {
+		t.Fatalf("well-typed copy contract was rejected: %v", err)
+	}
+	digest, err := d.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(digest) != len("sha256:")+64 || digest[:len("sha256:")] != "sha256:" {
+		t.Fatalf("contract digest=%q, want sha256 digest", digest)
+	}
+	if d.Operations[0].Source.Type != TypeString || d.Operations[0].Destination.Type != TypeString {
+		t.Fatalf("copy contract paths lost their declared types: %+v", d.Operations[0])
+	}
+}
 
 func TestTodo_XFORM_001_Property(t *testing.T) {
 	d := definition()

@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/operation"
 )
 
 // replayFixture builds one ACTIVE subscription, its current grant, and the
@@ -177,8 +179,14 @@ func TestTodo_SUB_006_Integration(t *testing.T) {
 	journal := NewDeliveryJournal()
 	dlq := NewDeadLetterQueue(24 * time.Hour)
 	gate := NewDeliveryGate()
+	capacity, err := NewDeliveryCapacity(map[string]operation.ConnectorPolicy{
+		"endpoint:webhook": {Quota: operation.ConnectorQuota{Limit: 1000, Window: time.Minute, MaxConcurrent: 32}, PerTenantShare: 8},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	dispatcher := Dispatcher{Journal: journal, Gate: gate, DLQ: dlq,
-		Policy: RetryPolicy{MaxAttempts: 1}, DeadLetterOwner: "team:integrations"}
+		Policy: RetryPolicy{MaxAttempts: 1}, DeadLetterOwner: "team:integrations", Capacity: capacity}
 	subscription, grant, original := replayFixture(t, "sub-recover")
 	poison := &poisonProvider{err: errors.New("connection refused")}
 	if _, err := dispatcher.Dispatch(context.Background(), poison, original); !errors.Is(err, ErrRetryExhausted) {

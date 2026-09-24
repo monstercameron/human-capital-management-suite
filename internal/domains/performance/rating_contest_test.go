@@ -2,6 +2,7 @@ package performance_test
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/performance"
@@ -115,10 +116,22 @@ func TestTodo_PERFORMANCE_006_Race(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 32; i++ {
-		if _, err := contested.Explain(); err != nil {
-			t.Fatalf("explain %d: %v", i, err)
-		}
+	const readers = 32
+	var wait sync.WaitGroup
+	errs := make(chan error, readers)
+	for i := 0; i < readers; i++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			if _, err := contested.Explain(); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	wait.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("concurrent explain: %v", err)
 	}
 	if len(base.Events) != 0 || len(contested.Events) != 1 {
 		t.Fatal("concurrent-read fixture was not immutable")

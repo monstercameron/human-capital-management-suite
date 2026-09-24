@@ -387,6 +387,41 @@ func TestTodo_RULE_003_Mutation(t *testing.T) {
 // FuzzTodo_RULE_003 drives the promotion approval decision with arbitrary
 // factor combinations. It asserts the engine never panics, always returns
 // one of the four declared tiers, and is deterministic for a fixed input.
+func TestTodo_WF_EXT_006_PublishedPromotionRouteTable(t *testing.T) {
+	legacy := PromotionApprovalThresholdTable()
+	current := PromotionWorkflowThresholdTable()
+	legacyDigest, err := legacy.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentDigest, err := current.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Version != PromotionApprovalTableVersion || current.Version != PromotionWorkflowThresholdTableVersion || legacyDigest == currentDigest {
+		t.Fatalf("legacy/current versions or digests are not independently pinned: %s %s %s %s", legacy.Version, current.Version, legacyDigest, currentDigest)
+	}
+	if len(current.Outputs) != 2 || current.Outputs[0].Name != "approval_tier" || current.Outputs[1].Name != "route_key" {
+		t.Fatalf("workflow outputs = %+v", current.Outputs)
+	}
+	for _, row := range current.Rows {
+		if len(row.Outputs) != 2 {
+			t.Fatalf("row %s outputs = %+v", row.ID, row.Outputs)
+		}
+		tier, route := ApprovalTier(row.Outputs[0].String()), row.Outputs[1].String()
+		want := "EXCEEDS_THRESHOLD"
+		if tier == ApprovalTierStandard {
+			want = "WITHIN_THRESHOLD"
+		}
+		if tier == ApprovalTierUnknownBlocked {
+			want = "UNKNOWN"
+		}
+		if route != want {
+			t.Errorf("row %s route = %q, want %q for tier %q", row.ID, route, want, tier)
+		}
+	}
+}
+
 func FuzzTodo_RULE_003(f *testing.F) {
 	f.Add(int64(500), int32(4), 0, 0, false)
 	f.Add(int64(100000), int32(4), 2, 1, true)

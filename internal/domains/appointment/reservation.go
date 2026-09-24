@@ -23,6 +23,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	sharedreservation "github.com/monstercameron/human-capital-management-suite/internal/resource/reservation"
 )
 
 var (
@@ -204,11 +205,105 @@ type ReservationLedger struct {
 	mu     sync.Mutex
 	holds  map[string]Reservation
 	outbox []Notification
+	shared *sharedreservation.Store
+	fences map[string][]sharedreservation.Reservation
 }
 
-// NewReservationLedger returns an empty reservation ledger.
-func NewReservationLedger() *ReservationLedger {
-	return &ReservationLedger{holds: make(map[string]Reservation)}
+// NewReservationLedgerWithStore builds an appointment adapter over the shared
+// RESERVE-001 protocol. Supplying one store to multiple ledgers makes the same
+// participant and resource fences visible to each ledger.
+func NewReservationLedgerWithStore(store *sharedreservation.Store) *ReservationLedger {
+	if store == nil {
+		panic("appointment: a shared reservation store is required")
+	}
+	return &ReservationLedger{holds: make(map[string]Reservation), shared: store, fences: make(map[string][]sharedreservation.Reservation)}
+}
+
+func sharedHoldKeys(r Reservation) []string {
+	keys := make([]string, 0, len(r.Participants)+len(r.Resources))
+	for _, p := range r.Participants {
+		keys = append(keys, "appointment/participant/"+p.String())
+	}
+	for _, h := range r.Resources {
+		keys = append(keys, "appointment/resource/"+h.ResourceRef.String())
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// acquireShared holds every concrete appointment participant and resource
+// through RESERVE-001. Callers hold l.mu; on partial failure all newly acquired
+// fences are released before returning.
+func (l *ReservationLedger) acquireShared(r Reservation, now time.Time) ([]sharedreservation.Reservation, error) {
+	from, _ := r.Slot.StartInstant()
+	to, _ := r.Slot.EndInstant()
+	owner := r.RequirementID
+	if owner == "" {
+		owner = "appointment"
+	}
+	proposal := sharedreservation.Digest([]byte(r.ID + ":" + r.RequirementDigest))
+	authority := sharedreservation.Digest([]byte(r.RequirementDigest))
+	requests := make([]sharedreservation.AcquireRequest, 0, len(sharedHoldKeys(r)))
+	for i, key := range sharedHoldKeys(r) {
+		req := sharedreservation.Request{
+			Resource: key, Version: 1, Quantity: sharedreservation.Quantity{Value: 1},
+			Interval: sharedreservation.Interval{From: from.Time(), To: to.Time()}, Owner: owner,
+			ExpiresAt: r.ExpiresAt.Time(), ProposalDigest: proposal, AuthorityDigest: authority,
+			IdempotencyKey: r.ID + "/" + fmt.Sprint(i),
+		}
+		requests = append(requests, sharedreservation.AcquireRequest{Request: req, Capacity: sharedreservation.Quantity{Value: 1}})
+	}
+	holds, err := l.shared.AcquireBatch(requests, now)
+	if err != nil {
+		return nil, fmt.Errorf("shared appointment fence: %w", err)
+	}
+	status := holds[0].Status
+	if status != sharedreservation.Held && status != sharedreservation.Committed {
+		return nil, fmt.Errorf("shared appointment fence is terminal: %s", status)
+	}
+	for _, hold := range holds {
+		if hold.Status != status {
+			return nil, fmt.Errorf("shared appointment fences have mixed lifecycle states")
+		}
+	}
+	return holds, nil
+}
+
+func sharedTokens(holds []sharedreservation.Reservation) []sharedreservation.Fence {
+	out := make([]sharedreservation.Fence, len(holds))
+	for i, hold := range holds {
+		out[i] = sharedreservation.Fence{ID: hold.ID, Token: hold.Fence}
+	}
+	return out
+}
+
+func (l *ReservationLedger) commitShared(id string, now time.Time) error {
+	_, err := l.shared.CommitBatch(sharedTokens(l.fences[id]), now)
+	return err
+}
+
+func (l *ReservationLedger) releaseShared(id string, now time.Time) error {
+	_, err := l.shared.ReleaseBatch(sharedTokens(l.fences[id]), now)
+	return err
+}
+
+func (l *ReservationLedger) expireShared(id string, now time.Time) error {
+	_, err := l.shared.ExpireBatch(sharedTokens(l.fences[id]), now)
+	return err
+}
+
+func (l *ReservationLedger) rescheduleShared(id string, slot values.EffectiveInterval, now time.Time) error {
+	start, hasStart := slot.StartInstant()
+	end, hasEnd := slot.EndInstant()
+	if !hasStart || !hasEnd {
+		return sharedreservation.ErrInvalidInterval
+	}
+	updated, err := l.shared.UpdateIntervalBatch(sharedTokens(l.fences[id]), sharedreservation.Interval{From: start.Time(), To: end.Time()}, now)
+	if err != nil {
+		return err
+	}
+	l.fences[id] = updated
+	return nil
 }
 
 // requestState names the lifecycle state observed by validation.
@@ -328,7 +423,16 @@ func (l *ReservationLedger) Reserve(req Requirement, r ReservationRequest, now t
 		ExpiresAt:          expiresAt,
 	}
 	res.Digest = res.computedDigest()
+	shared, err := l.acquireShared(res, now)
+	if err != nil {
+		return Reservation{}, conflictReservation("shared_fence", "CONFLICT", version, err.Error())
+	}
+	if len(shared) > 0 && shared[0].Status == sharedreservation.Committed {
+		res.State = ReservationConfirmed
+		res.Digest = res.computedDigest()
+	}
 	l.holds[id] = res
+	l.fences[id] = shared
 	return res, nil
 }
 
@@ -358,7 +462,7 @@ func (l *ReservationLedger) Active() int {
 
 // Release frees a HELD reservation without deleting its record. Any other
 // state is a fenced refusal and the record is unchanged.
-func (l *ReservationLedger) Release(id string) (Reservation, error) {
+func (l *ReservationLedger) Release(id string, now time.Time) (Reservation, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	res, ok := l.holds[id]
@@ -367,6 +471,9 @@ func (l *ReservationLedger) Release(id string) (Reservation, error) {
 	}
 	if res.State != ReservationHeld {
 		return Reservation{}, stateConflict("state", string(res.State), res.RequirementVersion, fmt.Sprintf("only a HELD reservation can release, not %s", res.State))
+	}
+	if err := l.releaseShared(id, now); err != nil {
+		return Reservation{}, stateConflict("state", "STALE_FENCE", res.RequirementVersion, err.Error())
 	}
 	res.State = ReservationReleased
 	res.Digest = res.computedDigest()
@@ -388,6 +495,9 @@ func (l *ReservationLedger) Expire(id string, now time.Time) (Reservation, error
 	}
 	if values.NewInstant(now).Compare(res.ExpiresAt) < 0 {
 		return Reservation{}, stateConflict("state", string(res.State), res.RequirementVersion, "the hold has not reached its expiry yet")
+	}
+	if err := l.expireShared(id, now); err != nil {
+		return Reservation{}, stateConflict("state", "STALE_FENCE", res.RequirementVersion, err.Error())
 	}
 	res.State = ReservationExpired
 	res.Digest = res.computedDigest()

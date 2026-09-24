@@ -175,19 +175,6 @@ func TestLowerDataOpsImportRefusals(t *testing.T) {
 		mutate  func(*adapters.DataOpsTransform)
 		feature string
 	}{
-		{"trim", adapters.DataOpsTransformTrim, nil, adapters.FeatureStringNormalization},
-		{"upper", adapters.DataOpsTransformCaseUpper, nil, adapters.FeatureStringNormalization},
-		{"lower", adapters.DataOpsTransformCaseLower, nil, adapters.FeatureStringNormalization},
-		{"lookup", adapters.DataOpsTransformLookup, func(tr *adapters.DataOpsTransform) {
-			tr.Crosswalk = map[string]string{"east": "BAND_E"}
-			tr.CrosswalkVersion = "crosswalk.region_band/v1"
-		}, adapters.FeatureCrosswalkLookup},
-		{"money parse", adapters.DataOpsTransformMoneyParse, func(tr *adapters.DataOpsTransform) {
-			tr.Currency = "USD"
-		}, adapters.FeatureMoneyParse},
-		{"non-RFC3339 date layout", adapters.DataOpsTransformDateParse, func(tr *adapters.DataOpsTransform) {
-			tr.Layout = "2006-01-02"
-		}, adapters.FeatureLayoutDateParse},
 		{"empty constant", adapters.DataOpsTransformConstant, nil, adapters.FeatureEmptyLiteral},
 	}
 	for _, tc := range cases {
@@ -214,7 +201,7 @@ func TestLowerDataOpsImportRefusals(t *testing.T) {
 		})
 	}
 
-	t.Run("the whole DataOps fixture spec, whose lookup and money fields refuse", func(t *testing.T) {
+	t.Run("the whole DataOps fixture spec lowers lookup and money fields", func(t *testing.T) {
 		profile, err := importing.Compile(dataOpsCatalog(t), importing.MappingSpecInput{
 			Version: "mapping.acme.workers/v1",
 			Fields: []importing.FieldMapping{
@@ -226,10 +213,8 @@ func TestLowerDataOpsImportRefusals(t *testing.T) {
 		if err != nil {
 			t.Fatalf("importing.Compile: %v", err)
 		}
-		_, err = adapters.LowerDataOpsImport(importMappingFrom(profile))
-		var refusal adapters.Refusal
-		if !errors.As(err, &refusal) || refusal.Feature != adapters.FeatureCrosswalkLookup {
-			t.Fatalf("error = %v, want a crosswalk_lookup refusal", err)
+		if _, err = adapters.LowerDataOpsImport(importMappingFrom(profile)); err != nil {
+			t.Fatalf("LowerDataOpsImport: %v", err)
 		}
 	})
 }
@@ -246,7 +231,7 @@ func TestDataOpsDivergences(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lower: %v", err)
 	}
-	for _, feature := range []string{"missing_source_column", "failed_transform_reporting", "identity_field_grouping", "whitespace_trim"} {
+	for _, feature := range []string{"missing_source_column", "failed_transform_reporting", "identity_field_grouping"} {
 		assertDivergence(t, lowered.Divergences, feature)
 	}
 
@@ -301,7 +286,7 @@ func TestDataOpsDivergences(t *testing.T) {
 		}
 	})
 
-	t.Run("whitespace: the site trims a date cell, the lowering does not", func(t *testing.T) {
+	t.Run("whitespace date parsing has identical shared semantics", func(t *testing.T) {
 		header := []string{"title_raw", "currency_raw", "expiry_raw"}
 		batch := stageDataOpsBatch(t, header, [][]string{{"Staff Engineer", "x", " 2026-06-30T23:59:59Z "}})
 		applied, err := profile.Apply(header, batch.Rows()[0])
@@ -314,11 +299,19 @@ func TestDataOpsDivergences(t *testing.T) {
 			}
 		}
 		const prefix = "dataops.import_mapping.mapping.acme.workers.lowered/v1.source."
-		if _, err := lowered.Run([]map[string]string{{
+		rows, err := lowered.Run([]map[string]string{{
 			prefix + "title_raw":  "Staff Engineer",
 			prefix + "expiry_raw": " 2026-06-30T23:59:59Z ",
-		}}); err == nil {
-			t.Fatal("the lowered program accepted a padded timestamp; the declared divergence says it refuses")
+		}})
+		if err != nil {
+			t.Fatalf("lowered Run: %v", err)
+		}
+		texts, err := lowered.Texts(rows[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if texts["budget_reservation.expiry"] != "2026-06-30T23:59:59Z" {
+			t.Fatalf("padded date = %q", texts["budget_reservation.expiry"])
 		}
 	})
 }

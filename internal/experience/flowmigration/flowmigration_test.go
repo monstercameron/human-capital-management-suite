@@ -2,6 +2,7 @@ package flowmigration
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 )
@@ -61,17 +62,30 @@ func TestUserFlowDefinitionEvolutionPreservesActiveDraftTaskAndActionSemantics(t
 
 func TestTodo_UXFLOW_011_Property(t *testing.T) {
 	r, a, _ := published(t)
-	x := a
-	x.Actions[0].ID = "tamper"
-	got, _ := r.Definition("leave", a.Digest)
-	if got.Actions[0].ID != "submit" {
+	got, ok := r.Definition("leave", a.Digest)
+	if !ok {
+		t.Fatal("published definition not found")
+	}
+	got.States[0] = "tampered"
+	got.Actions[0].ID = "tampered"
+	again, ok := r.Definition("leave", a.Digest)
+	if !ok || again.States[0] != "draft" || again.Actions[0].ID != "submit" {
 		t.Fatal("published definition was mutable")
 	}
 }
 func TestTodo_UXFLOW_011_Golden(t *testing.T) {
-	_, a, b := published(t)
-	if a.Digest == "" || a.Digest == b.Digest {
-		t.Fatal("content identity not distinct")
+	r := NewRegistry()
+	d := def(1, "submit")
+	a, err := r.Publish(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := r.Publish(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Digest == "" || a.Digest != b.Digest || len(a.Digest) != 64 || a.Version != 1 || a.Actions[0] != (Action{ID: "submit", Semantic: "submit leave"}) {
+		t.Fatalf("published artifact identity/content changed: first=%+v second=%+v", a, b)
 	}
 }
 func TestTodo_UXFLOW_011_Race(t *testing.T) {
@@ -79,8 +93,31 @@ func TestTodo_UXFLOW_011_Race(t *testing.T) {
 	if err := r.Activate("leave", a.Digest, Review{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.Activate("leave", b.Digest, review()); err != nil {
-		t.Fatal(err)
+	var wg sync.WaitGroup
+	errs := make(chan error, 16)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); errs <- r.Activate("leave", b.Digest, review()) }()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			d, ok := r.Active("leave")
+			if !ok || (d.Digest != a.Digest && d.Digest != b.Digest) {
+				errs <- errors.New("active snapshot is invalid")
+				return
+			}
+			errs <- nil
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, ok := r.Active("leave"); !ok || got.Digest != b.Digest {
+		t.Fatalf("successor not active: %+v ok=%v", got, ok)
 	}
 }
 func TestTodo_UXFLOW_011_Fault(t *testing.T) {

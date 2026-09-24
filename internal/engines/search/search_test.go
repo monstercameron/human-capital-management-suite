@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -171,6 +172,68 @@ func freezeFixture(t *testing.T) FrozenSelection {
 		t.Fatal(err)
 	}
 	return frozen
+}
+
+func rev038LargeFreezeFixture(t *testing.T, count int) FrozenSelection {
+	t.Helper()
+	e := envelope(t)
+	results := make([]Result, count)
+	selected := make([]values.EntityRef, count)
+	for i := range results {
+		subject := values.EntityRef{Tenant: searchTenant, Kind: "worker", Id: fmt.Sprintf("018f5a2e-6b3a-7c3a-8b7a-%012x", i+1)}
+		selected[i] = subject
+		results[i] = Result{Subject: subject, SourceDigest: "source:" + subject.Id, PolicyDigest: e.PolicyDigest, AuthorizationEvidence: "authz:" + subject.Id, Watermark: e.MinimumWatermark}
+	}
+	frozen, err := FreezeAuthorized(FreezeRequest{
+		Envelope: e, Results: results, Selected: selected, Definition: populationDefinition(),
+		RevisionVersion: "revision.v1", Versions: versions(), AsOf: e.EffectiveAt, KnownAt: e.KnownAt,
+		Watermarks: map[population.SubjectKind]values.Instant{population.SubjectWorker: e.MinimumWatermark},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return frozen
+}
+
+func TestTodo_REV_038_02(t *testing.T) {
+	frozen := rev038LargeFreezeFixture(t, 600)
+	if err := frozen.Validate(); err != nil {
+		t.Fatalf("600-member selection failed paginated validation: %v", err)
+	}
+	action, err := PrepareAction(context.Background(), frozen, ActionTemplate{ID: "promotion.change", Version: "v1", MaxMembers: 1000}, searchInstant(t, 110), ActionGovernanceFunc(authorizeAction))
+	if err != nil {
+		t.Fatalf("PrepareAction: %v", err)
+	}
+	if len(action.Children) != 600 || action.EffectAuthorized {
+		t.Fatalf("paginated selection children=%d effect_authorized=%v, want 600 and false", len(action.Children), action.EffectAuthorized)
+	}
+	seen := make(map[string]bool, len(action.Children))
+	for _, child := range action.Children {
+		id := child.Subject.String()
+		if seen[id] {
+			t.Fatalf("duplicate child subject %s", id)
+		}
+		seen[id] = true
+	}
+}
+
+func TestTodo_REV_038_02_Security(t *testing.T) {
+	frozen := rev038LargeFreezeFixture(t, 4)
+	protected := frozen
+	protected.Snapshot.MembershipProtected = true
+	protectedErr := protected.Validate()
+	if !errors.Is(protectedErr, ErrInvalidFreeze) {
+		t.Fatalf("protected membership err=%v, want ErrInvalidFreeze", protectedErr)
+	}
+	inconsistent := frozen
+	inconsistent.Snapshot.Count = values.Value(2)
+	inconsistentErr := inconsistent.Validate()
+	if !errors.Is(inconsistentErr, ErrInvalidFreeze) {
+		t.Fatalf("inconsistent count err=%v, want ErrInvalidFreeze", inconsistentErr)
+	}
+	if protectedErr.Error() != inconsistentErr.Error() {
+		t.Fatalf("population refusal differs by protected/count state: %q vs %q", protectedErr, inconsistentErr)
+	}
 }
 
 func authorizeAction(_ context.Context, req ActionRequest) (GovernanceDecision, error) {

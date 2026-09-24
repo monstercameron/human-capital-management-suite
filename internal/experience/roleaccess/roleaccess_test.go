@@ -179,6 +179,68 @@ func TestPagePermissionsAreAdditiveAndKeepCRUDIndependent(t *testing.T) {
 	}
 }
 
+func TestTodo_REV_075_02_PagePermissionDefaults(t *testing.T) {
+	defaults := Snapshot{PagePermissions: DefaultPagePermissions()}
+	for _, role := range []string{"manager", "hr_partner", "hiring_manager", "payroll_manager"} {
+		permissions := EffectivePagePermissions(defaults, []string{role})
+		if !CanPageAction(permissions, "review-participants", ActionView) {
+			t.Errorf("%s cannot view the review-participant page", role)
+		}
+		for _, action := range []string{ActionCreate, ActionUpdate, ActionDelete} {
+			if CanPageAction(permissions, "review-participants", action) {
+				t.Errorf("%s gained %s access to the read-only review-participant page", role, action)
+			}
+		}
+	}
+	for _, role := range []string{"worker_self", "finance_partner"} {
+		if CanPageAction(EffectivePagePermissions(defaults, []string{role}), "review-participants", ActionView) {
+			t.Errorf("%s unexpectedly gained access to the manager-only review-participant page", role)
+		}
+	}
+	for _, role := range []string{"hcm_admin", "comp_admin"} {
+		permissions := EffectivePagePermissions(defaults, []string{role})
+		if !CanPageAction(permissions, "review-participants", ActionView) {
+			t.Errorf("%s cannot view the review-participant page", role)
+		}
+		for _, action := range []string{ActionCreate, ActionUpdate, ActionDelete} {
+			if CanPageAction(permissions, "review-participants", action) {
+				t.Errorf("%s gained %s access to the read-only review-participant page", role, action)
+			}
+		}
+	}
+}
+
+func TestTodo_REV_076_03_PositionPagePermissionDefaults(t *testing.T) {
+	defaults := Snapshot{PagePermissions: DefaultPagePermissions()}
+	for _, role := range []string{"worker_self", "manager", "hr_partner", "hiring_manager", "payroll_manager"} {
+		permissions := EffectivePagePermissions(defaults, []string{role})
+		for _, page := range []string{"position-object", "position-occupancy"} {
+			if !CanPageAction(permissions, page, ActionView) {
+				t.Errorf("%s cannot view the %s page", role, page)
+			}
+			if CanPageAction(permissions, page, ActionCreate) || CanPageAction(permissions, page, ActionUpdate) || CanPageAction(permissions, page, ActionDelete) {
+				t.Errorf("%s gained mutation access to the read-only %s page", role, page)
+			}
+		}
+	}
+	for _, role := range []string{"hcm_admin", "comp_admin"} {
+		permissions := EffectivePagePermissions(defaults, []string{role})
+		for _, page := range []string{"position-object", "position-occupancy"} {
+			if !CanPageAction(permissions, page, ActionView) {
+				t.Errorf("%s cannot view the %s page admitted by the administrator policy", role, page)
+			}
+			for _, action := range []string{ActionCreate, ActionUpdate, ActionDelete} {
+				if CanPageAction(permissions, page, action) {
+					t.Errorf("%s gained %s access to the read-only %s page", role, action, page)
+				}
+			}
+		}
+	}
+	if CanPageAction(EffectivePagePermissions(defaults, []string{"finance_partner"}), "position-object", ActionView) {
+		t.Fatal("finance_partner unexpectedly gained access to the worker-audience position page")
+	}
+}
+
 type testStore struct{}
 
 func (*testStore) Bootstrap(context.Context, values.TenantId, string) error { return nil }

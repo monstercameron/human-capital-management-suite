@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/payroll"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/sod"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/stepup"
@@ -32,18 +33,34 @@ func releaseLimits(t *testing.T) ReleaseLimits {
 
 func releaseBatch(t *testing.T) PaymentReleaseBatch {
 	t.Helper()
+	run := releasedRun(t)
 	a := validInstruction(t)
 	bSpec := instructionSpec("instruction-2")
 	bSpec.PayeeRef = "worker:payee-2"
-	b, err := NewPaymentInstruction(releasedRun(t), bSpec)
+	bSpec.PaymentMethodElection = settlementElection(bSpec.PayeeRef, bSpec.BankDetailRef)
+	b, err := NewPaymentInstruction(run, bSpec)
 	if err != nil {
 		t.Fatal(err)
 	}
-	batch, err := NewPaymentReleaseBatch("batch-1", values.TenantId("tenant-1"), []PaymentInstruction{a, b}, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", releaseLimits(t))
+	population := releasePopulation(t, run, "worker:payee-1", "worker:payee-2")
+	batch, err := NewPaymentReleaseBatch("batch-1", values.TenantId("tenant-1"), []PaymentInstruction{a, b}, run, "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", population, releaseLimits(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return batch
+}
+
+func releasePopulation(t *testing.T, run payroll.PayrollRun, workers ...string) payroll.FrozenPopulation {
+	t.Helper()
+	members := make([]payroll.PopulationMember, 0, len(workers))
+	for _, worker := range workers {
+		members = append(members, payroll.PopulationMember{WorkerRef: worker, EmploymentRef: "employment:" + worker, PayGroupRef: run.PayGroupRef})
+	}
+	population, err := payroll.FreezePopulation(run, values.NewInstant(time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC)), members, payroll.LateEntryPolicyExclude)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return population
 }
 
 func releaseRequest(t *testing.T) PaymentReleaseAuthorizationRequest {
@@ -165,6 +182,18 @@ func TestTodo_SETTLE_003_Fault(t *testing.T) {
 	}
 }
 
+func TestTodo_REV_044_01_Security(t *testing.T) {
+	req := releaseRequest(t)
+	_, err := NewPaymentReleaseBatch("batch-omitted-worker", req.Batch.TenantID, req.Batch.Instructions[:1], req.Batch.PayrollRun, req.Batch.FundingDigest, req.Batch.Population, req.Batch.Limits)
+	if !errors.Is(err, ErrInvalidReleaseBatch) {
+		t.Fatalf("batch omitted an affected worker from its authoritative population: %v", err)
+	}
+	req.Batch.Instructions[0].PaymentMethodElection.Consented = false
+	if _, err := AuthorizePaymentRelease(req); !errors.Is(err, ErrReleaseRejected) || !errors.Is(err, ErrInvalidReleaseBatch) {
+		t.Fatalf("release authorization accepted an unconsented payment election: %v", err)
+	}
+}
+
 func TestTodo_SETTLE_003_Mutation(t *testing.T) {
 	req := releaseRequest(t)
 	d, err := AuthorizePaymentRelease(req)
@@ -176,12 +205,13 @@ func TestTodo_SETTLE_003_Mutation(t *testing.T) {
 	changedBatch.PayeeDigest = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 	changedBatch.CanonicalDigest = changedBatch.digest()
 	req.Batch = changedBatch
-	if _, err := AuthorizePaymentRelease(req); !errors.Is(err, ErrPayeeChanged) {
-		t.Fatalf("changed payee was accepted: %v", err)
+	if _, err := AuthorizePaymentRelease(req); !errors.Is(err, ErrInvalidReleaseBatch) {
+		t.Fatalf("independently changed payee digest was accepted: %v", err)
 	}
 	if d.BatchDigest != originalBatchDigest || d.Validate() != nil {
 		t.Fatal("accepted decision was mutated by a later request")
 	}
+	req = releaseRequest(t)
 	amountChanged := req.Batch
 	amountChanged.InstructionAmounts[0] = releaseDecimal(t, "126.00")
 	amountChanged.InstructionDigest = instructionSetDigest(amountChanged.InstructionDigests, amountChanged.InstructionAmounts)

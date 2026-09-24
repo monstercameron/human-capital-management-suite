@@ -1,11 +1,15 @@
 package paymethod
 
 import (
+	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/payroll"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/settlement"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -18,6 +22,140 @@ func payMethodInterval(t *testing.T) values.EffectiveInterval {
 		t.Fatal(err)
 	}
 	return iv
+}
+
+func TestTodo_REV_044_01(t *testing.T) {
+	policy := SettlementPolicy{Jurisdiction: "US-CA", RulePackRef: "rules:ca-v1", PaperCheckAllowed: true, PayCardAllowed: true, PayCardFeeDisclosureRequired: true}
+	for _, tc := range []struct {
+		method ElectionMethod
+		rail   Rail
+		ref    string
+	}{
+		{MethodPaperCheck, RailCheck, "check-delivery:worker-1"},
+		{MethodPayCard, RailPayCard, "card-token:worker-1"},
+	} {
+		e := PaymentMethodElection{ElectionID: "election-1", WorkerRef: "worker-1", Method: tc.method, Consented: true, ConsentEvidenceRef: "consent:event-1", InstrumentRef: tc.ref, Jurisdiction: policy.Jurisdiction, RulePackRef: policy.RulePackRef, FeeDisclosureRef: "disclosure:event-1"}
+		resolved, err := ResolvePaymentMethod(e, policy)
+		if err != nil {
+			t.Fatalf("resolve %s: %v", tc.method, err)
+		}
+		if resolved.Rail != tc.rail || resolved.ElectionDigest != e.Digest() || resolved.PolicyDigest != policy.Digest() {
+			t.Fatalf("resolution = %+v", resolved)
+		}
+		run, err := payroll.NewPayrollRun("run-rev044", "monthly", payroll.PeriodRef{ID: "p", Version: "v1", Digest: "period"}, payroll.PopulationBindingRef{DefinitionID: "pop", RevisionVersion: "v1", Digest: "population"}, "inputs")
+		if err != nil {
+			t.Fatal(err)
+		}
+		run, err = run.Calculate("calculation")
+		if err != nil {
+			t.Fatal(err)
+		}
+		run, err = run.Release("release")
+		if err != nil {
+			t.Fatal(err)
+		}
+		amount := values.MustDecimal("25.00", 2, values.RoundingExactRequired)
+		instruction, err := settlement.NewPaymentInstruction(run, settlement.PaymentInstructionSpec{InstructionID: "i-1", PayeeRef: e.WorkerRef, Amount: amount, Currency: "USD", FundingSourceRef: "funding:1", Rail: resolved.Rail, PaymentMethodElection: e, SettlementPolicy: policy, InstrumentRef: resolved.InstrumentRef, ScheduleRef: "schedule:1"})
+		if err != nil {
+			t.Fatalf("construct instruction: %v", err)
+		}
+		wantAction := settlement.ActionPrintCheck
+		if tc.rail == RailPayCard {
+			wantAction = settlement.ActionLoadPayCard
+		}
+		if instruction.FulfillmentAction() != wantAction {
+			t.Fatalf("fulfillment action = %s, want %s", instruction.FulfillmentAction(), wantAction)
+		}
+		if _, err := settlement.NewJournal().Submit(context.Background(), settlement.SubmitRequest{Instruction: instruction}, nil); !errors.Is(err, settlement.ErrManualFulfillmentRequired) {
+			t.Fatalf("non-electronic rail was sent to provider journal: %v", err)
+		}
+		population := rev044Population(t, run, e.WorkerRef)
+		batch, err := settlement.NewPaymentReleaseBatch("batch-"+string(tc.method), values.TenantId("tenant-1"), []settlement.PaymentInstruction{instruction}, run, "funding-digest", population, rev044ReleaseLimits())
+		if err != nil || batch.Validate() != nil {
+			t.Fatalf("validated election did not survive release batch construction: batch=%+v err=%v", batch, err)
+		}
+		forged := batch
+		forged.Instructions = append([]settlement.PaymentInstruction(nil), batch.Instructions...)
+		forged.Instructions[0].PaymentMethodElection.Consented = false
+		if err := forged.Validate(); !errors.Is(err, settlement.ErrInvalidReleaseBatch) {
+			t.Fatalf("release batch accepted revoked consent: %v", err)
+		}
+		requirements := instruction.FulfillmentRequirements()
+		if tc.rail == RailCheck {
+			if len(requirements) != 2 || requirements[0] != settlement.ActionPrintCheck || requirements[1] != settlement.ActionVoidReissueCheck {
+				t.Fatalf("check requirements = %v", requirements)
+			}
+		} else if len(requirements) != 1 || requirements[0] != settlement.ActionLoadPayCard {
+			t.Fatalf("pay-card requirements = %v", requirements)
+		}
+	}
+}
+
+func rev044Population(t *testing.T, run payroll.PayrollRun, workers ...string) payroll.FrozenPopulation {
+	t.Helper()
+	members := make([]payroll.PopulationMember, 0, len(workers))
+	for _, worker := range workers {
+		members = append(members, payroll.PopulationMember{WorkerRef: worker, EmploymentRef: "employment:" + worker, PayGroupRef: run.PayGroupRef})
+	}
+	population, err := payroll.FreezePopulation(run, values.NewInstant(time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC)), members, payroll.LateEntryPolicyExclude)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return population
+}
+
+func rev044ReleaseLimits() settlement.ReleaseLimits {
+	limit := values.MustDecimal("1000.00", 2, values.RoundingExactRequired)
+	return settlement.ReleaseLimits{MaxBatchAmount: limit, MaxInstructionAmount: limit, Currency: "USD"}
+}
+
+func TestTodo_REV_044_01_Property(t *testing.T) {
+	policy := SettlementPolicy{Jurisdiction: "US-CA", RulePackRef: "rules:ca-v1", PaperCheckAllowed: true, PayCardAllowed: true}
+	base := PaymentMethodElection{ElectionID: "e-1", WorkerRef: "w-1", Method: MethodPaperCheck, Consented: true, ConsentEvidenceRef: "consent:1", InstrumentRef: "check:1", Jurisdiction: policy.Jurisdiction, RulePackRef: policy.RulePackRef}
+	first, err := ResolvePaymentMethod(base, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := ResolvePaymentMethod(base, policy)
+	if err != nil || first != second {
+		t.Fatalf("resolution not deterministic: first=%+v second=%+v err=%v", first, second, err)
+	}
+	changed := base
+	changed.InstrumentRef = "check:2"
+	third, err := ResolvePaymentMethod(changed, policy)
+	if err != nil || third.ElectionDigest == first.ElectionDigest {
+		t.Fatalf("instrument change was not bound: %+v err=%v", third, err)
+	}
+}
+
+func TestTodo_REV_044_01_Security(t *testing.T) {
+	policy := SettlementPolicy{Jurisdiction: "US-CA", RulePackRef: "rules:ca-v1", PaperCheckAllowed: true, PayCardAllowed: true, PayCardFeeDisclosureRequired: true}
+	e := PaymentMethodElection{ElectionID: "e-1", WorkerRef: "w-1", Method: MethodPayCard, Consented: true, ConsentEvidenceRef: "consent:1", InstrumentRef: "card:1", Jurisdiction: policy.Jurisdiction, RulePackRef: policy.RulePackRef}
+	if _, err := ResolvePaymentMethod(e, policy); !errors.Is(err, ErrInvalidElection) {
+		t.Fatalf("missing fee disclosure = %v", err)
+	}
+	noConsent := e
+	noConsent.Method = MethodPaperCheck
+	noConsent.Consented = false
+	noConsent.FeeDisclosureRef = ""
+	if _, err := ResolvePaymentMethod(noConsent, policy); !errors.Is(err, ErrInvalidElection) {
+		t.Fatalf("release path accepted missing fallback consent: %v", err)
+	}
+	e.FeeDisclosureRef = "fees:accepted"
+	e.Consented = false
+	if _, err := ResolvePaymentMethod(e, policy); !errors.Is(err, ErrInvalidElection) {
+		t.Fatalf("missing consent = %v", err)
+	}
+	e.Consented = true
+	e.RulePackRef = "rules:untrusted"
+	if _, err := ResolvePaymentMethod(e, policy); !errors.Is(err, ErrInvalidElection) {
+		t.Fatalf("mismatched rule pack = %v", err)
+	}
+	e.RulePackRef = policy.RulePackRef
+	policy.DirectDepositRequired = true
+	if _, err := ResolvePaymentMethod(e, policy); !errors.Is(err, ErrInvalidElection) {
+		t.Fatalf("fallback bypassed direct-deposit rule = %v", err)
+	}
 }
 
 func payMethodInstant(t *testing.T, seconds int64) values.Instant {
@@ -83,7 +221,26 @@ func TestTodo_PAYMETHOD_001_Golden(t *testing.T) {
 		t.Fatal("destination digest is not tagged")
 	}
 }
-func TestTodo_PAYMETHOD_001_Race(t *testing.T) { _ = validDestination(t, "dest-1") }
+func TestTodo_PAYMETHOD_001_Race(t *testing.T) {
+	destination := validDestination(t, "dest-1")
+	const workers = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := destination.Validate(); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Errorf("concurrent destination validation: %v", err)
+	}
+}
 func TestTodo_PAYMETHOD_001_Fault(t *testing.T) {
 	if _, err := NewDestination(Destination{}); err == nil {
 		t.Fatal("empty destination was accepted")

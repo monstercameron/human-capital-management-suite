@@ -2,9 +2,12 @@ package labor
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/attendance"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -22,8 +25,60 @@ func wageRequest(t *testing.T) WageRequest {
 		RegularHours:      laborDecimal(t, "40.00"),
 		OvertimeHours:     laborDecimal(t, "5.00"),
 		DifferentialHours: laborDecimal(t, "8.00"),
+		PremiumHours:      laborDecimal(t, "0.00"),
+		PremiumRate:       laborDecimal(t, "40.00"),
+		PremiumRuleRef:    laborRef("meal-rest-premium"),
 		AmountScale:       2,
 		Rounding:          values.RoundingHalfUp,
+	}
+}
+
+func TestTodo_REV_045_01(t *testing.T) {
+	req := wageRequest(t)
+	req.PremiumHours = laborDecimal(t, "3.00")
+	req.PremiumRate = laborDecimal(t, "45.00")
+	got, err := CalculateWages(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PremiumPay.String() != "135.00" || got.TotalPay.String() != "2055.00" {
+		t.Fatalf("premium=%s total=%s", got.PremiumPay, got.TotalPay)
+	}
+	if err := got.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	got.PremiumPay = laborDecimal(t, "0.00")
+	if err := got.Validate(); !errors.Is(err, ErrWageRejected) {
+		t.Fatalf("tampered premium err=%v", err)
+	}
+	missingRate := wageRequest(t)
+	missingRate.PremiumHours = laborDecimal(t, "1.00")
+	missingRate.PremiumRate = values.Decimal{}
+	if _, err := CalculateWages(missingRate); !errors.Is(err, ErrWageRejected) {
+		t.Fatalf("missing regular premium rate err=%v", err)
+	}
+}
+
+func TestTodo_REV_045_01_AttendanceToLabor(t *testing.T) {
+	findings := []attendance.Finding{{Kind: attendance.MealException, ShiftID: "s1"}, {Kind: attendance.MealException, ShiftID: "s2"}, {Kind: attendance.BreakException, ShiftID: "s1"}}
+	lines, state, err := attendance.CalculateBreakPremiums(attendance.Result{Outcome: attendance.Exception, Exceptions: findings}, "US-CA", attendance.PremiumRule{JurisdictionCode: "US-CA", RuleRef: attendance.VersionedRef{ID: "ca-premium", Version: "2026"}, MealHours: 1, RestHours: 1, MaxMealPerWorkday: 1, MaxRestPerWorkday: 1}, map[string]string{"s1": "d1", "s2": "d2"})
+	if err != nil || state != attendance.Exception || len(lines) != 3 {
+		t.Fatalf("attendance lines=%+v state=%s err=%v", lines, state, err)
+	}
+	hours := 0
+	for _, line := range lines {
+		hours += line.Hours
+	}
+	req := wageRequest(t)
+	req.PremiumHours = laborDecimal(t, fmt.Sprintf("%d.00", hours))
+	req.PremiumRate = laborDecimal(t, "45.00")
+	req.PremiumRuleRef = laborRef("ca-premium")
+	got, err := CalculateWages(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hours != 3 || got.PremiumPay.String() != "135.00" || got.PremiumRuleRef.ID != "ca-premium" {
+		t.Fatalf("hours=%d wage=%+v", hours, got)
 	}
 }
 

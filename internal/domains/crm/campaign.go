@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/popscale"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/population"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -121,6 +122,7 @@ func (c CampaignRevision) Validate() error {
 	return sameTenant(c.CampaignID, c.Pool.PoolID, c.ContentRef)
 }
 func (s SuppressionPolicy) Valid() bool { return s == SuppressExpired || s == SuppressExplicit }
+
 func (c CampaignRevision) computedDigest() (string, error) {
 	poolDigest, err := campaignPoolDigest(c.Pool)
 	if err != nil {
@@ -176,7 +178,10 @@ func NewCampaign(ctx context.Context, c CampaignRevision, verifier CampaignAudie
 	if err != nil {
 		return CampaignRevision{}, fmt.Errorf("%w: pool digest: %v", ErrInvalidCampaign, err)
 	}
-	claim := c.audienceClaim(c.Population.AsOf, poolDigest)
+	claim, err := c.audienceClaim(c.Population.AsOf, poolDigest)
+	if err != nil {
+		return CampaignRevision{}, ErrAudienceBlocked
+	}
 	if err := verifier.VerifyCampaignAudience(ctx, claim); err != nil {
 		return CampaignRevision{}, fmt.Errorf("%w: audience owner verification: %v", ErrAudienceBlocked, err)
 	}
@@ -194,18 +199,31 @@ func (c CampaignRevision) AuthorizeAudienceAt(ctx context.Context, at values.Ins
 	if err != nil {
 		return err
 	}
-	claim := c.audienceClaim(at, poolDigest)
+	claim, err := c.audienceClaim(at, poolDigest)
+	if err != nil {
+		return ErrAudienceBlocked
+	}
 	if err := verifier.VerifyCampaignAudience(ctx, claim); err != nil {
 		return fmt.Errorf("%w: current audience verification: %v", ErrAudienceBlocked, err)
 	}
 	return nil
 }
 
-func (c CampaignRevision) audienceClaim(at values.Instant, poolDigest string) CampaignAudienceClaim {
+func (c CampaignRevision) audienceClaim(at values.Instant, poolDigest string) (CampaignAudienceClaim, error) {
 	definition := c.PopulationDefinition
 	definition.Criteria.Root = cloneCampaignPredicate(definition.Criteria.Root)
 	snapshot := c.Population
-	snapshot.SubjectIDs = append([]string(nil), snapshot.SubjectIDs...)
+	snapshot.SubjectIDs = nil
+	session, err := popscale.NewSession(c.Population, popscale.Caller{MembershipDisclosed: true}, 256)
+	if err != nil {
+		return CampaignAudienceClaim{}, err
+	}
+	if err := session.Walk(func(page popscale.Page) error {
+		snapshot.SubjectIDs = append(snapshot.SubjectIDs, page.Subjects...)
+		return nil
+	}); err != nil {
+		return CampaignAudienceClaim{}, err
+	}
 	if snapshot.Watermarks != nil {
 		watermarks := make(map[population.SubjectKind]values.Instant, len(snapshot.Watermarks))
 		for kind, watermark := range snapshot.Watermarks {
@@ -213,7 +231,7 @@ func (c CampaignRevision) audienceClaim(at values.Instant, poolDigest string) Ca
 		}
 		snapshot.Watermarks = watermarks
 	}
-	return CampaignAudienceClaim{Tenant: c.CampaignID.Tenant, Purpose: c.Purpose, PoolID: c.Pool.PoolID, PoolRevision: c.Pool.Revision, PoolDigest: poolDigest, PopulationOwner: definition.Owner, PopulationDefinitionID: snapshot.DefinitionID, PopulationDefinitionDigest: snapshot.DefinitionDigest, PopulationRevision: snapshot.RevisionVersion, PopulationDigest: snapshot.Digest, CampaignDigest: c.CanonicalDigest, At: at, Pool: c.Pool, Definition: definition, Snapshot: snapshot}
+	return CampaignAudienceClaim{Tenant: c.CampaignID.Tenant, Purpose: c.Purpose, PoolID: c.Pool.PoolID, PoolRevision: c.Pool.Revision, PoolDigest: poolDigest, PopulationOwner: definition.Owner, PopulationDefinitionID: snapshot.DefinitionID, PopulationDefinitionDigest: snapshot.DefinitionDigest, PopulationRevision: snapshot.RevisionVersion, PopulationDigest: snapshot.Digest, CampaignDigest: c.CanonicalDigest, At: at, Pool: c.Pool, Definition: definition, Snapshot: snapshot}, nil
 }
 
 func cloneCampaignPredicate(p population.Predicate) population.Predicate {

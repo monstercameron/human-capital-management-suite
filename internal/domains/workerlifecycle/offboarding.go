@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -105,10 +106,12 @@ type ClosePolicy struct {
 // evidence. Domain owners define closure evidence; the lifecycle reports it.
 type OffboardingTracker struct {
 	PlanDigest            string
+	Worker                values.EntityRef
 	Employment            values.EntityRef
 	EventDate             values.LocalDate
 	EmploymentCompleted   bool
 	EmploymentCompletedAt values.LocalDate
+	RehireEligibility     *people.RehireEligibility
 	ApprovalRevoked       bool
 	ApprovalRevocation    string
 	Closures              []DomainClosure
@@ -135,6 +138,7 @@ func BeginOffboarding(plan WorkerLifecyclePlan, expected map[ClosureDomain][]val
 	}
 	tracker := OffboardingTracker{
 		PlanDigest: plan.CanonicalDigest,
+		Worker:     plan.Worker,
 		Employment: plan.Employment,
 		EventDate:  plan.EventDate,
 	}
@@ -188,6 +192,30 @@ func CompleteEmployment(tracker OffboardingTracker, at values.LocalDate) (Offboa
 	next.EmploymentCompletedAt = at
 	next.Digest = canonicalbytes.Digest(next.body())
 	return next, nil
+}
+
+// CompleteEmploymentWithRehire records the governed rehire decision as part
+// of employment completion. The old CompleteEmployment entry point remains
+// available for callers that have not yet adopted rehire capture.
+func CompleteEmploymentWithRehire(tracker OffboardingTracker, at values.LocalDate, status people.RehireStatus, reason people.RehireReason, authorityRef string) (OffboardingTracker, error) {
+	if tracker.EmploymentCompleted {
+		return OffboardingTracker{}, errors.Join(ErrOffboardingRejected, errors.New("employment history is already complete"))
+	}
+	completed, err := CompleteEmployment(tracker, at)
+	if err != nil {
+		return OffboardingTracker{}, err
+	}
+	record := people.RehireEligibility{
+		Worker: tracker.Worker, Employment: tracker.Employment,
+		Status: status, Reason: reason, EffectiveAt: at, RecordedAt: at,
+		Revision: 1, AuthorityRef: authorityRef,
+	}
+	if err := record.Validate(); err != nil {
+		return OffboardingTracker{}, errors.Join(ErrOffboardingRejected, err)
+	}
+	completed.RehireEligibility = &record
+	completed.Digest = canonicalbytes.Digest(completed.body())
+	return completed, nil
 }
 
 // RevokeApproval records a withdrawn approval; close is blocked while set.
@@ -378,6 +406,9 @@ func (t OffboardingTracker) body() []byte {
 		Bool("approval_revoked", t.ApprovalRevoked).String("approval_revocation", t.ApprovalRevocation).
 		Bool("closed", t.Closed).Count("closures", len(t.Closures))
 	w.Optional("employment_completed_at", t.EmploymentCompleted, t.EmploymentCompletedAt)
+	if t.RehireEligibility != nil {
+		w.Value("worker", t.Worker).Value("rehire_eligibility", rehireEligibilityValue(t.RehireEligibility))
+	}
 	for _, closure := range t.Closures {
 		w.String("domain", string(closure.Domain)).String("state", string(closure.State)).
 			Count("expected", len(closure.Expected))
@@ -399,6 +430,13 @@ func (t OffboardingTracker) body() []byte {
 	return raw
 }
 
+func rehireEligibilityValue(record *people.RehireEligibility) people.RehireEligibility {
+	if record == nil {
+		return people.RehireEligibility{}
+	}
+	return *record
+}
+
 func closureEvidenceValue(evidence *ClosureEvidence) ClosureEvidence {
 	if evidence == nil {
 		return ClosureEvidence{}
@@ -417,6 +455,17 @@ func (t OffboardingTracker) Validate() error {
 	if t.EmploymentCompleted {
 		if err := t.EmploymentCompletedAt.Validate(); err != nil {
 			return fail("completion date: %v", err)
+		}
+	}
+	if t.RehireEligibility != nil {
+		if !t.EmploymentCompleted {
+			return fail("rehire eligibility exists before employment completion")
+		}
+		if err := t.RehireEligibility.Validate(); err != nil {
+			return fail("rehire eligibility: %v", err)
+		}
+		if t.RehireEligibility.Worker != t.Worker || t.RehireEligibility.Employment != t.Employment || t.RehireEligibility.EffectiveAt != t.EmploymentCompletedAt {
+			return fail("rehire eligibility does not match completed employment")
 		}
 	}
 	if len(t.Closures) == 0 {

@@ -50,8 +50,19 @@ func TestReadFailsClosedAuthorization(t *testing.T) {
 
 // Matrix coverage for ORG-001's named contract tests.
 func TestTodo_ORG_001(t *testing.T) {
-	TestReadAsOfAndScopeClosure(t)
-	TestValidateRejectsCycleDuplicateAndCrossTenant(t)
+	at := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	snapshot := Snapshot{Tenant: "t1", Watermark: "org:v7", Units: []OrganizationUnit{org("root"), org("child"), org("other")}, Edges: []RelationshipEdge{edge("e1", "root", "child")}}
+	result, err := Read(snapshot, ReadRequest{Tenant: "t1", Root: "child", AsOf: at})
+	if err != nil || len(result.Units) != 2 || result.Watermark != "org:v7" {
+		t.Fatalf("scoped organization read = %+v, %v", result, err)
+	}
+	if err := snapshot.Validate(at); err != nil {
+		t.Fatalf("valid hierarchy rejected: %v", err)
+	}
+	cycle := Snapshot{Tenant: "t1", Units: []OrganizationUnit{org("a"), org("b")}, Edges: []RelationshipEdge{edge("ab", "a", "b"), edge("ba", "b", "a")}}
+	if err := cycle.Validate(at); !errors.Is(err, ErrCycle) {
+		t.Fatalf("cycle validation = %v, want ErrCycle", err)
+	}
 }
 
 func TestTodo_ORG_001_Golden(t *testing.T) {

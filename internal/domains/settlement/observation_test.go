@@ -43,7 +43,7 @@ func observeInstruction(t *testing.T, run payroll.PayrollRun, id string) Payment
 		InstructionID: id, PayeeRef: "payee-" + id,
 		Amount: values.MustDecimal("3140.22", 2, values.RoundingHalfUp), Currency: "USD",
 		FundingSourceRef: "fund-1", Rail: RailACH, BankDetailRef: "bank-1",
-		ScheduleRef: "sched-1",
+		ScheduleRef: "sched-1", PaymentMethodElection: settlementElection("payee-"+id, "bank-1"), SettlementPolicy: settlementPolicy(),
 	})
 	if err != nil {
 		t.Fatalf("NewPaymentInstruction: %v", err)

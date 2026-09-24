@@ -356,6 +356,12 @@ func Read(ctx context.Context, reader Reader, req Request) (Result, error) {
 	if set.Worker != req.Worker {
 		return Result{}, ErrSubjectMismatch
 	}
+	if !set.Exists {
+		// Keep an absent worker compensation record distinct from an existing
+		// record whose requested fields happen to be unknown. In particular,
+		// don't manufacture per-field facts or a watermark for an empty read.
+		return finish(Result{IntentType: ReadIntentType, IntentVersion: ReadIntentVersion, Worker: req.Worker, Disclosure: "FULL", Presence: "ABSENT", PolicyVersion: req.Authorization.PolicyVersion, RulePackVersion: ReadRulePackVersion, Effects: evidence.ZeroEffects()}, inputDigest)
+	}
 	by := map[FieldID]Fact{}
 	for _, f := range set.Facts {
 		if req.Authorization.Fields[f.Field].Effect != EffectAllow {

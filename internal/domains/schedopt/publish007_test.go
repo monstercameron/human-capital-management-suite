@@ -41,7 +41,7 @@ func TestTodo_SCHED_OPT_007(t *testing.T) {
 		if again.Digest != pub.Digest {
 			t.Fatalf("idempotent republish must agree: %+v", again)
 		}
-		changed, err := ApplyReview(schedopt006Schedule(), []ManualChange{
+		changed, err := ApplyPrepublicationReview(schedopt006Schedule(), []ManualChange{
 			{Kind: ChangeRemove, AssignmentID: "a-2", Reason: "sick", AuthorityRef: "scheduler:maya"},
 		}, "scheduler:maya", schedopt006At)
 		if err != nil {

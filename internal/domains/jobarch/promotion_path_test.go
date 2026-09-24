@@ -2,6 +2,7 @@ package jobarch
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -91,5 +92,74 @@ func TestPromotionPathRequiresVersionedPolicies(t *testing.T) {
 	p.CompensationPolicyRef = VersionedReference{}
 	if err := p.Validate(); !errors.Is(err, ErrInvalidPromotionPath) {
 		t.Fatalf("error = %v, want ErrInvalidPromotionPath", err)
+	}
+}
+
+func TestTodo_JOBARCH_004_Golden(t *testing.T) {
+	p := testPromotionPath(t)
+	digest, err := p.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "sha256:8e3edd4aedd4de1830b5192e4e84c26f8b59e725cc9c573c119d21c141fcd1e0"
+	if digest != want {
+		t.Fatalf("promotion path digest = %s, want %s", digest, want)
+	}
+}
+
+func TestTodo_JOBARCH_004_Property(t *testing.T) {
+	p := testPromotionPath(t)
+	for i := 0; i <= 20; i++ {
+		text := fmt.Sprintf("0.%04d", i*100)
+		increase := pathPercent(t, text)
+		err := p.AllowsBaseIncrease(increase)
+		if i >= 3 && i <= 15 {
+			if err != nil {
+				t.Fatalf("increase %s within [3%%,15%%] refused: %v", text, err)
+			}
+		} else if !errors.Is(err, ErrBaseIncreaseOutsidePath) {
+			t.Fatalf("increase %s outside [3%%,15%%] error = %v", text, err)
+		}
+	}
+}
+
+func TestTodo_JOBARCH_004_Security(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*PromotionPathRevision)
+	}{
+		{"missing_compensation_authority", func(p *PromotionPathRevision) { p.CompensationPolicyRef.Authority = "" }},
+		{"same_source_and_target", func(p *PromotionPathRevision) { p.To = p.From }},
+		{"inverted_guardrail", func(p *PromotionPathRevision) { p.MinimumBaseIncrease = pathPercent(t, "0.1600") }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := testPromotionPath(t)
+			tc.mutate(&p)
+			if err := p.Validate(); !errors.Is(err, ErrInvalidPromotionPath) {
+				t.Fatalf("Validate error = %v, want ErrInvalidPromotionPath", err)
+			}
+		})
+	}
+}
+
+func TestTodo_JOBARCH_004_Mutation(t *testing.T) {
+	original := testPromotionPath(t)
+	before, err := original.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := original
+	changed.To.Revision = "2"
+	after, err := changed.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("changing the pinned target revision did not change the digest")
+	}
+	unchanged, err := original.Digest()
+	if err != nil || unchanged != before {
+		t.Fatalf("digest of original path changed after mutating copy: %s, err=%v", unchanged, err)
 	}
 }

@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/pseudonym"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/approval"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/custody"
 )
 
@@ -101,6 +103,42 @@ func (d *recordingDeriver) Derive(ctx custody.Context, handle custody.Handle, la
 	return d.inner.Derive(ctx, handle, label)
 }
 
+type testRevelationAuthority struct {
+	revoked      map[string]bool
+	roleOverride string
+}
+
+func (a *testRevelationAuthority) ResolveRevelationApprover(_ custody.Context, d approval.ApprovalDecision) (pseudonym.VerifiedApprover, error) {
+	if a.revoked[d.DecisionID] {
+		return pseudonym.VerifiedApprover{}, errors.New("revoked")
+	}
+	principals := map[string]string{"decision:requester": "case-worker", "decision:custodian": "custodian-1", "decision:requester-alias": "case-worker", "decision:custodian-alias": "case-worker"}
+	principal, ok := principals[d.DecisionID]
+	if !ok {
+		return pseudonym.VerifiedApprover{}, errors.New("unknown decision")
+	}
+	role := "requester"
+	if d.DecisionID == "decision:custodian" {
+		role = "privacy-custodian"
+	}
+	if a.roleOverride != "" && d.DecisionID == "decision:requester" {
+		role = a.roleOverride
+	}
+	return pseudonym.VerifiedApprover{DecisionID: d.DecisionID, DecisionDigest: d.Digest(), PrincipalID: principal, Tenant: "tenant-1", Role: role}, nil
+}
+
+func testApproval(id, principal string, request pseudonym.RevelationRequest) approval.ApprovalDecision {
+	request.RequestedBy = "case-worker"
+	request.RequesterRole = "requester"
+	request.Approver = "custodian-1"
+	request.ApproverRole = "privacy-custodian"
+	ref, err := pseudonym.RevelationApprovalReference(revelationPolicy(), request)
+	if err != nil {
+		panic(err)
+	}
+	return approval.ApprovalDecision{DecisionID: id, Binding: approval.DecisionBinding{ProposalDigest: ref}, Outcome: approval.OutcomeApproved, Approver: approval.ApproverReference{PrincipalID: principal}, AuthorityDecisionRef: "authz:" + id, DecidedAt: values.NewInstant(testNow)}
+}
+
 var testNow = time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
 
 func testKey(handle custody.Handle) []byte {
@@ -112,7 +150,7 @@ func escrowHandles() (custody.Handle, custody.Handle, custody.Handle) {
 	return custody.Handle{ID: "derive-key", Kind: custody.Key, Version: "v1", Tenant: "tenant-1", Region: "us-east-1"}, custody.Handle{ID: "escrow-key", Kind: custody.Key, Version: "v1", Tenant: "tenant-1", Region: "us-east-1"}, custody.Handle{ID: "tenant-kek", Kind: custody.Key, Version: "v1", Tenant: "tenant-1", Region: "us-east-1"}
 }
 
-func escrowService(t *testing.T) (*pseudonym.EscrowedService, *escrowTestProvider, *recordingDeriver, custody.Handle, custody.Handle) {
+func escrowService(t *testing.T) (*pseudonym.EscrowedService, *escrowTestProvider, *recordingDeriver, custody.Handle, custody.Handle, *testRevelationAuthority) {
 	t.Helper()
 	derivationKey, escrowKey, tenantKEK := escrowHandles()
 	base := custody.NewInMemoryFake(func() time.Time { return testNow })
@@ -121,11 +159,12 @@ func escrowService(t *testing.T) (*pseudonym.EscrowedService, *escrowTestProvide
 	}
 	deriver := &recordingDeriver{inner: base, allowed: derivationKey}
 	provider := &escrowTestProvider{}
-	service, err := pseudonym.NewEscrowedService(pseudonym.EscrowConfig{Deriver: deriver, Provider: provider, DerivationKey: derivationKey, EscrowKey: escrowKey, TenantKEKs: []custody.Handle{tenantKEK}, Clock: func() time.Time { return testNow }})
+	authority := &testRevelationAuthority{revoked: map[string]bool{}}
+	service, err := pseudonym.NewEscrowedService(pseudonym.EscrowConfig{Deriver: deriver, Provider: provider, DerivationKey: derivationKey, EscrowKey: escrowKey, TenantKEKs: []custody.Handle{tenantKEK}, Clock: func() time.Time { return testNow }, ApprovalAuthority: authority})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return service, provider, deriver, derivationKey, escrowKey
+	return service, provider, deriver, derivationKey, escrowKey, authority
 }
 
 func escrowContext() custody.Context {
@@ -135,7 +174,7 @@ func escrowContext() custody.Context {
 // TestTodo_ANON_003 proves separate derivation and escrow custody, dual
 // control, bounded purpose/evidence release, and digest-only release events.
 func TestTodo_ANON_003(t *testing.T) {
-	service, provider, deriver, derivationKey, escrowKey := escrowService(t)
+	service, provider, deriver, derivationKey, escrowKey, _ := escrowService(t)
 	ctx := escrowContext()
 	p, err := service.Generate(ctx, pseudonym.GenerateRequest{Subject: "subject-123", Scope: "program-a", Purpose: "case-intake"})
 	if err != nil {
@@ -159,13 +198,15 @@ func TestTodo_ANON_003(t *testing.T) {
 	if _, _, err := deriver.Derive(ctx, escrowKey, []byte("escrow-must-not-derive")); err == nil {
 		t.Fatal("escrow key derived a pseudonym value")
 	}
-	if _, _, err := service.Release(ctx, governedRelease(p)); !errors.Is(err, pseudonym.ErrRevelationEvidenceRequired) {
+	if _, _, err := service.Release(ctx, pseudonym.EscrowReleaseRequest{Pseudonym: p, RequestedBy: "case-worker", EscrowCustodian: "custodian-1", Purpose: "case-intake", TTL: time.Minute}); !errors.Is(err, pseudonym.ErrRevelationEvidenceRequired) {
 		t.Fatalf("direct Release must refuse without revelation evidence, got %v", err)
 	}
-	if _, _, err := service.ReleaseWithEvidence(ctx, governedRelease(p), mintRevelationEvidence(t, p, "legal:case-1")); err != nil {
+	evidence1 := mintRevelationEvidence(t, service, p, "legal:case-1")
+	if _, _, err := service.ReleaseWithEvidence(ctx, governedRelease(p, evidence1), evidence1); err != nil {
 		t.Fatal(err)
 	}
-	subject, event, err := service.ReleaseWithEvidence(ctx, governedRelease(p), mintRevelationEvidence(t, p, "legal:case-2"))
+	evidence2 := mintRevelationEvidence(t, service, p, "legal:case-2")
+	subject, event, err := service.ReleaseWithEvidence(ctx, governedRelease(p, evidence2), evidence2)
 	if err != nil || subject != "subject-123" || event.Digest == "" || event.Outcome != "released" {
 		t.Fatalf("release = %q, %+v, %v", subject, event, err)
 	}
@@ -180,7 +221,7 @@ func TestTodo_ANON_003(t *testing.T) {
 // TestTodo_ANON_003_Race exercises concurrent release calls against one
 // ciphertext record and verifies every successful release is evidenced.
 func TestTodo_ANON_003_Race(t *testing.T) {
-	service, _, _, _, _ := escrowService(t)
+	service, _, _, _, _, _ := escrowService(t)
 	ctx := escrowContext()
 	p, err := service.Generate(ctx, pseudonym.GenerateRequest{Subject: "subject-123", Scope: "program-a", Purpose: "case-intake"})
 	if err != nil {
@@ -192,7 +233,8 @@ func TestTodo_ANON_003_Race(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			_, _, releaseErr := service.ReleaseWithEvidence(ctx, governedRelease(p), mintRevelationEvidence(t, p, fmt.Sprintf("legal:case-%d", i)))
+			evidence := mintRevelationEvidence(t, service, p, fmt.Sprintf("legal:case-%d", i))
+			_, _, releaseErr := service.ReleaseWithEvidence(ctx, governedRelease(p, evidence), evidence)
 			errs <- releaseErr
 		}(i)
 	}
@@ -210,6 +252,92 @@ func TestTodo_ANON_003_Race(t *testing.T) {
 
 // TestTodo_ANON_003_Security proves self-approval, missing evidence, excessive
 // TTL, same-key construction, and tenant-key reuse are refused.
+func TestTodo_REV_043_01(t *testing.T) {
+	service, _, _, _, _, _ := escrowService(t)
+	ctx := escrowContext()
+	p, err := service.Generate(ctx, pseudonym.GenerateRequest{Subject: "subject-123", Scope: "program-a", Purpose: "case-intake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := revelationRequest(p)
+	decision, err := service.AuthorizeRevelation(ctx, revelationPolicy(), request, testApproval("decision:requester", "case-worker", request), testApproval("decision:custodian", "custodian-1", request))
+	if err != nil {
+		t.Fatalf("approved distinct principals: %v", err)
+	}
+	release := governedRelease(p, decision.Evidence)
+	if _, _, err := service.ReleaseWithEvidence(ctx, release, decision.Evidence); err != nil {
+		t.Fatalf("valid release: %v", err)
+	}
+}
+
+// TestTodo_REV_043_01_Security proves aliases and stale approvals cannot
+// satisfy dual control at authorization or at the final decrypt boundary.
+func TestTodo_REV_043_01_Security(t *testing.T) {
+	service, _, _, _, _, authority := escrowService(t)
+	ctx := escrowContext()
+	p, err := service.Generate(ctx, pseudonym.GenerateRequest{Subject: "subject-123", Scope: "program-a", Purpose: "case-intake"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := revelationRequest(p)
+	boundRequester := testApproval("decision:requester", "case-worker", request)
+	boundCustodian := testApproval("decision:custodian", "custodian-1", request)
+	authority.roleOverride = "unknown-role"
+	if _, err := service.AuthorizeRevelation(ctx, revelationPolicy(), request, boundRequester, boundCustodian); !errors.Is(err, pseudonym.ErrRevelationDenied) {
+		t.Fatalf("unknown requester role accepted: %v", err)
+	}
+	authority.roleOverride = ""
+	mutations := []struct {
+		name  string
+		apply func(*pseudonym.RevelationRequest)
+	}{
+		{"legal basis", func(r *pseudonym.RevelationRequest) { r.LegalBasisRef = "legal:other-case" }},
+		{"fields", func(r *pseudonym.RevelationRequest) { r.Fields = []string{"other_field"} }},
+		{"recipient", func(r *pseudonym.RevelationRequest) { r.Recipients = []string{"other-investigator"} }},
+		{"generation", func(r *pseudonym.RevelationRequest) { r.Pseudonym.Generation++ }},
+		{"expiry", func(r *pseudonym.RevelationRequest) { r.ExpiresAt = r.ExpiresAt.Add(time.Minute) }},
+	}
+	for _, mutation := range mutations {
+		mutated := request
+		mutated.Fields = append([]string(nil), request.Fields...)
+		mutated.Recipients = append([]string(nil), request.Recipients...)
+		mutation.apply(&mutated)
+		if _, err := service.AuthorizeRevelation(ctx, revelationPolicy(), mutated, boundRequester, boundCustodian); !errors.Is(err, pseudonym.ErrRevelationDenied) {
+			t.Fatalf("approval replayed after %s mutation: %v", mutation.name, err)
+		}
+	}
+	_, err = service.AuthorizeRevelation(ctx, revelationPolicy(), request, testApproval("decision:requester-alias", "case-worker", request), testApproval("decision:custodian-alias", "case-worker", request))
+	if !errors.Is(err, pseudonym.ErrRevelationDenied) {
+		t.Fatalf("same principal under two approval IDs: %v", err)
+	}
+	forged := testApproval("decision:requester", "case-worker", request)
+	forged.Approver.PrincipalID = "custodian-1"
+	if _, err = service.AuthorizeRevelation(ctx, revelationPolicy(), request, forged, testApproval("decision:custodian", "custodian-1", request)); !errors.Is(err, pseudonym.ErrRevelationDenied) {
+		t.Fatalf("mutated approval identity accepted: %v", err)
+	}
+	approved, err := service.AuthorizeRevelation(ctx, revelationPolicy(), request, testApproval("decision:requester", "case-worker", request), testApproval("decision:custodian", "custodian-1", request))
+	if err != nil {
+		t.Fatal(err)
+	}
+	authority.revoked["decision:custodian"] = true
+	if _, _, err := service.ReleaseWithEvidence(ctx, governedRelease(p, approved.Evidence), approved.Evidence); !errors.Is(err, pseudonym.ErrRevelationDenied) {
+		t.Fatalf("revoked custodian authority at reveal: %v", err)
+	}
+	legacy := mintLegacyRevelationEvidence(t, p)
+	if _, _, err := service.ReleaseWithEvidence(ctx, pseudonym.EscrowReleaseRequest{Pseudonym: p, RequestedBy: "case-worker", EscrowCustodian: "custodian-1", Purpose: "case-intake", TTL: time.Minute}, legacy); !errors.Is(err, pseudonym.ErrRevelationEvidence) {
+		t.Fatalf("free-text receipt accepted: %v", err)
+	}
+}
+
+func mintLegacyRevelationEvidence(t testing.TB, p pseudonym.Pseudonym) pseudonym.RevelationEvidence {
+	t.Helper()
+	d, err := pseudonym.EvaluateRevelation(revelationPolicy(), revelationRequest(p))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d.Evidence
+}
+
 func TestTodo_ANON_003_Security(t *testing.T) {
 	derivationKey, _, tenantKEK := escrowHandles()
 	base := custody.NewInMemoryFake(func() time.Time { return testNow })
@@ -222,7 +350,7 @@ func TestTodo_ANON_003_Security(t *testing.T) {
 			t.Fatalf("config = %+v, err = %v", config, err)
 		}
 	}
-	service, _, _, _, _ := escrowService(t)
+	service, _, _, _, _, _ := escrowService(t)
 	ctx := escrowContext()
 	p, err := service.Generate(ctx, pseudonym.GenerateRequest{Subject: "subject-123", Scope: "program-a", Purpose: "case-intake"})
 	if err != nil {
@@ -241,17 +369,18 @@ func TestTodo_ANON_003_Security(t *testing.T) {
 
 // governedRelease is the two-party release request the ANON-004 revelation
 // receipt binds to (requester and custodian match revelationRequest).
-func governedRelease(p pseudonym.Pseudonym) pseudonym.EscrowReleaseRequest {
-	return pseudonym.EscrowReleaseRequest{Pseudonym: p, RequestedBy: "case-worker", EscrowCustodian: "custodian-1", Purpose: "case-intake", TTL: time.Minute}
+func governedRelease(p pseudonym.Pseudonym, evidence pseudonym.RevelationEvidence) pseudonym.EscrowReleaseRequest {
+	request := pseudonym.RevelationRequest{Pseudonym: pseudonym.Pseudonym{ID: evidence.PseudonymRef, Tenant: evidence.Tenant, Scope: evidence.Scope, Generation: evidence.Generation, Purpose: evidence.EscrowPurpose}, RequestedBy: evidence.RequestedBy, Approver: evidence.Approver, ApproverRole: evidence.ApproverRole, RequesterRole: evidence.RequesterRole, Purpose: evidence.Purpose, LegalBasisRef: evidence.LegalBasisRef, Scope: evidence.Scope, TTL: evidence.ExpiresAt.Sub(evidence.AuthorizedAt), RequestedAt: evidence.AuthorizedAt, ExpiresAt: evidence.ExpiresAt, Recipients: evidence.Recipients, Fields: evidence.Fields, NotificationPolicy: evidence.NotificationPolicy, CaseRef: evidence.CaseRef}
+	return pseudonym.EscrowReleaseRequest{Pseudonym: p, RequestedBy: evidence.RequestedBy, EscrowCustodian: evidence.Approver, Purpose: p.Purpose, TTL: time.Minute, RequesterDecision: testApproval("decision:requester", evidence.RequestedBy, request), CustodianDecision: testApproval("decision:custodian", evidence.Approver, request)}
 }
 
 // mintRevelationEvidence authorizes one revelation for p under the test
 // policy; distinct legal-basis refs yield distinct single-use receipts.
-func mintRevelationEvidence(t testing.TB, p pseudonym.Pseudonym, legalBasis string) pseudonym.RevelationEvidence {
+func mintRevelationEvidence(t testing.TB, service *pseudonym.EscrowedService, p pseudonym.Pseudonym, legalBasis string) pseudonym.RevelationEvidence {
 	t.Helper()
 	request := revelationRequest(p)
 	request.LegalBasisRef = legalBasis
-	decision, err := pseudonym.EvaluateRevelation(revelationPolicy(), request)
+	decision, err := service.AuthorizeRevelation(escrowContext(), revelationPolicy(), request, testApproval("decision:requester", "case-worker", request), testApproval("decision:custodian", "custodian-1", request))
 	if err != nil || !decision.Allowed {
 		t.Fatalf("revelation decision = %+v, err = %v", decision, err)
 	}

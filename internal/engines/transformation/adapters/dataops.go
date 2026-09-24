@@ -2,10 +2,14 @@ package adapters
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/transformation"
 )
+
+var adapterDateLayouts = map[string]bool{
+	"2006-01-02": true, "2006-01-02T15:04:05Z07:00": true,
+	"2006/01/02": true, "01/02/2006": true, "20060102": true,
+}
 
 // This file mirrors the DataOps import mapping form.
 //
@@ -84,13 +88,9 @@ type DataOpsImportMapping struct {
 
 // LowerDataOpsImport lowers a DataOps import mapping onto the shared engine.
 //
-// Three of the eight import transform kinds have an IR equivalent:
-// IDENTITY is a projection, CONSTANT is a default-literal map, and
-// DATE_PARSE is a coercion to timestamp -- but only under RFC 3339, because
-// the IR's coercion takes no layout parameter. The other five (TRIM,
-// CASE_UPPER, CASE_LOWER, LOOKUP, MONEY_PARSE) are typed refusals naming the
-// missing IR capability; none of them is quietly approximated with a
-// projection.
+// Every declared DataOps transform is lowered to a closed map function in the
+// shared transformation IR. The output is carried as canonical text so the
+// shared executor preserves the site's exact strings.
 func LowerDataOpsImport(m DataOpsImportMapping) (Lowered, error) {
 	site := SiteDataOpsImport
 	if m.Version == "" {
@@ -105,7 +105,7 @@ func LowerDataOpsImport(m DataOpsImportMapping) (Lowered, error) {
 		return Lowered{}, err
 	}
 
-	sawDate, sawIdentityField := false, false
+	sawIdentityField := false
 	for _, f := range m.Fields {
 		if f.Target == "" {
 			return Lowered{}, refuse(site, FeatureInvalidMapping, f.SourceColumn, "field mapping declares no target property")
@@ -126,26 +126,32 @@ func LowerDataOpsImport(m DataOpsImportMapping) (Lowered, error) {
 				return Lowered{}, err
 			}
 		case DataOpsTransformDateParse:
-			if f.Transform.Layout != time.RFC3339 {
-				return Lowered{}, refuse(site, FeatureLayoutDateParse, f.Target,
-					"field parses dates under layout %q; the IR's timestamp coercion parses RFC 3339 only and takes no layout parameter",
-					f.Transform.Layout)
+			if !adapterDateLayouts[f.Transform.Layout] {
+				return Lowered{}, refuse(site, FeatureLayoutDateParse, f.Target, "date layout %q is outside the site's closed set", f.Transform.Layout)
 			}
-			if err := b.convert(f.Target, f.SourceColumn, transformation.TypeString, transformation.TypeTimestamp); err != nil {
+			if err := b.transform(f.Target, f.SourceColumn, "date_parse", f.Transform.Layout, nil); err != nil {
 				return Lowered{}, err
 			}
-			sawDate = true
-		case DataOpsTransformTrim, DataOpsTransformCaseUpper, DataOpsTransformCaseLower:
-			return Lowered{}, refuse(site, FeatureStringNormalization, f.Target,
-				"field applies %s; the IR's function vocabulary has no string normalizer", f.Transform.Kind)
+		case DataOpsTransformTrim:
+			if err := b.transform(f.Target, f.SourceColumn, "trim", "", nil); err != nil {
+				return Lowered{}, err
+			}
+		case DataOpsTransformCaseUpper:
+			if err := b.transform(f.Target, f.SourceColumn, "upper", "", nil); err != nil {
+				return Lowered{}, err
+			}
+		case DataOpsTransformCaseLower:
+			if err := b.transform(f.Target, f.SourceColumn, "lower", "", nil); err != nil {
+				return Lowered{}, err
+			}
 		case DataOpsTransformLookup:
-			return Lowered{}, refuse(site, FeatureCrosswalkLookup, f.Target,
-				"field resolves the value through pinned crosswalk %q (%d entries); the IR instruction set has no lookup instruction",
-				f.Transform.CrosswalkVersion, len(f.Transform.Crosswalk))
+			if err := b.transform(f.Target, f.SourceColumn, "lookup", "", f.Transform.Crosswalk); err != nil {
+				return Lowered{}, err
+			}
 		case DataOpsTransformMoneyParse:
-			return Lowered{}, refuse(site, FeatureMoneyParse, f.Target,
-				"field parses money in %s (currency-token agreement and group separators); the IR's decimal coercion accepts plain signed decimal text only",
-				f.Transform.Currency)
+			if err := b.transform(f.Target, f.SourceColumn, "money_parse", "DATAOPS:"+f.Transform.Currency, nil); err != nil {
+				return Lowered{}, err
+			}
 		default:
 			return Lowered{}, refuse(site, FeatureInvalidMapping, f.Target,
 				"transform kind %q is not a declared DataOps import transform", string(f.Transform.Kind))
@@ -171,14 +177,6 @@ func LowerDataOpsImport(m DataOpsImportMapping) (Lowered, error) {
 			Vector:  "a mapping marking one or more fields IsIdentity",
 			Site:    "groups rows by the concatenation of every IsIdentity field's mapped value to detect duplicates",
 			Lowered: "carries no row-identity notion; duplicate detection stays with the site's validator",
-		})
-	}
-	if sawDate {
-		b.diverge(Divergence{
-			Feature: "whitespace_trim",
-			Vector:  "a date cell with leading or trailing whitespace",
-			Site:    "trims the cell before parsing it",
-			Lowered: "parses the cell as given, so a padded cell fails the coercion instead of being trimmed",
 		})
 	}
 	return b.finish()

@@ -22,7 +22,7 @@ func TestTodo_APPT_005(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		res, err := ledger.Reserve(req, r, now)
 		if err != nil {
@@ -145,7 +145,7 @@ func TestTodo_APPT_005(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		res, err := ledger.Reserve(req, r, now)
 		if err != nil {
@@ -237,7 +237,7 @@ func TestTodo_APPT_005_Property(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ledger := NewReservationLedger()
+	ledger := newTestReservationLedger()
 	_, r := appt003KnownRequest(t)
 	res, err := ledger.Reserve(req, r, now)
 	if err != nil {
@@ -306,7 +306,7 @@ func TestTodo_APPT_005_Integration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ledger := NewReservationLedger()
+			ledger := newTestReservationLedger()
 			_, r := appt003KnownRequest(t)
 			res, err := ledger.Reserve(req, r, now)
 			if err != nil {
@@ -357,7 +357,7 @@ func TestTodo_APPT_005_Fault(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		res, err := ledger.Reserve(req, r, now)
 		if err != nil {
@@ -431,7 +431,7 @@ func TestTodo_APPT_005_Mutation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		res, err := ledger.Reserve(req, r, now)
 		if err != nil {
@@ -485,7 +485,7 @@ func TestTodo_APPT_005_Mutation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		res, err := ledger.Reserve(req, r, now)
 		if err != nil {

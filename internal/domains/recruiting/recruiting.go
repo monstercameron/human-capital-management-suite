@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/headcount"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -31,6 +32,7 @@ const (
 	CodeDuplicateApplication       = "DUPLICATE_APPLICATION"
 	CodeRequisitionClosed          = "REQUISITION_CLOSED"
 	CodeInvalidCandidacyTransition = "INVALID_CANDIDACY_TRANSITION"
+	CodeCapacityUnavailable        = "CAPACITY_UNAVAILABLE"
 )
 
 // RecruitingError is the typed command refusal. Field names the
@@ -106,19 +108,28 @@ func (s RequisitionStatus) Valid() bool {
 
 // Requisition is one immutable requisition revision.
 type Requisition struct {
-	RequisitionID   string
-	Revision        uint64
-	Status          RequisitionStatus
-	SourceRef       string
-	EffectiveAt     values.Instant
-	KnownAt         values.KnownAt
-	CanonicalDigest string
+	RequisitionID         string
+	Revision              uint64
+	Status                RequisitionStatus
+	Tenant                string
+	SourceRef             string
+	HeadcountRequestID    string
+	HeadcountRevision     uint64
+	CapacityReservationID string
+	CapacityFence         uint64
+	CapacityAllocated     values.Decimal
+	EffectiveAt           values.Instant
+	KnownAt               values.KnownAt
+	CanonicalDigest       string
 }
 
 func (r Requisition) body() []byte {
 	b, err := canonicalbytes.New("hcmnext.domains.recruiting.Requisition", schemaVersion).
 		String("requisition_id", r.RequisitionID).Int("revision", int64(r.Revision)).
-		String("status", string(r.Status)).String("source_ref", r.SourceRef).
+		String("status", string(r.Status)).String("tenant", r.Tenant).String("source_ref", r.SourceRef).
+		String("headcount_request_id", r.HeadcountRequestID).Int("headcount_revision", int64(r.HeadcountRevision)).
+		String("capacity_reservation_id", r.CapacityReservationID).Int("capacity_fence", int64(r.CapacityFence)).
+		Value("capacity_allocated", r.CapacityAllocated).
 		Value("effective_at", r.EffectiveAt).Value("known_at", r.KnownAt).Bytes()
 	if err != nil {
 		return nil
@@ -351,7 +362,7 @@ func (a *Aggregate) append(event RecruitingEvent) {
 }
 
 // OpenRequisition creates requisition id as OPEN at revision 1.
-func (a *Aggregate) OpenRequisition(id, sourceRef string, effective values.Instant, known values.KnownAt) error {
+func (a *Aggregate) OpenRequisition(id, sourceRef string, reference headcount.RequisitionCapacityReference, allocator headcount.RequisitionCapacityAllocator, requested values.Decimal, effective values.Instant, known values.KnownAt) error {
 	if a == nil {
 		return missingParent("aggregate", "missing")
 	}
@@ -364,12 +375,27 @@ func (a *Aggregate) OpenRequisition(id, sourceRef string, effective values.Insta
 	if !validID(sourceRef) {
 		return missingParent("source", "missing")
 	}
+	if err := reference.Validate(); err != nil || allocator == nil {
+		return &RecruitingError{Code: CodeCapacityUnavailable, Field: "capacity", State: "invalid-or-unapproved", Version: schemaVersion}
+	}
+	if err := requested.Validate(); err != nil || requested.Sign() <= 0 {
+		return &RecruitingError{Code: CodeCapacityUnavailable, Field: "capacity", State: "invalid-allocation", Version: schemaVersion}
+	}
 	if !validTimes(effective, known) {
 		return missingParent("effective-time", "invalid")
 	}
+	reservation, err := allocator.ReserveRequisitionCapacity(reference, id, requested)
+	if err != nil || reservation.Validate() != nil {
+		return &RecruitingError{Code: CodeCapacityUnavailable, Field: "capacity", State: "unavailable", Version: schemaVersion}
+	}
+	if reservation.Tenant != reference.Tenant || reservation.RequestID != reference.RequestID || reservation.RequisitionID != id || !reservation.Amount.Equal(requested) {
+		return &RecruitingError{Code: CodeCapacityUnavailable, Field: "capacity", State: "reservation-mismatch", Version: schemaVersion}
+	}
 	a.Requisitions[id] = Requisition{
-		RequisitionID: id, Revision: 1, Status: RequisitionOpen,
-		SourceRef: sourceRef, EffectiveAt: effective, KnownAt: known,
+		RequisitionID: id, Revision: 1, Status: RequisitionOpen, Tenant: reference.Tenant,
+		SourceRef: sourceRef, HeadcountRequestID: reservation.RequestID, HeadcountRevision: reservation.CapacityRevision,
+		CapacityReservationID: reservation.ID, CapacityFence: reservation.ReservationFence,
+		CapacityAllocated: reservation.Amount, EffectiveAt: effective, KnownAt: known,
 	}.withDigest()
 	a.append(RecruitingEvent{Kind: "REQUISITION_OPENED", AggregateID: id, Revision: 1, EffectiveAt: effective, KnownAt: known})
 	return nil

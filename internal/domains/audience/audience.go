@@ -74,6 +74,10 @@ type AudienceSpec struct {
 	RoleHolders      []RoleSelector
 }
 
+// Expression returns the canonical description of this specification. It is
+// safe to bind to a message intent before resolving the current audience.
+func (s AudienceSpec) Expression() string { return specDescription(s) }
+
 func (s AudienceSpec) Validate(tenant values.TenantId) error {
 	for _, ref := range s.ExplicitSubjects {
 		if err := ref.Validate(); err != nil {

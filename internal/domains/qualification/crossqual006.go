@@ -249,6 +249,49 @@ func EvaluateCrossQualification(in CrossQualInput) (CrossQualResult, error) {
 	return res, nil
 }
 
+// SchedulingBinding ties the scheduling qualification check to the worker and
+// work interval selected by a real scheduling consumer.
+type SchedulingBinding struct {
+	WorkerRef string
+	WorkStart time.Time
+	WorkEnd   time.Time
+}
+
+// EvaluateCrossQualificationForSchedule checks the shared five-domain
+// contract with the scheduling worker and interval bound to current,
+// non-restricted availability evidence. The caller supplies the scheduling
+// facts from its own domain model; this package does not infer them from its
+// closed domain vocabulary.
+func EvaluateCrossQualificationForSchedule(in CrossQualInput, binding SchedulingBinding) (CrossQualResult, error) {
+	if strings.TrimSpace(binding.WorkerRef) == "" || binding.WorkerRef != in.WorkerRef {
+		return CrossQualResult{}, crossQualReject("crossqual.scheduling.worker_ref", "BINDING_MISMATCH", "scheduling worker does not match qualification subject")
+	}
+	if binding.WorkStart.IsZero() || binding.WorkEnd.IsZero() || !binding.WorkEnd.After(binding.WorkStart) {
+		return CrossQualResult{}, crossQualReject("crossqual.scheduling.work_interval", "INVALID_INTERVAL", "scheduling work interval is invalid")
+	}
+	var requirement *DomainRequirement
+	for i := range in.Requirements {
+		if in.Requirements[i].Domain == CrossScheduling {
+			requirement = &in.Requirements[i]
+			break
+		}
+	}
+	if requirement == nil {
+		return CrossQualResult{}, crossQualReject("crossqual.scheduling.requirement", "MISSING", "scheduling requirement is required")
+	}
+	for _, kind := range requirement.Kinds {
+		if kind != "AVAILABILITY" {
+			continue
+		}
+		for _, evidence := range in.Evidence {
+			if evidence.Kind == kind && !evidence.Restricted && evidence.Verified && !binding.WorkStart.Before(evidence.IssuedAt) && !binding.WorkEnd.After(evidence.ExpiresAt) {
+				return EvaluateCrossQualification(in)
+			}
+		}
+	}
+	return CrossQualResult{}, crossQualReject("crossqual.scheduling.evidence", "UNBACKED", "scheduled work interval lacks current verified availability evidence")
+}
+
 // Valid reports whether the domain is declared.
 func (d CrossDomain) Valid() bool {
 	switch d {

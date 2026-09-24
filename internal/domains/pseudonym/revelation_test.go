@@ -15,7 +15,7 @@ func revelationPolicy() pseudonym.RevelationPolicy {
 		ClearedScopes: map[string][]pseudonym.RevelationPurpose{
 			"program-a": {pseudonym.RevelationPurposeCaseInvestigation},
 		},
-		CustodianRole: "privacy-custodian", MaxTTL: time.Hour,
+		CustodianRole: "privacy-custodian", RequesterRoles: []string{"requester"}, MaxTTL: time.Hour,
 		Clock: func() time.Time { return testNow },
 	}
 }
@@ -24,7 +24,7 @@ func revelationRequest(p pseudonym.Pseudonym) pseudonym.RevelationRequest {
 	return pseudonym.RevelationRequest{
 		Pseudonym: p, RequestedBy: "case-worker", Approver: "custodian-1", ApproverRole: "privacy-custodian",
 		Purpose: pseudonym.RevelationPurposeCaseInvestigation, LegalBasisRef: "legal:case-42", Scope: p.Scope,
-		TTL: 30 * time.Minute, Recipients: []string{"investigator"}, Fields: []string{"contact_reference"}, NotificationPolicy: "notify-subject-after-review",
+		TTL: 30 * time.Minute, RequestedAt: testNow, ExpiresAt: testNow.Add(30 * time.Minute), Recipients: []string{"investigator"}, Fields: []string{"contact_reference"}, NotificationPolicy: "notify-subject-after-review",
 	}
 }
 
@@ -47,8 +47,8 @@ func TestTodo_ANON_004(t *testing.T) {
 		t.Fatal("Explain carried a pseudonym")
 	}
 
-	_, provider, deriver, derivationKey, escrowKey := escrowService(t)
-	service, err := pseudonym.NewEscrowedService(pseudonym.EscrowConfig{Deriver: deriver, Provider: provider, DerivationKey: derivationKey, EscrowKey: escrowKey, Clock: func() time.Time { return testNow }})
+	_, provider, deriver, derivationKey, escrowKey, _ := escrowService(t)
+	service, err := pseudonym.NewEscrowedService(pseudonym.EscrowConfig{Deriver: deriver, Provider: provider, DerivationKey: derivationKey, EscrowKey: escrowKey, Clock: func() time.Time { return testNow }, ApprovalAuthority: &testRevelationAuthority{revoked: map[string]bool{}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,11 +57,11 @@ func TestTodo_ANON_004(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	releaseDecision, err := pseudonym.EvaluateRevelation(revelationPolicy(), revelationRequest(escrowPseudonym))
+	releaseDecision, err := service.AuthorizeRevelation(ctx, revelationPolicy(), revelationRequest(escrowPseudonym), testApproval("decision:requester", "case-worker", revelationRequest(escrowPseudonym)), testApproval("decision:custodian", "custodian-1", revelationRequest(escrowPseudonym)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	release := pseudonym.EscrowReleaseRequest{Pseudonym: escrowPseudonym, RequestedBy: "case-worker", EscrowCustodian: "custodian-1", Purpose: "case-intake", TTL: time.Minute}
+	release := governedRelease(escrowPseudonym, releaseDecision.Evidence)
 	if _, _, err := service.ReleaseWithEvidence(ctx, release, releaseDecision.Evidence); err != nil {
 		t.Fatalf("governed release = %v", err)
 	}

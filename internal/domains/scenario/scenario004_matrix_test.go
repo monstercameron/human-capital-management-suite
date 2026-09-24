@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"errors"
+	"sync"
 	"testing"
 )
 
@@ -125,8 +126,8 @@ func TestTodo_SCENARIO_004_Property(t *testing.T) {
 	}
 }
 
-// TestTodo_SCENARIO_004_Race: concurrent comparisons over shared
-// fixtures share no mutable state and always agree.
+// TestTodo_SCENARIO_004_Race: concurrent comparisons publish into shared
+// result state and always agree.
 func TestTodo_SCENARIO_004_Race(t *testing.T) {
 	base := compareBase(t)
 	child, err := base.Fork(
@@ -139,19 +140,42 @@ func TestTodo_SCENARIO_004_Race(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 8; i++ {
-		t.Run("parallel", func(t *testing.T) {
-			t.Parallel()
+	const workers = 8
+	results := make(map[int]Comparison, workers)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
 			got, err := Compare(base, child)
 			if err != nil {
-				t.Fatal(err)
+				t.Errorf("comparison %d: %v", i, err)
+				return
 			}
 			if got.CanonicalDigest != want.CanonicalDigest {
-				t.Fatal("concurrent comparison diverged")
+				t.Errorf("comparison %d diverged", i)
+				return
 			}
 			if err := got.Validate(); err != nil {
-				t.Fatal(err)
+				t.Errorf("comparison %d invalid: %v", i, err)
+				return
 			}
-		})
+			mu.Lock()
+			results[i] = got
+			mu.Unlock()
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	if len(results) != workers {
+		t.Fatalf("stored results = %d, want %d", len(results), workers)
+	}
+	for i, got := range results {
+		if got.CanonicalDigest != want.CanonicalDigest {
+			t.Fatalf("stored comparison %d diverged", i)
+		}
 	}
 }

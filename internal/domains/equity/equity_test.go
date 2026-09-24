@@ -1,9 +1,11 @@
 package equity_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -118,8 +120,41 @@ func TestTodo_EQUITY_001_Golden(t *testing.T) {
 
 func TestTodo_EQUITY_001_Race(t *testing.T) {
 	grant := testGrant(t, testPlan(t))
-	if _, err := grant.Forfeit("forfeiture-evidence"); err == nil {
-		t.Fatal("proposed grant was forfeited without acceptance")
+	store := equity.NewMemoryStore()
+	ctx := context.Background()
+	if err := store.SavePlan(ctx, "tenant-race", testPlan(t)); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveGrant(ctx, "tenant-race", grant); err != nil {
+		t.Fatal(err)
+	}
+	const workers = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, workers*2)
+	for i := 0; i < workers; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if err := store.SaveGrant(ctx, "tenant-race", grant); !errors.Is(err, equity.ErrStoreDuplicate) {
+				errs <- fmt.Errorf("duplicate grant save = %v, want duplicate refusal", err)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			got, err := store.LoadGrant(ctx, "tenant-race", grant.GrantID, grant.Revision)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if got.CanonicalDigest != grant.CanonicalDigest {
+				errs <- fmt.Errorf("loaded digest %q, want %q", got.CanonicalDigest, grant.CanonicalDigest)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 

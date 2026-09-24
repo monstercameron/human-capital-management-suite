@@ -11,6 +11,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/demand"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/matching"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/qualification"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -633,3 +634,130 @@ func (p WorkforceOptimizationProblem) Explain() (Explanation, error) {
 // Explain returns the package-level explanation required by the domain
 // contract.
 func Explain(p WorkforceOptimizationProblem) (Explanation, error) { return p.Explain() }
+
+// ScheduleQualificationProof binds QUAL-006 to one worker and demand window
+// from the frozen scheduling problem.
+type ScheduleQualificationProof struct {
+	CandidateRef  values.EntityRef
+	WindowID      string
+	Feasibility   FeasibilityReport
+	Qualification qualification.CrossQualResult
+}
+
+// EvaluateQualificationForWindow exercises the qualification contract from
+// the scheduling consumer with the selected worker and actual demand interval.
+func EvaluateQualificationForWindow(p WorkforceOptimizationProblem, candidateRef values.EntityRef, windowID string, input qualification.CrossQualInput) (ScheduleQualificationProof, error) {
+	if err := p.Validate(); err != nil {
+		return ScheduleQualificationProof{}, err
+	}
+	if err := candidateRef.Validate(); err != nil || candidateRef.Tenant != p.Population.RequesterScope.Tenant {
+		return ScheduleQualificationProof{}, fmt.Errorf("%w: invalid qualification candidate", ErrInvalidProblem)
+	}
+	if input.Tenant != string(candidateRef.Tenant) {
+		return ScheduleQualificationProof{}, fmt.Errorf("%w: qualification tenant does not match scheduling population", ErrInvalidProblem)
+	}
+	var candidate *matching.CandidateFacts
+	for _, fact := range p.Population.CandidateFactsList() {
+		if fact.CandidateRef == candidateRef {
+			copy := fact
+			candidate = &copy
+			break
+		}
+	}
+	if candidate == nil {
+		return ScheduleQualificationProof{}, fmt.Errorf("%w: qualification candidate is outside the frozen population", ErrInvalidProblem)
+	}
+	var window *DemandWindow
+	for i := range p.DemandWindows {
+		if p.DemandWindows[i].SignalID == windowID {
+			copy := p.DemandWindows[i]
+			window = &copy
+			break
+		}
+	}
+	if window == nil {
+		return ScheduleQualificationProof{}, fmt.Errorf("%w: qualification demand window is unknown", ErrInvalidProblem)
+	}
+	start, _ := window.Work.StartInstant()
+	end, hasEnd := window.Work.EndInstant()
+	if !hasEnd {
+		return ScheduleQualificationProof{}, fmt.Errorf("%w: qualification demand window must be bounded", ErrInvalidProblem)
+	}
+	availabilityDeclared := false
+	for _, constraint := range p.HardConstraints {
+		if constraint.Kind == ConstraintAvailability {
+			availabilityDeclared = true
+		}
+		if !candidateSatisfies(*candidate, *window, constraint) {
+			return ScheduleQualificationProof{}, fmt.Errorf("%w: candidate does not satisfy hard constraint %q for the demand window", ErrInvalidProblem, constraint.Kind)
+		}
+	}
+	if !availabilityDeclared || !intervalContains(candidate.Availability, window.Work) {
+		return ScheduleQualificationProof{}, fmt.Errorf("%w: candidate is not available for the demand window", ErrInvalidProblem)
+	}
+	feasibility, err := p.FeasibilityPrecheck()
+	if err != nil {
+		return ScheduleQualificationProof{}, err
+	}
+	qualified, err := qualification.EvaluateCrossQualificationForSchedule(input, qualification.SchedulingBinding{
+		WorkerRef: candidateRef.String(), WorkStart: start.Time(), WorkEnd: end.Time(),
+	})
+	if err != nil {
+		return ScheduleQualificationProof{}, err
+	}
+	return ScheduleQualificationProof{CandidateRef: candidateRef, WindowID: window.SignalID, Feasibility: feasibility, Qualification: qualified}, nil
+}
+
+// ProveMatchingForSchedule binds MATCH-007's Scheduling run to the frozen
+// candidate population and a real demand window before proving the four-domain
+// ranking contract.
+func ProveMatchingForSchedule(p WorkforceOptimizationProblem, runs []matching.DomainRun) (matching.FourDomainConformance, error) {
+	if err := p.Validate(); err != nil {
+		return matching.FourDomainConformance{}, err
+	}
+	var schedule *matching.DomainRun
+	for i := range runs {
+		if runs[i].Domain == matching.DomainScheduling {
+			schedule = &runs[i]
+			break
+		}
+	}
+	if schedule == nil {
+		return matching.FourDomainConformance{}, fmt.Errorf("%w: matching proof lacks scheduling run", ErrInvalidProblem)
+	}
+	if err := matching.ValidateDomainRun(*schedule); err != nil {
+		return matching.FourDomainConformance{}, err
+	}
+	if schedule.Request.RequestID != p.Population.RequestID || schedule.Request.CanonicalDigest != p.Population.RequestDigest ||
+		schedule.Request.RequesterScope != p.Population.RequesterScope || schedule.Request.CandidateSourceRef != p.Population.CandidateSourceRef {
+		return matching.FourDomainConformance{}, fmt.Errorf("%w: scheduling match request is not bound to the frozen population", ErrInvalidProblem)
+	}
+	windowBound := false
+	for _, constraint := range schedule.Request.Constraints {
+		if constraint.Kind != matching.ConstraintAvailabilityWindow || constraint.Mode != matching.ConstraintHard {
+			continue
+		}
+		for _, window := range p.DemandWindows {
+			if constraint.Window == window.Work {
+				windowBound = true
+				break
+			}
+		}
+	}
+	if !windowBound {
+		return matching.FourDomainConformance{}, fmt.Errorf("%w: scheduling match run has no hard constraint for a demand window", ErrInvalidProblem)
+	}
+	population := make(map[string]struct{}, len(p.Population.Candidates))
+	for _, fact := range p.Population.CandidateFactsList() {
+		population[fact.CandidateRef.String()] = struct{}{}
+	}
+	if len(schedule.Result.Matches) == 0 {
+		return matching.FourDomainConformance{}, fmt.Errorf("%w: scheduling ranking contains no candidate data", ErrInvalidProblem)
+	}
+	for _, result := range schedule.Result.Matches {
+		if _, ok := population[result.CandidateRef.String()]; !ok {
+			return matching.FourDomainConformance{}, fmt.Errorf("%w: scheduling ranking includes a candidate outside the frozen population", ErrInvalidProblem)
+		}
+	}
+	return matching.ProveFourDomainConformance(runs)
+}

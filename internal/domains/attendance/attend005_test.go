@@ -228,3 +228,57 @@ func TestTodo_ATTEND_005_Property(t *testing.T) {
 		}
 	})
 }
+
+func TestTodo_REV_045_01_Recalculation(t *testing.T) {
+	prior, _ := attend005Pair(t)
+	fresh := Result{Outcome: Exception, InputDigest: "fresh-meal-rest-evaluation", Exceptions: []Finding{
+		{Kind: LateException, ShiftID: "s1", Minutes: 7},
+		{Kind: MealException, ShiftID: "s1", Minutes: 30},
+		{Kind: BreakException, ShiftID: "s1", Minutes: 10},
+	}}
+	rule := PremiumRule{JurisdictionCode: "US-CA", RuleRef: VersionedRef{ID: "ca-meal-rest", Version: "2026"}, MealHours: 1, RestHours: 1, MaxMealPerWorkday: 1, MaxRestPerWorkday: 1}
+	workdays := map[string]string{"s1": "2026-09-03"}
+	recalc, state, err := RecalculateDownstreamWithPremiums("work-1", "US-CA", prior, fresh, rule, workdays)
+	if err != nil || state != Exception {
+		t.Fatalf("state=%s err=%v", state, err)
+	}
+	var pay ConsumerDelta
+	for _, delta := range recalc.Deltas {
+		if delta.Consumer == ConsumerPay {
+			pay = delta
+			break
+		}
+	}
+	if pay.NewMinutes != 7 || pay.DeltaMinutes != -8 {
+		t.Fatalf("minute pay delta=%+v, want new=7 delta=-8 with break premiums separate", pay)
+	}
+	want := []PremiumLine{{WorkdayID: "2026-09-03", Kind: BreakException, Count: 1, Hours: 1}, {WorkdayID: "2026-09-03", Kind: MealException, Count: 1, Hours: 1}}
+	if len(recalc.PremiumLines) != len(want) {
+		t.Fatalf("premium lines=%+v want=%+v", recalc.PremiumLines, want)
+	}
+	for i := range want {
+		if recalc.PremiumLines[i] != want[i] {
+			t.Fatalf("premium[%d]=%+v want=%+v", i, recalc.PremiumLines[i], want[i])
+		}
+	}
+	if recalc.Receipt == "" {
+		t.Fatal("receipt missing")
+	}
+	otherRule := rule
+	otherRule.RuleRef.Version = "2026.1"
+	other, _, err := RecalculateDownstreamWithPremiums("work-1", "US-CA", prior, fresh, otherRule, workdays)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if other.Receipt == recalc.Receipt {
+		t.Fatal("receipt must bind the premium rule revision")
+	}
+	unknown, outcome, err := RecalculateDownstreamWithPremiums("work-1", "US-NY", prior, fresh, rule, workdays)
+	if err != nil || outcome != Unknown || unknown.Receipt != "" {
+		t.Fatalf("unknown jurisdiction recalc=%+v outcome=%s err=%v", unknown, outcome, err)
+	}
+	unknown, outcome, err = RecalculateDownstreamWithPremiums("work-1", "US-CA", prior, fresh, rule, nil)
+	if err != nil || outcome != Unknown || unknown.Receipt != "" {
+		t.Fatalf("missing workday recalc=%+v outcome=%s err=%v", unknown, outcome, err)
+	}
+}

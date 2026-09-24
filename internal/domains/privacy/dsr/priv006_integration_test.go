@@ -87,9 +87,10 @@ func validProcessingInventory() inventory.Inventory {
 		ID: "hr-to-archive", ActivityID: a.ID, Version: a.Version,
 		SourceSystem: "hr", DestinationSystem: "records-archive",
 		Recipient: "records-archive", Controller: a.Controller, Processor: a.Processor,
+		SourceRegion: "EU", TransferPolicyVersion: "privacy-transfer-rules-2026.09.1",
 		Purpose: a.Purpose, DataCategories: []string{"contact"},
 		Operations: []string{"transmit"}, TransferRegions: []string{"EU"},
-		ContractRefs: []string{"dpa/1"}, Safeguards: []string{"scc"},
+		ContractRefs: []string{"dpa/1"}, Safeguards: []string{"eu.adequacy.decision.v1"},
 		SecurityControls: []string{"encryption"}, RetentionRef: a.Retention,
 		EffectiveFrom: from,
 	}

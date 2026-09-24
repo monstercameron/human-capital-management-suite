@@ -169,17 +169,8 @@ func ProveFourDomainConformance(runs []DomainRun) (FourDomainConformance, error)
 		}
 	}
 	for _, run := range runs {
-		if err := run.Request.Validate(); err != nil {
-			return FourDomainConformance{}, matchConformanceRejected("request", "invalid")
-		}
-		if err := run.Result.Validate(); err != nil {
-			return FourDomainConformance{}, matchConformanceRejected("result", "invalid")
-		}
-		if run.Result.RequestID != run.Request.RequestID || run.Result.RequestDigest != run.Request.computedDigest() {
-			return FourDomainConformance{}, matchConformanceRejected("result", "binding-mismatch")
-		}
-		if run.Result.CanonicalDigest == "" || run.Result.CanonicalDigest != run.Result.computedDigest() {
-			return FourDomainConformance{}, matchConformanceRejected("result", "digest-mismatch")
+		if err := ValidateDomainRun(run); err != nil {
+			return FourDomainConformance{}, err
 		}
 	}
 	base := runs[0].Result
@@ -191,11 +182,6 @@ func ProveFourDomainConformance(runs []DomainRun) (FourDomainConformance, error)
 			return FourDomainConformance{}, matchConformanceRejected("ranking", "contract-diverged")
 		}
 	}
-	for _, run := range runs {
-		if err := proveRunFactors(run); err != nil {
-			return FourDomainConformance{}, err
-		}
-	}
 	ordered := append([]DomainRun(nil), runs...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Domain < ordered[j].Domain })
 	verdict := FourDomainConformance{ScoreVersion: base.ScoreVersion, TieBreak: base.TieBreak}
@@ -205,6 +191,27 @@ func ProveFourDomainConformance(runs []DomainRun) (FourDomainConformance, error)
 	}
 	verdict.CanonicalDigest = verdict.computedDigest()
 	return verdict, nil
+}
+
+// ValidateDomainRun validates one real domain's request and ranked result.
+// Consumer packages use it before binding the run to their own domain data.
+func ValidateDomainRun(run DomainRun) error {
+	if !run.Domain.Valid() {
+		return matchConformanceRejected("domain", "unknown")
+	}
+	if err := run.Request.Validate(); err != nil {
+		return matchConformanceRejected("request", "invalid")
+	}
+	if err := run.Result.Validate(); err != nil {
+		return matchConformanceRejected("result", "invalid")
+	}
+	if run.Result.RequestID != run.Request.RequestID || run.Result.RequestDigest != run.Request.computedDigest() {
+		return matchConformanceRejected("result", "binding-mismatch")
+	}
+	if run.Result.CanonicalDigest == "" || run.Result.CanonicalDigest != run.Result.computedDigest() {
+		return matchConformanceRejected("result", "digest-mismatch")
+	}
+	return proveRunFactors(run)
 }
 
 // proveRunFactors checks one ranked result explains every hard constraint

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/payroll"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -31,10 +32,14 @@ func (f *fakeProvider) Send(_ context.Context, instruction PaymentInstruction) (
 
 func settleInstruction(t *testing.T) PaymentInstruction {
 	t.Helper()
+	election := settlementElection("payee-1", "bank-1")
+	policy := settlementPolicy()
 	instruction := PaymentInstruction{
-		InstructionID: "instr-1", PayrollRunRef: "run-1", PayeeRef: "payee-1",
+		InstructionID: "instr-1", PayrollRunRef: "run-1", PayrollRunID: "run-1", PayrollRunRevision: 1, PopulationBinding: payroll.PopulationBindingRef{DefinitionID: "population", RevisionVersion: "v1", Digest: "population"}, PayeeRef: "payee-1",
 		Amount: values.MustDecimal("100.00", 2, values.RoundingHalfUp), Currency: "USD",
 		FundingSourceRef: "fund-1", Rail: RailACH, BankDetailRef: "bank-1",
+		PaymentMethodElection: election, SettlementPolicy: policy,
+		PaymentMethodElectionDigest: election.Digest(), SettlementPolicyDigest: policy.Digest(),
 		State: StateInstructed, Revision: 1,
 	}
 	instruction.CanonicalDigest = instruction.computedDigest()

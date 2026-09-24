@@ -2,6 +2,8 @@ package replan
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/fielddiff"
@@ -65,14 +67,35 @@ func TestTodo_REPLAN_003_Property(t *testing.T) {
 
 func TestTodo_REPLAN_003_Race(t *testing.T) {
 	declaration := Declaration{Components: []Component{{ID: "component", Dependencies: []Dependency{{Input: "x", Classification: ClassificationMaterial}}}}}
-	for i := 0; i < 20; i++ {
-		result, err := Compute(declaration, []FieldDiff{drift("x")})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if result.Digest == "" || len(result.Invalidated) != 1 {
-			t.Fatalf("run %d result=%+v", i, result)
-		}
+	diffs := []FieldDiff{drift("x")}
+	const workers, iterations = 8, 25
+	start := make(chan struct{})
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		worker := worker
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for i := 0; i < iterations; i++ {
+				result, err := Compute(declaration, diffs)
+				if err != nil {
+					errs <- err
+					return
+				}
+				if result.Digest == "" || len(result.Invalidated) != 1 || result.Invalidated[0] != "component" {
+					errs <- fmt.Errorf("worker %d run %d result=%+v", worker, i, result)
+					return
+				}
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 

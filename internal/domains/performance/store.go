@@ -131,6 +131,8 @@ type OutcomeLinkRecord struct {
 type Store interface {
 	SaveCycle(context.Context, TenantID, CycleRevision) error
 	LoadCycle(context.Context, TenantID, string, uint64) (CycleRevision, error)
+	SaveParticipantReviewerGraph(context.Context, TenantID, FrozenParticipantReviewerGraph) error
+	ListOpenParticipantReviewerGraphsForMember(context.Context, TenantID, string) ([]FrozenParticipantReviewerGraph, error)
 	SaveRatingCase(context.Context, TenantID, RatingCaseRecord) error
 	LoadRatingCase(context.Context, TenantID, string) (RatingCaseRecord, error)
 	FinalizeRatingCase(context.Context, TenantID, string, string) error
@@ -152,6 +154,7 @@ type Store interface {
 type MemoryStore struct {
 	mu       sync.RWMutex
 	cycles   map[string]map[uint64]CycleRevision
+	graphs   map[string]map[string]map[uint64]map[uint64]FrozenParticipantReviewerGraph
 	cases    map[string]RatingCaseRecord
 	events   map[string]map[uint64]RatingEventRecord
 	finals   map[string]FinalRatingRecord
@@ -163,6 +166,7 @@ type MemoryStore struct {
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
 		cycles: make(map[string]map[uint64]CycleRevision),
+		graphs: make(map[string]map[string]map[uint64]map[uint64]FrozenParticipantReviewerGraph),
 		cases:  make(map[string]RatingCaseRecord), events: make(map[string]map[uint64]RatingEventRecord),
 		finals: make(map[string]FinalRatingRecord), sessions: make(map[string]CalibrationSessionRecord),
 		reviews: make(map[string]map[uint64]ReviewRecord), outcomes: make(map[string][]OutcomeLinkRecord),
@@ -289,6 +293,102 @@ func (s *MemoryStore) LoadCycle(ctx context.Context, tenant TenantID, cycleID st
 		return CycleRevision{}, refuse(ErrNotFound.Error(), "cycle_id", "cycle revision was not found", ErrNotFound)
 	}
 	return c, nil
+}
+
+// SaveParticipantReviewerGraph appends one validated, frozen graph revision
+// for the current OPEN cycle revision. A later amendment is a new immutable
+// graph revision and can never replace an existing snapshot.
+func (s *MemoryStore) SaveParticipantReviewerGraph(ctx context.Context, tenant TenantID, graph FrozenParticipantReviewerGraph) error {
+	if err := checkContext(ctx); err != nil {
+		return err
+	}
+	t, err := tenantKey(tenant)
+	if err != nil {
+		return err
+	}
+	if err := graph.Validate(); err != nil {
+		return refuse("PERFORMANCE_INVALID_GRAPH", "graph", "frozen participant/reviewer graph is invalid", err)
+	}
+	if graph.GraphRevision == 0 || graph.SupersedesGraphRevision+1 != graph.GraphRevision {
+		return refuse(ErrStaleRevision.Error(), "graph_revision", "graph revision must extend its frozen predecessor", ErrStaleRevision)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cycleRevisions := s.cycles[key(t, graph.CycleID)]
+	cycle := cycleRevisions[graph.CycleRevision]
+	if cycle.Revision == 0 || cycle.State != PerformanceCycleOpen || latestCycle(cycleRevisions).Revision != graph.CycleRevision {
+		return refuse(ErrStaleRevision.Error(), "cycle_revision", "graph must bind the current open cycle revision", ErrStaleRevision)
+	}
+	if s.graphs[t] == nil {
+		s.graphs[t] = make(map[string]map[uint64]map[uint64]FrozenParticipantReviewerGraph)
+	}
+	if s.graphs[t][graph.CycleID] == nil {
+		s.graphs[t][graph.CycleID] = make(map[uint64]map[uint64]FrozenParticipantReviewerGraph)
+	}
+	if s.graphs[t][graph.CycleID][graph.CycleRevision] == nil {
+		s.graphs[t][graph.CycleID][graph.CycleRevision] = make(map[uint64]FrozenParticipantReviewerGraph)
+	}
+	graphs := s.graphs[t][graph.CycleID][graph.CycleRevision]
+	if _, exists := graphs[graph.GraphRevision]; exists {
+		return refuse(ErrDuplicateRevision.Error(), "graph_revision", "participant/reviewer graph revision is already stored", ErrDuplicateRevision)
+	}
+	if uint64(len(graphs))+1 != graph.GraphRevision {
+		return refuse(ErrStaleRevision.Error(), "graph_revision", "participant/reviewer graph revision is not the next revision", ErrStaleRevision)
+	}
+	graphs[graph.GraphRevision] = cloneFrozenParticipantReviewerGraph(graph)
+	return nil
+}
+
+// ListOpenParticipantReviewerGraphsForMember returns only the latest frozen
+// graph snapshot for each currently OPEN cycle in which memberID is a
+// participant or assigned reviewer. Results are detached and deterministically
+// ordered by cycle id.
+func (s *MemoryStore) ListOpenParticipantReviewerGraphsForMember(ctx context.Context, tenant TenantID, memberID string) ([]FrozenParticipantReviewerGraph, error) {
+	if err := checkContext(ctx); err != nil {
+		return nil, err
+	}
+	t, err := tenantKey(tenant)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(memberID) == "" {
+		return nil, refuse("PERFORMANCE_INVALID_MEMBER", "member_id", "member reference is required", ErrStoreRefused)
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	result := make([]FrozenParticipantReviewerGraph, 0)
+	for cycleID, byCycle := range s.graphs[t] {
+		revisions := s.cycles[key(t, cycleID)]
+		if len(revisions) == 0 {
+			continue
+		}
+		cycle, ok := revisions[latestCycle(revisions).Revision]
+		if !ok || cycle.State != PerformanceCycleOpen {
+			continue
+		}
+		byGraphRevision := byCycle[cycle.Revision]
+		graph, ok := byGraphRevision[uint64(len(byGraphRevision))]
+		if !ok || !frozenGraphContainsMember(graph, memberID) {
+			continue
+		}
+		result = append(result, cloneFrozenParticipantReviewerGraph(graph))
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].CycleID < result[j].CycleID })
+	return result, nil
+}
+
+func frozenGraphContainsMember(graph FrozenParticipantReviewerGraph, memberID string) bool {
+	for _, participant := range graph.Participants {
+		if participant.ID == memberID {
+			return true
+		}
+	}
+	for _, assignment := range graph.Reviewers {
+		if assignment.ReviewerID == memberID {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *MemoryStore) SaveRatingCase(ctx context.Context, tenant TenantID, c RatingCaseRecord) error {

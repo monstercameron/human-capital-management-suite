@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/popscale"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/population"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -70,8 +71,8 @@ func (f FrozenSelection) Validate() error {
 	if err := f.MinimumWatermark.Validate(); err != nil {
 		return fmt.Errorf("%w: watermark: %v", ErrInvalidFreeze, err)
 	}
-	if len(f.Selection) != len(f.Snapshot.SubjectIDList()) {
-		return fmt.Errorf("%w: selection no longer matches snapshot", ErrInvalidFreeze)
+	if f.Snapshot.MembershipProtected {
+		return ErrInvalidFreeze
 	}
 	selection := make(map[string]bool, len(f.Selection))
 	for _, subject := range f.Selection {
@@ -80,10 +81,21 @@ func (f FrozenSelection) Validate() error {
 		}
 		selection[subject.String()] = true
 	}
-	for _, id := range f.Snapshot.SubjectIDList() {
-		if !selection[id] {
-			return fmt.Errorf("%w: selection no longer matches snapshot", ErrInvalidFreeze)
+	session, err := popscale.NewSession(f.Snapshot, popscale.Caller{MembershipDisclosed: true}, 256)
+	if err != nil {
+		return ErrInvalidFreeze
+	}
+	seen := make(map[string]bool, len(f.Selection))
+	if err := session.Walk(func(page popscale.Page) error {
+		for _, id := range page.Subjects {
+			if !selection[id] || seen[id] {
+				return ErrInvalidFreeze
+			}
+			seen[id] = true
 		}
+		return nil
+	}); err != nil || len(seen) != len(selection) {
+		return ErrInvalidFreeze
 	}
 	return nil
 }
@@ -274,14 +286,13 @@ func PrepareAction(ctx context.Context, frozen FrozenSelection, template ActionT
 	if err := at.Validate(); err != nil {
 		return ProposedAction{}, ErrActionNotFresh
 	}
-	ids := frozen.Snapshot.SubjectIDList()
-	if len(ids) > template.MaxMembers {
-		return ProposedAction{}, fmt.Errorf("%w: %d members exceeds %d", ErrActionBound, len(ids), template.MaxMembers)
+	if len(frozen.Selection) > template.MaxMembers {
+		return ProposedAction{}, fmt.Errorf("%w: %d members exceeds %d", ErrActionBound, len(frozen.Selection), template.MaxMembers)
 	}
 	request := ActionRequest{
 		Tenant: frozen.Tenant, Purpose: frozen.Purpose, SnapshotDigest: frozen.Snapshot.Digest,
 		PolicyDigest: frozen.PolicyDigest, TemplateID: template.ID, TemplateVersion: template.Version,
-		MemberCount: len(ids), At: at,
+		MemberCount: len(frozen.Selection), At: at,
 	}
 	// The purpose is part of the population definition and is recovered from
 	// the snapshot's immutable selection handoff by the caller's governance
@@ -290,14 +301,23 @@ func PrepareAction(ctx context.Context, frozen FrozenSelection, template ActionT
 	if err != nil || !decision.Allowed || decision.SnapshotDigest != frozen.Snapshot.Digest || decision.PolicyDigest != frozen.PolicyDigest || decision.Evidence == "" || decision.EvaluatedAt.Compare(at) != 0 {
 		return ProposedAction{}, ErrActionNotFresh
 	}
-	children := make([]Child, 0, len(ids))
-	for _, id := range ids {
-		var subject values.EntityRef
-		if err := subject.UnmarshalText([]byte(id)); err != nil {
-			return ProposedAction{}, fmt.Errorf("%w: snapshot subject: %v", ErrActionBound, err)
+	children := make([]Child, 0, len(frozen.Selection))
+	session, err := popscale.NewSession(frozen.Snapshot, popscale.Caller{MembershipDisclosed: true}, 256)
+	if err != nil {
+		return ProposedAction{}, fmt.Errorf("%w: population page session", ErrActionBound)
+	}
+	if err := session.Walk(func(page popscale.Page) error {
+		for _, id := range page.Subjects {
+			var subject values.EntityRef
+			if err := subject.UnmarshalText([]byte(id)); err != nil {
+				return fmt.Errorf("%w: snapshot subject: %v", ErrActionBound, err)
+			}
+			childID := digestParts(frozen.Snapshot.Digest, template.ID, template.Version, id)
+			children = append(children, Child{ID: childID, Subject: subject, Status: "PENDING", ResultDigest: digestParts("pending", childID)})
 		}
-		childID := digestParts(frozen.Snapshot.Digest, template.ID, template.Version, id)
-		children = append(children, Child{ID: childID, Subject: subject, Status: "PENDING", ResultDigest: digestParts("pending", childID)})
+		return nil
+	}); err != nil {
+		return ProposedAction{}, err
 	}
 	return ProposedAction{
 		SnapshotDigest: frozen.Snapshot.Digest, PolicyDigest: frozen.PolicyDigest,

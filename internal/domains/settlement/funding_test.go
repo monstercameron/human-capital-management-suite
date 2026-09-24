@@ -62,6 +62,7 @@ func fundingInstruction(t *testing.T, run payroll.PayrollRun, id, payee, amount 
 		InstructionID: id, PayeeRef: payee, Amount: fundingDecimal(t, amount),
 		Currency: "USD", FundingSourceRef: "funding:operating", Rail: RailACH,
 		BankDetailRef: "bank-detail:token-1", ScheduleRef: "schedule:2026-11-30",
+		PaymentMethodElection: settlementElection(payee, "bank-detail:token-1"), SettlementPolicy: settlementPolicy(),
 		ValueDate: fundingDate(t),
 	}
 	i, err := NewPaymentInstruction(run, spec)

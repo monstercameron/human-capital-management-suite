@@ -2,6 +2,8 @@ package messagetemplate
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -57,14 +59,44 @@ func TestTodo_MSG_004_Race(t *testing.T) {
 	if err := r.Publish(promotionTemplate()); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 25; i++ {
-		got, err := r.Render("promotion.notice", 3, promotionRequest())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got.Digest == "" {
-			t.Fatal("empty digest")
-		}
+	const workers, iterations = 8, 25
+	start := make(chan struct{})
+	errs := make(chan error, workers*(iterations+1))
+	var wg sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		worker := worker
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for i := 0; i < iterations; i++ {
+				got, err := r.Render("promotion.notice", 3, promotionRequest())
+				if err != nil {
+					errs <- err
+					return
+				}
+				if got.Digest == "" || got.Subject != "Promotion decision for Avery" {
+					errs <- fmt.Errorf("worker %d render %d was incomplete: %+v", worker, i, got)
+					return
+				}
+			}
+			// Concurrent publication contends with the shared registry lock and
+			// must preserve the immutable published template snapshot.
+			tpl := promotionTemplate()
+			tpl.Key = fmt.Sprintf("promotion.notice.%d", worker)
+			if err := r.Publish(tpl); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	if _, err := r.Render("promotion.notice", 3, promotionRequest()); err != nil {
+		t.Fatalf("base template was lost during concurrent publication: %v", err)
 	}
 }
 

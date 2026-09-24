@@ -42,13 +42,40 @@ const (
 	RailRTP      = settlement.RailRTP
 	RailFedNow   = settlement.RailFedNow
 	RailInternal = settlement.RailInternal
+	RailCheck    = settlement.RailCheck
+	RailPayCard  = settlement.RailPayCard
 	ACH          = RailACH
 	Wire         = RailWire
 	SEPA         = RailSEPA
 	RTP          = RailRTP
 	FedNow       = RailFedNow
 	Internal     = RailInternal
+	Check        = RailCheck
+	PayCard      = RailPayCard
 )
+
+// ElectionMethod records an employee's affirmative choice of payment
+// instrument. Consent evidence is a governed reference, never a checkbox
+// inferred from a missing direct-deposit destination.
+type ElectionMethod = settlement.ElectionMethod
+
+const (
+	MethodDirectDeposit = settlement.MethodDirectDeposit
+	MethodPaperCheck    = settlement.MethodPaperCheck
+	MethodPayCard       = settlement.MethodPayCard
+)
+
+var ErrInvalidElection = settlement.ErrInvalidElection
+
+type PaymentMethodElection = settlement.PaymentMethodElection
+type SettlementPolicy = settlement.SettlementPolicy
+type PaymentMethodResolution = settlement.PaymentMethodResolution
+
+// ResolvePaymentMethod preserves the paymethod domain API while sharing the
+// validation implementation with the settlement release boundary.
+func ResolvePaymentMethod(e PaymentMethodElection, policy SettlementPolicy) (PaymentMethodResolution, error) {
+	return settlement.ResolvePaymentMethod(e, policy)
+}
 
 // RiskClass is a closed classification for destination handling risk.
 type RiskClass string

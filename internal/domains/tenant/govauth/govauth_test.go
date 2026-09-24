@@ -1,10 +1,13 @@
 package govauth
 
 import (
+	"crypto/ed25519"
 	"errors"
 	"strings"
 	"testing"
 	"time"
+
+	trustpentest "github.com/monstercameron/human-capital-management-suite/internal/trust/pentest"
 )
 
 var fixtureDate = time.Date(2026, 9, 5, 0, 0, 0, 0, time.UTC)
@@ -785,5 +788,135 @@ func TestGovauthCanonicalHelpersAndExplanations(t *testing.T) {
 	}
 	if got := profile.Explain(); !strings.Contains(got, "fedramp=TWENTYX_A") || !strings.Contains(got, "programs=FedRAMP") {
 		t.Fatalf("profile explanation = %q", got)
+	}
+}
+
+func currentAssuranceInputs() ProcurementAssuranceInputs {
+	input := ProcurementAssuranceInputs{
+		AsOf: fixtureDate,
+		PenetrationTest: PenetrationTestProcurementEvidence{
+			Answer: "As of 2026-09-05, an independent penetration test is recorded with 0 open high and 0 open critical findings.",
+			AsOf:   "2026-09-05", Status: "current", EvidenceDigest: strings.Repeat("a", 64),
+			AnswerDigest: strings.Repeat("b", 64), ArtifactRef: "pentest:engagement-7:v2",
+		},
+		Accessibility: VPATReportReference{
+			Version: "v1", Digest: strings.Repeat("c", 64), SourceRunID: "ux003-run-9",
+			SourceRunAt: fixtureDate.Add(-time.Hour), LatestRunAt: fixtureDate.Add(-time.Hour),
+		},
+	}
+	private := ed25519.NewKeyFromSeed([]byte(strings.Repeat("g", ed25519.SeedSize)))
+	public, signature, _ := trustpentest.SignTrustedPayload([]byte(input.PenetrationTest.AnswerDigest), private)
+	input.PenetrationTest.SignerPublicKey, input.PenetrationTest.Signature = public, signature
+	return input
+}
+
+func govauthAssuranceKeys() [][]byte {
+	private := ed25519.NewKeyFromSeed([]byte(strings.Repeat("g", ed25519.SeedSize)))
+	return [][]byte{append([]byte(nil), private.Public().(ed25519.PublicKey)...)}
+}
+
+func verifiedCurrentAssurance(t *testing.T, inputs ProcurementAssuranceInputs) VerifiedProcurementAssurance {
+	t.Helper()
+	verified, err := VerifyProcurementAssurance(inputs, govauthAssuranceKeys())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return verified
+}
+
+func TestTodo_REV_099_03(t *testing.T) {
+	profile := fixture("tenant", "integration", ProgramGovRAMP)
+	pack, err := GenerateProcurementPackWithAssurance(profile, verifiedCurrentAssurance(t, currentAssuranceInputs()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	answer := pack.Answers[9]
+	if answer.Question != QuestionVulnerabilityManagement || answer.Answer != currentAssuranceInputs().PenetrationTest.Answer || answer.Date != fixtureDate {
+		t.Fatalf("pentest questionnaire answer = %+v", answer)
+	}
+	if pack.Assurance == nil || pack.Assurance.PenetrationTest.AnswerDigest != strings.Repeat("b", 64) {
+		t.Fatalf("pack lost pinned pentest answer provenance: %+v", pack.Assurance)
+	}
+}
+
+func TestTodo_REV_099_03_Security(t *testing.T) {
+	profile := fixture("tenant", "integration", ProgramGovRAMP)
+	if _, err := GenerateProcurementPackWithAssurance(profile, VerifiedProcurementAssurance{}); !errors.Is(err, ErrStaleAssurance) {
+		t.Fatalf("zero-value raw assurance receipt bypassed verification: %v", err)
+	}
+	otherPrivate := ed25519.NewKeyFromSeed([]byte(strings.Repeat("x", ed25519.SeedSize)))
+	if _, err := VerifyProcurementAssurance(currentAssuranceInputs(), [][]byte{otherPrivate.Public().(ed25519.PublicKey)}); !errors.Is(err, ErrStaleAssurance) {
+		t.Fatalf("answer signed by an untrusted key was accepted: %v", err)
+	}
+	for _, mutate := range []func(*ProcurementAssuranceInputs){
+		func(i *ProcurementAssuranceInputs) { i.PenetrationTest.AsOf = "2026-09-04" },
+		func(i *ProcurementAssuranceInputs) { i.PenetrationTest.AnswerDigest = "forged" },
+		func(i *ProcurementAssuranceInputs) { i.PenetrationTest.ArtifactRef = " " },
+	} {
+		input := currentAssuranceInputs()
+		mutate(&input)
+		if _, err := VerifyProcurementAssurance(input, govauthAssuranceKeys()); !errors.Is(err, ErrStaleAssurance) {
+			t.Fatalf("stale or unpinned pentest evidence accepted: %v", err)
+		}
+	}
+}
+
+func TestTodo_REV_099_03_NoEngagementRemainsExplicit(t *testing.T) {
+	profile := fixture("tenant", "integration", ProgramGovRAMP)
+	input := currentAssuranceInputs()
+	input.PenetrationTest = PenetrationTestProcurementEvidence{
+		Answer: "As of 2026-09-05, no completed independent penetration-test engagement is recorded.",
+		AsOf:   "2026-09-05", Status: "no_completed_engagement", AnswerDigest: strings.Repeat("e", 64),
+	}
+	private := ed25519.NewKeyFromSeed([]byte(strings.Repeat("g", ed25519.SeedSize)))
+	public, signature, _ := trustpentest.SignTrustedPayload([]byte(input.PenetrationTest.AnswerDigest), private)
+	input.PenetrationTest.SignerPublicKey, input.PenetrationTest.Signature = public, signature
+	pack, err := GenerateProcurementPackWithAssurance(profile, verifiedCurrentAssurance(t, input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(pack.Answers[9].Answer, "no completed") || !strings.Contains(pack.Answers[9].ArtifactRef, strings.Repeat("e", 64)) {
+		t.Fatalf("absence answer was not preserved as explicit source evidence: %+v", pack.Answers[9])
+	}
+}
+
+func TestTodo_REV_099_04(t *testing.T) {
+	pack, err := GenerateProcurementPackWithAssurance(fixture("tenant", "integration", ProgramGovRAMP), verifiedCurrentAssurance(t, currentAssuranceInputs()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	accessibility := pack.Answers[10]
+	wantAnswer := "Interim accessibility evidence report v1 SHA-256 " + strings.Repeat("c", 64)
+	if accessibility.Question != QuestionAccessibility || accessibility.Answer != wantAnswer || !strings.Contains(accessibility.ArtifactRef, "vpat:v1") {
+		t.Fatalf("accessibility answer does not accurately label the pinned interim report: %+v", accessibility)
+	}
+	if digest, err := pack.Digest(); err != nil || digest != pack.PackDigest {
+		t.Fatalf("integrated pack digest = %s, err=%v", digest, err)
+	}
+}
+
+func TestTodo_REV_099_04_Security(t *testing.T) {
+	profile := fixture("tenant", "integration", ProgramGovRAMP)
+	for _, mutate := range []func(*ProcurementAssuranceInputs){
+		func(i *ProcurementAssuranceInputs) { i.Accessibility.Version = "" },
+		func(i *ProcurementAssuranceInputs) { i.Accessibility.Digest = "tampered" },
+		func(i *ProcurementAssuranceInputs) {
+			i.Accessibility.LatestRunAt = fixtureDate
+			i.Accessibility.SourceRunAt = fixtureDate.Add(-time.Hour)
+		},
+	} {
+		input := currentAssuranceInputs()
+		mutate(&input)
+		if _, err := VerifyProcurementAssurance(input, govauthAssuranceKeys()); !errors.Is(err, ErrStaleAssurance) {
+			t.Fatalf("missing or stale VPAT reference accepted: %v", err)
+		}
+	}
+	pack, err := GenerateProcurementPackWithAssurance(profile, verifiedCurrentAssurance(t, currentAssuranceInputs()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pack.Assurance.Accessibility.Digest = strings.Repeat("d", 64)
+	if _, err := pack.Digest(); !errors.Is(err, ErrStaleAssurance) && !errors.Is(err, ErrImmutableRevision) {
+		t.Fatalf("tampered VPAT reference accepted: %v", err)
 	}
 }

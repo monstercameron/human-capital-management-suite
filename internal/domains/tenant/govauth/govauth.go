@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	trustpentest "github.com/monstercameron/human-capital-management-suite/internal/trust/pentest"
 )
 
 const schemaVersion = 1
@@ -28,6 +30,7 @@ var (
 	ErrUnansweredQuestion = errors.New("govauth: unanswered procurement question")
 	ErrImmutableRevision  = errors.New("govauth: immutable revision digest mismatch")
 	ErrTimelineRefusal    = errors.New("govauth: FedRAMP timeline refusal")
+	ErrStaleAssurance     = errors.New("govauth: missing or stale assurance evidence")
 )
 
 // Program is the closed set of government authorization or regulated-data
@@ -611,12 +614,172 @@ func (p GovernmentAuthorizationProfile) Refresh(timeline FedRAMPTimeline) (Gover
 
 // ProcurementPack is the generated, immutable questionnaire artifact.
 type ProcurementPack struct {
-	SchemaVersion   int                 `json:"schema_version"`
-	ProfileDigest   string              `json:"profile_digest"`
-	ProfileRevision uint64              `json:"profile_revision"`
-	GeneratedAt     time.Time           `json:"generated_at"`
-	Answers         []ProcurementAnswer `json:"answers"`
-	PackDigest      string              `json:"pack_digest,omitempty"`
+	SchemaVersion   int                             `json:"schema_version"`
+	ProfileDigest   string                          `json:"profile_digest"`
+	ProfileRevision uint64                          `json:"profile_revision"`
+	GeneratedAt     time.Time                       `json:"generated_at"`
+	Answers         []ProcurementAnswer             `json:"answers"`
+	Assurance       *ProcurementAssuranceReferences `json:"assurance,omitempty"`
+	PackDigest      string                          `json:"pack_digest,omitempty"`
+}
+
+// PenetrationTestProcurementEvidence is the transport-neutral projection of a
+// verified independent-test answer. The source service must verify its
+// signed answer before adapting it to this contract.
+type PenetrationTestProcurementEvidence struct {
+	Answer          string `json:"answer"`
+	AsOf            string `json:"as_of"`
+	Status          string `json:"status"`
+	EvidenceDigest  string `json:"evidence_digest"`
+	AnswerDigest    string `json:"answer_digest"`
+	ArtifactRef     string `json:"artifact_ref"`
+	SignerPublicKey string `json:"signer_public_key"`
+	Signature       string `json:"signature"`
+}
+
+// VPATReportReference is the version and digest pin produced by the VPAT
+// service, paired with the latest UX-003 run known to the pack generator.
+type VPATReportReference struct {
+	Version     string    `json:"version"`
+	Digest      string    `json:"sha256"`
+	SourceRunID string    `json:"source_run_id"`
+	SourceRunAt time.Time `json:"source_run_at"`
+	LatestRunAt time.Time `json:"latest_ux003_run_at"`
+}
+
+// ProcurementAssuranceInputs are unverified data transferred from assurance
+// services. Do not pass these values directly to pack generation; first build
+// a VerifiedProcurementAssurance against a deployment-owned trust set.
+type ProcurementAssuranceInputs struct {
+	AsOf            time.Time                          `json:"as_of"`
+	PenetrationTest PenetrationTestProcurementEvidence `json:"penetration_test"`
+	Accessibility   VPATReportReference                `json:"accessibility"`
+}
+
+// VerifiedProcurementAssurance is a sealed value. Its fields are private so a
+// caller cannot construct assurance references from raw answer text/digests.
+type VerifiedProcurementAssurance struct {
+	inputs   ProcurementAssuranceInputs
+	digest   string
+	verified bool
+}
+
+// VerifyProcurementAssurance authenticates the answer using an out-of-band
+// trusted-key allowlist and validates its dated evidence references. The
+// caller must source trustedKeys from deployment governance, not request data.
+func VerifyProcurementAssurance(inputs ProcurementAssuranceInputs, trustedKeys [][]byte) (VerifiedProcurementAssurance, error) {
+	if inputs.PenetrationTest.Status == "no_completed_engagement" && strings.TrimSpace(inputs.PenetrationTest.ArtifactRef) == "" && isHexDigest(inputs.PenetrationTest.AnswerDigest) {
+		inputs.PenetrationTest.ArtifactRef = "pentest:no-engagement:sha256:" + strings.ToLower(inputs.PenetrationTest.AnswerDigest)
+	}
+	if err := validateProcurementAssuranceInputs(inputs, trustedKeys); err != nil {
+		return VerifiedProcurementAssurance{}, err
+	}
+	digest, err := assuranceInputsDigest(inputs)
+	if err != nil {
+		return VerifiedProcurementAssurance{}, err
+	}
+	return VerifiedProcurementAssurance{inputs: inputs, digest: digest, verified: true}, nil
+}
+
+// ProcurementAssuranceReferences are embedded in a generated pack so its
+// assurance answers remain traceable to versioned source evidence.
+type ProcurementAssuranceReferences struct {
+	PenetrationTest PenetrationTestProcurementEvidence `json:"penetration_test"`
+	Accessibility   VPATReportReference                `json:"accessibility"`
+}
+
+// GenerateProcurementPackWithAssurance requires a current dated pentest
+// answer and a digest-pinned VPAT report no older than the latest UX-003 run.
+func GenerateProcurementPackWithAssurance(profile GovernmentAuthorizationProfile, assurance VerifiedProcurementAssurance) (ProcurementPack, error) {
+	if err := profile.Validate(); err != nil {
+		return ProcurementPack{}, err
+	}
+	inputs := assurance.inputs
+	digest, digestErr := assuranceInputsDigest(inputs)
+	if !assurance.verified || digestErr != nil || digest != assurance.digest {
+		return ProcurementPack{}, fieldError(ErrStaleAssurance, "assurance", "verified assurance receipt is required")
+	}
+	if inputs.AsOf.IsZero() || inputs.AsOf.Location() != time.UTC || !sameUTCDay(inputs.AsOf, profile.ReviewDate) {
+		return ProcurementPack{}, fieldError(ErrStaleAssurance, "assurance.as_of", "must match the profile review date in UTC")
+	}
+	p := inputs.PenetrationTest
+	parsedAsOf, err := time.Parse("2006-01-02", p.AsOf)
+	noEngagement := p.Status == "no_completed_engagement"
+	if err != nil || !sameUTCDay(parsedAsOf, inputs.AsOf) || strings.TrimSpace(p.Answer) == "" || !validPentestStatus(p.Status) || (!noEngagement && !isHexDigest(p.EvidenceDigest)) || !isHexDigest(p.AnswerDigest) {
+		return ProcurementPack{}, fieldError(ErrStaleAssurance, "assurance.penetration_test", "requires a current dated answer and pinned source digests")
+	}
+	if strings.TrimSpace(p.ArtifactRef) == "" && noEngagement {
+		p.ArtifactRef = "pentest:no-engagement:sha256:" + strings.ToLower(p.AnswerDigest)
+	}
+	if strings.TrimSpace(p.ArtifactRef) == "" {
+		return ProcurementPack{}, fieldError(ErrStaleAssurance, "assurance.penetration_test.artifact_ref", "is required")
+	}
+	v := inputs.Accessibility
+	if strings.TrimSpace(v.Version) == "" || !isHexDigest(v.Digest) || strings.TrimSpace(v.SourceRunID) == "" || v.SourceRunAt.IsZero() || v.SourceRunAt.Location() != time.UTC || v.LatestRunAt.IsZero() || v.LatestRunAt.Location() != time.UTC || v.SourceRunAt.Before(v.LatestRunAt) || v.SourceRunAt.After(inputs.AsOf) {
+		return ProcurementPack{}, fieldError(ErrStaleAssurance, "assurance.accessibility", "requires a current versioned digest-pinned VPAT reference")
+	}
+	pack, err := GenerateProcurementPack(profile)
+	if err != nil {
+		return ProcurementPack{}, err
+	}
+	for i := range pack.Answers {
+		switch pack.Answers[i].Question {
+		case QuestionVulnerabilityManagement:
+			pack.Answers[i] = ProcurementAnswer{Question: QuestionVulnerabilityManagement, Answer: p.Answer, Owner: pack.Answers[i].Owner, Date: inputs.AsOf, ArtifactRef: p.ArtifactRef}
+		case QuestionAccessibility:
+			pack.Answers[i] = ProcurementAnswer{Question: QuestionAccessibility, Answer: "Interim accessibility evidence report " + v.Version + " SHA-256 " + strings.ToLower(v.Digest), Owner: pack.Answers[i].Owner, Date: inputs.AsOf, ArtifactRef: "vpat:" + v.Version + ":sha256:" + strings.ToLower(v.Digest)}
+		}
+	}
+	pack.GeneratedAt = inputs.AsOf
+	pack.Assurance = &ProcurementAssuranceReferences{PenetrationTest: p, Accessibility: v}
+	digest, err = pack.contentDigest()
+	if err != nil {
+		return ProcurementPack{}, err
+	}
+	pack.PackDigest = digest
+	return pack, nil
+}
+
+func validateProcurementAssuranceInputs(inputs ProcurementAssuranceInputs, trustedKeys [][]byte) error {
+	if inputs.AsOf.IsZero() || inputs.AsOf.Location() != time.UTC {
+		return fieldError(ErrStaleAssurance, "assurance.as_of", "must be a UTC date")
+	}
+	p := inputs.PenetrationTest
+	parsedAsOf, err := time.Parse("2006-01-02", p.AsOf)
+	noEngagement := p.Status == "no_completed_engagement"
+	if err != nil || !sameUTCDay(parsedAsOf, inputs.AsOf) || strings.TrimSpace(p.Answer) == "" || !validPentestStatus(p.Status) || (!noEngagement && !isHexDigest(p.EvidenceDigest)) || !isHexDigest(p.AnswerDigest) || strings.TrimSpace(p.ArtifactRef) == "" {
+		return fieldError(ErrStaleAssurance, "assurance.penetration_test", "requires a current dated answer and pinned source digests")
+	}
+	if err := trustpentest.VerifyTrustedSignature([]byte(p.AnswerDigest), p.SignerPublicKey, p.Signature, trustedKeys); err != nil {
+		return fieldError(ErrStaleAssurance, "assurance.penetration_test.signature", "is not signed by a trusted assurance key")
+	}
+	v := inputs.Accessibility
+	if strings.TrimSpace(v.Version) == "" || !isHexDigest(v.Digest) || strings.TrimSpace(v.SourceRunID) == "" || v.SourceRunAt.IsZero() || v.SourceRunAt.Location() != time.UTC || v.LatestRunAt.IsZero() || v.LatestRunAt.Location() != time.UTC || v.SourceRunAt.Before(v.LatestRunAt) || v.SourceRunAt.After(inputs.AsOf) {
+		return fieldError(ErrStaleAssurance, "assurance.accessibility", "requires a current versioned digest-pinned VPAT reference")
+	}
+	return nil
+}
+
+func assuranceInputsDigest(inputs ProcurementAssuranceInputs) (string, error) {
+	b, err := json.Marshal(inputs)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:]), nil
+}
+
+func sameUTCDay(a, b time.Time) bool {
+	return !a.IsZero() && !b.IsZero() && a.UTC().Format("2006-01-02") == b.UTC().Format("2006-01-02")
+}
+
+func validPentestStatus(status string) bool {
+	switch status {
+	case "current", "overdue_high_or_critical_findings", "overdue_for_next_test", "no_completed_engagement":
+		return true
+	default:
+		return false
+	}
 }
 
 // GenerateProcurementPack answers all standard questions from the profile's
@@ -663,12 +826,13 @@ func GenerateProcurementEvidencePack(profile GovernmentAuthorizationProfile) (Pr
 
 func (p ProcurementPack) contentDigest() (string, error) {
 	b, err := json.Marshal(struct {
-		SchemaVersion   int                 `json:"schema_version"`
-		ProfileDigest   string              `json:"profile_digest"`
-		ProfileRevision uint64              `json:"profile_revision"`
-		GeneratedAt     time.Time           `json:"generated_at"`
-		Answers         []ProcurementAnswer `json:"answers"`
-	}{p.SchemaVersion, p.ProfileDigest, p.ProfileRevision, p.GeneratedAt.UTC(), p.Answers})
+		SchemaVersion   int                             `json:"schema_version"`
+		ProfileDigest   string                          `json:"profile_digest"`
+		ProfileRevision uint64                          `json:"profile_revision"`
+		GeneratedAt     time.Time                       `json:"generated_at"`
+		Answers         []ProcurementAnswer             `json:"answers"`
+		Assurance       *ProcurementAssuranceReferences `json:"assurance,omitempty"`
+	}{p.SchemaVersion, p.ProfileDigest, p.ProfileRevision, p.GeneratedAt.UTC(), p.Answers, p.Assurance})
 	if err != nil {
 		return "", fmt.Errorf("govauth: canonical procurement pack: %w", err)
 	}
@@ -691,6 +855,30 @@ func (p ProcurementPack) Digest() (string, error) {
 		}
 		if err := p.Answers[i].Validate(); err != nil {
 			return "", err
+		}
+	}
+	if p.Assurance != nil {
+		refs := p.Assurance
+		pt, vpat := refs.PenetrationTest, refs.Accessibility
+		parsed, err := time.Parse("2006-01-02", pt.AsOf)
+		noEngagement := pt.Status == "no_completed_engagement"
+		if err != nil || !sameUTCDay(parsed, p.GeneratedAt) || strings.TrimSpace(pt.Answer) == "" || !validPentestStatus(pt.Status) || !isHexDigest(pt.AnswerDigest) || (!noEngagement && !isHexDigest(pt.EvidenceDigest)) || strings.TrimSpace(pt.ArtifactRef) == "" {
+			return "", fieldError(ErrStaleAssurance, "pack.assurance.penetration_test", "is malformed or stale")
+		}
+		if vpat.Version == "" || !isHexDigest(vpat.Digest) || vpat.SourceRunID == "" || vpat.SourceRunAt.IsZero() || vpat.SourceRunAt.Location() != time.UTC || vpat.LatestRunAt.IsZero() || vpat.LatestRunAt.Location() != time.UTC || vpat.SourceRunAt.Before(vpat.LatestRunAt) || vpat.SourceRunAt.After(p.GeneratedAt) {
+			return "", fieldError(ErrStaleAssurance, "pack.assurance.accessibility", "is malformed or stale")
+		}
+		foundPT, foundVPAT := false, false
+		for _, answer := range p.Answers {
+			if answer.Question == QuestionVulnerabilityManagement {
+				foundPT = answer.Answer == pt.Answer && answer.ArtifactRef == pt.ArtifactRef && sameUTCDay(answer.Date, parsed)
+			}
+			if answer.Question == QuestionAccessibility {
+				foundVPAT = answer.ArtifactRef == "vpat:"+vpat.Version+":sha256:"+strings.ToLower(vpat.Digest)
+			}
+		}
+		if !foundPT || !foundVPAT {
+			return "", fieldError(ErrStaleAssurance, "pack.assurance", "does not match questionnaire answers")
 		}
 	}
 	digest, err := p.contentDigest()

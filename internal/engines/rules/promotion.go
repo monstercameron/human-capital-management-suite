@@ -44,6 +44,10 @@ const PromotionApprovalTableID = "hcmnext.rules.promotion_approval_threshold"
 // different version string, never an edit to this one.
 const PromotionApprovalTableVersion = "2026.1"
 
+// PromotionWorkflowThresholdTableVersion is the first published threshold
+// body that exposes its routing result alongside the approval tier.
+const PromotionWorkflowThresholdTableVersion = "2026.2"
+
 // Promotion approval input column names, exported so a caller can build a
 // rules.Evaluate input map directly if it needs the untyped engine, or read
 // PromotionApprovalDecision.Trace's ColumnTrace.Column entries against them.
@@ -250,6 +254,27 @@ func PromotionApprovalThresholdTable() Table {
 			},
 		},
 	}
+}
+
+// PromotionWorkflowThresholdTable preserves the 2026.1 approval-tier table
+// and publishes an additional explicit workflow route result. The original
+// version remains available for historical decisions and v1 workflow plans.
+func PromotionWorkflowThresholdTable() Table {
+	table := PromotionApprovalThresholdTable()
+	table.Version = PromotionWorkflowThresholdTableVersion
+	table.Outputs = append(table.Outputs, Column{Name: "route_key", Kind: KindString})
+	for i := range table.Rows {
+		tier := ApprovalTier(table.Rows[i].Outputs[0].String())
+		route := "EXCEEDS_THRESHOLD"
+		switch tier {
+		case ApprovalTierStandard:
+			route = "WITHIN_THRESHOLD"
+		case ApprovalTierUnknownBlocked:
+			route = "UNKNOWN"
+		}
+		table.Rows[i].Outputs = append(table.Rows[i].Outputs, StringValue(route))
+	}
+	return table
 }
 
 // PromotionApprovalInput is the typed question this table answers for one

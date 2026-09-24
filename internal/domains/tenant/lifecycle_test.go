@@ -67,12 +67,38 @@ func TestTodo_TENANT_003_Race(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := &revoker{}
-	if _, err := life.Suspend(context.Background(), tenant.SuspendRequest{Reason: tenant.SuspensionCommercial, RequestedBy: "operator", IdempotencyKey: "one", At: lifecycleAt, Revoker: r}); err != nil {
-		t.Fatal(err)
+	const workers = 12
+	type outcome struct {
+		result tenant.TransitionResult
+		err    error
+	}
+	results := make(chan outcome, workers)
+	request := tenant.SuspendRequest{Reason: tenant.SuspensionCommercial, RequestedBy: "operator", IdempotencyKey: "same-request", At: lifecycleAt}
+	for i := 0; i < workers; i++ {
+		go func() {
+			result, err := life.Suspend(context.Background(), request)
+			results <- outcome{result: result, err: err}
+		}()
+	}
+	var eventDigest string
+	for i := 0; i < workers; i++ {
+		got := <-results
+		if got.err != nil {
+			t.Fatalf("concurrent suspend: %v", got.err)
+		}
+		if got.result.Status != tenant.TenantSuspended || got.result.Event.Digest == "" {
+			t.Fatalf("concurrent transition=%+v", got.result)
+		}
+		if eventDigest != "" && got.result.Event.Digest != eventDigest {
+			t.Fatalf("replay changed event digest: %q != %q", got.result.Event.Digest, eventDigest)
+		}
+		eventDigest = got.result.Event.Digest
 	}
 	if got := life.Status(); got != tenant.TenantSuspended {
 		t.Fatalf("status = %s", got)
+	}
+	if events := life.Events(); len(events) != 1 || events[0].Digest != eventDigest {
+		t.Fatalf("events=%+v, want one stable suspension event", events)
 	}
 }
 

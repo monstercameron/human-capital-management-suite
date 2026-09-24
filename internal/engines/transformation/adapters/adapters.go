@@ -358,10 +358,21 @@ func SupportedOperations() []SiteOperation {
 		{SiteConnectivityProfile, "identity", ir.OpProject, "", "transformation.OpCopy"},
 		{SiteConnectivityRules, "IDENTITY", ir.OpProject, "", "transformation.OpCopy"},
 		{SiteConnectivityRules, "CONSTANT", ir.OpMap, ir.FuncDefault, "transformation.OpDefault"},
-		{SiteConnectivityRules, "DATE(RFC3339)", ir.OpCoerce, "", "transformation.OpConvert"},
+		{SiteConnectivityRules, "TRIM", ir.OpMap, ir.FuncTrim, "transformation.OpTransform"},
+		{SiteConnectivityRules, "UPPER", ir.OpMap, ir.FuncUpper, "transformation.OpTransform"},
+		{SiteConnectivityRules, "LOWER", ir.OpMap, ir.FuncLower, "transformation.OpTransform"},
+		{SiteConnectivityRules, "LOOKUP", ir.OpMap, ir.FuncLookup, "transformation.OpTransform"},
+		{SiteConnectivityRules, "DATE(layout)", ir.OpMap, ir.FuncDateParse, "transformation.OpTransform"},
+		{SiteConnectivityRules, "MONEY(currency)", ir.OpMap, ir.FuncMoneyParse, "transformation.OpTransform"},
+		{SiteConnectivityRules, "COMPOSE", ir.OpMap, ir.FuncCompose, "transformation.OpTransform"},
 		{SiteDataOpsImport, "IDENTITY", ir.OpProject, "", "transformation.OpCopy"},
 		{SiteDataOpsImport, "CONSTANT", ir.OpMap, ir.FuncDefault, "transformation.OpDefault"},
-		{SiteDataOpsImport, "DATE_PARSE(RFC3339)", ir.OpCoerce, "", "transformation.OpConvert"},
+		{SiteDataOpsImport, "TRIM", ir.OpMap, ir.FuncTrim, "transformation.OpTransform"},
+		{SiteDataOpsImport, "CASE_UPPER", ir.OpMap, ir.FuncUpper, "transformation.OpTransform"},
+		{SiteDataOpsImport, "CASE_LOWER", ir.OpMap, ir.FuncLower, "transformation.OpTransform"},
+		{SiteDataOpsImport, "LOOKUP", ir.OpMap, ir.FuncLookup, "transformation.OpTransform"},
+		{SiteDataOpsImport, "DATE_PARSE(layout)", ir.OpMap, ir.FuncDateParse, "transformation.OpTransform"},
+		{SiteDataOpsImport, "MONEY_PARSE(currency)", ir.OpMap, ir.FuncMoneyParse, "transformation.OpTransform"},
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Site != out[j].Site {
@@ -475,6 +486,27 @@ func (b *builder) convert(target, sourceField string, from, to transformation.Ty
 		Kind: transformation.OpConvert, Source: &src, Destination: dst, TargetType: to,
 	})
 	b.bindings = append(b.bindings, Binding{Target: target, SourceKey: key(src), TargetKey: key(dst), Type: to})
+	return nil
+}
+
+// transform lowers one closed, source-based engine function. The site adapter
+// supplies the named operation and its declarative arguments; execution still
+// runs in transformation/exec.
+func (b *builder) transform(target, sourceField, function, argument string, lookup map[string]string) error {
+	src, err := b.source(sourceField, transformation.TypeString)
+	if err != nil {
+		return err
+	}
+	dst, err := b.destination(target, transformation.TypeString)
+	if err != nil {
+		return err
+	}
+	copyLookup := make(map[string]string, len(lookup))
+	for k, v := range lookup {
+		copyLookup[k] = v
+	}
+	b.operations = append(b.operations, transformation.Operation{Kind: transformation.OpTransform, Source: &src, Destination: dst, Function: function, Argument: argument, Lookup: copyLookup})
+	b.bindings = append(b.bindings, Binding{Target: target, SourceKey: key(src), TargetKey: key(dst), Type: transformation.TypeString})
 	return nil
 }
 

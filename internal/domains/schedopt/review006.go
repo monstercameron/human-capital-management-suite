@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 // ReviewVersion is the rejection version for schedule review.
@@ -67,11 +68,29 @@ type ReviewRule struct {
 
 // CandidateSchedule is the exact revision under review.
 type CandidateSchedule struct {
-	Tenant      string
-	Revision    string
-	RuleDigest  string
-	Assignments []ReviewAssignment
-	Rules       []ReviewRule
+	Tenant          string
+	Revision        string
+	RuleDigest      string
+	Assignments     []ReviewAssignment
+	Rules           []ReviewRule
+	ReviewLifecycle ReviewLifecycle
+	FairWorkweek    *FairWorkweekReviewContext
+}
+
+type ReviewLifecycle string
+
+const (
+	ReviewPrepublication ReviewLifecycle = "PREPUBLICATION"
+	ReviewPublished      ReviewLifecycle = "PUBLISHED"
+)
+
+// FairWorkweekReviewContext binds edits to their existing publication and an
+// evidence-bearing legal rule port. A missing rule stays unresolved.
+type FairWorkweekReviewContext struct {
+	Publication  Publication
+	Jurisdiction string
+	Rules        map[string]FairWorkweekRule
+	RegularRates map[string]values.Rate
 }
 
 // ChangeKind is the closed manual-change vocabulary.
@@ -92,18 +111,22 @@ type ManualChange struct {
 	WindowRef    string
 	Reason       string
 	AuthorityRef string
+	ChangedAt    time.Time
 }
 
 // ApprovedSchedule binds the exact reviewed revision.
 type ApprovedSchedule struct {
-	Tenant      string
-	Revision    string
-	RuleDigest  string
-	Assignments []ReviewAssignment
-	Changes     []ManualChange
-	ApprovedBy  string
-	ApprovedAt  time.Time
-	BoundDigest string
+	Tenant                  string
+	Revision                string
+	RuleDigest              string
+	Assignments             []ReviewAssignment
+	Changes                 []ManualChange
+	ApprovedBy              string
+	ApprovedAt              time.Time
+	BoundDigest             string
+	FairWorkweekAssessments []FairWorkweekAssessment
+	PremiumObligations      []PremiumObligation
+	ReviewLifecycle         ReviewLifecycle
 }
 
 func (a ApprovedSchedule) computedDigest() string {
@@ -114,17 +137,22 @@ func (a ApprovedSchedule) computedDigest() string {
 	sort.Strings(assignments)
 	changes := make([]string, 0, len(a.Changes))
 	for _, c := range a.Changes {
-		changes = append(changes, strings.Join([]string{string(c.Kind), c.AssignmentID, c.WorkerRef, c.DemandRef, c.WindowRef, c.Reason, c.AuthorityRef}, "\x00"))
+		changes = append(changes, strings.Join([]string{string(c.Kind), c.AssignmentID, c.WorkerRef, c.DemandRef, c.WindowRef, c.Reason, c.AuthorityRef, c.ChangedAt.UTC().Format(time.RFC3339Nano)}, "\x00"))
 	}
 	sort.Strings(changes)
+	assessments := fairWorkweekAssessmentDigests(a.FairWorkweekAssessments)
+	obligations := fairWorkweekObligationDigests(a.PremiumObligations)
 	w := canonicalbytes.New("hcmnext.domains.schedopt.ApprovedSchedule", 1).
 		String("tenant", a.Tenant).
 		String("revision", a.Revision).
 		String("rule_digest", a.RuleDigest).
+		String("review_lifecycle", string(a.ReviewLifecycle)).
 		String("approved_by", a.ApprovedBy).
 		String("approved_at", a.ApprovedAt.UTC().Format(time.RFC3339)).
 		SortedStrings("assignments", assignments).
-		SortedStrings("changes", changes)
+		SortedStrings("changes", changes).
+		SortedStrings("fair_workweek_assessments", assessments).
+		SortedStrings("premium_obligations", obligations)
 	digest, err := w.Digest()
 	if err != nil {
 		return ""
@@ -170,7 +198,17 @@ func checkRules(assignments []ReviewAssignment, rules []ReviewRule) error {
 
 // ApplyReview revalidates manual changes against the pinned hard rules
 // and seals an approval binding the exact schedule revision.
+// ApplyReview handles reviews without an explicit lifecycle. It permits
+// no-change approvals; manual edits must use ApplyPrepublicationReview or
+// ApplyPublishedReview so notice assessment cannot be skipped by omission.
 func ApplyReview(schedule CandidateSchedule, changes []ManualChange, approvedBy string, now time.Time) (ApprovedSchedule, error) {
+	if len(changes) > 0 && schedule.FairWorkweek == nil {
+		return ApprovedSchedule{}, reviewReject("review.fair_workweek", "UNKNOWN_REVIEW", "manual changes require ApplyPrepublicationReview or ApplyPublishedReview")
+	}
+	return applyReview(schedule, changes, approvedBy, now)
+}
+
+func applyReview(schedule CandidateSchedule, changes []ManualChange, approvedBy string, now time.Time) (ApprovedSchedule, error) {
 	if strings.TrimSpace(schedule.Tenant) == "" {
 		return ApprovedSchedule{}, reviewReject("review.tenant", "MISSING", "tenant is required")
 	}
@@ -179,6 +217,14 @@ func ApplyReview(schedule CandidateSchedule, changes []ManualChange, approvedBy 
 	}
 	if strings.TrimSpace(schedule.RuleDigest) == "" {
 		return ApprovedSchedule{}, reviewReject("review.rule_digest", "MISSING", "pinned rule digest is required")
+	}
+	if len(changes) > 0 {
+		if schedule.FairWorkweek == nil && schedule.ReviewLifecycle != ReviewPrepublication {
+			return ApprovedSchedule{}, reviewReject("review.fair_workweek", "UNKNOWN_REVIEW", "manual changes require explicit prepublication state or published legal review context")
+		}
+		if schedule.FairWorkweek != nil && schedule.ReviewLifecycle != ReviewPublished {
+			return ApprovedSchedule{}, reviewReject("review.fair_workweek", "LIFECYCLE_MISMATCH", "publication context requires published review lifecycle")
+		}
 	}
 	if strings.TrimSpace(approvedBy) == "" {
 		return ApprovedSchedule{}, reviewReject("review.approved_by", "MISSING", "approver is required")
@@ -189,7 +235,14 @@ func ApplyReview(schedule CandidateSchedule, changes []ManualChange, approvedBy 
 	if err := checkRules(schedule.Assignments, schedule.Rules); err != nil {
 		return ApprovedSchedule{}, err
 	}
+	if schedule.FairWorkweek != nil {
+		if err := validateFairWorkweekReviewBinding(schedule); err != nil {
+			return ApprovedSchedule{}, err
+		}
+	}
 	assignments := append([]ReviewAssignment(nil), schedule.Assignments...)
+	var fairWorkweekAssessments []FairWorkweekAssessment
+	var premiumObligations []PremiumObligation
 	byID := make(map[string]int, len(assignments))
 	for i, a := range assignments {
 		byID[a.AssignmentID] = i
@@ -240,12 +293,50 @@ func ApplyReview(schedule CandidateSchedule, changes []ManualChange, approvedBy 
 		if err := checkRules(assignments, schedule.Rules); err != nil {
 			return ApprovedSchedule{}, err
 		}
+		if schedule.FairWorkweek != nil {
+			assessment, err := assessManualChange(*schedule.FairWorkweek, c, assignments)
+			if err != nil {
+				return ApprovedSchedule{}, err
+			}
+			if assessment.State == "UNKNOWN_REVIEW" {
+				return ApprovedSchedule{}, reviewReject(fmt.Sprintf("review.changes[%d].fair_workweek", i), "UNKNOWN_REVIEW", assessment.ReviewCode)
+			}
+			fairWorkweekAssessments = append(fairWorkweekAssessments, assessment)
+			if assessment.Obligation != nil {
+				premiumObligations = append(premiumObligations, *assessment.Obligation)
+			}
+		}
 	}
 	approved := ApprovedSchedule{
 		Tenant: schedule.Tenant, Revision: schedule.Revision, RuleDigest: schedule.RuleDigest,
 		Assignments: assignments, Changes: append([]ManualChange(nil), changes...),
 		ApprovedBy: approvedBy, ApprovedAt: now.UTC(),
+		FairWorkweekAssessments: fairWorkweekAssessments,
+		PremiumObligations:      premiumObligations,
+		ReviewLifecycle:         schedule.ReviewLifecycle,
 	}
 	approved.BoundDigest = approved.computedDigest()
 	return approved, nil
+}
+
+// ApplyPrepublicationReview makes the no-posting lifecycle explicit for a
+// manual edit to a candidate that has not yet been published.
+func ApplyPrepublicationReview(schedule CandidateSchedule, changes []ManualChange, approvedBy string, now time.Time) (ApprovedSchedule, error) {
+	if schedule.FairWorkweek != nil {
+		return ApprovedSchedule{}, reviewReject("review.fair_workweek", "LIFECYCLE_MISMATCH", "prepublication review cannot carry a publication context")
+	}
+	schedule.ReviewLifecycle = ReviewPrepublication
+	return applyReview(schedule, changes, approvedBy, now)
+}
+
+// ApplyPublishedReview is the required review entry point for edits to an
+// already posted revision. It binds the posting instant and legal inputs into
+// ApplyReview so missed-notice edits cannot silently use the prepublication path.
+func ApplyPublishedReview(schedule CandidateSchedule, publication Publication, jurisdiction string, rules map[string]FairWorkweekRule, regularRates map[string]values.Rate, changes []ManualChange, approvedBy string, now time.Time) (ApprovedSchedule, error) {
+	schedule.ReviewLifecycle = ReviewPublished
+	schedule.FairWorkweek = &FairWorkweekReviewContext{
+		Publication: publication, Jurisdiction: jurisdiction,
+		Rules: rules, RegularRates: regularRates,
+	}
+	return applyReview(schedule, changes, approvedBy, now)
 }

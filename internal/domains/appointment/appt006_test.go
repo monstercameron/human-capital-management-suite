@@ -81,7 +81,7 @@ func TestTodo_APPT_006(t *testing.T) {
 	now := appt003Now()
 
 	t.Run("match", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res, expected := appt006Setup(t, ledger, now)
 		rec := NewReconciler()
 		dec, err := rec.Reconcile(expected, nil, appt006Observation(res, 1, now.Add(time.Hour)), now.Add(2*time.Hour))
@@ -97,7 +97,7 @@ func TestTodo_APPT_006(t *testing.T) {
 	})
 
 	t.Run("missing-time-and-contract-rejected", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res, expected := appt006Setup(t, ledger, now)
 		rec := NewReconciler()
 		// Seeded defect: an observation with no time and no status is
@@ -118,7 +118,7 @@ func TestTodo_APPT_006(t *testing.T) {
 	})
 
 	t.Run("competing-slot-rejected", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		resA, expectedA := appt006Setup(t, ledger, now)
 		// A second, non-overlapping reservation fences 09:30-10:00.
 		reqB, err := NewAppointmentRequirement(typedAppointmentRequirement(t))
@@ -158,7 +158,7 @@ func TestTodo_APPT_006(t *testing.T) {
 	})
 
 	t.Run("stale-partial-duplicate-deleted", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res, expected := appt006Setup(t, ledger, now)
 		rec := NewReconciler()
 		at := now.Add(time.Hour)
@@ -213,7 +213,7 @@ func TestTodo_APPT_006(t *testing.T) {
 	})
 
 	t.Run("drift-creates-repair", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res, expected := appt006Setup(t, ledger, now)
 		rec := NewReconciler()
 		moved := appt006Observation(res, 1, now.Add(time.Hour))
@@ -239,7 +239,7 @@ func TestTodo_APPT_006(t *testing.T) {
 	})
 
 	t.Run("repair-exposes-no-calendar-content", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res, expected := appt006Setup(t, ledger, now)
 		rec := NewReconciler()
 		obs := appt006Observation(res, 1, now.Add(time.Hour))
@@ -266,7 +266,7 @@ func errorOfReconcile(_ ReconcileDecision, err error) error { return err }
 // appends exactly one repair.
 func TestTodo_APPT_006_Integration(t *testing.T) {
 	now := appt003Now()
-	ledger := NewReservationLedger()
+	ledger := newTestReservationLedger()
 	res, expected := appt006Setup(t, ledger, now)
 	rec := NewReconciler()
 
@@ -320,7 +320,7 @@ func TestTodo_APPT_006_Integration(t *testing.T) {
 // stale and duplicate deliveries never create repairs.
 func TestTodo_APPT_006_Mutation(t *testing.T) {
 	now := appt003Now()
-	ledger := NewReservationLedger()
+	ledger := newTestReservationLedger()
 	res, expected := appt006Setup(t, ledger, now)
 	rec := NewReconciler()
 

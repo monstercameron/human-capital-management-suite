@@ -18,6 +18,8 @@ func TestFlowStatePresentationReturnsExactTruthfulStatusAndSafeActions(t *testin
 		actions []Action
 	}{
 		{"loading", func(i *Input) { i.Operational = OperationalLoading }, StateLoading, []Action{ActionWait, ActionCancelIfSafe}},
+		{"operational waiting", func(i *Input) { i.Operational = OperationalWaiting }, StateWaiting, []Action{ActionWait, ActionRefresh, ActionRequestHelp}},
+		{"operational degraded", func(i *Input) { i.Operational = OperationalDegraded }, StatePartialDegraded, []Action{ActionRefresh, ActionOpenRepair, ActionRequestHelp}},
 		{"empty", func(i *Input) { i.HasResult = false }, StateEmpty, []Action{ActionRequestHelp}},
 		{"draft", func(i *Input) {}, StateDraft, []Action{ActionSaveDraft, ActionSubmit}},
 		{"validation", func(i *Input) { i.HasValidationErrors = true }, StateValidationBlocked, []Action{ActionCorrect, ActionSaveDraft}},
@@ -28,7 +30,14 @@ func TestFlowStatePresentationReturnsExactTruthfulStatusAndSafeActions(t *testin
 		{"partial", func(i *Input) { i.Dimensions.Consistency = lifecycle.ConsistencyDegraded }, StatePartialDegraded, []Action{ActionRefresh, ActionOpenRepair, ActionRequestHelp}},
 		{"unknown", func(i *Input) { i.Dimensions.Business = lifecycle.BusinessUnknown }, StateUnknownAmbiguous, []Action{ActionInvestigate, ActionRefresh, ActionRequestHelp}},
 		{"repair", func(i *Input) { i.Dimensions.Execution = lifecycle.ExecutionRepairRequired }, StateRepairRequired, []Action{ActionOpenRepair, ActionReview, ActionRequestHelp}},
-		{"completed", func(i *Input) { i.Dimensions.Request = lifecycle.RequestClosed; i.HasResult = true }, StateCompleted, []Action{ActionReview, ActionCorrect}},
+		{"completed", func(i *Input) {
+			i.Dimensions.Request = lifecycle.RequestClosed
+			i.Dimensions.Business = lifecycle.BusinessCompleted
+			i.Dimensions.Consistency = lifecycle.ConsistencyConsistent
+			i.Dimensions.Obligation = lifecycle.ObligationSatisfied
+			i.Dimensions.Execution = lifecycle.ExecutionCommitted
+			i.HasResult = true
+		}, StateCompleted, []Action{ActionReview, ActionCorrect}},
 		{"cancelled", func(i *Input) { i.Dimensions.Request = lifecycle.RequestCancelled }, StateCancelled, []Action{ActionReview, ActionRequestHelp}},
 	}
 	for _, tc := range cases {
@@ -42,8 +51,11 @@ func TestFlowStatePresentationReturnsExactTruthfulStatusAndSafeActions(t *testin
 			got := make([]Action, len(p.Actions))
 			for n, a := range p.Actions {
 				got[n] = a.Action
-				if !a.Enabled {
+				if !a.Enabled && !(tc.name == "running" && a.Action == ActionCancelIfSafe) {
 					t.Errorf("%s unexpectedly disabled", a.Action)
+				}
+				if tc.name == "running" && a.Action == ActionCancelIfSafe && a.Enabled {
+					t.Error("cancel was enabled after execution started")
 				}
 			}
 			if !slices.Equal(got, tc.actions) {
@@ -114,4 +126,45 @@ func TestTodo_UXFLOW_004_Mutation(t *testing.T) {
 			t.Fatal("cancel after commit enabled")
 		}
 	}
+}
+
+func TestTodo_UXFLOW_004_TruthAndLocalization(t *testing.T) {
+	t.Run("closed request with unfinished business is not complete", func(t *testing.T) {
+		i := base()
+		i.Dimensions.Request = lifecycle.RequestClosed
+		p := Resolve(i)
+		if p.State != StateUnknownAmbiguous {
+			t.Fatalf("closed request with unfinished business presented as %s", p.State)
+		}
+	})
+	t.Run("completed business keeps open obligations visible", func(t *testing.T) {
+		i := base()
+		i.Dimensions.Request = lifecycle.RequestClosed
+		i.Dimensions.Business = lifecycle.BusinessCompleted
+		i.Dimensions.Execution = lifecycle.ExecutionCommitted
+		i.Dimensions.Consistency = lifecycle.ConsistencyConsistent
+		i.Dimensions.Obligation = lifecycle.ObligationPending
+		p := Resolve(i)
+		if p.State != StateWaiting || p.Dimensions.Obligation != lifecycle.ObligationPending {
+			t.Fatalf("open obligation flattened: %+v", p)
+		}
+	})
+	t.Run("unknown authorization hides state and evidence", func(t *testing.T) {
+		i := base()
+		i.Authorization = AuthorizationUnknown
+		i.EvidenceRefs = []string{"private-ref"}
+		p := Resolve(i)
+		if p.State != StateGovernanceDenied || len(p.EvidenceRefs) != 0 || p.Dimensions != (lifecycle.Dimensions{}) {
+			t.Fatalf("unknown authorization disclosed state: %+v", p)
+		}
+	})
+	t.Run("locale is compiled into participant text", func(t *testing.T) {
+		i := base()
+		i.Freshness = FreshnessStale
+		i.Locale = "de-DE"
+		p := Resolve(i)
+		if p.Locale != "de-DE" || p.StateLabel != "Aktualisierung erforderlich" || p.Description == "" {
+			t.Fatalf("missing localized state: %+v", p)
+		}
+	})
 }

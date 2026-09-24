@@ -2,6 +2,7 @@ package balance
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -77,11 +78,27 @@ func TestTodo_BAL_011_Race(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for n := 0; n < 20; n++ {
-		got, callErr := PlanPosting(req)
-		if callErr != nil || got.Digest != first.Digest {
-			t.Fatalf("repeat %d: plan=%s err=%v", n, got.Digest, callErr)
-		}
+	const workers = 20
+	var wait sync.WaitGroup
+	errs := make(chan error, workers)
+	for n := 0; n < workers; n++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			got, callErr := PlanPosting(req)
+			if callErr != nil {
+				errs <- callErr
+				return
+			}
+			if got.Digest != first.Digest {
+				errs <- errors.New("concurrent posting plan digest changed")
+			}
+		}()
+	}
+	wait.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 

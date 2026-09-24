@@ -261,11 +261,27 @@ func TestTodo_MSG_003_Race(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 4; i++ {
-		got, err := ResolveDelivery(context.Background(), request)
-		if err != nil || got.ResultDigest != want.ResultDigest {
-			t.Fatalf("got=%+v err=%v", got, err)
-		}
+	const workers = 16
+	var wait sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			got, err := ResolveDelivery(context.Background(), request)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if got.ResultDigest != want.ResultDigest {
+				errs <- errors.New("concurrent delivery plan digest changed")
+			}
+		}()
+	}
+	wait.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 

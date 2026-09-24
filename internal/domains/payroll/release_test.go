@@ -3,8 +3,12 @@ package payroll
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/legal/payrules"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 func releaseEffectsFixture() ReleaseEffects {
@@ -40,12 +44,28 @@ func releaseRequestFixture(t *testing.T) ReleaseRequest {
 	if err != nil {
 		t.Fatalf("Release: %v", err)
 	}
+	_, err = payrules.DefaultPayStatementRegistry()
+	if err != nil {
+		t.Fatalf("load pay statement registry: %v", err)
+	}
+	payDate, err := values.ParseLocalDate("2026-09-23")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := StatementManifest{PayDate: payDate, Statements: []PayStatement{{WorkerID: "worker-1", Jurisdiction: "GA", Fields: []StatementField{{Name: "gross_wages", Value: "1000.00"}}, Medium: payrules.Paper}}}
+	digest, err := content.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	effects := releaseEffectsFixture()
+	effects.StatementsDigest = digest
 	return ReleaseRequest{
-		Lock:           lock,
-		Run:            released,
-		Effects:        releaseEffectsFixture(),
-		Obligations:    releaseObligationsFixture(),
-		IdempotencyKey: "release-key-1",
+		Lock:             lock,
+		Run:              released,
+		Effects:          effects,
+		StatementContent: content,
+		Obligations:      releaseObligationsFixture(),
+		IdempotencyKey:   "release-key-1",
 	}
 }
 
@@ -62,7 +82,8 @@ func TestTodo_PAYRUN_007(t *testing.T) {
 	if release.RunID != req.Run.RunID || release.RunRevision != req.Run.Revision || release.LockDigest != req.Lock.LockDigest {
 		t.Fatalf("release does not bind the lock and run: %+v", release)
 	}
-	if release.Effects.PaymentsDigest != "sha256:payments" || release.Effects.StatementsDigest != "sha256:statements" || release.Effects.BalancesDigest != "sha256:balances" || release.Effects.AccountingDigest != "sha256:accounting" || release.Effects.ReportingDigest != "sha256:reporting" {
+	statementDigest, _ := req.StatementContent.Digest()
+	if release.Effects.PaymentsDigest != "sha256:payments" || release.Effects.StatementsDigest != statementDigest || release.Effects.BalancesDigest != "sha256:balances" || release.Effects.AccountingDigest != "sha256:accounting" || release.Effects.ReportingDigest != "sha256:reporting" {
 		t.Fatalf("release does not compile every effect: %+v", release.Effects)
 	}
 	if release.ReleaseDigest == "" || release.ReleaseID != "payroll-release/release-key-1" {
@@ -128,8 +149,8 @@ func TestTodo_PAYRUN_007_Property(t *testing.T) {
 	other := PayrollRelease{
 		ReleaseID: "payroll-release/release-key-other",
 		RunID:     "run-2026-11-other", RunRevision: 3,
-		LockDigest: "sha256:other-lock",
-		Effects:    releaseEffectsFixture(), Obligations: releaseObligationsFixture(),
+		LockDigest: "sha256:other-lock", StatementRulesDigest: "sha256:rules",
+		Effects: releaseEffectsFixture(), Obligations: releaseObligationsFixture(),
 		IdempotencyKey: "release-key-other",
 	}
 	other.ReleaseDigest = other.computedDigest()
@@ -290,7 +311,7 @@ func TestTodo_PAYRUN_007_Mutation(t *testing.T) {
 	}
 	changed := req
 	changed.IdempotencyKey = "release-key-changed"
-	changed.Effects = releaseEffectsFixture()
+	changed.Effects = req.Effects
 	changed.Effects.AccountingDigest = "sha256:accounting-changed"
 	mutated, err := ReleasePayroll(changed, nil)
 	if err != nil {
@@ -365,5 +386,118 @@ func TestTodo_PAYRUN_007_Refusals(t *testing.T) {
 				t.Fatalf("%s error = %v", tc.name, err)
 			}
 		})
+	}
+}
+
+// TestTodo_REV_044_02 exercises the release gate against the repository's
+// resolved jurisdiction registry and the exact content digest it publishes.
+func TestTodo_REV_044_02(t *testing.T) {
+	req := releaseRequestFixture(t)
+	registry, err := payrules.DefaultPayStatementRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	california, ok := registry.ForState("CA")
+	if !ok {
+		t.Fatal("CA registry row missing")
+	}
+	req.StatementContent.Statements = []PayStatement{{
+		WorkerID: "worker-ca", Jurisdiction: "CA", Medium: payrules.Paper,
+		Fields: []StatementField{
+			{Name: "gross_wages", Value: "1000"}, {Name: "net_wages", Value: "800"},
+			{Name: "hours_worked", Value: "40"}, {Name: "rates_of_pay", Value: "$25"},
+			{Name: "deductions", Value: "200"}, {Name: "pay_period_dates", Value: "2026-09-01/2026-09-15"},
+			{Name: "employee_name_identifier", Value: "Worker CA"}, {Name: "employer_name_address", Value: "Employer"},
+			{Name: "piece_rate_units", Value: "0"},
+		},
+	}}
+	req.Effects.StatementsDigest, err = req.StatementContent.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReleasePayroll(req, nil); err != nil {
+		t.Fatalf("complete California statement refused: %v", err)
+	}
+	released, err := ReleasePayroll(req, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if released.StatementRulesDigest != registry.Digest {
+		t.Fatalf("release rules digest = %q, want %q", released.StatementRulesDigest, registry.Digest)
+	}
+	tamperedRules := released
+	tamperedRules.StatementRulesDigest = "sha256:substituted-rules"
+	if err := tamperedRules.Validate(); err == nil {
+		t.Fatal("release accepted a substituted statement rules digest")
+	}
+
+	missing := req
+	missing.StatementContent.Statements = append([]PayStatement(nil), req.StatementContent.Statements...)
+	missing.StatementContent.Statements[0].Fields = append([]StatementField(nil), req.StatementContent.Statements[0].Fields[:len(california.RequiredFields)-1]...)
+	missing.Effects.StatementsDigest, _ = missing.StatementContent.Digest()
+	_, err = ReleasePayroll(missing, nil)
+	var refusal *ReleaseError
+	if !errors.As(err, &refusal) || !errors.Is(err, ErrReleaseRejected) || !strings.Contains(refusal.Reason, "CA") || !strings.Contains(refusal.Reason, "piece_rate_units") {
+		t.Fatalf("missing California field refusal = %v", err)
+	}
+
+	electronic := req
+	electronic.StatementContent.Statements = append([]PayStatement(nil), req.StatementContent.Statements...)
+	electronic.StatementContent.Statements[0].Medium = payrules.Electronic
+	electronic.StatementContent.Statements[0].Consent = false
+	electronic.Effects.StatementsDigest, _ = electronic.StatementContent.Digest()
+	_, err = ReleasePayroll(electronic, nil)
+	if !errors.As(err, &refusal) || !strings.Contains(refusal.Field, "consent") || !strings.Contains(refusal.Reason, "CA") {
+		t.Fatalf("missing electronic consent refusal = %v", err)
+	}
+
+	tampered := req
+	tampered.Effects.StatementsDigest = "sha256:unrelated"
+	_, err = ReleasePayroll(tampered, nil)
+	if !errors.As(err, &refusal) || refusal.Field != "effects.statements_digest" {
+		t.Fatalf("unbound statement digest refusal = %v", err)
+	}
+}
+
+// TestTodo_REV_044_02_Property checks each registry-mandated field independently
+// and proves manifest order does not alter its digest.
+func TestTodo_REV_044_02_Property(t *testing.T) {
+	base := releaseRequestFixture(t)
+	base.StatementContent.Statements[0] = PayStatement{WorkerID: "worker-ca", Jurisdiction: "CA", Medium: payrules.Paper,
+		Fields: []StatementField{
+			{Name: "gross_wages", Value: "1"}, {Name: "net_wages", Value: "1"}, {Name: "hours_worked", Value: "1"},
+			{Name: "rates_of_pay", Value: "1"}, {Name: "deductions", Value: "1"}, {Name: "pay_period_dates", Value: "1"},
+			{Name: "employee_name_identifier", Value: "1"}, {Name: "employer_name_address", Value: "1"}, {Name: "piece_rate_units", Value: "1"},
+		}}
+	registry, err := payrules.DefaultPayStatementRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule, _ := registry.ForState("CA")
+	for _, required := range rule.RequiredFields {
+		candidate := base
+		candidate.StatementContent.Statements = append([]PayStatement(nil), base.StatementContent.Statements...)
+		fields := make([]StatementField, 0, len(rule.RequiredFields)-1)
+		for _, field := range candidate.StatementContent.Statements[0].Fields {
+			if field.Name != required {
+				fields = append(fields, field)
+			}
+		}
+		candidate.StatementContent.Statements[0].Fields = fields
+		candidate.Effects.StatementsDigest, _ = candidate.StatementContent.Digest()
+		_, err := ReleasePayroll(candidate, nil)
+		var refusal *ReleaseError
+		if !errors.As(err, &refusal) || !strings.Contains(refusal.Reason, required) {
+			t.Errorf("missing required field %s refusal = %v", required, err)
+		}
+	}
+	first, _ := base.StatementContent.Digest()
+	reordered := base.StatementContent
+	reordered.Statements = append([]PayStatement(nil), base.StatementContent.Statements...)
+	reordered.Statements[0].Fields = append([]StatementField(nil), base.StatementContent.Statements[0].Fields...)
+	reordered.Statements[0].Fields[0], reordered.Statements[0].Fields[1] = reordered.Statements[0].Fields[1], reordered.Statements[0].Fields[0]
+	second, _ := reordered.Digest()
+	if first != second {
+		t.Fatal("field order changed statement digest")
 	}
 }

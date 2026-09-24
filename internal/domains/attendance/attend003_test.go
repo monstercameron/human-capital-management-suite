@@ -87,6 +87,56 @@ func TestTodo_ATTEND_003(t *testing.T) {
 	})
 }
 
+func TestTodo_REV_045_01(t *testing.T) {
+	result := Result{Outcome: Exception, Exceptions: []Finding{
+		{Kind: MealException, ShiftID: "s1"}, {Kind: MealException, ShiftID: "s1"},
+		{Kind: BreakException, ShiftID: "s1"}, {Kind: MealException, ShiftID: "s2"},
+	}}
+	rule := PremiumRule{JurisdictionCode: "US-CA", RuleRef: ref("ca-premium", "2026"), MealHours: 1, RestHours: 1, MaxMealPerWorkday: 1, MaxRestPerWorkday: 1}
+	lines, outcome, err := CalculateBreakPremiums(result, "US-CA", rule, map[string]string{"s1": "day-1", "s2": "day-2"})
+	if err != nil || outcome != Exception || len(lines) != 3 {
+		t.Fatalf("lines=%+v outcome=%s err=%v", lines, outcome, err)
+	}
+	if lines[0].WorkdayID != "day-1" || lines[0].Kind != BreakException || lines[0].Hours != 1 || lines[1].Count != 1 || lines[1].Hours != 1 || lines[2].WorkdayID != "day-2" || lines[2].Hours != 1 {
+		t.Fatalf("premium allocation=%+v", lines)
+	}
+	if got, state, err := CalculateBreakPremiums(result, "US-NY", rule, nil); err != nil || state != Unknown || got != nil {
+		t.Fatalf("unknown jurisdiction lines=%+v state=%s err=%v", got, state, err)
+	}
+}
+
+func TestTodo_REV_045_01_Property(t *testing.T) {
+	for occurrences := 1; occurrences <= 5; occurrences++ {
+		findings := make([]Finding, occurrences)
+		for i := range findings {
+			findings[i] = Finding{Kind: MealException, ShiftID: "s1"}
+		}
+		lines, state, err := CalculateBreakPremiums(Result{Outcome: Exception, Exceptions: findings}, "US-CA", PremiumRule{JurisdictionCode: "US-CA", RuleRef: ref("r", "v1"), MealHours: 1, MaxMealPerWorkday: 1}, map[string]string{"s1": "d1"})
+		if err != nil || state != Exception {
+			t.Fatalf("n=%d state=%s err=%v", occurrences, state, err)
+		}
+		if len(lines) != 1 || lines[0].Count != 1 || lines[0].Hours != 1 {
+			t.Fatalf("n=%d lines=%+v, want one capped hour", occurrences, lines)
+		}
+	}
+}
+
+func TestTodo_REV_045_01_Golden(t *testing.T) {
+	lines, _, err := CalculateBreakPremiums(Result{Outcome: Exception, Exceptions: []Finding{{Kind: MealException, ShiftID: "s1"}, {Kind: BreakException, ShiftID: "s1"}}}, "US-CA", PremiumRule{JurisdictionCode: "US-CA", RuleRef: ref("labor-code-226.7", "2026"), MealHours: 1, RestHours: 1, MaxMealPerWorkday: 1, MaxRestPerWorkday: 1}, map[string]string{"s1": "2026-09-23"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []PremiumLine{{WorkdayID: "2026-09-23", Kind: BreakException, Count: 1, Hours: 1}, {WorkdayID: "2026-09-23", Kind: MealException, Count: 1, Hours: 1}}
+	if len(lines) != len(want) {
+		t.Fatalf("lines=%+v want=%+v", lines, want)
+	}
+	for i := range want {
+		if lines[i] != want[i] {
+			t.Fatalf("line[%d]=%+v want=%+v", i, lines[i], want[i])
+		}
+	}
+}
+
 // TestTodo_ATTEND_003_Property proves determinism and minute-consistency
 // across shift lengths.
 func TestTodo_ATTEND_003_Property(t *testing.T) {

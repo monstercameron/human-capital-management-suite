@@ -2,6 +2,7 @@ package schedopt
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -144,10 +145,31 @@ func TestTodo_SCHED_OPT_001_Race(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 20; i++ {
-		report, err := problem.FeasibilityPrecheck()
-		if err != nil || !report.Feasible {
-			t.Fatalf("iteration %d report=%+v err=%v", i, report, err)
+	const workers = 8
+	var wg sync.WaitGroup
+	reports := make(chan FeasibilityReport, workers)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			report, err := problem.FeasibilityPrecheck()
+			if err != nil {
+				errs <- err
+				return
+			}
+			reports <- report
+		}()
+	}
+	wg.Wait()
+	close(reports)
+	close(errs)
+	for err := range errs {
+		t.Errorf("concurrent feasibility precheck: %v", err)
+	}
+	for report := range reports {
+		if !report.Feasible {
+			t.Errorf("concurrent report is infeasible: %+v", report)
 		}
 	}
 }

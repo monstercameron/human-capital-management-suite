@@ -3,6 +3,7 @@ package crm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -74,8 +75,64 @@ func campaignFixture(t *testing.T) (CampaignRevision, *campaignAudienceOwner) {
 		t.Fatal(err)
 	}
 	c.CanonicalDigest = digest
-	claim := c.audienceClaim(snapshot.AsOf, poolDigest)
+	claim, err := c.audienceClaim(snapshot.AsOf, poolDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return c, &campaignAudienceOwner{want: claim}
+}
+
+func TestTodo_REV_038_02(t *testing.T) {
+	c, owner := campaignFixture(t)
+	members := make([]population.Member, 600)
+	for i := range members {
+		members[i] = population.Member{Subject: values.EntityRef{Tenant: "tenant-1", Kind: "worker", Id: fmt.Sprintf("00000000-0000-4000-8000-%012x", i+1)}, Outcome: population.OutcomeIncluded}
+	}
+	restricted := population.RestrictedResult{Members: members, Completeness: population.CompletenessComplete, Count: values.Value(len(members)), Versions: population.PolicyVersions{AuthZVersion: "authz/v1", PrivacyVersion: "privacy/v1", OrganizationVersion: "org/v1", PurposeVersion: "purpose/v1"}}
+	snapshot, err := population.Freeze(c.PopulationDefinition, "population/revision/large", restricted, c.Population.AsOf, c.Population.KnownAt, c.Population.Watermarks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Population = snapshot
+	c.CanonicalDigest, err = c.computedDigest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	poolDigest, err := campaignPoolDigest(c.Pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner.want, err = c.audienceClaim(snapshot.AsOf, poolDigest)
+	if err != nil {
+		t.Fatalf("campaign audience claim did not page the 600-member snapshot: %v", err)
+	}
+	if len(owner.want.Snapshot.SubjectIDs) != 600 {
+		t.Fatalf("paged audience claim has %d members, want 600", len(owner.want.Snapshot.SubjectIDs))
+	}
+	got, err := NewCampaign(context.Background(), c, owner)
+	if err != nil {
+		t.Fatalf("campaign rejected paginated 600-member snapshot: %v", err)
+	}
+	if owner.calls != 1 || len(got.Population.SubjectIDs) != 600 {
+		t.Fatalf("campaign population members=%d verifier calls=%d, want 600 and 1", len(got.Population.SubjectIDs), owner.calls)
+	}
+}
+
+func TestTodo_REV_038_02_Security(t *testing.T) {
+	c, owner := campaignFixture(t)
+	protected := c
+	protected.Population.MembershipProtected = true
+	if err := protected.Validate(); !errors.Is(err, ErrAudienceBlocked) {
+		t.Fatalf("protected population err=%v, want ErrAudienceBlocked", err)
+	}
+	inconsistent := c
+	inconsistent.Population.Count = values.Value(8)
+	if _, err := NewCampaign(context.Background(), inconsistent, owner); !errors.Is(err, ErrAudienceBlocked) {
+		t.Fatalf("inconsistent count err=%v, want ErrAudienceBlocked", err)
+	}
+	if _, err := NewCampaign(context.Background(), inconsistent, owner); err.Error() != ErrAudienceBlocked.Error() {
+		t.Fatalf("population rejection disclosed details: %q", err)
+	}
 }
 
 func TestTodo_CRM_003(t *testing.T) {

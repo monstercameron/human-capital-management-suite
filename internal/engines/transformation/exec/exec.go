@@ -327,10 +327,10 @@ func execInstruction(instr ir.Instruction, work Record) (Value, error) {
 }
 
 func execMap(instr ir.Instruction, work Record) (Value, error) {
-	if instr.Function != ir.FuncDefault {
-		return Value{}, fmt.Errorf("function %q is not defined for map", instr.Function)
-	}
 	if len(instr.Sources) == 0 {
+		if instr.Function != ir.FuncDefault {
+			return Value{}, fmt.Errorf("function %q requires a source", instr.Function)
+		}
 		data, err := coerce(instr.Literal, transformation.TypeString, instr.Destination.Type)
 		if err != nil {
 			return Value{}, err
@@ -342,6 +342,24 @@ func execMap(instr ir.Instruction, work Record) (Value, error) {
 		return Value{}, err
 	}
 	if v.State == values.PresenceValue {
+		if instr.Function != ir.FuncDefault {
+			text, ok := v.Data.(string)
+			if !ok {
+				return Value{}, fmt.Errorf("function %q source is not string", instr.Function)
+			}
+			mapped, err := applySharedMap(instr, text)
+			if err != nil {
+				return Value{}, err
+			}
+			data, err := coerce(mapped, transformation.TypeString, instr.Destination.Type)
+			if err != nil {
+				return Value{}, err
+			}
+			return Present(instr.Destination.Type, data), nil
+		}
+		return passthrough(v, instr.Destination.Type), nil
+	}
+	if instr.Function != ir.FuncDefault {
 		return passthrough(v, instr.Destination.Type), nil
 	}
 	if instr.Literal == "" {
@@ -352,6 +370,87 @@ func execMap(instr ir.Instruction, work Record) (Value, error) {
 		return Value{}, err
 	}
 	return Present(instr.Destination.Type, data), nil
+}
+
+var sharedMoneyPattern = regexp.MustCompile(`^(?:(?P<pre>[A-Z]{3})\s)?\$?(?P<sign>-)?(?P<int>[0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)(?:\.(?P<frac>[0-9]+))?(?:\s(?P<post>[A-Z]{3}))?$`)
+var connectivityMoneyPattern = regexp.MustCompile(`^-?[0-9]+(\.[0-9]{1,2})?$`)
+
+func applySharedMap(instr ir.Instruction, text string) (string, error) {
+	switch instr.Function {
+	case ir.FuncTrim:
+		return strings.TrimSpace(text), nil
+	case ir.FuncUpper:
+		return strings.ToUpper(strings.TrimSpace(text)), nil
+	case ir.FuncLower:
+		return strings.ToLower(strings.TrimSpace(text)), nil
+	case ir.FuncLookup:
+		v, ok := instr.Lookup[strings.TrimSpace(text)]
+		if !ok {
+			return "", errors.New("lookup unresolved")
+		}
+		return v, nil
+	case ir.FuncCompose:
+		return strings.ReplaceAll(instr.Literal, "${value}", text), nil
+	case ir.FuncDateParse:
+		t, err := time.Parse(instr.Literal, strings.TrimSpace(text))
+		if err != nil {
+			return "", err
+		}
+		return t.UTC().Format(time.RFC3339Nano), nil
+	case ir.FuncMoneyParse:
+		text = strings.TrimSpace(text)
+		parts := strings.SplitN(instr.Literal, ":", 2)
+		if len(parts) != 2 {
+			return "", errors.New("invalid money mode")
+		}
+		switch parts[0] {
+		case "DATAOPS":
+			m := sharedMoneyPattern.FindStringSubmatch(text)
+			if m == nil {
+				return "", errors.New("invalid money")
+			}
+			names := sharedMoneyPattern.SubexpNames()
+			pre, post, sign, whole, frac := "", "", "", "", ""
+			for i, n := range names {
+				switch n {
+				case "pre":
+					pre = m[i]
+				case "post":
+					post = m[i]
+				case "sign":
+					sign = m[i]
+				case "int":
+					whole = m[i]
+				case "frac":
+					frac = m[i]
+				}
+			}
+			if (pre != "" && post != "") || (pre != "" && pre != parts[1]) || (post != "" && post != parts[1]) {
+				return "", errors.New("currency mismatch")
+			}
+			whole = strings.ReplaceAll(whole, ",", "")
+			if frac == "" {
+				return sign + whole, nil
+			}
+			return sign + whole + "." + frac, nil
+		case "CONNECTIVITY":
+			s := strings.ReplaceAll(text, ",", "")
+			if strings.HasPrefix(s, parts[1]) {
+				s = strings.TrimSpace(strings.TrimPrefix(s, parts[1]))
+			}
+			if strings.ContainsAny(s, "$€£") || !connectivityMoneyPattern.MatchString(s) {
+				return "", errors.New("invalid money")
+			}
+			return s, nil
+		case "PROFILE":
+			s := strings.ReplaceAll(strings.TrimSpace(text), ",", "")
+			if !connectivityMoneyPattern.MatchString(s) {
+				return "", errors.New("invalid money")
+			}
+			return s, nil
+		}
+	}
+	return "", fmt.Errorf("function %q is not defined for map", instr.Function)
 }
 
 func execFilter(instr ir.Instruction, work Record) (Value, error) {

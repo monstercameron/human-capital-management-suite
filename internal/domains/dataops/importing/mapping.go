@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/transformation/adapters"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/model"
-	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 // Mapping compile errors. All are matchable with errors.Is. Each is a typed
@@ -337,6 +336,7 @@ type MappingProfile struct {
 	Writes      []model.PropertyRef // sorted, deduplicated target properties.
 	Diagnostics []Diagnostic
 	Digest      string
+	engine      []adapters.Lowered
 }
 
 // FieldFor returns the compiled mapping for a source column.
@@ -436,6 +436,22 @@ func Compile(reg *model.Registry, spec MappingSpecInput) (MappingProfile, error)
 		Writes:      writes,
 		Diagnostics: diagnostics,
 	}
+	profile.engine = make([]adapters.Lowered, len(fields))
+	for i, f := range fields {
+		lowered, err := adapters.LowerDataOpsImport(adapters.DataOpsImportMapping{
+			Version: profile.Version,
+			Fields: []adapters.DataOpsFieldMapping{{SourceColumn: f.SourceColumn, Target: string(f.Target), Transform: adapters.DataOpsTransform{
+				Kind: adapters.DataOpsTransformKind(f.Transform.Kind.String()), Layout: f.Transform.Layout,
+				Currency: f.Transform.Currency, Crosswalk: f.Transform.Crosswalk,
+				CrosswalkVersion: f.Transform.CrosswalkVersion, Constant: f.Transform.Constant,
+			}, IsIdentity: f.IsIdentity}},
+			Limits: adapters.DataOpsLimits{MaxRows: MaxRows, MaxCellBytes: MaxCellBytes},
+		})
+		if err != nil {
+			return MappingProfile{}, fmt.Errorf("importing: shared transformation lowering: %w", err)
+		}
+		profile.engine[i] = lowered
+	}
 
 	w := newCanonWriter("hcmnext.dataops.importing.MappingProfile", 1)
 	w.str(profile.Version).u64(uint64(len(profile.Fields)))
@@ -485,67 +501,43 @@ func (m MappingProfile) Apply(header []string, row Row) ([]MappedValue, error) {
 	cells := row.Cells()
 
 	out := make([]MappedValue, 0, len(m.Fields))
-	for _, f := range m.Fields {
+	for fieldIndex, f := range m.Fields {
 		i, ok := index[f.SourceColumn]
 		if !ok {
 			return nil, fmt.Errorf("%w: %q", ErrSourceColumnNotInBatch, f.SourceColumn)
 		}
 		mv := MappedValue{SourceColumn: f.SourceColumn, Target: f.Target, Class: transformOutputClass(f.Transform.Kind)}
-		applyTransform(&mv, f.Transform, cells[i])
+		engine := m.engine[fieldIndex]
+		row := make(map[string]string, 1)
+		for _, binding := range engine.Bindings {
+			if binding.SourceKey != "" {
+				row[binding.SourceKey] = cells[i]
+			}
+		}
+		results, err := engine.Run([]map[string]string{row})
+		if err != nil {
+			mv.OK = false
+			switch f.Transform.Kind {
+			case TransformDateParse:
+				mv.ErrorCode = RuleDateParseFailed
+			case TransformMoneyParse:
+				mv.ErrorCode = RuleMoneyParseFailed
+			case TransformLookup:
+				mv.ErrorCode = RuleLookupUnresolved
+			default:
+				mv.ErrorCode = "transform.failed"
+			}
+		} else {
+			texts, textErr := engine.Texts(results[0])
+			if textErr != nil {
+				return nil, textErr
+			}
+			mv.Value, mv.OK = texts[string(f.Target)]
+			if !mv.OK {
+				mv.ErrorCode = "transform.failed"
+			}
+		}
 		out = append(out, mv)
 	}
 	return out, nil
-}
-
-func applyTransform(mv *MappedValue, t TransformSpec, cell string) {
-	switch t.Kind {
-	case TransformIdentity:
-		mv.Value, mv.OK = cell, true
-	case TransformTrim:
-		mv.Value, mv.OK = strings.TrimSpace(cell), true
-	case TransformCaseUpper:
-		mv.Value, mv.OK = strings.ToUpper(strings.TrimSpace(cell)), true
-	case TransformCaseLower:
-		mv.Value, mv.OK = strings.ToLower(strings.TrimSpace(cell)), true
-	case TransformConstant:
-		mv.Value, mv.OK = t.Constant, true
-	case TransformLookup:
-		key := strings.TrimSpace(cell)
-		if v, found := t.Crosswalk[key]; found {
-			mv.Value, mv.OK = v, true
-		} else {
-			mv.OK, mv.ErrorCode = false, RuleLookupUnresolved
-		}
-	case TransformDateParse:
-		parsed, err := time.Parse(t.Layout, strings.TrimSpace(cell))
-		if err != nil {
-			mv.OK, mv.ErrorCode = false, RuleDateParseFailed
-			return
-		}
-		mv.Value, mv.OK = values.NewInstant(parsed).Time().UTC().Format(time.RFC3339Nano), true
-	case TransformMoneyParse:
-		decimalText, ok := parseMoneyForCurrency(strings.TrimSpace(cell), t.Currency)
-		if !ok {
-			mv.OK, mv.ErrorCode = false, RuleMoneyParseFailed
-			return
-		}
-		mv.Value, mv.OK = decimalText, true
-	default:
-		mv.OK, mv.ErrorCode = false, "transform.unknown_kind"
-	}
-}
-
-// parseMoneyForCurrency parses s as a money amount whose currency token, if
-// present, must equal want; a bare decimal amount with no embedded token is
-// accepted under the declared currency. It returns the plain signed decimal
-// text.
-func parseMoneyForCurrency(s string, want string) (string, bool) {
-	token, ok := moneyMatch(s)
-	if !ok {
-		return "", false
-	}
-	if token != "" && token != want {
-		return "", false
-	}
-	return moneyDecimalText(s), true
 }

@@ -21,6 +21,9 @@ import (
 	"strings"
 )
 
+// Version is the public contract version for this evidence-review vocabulary.
+func Version() int { return 1 }
+
 // Review verdicts: the closed typed-finding vocabulary. Free-form
 // eligibility or diagnosis never leaves the compartment.
 const (
@@ -95,4 +98,10 @@ func (finding Finding) Verify() error {
 		return fmt.Errorf("workitem: finding seal is broken")
 	}
 	return nil
+}
+
+// Explain returns a safe, stable summary of the sealed finding without
+// exposing evidence content.
+func (finding Finding) Explain() string {
+	return "workreview finding " + finding.Verdict + " (" + finding.Reason + ")"
 }

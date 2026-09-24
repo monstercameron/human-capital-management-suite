@@ -7,7 +7,12 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	sharedreservation "github.com/monstercameron/human-capital-management-suite/internal/resource/reservation"
 )
+
+func newTestReservationLedger() *ReservationLedger {
+	return NewReservationLedgerWithStore(sharedreservation.NewStore())
+}
 
 func appt003Now() time.Time { return time.Date(2026, 9, 10, 8, 0, 0, 0, time.UTC) }
 
@@ -87,7 +92,7 @@ func appt003Rejection(t *testing.T, err error, wantField string) *Rejection {
 // release are fenced; a byte-identical replay returns the same record.
 func TestTodo_APPT_003(t *testing.T) {
 	req, r := appt003KnownRequest(t)
-	ledger := NewReservationLedger()
+	ledger := newTestReservationLedger()
 	now := appt003Now()
 
 	res, err := ledger.Reserve(req, r, now)
@@ -162,19 +167,19 @@ func TestTodo_APPT_003(t *testing.T) {
 		t.Fatalf("reserve after expiry: %v", err)
 	}
 
-	fresh := NewReservationLedger()
+	fresh := newTestReservationLedger()
 	held2, err := fresh.Reserve(req, r, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	released, err := fresh.Release(held2.ID)
+	released, err := fresh.Release(held2.ID, now)
 	if err != nil {
 		t.Fatalf("Release: %v", err)
 	}
 	if released.State != ReservationReleased {
 		t.Fatalf("state = %q, want RELEASED", released.State)
 	}
-	if _, err := fresh.Release(held2.ID); !errors.Is(err, ErrReservationStateConflict) {
+	if _, err := fresh.Release(held2.ID, now); !errors.Is(err, ErrReservationStateConflict) {
 		t.Fatalf("double release err = %v, want state conflict", err)
 	}
 }
@@ -187,7 +192,7 @@ func TestTodo_APPT_003_Mutation(t *testing.T) {
 	now := appt003Now()
 
 	t.Run("missing-time", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		r.Slot = values.EffectiveInterval{}
 		appt003Rejection(t, errorOf(ledger.Reserve(req, r, now)), "slot")
@@ -197,7 +202,7 @@ func TestTodo_APPT_003_Mutation(t *testing.T) {
 	})
 
 	t.Run("missing-resource-contract", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		r.Resources = nil
 		appt003Rejection(t, errorOf(ledger.Reserve(req, r, now)), "resources")
@@ -207,7 +212,7 @@ func TestTodo_APPT_003_Mutation(t *testing.T) {
 	})
 
 	t.Run("zero-quantity-hold-commits-nothing", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		r.Resources = append([]ResourceHold(nil), r.Resources...)
 		r.Resources = append(r.Resources, ResourceHold{
@@ -221,14 +226,14 @@ func TestTodo_APPT_003_Mutation(t *testing.T) {
 	})
 
 	t.Run("unknown-participant", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		r.Participants = []values.EntityRef{typedAppointmentRef(values.Kind("worker"), "099")}
 		appt003Rejection(t, errorOf(ledger.Reserve(req, r, now)), "participants[0]")
 	})
 
 	t.Run("competing-resource-hold", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		req, first := appt003KnownRequest(t)
 		if _, err := ledger.Reserve(req, first, now); err != nil {
 			t.Fatal(err)
@@ -250,7 +255,7 @@ func TestTodo_APPT_003_Mutation(t *testing.T) {
 	})
 
 	t.Run("competing-participant-hold", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		req, first := appt003KnownRequest(t)
 		if _, err := ledger.Reserve(req, first, now); err != nil {
 			t.Fatal(err)
@@ -275,7 +280,7 @@ func TestTodo_APPT_003_Mutation(t *testing.T) {
 	})
 
 	t.Run("invalid-requirement", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		bad := appt003Requirement(t)
 		bad.Duration = 0
 		_, r := appt003KnownRequest(t)
@@ -283,14 +288,14 @@ func TestTodo_APPT_003_Mutation(t *testing.T) {
 	})
 
 	t.Run("slot-outside-window", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		r.Slot = appt003Slot(t, 10, 0, 10, 30)
 		appt003Rejection(t, errorOf(ledger.Reserve(req, r, now)), "slot")
 	})
 
 	t.Run("zero-ttl", func(t *testing.T) {
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		_, r := appt003KnownRequest(t)
 		r.HoldTTL = 0
 		appt003Rejection(t, errorOf(ledger.Reserve(req, r, now)), "hold_ttl")
@@ -305,7 +310,7 @@ func errorOf(_ Reservation, err error) error { return err }
 func TestTodo_APPT_003_Race(t *testing.T) {
 	now := appt003Now()
 
-	t.Run("single-winner", func(t *testing.T) {
+	{
 		base := typedAppointmentRequirement(t)
 		refs := make([]values.EntityRef, 0, 16)
 		roles := make([]ParticipantRole, 0, 16)
@@ -341,17 +346,20 @@ func TestTodo_APPT_003_Race(t *testing.T) {
 				HoldTTL:      15 * time.Minute,
 			}
 		}
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		var wg sync.WaitGroup
 		outcomes := make([]outcome, 16)
+		start := make(chan struct{})
 		for i := range requests {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
+				<-start
 				res, err := ledger.Reserve(req, requests[i], now)
 				outcomes[i] = outcome{res: res, err: err}
 			}(i)
 		}
+		close(start)
 		wg.Wait()
 		wins := 0
 		var winner Reservation
@@ -376,18 +384,20 @@ func TestTodo_APPT_003_Race(t *testing.T) {
 		if stored.Digest != winner.Digest {
 			t.Fatal("winner digest does not match the committed record")
 		}
-	})
+	}
 
-	t.Run("identical-replay-converges", func(t *testing.T) {
+	{
 		req, r := appt003KnownRequest(t)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		var wg sync.WaitGroup
 		ids := make([]string, 16)
 		errs := make([]error, 16)
+		start := make(chan struct{})
 		for i := 0; i < 16; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
+				<-start
 				res, err := ledger.Reserve(req, r, now)
 				if err == nil {
 					ids[i] = res.ID
@@ -395,6 +405,7 @@ func TestTodo_APPT_003_Race(t *testing.T) {
 				errs[i] = err
 			}(i)
 		}
+		close(start)
 		wg.Wait()
 		for _, err := range errs {
 			if err != nil {
@@ -409,5 +420,5 @@ func TestTodo_APPT_003_Race(t *testing.T) {
 		if got := ledger.Active(); got != 1 {
 			t.Fatalf("active = %d, want 1", got)
 		}
-	})
+	}
 }

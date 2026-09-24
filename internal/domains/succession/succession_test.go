@@ -2,6 +2,7 @@ package succession
 
 import (
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -74,8 +75,33 @@ func TestTodo_SUCCESSION_001_Golden(t *testing.T) {
 
 func TestTodo_SUCCESSION_001_Race(t *testing.T) {
 	store := NewMemorySlateStore()
-	if err := store.Save(successionSlate(t, DisclosureScoped, []string{"talent.read"}, true)); err != nil {
-		t.Fatal(err)
+	slate := successionSlate(t, DisclosureScoped, []string{"talent.read"}, true)
+	const workers = 12
+	results := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); results <- store.Save(slate) }()
+	}
+	wg.Wait()
+	close(results)
+	saved, conflicts := 0, 0
+	for err := range results {
+		switch {
+		case err == nil:
+			saved++
+		case err == ErrConflictingCurrentRevision:
+			conflicts++
+		default:
+			t.Fatalf("concurrent Save error=%v", err)
+		}
+	}
+	if saved != 1 || conflicts != workers-1 {
+		t.Fatalf("concurrent saves: saved=%d conflicts=%d", saved, conflicts)
+	}
+	current, err := store.Current(slate.CriticalRoleID)
+	if err != nil || current.CanonicalDigest != slate.CanonicalDigest {
+		t.Fatalf("current slate=%+v err=%v", current, err)
 	}
 }
 

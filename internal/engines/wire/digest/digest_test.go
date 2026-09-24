@@ -617,11 +617,11 @@ func TestTodo_MODEL_007_Golden(t *testing.T) {
 		digest.Key{ProfileID: digest.ProfileIdempotentRequest, Version: 1})
 	goldenBytes(t, "idempotent_request_v1.canonical.bin", intentBytes)
 	goldenReference(t, "idempotent_request_v1.reference.json", intentRef)
+	if *update {
+		return
+	}
 
 	t.Run("the historical vector verifies after profile evolution", func(t *testing.T) {
-		if *update {
-			t.Skip("goldens were just rewritten")
-		}
 		fresh := mustRegistry(t)
 		historical := loadReference(t, "proposal_v1.reference.json")
 		if err := fresh.Verify(fixtureProposal(), historical); err != nil {

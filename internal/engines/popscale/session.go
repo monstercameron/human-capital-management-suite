@@ -1,6 +1,12 @@
 package popscale
 
-import "github.com/monstercameron/human-capital-management-suite/internal/engines/population"
+import (
+	"errors"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/population"
+)
+
+var ErrPageVisitorRequired = errors.New("popscale: page visitor required")
 
 // Session pins one frozen snapshot for one caller and one page size. It
 // validates the membership exactly once at construction; every Page call after
@@ -24,17 +30,18 @@ func NewSession(snap population.Snapshot, caller Caller, pageSize int) (*Session
 	}
 	sess := &Session{count: count}
 	if caller.MembershipDisclosed && !snap.MembershipProtected {
+		subjects := snap.SubjectIDList()
 		if snap.Count.IsValue() {
 			// A disclosed snapshot whose recorded count is a concrete value
 			// must count exactly its disclosed members; a mismatch means the
 			// snapshot is internally inconsistent and paging it would serve
 			// a count its own membership does not support.
 			value, _ := snap.Count.Get()
-			if value != len(snap.SubjectIDList()) {
+			if value != len(subjects) {
 				return nil, rejected("count", "inconsistent")
 			}
 		}
-		pag, err := New(snap.SubjectIDList(), pageSize)
+		pag, err := New(subjects, pageSize)
 		if err != nil {
 			return nil, err
 		}
@@ -56,6 +63,29 @@ func (s *Session) Page(token string) (Page, error) {
 		return zeroPage(), nil
 	}
 	return s.pag.Next(token)
+}
+
+// Walk serves every page in order without retaining more membership than the
+// caller chooses to keep. A hidden or empty membership invokes visit once
+// with the same zero page, preserving the POP-010 non-disclosure contract.
+func (s *Session) Walk(visit func(Page) error) error {
+	if visit == nil {
+		return ErrPageVisitorRequired
+	}
+	token := ""
+	for {
+		page, err := s.Page(token)
+		if err != nil {
+			return err
+		}
+		if err := visit(page); err != nil {
+			return err
+		}
+		if !page.Truncated {
+			return nil
+		}
+		token = page.NextToken
+	}
 }
 
 // zeroPage is the wire form shared by denied, protected and empty.

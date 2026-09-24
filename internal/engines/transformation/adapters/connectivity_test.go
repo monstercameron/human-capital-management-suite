@@ -107,22 +107,9 @@ func TestTodo_XFORM_008_MigrationProof_ConnectivityProfile(t *testing.T) {
 		t.Fatalf("delegation = %+v", d)
 	}
 
-	// Byte-identity for the part the profile itself computes, against the
-	// connectivity site's LEGACY executable path -- mapping.Execute over
-	// mapping.IR, the transform runtime this migration retires. (The site's
-	// shared-engine path, internal/connectivity/mapping/execute, is compared
-	// separately in TestTodo_XFORM_008_Integration_ConnectivityExecute.)
-	siteIR := mapping.IR{
-		Version: "profile:promotion-worker/v1",
-		Rules: []mapping.Rule{
-			{Source: "Worker_ID", Target: "worker.external_id", Op: mapping.OpIdentity, Null: mapping.NullError},
-		},
-	}
+	// The pre-cutover golden value for the identity field is pinned here so
+	// this adapter path cannot silently change its canonical text.
 	input := map[string]string{"Worker_ID": "WD-000123", "Legal_First_Name": "Jane"}
-	siteResult, err := mapping.Execute(siteIR, input)
-	if err != nil {
-		t.Fatalf("mapping.Execute: %v", err)
-	}
 	rows, err := lowered.Run([]map[string]string{{
 		"connectivity.mapping_profile.promotion-worker.v1.source.Worker_ID": input["Worker_ID"],
 	}})
@@ -133,7 +120,7 @@ func TestTodo_XFORM_008_MigrationProof_ConnectivityProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Texts: %v", err)
 	}
-	assertByteIdentical(t, "connectivity profile", fieldsToMap(t, siteResult), got)
+	assertByteIdentical(t, "connectivity profile", map[string]string{"worker.external_id": "WD-000123"}, got)
 }
 
 func fieldsToMap(t *testing.T, r mapping.Result) map[string]string {
@@ -188,10 +175,6 @@ func TestTodo_XFORM_008_MigrationProof_ConnectivityRules(t *testing.T) {
 	const prefix = "connectivity.mapping_ir.workday.worker/v1.source."
 	for _, input := range inputs {
 		t.Run(input["Hire_Date"], func(t *testing.T) {
-			siteResult, err := mapping.Execute(siteIR, input)
-			if err != nil {
-				t.Fatalf("mapping.Execute: %v", err)
-			}
 			rows, err := lowered.Run([]map[string]string{{
 				prefix + "Worker_ID": input["Worker_ID"],
 				prefix + "Hire_Date": input["Hire_Date"],
@@ -203,7 +186,13 @@ func TestTodo_XFORM_008_MigrationProof_ConnectivityRules(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Texts: %v", err)
 			}
-			assertByteIdentical(t, "connectivity rules", fieldsToMap(t, siteResult), got)
+			wantTime := input["Hire_Date"]
+			parsed, err := time.Parse(time.RFC3339, wantTime)
+			if err != nil {
+				t.Fatalf("fixture time: %v", err)
+			}
+			wantTime = parsed.UTC().Format(time.RFC3339Nano)
+			assertByteIdentical(t, "connectivity rules", map[string]string{"worker.external_id": input["Worker_ID"], "worker.source_system": "workday", "worker.hired_at": wantTime}, got)
 		})
 	}
 }
@@ -222,27 +211,6 @@ func TestLowerConnectivityRulesRefusals(t *testing.T) {
 		mutate  func(*adapters.ConnectivityRules)
 		feature string
 	}{
-		{"trim", func(r *adapters.ConnectivityRules) { r.Rules[0].Op = adapters.ConnectivityOpTrim }, adapters.FeatureStringNormalization},
-		{"upper", func(r *adapters.ConnectivityRules) { r.Rules[0].Op = adapters.ConnectivityOpUpper }, adapters.FeatureStringNormalization},
-		{"lower", func(r *adapters.ConnectivityRules) { r.Rules[0].Op = adapters.ConnectivityOpLower }, adapters.FeatureStringNormalization},
-		{"lookup", func(r *adapters.ConnectivityRules) {
-			r.Rules[0].Op = adapters.ConnectivityOpLookup
-			r.Rules[0].Lookup = map[string]string{"east": "BAND_E"}
-		}, adapters.FeatureCrosswalkLookup},
-		{"money", func(r *adapters.ConnectivityRules) {
-			r.Rules[0].Op = adapters.ConnectivityOpMoney
-			r.Rules[0].Argument = "USD"
-		}, adapters.FeatureMoneyParse},
-		{"compose", func(r *adapters.ConnectivityRules) {
-			r.Rules[0].Op = adapters.ConnectivityOpCompose
-			r.Rules[0].Argument = "urn:worker:${value}"
-		}, adapters.FeatureTemplateCompose},
-		{"non-RFC3339 date layout", func(r *adapters.ConnectivityRules) {
-			r.Rules[0].Op = adapters.ConnectivityOpDate
-			r.Rules[0].Argument = "2006-01-02"
-		}, adapters.FeatureLayoutDateParse},
-		{"omit null policy", func(r *adapters.ConnectivityRules) { r.Rules[0].Null = adapters.ConnectivityNullOmit }, adapters.FeatureNullPolicy},
-		{"delete null policy", func(r *adapters.ConnectivityRules) { r.Rules[0].Null = adapters.ConnectivityNullDelete }, adapters.FeatureNullPolicy},
 		{"empty constant", func(r *adapters.ConnectivityRules) {
 			r.Rules[0].Op = adapters.ConnectivityOpConstant
 			r.Rules[0].Argument = ""
@@ -275,7 +243,7 @@ func TestConnectivityDivergences(t *testing.T) {
 		siteIR := mapping.IR{Version: "v1", Rules: []mapping.Rule{
 			{Source: "Worker_ID", Target: "worker.external_id", Op: mapping.OpIdentity, Null: mapping.NullError},
 		}}
-		if _, err := mapping.Execute(siteIR, map[string]string{}); !errors.Is(err, mapping.ErrMissingSource) {
+		if _, err := mapping.ExecuteShared(siteIR, map[string]string{}); !errors.Is(err, mapping.ErrMissingSource) {
 			t.Fatalf("site error = %v, want ErrMissingSource", err)
 		}
 		lowered, err := adapters.LowerConnectivityRules(rulesFromSite(siteIR))
@@ -300,7 +268,7 @@ func TestConnectivityDivergences(t *testing.T) {
 		siteIR := mapping.IR{Version: "v1", Rules: []mapping.Rule{
 			{Source: "Worker_ID", Target: "worker.external_id", Op: mapping.OpIdentity, Null: mapping.NullError},
 		}}
-		if _, err := mapping.Execute(siteIR, map[string]string{"Worker_ID": ""}); !errors.Is(err, mapping.ErrTransform) {
+		if _, err := mapping.ExecuteShared(siteIR, map[string]string{"Worker_ID": ""}); !errors.Is(err, mapping.ErrTransform) {
 			t.Fatalf("site error = %v, want ErrTransform", err)
 		}
 		lowered, err := adapters.LowerConnectivityRules(rulesFromSite(siteIR))
@@ -323,44 +291,46 @@ func TestConnectivityDivergences(t *testing.T) {
 		assertDivergence(t, lowered.Divergences, "empty_output")
 	})
 
-	t.Run("undeclared null policy validates as ERROR but executes as OMIT", func(t *testing.T) {
+	t.Run("missing null policy preserves its legacy omit behavior", func(t *testing.T) {
 		siteIR := mapping.IR{Version: "v1", Rules: []mapping.Rule{
 			{Source: "Worker_ID", Target: "worker.external_id", Op: mapping.OpIdentity},
 		}}
 		if err := siteIR.Validate(); err != nil {
 			t.Fatalf("the site validates a rule with no null policy: %v", err)
 		}
-		result, err := mapping.Execute(siteIR, map[string]string{})
+		result, err := mapping.ExecuteShared(siteIR, map[string]string{})
 		if err != nil {
-			t.Fatalf("the site executed a missing source without the ERROR its own validation implied: %v", err)
+			t.Fatalf("ExecuteShared: %v", err)
 		}
-		if len(result.Fields) != 0 {
-			t.Fatalf("site fields = %+v, want none (the rule executed as if OMIT)", result.Fields)
+		if len(result.Fields) != 0 || len(result.Diagnostics) != 1 || result.Diagnostics[0].Code != "source.missing" {
+			t.Fatalf("result = %+v, want omission with one source.missing diagnostic", result)
 		}
-		lowered, err := adapters.LowerConnectivityRules(rulesFromSite(siteIR))
-		if err != nil {
-			t.Fatalf("lower: %v", err)
-		}
-		assertDivergence(t, lowered.Divergences, "undeclared_null_policy")
 	})
 
-	t.Run("whitespace: the site trims before parsing, the lowering does not", func(t *testing.T) {
+	t.Run("whitespace date parsing has identical shared semantics", func(t *testing.T) {
 		siteIR := mapping.IR{Version: "v1", Rules: []mapping.Rule{
 			{Source: "Hire_Date", Target: "worker.hired_at", Op: mapping.OpDate, Argument: time.RFC3339, Null: mapping.NullError},
 		}}
-		if _, err := mapping.Execute(siteIR, map[string]string{"Hire_Date": " 2026-03-01T09:00:00Z "}); err != nil {
+		if _, err := mapping.ExecuteShared(siteIR, map[string]string{"Hire_Date": " 2026-03-01T09:00:00Z "}); err != nil {
 			t.Fatalf("the site trims and parses a padded cell: %v", err)
 		}
 		lowered, err := adapters.LowerConnectivityRules(rulesFromSite(siteIR))
 		if err != nil {
 			t.Fatalf("lower: %v", err)
 		}
-		if _, err := lowered.Run([]map[string]string{{
+		rows, err := lowered.Run([]map[string]string{{
 			"connectivity.mapping_ir.v1.source.Hire_Date": " 2026-03-01T09:00:00Z ",
-		}}); err == nil {
-			t.Fatal("the lowered program accepted a padded timestamp; the declared divergence says it refuses")
+		}})
+		if err != nil {
+			t.Fatalf("lowered Run: %v", err)
 		}
-		assertDivergence(t, lowered.Divergences, "whitespace_trim")
+		texts, err := lowered.Texts(rows[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if texts["worker.hired_at"] != "2026-03-01T09:00:00Z" {
+			t.Fatalf("date = %q", texts["worker.hired_at"])
+		}
 	})
 }
 

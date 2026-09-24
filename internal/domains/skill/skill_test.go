@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -162,9 +163,27 @@ func TestSkillExpirationAndReviewedEquivalence(t *testing.T) {
 	}
 }
 
-func TestTodo_SKILL_001_Conformance(t *testing.T) { TestSkillExpirationAndReviewedEquivalence(t) }
+func TestTodo_SKILL_001_Conformance(t *testing.T) {
+	ontology, _, child := skillOntology(t)
+	worker := skillRef(KindWorker, "00000000-0000-0000-0000-000000000050")
+	expired := skillEvidence(t, worker, child, "2026-03-01", true, EvidenceCredential)
+	resolver := NewPinnedResolver(ontology, nil, FakeSkillEvidenceReader{Evidence: []WorkerSkillEvidence{expired}})
+	result, err := resolver.Resolve(context.Background(), ResolveRequest{Worker: worker, AsOf: skillDate(t, "2026-06-01"), SkillRefs: []values.EntityRef{child}, Ontology: ontology})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Proficiencies) != 1 || result.Proficiencies[0].Status != StatusExpired {
+		t.Fatalf("expired evidence resolution=%+v, want one expired proficiency", result.Proficiencies)
+	}
+}
 func TestTodo_SKILL_001_Fault(t *testing.T) {
-	TestSkillOntologyRejectsCyclesUnverifiedProficiencyAndUnsafeEquivalence(t)
+	ontology, _, child := skillOntology(t)
+	cycle := ontology
+	cycle.Skills = append([]SkillDefinitionRevision(nil), ontology.Skills...)
+	cycle.Skills[0].ParentRefs = []values.EntityRef{child}
+	if _, err := NewSkillOntology(cycle); !errors.Is(err, ErrInvalidOntology) {
+		t.Fatalf("cyclic ontology error=%v, want ErrInvalidOntology", err)
+	}
 }
 func TestTodo_SKILL_001_Golden(t *testing.T) {
 	ontology, _, _ := skillOntology(t)
@@ -193,8 +212,45 @@ func TestTodo_SKILL_001_Race(t *testing.T) {
 	worker := skillRef(KindWorker, "00000000-0000-0000-0000-000000000060")
 	evidence := skillEvidence(t, worker, child, "2027-01-01", true, EvidenceCredential)
 	resolver := NewPinnedResolver(ontology, nil, FakeSkillEvidenceReader{Evidence: []WorkerSkillEvidence{evidence}})
-	if _, err := resolver.Resolve(context.Background(), ResolveRequest{Worker: worker, AsOf: skillDate(t, "2026-06-01"), Ontology: ontology}); err != nil {
+	asOf := skillDate(t, "2026-06-01")
+	request := ResolveRequest{Worker: worker, AsOf: asOf, Ontology: ontology}
+	const workers = 8
+	results := make(chan Resolution, workers)
+	errors := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, err := resolver.Resolve(context.Background(), request)
+			if err != nil {
+				errors <- err
+				return
+			}
+			results <- got
+		}()
+	}
+	wg.Wait()
+	close(results)
+	close(errors)
+	for err := range errors {
 		t.Fatal(err)
+	}
+	count := 0
+	for got := range results {
+		count++
+		verifiedChild := false
+		for _, proficiency := range got.Proficiencies {
+			if proficiency.SkillRef == child && proficiency.Status == StatusVerified {
+				verifiedChild = true
+			}
+		}
+		if !verifiedChild {
+			t.Fatalf("concurrent resolution=%+v", got.Proficiencies)
+		}
+	}
+	if count != workers {
+		t.Fatalf("successful resolutions=%d, want %d", count, workers)
 	}
 }
 func TestTodo_SKILL_001_Security(t *testing.T) {
@@ -252,7 +308,29 @@ func TestSkillConformanceUsesOnePinnedEvidenceRevisionAcrossConsumers(t *testing
 }
 
 func TestTodo_SKILL_002_Conformance(t *testing.T) {
-	TestSkillConformanceUsesOnePinnedEvidenceRevisionAcrossConsumers(t)
+	ot, _, child := skillOntology(t)
+	worker := skillRef(KindWorker, "00000000-0000-0000-0000-000000000070")
+	original := skillEvidence(t, worker, child, "2027-01-01", true, EvidenceAssessment)
+	successor, err := NewWorkerSkillEvidence(WorkerSkillEvidence{EvidenceID: skillRef(values.Kind("skill_evidence"), "00000000-0000-0000-0000-000000000071"), Worker: worker, SkillRef: child, Level: 2, EvidenceKind: EvidenceAssessment, EvidenceRef: "corrected", Verified: true, Supersedes: original.EvidenceID, Effective: skillInterval(t, "2026-01-01", "2027-01-01")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := NewEvidenceRevision(4, []WorkerSkillEvidence{original, successor})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := ResolveConsumers(context.Background(), ot, nil, snapshot, ResolveRequest{Worker: worker, AsOf: skillDate(t, "2026-06-01"), SkillRefs: []values.EntityRef{child}}, skillConsumerAdapters(nil)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Results) != 4 {
+		t.Fatalf("consumer results=%d, want 4", len(report.Results))
+	}
+	for _, result := range report.Results {
+		if result.EvidenceDigest != snapshot.Digest || result.Resolution.Proficiencies[0].Level != 2 {
+			t.Fatalf("consumer %s did not use the pinned successor: %+v", result.Consumer, result.Resolution)
+		}
+	}
 }
 func TestTodo_SKILL_002_Golden(t *testing.T) {
 	ot, _, child := skillOntology(t)
@@ -290,7 +368,22 @@ func TestTodo_SKILL_002_Mutation(t *testing.T) {
 	}
 	_ = ot
 }
-func TestTodo_SKILL_002_Property(t *testing.T) { TestTodo_SKILL_002_Golden(t) }
+func TestTodo_SKILL_002_Property(t *testing.T) {
+	_, _, child := skillOntology(t)
+	worker := skillRef(KindWorker, "00000000-0000-0000-0000-000000000072")
+	evidence := skillEvidence(t, worker, child, "2027-01-01", true, EvidenceCredential)
+	snapshot, err := NewEvidenceRevision(3, []WorkerSkillEvidence{evidence})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rebuilt, err := NewEvidenceRevision(snapshot.Sequence, snapshot.Evidence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rebuilt.Digest != snapshot.Digest || rebuilt.Digest != evidenceRevisionDigest(snapshot.Sequence, snapshot.Evidence) {
+		t.Fatalf("evidence revision digest changed across reconstruction: %q vs %q", snapshot.Digest, rebuilt.Digest)
+	}
+}
 func TestTodo_SKILL_002_Fault(t *testing.T) {
 	ot, _, child := skillOntology(t)
 	worker := skillRef(KindWorker, "00000000-0000-0000-0000-000000000074")

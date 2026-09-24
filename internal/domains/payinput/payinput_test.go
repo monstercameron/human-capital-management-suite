@@ -3,8 +3,8 @@ package payinput
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -107,7 +107,36 @@ func TestTodo_PAYINPUT_001_Golden(t *testing.T) {
 	}
 }
 
-func TestTodo_PAYINPUT_001_Race(t *testing.T) { _ = validDefinition(t, StatePublished) }
+func TestTodo_PAYINPUT_001_Race(t *testing.T) {
+	definition := validDefinition(t, StatePublished)
+	const workers = 8
+	var wg sync.WaitGroup
+	results := make(chan string, workers)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			digest, err := definition.Digest()
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- digest
+		}()
+	}
+	wg.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		t.Errorf("shared definition digest: %v", err)
+	}
+	for digest := range results {
+		if digest != definition.CanonicalDigest {
+			t.Errorf("concurrent digest = %q, want %q", digest, definition.CanonicalDigest)
+		}
+	}
+}
 func TestTodo_PAYINPUT_001_Fault(t *testing.T) {
 	if _, err := NewDefinition(Definition{}); err == nil {
 		t.Fatal("empty definition was accepted")
@@ -170,5 +199,3 @@ func TestPayInputInMemoryCatalogRejectsOverlap(t *testing.T) {
 		t.Fatalf("catalog overlap error = %v", err)
 	}
 }
-
-var _ = time.UTC

@@ -3,7 +3,6 @@ package adapters
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/transformation"
 )
@@ -169,12 +168,13 @@ const (
 
 // ConnectivityRule mirrors mapping.Rule.
 type ConnectivityRule struct {
-	Source   string
-	Target   string
-	Op       ConnectivityOp
-	Argument string
-	Lookup   map[string]string
-	Null     ConnectivityNullPolicy
+	Source    string
+	Target    string
+	Op        ConnectivityOp
+	Argument  string
+	MoneyMode string
+	Lookup    map[string]string
+	Null      ConnectivityNullPolicy
 }
 
 // ConnectivityRules mirrors mapping.IR: the executable rule list the
@@ -201,7 +201,7 @@ func LowerConnectivityRules(rules ConnectivityRules) (Lowered, error) {
 		return Lowered{}, err
 	}
 
-	sawDate, sawTrimmingOp, sawUndeclaredNull := false, false, false
+	sawDate := false
 	for _, r := range rules.Rules {
 		if r.Target == "" {
 			return Lowered{}, refuse(site, FeatureInvalidMapping, "", "a rule declares no target")
@@ -209,14 +209,10 @@ func LowerConnectivityRules(rules ConnectivityRules) (Lowered, error) {
 		null := r.Null
 		if null == "" {
 			null = ConnectivityNullError // mapping.IR.Validate's own documented default.
-			sawUndeclaredNull = true
 		}
 		switch null {
 		case ConnectivityNullError:
 		case ConnectivityNullOmit, ConnectivityNullDelete:
-			return Lowered{}, refuse(site, FeatureNullPolicy, r.Target,
-				"rule declares null policy %s, which changes the output field set (omitting the target, or emitting a delete marker); the IR always produces one property per instruction",
-				null)
 		default:
 			return Lowered{}, refuse(site, FeatureInvalidMapping, r.Target,
 				"null policy %q is not a declared connectivity null policy", string(null))
@@ -238,27 +234,47 @@ func LowerConnectivityRules(rules ConnectivityRules) (Lowered, error) {
 			if r.Source == "" {
 				return Lowered{}, refuse(site, FeatureInvalidMapping, r.Target, "date rule declares no source")
 			}
-			if r.Argument != time.RFC3339 {
-				return Lowered{}, refuse(site, FeatureLayoutDateParse, r.Target,
-					"rule parses dates under layout %q; the IR's timestamp coercion parses RFC 3339 only and takes no layout parameter", r.Argument)
+			if !adapterDateLayouts[r.Argument] {
+				return Lowered{}, refuse(site, FeatureLayoutDateParse, r.Target, "date layout %q is outside the site's closed set", r.Argument)
 			}
-			if err := b.convert(r.Target, r.Source, transformation.TypeString, transformation.TypeTimestamp); err != nil {
+			if err := b.transform(r.Target, r.Source, "date_parse", r.Argument, nil); err != nil {
 				return Lowered{}, err
 			}
 			sawDate = true
-			sawTrimmingOp = true
-		case ConnectivityOpTrim, ConnectivityOpUpper, ConnectivityOpLower:
-			return Lowered{}, refuse(site, FeatureStringNormalization, r.Target,
-				"rule applies %s; the IR's function vocabulary has no string normalizer", r.Op)
+		case ConnectivityOpTrim:
+			if err := b.transform(r.Target, r.Source, "trim", "", nil); err != nil {
+				return Lowered{}, err
+			}
+		case ConnectivityOpUpper:
+			if err := b.transform(r.Target, r.Source, "upper", "", nil); err != nil {
+				return Lowered{}, err
+			}
+		case ConnectivityOpLower:
+			if err := b.transform(r.Target, r.Source, "lower", "", nil); err != nil {
+				return Lowered{}, err
+			}
 		case ConnectivityOpLookup:
-			return Lowered{}, refuse(site, FeatureCrosswalkLookup, r.Target,
-				"rule resolves the value through a %d-entry crosswalk; the IR instruction set has no lookup instruction", len(r.Lookup))
+			if err := b.transform(r.Target, r.Source, "lookup", "", r.Lookup); err != nil {
+				return Lowered{}, err
+			}
 		case ConnectivityOpMoney:
-			return Lowered{}, refuse(site, FeatureMoneyParse, r.Target,
-				"rule parses money in %s (currency-token stripping and group separators); the IR's decimal coercion accepts plain signed decimal text only", r.Argument)
+			if !validCurrency(r.Argument) {
+				return Lowered{}, refuse(site, FeatureInvalidMapping, r.Target, "money rule declares invalid currency %q", r.Argument)
+			}
+			if r.MoneyMode != "" && r.MoneyMode != "PROFILE" {
+				return Lowered{}, refuse(site, FeatureInvalidMapping, r.Target, "money mode %q is not declared", r.MoneyMode)
+			}
+			mode := "CONNECTIVITY"
+			if r.MoneyMode == "PROFILE" {
+				mode = "PROFILE"
+			}
+			if err := b.transform(r.Target, r.Source, "money_parse", mode+":"+r.Argument, nil); err != nil {
+				return Lowered{}, err
+			}
 		case ConnectivityOpCompose:
-			return Lowered{}, refuse(site, FeatureTemplateCompose, r.Target,
-				"rule composes the value into template %q; the IR has no template instruction", r.Argument)
+			if err := b.transform(r.Target, r.Source, "compose", r.Argument, nil); err != nil {
+				return Lowered{}, err
+			}
 		default:
 			return Lowered{}, refuse(site, FeatureInvalidMapping, r.Target,
 				"operation %q is not a declared connectivity operation", string(r.Op))
@@ -279,31 +295,27 @@ func LowerConnectivityRules(rules ConnectivityRules) (Lowered, error) {
 		Site:    "returns ErrTransform and no result at all",
 		Lowered: "yields a present, empty-string property",
 	})
-	if sawUndeclaredNull {
-		b.diverge(Divergence{
-			Feature: "undeclared_null_policy",
-			Vector:  "a rule that declares no null policy at all",
-			Site:    "mapping.IR.Validate assigns the ERROR default to its own loop copy, so the rule validates as ERROR while mapping.Execute reads the original empty value and takes neither the ERROR nor the DELETE branch -- the rule executes as if OMIT",
-			Lowered: "takes the documented ERROR default as declared, and yields an ABSENT property for the target",
-		})
-	}
-	if sawTrimmingOp {
-		b.diverge(Divergence{
-			Feature: "whitespace_trim",
-			Vector:  "a source value with leading or trailing whitespace",
-			Site:    "trims the cell before parsing it",
-			Lowered: "parses the value as given, so a padded value fails the coercion instead of being trimmed",
-		})
-	}
 	if sawDate {
 		b.diverge(Divergence{
 			Feature: "date_layout_scope",
-			Vector:  "any DATE rule under a layout other than RFC 3339",
+			Vector:  "a DATE rule under a supported declared layout",
 			Site:    "parses under the declared layout",
-			Lowered: "refuses at lowering time with " + FeatureLayoutDateParse,
+			Lowered: "parses under the same declared layout in the shared engine",
 		})
 	}
 	return b.finish()
+}
+
+func validCurrency(code string) bool {
+	if len(code) != 3 {
+		return false
+	}
+	for _, c := range code {
+		if c < 'A' || c > 'Z' {
+			return false
+		}
+	}
+	return true
 }
 
 // defaultLimitsMapping is the declared limits mapping for a site whose

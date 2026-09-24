@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/legal/payrules"
 )
 
 var (
@@ -97,24 +98,26 @@ func (o ReleaseObligations) Validate() error {
 // the approval lock, the current released revision, the compiled effects,
 // the observed obligations, and the caller idempotency key.
 type ReleaseRequest struct {
-	Lock           PayrollLock
-	Run            PayrollRun
-	Effects        ReleaseEffects
-	Obligations    ReleaseObligations
-	IdempotencyKey string
+	Lock             PayrollLock
+	Run              PayrollRun
+	Effects          ReleaseEffects
+	StatementContent StatementManifest
+	Obligations      ReleaseObligations
+	IdempotencyKey   string
 }
 
 // PayrollRelease is the immutable, digested finalization of one released
 // payroll revision.
 type PayrollRelease struct {
-	ReleaseID      string
-	RunID          string
-	RunRevision    uint64
-	LockDigest     string
-	Effects        ReleaseEffects
-	Obligations    ReleaseObligations
-	IdempotencyKey string
-	ReleaseDigest  string
+	ReleaseID            string
+	RunID                string
+	RunRevision          uint64
+	LockDigest           string
+	StatementRulesDigest string
+	Effects              ReleaseEffects
+	Obligations          ReleaseObligations
+	IdempotencyKey       string
+	ReleaseDigest        string
 }
 
 func (r PayrollRelease) body() *canonicalbytes.Writer {
@@ -123,6 +126,7 @@ func (r PayrollRelease) body() *canonicalbytes.Writer {
 		String("run_id", r.RunID).
 		Int("run_revision", int64(r.RunRevision)).
 		String("lock_digest", r.LockDigest).
+		String("statement_rules_digest", r.StatementRulesDigest).
 		String("effects.payments_digest", r.Effects.PaymentsDigest).
 		String("effects.statements_digest", r.Effects.StatementsDigest).
 		String("effects.balances_digest", r.Effects.BalancesDigest).
@@ -144,7 +148,7 @@ func (r PayrollRelease) computedDigest() string {
 
 // Validate checks the release bindings and self-digest.
 func (r PayrollRelease) Validate() error {
-	if strings.TrimSpace(r.ReleaseID) == "" || strings.TrimSpace(r.RunID) == "" || r.RunRevision == 0 || strings.TrimSpace(r.LockDigest) == "" || strings.TrimSpace(r.IdempotencyKey) == "" {
+	if strings.TrimSpace(r.ReleaseID) == "" || strings.TrimSpace(r.RunID) == "" || r.RunRevision == 0 || strings.TrimSpace(r.LockDigest) == "" || strings.TrimSpace(r.StatementRulesDigest) == "" || strings.TrimSpace(r.IdempotencyKey) == "" {
 		return releaseRefusal("release", "release identity is incomplete", ErrInvalidPayrollRelease)
 	}
 	if r.ReleaseID != "payroll-release/"+r.IdempotencyKey {
@@ -218,6 +222,20 @@ func ReleasePayroll(req ReleaseRequest, prior []PayrollRelease) (PayrollRelease,
 	if err := req.Effects.Validate(); err != nil {
 		return PayrollRelease{}, err
 	}
+	statementRules, err := payrules.DefaultPayStatementRegistry()
+	if err != nil {
+		return PayrollRelease{}, releaseRefusal("statements.registry", "pay-statement-fields registry could not be loaded", err)
+	}
+	if err := req.StatementContent.Validate(statementRules); err != nil {
+		return PayrollRelease{}, err
+	}
+	statementDigest, err := req.StatementContent.Digest()
+	if err != nil {
+		return PayrollRelease{}, releaseRefusal("effects.statements_digest", "statement content cannot be digested", err)
+	}
+	if req.Effects.StatementsDigest != statementDigest {
+		return PayrollRelease{}, releaseRefusal("effects.statements_digest", "digest does not bind supplied statement content", ErrInvalidPayrollRelease)
+	}
 	if err := req.Obligations.Validate(); err != nil {
 		return PayrollRelease{}, err
 	}
@@ -236,11 +254,14 @@ func ReleasePayroll(req ReleaseRequest, prior []PayrollRelease) (PayrollRelease,
 		}
 	}
 	release := PayrollRelease{
-		ReleaseID: "payroll-release/" + req.IdempotencyKey,
-		RunID:     req.Run.RunID, RunRevision: req.Run.Revision,
-		LockDigest: req.Lock.LockDigest,
-		Effects:    req.Effects, Obligations: req.Obligations,
-		IdempotencyKey: req.IdempotencyKey,
+		ReleaseID:            "payroll-release/" + req.IdempotencyKey,
+		RunID:                req.Run.RunID,
+		RunRevision:          req.Run.Revision,
+		LockDigest:           req.Lock.LockDigest,
+		StatementRulesDigest: statementRules.Digest,
+		Effects:              req.Effects,
+		Obligations:          req.Obligations,
+		IdempotencyKey:       req.IdempotencyKey,
 	}
 	release.ReleaseDigest = release.computedDigest()
 	if err := release.Validate(); err != nil {

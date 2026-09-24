@@ -58,6 +58,20 @@ type AuthorizationEvent struct {
 	Digest         string
 }
 
+// Validate verifies the immutable authorization evidence digests.
+func (e AuthorizationEvent) Validate() error {
+	if strings.TrimSpace(e.SubscriptionID) == "" || e.Revision == 0 || e.GrantDigest == "" ||
+		e.DecisionDigest == "" || e.Digest == "" {
+		return ErrInvalidScope
+	}
+	d := AuthorizationDecision{SubscriptionID: e.SubscriptionID, Revision: e.Revision,
+		Allowed: e.Allowed, Rule: e.Rule, Reason: e.Reason, Digest: e.DecisionDigest}
+	if decisionDigest(d, e.GrantDigest) != e.DecisionDigest || authorizationEventDigest(d, e.GrantDigest) != e.Digest {
+		return ErrInvalidScope
+	}
+	return nil
+}
+
 // Validate checks a grant without consulting a principal, database, or
 // provider. Scope is exact and deny-by-default.
 func (g ScopeGrant) Validate() error {

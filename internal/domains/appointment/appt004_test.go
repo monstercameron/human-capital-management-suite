@@ -61,7 +61,7 @@ func TestTodo_APPT_004(t *testing.T) {
 
 	t.Run("confirm", func(t *testing.T) {
 		req := appt004Requirement(t, 0, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 
 		confirmed, err := ledger.Confirm(res.ID, res.RequirementDigest, "confirm-1", now.Add(5*time.Minute))
@@ -97,7 +97,7 @@ func TestTodo_APPT_004(t *testing.T) {
 
 	t.Run("confirm-stale-digest", func(t *testing.T) {
 		req := appt004Requirement(t, 0, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 		appt004Rejection(t, errorOfTransition(ledger.Confirm(res.ID, "bogus-digest", "k", now.Add(time.Minute))), "requirement_digest")
 		stored, err := ledger.Get(res.ID)
@@ -114,7 +114,7 @@ func TestTodo_APPT_004(t *testing.T) {
 
 	t.Run("confirm-after-expiry", func(t *testing.T) {
 		req := appt004Requirement(t, 0, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 		appt004Rejection(t, errorOfTransition(ledger.Confirm(res.ID, res.RequirementDigest, "k", now.Add(time.Hour))), "state")
 		stored, err := ledger.Get(res.ID)
@@ -128,7 +128,7 @@ func TestTodo_APPT_004(t *testing.T) {
 
 	t.Run("reschedule", func(t *testing.T) {
 		req := appt004Requirement(t, 0, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 
 		moved, err := ledger.Reschedule(res.ID, res.RequirementDigest, appt003Slot(t, 9, 30, 10, 0), "move-1", now.Add(5*time.Minute))
@@ -167,7 +167,7 @@ func TestTodo_APPT_004(t *testing.T) {
 
 	t.Run("reschedule-conflict", func(t *testing.T) {
 		req := appt004Requirement(t, 0, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		first := appt004Reserve(t, ledger, req, now)
 		_, secondReq := appt003KnownRequest(t)
 		secondReq.Slot = appt003Slot(t, 9, 30, 10, 0)
@@ -183,7 +183,7 @@ func TestTodo_APPT_004(t *testing.T) {
 
 	t.Run("cancel", func(t *testing.T) {
 		req := appt004Requirement(t, 0, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 
 		cancelled, err := ledger.Cancel(res.ID, res.RequirementDigest, "cancel-1", now.Add(5*time.Minute))
@@ -204,7 +204,7 @@ func TestTodo_APPT_004(t *testing.T) {
 
 	t.Run("cancel-late-violates-policy", func(t *testing.T) {
 		req := appt004Requirement(t, 2*time.Hour, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 		// 08:05 is inside the 2h notice window before the 09:00 start but
 		// still inside the 15m hold, so the refusal must be the policy, not
@@ -224,7 +224,7 @@ func TestTodo_APPT_004(t *testing.T) {
 
 	t.Run("cancel-disabled", func(t *testing.T) {
 		req := appt004Requirement(t, 0, CancellationDisabled)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 		appt004Rejection(t, errorOfTransition(ledger.Cancel(res.ID, res.RequirementDigest, "k", now.Add(5*time.Minute))), "cancellation_policy")
 	})
@@ -239,22 +239,25 @@ func errorOfTransition(_ Reservation, err error) error { return err }
 func TestTodo_APPT_004_Race(t *testing.T) {
 	now := appt003Now()
 
-	t.Run("shared-key-confirm-emits-once", func(t *testing.T) {
+	{
 		req := appt004Requirement(t, 0, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 		digest := res.RequirementDigest
 		id := res.ID
 
 		var wg sync.WaitGroup
 		errs := make([]error, 16)
+		start := make(chan struct{})
 		for i := 0; i < 16; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
+				<-start
 				_, errs[i] = ledger.Confirm(id, digest, "shared-key", now.Add(5*time.Minute))
 			}(i)
 		}
+		close(start)
 		wg.Wait()
 		for _, err := range errs {
 			if err != nil {
@@ -271,21 +274,23 @@ func TestTodo_APPT_004_Race(t *testing.T) {
 		if got := len(ledger.Outbox()); got != 1 {
 			t.Fatalf("outbox = %d, want exactly 1", got)
 		}
-	})
+	}
 
-	t.Run("confirm-cancel-legal-path", func(t *testing.T) {
+	{
 		req := appt004Requirement(t, 0, CancellationAllowed)
-		ledger := NewReservationLedger()
+		ledger := newTestReservationLedger()
 		res := appt004Reserve(t, ledger, req, now)
 		digest := res.RequirementDigest
 		id := res.ID
 
 		var wg sync.WaitGroup
 		errs := make([]error, 16)
+		start := make(chan struct{})
 		for i := 0; i < 16; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
+				<-start
 				at := now.Add(5 * time.Minute)
 				if i%2 == 0 {
 					_, errs[i] = ledger.Confirm(id, digest, "race-confirm", at)
@@ -294,6 +299,7 @@ func TestTodo_APPT_004_Race(t *testing.T) {
 				}
 			}(i)
 		}
+		close(start)
 		wg.Wait()
 		// Confirm-then-cancel is a legal lifecycle path, so a mixed race
 		// can emit one notification (one kind won outright) or two (a
@@ -327,5 +333,5 @@ func TestTodo_APPT_004_Race(t *testing.T) {
 				t.Fatalf("race err = %v, want rejection or success", err)
 			}
 		}
-	})
+	}
 }

@@ -1,6 +1,8 @@
 package balance
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,6 +10,73 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
+
+// TransferPlan binds a debit and an equal credit to one pair of account and
+// accumulator revisions. Its digest is the idempotency identity for the pair.
+type TransferPlan struct {
+	Source      PostingPlan
+	Destination PostingPlan
+	Amount      values.Decimal
+	Digest      string
+}
+
+// TransferPlanRequest contains both independently authorized account states
+// and the entries that form the conserved transfer.
+type TransferPlanRequest struct {
+	SourceAuthorized        AuthorizedBalance
+	SourceDefinition        AccumulatorDefinition
+	SourceExpectedHead      int64
+	Debit                   BalanceEntry
+	DestinationAuthorized   AuthorizedBalance
+	DestinationDefinition   AccumulatorDefinition
+	DestinationExpectedHead int64
+	Credit                  BalanceEntry
+	IdempotencyKey          string
+}
+
+// PlanTransfer builds a conserved cross-account debit/credit pair.
+func PlanTransfer(req TransferPlanRequest) (TransferPlan, error) {
+	if strings.TrimSpace(req.IdempotencyKey) == "" || req.Debit.AccountID == req.Credit.AccountID || req.Debit.Kind != Debit || req.Credit.Kind != Credit || !req.Debit.Amount.Equal(req.Credit.Amount) {
+		return TransferPlan{}, fmt.Errorf("%w: transfer requires a source debit and equal destination credit", ErrTransferInvalid)
+	}
+	if req.SourceDefinition.Unit != req.DestinationDefinition.Unit || req.SourceDefinition.Currency != req.DestinationDefinition.Currency || req.Debit.Amount.Scale() != req.Credit.Amount.Scale() || req.Debit.Amount.Rounding() != req.Credit.Amount.Rounding() {
+		return TransferPlan{}, fmt.Errorf("%w: transfer legs must use the same unit, currency, scale, and rounding", ErrTransferInvalid)
+	}
+	if req.Debit.SourceTransactionID != req.IdempotencyKey || req.Credit.SourceTransactionID != req.IdempotencyKey || req.Debit.IdempotencyKey != req.IdempotencyKey+"/source" || req.Credit.IdempotencyKey != req.IdempotencyKey+"/destination" {
+		return TransferPlan{}, fmt.Errorf("%w: linked transaction keys do not match transfer", ErrTransferInvalid)
+	}
+	source, err := PlanPosting(PostingPlanRequest{Authorized: req.SourceAuthorized, Definition: req.SourceDefinition, ExpectedHead: req.SourceExpectedHead, Requested: req.Debit})
+	if err != nil {
+		return TransferPlan{}, fmt.Errorf("%w: source: %v", ErrTransferInvalid, err)
+	}
+	destination, err := PlanPosting(PostingPlanRequest{Authorized: req.DestinationAuthorized, Definition: req.DestinationDefinition, ExpectedHead: req.DestinationExpectedHead, Requested: req.Credit})
+	if err != nil {
+		return TransferPlan{}, fmt.Errorf("%w: destination: %v", ErrTransferInvalid, err)
+	}
+	if !source.Accepted.Equal(req.Debit.Amount) || !destination.Accepted.Equal(req.Credit.Amount) {
+		return TransferPlan{}, fmt.Errorf("%w: transfer legs must be accepted in full", ErrTransferInvalid)
+	}
+	p := TransferPlan{Source: source, Destination: destination, Amount: req.Debit.Amount}
+	p.Digest = linkedPairDigest(source, destination, p.Amount)
+	return p, nil
+}
+
+// Verify detects any mutation to either leg or the transfer amount.
+func (p TransferPlan) Verify() bool {
+	if p.Digest == "" || !p.Source.Verify() || !p.Destination.Verify() || len(p.Source.Entries) != 1 || len(p.Destination.Entries) != 1 {
+		return false
+	}
+	d, c := p.Source.Entries[0], p.Destination.Entries[0]
+	if d.Kind != Debit || c.Kind != Credit || d.AccountID == c.AccountID || !d.Amount.Equal(c.Amount) || !d.Amount.Equal(p.Amount) {
+		return false
+	}
+	return p.Digest == linkedPairDigest(p.Source, p.Destination, p.Amount)
+}
+
+func linkedPairDigest(source, destination PostingPlan, amount values.Decimal) string {
+	sum := sha256.Sum256([]byte("balance-transfer\x00" + source.Digest + "\x00" + destination.Digest + "\x00" + amount.String()))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
 
 var (
 	// ErrTransferInvalid reports a transfer request that cannot settle:
@@ -119,13 +188,16 @@ func Transfer(req TransferRequest) (TransferResult, error) {
 	}
 	reversal.EntryType = AdjustmentEntryType
 	reversal.SupersedesDigest = req.Original.Digest()
-	reversal.SourceTransactionID = req.IdempotencyKey + "/reversal"
-	reversal.IdempotencyKey = req.IdempotencyKey + "/reversal"
+	reversal.SourceTransactionID = req.IdempotencyKey
+	reversal.IdempotencyKey = req.IdempotencyKey + "/source"
 	reversal.RecordedAt = req.RecordedAt
 	reversal.AuthorizedAt = req.AuthorizedAt
 	if err := reversal.Validate(req.Definition); err != nil {
 		return TransferResult{}, fmt.Errorf("%w: reversal: %v", ErrTransferInvalid, err)
 	}
+	reissue := req.Reissue.copy()
+	reissue.SourceTransactionID = req.IdempotencyKey
+	reissue.IdempotencyKey = req.IdempotencyKey + "/destination"
 	known := req.RecordedAt
 	if req.AuthorizedAt.After(known) {
 		known = req.AuthorizedAt
@@ -142,31 +214,28 @@ func Transfer(req TransferRequest) (TransferResult, error) {
 	if err != nil {
 		return TransferResult{}, fmt.Errorf("%w: reversal plan: %v", ErrTransferInvalid, err)
 	}
-	toPre, err := CalculateAuthorizedBalance(AuthorizedBalanceRequest{AccountID: req.Reissue.AccountID, EffectiveAsOf: req.Reissue.EffectiveAt, KnownAt: known, Opening: req.ToOpening, Scale: req.Reissue.Amount.Scale(), Rounding: req.Reissue.Amount.Rounding()}, req.ToLedger)
+	toPre, err := CalculateAuthorizedBalance(AuthorizedBalanceRequest{AccountID: reissue.AccountID, EffectiveAsOf: reissue.EffectiveAt, KnownAt: known, Opening: req.ToOpening, Scale: reissue.Amount.Scale(), Rounding: reissue.Amount.Rounding()}, req.ToLedger)
 	if err != nil {
 		return TransferResult{}, fmt.Errorf("%w: destination balance: %v", ErrTransferInvalid, err)
 	}
-	reissuePlan, err := PlanPosting(PostingPlanRequest{Authorized: toPre, Definition: req.Definition, ExpectedHead: req.ExpectedToHead, Requested: req.Reissue, Rules: req.Rules})
+	reissuePlan, err := PlanPosting(PostingPlanRequest{Authorized: toPre, Definition: req.Definition, ExpectedHead: req.ExpectedToHead, Requested: reissue, Rules: req.Rules})
 	if err != nil {
 		return TransferResult{}, fmt.Errorf("%w: reissue plan: %v", ErrTransferInvalid, err)
 	}
-	toPost, err := CalculateAuthorizedBalance(AuthorizedBalanceRequest{AccountID: req.Reissue.AccountID, EffectiveAsOf: req.Reissue.EffectiveAt, KnownAt: known, Opening: req.ToOpening, Scale: req.Reissue.Amount.Scale(), Rounding: req.Reissue.Amount.Rounding()}, append(append([]BalanceEntry(nil), req.ToLedger...), req.Reissue))
+	toPost, err := CalculateAuthorizedBalance(AuthorizedBalanceRequest{AccountID: reissue.AccountID, EffectiveAsOf: reissue.EffectiveAt, KnownAt: known, Opening: req.ToOpening, Scale: reissue.Amount.Scale(), Rounding: reissue.Amount.Rounding()}, append(append([]BalanceEntry(nil), req.ToLedger...), reissue))
 	if err != nil {
 		return TransferResult{}, fmt.Errorf("%w: reissued balance: %v", ErrTransferInvalid, err)
 	}
 	tx := NewBusinessTransaction()
 	tx.SeedHead(req.Original.AccountID, reversalPlan.Opening.String())
-	tx.SeedHead(req.Reissue.AccountID, reissuePlan.Opening.String())
-	fromReceipt, err := tx.CommitPosting(reversalPlan, req.IdempotencyKey+"/reversal", nil)
+	tx.SeedHead(reissue.AccountID, reissuePlan.Opening.String())
+	transferReceipt, err := tx.commitLinkedPair(reversalPlan, reissuePlan, reversal.Amount, req.IdempotencyKey)
 	if err != nil {
-		return TransferResult{}, fmt.Errorf("%w: settle reversal: %v", ErrTransferInvalid, err)
+		return TransferResult{}, fmt.Errorf("%w: settle linked transfer: %v", ErrTransferInvalid, err)
 	}
-	toReceipt, err := tx.CommitPosting(reissuePlan, req.IdempotencyKey+"/reissue", nil)
-	if err != nil {
-		return TransferResult{}, fmt.Errorf("%w: settle reissue: %v", ErrTransferInvalid, err)
-	}
-	result := TransferResult{Reversal: reversal, ReversalPlan: reversalPlan, Reissue: req.Reissue.copy(), ReissuePlan: reissuePlan, FromReceipt: fromReceipt, ToReceipt: toReceipt, FromBalance: fromPost, ToBalance: toPost}
-	result.Digest, err = canonicalbytes.New("hcmnext.domains.balance.TransferResult", 1).String("reversal", reversal.Digest()).String("reissue", req.Reissue.Digest()).String("reversal_plan", reversalPlan.Digest).String("reissue_plan", reissuePlan.Digest).String("from_receipt", fromReceipt.Digest).String("to_receipt", toReceipt.Digest).Digest()
+	fromReceipt, toReceipt := transferReceipt.Source, transferReceipt.Destination
+	result := TransferResult{Reversal: reversal, ReversalPlan: reversalPlan, Reissue: reissue, ReissuePlan: reissuePlan, FromReceipt: fromReceipt, ToReceipt: toReceipt, FromBalance: fromPost, ToBalance: toPost}
+	result.Digest, err = canonicalbytes.New("hcmnext.domains.balance.TransferResult", 1).String("reversal", reversal.Digest()).String("reissue", reissue.Digest()).String("reversal_plan", reversalPlan.Digest).String("reissue_plan", reissuePlan.Digest).String("from_receipt", fromReceipt.Digest).String("to_receipt", toReceipt.Digest).Digest()
 	if err != nil {
 		return TransferResult{}, fmt.Errorf("%w: digest: %v", ErrTransferInvalid, err)
 	}

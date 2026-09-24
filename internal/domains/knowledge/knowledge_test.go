@@ -23,13 +23,15 @@ func newInstant(t *testing.T, s string) values.Instant {
 // helper to create a minimal valid ArticleRevision for testing
 func minimalArticle(t *testing.T) knowledge.ArticleRevision {
 	return knowledge.ArticleRevision{
-		ArticleID:       "article_123",
-		Revision:        1,
-		Locale:          "en-US",
-		AudienceScope:   "EMPLOYEES",
-		Classification:  "INTERNAL",
-		Owner:           "policy@example.com",
-		SourceAuthority: "policy/authority/1.0",
+		ArticleID:            "article_123",
+		Revision:             1,
+		Locale:               "en-US",
+		AudienceScope:        "EMPLOYEES",
+		AuthorizedRoles:      []string{"worker_self"},
+		RetentionScheduleRef: "records:knowledge/current",
+		Classification:       "INTERNAL",
+		Owner:                "policy@example.com",
+		SourceAuthority:      "policy/authority/1.0",
 		SourceRefs: []knowledge.SourceRef{
 			{
 				System:     "hcmnext.knowledge",

@@ -69,6 +69,7 @@ func (t PackTarget) String() string { return t.Tenant + "@" + t.Cell }
 // SignedPackVersion is the publication envelope.
 type SignedPackVersion struct {
 	PackID          string
+	Industry        Industry
 	Version         int
 	BundleDigest    string
 	Target          PackTarget
@@ -83,7 +84,7 @@ type SignedPackVersion struct {
 
 // SigningPayload is the exact byte string the publisher signs.
 func (s SignedPackVersion) SigningPayload() []byte {
-	return []byte(strings.Join([]string{"hcmnext.industrypack.SignedPackVersion/v1", s.PackID, strconv.Itoa(s.Version), s.BundleDigest,
+	return []byte(strings.Join([]string{"hcmnext.industrypack.SignedPackVersion/v1", s.PackID, string(s.Industry), strconv.Itoa(s.Version), s.BundleDigest,
 		s.Target.Tenant, s.Target.Cell, s.EffectiveAt.UTC().Format(time.RFC3339Nano), strconv.Itoa(s.RollbackVersion),
 		s.Publisher, s.Approver, s.SignedAt.UTC().Format(time.RFC3339Nano), s.KeyID}, "\n"))
 }
@@ -102,13 +103,12 @@ type ActivationRequest struct {
 	// ActiveVersion is the version active in Target now (0 when none).
 	ActiveVersion int
 	TrustedKeys   map[string]ed25519.PublicKey
-	Now           time.Time
-	MaxAge        time.Duration
 }
 
 // ActivationReceipt binds what activated.
 type ActivationReceipt struct {
 	PackID          string
+	Industry        Industry
 	Version         int
 	Target          PackTarget
 	BundleDigest    string
@@ -116,17 +116,26 @@ type ActivationReceipt struct {
 	RollbackVersion int
 	KeyID           string
 	Digest          string
+	Entitlement     IndustryEntitlementBinding
 }
 
-// VerifyActivation checks an activation request without effects.
-func VerifyActivation(req ActivationRequest) (ActivationReceipt, error) {
+// VerifyActivation checks the signed request and resolves entitlement through
+// the trusted application authority without producing effects.
+func VerifyActivation(ctx context.Context, authority *IndustryEntitlementAuthority, req ActivationRequest) (ActivationReceipt, error) {
+	if authority == nil {
+		return ActivationReceipt{}, &EntitlementRejection{Code: EntitlementRejectionCode, State: EntitlementSnapshotAbsent}
+	}
+	now, err := authority.now()
+	if err != nil {
+		return ActivationReceipt{}, err
+	}
 	s := req.Envelope
 	v := strconv.Itoa(s.Version)
 	refuse := func(field, state, format string, args ...any) (ActivationReceipt, error) {
 		return ActivationReceipt{}, &ActivationRefusal{Code: SignatureRejectionCode, Field: field, State: state, Version: v, Detail: fmt.Sprintf(format, args...)}
 	}
 	switch {
-	case strings.TrimSpace(s.PackID) == "" || s.Version < 1 || !strings.HasPrefix(s.BundleDigest, "sha256:") || s.EffectiveAt.IsZero() || s.SignedAt.IsZero():
+	case strings.TrimSpace(s.PackID) == "" || !s.Industry.Valid() || s.Version < 1 || !strings.HasPrefix(s.BundleDigest, "sha256:") || s.EffectiveAt.IsZero() || s.SignedAt.IsZero():
 		return refuse("envelope", SignatureMalformed, "pack id, version, bundle digest, effective and signing instants are required")
 	case len(s.Signature) == 0 || s.KeyID == "":
 		return refuse("signature", SignatureMissing, "the pack version is not signed")
@@ -141,12 +150,11 @@ func VerifyActivation(req ActivationRequest) (ActivationReceipt, error) {
 	if s.Target != req.Target {
 		return refuse("target", SignatureWrongScope, "signed for %s, activating in %s", s.Target, req.Target)
 	}
-	now := req.Now.UTC()
 	switch {
 	case s.SignedAt.After(now):
 		return refuse("signed_at", SignatureStale, "signed in the future")
-	case req.MaxAge > 0 && now.Sub(s.SignedAt) > req.MaxAge:
-		return refuse("signed_at", SignatureStale, "signed %s ago, beyond %s", now.Sub(s.SignedAt), req.MaxAge)
+	case authority.maxEnvelopeAge > 0 && now.Sub(s.SignedAt) > authority.maxEnvelopeAge:
+		return refuse("signed_at", SignatureStale, "signed %s ago, beyond %s", now.Sub(s.SignedAt), authority.maxEnvelopeAge)
 	case s.Version <= req.ActiveVersion:
 		return refuse("version", SignatureStale, "version %d is not newer than active version %d", s.Version, req.ActiveVersion)
 	case s.RollbackVersion != req.ActiveVersion:
@@ -155,9 +163,14 @@ func VerifyActivation(req ActivationRequest) (ActivationReceipt, error) {
 	if strings.TrimSpace(s.Approver) == "" || strings.EqualFold(strings.TrimSpace(s.Approver), strings.TrimSpace(s.Publisher)) {
 		return refuse("approver", SignatureUnapproved, "a publication needs an approver other than the publisher")
 	}
-	r := ActivationReceipt{PackID: s.PackID, Version: s.Version, Target: s.Target, BundleDigest: s.BundleDigest,
+	binding, err := authority.admit(ctx, req.Target.Tenant, s.Industry)
+	if err != nil {
+		return ActivationReceipt{}, err
+	}
+	r := ActivationReceipt{PackID: s.PackID, Industry: s.Industry, Version: s.Version, Target: s.Target, BundleDigest: s.BundleDigest,
 		EffectiveAt: s.EffectiveAt.UTC(), RollbackVersion: s.RollbackVersion, KeyID: s.KeyID}
-	sum := sha256.Sum256(append([]byte("receipt\n"), s.SigningPayload()...))
+	r.Entitlement = binding
+	sum := sha256.Sum256(append(append([]byte("receipt\n"), s.SigningPayload()...), []byte("\nentitlement="+binding.Fingerprint())...))
 	r.Digest = "sha256:" + hex.EncodeToString(sum[:])
 	return r, nil
 }
@@ -168,11 +181,11 @@ type SignedActivationStore interface {
 }
 
 // ActivateSigned verifies and, only when accepted, persists an activation.
-func ActivateSigned(ctx context.Context, store SignedActivationStore, req ActivationRequest) (ActivationReceipt, ActivationEffects, error) {
+func ActivateSigned(ctx context.Context, store SignedActivationStore, authority *IndustryEntitlementAuthority, req ActivationRequest) (ActivationReceipt, ActivationEffects, error) {
 	if store == nil {
 		return ActivationReceipt{}, ActivationEffects{}, fmt.Errorf("%w: store is required", ErrActivationRefused)
 	}
-	r, err := VerifyActivation(req)
+	r, err := VerifyActivation(ctx, authority, req)
 	if err != nil {
 		return ActivationReceipt{}, ActivationEffects{}, err
 	}

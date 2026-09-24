@@ -122,6 +122,8 @@ const (
 	KindBool
 	// KindInt is a signed integer, compared exactly.
 	KindInt
+	// KindList is an immutable, homogeneous list used by the expression evaluator.
+	KindList
 )
 
 var kindWire = map[Kind]string{
@@ -129,6 +131,7 @@ var kindWire = map[Kind]string{
 	KindString:  "STRING",
 	KindBool:    "BOOL",
 	KindInt:     "INT",
+	KindList:    "LIST",
 }
 
 // String returns the stable wire token, or "KIND_UNSPECIFIED".
@@ -155,6 +158,7 @@ type Value struct {
 	str  string
 	b    bool
 	i    int64
+	list []Value
 }
 
 // DecimalValue wraps a fixed-point decimal.
@@ -169,6 +173,20 @@ func BoolValue(b bool) Value { return Value{kind: KindBool, b: b} }
 // IntValue wraps a signed integer value.
 func IntValue(i int64) Value { return Value{kind: KindInt, i: i} }
 
+// ListValue creates a defensive copy of a homogeneous scalar list. Nested
+// lists are rejected during Validate so evaluation remains shallow and bounded.
+func ListValue(items ...Value) Value {
+	return Value{kind: KindList, list: append([]Value(nil), items...)}
+}
+
+// List returns a defensive copy of a list value.
+func (v Value) List() ([]Value, bool) {
+	if v.kind != KindList {
+		return nil, false
+	}
+	return append([]Value(nil), v.list...), true
+}
+
 // Kind returns the value's declared kind.
 func (v Value) Kind() Kind { return v.kind }
 
@@ -180,6 +198,22 @@ func (v Value) Validate() error {
 	if v.kind == KindDecimal {
 		if err := v.dec.Validate(); err != nil {
 			return fmt.Errorf("rules: decimal value: %w", err)
+		}
+	}
+	if v.kind == KindList {
+		var kind Kind
+		for i, item := range v.list {
+			if item.kind == KindList {
+				return fmt.Errorf("rules: nested lists are not supported")
+			}
+			if err := item.Validate(); err != nil {
+				return fmt.Errorf("rules: list item %d: %w", i, err)
+			}
+			if i == 0 {
+				kind = item.kind
+			} else if item.kind != kind {
+				return fmt.Errorf("rules: heterogeneous list")
+			}
 		}
 	}
 	return nil
@@ -200,6 +234,12 @@ func (v Value) String() string {
 		return "false"
 	case KindInt:
 		return strconv.FormatInt(v.i, 10)
+	case KindList:
+		parts := make([]string, len(v.list))
+		for i, item := range v.list {
+			parts[i] = item.String()
+		}
+		return "[" + strings.Join(parts, ",") + "]"
 	default:
 		return ""
 	}
@@ -220,6 +260,11 @@ func (v Value) Canonical() []byte {
 		w.Bool("bool", v.b)
 	case KindInt:
 		w.Int("int", v.i)
+	case KindList:
+		w.Count("items", len(v.list))
+		for _, item := range v.list {
+			w.Field("item", item.Canonical())
+		}
 	}
 	raw, err := w.Bytes()
 	if err != nil {
@@ -243,6 +288,17 @@ func (v Value) Equal(o Value) (bool, error) {
 		return v.b == o.b, nil
 	case KindInt:
 		return v.i == o.i, nil
+	case KindList:
+		if len(v.list) != len(o.list) {
+			return false, nil
+		}
+		for i := range v.list {
+			eq, err := v.list[i].Equal(o.list[i])
+			if err != nil || !eq {
+				return eq, err
+			}
+		}
+		return true, nil
 	default:
 		return false, ErrKindUnspecified
 	}
@@ -285,6 +341,9 @@ func (c Column) Validate() error {
 	}
 	if !c.Kind.Valid() {
 		return fmt.Errorf("%w: column %q has no declared kind", ErrColumnInvalid, c.Name)
+	}
+	if c.Kind == KindList {
+		return fmt.Errorf("%w: LIST is expression-only and cannot be a decision-table column", ErrColumnInvalid)
 	}
 	return nil
 }

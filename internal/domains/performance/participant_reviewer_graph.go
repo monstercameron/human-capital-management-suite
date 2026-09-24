@@ -116,14 +116,16 @@ func (r ReviewerGraphRules) allows(relationship ReviewerRelationshipKind) bool {
 
 // ParticipantRef is an opaque member reference resolved from the cycle's
 // population binding. The graph stores no copied population attributes.
-type ParticipantRef struct{ ID string }
+type ParticipantRef struct {
+	ID string `json:"id"`
+}
 
 // ReviewerAssignment resolves one reviewer for one participant at freeze
 // time, retaining the declared relationship kind.
 type ReviewerAssignment struct {
-	ParticipantID string
-	ReviewerID    string
-	Relationship  ReviewerRelationshipKind
+	ParticipantID string                   `json:"participant_id"`
+	ReviewerID    string                   `json:"reviewer_id"`
+	Relationship  ReviewerRelationshipKind `json:"relationship"`
 }
 
 func sortParticipants(participants []ParticipantRef) {
@@ -146,16 +148,23 @@ func sortAssignments(assignments []ReviewerAssignment) {
 // one performance cycle revision. Amendments return a new graph revision with
 // lineage; no method mutates an existing snapshot.
 type FrozenParticipantReviewerGraph struct {
-	CycleID                 string
-	CycleRevision           uint64
-	Population              PopulationBindingRef
-	GraphRevision           uint64
-	SupersedesGraphRevision uint64
-	Participants            []ParticipantRef
-	Reviewers               []ReviewerAssignment
-	Rules                   ReviewerGraphRules
-	FrozenAt                values.Instant
-	Digest                  string
+	CycleID                 string               `json:"cycle_id"`
+	CycleRevision           uint64               `json:"cycle_revision"`
+	Population              PopulationBindingRef `json:"population"`
+	GraphRevision           uint64               `json:"graph_revision"`
+	SupersedesGraphRevision uint64               `json:"supersedes_graph_revision"`
+	Participants            []ParticipantRef     `json:"participants"`
+	Reviewers               []ReviewerAssignment `json:"reviewers"`
+	Rules                   ReviewerGraphRules   `json:"rules"`
+	FrozenAt                values.Instant       `json:"frozen_at"`
+	Digest                  string               `json:"digest"`
+}
+
+func cloneFrozenParticipantReviewerGraph(g FrozenParticipantReviewerGraph) FrozenParticipantReviewerGraph {
+	g.Participants = append([]ParticipantRef(nil), g.Participants...)
+	g.Reviewers = append([]ReviewerAssignment(nil), g.Reviewers...)
+	g.Rules.AllowedRelationships = append([]ReviewerRelationshipKind(nil), g.Rules.AllowedRelationships...)
+	return g
 }
 
 func (g FrozenParticipantReviewerGraph) Validate() error {

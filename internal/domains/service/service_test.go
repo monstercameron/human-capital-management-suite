@@ -160,25 +160,97 @@ func TestServiceModelRejectsOverlappingUnattributedPeriodsAndImplicitSeniority(t
 }
 
 func TestTodo_SERVICE_001_Property(t *testing.T) {
-	TestServiceModelRejectsOverlappingUnattributedPeriodsAndImplicitSeniority(t)
+	model := validServiceModel(t)
+	asOf, err := NewAsOf(serviceDate(t, "2026-05-01"), serviceKnown(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := model.Compute(asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := serviceMeasure(t, snapshot, DimensionGeneral).TotalCreditedDays; got != 120 {
+		t.Fatalf("total credited days = %d, want 120 including the bridged gap", got)
+	}
 }
 func TestTodo_SERVICE_001_Golden(t *testing.T) {
-	TestServiceModelRejectsOverlappingUnattributedPeriodsAndImplicitSeniority(t)
+	model := validServiceModel(t)
+	if model.CanonicalDigest == "" || canonicalbytes.Digest(model.body()) != model.CanonicalDigest {
+		t.Fatalf("service model digest=%q does not match canonical body", model.CanonicalDigest)
+	}
 }
 func TestTodo_SERVICE_001_Race(t *testing.T) {
-	TestServiceModelRejectsOverlappingUnattributedPeriodsAndImplicitSeniority(t)
+	model := validServiceModel(t)
+	asOf, err := NewAsOf(serviceDate(t, "2026-05-01"), serviceKnown(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := model.Compute(asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := make(chan SenioritySnapshot, 12)
+	errors := make(chan error, 12)
+	for i := 0; i < cap(results); i++ {
+		go func() {
+			got, err := model.Compute(asOf)
+			if err != nil {
+				errors <- err
+				return
+			}
+			results <- got
+		}()
+	}
+	for i := 0; i < cap(results); i++ {
+		select {
+		case err := <-errors:
+			t.Fatal(err)
+		case got := <-results:
+			if got.CanonicalDigest != want.CanonicalDigest || len(got.Measures) != 1 || got.Measures[0].ContinuousDays != want.Measures[0].ContinuousDays {
+				t.Fatalf("concurrent computation diverged: got=%+v want=%+v", got, want)
+			}
+		}
+	}
 }
 func TestTodo_SERVICE_001_Fault(t *testing.T) {
-	TestServiceModelRejectsOverlappingUnattributedPeriodsAndImplicitSeniority(t)
+	first := servicePeriod(t, "first", "2026-01-01", "2026-03-01", employmentCredit(t, CreditEmployment, "evidence/first", ""))
+	second := servicePeriod(t, "second", "2026-02-01", "2026-04-01", employmentCredit(t, CreditEmployment, "evidence/second", ""))
+	if _, err := NewServiceModel([]ServicePeriod{first, second}, []SeniorityRule{serviceRule(t)}); !errors.Is(err, ErrOverlappingPeriods) {
+		t.Fatalf("overlapping periods error=%v, want ErrOverlappingPeriods", err)
+	}
 }
 func TestTodo_SERVICE_001_Security(t *testing.T) {
-	TestServiceModelRejectsOverlappingUnattributedPeriodsAndImplicitSeniority(t)
+	unattributed := employmentCredit(t, CreditAcquiredService, "evidence/acquired", "")
+	if _, err := NewServiceModel([]ServicePeriod{servicePeriod(t, "acquired", "2026-01-01", "2026-02-01", unattributed)}, []SeniorityRule{serviceRule(t)}); !errors.Is(err, ErrInvalidCreditSource) || !strings.Contains(err.Error(), "authority_ref") {
+		t.Fatalf("unattributed acquired service error=%v, want authority_ref refusal", err)
+	}
 }
 func TestTodo_SERVICE_001_Conformance(t *testing.T) {
-	TestServiceModelRejectsOverlappingUnattributedPeriodsAndImplicitSeniority(t)
+	model := validServiceModel(t)
+	asOf, err := NewAsOf(serviceDate(t, "2026-05-01"), serviceKnown(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := model.Compute(asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Measures) != 1 || snapshot.Measures[0].Dimension != DimensionGeneral || snapshot.CanonicalDigest == "" {
+		t.Fatalf("unexpected governed measure: %+v", snapshot.Measures)
+	}
 }
 func TestTodo_SERVICE_001_Mutation(t *testing.T) {
-	TestServiceModelRejectsOverlappingUnattributedPeriodsAndImplicitSeniority(t)
+	period := servicePeriod(t, "copy", "2026-01-01", "2026-02-01", employmentCredit(t, CreditEmployment, "evidence/copy", ""))
+	period.Dimensions = []SeniorityDimension{DimensionGeneral}
+	model, err := NewServiceModel([]ServicePeriod{period}, []SeniorityRule{serviceRule(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := model.CanonicalDigest
+	period.Dimensions[0] = DimensionBenefits
+	if model.CanonicalDigest != digest || model.Periods[0].Dimensions[0] != DimensionGeneral {
+		t.Fatal("service model retained caller-owned dimensions")
+	}
 }
 
 func TestServiceCalculationExplainsBreakBridgeCreditAndDimensionSpecificOrder(t *testing.T) {
@@ -314,12 +386,47 @@ func TestTodo_SERVICE_002_RankPopulationAndUnknownHistory(t *testing.T) {
 	}
 }
 func TestTodo_SERVICE_002_Race(t *testing.T) {
+	model := validServiceModel(t)
+	asOf, err := NewAsOf(serviceDate(t, "2026-05-01"), serviceKnown(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := model.Compute(asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const workers = 8
+	results := make(chan SenioritySnapshot, workers)
+	errors := make(chan error, workers)
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
+	for i := 0; i < workers; i++ {
 		wg.Add(1)
-		go func() { defer wg.Done(); TestServiceCalculationExplainsBreakBridgeCreditAndDimensionSpecificOrder(t) }()
+		go func() {
+			defer wg.Done()
+			got, err := model.Compute(asOf)
+			if err != nil {
+				errors <- err
+				return
+			}
+			results <- got
+		}()
 	}
 	wg.Wait()
+	close(results)
+	close(errors)
+	for err := range errors {
+		t.Fatal(err)
+	}
+	count := 0
+	for got := range results {
+		count++
+		if got.CanonicalDigest != want.CanonicalDigest || len(got.Measures) != len(want.Measures) || got.Measures[0].ContinuousDays != want.Measures[0].ContinuousDays {
+			t.Fatalf("concurrent calculation diverged: got=%+v want=%+v", got.Measures, want.Measures)
+		}
+	}
+	if count != workers {
+		t.Fatalf("successful calculations=%d, want %d", count, workers)
+	}
 }
 func TestTodo_SERVICE_002_Fault(t *testing.T) {
 	period := servicePeriod(t, "fraction", "2026-01-01", "2026-01-02", employmentCredit(t, CreditEmployment, "evidence/fraction", ""))

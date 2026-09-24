@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/operation"
 )
 
 type poisonProvider struct {
@@ -50,9 +52,16 @@ func tenantRequest(sub, tenant string, sequence uint64) DeliveryRequest {
 }
 
 func testDispatcher(journal *DeliveryJournal, gate *DeliveryGate, dlq *DeadLetterQueue) Dispatcher {
+	capacity, err := NewDeliveryCapacity(map[string]operation.ConnectorPolicy{
+		"endpoint:webhook": {Quota: operation.ConnectorQuota{Limit: 1000, Window: time.Minute, MaxConcurrent: 32}, PerTenantShare: 8},
+	})
+	if err != nil {
+		panic(err)
+	}
 	return Dispatcher{Journal: journal, Gate: gate, DLQ: dlq,
 		Policy:          RetryPolicy{MaxAttempts: 3, InitialDelay: time.Second, MaxDelay: 10 * time.Second},
-		DeadLetterOwner: "team:integrations"}
+		DeadLetterOwner: "team:integrations",
+		Capacity:        capacity}
 }
 
 // TestTodo_SUB_005 proves a poison endpoint never retries forever or blocks

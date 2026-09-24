@@ -1,6 +1,8 @@
 package reportschedule
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -66,10 +68,59 @@ func TestTodo_REPORT_003_Property(t *testing.T) {
 }
 
 func TestTodo_REPORT_003_Golden(t *testing.T) {
-	TestScheduledReportAndDashboardRefreshRemainReproducibleAndNonDisclosing(t)
+	sch, auth := reportFixture()
+	s := NewScheduler(1)
+	if _, err := s.Create(sch); err != nil {
+		t.Fatal(err)
+	}
+	run, err := s.Run(sch.ID, auth, time.Unix(100, 0), "evidence-fixed", "secure-destination", "attachment-fixed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := digest("evidence-fixed")
+	if run.EvidenceDigest != want || run.Delivery.Destination != "secure-destination" || run.Delivery.AttachmentRef != "attachment-fixed" {
+		t.Fatalf("scheduled run record=%+v", run)
+	}
+	repro := Reproduce(run, sch.Definition, sch.Data, sch.Control, sch.Locale, want)
+	if repro.State != Exact || repro.OriginalID != run.ID || repro.ResultDigest != want {
+		t.Fatalf("historical reproduction=%+v", repro)
+	}
 }
 func TestTodo_REPORT_003_Race(t *testing.T) {
-	TestScheduledReportAndDashboardRefreshRemainReproducibleAndNonDisclosing(t)
+	const workers = 12
+	sch, auth := reportFixture()
+	s := NewScheduler(workers)
+	if _, err := s.Create(sch); err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			at := time.Unix(200, int64(i))
+			run, err := s.Run(sch.ID, auth, at, fmt.Sprintf("evidence-%d", i), "secure-destination", "attachment")
+			if err == nil && (!run.Delivery.Authorized || run.TenantID != sch.TenantID || run.StartedAt != at) {
+				err = fmt.Errorf("invalid concurrent run: %+v", run)
+			}
+			errs <- err
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	history, err := s.History(sch.ID, sch.TenantID, auth)
+	if err != nil || len(history) != workers {
+		t.Fatalf("concurrent history count=%d err=%v", len(history), err)
+	}
 }
 func TestTodo_REPORT_003_Fault(t *testing.T) {
 	sch, _ := reportFixture()

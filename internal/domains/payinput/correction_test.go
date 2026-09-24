@@ -115,9 +115,18 @@ func TestTodo_PAYINPUT_003(t *testing.T) {
 	}
 }
 
-// TestPayrollInputCorrectionPreservesClosedRunsAndFreezesCompleteManifest is
-// the registry PRIMARY name for PAYINPUT-003; it asserts the same contract
-// as TestTodo_PAYINPUT_003.
+// TestPayrollInputCorrectionPreservesClosedRunsAndFreezesCompleteManifest
+// verifies corrections cannot target an assignment outside the ledger.
 func TestPayrollInputCorrectionPreservesClosedRunsAndFreezesCompleteManifest(t *testing.T) {
-	TestTodo_PAYINPUT_003(t)
+	_, bound, _, ledger := correctionFixture(t)
+	request := correctionRequest(t, bound)
+	request.AssignmentDigest = "sha256:unknown-assignment"
+	_, err := PlanCorrection(ledger, request, correctionClock())
+	var correctionErr *CorrectionError
+	if !errors.Is(err, ErrCorrectionRejected) || !errors.As(err, &correctionErr) {
+		t.Fatalf("unknown assignment error = %v", err)
+	}
+	if correctionErr.Field != "assignment_digest" || correctionErr.State != "unknown" {
+		t.Fatalf("unknown assignment refusal = %+v", correctionErr)
+	}
 }

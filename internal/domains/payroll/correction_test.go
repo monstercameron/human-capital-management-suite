@@ -19,6 +19,7 @@ func correctionRequestFixture(t *testing.T) CorrectionRequest {
 	t.Helper()
 	release := correctionReleaseFixture(t)
 	restated := releaseEffectsFixture()
+	restated.StatementsDigest = release.Effects.StatementsDigest
 	restated.AccountingDigest = "sha256:accounting-restocked"
 	return CorrectionRequest{
 		CorrectionKey:       "correction-key-1",
@@ -92,6 +93,7 @@ func TestTodo_PAYRUN_008(t *testing.T) {
 func TestTodo_PAYRUN_008_Property(t *testing.T) {
 	req := correctionRequestFixture(t)
 	req.RestatedEffects = releaseEffectsFixture()
+	req.RestatedEffects.StatementsDigest = req.Release.Effects.StatementsDigest
 	req.RestatedEffects.PaymentsDigest = "sha256:payments-restocked"
 	req.RestatedEffects.ReportingDigest = "sha256:reporting-restocked"
 	multi, err := CorrectFinalizedRun(req, nil)
@@ -221,6 +223,7 @@ func TestTodo_PAYRUN_008_Fault(t *testing.T) {
 	noop := req
 	noop.CorrectionKey = "correction-key-noop"
 	noop.RestatedEffects = releaseEffectsFixture()
+	noop.RestatedEffects.StatementsDigest = req.Release.Effects.StatementsDigest
 	if _, err := CorrectFinalizedRun(noop, nil); !errors.Is(err, ErrInvalidCorrection) {
 		t.Fatalf("no-op restatement error = %v", err)
 	}

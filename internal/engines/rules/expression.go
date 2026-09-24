@@ -14,7 +14,7 @@ import (
 
 // ExpressionVersion is the owned expression/IR contract version. It is
 // independent from the decision-table schema version in rules.go.
-const ExpressionVersion = 1
+const ExpressionVersion = 2
 
 // Expression errors are stable categories callers may match with errors.Is.
 var (
@@ -270,6 +270,8 @@ func valueExpressionType(v Value) ExpressionType {
 		return ExpressionTypeDecimal
 	case KindString:
 		return ExpressionTypeString
+	case KindList:
+		return ExpressionTypeList
 	default:
 		return ExpressionTypeUnspecified
 	}
@@ -332,16 +334,19 @@ func (o Opcode) String() string {
 // IRNode is an indexed, backend-neutral instruction. Child indexes always
 // point backwards, making the IR acyclic and straightforward to audit.
 type IRNode struct {
-	Opcode         Opcode
-	Type           ExpressionType
-	Name           string
-	Function       string
-	Value          Value
-	Unary          UnaryOp
-	Binary         BinaryOp
-	Iteration      IterationOp
-	IterationBound int
-	Children       []int
+	Opcode          Opcode
+	Type            ExpressionType
+	ElementType     ExpressionType
+	Name            string
+	Function        string
+	FunctionVersion string
+	FunctionCost    int
+	Value           Value
+	Unary           UnaryOp
+	Binary          BinaryOp
+	Iteration       IterationOp
+	IterationBound  int
+	Children        []int
 }
 
 // IR is the bounded backend-neutral program produced by compilation.
@@ -353,15 +358,17 @@ type IR struct {
 // CompiledExpression is immutable by convention: all slices are compiler
 // owned copies and its digest cites the exact IR, dependencies and version.
 type CompiledExpression struct {
-	IR               IR
-	Inputs           []Input
-	Dependencies     []Dependency
-	Version          string
-	UnknownSemantics UnknownSemantics
-	DependencyDigest string
-	Digest           string
-	Cost             Cost
-	Limits           CostLimit
+	IR                     IR
+	Inputs                 []Input
+	Dependencies           []Dependency
+	Version                string
+	FunctionLibraryVersion string
+	FunctionLibraryDigest  string
+	UnknownSemantics       UnknownSemantics
+	DependencyDigest       string
+	Digest                 string
+	Cost                   Cost
+	Limits                 CostLimit
 }
 
 // Parse parses the small owned expression grammar. Variables remain

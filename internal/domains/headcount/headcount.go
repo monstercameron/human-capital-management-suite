@@ -205,6 +205,104 @@ type CapacitySnapshot struct {
 	ReservationFence             uint64
 }
 
+// RequisitionCapacity is the headcount-owned proof recruiting must present
+// before opening a requisition. Available is the capacity remaining after
+// position reservations and prior requisition allocations.
+type RequisitionCapacity struct {
+	Tenant, RequestID string
+	Revision          uint64
+	State             HeadcountState
+	Available         values.Decimal
+	BaselineVersion   string
+	ReservationFence  uint64
+}
+
+// RequisitionCapacityReference is the tenant-scoped lookup key accepted by
+// recruiting when it resolves headcount authorization through its port.
+type RequisitionCapacityReference struct {
+	Tenant, RequestID string
+}
+
+func (r RequisitionCapacityReference) Validate() error {
+	if strings.TrimSpace(r.Tenant) == "" || strings.TrimSpace(r.RequestID) == "" {
+		return fmt.Errorf("%w: tenant and request identity are required", ErrInvalidRelationship)
+	}
+	return nil
+}
+
+// RequisitionCapacityReservation is the durable allocation receipt returned
+// after capacity is atomically reserved for one ATS requisition.
+type RequisitionCapacityReservation struct {
+	ID, Tenant, RequestID, RequisitionID string
+	Amount                               values.Decimal
+	CapacityRevision                     uint64
+	ReservationFence                     uint64
+}
+
+func (r RequisitionCapacityReservation) Validate() error {
+	if strings.TrimSpace(r.ID) == "" || strings.TrimSpace(r.Tenant) == "" || strings.TrimSpace(r.RequestID) == "" ||
+		strings.TrimSpace(r.RequisitionID) == "" || r.CapacityRevision == 0 || r.ReservationFence == 0 {
+		return fmt.Errorf("%w: capacity reservation identity and fence are required", ErrInvalidRelationship)
+	}
+	if err := r.Amount.Validate(); err != nil || r.Amount.Sign() <= 0 {
+		return fmt.Errorf("%w: capacity reservation amount must be positive", ErrInvalidRelationship)
+	}
+	return nil
+}
+
+// RequisitionCapacityAllocator is the headcount-owned write port for ATS
+// allocation. Implementations must atomically check current approval and
+// remaining capacity, then durably reserve amount. RequisitionID is an
+// idempotency key so retries return the same reservation.
+type RequisitionCapacityAllocator interface {
+	ReserveRequisitionCapacity(RequisitionCapacityReference, string, values.Decimal) (RequisitionCapacityReservation, error)
+}
+
+// ApprovedRequisitionCapacity derives the recruiting-facing capacity proof
+// from an approved request and the current capacity reservation snapshot.
+func ApprovedRequisitionCapacity(r HeadcountRequest, snapshot CapacitySnapshot) (RequisitionCapacity, error) {
+	if err := r.Validate(); err != nil {
+		return RequisitionCapacity{}, err
+	}
+	if r.State != HeadcountApproved {
+		return RequisitionCapacity{}, fmt.Errorf("%w: headcount approval is required", ErrInvalidTransition)
+	}
+	if err := snapshot.Validate(); err != nil {
+		return RequisitionCapacity{}, err
+	}
+	if snapshot.Capacity.Scale() != r.Capacity.Scale() || snapshot.Consumed.Scale() != r.Capacity.Scale() || snapshot.Reserved.Scale() != r.Capacity.Scale() {
+		return RequisitionCapacity{}, ErrCapacityConflict
+	}
+	used, err := snapshot.Consumed.Add(snapshot.Reserved)
+	if err != nil {
+		return RequisitionCapacity{}, err
+	}
+	available, err := r.Capacity.Sub(used)
+	if err != nil {
+		return RequisitionCapacity{}, err
+	}
+	if available.Sign() < 0 {
+		available = values.MustDecimal("0", r.Capacity.Scale(), values.RoundingExactRequired)
+	}
+	capacity := RequisitionCapacity{Tenant: r.Tenant, RequestID: r.ID, Revision: r.ProposalRevision,
+		State: r.State, Available: available, BaselineVersion: snapshot.BaselineVersion, ReservationFence: snapshot.ReservationFence}
+	if err := capacity.Validate(); err != nil {
+		return RequisitionCapacity{}, err
+	}
+	return capacity, nil
+}
+
+func (c RequisitionCapacity) Validate() error {
+	if strings.TrimSpace(c.Tenant) == "" || strings.TrimSpace(c.RequestID) == "" || c.Revision == 0 ||
+		c.State != HeadcountApproved || strings.TrimSpace(c.BaselineVersion) == "" || c.ReservationFence == 0 {
+		return fmt.Errorf("%w: approved capacity identity, revision and fence are required", ErrInvalidRelationship)
+	}
+	if err := c.Available.Validate(); err != nil || c.Available.Sign() < 0 {
+		return fmt.Errorf("%w: available capacity must be a non-negative exact decimal", ErrInvalidRelationship)
+	}
+	return nil
+}
+
 func (s CapacitySnapshot) Validate() error {
 	if strings.TrimSpace(s.BaselineVersion) == "" || s.ReservationFence == 0 {
 		return fmt.Errorf("%w: capacity baseline and reservation fence are required", ErrInvalidRequest)

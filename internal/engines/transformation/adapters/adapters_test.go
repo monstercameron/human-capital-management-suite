@@ -162,24 +162,6 @@ func TestTodo_XFORM_008(t *testing.T) {
 					}},
 				})
 			}, adapters.FeatureAmbientSource},
-			{"connectivity crosswalk lookup", func() (adapters.Lowered, error) {
-				return adapters.LowerConnectivityRules(adapters.ConnectivityRules{
-					Version: "v1",
-					Rules: []adapters.ConnectivityRule{{
-						Source: "s", Target: "t", Op: adapters.ConnectivityOpLookup,
-						Lookup: map[string]string{"a": "b"}, Null: adapters.ConnectivityNullError,
-					}},
-				})
-			}, adapters.FeatureCrosswalkLookup},
-			{"dataops money parse", func() (adapters.Lowered, error) {
-				return adapters.LowerDataOpsImport(adapters.DataOpsImportMapping{
-					Version: "v1",
-					Fields: []adapters.DataOpsFieldMapping{{
-						SourceColumn: "amount_raw", Target: "compensation_component.amount",
-						Transform: adapters.DataOpsTransform{Kind: adapters.DataOpsTransformMoneyParse, Currency: "USD"},
-					}},
-				})
-			}, adapters.FeatureMoneyParse},
 			{"connectivity profile naming neither identity nor a digest", func() (adapters.Lowered, error) {
 				return adapters.LowerConnectivityProfile(adapters.ConnectivityProfile{
 					MappingID: "p", Version: 1, SourceSystemRef: "s", TargetEntity: "e",
@@ -397,12 +379,12 @@ var goldenDigests = map[adapters.Site]struct{ program, lowered string }{
 		lowered: "sha256:637a3d33eca30459475bb33b74e2bb13840467bbfc4d84e5579d923baffa1481",
 	},
 	adapters.SiteConnectivityRules: {
-		program: "sha256:482779b6372bbe563d866ac6ecd355761a5a9f32ae15084f75f829241493ed0e",
-		lowered: "sha256:a070ba90f80c02d5f346a0796ab77b50ca33c1ea9fdebe2d5910e7050f89df7b",
+		program: "sha256:1c437d5d45679f86d51e8f7fc3f1ef7b1cd8b5508d6c7b29162e5fd78cbd97e1",
+		lowered: "sha256:9a21dfb6856697496f6ded9f22236d1c00b2f6854119d80e53cb5e1d1eba1ffa",
 	},
 	adapters.SiteDataOpsImport: {
-		program: "sha256:232431cf28956b678d6ff4bc006731af0cc0058cc8b45b2ed860abfc3560f2d7",
-		lowered: "sha256:0c0fdc7d48cb0151b5b6053279151645d100ff040e844976bf1ab640f7871645",
+		program: "sha256:5f7536f4ca417b2fc903d4b619d581ad0a3749b811e1489bdce538ee59039dca",
+		lowered: "sha256:fecf2a5656d2650b7be9da9b4c2c5981c6b158add8a0b2669d81cc138ffee6cb",
 	},
 }
 
@@ -438,13 +420,24 @@ func TestTodo_XFORM_008_Conformance(t *testing.T) {
 			if op.IRFunction == "" {
 				continue
 			}
+			instruction := ir.Instruction{Op: op.IROp, Function: op.IRFunction, Literal: "x",
+				Destination: transformation.Path{Schema: "out", Field: "value", Type: transformation.TypeString}}
+			if op.IRFunction == ir.FuncTrim || op.IRFunction == ir.FuncUpper || op.IRFunction == ir.FuncLower || op.IRFunction == ir.FuncLookup || op.IRFunction == ir.FuncDateParse || op.IRFunction == ir.FuncMoneyParse || op.IRFunction == ir.FuncCompose {
+				instruction.Sources = []transformation.Path{{Schema: "in", Field: "source", Type: transformation.TypeString}}
+			}
+			switch op.IRFunction {
+			case ir.FuncLookup:
+				instruction.Literal = ""
+				instruction.Lookup = map[string]string{"a": "b"}
+			case ir.FuncDateParse:
+				instruction.Literal = "2006-01-02"
+			case ir.FuncMoneyParse:
+				instruction.Literal = "DATAOPS:USD"
+			}
 			program := ir.Program{
 				IRVersion: ir.IRVersion, DefinitionName: "conformance",
-				Instructions: []ir.Instruction{{
-					Op: op.IROp, Function: op.IRFunction, Literal: "x",
-					Destination: transformation.Path{Schema: "out", Field: "value", Type: transformation.TypeString},
-				}},
-				Limits: ir.Limits{MaxSteps: 4, MaxFanOut: 4},
+				Instructions: []ir.Instruction{instruction},
+				Limits:       ir.Limits{MaxSteps: 4, MaxFanOut: 4},
 			}
 			if err := program.Validate(); err != nil {
 				t.Fatalf("%s/%s names function %q, which the IR does not declare: %v", op.Site, op.Name, op.IRFunction, err)
@@ -501,11 +494,7 @@ func TestTodo_XFORM_008_Mutation(t *testing.T) {
 		}
 	})
 
-	t.Run("a normalizing transform is refused, never approximated by a projection", func(t *testing.T) {
-		// The seeded defect this guards against: lowering TRIM to a plain
-		// projection. That compiles and even looks right on already-trimmed
-		// data, and is exactly the silent semantic change XFORM-008's RED
-		// clause forbids.
+	t.Run("normalizing transforms lower to named shared functions", func(t *testing.T) {
 		for _, op := range []adapters.ConnectivityOp{adapters.ConnectivityOpTrim, adapters.ConnectivityOpUpper, adapters.ConnectivityOpLower} {
 			lowered, err := adapters.LowerConnectivityRules(adapters.ConnectivityRules{
 				Version: "v1",
@@ -513,12 +502,12 @@ func TestTodo_XFORM_008_Mutation(t *testing.T) {
 					{Source: "a", Target: "b", Op: op, Null: adapters.ConnectivityNullError},
 				},
 			})
-			if err == nil {
-				t.Fatalf("%s lowered to %s instead of refusing", op, lowered.Program.Explain())
+			if err != nil {
+				t.Fatalf("%s lower: %v", op, err)
 			}
-			var refusal adapters.Refusal
-			if !errors.As(err, &refusal) || refusal.Feature != adapters.FeatureStringNormalization {
-				t.Fatalf("%s: error = %v, want a string_normalization refusal", op, err)
+			want := map[adapters.ConnectivityOp]ir.Function{adapters.ConnectivityOpTrim: ir.FuncTrim, adapters.ConnectivityOpUpper: ir.FuncUpper, adapters.ConnectivityOpLower: ir.FuncLower}[op]
+			if len(lowered.Program.Instructions) != 1 || lowered.Program.Instructions[0].Function != want {
+				t.Fatalf("%s lowered to %+v, want shared function %s", op, lowered.Program.Instructions, want)
 			}
 		}
 	})
@@ -529,21 +518,14 @@ func TestTodo_XFORM_008_Mutation(t *testing.T) {
 			declared[f] = true
 		}
 		var errs []error
-		for _, op := range []adapters.ConnectivityOp{
-			adapters.ConnectivityOpTrim, adapters.ConnectivityOpUpper, adapters.ConnectivityOpLower,
-			adapters.ConnectivityOpLookup, adapters.ConnectivityOpMoney, adapters.ConnectivityOpCompose,
-			adapters.ConnectivityOpDate, adapters.ConnectivityOp("UNKNOWN"),
-		} {
+		for _, op := range []adapters.ConnectivityOp{adapters.ConnectivityOp("UNKNOWN")} {
 			_, err := adapters.LowerConnectivityRules(adapters.ConnectivityRules{
 				Version: "v1",
 				Rules:   []adapters.ConnectivityRule{{Source: "a", Target: "b", Op: op, Argument: "2006-01-02"}},
 			})
 			errs = append(errs, err)
 		}
-		for _, kind := range []adapters.DataOpsTransformKind{
-			adapters.DataOpsTransformTrim, adapters.DataOpsTransformCaseUpper, adapters.DataOpsTransformCaseLower,
-			adapters.DataOpsTransformLookup, adapters.DataOpsTransformMoneyParse, adapters.DataOpsTransformKind("UNKNOWN"),
-		} {
+		for _, kind := range []adapters.DataOpsTransformKind{adapters.DataOpsTransformKind("UNKNOWN")} {
 			_, err := adapters.LowerDataOpsImport(adapters.DataOpsImportMapping{
 				Version: "v1",
 				Fields:  []adapters.DataOpsFieldMapping{{SourceColumn: "a", Target: "b", Transform: adapters.DataOpsTransform{Kind: kind}}},

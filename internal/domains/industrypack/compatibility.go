@@ -94,6 +94,7 @@ type Migration struct {
 // PublicationCheck is the input to [CheckPublication].
 type PublicationCheck struct {
 	Candidate IndustryPack
+	TenantID  string
 	// Prior is the currently published version, if any.
 	Prior *IndustryPack
 	// Installed maps a compatibility component (platform, country pack,
@@ -110,16 +111,22 @@ type PublicationCheck struct {
 
 // PublicationReport is an accepted check.
 type PublicationReport struct {
-	PackID  string
-	Version int
-	Digest  string
+	PackID      string
+	Industry    Industry
+	Version     int
+	Digest      string
+	Entitlement IndustryEntitlementBinding
 	// Changed lists the objects whose pinned version changed and whose
 	// migrations are resolved.
 	Changed []ImpactedObject
 }
 
-// CheckPublication runs every PACK-004 gate and returns all impacted objects.
-func CheckPublication(check PublicationCheck) (PublicationReport, error) {
+// CheckPublication runs every PACK-004 gate and resolves entitlement through
+// the trusted application authority before returning an accepted report.
+func CheckPublication(ctx context.Context, authority *IndustryEntitlementAuthority, check PublicationCheck) (PublicationReport, error) {
+	if authority == nil {
+		return PublicationReport{}, &EntitlementRejection{Code: EntitlementRejectionCode, State: EntitlementSnapshotAbsent}
+	}
 	cand := check.Candidate
 	version := strconv.Itoa(cand.Version)
 	var impacted []ImpactedObject
@@ -221,8 +228,12 @@ func CheckPublication(check PublicationCheck) (PublicationReport, error) {
 	if len(impacted) > 0 {
 		return PublicationReport{}, block(impacted)
 	}
+	binding, err := authority.admit(ctx, check.TenantID, cand.Industry)
+	if err != nil {
+		return PublicationReport{}, err
+	}
 	digest, _ := cand.Digest()
-	return PublicationReport{PackID: cand.packID(), Version: cand.Version, Digest: digest, Changed: changed}, nil
+	return PublicationReport{PackID: cand.packID(), Industry: cand.Industry, Version: cand.Version, Digest: digest, Changed: changed, Entitlement: binding}, nil
 }
 
 func dropOrChange(kept bool, next string) string {
@@ -304,11 +315,14 @@ type PublicationStore interface {
 }
 
 // PublishChecked checks and, only when accepted, persists the publication.
-func PublishChecked(ctx context.Context, store PublicationStore, tenantID string, check PublicationCheck) (PublicationReport, ActivationEffects, error) {
+func PublishChecked(ctx context.Context, store PublicationStore, authority *IndustryEntitlementAuthority, tenantID string, check PublicationCheck) (PublicationReport, ActivationEffects, error) {
 	if store == nil || strings.TrimSpace(tenantID) == "" {
 		return PublicationReport{}, ActivationEffects{}, fmt.Errorf("%w: store and tenant are required", ErrPublicationBlocked)
 	}
-	report, err := CheckPublication(check)
+	if check.TenantID != tenantID {
+		return PublicationReport{}, ActivationEffects{}, &EntitlementRejection{Code: EntitlementRejectionCode, State: EntitlementSnapshotAbsent}
+	}
+	report, err := CheckPublication(ctx, authority, check)
 	if err != nil {
 		return PublicationReport{}, ActivationEffects{}, err
 	}

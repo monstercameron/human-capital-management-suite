@@ -153,3 +153,50 @@ func TestTodo_HEADCOUNT_001_Mutation(t *testing.T) {
 		t.Fatalf("applied observation = %#v, %v", p, err)
 	}
 }
+
+func TestHeadcount_RequisitionCapacityRequiresApprovalAndPinsCurrentFence(t *testing.T) {
+	r, err := ApproveHeadcount(request(), approval())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := snapshot(t)
+	s.Consumed = decimal(t, "0.10")
+	s.Reserved = decimal(t, "0.15")
+	proof, err := ApprovedRequisitionCapacity(r, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proof.Tenant != r.Tenant || proof.RequestID != r.ID || proof.Revision != r.ProposalRevision || proof.State != HeadcountApproved ||
+		proof.Available.String() != "0.75" || proof.BaselineVersion != s.BaselineVersion || proof.ReservationFence != s.ReservationFence {
+		t.Fatalf("capacity proof = %+v", proof)
+	}
+	if _, err := ApprovedRequisitionCapacity(request(), s); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("unapproved request err = %v", err)
+	}
+	s.Consumed = decimal(t, "1.20")
+	if proof, err := ApprovedRequisitionCapacity(r, s); err != nil || proof.Available.String() != "0.00" {
+		t.Fatalf("fully consumed capacity proof = %+v err=%v", proof, err)
+	}
+	s.Reserved = values.MustDecimal("0.0", 1, values.RoundingExactRequired)
+	if _, err := ApprovedRequisitionCapacity(r, s); !errors.Is(err, ErrCapacityConflict) {
+		t.Fatalf("mismatched scale err = %v", err)
+	}
+}
+
+func TestHeadcount_RequisitionCapacityReferenceAndReservationValidation(t *testing.T) {
+	if err := (RequisitionCapacityReference{}).Validate(); !errors.Is(err, ErrInvalidRelationship) {
+		t.Fatalf("empty reference err = %v", err)
+	}
+	if err := (RequisitionCapacityReference{Tenant: "tenant-a", RequestID: "hc-1"}).Validate(); err != nil {
+		t.Fatal(err)
+	}
+	reservation := RequisitionCapacityReservation{ID: "hold-1", Tenant: "tenant-a", RequestID: "hc-1", RequisitionID: "req-1",
+		Amount: decimal(t, "0.25"), CapacityRevision: 3, ReservationFence: 9}
+	if err := reservation.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	reservation.ReservationFence = 0
+	if err := reservation.Validate(); !errors.Is(err, ErrInvalidRelationship) {
+		t.Fatalf("unfenced reservation err = %v", err)
+	}
+}

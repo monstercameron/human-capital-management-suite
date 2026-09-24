@@ -3,6 +3,7 @@ package contact
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -82,11 +83,26 @@ func TestTodo_CONTACT_001_Golden(t *testing.T) {
 func TestTodo_CONTACT_001_Race(t *testing.T) {
 	store := NewInMemoryChallengeStore()
 	challenge := contactChallenge(t, 1)
-	if err := store.Put(challenge); err != nil {
-		t.Fatal(err)
+	const workers = 16
+	var wait sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			if err := store.Put(challenge); err != nil {
+				errs <- err
+				return
+			}
+			if _, ok := store.Get(challenge.ChallengeID); !ok {
+				errs <- errors.New("concurrent challenge write was not readable")
+			}
+		}()
 	}
-	if _, ok := store.Get(challenge.ChallengeID); !ok {
-		t.Fatal("challenge not found in fake store")
+	wait.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 

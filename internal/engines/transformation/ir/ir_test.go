@@ -94,7 +94,21 @@ func TestCompileProducesCanonicalIR(t *testing.T) {
 	}
 }
 
-func TestTodo_XFORM_002(t *testing.T) { TestCompileProducesCanonicalIR(t) }
+func TestTodo_XFORM_002(t *testing.T) {
+	p, err := Compile(definition())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Instructions) != 2 || p.Instructions[0].Destination.Field != "age" || p.Instructions[1].Destination.Field != "name" {
+		t.Fatalf("compiled instructions do not preserve canonical destination order: %+v", p.Instructions)
+	}
+	if p.Instructions[0].Op != OpCoerce || p.Instructions[1].Op != OpProject {
+		t.Fatalf("compiled operations escaped the expected typed instruction set: %+v", p.Instructions)
+	}
+	if strings.Join(p.Dependencies, ",") != "people.age,people.given" {
+		t.Fatalf("compiled dependencies=%v", p.Dependencies)
+	}
+}
 
 // TestTodo_XFORM_002_Property proves Compile is deterministic and that
 // equivalent definitions (differing only in declared field order) yield

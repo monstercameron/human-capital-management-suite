@@ -3,6 +3,7 @@ package subscription
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -62,11 +63,25 @@ func TestTodo_SUB_003_Race(t *testing.T) {
 	copySchema := schema
 	copySchema.Fields = append([]SchemaField(nil), schema.Fields...)
 	copySchema.Fields[0].Name = "worker.changed"
-	if err := schema.Verify(); err != nil {
-		t.Fatal(err)
-	}
 	if err := copySchema.Verify(); err == nil {
 		t.Fatal("mutated schema unexpectedly verified")
+	}
+	const workers = 12
+	results := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); results <- schema.Verify() }()
+	}
+	wg.Wait()
+	close(results)
+	for err := range results {
+		if err != nil {
+			t.Fatalf("concurrent schema verification: %v", err)
+		}
+	}
+	if schema.Fields[0].Name != "worker.id" {
+		t.Fatalf("schema fields were aliased: %+v", schema.Fields)
 	}
 }
 

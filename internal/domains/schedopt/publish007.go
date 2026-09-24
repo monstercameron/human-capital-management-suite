@@ -72,7 +72,7 @@ func (p Publication) computedDigest() string {
 		String("revision", p.Revision).
 		String("bound", p.BoundDigest).
 		String("idempotency", p.IdempotencyKey).
-		String("published_at", p.PublishedAt.UTC().Format(time.RFC3339)).
+		String("published_at", p.PublishedAt.UTC().Format(time.RFC3339Nano)).
 		SortedStrings("assignments", assignments).
 		SortedStrings("messages", append([]string(nil), p.Messages...)).
 		SortedStrings("effects", append([]string(nil), p.IntegrationEffects...))

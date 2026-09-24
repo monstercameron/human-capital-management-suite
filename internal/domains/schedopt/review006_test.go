@@ -12,6 +12,7 @@ var schedopt006At = time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
 func schedopt006Schedule() CandidateSchedule {
 	return CandidateSchedule{
 		Tenant: "acme", Revision: "candidate-9", RuleDigest: "sha256:rules-4",
+		ReviewLifecycle: ReviewPrepublication,
 		Assignments: []ReviewAssignment{
 			{AssignmentID: "a-1", WorkerRef: "worker-1", DemandRef: "demand-er", WindowRef: "window-mon-am"},
 			{AssignmentID: "a-2", WorkerRef: "worker-2", DemandRef: "demand-er", WindowRef: "window-mon-am"},
@@ -30,7 +31,7 @@ func TestTodo_SCHED_OPT_006(t *testing.T) {
 	changes := []ManualChange{
 		{Kind: ChangeAdd, AssignmentID: "a-3", WorkerRef: "worker-3", DemandRef: "demand-er", WindowRef: "window-mon-am", Reason: "cover surge", AuthorityRef: "scheduler:maya"},
 	}
-	got, err := ApplyReview(schedopt006Schedule(), changes, "scheduler:maya", schedopt006At)
+	got, err := ApplyPrepublicationReview(schedopt006Schedule(), changes, "scheduler:maya", schedopt006At)
 	if err != nil {
 		t.Fatalf("ApplyReview: %v", err)
 	}
@@ -45,7 +46,7 @@ func TestTodo_SCHED_OPT_006(t *testing.T) {
 		bad := []ManualChange{
 			{Kind: ChangeMove, AssignmentID: "a-2", WorkerRef: "worker-1", WindowRef: "window-mon-am", Reason: "prefer senior", AuthorityRef: "scheduler:maya"},
 		}
-		if _, err := ApplyReview(schedopt006Schedule(), bad, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
+		if _, err := ApplyPrepublicationReview(schedopt006Schedule(), bad, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
 			t.Fatalf("double booking must be SCHED_OPT_006_REJECTED, got %v", err)
 		}
 	})
@@ -54,7 +55,7 @@ func TestTodo_SCHED_OPT_006(t *testing.T) {
 		banned := []ManualChange{
 			{Kind: ChangeAdd, AssignmentID: "a-9", WorkerRef: "worker-9", DemandRef: "demand-er", WindowRef: "window-mon-pm", Reason: "override", AuthorityRef: "scheduler:maya"},
 		}
-		if _, err := ApplyReview(schedopt006Schedule(), banned, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
+		if _, err := ApplyPrepublicationReview(schedopt006Schedule(), banned, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
 			t.Fatalf("banned pair must be SCHED_OPT_006_REJECTED")
 		}
 		full := schedopt006Schedule()
@@ -68,14 +69,14 @@ func TestTodo_SCHED_OPT_006(t *testing.T) {
 		noreason := []ManualChange{
 			{Kind: ChangeRemove, AssignmentID: "a-1", AuthorityRef: "scheduler:maya"},
 		}
-		if _, err := ApplyReview(schedopt006Schedule(), noreason, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
+		if _, err := ApplyPrepublicationReview(schedopt006Schedule(), noreason, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
 			t.Fatalf("reason-free change must be SCHED_OPT_006_REJECTED")
 		}
 		noauth := []ManualChange{
 			{Kind: ChangeRemove, AssignmentID: "a-1", Reason: "duplicate"},
 		}
 		var rej *ReviewRejection
-		_, err := ApplyReview(schedopt006Schedule(), noauth, "scheduler:maya", schedopt006At)
+		_, err := ApplyPrepublicationReview(schedopt006Schedule(), noauth, "scheduler:maya", schedopt006At)
 		if !errors.As(err, &rej) || rej.Field == "" || rej.State == "" || rej.Version == "" {
 			t.Fatalf("authority-free change must name field/state/version: %v", err)
 		}
@@ -100,11 +101,11 @@ func TestTodo_SCHED_OPT_006_Property(t *testing.T) {
 		{Kind: ChangeAdd, AssignmentID: "a-4", WorkerRef: "worker-4", DemandRef: "demand-er", WindowRef: "window-mon-pm", Reason: "r2", AuthorityRef: "scheduler:maya"},
 	}
 	second := []ManualChange{first[1], first[0]}
-	c, err := ApplyReview(schedopt006Schedule(), first, "scheduler:maya", schedopt006At)
+	c, err := ApplyPrepublicationReview(schedopt006Schedule(), first, "scheduler:maya", schedopt006At)
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err := ApplyReview(schedopt006Schedule(), second, "scheduler:maya", schedopt006At)
+	d, err := ApplyPrepublicationReview(schedopt006Schedule(), second, "scheduler:maya", schedopt006At)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,13 +139,13 @@ func TestTodo_SCHED_OPT_006_Fault(t *testing.T) {
 	ghost := []ManualChange{
 		{Kind: ChangeRemove, AssignmentID: "a-404", Reason: "cleanup", AuthorityRef: "scheduler:maya"},
 	}
-	if _, err := ApplyReview(schedopt006Schedule(), ghost, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
+	if _, err := ApplyPrepublicationReview(schedopt006Schedule(), ghost, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
 		t.Fatalf("removing a ghost must be SCHED_OPT_006_REJECTED")
 	}
 	dupe := []ManualChange{
 		{Kind: ChangeAdd, AssignmentID: "a-1", WorkerRef: "worker-3", DemandRef: "demand-er", WindowRef: "window-mon-pm", Reason: "dup", AuthorityRef: "scheduler:maya"},
 	}
-	if _, err := ApplyReview(schedopt006Schedule(), dupe, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
+	if _, err := ApplyPrepublicationReview(schedopt006Schedule(), dupe, "scheduler:maya", schedopt006At); !errors.Is(err, ErrReviewRejected) {
 		t.Fatalf("duplicate add must be SCHED_OPT_006_REJECTED")
 	}
 	weird := schedopt006Schedule()

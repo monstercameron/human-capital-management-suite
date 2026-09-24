@@ -24,6 +24,8 @@ var (
 	ErrDeliveryReceipt   = errors.New("subscription: invalid provider receipt")
 	ErrDeliveryAmbiguous = errors.New("subscription: provider outcome is ambiguous")
 	ErrDeliveryNotFound  = errors.New("subscription: delivery operation not found")
+	ErrDeliveryCapacity  = errors.New("subscription: delivery capacity unavailable")
+	ErrInvalidCapacity   = errors.New("subscription: invalid delivery capacity policy")
 )
 
 // OrderingMode describes how a destination declares event ordering. Strict

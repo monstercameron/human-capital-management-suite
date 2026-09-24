@@ -194,6 +194,97 @@ func TestExplainWorkerStateIsReproducibleForIdenticalInputs(t *testing.T) {
 	}
 }
 
+// TestTodo_PEOPLE_005_Conformance checks the whole returned contract against
+// the request projection: one sorted result per requested field, every
+// authorized value backed by evidence, denied values never backed by evidence,
+// and the effect-free receipt bound to the result.
+func TestTodo_PEOPLE_005_Conformance(t *testing.T) {
+	fields := append([]people.FieldID(nil), promotionFields...)
+	fields = append(fields, people.FieldLegalName)
+	req := people.ExplainWorkerStateRequest{
+		Tenant: fixtures.Tenant, Worker: workerRef(t, "jane-doe"), AsOf: asOf(t),
+		Fields: fields,
+		Authorization: fixtures.DenyFields(fixtures.AllowAll(testPolicyVersion, testPurpose, fields), "policy_denied",
+			people.FieldLifecycleStatus, people.FieldEmploymentStatus, people.FieldHireDate, people.FieldJobCode, people.FieldOrgUnit, people.FieldPayZone),
+	}
+	got, err := people.ExplainWorkerState(context.Background(), reader(t), req)
+	if err != nil {
+		t.Fatalf("ExplainWorkerState: %v", err)
+	}
+	if got.Disclosure != people.DisclosurePartial || got.Presence != people.SubjectPresent {
+		t.Fatalf("disclosure/presence = %s/%s, want PARTIAL/PRESENT", got.Disclosure, got.Presence)
+	}
+	if len(got.Fields) != len(fields) {
+		t.Fatalf("fields = %d, want %d", len(got.Fields), len(fields))
+	}
+	denied, authorized := 0, 0
+	for i, f := range got.Fields {
+		if i > 0 && got.Fields[i-1].Field >= f.Field {
+			t.Fatalf("fields not unique and sorted at %q", f.Field)
+		}
+		switch f.Access {
+		case people.AccessAuthorized:
+			authorized++
+			if _, ok := f.Value.Get(); !ok {
+				t.Errorf("authorized %s has no value", f.Field)
+			}
+			if f.Provenance.Validate() != nil || f.Authority.Validate() != nil || f.KnownAt.Canonical() == nil || !f.Revision.IsSpecified() || f.Effective.Validate() != nil {
+				t.Errorf("authorized %s lacks complete evidence", f.Field)
+			}
+		case people.AccessDenied:
+			denied++
+			if _, ok := f.Value.Get(); ok {
+				t.Errorf("denied %s leaked a value", f.Field)
+			}
+			if f.Provenance.Validate() == nil || f.Authority.Validate() == nil || f.KnownAt.Canonical() != nil || f.Revision.IsSpecified() {
+				t.Errorf("denied %s leaked source evidence", f.Field)
+			}
+		default:
+			t.Errorf("field %s has invalid access %s", f.Field, f.Access)
+		}
+	}
+	if authorized != 2 || denied != len(fields)-2 {
+		t.Fatalf("authorized/denied = %d/%d", authorized, denied)
+	}
+	if !got.Effects.IsZero() || got.Receipt.ExecutionState != evidence.ExecutionStateNotPlanned || got.Receipt.ResultDigest != got.ResultDigest {
+		t.Fatalf("nonconforming effect receipt: effects=%v receipt=%+v", got.Effects.NonZero(), got.Receipt)
+	}
+	if err := got.Receipt.Validate(); err != nil {
+		t.Fatalf("receipt invalid: %v", err)
+	}
+}
+
+// TestTodo_PEOPLE_005_Mutation proves the result does not retain caller-owned
+// projection memory and that a changed authorization decision changes the
+// committed output instead of reusing stale disclosure data.
+func TestTodo_PEOPLE_005_Mutation(t *testing.T) {
+	ctx := context.Background()
+	fields := append([]people.FieldID(nil), promotionFields...)
+	req := people.ExplainWorkerStateRequest{Tenant: fixtures.Tenant, Worker: workerRef(t, "jane-doe"), AsOf: asOf(t), Fields: fields,
+		Authorization: fixtures.AllowAll(testPolicyVersion, testPurpose, fields)}
+	first, err := people.ExplainWorkerState(ctx, reader(t), req)
+	if err != nil {
+		t.Fatalf("first ExplainWorkerState: %v", err)
+	}
+	fields[0] = people.FieldLegalName
+	if first.Fields[0].Field == people.FieldLegalName {
+		t.Fatal("result aliased caller's mutated request slice")
+	}
+	deniedReq := req
+	deniedReq.Fields = append([]people.FieldID(nil), promotionFields...)
+	deniedReq.Authorization = fixtures.DenyFields(fixtures.AllowAll(testPolicyVersion, testPurpose, deniedReq.Fields), "policy_denied", people.FieldGrade)
+	second, err := people.ExplainWorkerState(ctx, reader(t), deniedReq)
+	if err != nil {
+		t.Fatalf("mutated ExplainWorkerState: %v", err)
+	}
+	if bytes.Equal(first.Canonical(), second.Canonical()) {
+		t.Fatal("changing a field authorization left result byte-identical")
+	}
+	if !first.Effects.IsZero() || !second.Effects.IsZero() {
+		t.Fatal("a read mutation produced an effect")
+	}
+}
+
 func TestTodo_PEOPLE_005_Security(t *testing.T) {
 	ctx := context.Background()
 	worker := workerRef(t, "jane-doe")

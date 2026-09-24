@@ -22,6 +22,19 @@ func testFinding() workreview.Finding {
 	}
 }
 
+func TestWorkreviewEngineContract(t *testing.T) {
+	if got := workreview.Version(); got != 1 {
+		t.Fatalf("Version() = %d, want 1", got)
+	}
+	finding := testFinding()
+	if got, want := finding.Explain(), "workreview finding MORE_INFORMATION_REQUIRED (evidence-partial)"; got != want {
+		t.Fatalf("Explain() = %q, want %q", got, want)
+	}
+	if strings.Contains(finding.Explain(), finding.EvidenceReceipt) {
+		t.Fatal("Explain() exposed a compartmented evidence receipt")
+	}
+}
+
 func TestWorkreviewSealIsDeterministicAndOrderIndependent(t *testing.T) {
 	a := workreview.Seal(testFinding())
 	if err := a.Verify(); err != nil {

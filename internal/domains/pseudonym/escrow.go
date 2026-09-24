@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/approval"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/custody"
 )
 
@@ -32,12 +33,13 @@ var (
 // EscrowConfig contains only provider ports and opaque key handles. Neither
 // a derivation key nor an escrow key is ever represented by key material.
 type EscrowConfig struct {
-	Deriver       custody.KeyDeriver
-	Provider      custody.Provider
-	DerivationKey custody.Handle
-	EscrowKey     custody.Handle
-	TenantKEKs    []custody.Handle
-	Clock         func() time.Time
+	Deriver           custody.KeyDeriver
+	Provider          custody.Provider
+	DerivationKey     custody.Handle
+	EscrowKey         custody.Handle
+	TenantKEKs        []custody.Handle
+	Clock             func() time.Time
+	ApprovalAuthority RevelationApprovalAuthority
 }
 
 // EscrowRecord is a ciphertext-only identity mapping. Subject is deliberately
@@ -60,12 +62,14 @@ type escrowMapping struct {
 // EscrowReleaseRequest is the complete dual-control release authority. The
 // requester and custodian must be different principals.
 type EscrowReleaseRequest struct {
-	Pseudonym       Pseudonym     `json:"pseudonym"`
-	RequestedBy     string        `json:"requested_by"`
-	EscrowCustodian string        `json:"escrow_custodian"`
-	Purpose         string        `json:"purpose"`
-	EvidenceRef     string        `json:"evidence_ref"`
-	TTL             time.Duration `json:"ttl"`
+	Pseudonym         Pseudonym                 `json:"pseudonym"`
+	RequestedBy       string                    `json:"requested_by"`
+	EscrowCustodian   string                    `json:"escrow_custodian"`
+	Purpose           string                    `json:"purpose"`
+	EvidenceRef       string                    `json:"evidence_ref"`
+	TTL               time.Duration             `json:"ttl"`
+	RequesterDecision approval.ApprovalDecision `json:"requester_decision"`
+	CustodianDecision approval.ApprovalDecision `json:"custodian_decision"`
 }
 
 // EscrowEvent is digest-only evidence for a release attempt. It contains no
@@ -92,10 +96,12 @@ type IdentityEscrow struct {
 	provider  custody.Provider
 	escrowKey custody.Handle
 	clock     func() time.Time
+	authority RevelationApprovalAuthority
 
-	mu      sync.RWMutex
-	records map[string]EscrowRecord
-	events  []EscrowEvent
+	mu             sync.RWMutex
+	records        map[string]EscrowRecord
+	events         []EscrowEvent
+	revelationUses revelationUseState
 }
 
 // NewIdentityEscrow creates a ciphertext-only escrow with an independently
@@ -126,7 +132,7 @@ func NewIdentityEscrow(config EscrowConfig) (*IdentityEscrow, error) {
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
-	return &IdentityEscrow{provider: config.Provider, escrowKey: config.EscrowKey, clock: clock, records: make(map[string]EscrowRecord)}, nil
+	return &IdentityEscrow{provider: config.Provider, escrowKey: config.EscrowKey, clock: clock, authority: config.ApprovalAuthority, records: make(map[string]EscrowRecord)}, nil
 }
 
 // NewEscrow is a concise constructor alias.

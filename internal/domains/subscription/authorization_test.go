@@ -3,6 +3,7 @@ package subscription
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -70,10 +71,30 @@ func TestTodo_SUB_002_Race(t *testing.T) {
 	}
 	grant := subscriptionScopeGrant(active)
 	event := EventDigest{TenantScope: "tenant-a", Kind: EventWorkerChanged, Digest: "event-1", FieldDigests: map[string]string{"worker.status": DigestValue("ACTIVE")}}
-	for i := 0; i < 8; i++ {
-		matches, _, matchErr := MatchAuthorized(event, []EventSubscription{active}, map[string]ScopeGrant{active.SubscriptionID: grant})
-		if matchErr != nil || len(matches) != 1 {
-			t.Fatalf("matches=%+v err=%v", matches, matchErr)
+	const workers = 12
+	type result struct {
+		matches []SubscriptionMatch
+		events  []AuthorizationEvent
+		err     error
+	}
+	results := make(chan result, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			matches, events, err := MatchAuthorized(event, []EventSubscription{active}, map[string]ScopeGrant{active.SubscriptionID: grant})
+			results <- result{matches: matches, events: events, err: err}
+		}()
+	}
+	wg.Wait()
+	close(results)
+	for got := range results {
+		if got.err != nil || len(got.matches) != 1 || len(got.events) != 1 || got.events[0].Digest == "" {
+			t.Fatalf("concurrent authorization=%+v", got)
+		}
+		if got.matches[0].SubscriptionID != active.SubscriptionID {
+			t.Fatalf("authorized subscription=%q, want %q", got.matches[0].SubscriptionID, active.SubscriptionID)
 		}
 	}
 }

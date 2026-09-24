@@ -3,6 +3,7 @@ package proofing
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -118,8 +119,27 @@ func TestTodo_PROOF_001_Race(t *testing.T) {
 	if err := store.Put(session); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := store.Get(session.SessionID); !ok {
-		t.Fatal("stored proofing session not found")
+	const workers = 16
+	var wait sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			got, ok := store.Get(session.SessionID)
+			if !ok {
+				errs <- errors.New("concurrent session read missed stored session")
+				return
+			}
+			if got.CanonicalDigest != session.CanonicalDigest {
+				errs <- errors.New("concurrent session read changed canonical digest")
+			}
+		}()
+	}
+	wait.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
 

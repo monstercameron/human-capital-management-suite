@@ -96,11 +96,55 @@ func TestStatusPublicationMatchesIncidentScopeStateSLOAndCustomerDisclosurePolic
 	}
 }
 
-func TestTodo_STATUS_001_Conformance(t *testing.T) { TestRegistryMatrixExactAndCopy(t) }
-func TestTodo_STATUS_001_Fault(t *testing.T)       { TestStatusMatrixAllFaultRecoveryAndSecurity(t) }
-func TestTodo_STATUS_001_Golden(t *testing.T)      { TestStatusMatrixPrimary(t) }
-func TestTodo_STATUS_001_Integration(t *testing.T) { TestPresentTenantFreshnessAndTieOrdering(t) }
-func TestTodo_STATUS_001_Mutation(t *testing.T)    { TestRegistryMatrixExactAndCopy(t) }
+func TestTodo_STATUS_001_Conformance(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	s, err := Present(Request{TenantID: "tenant-a", Authorization: AuthorizationCurrent, Now: now},
+		[]Service{{ID: "z", TenantID: "tenant-a", State: Degraded, UpdatedAt: now}, {ID: "a", TenantID: "tenant-a", State: Operational, UpdatedAt: now}, {ID: "private", TenantID: "tenant-b", State: Outage, UpdatedAt: now}},
+		[]Incident{{ID: "incident-b", TenantID: "tenant-a", UpdatedAt: now}, {ID: "incident-a", TenantID: "tenant-a", UpdatedAt: now}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Services) != 2 || s.Services[0].ID != "a" || s.Services[1].ID != "z" || len(s.Incidents) != 2 || s.Incidents[0].ID != "incident-a" || s.TenantID != "tenant-a" {
+		t.Fatalf("tenant snapshot ordering/scope=%+v", s)
+	}
+}
+func TestTodo_STATUS_001_Fault(t *testing.T) {
+	_, err := Present(Request{TenantID: "tenant-a", Authorization: AuthorizationCurrent}, []Service{{ID: "api", TenantID: "tenant-a", State: ServiceState("CORRUPT")}}, nil, nil)
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("corrupt status error=%v", err)
+	}
+}
+func TestTodo_STATUS_001_Golden(t *testing.T) {
+	want := []struct{ code, label string }{{"UNKNOWN", "Unknown"}, {"OPERATIONAL", "Operational"}, {"DEGRADED", "Degraded"}, {"OUTAGE", "Outage"}, {"MAINTENANCE", "Maintenance"}}
+	got := RegistryMatrix()
+	if len(got) != len(want) {
+		t.Fatalf("registry count=%d want %d", len(got), len(want))
+	}
+	for i, e := range want {
+		if got[i].Code != e.code || got[i].Label != e.label || got[i].Description == "" {
+			t.Fatalf("registry[%d]=%+v want code=%q label=%q and description", i, got[i], e.code, e.label)
+		}
+	}
+}
+func TestTodo_STATUS_001_Integration(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	s, err := Present(Request{TenantID: "a", Authorization: AuthorizationCurrent, Now: now},
+		[]Service{{ID: "api", TenantID: "a", State: Operational, UpdatedAt: now}},
+		[]Incident{{ID: "i", TenantID: "a", ServiceID: "api", State: Degraded, UpdatedAt: now}},
+		[]Advisory{{ID: "notice", TenantID: "a", IncidentID: "i", ServiceID: "api", UpdatedAt: now}})
+	if err != nil || len(s.Services) != 1 || len(s.Incidents) != 1 || len(s.Advisories) != 1 || s.Advisories[0].IncidentID != s.Incidents[0].ID {
+		t.Fatalf("service incident advisory projection=%+v err=%v", s, err)
+	}
+}
+func TestTodo_STATUS_001_Mutation(t *testing.T) {
+	original := Snapshot{TenantID: "a", Services: []Service{{ID: "api", TenantID: "a", State: Operational}}}
+	copy := original.Clone()
+	copy.Services[0].State = Outage
+	copy.Services = append(copy.Services, Service{ID: "new", TenantID: "a", State: Degraded})
+	if len(original.Services) != 1 || original.Services[0].State != Operational {
+		t.Fatalf("snapshot clone aliased source: %+v", original)
+	}
+}
 func TestTodo_STATUS_001_Property(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	for _, tenant := range []string{"a", "b", "c"} {
@@ -116,17 +160,46 @@ func TestTodo_STATUS_001_Property(t *testing.T) {
 	}
 }
 func TestTodo_STATUS_001_Race(t *testing.T) {
-	// Present is a pure projection; concurrent calls must not mutate inputs.
+	const workers = 10
 	in := []Service{{ID: "api", TenantID: "a", State: Operational}}
-	done := make(chan struct{}, 2)
-	for i := 0; i < 2; i++ {
+	start := make(chan struct{})
+	done := make(chan error, workers)
+	for i := 0; i < workers; i++ {
 		go func() {
-			_, _ = Present(Request{TenantID: "a", Authorization: AuthorizationCurrent}, in, nil, nil)
-			done <- struct{}{}
+			<-start
+			s, err := Present(Request{TenantID: "a", Authorization: AuthorizationCurrent, Now: time.Unix(1, 0)}, in, nil, nil)
+			if err == nil && (len(s.Services) != 1 || s.Services[0].ID != "api" || s.ObservedAt != time.Unix(1, 0)) {
+				err = errors.New("invalid concurrent snapshot")
+			}
+			done <- err
 		}()
 	}
-	<-done
-	<-done
+	close(start)
+	for i := 0; i < workers; i++ {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(in) != 1 || in[0].ID != "api" {
+		t.Fatalf("projection modified shared input: %+v", in)
+	}
 }
-func TestTodo_STATUS_001_Recovery(t *testing.T) { TestStatusMatrixAllFaultRecoveryAndSecurity(t) }
-func TestTodo_STATUS_001_Security(t *testing.T) { TestPresentTenantFreshnessAndTieOrdering(t) }
+func TestTodo_STATUS_001_Recovery(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	s, err := Present(Request{TenantID: "a", Authorization: AuthorizationCurrent, Now: now}, []Service{{ID: "api", TenantID: "a", State: Outage, UpdatedAt: now.Add(-time.Hour)}}, nil, nil)
+	if err != nil || s.Freshness != FreshnessStale || len(s.Services) != 1 {
+		t.Fatalf("stale service recovery snapshot=%+v err=%v", s, err)
+	}
+}
+func TestTodo_STATUS_001_Security(t *testing.T) {
+	s, err := Present(Request{TenantID: "tenant-a", Authorization: AuthorizationCurrent, Now: time.Unix(1, 0)},
+		[]Service{{ID: "private-api", TenantID: "tenant-b", State: Outage}},
+		[]Incident{{ID: "private-incident", TenantID: "tenant-b", Severity: Critical}},
+		[]Advisory{{ID: "private-advisory", TenantID: "tenant-b", Message: "sensitive detail"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Services) != 0 || len(s.Incidents) != 0 || len(s.Advisories) != 0 {
+		t.Fatalf("foreign tenant data disclosed: %+v", s)
+	}
+}

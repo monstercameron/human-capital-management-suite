@@ -45,6 +45,14 @@ const (
 	EventCustomObjectChanged   EventKind = "CUSTOM_OBJECT_CHANGED"
 	EventCustomObjectCorrected EventKind = "CUSTOM_OBJECT_CORRECTED"
 	EventCustomObjectRetired   EventKind = "CUSTOM_OBJECT_RETIRED"
+	// EventSecurityAlert is the versioned alert projection exported from
+	// security-evidence detection. Its payload schema is owned by the
+	// application SIEM adapter; the subscription envelope carries only its
+	// digest and opaque evidence reference.
+	EventSecurityAlert EventKind = "SECURITY_ALERT"
+	// EventSecurityAudit is the minimized DLP, access, and administrative
+	// security evidence projection exported beside detector alerts.
+	EventSecurityAudit EventKind = "SECURITY_AUDIT"
 )
 
 // CustomObjectKindField is the sole non-payload selector exposed by the
@@ -64,7 +72,7 @@ func (k EventKind) Valid() bool {
 	case EventWorkerCreated, EventWorkerChanged, EventEmploymentChanged,
 		EventAssignmentChanged, EventOrganizationChanged, EventCompensationChanged,
 		EventApplicationRevoked, EventCustomObjectCreated, EventCustomObjectChanged,
-		EventCustomObjectCorrected, EventCustomObjectRetired:
+		EventCustomObjectCorrected, EventCustomObjectRetired, EventSecurityAlert, EventSecurityAudit:
 		return true
 	default:
 		return false
