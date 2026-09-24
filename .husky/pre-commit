@@ -9,5 +9,8 @@ export HCMNEXT_ARTIFACTS GOTMPDIR TMP TEMP HCMNEXT_TEST_PG_CACHE
 npm exec lint-staged
 npm run check:code-style
 npm run check:go
+go run ./tools/quality testhygiene -root .
+go run ./tools/planning/cmd/plancheck traceability .
+go run ./tools/planning/cmd/plancheck reachability .
 npm run check:coverage:staged
 npm run test:all

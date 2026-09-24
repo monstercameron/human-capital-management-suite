@@ -85,14 +85,22 @@ blob-report/
 *.jpg
 *.jpeg
 *.webp
-!internal/humanwork/workspace/assets/person-*.png
-!internal/humanwork/workspace/assets/person-*-small.jpg
+
+# Workspace persona photos are development-seed fixtures, never embedded app assets.
+internal/humanwork/workspace/assets/person-*.png
+internal/humanwork/workspace/assets/person-*-small.jpg
+
+# Root-level binaries are never build outputs; scripts/build.sh uses .artifacts/bin.
+/worker.exe
+/*.test.exe
 
 .husky/_/
 
 # Built GoWebComponents/WASM bundles are embedded at build time, never committed
 internal/humanwork/workspace/assets/*.wasm
+internal/humanwork/workspace/assets/*.wasm.gz
 internal/humanwork/workspace/assets/wasm_exec.js
+internal/humanwork/workspace/assets/wasm_exec.js.gz
 
 # Build and test artifacts that lanes, go test and local tooling leave inside the checkout.
 # Go build and module caches redirected into the repository

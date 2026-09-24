@@ -1,8 +1,152 @@
+## 2026-09-24 — document hub evidence audit
+
+- Restored parseable Evidence headings for HUB-032, HUB-034, and HUB-036 so their recorded test commands are traceable.
+- Reopened HUB-033 and HUB-035 because checked proof uses fixture browser runs and the spec ownership record does not identify a single accountable runtime owner.
+
+## 2026-09-24 — UXAUDIT-021 verified
+
+- Marked UXAUDIT-021 complete after the focused Go matrix and two live Chromium checks passed on port 8888. At 390×844 after scrolling, the worker-ID sticky actions measured y=685..832 and remained visible; keyboard focus reached editor controls. The mobile screenshot is `.artifacts/lanes/uxaudit021-mobile-sticky.png`.
+- Kept UXAUDIT-022 open; its served appearance route still lacks the governed upload adapter.
+- HUB-031 now has served DocumentService and HTTP-overlay evidence, including the real installed-agent refusal matrix.
+
+## 2026-09-24 — TODO traceability cleanup
+
+- Added exact package and browser-runner commands to six existing chat/document evidence records; WEB-098 now records the live Chromium and focused Go PASS results.
+- Removed inapplicable Browser matrix rows from LIB-001 and INTENT-013, both policy-only todos.
+- Reopened HUB-031 because the recorded service is not yet published on a machine HTTP route.
+- Normalized 34 escaped Evidence headings in completed CHAT/HUB records so the registry parser can read their existing evidence.
+- Reopened HUB-032, HUB-034, HUB-036, and UXSCAN-011 where the declared browser/accessibility matrix names are absent from automated test inventory.
+
 # Changelog
+
+## 2026-09-24 (admin page completion audit)
+
+- Reopened WEB-230 through WEB-236: each page adapter still renders only an unavailable `EmptyState`, and existing component tests do not prove the promised service-backed content.
+
+## 2026-09-24 (backlog evidence key normalization)
+
+- Restored valid Markdown `Evidence` labels for the audited HUB and CHAT records while preserving their contents. This makes existing test and command evidence visible to the traceability parser; incomplete runtime or matrix requirements remain open.
+
+## 2026-09-24 (traceability target corrections)
+
+- Corrected MODEL-006/007 package references and DB-COVERAGE-001 test locations. Reopened OPS-002 and CONF-002 because their named suites were removed and the current replacements do not prove the original contracts; reopened WF-UI-001 because its claimed package is absent; reopened LIB-009 because required execution evidence remains partial.
+
+## 2026-09-24 (backlog reachability audit: S-Z batch 1)
+
+- Reopened 11 checked runtime-capability records after the S-Z per-ID review found their cited packages absent from serving-binary dependency closures. Existing implementation/test evidence remains attached for follow-up.
+
+## 2026-09-24 (backlog reachability audit: M-R batch 3)
+
+- Reopened the final 6 checked M-R runtime-capability records after per-ID review found their cited packages absent from serving-binary dependency closures. Existing implementation/test evidence remains attached for follow-up.
+
+## 2026-09-24 (backlog reachability audit: M-R batch 2)
+
+- Reopened 50 additional checked runtime-capability records after the M-R per-ID review found their cited packages absent from serving-binary dependency closures. Existing implementation/test evidence remains attached for follow-up.
+
+## 2026-09-24 (backlog reachability audit: M-R batch 1)
+
+- Reopened 50 checked runtime-capability records after the M-R per-ID review found their cited packages absent from serving-binary dependency closures. Existing implementation/test evidence remains attached for follow-up.
+
+## 2026-09-24 (backlog reachability audit: G-L batch 1)
+
+- Reopened 18 checked runtime-capability records; INTG-018 was already open. The per-ID reachability audit found cited implementation packages absent from shipped-command dependency closure. Existing implementation/test evidence remains for follow-up.
+
+## 2026-09-24 (backlog reachability audit: A-F batch 4)
+
+- Reopened the remaining 23 checked A-F runtime-capability records after per-ID dependency-closure review found their cited implementation packages are not reachable from shipped commands. Existing implementation and test evidence is preserved.
+
+## 2026-09-24 (backlog reachability audit: A-F batch 3)
+
+- Reopened 50 additional checked runtime-capability records after per-ID dependency-closure review found their cited implementation packages are not reachable from shipped commands. Existing implementation and test evidence is preserved.
+
+## 2026-09-24 (backlog reachability audit: A-F batch 2)
+
+- Reopened 50 additional checked runtime-capability records after the per-ID dependency-closure audit found their cited implementation packages are not reachable from shipped commands. Existing implementation and test evidence is preserved.
+
+## 2026-09-24 (backlog reachability audit: A-F batch 1)
+
+- Reopened 50 checked runtime-capability records (`ABUSE-001` through `ASSET-001`) after the per-ID dependency-closure audit found their cited implementation packages are not reachable from shipped commands. Existing implementation and test evidence is preserved; the items remain open until a served path is demonstrated.
+
+## 2026-09-24 (INTG-018 webhook runtime re-audit)
+
+- Reopened INTG-018: its receiver and replay tests exercise an in-memory component, but no production transport calls the verifier or the durable provider-receipt store. The integration spec requires the runtime edge, durable receipt, validation, and consumption path.
+
+## 2026-09-24 (RBAC-RT-021 permission revision history)
+
+- Every role, assignment, visibility, page, and feature permission save now requires an actor and rationale, appends its before/after revision and typed ledger event in the same tenant transaction, and preserves historical snapshots for reconstruction after restart. PostgreSQL integration, rollback, recovery, and append-only tests pass; migrationci validates the registered migration manifest.
+
+## 2026-09-24 (LIB-019 Protovalidate qualification status)
+
+- Marked LIB-019 open because its existing GREEN requires production transport interceptors with cross-transport parity, which are not present. The architecture record formally rejects Protovalidate and scopes the owned descriptor fallback to offline validation; the original runtime acceptance requirement remains intact. REV-054-01's PRIMARY/GOLDEN/INTEGRATION/CONFORMANCE matrix now verifies this consistent status and decision.
+
+## 2026-09-24 (REV-101-03 workflow terminal settlement boundary)
+
+- The workflow terminal effect now delegates promotion guard and budget release, outcome-schema registration, and ledger/outbox/checkpoint writes to the promotion settlement capability. Workflow code passes a typed request and records the typed result; the PostgreSQL integration proves atomic settlement and idempotent replay.
+
+## 2026-09-24 (REV-102-02 worker identity in evidence and logs)
+
+- Worker creation now uses the opaque worker UUID for its permanent evidence subject and operation log identity. The readable name-based slug is projected from the stored worker when returning/listing worker data; privacy tests cover successful creation and refusals.
+
+## 2026-09-24 (REV-026-01 authorized knowledge search)
+
+- Journey search now sends the trusted tenant and role scope through the knowledge domain's live lexical authorization-and-ranking path. The PostgreSQL-backed served gRPC integration filters foreign-tenant and unauthorized-role articles and returns source, policy, authorization, and query-suppression evidence.
+
+## 2026-09-24 (REV-084-03 served semantic submission replay)
+
+- The served journey approval path now resolves accepted product actions through semantic idempotency. Duplicate decisions return the first submission record, concurrent callers create no duplicate approval or transition effects, and a fresh application composition reconstructs the same record from durable accepted-action facts.
+
+## 2026-09-24 (REV-030-01 DataOps and Integration gRPC services)
+
+- Registered the DataOps and Integration services in the running cell, backed by the import-batch handler and published connector registry. The composed PostgreSQL integration exercises authenticated connector publication/resolution and tenant-bound StageCSV; PROTO-006 parity covers all 11 unary methods across gRPC and grpcbridge/Connect.
+
+## 2026-09-24 (I18N-004 activated catalog serving)
+
+- Workspace pages now resolve the active reviewed catalog for the authenticated tenant and locale, include its revision and digest in the page/client configuration, and render updated copy on the next request. The Go/WASM client verifies and selects the same scope-qualified version. PostgreSQL integration covers activation, failed-activation fallback, and fresh-handler recovery; publication validates publisher authorization, meaning IDs, and legal review.
+
+## 2026-09-23 (Chat UI: dialogs, quiet hours, inline channel tools, clickable mentions)
+
+- Browse channels lists every channel the viewer can see. Joined channels show Joined and an Open button, and the rest show Join. Filtering shows a no-match message. There is one "Create a channel" action, and opening the dialog closes the phone drawer. The count reads "{n} channels".
+- Create conversation offers type cards (public, private, group, direct) with one-line explanations. Channels get a "#" name field with naming guidance. Members are added from a directory search as removable chips (arrow keys, Enter, Backspace) and submitted as subject IDs. A direct message needs exactly one person and no name. The client reads the directory when the dialog opens.
+- Quiet hours is a popover above the rail footer instead of an inline expansion: a switch with a plain-language status, from/until times disabled while off, and a time-zone list led by the saved and device zones.
+- The to-do list and poll live inside the chat. A tray under the channel header shows summary chips ("To-do list · 1 of 2 done", the poll question and vote count) and opens either widget as a card above the timeline. The header buttons toggle the same card, and the details pane no longer carries them.
+- "@Full Name" in messages and thread replies renders as a chip that opens the person's details pane. Longest names match first, your own mentions are highlighted, and unresolved names stay text.
+
+## 2026-09-23 (Chat UI: Slack-parity review fixes)
+
+- Thread, details and person panes take their own grid column instead of covering the timeline; the rules are container queries on the chat workspace, so an expanded product nav no longer squeezes the chat into an overlay. Below 1100px of chat the conversation list folds behind a Conversations button (panel icon on laptop, back arrow on phones, unread dot); below 760px the side pane is a drawer.
+- Messages and the composer are left-aligned at full width. Author names are bold, timestamps regular. The header casts a scroll-linked shadow.
+- Composer: an @-mention picker (room members first, then the directory; keyboard navigation, grouped non-members, keyboard hint) inserts `@Full Name`, the form the client's mention notification already matches. A Markdown formatting toolbar (bold, italic, code, link, list, quote) plus Ctrl/Cmd+B and I in both composers. One focus ring, no resize grip, a one-line start that grows, and a single idle row on narrow layouts. The always-disabled attach button is hidden.
+- Hover bar leads with three one-click reactions. The thread pane gains a reply-count divider, hover-only reply menus, "View in channel", and scroll-into-view of the parent when a thread opens; the timeline stays pinned to the newest message when a composer grows.
+- Search: the thread and details panes step aside while results show. Results carry an avatar, a conversation glyph, a "#" prefix for channels, the day and time, bold names, snippets centred on the first match at word boundaries, `<mark>` highlights and per-group counts.
+- Rail: "Add channels" row, "New section" wording (de/ar too), a self-DM labelled "(you)" with its own intro, a stronger selected row with an accent bar (mirrored for RTL), and hidden section counts.
+- Image frames carry their size as data attributes read by typed CSS `attr()`: the product CSP blocks style attributes, so the old inline frame style never applied and logged about 11 console errors per page.
+- RTL: composers use `dir="auto"`; names are bidi-isolated; the thread title isolates "#room".
+- The worker directory carries `subject_id`, the principal subject a worker signs in and chats as (the stored worker key). `worker_ref` became a display slug, so chat could no longer find anyone it names by subject: every person pane read "Person details are unavailable", and every seeded manager relationship, stored as the manager's worker key, projected as unattached. Chat now joins authors, members, photos and the person pane on `subject_id` only, and manager resolution indexes the subject beside the reference and entity id. Search also accepts `in:#channel` and `from:@name` filters, with a one-click "In #channel" chip above the results.
+- The chat seed says each topic line once and then draws from a pool of ordinary replies, so a two-week history no longer repeats every sentence six or seven times.
 
 ## 2026-09-23 (REV-007-04 analysis-to-action and inspection surfaces on the transport boundary)
 
 - Ticked REV-007-04: `IntentService` serves `RecommendIntentAction`, `GetIntentDeepLink`, `InspectIntentFields`, `ExportIntentFields` (proto + buf regen, `internal/intent/app/analysis_surface_endpoints.go`, grpcserver/edge/clients/fakes, endpoint-manifest regen to 18 endpoints, 4 ceiling rows). Matrix (PRIMARY/INTEGRATION/CONFORMANCE/GOLDEN) plus full `internal/intent/app` and transport suites pass; vet/fmt clean; coverage gate passes. Scope-cascade re-sign (ceiling, commercial freeze, P1A manifest, P1B template, goldens, P1A evidence report) verified green across the planning suites; the named test evidence is recorded in planning/todos.md.
+
+## 2026-09-23 (REV-003-02 rolling-upgrade adapter and binary wiring)
+
+- Ticked REV-003-02 with no code changes: `internal/platform/upgradejournal` durably journals the schemaupgrade protocol to a file and drives real version transitions end to end, wired into `cmd/migrate`'s upgrade subcommand (both packages in its dependency graph, protocol side-effect-free); matrix plus edge/shadow tests and the migrate upgrade suites pass. Found complete and committed.
+
+## 2026-09-23 (REV-010-01 RULE-004 re-evaluation on the served execution path)
+
+- Ticked REV-010-01: the served driver runs `CurrencyGuard.Check` (with its `ReevaluatePromotionApproval` call) on every advance; the threshold node freezes its per-revision decision in the advancement transaction (`promotion_threshold_decision`, migration 00328) and `ServedRuleFacts` reads it back for the commit-time re-evaluation. Matrix trio plus threshold roundtrip/conflict, three new served-read tests and two new freeze tests pass; full `internal/platform/execution` suite green at 81.5% cover; vet/fmt clean. `PromotionExecutionConfig.Currency` permits a memory-backed guard for unit harnesses with synthetic intents; serving traffic keeps the strict default. Work left uncommitted.
+
+## 2026-09-23 (REV-008-01 served TASK resume through the certified contract)
+
+- Ticked REV-008-01 with no code changes: the served TASK resume path, policy wiring, all three matrix tests and both binary dependency graphs were found complete and verified green this session (matrix + PG integration pass, `steps/task` in `cmd/hcmnext` and `cmd/worker`). The REFACTOR deletion was declined with a recorded reason (shared approval path, WF-RUN-028 mutation pins). Work left uncommitted.
+
+## 2026-09-23 (REV-006-02 capacity fence before commit)
+
+- Ticked REV-006-02: `localcommit.PromotionReservationFence` fronts the pure position and budget holds (digest-keyed, replay-safe) and `Committer` refuses without a live hold for the exact proposal digest; the candidate path holds the target head at materialization next to the durable budget hold. Matrix (`TestTodo_REV_006_02`, `_Race`, `_Security`) plus admission derivation tests pass; full `internal/intent/app` suite green; vet/fmt clean. Corrected the REV-006-01 tick with the ALIGN regression fixes and the `internal/application` verdict (12 pre-existing failures from another session's 24h token cap, left for the owner). Work left uncommitted.
+
+## 2026-09-23 (REV-006-01 governed promotion pipeline)
+
+- Ticked REV-006-01: `CorpusInputs` (renamed from `FixtureInputs`) resolves position-bound promotions through `snapshot.Build` and simassign/simcomp onto `DomainCall.Simulations`; the SIMULATE branch assembles a validated `simcontract.SimulationResult` from the governed sims and served preflight findings (first production `Assemble` caller), and minted proposals pin the contract digest so approved revisions bind the certified contract. `go list -deps ./cmd/hcmnext` now reaches snapshot, simassign, simcomp, simcontract and budget. Five new tests plus the full `internal/intent/app` suite pass; vet/fmt clean. Work left uncommitted.
 
 ## 2026-09-22 (Documentation hub and hybrid search)
 
@@ -3368,3 +3512,59 @@ operation` had no rate, quota, concurrency or throttle concept at all, and
 ## 2026-09-22 (Main chat composer refinement)
 
 - Refined the main chat composer with a three-line writing area, separate compact toolbar, and accessible unavailable-GIF label. On r18 at port 8888, visual QA scored 9.2/10 across desktop, 390px and 320px, including German and Arabic RTL; thread regression passed. Native tests, vet, and focused WASM checks passed. The full WASM run remains limited by the preexisting SSR DOM adapter issue; light appearance was not tested.
+
+## 2026-09-24 (REV-058-01 sending-domain DNS re-verification)
+
+- The scheduler now checks active sending-domain profiles every six hours with the system DNS resolver. Failed verification durably revokes the send permit and raises an owned alert; PostgreSQL integration covers failure, send refusal, recovery, alert resolution, and restored authorization.
+
+## 2026-09-24 (WF-DATA-036 typed tenant parameters)
+
+- Tenant parameter definitions now use workflow value types and declare classification, ownership, defaults, impact, and allowed consumers. The served cell loads the tenant’s activated catalog from the config registry and enforces consumer and type checks; focused config and application tests pass.
+
+## 2026-09-24 (TODO evidence audit)
+
+- Reopened SVC-013 and UIPOLISH-002/006/007/008/012 after checking the literal GREEN and matrix contracts against source, tests and the browser-test inventory. Historical package evidence remains in the records; dated audit notes state the unproved requirements.
+
+## 2026-09-24 (UXSCAN browser evidence audit)
+
+- Reopened UXSCAN-001 through UXSCAN-008 because their checked Browser evidence was missing or came only from server-rendered Go assertions. No renderer assertion is represented as real browser proof.
+
+## 2026-09-24 (UXSCAN live browser recheck)
+
+- Reopened UXSCAN-009/010 after the existing Chromium suite against port 8888 reported 1 pass and 5 failures. The current test assertions expose unresolved settings disclosure and navigation/drawer behavior; no browser-pass claim is recorded.
+
+## 2026-09-24 (served and workflow completion audit)
+
+- Reopened UX-009, UXAUDIT-009/010, UXLIVE-007, NEXT-004, WF-RUN-035/037/039 and WF-UI-007 where current source or the records themselves show a missing browser/runtime contract, an absent declared matrix, or a documented production gap. Historical evidence remains with dated audit notes describing the unfulfilled GREEN clause.
+
+## 2026-09-24 (API publication and compensation matrix audit)
+
+- Reopened REV-100-01 because generated OpenAPI is not yet published by the served discovery endpoint and its declared proof tests are absent. Reopened COMP-006 because its declared integration matrix function is absent; calculation-only package tests do not prove that matrix.
+
+## 2026-09-24 (promotion workspace and job architecture audit)
+
+- Reopened UX-001 and UX-JOBARCH-001 after checking the served product contract: tests do not establish browser/API parity for the promotion workspace, and Job Architecture lacks the promised served UI and governed publication path.
+
+## 2026-09-24 (A–F reachability and ownership audit)
+
+- Applied A–F reachability dispositions: tagged 35 owner-backed library records with explicit capability/owner metadata and reopened 72 checked records with missing runtime reachability or unresolved owner/class. Details are in dated per-record notes and `.artifacts/lanes/classify-reach-af.tsv`.
+
+## 2026-09-24 (G–L reachability and ownership audit)
+
+- Applied G–L reachability dispositions: tagged 72 single-owner library records and reopened 40 checked items with unserved runtime behavior or unresolved/multiple owners. Per-record notes cite `.artifacts/lanes/classify-reach-gl.tsv`.
+
+## 2026-09-24 (M–R reachability and ownership audit)
+
+- Applied M–R reachability dispositions: tagged 16 owner-backed library records and reopened 30 checked records with unreachable runtime requirements or unresolved owners. Dated notes cite `.artifacts/lanes/classify-reach-mr.tsv`.
+
+## 2026-09-24 (S–Z reachability and ownership audit)
+
+- Applied S–Z reachability dispositions: tagged 40 owner-backed library records and reopened 114 checked records with unserved runtime contracts or unresolved owners. Dated notes cite `.artifacts/lanes/classify-reach-sz.tsv`.
+
+## 2026-09-24 (REV-009-03 durable workflow inspection)
+
+- Completed REV-009-03 after source review confirmed admin and served Journey inspection both use `inspect.Load`; removed the duplicate instance-reader record while retaining the separate runtime stage projection. Primary/security plus admin and Journey PostgreSQL integration tests passed.
+
+## 2026-09-24 (traceability audit corrections)
+
+- Reopened 15 checked records with absent Browser/served or named matrix proof. Corrected DATA-022, REV-033-01, REV-047-01 and UXSCAN-011 to the exact existing test declarations, and normalized primary evidence identifiers for remaining checked test records.

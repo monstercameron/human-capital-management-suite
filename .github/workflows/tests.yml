@@ -124,21 +124,31 @@ jobs:
           # before any test runs.
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # The workspace asset manifest (internal/humanwork/workspace) covers
-      # the built wasm bundles, which are git-ignored build outputs, so a
-      # clean checkout must build them before any test reads the manifest.
-      # Order matters: journeywasm generates manifest.json from the files
-      # present, and its packaging allowlist admits uxqual.wasm while the
-      # runtime allowlist never serves it, so uxqual.wasm must land AFTER
-      # the manifest is written. Reversing these two lines bakes a manifest
-      # the validator rejects as stale.
+      # Build outputs live under .artifacts and enter the executable through
+      # a Go build overlay; the checked-in asset tree stays source-only.
       - name: Build embedded frontend assets
-        run: |
-          go run ./tools/uxqual/cmd/journeywasm -out internal/humanwork/workspace/assets
-          GOOS=js GOARCH=wasm go build -o internal/humanwork/workspace/assets/uxqual.wasm ./tools/uxqual/cmd/uxqualwasm
+        run: bash scripts/build.sh hcmnext
 
       - name: Run the quality gate (gofmt, go vet, staticcheck)
         run: go run ./tools/quality
+
+      - name: Workflow conformance promotion gate (REV-048-01)
+        run: npm run check:workflowconformance
+
+      - name: Workflow maturity catalog baseline gate (REV-053-01)
+        run: go run ./tools/planning/cmd/workflowmaturity -root .
+
+      - name: Test hygiene gate (REV-103-03)
+        run: go run ./tools/quality testhygiene -root .
+
+      - name: Ticked todo traceability gate (REV-103-02)
+        run: go run ./tools/planning/cmd/plancheck traceability .
+
+      - name: Ticked runtime reachability gate (REV-103-01)
+        run: npm run check:reachability
+
+      - name: Per-file Go test coverage inventory gate (REV-103-04)
+        run: npm run check:testcoverage
 
       - name: Require evidence for new module, process and service boundaries
         run: go run ./tools/quality decomposition -root . -index definitions/architecture/decomposition-boundaries.json
@@ -156,16 +166,12 @@ jobs:
         run: go run ./tools/policy/substratecoverage/cmd/substratecoverage -root .
       - name: Clean-checkout gate (CICD-001)
         run: go run ./tools/policy/cleancheckout/cmd/cleancheckout -root .
-      - name: Migration rehearsal gate (CICD-002)
-        run: go run ./tools/policy/migrationci/cmd/migrationci -root .
-      # The checked-in evidence carries an open blocker, so decide must
-      # refuse it: the step fails the job if the gate ever stops refusing.
-      - name: Release decision gate refuses a blocked candidate (CICD-006)
-        run: |
-          if go run ./tools/policy/release/cmd/release decide -id ci-refusal-proof -evidence tools/policy/release/testdata/rev034_decide_stop_evidence.json -policy tools/policy/release/testdata/rev034_decide_policy.json; then
-            echo "release decide admitted a candidate with an open blocker"
-            exit 1
-          fi
+      - name: Migration rehearsal gate (CICD-002, REV-034-01)
+        run: go run ./tools/policy/migrationci/cmd/migrationci -root . -manifest migrations/manifest.json -rehearse -database-url "$HCMNEXT_TEST_DATABASE_URL"
+      # `decide` exits successfully only for a signed PROCEED decision, so
+      # every refusal verdict and every input/tool error fails this gate.
+      - name: Release decision admission gate (REV-034-02)
+        run: go run ./tools/policy/release/cmd/release decide -id ci-admission-proof -evidence tools/policy/release/testdata/rev034_decide_proceed_evidence.json -policy tools/policy/release/testdata/rev034_decide_policy.json -now 2026-09-12T12:00:00Z
       - name: Engine coverage (ENGINE-COVERAGE-001)
         run: go run ./tools/policy/enginecoverage/cmd/enginecoverage -root .
       - name: Verify concurrent-package race coverage policy (TOOL-012)
@@ -219,9 +225,7 @@ jobs:
           version: 1.72.0
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build embedded frontend assets
-        run: |
-          go run ./tools/uxqual/cmd/journeywasm -out internal/humanwork/workspace/assets
-          GOOS=js GOARCH=wasm go build -o internal/humanwork/workspace/assets/uxqual.wasm ./tools/uxqual/cmd/uxqualwasm
+        run: bash scripts/build.sh hcmnext
       - name: Run the race detector over every concurrent package (TOOL-012)
         run: |
           mkdir -p .artifacts
@@ -271,9 +275,7 @@ jobs:
           version: 1.72.0
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build embedded frontend assets
-        run: |
-          go run ./tools/uxqual/cmd/journeywasm -out internal/humanwork/workspace/assets
-          GOOS=js GOARCH=wasm go build -o internal/humanwork/workspace/assets/uxqual.wasm ./tools/uxqual/cmd/uxqualwasm
+        run: bash scripts/build.sh hcmnext
       - name: Unit-test and coverage floor gate (70%)
         run: go run ./tools/quality/covergate/cmd/covergate -root . -all -shard-index "$HCMNEXT_CI_SHARD" -shard-count 4
       - name: PostgreSQL diagnostics on coverage failure
