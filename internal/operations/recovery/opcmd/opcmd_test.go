@@ -1,9 +1,13 @@
 package opcmd
 
 import (
+	"encoding/json"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/recovery"
 )
 
 // assertGolden compares got byte-for-byte against a golden fixture the lane
@@ -39,6 +43,37 @@ const rev01702TenantRequest = `{"TenantID":"tenant-a",` +
 
 const rev01702Runtime = `{"timers":3,"signals":2,"frontier_nodes":5,` +
 	`"outbox_entries":7,"idempotency_keys":11,"state_digest":"sha256:runtime"}`
+
+// TestTodo_RECOVERY_001_OperatorMatrix exposes the validated policy as exact,
+// machine-readable operator output without requiring a server or credentials.
+func TestTodo_RECOVERY_001_OperatorMatrix(t *testing.T) {
+	code, stdout, stderr := runMain([]string{"matrix"})
+	if code != 0 {
+		t.Fatalf("matrix exit = %d, stderr = %q", code, stderr)
+	}
+	var got struct {
+		Version   int                 `json:"version"`
+		Contracts []recovery.Contract `json:"contracts"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("matrix output is not JSON: %v\n%s", err, stdout)
+	}
+	if got.Version != recovery.Version() {
+		t.Fatalf("matrix version = %d, want %d", got.Version, recovery.Version())
+	}
+	if want := recovery.DefaultMatrix().Ordered(); !reflect.DeepEqual(got.Contracts, want) {
+		t.Fatalf("operator matrix differs from policy:\n got=%+v\nwant=%+v", got.Contracts, want)
+	}
+	for _, sensitive := range []string{"private_key", "ciphertext", "kms://", "key-v3", "secret"} {
+		if strings.Contains(strings.ToLower(stdout), sensitive) {
+			t.Fatalf("matrix output included sensitive material %q:\n%s", sensitive, stdout)
+		}
+	}
+	code, _, stderr = runMain([]string{"matrix", "--include-keys"})
+	if code != 2 || !strings.Contains(stderr, "does not accept arguments") {
+		t.Fatalf("matrix accepted an argument: code=%d stderr=%q", code, stderr)
+	}
+}
 
 // runMain invokes Main with argv and captures both streams.
 func runMain(args []string) (code int, stdout, stderr string) {

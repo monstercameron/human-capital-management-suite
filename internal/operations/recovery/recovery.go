@@ -65,24 +65,24 @@ const (
 // Target is a numeric recovery objective in minutes. NotApplicable is only
 // valid for an RPO of a demonstrably replayable plane; RTO is always numeric.
 type Target struct {
-	Minutes       int
-	NotApplicable bool
+	Minutes       int  `json:"minutes"`
+	NotApplicable bool `json:"not_applicable,omitempty"`
 }
 
 // Contract is the complete recovery contract for one plane.
 type Contract struct {
-	Plane           Plane
-	Store           string
-	Owner           string
-	Authority       AuthorityClass
-	Method          Method
-	RPOClass        RPOClass
-	RPO             Target
-	RTO             Target
-	Replayable      bool
-	DependencyOrder int
-	Dependencies    []Plane
-	SemanticChecks  []string
+	Plane           Plane          `json:"plane"`
+	Store           string         `json:"store"`
+	Owner           string         `json:"owner"`
+	Authority       AuthorityClass `json:"authority"`
+	Method          Method         `json:"method"`
+	RPOClass        RPOClass       `json:"rpo_class"`
+	RPO             Target         `json:"rpo"`
+	RTO             Target         `json:"rto"`
+	Replayable      bool           `json:"replayable"`
+	DependencyOrder int            `json:"dependency_order"`
+	Dependencies    []Plane        `json:"dependencies"`
+	SemanticChecks  []string       `json:"semantic_checks"`
 }
 
 // Matrix is an immutable-by-convention collection of recovery contracts.

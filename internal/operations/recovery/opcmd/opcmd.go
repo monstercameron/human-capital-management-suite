@@ -44,6 +44,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	name, rest := args[0], args[1:]
 	var err error
 	switch name {
+	case "matrix":
+		err = runMatrix(rest, stdout)
 	case "restore-tenant":
 		err = runRestoreTenant(rest, stdout)
 	case "restore-drill":
@@ -68,7 +70,26 @@ func Main(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage() string {
-	return "usage: opcmd <restore-tenant|restore-drill|gameday> [flags]"
+	return "usage: opcmd <matrix|restore-tenant|restore-drill|gameday> [flags]"
+}
+
+// runMatrix prints the validated recovery policy without contacting a store,
+// reading key material or initiating backup/restore work.
+func runMatrix(args []string, stdout io.Writer) error {
+	if len(args) != 0 {
+		return usagef("matrix does not accept arguments")
+	}
+	matrix := recovery.DefaultMatrix()
+	if err := matrix.Validate(); err != nil {
+		return err
+	}
+	output := struct {
+		Version   int                 `json:"version"`
+		Contracts []recovery.Contract `json:"contracts"`
+	}{Version: recovery.Version(), Contracts: matrix.Ordered()}
+	encoder := json.NewEncoder(stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(output)
 }
 
 // usageError marks flag/input/usage failures (exit 2) as distinct from

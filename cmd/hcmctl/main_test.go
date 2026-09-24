@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
 	"net"
 	"strings"
 	"testing"
@@ -15,6 +18,42 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/grpcserver"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
+
+// TestTodo_RECOVERY_001_HcmctlMatrixCommand proves the actual operator
+// binary composition routes to recovery policy without dialing a server.
+func TestTodo_RECOVERY_001_HcmctlMatrixCommand(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	dialCalled := false
+	dial := func(context.Context, string) (*grpc.ClientConn, error) {
+		dialCalled = true
+		return nil, errors.New("matrix command unexpectedly dialed a server")
+	}
+	if code := run([]string{"recovery", "matrix"}, &stdout, &stderr, dial); code != 0 {
+		t.Fatalf("hcmctl recovery matrix exit = %d, stderr=%q", code, stderr.String())
+	}
+	var document struct {
+		Version   int               `json:"version"`
+		Contracts []json.RawMessage `json:"contracts"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &document); err != nil {
+		t.Fatalf("hcmctl recovery matrix output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if document.Version == 0 || len(document.Contracts) != 10 {
+		t.Fatalf("hcmctl returned incomplete recovery matrix: version=%d contracts=%d", document.Version, len(document.Contracts))
+	}
+	if dialCalled {
+		t.Fatal("read-only matrix command dialed the application server")
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"recovery", "restore-tenant"}, &stdout, &stderr, dial); code != 2 {
+		t.Fatalf("hcmctl exposed an unapproved recovery action: code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if dialCalled {
+		t.Fatal("rejected recovery action dialed the application server")
+	}
+}
 
 // startCommandFixtureServer boots a real AdminService - the same
 // registration this binary's server side (internal/transport/cell.NewGRPCServer)
