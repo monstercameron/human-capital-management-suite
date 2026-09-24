@@ -336,6 +336,35 @@ func loadManifest(t *testing.T) qualificationManifest {
 	return manifest
 }
 
+func rapidImportFiles(root string) ([]string, error) {
+	var rapidImports []string
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if path != root && entry.Name() == ".artifacts" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		parsed, parseErr := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if parseErr != nil {
+			return parseErr
+		}
+		for _, imported := range parsed.Imports {
+			if strings.Trim(imported.Path.Value, `"`) == "pgregory.net/rapid" {
+				rapidImports = append(rapidImports, path)
+			}
+		}
+		return nil
+	})
+	return rapidImports, err
+}
+
 // TestTodo_LIB_016_Golden pins the decision and the three regression-seed
 // identities. This prevents an accidental switch to ADOPT without rerunning
 // the qualification fixture and reviewing dependency admission.
@@ -477,25 +506,7 @@ func TestTodo_LIB_016_Conformance(t *testing.T) {
 			t.Fatalf("%s admits Rapid despite REJECT decision", name)
 		}
 	}
-	var rapidImports []string
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() || !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-		parsed, parseErr := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
-		if parseErr != nil {
-			return parseErr
-		}
-		for _, imported := range parsed.Imports {
-			if strings.Trim(imported.Path.Value, `"`) == "pgregory.net/rapid" {
-				rapidImports = append(rapidImports, path)
-			}
-		}
-		return nil
-	})
+	rapidImports, err := rapidImportFiles(root)
 	if err != nil {
 		t.Fatalf("scan Go graph: %v", err)
 	}
@@ -511,5 +522,28 @@ func TestTodo_LIB_016_Conformance(t *testing.T) {
 
 	for _, d := range allDefects {
 		assertStableMinimal(t, seededFailure(d), d)
+	}
+}
+
+func TestRapidImportScanIgnoresArtifactNULFixtures(t *testing.T) {
+	root := t.TempDir()
+	eligible := filepath.Join(root, "source.go")
+	if err := os.WriteFile(eligible, []byte("package fixture\nimport _ \"pgregory.net/rapid\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	nulFixture := filepath.Join(root, ".artifacts", "backup", "nul-source-20260924", "internal", "application", "siem_http.go")
+	if err := os.MkdirAll(filepath.Dir(nulFixture), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(nulFixture, []byte("package broken\n\x00"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := rapidImportFiles(root)
+	if err != nil {
+		t.Fatalf("scan Go graph with isolated NUL fixture: %v", err)
+	}
+	if len(got) != 1 || got[0] != eligible {
+		t.Fatalf("Rapid imports = %v, want only eligible source %s", got, eligible)
 	}
 }
