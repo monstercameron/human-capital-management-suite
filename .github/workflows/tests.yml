@@ -144,6 +144,9 @@ jobs:
       - name: Ticked todo traceability gate (REV-103-02)
         run: go run ./tools/planning/cmd/plancheck traceability .
 
+      - name: Security-control crosswalk gate (GOV-030)
+        run: go run ./tools/planning/controlcrosswalk/cmd/controlcrosswalk -root .
+
       - name: Ticked runtime reachability gate (REV-103-01)
         run: npm run check:reachability
 

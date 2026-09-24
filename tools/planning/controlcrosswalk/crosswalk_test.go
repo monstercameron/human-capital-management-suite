@@ -14,14 +14,24 @@ import (
 
 func TestTodo_GOV_030(t *testing.T) {
 	revision := realRevision(t)
+	definition, todos := realInputs(t)
 	if len(revision.Controls) != 51 {
 		t.Fatalf("control count = %d, want 51 matrix rows", len(revision.Controls))
 	}
 	if findControl(revision, "E-05").Status != Implemented {
 		t.Fatalf("E-05 status = %q, want %q", findControl(revision, "E-05").Status, Implemented)
 	}
-	if findControl(revision, "E-16").Status != Implemented {
-		t.Fatalf("E-16 status = %q, want %q", findControl(revision, "E-16").Status, Implemented)
+	gov030 := findTodo(t, todos, "GOV-030")
+	wantStatus := statusForDone(gov030.Done)
+	e16 := findControl(revision, "E-16")
+	if e16.Status != wantStatus {
+		t.Fatalf("E-16 status = %q, want registry-derived %q", e16.Status, wantStatus)
+	}
+	if len(e16.Evidence) != 1 || e16.Evidence[0].TodoID != gov030.ID || e16.Evidence[0].TestName != gov030.Test {
+		t.Fatalf("E-16 evidence = %+v, want GOV-030 test %q resolved from registry", e16.Evidence, gov030.Test)
+	}
+	if len(definition.Controls) != len(revision.Controls) {
+		t.Fatalf("resolved control count = %d, seed count = %d", len(revision.Controls), len(definition.Controls))
 	}
 	if err := Verify(revision); err != nil {
 		t.Fatal(err)
@@ -57,8 +67,8 @@ func TestTodo_GOV_030_Golden(t *testing.T) {
 func TestTodo_GOV_030_Security(t *testing.T) {
 	definition, todos := realInputs(t)
 	for index := range definition.Controls {
-		if definition.Controls[index].ID == "F-13" {
-			definition.Controls[index].DeclaredStatus = string(Missing)
+		if definition.Controls[index].ID == "E-16" {
+			definition.Controls[index].DeclaredStatus = string(oppositeStatus(statusForDone(findTodo(t, todos, "GOV-030").Done)))
 		}
 	}
 	_, err := Regenerate(definition, todos, nil)
@@ -127,7 +137,7 @@ func TestTodo_GOV_030_Mutation(t *testing.T) {
 	mutated := append([]todoregistry.Todo(nil), todos...)
 	for index := range mutated {
 		if mutated[index].ID == "GOV-030" {
-			mutated[index].Done = false
+			mutated[index].Done = !mutated[index].Done
 		}
 	}
 	after, err := Regenerate(definition, mutated, nil)
@@ -137,8 +147,8 @@ func TestTodo_GOV_030_Mutation(t *testing.T) {
 	if before.Digest == after.Digest {
 		t.Fatal("revision digest did not change when cited todo status changed")
 	}
-	if findControl(after, "E-16").Status != Missing {
-		t.Fatalf("mutated E-16 status = %q, want %q", findControl(after, "E-16").Status, Missing)
+	if findControl(after, "E-16").Status != statusForDone(!findTodo(t, todos, "GOV-030").Done) {
+		t.Fatalf("mutated E-16 status = %q, want %q", findControl(after, "E-16").Status, statusForDone(!findTodo(t, todos, "GOV-030").Done))
 	}
 }
 
@@ -173,6 +183,31 @@ func findControl(revision Revision, id string) Control {
 		}
 	}
 	return Control{}
+}
+
+func findTodo(t *testing.T, todos []todoregistry.Todo, id string) todoregistry.Todo {
+	t.Helper()
+	for _, todo := range todos {
+		if todo.ID == id {
+			return todo
+		}
+	}
+	t.Fatalf("todo %s not found", id)
+	return todoregistry.Todo{}
+}
+
+func statusForDone(done bool) Status {
+	if done {
+		return Implemented
+	}
+	return Missing
+}
+
+func oppositeStatus(status Status) Status {
+	if status == Implemented {
+		return Missing
+	}
+	return Implemented
 }
 
 func TestRevisionJSONAndExplainAreDeterministicAndIdentifierFree(t *testing.T) {
