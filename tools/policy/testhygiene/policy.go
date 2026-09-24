@@ -349,9 +349,18 @@ func ValidateQuarantine(root, modulePath, path string, now time.Time) error {
 	for _, record := range records {
 		byKey[recordKey(record.TestName, record.Package)] = record
 	}
+	activeSkips := make(map[string]bool, len(report.Skips))
 	for _, skip := range report.Skips {
-		if _, ok := byKey[recordKey(skip.TestName, skip.Package)]; !ok {
+		key := recordKey(skip.TestName, skip.Package)
+		activeSkips[key] = true
+		if _, ok := byKey[key]; !ok {
 			return fmt.Errorf("testhygiene: skipped test %s in %s has no quarantine record", skip.TestName, skip.Package)
+		}
+	}
+	for _, record := range records {
+		key := recordKey(record.TestName, record.Package)
+		if !activeSkips[key] {
+			return fmt.Errorf("testhygiene: quarantine record for %s is orphaned because the test no longer skips", key)
 		}
 	}
 	return nil

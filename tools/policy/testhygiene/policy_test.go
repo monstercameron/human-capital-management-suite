@@ -38,6 +38,7 @@ func TestRisk(t *testing.T) {
   shared++
   _ = time.Now()
   time.Sleep(time.Millisecond)
+  t.Skip("fixture")
 }
 `)
 	report, err := Scan(root, "example.com/mod")
@@ -139,6 +140,18 @@ func TestTodo_GOV_020_Fault(t *testing.T) {
 	}
 	if err := ValidateQuarantine(root, "example.com/mod", path, time.Date(2026, 9, 5, 0, 0, 0, 0, time.UTC)); err == nil || !strings.Contains(err.Error(), "incomplete") {
 		t.Fatalf("ValidateQuarantine error = %v, want incomplete record failure", err)
+	}
+}
+
+func TestTodo_GOV_020_RejectsOrphanedQuarantine(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "quarantine.json")
+	if err := os.WriteFile(path, []byte(`[{"test_name":"TestRemovedSkip","package":"example.com/mod/internal/sample","first_seen":"2026-09-05","evidence_ref":"GOV-020 fixture","owner":"test-owner","expiry":"2026-12-31"}]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateQuarantine(root, "example.com/mod", path, time.Date(2026, 9, 5, 0, 0, 0, 0, time.UTC))
+	if err == nil || !strings.Contains(err.Error(), "orphaned") {
+		t.Fatalf("ValidateQuarantine error = %v, want orphaned record failure", err)
 	}
 }
 
