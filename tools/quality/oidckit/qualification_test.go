@@ -160,7 +160,10 @@ func TestOIDCKit_ReleaseGraphAndRepoRootErrors(t *testing.T) {
 	if _, err := oidckit.FindRepoRoot(filepath.Join(t.TempDir(), "missing")); err == nil {
 		t.Fatal("missing path found a repository root")
 	}
-	rootDir, err := os.MkdirTemp(os.Getenv("TEMP"), "oidckit-rootless-")
+	// Keep this directory outside the checkout. CI and developer lanes may
+	// point TEMP inside the repository, which would make an otherwise rootless
+	// directory inherit the repository's go.mod and invalidate this assertion.
+	rootDir, err := os.MkdirTemp(filepath.Dir(root(t)), "oidckit-rootless-")
 	if err != nil {
 		t.Fatal(err)
 	}
