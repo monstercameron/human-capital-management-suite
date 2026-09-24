@@ -33,11 +33,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	root := fs.String("root", ".", "path to the Go module root to scan")
 	out := fs.String("out", "", "path to write the CycloneDX JSON document (default: stdout)")
 	rootVersion := fs.String("version", "", "override the root component's version (default: "+sbom.DefaultRootVersion+")")
+	artifact := fs.String("artifact", "", "path to the exact release artifact; bind its SHA-256 to the CycloneDX root component")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 
-	doc, err := sbom.Generate(*root, sbom.Options{RootVersion: *rootVersion})
+	doc, err := sbom.Generate(*root, sbom.Options{RootVersion: *rootVersion, ArtifactPath: *artifact})
 	if err != nil {
 		fmt.Fprintf(stderr, "sbomgen: %v\n", err)
 		return 1

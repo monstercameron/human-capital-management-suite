@@ -38,6 +38,10 @@ type Options struct {
 	// LicenseExceptions are copied into the generated document and may
 	// explain UNKNOWN dependency licenses when they are complete and current.
 	LicenseExceptions []LicenseException
+	// ArtifactPath binds the root application component to the exact bytes
+	// shipped by a release. If empty, the generated BOM remains an inventory
+	// of the source module graph and carries no artifact subject hash.
+	ArtifactPath string
 }
 
 func (o Options) rootVersion() string {
@@ -92,6 +96,15 @@ func Generate(root string, opts Options) (*Document, error) {
 	}
 
 	doc := buildDocument(modulePath, requires, hashes, edges, opts)
+	if opts.ArtifactPath != "" {
+		digest, err := artifactDigest(opts.ArtifactPath)
+		if err != nil {
+			return nil, err
+		}
+		root := doc.Metadata.Component
+		root.Hashes = []Hash{{Alg: HashAlgSHA256, Content: digest}}
+		doc.Metadata.Component = root
+	}
 	licenses, err := resolveComponentLicenses(root, modulePath, requires, opts)
 	if err != nil {
 		return nil, err
