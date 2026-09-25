@@ -1,3 +1,11 @@
+# 2026-09-25 work order backend continuation
+
+The work order implementation now has a pinned, published template model, a tenant-isolated record store, typed initiator requests and decisions, work logs, progress and spend records, report and billing draft kernels, project task links, and twelve RPCs. The application composition uses the current HCM worker directory and project membership. A Riverside pilot template and link plan are validated but are not written to a live tenant.
+
+Integration review found and closed two disclosure gaps before commit: non-participant notes are rejected until their read policy exists; cost and labor fields in returned snapshots are projected by current grants, including list and mutation responses. The transport omits redacted money rather than showing zero. Phase transitions require trusted workflow completion evidence; no live signed authority or capability binding is present yet, so they refuse instead of advancing. Live billing likewise waits for a verified customer pricing source.
+
+Focused domain, store, service, transport, project-link, report-adapter, and startup tests passed; new packages clear the 70% coverage floor. `go build ./...`, touched-package vet, format, lint, typecheck, API/drift/architecture policy checks and JavaScript tests passed locally. The full execution package has pre-existing WF-EXT-002 digest/count and observation-coverage failures. The broader storage-disposition package has pre-existing registry drift; the new work order disposition test passes. No live browser or deployed tenant check was performed for this backend slice.
+
 # Local chat pingback demo
 
 Added `tools/chat-pingback/agent.py`, a small local machine client for the existing resource-scoped chat API. It listens for new posts beginning with `@pingback`, ignores its own posts, and posts an echo as a threaded reply. A stable event-derived idempotency key covers duplicate delivery; a local resume-cursor file supports restart. The CLI requires an installed agent identity and token through environment variables, uses only loopback HTTP, requires HTTPS remotely, and offers a dry-run mode. No credential is stored in source or state.

@@ -1,3 +1,9 @@
+## 2026-09-25 — work order backend foundation
+
+- Added a tenant-scoped work order aggregate with configurable published templates, phase and approval rules, append-only records, labor entries, progress, spending, notes, request forms, reports, and billing draft calculations. Work orders can be linked to project tasks through authorized identity-only previews.
+- Added a separate work order store and migration stream, twelve authenticated RPCs, and application composition behind `HCMNEXT_WORKORDER_DATABASE_URL`. Read projections now mask financial and labor details by current permission; restricted notes and unverified phase completion fail closed.
+- This is a backend foundation. Live workflow execution still needs its signed authority, capability adapters, and revision-bound runtime evidence. Billing drafts need an authoritative customer pricing source, and the Ironridge pilot fixture has not been applied to a live tenant.
+
 ## 2026-09-25 — project backend domain foundation
 
 - Added project and task domain rules, membership capabilities, activity sanitization, board grouping and paging, typed links, and configurable workflow policies. The six focused domain test packages and vet pass locally; each package clears the 70% coverage floor. The broader PM delivery remains open while persistence, transport, and live integration are committed separately.

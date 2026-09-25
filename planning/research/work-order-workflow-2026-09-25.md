@@ -1,5 +1,11 @@
 # Work order workflow research (2026-09-25)
 
+## Implementation checkpoint
+
+The backend foundation now has the work order aggregate, version-pinned published templates, tenant-isolated journal/outbox storage, typed request and decision commands, work entries, progress and spending, report definitions, billing draft calculations, project task links, and authenticated RPC transport. A Riverside pilot template is available as a validated fixture. The API is composed only when the separate work order database is configured.
+
+The workflow registration is a candidate and admits no live work order intent. Phase movement requires a completed runtime node bound by trusted evidence to the exact work order revision; the production binder, signed execution authority, and capability adapters are still pending. Customer pricing sources, invoice issuance, and a live Ironridge pilot seed are also pending. Until those sources are connected, their commands fail closed.
+
 ## Product boundary
 
 A work order is a governed record of a defined piece of field work within an
