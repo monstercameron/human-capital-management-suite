@@ -138,7 +138,7 @@ type LinkedTask struct {
 // reverse of List. The caller must still authorize each task's project for
 // the viewer before disclosing it.
 func (s *Store) ListByTarget(ctx context.Context, tenantID string, kind projectlink.Kind, targetID string, limit int32) ([]LinkedTask, error) {
-	if s == nil || s.projects == nil || strings.TrimSpace(tenantID) == "" || !validID(targetID) || limit < 1 || limit > 100 || (kind != projectlink.Journey && kind != projectlink.WorkItem) {
+	if s == nil || s.projects == nil || strings.TrimSpace(tenantID) == "" || !validID(targetID) || limit < 1 || limit > 100 || (kind != projectlink.Journey && kind != projectlink.WorkItem && kind != projectlink.WorkOrder) {
 		return nil, ErrInvalidRecord
 	}
 	out := make([]LinkedTask, 0, limit)

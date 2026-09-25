@@ -678,6 +678,8 @@ message TaskLinkReference {
     // An in-progress workflow run such as a promotion journey. Its preview
     // is identity-only; clients read the journey through JourneyService.
     JourneyLink journey = 5;
+    // A work order owns field execution, evidence, and accepted quantities.
+    WorkOrderLink work_order = 6;
   }
 }
 
@@ -707,6 +709,10 @@ message DeployedDocumentLink {
 // WorkItemLink identifies the owning Human Work record. Its safe status and
 // observed version are resolved by the owning domain at read time.
 message WorkItemLink { string work_item_id = 1; }
+
+// WorkOrderLink identifies an independently governed field execution record.
+// Its preview is identity-only; clients read the work order through its owner.
+message WorkOrderLink { string work_order_id = 1; }
 
 message AddTaskLinkRequest {
   hcmnext.common.v1.ScopeContext scope = 1;
@@ -747,7 +753,7 @@ message ResolvedTaskLink {
 
 message ListTaskLinksByTargetRequest {
   hcmnext.common.v1.ScopeContext scope = 1;
-  // Only journey and work_item targets are supported.
+  // Only journey, work_item, and work_order targets are supported.
   TaskLinkReference target = 2;
   hcmnext.common.v1.PageRequest page = 3;
 }

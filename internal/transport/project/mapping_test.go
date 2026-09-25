@@ -140,12 +140,13 @@ func TestBoardViewAndLinkMappings(t *testing.T) {
 		{Target: &projectv1.TaskLinkReference_ChatPost{ChatPost: &projectv1.ChatPostLink{ConversationId: "conv", PostId: "post"}}},
 		{Target: &projectv1.TaskLinkReference_DeployedDocument{DeployedDocument: &projectv1.DeployedDocumentLink{DocumentId: "doc", DeployedVersionId: "v1", ScopeId: "org"}}},
 		{Target: &projectv1.TaskLinkReference_WorkItem{WorkItem: &projectv1.WorkItemLink{WorkItemId: "work"}}},
+		{Target: &projectv1.TaskLinkReference_WorkOrder{WorkOrder: &projectv1.WorkOrderLink{WorkOrderId: "wo-1"}}},
 	} {
 		ref, err := referenceFromMessage(wireRef)
 		if err != nil || ref.Validate() != nil {
 			t.Fatalf("reference %+v -> %+v,%v", wireRef, ref, err)
 		}
-		if referenceMessage(ref) == nil {
+		if roundTrip := referenceMessage(ref); roundTrip == nil || roundTrip.String() != wireRef.String() {
 			t.Fatalf("reference lost: %+v", ref)
 		}
 	}

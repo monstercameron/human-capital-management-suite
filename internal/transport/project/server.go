@@ -1015,6 +1015,11 @@ func referenceFromMessage(ref *projectv1.TaskLinkReference) (projectlink.Referen
 			return projectlink.Reference{}, projectlink.ErrInvalidReference
 		}
 		return projectlink.Reference{Kind: projectlink.Journey, ID: target.Journey.GetIntentId()}, nil
+	case *projectv1.TaskLinkReference_WorkOrder:
+		if target.WorkOrder == nil {
+			return projectlink.Reference{}, projectlink.ErrInvalidReference
+		}
+		return projectlink.Reference{Kind: projectlink.WorkOrder, ID: target.WorkOrder.GetWorkOrderId()}, nil
 	default:
 		return projectlink.Reference{}, projectlink.ErrInvalidReference
 	}
@@ -1057,6 +1062,8 @@ func referenceMessage(ref projectlink.Reference) *projectv1.TaskLinkReference {
 		return &projectv1.TaskLinkReference{Target: &projectv1.TaskLinkReference_WorkItem{WorkItem: &projectv1.WorkItemLink{WorkItemId: ref.ID}}}
 	case projectlink.Journey:
 		return &projectv1.TaskLinkReference{Target: &projectv1.TaskLinkReference_Journey{Journey: &projectv1.JourneyLink{IntentId: ref.ID}}}
+	case projectlink.WorkOrder:
+		return &projectv1.TaskLinkReference{Target: &projectv1.TaskLinkReference_WorkOrder{WorkOrder: &projectv1.WorkOrderLink{WorkOrderId: ref.ID}}}
 	default:
 		return nil
 	}

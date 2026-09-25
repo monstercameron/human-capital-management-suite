@@ -162,6 +162,7 @@ type ProjectServiceClient interface {
 	// Resolves links against current target authorization, returning a neutral
 	// restricted state for both inaccessible and absent targets.
 	ListTaskLinks(ctx context.Context, in *ListTaskLinksRequest, opts ...grpc.CallOption) (*ListTaskLinksResponse, error)
+	// P1A disposition: OUT; reverse task-link lookup is a Phase 3 project operation.
 	// Reverse link read: the live tasks that link one workflow run (journey)
 	// or work item, limited to projects the caller may read. Tasks in other
 	// projects are omitted, not reported.
@@ -679,6 +680,7 @@ type ProjectServiceServer interface {
 	// Resolves links against current target authorization, returning a neutral
 	// restricted state for both inaccessible and absent targets.
 	ListTaskLinks(context.Context, *ListTaskLinksRequest) (*ListTaskLinksResponse, error)
+	// P1A disposition: OUT; reverse task-link lookup is a Phase 3 project operation.
 	// Reverse link read: the live tasks that link one workflow run (journey)
 	// or work item, limited to projects the caller may read. Tasks in other
 	// projects are omitted, not reported.

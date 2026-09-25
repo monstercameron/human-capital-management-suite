@@ -461,7 +461,7 @@ func (s Service) RemoveTaskLink(ctx context.Context, p *trust.Principal, req Rem
 	return s.Links.RemoveTaskLink(ctx, tenant(p), req.ProjectID, req.TaskID, req.LinkID, p.Subject(), req.ExpectedTaskRevision, req.IdempotencyKey)
 }
 
-// LinkedTaskRecord is one task that links a workflow run or work item.
+// LinkedTaskRecord is one task that links a workflow run, work item, or work order.
 type LinkedTaskRecord struct {
 	ProjectID, TaskID, Title, StatusID string
 }
@@ -471,8 +471,8 @@ type TaskLinkTargetRepository interface {
 	ListTasksLinkingTo(context.Context, string, projectlink.Kind, string, int) ([]LinkedTaskRecord, error)
 }
 
-// ListTasksLinkingTo returns the tasks that link one workflow run (journey)
-// or work item, limited to projects the viewer may read. Tasks in other
+// ListTasksLinkingTo returns the tasks that link one workflow run (journey),
+// work item, or work order, limited to projects the viewer may read. Tasks in other
 // projects are omitted, never reported as restricted, so the answer does not
 // disclose where else a workflow is tracked.
 func (s Service) ListTasksLinkingTo(ctx context.Context, p *trust.Principal, kind projectlink.Kind, targetID string, limit int) ([]LinkedTaskRecord, error) {
@@ -483,7 +483,7 @@ func (s Service) ListTasksLinkingTo(ctx context.Context, p *trust.Principal, kin
 	if s.Auth == nil || !ok {
 		return nil, ErrUnavailable
 	}
-	if (kind != projectlink.Journey && kind != projectlink.WorkItem) || strings.TrimSpace(targetID) == "" || limit < 1 || limit > MaxListPageSize {
+	if (kind != projectlink.Journey && kind != projectlink.WorkItem && kind != projectlink.WorkOrder) || strings.TrimSpace(targetID) == "" || limit < 1 || limit > MaxListPageSize {
 		return nil, ErrInvalidRequest
 	}
 	records, err := repo.ListTasksLinkingTo(ctx, tenant(p), kind, targetID, 100)

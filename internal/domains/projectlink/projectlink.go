@@ -16,6 +16,9 @@ const (
 	ChatPost         Kind = "CHAT_POST"
 	DeployedDocument Kind = "DEPLOYED_DOCUMENT"
 	WorkItem         Kind = "WORK_ITEM"
+	// WorkOrder is a governed field-work record. Project links expose only its
+	// identity after the owning work-order authority confirms access.
+	WorkOrder Kind = "WORK_ORDER"
 	// Journey is an in-progress workflow run (for example a promotion). The
 	// project side stores and returns only its ID: the viewer reads the
 	// journey itself through the journey service, whose own authorization
@@ -57,7 +60,7 @@ func (r Reference) Validate() error {
 		if !validID(r.Version) || !validID(r.ScopeID) || r.ConversationID != "" {
 			return ErrInvalidReference
 		}
-	case WorkItem, Journey:
+	case WorkItem, WorkOrder, Journey:
 		if r.ConversationID != "" || r.Version != "" || r.ScopeID != "" {
 			return ErrInvalidReference
 		}
@@ -178,6 +181,12 @@ func validatePreview(ref Reference, p Preview) error {
 	case Journey:
 		// Identity only: every display field comes from the viewer's own
 		// journey read, never from the project service.
+		if p.Title != "" || p.Snippet != "" || p.Version != "" || p.Status != "" || p.Freshness != "" || p.ConversationID != "" || p.ScopeID != "" {
+			return ErrResolverUnavailable
+		}
+	case WorkOrder:
+		// Identity only. Work order scope, crew, evidence, financial data, and
+		// phase details remain in the owning domain's authorized read surface.
 		if p.Title != "" || p.Snippet != "" || p.Version != "" || p.Status != "" || p.Freshness != "" || p.ConversationID != "" || p.ScopeID != "" {
 			return ErrResolverUnavailable
 		}

@@ -1,0 +1,53 @@
+# Work order records live in a separate tenant-scoped schema owned by
+# internal/data/workorderstore. Core storage migrations do not inspect it.
+version: 1
+module: github.com/monstercameron/human-capital-management-suite
+database: workorders
+sources:
+  - internal/data/workorderstore/migrations/00001_work_orders.sql
+
+defaults:
+  plane: DATA
+  data_role: CONTROL
+  isolation_package: internal/data/tenancy
+  rls_policy: tenant_isolation
+  rls_required: true
+  encryption_class: PLATFORM_MANAGED
+
+tables:
+  - table: work_order
+    migration: internal/data/workorderstore/migrations/00001_work_orders.sql
+    owner_package: internal/data/workorderstore
+    tenant_scoping_column: tenant_id
+    retention_class: OPERATIONAL
+    append_only: false
+  - table: work_order_record
+    migration: internal/data/workorderstore/migrations/00001_work_orders.sql
+    owner_package: internal/data/workorderstore
+    tenant_scoping_column: tenant_id
+    retention_class: PERMANENT
+    append_only: true
+  - table: work_order_template_version
+    migration: internal/data/workorderstore/migrations/00001_work_orders.sql
+    owner_package: internal/data/workorderstore
+    tenant_scoping_column: tenant_id
+    retention_class: PERMANENT
+    append_only: true
+  - table: work_order_outbox
+    migration: internal/data/workorderstore/migrations/00001_work_orders.sql
+    owner_package: internal/data/workorderstore
+    tenant_scoping_column: tenant_id
+    retention_class: OPERATIONAL
+    append_only: true
+  - table: work_order_idempotency
+    migration: internal/data/workorderstore/migrations/00001_work_orders.sql
+    owner_package: internal/data/workorderstore
+    tenant_scoping_column: tenant_id
+    retention_class: OPERATIONAL
+    append_only: true
+  - table: work_order_artifact
+    migration: internal/data/workorderstore/migrations/00001_work_orders.sql
+    owner_package: internal/data/workorderstore
+    tenant_scoping_column: tenant_id
+    retention_class: PERMANENT
+    append_only: true

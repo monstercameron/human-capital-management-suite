@@ -62,6 +62,7 @@ func TestTodo_PM_020(t *testing.T) {
 		{Kind: projectlink.ChatPost, ID: "post-1", ConversationID: "conversation-1"},
 		{Kind: projectlink.DeployedDocument, ID: "document-1", Version: "version-7", ScopeID: "team-1"},
 		{Kind: projectlink.WorkItem, ID: "work-item-1"},
+		{Kind: projectlink.WorkOrder, ID: "01a0d8e5-4980-7611-9f4b-995d01f979d3"},
 	}
 	for i, ref := range cases {
 		record := LinkRecord{ID: fmt.Sprintf("link-%d", i), TenantID: "tenant-a", ProjectID: "tenant-a-project", TaskID: "tenant-a-task", Reference: ref}
@@ -83,6 +84,10 @@ func TestTodo_PM_020(t *testing.T) {
 	page2, err := links.List(ctx, "tenant-a", "tenant-a-project", "tenant-a-task", page[1].ID, 2)
 	if err != nil || len(page2) != 2 || page2[0].Reference.Version != "version-7" || page2[0].Reference.ScopeID != "team-1" || page2[1].Reference.Kind != projectlink.WorkItem {
 		t.Fatalf("second page=%#v err=%v", page2, err)
+	}
+	page3, err := links.List(ctx, "tenant-a", "tenant-a-project", "tenant-a-task", page2[1].ID, 2)
+	if err != nil || len(page3) != 1 || page3[0].Reference.Kind != projectlink.WorkOrder {
+		t.Fatalf("third page=%#v err=%v", page3, err)
 	}
 	other, err := links.List(ctx, "tenant-b", "tenant-a-project", "tenant-a-task", "", 10)
 	if err != nil || len(other) != 0 {

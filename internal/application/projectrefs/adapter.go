@@ -40,6 +40,14 @@ type WorkItemProjection interface {
 	ReadAuthorizedWorkItem(context.Context, *trust.Principal, string) (projectlink.Preview, bool, error)
 }
 
+// WorkOrderProjection reads only the identity-safe project link preview from
+// the owning work-order authority. Implementations must check the principal's
+// current access to the work order and its tenant/project on every call. A
+// project link must never grant access to the target work order.
+type WorkOrderProjection interface {
+	ReadAuthorizedWorkOrder(context.Context, *trust.Principal, string) (projectlink.Preview, bool, error)
+}
+
 // WorkItemReadPort is the tenant-scoped owning store read needed by the
 // projection. It deliberately exposes no mutation operations.
 type WorkItemReadPort interface {
@@ -101,9 +109,10 @@ var _ DocumentPlacements = (document.Service)(nil)
 // Adapter implements projectlink's two resolver ports using the owning
 // services. A deployment's exact placement scope and version are both pinned.
 type Adapter struct {
-	Chat      ChatLinks
-	Documents DocumentPlacements
-	WorkItems WorkItemProjection
+	Chat       ChatLinks
+	Documents  DocumentPlacements
+	WorkItems  WorkItemProjection
+	WorkOrders WorkOrderProjection
 }
 
 var _ projectlink.Authorizer = Adapter{}
@@ -138,6 +147,13 @@ func (a Adapter) Authorize(ctx context.Context, actor string, ref projectlink.Re
 			return false, nil
 		}
 		_, found, err := a.WorkItems.ReadAuthorizedWorkItem(ctx, trustedPrincipal(ctx), ref.ID)
+		return found, err
+	case projectlink.WorkOrder:
+		principal := trustedPrincipal(ctx)
+		if a.WorkOrders == nil || principal == nil {
+			return false, nil
+		}
+		_, found, err := a.WorkOrders.ReadAuthorizedWorkOrder(ctx, principal, ref.ID)
 		return found, err
 	case projectlink.Journey:
 		// The link discloses nothing but the ID the linker supplied; the
@@ -205,6 +221,12 @@ func (a Adapter) ReadAuthorized(ctx context.Context, ref projectlink.Reference) 
 			return projectlink.Preview{}, false, nil
 		}
 		return a.WorkItems.ReadAuthorizedWorkItem(ctx, trustedPrincipal(ctx), ref.ID)
+	case projectlink.WorkOrder:
+		principal := trustedPrincipal(ctx)
+		if a.WorkOrders == nil || principal == nil {
+			return projectlink.Preview{}, false, nil
+		}
+		return a.WorkOrders.ReadAuthorizedWorkOrder(ctx, principal, ref.ID)
 	default:
 		return projectlink.Preview{}, false, nil
 	}

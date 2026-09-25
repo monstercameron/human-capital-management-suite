@@ -19,6 +19,7 @@ sources:
   - internal/data/projectstore/migrations/00011_task_planning_fields.sql
   - internal/data/projectstore/migrations/00012_task_link_journey.sql
   - internal/data/projectstore/migrations/00013_task_link_target_index.sql
+  - internal/data/projectstore/migrations/00014_work_order_links.sql
 
 defaults:
   plane: DATA

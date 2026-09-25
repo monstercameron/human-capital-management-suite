@@ -118,8 +118,8 @@ func (s *server) ListTaskLinksByTarget(ctx context.Context, req *projectv1.ListT
 		return nil, s.unavailable()
 	}
 	ref, err := referenceFromMessage(req.GetTarget())
-	if err != nil || (ref.Kind != projectlink.Journey && ref.Kind != projectlink.WorkItem) {
-		return nil, envelope.New(envelope.CodeInvalidArgument, "project.link_target.invalid", "only workflow and work item targets can be looked up")
+	if err != nil || (ref.Kind != projectlink.Journey && ref.Kind != projectlink.WorkItem && ref.Kind != projectlink.WorkOrder) {
+		return nil, envelope.New(envelope.CodeInvalidArgument, "project.link_target.invalid", "only workflow, work item, and work order targets can be looked up")
 	}
 	limit, err := listPageSize(req.GetPage())
 	if err != nil {

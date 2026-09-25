@@ -29,6 +29,7 @@ type fakeService struct {
 	created projectservice.CreateTaskRequest
 	preview projectservice.PreviewWorkflowDraftRequest
 	publish projectservice.PublishWorkflowDraftRequest
+	addLink projectservice.AddTaskLinkRequest
 }
 
 type fakeTaskSearchService struct {
@@ -183,10 +184,11 @@ func (f *fakeService) BoardPage(_ context.Context, p *trust.Principal, _, _ stri
 	}
 	return projectservice.BoardPageResult{Page: projectboard.Page{ViewID: "v1", Version: 7, Columns: []projectboard.BoardColumn{{ID: "c1", Label: "Todo", Lanes: []projectboard.Lane{{Cards: []projectboard.Card{{Task: projectboard.Task{ID: "t1", Title: "Task", StatusID: "todo", Priority: "NORMAL"}}}}}}}}, ProjectRevision: 8, WorkflowRevision: 5, TaskRevisions: map[string]uint64{"t1": 3}}, nil
 }
-func (f *fakeService) AddTaskLink(_ context.Context, p *trust.Principal, _ projectservice.AddTaskLinkRequest) (string, uint64, error) {
+func (f *fakeService) AddTaskLink(_ context.Context, p *trust.Principal, req projectservice.AddTaskLinkRequest) (string, uint64, error) {
 	if err := f.record(p); err != nil {
 		return "", 0, err
 	}
+	f.addLink = req
 	return "link-1", 4, nil
 }
 func (f *fakeService) RemoveTaskLink(_ context.Context, p *trust.Principal, _ projectservice.RemoveTaskLinkRequest) (uint64, error) {
@@ -233,6 +235,22 @@ func TestTypedProjectFieldWireRoundTrip(t *testing.T) {
 		if got == nil || got.String() != value.String() {
 			t.Fatalf("wire round trip: want=%v got=%v", value, got)
 		}
+	}
+}
+
+func TestAddTaskLinkAcceptsWorkOrderReference(t *testing.T) {
+	ctx, principal := testContext(t)
+	fake := &fakeService{}
+	s := &server{service: fake}
+	response, err := s.AddTaskLink(ctx, &projectv1.AddTaskLinkRequest{
+		ProjectId: "project-1", TaskId: "task-1", ExpectedTaskRevision: 9, IdempotencyKey: "link-wo-1",
+		Reference: &projectv1.TaskLinkReference{Target: &projectv1.TaskLinkReference_WorkOrder{WorkOrder: &projectv1.WorkOrderLink{WorkOrderId: "wo-1"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.GetLinkId() != "link-1" || fake.seen != principal || fake.addLink.Reference.Kind != projectlink.WorkOrder || fake.addLink.Reference.ID != "wo-1" {
+		t.Fatalf("work order link was not delegated intact: response=%+v request=%+v principal=%p", response, fake.addLink, fake.seen)
 	}
 }
 

@@ -52,6 +52,7 @@ func TestResolveAllowlistedTargetKinds(t *testing.T) {
 		{"post", Reference{Kind: ChatPost, ID: "p-1", ConversationID: "c-1"}, Preview{Kind: ChatPost, ID: "p-1", ConversationID: "c-1", Snippet: "Update"}},
 		{"deployed document", Reference{Kind: DeployedDocument, ID: "d-1", Version: "v-3", ScopeID: "team-1"}, Preview{Kind: DeployedDocument, ID: "d-1", Version: "v-3", ScopeID: "team-1", Title: "Guide"}},
 		{"safe WorkItem", Reference{Kind: WorkItem, ID: "w-1"}, Preview{Kind: WorkItem, ID: "w-1", Version: "12", Status: "OPEN", Freshness: "CURRENT"}},
+		{"identity-only WorkOrder", Reference{Kind: WorkOrder, ID: "wo-1"}, Preview{Kind: WorkOrder, ID: "wo-1"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,6 +128,8 @@ func TestReferenceValidationRejectsUnallowlistedAndMutableTargets(t *testing.T) 
 		{Kind: DeployedDocument, ID: "d-1", Version: "v-1", ScopeID: "../other"},
 		{Kind: WorkItem, ID: "w-1", ConversationID: "private"},
 		{Kind: WorkItem, ID: "../secret"},
+		{Kind: WorkOrder, ID: "wo-1", Version: "4"},
+		{Kind: WorkOrder, ID: "../secret"},
 	}
 	for _, ref := range bad {
 		if err := ref.Validate(); !errors.Is(err, ErrInvalidReference) {
@@ -136,6 +139,18 @@ func TestReferenceValidationRejectsUnallowlistedAndMutableTargets(t *testing.T) 
 	got, err := (Resolver{Authorization: &fakeAuthorization{}, Targets: &fakeTargets{}}).Resolve(context.Background(), " ", Reference{Kind: ChatConversation, ID: "c-1"})
 	if !errors.Is(err, ErrInvalidReference) || got.Preview != nil {
 		t.Fatalf("invalid principal result = %#v, %v", got, err)
+	}
+}
+
+func TestResolveRejectsDetailedWorkOrderProjection(t *testing.T) {
+	resolver := Resolver{
+		Authorization: &fakeAuthorization{allowed: []bool{true, true}},
+		Targets: &fakeTargets{found: true, preview: Preview{
+			Kind: WorkOrder, ID: "wo-1", Status: "IN_PROGRESS",
+		}},
+	}
+	if _, err := resolver.Resolve(context.Background(), "person-1", Reference{Kind: WorkOrder, ID: "wo-1"}); !errors.Is(err, ErrResolverUnavailable) {
+		t.Fatalf("unsafe WorkOrder detail accepted: %v", err)
 	}
 }
 

@@ -101,3 +101,42 @@ func TestTodo_PM_020_AddAndRemoveRecheckEditAccessBeforeWrite(t *testing.T) {
 		t.Fatalf("remove reached repository %d times", repo.removed)
 	}
 }
+
+type workOrderReverseAuth struct{ deniedProject string }
+
+func (a workOrderReverseAuth) Authorize(_ context.Context, _ *trust.Principal, projectID string, _ projectaccess.Capability) error {
+	if projectID == a.deniedProject {
+		return errors.New("project access denied")
+	}
+	return nil
+}
+func (workOrderReverseAuth) AuthorizeCreate(context.Context, *trust.Principal) error { return nil }
+func (workOrderReverseAuth) AuthorizeListProjects(context.Context, *trust.Principal) error {
+	return nil
+}
+
+type workOrderReverseRepo struct {
+	taskLinkRepo
+	kind projectlink.Kind
+	rows []LinkedTaskRecord
+}
+
+func (r *workOrderReverseRepo) ListTasksLinkingTo(_ context.Context, _ string, kind projectlink.Kind, _ string, _ int) ([]LinkedTaskRecord, error) {
+	r.kind = kind
+	return r.rows, nil
+}
+
+func TestTodo_PM_020_WorkOrderReverseLinksRequireReadableProjects(t *testing.T) {
+	repo := &workOrderReverseRepo{rows: []LinkedTaskRecord{
+		{ProjectID: "project-visible", TaskID: "task-a"},
+		{ProjectID: "project-private", TaskID: "task-b"},
+	}}
+	svc := Service{Auth: workOrderReverseAuth{deniedProject: "project-private"}, Links: repo}
+	got, err := svc.ListTasksLinkingTo(context.Background(), testPrincipal(t), projectlink.WorkOrder, "01a0d8e5-4980-7611-9f4b-995d01f979d3", 10)
+	if err != nil || repo.kind != projectlink.WorkOrder || len(got) != 1 || got[0].ProjectID != "project-visible" {
+		t.Fatalf("authorized work-order reverse links=%+v kind=%q err=%v", got, repo.kind, err)
+	}
+	if _, err := svc.ListTasksLinkingTo(context.Background(), testPrincipal(t), projectlink.ChatPost, "post-1", 10); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("unsupported reverse kind err=%v", err)
+	}
+}

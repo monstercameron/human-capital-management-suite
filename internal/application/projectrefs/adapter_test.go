@@ -190,6 +190,71 @@ func TestAdapterDoesNotReadHCMWorkItemsWithoutSafeProjection(t *testing.T) {
 	}
 }
 
+type workOrderProjectionFixture struct {
+	preview  projectlink.Preview
+	found    bool
+	sequence []bool
+	seen     []*trust.Principal
+}
+
+func (f *workOrderProjectionFixture) ReadAuthorizedWorkOrder(_ context.Context, principal *trust.Principal, _ string) (projectlink.Preview, bool, error) {
+	f.seen = append(f.seen, principal)
+	found := f.found
+	if len(f.sequence) >= len(f.seen) {
+		found = f.sequence[len(f.seen)-1]
+	}
+	return f.preview, found, nil
+}
+
+func TestAdapterResolvesWorkOrderThroughOwningAuthorization(t *testing.T) {
+	ctx := projectrefsContext(t)
+	projection := &workOrderProjectionFixture{
+		preview: projectlink.Preview{Kind: projectlink.WorkOrder, ID: "wo-1"}, found: true,
+	}
+	resolver := projectlink.Resolver{Authorization: Adapter{WorkOrders: projection}, Targets: Adapter{WorkOrders: projection}}
+	got, err := resolver.Resolve(ctx, "viewer-a", projectlink.Reference{Kind: projectlink.WorkOrder, ID: "wo-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.State != projectlink.Available || got.Preview == nil || *got.Preview != projection.preview {
+		t.Fatalf("authorized work order preview = %#v", got)
+	}
+	if len(projection.seen) != 3 || projection.seen[0] == nil || projection.seen[0].Tenant().String() != "tenant-a" {
+		t.Fatalf("owning authorization was not checked around the target read: %#v", projection.seen)
+	}
+}
+
+func TestAdapterKeepsDeniedWorkOrderRestricted(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		found bool
+	}{
+		{name: "denied"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			projection := &workOrderProjectionFixture{found: tc.found}
+			resolver := projectlink.Resolver{Authorization: Adapter{WorkOrders: projection}, Targets: Adapter{WorkOrders: projection}}
+			got, err := resolver.Resolve(projectrefsContext(t), "viewer-a", projectlink.Reference{Kind: projectlink.WorkOrder, ID: "wo-1"})
+			if err != nil || got.State != projectlink.Restricted || got.Preview != nil {
+				t.Fatalf("work order resolution=%#v err=%v", got, err)
+			}
+		})
+	}
+}
+
+func TestAdapterDiscardsWorkOrderPreviewAfterAuthorizationRevoked(t *testing.T) {
+	ctx := projectrefsContext(t)
+	projection := &workOrderProjectionFixture{
+		preview:  projectlink.Preview{Kind: projectlink.WorkOrder, ID: "wo-1"},
+		sequence: []bool{true, true, false},
+	}
+	resolver := projectlink.Resolver{Authorization: Adapter{WorkOrders: projection}, Targets: Adapter{WorkOrders: projection}}
+	got, err := resolver.Resolve(ctx, "viewer-a", projectlink.Reference{Kind: projectlink.WorkOrder, ID: "wo-1"})
+	if err != nil || got.State != projectlink.Restricted || got.Preview != nil || len(projection.seen) != 3 {
+		t.Fatalf("work order preview survived revoked authorization: result=%#v reads=%d err=%v", got, len(projection.seen), err)
+	}
+}
+
 type workItemSourceFixture struct {
 	item       workitem.WorkItem
 	err        error

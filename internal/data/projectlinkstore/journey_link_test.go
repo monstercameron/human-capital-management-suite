@@ -36,6 +36,31 @@ func TestJourneyLinkPersists(t *testing.T) {
 	}
 }
 
+func TestWorkOrderLinkPersists(t *testing.T) {
+	links, projects, _ := linkFixture(t)
+	ctx := context.Background()
+	project := projectstore.ProjectRecord{ID: "work-order-project", TenantID: "tenant-a", OwnerID: "owner", Name: "Project", Timezone: "UTC"}
+	if err := projects.CreateProject(ctx, project, "owner", "HUMAN", "work-order-create-project"); err != nil {
+		t.Fatal(err)
+	}
+	task := projectstore.TaskRecord{ID: "work-order-task", TenantID: "tenant-a", ProjectID: project.ID, Title: "Task", StatusID: "todo"}
+	if err := projects.CreateTask(ctx, task, "owner", "HUMAN", "work-order-create-task"); err != nil {
+		t.Fatal(err)
+	}
+	ref := projectlink.Reference{Kind: projectlink.WorkOrder, ID: "01a0d8e5-4980-7611-9f4b-995d01f979d3"}
+	if err := links.Add(ctx, LinkRecord{ID: "work-order-link", TenantID: "tenant-a", ProjectID: project.ID, TaskID: task.ID, Reference: ref}); err != nil {
+		t.Fatalf("add work-order link: %v", err)
+	}
+	page, err := links.List(ctx, "tenant-a", project.ID, task.ID, "", 10)
+	if err != nil || len(page) != 1 || page[0].Reference != ref {
+		t.Fatalf("work-order link page=%#v err=%v", page, err)
+	}
+	bad := projectlink.Reference{Kind: projectlink.WorkOrder, ID: ref.ID, ScopeID: "foreign-project"}
+	if err := links.Add(ctx, LinkRecord{ID: "work-order-bad", TenantID: "tenant-a", ProjectID: project.ID, TaskID: task.ID, Reference: bad}); err == nil {
+		t.Fatal("work-order link with an extra selector accepted")
+	}
+}
+
 func TestListByTargetFindsLinkingTasks(t *testing.T) {
 	links, projects, _ := linkFixture(t)
 	ctx := context.Background()
@@ -54,12 +79,20 @@ func TestListByTargetFindsLinkingTasks(t *testing.T) {
 			t.Fatalf("add %d: %v", i, err)
 		}
 	}
+	workOrder := projectlink.Reference{Kind: projectlink.WorkOrder, ID: "work-order-77"}
+	if err := links.Add(ctx, LinkRecord{ID: "rev-link-work-order", TenantID: "tenant-a", ProjectID: project.ID, TaskID: "rev-task-1", Reference: workOrder}); err != nil {
+		t.Fatalf("add work-order link: %v", err)
+	}
 	got, err := links.ListByTarget(ctx, "tenant-a", projectlink.Journey, "journey-77", 10)
 	if err != nil || len(got) != 2 || got[0].Title != "Task rev-task-1" || got[1].StatusID != "todo" {
 		t.Fatalf("reverse lookup=%#v err=%v", got, err)
 	}
 	if other, err := links.ListByTarget(ctx, "tenant-b", projectlink.Journey, "journey-77", 10); err != nil || len(other) != 0 {
 		t.Fatalf("cross-tenant reverse lookup=%#v err=%v", other, err)
+	}
+	workOrderTasks, err := links.ListByTarget(ctx, "tenant-a", projectlink.WorkOrder, "work-order-77", 10)
+	if err != nil || len(workOrderTasks) != 1 || workOrderTasks[0].TaskID != "rev-task-1" {
+		t.Fatalf("work-order reverse lookup=%#v err=%v", workOrderTasks, err)
 	}
 	if _, err := links.ListByTarget(ctx, "tenant-a", projectlink.ChatPost, "p-1", 10); err == nil {
 		t.Fatal("reverse lookup accepted a chat target")

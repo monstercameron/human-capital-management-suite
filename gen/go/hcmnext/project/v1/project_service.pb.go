@@ -5852,6 +5852,7 @@ type TaskLinkReference struct {
 	//	*TaskLinkReference_DeployedDocument
 	//	*TaskLinkReference_WorkItem
 	//	*TaskLinkReference_Journey
+	//	*TaskLinkReference_WorkOrder
 	Target        isTaskLinkReference_Target `protobuf_oneof:"target"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5939,6 +5940,15 @@ func (x *TaskLinkReference) GetJourney() *JourneyLink {
 	return nil
 }
 
+func (x *TaskLinkReference) GetWorkOrder() *WorkOrderLink {
+	if x != nil {
+		if x, ok := x.Target.(*TaskLinkReference_WorkOrder); ok {
+			return x.WorkOrder
+		}
+	}
+	return nil
+}
+
 type isTaskLinkReference_Target interface {
 	isTaskLinkReference_Target()
 }
@@ -5965,6 +5975,11 @@ type TaskLinkReference_Journey struct {
 	Journey *JourneyLink `protobuf:"bytes,5,opt,name=journey,proto3,oneof"`
 }
 
+type TaskLinkReference_WorkOrder struct {
+	// A work order owns field execution, evidence, and accepted quantities.
+	WorkOrder *WorkOrderLink `protobuf:"bytes,6,opt,name=work_order,json=workOrder,proto3,oneof"`
+}
+
 func (*TaskLinkReference_ChatConversation) isTaskLinkReference_Target() {}
 
 func (*TaskLinkReference_ChatPost) isTaskLinkReference_Target() {}
@@ -5974,6 +5989,8 @@ func (*TaskLinkReference_DeployedDocument) isTaskLinkReference_Target() {}
 func (*TaskLinkReference_WorkItem) isTaskLinkReference_Target() {}
 
 func (*TaskLinkReference_Journey) isTaskLinkReference_Target() {}
+
+func (*TaskLinkReference_WorkOrder) isTaskLinkReference_Target() {}
 
 type JourneyLink struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -6319,6 +6336,52 @@ func (x *WorkItemLink) GetWorkItemId() string {
 	return ""
 }
 
+// WorkOrderLink identifies an independently governed field execution record.
+// Its preview is identity-only; clients read the work order through its owner.
+type WorkOrderLink struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkOrderId   string                 `protobuf:"bytes,1,opt,name=work_order_id,json=workOrderId,proto3" json:"work_order_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkOrderLink) Reset() {
+	*x = WorkOrderLink{}
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkOrderLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkOrderLink) ProtoMessage() {}
+
+func (x *WorkOrderLink) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkOrderLink.ProtoReflect.Descriptor instead.
+func (*WorkOrderLink) Descriptor() ([]byte, []int) {
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *WorkOrderLink) GetWorkOrderId() string {
+	if x != nil {
+		return x.WorkOrderId
+	}
+	return ""
+}
+
 type AddTaskLinkRequest struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Scope                *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -6333,7 +6396,7 @@ type AddTaskLinkRequest struct {
 
 func (x *AddTaskLinkRequest) Reset() {
 	*x = AddTaskLinkRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[80]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6345,7 +6408,7 @@ func (x *AddTaskLinkRequest) String() string {
 func (*AddTaskLinkRequest) ProtoMessage() {}
 
 func (x *AddTaskLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[80]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6358,7 +6421,7 @@ func (x *AddTaskLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTaskLinkRequest.ProtoReflect.Descriptor instead.
 func (*AddTaskLinkRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{80}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *AddTaskLinkRequest) GetScope() *v1.ScopeContext {
@@ -6413,7 +6476,7 @@ type AddTaskLinkResponse struct {
 
 func (x *AddTaskLinkResponse) Reset() {
 	*x = AddTaskLinkResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[81]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6425,7 +6488,7 @@ func (x *AddTaskLinkResponse) String() string {
 func (*AddTaskLinkResponse) ProtoMessage() {}
 
 func (x *AddTaskLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[81]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6438,7 +6501,7 @@ func (x *AddTaskLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTaskLinkResponse.ProtoReflect.Descriptor instead.
 func (*AddTaskLinkResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{81}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *AddTaskLinkResponse) GetLinkId() string {
@@ -6468,7 +6531,7 @@ type TaskLinkPreview struct {
 
 func (x *TaskLinkPreview) Reset() {
 	*x = TaskLinkPreview{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[82]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6480,7 +6543,7 @@ func (x *TaskLinkPreview) String() string {
 func (*TaskLinkPreview) ProtoMessage() {}
 
 func (x *TaskLinkPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[82]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6493,7 +6556,7 @@ func (x *TaskLinkPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskLinkPreview.ProtoReflect.Descriptor instead.
 func (*TaskLinkPreview) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{82}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *TaskLinkPreview) GetTitle() string {
@@ -6545,7 +6608,7 @@ type ResolvedTaskLink struct {
 
 func (x *ResolvedTaskLink) Reset() {
 	*x = ResolvedTaskLink{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[83]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6557,7 +6620,7 @@ func (x *ResolvedTaskLink) String() string {
 func (*ResolvedTaskLink) ProtoMessage() {}
 
 func (x *ResolvedTaskLink) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[83]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6570,7 +6633,7 @@ func (x *ResolvedTaskLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvedTaskLink.ProtoReflect.Descriptor instead.
 func (*ResolvedTaskLink) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{83}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *ResolvedTaskLink) GetLinkId() string {
@@ -6604,7 +6667,7 @@ func (x *ResolvedTaskLink) GetPreview() *TaskLinkPreview {
 type ListTaskLinksByTargetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Scope *v1.ScopeContext       `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// Only journey and work_item targets are supported.
+	// Only journey, work_item, and work_order targets are supported.
 	Target        *TaskLinkReference `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
 	Page          *v1.PageRequest    `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -6613,7 +6676,7 @@ type ListTaskLinksByTargetRequest struct {
 
 func (x *ListTaskLinksByTargetRequest) Reset() {
 	*x = ListTaskLinksByTargetRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[84]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6625,7 +6688,7 @@ func (x *ListTaskLinksByTargetRequest) String() string {
 func (*ListTaskLinksByTargetRequest) ProtoMessage() {}
 
 func (x *ListTaskLinksByTargetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[84]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6638,7 +6701,7 @@ func (x *ListTaskLinksByTargetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskLinksByTargetRequest.ProtoReflect.Descriptor instead.
 func (*ListTaskLinksByTargetRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{84}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *ListTaskLinksByTargetRequest) GetScope() *v1.ScopeContext {
@@ -6674,7 +6737,7 @@ type LinkedTask struct {
 
 func (x *LinkedTask) Reset() {
 	*x = LinkedTask{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[85]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6686,7 +6749,7 @@ func (x *LinkedTask) String() string {
 func (*LinkedTask) ProtoMessage() {}
 
 func (x *LinkedTask) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[85]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6699,7 +6762,7 @@ func (x *LinkedTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkedTask.ProtoReflect.Descriptor instead.
 func (*LinkedTask) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{85}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *LinkedTask) GetProjectId() string {
@@ -6739,7 +6802,7 @@ type ListTaskLinksByTargetResponse struct {
 
 func (x *ListTaskLinksByTargetResponse) Reset() {
 	*x = ListTaskLinksByTargetResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[86]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6751,7 +6814,7 @@ func (x *ListTaskLinksByTargetResponse) String() string {
 func (*ListTaskLinksByTargetResponse) ProtoMessage() {}
 
 func (x *ListTaskLinksByTargetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[86]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6764,7 +6827,7 @@ func (x *ListTaskLinksByTargetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskLinksByTargetResponse.ProtoReflect.Descriptor instead.
 func (*ListTaskLinksByTargetResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{86}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *ListTaskLinksByTargetResponse) GetTasks() []*LinkedTask {
@@ -6786,7 +6849,7 @@ type ListTaskLinksRequest struct {
 
 func (x *ListTaskLinksRequest) Reset() {
 	*x = ListTaskLinksRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[87]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6798,7 +6861,7 @@ func (x *ListTaskLinksRequest) String() string {
 func (*ListTaskLinksRequest) ProtoMessage() {}
 
 func (x *ListTaskLinksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[87]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6811,7 +6874,7 @@ func (x *ListTaskLinksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskLinksRequest.ProtoReflect.Descriptor instead.
 func (*ListTaskLinksRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{87}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ListTaskLinksRequest) GetScope() *v1.ScopeContext {
@@ -6852,7 +6915,7 @@ type ListTaskLinksResponse struct {
 
 func (x *ListTaskLinksResponse) Reset() {
 	*x = ListTaskLinksResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[88]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6864,7 +6927,7 @@ func (x *ListTaskLinksResponse) String() string {
 func (*ListTaskLinksResponse) ProtoMessage() {}
 
 func (x *ListTaskLinksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[88]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6877,7 +6940,7 @@ func (x *ListTaskLinksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskLinksResponse.ProtoReflect.Descriptor instead.
 func (*ListTaskLinksResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{88}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *ListTaskLinksResponse) GetLinks() []*ResolvedTaskLink {
@@ -6908,7 +6971,7 @@ type RemoveTaskLinkRequest struct {
 
 func (x *RemoveTaskLinkRequest) Reset() {
 	*x = RemoveTaskLinkRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[89]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6920,7 +6983,7 @@ func (x *RemoveTaskLinkRequest) String() string {
 func (*RemoveTaskLinkRequest) ProtoMessage() {}
 
 func (x *RemoveTaskLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[89]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6933,7 +6996,7 @@ func (x *RemoveTaskLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveTaskLinkRequest.ProtoReflect.Descriptor instead.
 func (*RemoveTaskLinkRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{89}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *RemoveTaskLinkRequest) GetScope() *v1.ScopeContext {
@@ -6987,7 +7050,7 @@ type RemoveTaskLinkResponse struct {
 
 func (x *RemoveTaskLinkResponse) Reset() {
 	*x = RemoveTaskLinkResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[90]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6999,7 +7062,7 @@ func (x *RemoveTaskLinkResponse) String() string {
 func (*RemoveTaskLinkResponse) ProtoMessage() {}
 
 func (x *RemoveTaskLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[90]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7012,7 +7075,7 @@ func (x *RemoveTaskLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveTaskLinkResponse.ProtoReflect.Descriptor instead.
 func (*RemoveTaskLinkResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{90}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *RemoveTaskLinkResponse) GetTaskRevision() uint64 {
@@ -7035,7 +7098,7 @@ type AddTaskCommentRequest struct {
 
 func (x *AddTaskCommentRequest) Reset() {
 	*x = AddTaskCommentRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[91]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7047,7 +7110,7 @@ func (x *AddTaskCommentRequest) String() string {
 func (*AddTaskCommentRequest) ProtoMessage() {}
 
 func (x *AddTaskCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[91]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7060,7 +7123,7 @@ func (x *AddTaskCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTaskCommentRequest.ProtoReflect.Descriptor instead.
 func (*AddTaskCommentRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{91}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *AddTaskCommentRequest) GetScope() *v1.ScopeContext {
@@ -7113,7 +7176,7 @@ type EditTaskCommentRequest struct {
 
 func (x *EditTaskCommentRequest) Reset() {
 	*x = EditTaskCommentRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[92]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7125,7 +7188,7 @@ func (x *EditTaskCommentRequest) String() string {
 func (*EditTaskCommentRequest) ProtoMessage() {}
 
 func (x *EditTaskCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[92]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7138,7 +7201,7 @@ func (x *EditTaskCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditTaskCommentRequest.ProtoReflect.Descriptor instead.
 func (*EditTaskCommentRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{92}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *EditTaskCommentRequest) GetScope() *v1.ScopeContext {
@@ -7204,7 +7267,7 @@ type DeleteTaskCommentRequest struct {
 
 func (x *DeleteTaskCommentRequest) Reset() {
 	*x = DeleteTaskCommentRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[93]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7216,7 +7279,7 @@ func (x *DeleteTaskCommentRequest) String() string {
 func (*DeleteTaskCommentRequest) ProtoMessage() {}
 
 func (x *DeleteTaskCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[93]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7229,7 +7292,7 @@ func (x *DeleteTaskCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTaskCommentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTaskCommentRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{93}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *DeleteTaskCommentRequest) GetScope() *v1.ScopeContext {
@@ -7290,7 +7353,7 @@ type ProjectTaskComment struct {
 
 func (x *ProjectTaskComment) Reset() {
 	*x = ProjectTaskComment{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[94]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7302,7 +7365,7 @@ func (x *ProjectTaskComment) String() string {
 func (*ProjectTaskComment) ProtoMessage() {}
 
 func (x *ProjectTaskComment) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[94]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7315,7 +7378,7 @@ func (x *ProjectTaskComment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectTaskComment.ProtoReflect.Descriptor instead.
 func (*ProjectTaskComment) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{94}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *ProjectTaskComment) GetCommentId() string {
@@ -7383,7 +7446,7 @@ type AddTaskCommentResponse struct {
 
 func (x *AddTaskCommentResponse) Reset() {
 	*x = AddTaskCommentResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[95]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7395,7 +7458,7 @@ func (x *AddTaskCommentResponse) String() string {
 func (*AddTaskCommentResponse) ProtoMessage() {}
 
 func (x *AddTaskCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[95]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7408,7 +7471,7 @@ func (x *AddTaskCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTaskCommentResponse.ProtoReflect.Descriptor instead.
 func (*AddTaskCommentResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{95}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *AddTaskCommentResponse) GetComment() *ProjectTaskComment {
@@ -7427,7 +7490,7 @@ type EditTaskCommentResponse struct {
 
 func (x *EditTaskCommentResponse) Reset() {
 	*x = EditTaskCommentResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[96]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7439,7 +7502,7 @@ func (x *EditTaskCommentResponse) String() string {
 func (*EditTaskCommentResponse) ProtoMessage() {}
 
 func (x *EditTaskCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[96]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7452,7 +7515,7 @@ func (x *EditTaskCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditTaskCommentResponse.ProtoReflect.Descriptor instead.
 func (*EditTaskCommentResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{96}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *EditTaskCommentResponse) GetComment() *ProjectTaskComment {
@@ -7471,7 +7534,7 @@ type DeleteTaskCommentResponse struct {
 
 func (x *DeleteTaskCommentResponse) Reset() {
 	*x = DeleteTaskCommentResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[97]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7483,7 +7546,7 @@ func (x *DeleteTaskCommentResponse) String() string {
 func (*DeleteTaskCommentResponse) ProtoMessage() {}
 
 func (x *DeleteTaskCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[97]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7496,7 +7559,7 @@ func (x *DeleteTaskCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTaskCommentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteTaskCommentResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{97}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *DeleteTaskCommentResponse) GetComment() *ProjectTaskComment {
@@ -7519,7 +7582,7 @@ type ListTaskCommentsRequest struct {
 
 func (x *ListTaskCommentsRequest) Reset() {
 	*x = ListTaskCommentsRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[98]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7531,7 +7594,7 @@ func (x *ListTaskCommentsRequest) String() string {
 func (*ListTaskCommentsRequest) ProtoMessage() {}
 
 func (x *ListTaskCommentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[98]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7544,7 +7607,7 @@ func (x *ListTaskCommentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskCommentsRequest.ProtoReflect.Descriptor instead.
 func (*ListTaskCommentsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{98}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *ListTaskCommentsRequest) GetScope() *v1.ScopeContext {
@@ -7592,7 +7655,7 @@ type ListTaskCommentsResponse struct {
 
 func (x *ListTaskCommentsResponse) Reset() {
 	*x = ListTaskCommentsResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[99]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7604,7 +7667,7 @@ func (x *ListTaskCommentsResponse) String() string {
 func (*ListTaskCommentsResponse) ProtoMessage() {}
 
 func (x *ListTaskCommentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[99]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7617,7 +7680,7 @@ func (x *ListTaskCommentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskCommentsResponse.ProtoReflect.Descriptor instead.
 func (*ListTaskCommentsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{99}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *ListTaskCommentsResponse) GetComments() []*ProjectTaskComment {
@@ -7647,7 +7710,7 @@ type ListTaskActivityRequest struct {
 
 func (x *ListTaskActivityRequest) Reset() {
 	*x = ListTaskActivityRequest{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[100]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7659,7 +7722,7 @@ func (x *ListTaskActivityRequest) String() string {
 func (*ListTaskActivityRequest) ProtoMessage() {}
 
 func (x *ListTaskActivityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[100]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7672,7 +7735,7 @@ func (x *ListTaskActivityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskActivityRequest.ProtoReflect.Descriptor instead.
 func (*ListTaskActivityRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{100}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *ListTaskActivityRequest) GetScope() *v1.ScopeContext {
@@ -7724,7 +7787,7 @@ type ProjectTaskActivity struct {
 
 func (x *ProjectTaskActivity) Reset() {
 	*x = ProjectTaskActivity{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[101]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7736,7 +7799,7 @@ func (x *ProjectTaskActivity) String() string {
 func (*ProjectTaskActivity) ProtoMessage() {}
 
 func (x *ProjectTaskActivity) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[101]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7749,7 +7812,7 @@ func (x *ProjectTaskActivity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectTaskActivity.ProtoReflect.Descriptor instead.
 func (*ProjectTaskActivity) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{101}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *ProjectTaskActivity) GetSequence() uint64 {
@@ -7804,7 +7867,7 @@ type ListTaskActivityResponse struct {
 
 func (x *ListTaskActivityResponse) Reset() {
 	*x = ListTaskActivityResponse{}
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[102]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7816,7 +7879,7 @@ func (x *ListTaskActivityResponse) String() string {
 func (*ListTaskActivityResponse) ProtoMessage() {}
 
 func (x *ListTaskActivityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[102]
+	mi := &file_hcmnext_project_v1_project_service_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7829,7 +7892,7 @@ func (x *ListTaskActivityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTaskActivityResponse.ProtoReflect.Descriptor instead.
 func (*ListTaskActivityResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{102}
+	return file_hcmnext_project_v1_project_service_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *ListTaskActivityResponse) GetEntries() []*ProjectTaskActivity {
@@ -8330,13 +8393,15 @@ const file_hcmnext_project_v1_project_service_proto_rawDesc = "" +
 	"\x04page\x18\x03 \x01(\v2\x1f.hcmnext.common.v1.PageResponseR\x04page\x12)\n" +
 	"\x10project_revision\x18\x04 \x01(\x04R\x0fprojectRevision\x12+\n" +
 	"\x11workflow_revision\x18\x05 \x01(\x04R\x10workflowRevision\x12@\n" +
-	"\tfreshness\x18\x06 \x01(\x0e2\".hcmnext.project.v1.BoardFreshnessR\tfreshness\"\x8e\x03\n" +
+	"\tfreshness\x18\x06 \x01(\x0e2\".hcmnext.project.v1.BoardFreshnessR\tfreshness\"\xd2\x03\n" +
 	"\x11TaskLinkReference\x12W\n" +
 	"\x11chat_conversation\x18\x01 \x01(\v2(.hcmnext.project.v1.ChatConversationLinkH\x00R\x10chatConversation\x12?\n" +
 	"\tchat_post\x18\x02 \x01(\v2 .hcmnext.project.v1.ChatPostLinkH\x00R\bchatPost\x12W\n" +
 	"\x11deployed_document\x18\x03 \x01(\v2(.hcmnext.project.v1.DeployedDocumentLinkH\x00R\x10deployedDocument\x12?\n" +
 	"\twork_item\x18\x04 \x01(\v2 .hcmnext.project.v1.WorkItemLinkH\x00R\bworkItem\x12;\n" +
-	"\ajourney\x18\x05 \x01(\v2\x1f.hcmnext.project.v1.JourneyLinkH\x00R\ajourneyB\b\n" +
+	"\ajourney\x18\x05 \x01(\v2\x1f.hcmnext.project.v1.JourneyLinkH\x00R\ajourney\x12B\n" +
+	"\n" +
+	"work_order\x18\x06 \x01(\v2!.hcmnext.project.v1.WorkOrderLinkH\x00R\tworkOrderB\b\n" +
 	"\x06target\"*\n" +
 	"\vJourneyLink\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\"\x95\x02\n" +
@@ -8357,7 +8422,9 @@ const file_hcmnext_project_v1_project_service_proto_rawDesc = "" +
 	"\bscope_id\x18\x03 \x01(\tR\ascopeId\"0\n" +
 	"\fWorkItemLink\x12 \n" +
 	"\fwork_item_id\x18\x01 \x01(\tR\n" +
-	"workItemId\"\xa7\x02\n" +
+	"workItemId\"3\n" +
+	"\rWorkOrderLink\x12\"\n" +
+	"\rwork_order_id\x18\x01 \x01(\tR\vworkOrderId\"\xa7\x02\n" +
 	"\x12AddTaskLinkRequest\x125\n" +
 	"\x05scope\x18\x01 \x01(\v2\x1f.hcmnext.common.v1.ScopeContextR\x05scope\x12'\n" +
 	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12\x1d\n" +
@@ -8600,7 +8667,7 @@ func file_hcmnext_project_v1_project_service_proto_rawDescGZIP() []byte {
 }
 
 var file_hcmnext_project_v1_project_service_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_hcmnext_project_v1_project_service_proto_msgTypes = make([]protoimpl.MessageInfo, 103)
+var file_hcmnext_project_v1_project_service_proto_msgTypes = make([]protoimpl.MessageInfo, 104)
 var file_hcmnext_project_v1_project_service_proto_goTypes = []any{
 	(ProjectLifecycle)(0),                    // 0: hcmnext.project.v1.ProjectLifecycle
 	(TaskPriority)(0),                        // 1: hcmnext.project.v1.TaskPriority
@@ -8692,92 +8759,93 @@ var file_hcmnext_project_v1_project_service_proto_goTypes = []any{
 	(*ChatPostLink)(nil),                     // 87: hcmnext.project.v1.ChatPostLink
 	(*DeployedDocumentLink)(nil),             // 88: hcmnext.project.v1.DeployedDocumentLink
 	(*WorkItemLink)(nil),                     // 89: hcmnext.project.v1.WorkItemLink
-	(*AddTaskLinkRequest)(nil),               // 90: hcmnext.project.v1.AddTaskLinkRequest
-	(*AddTaskLinkResponse)(nil),              // 91: hcmnext.project.v1.AddTaskLinkResponse
-	(*TaskLinkPreview)(nil),                  // 92: hcmnext.project.v1.TaskLinkPreview
-	(*ResolvedTaskLink)(nil),                 // 93: hcmnext.project.v1.ResolvedTaskLink
-	(*ListTaskLinksByTargetRequest)(nil),     // 94: hcmnext.project.v1.ListTaskLinksByTargetRequest
-	(*LinkedTask)(nil),                       // 95: hcmnext.project.v1.LinkedTask
-	(*ListTaskLinksByTargetResponse)(nil),    // 96: hcmnext.project.v1.ListTaskLinksByTargetResponse
-	(*ListTaskLinksRequest)(nil),             // 97: hcmnext.project.v1.ListTaskLinksRequest
-	(*ListTaskLinksResponse)(nil),            // 98: hcmnext.project.v1.ListTaskLinksResponse
-	(*RemoveTaskLinkRequest)(nil),            // 99: hcmnext.project.v1.RemoveTaskLinkRequest
-	(*RemoveTaskLinkResponse)(nil),           // 100: hcmnext.project.v1.RemoveTaskLinkResponse
-	(*AddTaskCommentRequest)(nil),            // 101: hcmnext.project.v1.AddTaskCommentRequest
-	(*EditTaskCommentRequest)(nil),           // 102: hcmnext.project.v1.EditTaskCommentRequest
-	(*DeleteTaskCommentRequest)(nil),         // 103: hcmnext.project.v1.DeleteTaskCommentRequest
-	(*ProjectTaskComment)(nil),               // 104: hcmnext.project.v1.ProjectTaskComment
-	(*AddTaskCommentResponse)(nil),           // 105: hcmnext.project.v1.AddTaskCommentResponse
-	(*EditTaskCommentResponse)(nil),          // 106: hcmnext.project.v1.EditTaskCommentResponse
-	(*DeleteTaskCommentResponse)(nil),        // 107: hcmnext.project.v1.DeleteTaskCommentResponse
-	(*ListTaskCommentsRequest)(nil),          // 108: hcmnext.project.v1.ListTaskCommentsRequest
-	(*ListTaskCommentsResponse)(nil),         // 109: hcmnext.project.v1.ListTaskCommentsResponse
-	(*ListTaskActivityRequest)(nil),          // 110: hcmnext.project.v1.ListTaskActivityRequest
-	(*ProjectTaskActivity)(nil),              // 111: hcmnext.project.v1.ProjectTaskActivity
-	(*ListTaskActivityResponse)(nil),         // 112: hcmnext.project.v1.ListTaskActivityResponse
-	(*v1.ScopeContext)(nil),                  // 113: hcmnext.common.v1.ScopeContext
-	(*v1.PageRequest)(nil),                   // 114: hcmnext.common.v1.PageRequest
-	(*v1.PageResponse)(nil),                  // 115: hcmnext.common.v1.PageResponse
-	(*timestamppb.Timestamp)(nil),            // 116: google.protobuf.Timestamp
-	(*v1.Decimal)(nil),                       // 117: hcmnext.common.v1.Decimal
+	(*WorkOrderLink)(nil),                    // 90: hcmnext.project.v1.WorkOrderLink
+	(*AddTaskLinkRequest)(nil),               // 91: hcmnext.project.v1.AddTaskLinkRequest
+	(*AddTaskLinkResponse)(nil),              // 92: hcmnext.project.v1.AddTaskLinkResponse
+	(*TaskLinkPreview)(nil),                  // 93: hcmnext.project.v1.TaskLinkPreview
+	(*ResolvedTaskLink)(nil),                 // 94: hcmnext.project.v1.ResolvedTaskLink
+	(*ListTaskLinksByTargetRequest)(nil),     // 95: hcmnext.project.v1.ListTaskLinksByTargetRequest
+	(*LinkedTask)(nil),                       // 96: hcmnext.project.v1.LinkedTask
+	(*ListTaskLinksByTargetResponse)(nil),    // 97: hcmnext.project.v1.ListTaskLinksByTargetResponse
+	(*ListTaskLinksRequest)(nil),             // 98: hcmnext.project.v1.ListTaskLinksRequest
+	(*ListTaskLinksResponse)(nil),            // 99: hcmnext.project.v1.ListTaskLinksResponse
+	(*RemoveTaskLinkRequest)(nil),            // 100: hcmnext.project.v1.RemoveTaskLinkRequest
+	(*RemoveTaskLinkResponse)(nil),           // 101: hcmnext.project.v1.RemoveTaskLinkResponse
+	(*AddTaskCommentRequest)(nil),            // 102: hcmnext.project.v1.AddTaskCommentRequest
+	(*EditTaskCommentRequest)(nil),           // 103: hcmnext.project.v1.EditTaskCommentRequest
+	(*DeleteTaskCommentRequest)(nil),         // 104: hcmnext.project.v1.DeleteTaskCommentRequest
+	(*ProjectTaskComment)(nil),               // 105: hcmnext.project.v1.ProjectTaskComment
+	(*AddTaskCommentResponse)(nil),           // 106: hcmnext.project.v1.AddTaskCommentResponse
+	(*EditTaskCommentResponse)(nil),          // 107: hcmnext.project.v1.EditTaskCommentResponse
+	(*DeleteTaskCommentResponse)(nil),        // 108: hcmnext.project.v1.DeleteTaskCommentResponse
+	(*ListTaskCommentsRequest)(nil),          // 109: hcmnext.project.v1.ListTaskCommentsRequest
+	(*ListTaskCommentsResponse)(nil),         // 110: hcmnext.project.v1.ListTaskCommentsResponse
+	(*ListTaskActivityRequest)(nil),          // 111: hcmnext.project.v1.ListTaskActivityRequest
+	(*ProjectTaskActivity)(nil),              // 112: hcmnext.project.v1.ProjectTaskActivity
+	(*ListTaskActivityResponse)(nil),         // 113: hcmnext.project.v1.ListTaskActivityResponse
+	(*v1.ScopeContext)(nil),                  // 114: hcmnext.common.v1.ScopeContext
+	(*v1.PageRequest)(nil),                   // 115: hcmnext.common.v1.PageRequest
+	(*v1.PageResponse)(nil),                  // 116: hcmnext.common.v1.PageResponse
+	(*timestamppb.Timestamp)(nil),            // 117: google.protobuf.Timestamp
+	(*v1.Decimal)(nil),                       // 118: hcmnext.common.v1.Decimal
 }
 var file_hcmnext_project_v1_project_service_proto_depIdxs = []int32{
-	113, // 0: hcmnext.project.v1.GetProjectMembershipRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 0: hcmnext.project.v1.GetProjectMembershipRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	10,  // 1: hcmnext.project.v1.GetProjectMembershipResponse.member:type_name -> hcmnext.project.v1.ProjectMember
-	113, // 2: hcmnext.project.v1.ListProjectMembersRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 2: hcmnext.project.v1.ListProjectMembersRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	10,  // 3: hcmnext.project.v1.ListProjectMembersResponse.members:type_name -> hcmnext.project.v1.ProjectMember
-	113, // 4: hcmnext.project.v1.InviteProjectMemberRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	113, // 5: hcmnext.project.v1.AcceptProjectInvitationRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	113, // 6: hcmnext.project.v1.ChangeProjectMemberRoleRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	113, // 7: hcmnext.project.v1.RevokeProjectMemberRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	113, // 8: hcmnext.project.v1.TransferProjectOwnershipRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	113, // 9: hcmnext.project.v1.CreateProjectRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 4: hcmnext.project.v1.InviteProjectMemberRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 5: hcmnext.project.v1.AcceptProjectInvitationRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 6: hcmnext.project.v1.ChangeProjectMemberRoleRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 7: hcmnext.project.v1.RevokeProjectMemberRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 8: hcmnext.project.v1.TransferProjectOwnershipRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 9: hcmnext.project.v1.CreateProjectRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	0,   // 10: hcmnext.project.v1.Project.lifecycle:type_name -> hcmnext.project.v1.ProjectLifecycle
-	113, // 11: hcmnext.project.v1.GetProjectRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 11: hcmnext.project.v1.GetProjectRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	22,  // 12: hcmnext.project.v1.GetProjectResponse.project:type_name -> hcmnext.project.v1.Project
-	113, // 13: hcmnext.project.v1.ListProjectsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	114, // 14: hcmnext.project.v1.ListProjectsRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	114, // 13: hcmnext.project.v1.ListProjectsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	115, // 14: hcmnext.project.v1.ListProjectsRequest.page:type_name -> hcmnext.common.v1.PageRequest
 	22,  // 15: hcmnext.project.v1.ListProjectsResponse.projects:type_name -> hcmnext.project.v1.Project
-	115, // 16: hcmnext.project.v1.ListProjectsResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	116, // 16: hcmnext.project.v1.ListProjectsResponse.page:type_name -> hcmnext.common.v1.PageResponse
 	22,  // 17: hcmnext.project.v1.CreateProjectResponse.project:type_name -> hcmnext.project.v1.Project
-	113, // 18: hcmnext.project.v1.UpdateProjectSettingsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 18: hcmnext.project.v1.UpdateProjectSettingsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	22,  // 19: hcmnext.project.v1.UpdateProjectSettingsResponse.project:type_name -> hcmnext.project.v1.Project
-	113, // 20: hcmnext.project.v1.SetProjectLifecycleRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 20: hcmnext.project.v1.SetProjectLifecycleRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	22,  // 21: hcmnext.project.v1.SetProjectLifecycleResponse.project:type_name -> hcmnext.project.v1.Project
-	113, // 22: hcmnext.project.v1.CreateTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 22: hcmnext.project.v1.CreateTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	44,  // 23: hcmnext.project.v1.CreateTaskRequest.custom_fields:type_name -> hcmnext.project.v1.TypedFieldValue
 	1,   // 24: hcmnext.project.v1.CreateTaskRequest.priority:type_name -> hcmnext.project.v1.TaskPriority
 	85,  // 25: hcmnext.project.v1.CreateTaskRequest.source_reference:type_name -> hcmnext.project.v1.ProjectSourceReference
 	44,  // 26: hcmnext.project.v1.ProjectTask.custom_fields:type_name -> hcmnext.project.v1.TypedFieldValue
 	1,   // 27: hcmnext.project.v1.ProjectTask.priority:type_name -> hcmnext.project.v1.TaskPriority
-	116, // 28: hcmnext.project.v1.ProjectTask.created_at:type_name -> google.protobuf.Timestamp
-	116, // 29: hcmnext.project.v1.ProjectTask.updated_at:type_name -> google.protobuf.Timestamp
+	117, // 28: hcmnext.project.v1.ProjectTask.created_at:type_name -> google.protobuf.Timestamp
+	117, // 29: hcmnext.project.v1.ProjectTask.updated_at:type_name -> google.protobuf.Timestamp
 	33,  // 30: hcmnext.project.v1.CreateTaskResponse.task:type_name -> hcmnext.project.v1.ProjectTask
-	113, // 31: hcmnext.project.v1.GetTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 31: hcmnext.project.v1.GetTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	33,  // 32: hcmnext.project.v1.GetTaskResponse.task:type_name -> hcmnext.project.v1.ProjectTask
-	113, // 33: hcmnext.project.v1.ListTasksRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 33: hcmnext.project.v1.ListTasksRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	73,  // 34: hcmnext.project.v1.ListTasksRequest.filter:type_name -> hcmnext.project.v1.BoardFilter
-	114, // 35: hcmnext.project.v1.ListTasksRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	115, // 35: hcmnext.project.v1.ListTasksRequest.page:type_name -> hcmnext.common.v1.PageRequest
 	33,  // 36: hcmnext.project.v1.ListTasksResponse.tasks:type_name -> hcmnext.project.v1.ProjectTask
-	115, // 37: hcmnext.project.v1.ListTasksResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	116, // 37: hcmnext.project.v1.ListTasksResponse.page:type_name -> hcmnext.common.v1.PageResponse
 	40,  // 38: hcmnext.project.v1.SearchTaskFilter.fields:type_name -> hcmnext.project.v1.SearchTaskFieldFilter
-	113, // 39: hcmnext.project.v1.SearchTasksRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 39: hcmnext.project.v1.SearchTasksRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	41,  // 40: hcmnext.project.v1.SearchTasksRequest.filter:type_name -> hcmnext.project.v1.SearchTaskFilter
-	114, // 41: hcmnext.project.v1.SearchTasksRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	115, // 41: hcmnext.project.v1.SearchTasksRequest.page:type_name -> hcmnext.common.v1.PageRequest
 	33,  // 42: hcmnext.project.v1.SearchTasksResponse.tasks:type_name -> hcmnext.project.v1.ProjectTask
-	115, // 43: hcmnext.project.v1.SearchTasksResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	116, // 43: hcmnext.project.v1.SearchTasksResponse.page:type_name -> hcmnext.common.v1.PageResponse
 	2,   // 44: hcmnext.project.v1.SearchTasksResponse.freshness:type_name -> hcmnext.project.v1.SearchFreshness
-	117, // 45: hcmnext.project.v1.TypedFieldValue.number_value:type_name -> hcmnext.common.v1.Decimal
-	113, // 46: hcmnext.project.v1.MoveTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	118, // 45: hcmnext.project.v1.TypedFieldValue.number_value:type_name -> hcmnext.common.v1.Decimal
+	114, // 46: hcmnext.project.v1.MoveTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	44,  // 47: hcmnext.project.v1.MoveTaskRequest.lane_field_edit:type_name -> hcmnext.project.v1.TypedFieldValue
 	33,  // 48: hcmnext.project.v1.MoveTaskResponse.task:type_name -> hcmnext.project.v1.ProjectTask
-	113, // 49: hcmnext.project.v1.PatchTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 49: hcmnext.project.v1.PatchTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	1,   // 50: hcmnext.project.v1.PatchTaskRequest.priority:type_name -> hcmnext.project.v1.TaskPriority
 	34,  // 51: hcmnext.project.v1.PatchTaskRequest.labels:type_name -> hcmnext.project.v1.TaskLabels
 	33,  // 52: hcmnext.project.v1.PatchTaskResponse.task:type_name -> hcmnext.project.v1.ProjectTask
-	113, // 53: hcmnext.project.v1.ArchiveTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 53: hcmnext.project.v1.ArchiveTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	33,  // 54: hcmnext.project.v1.ArchiveTaskResponse.task:type_name -> hcmnext.project.v1.ProjectTask
-	113, // 55: hcmnext.project.v1.RestoreTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 55: hcmnext.project.v1.RestoreTaskRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	33,  // 56: hcmnext.project.v1.RestoreTaskResponse.task:type_name -> hcmnext.project.v1.ProjectTask
 	3,   // 57: hcmnext.project.v1.ProjectStatus.category:type_name -> hcmnext.project.v1.ProjectStatusCategory
 	4,   // 58: hcmnext.project.v1.ProjectFieldDefinition.type:type_name -> hcmnext.project.v1.ProjectFieldType
@@ -8791,19 +8859,19 @@ var file_hcmnext_project_v1_project_service_proto_depIdxs = []int32{
 	57,  // 66: hcmnext.project.v1.WorkflowConfigurationSpec.fields:type_name -> hcmnext.project.v1.ProjectFieldDefinition
 	55,  // 67: hcmnext.project.v1.WorkflowConfigurationSpec.transitions:type_name -> hcmnext.project.v1.ProjectWorkflowTransition
 	56,  // 68: hcmnext.project.v1.WorkflowConfigurationSpec.columns:type_name -> hcmnext.project.v1.ProjectWorkflowColumn
-	113, // 69: hcmnext.project.v1.SaveWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 69: hcmnext.project.v1.SaveWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	59,  // 70: hcmnext.project.v1.SaveWorkflowDraftRequest.configuration:type_name -> hcmnext.project.v1.WorkflowConfigurationSpec
-	113, // 71: hcmnext.project.v1.GetWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 71: hcmnext.project.v1.GetWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	59,  // 72: hcmnext.project.v1.GetWorkflowDraftResponse.configuration:type_name -> hcmnext.project.v1.WorkflowConfigurationSpec
-	113, // 73: hcmnext.project.v1.PreviewWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 73: hcmnext.project.v1.PreviewWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	65,  // 74: hcmnext.project.v1.PreviewWorkflowDraftRequest.status_mappings:type_name -> hcmnext.project.v1.WorkflowStatusMigrationMapping
 	66,  // 75: hcmnext.project.v1.PreviewWorkflowDraftRequest.field_mappings:type_name -> hcmnext.project.v1.WorkflowFieldMigrationMapping
 	67,  // 76: hcmnext.project.v1.PreviewWorkflowDraftResponse.diagnostics:type_name -> hcmnext.project.v1.WorkflowDiagnostic
-	113, // 77: hcmnext.project.v1.PublishWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 77: hcmnext.project.v1.PublishWorkflowDraftRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	65,  // 78: hcmnext.project.v1.PublishWorkflowDraftRequest.status_mappings:type_name -> hcmnext.project.v1.WorkflowStatusMigrationMapping
 	66,  // 79: hcmnext.project.v1.PublishWorkflowDraftRequest.field_mappings:type_name -> hcmnext.project.v1.WorkflowFieldMigrationMapping
 	58,  // 80: hcmnext.project.v1.PublishWorkflowDraftResponse.configuration:type_name -> hcmnext.project.v1.WorkflowConfiguration
-	113, // 81: hcmnext.project.v1.GetWorkflowConfigurationRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 81: hcmnext.project.v1.GetWorkflowConfigurationRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	58,  // 82: hcmnext.project.v1.GetWorkflowConfigurationResponse.configuration:type_name -> hcmnext.project.v1.WorkflowConfiguration
 	1,   // 83: hcmnext.project.v1.BoardFilter.priorities:type_name -> hcmnext.project.v1.TaskPriority
 	74,  // 84: hcmnext.project.v1.BoardFilter.enum_filters:type_name -> hcmnext.project.v1.EnumBoardFilter
@@ -8812,135 +8880,136 @@ var file_hcmnext_project_v1_project_service_proto_depIdxs = []int32{
 	75,  // 87: hcmnext.project.v1.BoardView.columns:type_name -> hcmnext.project.v1.BoardColumn
 	6,   // 88: hcmnext.project.v1.BoardView.swimlane_grouping:type_name -> hcmnext.project.v1.BoardSwimlaneGrouping
 	7,   // 89: hcmnext.project.v1.BoardView.order:type_name -> hcmnext.project.v1.BoardOrder
-	113, // 90: hcmnext.project.v1.SaveBoardViewRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 90: hcmnext.project.v1.SaveBoardViewRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
 	76,  // 91: hcmnext.project.v1.SaveBoardViewRequest.view:type_name -> hcmnext.project.v1.BoardView
 	76,  // 92: hcmnext.project.v1.SaveBoardViewResponse.view:type_name -> hcmnext.project.v1.BoardView
-	113, // 93: hcmnext.project.v1.ListBoardViewsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	114, // 94: hcmnext.project.v1.ListBoardViewsRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	114, // 93: hcmnext.project.v1.ListBoardViewsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	115, // 94: hcmnext.project.v1.ListBoardViewsRequest.page:type_name -> hcmnext.common.v1.PageRequest
 	76,  // 95: hcmnext.project.v1.ListBoardViewsResponse.views:type_name -> hcmnext.project.v1.BoardView
-	115, // 96: hcmnext.project.v1.ListBoardViewsResponse.page:type_name -> hcmnext.common.v1.PageResponse
-	113, // 97: hcmnext.project.v1.GetBoardRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	114, // 98: hcmnext.project.v1.GetBoardRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	116, // 96: hcmnext.project.v1.ListBoardViewsResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	114, // 97: hcmnext.project.v1.GetBoardRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	115, // 98: hcmnext.project.v1.GetBoardRequest.page:type_name -> hcmnext.common.v1.PageRequest
 	76,  // 99: hcmnext.project.v1.GetBoardResponse.view:type_name -> hcmnext.project.v1.BoardView
 	33,  // 100: hcmnext.project.v1.GetBoardResponse.tasks:type_name -> hcmnext.project.v1.ProjectTask
-	115, // 101: hcmnext.project.v1.GetBoardResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	116, // 101: hcmnext.project.v1.GetBoardResponse.page:type_name -> hcmnext.common.v1.PageResponse
 	8,   // 102: hcmnext.project.v1.GetBoardResponse.freshness:type_name -> hcmnext.project.v1.BoardFreshness
 	86,  // 103: hcmnext.project.v1.TaskLinkReference.chat_conversation:type_name -> hcmnext.project.v1.ChatConversationLink
 	87,  // 104: hcmnext.project.v1.TaskLinkReference.chat_post:type_name -> hcmnext.project.v1.ChatPostLink
 	88,  // 105: hcmnext.project.v1.TaskLinkReference.deployed_document:type_name -> hcmnext.project.v1.DeployedDocumentLink
 	89,  // 106: hcmnext.project.v1.TaskLinkReference.work_item:type_name -> hcmnext.project.v1.WorkItemLink
 	84,  // 107: hcmnext.project.v1.TaskLinkReference.journey:type_name -> hcmnext.project.v1.JourneyLink
-	86,  // 108: hcmnext.project.v1.ProjectSourceReference.chat_conversation:type_name -> hcmnext.project.v1.ChatConversationLink
-	87,  // 109: hcmnext.project.v1.ProjectSourceReference.chat_post:type_name -> hcmnext.project.v1.ChatPostLink
-	88,  // 110: hcmnext.project.v1.ProjectSourceReference.deployed_document:type_name -> hcmnext.project.v1.DeployedDocumentLink
-	113, // 111: hcmnext.project.v1.AddTaskLinkRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	83,  // 112: hcmnext.project.v1.AddTaskLinkRequest.reference:type_name -> hcmnext.project.v1.TaskLinkReference
-	83,  // 113: hcmnext.project.v1.ResolvedTaskLink.reference:type_name -> hcmnext.project.v1.TaskLinkReference
-	9,   // 114: hcmnext.project.v1.ResolvedTaskLink.state:type_name -> hcmnext.project.v1.TaskLinkResolutionState
-	92,  // 115: hcmnext.project.v1.ResolvedTaskLink.preview:type_name -> hcmnext.project.v1.TaskLinkPreview
-	113, // 116: hcmnext.project.v1.ListTaskLinksByTargetRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	83,  // 117: hcmnext.project.v1.ListTaskLinksByTargetRequest.target:type_name -> hcmnext.project.v1.TaskLinkReference
-	114, // 118: hcmnext.project.v1.ListTaskLinksByTargetRequest.page:type_name -> hcmnext.common.v1.PageRequest
-	95,  // 119: hcmnext.project.v1.ListTaskLinksByTargetResponse.tasks:type_name -> hcmnext.project.v1.LinkedTask
-	113, // 120: hcmnext.project.v1.ListTaskLinksRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	114, // 121: hcmnext.project.v1.ListTaskLinksRequest.page:type_name -> hcmnext.common.v1.PageRequest
-	93,  // 122: hcmnext.project.v1.ListTaskLinksResponse.links:type_name -> hcmnext.project.v1.ResolvedTaskLink
-	115, // 123: hcmnext.project.v1.ListTaskLinksResponse.page:type_name -> hcmnext.common.v1.PageResponse
-	113, // 124: hcmnext.project.v1.RemoveTaskLinkRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	113, // 125: hcmnext.project.v1.AddTaskCommentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	113, // 126: hcmnext.project.v1.EditTaskCommentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	113, // 127: hcmnext.project.v1.DeleteTaskCommentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	116, // 128: hcmnext.project.v1.ProjectTaskComment.created_at:type_name -> google.protobuf.Timestamp
-	116, // 129: hcmnext.project.v1.ProjectTaskComment.updated_at:type_name -> google.protobuf.Timestamp
-	104, // 130: hcmnext.project.v1.AddTaskCommentResponse.comment:type_name -> hcmnext.project.v1.ProjectTaskComment
-	104, // 131: hcmnext.project.v1.EditTaskCommentResponse.comment:type_name -> hcmnext.project.v1.ProjectTaskComment
-	104, // 132: hcmnext.project.v1.DeleteTaskCommentResponse.comment:type_name -> hcmnext.project.v1.ProjectTaskComment
-	113, // 133: hcmnext.project.v1.ListTaskCommentsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	104, // 134: hcmnext.project.v1.ListTaskCommentsResponse.comments:type_name -> hcmnext.project.v1.ProjectTaskComment
-	113, // 135: hcmnext.project.v1.ListTaskActivityRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
-	116, // 136: hcmnext.project.v1.ProjectTaskActivity.occurred_at:type_name -> google.protobuf.Timestamp
-	111, // 137: hcmnext.project.v1.ListTaskActivityResponse.entries:type_name -> hcmnext.project.v1.ProjectTaskActivity
-	11,  // 138: hcmnext.project.v1.ProjectService.GetProjectMembership:input_type -> hcmnext.project.v1.GetProjectMembershipRequest
-	13,  // 139: hcmnext.project.v1.ProjectService.ListProjectMembers:input_type -> hcmnext.project.v1.ListProjectMembersRequest
-	15,  // 140: hcmnext.project.v1.ProjectService.InviteProjectMember:input_type -> hcmnext.project.v1.InviteProjectMemberRequest
-	16,  // 141: hcmnext.project.v1.ProjectService.AcceptProjectInvitation:input_type -> hcmnext.project.v1.AcceptProjectInvitationRequest
-	17,  // 142: hcmnext.project.v1.ProjectService.ChangeProjectMemberRole:input_type -> hcmnext.project.v1.ChangeProjectMemberRoleRequest
-	18,  // 143: hcmnext.project.v1.ProjectService.RevokeProjectMember:input_type -> hcmnext.project.v1.RevokeProjectMemberRequest
-	19,  // 144: hcmnext.project.v1.ProjectService.TransferProjectOwnership:input_type -> hcmnext.project.v1.TransferProjectOwnershipRequest
-	23,  // 145: hcmnext.project.v1.ProjectService.GetProject:input_type -> hcmnext.project.v1.GetProjectRequest
-	25,  // 146: hcmnext.project.v1.ProjectService.ListProjects:input_type -> hcmnext.project.v1.ListProjectsRequest
-	21,  // 147: hcmnext.project.v1.ProjectService.CreateProject:input_type -> hcmnext.project.v1.CreateProjectRequest
-	28,  // 148: hcmnext.project.v1.ProjectService.UpdateProjectSettings:input_type -> hcmnext.project.v1.UpdateProjectSettingsRequest
-	30,  // 149: hcmnext.project.v1.ProjectService.ArchiveProject:input_type -> hcmnext.project.v1.SetProjectLifecycleRequest
-	30,  // 150: hcmnext.project.v1.ProjectService.RestoreProject:input_type -> hcmnext.project.v1.SetProjectLifecycleRequest
-	32,  // 151: hcmnext.project.v1.ProjectService.CreateTask:input_type -> hcmnext.project.v1.CreateTaskRequest
-	36,  // 152: hcmnext.project.v1.ProjectService.GetTask:input_type -> hcmnext.project.v1.GetTaskRequest
-	38,  // 153: hcmnext.project.v1.ProjectService.ListTasks:input_type -> hcmnext.project.v1.ListTasksRequest
-	42,  // 154: hcmnext.project.v1.ProjectService.SearchTasks:input_type -> hcmnext.project.v1.SearchTasksRequest
-	45,  // 155: hcmnext.project.v1.ProjectService.MoveTask:input_type -> hcmnext.project.v1.MoveTaskRequest
-	47,  // 156: hcmnext.project.v1.ProjectService.PatchTask:input_type -> hcmnext.project.v1.PatchTaskRequest
-	49,  // 157: hcmnext.project.v1.ProjectService.ArchiveTask:input_type -> hcmnext.project.v1.ArchiveTaskRequest
-	51,  // 158: hcmnext.project.v1.ProjectService.RestoreTask:input_type -> hcmnext.project.v1.RestoreTaskRequest
-	60,  // 159: hcmnext.project.v1.ProjectService.SaveWorkflowDraft:input_type -> hcmnext.project.v1.SaveWorkflowDraftRequest
-	62,  // 160: hcmnext.project.v1.ProjectService.GetWorkflowDraft:input_type -> hcmnext.project.v1.GetWorkflowDraftRequest
-	64,  // 161: hcmnext.project.v1.ProjectService.PreviewWorkflowDraft:input_type -> hcmnext.project.v1.PreviewWorkflowDraftRequest
-	69,  // 162: hcmnext.project.v1.ProjectService.PublishWorkflowDraft:input_type -> hcmnext.project.v1.PublishWorkflowDraftRequest
-	71,  // 163: hcmnext.project.v1.ProjectService.GetWorkflowConfiguration:input_type -> hcmnext.project.v1.GetWorkflowConfigurationRequest
-	77,  // 164: hcmnext.project.v1.ProjectService.SaveBoardView:input_type -> hcmnext.project.v1.SaveBoardViewRequest
-	79,  // 165: hcmnext.project.v1.ProjectService.ListBoardViews:input_type -> hcmnext.project.v1.ListBoardViewsRequest
-	81,  // 166: hcmnext.project.v1.ProjectService.GetBoard:input_type -> hcmnext.project.v1.GetBoardRequest
-	90,  // 167: hcmnext.project.v1.ProjectService.AddTaskLink:input_type -> hcmnext.project.v1.AddTaskLinkRequest
-	97,  // 168: hcmnext.project.v1.ProjectService.ListTaskLinks:input_type -> hcmnext.project.v1.ListTaskLinksRequest
-	94,  // 169: hcmnext.project.v1.ProjectService.ListTaskLinksByTarget:input_type -> hcmnext.project.v1.ListTaskLinksByTargetRequest
-	99,  // 170: hcmnext.project.v1.ProjectService.RemoveTaskLink:input_type -> hcmnext.project.v1.RemoveTaskLinkRequest
-	101, // 171: hcmnext.project.v1.ProjectService.AddTaskComment:input_type -> hcmnext.project.v1.AddTaskCommentRequest
-	102, // 172: hcmnext.project.v1.ProjectService.EditTaskComment:input_type -> hcmnext.project.v1.EditTaskCommentRequest
-	103, // 173: hcmnext.project.v1.ProjectService.DeleteTaskComment:input_type -> hcmnext.project.v1.DeleteTaskCommentRequest
-	108, // 174: hcmnext.project.v1.ProjectService.ListTaskComments:input_type -> hcmnext.project.v1.ListTaskCommentsRequest
-	110, // 175: hcmnext.project.v1.ProjectService.ListTaskActivity:input_type -> hcmnext.project.v1.ListTaskActivityRequest
-	12,  // 176: hcmnext.project.v1.ProjectService.GetProjectMembership:output_type -> hcmnext.project.v1.GetProjectMembershipResponse
-	14,  // 177: hcmnext.project.v1.ProjectService.ListProjectMembers:output_type -> hcmnext.project.v1.ListProjectMembersResponse
-	20,  // 178: hcmnext.project.v1.ProjectService.InviteProjectMember:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
-	20,  // 179: hcmnext.project.v1.ProjectService.AcceptProjectInvitation:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
-	20,  // 180: hcmnext.project.v1.ProjectService.ChangeProjectMemberRole:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
-	20,  // 181: hcmnext.project.v1.ProjectService.RevokeProjectMember:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
-	20,  // 182: hcmnext.project.v1.ProjectService.TransferProjectOwnership:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
-	24,  // 183: hcmnext.project.v1.ProjectService.GetProject:output_type -> hcmnext.project.v1.GetProjectResponse
-	26,  // 184: hcmnext.project.v1.ProjectService.ListProjects:output_type -> hcmnext.project.v1.ListProjectsResponse
-	27,  // 185: hcmnext.project.v1.ProjectService.CreateProject:output_type -> hcmnext.project.v1.CreateProjectResponse
-	29,  // 186: hcmnext.project.v1.ProjectService.UpdateProjectSettings:output_type -> hcmnext.project.v1.UpdateProjectSettingsResponse
-	31,  // 187: hcmnext.project.v1.ProjectService.ArchiveProject:output_type -> hcmnext.project.v1.SetProjectLifecycleResponse
-	31,  // 188: hcmnext.project.v1.ProjectService.RestoreProject:output_type -> hcmnext.project.v1.SetProjectLifecycleResponse
-	35,  // 189: hcmnext.project.v1.ProjectService.CreateTask:output_type -> hcmnext.project.v1.CreateTaskResponse
-	37,  // 190: hcmnext.project.v1.ProjectService.GetTask:output_type -> hcmnext.project.v1.GetTaskResponse
-	39,  // 191: hcmnext.project.v1.ProjectService.ListTasks:output_type -> hcmnext.project.v1.ListTasksResponse
-	43,  // 192: hcmnext.project.v1.ProjectService.SearchTasks:output_type -> hcmnext.project.v1.SearchTasksResponse
-	46,  // 193: hcmnext.project.v1.ProjectService.MoveTask:output_type -> hcmnext.project.v1.MoveTaskResponse
-	48,  // 194: hcmnext.project.v1.ProjectService.PatchTask:output_type -> hcmnext.project.v1.PatchTaskResponse
-	50,  // 195: hcmnext.project.v1.ProjectService.ArchiveTask:output_type -> hcmnext.project.v1.ArchiveTaskResponse
-	52,  // 196: hcmnext.project.v1.ProjectService.RestoreTask:output_type -> hcmnext.project.v1.RestoreTaskResponse
-	61,  // 197: hcmnext.project.v1.ProjectService.SaveWorkflowDraft:output_type -> hcmnext.project.v1.SaveWorkflowDraftResponse
-	63,  // 198: hcmnext.project.v1.ProjectService.GetWorkflowDraft:output_type -> hcmnext.project.v1.GetWorkflowDraftResponse
-	68,  // 199: hcmnext.project.v1.ProjectService.PreviewWorkflowDraft:output_type -> hcmnext.project.v1.PreviewWorkflowDraftResponse
-	70,  // 200: hcmnext.project.v1.ProjectService.PublishWorkflowDraft:output_type -> hcmnext.project.v1.PublishWorkflowDraftResponse
-	72,  // 201: hcmnext.project.v1.ProjectService.GetWorkflowConfiguration:output_type -> hcmnext.project.v1.GetWorkflowConfigurationResponse
-	78,  // 202: hcmnext.project.v1.ProjectService.SaveBoardView:output_type -> hcmnext.project.v1.SaveBoardViewResponse
-	80,  // 203: hcmnext.project.v1.ProjectService.ListBoardViews:output_type -> hcmnext.project.v1.ListBoardViewsResponse
-	82,  // 204: hcmnext.project.v1.ProjectService.GetBoard:output_type -> hcmnext.project.v1.GetBoardResponse
-	91,  // 205: hcmnext.project.v1.ProjectService.AddTaskLink:output_type -> hcmnext.project.v1.AddTaskLinkResponse
-	98,  // 206: hcmnext.project.v1.ProjectService.ListTaskLinks:output_type -> hcmnext.project.v1.ListTaskLinksResponse
-	96,  // 207: hcmnext.project.v1.ProjectService.ListTaskLinksByTarget:output_type -> hcmnext.project.v1.ListTaskLinksByTargetResponse
-	100, // 208: hcmnext.project.v1.ProjectService.RemoveTaskLink:output_type -> hcmnext.project.v1.RemoveTaskLinkResponse
-	105, // 209: hcmnext.project.v1.ProjectService.AddTaskComment:output_type -> hcmnext.project.v1.AddTaskCommentResponse
-	106, // 210: hcmnext.project.v1.ProjectService.EditTaskComment:output_type -> hcmnext.project.v1.EditTaskCommentResponse
-	107, // 211: hcmnext.project.v1.ProjectService.DeleteTaskComment:output_type -> hcmnext.project.v1.DeleteTaskCommentResponse
-	109, // 212: hcmnext.project.v1.ProjectService.ListTaskComments:output_type -> hcmnext.project.v1.ListTaskCommentsResponse
-	112, // 213: hcmnext.project.v1.ProjectService.ListTaskActivity:output_type -> hcmnext.project.v1.ListTaskActivityResponse
-	176, // [176:214] is the sub-list for method output_type
-	138, // [138:176] is the sub-list for method input_type
-	138, // [138:138] is the sub-list for extension type_name
-	138, // [138:138] is the sub-list for extension extendee
-	0,   // [0:138] is the sub-list for field type_name
+	90,  // 108: hcmnext.project.v1.TaskLinkReference.work_order:type_name -> hcmnext.project.v1.WorkOrderLink
+	86,  // 109: hcmnext.project.v1.ProjectSourceReference.chat_conversation:type_name -> hcmnext.project.v1.ChatConversationLink
+	87,  // 110: hcmnext.project.v1.ProjectSourceReference.chat_post:type_name -> hcmnext.project.v1.ChatPostLink
+	88,  // 111: hcmnext.project.v1.ProjectSourceReference.deployed_document:type_name -> hcmnext.project.v1.DeployedDocumentLink
+	114, // 112: hcmnext.project.v1.AddTaskLinkRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	83,  // 113: hcmnext.project.v1.AddTaskLinkRequest.reference:type_name -> hcmnext.project.v1.TaskLinkReference
+	83,  // 114: hcmnext.project.v1.ResolvedTaskLink.reference:type_name -> hcmnext.project.v1.TaskLinkReference
+	9,   // 115: hcmnext.project.v1.ResolvedTaskLink.state:type_name -> hcmnext.project.v1.TaskLinkResolutionState
+	93,  // 116: hcmnext.project.v1.ResolvedTaskLink.preview:type_name -> hcmnext.project.v1.TaskLinkPreview
+	114, // 117: hcmnext.project.v1.ListTaskLinksByTargetRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	83,  // 118: hcmnext.project.v1.ListTaskLinksByTargetRequest.target:type_name -> hcmnext.project.v1.TaskLinkReference
+	115, // 119: hcmnext.project.v1.ListTaskLinksByTargetRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	96,  // 120: hcmnext.project.v1.ListTaskLinksByTargetResponse.tasks:type_name -> hcmnext.project.v1.LinkedTask
+	114, // 121: hcmnext.project.v1.ListTaskLinksRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	115, // 122: hcmnext.project.v1.ListTaskLinksRequest.page:type_name -> hcmnext.common.v1.PageRequest
+	94,  // 123: hcmnext.project.v1.ListTaskLinksResponse.links:type_name -> hcmnext.project.v1.ResolvedTaskLink
+	116, // 124: hcmnext.project.v1.ListTaskLinksResponse.page:type_name -> hcmnext.common.v1.PageResponse
+	114, // 125: hcmnext.project.v1.RemoveTaskLinkRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 126: hcmnext.project.v1.AddTaskCommentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 127: hcmnext.project.v1.EditTaskCommentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	114, // 128: hcmnext.project.v1.DeleteTaskCommentRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	117, // 129: hcmnext.project.v1.ProjectTaskComment.created_at:type_name -> google.protobuf.Timestamp
+	117, // 130: hcmnext.project.v1.ProjectTaskComment.updated_at:type_name -> google.protobuf.Timestamp
+	105, // 131: hcmnext.project.v1.AddTaskCommentResponse.comment:type_name -> hcmnext.project.v1.ProjectTaskComment
+	105, // 132: hcmnext.project.v1.EditTaskCommentResponse.comment:type_name -> hcmnext.project.v1.ProjectTaskComment
+	105, // 133: hcmnext.project.v1.DeleteTaskCommentResponse.comment:type_name -> hcmnext.project.v1.ProjectTaskComment
+	114, // 134: hcmnext.project.v1.ListTaskCommentsRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	105, // 135: hcmnext.project.v1.ListTaskCommentsResponse.comments:type_name -> hcmnext.project.v1.ProjectTaskComment
+	114, // 136: hcmnext.project.v1.ListTaskActivityRequest.scope:type_name -> hcmnext.common.v1.ScopeContext
+	117, // 137: hcmnext.project.v1.ProjectTaskActivity.occurred_at:type_name -> google.protobuf.Timestamp
+	112, // 138: hcmnext.project.v1.ListTaskActivityResponse.entries:type_name -> hcmnext.project.v1.ProjectTaskActivity
+	11,  // 139: hcmnext.project.v1.ProjectService.GetProjectMembership:input_type -> hcmnext.project.v1.GetProjectMembershipRequest
+	13,  // 140: hcmnext.project.v1.ProjectService.ListProjectMembers:input_type -> hcmnext.project.v1.ListProjectMembersRequest
+	15,  // 141: hcmnext.project.v1.ProjectService.InviteProjectMember:input_type -> hcmnext.project.v1.InviteProjectMemberRequest
+	16,  // 142: hcmnext.project.v1.ProjectService.AcceptProjectInvitation:input_type -> hcmnext.project.v1.AcceptProjectInvitationRequest
+	17,  // 143: hcmnext.project.v1.ProjectService.ChangeProjectMemberRole:input_type -> hcmnext.project.v1.ChangeProjectMemberRoleRequest
+	18,  // 144: hcmnext.project.v1.ProjectService.RevokeProjectMember:input_type -> hcmnext.project.v1.RevokeProjectMemberRequest
+	19,  // 145: hcmnext.project.v1.ProjectService.TransferProjectOwnership:input_type -> hcmnext.project.v1.TransferProjectOwnershipRequest
+	23,  // 146: hcmnext.project.v1.ProjectService.GetProject:input_type -> hcmnext.project.v1.GetProjectRequest
+	25,  // 147: hcmnext.project.v1.ProjectService.ListProjects:input_type -> hcmnext.project.v1.ListProjectsRequest
+	21,  // 148: hcmnext.project.v1.ProjectService.CreateProject:input_type -> hcmnext.project.v1.CreateProjectRequest
+	28,  // 149: hcmnext.project.v1.ProjectService.UpdateProjectSettings:input_type -> hcmnext.project.v1.UpdateProjectSettingsRequest
+	30,  // 150: hcmnext.project.v1.ProjectService.ArchiveProject:input_type -> hcmnext.project.v1.SetProjectLifecycleRequest
+	30,  // 151: hcmnext.project.v1.ProjectService.RestoreProject:input_type -> hcmnext.project.v1.SetProjectLifecycleRequest
+	32,  // 152: hcmnext.project.v1.ProjectService.CreateTask:input_type -> hcmnext.project.v1.CreateTaskRequest
+	36,  // 153: hcmnext.project.v1.ProjectService.GetTask:input_type -> hcmnext.project.v1.GetTaskRequest
+	38,  // 154: hcmnext.project.v1.ProjectService.ListTasks:input_type -> hcmnext.project.v1.ListTasksRequest
+	42,  // 155: hcmnext.project.v1.ProjectService.SearchTasks:input_type -> hcmnext.project.v1.SearchTasksRequest
+	45,  // 156: hcmnext.project.v1.ProjectService.MoveTask:input_type -> hcmnext.project.v1.MoveTaskRequest
+	47,  // 157: hcmnext.project.v1.ProjectService.PatchTask:input_type -> hcmnext.project.v1.PatchTaskRequest
+	49,  // 158: hcmnext.project.v1.ProjectService.ArchiveTask:input_type -> hcmnext.project.v1.ArchiveTaskRequest
+	51,  // 159: hcmnext.project.v1.ProjectService.RestoreTask:input_type -> hcmnext.project.v1.RestoreTaskRequest
+	60,  // 160: hcmnext.project.v1.ProjectService.SaveWorkflowDraft:input_type -> hcmnext.project.v1.SaveWorkflowDraftRequest
+	62,  // 161: hcmnext.project.v1.ProjectService.GetWorkflowDraft:input_type -> hcmnext.project.v1.GetWorkflowDraftRequest
+	64,  // 162: hcmnext.project.v1.ProjectService.PreviewWorkflowDraft:input_type -> hcmnext.project.v1.PreviewWorkflowDraftRequest
+	69,  // 163: hcmnext.project.v1.ProjectService.PublishWorkflowDraft:input_type -> hcmnext.project.v1.PublishWorkflowDraftRequest
+	71,  // 164: hcmnext.project.v1.ProjectService.GetWorkflowConfiguration:input_type -> hcmnext.project.v1.GetWorkflowConfigurationRequest
+	77,  // 165: hcmnext.project.v1.ProjectService.SaveBoardView:input_type -> hcmnext.project.v1.SaveBoardViewRequest
+	79,  // 166: hcmnext.project.v1.ProjectService.ListBoardViews:input_type -> hcmnext.project.v1.ListBoardViewsRequest
+	81,  // 167: hcmnext.project.v1.ProjectService.GetBoard:input_type -> hcmnext.project.v1.GetBoardRequest
+	91,  // 168: hcmnext.project.v1.ProjectService.AddTaskLink:input_type -> hcmnext.project.v1.AddTaskLinkRequest
+	98,  // 169: hcmnext.project.v1.ProjectService.ListTaskLinks:input_type -> hcmnext.project.v1.ListTaskLinksRequest
+	95,  // 170: hcmnext.project.v1.ProjectService.ListTaskLinksByTarget:input_type -> hcmnext.project.v1.ListTaskLinksByTargetRequest
+	100, // 171: hcmnext.project.v1.ProjectService.RemoveTaskLink:input_type -> hcmnext.project.v1.RemoveTaskLinkRequest
+	102, // 172: hcmnext.project.v1.ProjectService.AddTaskComment:input_type -> hcmnext.project.v1.AddTaskCommentRequest
+	103, // 173: hcmnext.project.v1.ProjectService.EditTaskComment:input_type -> hcmnext.project.v1.EditTaskCommentRequest
+	104, // 174: hcmnext.project.v1.ProjectService.DeleteTaskComment:input_type -> hcmnext.project.v1.DeleteTaskCommentRequest
+	109, // 175: hcmnext.project.v1.ProjectService.ListTaskComments:input_type -> hcmnext.project.v1.ListTaskCommentsRequest
+	111, // 176: hcmnext.project.v1.ProjectService.ListTaskActivity:input_type -> hcmnext.project.v1.ListTaskActivityRequest
+	12,  // 177: hcmnext.project.v1.ProjectService.GetProjectMembership:output_type -> hcmnext.project.v1.GetProjectMembershipResponse
+	14,  // 178: hcmnext.project.v1.ProjectService.ListProjectMembers:output_type -> hcmnext.project.v1.ListProjectMembersResponse
+	20,  // 179: hcmnext.project.v1.ProjectService.InviteProjectMember:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
+	20,  // 180: hcmnext.project.v1.ProjectService.AcceptProjectInvitation:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
+	20,  // 181: hcmnext.project.v1.ProjectService.ChangeProjectMemberRole:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
+	20,  // 182: hcmnext.project.v1.ProjectService.RevokeProjectMember:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
+	20,  // 183: hcmnext.project.v1.ProjectService.TransferProjectOwnership:output_type -> hcmnext.project.v1.MutateProjectMembershipResponse
+	24,  // 184: hcmnext.project.v1.ProjectService.GetProject:output_type -> hcmnext.project.v1.GetProjectResponse
+	26,  // 185: hcmnext.project.v1.ProjectService.ListProjects:output_type -> hcmnext.project.v1.ListProjectsResponse
+	27,  // 186: hcmnext.project.v1.ProjectService.CreateProject:output_type -> hcmnext.project.v1.CreateProjectResponse
+	29,  // 187: hcmnext.project.v1.ProjectService.UpdateProjectSettings:output_type -> hcmnext.project.v1.UpdateProjectSettingsResponse
+	31,  // 188: hcmnext.project.v1.ProjectService.ArchiveProject:output_type -> hcmnext.project.v1.SetProjectLifecycleResponse
+	31,  // 189: hcmnext.project.v1.ProjectService.RestoreProject:output_type -> hcmnext.project.v1.SetProjectLifecycleResponse
+	35,  // 190: hcmnext.project.v1.ProjectService.CreateTask:output_type -> hcmnext.project.v1.CreateTaskResponse
+	37,  // 191: hcmnext.project.v1.ProjectService.GetTask:output_type -> hcmnext.project.v1.GetTaskResponse
+	39,  // 192: hcmnext.project.v1.ProjectService.ListTasks:output_type -> hcmnext.project.v1.ListTasksResponse
+	43,  // 193: hcmnext.project.v1.ProjectService.SearchTasks:output_type -> hcmnext.project.v1.SearchTasksResponse
+	46,  // 194: hcmnext.project.v1.ProjectService.MoveTask:output_type -> hcmnext.project.v1.MoveTaskResponse
+	48,  // 195: hcmnext.project.v1.ProjectService.PatchTask:output_type -> hcmnext.project.v1.PatchTaskResponse
+	50,  // 196: hcmnext.project.v1.ProjectService.ArchiveTask:output_type -> hcmnext.project.v1.ArchiveTaskResponse
+	52,  // 197: hcmnext.project.v1.ProjectService.RestoreTask:output_type -> hcmnext.project.v1.RestoreTaskResponse
+	61,  // 198: hcmnext.project.v1.ProjectService.SaveWorkflowDraft:output_type -> hcmnext.project.v1.SaveWorkflowDraftResponse
+	63,  // 199: hcmnext.project.v1.ProjectService.GetWorkflowDraft:output_type -> hcmnext.project.v1.GetWorkflowDraftResponse
+	68,  // 200: hcmnext.project.v1.ProjectService.PreviewWorkflowDraft:output_type -> hcmnext.project.v1.PreviewWorkflowDraftResponse
+	70,  // 201: hcmnext.project.v1.ProjectService.PublishWorkflowDraft:output_type -> hcmnext.project.v1.PublishWorkflowDraftResponse
+	72,  // 202: hcmnext.project.v1.ProjectService.GetWorkflowConfiguration:output_type -> hcmnext.project.v1.GetWorkflowConfigurationResponse
+	78,  // 203: hcmnext.project.v1.ProjectService.SaveBoardView:output_type -> hcmnext.project.v1.SaveBoardViewResponse
+	80,  // 204: hcmnext.project.v1.ProjectService.ListBoardViews:output_type -> hcmnext.project.v1.ListBoardViewsResponse
+	82,  // 205: hcmnext.project.v1.ProjectService.GetBoard:output_type -> hcmnext.project.v1.GetBoardResponse
+	92,  // 206: hcmnext.project.v1.ProjectService.AddTaskLink:output_type -> hcmnext.project.v1.AddTaskLinkResponse
+	99,  // 207: hcmnext.project.v1.ProjectService.ListTaskLinks:output_type -> hcmnext.project.v1.ListTaskLinksResponse
+	97,  // 208: hcmnext.project.v1.ProjectService.ListTaskLinksByTarget:output_type -> hcmnext.project.v1.ListTaskLinksByTargetResponse
+	101, // 209: hcmnext.project.v1.ProjectService.RemoveTaskLink:output_type -> hcmnext.project.v1.RemoveTaskLinkResponse
+	106, // 210: hcmnext.project.v1.ProjectService.AddTaskComment:output_type -> hcmnext.project.v1.AddTaskCommentResponse
+	107, // 211: hcmnext.project.v1.ProjectService.EditTaskComment:output_type -> hcmnext.project.v1.EditTaskCommentResponse
+	108, // 212: hcmnext.project.v1.ProjectService.DeleteTaskComment:output_type -> hcmnext.project.v1.DeleteTaskCommentResponse
+	110, // 213: hcmnext.project.v1.ProjectService.ListTaskComments:output_type -> hcmnext.project.v1.ListTaskCommentsResponse
+	113, // 214: hcmnext.project.v1.ProjectService.ListTaskActivity:output_type -> hcmnext.project.v1.ListTaskActivityResponse
+	177, // [177:215] is the sub-list for method output_type
+	139, // [139:177] is the sub-list for method input_type
+	139, // [139:139] is the sub-list for extension type_name
+	139, // [139:139] is the sub-list for extension extendee
+	0,   // [0:139] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_project_v1_project_service_proto_init() }
@@ -8965,6 +9034,7 @@ func file_hcmnext_project_v1_project_service_proto_init() {
 		(*TaskLinkReference_DeployedDocument)(nil),
 		(*TaskLinkReference_WorkItem)(nil),
 		(*TaskLinkReference_Journey)(nil),
+		(*TaskLinkReference_WorkOrder)(nil),
 	}
 	file_hcmnext_project_v1_project_service_proto_msgTypes[75].OneofWrappers = []any{
 		(*ProjectSourceReference_ChatConversation)(nil),
@@ -8977,7 +9047,7 @@ func file_hcmnext_project_v1_project_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_project_v1_project_service_proto_rawDesc), len(file_hcmnext_project_v1_project_service_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   103,
+			NumMessages:   104,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
