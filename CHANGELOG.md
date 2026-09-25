@@ -1,6 +1,7 @@
 ## 2026-09-25 — project backend domain foundation
 
 - Added project and task domain rules, membership capabilities, activity sanitization, board grouping and paging, typed links, and configurable workflow policies. The six focused domain test packages and vet pass locally; each package clears the 70% coverage floor. The broader PM delivery remains open while persistence, transport, and live integration are committed separately.
+- Added tenant-scoped PostgreSQL project, task, membership, workflow, board-view, comment, link, and outbox stores with migrations and a separate project disposition registry. The seven store package tests and vet pass locally; their coverage is 74.8%–80.2%. A restricted-owner migration test was updated for the link tombstone migration and passes.
 
 ## 2026-09-24 (depth vocabulary gate and scoped tooling repairs)
 

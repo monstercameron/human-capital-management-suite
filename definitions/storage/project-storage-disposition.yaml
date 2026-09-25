@@ -1,0 +1,285 @@
+# Project-owned storage in a separate schema and bounded pool (PM-003).
+# The core storage registry scans only root migrations and does not cover
+# this package-local migration tree. Project tables have tenant RLS even
+# though the first deployment shares the core PostgreSQL instance.
+version: 1
+module: github.com/monstercameron/human-capital-management-suite
+database: projects
+sources:
+  - internal/data/projectstore/migrations/00001_projects.sql
+  - internal/data/projectstore/migrations/00002_project_config.sql
+  - internal/data/projectstore/migrations/00003_project_views.sql
+  - internal/data/projectstore/migrations/00004_project_links.sql
+  - internal/data/projectstore/migrations/00005_project_membership.sql
+  - internal/data/projectstore/migrations/00006_project_comments.sql
+  - internal/data/projectstore/migrations/00007_project_comment_idempotency.sql
+  - internal/data/projectstore/migrations/00008_unified_task_activity.sql
+  - internal/data/projectstore/migrations/00009_project_outbox_contract.sql
+  - internal/data/projectstore/migrations/00010_project_task_link_tombstone.sql
+  - internal/data/projectstore/migrations/00011_task_planning_fields.sql
+  - internal/data/projectstore/migrations/00012_task_link_journey.sql
+  - internal/data/projectstore/migrations/00013_task_link_target_index.sql
+
+defaults:
+  plane: DATA
+  data_role: CONTROL
+  isolation_package: internal/data/tenancy
+  rls_policy: tenant_isolation
+  rls_required: true
+  retention_class: OPERATIONAL
+  encryption_class: PLATFORM_MANAGED
+
+tables:
+  - table: project
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00001_projects.sql
+    owner_package: internal/data/projectstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_task
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00001_projects.sql
+    owner_package: internal/data/projectstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_activity
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00001_projects.sql
+    owner_package: internal/data/projectstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: project_outbox
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00001_projects.sql
+    owner_package: internal/data/projectstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: project_outbox_receipt
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00001_projects.sql
+    owner_package: internal/data/projectstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: project_outbox_cursor
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00001_projects.sql
+    owner_package: internal/data/projectstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+
+  - table: project_idempotency
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00001_projects.sql
+    owner_package: internal/data/projectstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_workflow_draft
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00002_project_config.sql
+    owner_package: internal/data/projectconfigstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_workflow_version
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00002_project_config.sql
+    owner_package: internal/data/projectconfigstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: project_workflow_current
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00002_project_config.sql
+    owner_package: internal/data/projectconfigstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_workflow_idempotency
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00002_project_config.sql
+    owner_package: internal/data/projectconfigstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_board_view
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00003_project_views.sql
+    owner_package: internal/data/projectviewstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_task_link
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00004_project_links.sql
+    owner_package: internal/data/projectlinkstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_membership_clock
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00005_project_membership.sql
+    owner_package: internal/data/projectmemberstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_membership
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00005_project_membership.sql
+    owner_package: internal/data/projectmemberstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_membership_event
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00005_project_membership.sql
+    owner_package: internal/data/projectmemberstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: project_membership_idempotency
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00005_project_membership.sql
+    owner_package: internal/data/projectmemberstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: project_task_comment
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00006_project_comments.sql
+    owner_package: internal/data/projectcommentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: project_task_comment_revision
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00006_project_comments.sql
+    owner_package: internal/data/projectcommentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: project_task_comment_activity
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00006_project_comments.sql
+    owner_package: internal/data/projectcommentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: project_task_comment_idempotency
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/projectstore/migrations/00007_project_comment_idempotency.sql
+    owner_package: internal/data/projectcommentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
