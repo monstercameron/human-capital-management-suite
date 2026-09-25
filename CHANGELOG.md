@@ -1,3 +1,7 @@
+## 2026-09-25 — project backend domain foundation
+
+- Added project and task domain rules, membership capabilities, activity sanitization, board grouping and paging, typed links, and configurable workflow policies. The six focused domain test packages and vet pass locally; each package clears the 70% coverage floor. The broader PM delivery remains open while persistence, transport, and live integration are committed separately.
+
 ## 2026-09-24 (depth vocabulary gate and scoped tooling repairs)
 
 - Completed GOV-005 by assigning the library checker to Platform Engineering, adding its live-corpus checks to CI, and recording passing local package, plancheck, traceability, and reachability results. The commands reported success before Windows denied cleanup of temporary executables; no GitHub CI run was observed.
