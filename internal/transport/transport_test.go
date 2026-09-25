@@ -112,6 +112,26 @@ func TestNewLogRecord(t *testing.T) {
 	}
 }
 
+// TestNewLogRecordUnclassifiedErrorIsNeverLoggedAsOK pins the fix for a request
+// log that recorded a real failure as "outcome":"OK". CodeUnspecified is both
+// the zero value of [envelope.Code] (no error at all) and the code an
+// unclassified internal error projects to (see callErr's fallback in
+// internal/transport/chat), so Succeeded must not infer success from Code
+// alone: it has to come from whether NewLogRecord was handed an error.
+func TestNewLogRecordUnclassifiedErrorIsNeverLoggedAsOK(t *testing.T) {
+	err := envelope.New(envelope.CodeUnspecified, "chat.internal_error", "the chat operation could not be completed")
+	rec := NewLogRecord("/m", KindGRPC, nil, "req-unclassified", time.Millisecond, err)
+	if rec.Code != envelope.CodeUnspecified {
+		t.Fatalf("code = %v, want CodeUnspecified", rec.Code)
+	}
+	if rec.Succeeded() {
+		t.Fatal("an unclassified internal error must not be logged as a success")
+	}
+	if !rec.Failed {
+		t.Fatal("Failed must be set for a non-nil error, independent of Code")
+	}
+}
+
 func TestLoggerFunc(t *testing.T) {
 	called := false
 	var f LoggerFunc = func(r LogRecord) { called = true }

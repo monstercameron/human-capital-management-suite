@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -158,7 +159,7 @@ func TestTodo_WEB_033_Browser(t *testing.T) {
 			if !strings.Contains(doc, `<script type="application/json" id="`+JourneyConfigElementID+`">`) || !strings.Contains(doc, "<script>"+journeyLoaderSource+"</script>") {
 				t.Fatal("shell did not preserve the JSON island and byte-for-byte loader")
 			}
-			if strings.Contains(doc, ` style=`) || strings.Contains(doc, " on") {
+			if strings.Contains(doc, ` style=`) || regexp.MustCompile(`\s+on[a-z]+\s*=`).MatchString(doc) {
 				t.Fatal("shell emitted an inline style or event-handler attribute")
 			}
 		})

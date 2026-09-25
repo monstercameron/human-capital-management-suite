@@ -72,7 +72,8 @@ func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Confi
 		chatBrowser.mutate(func(m *chatui.Model) { m.EmbedOrigin = origin.String() })
 	}
 	configureChatRecipientBrowser(conn, cfg)
-	configureChatDocuments(conn)
+	configureChatDocuments(conn, cfg)
+	configureChatProjects(conn)
 }
 
 // loadChatDirectory reads the worker directory once per session.
@@ -283,6 +284,20 @@ func loadMoreChatSearchChannels(cfg journeyclient.Config) {
 // way to draw.
 var chatRerender func()
 
+// chatNarrowViewport reports the phone layout the chat stylesheet switches
+// on (@media(max-width:760px), styles.go). Used only to decide the rail's
+// starting visibility (C-5); never for anything a screen reader or a
+// keyboard-only reader depends on, since matchMedia reports the viewport
+// this page happens to run in, not how the reader is reading it.
+func chatNarrowViewport() bool {
+	window := js.Global().Get("matchMedia")
+	if window.Type() != js.TypeFunction {
+		return false
+	}
+	result := js.Global().Call("matchMedia", "(max-width: 760px)")
+	return result.Truthy() && result.Get("matches").Truthy()
+}
+
 func refreshChatRoute() {
 	if chatRerender != nil {
 		chatRerender()
@@ -400,6 +415,11 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	callCtx := chatRPCContext(ctx, cfg)
 	list, err := client.ListConversations(callCtx, &chatv1.ListConversationsRequest{TenantId: cfg.Tenant, PageSize: 100, IncludeDiscoverable: true})
 	if err != nil {
+		if ctx.Err() != nil || !chatBrowser.generationActive(generation) {
+			// A superseded route read must not paint an error over the room
+			// the URL selected while this request was in flight.
+			return chatBrowser.snapshot(), nil
+		}
 		message := chatLoadFailureMessage("your conversations", err)
 		chatBrowser.setLoadError(message)
 		model := chatBrowser.mutate(func(model *chatui.Model) {
@@ -431,6 +451,7 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	}
 
 	model := chatBrowser.snapshot()
+	previousState, previousError := model.State, model.Error
 	model.State, model.Error = chatui.StateReady, ""
 	model.CurrentUser, model.Locale = cfg.Subject, cfg.Locale
 	model.PhotoURLs = chatBrowser.photoSnapshot()
@@ -459,8 +480,29 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 			previewAccess = &previewCopy
 		}
 	}
+	fragmentID, _ := currentChatChannelFragment()
+	if model.SelectedID == "" && fragmentID != "" {
+		// The URL can name a room absent from this reader's listing. Keep its
+		// pending or unavailable view through route revalidation; selecting
+		// the first listed room here would put that room under the wrong URL.
+		model.SelectedID = fragmentID
+		if previous == fragmentID && previousState == chatui.StateError {
+			model.State, model.Error = previousState, previousError
+		} else {
+			model.State = chatui.StateLoading
+		}
+	}
 	if model.SelectedID == "" && len(conversations) > 0 {
 		model.SelectedID = conversations[0].ID
+		// C-5: this is a landing, not a navigation -- nothing in the route
+		// asked for this room, the first conversation was picked for the
+		// reader. On a phone the room and the rail cannot both fit
+		// (.chat-rail hides under 760px unless the sidebar is open), so
+		// landing straight in a room leaves the rail unreachable without
+		// already knowing to tap back. Start on the list instead.
+		if chatNarrowViewport() {
+			model.SidebarOpen = true
+		}
 	}
 	if model.SelectedID != previous {
 		model.Messages, model.HasOlder = nil, false
@@ -473,7 +515,17 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	// ListPosts walk, a ListPins read and a reaction fan-out.
 	streaming := chatBrowser.streamLive(model.SelectedID) && model.SelectedID == previous && len(model.Messages) > 0
 	reloaded := false
-	if model.SelectedID != "" && model.Search == "" && !streaming {
+	selectedListed := false
+	for _, conversation := range model.Conversations {
+		if conversation.ID == model.SelectedID {
+			selectedListed = true
+			break
+		}
+	}
+	if model.PreviewConversation != nil && model.PreviewConversation.ID == model.SelectedID {
+		selectedListed = true
+	}
+	if model.SelectedID != "" && selectedListed && model.Search == "" && !streaming {
 		reloaded = true
 		loaded, postErr := loadChatPosts(callCtx, client, cfg, &model, directory)
 		if postErr != nil {
@@ -857,12 +909,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			refreshChatRoute()
 		},
 		SelectConversation: func(id string) {
-			navigation := chatBrowser.snapshot()
-			navigation.SelectedID = id
-			navigation.Search = ""
-			navigation.ShowThread, navigation.ThreadParentID = false, ""
-			navigation.FocusMessageID = ""
-			chatHistory.push(navigation)
+			pushChatHistoryForSelection(id)
 			openChatConversation(cfg, id)
 		},
 		OpenSearchMessage: func(conversationID, postID string, sequence uint64) {
@@ -949,10 +996,20 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 					if conversation.GetId() != "" && !chatJoinedSet(model.Conversations)[conversation.GetId()] {
 						model.Conversations = append(model.Conversations, chatConversation(conversation))
 					}
+					// CHAT-02: the rail renders from model.Sections once any
+					// exist (chatui/render.go:rail), and appending only to
+					// Conversations left a freshly created room in the model
+					// but nowhere any section could find it -- invisible in
+					// the rail, and dropped from the very next sidebar write.
+					ensureRecipientSections(model)
 				})
 				chatActionSucceeded("Conversation created")
 				invalidateChatRecipientProjection()
 				if id := conversation.GetId(); id != "" {
+					// NAV: the new room was selected without ever reaching the
+					// address bar, so the URL kept the previous room's
+					// #channel= and a reload returned there instead.
+					pushChatHistoryForSelection(id)
 					openChatConversation(active, id)
 					return
 				}
@@ -1186,6 +1243,15 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			chatui.FocusChannelPoll(conversationID)
 		},
 		LoadMembers: func() { go loadChatMembers(cfg) },
+		OpenAddMembers: func() {
+			chatBrowser.mutate(func(model *chatui.Model) { model.ShowAddMembers, model.AddMembersError = true, "" })
+			refreshChatRoute()
+		},
+		CloseAddMembers: func() {
+			chatBrowser.mutate(func(model *chatui.Model) { model.ShowAddMembers, model.AddMembersError = false, "" })
+			refreshChatRoute()
+		},
+		AddMembers: func(subjectIDs []string) { go addChatMembers(cfg, subjectIDs) },
 		BeginEdit: func(postID string) {
 			chatBrowser.mutate(func(model *chatui.Model) { model.EditingID = postID })
 			refreshChatRoute()
@@ -1193,6 +1259,18 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 		SetEditDraft: func(postID, body string) {
 			// Local only, for the same reason as DraftChanged.
 			chatBrowser.setEditDraft(postID, body)
+		},
+		// CHAT-01: Cancel and Escape both route through this (render.go's
+		// "cancel-edit" action) but it was never wired, so both silently did
+		// nothing.
+		CancelEdit: func() {
+			model := chatBrowser.snapshot()
+			if model.EditingID == "" {
+				return
+			}
+			chatBrowser.clearEditDraft(model.EditingID)
+			chatBrowser.mutate(func(m *chatui.Model) { m.EditingID = "" })
+			refreshChatRoute()
 		},
 		EditMessage: func(postID, body string, revision uint64) {
 			go func() {
@@ -1296,6 +1374,14 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 		},
 		SavePreferences: func(prefs chatui.Preferences) { saveChatNotificationPreference(cfg, prefs) },
 		Retry: func() {
+			// CHAT-02: a sidebar-save failure sets this so Try again retries
+			// that write instead of the stream resubscribe below -- the two
+			// share one notice-level Retry slot, and a sidebar failure never
+			// touched the stream or the loaded conversation.
+			if retry := takePendingSidebarRetry(); retry != nil {
+				retry()
+				return
+			}
 			go func() {
 				// With a room open, Try again means "make this live again":
 				// read what was missed by cursor and resubscribe. Reloading the
@@ -1390,6 +1476,23 @@ func sendChatMessage(cfg journeyclient.Config, conversationID, body string) {
 // stream is cancelled, the posts are read, and a new stream is opened. Both
 // SelectConversation and a just-created room go through it, so a new room is
 // never left unselected with its stream unopened.
+// pushChatHistoryForSelection puts id in the address bar the same way an
+// ordinary rail click does (SelectConversation), before opening it. NAV live
+// finding: creating a channel, creating a DM/group, and self-joining from
+// Browse all select the new room by calling openChatConversation directly --
+// openChatConversationAt itself must never touch history (chat_history_wasm.go's
+// popstate restore calls it too, and pushing there would re-push on every
+// restore) -- so each of those call sites is responsible for pushing first,
+// exactly like SelectConversation already does, and none of them did.
+func pushChatHistoryForSelection(id string) {
+	navigation := chatBrowser.snapshot()
+	navigation.SelectedID = id
+	navigation.Search = ""
+	navigation.ShowThread, navigation.ThreadParentID = false, ""
+	navigation.FocusMessageID = ""
+	chatHistory.push(navigation)
+}
+
 func openChatConversation(cfg journeyclient.Config, id string) {
 	openChatConversationAt(cfg, id, 0, "")
 }
@@ -1956,6 +2059,64 @@ func loadChatMembers(cfg journeyclient.Config) {
 			refreshChatRoute()
 		}
 	})
+}
+
+// addChatMembers admits each selected person to the open conversation
+// (ACCESS-01), the same AddMembership call the self-join flow uses. One
+// person's failure does not stop the rest; the member list is reloaded
+// afterward so the dialog's picks and the pane's roster never fall out of
+// sync, and the dialog stays open on an error so the reader can see it.
+func addChatMembers(cfg journeyclient.Config, subjectIDs []string) {
+	client := chatBrowser.conversationClient()
+	conversation := chatBrowser.selectedID()
+	if client == nil || conversation == "" || len(subjectIDs) == 0 {
+		return
+	}
+	active := chatBrowser.config(cfg)
+	chatBrowser.mutate(func(model *chatui.Model) { model.AddMembersPending = true })
+	refreshChatRoute()
+	var failed int
+	var lastErr error
+	for _, subjectID := range subjectIDs {
+		if subjectID == "" {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		_, err := client.AddMembership(chatRPCContext(ctx, active), &chatv1.AddMembershipRequest{
+			Membership: &chatv1.Membership{
+				ConversationId:    conversation,
+				HomeTenantId:      active.Tenant,
+				SubjectId:         subjectID,
+				Role:              chatv1.MembershipRole_MEMBERSHIP_ROLE_MEMBER,
+				HistoryVisibility: chatv1.ReadHistoryFrom_READ_HISTORY_FROM_FULL,
+			},
+		})
+		cancel()
+		if err != nil {
+			failed++
+			lastErr = err
+		}
+	}
+	current := chatBrowser.config(journeyclient.Config{})
+	if current.Tenant != active.Tenant || current.Subject != active.Subject || current.Bearer != active.Bearer || chatBrowser.selectedID() != conversation {
+		return
+	}
+	if failed > 0 {
+		message := chatLoadFailureMessage("add everyone you picked", lastErr)
+		if failed < len(subjectIDs) {
+			message = chatLoadFailureMessage("add everyone you picked (some were added)", lastErr)
+		}
+		chatBrowser.mutate(func(model *chatui.Model) { model.AddMembersPending, model.AddMembersError = false, message })
+		refreshChatRoute()
+		go loadChatMembers(cfg)
+		return
+	}
+	chatBrowser.mutate(func(model *chatui.Model) {
+		model.AddMembersPending, model.ShowAddMembers, model.AddMembersError = false, false, ""
+	})
+	chatActionSucceeded("Added to the conversation")
+	invalidateChatRecipientProjection()
+	go loadChatMembers(cfg)
 }
 
 // saveChatNotificationPreference is the reachable UpdatePreferences path.

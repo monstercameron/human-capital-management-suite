@@ -19,6 +19,7 @@ const (
 	assetJourneyWasm    = "journey.wasm"
 	assetWasmExec       = "wasm_exec.js"
 	assetHarborcareLogo = "harborcare-logo.svg"
+	assetIronridgeLogo  = "ironridge-logo.svg"
 )
 
 // assetsFS is the embedded bundle directory.
@@ -93,7 +94,7 @@ func compressedAsset(name string) ([]byte, bool) {
 // source originals and legacy fixtures cannot enter the release manifest.
 func FrontendAssetContentType(name string) (string, bool) {
 	switch name {
-	case assetJourneyWasm, assetWasmExec, assetHarborcareLogo:
+	case assetJourneyWasm, assetWasmExec, assetHarborcareLogo, assetIronridgeLogo:
 	default:
 		if !isSeedPhotoProxy(name) {
 			return "", false

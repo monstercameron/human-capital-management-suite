@@ -103,6 +103,10 @@ tags:
     description: PositionService exposes the read-only position object and occupancy views to the authenticated workspace. Tenant, viewer, and effective/known-at coordinates come from the admitted server context and clock; the client supplies only the opaque RevisionRef previously disclosed to it.
     x-hcmnext-service: hcmnext.position.v1.PositionService
     x-hcmnext-registered: false
+  - name: ProjectService
+    description: ProjectService exposes bounded, tenant-scoped project work. The caller's principal and tenant authority are derived from authenticated context; the optional ScopeContext is a requested scope that the server must verify.
+    x-hcmnext-service: hcmnext.project.v1.ProjectService
+    x-hcmnext-registered: true
   - name: RegistryService
     description: RegistryService is the authorized, tenant/phase-filtered discovery surface for immutable IntentDefinition and CapabilityDefinition descriptors. See planning/specs/http-grpc-endpoint-contract.md#initial-endpoint-inventory.
     x-hcmnext-service: hcmnext.registry.v1.RegistryService
@@ -3445,6 +3449,39 @@ paths:
       x-hcmnext-rpc-kind: LIST
       x-hcmnext-registered: false
       x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/ListDocumentVersions:
+    post:
+      tags:
+        - DocumentService
+      summary: ListDocumentVersions lists a document's immutable versions oldest first, for the compare pickers (DOCS-01).
+      description: 'ListDocumentVersions lists a document''s immutable versions oldest first, for the compare pickers (DOCS-01). Each entry is already policy-redacted against the document''s current classification: a version more sensitive than current policy carries only its ID and redacted=true.'
+      operationId: DocumentService_ListDocumentVersions
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.ListDocumentVersionsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.ListDocumentVersionsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
   /hcmnext.document.v1.DocumentService/ListDocuments:
     post:
       tags:
@@ -3640,6 +3677,39 @@ paths:
       x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: false
       x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/RestoreDocument:
+    post:
+      tags:
+        - DocumentService
+      summary: RestoreDocument redeploys a version WithdrawDocument just withdrew, undoing the withdrawal (DOCS-07).
+      description: RestoreDocument redeploys a version WithdrawDocument just withdrew, undoing the withdrawal (DOCS-07). It only succeeds while the scope is still empty and fresh review evidence for that version and scope exists; otherwise it reports why it could not restore automatically.
+      operationId: DocumentService_RestoreDocument
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.RestoreDocumentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.RestoreDocumentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
   /hcmnext.document.v1.DocumentService/RevokeCrossCompanyGrant:
     post:
       tags:
@@ -3825,6 +3895,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/hcmnext.document.v1.TransferDocumentOwnershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.document.v1.DocumentService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.document.v1.DocumentService/WithdrawDocument:
+    post:
+      tags:
+        - DocumentService
+      summary: 'WithdrawDocument removes the document''s live default-scope pointer (DOCS-07): the document stops being shared/deployed...'
+      description: 'WithdrawDocument removes the document''s live default-scope pointer (DOCS-07): the document stops being shared/deployed to anyone but its owner, but every immutable version and record is kept, and the withdrawal can be undone with RestoreDocument while nothing else has been deployed since.'
+      operationId: DocumentService_WithdrawDocument
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.document.v1.WithdrawDocumentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.document.v1.WithdrawDocumentResponse'
         default:
           description: Connect error. The HTTP status follows the edge's canonical error projection.
           content:
@@ -6220,6 +6323,1260 @@ paths:
       x-hcmnext-service: hcmnext.position.v1.PositionService
       x-hcmnext-rpc-kind: LIST
       x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.project.v1.ProjectService/AcceptProjectInvitation:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      operationId: ProjectService_AcceptProjectInvitation
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.AcceptProjectInvitationRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.MutateProjectMembershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/AddTaskComment:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Adds a sanitized comment to one authorized task.'
+      operationId: ProjectService_AddTaskComment
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.AddTaskCommentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.AddTaskCommentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/AddTaskLink:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Adds an allowlisted typed link to a task. A reference does not grant access to its chat or document target.'
+      operationId: ProjectService_AddTaskLink
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.AddTaskLinkRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.AddTaskLinkResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ArchiveProject:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project lifecycle management is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project lifecycle management is not part of the Phase 1 surface. Archives an owned project without deleting task or audit history.'
+      operationId: ProjectService_ArchiveProject
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.SetProjectLifecycleRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.SetProjectLifecycleResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: false
+  /hcmnext.project.v1.ProjectService/ArchiveTask:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Retains an archived task and its complete activity history.'
+      operationId: ProjectService_ArchiveTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ArchiveTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ArchiveTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ChangeProjectMemberRole:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      operationId: ProjectService_ChangeProjectMemberRole
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ChangeProjectMemberRoleRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.MutateProjectMembershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/CreateProject:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Creates an active project with its own stable identity and timezone.'
+      operationId: ProjectService_CreateProject
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.CreateProjectRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.CreateProjectResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/CreateTask:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Creates one ordinary task under the project''s currently published workflow configuration.'
+      operationId: ProjectService_CreateTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.CreateTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.CreateTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/DeleteTaskComment:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Tombstones one comment under an exact revision fence.'
+      operationId: ProjectService_DeleteTaskComment
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.DeleteTaskCommentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.DeleteTaskCommentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: DELETE
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/EditTaskComment:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Corrects one comment under an exact revision fence.'
+      operationId: ProjectService_EditTaskComment
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.EditTaskCommentRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.EditTaskCommentResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/GetBoard:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Reads a bounded page of authorized cards for one project view. No total task count is returned; the opaque cursor is bound to caller, view and project revisions.'
+      operationId: ProjectService_GetBoard
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.GetBoardRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.GetBoardResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/GetProject:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Reads one currently authorized project summary.'
+      operationId: ProjectService_GetProject
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.GetProjectRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.GetProjectResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/GetProjectMembership:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      operationId: ProjectService_GetProjectMembership
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.GetProjectMembershipRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.GetProjectMembershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/GetTask:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Reads one currently authorized task.'
+      operationId: ProjectService_GetTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.GetTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.GetTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/GetWorkflowConfiguration:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Reads the current published status, field, and transition configuration.'
+      operationId: ProjectService_GetWorkflowConfiguration
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.GetWorkflowConfigurationRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.GetWorkflowConfigurationResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/GetWorkflowDraft:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Reloads an authorized draft without inferring its contents from board cards.'
+      operationId: ProjectService_GetWorkflowDraft
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.GetWorkflowDraftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.GetWorkflowDraftResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/InviteProjectMember:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      operationId: ProjectService_InviteProjectMember
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.InviteProjectMemberRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.MutateProjectMembershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ListBoardViews:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Lists bounded saved views that the current project member may read.'
+      operationId: ProjectService_ListBoardViews
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ListBoardViewsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ListBoardViewsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ListProjectMembers:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      operationId: ProjectService_ListProjectMembers
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ListProjectMembersRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ListProjectMembersResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ListProjects:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Lists only projects currently admitted to the caller, in bounded pages.'
+      operationId: ProjectService_ListProjects
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ListProjectsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ListProjectsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ListTaskActivity:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Reads a bounded page of ordered comment activity for one authorized task.'
+      operationId: ProjectService_ListTaskActivity
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ListTaskActivityRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ListTaskActivityResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ListTaskComments:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Reads a bounded page of current comment revisions for one authorized task.'
+      operationId: ProjectService_ListTaskComments
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ListTaskCommentsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ListTaskCommentsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ListTaskLinks:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Resolves links against current target authorization, returning a neutral restricted state for both inaccessible and absent targets.'
+      operationId: ProjectService_ListTaskLinks
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ListTaskLinksRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ListTaskLinksResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/ListTaskLinksByTarget:
+    post:
+      tags:
+        - ProjectService
+      summary: 'Reverse link read: the live tasks that link one workflow run (journey) or work item, limited to projects the caller may...'
+      description: 'Reverse link read: the live tasks that link one workflow run (journey) or work item, limited to projects the caller may read. Tasks in other projects are omitted, not reported.'
+      operationId: ProjectService_ListTaskLinksByTarget
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ListTaskLinksByTargetRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ListTaskLinksByTargetResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: false
+  /hcmnext.project.v1.ProjectService/ListTasks:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Lists a bounded page of currently authorized tasks for a project.'
+      operationId: ProjectService_ListTasks
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.ListTasksRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.ListTasksResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/MoveTask:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Moves one task under exact task and workflow revisions. An optional typed lane field edit is committed atomically with the status transition.'
+      operationId: ProjectService_MoveTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.MoveTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.MoveTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/PatchTask:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Revises sparse project-owned task details under exact task/workflow revisions.'
+      operationId: ProjectService_PatchTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.PatchTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.PatchTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/PreviewWorkflowDraft:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Validates a named draft and previews its exact impact without publishing.'
+      operationId: ProjectService_PreviewWorkflowDraft
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.PreviewWorkflowDraftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.PreviewWorkflowDraftResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/PublishWorkflowDraft:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Publishes the exact reviewed workflow digest and creates a new immutable project workflow version.'
+      operationId: ProjectService_PublishWorkflowDraft
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.PublishWorkflowDraftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.PublishWorkflowDraftResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/RemoveTaskLink:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; task-link removal is a Phase 3 project operation.'
+      description: 'P1A disposition: OUT; task-link removal is a Phase 3 project operation. Tombstones a typed task link under exact task revision and idempotency fences. The target is retained only as an audit reference and is no longer resolved or returned by ListTaskLinks.'
+      operationId: ProjectService_RemoveTaskLink
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.RemoveTaskLinkRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.RemoveTaskLinkResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: false
+  /hcmnext.project.v1.ProjectService/RestoreProject:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project lifecycle management is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project lifecycle management is not part of the Phase 1 surface. Restores an archived owned project under an exact revision fence.'
+      operationId: ProjectService_RestoreProject
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.SetProjectLifecycleRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.SetProjectLifecycleResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: false
+  /hcmnext.project.v1.ProjectService/RestoreTask:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Restores an archived task under an exact revision fence.'
+      operationId: ProjectService_RestoreTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.RestoreTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.RestoreTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/RevokeProjectMember:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      operationId: ProjectService_RevokeProjectMember
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.RevokeProjectMemberRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.MutateProjectMembershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/SaveBoardView:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Saves a personal or project-audience view. The view never widens task authorization; every board read rechecks task access.'
+      operationId: ProjectService_SaveBoardView
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.SaveBoardViewRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.SaveBoardViewResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/SaveWorkflowDraft:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface. Creates or updates an author-owned workflow draft under an exact revision.'
+      operationId: ProjectService_SaveWorkflowDraft
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.SaveWorkflowDraftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.SaveWorkflowDraftResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/SearchTasks:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project task search is not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project task search is not part of the Phase 1 surface. Searches current project tasks. Free-text search is unavailable until the index can revalidate each result; exact predicates remain available.'
+      operationId: ProjectService_SearchTasks
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.SearchTasksRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.SearchTasksResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/TransferProjectOwnership:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.'
+      operationId: ProjectService_TransferProjectOwnership
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.TransferProjectOwnershipRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.MutateProjectMembershipResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.project.v1.ProjectService/UpdateProjectSettings:
+    post:
+      tags:
+        - ProjectService
+      summary: 'P1A disposition: OUT; project settings are not part of the Phase 1 surface.'
+      description: 'P1A disposition: OUT; project settings are not part of the Phase 1 surface. Updates project name and timezone under an exact project revision.'
+      operationId: ProjectService_UpdateProjectSettings
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.project.v1.UpdateProjectSettingsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.project.v1.UpdateProjectSettingsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.project.v1.ProjectService
+      x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: true
       x-hcmnext-http-exposed: false
   /hcmnext.registry.v1.RegistryService/GetCapability:
     post:
@@ -10637,6 +11994,26 @@ components:
           $ref: '#/components/schemas/hcmnext.chat.v1.ConversationEvent'
         resumeCursor:
           type: string
+    hcmnext.common.v1.Decimal:
+      type: object
+      description: Protobuf message `hcmnext.common.v1.Decimal`.
+      properties:
+        sign:
+          $ref: '#/components/schemas/hcmnext.common.v1.DecimalSign'
+        unscaledMagnitude:
+          type: string
+          format: byte
+        scale:
+          type: integer
+          format: int32
+    hcmnext.common.v1.DecimalSign:
+      type: string
+      description: Protobuf enum `hcmnext.common.v1.DecimalSign`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - DECIMAL_SIGN_UNSPECIFIED
+        - DECIMAL_SIGN_ZERO
+        - DECIMAL_SIGN_POSITIVE
+        - DECIMAL_SIGN_NEGATIVE
     hcmnext.common.v1.DisambiguationRule:
       type: string
       description: Protobuf enum `hcmnext.common.v1.DisambiguationRule`. The JSON mapping writes value names; parsers also accept the numeric value.
@@ -12109,6 +13486,24 @@ components:
           type: string
         match:
           type: string
+    hcmnext.document.v1.DocumentVersionSummary:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.DocumentVersionSummary`.
+      properties:
+        versionId:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        authorId:
+          type: string
+        isCurrent:
+          type: boolean
+        redacted:
+          type: boolean
     hcmnext.document.v1.GetDocumentBacklinksRequest:
       type: object
       description: Protobuf message `hcmnext.document.v1.GetDocumentBacklinksRequest`.
@@ -12280,6 +13675,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/hcmnext.document.v1.DocumentOwnershipTransfer'
+    hcmnext.document.v1.ListDocumentVersionsRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.ListDocumentVersionsRequest`.
+      properties:
+        documentId:
+          type: string
+    hcmnext.document.v1.ListDocumentVersionsResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.ListDocumentVersionsResponse`.
+      properties:
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.document.v1.DocumentVersionSummary'
     hcmnext.document.v1.ListDocumentsRequest:
       type: object
       description: Protobuf message `hcmnext.document.v1.ListDocumentsRequest`.
@@ -12409,6 +13818,17 @@ components:
     hcmnext.document.v1.ResolveDocumentCommentResponse:
       type: object
       description: Protobuf message `hcmnext.document.v1.ResolveDocumentCommentResponse`.
+    hcmnext.document.v1.RestoreDocumentRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.RestoreDocumentRequest`.
+      properties:
+        documentId:
+          type: string
+        versionId:
+          type: string
+    hcmnext.document.v1.RestoreDocumentResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.RestoreDocumentResponse`.
     hcmnext.document.v1.RevokeCrossCompanyGrantRequest:
       type: object
       description: Protobuf message `hcmnext.document.v1.RevokeCrossCompanyGrantRequest`.
@@ -12490,6 +13910,20 @@ components:
       properties:
         transfer:
           $ref: '#/components/schemas/hcmnext.document.v1.DocumentOwnershipTransfer'
+    hcmnext.document.v1.WithdrawDocumentRequest:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.WithdrawDocumentRequest`.
+      properties:
+        documentId:
+          type: string
+        reason:
+          type: string
+    hcmnext.document.v1.WithdrawDocumentResponse:
+      type: object
+      description: Protobuf message `hcmnext.document.v1.WithdrawDocumentResponse`.
+      properties:
+        versionId:
+          type: string
     hcmnext.evidence.v1.AuthorityKind:
       type: string
       description: Protobuf enum `hcmnext.evidence.v1.AuthorityKind`. The JSON mapping writes value names; parsers also accept the numeric value.
@@ -15744,6 +17178,10 @@ components:
           $ref: '#/components/schemas/hcmnext.journey.v1.JourneyWorkItemSummary'
         viewer:
           $ref: '#/components/schemas/hcmnext.journey.v1.JourneyViewerProjection'
+        currentPayBasis:
+          type: string
+        proposedPayBasis:
+          type: string
     hcmnext.journey.v1.JourneyCompensationGuardrail:
       type: object
       description: Protobuf message `hcmnext.journey.v1.JourneyCompensationGuardrail`.
@@ -16367,6 +17805,11 @@ components:
           type: array
           items:
             type: string
+        targetPayBasis:
+          type: string
+        annualizationHours:
+          type: integer
+          format: int32
     hcmnext.journey.v1.ProposeJourneyRequest:
       type: object
       description: Protobuf message `hcmnext.journey.v1.ProposeJourneyRequest`.
@@ -17248,6 +18691,1540 @@ components:
         jobCode:
           type: string
         orgUnit:
+          type: string
+    hcmnext.project.v1.AcceptProjectInvitationRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.AcceptProjectInvitationRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        expectedMembershipRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.AddTaskCommentRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.AddTaskCommentRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        taskId:
+          type: string
+        idempotencyKey:
+          type: string
+        bodyText:
+          type: string
+    hcmnext.project.v1.AddTaskCommentResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.AddTaskCommentResponse`.
+      properties:
+        comment:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTaskComment'
+    hcmnext.project.v1.AddTaskLinkRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.AddTaskLinkRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        taskId:
+          type: string
+        reference:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskLinkReference'
+        expectedTaskRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.AddTaskLinkResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.AddTaskLinkResponse`.
+      properties:
+        linkId:
+          type: string
+        taskRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.ArchiveTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ArchiveTaskRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        taskId:
+          type: string
+        expectedTaskRevision:
+          type: string
+          format: uint64
+        expectedWorkflowRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.ArchiveTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ArchiveTaskResponse`.
+      properties:
+        task:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+    hcmnext.project.v1.BoardColumn:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.BoardColumn`.
+      properties:
+        columnId:
+          type: string
+        name:
+          type: string
+        statusIds:
+          type: array
+          items:
+            type: string
+        position:
+          type: integer
+          format: int32
+    hcmnext.project.v1.BoardFilter:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.BoardFilter`.
+      properties:
+        statusIds:
+          type: array
+          items:
+            type: string
+        assigneeIds:
+          type: array
+          items:
+            type: string
+        taskTypeIds:
+          type: array
+          items:
+            type: string
+        priorities:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.TaskPriority'
+        enumFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.EnumBoardFilter'
+    hcmnext.project.v1.BoardFreshness:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.BoardFreshness`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - BOARD_FRESHNESS_UNSPECIFIED
+        - BOARD_FRESHNESS_CURRENT
+        - BOARD_FRESHNESS_BOUNDED_STALE
+    hcmnext.project.v1.BoardOrder:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.BoardOrder`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - BOARD_ORDER_UNSPECIFIED
+        - BOARD_ORDER_MANUAL
+        - BOARD_ORDER_PRIORITY
+        - BOARD_ORDER_DUE_DATE
+        - BOARD_ORDER_UPDATED
+        - BOARD_ORDER_TITLE
+    hcmnext.project.v1.BoardSwimlaneGrouping:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.BoardSwimlaneGrouping`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - BOARD_SWIMLANE_GROUPING_UNSPECIFIED
+        - BOARD_SWIMLANE_GROUPING_NONE
+        - BOARD_SWIMLANE_GROUPING_ASSIGNEE
+        - BOARD_SWIMLANE_GROUPING_PRIORITY
+        - BOARD_SWIMLANE_GROUPING_ENUM_FIELD
+    hcmnext.project.v1.BoardView:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.BoardView`.
+      properties:
+        viewId:
+          type: string
+        projectId:
+          type: string
+        name:
+          type: string
+        audience:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardViewAudience'
+        filter:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardFilter'
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.BoardColumn'
+        cardFieldIds:
+          type: array
+          items:
+            type: string
+        revision:
+          type: string
+          format: uint64
+        swimlaneGrouping:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardSwimlaneGrouping'
+        swimlaneFieldId:
+          type: string
+        order:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardOrder'
+        swimlaneValueOrder:
+          type: array
+          items:
+            type: string
+    hcmnext.project.v1.BoardViewAudience:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.BoardViewAudience`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - BOARD_VIEW_AUDIENCE_UNSPECIFIED
+        - BOARD_VIEW_AUDIENCE_PERSONAL
+        - BOARD_VIEW_AUDIENCE_PROJECT
+    hcmnext.project.v1.ChangeProjectMemberRoleRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ChangeProjectMemberRoleRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        userId:
+          type: string
+        role:
+          type: string
+        expectedMembershipRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.ChatConversationLink:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ChatConversationLink`.
+      properties:
+        conversationId:
+          type: string
+    hcmnext.project.v1.ChatPostLink:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ChatPostLink`.
+      properties:
+        conversationId:
+          type: string
+        postId:
+          type: string
+    hcmnext.project.v1.CreateProjectRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.CreateProjectRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        name:
+          type: string
+        projectTimezone:
+          type: string
+    hcmnext.project.v1.CreateProjectResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.CreateProjectResponse`.
+      properties:
+        project:
+          $ref: '#/components/schemas/hcmnext.project.v1.Project'
+    hcmnext.project.v1.CreateTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.CreateTaskRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        expectedWorkflowRevision:
+          type: string
+          format: uint64
+        title:
+          type: string
+        description:
+          type: string
+        taskTypeId:
+          type: string
+        initialStatusId:
+          type: string
+        assigneeId:
+          type: string
+        dueDate:
+          type: string
+        customFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.TypedFieldValue'
+        priority:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskPriority'
+        sourceReference:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectSourceReference'
+    hcmnext.project.v1.CreateTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.CreateTaskResponse`.
+      properties:
+        task:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+    hcmnext.project.v1.DeleteTaskCommentRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.DeleteTaskCommentRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        taskId:
+          type: string
+        commentId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.DeleteTaskCommentResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.DeleteTaskCommentResponse`.
+      properties:
+        comment:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTaskComment'
+    hcmnext.project.v1.DeployedDocumentLink:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.DeployedDocumentLink`.
+      properties:
+        documentId:
+          type: string
+        deployedVersionId:
+          type: string
+        scopeId:
+          type: string
+    hcmnext.project.v1.EditTaskCommentRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.EditTaskCommentRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        taskId:
+          type: string
+        commentId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+        bodyText:
+          type: string
+    hcmnext.project.v1.EditTaskCommentResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.EditTaskCommentResponse`.
+      properties:
+        comment:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTaskComment'
+    hcmnext.project.v1.EnumBoardFilter:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.EnumBoardFilter`.
+      properties:
+        fieldId:
+          type: string
+        values:
+          type: array
+          items:
+            type: string
+    hcmnext.project.v1.GetBoardRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetBoardRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        viewId:
+          type: string
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.project.v1.GetBoardResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetBoardResponse`.
+      properties:
+        view:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardView'
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+        projectRevision:
+          type: string
+          format: uint64
+        workflowRevision:
+          type: string
+          format: uint64
+        freshness:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardFreshness'
+    hcmnext.project.v1.GetProjectMembershipRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetProjectMembershipRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        userId:
+          type: string
+    hcmnext.project.v1.GetProjectMembershipResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetProjectMembershipResponse`.
+      properties:
+        member:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectMember'
+        membershipRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.GetProjectRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetProjectRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+    hcmnext.project.v1.GetProjectResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetProjectResponse`.
+      properties:
+        project:
+          $ref: '#/components/schemas/hcmnext.project.v1.Project'
+    hcmnext.project.v1.GetTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetTaskRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        taskId:
+          type: string
+    hcmnext.project.v1.GetTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetTaskResponse`.
+      properties:
+        task:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+    hcmnext.project.v1.GetWorkflowConfigurationRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetWorkflowConfigurationRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+    hcmnext.project.v1.GetWorkflowConfigurationResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetWorkflowConfigurationResponse`.
+      properties:
+        configuration:
+          $ref: '#/components/schemas/hcmnext.project.v1.WorkflowConfiguration'
+    hcmnext.project.v1.GetWorkflowDraftRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetWorkflowDraftRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        draftId:
+          type: string
+    hcmnext.project.v1.GetWorkflowDraftResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.GetWorkflowDraftResponse`.
+      properties:
+        draftId:
+          type: string
+        draftRevision:
+          type: string
+          format: uint64
+        configuration:
+          $ref: '#/components/schemas/hcmnext.project.v1.WorkflowConfigurationSpec'
+    hcmnext.project.v1.InviteProjectMemberRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.InviteProjectMemberRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        userId:
+          type: string
+        role:
+          type: string
+        expectedMembershipRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.JourneyLink:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.JourneyLink`.
+      properties:
+        intentId:
+          type: string
+    hcmnext.project.v1.LinkedTask:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.LinkedTask`.
+      properties:
+        projectId:
+          type: string
+        taskId:
+          type: string
+        title:
+          type: string
+        statusId:
+          type: string
+    hcmnext.project.v1.ListBoardViewsRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListBoardViewsRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.project.v1.ListBoardViewsResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListBoardViewsResponse`.
+      properties:
+        views:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.BoardView'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+    hcmnext.project.v1.ListProjectMembersRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListProjectMembersRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        pageSize:
+          type: integer
+          format: int32
+        pageCursor:
+          type: string
+    hcmnext.project.v1.ListProjectMembersResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListProjectMembersResponse`.
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectMember'
+        membershipRevision:
+          type: string
+          format: uint64
+        nextPageCursor:
+          type: string
+    hcmnext.project.v1.ListProjectsRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListProjectsRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.project.v1.ListProjectsResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListProjectsResponse`.
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.Project'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+    hcmnext.project.v1.ListTaskActivityRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTaskActivityRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        taskId:
+          type: string
+        pageSize:
+          type: integer
+          format: int32
+        pageCursor:
+          type: string
+    hcmnext.project.v1.ListTaskActivityResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTaskActivityResponse`.
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectTaskActivity'
+        nextPageCursor:
+          type: string
+    hcmnext.project.v1.ListTaskCommentsRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTaskCommentsRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        taskId:
+          type: string
+        pageSize:
+          type: integer
+          format: int32
+        pageCursor:
+          type: string
+    hcmnext.project.v1.ListTaskCommentsResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTaskCommentsResponse`.
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectTaskComment'
+        nextPageCursor:
+          type: string
+    hcmnext.project.v1.ListTaskLinksByTargetRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTaskLinksByTargetRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        target:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskLinkReference'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.project.v1.ListTaskLinksByTargetResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTaskLinksByTargetResponse`.
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.LinkedTask'
+    hcmnext.project.v1.ListTaskLinksRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTaskLinksRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        taskId:
+          type: string
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.project.v1.ListTaskLinksResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTaskLinksResponse`.
+      properties:
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ResolvedTaskLink'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+    hcmnext.project.v1.ListTasksRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTasksRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        filter:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardFilter'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.project.v1.ListTasksResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ListTasksResponse`.
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+        projectRevision:
+          type: string
+          format: uint64
+        workflowRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.MoveTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.MoveTaskRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        taskId:
+          type: string
+        targetStatusId:
+          type: string
+        expectedTaskRevision:
+          type: string
+          format: uint64
+        expectedWorkflowRevision:
+          type: string
+          format: uint64
+        laneFieldEdit:
+          $ref: '#/components/schemas/hcmnext.project.v1.TypedFieldValue'
+    hcmnext.project.v1.MoveTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.MoveTaskResponse`.
+      properties:
+        task:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+    hcmnext.project.v1.MutateProjectMembershipResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.MutateProjectMembershipResponse`.
+      properties:
+        membershipRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.PatchTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.PatchTaskRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        taskId:
+          type: string
+        expectedTaskRevision:
+          type: string
+          format: uint64
+        expectedWorkflowRevision:
+          type: string
+          format: uint64
+        title:
+          type: string
+        description:
+          type: string
+        assigneeId:
+          type: string
+        dueDate:
+          type: string
+        priority:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskPriority'
+        startDate:
+          type: string
+        storyPoints:
+          type: integer
+          format: uint32
+          minimum: 0
+        labels:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskLabels'
+    hcmnext.project.v1.PatchTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.PatchTaskResponse`.
+      properties:
+        task:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+    hcmnext.project.v1.PreviewWorkflowDraftRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.PreviewWorkflowDraftRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        draftId:
+          type: string
+        expectedDraftRevision:
+          type: string
+          format: uint64
+        statusMappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.WorkflowStatusMigrationMapping'
+        fieldMappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.WorkflowFieldMigrationMapping'
+    hcmnext.project.v1.PreviewWorkflowDraftResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.PreviewWorkflowDraftResponse`.
+      properties:
+        draftId:
+          type: string
+        draftRevision:
+          type: string
+          format: uint64
+        reviewedDigest:
+          type: string
+        valid:
+          type: boolean
+        affectedTaskCount:
+          type: string
+          format: uint64
+        affectedTaskIds:
+          type: array
+          items:
+            type: string
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.WorkflowDiagnostic'
+        migrationPlanDigest:
+          type: string
+    hcmnext.project.v1.Project:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.Project`.
+      properties:
+        projectId:
+          type: string
+        name:
+          type: string
+        projectTimezone:
+          type: string
+        lifecycle:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectLifecycle'
+        revision:
+          type: string
+          format: uint64
+        workflowRevision:
+          type: string
+          format: uint64
+        ownerId:
+          type: string
+    hcmnext.project.v1.ProjectFieldDefinition:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectFieldDefinition`.
+      properties:
+        fieldId:
+          type: string
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectFieldType'
+        required:
+          type: boolean
+        enumValues:
+          type: array
+          items:
+            type: string
+        minLength:
+          type: string
+          format: int64
+        maxLength:
+          type: string
+          format: int64
+        minNumber:
+          type: number
+          format: double
+        maxNumber:
+          type: number
+          format: double
+        defaultJson:
+          type: string
+        classification:
+          type: string
+        indexed:
+          type: boolean
+        searchable:
+          type: boolean
+        retired:
+          type: boolean
+    hcmnext.project.v1.ProjectFieldType:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.ProjectFieldType`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - PROJECT_FIELD_TYPE_UNSPECIFIED
+        - PROJECT_FIELD_TYPE_TEXT
+        - PROJECT_FIELD_TYPE_NUMBER
+        - PROJECT_FIELD_TYPE_DATE
+        - PROJECT_FIELD_TYPE_ENUM
+        - PROJECT_FIELD_TYPE_PERSON
+        - PROJECT_FIELD_TYPE_LINK
+        - PROJECT_FIELD_TYPE_BOOLEAN
+    hcmnext.project.v1.ProjectLifecycle:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.ProjectLifecycle`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - PROJECT_LIFECYCLE_UNSPECIFIED
+        - PROJECT_LIFECYCLE_ACTIVE
+        - PROJECT_LIFECYCLE_SUSPENDED
+        - PROJECT_LIFECYCLE_ARCHIVED
+    hcmnext.project.v1.ProjectMember:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectMember`.
+      properties:
+        userId:
+          type: string
+        role:
+          type: string
+        state:
+          type: string
+        revision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.ProjectSourceReference:
+      type: object
+      description: 'Protobuf message `hcmnext.project.v1.ProjectSourceReference`. Oneof `source`: at most one of `chatConversation`, `chatPost`, `deployedDocument` may be set.'
+      properties:
+        chatConversation:
+          $ref: '#/components/schemas/hcmnext.project.v1.ChatConversationLink'
+          description: Member of oneof `source`. Mutually exclusive with `chatPost`, `deployedDocument`.
+        chatPost:
+          $ref: '#/components/schemas/hcmnext.project.v1.ChatPostLink'
+          description: Member of oneof `source`. Mutually exclusive with `chatConversation`, `deployedDocument`.
+        deployedDocument:
+          $ref: '#/components/schemas/hcmnext.project.v1.DeployedDocumentLink'
+          description: Member of oneof `source`. Mutually exclusive with `chatConversation`, `chatPost`.
+    hcmnext.project.v1.ProjectStatus:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectStatus`.
+      properties:
+        statusId:
+          type: string
+        name:
+          type: string
+        category:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectStatusCategory'
+        allowedNextStatusIds:
+          type: array
+          items:
+            type: string
+        requiredFieldIds:
+          type: array
+          items:
+            type: string
+        retired:
+          type: boolean
+    hcmnext.project.v1.ProjectStatusCategory:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.ProjectStatusCategory`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - PROJECT_STATUS_CATEGORY_UNSPECIFIED
+        - PROJECT_STATUS_CATEGORY_NOT_STARTED
+        - PROJECT_STATUS_CATEGORY_ACTIVE
+        - PROJECT_STATUS_CATEGORY_BLOCKED
+        - PROJECT_STATUS_CATEGORY_DONE
+        - PROJECT_STATUS_CATEGORY_CANCELLED
+    hcmnext.project.v1.ProjectTask:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectTask`.
+      properties:
+        taskId:
+          type: string
+        projectId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        taskTypeId:
+          type: string
+        statusId:
+          type: string
+        assigneeId:
+          type: string
+        dueDate:
+          type: string
+        customFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.TypedFieldValue'
+        revision:
+          type: string
+          format: uint64
+        workflowRevision:
+          type: string
+          format: uint64
+        priority:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskPriority'
+        archived:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        updatedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        createdBy:
+          type: string
+        labels:
+          type: array
+          items:
+            type: string
+        startDate:
+          type: string
+        storyPoints:
+          type: integer
+          format: uint32
+          minimum: 0
+    hcmnext.project.v1.ProjectTaskActivity:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectTaskActivity`.
+      properties:
+        sequence:
+          type: string
+          format: uint64
+        commentId:
+          type: string
+        kind:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        actorId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.project.v1.ProjectTaskComment:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectTaskComment`.
+      properties:
+        commentId:
+          type: string
+        currentRevision:
+          type: string
+          format: uint64
+        safeHtml:
+          type: string
+        sourceText:
+          type: string
+        tombstone:
+          type: boolean
+        actorId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        updatedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.project.v1.ProjectTaskType:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectTaskType`.
+      properties:
+        taskTypeId:
+          type: string
+        name:
+          type: string
+        fieldIds:
+          type: array
+          items:
+            type: string
+        initialStatusId:
+          type: string
+        requiredFieldIds:
+          type: array
+          items:
+            type: string
+    hcmnext.project.v1.ProjectWorkflowColumn:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectWorkflowColumn`.
+      properties:
+        columnId:
+          type: string
+        name:
+          type: string
+        statusIds:
+          type: array
+          items:
+            type: string
+    hcmnext.project.v1.ProjectWorkflowTransition:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ProjectWorkflowTransition`.
+      properties:
+        fromStatusId:
+          type: string
+        toStatusId:
+          type: string
+        taskTypeId:
+          type: string
+        requiredFieldIds:
+          type: array
+          items:
+            type: string
+    hcmnext.project.v1.PublishWorkflowDraftRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.PublishWorkflowDraftRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        draftId:
+          type: string
+        expectedProjectWorkflowRevision:
+          type: string
+          format: uint64
+        expectedDraftRevision:
+          type: string
+          format: uint64
+        reviewedDigest:
+          type: string
+        reviewedMigrationPlanDigest:
+          type: string
+        statusMappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.WorkflowStatusMigrationMapping'
+        fieldMappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.WorkflowFieldMigrationMapping'
+    hcmnext.project.v1.PublishWorkflowDraftResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.PublishWorkflowDraftResponse`.
+      properties:
+        configuration:
+          $ref: '#/components/schemas/hcmnext.project.v1.WorkflowConfiguration'
+    hcmnext.project.v1.RemoveTaskLinkRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.RemoveTaskLinkRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        taskId:
+          type: string
+        linkId:
+          type: string
+        expectedTaskRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.RemoveTaskLinkResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.RemoveTaskLinkResponse`.
+      properties:
+        taskRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.ResolvedTaskLink:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.ResolvedTaskLink`.
+      properties:
+        linkId:
+          type: string
+        reference:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskLinkReference'
+        state:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskLinkResolutionState'
+        preview:
+          $ref: '#/components/schemas/hcmnext.project.v1.TaskLinkPreview'
+    hcmnext.project.v1.RestoreTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.RestoreTaskRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        taskId:
+          type: string
+        expectedTaskRevision:
+          type: string
+          format: uint64
+        expectedWorkflowRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.RestoreTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.RestoreTaskResponse`.
+      properties:
+        task:
+          $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+    hcmnext.project.v1.RevokeProjectMemberRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.RevokeProjectMemberRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        userId:
+          type: string
+        expectedMembershipRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.SaveBoardViewRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SaveBoardViewRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        viewId:
+          type: string
+        expectedViewRevision:
+          type: string
+          format: uint64
+        view:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardView'
+    hcmnext.project.v1.SaveBoardViewResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SaveBoardViewResponse`.
+      properties:
+        view:
+          $ref: '#/components/schemas/hcmnext.project.v1.BoardView'
+    hcmnext.project.v1.SaveWorkflowDraftRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SaveWorkflowDraftRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        idempotencyKey:
+          type: string
+        projectId:
+          type: string
+        expectedDraftRevision:
+          type: string
+          format: uint64
+        configuration:
+          $ref: '#/components/schemas/hcmnext.project.v1.WorkflowConfigurationSpec'
+    hcmnext.project.v1.SaveWorkflowDraftResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SaveWorkflowDraftResponse`.
+      properties:
+        draftId:
+          type: string
+        draftRevision:
+          type: string
+          format: uint64
+    hcmnext.project.v1.SearchFreshness:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.SearchFreshness`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - SEARCH_FRESHNESS_UNSPECIFIED
+        - SEARCH_FRESHNESS_CURRENT
+        - SEARCH_FRESHNESS_DEGRADED_EXACT_FILTER
+    hcmnext.project.v1.SearchTaskFieldFilter:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SearchTaskFieldFilter`.
+      properties:
+        fieldId:
+          type: string
+        values:
+          type: array
+          items:
+            type: string
+    hcmnext.project.v1.SearchTaskFilter:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SearchTaskFilter`.
+      properties:
+        statusIds:
+          type: array
+          items:
+            type: string
+        assigneeId:
+          type: string
+        taskTypeIds:
+          type: array
+          items:
+            type: string
+        dueDateFrom:
+          type: string
+        dueDateTo:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.SearchTaskFieldFilter'
+    hcmnext.project.v1.SearchTasksRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SearchTasksRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        text:
+          type: string
+        filter:
+          $ref: '#/components/schemas/hcmnext.project.v1.SearchTaskFilter'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.project.v1.SearchTasksResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SearchTasksResponse`.
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectTask'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+        freshness:
+          $ref: '#/components/schemas/hcmnext.project.v1.SearchFreshness'
+    hcmnext.project.v1.SetProjectLifecycleRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SetProjectLifecycleRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        expectedProjectRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.SetProjectLifecycleResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.SetProjectLifecycleResponse`.
+      properties:
+        project:
+          $ref: '#/components/schemas/hcmnext.project.v1.Project'
+    hcmnext.project.v1.TaskLabels:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.TaskLabels`.
+      properties:
+        values:
+          type: array
+          items:
+            type: string
+    hcmnext.project.v1.TaskLinkPreview:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.TaskLinkPreview`.
+      properties:
+        title:
+          type: string
+        snippet:
+          type: string
+        observedWorkItemVersion:
+          type: string
+          format: uint64
+        safeWorkItemStatus:
+          type: string
+        freshness:
+          type: string
+    hcmnext.project.v1.TaskLinkReference:
+      type: object
+      description: 'Protobuf message `hcmnext.project.v1.TaskLinkReference`. Oneof `target`: at most one of `chatConversation`, `chatPost`, `deployedDocument`, `workItem`, `journey` may be set.'
+      properties:
+        chatConversation:
+          $ref: '#/components/schemas/hcmnext.project.v1.ChatConversationLink'
+          description: Member of oneof `target`. Mutually exclusive with `chatPost`, `deployedDocument`, `workItem`, `journey`.
+        chatPost:
+          $ref: '#/components/schemas/hcmnext.project.v1.ChatPostLink'
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `deployedDocument`, `workItem`, `journey`.
+        deployedDocument:
+          $ref: '#/components/schemas/hcmnext.project.v1.DeployedDocumentLink'
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `workItem`, `journey`.
+        workItem:
+          $ref: '#/components/schemas/hcmnext.project.v1.WorkItemLink'
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `deployedDocument`, `journey`.
+        journey:
+          $ref: '#/components/schemas/hcmnext.project.v1.JourneyLink'
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `deployedDocument`, `workItem`.
+    hcmnext.project.v1.TaskLinkResolutionState:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.TaskLinkResolutionState`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - TASK_LINK_RESOLUTION_STATE_UNSPECIFIED
+        - TASK_LINK_RESOLUTION_STATE_AVAILABLE
+        - TASK_LINK_RESOLUTION_STATE_RESTRICTED
+    hcmnext.project.v1.TaskPriority:
+      type: string
+      description: Protobuf enum `hcmnext.project.v1.TaskPriority`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - TASK_PRIORITY_UNSPECIFIED
+        - TASK_PRIORITY_LOW
+        - TASK_PRIORITY_NORMAL
+        - TASK_PRIORITY_HIGH
+        - TASK_PRIORITY_URGENT
+    hcmnext.project.v1.TransferProjectOwnershipRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.TransferProjectOwnershipRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        userId:
+          type: string
+        expectedMembershipRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.TypedFieldValue:
+      type: object
+      description: 'Protobuf message `hcmnext.project.v1.TypedFieldValue`. Oneof `value`: at most one of `textValue`, `numberValue`, `dateValue`, `enumValue`, `personId`, `linkValue`, `booleanValue` may be set.'
+      properties:
+        fieldId:
+          type: string
+        textValue:
+          type: string
+          description: Member of oneof `value`. Mutually exclusive with `numberValue`, `dateValue`, `enumValue`, `personId`, `linkValue`, `booleanValue`.
+        numberValue:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+          description: Member of oneof `value`. Mutually exclusive with `textValue`, `dateValue`, `enumValue`, `personId`, `linkValue`, `booleanValue`.
+        dateValue:
+          type: string
+          description: Member of oneof `value`. Mutually exclusive with `textValue`, `numberValue`, `enumValue`, `personId`, `linkValue`, `booleanValue`.
+        enumValue:
+          type: string
+          description: Member of oneof `value`. Mutually exclusive with `textValue`, `numberValue`, `dateValue`, `personId`, `linkValue`, `booleanValue`.
+        personId:
+          type: string
+          description: Member of oneof `value`. Mutually exclusive with `textValue`, `numberValue`, `dateValue`, `enumValue`, `linkValue`, `booleanValue`.
+        linkValue:
+          type: string
+          description: Member of oneof `value`. Mutually exclusive with `textValue`, `numberValue`, `dateValue`, `enumValue`, `personId`, `booleanValue`.
+        booleanValue:
+          type: boolean
+          description: Member of oneof `value`. Mutually exclusive with `textValue`, `numberValue`, `dateValue`, `enumValue`, `personId`, `linkValue`.
+    hcmnext.project.v1.UpdateProjectSettingsRequest:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.UpdateProjectSettingsRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        name:
+          type: string
+        projectTimezone:
+          type: string
+        expectedProjectRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.project.v1.UpdateProjectSettingsResponse:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.UpdateProjectSettingsResponse`.
+      properties:
+        project:
+          $ref: '#/components/schemas/hcmnext.project.v1.Project'
+    hcmnext.project.v1.WorkItemLink:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.WorkItemLink`.
+      properties:
+        workItemId:
+          type: string
+    hcmnext.project.v1.WorkflowConfiguration:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.WorkflowConfiguration`.
+      properties:
+        projectId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        digest:
+          type: string
+        statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectStatus'
+        taskTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectTaskType'
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectFieldDefinition'
+        transitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectWorkflowTransition'
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectWorkflowColumn'
+    hcmnext.project.v1.WorkflowConfigurationSpec:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.WorkflowConfigurationSpec`.
+      properties:
+        statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectStatus'
+        taskTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectTaskType'
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectFieldDefinition'
+        transitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectWorkflowTransition'
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.project.v1.ProjectWorkflowColumn'
+    hcmnext.project.v1.WorkflowDiagnostic:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.WorkflowDiagnostic`.
+      properties:
+        code:
+          type: string
+        subjectId:
+          type: string
+        fieldPath:
+          type: string
+        safeDetail:
+          type: string
+    hcmnext.project.v1.WorkflowFieldMigrationMapping:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.WorkflowFieldMigrationMapping`.
+      properties:
+        sourceFieldId:
+          type: string
+        targetFieldId:
+          type: string
+    hcmnext.project.v1.WorkflowStatusMigrationMapping:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.WorkflowStatusMigrationMapping`.
+      properties:
+        sourceStatusId:
+          type: string
+        targetStatusId:
           type: string
     hcmnext.registry.v1.GetCapabilityRequest:
       type: object

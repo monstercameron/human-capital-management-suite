@@ -130,6 +130,12 @@ func docsLibrary(props docsLibraryProps) ui.Node {
 	renameDraft := ui.UseRef("")
 	renameFilled := ui.UseState(false)
 	deleting := ui.UseState("")
+	// removing is the row a remove confirm dialog is open for; withdrawn
+	// carries the version WithdrawDocument last took live, so the toast's
+	// Undo button can call RestoreDocument with it (DOCS-07).
+	removing := ui.UseState("")
+	withdrawnID := ui.UseState("")
+	withdrawnVersion := ui.UseState("")
 	notice := useDocsNotice()
 	focus := useDocsFocus()
 	useDocsMenuKeys()
@@ -288,6 +294,22 @@ func docsLibrary(props docsLibraryProps) ui.Node {
 			moving.Set(selectedIDs())
 		case "share":
 			sharing.Set(id)
+		case "remove":
+			removing.Set(id)
+		case "undo-remove":
+			if view.RestoreDocument == nil || withdrawnID.Get() != id || withdrawnVersion.Get() == "" {
+				return
+			}
+			version := withdrawnVersion.Get()
+			withdrawnID.Set("")
+			withdrawnVersion.Set("")
+			view.RestoreDocument(id, version, func(err error) {
+				if err != nil {
+					notice.Set(docsText(locale, "restore_failed"))
+					return
+				}
+				notice.Set(docsText(locale, "restore_done"))
+			})
 		case "copy-link":
 			if href := docsShareableHref(view.DocumentOrigin, id); href != "" {
 				copyToClipboard(href, func(err error) { notice.Set(docsCopyOutcome(locale, "link_copied", err)) })
@@ -507,7 +529,11 @@ func docsLibrary(props docsLibraryProps) ui.Node {
 		})
 	}
 
-	main := []ui.Node{docsLibraryHeader(view, route, folderName(route.Folder))}
+	// pending: the box holds a query the list has not answered yet (the
+	// debounce or the request is still in flight). The list says so instead
+	// of passing the previous rows off as results (D-8).
+	pending := strings.TrimSpace(query) != route.Query
+	main := []ui.Node{docsLibraryHeader(view, route, folderName(route.Folder), pending)}
 	// The bulk bar covers the toolbar row instead of pushing the table down,
 	// so the checkbox just ticked stays under the pointer.
 	bulk := ui.Node(nil)
@@ -515,10 +541,11 @@ func docsLibrary(props docsLibraryProps) ui.Node {
 		bulk = docsBulkBar(view, selectedCount)
 	}
 	main = append(main, docsLibraryToolbar(view, route, query, searchInput, searchSubmit, sortChange, modeChange, searchBlur, bulk))
-	// While a query is typed, rows keep the height a result with a snippet
-	// needs, so results arriving do not shift the list (CLS).
-	searching := strings.TrimSpace(query) != "" || route.Query != ""
-	main = append(main, docsTable(view, route, selected.Get(), starred, sizeChange, searching))
+	// Rows no longer reserve a result-with-snippet height while a query is
+	// typed: every row then carried an empty band and the list ballooned
+	// before any result existed (D-8). Results size to their own snippets.
+	searching := route.Query != ""
+	main = append(main, docsTable(view, route, selected.Get(), starred, sizeChange, searching, pending))
 
 	shell := html.Div(html.Props{Class: "docs-library", OnClick: click, OnKeyDown: escape},
 		docsLibraryNav(view, route, docsNavState{
@@ -539,6 +566,27 @@ func docsLibrary(props docsLibraryProps) ui.Node {
 			children = append(children, ui.CreateElement(docsShareDialog, docsShareDialogProps{
 				Locale: locale, DocumentID: document.ID, Title: document.Title, Origin: view.DocumentOrigin, People: view.People, Principal: docsViewer(view),
 				Share: view.ShareDocument, ListAccess: view.ListDocumentAccess, Revoke: view.RevokeDocumentAccess, Close: func() { sharing.Set("") },
+			}))
+		}
+	}
+	if id := removing.Get(); id != "" && view.WithdrawDocument != nil {
+		if document, ok := visible[id]; ok {
+			children = append(children, ui.CreateElement(docsRemoveDialog, docsRemoveDialogProps{
+				Locale: locale, Title: document.Title,
+				Remove: func(done func(error)) {
+					view.WithdrawDocument(id, func(versionID string, err error) {
+						if err != nil {
+							done(err)
+							return
+						}
+						removing.Set("")
+						withdrawnID.Set(id)
+						withdrawnVersion.Set(versionID)
+						notice.SetAction(docsText(locale, "remove_done"), docsText(locale, "undo"), "undo-remove", id)
+						done(nil)
+					})
+				},
+				Close: func() { removing.Set("") },
 			}))
 		}
 	}
@@ -578,7 +626,7 @@ func docsCount(locale, key string, n int) string {
 	return strings.ReplaceAll(docsText(locale, key), "{n}", docsLocaleDigits(locale, strconv.Itoa(n)))
 }
 
-func docsLibraryHeader(view View, route docsLibraryRoute, folder string) ui.Node {
+func docsLibraryHeader(view View, route docsLibraryRoute, folder string, pending bool) ui.Node {
 	locale := view.Locale.Resolved
 	title := docsText(locale, "nav_"+route.Collection)
 	if route.Folder != "" && folder != "" {
@@ -588,14 +636,46 @@ func docsLibraryHeader(view View, route docsLibraryRoute, folder string) ui.Node
 	if total < len(view.Documents) {
 		total = len(view.Documents)
 	}
+	// The heading already names the noun ("All documents", "Runbooks"), so
+	// the count is bare: "All documents · 175", not "· 175 documents"
+	// (D-11). The shorter heading also leaves the phone room to keep New
+	// document on the heading's row (D-5).
+	totalLabel := docsLocaleDigits(locale, strconv.Itoa(total))
+	// A search result gets its own heading and count: the server's total
+	// sometimes just echoes the page length (no real count behind it), so
+	// that case reads as "50+ results" instead of a precise, wrong number.
+	if route.Query != "" {
+		title = strings.ReplaceAll(docsText(locale, "search_results_heading"), "{query}", route.Query)
+		if view.DocumentTotal <= len(view.Documents) && view.DocumentNextPageToken != "" {
+			totalLabel = strings.ReplaceAll(docsText(locale, "search_results_uncertain"), "{n}", docsLocaleDigits(locale, strconv.Itoa(total)))
+		} else {
+			totalLabel = docsCount(locale, "search_results_n", total)
+		}
+	}
 	actions := []ui.Node{}
 	if view.CreateDocument != nil {
 		actions = append(actions, ui.CreateElement(docsCreateForm, docsCreateFormProps{Locale: locale, Create: view.CreateDocument}))
 	}
+	// The library owns the page heading now (docsOwnsPageHeading, D-7): one
+	// h1#page-title stating the current collection with its count, the same
+	// slot and id the shell's own head would otherwise put there, plus the
+	// lede as its subtitle instead of a second copy above it.
+	// Only All documents keeps a subtitle; a folder or collection name says
+	// what the list is (D-15). While a query is pending the slot reports
+	// the search instead.
+	subtitle := ui.Node(nil)
+	switch {
+	case pending:
+		subtitle = html.P(html.Props{Class: "subtitle docs-searching", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(locale, "searching")))
+	case route.Query == "" && route.Folder == "" && (route.Collection == "" || route.Collection == "all"):
+		subtitle = html.P(html.Props{Class: "subtitle"}, ui.Text(docsText(locale, "library_subtitle")))
+	}
 	return html.Header(html.Props{Class: "docs-main-head"},
 		html.Div(html.Props{Class: "docs-main-title"},
-			html.H2(html.Props{ID: "docs-list-heading"}, ui.Text(title)),
-			html.Span(html.Props{Class: "docs-total"}, ui.Text(docsCount(locale, "documents_n", total))),
+			html.Div(html.Props{Class: "docs-main-title-block"},
+				html.H1(html.Props{ID: "page-title", Raw: map[string]any{"tabindex": "-1"}}, ui.Text(title), html.Span(html.Props{Class: "docs-total", Raw: map[string]any{"role": "status"}}, ui.Text(" · "+totalLabel))),
+				subtitle,
+			),
 		),
 		html.Div(html.Props{Class: "docs-main-actions"}, actions...),
 	)
@@ -638,7 +718,12 @@ func docsLibraryToolbar(view View, route docsLibraryRoute, typed string, input, 
 	// a wrapping label would also read out every option's text.
 	sortSelect := html.Label(html.Props{Class: "docs-sort"},
 		html.Span(html.Props{ID: "docs-sort-label", Class: "docs-sort-label"}, ui.Text(docsText(locale, "sort_label"))),
-		html.Select(html.Props{ID: "docs-sort", Name: "docs_sort", OnChange: sortChange, Aria: map[string]string{"labelledby": "docs-sort-label"}}, sortOptions...),
+		// NAV-01: Value binds the live select element to route.Sort (the URL),
+		// not only the initial <option selected> markup. Without it, a
+		// popstate that changes docs_sort re-renders the option list but the
+		// DOM control a reader already interacted with keeps showing its old
+		// choice until they touch it again.
+		html.Select(html.Props{ID: "docs-sort", Name: "docs_sort", Value: sortValue, OnChange: sortChange, Aria: map[string]string{"labelledby": "docs-sort-label"}}, sortOptions...),
 	)
 	mode := route.Mode
 	if mode == "" {
@@ -654,7 +739,7 @@ func docsLibraryToolbar(view View, route docsLibraryRoute, typed string, input, 
 	}
 	modeSelect := html.Label(html.Props{Class: "docs-sort docs-mode"},
 		html.Span(html.Props{ID: "docs-mode-label", Class: "docs-sort-label"}, ui.Text(docsText(locale, "mode_label"))),
-		html.Select(html.Props{ID: "docs-mode", Name: "docs_mode", OnChange: modeChange, Aria: map[string]string{"labelledby": "docs-mode-label"}, Raw: map[string]any{"title": docsText(locale, "mode_help_"+mode)}}, modeOptions...),
+		html.Select(html.Props{ID: "docs-mode", Name: "docs_mode", Value: mode, OnChange: modeChange, Aria: map[string]string{"labelledby": "docs-mode-label"}, Raw: map[string]any{"title": docsText(locale, "mode_help_"+mode)}}, modeOptions...),
 	)
 	row := html.Div(html.Props{Class: "docs-toolbar"},
 		html.Form(html.Props{Action: "/workspace/app/docs", Method: "get", Class: "docs-find", Raw: map[string]any{"role": "search"}, OnSubmit: submit}, search...),
@@ -700,7 +785,7 @@ func docsBulkBar(view View, count int) ui.Node {
 	return html.Div(html.Props{Class: "docs-bulk", Raw: map[string]any{"role": "toolbar", "aria-label": docsText(locale, "bulk_label")}}, actions...)
 }
 
-func docsTable(view View, route docsLibraryRoute, selected map[string]bool, starred func(DocumentSummary) bool, sizeChange ui.Handler, searching bool) ui.Node {
+func docsTable(view View, route docsLibraryRoute, selected map[string]bool, starred func(DocumentSummary) bool, sizeChange ui.Handler, searching, pending bool) ui.Node {
 	locale := view.Locale.Resolved
 	if len(view.Documents) == 0 {
 		return docsEmpty(view, route)
@@ -735,7 +820,7 @@ func docsTable(view View, route docsLibraryRoute, selected map[string]bool, star
 		tableClass += " docs-no-owner"
 	}
 	total := max(view.DocumentTotal, len(view.Documents))
-	children := []ui.Node{html.Div(html.Props{Class: tableClass, Role: "table", Aria: map[string]string{"labelledby": "docs-list-heading", "rowcount": strconv.Itoa(total + 1)}}, rows...)}
+	children := []ui.Node{html.Div(html.Props{Class: tableClass, Role: "table", Aria: map[string]string{"labelledby": "page-title", "rowcount": strconv.Itoa(total + 1)}}, rows...)}
 	children = append(children, docsPager(view, route, sizeChange))
 	props := html.Props{ID: "docs-results", Class: "docs-table-wrap"}
 	if searching {
@@ -743,6 +828,10 @@ func docsTable(view View, route docsLibraryRoute, selected map[string]bool, star
 	}
 	if view.Refreshing && view.RefreshingRegion == RefreshRegionDocuments {
 		props.Class += " is-refreshing"
+		props.Aria = map[string]string{"busy": "true"}
+	}
+	if pending {
+		props.Class += " is-pending"
 		props.Aria = map[string]string{"busy": "true"}
 	}
 	return html.Div(props, children...)
@@ -767,7 +856,7 @@ func docsTableRow(view View, route docsLibraryRoute, document DocumentSummary, s
 	}
 	titleCell := []ui.Node{
 		// title: a long title is cut with an ellipsis; the tooltip keeps it.
-		html.A(html.Props{Class: "docs-title-link", Href: href, Raw: map[string]any{"title": document.Title}, Data: map[string]string{"docs-action": "open", "docs-id": href}}, ui.Text(document.Title)),
+		html.A(html.Props{Class: "docs-title-link", Href: href, Raw: map[string]any{"title": document.Title}, Data: map[string]string{"docs-action": "open", "docs-id": href}}, docsTitleNodes(document.Title, route.Query)...),
 	}
 	if folder := docsFolderLabel(view, document.FolderID); folder != "" && view.DocumentFolder == "" {
 		titleCell = append(titleCell, html.Span(html.Props{Class: "docs-folder-tag"}, productIcon("folder", "docs-tag-icon"), ui.Text(folder)))
@@ -793,8 +882,8 @@ func docsTableRow(view View, route docsLibraryRoute, document DocumentSummary, s
 		if document.Match != "" {
 			hit = append(hit, html.Span(html.Props{Class: "docs-match docs-match-" + document.Match}, ui.Text(docsText(locale, "match_"+document.Match))))
 		}
-		if document.Snippet != "" {
-			hit = append(hit, html.Span(html.Props{Class: "docs-snippet-text"}, docsHighlight(document.Snippet, route.Query)...))
+		if excerpt := docsSearchExcerpt(document.Snippet, route.Query, document.Match); excerpt != "" {
+			hit = append(hit, html.Span(html.Props{Class: "docs-snippet-text"}, docsHighlight(excerpt, route.Query)...))
 		}
 		if len(sub) == 0 {
 			titleCell = []ui.Node{html.Span(html.Props{Class: "docs-title-line"}, titleCell...)}
@@ -803,18 +892,27 @@ func docsTableRow(view View, route docsLibraryRoute, document DocumentSummary, s
 		sub = append(sub, nil)
 	}
 	starProps := html.Props{Class: "docs-star", Type: "button", Aria: map[string]string{"label": starLabel + ": " + document.Title, "pressed": strconv.FormatBool(starred)}, Data: map[string]string{"docs-action": "star", "docs-id": document.ID}, Disabled: view.SetDocumentStarred == nil}
+	// Below the container width where the Access column is hidden, this
+	// icon carries the same information beside the title instead (D-5); the
+	// column's own text stays the accessible copy at every wider width.
+	accessIcon, accessIconLabel := docsAccessIconText(locale, document, isMine, true)
 	return html.Div(html.Props{Class: rowClass, Role: "row", Aria: map[string]string{"rowindex": strconv.Itoa(rowIndex)}, Data: map[string]string{"document-id": document.ID}},
 		html.Span(html.Props{Class: "docs-cell docs-cell-select", Role: "cell"},
 			html.Label(html.Props{Class: "docs-select-hit"}, html.Input(html.Props{Type: "checkbox", Checked: selected, Aria: map[string]string{"label": docsText(locale, "select") + ": " + document.Title}, Data: map[string]string{"docs-action": "select", "docs-id": document.ID}}))),
 		html.Span(html.Props{Class: "docs-cell docs-cell-title", Role: "cell"},
 			html.Button(starProps, productIcon("favorite", "docs-star-icon")),
+			html.Span(html.Props{Class: "docs-title-access-icon", Aria: map[string]string{"label": accessIconLabel}}, productIcon(accessIcon, "docs-access-icon")),
 			html.Span(html.Props{Class: "docs-title-stack", Data: map[string]string{"lines": strconv.Itoa(min(len(sub), 1) + 1)}}, titleCell...),
+			// Phone rows hide the owner and updated columns for space; this
+			// line stands in for both, shown only under the phone container
+			// query in docsLibraryStylesheet.
+			html.Span(html.Props{Class: "docs-row-phone-meta"}, ui.Text(owner+" · "), docsWhen(view.Locale, document.UpdatedAt, now)),
 		),
 		html.Span(html.Props{Class: "docs-cell docs-cell-owner", Role: "cell"},
 			personAvatar(docsOwnerName(view, document.OwnerID), "", docsOwnerPhoto(view, document.OwnerID), "tiny"),
 			docsOwnerControl(view, document, owner, isMine),
 		),
-		html.Span(html.Props{Class: "docs-cell docs-cell-access", Role: "cell"}, docsAccessLabel(locale, document, isMine)),
+		html.Span(html.Props{Class: "docs-cell docs-cell-access", Role: "cell"}, docsAccessLabelCompact(locale, document, isMine)),
 		html.Span(html.Props{Class: "docs-cell docs-cell-updated", Role: "cell"}, docsWhen(view.Locale, document.UpdatedAt, now)),
 		html.Span(html.Props{Class: "docs-cell docs-cell-actions", Role: "cell"}, docsRowMenu(view, document, starred, isMine)),
 	)
@@ -828,23 +926,65 @@ func docsOwnerControl(view View, document DocumentSummary, owner string, isMine 
 	return html.Button(html.Props{Class: "docs-owner-name docs-owner-filter", Type: "button", Raw: map[string]any{"title": label}, Aria: map[string]string{"label": label}, Data: map[string]string{"docs-action": "owner", "docs-id": document.OwnerID}}, ui.Text(owner))
 }
 
+// docsIfClass returns class when cond holds, otherwise "" — a small helper
+// for a node whose class name depends on view state (e.g. edit mode).
+func docsIfClass(cond bool, class string) string {
+	if cond {
+		return class
+	}
+	return ""
+}
+
 // docsAccessLabel says who can read a document in words, the column the
 // list is organized around: a private draft, something the viewer shared,
 // something shared with the viewer, or official guidance.
 func docsAccessLabel(locale string, document DocumentSummary, isMine bool) ui.Node {
+	icon, text := docsAccessIconText(locale, document, isMine, false)
+	return html.Span(html.Props{Class: "docs-access docs-access-" + docsDisplayStatus(document)}, productIcon(icon, "docs-access-icon"), html.Span(html.Props{}, ui.Text(text)))
+}
+
+// docsAccessLabelCompact is docsAccessLabel's short form for the library
+// table column ("Shared", "Private", "You +4"), where "Shared with you" and
+// similar longer phrases starve the title next to it (D-5).
+func docsAccessLabelCompact(locale string, document DocumentSummary, isMine bool) ui.Node {
+	icon, text := docsAccessIconText(locale, document, isMine, true)
 	kind := docsDisplayStatus(document)
-	icon, text := "privacy", docsText(locale, "access_private")
+	// Round-4 D-1/D-14: a document someone else owns is by definition
+	// shared with the viewer, so "Shared" on most rows said nothing and
+	// cost the title column its width. Those rows (and official guidance,
+	// whose scope already shows under the title) carry only the icon, with
+	// the words kept as the tooltip and the accessible name; text stays for
+	// the viewer's own documents ("Private", "You +4"), where it informs.
+	if !isMine || kind == string(DocumentTeamOfficial) || kind == string(DocumentChannelOfficial) {
+		_, long := docsAccessIconText(locale, document, isMine, false)
+		return html.Span(html.Props{Class: "docs-access docs-access-iconic docs-access-" + kind, Raw: map[string]any{"title": long}}, productIcon(icon, "docs-access-icon"), html.Span(html.Props{Class: "sr-only"}, ui.Text(long)))
+	}
+	return html.Span(html.Props{Class: "docs-access docs-access-" + kind}, productIcon(icon, "docs-access-icon"), html.Span(html.Props{}, ui.Text(text)))
+}
+
+// docsAccessIconText resolves the icon and text both access labels share.
+func docsAccessIconText(locale string, document DocumentSummary, isMine, compact bool) (icon, text string) {
+	kind := docsDisplayStatus(document)
+	suffix := ""
+	if compact {
+		suffix = "_compact"
+	}
+	icon, text = "privacy", docsText(locale, "access_private"+suffix)
 	switch {
 	case kind == string(DocumentTeamOfficial) || kind == string(DocumentChannelOfficial):
 		icon, text = "check", docsText(locale, "status_"+kind)
 	case isMine && document.ReaderCount > 0:
-		icon, text = "people", docsCount(locale, "access_readers", document.ReaderCount)
+		if compact {
+			icon, text = "people", strings.ReplaceAll(docsText(locale, "access_readers_compact"), "{n}", docsLocaleDigits(locale, strconv.Itoa(document.ReaderCount)))
+		} else {
+			icon, text = "people", docsCount(locale, "access_readers", document.ReaderCount)
+		}
 	case isMine && kind == string(DocumentShared):
-		icon, text = "people", docsText(locale, "access_shared")
+		icon, text = "people", docsText(locale, "access_shared"+suffix)
 	case !isMine:
-		icon, text = "people", docsText(locale, "access_with_you")
+		icon, text = "people", docsText(locale, "access_with_you"+suffix)
 	}
-	return html.Span(html.Props{Class: "docs-access docs-access-" + kind}, productIcon(icon, "docs-access-icon"), html.Span(html.Props{}, ui.Text(text)))
+	return icon, text
 }
 
 func docsRowMenu(view View, document DocumentSummary, starred, isMine bool) ui.Node {
@@ -871,6 +1011,11 @@ func docsRowMenu(view View, document DocumentSummary, starred, isMine bool) ui.N
 	}
 	if !isMine && document.OwnerID != "" && view.DocumentOwner != document.OwnerID {
 		items = append(items, item("owner", "people", strings.ReplaceAll(docsText(locale, "owner_filter"), "{name}", docsOwnerName(view, document.OwnerID))))
+	}
+	// Remove is recoverable and reaches only owners/managers, the same
+	// gate Share uses (DOCS-07).
+	if document.CanManageAccess && view.WithdrawDocument != nil {
+		items = append(items, html.Button(html.Props{Class: "docs-menu-item docs-menu-danger", Type: "button", Data: map[string]string{"docs-action": "remove", "docs-id": document.ID}}, productIcon("trash", "docs-menu-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "remove_action")))))
 	}
 	if len(items) == 0 {
 		return nil
@@ -924,7 +1069,8 @@ func docsLibraryNav(view View, route docsLibraryRoute, state docsNavState) ui.No
 		}
 		children := []ui.Node{productIcon(icon, "docs-nav-icon"), html.Span(html.Props{Class: "docs-nav-label"}, ui.Text(docsText(locale, "nav_"+collection)))}
 		if count > 0 {
-			children = append(children, html.Span(html.Props{Class: "docs-nav-count"}, ui.Text(strconv.Itoa(count))))
+			// Same digits as the header count (D-17): Arabic-Indic in ar.
+			children = append(children, html.Span(html.Props{Class: "docs-nav-count"}, ui.Text(docsLocaleDigits(locale, strconv.Itoa(count)))))
 		}
 		return html.Li(html.Props{}, html.A(props, children...))
 	}
@@ -959,14 +1105,18 @@ func docsLibraryNav(view View, route docsLibraryRoute, state docsNavState) ui.No
 	if view.CreateDocumentFolder != nil {
 		addFolder = html.Button(html.Props{Class: "docs-nav-add", Type: "button", Aria: map[string]string{"label": docsText(locale, "folder_new")}, Raw: map[string]any{"title": docsText(locale, "folder_new")}, Data: map[string]string{"docs-action": "folder-new"}}, productIcon("plus", "docs-nav-icon"))
 	}
+	// The folders-are-private note used to sit under the list permanently
+	// (D-29); it now lives on an info control beside the heading, reachable
+	// by hover or keyboard, instead of taking space on every visit.
+	folderNote := html.Button(html.Props{Class: "docs-nav-info", Type: "button", Aria: map[string]string{"label": docsText(locale, "folders_note")}, Raw: map[string]any{"title": docsText(locale, "folders_note")}}, productIcon("help", "docs-nav-icon"))
 	return html.Nav(html.Props{Class: "docs-nav", Aria: map[string]string{"label": docsText(locale, "heading")}},
 		views,
 		html.Div(html.Props{Class: "docs-nav-section"},
 			html.H2(html.Props{ID: "docs-folders-heading"}, ui.Text(docsText(locale, "folders"))),
+			folderNote,
 			addFolder,
 		),
 		html.Ul(html.Props{Class: "docs-nav-list docs-folder-list", Aria: map[string]string{"labelledby": "docs-folders-heading"}}, items...),
-		html.P(html.Props{Class: "docs-nav-note"}, ui.Text(docsText(locale, "folders_note"))),
 	)
 }
 
@@ -1003,7 +1153,7 @@ func docsFolderItem(view View, route docsLibraryRoute, folder DocumentFolder, st
 	if view.DeleteDocumentFolder != nil {
 		menu = append(menu, html.Button(html.Props{Class: "docs-menu-item docs-menu-danger", Type: "button", Data: map[string]string{"docs-action": "folder-delete", "docs-id": folder.ID}}, productIcon("trash", "docs-menu-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "folder_delete")))))
 	}
-	children := []ui.Node{html.A(props, productIcon("folder", "docs-nav-icon"), html.Span(html.Props{Class: "docs-nav-label"}, ui.Text(folder.Name)), html.Span(html.Props{Class: "docs-nav-count"}, ui.Text(strconv.Itoa(folder.Count))))}
+	children := []ui.Node{html.A(props, productIcon("folder", "docs-nav-icon"), html.Span(html.Props{Class: "docs-nav-label"}, ui.Text(folder.Name)), html.Span(html.Props{Class: "docs-nav-count"}, ui.Text(docsLocaleDigits(view.Locale.Resolved, strconv.Itoa(folder.Count)))))}
 	if len(menu) > 0 {
 		children = append(children, ui.CreateElement(TransientPopover, TransientPopoverProps{
 			Kind: "docs-folder", Class: "docs-folder-menu", TriggerClass: "docs-row-menu-trigger", PanelClass: "docs-row-menu-panel", Group: "docs-row-menu",
@@ -1086,7 +1236,10 @@ func docsWhen(locale LocaleContext, value string, now time.Time) ui.Node {
 		zone = time.UTC
 	}
 	local, today := at.In(zone), now.In(zone)
-	label := formatCivilDateLabel(locale, at)
+	// An earlier year reads the same way as the current-year dates plus the
+	// year ("Dec 14, 2025", "14. Dez. 2025"), not the civil day-first form,
+	// which had shown "14 Dec 2025" in an en-US list of "Sep 22"s (D-13).
+	label := docsCompareDateLabel(locale, at, false)
 	switch {
 	case local.Year() == today.Year() && local.YearDay() == today.YearDay():
 		// Same digits as the locale's dates (L7): Arabic-Indic in ar.
@@ -1094,11 +1247,32 @@ func docsWhen(locale LocaleContext, value string, now time.Time) ui.Node {
 		if locale.Resolved == "" || locale.Resolved == DefaultProductLocale {
 			label = local.Format("3:04 PM")
 		}
-	case local.Year() == today.Year() && (locale.Resolved == "" || locale.Resolved == DefaultProductLocale):
-		label = local.Format("2 Jan")
+	case local.Year() == today.Year():
+		// A date in the current year never needs to repeat it; every locale
+		// gets its own month-day order and digits, not just en-US.
+		label = docsShortDateLabel(locale.Resolved, local)
 	}
 	return html.Tag("time", html.Props{Raw: map[string]any{"datetime": at.UTC().Format(time.RFC3339), "title": formatInstantLabel(locale, at)}}, ui.Text(label))
 }
+
+// docsShortDateLabel renders a same-year date without its year, in the
+// locale's own month-day order: "Sep 22" (en-US), "22. Sep." (de-DE), and
+// Arabic-Indic digits with the Arabic month name (ar). Unlike
+// formatCivilDateLabel/LocaleContext.FormatDate, it never prints the year,
+// so it stays usable everywhere docsWhen already omits the current year.
+func docsShortDateLabel(locale string, at time.Time) string {
+	switch locale {
+	case "de-DE":
+		return strconv.Itoa(at.Day()) + ". " + docsShortMonthsDE[at.Month()-1] + "."
+	case "ar":
+		return docsLocaleDigits(locale, strconv.Itoa(at.Day())) + " " + docsMonthsAR[at.Month()-1]
+	default:
+		return at.Format("Jan 2")
+	}
+}
+
+var docsShortMonthsDE = [12]string{"Jan", "Feb", "März", "Apr", "Mai", "Juni", "Juli", "Aug", "Sep", "Okt", "Nov", "Dez"}
+var docsMonthsAR = [12]string{"يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"}
 
 // docsPager places the list: which rows are showing out of how many, page
 // links with the current page marked, and the page size.
@@ -1108,6 +1282,12 @@ func docsPager(view View, route docsLibraryRoute, sizeChange ui.Handler) ui.Node
 	total := max(view.DocumentTotal, len(view.Documents))
 	page := max(route.Page, 1)
 	pages := max((total+perPage-1)/perPage, 1)
+	// Everything fits on one page at the default size: the header already
+	// states the count, and a page-size control has nothing to page (D-14).
+	// A non-default size keeps the control so it can be set back.
+	if pages == 1 && page == 1 && perPage == DocumentPageSize && view.DocumentNextPageToken == "" {
+		return nil
+	}
 	first := min((page-1)*perPage+1, total)
 	last := max(min(first+len(view.Documents)-1, total), first)
 	summary := strings.NewReplacer("{first}", strconv.Itoa(first), "{last}", strconv.Itoa(last), "{total}", strconv.Itoa(total)).Replace(docsText(locale, "range_of"))
@@ -1130,6 +1310,13 @@ func docsPager(view View, route docsLibraryRoute, sizeChange ui.Handler) ui.Node
 	shown := map[int]bool{1: true, pages: true}
 	for n := page - 1; n <= page+1; n++ {
 		if n >= 1 && n <= pages {
+			shown[n] = true
+		}
+	}
+	// A single hidden page between two shown ones saves nothing by becoming
+	// an ellipsis; only a gap of two or more collapses (D-11).
+	for n := 2; n < pages; n++ {
+		if !shown[n] && shown[n-1] && shown[n+1] {
 			shown[n] = true
 		}
 	}
@@ -1158,8 +1345,70 @@ func docsPager(view View, route docsLibraryRoute, sizeChange ui.Handler) ui.Node
 	}
 	children = append(children, html.Label(html.Props{Class: "docs-sort docs-page-size"},
 		html.Span(html.Props{ID: "docs-size-label", Class: "docs-sort-label"}, ui.Text(docsText(locale, "rows_per_page"))),
-		html.Select(html.Props{Name: "docs_size", OnChange: sizeChange, Aria: map[string]string{"labelledby": "docs-size-label"}}, sizes...)))
+		html.Select(html.Props{Name: "docs_size", Value: strconv.Itoa(perPage), OnChange: sizeChange, Aria: map[string]string{"labelledby": "docs-size-label"}}, sizes...)))
 	return html.Div(html.Props{Class: "docs-more"}, children...)
+}
+
+// docsTitleNodes is a row title, with the query marked while searching: a
+// title hit otherwise showed its reason only as a "Title" chip beside an
+// unrelated passage, and the matched word was highlighted nowhere (D-2).
+func docsTitleNodes(title, query string) []ui.Node {
+	if strings.TrimSpace(query) == "" {
+		return []ui.Node{ui.Text(title)}
+	}
+	return docsHighlight(title, query)
+}
+
+// docsExcerptLead is how many characters of context an excerpt keeps
+// before the first matched word, so the word lands on the first of the
+// snippet's two clamped lines instead of past the clamp.
+const docsExcerptLead = 48
+
+// docsSearchExcerpt turns the server's ~200-character snippet into the
+// passage a two-line row can actually show. The server centres the snippet
+// on the first body occurrence, so the matched word sat about 100
+// characters in and was cut off by the two-line clamp, leaving the row
+// showing the document's flattened lead ("…September 19, 2026 Purpose
+// Supports…") with no highlight at all (D-2). The excerpt starts a short
+// lead before the first matched word, at a word boundary. A title hit
+// whose snippet never mentions the query has no body passage worth
+// showing (the title is highlighted instead), so it gets none. Trailing
+// punctuation before a closing ellipsis is dropped ("work.…").
+func docsSearchExcerpt(snippet, query, match string) string {
+	snippet = strings.TrimSpace(snippet)
+	if snippet == "" {
+		return ""
+	}
+	lower := strings.ToLower(snippet)
+	at := -1
+	for _, word := range strings.Fields(strings.ToLower(query)) {
+		if len(word) < 2 {
+			continue
+		}
+		if i := strings.Index(lower, word); i >= 0 && (at < 0 || i < at) {
+			at = i
+		}
+	}
+	if at < 0 && match == "title" {
+		return ""
+	}
+	// ToLower can change byte lengths outside ASCII; only trust the offset
+	// when the two strings still line up.
+	if at > 0 && len(lower) == len(snippet) {
+		head := []rune(snippet[:at])
+		if len(head) > docsExcerptLead {
+			cut := len(head) - docsExcerptLead
+			for cut < len(head) && head[cut-1] != ' ' {
+				cut++
+			}
+			rest := strings.TrimLeft(string(head[cut:]), " .,;:·—-")
+			snippet = "…" + rest + snippet[at:]
+		}
+	}
+	if trimmed, ok := strings.CutSuffix(snippet, "…"); ok {
+		snippet = strings.TrimRight(trimmed, " .,;:·—-") + "…"
+	}
+	return snippet
 }
 
 // docsHighlight marks each query word inside a snippet, case-insensitively.

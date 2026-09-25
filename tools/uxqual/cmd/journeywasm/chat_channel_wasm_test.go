@@ -17,13 +17,17 @@ import (
 
 type channelLinkClient struct {
 	chatv1.ConversationServiceClient
-	get   chan string
-	add   chan *chatv1.AddMembershipRequest
-	allow bool
+	get     chan string
+	add     chan *chatv1.AddMembershipRequest
+	release chan struct{}
+	allow   bool
 }
 
 func (c *channelLinkClient) GetConversation(_ context.Context, request *chatv1.GetConversationRequest, _ ...grpc.CallOption) (*chatv1.GetConversationResponse, error) {
 	c.get <- request.GetConversationId()
+	if c.release != nil {
+		<-c.release
+	}
 	if !c.allow {
 		return nil, errors.New("permission denied")
 	}
@@ -116,11 +120,11 @@ func TestUnjoinedPublicChannelLinkAsksBeforeAddingRoomToRail(t *testing.T) {
 	}
 }
 
-func TestChatChannelFragmentDeniedLookupDoesNotSelectOrNameRoom(t *testing.T) {
+func TestChatChannelFragmentDeniedLookupShowsUnavailableRoom(t *testing.T) {
 	oldModel, oldClient := chatBrowser.snapshot(), chatBrowser.conversationClient()
 	oldCfg := chatBrowser.config(journeyclient.Config{})
 	oldLocation := js.Global().Get("location")
-	client := &channelLinkClient{get: make(chan string, 1)}
+	client := &channelLinkClient{get: make(chan string, 1), release: make(chan struct{})}
 	cfg := journeyclient.Config{Tenant: "tenant", Subject: "reader", Locale: "en-US"}
 	chatBrowser.reset(client, cfg, nil)
 	js.Global().Set("location", js.ValueOf(map[string]any{"origin": "https://hcm.example", "hash": "#channel=private-room"}))
@@ -138,8 +142,27 @@ func TestChatChannelFragmentDeniedLookupDoesNotSelectOrNameRoom(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("missing authorized lookup")
 	}
-	time.Sleep(10 * time.Millisecond)
-	if model := chatBrowser.snapshot(); model.SelectedID != "" || len(model.Conversations) != 0 {
-		t.Fatalf("denied link changed chat projection: %+v", model)
+	if pending := chatBrowser.snapshot(); pending.SelectedID != "private-room" || pending.State != chatui.StateLoading {
+		t.Fatalf("private link left the previous room visible while authorization was pending: %+v", pending)
+	}
+	// An ordinary Chat refresh can advance the generation while the link is
+	// resolving. The URL still owns the view when the denied read returns.
+	chatBrowser.selectChatConversation("previous-room")
+	close(client.release)
+	deadline := time.After(2 * time.Second)
+	for {
+		model := chatBrowser.snapshot()
+		if model.SelectedID == "private-room" && model.State == chatui.StateError {
+			if len(model.Conversations) != 0 || model.Error == "" {
+				t.Fatalf("denied link disclosed a room or omitted its error: %+v", model)
+			}
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("denied link left the previous room under the private URL: %+v", model)
+		default:
+			time.Sleep(time.Millisecond)
+		}
 	}
 }

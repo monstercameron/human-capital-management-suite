@@ -113,7 +113,12 @@ var (
 // because the demo's separated promotion depends on exactly those four
 // authorities.
 func PlanRoleAssignments(tenant uuid.UUID) ([]WorkerRoleAssignment, error) {
-	employees, err := Plan(tenant)
+	return HarborCarePack.PlanRoleAssignments(tenant)
+}
+
+// PlanRoleAssignments derives this company's access-role sets.
+func (p *Pack) PlanRoleAssignments(tenant uuid.UUID) ([]WorkerRoleAssignment, error) {
+	employees, err := p.Plan(tenant)
 	if err != nil {
 		return nil, err
 	}
@@ -125,9 +130,9 @@ func PlanRoleAssignments(tenant uuid.UUID) ([]WorkerRoleAssignment, error) {
 	}
 	assignments := make([]WorkerRoleAssignment, 0, len(employees))
 	for _, employee := range employees {
-		roles := DevPersonaRoleAssignments[employee.Row.WorkerNumber]
+		roles := p.personaRoleAssignments[employee.Row.WorkerNumber]
 		if len(roles) == 0 {
-			roles = RolesForWorker(employee, managers[employee.Row.WorkerKey])
+			roles = p.RolesForWorker(employee, managers[employee.Row.WorkerKey])
 		}
 		assignments = append(assignments, WorkerRoleAssignment{
 			WorkerKey:    employee.Row.WorkerKey,
@@ -144,12 +149,18 @@ func PlanRoleAssignments(tenant uuid.UUID) ([]WorkerRoleAssignment, error) {
 // manager. Everybody else holds self-service. The order matters and mirrors
 // the local-development directory's own classification exactly.
 func RolesForWorker(employee Employee, managesAnybody bool) []string {
+	return HarborCarePack.RolesForWorker(employee, managesAnybody)
+}
+
+// RolesForWorker reads a worker's bundle off their own record under this
+// company's executive band and functional units.
+func (p *Pack) RolesForWorker(employee Employee, managesAnybody bool) []string {
 	switch {
-	case strings.HasPrefix(employee.Row.Grade, "E"):
+	case p.isExecutive(employee):
 		return AdminBundle
-	case employee.Organization.Code == PeopleOperationsUnit:
+	case p.isPeopleOps(employee):
 		return HRPartnerBundle
-	case employee.Organization.Code == FinanceUnit:
+	case p.isFinance(employee):
 		return FinanceBundle
 	case managesAnybody:
 		return ManagerBundle
@@ -167,13 +178,18 @@ func RolesForWorker(employee Employee, managesAnybody bool) []string {
 // administrator who edited somebody's roles does not lose that edit the next
 // time the demo tenant starts.
 func SeedRoleAssignments(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (RoleAssignmentSummary, error) {
+	return HarborCarePack.SeedRoleAssignments(ctx, tx, tenant)
+}
+
+// SeedRoleAssignments records this company's access-role sets inside tx.
+func (p *Pack) SeedRoleAssignments(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (RoleAssignmentSummary, error) {
 	if tx == nil || tenant == uuid.Nil {
 		return RoleAssignmentSummary{}, fmt.Errorf("demoworkforce: seed role assignments: a transaction and tenant are required")
 	}
 	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
 		return RoleAssignmentSummary{}, err
 	}
-	planned, err := PlanRoleAssignments(tenant)
+	planned, err := p.PlanRoleAssignments(tenant)
 	if err != nil {
 		return RoleAssignmentSummary{}, err
 	}
@@ -182,7 +198,7 @@ func SeedRoleAssignments(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (R
 		created, err := insertOnce(ctx, tx, `
 			INSERT INTO worker_access_role_set (tenant_id, worker_ref, version, updated_by)
 			VALUES ($1, $2, 1, $3) ON CONFLICT DO NOTHING`,
-			tenant, assignment.WorkerKey, RoleAssignmentActor)
+			tenant, assignment.WorkerKey, p.roleAssignmentActor)
 		if err != nil {
 			return RoleAssignmentSummary{}, fmt.Errorf("demoworkforce: seed role set for %s: %w", assignment.WorkerKey, err)
 		}
@@ -201,4 +217,50 @@ func SeedRoleAssignments(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (R
 		}
 	}
 	return summary, nil
+}
+
+// isExecutive reports whether the worker holds this company's executive
+// band: an E grade, or one of the pack's named executive job codes.
+func (p *Pack) isExecutive(employee Employee) bool {
+	if p.executiveJobs != nil {
+		return p.executiveJobs[employee.Row.JobCode]
+	}
+	return strings.HasPrefix(employee.Row.Grade, "E")
+}
+
+// isFinance reports whether the worker is one of this company's finance
+// partners: anybody in the finance unit, or one of the pack's named finance
+// job codes.
+func (p *Pack) isFinance(employee Employee) bool {
+	if p.financeJobs != nil {
+		return p.financeJobs[employee.Row.JobCode]
+	}
+	return employee.Organization.Code == p.financeUnit
+}
+
+// BundleFor names the dev sign-in bundle a worker's roles correspond to:
+// executive, people-operations, finance, manager or self.
+func (p *Pack) BundleFor(employee Employee, managesAnybody bool) string {
+	switch {
+	case p.isExecutive(employee):
+		return "executive"
+	case p.isPeopleOps(employee):
+		return "people-operations"
+	case p.isFinance(employee):
+		return "finance"
+	case managesAnybody:
+		return "manager"
+	default:
+		return "self"
+	}
+}
+
+// isPeopleOps reports whether the worker holds this company's people
+// operations bundle: anybody in the people unit, or one of the pack's named
+// people jobs.
+func (p *Pack) isPeopleOps(employee Employee) bool {
+	if p.peopleJobs != nil {
+		return p.peopleJobs[employee.Row.JobCode]
+	}
+	return employee.Organization.Code == p.peopleUnit
 }

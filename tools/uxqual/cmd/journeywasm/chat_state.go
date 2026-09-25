@@ -1267,6 +1267,12 @@ func (s *chatState) selectChatConversation(id string) (chatui.Model, uint64) {
 		s.newerScanSequence = 0
 		s.pageLoading = false
 		model.UnreadFromID, model.PickerID, model.MenuID = "", "", ""
+		// CHAT-01: switching rooms closes whatever edit was open in the room
+		// being left, the way Slack does -- an edit in flight there is not
+		// carried anywhere the reader can still see it, so nothing is kept
+		// restorable across the switch.
+		model.EditingID = ""
+		s.editDrafts, model.EditDrafts = nil, nil
 		s.shareGeneration++
 		model.SharePostID, model.ShareSourceRoomID, model.ShareDestinationID, model.ShareQuery, model.ShareError = "", "", "", "", ""
 		model.ShareSource, model.ShareDestinations = nil, nil

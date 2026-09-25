@@ -417,6 +417,11 @@ func ensureLegalEntity(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, name
 		return uuid.Nil, fmt.Errorf("demoworkforce: no legal entity is recorded and none was named")
 	}
 	id := LegalEntityID(name)
+	// Another company's own SeedOrganization records its legal entity at the
+	// same instant HarborCare's takes effect; that row is the one to use.
+	if _, err := org.CurrentLegalEntity(ctx, tx, tenant, id, harborCareEffective); err == nil {
+		return id, nil
+	}
 	if _, err := org.CurrentLegalEntity(ctx, tx, tenant, id, CatalogEffectiveFrom); err == nil {
 		return id, nil
 	} else if !errors.Is(err, aggregates.ErrNotFound) {

@@ -68,13 +68,16 @@ func (AcceptedActionStore) RecordApprovedDecision(ctx context.Context, ex Execut
 		return AcceptedAction{}, fmt.Errorf("intentcontrol: verify durable approved decision %s: %w", decision.DecisionID, err)
 	}
 	durable.Revision = uint64(durableRevision)
+	// decided_at is stored at the column's microsecond precision, so the
+	// caller's instant is compared at that precision too: a decision stamped
+	// from a nanosecond clock is the same decision as its own durable row.
 	if durable.TenantID != decision.TenantID || durable.DecisionID != decision.DecisionID ||
 		durable.IntentID != decision.IntentID || durable.Revision != decision.Revision ||
 		durable.RequirementID != decision.RequirementID || durable.Kind != DecisionHumanApproval ||
 		durable.Outcome != OutcomeApproved || durable.ProposalDigest != decision.ProposalDigest ||
 		durable.ControlDigest != decision.ControlDigest || durable.MaterialityClass != decision.MaterialityClass ||
 		durable.DecidedBy != decision.DecidedBy || durable.AuthorityRef != decision.AuthorityRef ||
-		durable.Reason != decision.Reason || !durable.DecidedAt.Equal(decision.DecidedAt) {
+		durable.Reason != decision.Reason || !durable.DecidedAt.Equal(decision.DecidedAt.Truncate(time.Microsecond)) {
 		return AcceptedAction{}, fmt.Errorf("%w: decision %s does not match its durable HUMAN_APPROVAL row", ErrDuplicate, decision.DecisionID)
 	}
 	if strings.TrimSpace(proposalRevisionID) == "" || strings.TrimSpace(actionID) == "" || strings.TrimSpace(idempotencyKey) == "" {
@@ -83,7 +86,7 @@ func (AcceptedActionStore) RecordApprovedDecision(ctx context.Context, ex Execut
 	accepted := AcceptedAction{
 		TenantID: decision.TenantID, DecisionID: decision.DecisionID, IntentID: decision.IntentID,
 		ActionID: actionID, ProposalRevisionID: proposalRevisionID, ProposalDigest: decision.ProposalDigest,
-		AcceptedBy: decision.DecidedBy, AcceptedAt: decision.DecidedAt.UTC(), IdempotencyKey: idempotencyKey,
+		AcceptedBy: decision.DecidedBy, AcceptedAt: durable.DecidedAt.UTC(), IdempotencyKey: idempotencyKey,
 	}
 	accepted.AcceptanceDigest = accepted.computeDigest()
 	row := ex.QueryRow(ctx, `

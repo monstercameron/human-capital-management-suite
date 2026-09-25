@@ -333,7 +333,7 @@ func maxNavigationScore(groupScore int, children []NavigationItemProps) int {
 }
 
 func navigationPageActive(item, current PageID) bool {
-	return item == current || item == PagePeople && current == PagePerson
+	return item == current || item == PagePeople && current == PagePerson || item == PageProjects && current == PageProject
 }
 
 func navigationChildrenActive(children []NavigationItemProps) bool {

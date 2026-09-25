@@ -349,6 +349,14 @@ func normalizedBrandText(value string, limit int, fallback string, mark bool) st
 // fetch surface than the server actually provides.
 func normalizedBrandLogoURL(value string) string {
 	value = strings.TrimSpace(value)
+	const brandPrefix = "/workspace/brand-assets/"
+	if strings.HasPrefix(value, brandPrefix) {
+		digest := strings.TrimPrefix(value, brandPrefix)
+		if len(value) != len(brandPrefix)+64 || !lowerHexDigest(digest) {
+			return ""
+		}
+		return value
+	}
 	const prefix = "/workspace/assets/"
 	if value == "" || len(value) > 240 || !strings.HasPrefix(value, prefix) || strings.ContainsAny(value, `\\?#%`) {
 		return ""
@@ -363,4 +371,16 @@ func normalizedBrandLogoURL(value string) string {
 	default:
 		return ""
 	}
+}
+
+func lowerHexDigest(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, char := range value {
+		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+			return false
+		}
+	}
+	return true
 }

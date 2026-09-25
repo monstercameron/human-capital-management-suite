@@ -106,7 +106,10 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// two old strings back into the new document, which reproduced the
 	// previous digest byte for byte.
 	// NAAS-001 adds the localized empty inbox state before Open My Work.
-	const want = "4c2c2532c182c91851f329ad6eeb5ff683c2c93766c77e8ecd484fe081c4b8bf"
+	// S-1 re-pins again for the same reason as TestTodo_WEB_037_Golden's
+	// latest pin: the action launcher trigger now always reads "Jump to"
+	// instead of switching between "Start an action" and "Go to".
+	const want = "7a3099dbc07ac6c487434427a7440aa574a883d5edcca2b9a6c8e015c74a301e"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

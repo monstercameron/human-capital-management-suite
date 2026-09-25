@@ -71,8 +71,8 @@ func TestDocPreviewEmbedsRenderLoadingReadyAndRestrictedStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, `data-embed-state="loading"`) {
-		t.Fatalf("unresolved reference did not render a loading card: %s", markup)
+	if !strings.Contains(markup, `data-embed-state="loading"`) || !strings.Contains(markup, `aria-busy="true"`) || !strings.Contains(markup, "chat-doc-skeleton-title") {
+		t.Fatalf("unresolved reference did not render a skeleton loading card: %s", markup)
 	}
 	ready := docPreviewEmbeds(m, "doc:ready-1")
 	markup, err = ui.RenderToString(html.Div(html.Props{}, ready...))
@@ -89,5 +89,26 @@ func TestDocPreviewEmbedsRenderLoadingReadyAndRestrictedStates(t *testing.T) {
 	}
 	if strings.Contains(markup, "locked-1<") || strings.Contains(markup, `href="/workspace/app/docs?document=locked-1"`) {
 		t.Fatalf("restricted embed exposed a title or an open link: %s", markup)
+	}
+}
+
+// Round 4 C-1: an unresolved document link is the plain noun, and a failed
+// read says the document is unavailable -- never "Linked document" as link
+// text, and never the forwarded-message copy on the card.
+func TestDocLinkPendingAndUnavailableLabels(t *testing.T) {
+	m := Model{EmbedOrigin: "https://hcm.example", DocPreviews: map[string]DocPreview{"gone-1": {ID: "gone-1", State: "unavailable"}}}
+	pending, err := ui.RenderToString(html.P(html.Props{}, docLinkReferenceBody(m, "See doc:new-1")...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(pending, "document</a>") || strings.Contains(pending, "Opening document") {
+		t.Fatalf("pending link label: %s", pending)
+	}
+	card, err := ui.RenderToString(html.Div(html.Props{}, docPreviewEmbeds(m, "See doc:gone-1")...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(card, "Document unavailable") || strings.Contains(card, "Message preview unavailable") {
+		t.Fatalf("unavailable card copy: %s", card)
 	}
 }

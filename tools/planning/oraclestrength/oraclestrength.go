@@ -178,6 +178,9 @@ func checkBlock(block todoBlock, file string) []Finding {
 		add(redLine, "RED oracle is missing: an oracle must name its failing case")
 		return findings
 	}
+	if green == "" {
+		add(greenLine, "GREEN oracle is missing: an oracle must state the exact accepted outcome and prohibited effects")
+	}
 	if weak := weakSignalRe.FindString(combined); weak != "" && !strongMarkerRe.MatchString(combined) {
 		add(greenLine, fmt.Sprintf("execution-only assertion (%q) without an exact typed outcome, count, digest or prohibited-effect bound", strings.TrimSpace(weak)))
 	}

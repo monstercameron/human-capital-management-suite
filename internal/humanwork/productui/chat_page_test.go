@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
@@ -63,5 +64,18 @@ func TestChatShellContainmentRulesStayOutsideChatScope(t *testing.T) {
 	}
 	if !strings.Contains(css[shellRuleStart:], ".main.page-full-bleed{max-width:none;padding:0;height:100%;min-height:0;display:flex;flex-direction:column}") || !strings.Contains(css[shellRuleStart:], ".main-scroll.main-scroll-full-bleed{overflow:hidden;scrollbar-gutter:auto}") {
 		t.Fatal("chat shell sizing or its single scroll owner rule is missing")
+	}
+}
+
+// Round 3 C-9: a chat document card dates the document the way the docs
+// library does, not in the day-first civil form.
+func TestChatDocDateLabelMatchesDocsVocabulary(t *testing.T) {
+	now := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	locale := ResolveProductLocale("en-US")
+	if got := ChatDocDateLabel(locale, time.Date(2026, 9, 3, 15, 0, 0, 0, time.UTC), now); got != "Sep 3" {
+		t.Errorf("same-year label = %q, want Sep 3", got)
+	}
+	if got := ChatDocDateLabel(locale, time.Date(2025, 12, 14, 15, 0, 0, 0, time.UTC), now); !strings.HasPrefix(got, "Dec 14") || !strings.Contains(got, "2025") {
+		t.Errorf("earlier-year label = %q, want Dec 14, 2025", got)
 	}
 }

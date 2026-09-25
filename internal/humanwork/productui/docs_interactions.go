@@ -356,18 +356,20 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 	}
 	// The fields are uncontrolled: a Value prop re-applied on every render
 	// drops keystrokes typed while a render is in flight.
-	title := html.Props{ID: "docs-create-title", Name: "title", Required: true, MaxLength: 200}
+	title := html.Props{ID: "docs-create-title", Name: "title", Required: true, MaxLength: 200, Placeholder: docsText(props.Locale, "create_title_placeholder")}
 	title.OnInput = ui.UseEvent(func(event ui.InputEvent) { edit(func(next *DocumentCreateRequest) { next.Title = event.GetValue() }) })
-	body := html.Props{ID: "docs-create-markdown", Name: "markdown", Required: true, Raw: map[string]any{"aria-describedby": "docs-create-help"}}
-	body.OnInput = ui.UseEvent(func(event ui.InputEvent) {
-		edit(func(next *DocumentCreateRequest) { next.Markdown = event.GetValue() })
-	})
+	// Round-4 D-3: the dialog asks only for a title. The draft is created
+	// with just its title heading and the caller opens it in the editor,
+	// where the body is written with the toolbar and preview, instead of a
+	// bare Markdown textarea here.
 	submit := func(event ui.FormEvent) {
 		event.PreventDefault()
 		value := state.Get()
-		if strings.TrimSpace(value.Title) == "" || strings.TrimSpace(value.Markdown) == "" || props.Create == nil {
+		value.Title = strings.TrimSpace(value.Title)
+		if value.Title == "" || props.Create == nil {
 			return
 		}
+		value.Markdown = "# " + value.Title + "\n"
 		busy.Set(true)
 		failed.Set(false)
 		props.Create(value, func(err error) {
@@ -376,9 +378,10 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 				failed.Set(true)
 				return
 			}
+			// Success opens the new draft in the editor, which takes focus;
+			// the trigger does not reclaim it.
 			state.Set(DocumentCreateRequest{})
 			open.Set(false)
-			restoreFocus.Set(true)
 		})
 	}
 	status := ui.Node(nil)
@@ -394,7 +397,6 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 		if isOpen {
 			draft := state.Get()
 			setDocsFieldValue("docs-create-title", draft.Title)
-			setDocsFieldValue("docs-create-markdown", draft.Markdown)
 		}
 		return nil
 	}, isOpen)
@@ -419,7 +421,7 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 			return
 		}
 		draft := state.Get()
-		if strings.TrimSpace(draft.Title) != "" || strings.TrimSpace(draft.Markdown) != "" {
+		if strings.TrimSpace(draft.Title) != "" {
 			confirming.Set(true)
 			focus(false, "#docs-create-keep")
 			return
@@ -456,9 +458,10 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 	if !open.Get() {
 		return trigger
 	}
+	titleEmpty := strings.TrimSpace(state.Get().Title) == ""
 	actions := html.Div(html.Props{Class: "docs-create-actions"},
 		html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: busy.Get(), OnClick: cancelClick}, ui.Text(docsText(props.Locale, "create_cancel"))),
-		html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: busy.Get()}, ui.Text(docsText(props.Locale, "create_action"))))
+		html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: busy.Get() || titleEmpty}, ui.Text(docsText(props.Locale, "create_action"))))
 	if confirming.Get() {
 		actions = html.Div(html.Props{Class: "docs-create-discard", Role: "group", Aria: map[string]string{"labelledby": "docs-create-discard-text"}},
 			html.P(html.Props{ID: "docs-create-discard-text", Role: "alert"}, ui.Text(docsText(props.Locale, "create_discard_confirm"))),
@@ -470,16 +473,17 @@ func docsCreateForm(props docsCreateFormProps) ui.Node {
 	return html.Div(html.Props{Class: "docs-create-stack"}, trigger,
 		html.Div(html.Props{ID: "docs-create-panel", Class: "docs-dialog-layer"},
 			html.Div(html.Props{Class: "docs-dialog-scrim", OnClick: cancelClick, Raw: map[string]any{"aria-hidden": "true"}}),
-			html.Section(html.Props{ID: "docs-create-dialog", Class: "docs-dialog docs-dialog-wide", Role: "dialog", TabIndex: -1, Aria: map[string]string{"modal": "true", "labelledby": "docs-create-heading"}},
+			html.Section(html.Props{ID: "docs-create-dialog", Class: "docs-dialog", Role: "dialog", TabIndex: -1, Aria: map[string]string{"modal": "true", "labelledby": "docs-create-heading"}},
 				html.Header(html.Props{Class: "docs-dialog-head"},
 					html.H2(html.Props{ID: "docs-create-heading"}, ui.Text(docsText(props.Locale, "create_heading"))),
 					html.Button(html.Props{Class: "docs-dialog-close", Type: "button", Disabled: busy.Get(), OnClick: cancelClick, Aria: map[string]string{"label": docsText(props.Locale, "create_cancel")}}, productIcon("close", "docs-button-icon")),
 				),
 				html.Form(html.Props{Class: "docs-dialog-body docs-create-form", OnSubmit: submitEvent},
-					html.P(html.Props{ID: "docs-create-help", Class: "docs-dialog-lede"}, ui.Text(docsText(props.Locale, "create_help"))),
-					html.Label(html.Props{For: title.ID}, ui.Text(docsText(props.Locale, "title"))), html.Input(html.WithProps(title, html.Ref(titleRef))),
-					html.Label(html.Props{For: body.ID}, ui.Text(docsText(props.Locale, "markdown"))), html.Textarea(body),
-					status,
+					html.Div(html.Props{Class: "docs-create-scroll"},
+						html.P(html.Props{ID: "docs-create-help", Class: "docs-dialog-lede"}, ui.Text(docsText(props.Locale, "create_help"))),
+						html.Label(html.Props{For: title.ID}, ui.Text(docsText(props.Locale, "title"))), html.Input(html.WithProps(title, html.Ref(titleRef))),
+						status,
+					),
 					actions),
 			),
 		))

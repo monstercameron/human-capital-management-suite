@@ -298,6 +298,29 @@ func (s documentService) GetDocumentVersion(ctx context.Context, tenantID, actor
 	}, nil
 }
 
+// ListDocumentVersions lists a document's immutable versions oldest first
+// for the compare pickers (DOCS-01), through the same policy-redacted
+// history documenthubstore.Store.ReadHistory already provides for HUB-017.
+// The last non-empty entry is marked current. ReadHistory does not carry
+// an author, so AuthorID is always empty until the store exposes one.
+func (s documentService) ListDocumentVersions(ctx context.Context, tenantID, actorID, documentID string) ([]transportdocument.DocumentVersionSummary, error) {
+	entries, err := s.store.ReadHistory(ctx, tenantID, documentID, "person", actorID)
+	if errors.Is(err, documenthubstore.ErrDenied) {
+		return nil, unavailableDocument()
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := make([]transportdocument.DocumentVersionSummary, 0, len(entries))
+	for i, entry := range entries {
+		out = append(out, transportdocument.DocumentVersionSummary{
+			VersionID: entry.VersionID, Title: entry.Title, CreatedAt: entry.CreatedAt,
+			IsCurrent: i == len(entries)-1, Redacted: entry.Redacted,
+		})
+	}
+	return out, nil
+}
+
 // DocumentBacklinks lists inbound links to a document from sources the
 // caller may also read (HUB-035/HUB-022); a source the caller cannot read
 // never reaches the wire.

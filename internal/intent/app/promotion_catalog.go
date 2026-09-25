@@ -28,11 +28,26 @@ func PromotionAggregateCatalog(recordedAt time.Time) (demoworkforce.AggregateCat
 	return PromotionAggregateCatalogFrom(recordedAt, demoworkforce.PromotionPaths())
 }
 
+// PromotionAggregateCatalogForPack derives the catalog one demo company's
+// bootstrap records, from that company's own authored ladder, legal entity,
+// units and headquarters.
+func PromotionAggregateCatalogForPack(pack *demoworkforce.Pack, recordedAt time.Time) (demoworkforce.AggregateCatalog, error) {
+	if pack == nil {
+		return demoworkforce.AggregateCatalog{}, fmt.Errorf("app: a demo company is required")
+	}
+	return promotionAggregateCatalogFrom(pack, recordedAt, pack.PromotionPaths())
+}
+
 // PromotionAggregateCatalogFrom derives the same catalog against a given
 // company ladder. A job publishes several targets now, so every one of them
 // gets its own job row and its own OPEN vacancies: a target a client can pick
 // but cannot be placed into is an option the commit always refuses.
 func PromotionAggregateCatalogFrom(recordedAt time.Time, ladder []demoworkforce.PromotionPathEdge) (demoworkforce.AggregateCatalog, error) {
+	return promotionAggregateCatalogFrom(demoworkforce.HarborCarePack, recordedAt, ladder)
+}
+
+func promotionAggregateCatalogFrom(pack *demoworkforce.Pack, recordedAt time.Time, ladder []demoworkforce.PromotionPathEdge) (demoworkforce.AggregateCatalog, error) {
+	company := pack.Company
 	options, err := workforceOptionsFrom(ladder)
 	if err != nil {
 		return demoworkforce.AggregateCatalog{}, err
@@ -50,7 +65,7 @@ func PromotionAggregateCatalogFrom(recordedAt time.Time, ladder []demoworkforce.
 		currency = "USD"
 	}
 	catalog := demoworkforce.AggregateCatalog{
-		LegalEntityName: demoworkforce.HarborCare.LegalEntity, BudgetCurrency: currency,
+		LegalEntityName: company.LegalEntity, BudgetCurrency: currency,
 		BudgetAmount: PromotionPoolAmount, RecordedAt: recordedAt,
 	}
 	jobs := map[string]bool{}
@@ -68,7 +83,7 @@ func PromotionAggregateCatalogFrom(recordedAt time.Time, ladder []demoworkforce.
 			catalog.BudgetOrgUnits = append(catalog.BudgetOrgUnits, code)
 		}
 	}
-	for _, unit := range demoworkforce.HarborCare.Units {
+	for _, unit := range company.Units {
 		addUnit(unit.Code)
 	}
 	for _, unit := range options.OrgUnits {
@@ -82,7 +97,7 @@ func PromotionAggregateCatalogFrom(recordedAt time.Time, ladder []demoworkforce.
 		}
 		vacancies[key] = true
 		catalog.Vacancies = append(catalog.Vacancies, demoworkforce.CatalogVacancy{
-			OrgUnit: unit, JobCode: code, Grade: grade, Title: title, Location: demoworkforce.HarborCare.Headquarters,
+			OrgUnit: unit, JobCode: code, Grade: grade, Title: title, Location: company.Headquarters,
 		})
 	}
 	// A vacancy opens where its JOB belongs, not where the person reaching

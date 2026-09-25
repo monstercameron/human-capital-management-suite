@@ -7,7 +7,11 @@ import "strconv"
 // (--surface, --canvas, --ink, --muted, --line, --accent, --soft, plus the
 // --hcm-* status/shape tokens), which the shell re-declares for dark mode,
 // forced colors and customer palettes; chat owns no palette of its own.
-const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--chat-measure:720px;--chat-rail-menu-top:80px;--chat-rail-menu-left:8px;position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--ink);font-size:.9375rem;line-height:1.45}` +
+const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--chat-measure:720px;--chat-rail-menu-top:80px;--chat-rail-menu-left:8px;position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--ink);font-size:.9375rem;line-height:1.45}` +
+	// Round 3 C-13: the default rail matches RailDefault (288px) once the
+	// viewport has room for it; 256px below 1280px keeps the timeline wide on
+	// a laptop. A width the viewer dragged is set on the element and wins.
+	`@media(min-width:1280px){.chat-workspace{--chat-rail:288px}}` +
 	`.chat-workspace *{box-sizing:border-box}` +
 	`.chat-workspace p{max-width:none}` +
 	`.chat-workspace .message-body{max-width:90ch}` +
@@ -39,8 +43,17 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.chat-search{width:100%;height:34px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);color:inherit;padding-inline:32px 10px;font:inherit;font-size:.875rem}` +
 	`.chat-search::placeholder,.composer-input::placeholder,.chat-input::placeholder{color:var(--muted);opacity:1}` +
 	`.chat-search:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}` +
-	`.rail-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 8px 12px;mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 calc(100% - 14px),transparent);-webkit-mask-image:linear-gradient(to bottom,transparent,#000 10px,#000 calc(100% - 14px),transparent)}` +
-	`.rail-footer{flex:none;padding:0 8px}` +
+	// C-9: on a shorter viewport (laptop, ~780px tall) the Quiet hours footer
+	// sits below the scroller and can cover the selected row and "New
+	// section" at the bottom of the list. scroll-padding keeps a
+	// programmatic scroll (mounting on the selected row) from landing the
+	// target under the footer, and the footer's own top edge gets a
+	// separator once content is scrolled under it (:has() on the sibling
+	// scroller's scroll state isn't available, so this uses a static
+	// border -- always-on is a safe default; a design pass can make it
+	// conditional on overflow with a scroll listener if that reads as busy).
+	`.rail-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 8px 12px;scroll-padding-block:40px 56px;mask-image:linear-gradient(to bottom,#000 calc(100% - 14px),transparent);-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 14px),transparent)}` +
+	`.rail-footer{flex:none;padding:0 8px;border-top:1px solid var(--line);box-shadow:0 -6px 10px -8px color-mix(in srgb,var(--ink) 30%,transparent)}` +
 	`.pinned-list{list-style:none;margin:6px 0 0;padding:0}` +
 	`.pinned-row{border-top:1px solid var(--line)}` +
 	`.pinned-link{display:flex;flex-direction:column;gap:2px;width:100%;padding:8px 0;background:none;border:0;color:var(--ink);font:inherit;font-size:.8125rem;text-align:start;cursor:pointer}` +
@@ -89,6 +102,16 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.section-order{display:none;width:24px;height:24px;background:none;border:0;border-radius:var(--hcm-radius-control);color:var(--muted);align-items:center;justify-content:center;cursor:pointer}` +
 	`.section-order .chat-icon{width:14px;height:14px}` +
 	`.section-controls:hover .section-order,.section-controls:focus-within .section-order{display:inline-flex}` +
+	// Round 3 C-4: a group's header stays pinned while its rows scroll, so a
+	// rail scrolled to the selected row still says which group the rows at
+	// its top belong to. The scroller's top fade was dropped for it: rows now
+	// pass under an opaque header instead of fading out, and a fade would
+	// have washed out the header's own first pixels.
+	`.rail-scroll>.sidebar-section>.section-controls{position:sticky;top:0;z-index:2;background:var(--canvas)}` +
+	// Round 3 C-5: the drawer's landing focus (mobile_rail_focus_js.go) is
+	// marked quiet unless it came from the keyboard; the first key press
+	// inside the rail removes the mark and the ring returns.
+	`.chat-workspace .chat-row[data-quiet-focus]:focus-visible{outline:none}` +
 	`.chat-row{position:relative;display:flex;align-items:center;gap:10px;width:100%;height:32px;background:none;border:0;border-radius:var(--hcm-radius-control);color:var(--muted);font:inherit;font-size:.9375rem;padding:0 8px 0 12px;cursor:pointer;text-align:start}` +
 	`.chat-rail-row{display:flex;align-items:center;min-width:0}.chat-rail-row .chat-row{min-width:0;flex:1}.rail-row-more{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:32px;padding:0;border:0;border-radius:var(--hcm-radius-control);background:none;color:var(--muted);cursor:pointer;opacity:0}.rail-row-more .chat-icon{width:16px;height:16px}.chat-rail-row:hover .rail-row-more,.chat-rail-row:focus-within .rail-row-more,.rail-row-more[aria-expanded="true"]{opacity:1}.rail-row-more:hover{background:var(--soft);color:var(--ink)}@media(hover:none){.rail-row-more{opacity:1}}` +
 	`.rail-row-menu{position:fixed;top:var(--chat-rail-menu-top,80px);left:var(--chat-rail-menu-left,8px);z-index:1300;width:200px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow-y:auto;display:flex;flex-direction:column;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--hcm-radius-control);box-shadow:var(--hcm-shadow-raised)}` +
@@ -103,8 +126,13 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.kind-glyph{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none;font-weight:600;opacity:.75}` +
 	`.kind-glyph.hash{font-size:1rem}` +
 	`.kind-glyph .chat-icon{width:16px;height:16px}` +
-	`.chat-badge{background:var(--accent);color:var(--hcm-color-on-brand);border-radius:999px;font-size:.6875rem;font-weight:700;min-width:18px;height:18px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;flex:none}` +
+	// C-6: --hcm-color-on-brand is a fixed #fff regardless of theme; the
+	// reviewed dark-mode-aware ink is --on-brand (the same token docs uses).
+	`.chat-badge{background:var(--accent);color:var(--on-brand,#fff);border-radius:999px;font-size:.6875rem;font-weight:700;min-width:18px;height:18px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;flex:none}` +
 	`.chat-badge.mention{background:var(--hcm-color-danger);color:#fff}` +
+	// C-11: the open room is being read right now -- its own unread count
+	// staying lit next to it reads as a bug, not a count.
+	`.chat-row.selected .chat-badge{display:none}` +
 	`.rail-link{display:flex;align-items:center;gap:10px;width:100%;height:36px;background:none;border:0;border-top:1px solid var(--line);border-radius:0;color:var(--muted);font:inherit;font-size:.875rem;padding:4px 12px 0;margin-top:0;cursor:pointer;text-align:start}` +
 	`.rail-link:hover{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}` +
 	`.rail-link .chat-icon{width:16px;height:16px}` +
@@ -133,6 +161,9 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.conversation-header.empty{border-bottom:0;height:0;padding:0;overflow:hidden}` +
 	`.state-actions{display:flex;gap:8px;justify-content:center;margin-top:6px}` +
 	`.conversation-title{display:flex;align-items:center;gap:10px;min-width:0;flex:1}` +
+	// C-1: the header is 52px tall; the shared 64px large-avatar overflows it,
+	// so the header-scoped avatar (conversationHeaderAvatar) shrinks to fit.
+	`.conversation-title .header-avatar{width:28px;height:28px;border-radius:6px;font-size:.75rem;margin:0}` +
 	`.conversation-heading{min-width:0}` +
 	`.conversation-heading h1{font-size:1rem;font-weight:700;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
 	`.conversation-topic{margin:0;font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
@@ -140,12 +171,24 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.icon-button{background:none;border:0;border-radius:var(--hcm-radius-control);color:var(--muted);width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}` +
 	`.icon-button:hover{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}` +
 	`.icon-button[aria-pressed="true"],.conversation-actions[aria-pressed="true"] .icon-button{background:var(--soft);color:var(--accent)}` +
-	`.message-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;padding:8px 20px}` +
+	// C-10: without scroll-padding-top the message list can land its scroll
+	// position with the first visible row half under the sticky-shadowed
+	// header (a 6px lift the header animates in on scroll, see
+	// .conversation-header's animation-timeline). Round 3 C-1: the day
+	// divider stays in the flow. Every divider sits in one flat scroll
+	// container, so a sticky divider never unstuck: all the passed days piled
+	// into the same 4px slot and their rules struck through the row beneath.
+	`.message-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;padding:8px 20px;scroll-padding-top:8px}` +
 	`.message-list::before{content:"";flex:1}` +
 	`.message-list.virtualized::before{display:none}.virtual-spacer{flex:none;min-height:0}.virtual-row{flex:none;min-width:0}.virtual-prelude,.virtual-footer{flex:none}.virtual-parked{position:absolute;inset-inline-start:-10000px;inset-block-start:0;width:1px;height:1px;overflow:hidden}` +
 	`.day-divider{display:flex;align-items:center;gap:12px;margin:14px 0 6px;color:var(--muted);font-size:.75rem;font-weight:600}` +
 	`.day-divider::before,.day-divider::after{content:"";flex:1;border-top:1px solid color-mix(in srgb,var(--ink) 18%,transparent)}` +
 	`.day-divider span{border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:var(--surface)}` +
+	// The public/private/DM/group intro sits above the first divider; give it
+	// the same sticky-safe top clearance so it is not clipped in thread-open,
+	// where the timeline column narrows and the header's shadow reaches
+	// further down.
+	`.channel-intro{scroll-margin-top:12px}` +
 	`.load-older{align-self:center;margin:6px auto 4px}` +
 	`.message{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:10px;padding:4px 8px;margin:10px -8px 0;border-radius:var(--hcm-radius-control)}` +
 	`.message.continued{margin-top:0;padding-top:2px;padding-bottom:2px}` +
@@ -178,6 +221,11 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.reaction{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 9px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);font:inherit;font-size:.75rem;font-weight:600;line-height:1;cursor:pointer}` +
 	`.reaction:hover{border-color:var(--accent)}` +
 	`.reaction.mine{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)}` +
+	// Round 3 C-11: a chip's only edge was a 1px --line border (about 1.4:1
+	// on white), which read as no pill at all in screenshots. A 5% ink tint
+	// on the fill makes the pill visible in light and dark without
+	// competing with the accent pill of your own reaction.
+	`.reaction-row>.reaction:not(.mine):not(.add){background:color-mix(in srgb,var(--ink) 5%,var(--surface))}` +
 	`.reaction-emoji{font-size:.875rem}` +
 	`.reaction.add{color:var(--muted);padding:0 7px;gap:1px;border-style:dashed;background:transparent}` +
 	`.reaction.add:hover{color:var(--accent);border-style:solid}` +
@@ -189,24 +237,48 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.menu-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:0;background:none;color:var(--ink);font:inherit;font-size:.875rem;text-align:start;border-radius:6px;cursor:pointer}` +
 	`.menu-item:hover,.menu-item:focus-visible{background:var(--soft)}` +
 	`.menu-item.danger{color:var(--hcm-color-danger)}` +
+	// CHAT-08: the developer-only sub-section separates "Copy API curl" from
+	// the everyday actions above it, with a border and its own small heading
+	// rather than looking like just another row.
+	`.menu-section{display:flex;flex-direction:column;gap:1px;margin:4px 2px 0;padding:6px 8px 2px;border-top:1px solid var(--line)}` +
+	`.menu-section-title{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}` +
+	`.menu-section-hint{font-size:.6875rem;color:var(--muted)}` +
 	`.menu-item .chat-icon{width:16px;height:16px}` +
 	`.message:has(.message-menu) .message-actions,.message:has(.reaction-picker) .message-actions{opacity:1}` +
 	`.unread-divider{display:flex;align-items:center;gap:8px;margin:12px 0 2px;color:var(--hcm-color-danger);font-size:.6875rem;font-weight:700;letter-spacing:.02em}` +
 	`.unread-divider::before{content:"";flex:1;border-top:1px solid currentColor}` +
 	`.jump-newest{position:absolute;bottom:12px;inset-inline-end:24px;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--accent);font:inherit;font-size:.8125rem;font-weight:600;box-shadow:var(--hcm-shadow-raised);cursor:pointer;opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity var(--hcm-motion-fast) var(--hcm-motion-easing),transform var(--hcm-motion-fast) var(--hcm-motion-easing);z-index:2}` +
 	`.timeline-frame.away .jump-newest{opacity:1;pointer-events:auto;transform:none}` +
+	// C-20: reserve room for the pill while it is shown so it does not sit
+	// on top of the newest message's text.
+	`.timeline-frame.away .message-list{padding-bottom:52px}` +
 	`.jump-newest .chat-icon{width:14px;height:14px}` +
 	`.message-attachments{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}` +
 	`.attachment-image{position:relative;margin:0;max-width:min(100%,360px);border:1px solid var(--line);border-radius:var(--hcm-radius-surface);overflow:hidden;background:var(--canvas)}` +
 	`.attachment-image-open{display:block;width:100%;height:100%;max-width:100%;padding:0;border:0;background:transparent;cursor:zoom-in}` +
 	`.attachment-image-open:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}` +
-	`.attachment-image img{display:block;max-width:100%;max-height:320px;width:auto;height:auto;object-fit:cover}` +
+	// Round 3 C-4: alt text stays for screen readers but is never painted
+	// over the tile while a thumbnail is pending or broken, and a src-less
+	// <img> (fetch not started yet) is hidden so Chrome draws no broken glyph.
+	`.attachment-image img{display:block;max-width:100%;max-height:320px;width:auto;height:auto;object-fit:cover;color:transparent}.attachment-image-open img:not([src]){visibility:hidden}` +
 	`.attachment-image.measured .attachment-image-open img,.attachment-image.unmeasured .attachment-image-open img{width:100%;height:100%;object-fit:contain}` +
 	`.attachment-image.unmeasured{width:160px;height:160px}.attachment-image.unmeasured img{width:100%;height:100%;object-fit:contain}` +
 	`.attachment-image.unmeasured .attachment-pending{width:100%;height:100%}` +
 	`.attachment-image.measured img{width:100%;height:100%;object-fit:contain}.attachment-image.measured .attachment-pending{width:100%;height:100%}` +
 	`.attachment-pending{display:flex;align-items:center;justify-content:center;width:240px;height:160px;color:var(--muted)}` +
 	`.attachment-pending:has(.attachment-download){flex-direction:column;gap:8px;text-align:center}.attachment-download{border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--accent);padding:5px 10px;font:inherit;cursor:pointer}.attachment-image>.attachment-download{position:absolute;inset-block-start:6px;inset-inline-end:6px;z-index:1;padding:3px 8px;font-size:.75rem;opacity:0;transition:opacity var(--hcm-motion-fast) var(--hcm-motion-easing)}.attachment-image:hover>.attachment-download,.attachment-image:focus-within>.attachment-download{opacity:1}@media(hover:none){.attachment-image>.attachment-download{opacity:1}}.attachment-download:disabled,.attachment-chip.unavailable:disabled{cursor:default;opacity:.6}.attachment-chip.unavailable{font:inherit;cursor:pointer}` +
+	// C-2: the fallback tile stays in the tree, hidden, until
+	// chatAttachmentImageErrorHandler marks the figure ".failed" on an <img>
+	// load error -- swapping classes rather than replacing markup keeps this
+	// safe under the reconciler.
+	`.attachment-fallback{display:none}.attachment-image.failed .attachment-fallback{display:flex}.attachment-image.failed .attachment-image-open,.attachment-image.failed>.attachment-download{display:none}` +
+	// Round 3 C-4 backstop, independent of the loader: an <img> that has
+	// still not been given a src 20s after it mounted gets the unavailable
+	// tile laid over it. The open button stays in layout underneath so the
+	// loader's intersection observers can still see it; the moment a src
+	// lands the :has() stops matching and the overlay goes away.
+	`.attachment-image:not(.failed):has(>.attachment-image-open img:not([src]))>.attachment-fallback{display:flex;position:absolute;inset:0;z-index:1;width:auto;height:auto;padding:6px;background:var(--canvas);font-size:.75rem;visibility:hidden;animation:chat-attachment-stall 0s linear 20s forwards}` +
+	`@keyframes chat-attachment-stall{to{visibility:visible}}` +
 	`.attachment-badge{position:absolute;bottom:6px;inset-inline-start:6px;background:rgba(7,17,24,.7);color:#fff;font-size:.625rem;font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:4px}` +
 	`.attachment-chip{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--canvas);color:var(--ink);text-decoration:none;font-size:.875rem}` +
 	`.attachment-chip:hover{border-color:var(--accent)}` +
@@ -218,8 +290,25 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.message-stats:hover{border-color:var(--line);background:var(--surface)}` +
 	`.message-actions{position:absolute;top:-12px;inset-inline-end:12px;display:flex;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:var(--hcm-radius-control);box-shadow:var(--hcm-shadow-raised);padding:2px;opacity:0;transition:opacity var(--hcm-motion-fast) var(--hcm-motion-easing);z-index:2}` +
 	`.message:hover .message-actions,.message:focus-within .message-actions{opacity:1}` +
-	`.message-action{width:28px;height:28px;background:none;border:0;border-radius:var(--hcm-radius-xs);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}` +
+	// C-18: hover has no meaning on a touch screen, so the pointer:coarse
+	// case is handled on its own rather than only at the 760px width
+	// breakpoint (a touch laptop or tablet above that width was otherwise
+	// stuck with a hover-only bar that never appeared). Only the "More
+	// actions" trigger stays up, and it gets real button chrome -- a plain
+	// muted glyph with no background is what read as a faint, easy-to-miss
+	// "…" -- everything else opens through that menu instead of crowding
+	// the message with row after row of tap targets.
+	`@media(pointer:coarse){.message-actions{opacity:1;background:transparent;border:0;box-shadow:none}.message-actions .message-action:not([data-action="menu"]){display:none}.message-actions .message-action[data-action="menu"]{background:var(--surface);border:1px solid var(--line)}.message:focus-within .message-actions .message-action{display:inline-flex}}` +
+	`.message-action{width:32px;height:32px;background:none;border:0;border-radius:var(--hcm-radius-xs);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}` +
 	`.message-action .chat-icon{width:16px;height:16px}` +
+	// r5 C-1: the "More actions" trigger is the only way into the message
+	// menu on touch, so it draws at full ink (a muted glyph measured 1.94:1),
+	// and it grows to a 44px target under a coarse pointer.
+	`.message-action[data-action="menu"]{color:var(--ink)}` +
+	`.message-action[data-action="menu"] .chat-icon{stroke-width:3.25}` +
+	`@media(pointer:coarse){.message-actions .message-action[data-action="menu"]{width:44px;height:44px}}` +
+	// r5 C-2: keyboard hints are noise on touch screens.
+	`@media(pointer:coarse){.kbd-hint{display:none}}` +
 	`.message-action:hover{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}` +
 	`.message-action[aria-pressed="true"]{color:var(--accent)}` +
 	`.message-action.danger:hover{color:var(--hcm-color-danger);background:var(--hcm-color-danger-surface)}` +
@@ -250,13 +339,24 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.emoji-choice{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:var(--hcm-radius-control);background:transparent;color:inherit;font:inherit;font-size:1.25rem;cursor:pointer}` +
 	`.emoji-choice:hover,.emoji-choice:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:-2px;background:var(--soft)}` +
 	`.thread-composer .emoji-picker{inset-inline-start:0}` +
-	`.tool-button{width:30px;height:30px;background:none;border:0;border-radius:var(--hcm-radius-control);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}` +
+	// C-14: 32px brings the composer toolbar in line with the header's own
+	// icon buttons (.icon-button is 34px; the toolbar's glyphs read small
+	// and cramped at 30px next to them).
+	`.tool-button{width:32px;height:32px;background:none;border:0;border-radius:var(--hcm-radius-control);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}` +
+	// Round 3 C-12: the GIF control is a ghost tool like its siblings; the
+	// bordered surface box read as a disabled field beside them.
+	`.giphy-trigger{width:auto;min-width:32px;padding:0 8px;gap:4px;border:0;background:none;color:var(--muted)}.giphy-trigger .giphy-trigger-label{font-size:.75rem;letter-spacing:.02em}` +
+	`.giphy-trigger:hover:not(:disabled){color:var(--ink)}` +
 	`.tool-button .chat-icon{width:16px;height:16px}` +
 	`.composer-help{position:absolute;top:100%;inset-inline-end:8px;margin-top:3px;font-size:.6875rem;color:var(--muted);white-space:nowrap;opacity:0;transition:opacity var(--hcm-motion-fast) var(--hcm-motion-easing)}` +
 	`.chat-composer:focus-within:has(.composer-input:placeholder-shown) .composer-help{opacity:1}` +
-	`.send-button,.button{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--accent);color:var(--hcm-color-on-brand);border:1px solid transparent;border-radius:var(--hcm-radius-control);height:34px;min-height:34px;padding:0 12px;font:inherit;font-weight:600;font-size:.875rem;cursor:pointer;white-space:nowrap}` +
+	`.send-button,.button{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--accent);color:var(--on-brand,#fff);border:1px solid transparent;border-radius:var(--hcm-radius-control);height:34px;min-height:34px;padding:0 12px;font:inherit;font-weight:600;font-size:.875rem;cursor:pointer;white-space:nowrap}` +
 	`.send-button:hover,.button:hover{background:var(--accent-hover)}` +
-	`.send-button:disabled,.chat-composer:has(.composer-input:placeholder-shown) .send-button,.thread-composer:has(.composer-input:placeholder-shown) .send-button{background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--muted);opacity:1}` +
+	// C-14: a disabled Send filled like the enabled pill read as clickable
+	// when it was not; it is transparent with muted ink and a hairline
+	// border instead, matching how every other disabled control in this
+	// stylesheet reads (opacity dims a ghost/outline state, not a solid one).
+	`.send-button:disabled,.chat-composer:has(.composer-input:placeholder-shown) .send-button,.thread-composer:has(.composer-input:placeholder-shown) .send-button{background:transparent;border-color:var(--line);color:var(--muted);opacity:1}` +
 	`.send-button{margin-inline-start:auto}` +
 	`.send-button .chat-icon{width:16px;height:16px}` +
 	`.chat-workspace[dir="rtl"] .icon-send,.chat-workspace[dir="rtl"] .icon-reply,.chat-workspace[dir="rtl"] .icon-chevron-right{transform:scaleX(-1)}` +
@@ -272,7 +372,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.details-summary{text-align:center;padding:8px 0 16px}` +
 	`.details-summary h3{margin:10px 0 2px;font-size:1rem}` +
 	`.details-section{border-top:1px solid var(--line);padding:12px 0}` +
-	`.details-section-head{display:flex;align-items:center;justify-content:space-between}` +
+	`.details-section-head{display:flex;align-items:center;justify-content:space-between}.details-section-actions{display:flex;align-items:center;gap:2px;margin-inline-start:auto}` +
 	`.details-section h3{font-size:.8125rem;margin:0;color:var(--muted);font-weight:600}` +
 	`.member-filter{position:relative;margin:8px 0 2px}` +
 	`.member-filter .chat-icon{position:absolute;inset-inline-start:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--muted);pointer-events:none}` +
@@ -282,7 +382,9 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.member-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.875rem}` +
 	`.person-avatar-button,.person-name,.conversation-person-name,.member-person-button{border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;padding:0;text-align:start}` +
 	`.person-avatar-button{display:inline-flex;flex:none;border-radius:50%}` +
-	`.person-name:hover,.conversation-person-name:hover,.member-person-button:hover .member-name{text-decoration:underline}` +
+	// Round 3 C-17: the underline is a hover cue only; on touch a tap left
+	// :hover stuck on the tapped name ("Anika Desai" underlined alone).
+	`@media(hover:hover){.person-name:hover,.conversation-person-name:hover,.member-person-button:hover .member-name{text-decoration:underline}}` +
 	`.person-avatar-button:focus-visible,.person-name:focus-visible,.conversation-person-name:focus-visible,.member-person-button:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +
 	`.member-person-button{display:flex;align-items:center;gap:8px;min-width:0;flex:1}` +
 	`.conversation-person-name{font-size:inherit;font-weight:inherit;line-height:inherit}` +
@@ -306,6 +408,12 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`.member-status.online{color:var(--hcm-color-success)}` +
 	`.thread-pane{padding-bottom:0}` +
 	`.thread-scroll{flex:1;min-height:0;overflow-y:auto}` +
+	// r5 C-4: rows scrolled under the header fade out over 16px instead of
+	// being sliced mid-avatar, the thread's last reply clears the composer,
+	// and the header paints its own surface so nothing shows through it.
+	`.message-list{mask-image:linear-gradient(to bottom,transparent 0,#000 16px);-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 16px)}` +
+	`.thread-scroll{padding-block-end:16px;scroll-padding-block-end:16px}` +
+	`.conversation-header{position:relative;z-index:1;background:var(--surface)}` +
 	`.thread-root{display:flex;gap:10px;padding:8px 0 12px;border-bottom:1px solid var(--line)}` +
 	`.thread-replies{display:grid;gap:10px;padding-top:10px}` +
 	`.thread-message{display:flex;gap:10px}` +
@@ -380,6 +488,13 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`@media(max-width:760px){.chat-layout,.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(0,1fr)}.chat-rail{display:none}.mobile-chat-toggle,.mobile-chat-close{display:inline-flex}.rail-pill.mobile-chat-toggle{display:inline-flex}` +
 	`.chat-workspace[data-sidebar-open="true"] .chat-rail{display:flex;position:fixed;inset:0 auto 0 0;width:min(85vw,320px);z-index:1200;box-shadow:var(--hcm-shadow-raised)}` +
 	`.chat-workspace[data-sidebar-open="true"] .chat-scrim{display:block;position:fixed;inset:0;background:color-mix(in srgb,var(--ink) 55%,transparent);border:0;z-index:1199;cursor:pointer}` +
+	// Mobile search fix: the rail's own search box lives inside the fixed
+	// drawer, so a result list rendered in the main column (untouched
+	// stacking order) sat visually behind it. Rather than close the drawer
+	// on every keystroke -- the input closing would blur itself mid-search
+	// -- results are lifted above the drawer instead, the way the finding's
+	// second option suggests ("show results inside the drawer").
+	`.chat-workspace[data-sidebar-open="true"] .chat-search-results{position:fixed;inset:0;z-index:1201;background:var(--surface);padding-top:calc(20px + env(safe-area-inset-top,0px))}` +
 	`.chat-row,.rail-link{height:40px}.icon-button{width:40px;height:40px}.channel-todo-trigger{height:40px}.conversation-header{padding:0 8px 0 8px}.conversation-header.empty{height:52px;border-bottom:1px solid var(--line);padding:0 8px}.message{padding:6px 12px;margin-inline:-12px}.message-list{padding-inline:12px}.chat-composer{margin:4px 12px 12px}` +
 	`.message-actions{position:absolute;top:2px;inset-inline-end:8px;display:flex;opacity:1;border:0;box-shadow:none;background:transparent;padding:0;justify-content:flex-end}.message-actions .message-action:not([data-action="menu"]){display:none}.message:focus-within .message-actions{background:var(--surface)}.message:focus-within .message-actions .message-action{display:inline-flex}.message-meta{padding-inline-end:44px}.message-action{width:40px;height:40px}.gutter-time{display:none}.message.continued{grid-template-columns:minmax(0,1fr);padding-inline-start:58px}.send-button{height:44px;padding:0 16px}.composer-toolbar{padding:4px 8px 8px}.tool-button{width:40px;height:40px}.message:hover{background:transparent}.message:focus-within{background:color-mix(in srgb,var(--ink) 5%,transparent)}.send-button{margin-inline-start:auto}` +
 	`.chat-side{width:100%}.chat-notice{margin-inline:12px}}` +
@@ -402,7 +517,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:268px;--chat-details:320px;--cha
 	`@media(prefers-reduced-motion:reduce){.chat-workspace :is(.chat-row,.rail-link,.pinned-link,.search-result,.reaction,.message-action,.tool-button,.send-button,.button,.icon-button,.menu-item,.emoji-choice,.picker-emoji,.chat-embed-link,.attachment-chip,.attachment-download,.person-avatar-button,.member-person-button,.chat-details,.chat-rail,.chat-scrim){transition:none;animation:none;transform:none}.chat-workspace :is(.rail-row-menu,.message-menu,.reaction-picker,.emoji-picker,.giphy-picker){animation:none}}` +
 	`:root[data-hcm-motion-preference="reduce"] .chat-workspace :is(.chat-row,.rail-link,.pinned-link,.search-result,.reaction,.message-action,.message-actions,.jump-newest,.composer-help,.tool-button,.send-button,.button,.icon-button,.menu-item,.emoji-choice,.picker-emoji,.chat-embed-link,.attachment-chip,.attachment-download,.person-avatar-button,.member-person-button,.chat-details,.chat-rail,.chat-scrim),:root[data-hcm-motion-preference="limited"] .chat-workspace :is(.chat-row,.rail-link,.pinned-link,.search-result,.reaction,.message-action,.message-actions,.jump-newest,.composer-help,.tool-button,.send-button,.button,.icon-button,.menu-item,.emoji-choice,.picker-emoji,.chat-embed-link,.attachment-chip,.attachment-download,.person-avatar-button,.member-person-button,.chat-details,.chat-rail,.chat-scrim){transition:none;animation:none;transform:none}` +
 	`:root[data-hcm-motion-preference="reduce"] .chat-workspace :is(.rail-row-menu,.message-menu,.reaction-picker,.emoji-picker,.giphy-picker),:root[data-hcm-motion-preference="limited"] .chat-workspace :is(.rail-row-menu,.message-menu,.reaction-picker,.emoji-picker,.giphy-picker){animation:none}` +
-	composerPolishStyles + surfaceStyles
+	composerPolishStyles + surfaceStyles + projectEmbedStyles + journeyEmbedStyles
 
 func paneStyle(p PaneSizes) map[string]string {
 	out := map[string]string{}

@@ -198,9 +198,9 @@ var nonExemptJobs = map[string]bool{
 //
 // It is walked from the recorded hierarchy rather than listed a second time,
 // so a unit that is re-parented reports the new line without an edit here.
-func businessUnitFor(unitCode string) (string, error) {
-	units := make(map[string]OrganizationUnit, len(HarborCare.Units))
-	for _, unit := range HarborCare.Units {
+func (p *Pack) businessUnitFor(unitCode string) (string, error) {
+	units := make(map[string]OrganizationUnit, len(p.Company.Units))
+	for _, unit := range p.Company.Units {
 		units[unit.Code] = unit
 	}
 	unit, ok := units[unitCode]
@@ -219,8 +219,8 @@ func businessUnitFor(unitCode string) (string, error) {
 }
 
 // costCenterFor is the unit's charge code.
-func costCenterFor(unitCode string) (string, error) {
-	code, ok := costCenters[unitCode]
+func (p *Pack) costCenterFor(unitCode string) (string, error) {
+	code, ok := p.costCenters[unitCode]
 	if !ok {
 		return "", fmt.Errorf("demoworkforce: no cost center recorded for organization unit %q", unitCode)
 	}
@@ -230,11 +230,11 @@ func costCenterFor(unitCode string) (string, error) {
 // workArrangementFor decides where the work is performed from the two facts
 // that actually settle it: what the unit's work requires, and whether the
 // worker is based at the one office the company has.
-func workArrangementFor(unitCode, location string) string {
-	if onSiteUnits[unitCode] {
+func (p *Pack) workArrangementFor(unitCode, location string) string {
+	if p.onSiteUnits[unitCode] {
 		return workforce.WorkArrangementOnSite
 	}
-	if strings.TrimSpace(location) == headquarters {
+	if strings.TrimSpace(location) == p.headquarters {
 		return workforce.WorkArrangementHybrid
 	}
 	return workforce.WorkArrangementRemote
@@ -242,8 +242,8 @@ func workArrangementFor(unitCode, location string) string {
 
 // employmentTypeFor is REGULAR unless the worker is one of the two on a fixed
 // term.
-func employmentTypeFor(workerKey string) string {
-	if fixedTermWorkers[workerKey] {
+func (p *Pack) employmentTypeFor(workerKey string) string {
+	if p.fixedTermWorkers[workerKey] {
 		return workforce.EmploymentTypeFixedTerm
 	}
 	return workforce.EmploymentTypeRegular
@@ -251,8 +251,8 @@ func employmentTypeFor(workerKey string) string {
 
 // fteFor is the worker's allocation: a full unit unless the worker holds one
 // of the recorded reduced schedules.
-func fteFor(workerKey string) string {
-	if fte, ok := partTimeFTE[workerKey]; ok {
+func (p *Pack) fteFor(workerKey string) string {
+	if fte, ok := p.partTimeFTE[workerKey]; ok {
 		return fte
 	}
 	return "1.0000"
@@ -271,8 +271,19 @@ func timeTypeFor(fte string) string {
 // JobFamilyFor is the family a job code belongs to, and JobExemptStatusFor its
 // FLSA classification. They are exported because the aggregate projection
 // records them on the job catalog row, which is a different package's call.
+//
+// Job codes are distinct across every shipped company, so the lookup reads
+// whichever company publishes the code.
 func JobFamilyFor(jobCode string) string {
-	return jobFamilies[strings.TrimSpace(jobCode)]
+	if pack, ok := PackForJob(jobCode); ok {
+		return pack.JobFamilyFor(jobCode)
+	}
+	return ""
+}
+
+// JobFamilyFor is the family one of this company's job codes belongs to.
+func (p *Pack) JobFamilyFor(jobCode string) string {
+	return p.jobFamilies[strings.TrimSpace(jobCode)]
 }
 
 // JobExemptStatusFor is the FLSA status the job's duties support.
@@ -283,7 +294,15 @@ func JobFamilyFor(jobCode string) string {
 // classified explicitly and TestHarborCareJobCatalogFactsAreComplete proves
 // it.
 func JobExemptStatusFor(jobCode string) string {
-	if nonExemptJobs[strings.TrimSpace(jobCode)] {
+	if pack, ok := PackForJob(jobCode); ok {
+		return pack.JobExemptStatusFor(jobCode)
+	}
+	return "EXEMPT"
+}
+
+// JobExemptStatusFor is the FLSA status of one of this company's job codes.
+func (p *Pack) JobExemptStatusFor(jobCode string) string {
+	if p.nonExemptJobs[strings.TrimSpace(jobCode)] {
 		return "NON_EXEMPT"
 	}
 	return "EXEMPT"

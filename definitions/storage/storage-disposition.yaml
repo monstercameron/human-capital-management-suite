@@ -25,6 +25,11 @@
 # against that database independently. This exclusion is intentional and
 # prevents the generated core registry from claiming tables it cannot inspect.
 #
+# Project tables use a separate project schema, role, and migration tree under
+# internal/data/projectstore/migrations. Their independent table registry is
+# definitions/storage/project-storage-disposition.yaml, checked against that
+# migration tree by TestTodo_PM_003_StorageDispositionMatchesEmbeddedSchemas.
+#
 # migrations/00010_artifacts.sql's content-addressed artifact tables
 # (artifact, artifact_reference_event, artifact_retrieval_refusal) are
 # deliberately excluded: that migration creates them in a separate PostgreSQL
@@ -6429,3 +6434,31 @@ tables:
       effect identity per receipt, with mutable lease, attempt, and completion
       state. Rebuildable from immutable receipt records; consumers enforce
       receipt idempotency after a requeue.
+  - table: brand_asset_revision
+    migration: 00364_brand_asset_library.sql
+    owner_package: internal/data/brandassetstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      UXAUDIT-022: immutable tenant-owned brand asset originals, responsive
+      proxies, metadata, removals, and rollback revisions.
+  - table: brand_asset_head
+    migration: 00364_brand_asset_library.sql
+    owner_package: internal/data/brandassetstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: brand_asset_revision
+    notes: >-
+      UXAUDIT-022: tenant current revision pointer; recoverable from the
+      immutable revision history.

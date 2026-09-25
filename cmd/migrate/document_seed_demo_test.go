@@ -10,8 +10,10 @@ import (
 	"time"
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatroutestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 )
 
 func TestDemoAssetsAreValidAndStable(t *testing.T) {
@@ -85,7 +87,7 @@ func TestDocumentSeedDemoDocuments_Integration(t *testing.T) {
 	ctx := context.Background()
 	const tenant = "harborcare-demo"
 	now := time.Now().UTC()
-	if err := runChatSeedCommand(ctx, chat, chatSeedOptions{Tenant: tenant, Scale: "small", MediaRoot: t.TempDir(), Now: now.Add(-3 * time.Hour)}, &bytes.Buffer{}); err != nil {
+	if err := runChatSeedCommand(ctx, chat, nil, chatSeedOptions{Tenant: tenant, Scale: "small", MediaRoot: t.TempDir(), Now: now.Add(-3 * time.Hour)}, &bytes.Buffer{}); err != nil {
 		t.Fatalf("chat seed: %v", err)
 	}
 	media := t.TempDir()
@@ -184,5 +186,124 @@ func TestDocumentSeedDemoDocuments_Integration(t *testing.T) {
 	}
 	if chatPosts() != posts || count(`SELECT count(*) FROM document_version WHERE tenant_id=$1`, tenant) != versions || count(`SELECT count(*) FROM document_media WHERE tenant_id=$1`, tenant) != attachments {
 		t.Fatal("rerun wrote new rows")
+	}
+}
+
+// TestDocumentSeedDemoDocuments_RoutedChat pins the bug this fix addresses:
+// once a live tenant's chat rooms are registered in the core route
+// directory (as "migrate chat seed" always registers them), every write
+// chatstore accepts carries a route_shard, and a write with no matching
+// lease is refused with chatstore.ErrNoRouteLease ("chat write requires a
+// route lease"). The document seed's showcase chat posts
+// (postDemoMessages in document_seed_demo.go) wrote directly to the chat
+// store adapter with no lease at all, so "migrate document seed" failed
+// against any tenant "migrate chat seed" had already routed -- exactly the
+// failure the live harborcare-demo review DBs hit. Without opts.Routes
+// wired through (documentSeedOptions.Routes, threaded from
+// runDocumentSeedAction in document.go), this test reproduces that
+// ErrNoRouteLease failure; with it, the showcase posts succeed the same
+// way the chat seeder's own posts do (chatSeedWriteLeaseContext in
+// chat_seed.go).
+func TestDocumentSeedDemoDocuments_RoutedChat(t *testing.T) {
+	store := documentSeedStore(t)
+	chat, chatDB := chatSeedStore(t)
+	ctx := context.Background()
+	const tenant = "harborcare-demo"
+	now := time.Now().UTC()
+
+	routeConn := pgtest.NewEmpty(t).NewConn(t)
+	routes, err := chatroutestore.New(routeConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := routes.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runChatSeedCommand(ctx, chat, routes, chatSeedOptions{Tenant: tenant, Scale: "small", MediaRoot: t.TempDir(), Now: now.Add(-3 * time.Hour)}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("chat seed: %v", err)
+	}
+
+	people := seedTestPeople()
+	opts := documentSeedOptions{Tenant: tenant, Now: now, MaxDocuments: 3, Demo: true, Chat: chat, Routes: routes, MediaRoot: t.TempDir()}
+	var out bytes.Buffer
+	if err := runDocumentSeedCommand(ctx, store, people, opts, &out); err != nil {
+		t.Fatalf("document seed against a routed chat tenant: %v", err)
+	}
+	if !strings.Contains(out.String(), "showcase documents: 5 (5 created") {
+		t.Fatalf("receipt = %q", out.String())
+	}
+	var posts int
+	if err := chatDB.SQL.QueryRowContext(ctx, `SELECT count(*) FROM chat_post WHERE client_key LIKE 'docseed:%'`).Scan(&posts); err != nil {
+		t.Fatal(err)
+	}
+	if posts == 0 {
+		t.Fatal("no showcase chat posts were written")
+	}
+
+	// Idempotent rerun against the same routed tenant.
+	out.Reset()
+	if err := runDocumentSeedCommand(ctx, store, people, opts, &out); err != nil {
+		t.Fatalf("rerun against a routed chat tenant: %v", err)
+	}
+	if !strings.Contains(out.String(), "showcase documents: 5 (0 created, 0 updated, 5 already current") {
+		t.Fatalf("rerun receipt = %q", out.String())
+	}
+
+	// "chat seed -reset=true" purges and recreates the same rooms, which
+	// purges the posts the highlights document permalinks. Relinking must
+	// still work: the document seed writes fresh posts under the same
+	// route lease and rewrites the highlights document to point at them.
+	viewer := "hc-050-rafael-torres"
+	find := func(title string) documenthubstore.DocumentSummary {
+		t.Helper()
+		rows, err := store.SearchPersonalDocuments(ctx, tenant, viewer, documenthubstore.ListOptions{Query: title, Mode: documenthubstore.SearchContains})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range rows.Rows {
+			if r.Title == title {
+				return r
+			}
+		}
+		t.Fatalf("%q not readable by the viewer", title)
+		return documenthubstore.DocumentSummary{}
+	}
+	highlights := find("People Ops chat highlights: this month")
+	_, before, err := store.ReadPersonalDocument(ctx, tenant, viewer, highlights.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runChatSeedCommand(ctx, chat, routes, chatSeedOptions{Tenant: tenant, Scale: "small", MediaRoot: t.TempDir(), Now: now.Add(-3 * time.Hour), Reset: true}, &bytes.Buffer{}); err != nil {
+		t.Fatalf("chat seed reset: %v", err)
+	}
+	var postsAfterReset int
+	if err := chatDB.SQL.QueryRowContext(ctx, `SELECT count(*) FROM chat_post WHERE client_key LIKE 'docseed:%'`).Scan(&postsAfterReset); err != nil {
+		t.Fatal(err)
+	}
+	if postsAfterReset != 0 {
+		t.Fatalf("chat seed reset left %d showcase posts behind, want 0", postsAfterReset)
+	}
+
+	out.Reset()
+	if err := runDocumentSeedCommand(ctx, store, people, opts, &out); err != nil {
+		t.Fatalf("document seed after chat reset: %v", err)
+	}
+	if !strings.Contains(out.String(), "documents relinked") {
+		t.Fatalf("relink receipt missing: %q", out.String())
+	}
+	_, after, err := store.ReadPersonalDocument(ctx, tenant, viewer, highlights.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sameMarkdown(before.Markdown, after.Markdown) {
+		t.Fatal("highlights document was not relinked to the posts recreated by the chat reset")
+	}
+	if err := chatDB.SQL.QueryRowContext(ctx, `SELECT count(*) FROM chat_post WHERE client_key LIKE 'docseed:%'`).Scan(&posts); err != nil {
+		t.Fatal(err)
+	}
+	if posts == 0 {
+		t.Fatal("no showcase chat posts were rewritten after the chat reset")
 	}
 }

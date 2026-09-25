@@ -38,7 +38,8 @@ func runDemoPeopleCommand(ctx context.Context, db dbport.Beginner, tenant, photo
 		return fmt.Errorf("demo people tenant, photo source, asset directory, and original directory are required")
 	}
 	tenantID := pgstore.TenantID(tenant)
-	employees, err := demoworkforce.Plan(tenantID)
+	pack := demoPeoplePack(tenant)
+	employees, err := pack.Plan(tenantID)
 	if err != nil {
 		return err
 	}
@@ -54,20 +55,20 @@ func runDemoPeopleCommand(ctx context.Context, db dbport.Beginner, tenant, photo
 	if err := ensureDemoTenant(ctx, tx, tenantID, tenant); err != nil {
 		return err
 	}
-	organization, err := demoworkforce.SeedOrganization(ctx, tx, tenantID)
+	organization, err := pack.SeedOrganization(ctx, tx, tenantID)
 	if err != nil {
-		return fmt.Errorf("seed HarborCare organization: %w", err)
+		return fmt.Errorf("seed %s organization: %w", pack.DisplayName, err)
 	}
-	summary, err := demoworkforce.Seed(ctx, tx, tenantID)
+	summary, err := pack.Seed(ctx, tx, tenantID)
 	if err != nil {
-		return fmt.Errorf("seed HarborCare workforce: %w", err)
+		return fmt.Errorf("seed %s workforce: %w", pack.DisplayName, err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit HarborCare workforce: %w", err)
+		return fmt.Errorf("commit %s workforce: %w", pack.DisplayName, err)
 	}
 	receipt := demoPeopleReceipt{
-		Tenant: tenantID, Company: demoworkforce.HarborCare.Name,
-		OrganizationUnits: len(demoworkforce.HarborCare.Units), Planned: summary.Planned,
+		Tenant: tenantID, Company: pack.Company.Name,
+		OrganizationUnits: len(pack.Company.Units), Planned: summary.Planned,
 		OrganizationInserted: organization.UnitsInserted, OrganizationSkipped: organization.UnitsSkipped,
 		Inserted: summary.Inserted, Skipped: summary.Skipped, Photos: summary.Photos,
 		WithoutPhotos: summary.Planned - summary.Photos,
@@ -129,12 +130,23 @@ func ingestDemoPhotos(ctx context.Context, employees []demoworkforce.Employee, s
 }
 
 func ensureDemoTenant(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, tenant string) error {
+	pack := demoPeoplePack(tenant)
 	_, err := tx.Exec(ctx, `
 		INSERT INTO tenant (tenant_id, tenant_key, cell_id, display_name, status, effective_from)
 		VALUES ($1, $2, 'cell-local', $3, 'ACTIVE', timestamptz '2026-01-01T00:00:00Z')
-		ON CONFLICT (tenant_id) DO NOTHING`, tenantID, tenant, demoworkforce.HarborCare.Name)
+		ON CONFLICT (tenant_id) DO NOTHING`, tenantID, tenant, pack.Company.Name)
 	if err != nil {
-		return fmt.Errorf("register HarborCare tenant %q: %w", tenant, err)
+		return fmt.Errorf("register %s tenant %q: %w", pack.DisplayName, tenant, err)
 	}
 	return nil
+}
+
+// demoPeoplePack is the demo company seeded under tenant: the shipped
+// company whose tenant key it is, or HarborCare for any other tenant, which
+// is what this command always seeded.
+func demoPeoplePack(tenant string) *demoworkforce.Pack {
+	if pack, ok := demoworkforce.PackFor(tenant); ok {
+		return pack
+	}
+	return demoworkforce.HarborCarePack
 }

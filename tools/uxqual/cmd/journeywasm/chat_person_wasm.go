@@ -262,9 +262,15 @@ func openChatPersonDM(cfg journeyclient.Config, roomID string) {
 		model.ShowPerson = false
 		model.PersonDetails = nil
 	})
+	// NAV: starting (or finding) a DM from a person's details selected the
+	// room without pushing it to the address bar; see
+	// pushChatHistoryForSelection. Not for the already-open case: that is a
+	// no-op selection, and pushing an identical entry would let Back land
+	// right back where the reader already was.
 	if already {
 		refreshChatRoute()
 	} else {
+		pushChatHistoryForSelection(roomID)
 		openChatConversation(cfg, roomID)
 	}
 	chatui.FocusComposerFor(roomID)

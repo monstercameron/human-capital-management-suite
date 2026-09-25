@@ -118,25 +118,32 @@ var staffing = []unitStaffing{
 var givenNames = []string{"Amina", "Mateo", "Evelyn", "Darius", "Mei", "Jonah", "Fatima", "Lucas", "Nia", "Theodore", "Sofia", "Malik", "Anika", "Gabriel", "Rosa", "Ethan", "Layla", "Henry", "Zuri", "Daniel", "Maya", "Samuel", "Imani", "Leo", "Valentina", "Julian", "Priyanka", "Caleb", "Amara", "Felix", "Lucia", "Micah", "Aya", "Nathan", "Elena", "Andre", "Mina", "Owen", "Leila", "Marcus", "Isabel", "Victor", "Camila", "Adrian", "Naomi", "Hugo", "Soraya", "Benjamin", "Jasmine", "Rafael", "Linh", "Dominic", "Selene", "Thomas", "Khadija", "Peter", "Yara", "Wesley", "Marisol", "Isaac"}
 var familyNames = []string{"Rahman", "Alvarez", "Morgan", "Bennett", "Chen", "Foster", "Okafor", "Silva", "Brooks", "Wright", "Petrov", "Johnson", "Desai", "Martinez", "Santos", "Kim", "Hassan", "Clarke", "Mensah", "Nguyen", "Patel", "Rivera", "Thompson", "Garcia", "Rossi", "Miller", "Sharma", "Williams", "Diallo", "Laurent", "Romano", "Carter", "Tanaka", "Evans", "Vega", "Lewis", "Sato", "Turner", "Mansour", "Reed", "Costa", "Diaz", "Morales", "Young", "King", "Dubois", "Azizi", "Scott", "Price", "Torres", "Tran", "Collins", "Navarro", "Baker", "Ibrahim", "Murphy", "Saleh", "Cooper", "Herrera", "Ward"}
 
-var locations = []struct{ Name, Zone string }{{"Boston, MA", "US-EAST"}, {"Atlanta, GA", "US-EAST"}, {"Chicago, IL", "US-CENTRAL"}, {"Dallas, TX", "US-CENTRAL"}, {"San Francisco, CA", "US-WEST"}, {"Seattle, WA", "US-WEST"}, {"New York, NY", "US-EAST"}, {"Denver, CO", "US-MOUNTAIN"}}
+var locations = []location{{"Boston, MA", "US-EAST"}, {"Atlanta, GA", "US-EAST"}, {"Chicago, IL", "US-CENTRAL"}, {"Dallas, TX", "US-CENTRAL"}, {"San Francisco, CA", "US-WEST"}, {"Seattle, WA", "US-WEST"}, {"New York, NY", "US-EAST"}, {"Denver, CO", "US-MOUNTAIN"}}
 
-func Plan(tenant uuid.UUID) ([]Employee, error) {
+// Plan is HarborCare's workforce plan.
+func Plan(tenant uuid.UUID) ([]Employee, error) { return HarborCarePack.Plan(tenant) }
+
+// Plan derives the company's deterministic workforce for tenant.
+func (p *Pack) Plan(tenant uuid.UUID) ([]Employee, error) {
 	if tenant == uuid.Nil {
 		return nil, fmt.Errorf("demoworkforce: tenant is required")
 	}
-	units := make(map[string]OrganizationUnit, len(HarborCare.Units))
-	for _, unit := range HarborCare.Units {
+	if len(p.roster) > 0 {
+		return p.planRoster(tenant)
+	}
+	units := make(map[string]OrganizationUnit, len(p.Company.Units))
+	for _, unit := range p.Company.Units {
 		units[unit.Code] = unit
 	}
-	if len(givenNames) != NewWorkerCount || len(familyNames) != NewWorkerCount {
-		return nil, fmt.Errorf("demoworkforce: name corpus must contain %d entries", NewWorkerCount)
+	if len(p.givenNames) != p.WorkerCount || len(p.familyNames) != p.WorkerCount {
+		return nil, fmt.Errorf("demoworkforce: name corpus must contain %d entries", p.WorkerCount)
 	}
 
 	recordedAt := time.Date(2026, time.September, 1, 14, 0, 0, 0, time.UTC)
-	employees := make([]Employee, 0, NewWorkerCount)
+	employees := make([]Employee, 0, p.WorkerCount)
 	firstByUnit := map[string]string{}
 	staffIndex := 0
-	for _, group := range staffing {
+	for _, group := range p.staffing {
 		unit, ok := units[group.Code]
 		if !ok || len(group.Roles) == 0 {
 			return nil, fmt.Errorf("demoworkforce: staffing references invalid unit %q", group.Code)
@@ -144,57 +151,30 @@ func Plan(tenant uuid.UUID) ([]Employee, error) {
 		for position := 0; position < group.Count; position++ {
 			index := staffIndex + 1
 			role := staffRoleAt(group.Roles, position)
-			key := fmt.Sprintf("hc-%03d-%s-%s", index, slug(givenNames[staffIndex]), slug(familyNames[staffIndex]))
+			key := fmt.Sprintf("%s-%03d-%s-%s", p.keyPrefix, index, slug(p.givenNames[staffIndex]), slug(p.familyNames[staffIndex]))
 			if position == 0 {
 				firstByUnit[group.Code] = key
 			}
-			location := locations[(staffIndex+position)%len(locations)]
-			businessUnit, err := businessUnitFor(group.Code)
-			if err != nil {
-				return nil, err
-			}
-			costCenter, err := costCenterFor(group.Code)
-			if err != nil {
-				return nil, err
-			}
-			fte := fteFor(key)
+			location := p.locations[(staffIndex+position)%len(p.locations)]
 			hireYear := 2016 + staffIndex%10
 			hireMonth := 1 + staffIndex%12
 			hireDay := 1 + staffIndex%27
-			hasPhoto := index%4 != 0
-			photoSource, originalRef, proxyRef := "", "", ""
-			if hasPhoto {
-				photoSource = fmt.Sprintf("hc-%03d.png", index)
-				originalRef = "profile-originals/" + photoSource
-				proxyRef = fmt.Sprintf("/workspace/assets/person-hc-%03d-small.jpg", index)
+			employee, err := p.plannedEmployee(tenant, index, key, p.givenNames[staffIndex], p.familyNames[staffIndex], role, unit, location,
+				fmt.Sprintf("%04d-%02d-%02d", hireYear, hireMonth, hireDay), p.photoIndex(index), recordedAt.Add(time.Duration(staffIndex)*time.Minute))
+			if err != nil {
+				return nil, err
 			}
-			employees = append(employees, Employee{
-				Row: workforce.WorkerRow{
-					TenantID: tenant, WorkerID: deterministicID("worker", key), WorkerKey: key,
-					LegalName: givenNames[staffIndex] + " " + familyNames[staffIndex], PreferredName: givenNames[staffIndex], WorkerNumber: fmt.Sprintf("HC-%05d", 21000+index),
-					WorkerType: "employee", LifecycleStatus: "active", EmploymentID: fmt.Sprintf("hc-emp-%05d", index), AssignmentID: fmt.Sprintf("hc-asg-%05d", index),
-					JobCode: role.Code, JobTitle: role.Title, Grade: role.Grade, OrgUnit: group.Code, PositionID: fmt.Sprintf("HC-POS-%05d", index), Location: location.Name, PayZone: location.Zone, FTE: fte,
-					EmploymentType: employmentTypeFor(key), TimeType: timeTypeFor(fte),
-					Company: HarborCare.LegalEntity, BusinessUnit: businessUnit, CostCenter: costCenter,
-					WorkArrangement: workArrangementFor(group.Code, location.Name),
-					HireDate:        fmt.Sprintf("%04d-%02d-%02d", hireYear, hireMonth, hireDay), EffectiveFrom: "2026-01-01", BasePay: role.BasePay, Currency: "USD", PayBasis: "ANNUAL_SALARY", BonusTarget: role.BonusTarget,
-					RevisionStream: "people.worker." + key, RevisionSequence: 1, KnownAt: recordedAt.Add(time.Duration(staffIndex) * time.Minute), RecordedAt: recordedAt.Add(time.Duration(staffIndex) * time.Minute), CreatedBy: "hcmnext.demo-seed", Source: workforce.SourceCreated,
-					ProfilePhotoOriginalRef: originalRef, ProfilePhotoProxyRef: proxyRef,
-				},
-				JobTitle: role.Title, Organization: unit, HasProfilePhoto: hasPhoto, PhotoSourceName: photoSource, PhotoOriginalRef: originalRef, PhotoProxyRef: proxyRef,
-			})
+			employees = append(employees, employee)
 			staffIndex++
 		}
 	}
-	if len(employees) != NewWorkerCount {
-		return nil, fmt.Errorf("demoworkforce: planned %d workers, want %d", len(employees), NewWorkerCount)
+	if len(employees) != p.WorkerCount {
+		return nil, fmt.Errorf("demoworkforce: planned %d workers, want %d", len(employees), p.WorkerCount)
 	}
 
-	sponsors := map[string]string{
-		"clinical-operations": employees[1].Row.WorkerKey, "care-coordination": employees[1].Row.WorkerKey, "quality-safety": employees[1].Row.WorkerKey,
-		"engineering-platform": employees[2].Row.WorkerKey, "product-management": employees[2].Row.WorkerKey, "data-analytics": employees[2].Row.WorkerKey, "security-it": employees[2].Row.WorkerKey,
-		"customer-success": employees[1].Row.WorkerKey, "sales": employees[1].Row.WorkerKey, "marketing": employees[1].Row.WorkerKey,
-		"people-operations": employees[3].Row.WorkerKey, "finance": employees[0].Row.WorkerKey, "legal-compliance": employees[0].Row.WorkerKey, "workplace-services": employees[1].Row.WorkerKey,
+	sponsors := make(map[string]string, len(p.sponsorIndex))
+	for unit, sponsor := range p.sponsorIndex {
+		sponsors[unit] = employees[sponsor].Row.WorkerKey
 	}
 	for index := range employees {
 		unitCode := employees[index].Organization.Code
@@ -202,14 +182,109 @@ func Plan(tenant uuid.UUID) ([]Employee, error) {
 		if manager == employees[index].Row.WorkerKey {
 			manager = sponsors[unitCode]
 		}
-		if unitCode == "executive-office" {
+		if unitCode == p.executiveUnit {
 			manager = employees[0].Row.WorkerKey
 			if index == 0 {
-				manager = "board:harborcare"
+				manager = p.boardRef
 			}
 		}
 		employees[index].ManagerKey = manager
 		employees[index].Row.ManagerRelationshipRef = manager
+	}
+	return employees, nil
+}
+
+// plannedEmployee builds one planned worker row from the facts the plan
+// fixes for them. Every derived fact (business unit, cost center, FTE, time
+// type, work arrangement, pay basis) comes from the pack's own tables.
+func (p *Pack) plannedEmployee(tenant uuid.UUID, index int, key, given, family string, role Role, unit OrganizationUnit,
+	place location, hireDate string, photo int, recorded time.Time) (Employee, error) {
+	businessUnit, err := p.businessUnitFor(unit.Code)
+	if err != nil {
+		return Employee{}, err
+	}
+	costCenter, err := p.costCenterFor(unit.Code)
+	if err != nil {
+		return Employee{}, err
+	}
+	fte := p.fteFor(key)
+	hasPhoto := photo > 0
+	photoSource, originalRef, proxyRef := "", "", ""
+	if hasPhoto {
+		photoSource = fmt.Sprintf("%s-%03d.png", p.photoPrefix, photo)
+		originalRef = "profile-originals/" + photoSource
+		proxyRef = fmt.Sprintf("/workspace/assets/person-%s-%03d-small.jpg", p.photoPrefix, photo)
+	}
+	return Employee{
+		Row: workforce.WorkerRow{
+			TenantID: tenant, WorkerID: deterministicID("worker", key), WorkerKey: key,
+			LegalName: given + " " + family, PreferredName: given, WorkerNumber: fmt.Sprintf("%s-%05d", p.numberPrefix, p.numberBase+index),
+			WorkerType: "employee", LifecycleStatus: "active", EmploymentID: fmt.Sprintf("%s%05d", p.employmentPrefix, index), AssignmentID: fmt.Sprintf("%s%05d", p.assignmentPrefix, index),
+			JobCode: role.Code, JobTitle: role.Title, Grade: role.Grade, OrgUnit: unit.Code, PositionID: fmt.Sprintf("%s%05d", p.positionPrefix, index), Location: place.Name, PayZone: place.Zone, FTE: fte,
+			EmploymentType: p.employmentTypeFor(key), TimeType: timeTypeFor(fte),
+			Company: p.Company.LegalEntity, BusinessUnit: businessUnit, CostCenter: costCenter,
+			WorkArrangement: p.workArrangementFor(unit.Code, place.Name),
+			HireDate:        hireDate, EffectiveFrom: "2026-01-01", BasePay: role.BasePay, Currency: "USD", PayBasis: p.PayBasisFor(role.Code), BonusTarget: role.BonusTarget,
+			RevisionStream: "people.worker." + key, RevisionSequence: 1, KnownAt: recorded, RecordedAt: recorded, CreatedBy: p.recordedBy, Source: workforce.SourceCreated,
+			ProfilePhotoOriginalRef: originalRef, ProfilePhotoProxyRef: proxyRef,
+		},
+		JobTitle: role.Title, Organization: unit, HasProfilePhoto: hasPhoto, PhotoSourceName: photoSource, PhotoOriginalRef: originalRef, PhotoProxyRef: proxyRef,
+	}, nil
+}
+
+// planRoster plans a pack whose people are authored one by one.
+func (p *Pack) planRoster(tenant uuid.UUID) ([]Employee, error) {
+	if len(p.roster) != p.WorkerCount {
+		return nil, fmt.Errorf("demoworkforce: roster holds %d people, want %d", len(p.roster), p.WorkerCount)
+	}
+	units := make(map[string]OrganizationUnit, len(p.Company.Units))
+	for _, unit := range p.Company.Units {
+		units[unit.Code] = unit
+	}
+	roles := map[string]Role{}
+	for _, group := range p.staffing {
+		for _, role := range group.Roles {
+			roles[group.Code+"|"+role.Code] = role
+		}
+	}
+	places := make(map[string]location, len(p.locations))
+	for _, place := range p.locations {
+		places[place.Name] = place
+	}
+	recordedAt := time.Date(2026, time.September, 1, 14, 0, 0, 0, time.UTC)
+	employees := make([]Employee, 0, len(p.roster))
+	for position, entry := range p.roster {
+		index := position + 1
+		unit, ok := units[entry.Unit]
+		if !ok {
+			return nil, fmt.Errorf("demoworkforce: roster entry %d references invalid unit %q", index, entry.Unit)
+		}
+		role, ok := roles[entry.Unit+"|"+entry.Role]
+		if !ok {
+			return nil, fmt.Errorf("demoworkforce: roster entry %d references role %q not staffed in %q", index, entry.Role, entry.Unit)
+		}
+		place, ok := places[entry.Location]
+		if !ok {
+			return nil, fmt.Errorf("demoworkforce: roster entry %d references unknown location %q", index, entry.Location)
+		}
+		key := fmt.Sprintf("%s-%03d-%s-%s", p.keyPrefix, index, slug(entry.Given), slug(entry.Family))
+		employee, err := p.plannedEmployee(tenant, index, key, entry.Given, entry.Family, role, unit, place,
+			entry.HireDate, entry.Photo, recordedAt.Add(time.Duration(position)*time.Minute))
+		if err != nil {
+			return nil, err
+		}
+		employees = append(employees, employee)
+	}
+	for position, entry := range p.roster {
+		manager := p.boardRef
+		if entry.Manager > 0 {
+			if entry.Manager > len(employees) || entry.Manager == position+1 {
+				return nil, fmt.Errorf("demoworkforce: roster entry %d names invalid manager %d", position+1, entry.Manager)
+			}
+			manager = employees[entry.Manager-1].Row.WorkerKey
+		}
+		employees[position].ManagerKey = manager
+		employees[position].Row.ManagerRelationshipRef = manager
 	}
 	return employees, nil
 }
@@ -255,4 +330,13 @@ func slug(value string) string {
 		}
 	}
 	return strings.Trim(out.String(), "-")
+}
+
+// photoIndex is the seed headshot a staffing-planned worker at 1-based index
+// wears, or 0 for none. HarborCare's worker N wears headshot N.
+func (p *Pack) photoIndex(index int) int {
+	if p.photoFor != nil && p.photoFor(index) {
+		return index
+	}
+	return 0
 }

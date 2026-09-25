@@ -565,5 +565,13 @@ func DefaultPagePermissions() []PagePermission {
 	}
 	grant("intent_author", "workflow-designer", true, true, false)
 	grant("promotion_operator", PageJourneyDiagnostics, false, false, false)
+	// Projects is a tenant product surface whose records remain private to
+	// explicit project members. Page visibility admits the menu and route only;
+	// projectservice applies current project membership and action grants to
+	// every project read and write.
+	for _, role := range []string{"hcm_admin", "comp_admin", "manager", "hr_partner", "hiring_manager", "payroll_manager", "worker_self", "finance_partner", "intent_author", "promotion_operator"} {
+		grant(role, "projects", false, false, false)
+		grant(role, "project", false, false, false)
+	}
 	return result
 }

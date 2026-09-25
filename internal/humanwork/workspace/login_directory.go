@@ -91,6 +91,9 @@ type directoryRender struct {
 	roleLabel string
 	// roleOptions are the roles some signable employee actually holds.
 	roleOptions []directoryRoleOption
+	// company is the multi-company page's selected company, carried by the
+	// search form and the clear link; empty on a single-company page.
+	company string
 }
 
 // filtering reports whether either filter is active. It decides three things
@@ -110,7 +113,11 @@ func normalizeDirectoryQuery(raw string) string {
 
 // newDirectoryRender resolves the snapshot against the server-held personas.
 func (h *Handler) newDirectoryRender(query, role string) *directoryRender {
-	snapshot := h.directory.DevDirectorySnapshot()
+	return h.newDirectoryRenderFrom(h.directory.DevDirectorySnapshot(), query, role)
+}
+
+// newDirectoryRenderFrom resolves one company's snapshot.
+func (h *Handler) newDirectoryRenderFrom(snapshot DevDirectorySnapshot, query, role string) *directoryRender {
 	render := &directoryRender{
 		units:      make(map[string]DevDirectoryUnit, len(snapshot.Units)),
 		childCodes: make(map[string][]string, len(snapshot.Units)),
@@ -258,15 +265,40 @@ func (h *Handler) loginDirectorySection(rawQuery, rawRole string) string {
 	if len(render.rows) == 0 {
 		return ""
 	}
+	return render.section()
+}
+
+// section renders the resolved directory.
+func (d *directoryRender) section() string {
 	var out strings.Builder
 	out.WriteString(`<section class="directory" aria-labelledby="directory-heading">`)
 	out.WriteString(`<h2 id="directory-heading">Everyone else</h2>`)
 	out.WriteString(`<p class="login-intro">Every seeded employee, signing in with the roles their own job implies. Search for one, or open their team below.</p>`)
-	out.WriteString(render.searchForm())
-	out.WriteString(render.searchResults())
-	out.WriteString(render.tree())
+	out.WriteString(d.searchForm())
+	out.WriteString(d.searchResults())
+	out.WriteString(d.tree())
 	out.WriteString(`</section>`)
 	return out.String()
+}
+
+// loginCompanyDirectorySection is loginDirectorySection for one company of
+// a multi-company composition: that company's own employees, with the
+// search form carrying the company so a search stays inside it.
+func (h *Handler) loginCompanyDirectorySection(rawQuery, rawRole, company string) string {
+	lister, ok := h.directory.(DevCompanyDirectory)
+	if !ok {
+		return h.loginDirectorySection(rawQuery, rawRole)
+	}
+	snapshot, found := lister.DevCompanyDirectorySnapshot(company)
+	if !found {
+		return ""
+	}
+	render := h.newDirectoryRenderFrom(snapshot, normalizeDirectoryQuery(rawQuery), normalizeDirectoryQuery(rawRole))
+	render.company = company
+	if len(render.rows) == 0 {
+		return ""
+	}
+	return render.section()
 }
 
 // searchForm is a native GET form: the query is the URL, so a result page is
@@ -274,13 +306,20 @@ func (h *Handler) loginDirectorySection(rawQuery, rawRole string) string {
 func (d *directoryRender) searchForm() string {
 	var out strings.Builder
 	out.WriteString(`<form class="directory-search" method="get" action="` + PathLogin + `" role="search">`)
+	if d.company != "" {
+		out.WriteString(`<input type="hidden" name="` + paramLoginCompany + `" value="` + html.EscapeString(d.company) + `">`)
+	}
 	out.WriteString(`<label for="directory-query">Find an employee</label>`)
 	out.WriteString(`<input type="search" id="directory-query" name="` + paramDirectoryQuery + `" value="` + html.EscapeString(d.query) + `" autocomplete="off" spellcheck="false" placeholder="Name, worker number, job title, team, or role">`)
 	out.WriteString(d.roleSelect())
 	out.WriteString(`<button type="submit">Search</button>`)
 	if d.filtering() {
 		// One link clears both filters, because PathLogin carries neither.
-		out.WriteString(`<a class="directory-clear" href="` + PathLogin + `">Clear filters</a>`)
+		clear := PathLogin
+		if d.company != "" {
+			clear += "?" + paramLoginCompany + "=" + html.EscapeString(d.company)
+		}
+		out.WriteString(`<a class="directory-clear" href="` + clear + `">Clear filters</a>`)
 	}
 	out.WriteString(`</form>`)
 	return out.String()

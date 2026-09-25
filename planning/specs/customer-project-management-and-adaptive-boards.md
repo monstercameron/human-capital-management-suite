@@ -44,6 +44,18 @@ with AI disabled. AI setup is a separate pilot slice after manual boards work.
 - A small company can start with a simple task board and add process only
   when it needs it. Templates offer defaults, not immutable methodology.
 
+The first release makes those links usable in both directions. An authorized
+participant may start a project task from a chat post or deployed document
+passage, retaining only a typed source reference and an explicitly entered
+task description. After the task is created, an authorized participant may
+share its stable link into a chat conversation or document candidate through
+that surface's own write permission and review path. Neither action copies
+protected source text into a broader project task by default, grants access
+to the source or task, or mutates an official deployed document. Restricted
+targets render a neutral unavailable state. These are in-app routes that
+preserve browser Back/Forward and the persistent shell without a full-page
+reload.
+
 Current products illustrate the distinction: Linear separates issues,
 projects, cycles and saved views; Jira maps board columns to workflow status;
 Asana permits natural-language instructions in workflow configuration. These
@@ -74,7 +86,7 @@ types, then add cycles and releases when those features exist.
 | `Project`                | Project module owns a tenant-scoped outcome, owner, membership policy, `project_timezone`, lifecycle, and current configuration version.                                                                                             |
 | `ProjectTask`            | Project module owns ordinary work with stable ID, title, description, status, assignee, due date, priority, type, typed fields, and revision. It does not authorize HCM mutations.                                                   |
 | `ProjectWorkflowVersion` | Immutable published status/type/field/transition configuration. A draft may change until published; publication creates a new version.                                                                                               |
-| `BoardView`              | Saved filter, grouping, status-to-column mapping, ordering, card fields and audience (`PERSONAL` or `PROJECT`). Multiple views may show the same tasks; a view never widens task access.                                             |
+| `BoardView`              | Saved filter, optional swim-lane grouping, status-to-column mapping, ordering, card fields and audience (`PERSONAL` or `PROJECT`). Multiple views may show the same tasks; a view never widens task access.                          |
 | `Cycle`                  | Optional, dated planning bucket for tasks. Required only when a template promises sprint/cycle behavior.                                                                                                                             |
 | `ProjectLink`            | Typed reference to a chat conversation/post, deployed document, or safe HCM WorkItem projection in the first release; later target types require an explicit allowlist revision. It never conveys the target's read or write rights. |
 | `HumanWork.WorkItem`     | Existing workflow-owned responsibility, approval, evidence request, or HCM task. Project boards may show a policy-filtered projection; only Human Work completes it.                                                                 |
@@ -138,6 +150,33 @@ unavailable reference until refreshed; it must not retain protected detail.
 One project may have several saved views. A board may initially show one
 project; cross-project views require separate authorization and performance
 qualification. Views never own task status or silently rewrite workflow rules.
+
+### Columns and swim lanes
+
+Columns are a view mapping from stable workflow status IDs, not independent
+task states. A column may display several statuses; every visible status maps
+to exactly one column in that view. Changing a column label or order does not
+move tasks or change allowed transitions. A drag or keyboard move to a column
+with several statuses must choose a valid target status explicitly.
+
+The first board release offers an optional second grouping axis: assignee,
+priority, task type, or a visible project `ENUM` field. Its lane IDs are
+stable underlying value IDs, with an explicit Unassigned/Unset lane. Lanes
+are derived only after task authorization and board filtering, including
+their counts and empty states. Grouping is part of a versioned personal or
+project view; it does not grant task, field, chat, or document access. The
+board remains bounded by the same 100-card page limit across all lanes, not
+100 cards per lane. Pagination preserves a declared total order and reports
+when a lane may have more authorized cards.
+
+Moving a card between lanes changes the underlying grouping field only when
+the viewer may edit that field. A combined column-and-lane move validates
+both the status transition and field edit against the current task and
+configuration revisions in one project-owned transaction; rejection restores
+the card and focus. A read-only lane or a derived future grouping cannot be a
+drop target. Every drag action has a keyboard equivalent and announces the
+result to assistive technology. Narrow screens may present lanes as a
+switchable list, while retaining every move and task-detail action.
 
 ## Customer configuration contract
 
@@ -204,9 +243,10 @@ Archived projects may not publish until restored. Configuration drafts survive
 failed validation without affecting current task writes.
 
 Task moves call `MoveTask(task_id, target_status_id, expected_task_revision,
-expected_config_revision, idempotency_key)`. The server checks current task
-and config revisions, authorization, transition rules, and required fields
-in one project-owned transaction. Once WIP or dependencies are enabled, their
+expected_config_revision, idempotency_key)` with an optional typed lane-field
+edit. The server checks current task and config revisions, authorization,
+transition rules, lane-field edit permission, and required fields in one
+project-owned transaction. Once WIP or dependencies are enabled, their
 published rules join this same decision. The accepted transition and outbox
 event commit atomically.
 The UI never treats drag-and-drop as success before that response. Rejected

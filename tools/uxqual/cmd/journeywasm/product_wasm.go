@@ -16,14 +16,19 @@ import (
 	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	positionv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
+	projectv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/project/v1"
 	reviewparticipantsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/reviewparticipants/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/projectui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/productclient"
+	projectclient "github.com/monstercameron/human-capital-management-suite/tools/uxqual/projectclient"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/taskmux"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // knowledgeSearchService is the optional knowledge facet consumed by this
@@ -82,6 +87,88 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// Docs uses the same authenticated gRPC connection as the rest of the
 	// workspace. A disabled document service reports UNAVAILABLE server-side.
 	documentService := documentv1.NewDocumentServiceClient(conn)
+	projectService := projectv1.NewProjectServiceClient(conn)
+	liveService.ResolveDocsProjectTaskPreview = func(ctx context.Context, reference productui.DocsProjectTaskReference) (productui.DocsProjectTaskPreview, bool, error) {
+		if reference.ProjectID == "" {
+			return productui.DocsProjectTaskPreview{}, false, nil
+		}
+		callCtx := chatRPCContext(ctx, cfg)
+		// A board address resolves to the project's name and task counts.
+		if reference.TaskID == "" {
+			projectResponse, err := projectService.GetProject(callCtx, &projectv1.GetProjectRequest{ProjectId: reference.ProjectID})
+			if err != nil {
+				if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+					return productui.DocsProjectTaskPreview{}, false, nil
+				}
+				return productui.DocsProjectTaskPreview{}, false, err
+			}
+			name := strings.TrimSpace(projectResponse.GetProject().GetName())
+			if projectResponse.GetProject().GetProjectId() != reference.ProjectID || name == "" {
+				return productui.DocsProjectTaskPreview{}, false, nil
+			}
+			preview := productui.DocsProjectTaskPreview{ProjectID: reference.ProjectID, Title: name, ProjectName: name, Authorized: true}
+			if counts, err := countProjectProgress(ctx, cfg, projectService, reference.ProjectID); err == nil {
+				preview.Done, preview.Total = counts.done, counts.total
+			}
+			return preview, true, nil
+		}
+		taskResponse, err := projectService.GetTask(callCtx, &projectv1.GetTaskRequest{ProjectId: reference.ProjectID, TaskId: reference.TaskID})
+		if err != nil {
+			if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+				return productui.DocsProjectTaskPreview{}, false, nil
+			}
+			return productui.DocsProjectTaskPreview{}, false, err
+		}
+		task := taskResponse.GetTask()
+		if task == nil || task.GetProjectId() != reference.ProjectID || task.GetTaskId() != reference.TaskID {
+			return productui.DocsProjectTaskPreview{}, false, nil
+		}
+		configurationResponse, err := projectService.GetWorkflowConfiguration(callCtx, &projectv1.GetWorkflowConfigurationRequest{ProjectId: reference.ProjectID})
+		if err != nil {
+			if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+				return productui.DocsProjectTaskPreview{}, false, nil
+			}
+			return productui.DocsProjectTaskPreview{}, false, err
+		}
+		configuration := configurationResponse.GetConfiguration()
+		if configuration == nil || configuration.GetProjectId() != reference.ProjectID {
+			return productui.DocsProjectTaskPreview{}, false, nil
+		}
+		statusName, tone := "", "todo"
+		for _, taskStatus := range configuration.GetStatuses() {
+			if taskStatus != nil && taskStatus.GetStatusId() == task.GetStatusId() {
+				statusName = taskStatus.GetName()
+				switch taskStatus.GetCategory() {
+				case projectv1.ProjectStatusCategory_PROJECT_STATUS_CATEGORY_DONE, projectv1.ProjectStatusCategory_PROJECT_STATUS_CATEGORY_CANCELLED:
+					tone = "done"
+				case projectv1.ProjectStatusCategory_PROJECT_STATUS_CATEGORY_ACTIVE, projectv1.ProjectStatusCategory_PROJECT_STATUS_CATEGORY_BLOCKED:
+					tone = "doing"
+				}
+				break
+			}
+		}
+		if statusName == "" {
+			return productui.DocsProjectTaskPreview{}, false, nil
+		}
+		preview := productui.DocsProjectTaskPreview{ProjectID: reference.ProjectID, TaskID: reference.TaskID, Title: task.GetTitle(), Status: statusName, Authorized: true,
+			Key: projectui.TaskKey(task.GetTaskId()), StatusTone: tone, PriorityID: task.GetPriority().String(), DueDate: task.GetDueDate()}
+		if projectResponse, err := projectService.GetProject(callCtx, &projectv1.GetProjectRequest{ProjectId: reference.ProjectID}); err == nil {
+			preview.ProjectName = strings.TrimSpace(projectResponse.GetProject().GetName())
+		}
+		if assignee := task.GetAssigneeId(); assignee != "" {
+			names, photos := projectDirectory(ctx, cfg)
+			preview.Assignee, preview.AssigneePhoto = projectclient.PersonName(assignee, names), photos[assignee]
+		}
+		return preview, true, nil
+	}
+	journeyPreviews := journeyv1.NewJourneyServiceClient(conn)
+	liveService.ResolveDocsJourneyPreview = func(ctx context.Context, intentID string) (productui.DocsJourneyPreview, bool, error) {
+		preview := readChatJourney(ctx, cfg, journeyPreviews, intentID)
+		if preview.State != "ready" || !preview.Readable {
+			return productui.DocsJourneyPreview{}, false, nil
+		}
+		return productui.DocsJourneyPreview{IntentID: intentID, Worker: preview.Worker, From: preview.From, To: preview.To, Stage: preview.Stage, StageGroup: preview.StageTone, Effective: preview.Effective, Approver: preview.Approver}, true, nil
+	}
 	positionService := positionv1.NewPositionServiceClient(conn)
 	liveService.ListPositionObjectOptions = func(ctx context.Context, request *positionv1.ListPositionObjectOptionsRequest) (*positionv1.ListPositionObjectOptionsResponse, error) {
 		return positionService.ListPositionObjectOptions(chatRPCContext(ctx, cfg), request)
@@ -218,14 +305,19 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// journey experience itself (tools/uxqual/render/journey's
 	// principalChip), with a visually-hidden "Purpose: " explanation and
 	// its own sign-out exit action, mounted only on PageJourneys.
-	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath}
+	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath, TenantName: cfg.TenantName}
 	preferences := newServerPreferenceController(ctx, service)
 	workflowAuthoring := newWorkflowAuthoringController(ctx, liveService)
 	// No Apply here. Both controllers start from defaults, and the document
 	// the server sent already carries the stored theme and preferences on
 	// <html>; applying the defaults over them is what made a light workspace
 	// flash dark on a dark device. They take over at the first Load.
-	appearance := newBrowserThemeController(productui.DisplayLabel(cfg.Tenant), preferences.SaveTheme)
+	tenantLabel := productui.DisplayLabel(cfg.Tenant)
+	if cfg.TenantName != "" {
+		tenantLabel = cfg.TenantName
+	}
+	appearance := newBrowserThemeController(tenantLabel, preferences.SaveTheme)
+	appearance.defaultLogo = cfg.TenantLogo
 	accessibility := newBrowserAccessibilityController(preferences.SaveAccessibility)
 	productNavigationGroups = newBrowserNavigationGroupController(preferences.SaveNavigationGroups)
 	productNavigationGroups.Bind()
@@ -284,6 +376,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		productScroll.BeginSoftwareNavigation()
 		productHistory.Navigate(productRouter.Navigate, href)
 	}
+	projectCreateActionsReady = bindProjectCreateForms(cfg, projectService, navigateProduct, productRouter.Revalidate)
+	projectMoveActionsReady := bindProjectStatusMoves(cfg, projectService, productRouter.Revalidate)
+	projectBoardSettingsReady := bindProjectBoardSettings(cfg, projectService, productRouter.Revalidate)
 	// replaceProduct is navigateProduct without a new history step.
 	replaceProduct := func(href string) {
 		searchDebounce.Cancel()
@@ -338,14 +433,28 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				// GWC v5 binds RouteContext to the loader's route generation. Reading
 				// location.search here would race a later push/pop navigation and let
 				// the older generation issue reads for the newer address.
+				projectState, projectRoute, projectParseErr := parseProjectRoute(routeContext.Path, routeContext.Query.Encode())
 				state, parseErr := productclient.ParseState(routeContext.Path, routeContext.Query.Encode())
+				if projectRoute && projectParseErr != nil {
+					parseErr = projectParseErr
+				}
 				if parseErr != nil {
 					if loadCtx.Err() == nil && browserRouteGenerationMatches(routeContext.Path, routeContext.Query.Encode()) {
 						browserReplaceURL(routeContext.Path)
 					}
 					return nil, parseErr
 				}
+				if projectRoute {
+					if projectState.Route == projectclient.RouteProjects {
+						state.Page = productui.PageProjects
+					} else {
+						state.Page = productui.PageProject
+					}
+				}
 				canonicalHref := productclient.CanonicalHref(state)
+				if projectRoute {
+					canonicalHref = projectclient.CanonicalHref(projectState)
+				}
 				currentHref := currentProductHref()
 				if loadCtx.Err() == nil && browserRouteGenerationMatches(routeContext.Path, routeContext.Query.Encode()) && canonicalHref != currentHref {
 					// Preserve the history ledger state while removing unknown,
@@ -356,6 +465,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				var chatModel chatui.Model
 				var chatLoadErr error
 				var loadErr error
+				var projectBoard *projectui.Model
+				var projectDetail *projectui.DetailModel
+				var projectRows []productui.ProjectSummaryProjection
+				var projectsState, projectBoardState, projectDetailState productui.ProjectProjectionState
+				var resolvedProjectViewID string
 				var baseline *productui.View
 				if lastResolvedProductView != nil {
 					previous := productBaselineForLoad(*lastResolvedProductView, state, journeys.fragment, productclient.JourneyFragment(state.Request))
@@ -373,6 +487,13 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 						view, loadErr = productclient.LoadWithBaseline(taskCtx, liveService, session, state, *baseline)
 					} else {
 						view, loadErr = productclient.Load(taskCtx, liveService, session, state)
+					}
+					if loadErr == nil && projectRoute {
+						var board projectui.Model
+						board, projectDetail, projectRows, projectsState, projectBoardState, projectDetailState, resolvedProjectViewID, loadErr = loadProjectPage(taskCtx, cfg, projectService, routeContext.Path, routeContext.Query.Encode())
+						if loadErr == nil {
+							projectBoard = &board
+						}
 					}
 					if loadErr == nil && state.Page == productui.PageChatSettings {
 						loadChatRetentionPolicy(taskCtx, cfg, &view)
@@ -405,6 +526,27 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					}
 				}
 				resolvedHref := productclient.ResolvedCanonicalHref(state, view)
+				if projectRoute {
+					if resolvedProjectViewID != "" {
+						projectState.BoardViewID = resolvedProjectViewID
+					}
+					resolvedHref = projectclient.CanonicalHref(projectState)
+					view.Projects = projectRows
+					view.ProjectsState = projectsState
+					view.ProjectID = projectState.ProjectID
+					view.ProjectTaskID = projectState.TaskID
+					view.ProjectBoard = projectBoard
+					view.ProjectBoardState = projectBoardState
+					view.ProjectDetailSelected = projectState.TaskID != ""
+					view.ProjectDetail = projectDetail
+					view.ProjectDetailState = projectDetailState
+					view.ProjectBoardViewID = projectState.BoardViewID
+					view.ProjectCursor = projectState.Cursor
+					view.ProjectMovesReady = projectMoveActionsReady
+					view.ProjectCreateReady = projectCreateActionsReady
+					view.ProjectTaskCreateReady = projectCreateActionsReady
+					view.ProjectBoardSettingsReady = projectBoardSettingsReady
+				}
 				view.PeopleColumnDraft = peopleColumnDraft
 				view.Chat = chatModel
 				view.Navigate = navigateProduct
@@ -437,6 +579,25 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				view.PreviewTheme = appearance.Preview
 				view.SaveTheme = appearance.Save
 				view.ResetTheme = appearance.Reset
+				view.UploadBrandAsset = func(name string, content []byte, done func(string, error)) {
+					uploadBrandAsset(cfg, name, content, done)
+				}
+				view.LoadBrandAssets = func(before int, done func([]productui.BrandAssetOption, int, error)) {
+					loadBrandAssets(cfg, view.Locale, before, done)
+				}
+				view.RemoveBrandAsset = func(expected int, done func(error)) {
+					changeBrandAsset(cfg, "remove", 0, expected, func(_ string, err error) { done(err) })
+				}
+				view.RollbackBrandAsset = func(revision, expected int, done func(string, error)) {
+					changeBrandAsset(cfg, "rollback", revision, expected, done)
+				}
+				view.PreviewBrandAsset = func(url string) {
+					preview := view.Appearance
+					preview.BrandLogoURL = url
+					if view.PreviewTheme != nil {
+						view.PreviewTheme(preview)
+					}
+				}
 				view.SaveWorkerIDPolicy = func(policy productui.WorkerIDPolicy) {
 					preferences.SaveWorkerIDPolicy(policy, func(err error) {
 						statusNode := js.Global().Get("document").Call("getElementById", "worker-id-status")
@@ -570,10 +731,18 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 							if err == nil && (response == nil || response.GetDocumentId() == "") {
 								err = errors.New("document create returned no document")
 							}
-							done(err)
-							if err == nil {
-								docsQuietRefresh()
+							if err != nil {
+								done(err)
+								return
 							}
+							// Create lands in the editor (r4 D-3): the dialog asks only
+							// for a title, and the body is written where the toolbar and
+							// preview are, with the cursor already in it.
+							href := "/workspace/app/docs?" + url.Values{"document": {response.GetDocumentId()}, "docs_edit": {"1"}}.Encode()
+							ui.PostAsync(func() {
+								done(nil)
+								navigateProduct(href)
+							})
 						}()
 					}
 				}
@@ -614,6 +783,50 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 								DocumentID: response.GetDocumentId(), VersionID: response.GetVersionId(),
 								Title: response.GetTitle(), Markdown: response.GetMarkdown(), Readable: response.GetReadable(),
 							}, nil)
+						}()
+					}
+					view.ListDocumentVersions = func(documentID string, done func([]productui.DocumentVersionSummary, error)) {
+						go func() {
+							response, err := documentService.ListDocumentVersions(chatRPCContext(ctx, cfg), &documentv1.ListDocumentVersionsRequest{DocumentId: documentID})
+							if err != nil {
+								done(nil, err)
+								return
+							}
+							rows := make([]productui.DocumentVersionSummary, 0, len(response.GetVersions()))
+							for _, row := range response.GetVersions() {
+								if row == nil {
+									continue
+								}
+								summary := productui.DocumentVersionSummary{
+									VersionID: row.GetVersionId(), Title: row.GetTitle(), AuthorID: row.GetAuthorId(),
+									IsCurrent: row.GetIsCurrent(), Redacted: row.GetRedacted(),
+								}
+								if at := row.GetCreatedAt(); at != nil {
+									summary.CreatedAt = at.AsTime()
+								}
+								rows = append(rows, summary)
+							}
+							done(rows, nil)
+						}()
+					}
+					view.WithdrawDocument = func(documentID string, done func(string, error)) {
+						go func() {
+							response, err := documentService.WithdrawDocument(chatRPCContext(ctx, cfg), &documentv1.WithdrawDocumentRequest{DocumentId: documentID})
+							if err != nil {
+								done("", err)
+								return
+							}
+							done(response.GetVersionId(), nil)
+							docsQuietRefresh()
+						}()
+					}
+					view.RestoreDocument = func(documentID, versionID string, done func(error)) {
+						go func() {
+							_, err := documentService.RestoreDocument(chatRPCContext(ctx, cfg), &documentv1.RestoreDocumentRequest{DocumentId: documentID, VersionId: versionID})
+							done(err)
+							if err == nil {
+								docsQuietRefresh()
+							}
 						}()
 					}
 					view.LoadDocumentBacklinks = func(documentID string, done func([]productui.DocumentBacklink, error)) {
@@ -1070,6 +1283,20 @@ func currentProductHref() string {
 
 func canonicalizeCurrentProductLocation() {
 	path := currentPath()
+	// Project routes carry their selectors (project, board_view, task, ...)
+	// in projectclient's state, which productclient.CanonicalHref does not
+	// serialize; canonicalizing them here with productclient stripped the
+	// query before the loader ran, so every board opened as "malformed".
+	if projectState, projectRoute, projectErr := parseProjectRoute(path, currentQuery()); projectRoute {
+		if projectErr != nil {
+			browserReplaceURL(projectclient.ProjectsPath)
+			return
+		}
+		if canonical := projectclient.CanonicalHref(projectState); canonical != currentProductHref() {
+			browserReplaceURL(canonical)
+		}
+		return
+	}
 	state, err := productclient.ParseState(path, currentQuery())
 	if err != nil {
 		if _, known := productui.LookupRoute(path); known {
@@ -1262,6 +1489,13 @@ func renderProductShellLayout(props productShellLayoutProps) ui.Node {
 		// Browser back/forward (and the header arrows, which call
 		// history.go) land here; recompute the arrows for the entry reached.
 		popstate := js.FuncOf(func(js.Value, []js.Value) any {
+			// GWC v5 coalesces consecutive listener renders by URL, but a
+			// software Navigate between two popstates does not update that
+			// signature. Back to the same URL then changes the address without
+			// repainting the page. Revalidate the reached entry explicitly.
+			if productRouteRetry != nil {
+				productRouteRetry()
+			}
 			refreshProductHistoryControls()
 			return nil
 		})

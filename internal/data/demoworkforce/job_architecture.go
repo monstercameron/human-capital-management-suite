@@ -64,55 +64,70 @@ var levelTitles = map[string]string{
 // level and a level to exactly one family (jobarch.ArchitectureRevision
 // enforces both), so "P4 in Software Engineering" and "P4 in Sales" are
 // distinct nodes of the same graph.
-func JobFamilyID(family string) string { return "harborcare-demo.family/" + slug(family) }
+func JobFamilyID(family string) string { return HarborCarePack.JobFamilyID(family) }
+
+// JobFamilyID is the pack's stable identity of one job family.
+func (p *Pack) JobFamilyID(family string) string { return p.idPrefix + ".family/" + slug(family) }
 
 // JobLevelID is the stable identity of one career level inside a family.
-func JobLevelID(family, grade string) string {
-	return "harborcare-demo.level/" + slug(family) + "/" + grade
+func JobLevelID(family, grade string) string { return HarborCarePack.JobLevelID(family, grade) }
+
+// JobLevelID is the pack's stable identity of one career level.
+func (p *Pack) JobLevelID(family, grade string) string {
+	return p.idPrefix + ".level/" + slug(family) + "/" + grade
 }
 
 // JobGradeID is the stable identity of one compensation grade inside a family.
-func JobGradeID(family, grade string) string {
-	return "harborcare-demo.grade/" + slug(family) + "/" + grade
+func JobGradeID(family, grade string) string { return HarborCarePack.JobGradeID(family, grade) }
+
+// JobGradeID is the pack's stable identity of one compensation grade.
+func (p *Pack) JobGradeID(family, grade string) string {
+	return p.idPrefix + ".grade/" + slug(family) + "/" + grade
 }
 
 // JobProfileID is the stable identity of the profile one staffed job code
 // resolves to. Job codes are unique across the company, so the profile does
 // not repeat its family.
-func JobProfileID(jobCode string) string { return "harborcare-demo.profile/" + jobCode }
+func JobProfileID(jobCode string) string { return HarborCarePack.JobProfileID(jobCode) }
+
+// JobProfileID is the pack's stable identity of one job profile.
+func (p *Pack) JobProfileID(jobCode string) string { return p.idPrefix + ".profile/" + jobCode }
 
 // JobArchitecture builds the company's published architecture graph.
-func JobArchitecture() (jobarch.ArchitectureRevision, error) {
+func JobArchitecture() (jobarch.ArchitectureRevision, error) { return HarborCarePack.JobArchitecture() }
+
+// JobArchitecture builds this company's published architecture graph.
+func (p *Pack) JobArchitecture() (jobarch.ArchitectureRevision, error) {
 	var (
 		families []jobarch.JobFamilyRevision
 		levels   []jobarch.JobLevelRevision
 		grades   []jobarch.JobGradeRevision
 		profiles []jobarch.JobProfileRevision
 	)
-	units := make(map[string]bool, len(HarborCare.Units))
-	for _, unit := range HarborCare.Units {
+	units := make(map[string]bool, len(p.Company.Units))
+	for _, unit := range p.Company.Units {
 		units[unit.Code] = true
 	}
 	familyByID := map[string]string{}
 	seenNode := map[string]bool{}
-	for _, seat := range allRoles() {
+	for _, seat := range p.allRoles() {
 		role := seat.Role
 		if !units[seat.Unit] {
 			return jobarch.ArchitectureRevision{}, fmt.Errorf("demoworkforce: the catalog references invalid unit %q", seat.Unit)
 		}
-		rank, ranked := gradeRank[role.Grade]
+		rank, ranked := p.gradeRank[role.Grade]
 		if !ranked {
 			return jobarch.ArchitectureRevision{}, fmt.Errorf("demoworkforce: role %s carries unranked grade %q", role.Code, role.Grade)
 		}
-		title, titled := levelTitles[role.Grade]
+		title, titled := p.levelTitles[role.Grade]
 		if !titled {
 			return jobarch.ArchitectureRevision{}, fmt.Errorf("demoworkforce: grade %q has no career level title", role.Grade)
 		}
-		family := JobFamilyFor(role.Code)
+		family := p.JobFamilyFor(role.Code)
 		if family == "" {
 			return jobarch.ArchitectureRevision{}, fmt.Errorf("demoworkforce: role %s belongs to no job family", role.Code)
 		}
-		familyID := JobFamilyID(family)
+		familyID := p.JobFamilyID(family)
 		if existing, seen := familyByID[familyID]; seen {
 			if existing != family {
 				return jobarch.ArchitectureRevision{}, fmt.Errorf(
@@ -136,30 +151,30 @@ func JobArchitecture() (jobarch.ArchitectureRevision, error) {
 		if !seenNode[nodeKey] {
 			seenNode[nodeKey] = true
 			levels = append(levels, jobarch.JobLevelRevision{
-				LevelID: JobLevelID(family, role.Grade), Revision: JobArchitectureRevision,
+				LevelID: p.JobLevelID(family, role.Grade), Revision: JobArchitectureRevision,
 				FamilyID: familyID, Code: role.Grade, Title: title, Rank: rank,
 				Lifecycle: jobarch.LifecyclePublished, EffectiveFrom: CatalogEffectiveFrom,
 				KnownFrom: JobArchitectureKnownFrom,
-				Lineage:   jobarch.RevisionLineage{RootID: JobLevelID(family, role.Grade)},
+				Lineage:   jobarch.RevisionLineage{RootID: p.JobLevelID(family, role.Grade)},
 			})
 			grades = append(grades, jobarch.JobGradeRevision{
-				GradeID: JobGradeID(family, role.Grade), Revision: JobArchitectureRevision,
-				LevelID: JobLevelID(family, role.Grade), Code: role.Grade,
+				GradeID: p.JobGradeID(family, role.Grade), Revision: JobArchitectureRevision,
+				LevelID: p.JobLevelID(family, role.Grade), Code: role.Grade,
 				Name:      title + " (" + family + ")",
 				Lifecycle: jobarch.LifecyclePublished, EffectiveFrom: CatalogEffectiveFrom,
 				KnownFrom: JobArchitectureKnownFrom,
-				Lineage:   jobarch.RevisionLineage{RootID: JobGradeID(family, role.Grade)},
+				Lineage:   jobarch.RevisionLineage{RootID: p.JobGradeID(family, role.Grade)},
 			})
 		}
 		profiles = append(profiles, jobarch.JobProfileRevision{
-			ProfileID: JobProfileID(role.Code), Revision: JobArchitectureRevision,
-			FamilyID: familyID, LevelID: JobLevelID(family, role.Grade),
-			GradeID: JobGradeID(family, role.Grade),
+			ProfileID: p.JobProfileID(role.Code), Revision: JobArchitectureRevision,
+			FamilyID: familyID, LevelID: p.JobLevelID(family, role.Grade),
+			GradeID: p.JobGradeID(family, role.Grade),
 			JobCode: role.Code, Title: role.Title,
 			Description: role.Title + ", a " + family + " role graded " + role.Grade + ".",
 			Lifecycle:   jobarch.LifecyclePublished, EffectiveFrom: CatalogEffectiveFrom,
 			KnownFrom: JobArchitectureKnownFrom,
-			Lineage:   jobarch.RevisionLineage{RootID: JobProfileID(role.Code)},
+			Lineage:   jobarch.RevisionLineage{RootID: p.JobProfileID(role.Code)},
 		})
 	}
 	sort.Slice(families, func(i, j int) bool { return families[i].FamilyID < families[j].FamilyID })
@@ -168,7 +183,7 @@ func JobArchitecture() (jobarch.ArchitectureRevision, error) {
 	sort.Slice(profiles, func(i, j int) bool { return profiles[i].ProfileID < profiles[j].ProfileID })
 
 	architecture, err := jobarch.NewArchitectureRevision(jobarch.ArchitectureRevision{
-		ID: JobArchitectureID, Revision: JobArchitectureRevision,
+		ID: p.jobArchitectureID, Revision: JobArchitectureRevision,
 		Families: families, Levels: levels, Grades: grades, Profiles: profiles,
 	})
 	if err != nil {
@@ -189,20 +204,25 @@ func JobArchitecture() (jobarch.ArchitectureRevision, error) {
 // per call so tenant context is established before any row is touched), so
 // this seeder takes the store rather than the caller's transaction.
 func SeedJobArchitecture(ctx context.Context, store jobarch.Store, tenant string) (bool, error) {
+	return HarborCarePack.SeedJobArchitecture(ctx, store, tenant)
+}
+
+// SeedJobArchitecture records this company's architecture graph.
+func (p *Pack) SeedJobArchitecture(ctx context.Context, store jobarch.Store, tenant string) (bool, error) {
 	if store == nil {
 		return false, fmt.Errorf("demoworkforce: seed job architecture: a store is required")
 	}
-	architecture, err := JobArchitecture()
+	architecture, err := p.JobArchitecture()
 	if err != nil {
 		return false, err
 	}
-	current, err := store.Current(ctx, tenant, JobArchitectureID)
+	current, err := store.Current(ctx, tenant, p.jobArchitectureID)
 	switch {
 	case err == nil:
 		if current.Revision != architecture.Revision || current.CanonicalDigest != architecture.CanonicalDigest {
 			return false, fmt.Errorf(
-				"demoworkforce: tenant already publishes job architecture revision %s (%s), which is not the deterministic HarborCare graph %s (%s)",
-				current.Revision, current.CanonicalDigest, architecture.Revision, architecture.CanonicalDigest)
+				"demoworkforce: tenant already publishes job architecture revision %s (%s), which is not the deterministic %s graph %s (%s)",
+				current.Revision, current.CanonicalDigest, p.DisplayName, architecture.Revision, architecture.CanonicalDigest)
 		}
 		return false, nil
 	case errors.Is(err, jobarch.ErrStoreNotFound):

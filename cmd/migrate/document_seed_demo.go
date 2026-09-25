@@ -564,6 +564,13 @@ func postDemoMessages(ctx context.Context, chat *chatstore.Store, opts documentS
 		return nil
 	}
 	adapter := chatstore.NewAdapter(chat)
+	// These rooms were registered in the core route directory by the chat
+	// seeder (leaseSeedRoute/activateSeedRoute in chat_seed.go), possibly in
+	// an earlier process invocation, so their route_shard is no longer
+	// empty; write without the matching lease and chatstore's routeFence
+	// refuses every post with ErrNoRouteLease. chatSeedWriteLeaseContext
+	// builds the same lease the chat seeder's own writes use.
+	ctx = chatSeedWriteLeaseContext(ctx, opts.Routes, opts.Tenant, opts.Now)
 	for _, m := range messages {
 		conversation := env.rooms[m.Room]
 		docID := env.docs[m.Doc]

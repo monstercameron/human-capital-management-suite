@@ -367,8 +367,23 @@ func declareAccessibilityStylesStyles() {
 		gwccss.OutlineOffset(gwccss.Px(3)),
 		gwccss.Shadow(gwccss.ShadowOf(gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Px(2), gwccss.Var("surface"))),
 	)
-	declareGlobal("#page-title:focus",
+	// S-5: the router focuses #page-title (tabindex="-1") on every page load
+	// so assistive tech announces the new heading; that is a programmatic
+	// focus, never a keyboard tab stop, so it should never draw a ring. The
+	// old, unconditional "#page-title:focus{outline:none}" only cleared
+	// outline -- the shared ":focus-visible" rule above also sets a 2px
+	// box-shadow halo, so an actual keyboard focus (which is :focus-visible
+	// too, and outranks this ID rule on outline alone) still drew that
+	// box-shadow-only ring, and it was seen on load because a browser that
+	// resolves the router's element.focus() as focus-visible (a fresh
+	// document with no prior pointer interaction) painted it with no visible
+	// outline beside it -- reading as a stray box. Scoping this rule to
+	// :not(:focus-visible) and clearing both properties keeps a genuine
+	// keyboard focus fully ringed (outline and halo together, matching every
+	// other focusable element) and only silences the programmatic case.
+	declareGlobal("#page-title:focus:not(:focus-visible)",
 		gwccss.Raw("outline", "none"),
+		gwccss.Raw("box-shadow", "none"),
 	)
 	declareGlobal(".route-announcer",
 		gwccss.Raw("pointer-events", "none"),

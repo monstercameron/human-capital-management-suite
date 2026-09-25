@@ -16,6 +16,7 @@ import (
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/capabilities/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/project/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 )
 
@@ -26,6 +27,7 @@ import (
 var governedServices = []protoreflect.FullName{
 	"hcmnext.intents.v1.IntentService",
 	"hcmnext.registry.v1.RegistryService",
+	"hcmnext.project.v1.ProjectService",
 }
 
 // RPCDescriptor is one method of one governed service, read directly from

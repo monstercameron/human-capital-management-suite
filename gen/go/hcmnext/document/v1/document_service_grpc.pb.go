@@ -47,6 +47,9 @@ const (
 	DocumentService_AgentSearchDocuments_FullMethodName         = "/hcmnext.document.v1.DocumentService/AgentSearchDocuments"
 	DocumentService_GetDocumentVersion_FullMethodName           = "/hcmnext.document.v1.DocumentService/GetDocumentVersion"
 	DocumentService_GetDocumentBacklinks_FullMethodName         = "/hcmnext.document.v1.DocumentService/GetDocumentBacklinks"
+	DocumentService_ListDocumentVersions_FullMethodName         = "/hcmnext.document.v1.DocumentService/ListDocumentVersions"
+	DocumentService_WithdrawDocument_FullMethodName             = "/hcmnext.document.v1.DocumentService/WithdrawDocument"
+	DocumentService_RestoreDocument_FullMethodName              = "/hcmnext.document.v1.DocumentService/RestoreDocument"
 )
 
 // DocumentServiceClient is the client API for DocumentService service.
@@ -117,6 +120,23 @@ type DocumentServiceClient interface {
 	// caller may also read (HUB-035/HUB-022); a source the caller cannot read
 	// is left out entirely, never named.
 	GetDocumentBacklinks(ctx context.Context, in *GetDocumentBacklinksRequest, opts ...grpc.CallOption) (*GetDocumentBacklinksResponse, error)
+	// ListDocumentVersions lists a document's immutable versions oldest
+	// first, for the compare pickers (DOCS-01). Each entry is already
+	// policy-redacted against the document's current classification: a
+	// version more sensitive than current policy carries only its ID and
+	// redacted=true.
+	ListDocumentVersions(ctx context.Context, in *ListDocumentVersionsRequest, opts ...grpc.CallOption) (*ListDocumentVersionsResponse, error)
+	// WithdrawDocument removes the document's live default-scope pointer
+	// (DOCS-07): the document stops being shared/deployed to anyone but its
+	// owner, but every immutable version and record is kept, and the
+	// withdrawal can be undone with RestoreDocument while nothing else has
+	// been deployed since.
+	WithdrawDocument(ctx context.Context, in *WithdrawDocumentRequest, opts ...grpc.CallOption) (*WithdrawDocumentResponse, error)
+	// RestoreDocument redeploys a version WithdrawDocument just withdrew,
+	// undoing the withdrawal (DOCS-07). It only succeeds while the scope is
+	// still empty and fresh review evidence for that version and scope
+	// exists; otherwise it reports why it could not restore automatically.
+	RestoreDocument(ctx context.Context, in *RestoreDocumentRequest, opts ...grpc.CallOption) (*RestoreDocumentResponse, error)
 }
 
 type documentServiceClient struct {
@@ -407,6 +427,36 @@ func (c *documentServiceClient) GetDocumentBacklinks(ctx context.Context, in *Ge
 	return out, nil
 }
 
+func (c *documentServiceClient) ListDocumentVersions(ctx context.Context, in *ListDocumentVersionsRequest, opts ...grpc.CallOption) (*ListDocumentVersionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDocumentVersionsResponse)
+	err := c.cc.Invoke(ctx, DocumentService_ListDocumentVersions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) WithdrawDocument(ctx context.Context, in *WithdrawDocumentRequest, opts ...grpc.CallOption) (*WithdrawDocumentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WithdrawDocumentResponse)
+	err := c.cc.Invoke(ctx, DocumentService_WithdrawDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *documentServiceClient) RestoreDocument(ctx context.Context, in *RestoreDocumentRequest, opts ...grpc.CallOption) (*RestoreDocumentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RestoreDocumentResponse)
+	err := c.cc.Invoke(ctx, DocumentService_RestoreDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DocumentServiceServer is the server API for DocumentService service.
 // All implementations must embed UnimplementedDocumentServiceServer
 // for forward compatibility.
@@ -475,6 +525,23 @@ type DocumentServiceServer interface {
 	// caller may also read (HUB-035/HUB-022); a source the caller cannot read
 	// is left out entirely, never named.
 	GetDocumentBacklinks(context.Context, *GetDocumentBacklinksRequest) (*GetDocumentBacklinksResponse, error)
+	// ListDocumentVersions lists a document's immutable versions oldest
+	// first, for the compare pickers (DOCS-01). Each entry is already
+	// policy-redacted against the document's current classification: a
+	// version more sensitive than current policy carries only its ID and
+	// redacted=true.
+	ListDocumentVersions(context.Context, *ListDocumentVersionsRequest) (*ListDocumentVersionsResponse, error)
+	// WithdrawDocument removes the document's live default-scope pointer
+	// (DOCS-07): the document stops being shared/deployed to anyone but its
+	// owner, but every immutable version and record is kept, and the
+	// withdrawal can be undone with RestoreDocument while nothing else has
+	// been deployed since.
+	WithdrawDocument(context.Context, *WithdrawDocumentRequest) (*WithdrawDocumentResponse, error)
+	// RestoreDocument redeploys a version WithdrawDocument just withdrew,
+	// undoing the withdrawal (DOCS-07). It only succeeds while the scope is
+	// still empty and fresh review evidence for that version and scope
+	// exists; otherwise it reports why it could not restore automatically.
+	RestoreDocument(context.Context, *RestoreDocumentRequest) (*RestoreDocumentResponse, error)
 	mustEmbedUnimplementedDocumentServiceServer()
 }
 
@@ -568,6 +635,15 @@ func (UnimplementedDocumentServiceServer) GetDocumentVersion(context.Context, *G
 }
 func (UnimplementedDocumentServiceServer) GetDocumentBacklinks(context.Context, *GetDocumentBacklinksRequest) (*GetDocumentBacklinksResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDocumentBacklinks not implemented")
+}
+func (UnimplementedDocumentServiceServer) ListDocumentVersions(context.Context, *ListDocumentVersionsRequest) (*ListDocumentVersionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDocumentVersions not implemented")
+}
+func (UnimplementedDocumentServiceServer) WithdrawDocument(context.Context, *WithdrawDocumentRequest) (*WithdrawDocumentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method WithdrawDocument not implemented")
+}
+func (UnimplementedDocumentServiceServer) RestoreDocument(context.Context, *RestoreDocumentRequest) (*RestoreDocumentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RestoreDocument not implemented")
 }
 func (UnimplementedDocumentServiceServer) mustEmbedUnimplementedDocumentServiceServer() {}
 func (UnimplementedDocumentServiceServer) testEmbeddedByValue()                         {}
@@ -1094,6 +1170,60 @@ func _DocumentService_GetDocumentBacklinks_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DocumentService_ListDocumentVersions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDocumentVersionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).ListDocumentVersions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_ListDocumentVersions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).ListDocumentVersions(ctx, req.(*ListDocumentVersionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_WithdrawDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WithdrawDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).WithdrawDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_WithdrawDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).WithdrawDocument(ctx, req.(*WithdrawDocumentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DocumentService_RestoreDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestoreDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DocumentServiceServer).RestoreDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DocumentService_RestoreDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DocumentServiceServer).RestoreDocument(ctx, req.(*RestoreDocumentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DocumentService_ServiceDesc is the grpc.ServiceDesc for DocumentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1212,6 +1342,18 @@ var DocumentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDocumentBacklinks",
 			Handler:    _DocumentService_GetDocumentBacklinks_Handler,
+		},
+		{
+			MethodName: "ListDocumentVersions",
+			Handler:    _DocumentService_ListDocumentVersions_Handler,
+		},
+		{
+			MethodName: "WithdrawDocument",
+			Handler:    _DocumentService_WithdrawDocument_Handler,
+		},
+		{
+			MethodName: "RestoreDocument",
+			Handler:    _DocumentService_RestoreDocument_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

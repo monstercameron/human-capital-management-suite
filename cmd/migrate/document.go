@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/monstercameron/human-capital-management-suite/internal/application/documentembed"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatroutestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
 	"github.com/pressly/goose/v3"
@@ -145,6 +146,24 @@ func runDocumentSeedAction(ctx context.Context, documentURL, coreURL, chatURL, t
 		}
 		defer chat.Close()
 		opts.Chat = chat
+
+		// Those showcase posts land in rooms the chat seeder already
+		// registered in the core route directory (see leaseSeedRoute in
+		// chat_seed.go), so they need the same route write lease that
+		// seeder's own writes use, or chatstore's routeFence refuses them
+		// with ErrNoRouteLease. conn is already open on the core database
+		// for loadSeedPeople above; chatroutestore.New reuses it the same
+		// way "migrate chat seed" opens its own route connection in
+		// main.go, and Migrate is idempotent so this is safe even when
+		// "chat seed" has already run it.
+		routes, err := chatroutestore.New(conn)
+		if err != nil {
+			return fmt.Errorf("open chat route directory: %w", err)
+		}
+		if err := routes.Migrate(ctx); err != nil {
+			return fmt.Errorf("migrate chat route directory: %w", err)
+		}
+		opts.Routes = routes
 	}
 	return runDocumentSeedCommand(ctx, store, people, opts, out)
 }

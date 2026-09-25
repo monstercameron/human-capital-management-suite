@@ -211,6 +211,7 @@ migrationfiles:
   - 00361_form_draft.sql
   - 00362_inbound_reply_thread_binding.sql
   - 00363_integration_webhook_receipt_inbox.sql
+  - 00364_brand_asset_library.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

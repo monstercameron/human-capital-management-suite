@@ -3,6 +3,7 @@
 package main
 
 import (
+	"strings"
 	"syscall/js"
 	"time"
 
@@ -22,6 +23,20 @@ import (
 
 type chatPageProps struct {
 	View productui.View
+}
+
+// chatHasAdminRole reports whether the session carries the tenant admin
+// role. Checked directly against "hcm_admin" rather than reusing
+// productui.IsAdministratorVisibilityRole, which also admits "comp_admin" --
+// a compensation-specific override with no bearing on who should see chat's
+// API integration entry point.
+func chatHasAdminRole(roles []string) bool {
+	for _, role := range roles {
+		if strings.EqualFold(strings.TrimSpace(role), "hcm_admin") {
+			return true
+		}
+	}
+	return false
 }
 
 var chatRerenderEpoch uint64
@@ -101,10 +116,33 @@ func renderChatPage(props chatPageProps) ui.Node {
 	}, struct{}{})
 	model := chatBrowser.snapshot()
 	model.GiphyAPIKey = chatBrowser.config(journeyclient.Config{}).GiphyAPIKey
+	// CHAT-08: the API curl integration entry point is an administrator
+	// surface; props.View.Roles is the product shell's own already-resolved
+	// session roles (the same source page nav visibility reads).
+	model.IsTenantAdmin = chatHasAdminRole(props.View.Roles)
 	if model.State == "" && len(model.Conversations) == 0 && model.SelectedID == "" {
 		// Nothing has been adopted yet: the loader's model is the only one.
 		model = props.View.Chat
 	}
+	active := chatBrowser.config(journeyclient.Config{})
+	model.ProjectTaskPreviews = chatProjectTaskPreviews.projection(active.Tenant+"\x00"+active.Subject, chatProjectTaskPreviewRefs(model), time.Now())
+	model.JourneyPreviews = chatJourneyProjection(active.Tenant+"\x00"+active.Subject, chatJourneyRefs(model))
+	// Live finding: the server-rendered #chat-search and #chat-composer keep
+	// taking keystrokes for the few seconds this client takes to mount, and
+	// the client's first render otherwise starts both from an empty model --
+	// the field-sync observer (fieldsync_js.go) then writes that empty
+	// string over whatever the reader already typed, because it has no way
+	// to tell "the app has not caught up yet" apart from "the app cleared
+	// this". Adopting whatever the DOM already held, captured before this
+	// client touched it (capturePreHydrationChatFieldValues, called from
+	// start() in main_wasm.go before dial), keeps the model's own idea of
+	// these fields in sync with the box from the very first render, so
+	// field-sync's own value never disagrees with what is on screen.
+	model.Search = adoptPreHydrationChatSearch(model.Search)
+	if model.SelectedID != "" {
+		model.Draft = adoptPreHydrationChatDraft(model.SelectedID, model.Draft)
+	}
+	ui.UseEffectOf(func() func() { restorePreHydrationChatFocus(); return nil }, struct{}{})
 	// The route's initial history state is available only once the configured
 	// model carries its tenant and viewer. Retry on renders until that identity
 	// exists; empty identity would make the first chat entry unsafe to restore.
@@ -120,5 +158,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 	}{model.CurrentTenantID, model.CurrentUser, model.SelectedID, model.State == chatui.StateReady})
 	ui.UseEffectOf(func() func() { resolveVisibleChatEmbeds(chatBrowser.config(journeyclient.Config{})); return nil }, chatEmbedFingerprint(model))
 	ui.UseEffectOf(func() func() { resolveVisibleChatDocs(chatBrowser.config(journeyclient.Config{})); return nil }, chatDocPreviewFingerprint(model))
+	ui.UseEffectOf(func() func() { resolveVisibleChatProjectTasks(chatBrowser.config(journeyclient.Config{})); return nil }, chatProjectTaskPreviewFingerprint(model))
+	ui.UseEffectOf(func() func() { resolveVisibleChatJourneys(chatBrowser.config(journeyclient.Config{})); return nil }, chatJourneyFingerprint(model))
 	return productui.BuildChatPage(props.View, model)
 }

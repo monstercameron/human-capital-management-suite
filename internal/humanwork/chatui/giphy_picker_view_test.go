@@ -23,9 +23,11 @@ func TestGiphyPickerRendersLocalizedStatusAndAccessibleNoKeyState(t *testing.T) 
 		}
 	}}
 	markup := render(t, model)
+	// Round 3 C-6: no key means no trigger at all, not a dead one.
+	if strings.Contains(markup, `data-action="giphy-toggle"`) {
+		t.Error("an unconfigured GIPHY picker rendered its trigger")
+	}
 	for _, want := range []string{
-		`data-action="giphy-toggle"`, `disabled`,
-		`aria-label="GIFs require an administrator key"`, `GIFs require an administrator key`,
 		`data-loading="GIFs loading"`, `data-load-error="GIF error"`,
 		`data-no-results="No GIF matches"`, `data-close="Close GIFs"`,
 		`Powered by GIPHY`, `maxLength="50"`,

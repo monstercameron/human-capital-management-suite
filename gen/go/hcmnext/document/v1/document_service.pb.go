@@ -4623,6 +4623,371 @@ func (x *GetDocumentBacklinksResponse) GetBacklinks() []*DocumentBacklink {
 	return nil
 }
 
+type ListDocumentVersionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentVersionsRequest) Reset() {
+	*x = ListDocumentVersionsRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentVersionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentVersionsRequest) ProtoMessage() {}
+
+func (x *ListDocumentVersionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentVersionsRequest.ProtoReflect.Descriptor instead.
+func (*ListDocumentVersionsRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *ListDocumentVersionsRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+// DocumentVersionSummary is one entry in a document's version history
+// (HUB-017), already policy-redacted. author_id is sent only when the
+// store can name the version's author; is_current marks the version the
+// document currently resolves to.
+type DocumentVersionSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VersionId     string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	AuthorId      string                 `protobuf:"bytes,4,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	IsCurrent     bool                   `protobuf:"varint,5,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
+	Redacted      bool                   `protobuf:"varint,6,opt,name=redacted,proto3" json:"redacted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentVersionSummary) Reset() {
+	*x = DocumentVersionSummary{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentVersionSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentVersionSummary) ProtoMessage() {}
+
+func (x *DocumentVersionSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentVersionSummary.ProtoReflect.Descriptor instead.
+func (*DocumentVersionSummary) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *DocumentVersionSummary) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *DocumentVersionSummary) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *DocumentVersionSummary) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *DocumentVersionSummary) GetAuthorId() string {
+	if x != nil {
+		return x.AuthorId
+	}
+	return ""
+}
+
+func (x *DocumentVersionSummary) GetIsCurrent() bool {
+	if x != nil {
+		return x.IsCurrent
+	}
+	return false
+}
+
+func (x *DocumentVersionSummary) GetRedacted() bool {
+	if x != nil {
+		return x.Redacted
+	}
+	return false
+}
+
+type ListDocumentVersionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// versions is ordered oldest first.
+	Versions      []*DocumentVersionSummary `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentVersionsResponse) Reset() {
+	*x = ListDocumentVersionsResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentVersionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentVersionsResponse) ProtoMessage() {}
+
+func (x *ListDocumentVersionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentVersionsResponse.ProtoReflect.Descriptor instead.
+func (*ListDocumentVersionsResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *ListDocumentVersionsResponse) GetVersions() []*DocumentVersionSummary {
+	if x != nil {
+		return x.Versions
+	}
+	return nil
+}
+
+type WithdrawDocumentRequest struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	// reason is the audited explanation for the withdrawal; the server
+	// fills a default when empty.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WithdrawDocumentRequest) Reset() {
+	*x = WithdrawDocumentRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WithdrawDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WithdrawDocumentRequest) ProtoMessage() {}
+
+func (x *WithdrawDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WithdrawDocumentRequest.ProtoReflect.Descriptor instead.
+func (*WithdrawDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *WithdrawDocumentRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *WithdrawDocumentRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type WithdrawDocumentResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// version_id is the version that was live before this withdrawal, kept
+	// so the caller can offer an Undo that calls RestoreDocument with it.
+	VersionId     string `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WithdrawDocumentResponse) Reset() {
+	*x = WithdrawDocumentResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WithdrawDocumentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WithdrawDocumentResponse) ProtoMessage() {}
+
+func (x *WithdrawDocumentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WithdrawDocumentResponse.ProtoReflect.Descriptor instead.
+func (*WithdrawDocumentResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *WithdrawDocumentResponse) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+type RestoreDocumentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocumentId    string                 `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionId     string                 `protobuf:"bytes,2,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreDocumentRequest) Reset() {
+	*x = RestoreDocumentRequest{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreDocumentRequest) ProtoMessage() {}
+
+func (x *RestoreDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreDocumentRequest.ProtoReflect.Descriptor instead.
+func (*RestoreDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *RestoreDocumentRequest) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *RestoreDocumentRequest) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+type RestoreDocumentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreDocumentResponse) Reset() {
+	*x = RestoreDocumentResponse{}
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreDocumentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreDocumentResponse) ProtoMessage() {}
+
+func (x *RestoreDocumentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_document_v1_document_service_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreDocumentResponse.ProtoReflect.Descriptor instead.
+func (*RestoreDocumentResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_document_v1_document_service_proto_rawDescGZIP(), []int{78}
+}
+
 var File_hcmnext_document_v1_document_service_proto protoreflect.FileDescriptor
 
 const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
@@ -5015,7 +5380,35 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\bblock_id\x18\x05 \x01(\tR\ablockId\x12\x14\n" +
 	"\x05state\x18\x06 \x01(\tR\x05state\"c\n" +
 	"\x1cGetDocumentBacklinksResponse\x12C\n" +
-	"\tbacklinks\x18\x01 \x03(\v2%.hcmnext.document.v1.DocumentBacklinkR\tbacklinks2\xe0\x1a\n" +
+	"\tbacklinks\x18\x01 \x03(\v2%.hcmnext.document.v1.DocumentBacklinkR\tbacklinks\">\n" +
+	"\x1bListDocumentVersionsRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\"\xe0\x01\n" +
+	"\x16DocumentVersionSummary\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x01 \x01(\tR\tversionId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1b\n" +
+	"\tauthor_id\x18\x04 \x01(\tR\bauthorId\x12\x1d\n" +
+	"\n" +
+	"is_current\x18\x05 \x01(\bR\tisCurrent\x12\x1a\n" +
+	"\bredacted\x18\x06 \x01(\bR\bredacted\"g\n" +
+	"\x1cListDocumentVersionsResponse\x12G\n" +
+	"\bversions\x18\x01 \x03(\v2+.hcmnext.document.v1.DocumentVersionSummaryR\bversions\"R\n" +
+	"\x17WithdrawDocumentRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"9\n" +
+	"\x18WithdrawDocumentResponse\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x01 \x01(\tR\tversionId\"X\n" +
+	"\x16RestoreDocumentRequest\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x02 \x01(\tR\tversionId\"\x19\n" +
+	"\x17RestoreDocumentResponse2\xbc\x1d\n" +
 	"\x0fDocumentService\x12f\n" +
 	"\rListDocuments\x12).hcmnext.document.v1.ListDocumentsRequest\x1a*.hcmnext.document.v1.ListDocumentsResponse\x12i\n" +
 	"\x0eCreateDocument\x12*.hcmnext.document.v1.CreateDocumentRequest\x1a+.hcmnext.document.v1.CreateDocumentResponse\x12`\n" +
@@ -5044,7 +5437,10 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\x0fSearchDocuments\x12+.hcmnext.document.v1.SearchDocumentsRequest\x1a,.hcmnext.document.v1.SearchDocumentsResponse\x12{\n" +
 	"\x14AgentSearchDocuments\x120.hcmnext.document.v1.AgentSearchDocumentsRequest\x1a1.hcmnext.document.v1.AgentSearchDocumentsResponse\x12u\n" +
 	"\x12GetDocumentVersion\x12..hcmnext.document.v1.GetDocumentVersionRequest\x1a/.hcmnext.document.v1.GetDocumentVersionResponse\x12{\n" +
-	"\x14GetDocumentBacklinks\x120.hcmnext.document.v1.GetDocumentBacklinksRequest\x1a1.hcmnext.document.v1.GetDocumentBacklinksResponseB`Z^github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1;documentv1b\x06proto3"
+	"\x14GetDocumentBacklinks\x120.hcmnext.document.v1.GetDocumentBacklinksRequest\x1a1.hcmnext.document.v1.GetDocumentBacklinksResponse\x12{\n" +
+	"\x14ListDocumentVersions\x120.hcmnext.document.v1.ListDocumentVersionsRequest\x1a1.hcmnext.document.v1.ListDocumentVersionsResponse\x12o\n" +
+	"\x10WithdrawDocument\x12,.hcmnext.document.v1.WithdrawDocumentRequest\x1a-.hcmnext.document.v1.WithdrawDocumentResponse\x12l\n" +
+	"\x0fRestoreDocument\x12+.hcmnext.document.v1.RestoreDocumentRequest\x1a,.hcmnext.document.v1.RestoreDocumentResponseB`Z^github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1;documentv1b\x06proto3"
 
 var (
 	file_hcmnext_document_v1_document_service_proto_rawDescOnce sync.Once
@@ -5058,7 +5454,7 @@ func file_hcmnext_document_v1_document_service_proto_rawDescGZIP() []byte {
 	return file_hcmnext_document_v1_document_service_proto_rawDescData
 }
 
-var file_hcmnext_document_v1_document_service_proto_msgTypes = make([]protoimpl.MessageInfo, 72)
+var file_hcmnext_document_v1_document_service_proto_msgTypes = make([]protoimpl.MessageInfo, 79)
 var file_hcmnext_document_v1_document_service_proto_goTypes = []any{
 	(*ListDocumentsRequest)(nil),                 // 0: hcmnext.document.v1.ListDocumentsRequest
 	(*DocumentSummary)(nil),                      // 1: hcmnext.document.v1.DocumentSummary
@@ -5132,112 +5528,127 @@ var file_hcmnext_document_v1_document_service_proto_goTypes = []any{
 	(*GetDocumentBacklinksRequest)(nil),          // 69: hcmnext.document.v1.GetDocumentBacklinksRequest
 	(*DocumentBacklink)(nil),                     // 70: hcmnext.document.v1.DocumentBacklink
 	(*GetDocumentBacklinksResponse)(nil),         // 71: hcmnext.document.v1.GetDocumentBacklinksResponse
-	(*timestamppb.Timestamp)(nil),                // 72: google.protobuf.Timestamp
+	(*ListDocumentVersionsRequest)(nil),          // 72: hcmnext.document.v1.ListDocumentVersionsRequest
+	(*DocumentVersionSummary)(nil),               // 73: hcmnext.document.v1.DocumentVersionSummary
+	(*ListDocumentVersionsResponse)(nil),         // 74: hcmnext.document.v1.ListDocumentVersionsResponse
+	(*WithdrawDocumentRequest)(nil),              // 75: hcmnext.document.v1.WithdrawDocumentRequest
+	(*WithdrawDocumentResponse)(nil),             // 76: hcmnext.document.v1.WithdrawDocumentResponse
+	(*RestoreDocumentRequest)(nil),               // 77: hcmnext.document.v1.RestoreDocumentRequest
+	(*RestoreDocumentResponse)(nil),              // 78: hcmnext.document.v1.RestoreDocumentResponse
+	(*timestamppb.Timestamp)(nil),                // 79: google.protobuf.Timestamp
 }
 var file_hcmnext_document_v1_document_service_proto_depIdxs = []int32{
-	72, // 0: hcmnext.document.v1.DocumentSummary.updated_at:type_name -> google.protobuf.Timestamp
-	72, // 1: hcmnext.document.v1.DocumentSummary.review_due_at:type_name -> google.protobuf.Timestamp
+	79, // 0: hcmnext.document.v1.DocumentSummary.updated_at:type_name -> google.protobuf.Timestamp
+	79, // 1: hcmnext.document.v1.DocumentSummary.review_due_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: hcmnext.document.v1.ListDocumentsResponse.documents:type_name -> hcmnext.document.v1.DocumentSummary
 	1,  // 3: hcmnext.document.v1.GetDocumentResponse.document:type_name -> hcmnext.document.v1.DocumentSummary
 	10, // 4: hcmnext.document.v1.GetDocumentResponse.links:type_name -> hcmnext.document.v1.DocumentLinkTarget
 	7,  // 5: hcmnext.document.v1.GetDocumentResponse.channels:type_name -> hcmnext.document.v1.DocumentChannelReference
 	8,  // 6: hcmnext.document.v1.GetDocumentResponse.people:type_name -> hcmnext.document.v1.DocumentPersonReference
 	9,  // 7: hcmnext.document.v1.GetDocumentResponse.messages:type_name -> hcmnext.document.v1.DocumentMessageReference
-	72, // 8: hcmnext.document.v1.DocumentMessageReference.created_at:type_name -> google.protobuf.Timestamp
-	72, // 9: hcmnext.document.v1.DocumentComment.created_at:type_name -> google.protobuf.Timestamp
+	79, // 8: hcmnext.document.v1.DocumentMessageReference.created_at:type_name -> google.protobuf.Timestamp
+	79, // 9: hcmnext.document.v1.DocumentComment.created_at:type_name -> google.protobuf.Timestamp
 	13, // 10: hcmnext.document.v1.DocumentComment.anchor:type_name -> hcmnext.document.v1.CommentAnchor
 	14, // 11: hcmnext.document.v1.ListDocumentCommentsResponse.comments:type_name -> hcmnext.document.v1.DocumentComment
 	13, // 12: hcmnext.document.v1.AddDocumentCommentRequest.anchor:type_name -> hcmnext.document.v1.CommentAnchor
 	14, // 13: hcmnext.document.v1.AddDocumentCommentResponse.comment:type_name -> hcmnext.document.v1.DocumentComment
-	72, // 14: hcmnext.document.v1.DocumentFolder.created_at:type_name -> google.protobuf.Timestamp
+	79, // 14: hcmnext.document.v1.DocumentFolder.created_at:type_name -> google.protobuf.Timestamp
 	22, // 15: hcmnext.document.v1.GetDocumentLibraryResponse.folders:type_name -> hcmnext.document.v1.DocumentFolder
 	22, // 16: hcmnext.document.v1.CreateDocumentFolderResponse.folder:type_name -> hcmnext.document.v1.DocumentFolder
 	35, // 17: hcmnext.document.v1.ListDocumentAccessResponse.entries:type_name -> hcmnext.document.v1.DocumentAccessEntry
-	72, // 18: hcmnext.document.v1.DocumentPreview.updated_at:type_name -> google.protobuf.Timestamp
+	79, // 18: hcmnext.document.v1.DocumentPreview.updated_at:type_name -> google.protobuf.Timestamp
 	42, // 19: hcmnext.document.v1.GetDocumentPreviewsResponse.previews:type_name -> hcmnext.document.v1.DocumentPreview
-	72, // 20: hcmnext.document.v1.DocumentDeployment.effective_at:type_name -> google.protobuf.Timestamp
-	72, // 21: hcmnext.document.v1.DocumentDeployment.review_due_at:type_name -> google.protobuf.Timestamp
-	72, // 22: hcmnext.document.v1.PlaceDocumentRequest.review_due_at:type_name -> google.protobuf.Timestamp
+	79, // 20: hcmnext.document.v1.DocumentDeployment.effective_at:type_name -> google.protobuf.Timestamp
+	79, // 21: hcmnext.document.v1.DocumentDeployment.review_due_at:type_name -> google.protobuf.Timestamp
+	79, // 22: hcmnext.document.v1.PlaceDocumentRequest.review_due_at:type_name -> google.protobuf.Timestamp
 	44, // 23: hcmnext.document.v1.PlaceDocumentResponse.deployment:type_name -> hcmnext.document.v1.DocumentDeployment
 	44, // 24: hcmnext.document.v1.GetDocumentPlacementResponse.deployment:type_name -> hcmnext.document.v1.DocumentDeployment
-	72, // 25: hcmnext.document.v1.DocumentOwnershipTransfer.created_at:type_name -> google.protobuf.Timestamp
+	79, // 25: hcmnext.document.v1.DocumentOwnershipTransfer.created_at:type_name -> google.protobuf.Timestamp
 	49, // 26: hcmnext.document.v1.TransferDocumentOwnershipResponse.transfer:type_name -> hcmnext.document.v1.DocumentOwnershipTransfer
 	49, // 27: hcmnext.document.v1.ListDocumentOwnershipHistoryResponse.transfers:type_name -> hcmnext.document.v1.DocumentOwnershipTransfer
-	72, // 28: hcmnext.document.v1.DocumentCrossCompanyGrant.expires_at:type_name -> google.protobuf.Timestamp
-	72, // 29: hcmnext.document.v1.DocumentCrossCompanyGrant.revoked_at:type_name -> google.protobuf.Timestamp
-	72, // 30: hcmnext.document.v1.ProposeCrossCompanyGrantRequest.expires_at:type_name -> google.protobuf.Timestamp
+	79, // 28: hcmnext.document.v1.DocumentCrossCompanyGrant.expires_at:type_name -> google.protobuf.Timestamp
+	79, // 29: hcmnext.document.v1.DocumentCrossCompanyGrant.revoked_at:type_name -> google.protobuf.Timestamp
+	79, // 30: hcmnext.document.v1.ProposeCrossCompanyGrantRequest.expires_at:type_name -> google.protobuf.Timestamp
 	54, // 31: hcmnext.document.v1.ProposeCrossCompanyGrantResponse.grant:type_name -> hcmnext.document.v1.DocumentCrossCompanyGrant
 	54, // 32: hcmnext.document.v1.AcceptCrossCompanyGrantResponse.grant:type_name -> hcmnext.document.v1.DocumentCrossCompanyGrant
-	72, // 33: hcmnext.document.v1.DocumentSearchFilters.date_from:type_name -> google.protobuf.Timestamp
-	72, // 34: hcmnext.document.v1.DocumentSearchFilters.date_to:type_name -> google.protobuf.Timestamp
-	72, // 35: hcmnext.document.v1.DocumentSearchHit.deployed_at:type_name -> google.protobuf.Timestamp
+	79, // 33: hcmnext.document.v1.DocumentSearchFilters.date_from:type_name -> google.protobuf.Timestamp
+	79, // 34: hcmnext.document.v1.DocumentSearchFilters.date_to:type_name -> google.protobuf.Timestamp
+	79, // 35: hcmnext.document.v1.DocumentSearchHit.deployed_at:type_name -> google.protobuf.Timestamp
 	61, // 36: hcmnext.document.v1.SearchDocumentsRequest.filters:type_name -> hcmnext.document.v1.DocumentSearchFilters
 	62, // 37: hcmnext.document.v1.SearchDocumentsResponse.hits:type_name -> hcmnext.document.v1.DocumentSearchHit
 	61, // 38: hcmnext.document.v1.AgentSearchDocumentsRequest.filters:type_name -> hcmnext.document.v1.DocumentSearchFilters
 	62, // 39: hcmnext.document.v1.AgentSearchDocumentsResponse.hits:type_name -> hcmnext.document.v1.DocumentSearchHit
-	72, // 40: hcmnext.document.v1.GetDocumentVersionResponse.created_at:type_name -> google.protobuf.Timestamp
+	79, // 40: hcmnext.document.v1.GetDocumentVersionResponse.created_at:type_name -> google.protobuf.Timestamp
 	70, // 41: hcmnext.document.v1.GetDocumentBacklinksResponse.backlinks:type_name -> hcmnext.document.v1.DocumentBacklink
-	0,  // 42: hcmnext.document.v1.DocumentService.ListDocuments:input_type -> hcmnext.document.v1.ListDocumentsRequest
-	3,  // 43: hcmnext.document.v1.DocumentService.CreateDocument:input_type -> hcmnext.document.v1.CreateDocumentRequest
-	5,  // 44: hcmnext.document.v1.DocumentService.GetDocument:input_type -> hcmnext.document.v1.GetDocumentRequest
-	11, // 45: hcmnext.document.v1.DocumentService.ShareDocument:input_type -> hcmnext.document.v1.ShareDocumentRequest
-	15, // 46: hcmnext.document.v1.DocumentService.ListDocumentComments:input_type -> hcmnext.document.v1.ListDocumentCommentsRequest
-	17, // 47: hcmnext.document.v1.DocumentService.AddDocumentComment:input_type -> hcmnext.document.v1.AddDocumentCommentRequest
-	19, // 48: hcmnext.document.v1.DocumentService.CreateDocumentVersion:input_type -> hcmnext.document.v1.CreateDocumentVersionRequest
-	21, // 49: hcmnext.document.v1.DocumentService.GetDocumentLibrary:input_type -> hcmnext.document.v1.GetDocumentLibraryRequest
-	24, // 50: hcmnext.document.v1.DocumentService.CreateDocumentFolder:input_type -> hcmnext.document.v1.CreateDocumentFolderRequest
-	26, // 51: hcmnext.document.v1.DocumentService.RenameDocumentFolder:input_type -> hcmnext.document.v1.RenameDocumentFolderRequest
-	28, // 52: hcmnext.document.v1.DocumentService.DeleteDocumentFolder:input_type -> hcmnext.document.v1.DeleteDocumentFolderRequest
-	30, // 53: hcmnext.document.v1.DocumentService.MoveDocuments:input_type -> hcmnext.document.v1.MoveDocumentsRequest
-	32, // 54: hcmnext.document.v1.DocumentService.SetDocumentStarred:input_type -> hcmnext.document.v1.SetDocumentStarredRequest
-	34, // 55: hcmnext.document.v1.DocumentService.ListDocumentAccess:input_type -> hcmnext.document.v1.ListDocumentAccessRequest
-	37, // 56: hcmnext.document.v1.DocumentService.RevokeDocumentAccess:input_type -> hcmnext.document.v1.RevokeDocumentAccessRequest
-	39, // 57: hcmnext.document.v1.DocumentService.ResolveDocumentComment:input_type -> hcmnext.document.v1.ResolveDocumentCommentRequest
-	41, // 58: hcmnext.document.v1.DocumentService.GetDocumentPreviews:input_type -> hcmnext.document.v1.GetDocumentPreviewsRequest
-	45, // 59: hcmnext.document.v1.DocumentService.PlaceDocument:input_type -> hcmnext.document.v1.PlaceDocumentRequest
-	47, // 60: hcmnext.document.v1.DocumentService.GetDocumentPlacement:input_type -> hcmnext.document.v1.GetDocumentPlacementRequest
-	50, // 61: hcmnext.document.v1.DocumentService.TransferDocumentOwnership:input_type -> hcmnext.document.v1.TransferDocumentOwnershipRequest
-	52, // 62: hcmnext.document.v1.DocumentService.ListDocumentOwnershipHistory:input_type -> hcmnext.document.v1.ListDocumentOwnershipHistoryRequest
-	55, // 63: hcmnext.document.v1.DocumentService.ProposeCrossCompanyGrant:input_type -> hcmnext.document.v1.ProposeCrossCompanyGrantRequest
-	57, // 64: hcmnext.document.v1.DocumentService.AcceptCrossCompanyGrant:input_type -> hcmnext.document.v1.AcceptCrossCompanyGrantRequest
-	59, // 65: hcmnext.document.v1.DocumentService.RevokeCrossCompanyGrant:input_type -> hcmnext.document.v1.RevokeCrossCompanyGrantRequest
-	63, // 66: hcmnext.document.v1.DocumentService.SearchDocuments:input_type -> hcmnext.document.v1.SearchDocumentsRequest
-	65, // 67: hcmnext.document.v1.DocumentService.AgentSearchDocuments:input_type -> hcmnext.document.v1.AgentSearchDocumentsRequest
-	67, // 68: hcmnext.document.v1.DocumentService.GetDocumentVersion:input_type -> hcmnext.document.v1.GetDocumentVersionRequest
-	69, // 69: hcmnext.document.v1.DocumentService.GetDocumentBacklinks:input_type -> hcmnext.document.v1.GetDocumentBacklinksRequest
-	2,  // 70: hcmnext.document.v1.DocumentService.ListDocuments:output_type -> hcmnext.document.v1.ListDocumentsResponse
-	4,  // 71: hcmnext.document.v1.DocumentService.CreateDocument:output_type -> hcmnext.document.v1.CreateDocumentResponse
-	6,  // 72: hcmnext.document.v1.DocumentService.GetDocument:output_type -> hcmnext.document.v1.GetDocumentResponse
-	12, // 73: hcmnext.document.v1.DocumentService.ShareDocument:output_type -> hcmnext.document.v1.ShareDocumentResponse
-	16, // 74: hcmnext.document.v1.DocumentService.ListDocumentComments:output_type -> hcmnext.document.v1.ListDocumentCommentsResponse
-	18, // 75: hcmnext.document.v1.DocumentService.AddDocumentComment:output_type -> hcmnext.document.v1.AddDocumentCommentResponse
-	20, // 76: hcmnext.document.v1.DocumentService.CreateDocumentVersion:output_type -> hcmnext.document.v1.CreateDocumentVersionResponse
-	23, // 77: hcmnext.document.v1.DocumentService.GetDocumentLibrary:output_type -> hcmnext.document.v1.GetDocumentLibraryResponse
-	25, // 78: hcmnext.document.v1.DocumentService.CreateDocumentFolder:output_type -> hcmnext.document.v1.CreateDocumentFolderResponse
-	27, // 79: hcmnext.document.v1.DocumentService.RenameDocumentFolder:output_type -> hcmnext.document.v1.RenameDocumentFolderResponse
-	29, // 80: hcmnext.document.v1.DocumentService.DeleteDocumentFolder:output_type -> hcmnext.document.v1.DeleteDocumentFolderResponse
-	31, // 81: hcmnext.document.v1.DocumentService.MoveDocuments:output_type -> hcmnext.document.v1.MoveDocumentsResponse
-	33, // 82: hcmnext.document.v1.DocumentService.SetDocumentStarred:output_type -> hcmnext.document.v1.SetDocumentStarredResponse
-	36, // 83: hcmnext.document.v1.DocumentService.ListDocumentAccess:output_type -> hcmnext.document.v1.ListDocumentAccessResponse
-	38, // 84: hcmnext.document.v1.DocumentService.RevokeDocumentAccess:output_type -> hcmnext.document.v1.RevokeDocumentAccessResponse
-	40, // 85: hcmnext.document.v1.DocumentService.ResolveDocumentComment:output_type -> hcmnext.document.v1.ResolveDocumentCommentResponse
-	43, // 86: hcmnext.document.v1.DocumentService.GetDocumentPreviews:output_type -> hcmnext.document.v1.GetDocumentPreviewsResponse
-	46, // 87: hcmnext.document.v1.DocumentService.PlaceDocument:output_type -> hcmnext.document.v1.PlaceDocumentResponse
-	48, // 88: hcmnext.document.v1.DocumentService.GetDocumentPlacement:output_type -> hcmnext.document.v1.GetDocumentPlacementResponse
-	51, // 89: hcmnext.document.v1.DocumentService.TransferDocumentOwnership:output_type -> hcmnext.document.v1.TransferDocumentOwnershipResponse
-	53, // 90: hcmnext.document.v1.DocumentService.ListDocumentOwnershipHistory:output_type -> hcmnext.document.v1.ListDocumentOwnershipHistoryResponse
-	56, // 91: hcmnext.document.v1.DocumentService.ProposeCrossCompanyGrant:output_type -> hcmnext.document.v1.ProposeCrossCompanyGrantResponse
-	58, // 92: hcmnext.document.v1.DocumentService.AcceptCrossCompanyGrant:output_type -> hcmnext.document.v1.AcceptCrossCompanyGrantResponse
-	60, // 93: hcmnext.document.v1.DocumentService.RevokeCrossCompanyGrant:output_type -> hcmnext.document.v1.RevokeCrossCompanyGrantResponse
-	64, // 94: hcmnext.document.v1.DocumentService.SearchDocuments:output_type -> hcmnext.document.v1.SearchDocumentsResponse
-	66, // 95: hcmnext.document.v1.DocumentService.AgentSearchDocuments:output_type -> hcmnext.document.v1.AgentSearchDocumentsResponse
-	68, // 96: hcmnext.document.v1.DocumentService.GetDocumentVersion:output_type -> hcmnext.document.v1.GetDocumentVersionResponse
-	71, // 97: hcmnext.document.v1.DocumentService.GetDocumentBacklinks:output_type -> hcmnext.document.v1.GetDocumentBacklinksResponse
-	70, // [70:98] is the sub-list for method output_type
-	42, // [42:70] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	79, // 42: hcmnext.document.v1.DocumentVersionSummary.created_at:type_name -> google.protobuf.Timestamp
+	73, // 43: hcmnext.document.v1.ListDocumentVersionsResponse.versions:type_name -> hcmnext.document.v1.DocumentVersionSummary
+	0,  // 44: hcmnext.document.v1.DocumentService.ListDocuments:input_type -> hcmnext.document.v1.ListDocumentsRequest
+	3,  // 45: hcmnext.document.v1.DocumentService.CreateDocument:input_type -> hcmnext.document.v1.CreateDocumentRequest
+	5,  // 46: hcmnext.document.v1.DocumentService.GetDocument:input_type -> hcmnext.document.v1.GetDocumentRequest
+	11, // 47: hcmnext.document.v1.DocumentService.ShareDocument:input_type -> hcmnext.document.v1.ShareDocumentRequest
+	15, // 48: hcmnext.document.v1.DocumentService.ListDocumentComments:input_type -> hcmnext.document.v1.ListDocumentCommentsRequest
+	17, // 49: hcmnext.document.v1.DocumentService.AddDocumentComment:input_type -> hcmnext.document.v1.AddDocumentCommentRequest
+	19, // 50: hcmnext.document.v1.DocumentService.CreateDocumentVersion:input_type -> hcmnext.document.v1.CreateDocumentVersionRequest
+	21, // 51: hcmnext.document.v1.DocumentService.GetDocumentLibrary:input_type -> hcmnext.document.v1.GetDocumentLibraryRequest
+	24, // 52: hcmnext.document.v1.DocumentService.CreateDocumentFolder:input_type -> hcmnext.document.v1.CreateDocumentFolderRequest
+	26, // 53: hcmnext.document.v1.DocumentService.RenameDocumentFolder:input_type -> hcmnext.document.v1.RenameDocumentFolderRequest
+	28, // 54: hcmnext.document.v1.DocumentService.DeleteDocumentFolder:input_type -> hcmnext.document.v1.DeleteDocumentFolderRequest
+	30, // 55: hcmnext.document.v1.DocumentService.MoveDocuments:input_type -> hcmnext.document.v1.MoveDocumentsRequest
+	32, // 56: hcmnext.document.v1.DocumentService.SetDocumentStarred:input_type -> hcmnext.document.v1.SetDocumentStarredRequest
+	34, // 57: hcmnext.document.v1.DocumentService.ListDocumentAccess:input_type -> hcmnext.document.v1.ListDocumentAccessRequest
+	37, // 58: hcmnext.document.v1.DocumentService.RevokeDocumentAccess:input_type -> hcmnext.document.v1.RevokeDocumentAccessRequest
+	39, // 59: hcmnext.document.v1.DocumentService.ResolveDocumentComment:input_type -> hcmnext.document.v1.ResolveDocumentCommentRequest
+	41, // 60: hcmnext.document.v1.DocumentService.GetDocumentPreviews:input_type -> hcmnext.document.v1.GetDocumentPreviewsRequest
+	45, // 61: hcmnext.document.v1.DocumentService.PlaceDocument:input_type -> hcmnext.document.v1.PlaceDocumentRequest
+	47, // 62: hcmnext.document.v1.DocumentService.GetDocumentPlacement:input_type -> hcmnext.document.v1.GetDocumentPlacementRequest
+	50, // 63: hcmnext.document.v1.DocumentService.TransferDocumentOwnership:input_type -> hcmnext.document.v1.TransferDocumentOwnershipRequest
+	52, // 64: hcmnext.document.v1.DocumentService.ListDocumentOwnershipHistory:input_type -> hcmnext.document.v1.ListDocumentOwnershipHistoryRequest
+	55, // 65: hcmnext.document.v1.DocumentService.ProposeCrossCompanyGrant:input_type -> hcmnext.document.v1.ProposeCrossCompanyGrantRequest
+	57, // 66: hcmnext.document.v1.DocumentService.AcceptCrossCompanyGrant:input_type -> hcmnext.document.v1.AcceptCrossCompanyGrantRequest
+	59, // 67: hcmnext.document.v1.DocumentService.RevokeCrossCompanyGrant:input_type -> hcmnext.document.v1.RevokeCrossCompanyGrantRequest
+	63, // 68: hcmnext.document.v1.DocumentService.SearchDocuments:input_type -> hcmnext.document.v1.SearchDocumentsRequest
+	65, // 69: hcmnext.document.v1.DocumentService.AgentSearchDocuments:input_type -> hcmnext.document.v1.AgentSearchDocumentsRequest
+	67, // 70: hcmnext.document.v1.DocumentService.GetDocumentVersion:input_type -> hcmnext.document.v1.GetDocumentVersionRequest
+	69, // 71: hcmnext.document.v1.DocumentService.GetDocumentBacklinks:input_type -> hcmnext.document.v1.GetDocumentBacklinksRequest
+	72, // 72: hcmnext.document.v1.DocumentService.ListDocumentVersions:input_type -> hcmnext.document.v1.ListDocumentVersionsRequest
+	75, // 73: hcmnext.document.v1.DocumentService.WithdrawDocument:input_type -> hcmnext.document.v1.WithdrawDocumentRequest
+	77, // 74: hcmnext.document.v1.DocumentService.RestoreDocument:input_type -> hcmnext.document.v1.RestoreDocumentRequest
+	2,  // 75: hcmnext.document.v1.DocumentService.ListDocuments:output_type -> hcmnext.document.v1.ListDocumentsResponse
+	4,  // 76: hcmnext.document.v1.DocumentService.CreateDocument:output_type -> hcmnext.document.v1.CreateDocumentResponse
+	6,  // 77: hcmnext.document.v1.DocumentService.GetDocument:output_type -> hcmnext.document.v1.GetDocumentResponse
+	12, // 78: hcmnext.document.v1.DocumentService.ShareDocument:output_type -> hcmnext.document.v1.ShareDocumentResponse
+	16, // 79: hcmnext.document.v1.DocumentService.ListDocumentComments:output_type -> hcmnext.document.v1.ListDocumentCommentsResponse
+	18, // 80: hcmnext.document.v1.DocumentService.AddDocumentComment:output_type -> hcmnext.document.v1.AddDocumentCommentResponse
+	20, // 81: hcmnext.document.v1.DocumentService.CreateDocumentVersion:output_type -> hcmnext.document.v1.CreateDocumentVersionResponse
+	23, // 82: hcmnext.document.v1.DocumentService.GetDocumentLibrary:output_type -> hcmnext.document.v1.GetDocumentLibraryResponse
+	25, // 83: hcmnext.document.v1.DocumentService.CreateDocumentFolder:output_type -> hcmnext.document.v1.CreateDocumentFolderResponse
+	27, // 84: hcmnext.document.v1.DocumentService.RenameDocumentFolder:output_type -> hcmnext.document.v1.RenameDocumentFolderResponse
+	29, // 85: hcmnext.document.v1.DocumentService.DeleteDocumentFolder:output_type -> hcmnext.document.v1.DeleteDocumentFolderResponse
+	31, // 86: hcmnext.document.v1.DocumentService.MoveDocuments:output_type -> hcmnext.document.v1.MoveDocumentsResponse
+	33, // 87: hcmnext.document.v1.DocumentService.SetDocumentStarred:output_type -> hcmnext.document.v1.SetDocumentStarredResponse
+	36, // 88: hcmnext.document.v1.DocumentService.ListDocumentAccess:output_type -> hcmnext.document.v1.ListDocumentAccessResponse
+	38, // 89: hcmnext.document.v1.DocumentService.RevokeDocumentAccess:output_type -> hcmnext.document.v1.RevokeDocumentAccessResponse
+	40, // 90: hcmnext.document.v1.DocumentService.ResolveDocumentComment:output_type -> hcmnext.document.v1.ResolveDocumentCommentResponse
+	43, // 91: hcmnext.document.v1.DocumentService.GetDocumentPreviews:output_type -> hcmnext.document.v1.GetDocumentPreviewsResponse
+	46, // 92: hcmnext.document.v1.DocumentService.PlaceDocument:output_type -> hcmnext.document.v1.PlaceDocumentResponse
+	48, // 93: hcmnext.document.v1.DocumentService.GetDocumentPlacement:output_type -> hcmnext.document.v1.GetDocumentPlacementResponse
+	51, // 94: hcmnext.document.v1.DocumentService.TransferDocumentOwnership:output_type -> hcmnext.document.v1.TransferDocumentOwnershipResponse
+	53, // 95: hcmnext.document.v1.DocumentService.ListDocumentOwnershipHistory:output_type -> hcmnext.document.v1.ListDocumentOwnershipHistoryResponse
+	56, // 96: hcmnext.document.v1.DocumentService.ProposeCrossCompanyGrant:output_type -> hcmnext.document.v1.ProposeCrossCompanyGrantResponse
+	58, // 97: hcmnext.document.v1.DocumentService.AcceptCrossCompanyGrant:output_type -> hcmnext.document.v1.AcceptCrossCompanyGrantResponse
+	60, // 98: hcmnext.document.v1.DocumentService.RevokeCrossCompanyGrant:output_type -> hcmnext.document.v1.RevokeCrossCompanyGrantResponse
+	64, // 99: hcmnext.document.v1.DocumentService.SearchDocuments:output_type -> hcmnext.document.v1.SearchDocumentsResponse
+	66, // 100: hcmnext.document.v1.DocumentService.AgentSearchDocuments:output_type -> hcmnext.document.v1.AgentSearchDocumentsResponse
+	68, // 101: hcmnext.document.v1.DocumentService.GetDocumentVersion:output_type -> hcmnext.document.v1.GetDocumentVersionResponse
+	71, // 102: hcmnext.document.v1.DocumentService.GetDocumentBacklinks:output_type -> hcmnext.document.v1.GetDocumentBacklinksResponse
+	74, // 103: hcmnext.document.v1.DocumentService.ListDocumentVersions:output_type -> hcmnext.document.v1.ListDocumentVersionsResponse
+	76, // 104: hcmnext.document.v1.DocumentService.WithdrawDocument:output_type -> hcmnext.document.v1.WithdrawDocumentResponse
+	78, // 105: hcmnext.document.v1.DocumentService.RestoreDocument:output_type -> hcmnext.document.v1.RestoreDocumentResponse
+	75, // [75:106] is the sub-list for method output_type
+	44, // [44:75] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_document_v1_document_service_proto_init() }
@@ -5251,7 +5662,7 @@ func file_hcmnext_document_v1_document_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_document_v1_document_service_proto_rawDesc), len(file_hcmnext_document_v1_document_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   72,
+			NumMessages:   79,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -96,6 +96,7 @@ func TestTunnelServesOnlyWorkspaceServices(t *testing.T) {
 		"/hcmnext.document.v1.DocumentService/ListDocuments":             true,
 		"/hcmnext.document.v1.DocumentService/GetDocument":               true,
 		"/hcmnext.position.v1.PositionService/ListPositionObjectOptions": true,
+		"/hcmnext.project.v1.ProjectService/ListProjects":                true,
 		"/hcmnext.evidence.v1.EvidenceService/GetEvidence":               false,
 	} {
 		if got := tunnelAllowsService(path); got != want {

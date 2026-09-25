@@ -85,7 +85,7 @@ const authnAssuranceSubstantial = "SUBSTANTIAL"
 
 // rules is keyed by gRPC procedure path (identical to [RPCDescriptor.GRPCProcedure]).
 func rules() map[string]rule {
-	return map[string]rule{
+	out := map[string]rule{
 		"/hcmnext.intents.v1.IntentService/CreateIntent": {
 			owner: "GOVERNANCE", behavior: IntentBehaviorCreates,
 			disposition: DispositionServed, dispositionReason: servedReason,
@@ -286,6 +286,10 @@ func rules() map[string]rule {
 			capabilityRefs: []string{"hcmnext.registry.explain_capability"},
 		},
 	}
+	for endpoint, r := range projectRules() {
+		out[endpoint] = r
+	}
+	return out
 }
 
 // Build assembles the total EndpointManifest from the live Protobuf service

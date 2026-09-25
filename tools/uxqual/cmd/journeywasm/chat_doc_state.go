@@ -22,6 +22,15 @@ const chatDocPreviewLimit = 50
 
 const chatDocPreviewFreshFor = time.Minute
 
+// chatDocPreviewPendingTimeout bounds how long a claim may sit "loading"
+// (C-3). claim() never reissues an entry it still marks pending, so a read
+// that never returns -- the client wasn't configured yet, the tab lost the
+// connection mid-flight, the server dropped it -- left the card reading
+// "Loading document…" forever with no path back to a resolved state. This
+// is longer than the 15s GetDocumentPreviews context so a request that is
+// still genuinely in flight is not cut off under it.
+const chatDocPreviewPendingTimeout = 20 * time.Second
+
 type chatDocPreviewEntry struct {
 	value   chatui.DocPreview
 	at      time.Time
@@ -64,6 +73,12 @@ func chatDocPreviewIDs(model chatui.Model) []string {
 	for i := len(model.Messages) - 1; i >= 0 && len(out) < chatDocPreviewLimit; i-- {
 		add(model.Messages[i].Body)
 	}
+	// CROSS-01: a search hit's snippet resolves doc:<id> tokens to a title
+	// the same way the timeline's inline links do, so the previews it needs
+	// are claimed too rather than always falling back to the neutral label.
+	for i := 0; i < len(model.SearchMessages) && len(out) < chatDocPreviewLimit; i++ {
+		add(model.SearchMessages[i].Message.Body)
+	}
 	return out
 }
 
@@ -93,6 +108,16 @@ func (c *chatDocPreviewCache) claim(identity string, ids []string, now time.Time
 	var claims []string
 	for _, id := range ids {
 		entry, ok := c.entries[id]
+		if ok && entry.pending && now.Sub(entry.at) > chatDocPreviewPendingTimeout {
+			// The read that owned this claim is never coming back. Drop the
+			// pending flag so the card resolves to something definite and the
+			// slot below can reclaim it for one more attempt.
+			entry.pending = false
+			if entry.value.State != "ready" {
+				entry.value = chatui.DocPreview{ID: id, State: "unavailable"}
+			}
+			c.entries[id] = entry
+		}
 		if ok && (entry.pending || now.Sub(entry.at) < chatDocPreviewFreshFor) {
 			shown[id] = entry.value
 			continue

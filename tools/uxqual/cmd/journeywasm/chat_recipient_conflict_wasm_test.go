@@ -45,6 +45,7 @@ func TestTodo_CHAT_035_BrowserConflictRebasesUnsentDraft(t *testing.T) {
 	cfg := journeyclient.Config{Tenant: "tenant", Subject: "alice", Bearer: "token"}
 	chatBrowser.reset(nil, cfg, nil)
 	chatBrowser.mutate(func(model *chatui.Model) {
+		model.State = chatui.StateReady
 		model.SelectedID = "local"
 		model.Conversations = []chatui.Conversation{{ID: "local", Kind: chatui.PublicChannel}, {ID: "other", Kind: chatui.PublicChannel}}
 		model.Sections = []chatui.SidebarSection{{ID: "channels", Name: "Channels", Chats: model.Conversations}}
@@ -60,6 +61,11 @@ func TestTodo_CHAT_035_BrowserConflictRebasesUnsentDraft(t *testing.T) {
 	chatRecipientBrowser.sidebarSaved = 0
 	chatRecipientBrowser.layout = recipientLayout{}
 	chatRecipientBrowser.hosts = map[string]string{"local": "tenant", "other": "tenant"}
+	// CHAT-02: this test simulates a session whose recipient projection has
+	// already loaded once (it is asserting a later conflict, not the
+	// cold-boot race), so mark it read the way
+	// startChatRecipientProjection's completion would.
+	chatRecipientBrowser.loadedAt = time.Now()
 	chatRecipientBrowser.Unlock()
 	persistChatRecipientSidebar(cfg, chatBrowser.snapshot(), true)
 	select {

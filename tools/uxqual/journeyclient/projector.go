@@ -636,14 +636,23 @@ func localizeProposalForm(form *journey.ProposalForm, copy productui.LocaleConte
 			field.Label, field.Help = copy.Text("journey.form_position"), copy.Text("journey.form_position_help")
 			field.EmptyTitle, field.EmptyDetail = copy.Text("journey.form_position_none"), copy.Text("journey.form_position_none_help")
 		case FieldBase:
+			hourly := path != nil && path.GetTargetPayBasis() == payBasisHourly
 			field.Label, field.Help = copy.Text("journey.form_base"), copy.Text("journey.form_base_help")
 			field.Suffix = copy.Text("journey.form_base_year")
+			if hourly {
+				// An hourly target job is proposed as a rate, in its own unit.
+				field.Help, field.Suffix = copy.Text("journey.form_base_help_hourly"), copy.Text("journey.form_base_hour")
+			}
 			if focused {
 				field.Help = copy.Text("journey.form_choose_role_rule")
 				if path != nil {
 					field.Help = promotionPathRuleHelpLocale(path, copy)
 					if bounds := payRange.localizedBounds(copy); bounds != nil {
-						field.Help += " " + copy.Text("journey.form_base_amounts", bounds)
+						amounts := "journey.form_base_amounts"
+						if hourly {
+							amounts = "journey.form_base_amounts_hourly"
+						}
+						field.Help += " " + copy.Text(amounts, bounds)
 					}
 				}
 			}
@@ -721,7 +730,7 @@ func card(cfg Config, j *journeyv1.Journey) journey.JourneyCard {
 		WorkerName:    j.GetWorkerName(),
 		WorkerRef:     j.GetWorkerRef(),
 		Headline:      headline(j.GetCurrent().GetJobCode(), j.GetCurrent().GetGrade(), j.GetTarget().GetJobCode(), j.GetTarget().GetGrade()),
-		PayLine:       payLineLocale(cfg.Locale, j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()),
+		PayLine:       payLineBasisLocale(cfg.Locale, j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase(), j.GetCurrentPayBasis(), j.GetProposedPayBasis()),
 		EffectiveDate: formatDateLocale(cfg.Locale, j.GetEffectiveDate()),
 		Edit: journey.EditDefaults{
 			JobCode:      j.GetTarget().GetJobCode(),
@@ -1904,10 +1913,13 @@ func comparisonLocale(locale string, j *journeyv1.Journey) []journey.ComparisonR
 
 	pay := journey.ComparisonRow{
 		Label:    copy.Text("journey.compare_base"),
-		Current:  orDash(formatAmountLocale(locale, j.GetCurrency(), j.GetCurrentBase())),
-		Proposed: orDash(formatAmountLocale(locale, j.GetCurrency(), j.GetProposedBase())),
+		Current:  orDash(perHourLocale(locale, formatAmountLocale(locale, j.GetCurrency(), j.GetCurrentBase()), j.GetCurrentPayBasis())),
+		Proposed: orDash(perHourLocale(locale, formatAmountLocale(locale, j.GetCurrency(), j.GetProposedBase()), j.GetProposedPayBasis())),
 	}
-	if delta, ok := amountDeltaLocale(locale, j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()); ok {
+	if j.GetCurrentPayBasis() != j.GetProposedPayBasis() {
+		// A rate becoming a salary has no meaningful difference to print.
+		pay.Changed = j.GetCurrentBase() != j.GetProposedBase()
+	} else if delta, ok := amountDeltaLocale(locale, j.GetCurrency(), j.GetCurrentBase(), j.GetProposedBase()); ok {
 		pay.Delta = delta
 		pay.Changed = true
 		if pct, okPct := percentDeltaLocale(locale, j.GetCurrentBase(), j.GetProposedBase()); okPct {

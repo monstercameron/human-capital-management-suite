@@ -108,7 +108,12 @@ func TestChatUnavailableMediaHasTerminalLabel(t *testing.T) {
 	}
 	m.Messages[0].Attachments[0].URL = "blob:preview"
 	m.Messages[0].Attachments[0].PreviewUnavailable = false
-	if strings.Count(render(t, m), `data-action="download-attachment"`) != 2 {
+	// C-2: a loaded image now also carries a hidden .attachment-fallback
+	// block (its own download control) that chatAttachmentImageErrorHandler
+	// reveals on a load failure, so the loaded image contributes two
+	// download actions (the visible one plus the hidden fallback's) and the
+	// still-pending file attachment contributes its own, for three total.
+	if strings.Count(render(t, m), `data-action="download-attachment"`) != 3 {
 		t.Fatal("loaded image lost explicit download fallback")
 	}
 }

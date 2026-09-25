@@ -334,8 +334,6 @@ func makeActivity(req Request, commentID, kind string, revision uint64) Activity
 	return Activity{TenantID: req.Principal.TenantID, ProjectID: req.ProjectID, TaskID: req.TaskID, CommentID: commentID, ActorID: req.Principal.SubjectID, Kind: kind, Revision: revision, At: req.At.UTC()}
 }
 
-type cursor struct{ after, ceiling uint64 }
-
 func (s Service) encodeCursor(after, ceiling uint64, tenant, project, task string) string {
 	payload := make([]byte, 16)
 	binary.BigEndian.PutUint64(payload, after)

@@ -113,7 +113,31 @@ func declarenetworkTransitionStylesPost() {
 	)
 }
 func navigationInteractionRefinementsStylesheet() string {
-	return buildTypedSheet(declarenavigationInteractionRefinementsStyles)
+	return buildTypedSheet(declarenavigationInteractionRefinementsStyles) + navScrollCueSupports()
+}
+
+// navScrollCueSupports drives the ".primary-nav::after" scroll cue from the
+// rail's own scroll position: fully shown while more items sit below the
+// fold, faded out over the last stretch of travel. A rail that does not
+// overflow has an inactive scroll timeline, so the animation applies nothing
+// and the cue stays at its base opacity:0. It must follow the max-height
+// fallback rule so its opacity:0 base wins where the feature exists.
+func navScrollCueSupports() string {
+	return atRule("@supports (animation-timeline:scroll())", buildTypedSheet(func() {
+		declareGlobal(".primary-nav::after",
+			mediaRule(gwccss.MinW(761),
+				gwccss.OpacityNum(gwccss.Num(0)),
+				gwccss.Keyframes("hcm-nav-scroll-cue",
+					gwccss.At("0%", gwccss.OpacityNum(gwccss.Num(1))),
+					gwccss.At("88%", gwccss.OpacityNum(gwccss.Num(1))),
+					gwccss.At("100%", gwccss.OpacityNum(gwccss.Num(0))),
+				),
+				gwccss.Raw("animation-timing-function", "linear"),
+				gwccss.Raw("animation-fill-mode", "both"),
+				gwccss.Raw("animation-timeline", "scroll(nearest block)"),
+			),
+		)
+	}))
 }
 
 func declarenavigationInteractionRefinementsStyles() {
@@ -155,10 +179,120 @@ func declarenavigationInteractionRefinementsStyles() {
 		mediaRule(gwccss.MinW(761), gwccss.Display.Block),
 	)
 	declareGlobal(".primary-nav .nav-entry>.nav-link",
-		mediaRule(gwccss.MinW(761), gwccss.Raw("padding-inline-end", "36px")),
+		// S-2: at 36px, the hover/focus favorite star (27px wide, anchored
+		// 2px from this edge) left only a 7px gap before the label text --
+		// close enough that a short RTL label (e.g. "الأشخاص") and the star
+		// read in a screenshot as one run, with the star looking like a
+		// trailing comma. 44px reserves a clearer gap.
+		mediaRule(gwccss.MinW(761), gwccss.Raw("padding-inline-end", "44px")),
+	)
+	// S-5: reserving those 44px permanently cost every label a third of the
+	// 181px rail, so "Workflow editor" wrapped to two lines at 1180x780 and
+	// pushed Admin out of the nav viewport. Where the star only appears on
+	// hover or focus (hover:hover), the reservation now appears with it:
+	// at rest a label has the full row (13px, the base .nav-link inset), and
+	// on hover/focus-within the 44px comes back so a long label ellipsizes
+	// before the star instead of running under it. Short labels do not move.
+	// Touch rails (hover:none) always show the star and keep the 44px. The
+	// :where() filter skips the collapsed icon rail without adding weight.
+	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-entry>.nav-link",
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (hover:hover)"), gwccss.Raw("padding-inline-end", "13px")),
+	)
+	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-entry:is(:hover,:focus-within)>.nav-link",
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (hover:hover)"), gwccss.Raw("padding-inline-end", "44px")),
+	)
+	// S-5: top-level rail labels stay on one line and ellipsize (the link
+	// carries the full name as its title and aria-label). The generic
+	// ".sidebar .nav-copy>.nav-label" rule keeps word-boundary wrapping for
+	// nested and search-result rows; only first-level entries opt out, since
+	// a wrapped top-level row is what grew the list past a laptop viewport.
+	declareGlobal(".primary-nav>ul>.nav-entry>.nav-link:not(.has-search-detail) .nav-copy>.nav-label",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("white-space", "nowrap"), gwccss.Raw("text-overflow", "ellipsis")),
+	)
+	// The label's box must be the row's free space, not its own max-content
+	// width: a shrink-to-fit box rounds a fraction of a pixel under the
+	// text's advance (e.g. "الأشخاص" measured 51.94px in a 51.9375px box),
+	// which is enough to trigger the ellipsis above and paint a stray
+	// comma-like "…" after the word. Filling the row leaves the ellipsis for
+	// labels that really do not fit.
+	declareGlobal(".primary-nav>ul>.nav-entry>.nav-link:not(.has-search-detail)>.nav-copy",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto")),
+	)
+	// The group rows (My Work, Admin) wrapped the same way in German
+	// ("Meine Aufgaben" needs ~110px; the row left it ~100px beside the icon
+	// and chevron). Their label takes the free space and ellipsizes as a
+	// last resort; the chevron sits 6px after it instead of gap + auto
+	// margin, and 7px from the row's end, level with where a link's star
+	// appears. Resting group rows use the links' 500 weight -- at 600 they
+	// read as a heavier, different kind of item than their siblings -- while
+	// the current group keeps its 700 like the current link.
+	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-group-summary",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("padding-inline-end", "7px")),
+	)
+	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-group>.nav-group-summary>.nav-label",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto"), gwccss.MinWidth(gwccss.Zero), gwccss.Raw("overflow-x", "clip"), gwccss.Raw("overflow-y", "visible"), gwccss.Raw("white-space", "nowrap"), gwccss.Raw("text-overflow", "ellipsis")),
+	)
+	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-group-summary>.nav-chevron",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "none"), gwccss.Raw("margin-inline-start", "-4px")),
+	)
+	declareGlobal(".primary-nav .nav-group:not(.current)>.nav-group-summary",
+		mediaRule(gwccss.MinW(761), gwccss.Raw("font-weight", "500")),
+	)
+	// S-5: the full admin rail (ten links incl. Projects, two groups)
+	// overran the nav at 1440x900 by ~40px and at 1180x780 by ~55px.
+	// Top-level rows (not nested subnav rows) tighten in two steps on fine
+	// pointers: up to 960px tall, 40px rows with 1px margins; up to 820px
+	// (13" laptops), 38px rows with 9px block padding. Both fit the whole
+	// rail with room to spare; roles or locales that still overflow get
+	// the scroll cue below.
+	const navTopRows = ".sidebar :is(.primary-nav>ul>li>.nav-link,.primary-nav>ul>li>.nav-group>.nav-group-summary,.nav-bottom .nav-link)"
+	declareGlobal(navTopRows,
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-height:960px)"), gwccss.MinHeight(gwccss.Px(40)), gwccss.Raw("margin-block", "1px")),
+	)
+	declareGlobal(navTopRows,
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-height:820px)"), gwccss.MinHeight(gwccss.Px(38)), gwccss.Raw("padding-block", "9px")),
+	)
+	declareGlobal(".primary-nav>ul",
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-height:960px)"), gwccss.Raw("padding-block-end", "8px")),
+	)
+	// Coarse pointers keep the 44px touch target the short-viewport pitch
+	// above (and typed_styles.go's 40px .nav-link) would otherwise undercut.
+	// Same selector as navTopRows, declared after it, so it wins the tie.
+	declareGlobal(navTopRows,
+		mediaRule(gwccss.RawMedia("(pointer:coarse)"), gwccss.MinHeight(gwccss.Px(44))),
+	)
+	declareGlobal(".sidebar :is(.nav-link,.nav-group-summary)",
+		mediaRule(gwccss.RawMedia("(pointer:coarse)"), gwccss.MinHeight(gwccss.Px(44))),
+	)
+	// S-5: the scroll affordance. The previous cue was a 0px-tall box with an
+	// *inset* shadow, which paints nothing. This is a zero-height sticky box
+	// pinned to the scrollport's bottom edge casting an *outer* shadow upward
+	// over the last visible rows (never mask-image or a background gradient:
+	// GWC's css emitter drops mask-image, and a background would have to
+	// match every theme's sidebar color). light-dark() follows the
+	// color-scheme the theme blocks already set, so dark mode gets a darker
+	// shadow instead of an ink-colored glow. It is hidden by default; the
+	// @supports block in navigationInteractionRefinementsStylesheet shows it
+	// only while the rail can still scroll down, and browsers without
+	// scroll-driven animations fall back to showing it at laptop heights.
+	declareGlobal(".primary-nav::after",
+		mediaRule(gwccss.MinW(761),
+			gwccss.Position.Sticky,
+			gwccss.Display.Block,
+			gwccss.H(gwccss.Zero),
+			gwccss.Raw("inset-block-end", "0"),
+			gwccss.Raw("content", "\"\""),
+			gwccss.Raw("pointer-events", "none"),
+			gwccss.ZIndex(6),
+			gwccss.Raw("box-shadow", "0 -4px 12px 4px light-dark(rgba(16,34,56,.2),rgba(0,0,0,.62))"),
+			gwccss.OpacityNum(gwccss.Num(0)),
+		),
+	)
+	declareGlobal(".primary-nav::after",
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-height:820px)"), gwccss.OpacityNum(gwccss.Num(1))),
 	)
 	declareGlobal(".primary-nav .nav-favorite",
-		mediaRule(gwccss.MinW(761), gwccss.Position.Absolute, gwccss.Top(gwccss.Percent(50)), gwccss.Raw("inset-inline-end", "2px"), gwccss.Raw("translate", "0 -50%")),
+		mediaRule(gwccss.MinW(761), gwccss.Position.Absolute, gwccss.Top(gwccss.Percent(50)), gwccss.Raw("inset-inline-end", "6px"), gwccss.Raw("translate", "0 -50%")),
 	)
 	declareGlobal(".primary-nav .nav-favorite",
 		mediaRule(gwccss.RawMedia("(min-width:761px) and (hover:hover)"), gwccss.OpacityNum(gwccss.Num(0)), gwccss.Raw("pointer-events", "none")),
@@ -322,8 +456,15 @@ func declarenavigationSearchStylesStyles() {
 		gwccss.MinWidth(gwccss.Zero),
 		gwccss.LineHeight(gwccss.Num(1.25)),
 	)
+	// S-2: clip only the inline axis. overflow:hidden also clipped the
+	// block axis at the 1.25 line box, cutting Arabic descenders: the stem
+	// of a final "ص" vanished and left its tail floating as a comma
+	// ("الأشخاص,"), and the dots under a final "ي" disappeared ("ملفى").
+	// overflow-x:clip still drives text-overflow and, unlike hidden, does
+	// not force the other axis to scroll-clip.
 	declareGlobal(".nav-copy>.nav-label",
-		gwccss.Raw("overflow", "hidden"),
+		gwccss.Raw("overflow-x", "clip"),
+		gwccss.Raw("overflow-y", "visible"),
 		gwccss.Raw("text-overflow", "ellipsis"),
 	)
 	declareGlobal(".nav-search-detail",

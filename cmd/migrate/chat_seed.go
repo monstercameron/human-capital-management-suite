@@ -31,6 +31,7 @@ import (
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatmedia"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/asset/quarantine"
@@ -55,6 +56,26 @@ const chatSeedDays = 14
 // chatSeedNamespace scopes every generated conversation identifier, so a seed is
 // reproducible and a reset can find exactly what it created and nothing else.
 var chatSeedNamespace = uuid.NewSHA1(uuid.NameSpaceURL, []byte("hcmnext.chat.demo-seed"))
+
+// chatSeedRouteShard and chatSeedRoutePlacementPolicy mirror the constants
+// composeChatRouting (internal/application/chat_routing.go) hands
+// chatroutingadapter.Options for every conversation the live server creates.
+// A seeded room has to land on the same placement a real CreateConversation
+// call would choose, or the routed service refuses every later write against
+// it (CHAT-04's AddReaction/UpdateReadState failures): this seeder writes
+// straight to the chat store adapter to accept explicit historical
+// timestamps, which never runs chatroutingadapter.CreateConversation, so
+// nothing ever registers these rooms in the core route directory otherwise.
+const (
+	chatSeedRouteShard           = "chat-default"
+	chatSeedRoutePlacementPolicy = "tenant-default"
+	chatSeedRoutePolicyVersion   = 1
+	// chatSeedRouteEpoch is the epoch chatroutestore.Reserve always assigns a
+	// brand-new route (see the literal 1 in its INSERT), and the seeder never
+	// moves a room to a different shard, so every seeded conversation keeps
+	// this epoch for its whole life.
+	chatSeedRouteEpoch = 1
+)
 
 type chatSeedOptions struct {
 	Tenant     string
@@ -154,7 +175,12 @@ func (seedScanner) Scan(context.Context, string, io.Reader) (quarantine.Verdict,
 	return quarantine.Verdict{Safe: true, Reason: "demo seed content"}, nil
 }
 
-func runChatSeedCommand(ctx context.Context, store *chatstore.Store, opts chatSeedOptions, out io.Writer) error {
+// routes is the core route directory (internal/data/chatroutestore in
+// production; see composeChatRouting). It is optional -- nil keeps the
+// seeder usable in tests and compositions that never wire chat routing -- but
+// a live demo tenant must always pass one, or its rooms come up unreachable
+// through every lease-guarded write the routed service makes.
+func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chatrouting.Directory, opts chatSeedOptions, out io.Writer) error {
 	if strings.TrimSpace(opts.Tenant) == "" {
 		return fmt.Errorf("-%s is required by chat seed", fieldTenant)
 	}
@@ -226,6 +252,22 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, opts chatSe
 	receipt := chatSeedReceipt{}
 	start := opts.Now.Add(-chatSeedDays * 24 * time.Hour)
 
+	// Every write after a room's own CreateConversation -- its history,
+	// reactions, pins and the admin's read state -- needs the same route
+	// lease creation did, or chatstore's routeFence refuses it with
+	// ErrNoRouteLease now that route_shard is no longer empty (store.go).
+	// fenceContextWrite only ever reads the lease's Epoch and ShardID (see
+	// leaseFence), never cross-checking it against the conversation being
+	// written, so one lease naming the shard every seeded room reserves and
+	// the epoch chatroutestore.Reserve always starts a fresh route at covers
+	// all of them; leaseSeedRoute below still builds a conversation-exact
+	// lease for CreateConversation itself, which does check identity. The
+	// document seed's showcase chat posts (document_seed_demo.go,
+	// postDemoMessages) write to these same rooms after the fact and need
+	// exactly this lease too, so it is built by the shared
+	// chatSeedWriteLeaseContext helper rather than duplicated there.
+	writeCtx := chatSeedWriteLeaseContext(ctx, routes, opts.Tenant, opts.Now)
+
 	for roomIndex, room := range rooms {
 		conversation := chatSeedConversationID(opts.Tenant, room.Key)
 		owner := people[room.Members[0]]
@@ -243,13 +285,20 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, opts chatSe
 			// FROM_JOIN would see none of the history this seeder just wrote.
 			members = append(members, chatcore.Membership{ConversationID: conversation, TenantID: opts.Tenant, HomeTenantID: opts.Tenant, SubjectID: people[index], Role: role, HistoryVisibility: chatcore.FullHistory, Revision: 1})
 		}
-		if _, err = adapter.CreateConversation(ctx, chatcore.Conversation{ID: conversation, TenantID: opts.Tenant, Kind: kindOf(room.Kind), Name: name, OwnerID: owner, Revision: 1}, members, "seed:"+room.Key); err != nil {
+		leasedCtx, reserved, err := leaseSeedRoute(ctx, routes, opts.Tenant, conversation, "seed:"+room.Key)
+		if err != nil {
+			return fmt.Errorf("reserve route %s: %w", room.Key, err)
+		}
+		if _, err = adapter.CreateConversation(leasedCtx, chatcore.Conversation{ID: conversation, TenantID: opts.Tenant, Kind: kindOf(room.Kind), Name: name, OwnerID: owner, Revision: 1}, members, "seed:"+room.Key); err != nil {
 			return fmt.Errorf("create %s: %w", room.Key, err)
+		}
+		if err = activateSeedRoute(ctx, routes, opts.Tenant, conversation, reserved); err != nil {
+			return fmt.Errorf("activate route %s: %w", room.Key, err)
 		}
 		receipt.Conversations++
 		receipt.Memberships += len(members)
 
-		if err = seedRoomHistory(ctx, adapter, media, seedRoomInput{
+		if err = seedRoomHistory(writeCtx, adapter, media, seedRoomInput{
 			opts: opts, room: room, roomIndex: roomIndex, conversation: conversation,
 			people: people, names: names, start: start, rng: rng,
 		}, &receipt); err != nil {
@@ -257,13 +306,97 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, opts chatSe
 		}
 	}
 
-	if err = seedAdminReadState(ctx, adapter, opts, rooms, people); err != nil {
+	if err = seedAdminReadState(writeCtx, adapter, opts, rooms, people); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "seeded chat demo for %s (%s): %d conversations, %d memberships, %d posts, %d threads with %d replies, %d reactions, %d pins, %d image posts, %d animated posts\n",
 		opts.Tenant, opts.Scale, receipt.Conversations, receipt.Memberships, receipt.Posts, receipt.Threads, receipt.ThreadReplies, receipt.Reactions, receipt.Pins, receipt.Images, receipt.GIFs)
 	fmt.Fprintf(out, "history spans %s to %s\n", receipt.EarliestPost.Format(time.RFC3339), receipt.LatestPost.Format(time.RFC3339))
 	return nil
+}
+
+// leaseSeedRoute places a seeded conversation in the core route directory
+// exactly as chatroutingadapter.Service.CreateConversation would for a live
+// caller: reserve the default shard under a stable idempotency key, both
+// idempotent so re-running the seeder (including a reset that recreates the
+// same deterministic conversation ID) neither errors nor drifts the route.
+//
+// It returns a context carrying the reservation as a write lease, which the
+// caller must pass to chatstore.Adapter.CreateConversation. That is not
+// optional decoration: chatstore's own CreateConversation (see the "shard"
+// and "epoch" locals in internal/data/chatstore/contracts_adapter.go) reads
+// exactly this lease to stamp chat_conversation.route_shard/route_epoch, its
+// own mirror of the placement chatroutestore just reserved. Registering the
+// route here without also threading the lease through creation leaves that
+// mirror at its unrouted default ("" / epoch 1) forever: chatstore's own
+// routeFence then refuses every later lease-guarded write against the room
+// with chatrouting.ErrStaleEpoch, because the two placement records disagree
+// about whether the room is routed at all. Call activateSeedRoute once
+// CreateConversation has committed.
+//
+// A nil directory is a no-op returning ctx unchanged: some compositions
+// (tests, environments with chat routing not wired) never pass one, and such
+// rooms simply stay unrouted the way they always have.
+func leaseSeedRoute(ctx context.Context, routes chatrouting.Directory, tenant, conversationID, idempotencyKey string) (context.Context, chatrouting.Route, error) {
+	if routes == nil {
+		return ctx, chatrouting.Route{}, nil
+	}
+	reserved, err := routes.Reserve(ctx, chatrouting.ReserveRequest{
+		ConversationID:         conversationID,
+		HostTenantID:           tenant,
+		ShardID:                chatSeedRouteShard,
+		PlacementPolicy:        chatSeedRoutePlacementPolicy,
+		PlacementPolicyVersion: chatSeedRoutePolicyVersion,
+		IdempotencyKey:         idempotencyKey,
+	})
+	if err != nil {
+		return ctx, chatrouting.Route{}, err
+	}
+	// chatstore's CreateConversation reads only the Route fields (see
+	// leaseFence/fenceContextWrite in internal/data/chatstore/store.go); it
+	// never verifies a lease signature or expiry the way the routed
+	// service's own RouteCache does, so a locally-built lease is sufficient
+	// here and never touches the routed service's signing key.
+	lease := chatrouting.WriteLease{Route: reserved, ExpiresAt: time.Now().Add(time.Hour)}
+	return chatrouting.WithWriteLease(ctx, lease), reserved, nil
+}
+
+// activateSeedRoute finishes the reservation leaseSeedRoute began, the same
+// second step chatroutingadapter.Service.CreateConversation takes after its
+// own inner create succeeds. reserved.State is only StatePending on a fresh
+// reservation; a retried seed run whose idempotency key already resolved to
+// an ACTIVE route has nothing left to activate.
+func activateSeedRoute(ctx context.Context, routes chatrouting.Directory, tenant, conversationID string, reserved chatrouting.Route) error {
+	if routes == nil || reserved.State != chatrouting.StatePending {
+		return nil
+	}
+	_, err := routes.Activate(ctx, conversationID, tenant, reserved.Epoch)
+	return err
+}
+
+// chatSeedWriteLeaseContext builds the write-lease context every chat write
+// against an already-routed seeded room needs: one lease naming the shard
+// every seeded room reserves (chatSeedRouteShard) and the epoch
+// chatroutestore.Reserve always starts a fresh route at (chatSeedRouteEpoch).
+// fenceContextWrite (internal/data/chatstore/store.go) only ever compares the
+// lease's Epoch and ShardID against the conversation's own route_epoch/
+// route_shard, never the conversation identity, so this single lease covers
+// every seeded room on the default shard -- both the rooms runChatSeedCommand
+// itself writes history into and the ones the document seed's showcase posts
+// (document_seed_demo.go, postDemoMessages) write into afterwards, in a
+// separate process invocation.
+//
+// A nil directory is a no-op returning ctx unchanged: some compositions
+// (tests, environments with chat routing not wired) never pass one, and such
+// rooms simply stay unrouted the way they always have.
+func chatSeedWriteLeaseContext(ctx context.Context, routes chatrouting.Directory, tenant string, now time.Time) context.Context {
+	if routes == nil {
+		return ctx
+	}
+	return chatrouting.WithWriteLease(ctx, chatrouting.WriteLease{
+		Route:     chatrouting.Route{HostTenantID: tenant, ShardID: chatSeedRouteShard, Epoch: chatSeedRouteEpoch, State: chatrouting.StateActive},
+		ExpiresAt: now.Add(24 * time.Hour),
+	})
 }
 
 func chatSeedSource(seed int64) int64 {
@@ -345,11 +478,10 @@ func seedRoomHistory(ctx context.Context, adapter *chatstore.Adapter, media *see
 	// like a room that went quiet rather than a room with two weeks in it.
 	window := time.Duration(chatSeedDays) * 24 * time.Hour
 	slot := window / time.Duration(posts+1)
-	clock := in.start
 	roots := make([]chatcore.Post, 0, posts)
 	for i := 0; i < posts; i++ {
 		jitter := time.Duration(in.rng.Int63n(int64(slot/2+time.Minute))) - slot/4
-		clock = in.start.Add(time.Duration(i+1)*slot + jitter)
+		clock := in.start.Add(time.Duration(i+1)*slot + jitter)
 		if !clock.After(in.start) {
 			clock = in.start.Add(time.Minute)
 		}

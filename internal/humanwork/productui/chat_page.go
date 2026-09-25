@@ -2,6 +2,7 @@ package productui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
@@ -19,6 +20,23 @@ func chatPage(view View) ui.Node {
 		return ChatPageComponent(view)
 	}
 	return BuildChatPage(view, view.Chat)
+}
+
+// ChatDocDateLabel is the date a chat document card shows for the
+// document's last update (C-9, r3). It uses the docs library's own
+// vocabulary -- "Sep 3" this year, "Dec 14, 2025" for another year, with
+// each locale's order and digits -- so the card and the document it opens
+// never disagree on how a date reads.
+func ChatDocDateLabel(locale LocaleContext, at, now time.Time) string {
+	zone, err := time.LoadLocation(locale.normalized().TimeZone)
+	if err != nil {
+		zone = time.UTC
+	}
+	local := at.In(zone)
+	if local.Year() == now.In(zone).Year() {
+		return docsShortDateLabel(locale.Resolved, local)
+	}
+	return docsCompareDateLabel(locale, at, false)
 }
 
 // BuildChatPage completes a chat model with what the view knows (locale,

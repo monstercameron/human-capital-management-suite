@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	stdhtml "html"
 	"net/url"
+	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -39,6 +41,20 @@ func docsASTMarkdownNodes(view View, markdown string) []ui.Node {
 func docsMarkdownChildren(view View, parent ast.Node, source []byte) []ui.Node {
 	var nodes []ui.Node
 	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		// A sentence that ends in an attachment ("…is attached: [file](attachment:x).")
+		// renders the attachment as a card, and the full stop after it was left
+		// alone beside the card or on its own line (D-12). The card ends the
+		// sentence, so bare punctuation straight after one is dropped.
+		if docsIsAttachmentLink(child) {
+			if next, ok := child.NextSibling().(*ast.Text); ok && docsOnlySentencePunctuation(string(next.Value(source))) {
+				nodes = append(nodes, docsMarkdownNode(view, child, source)...)
+				if next.HardLineBreak() || next.SoftLineBreak() {
+					nodes = append(nodes, html.Br(html.Props{}))
+				}
+				child = next
+				continue
+			}
+		}
 		if node, ok := child.(*ast.Text); ok {
 			value := string(node.Value(source))
 			if !node.IsRaw() {
@@ -55,6 +71,148 @@ func docsMarkdownChildren(view View, parent ast.Node, source []byte) []ui.Node {
 	return nodes
 }
 
+// docsIsAttachmentLink reports whether node is a non-image attachment link,
+// which the reader draws as a card rather than inline text.
+func docsIsAttachmentLink(node ast.Node) bool {
+	link, ok := node.(*ast.Link)
+	if !ok {
+		return false
+	}
+	_, ok = docsAttachmentID(string(link.Destination))
+	return ok
+}
+
+// docsIsMetadataLead reports whether paragraph is a document's metadata
+// line ("**Owner:** … · **Last reviewed:** …"): the first block, or the
+// first after the title heading, opening with a bold label that ends in a
+// colon. The reader sets it as a muted caption rather than body copy, so
+// the first real heading leads the page (D-7).
+func docsIsMetadataLead(paragraph *ast.Paragraph, source []byte) bool {
+	if previous := paragraph.PreviousSibling(); previous != nil {
+		heading, ok := previous.(*ast.Heading)
+		if !ok || heading.Level != 1 || heading.PreviousSibling() != nil {
+			return false
+		}
+	}
+	label, ok := paragraph.FirstChild().(*ast.Emphasis)
+	if !ok || label.Level != 2 {
+		return false
+	}
+	return strings.HasSuffix(strings.TrimSpace(string(label.Text(source))), ":")
+}
+
+// docsLeadHidden names the metadata lead's fields the reader already shows
+// in its facts row: the owner (the Owner fact, which also resolves "You")
+// and the review date (the Reviewed fact, docsLeadReviewed). Repeating them
+// in the lead had the page say "Owner: You" and "Owner: Rafael Torres"
+// one line apart (r4 D-4).
+var docsLeadHidden = map[string]bool{"owner": true, "last reviewed": true, "reviewed": true}
+
+// docsLeadNodes renders the metadata lead without the fields the facts row
+// already carries; the rest (a team channel, where to ask) stays as a muted
+// caption, and a lead with nothing left renders nothing.
+func docsLeadNodes(view View, paragraph *ast.Paragraph, source []byte) []ui.Node {
+	type segment struct {
+		label string
+		nodes []ui.Node
+	}
+	var segments []segment
+	for child := paragraph.FirstChild(); child != nil; child = child.NextSibling() {
+		if label, ok := docsLeadLabel(child, source); ok {
+			segments = append(segments, segment{label: strings.ToLower(label)})
+		}
+		if len(segments) == 0 {
+			segments = append(segments, segment{})
+		}
+		current := &segments[len(segments)-1]
+		if text, ok := child.(*ast.Text); ok {
+			// The " · " between fields is the lead's own separator; it is
+			// redrawn between the fields that remain.
+			value := string(text.Value(source))
+			if !text.IsRaw() {
+				value = stdhtml.UnescapeString(string(util.UnescapePunctuations([]byte(value))))
+			}
+			if trimmed := strings.TrimRight(value, " ·"); strings.Contains(value[len(trimmed):], "·") {
+				value = trimmed
+			}
+			if value != "" {
+				current.nodes = append(current.nodes, docsPlainTextNodes(view, value)...)
+			}
+			continue
+		}
+		current.nodes = append(current.nodes, docsMarkdownNode(view, child, source)...)
+	}
+	var kept []ui.Node
+	for _, seg := range segments {
+		if docsLeadHidden[seg.label] || len(seg.nodes) == 0 {
+			continue
+		}
+		if len(kept) > 0 {
+			kept = append(kept, html.Span(html.Props{Class: "docs-lead-sep", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text(" · ")))
+		}
+		kept = append(kept, html.Span(html.Props{Class: "docs-lead-field"}, seg.nodes...))
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	return []ui.Node{html.P(html.Props{Class: "docs-lead", Dir: "auto"}, kept...)}
+}
+
+// docsLeadLabel reports a bold "Label:" node and its label without the
+// colon.
+func docsLeadLabel(node ast.Node, source []byte) (string, bool) {
+	emphasis, ok := node.(*ast.Emphasis)
+	if !ok || emphasis.Level != 2 {
+		return "", false
+	}
+	label := strings.TrimSpace(string(emphasis.Text(source)))
+	if !strings.HasSuffix(label, ":") {
+		return "", false
+	}
+	return strings.TrimSpace(strings.TrimSuffix(label, ":")), true
+}
+
+// docsLeadReviewedPattern finds the review date in a metadata lead line.
+var docsLeadReviewedPattern = regexp.MustCompile(`(?i)(?:\*\*|__)(?:last reviewed|reviewed):(?:\*\*|__)\s*([^·\n]+)`)
+
+// docsLeadReviewed returns the lead line's review date (RFC 3339 when it
+// parses as "January 2, 2006", else the authored text), or "" when the
+// document has no metadata lead. markdown is the body without its title
+// heading.
+func docsLeadReviewed(markdown string) string {
+	body := strings.TrimLeft(markdown, " \t\r\n")
+	lead, _, _ := strings.Cut(body, "\n\n")
+	if !strings.HasPrefix(lead, "**") && !strings.HasPrefix(lead, "__") {
+		return ""
+	}
+	m := docsLeadReviewedPattern.FindStringSubmatch(lead)
+	if m == nil {
+		return ""
+	}
+	value := strings.TrimSpace(m[1])
+	if at, err := time.Parse("January 2, 2006", value); err == nil {
+		// Noon UTC keeps the calendar day in every time zone the reader
+		// formats it in.
+		return time.Date(at.Year(), at.Month(), at.Day(), 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	}
+	return value
+}
+
+// docsOnlySentencePunctuation reports whether value is nothing but
+// sentence-ending or separating punctuation (and spaces), such as "." or ";".
+func docsOnlySentencePunctuation(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if !strings.ContainsRune(".,;:!?…。،؛؟", r) {
+			return false
+		}
+	}
+	return true
+}
+
 func docsMarkdownNode(view View, node ast.Node, source []byte) []ui.Node {
 	children := func() []ui.Node { return docsMarkdownChildren(view, node, source) }
 	// Authored text keeps its own direction: every block is dir="auto", so
@@ -62,6 +220,15 @@ func docsMarkdownNode(view View, node ast.Node, source []byte) []ui.Node {
 	// its punctuation and numbers reordered) as right-to-left text.
 	switch n := node.(type) {
 	case *ast.Paragraph:
+		if docsIsMetadataLead(n, source) {
+			return docsLeadNodes(view, n, source)
+		}
+		if card, ok := docsProjectEmbedParagraph(view, n, source); ok {
+			return []ui.Node{card}
+		}
+		if card, ok := docsJourneyEmbedParagraph(view, n, source); ok {
+			return []ui.Node{card}
+		}
 		return []ui.Node{html.P(html.Props{Dir: "auto"}, children()...)}
 	case *ast.TextBlock:
 		return children()
@@ -122,6 +289,12 @@ func docsMarkdownNode(view View, node ast.Node, source []byte) []ui.Node {
 	case *ast.Link:
 		target := string(n.Destination)
 		label := children()
+		if task, ok := docsProjectTaskLinkTarget(view, target, view.Navigate); ok {
+			return []ui.Node{task}
+		}
+		if journey, ok := docsJourneyLinkTarget(view, target); ok {
+			return []ui.Node{journey}
+		}
 		if chip, ok := docsChatLinkNode(view, target, label); ok {
 			return []ui.Node{chip}
 		}
@@ -137,6 +310,12 @@ func docsMarkdownNode(view View, node ast.Node, source []byte) []ui.Node {
 		return []ui.Node{ui.Text(string(n.Text(source)) + " (" + target + ")")}
 	case *ast.AutoLink:
 		target := string(n.URL(source))
+		if task, ok := docsProjectTaskLinkTarget(view, target, view.Navigate); ok {
+			return []ui.Node{task}
+		}
+		if journey, ok := docsJourneyLinkTarget(view, target); ok {
+			return []ui.Node{journey}
+		}
 		if chip, ok := docsChatLinkNode(view, target, []ui.Node{ui.Text(target)}); ok {
 			return []ui.Node{chip}
 		}
@@ -169,7 +348,38 @@ func docsPlainTextNodes(view View, value string) []ui.Node {
 func docsDocTokenNodes(view View, value string) []ui.Node {
 	var nodes []ui.Node
 	for len(value) > 0 {
+		taskIndex := strings.Index(value, "task:")
 		index := strings.Index(value, "doc:")
+		if taskIndex >= 0 && (index < 0 || taskIndex < index) {
+			if taskIndex > 0 {
+				nodes = append(nodes, ui.Text(value[:taskIndex]))
+				value = value[taskIndex:]
+			}
+			end := len("task:")
+			for end < len(value) && docsProjectTaskIDChar(value[end]) {
+				end++
+			}
+			if ref, ok := ParseDocsProjectTaskReference(value[:end]); !ok || !docsProjectTaskHasAuthorizedPreview(view, ref) {
+				for end > len("task:") && strings.ContainsRune(",.;:!?", rune(value[end-1])) {
+					end--
+				}
+			}
+			if end == len("task:") {
+				nodes = append(nodes, ui.Text("task:"))
+				value = value[len("task:"):]
+				continue
+			}
+			target := value[:end]
+			if _, ok := ParseDocsProjectTaskReference(target); ok {
+				task, _ := docsProjectTaskLinkTarget(view, target, view.Navigate)
+				nodes = append(nodes, task)
+				value = value[end:]
+				continue
+			}
+			nodes = append(nodes, ui.Text("task:"))
+			value = value[len("task:"):]
+			continue
+		}
 		if index < 0 {
 			nodes = append(nodes, ui.Text(value))
 			break

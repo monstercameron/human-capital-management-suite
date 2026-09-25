@@ -79,6 +79,26 @@ type DevDirectory interface {
 	DevDirectorySnapshot() DevDirectorySnapshot
 }
 
+// DevCompany is one demo company the sign-in page's company selector offers.
+// It carries only public, non-secret facts: its tenant key, names, a
+// one-line description, its headcount and its logo's workspace asset name.
+type DevCompany struct {
+	Key         string
+	Name        string
+	ShortName   string
+	Description string
+	Headcount   int
+	Logo        string
+}
+
+// DevCompanyDirectory is the optional multi-company extension of
+// [DevDirectory]: a composition that serves several demo companies lists
+// them, and answers each one's own directory.
+type DevCompanyDirectory interface {
+	DevCompanies() []DevCompany
+	DevCompanyDirectorySnapshot(company string) (DevDirectorySnapshot, bool)
+}
+
 // DevEmployeeBundle names one role bundle a seeded employee may sign in with.
 // The classification itself (which employee is an executive, who runs people
 // operations) is a fact about the demo plan and is decided by the composition

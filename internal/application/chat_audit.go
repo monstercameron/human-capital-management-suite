@@ -297,6 +297,17 @@ func (s *auditedChatService) ResolveShareLink(ctx context.Context, p chatcore.Pr
 	}
 	return v.ResolveShareLink(ctx, p, token)
 }
+
+// ReadAuthorizedReference is a read-only project-link lookup. It deliberately
+// bypasses CreateShareLink so opening a preview cannot emit a share-created
+// audit event.
+func (s *auditedChatService) ReadAuthorizedReference(ctx context.Context, p chatcore.Principal, tenant, conversation, post string) (chatcore.Conversation, *chatcore.Post, error) {
+	v, ok := s.ConversationService.(chatcore.AuthorizedReferenceReader)
+	if !ok {
+		return chatcore.Conversation{}, nil, chatcore.ErrUnavailable
+	}
+	return v.ReadAuthorizedReference(ctx, p, tenant, conversation, post)
+}
 func (s *auditedChatService) SendPostWithReferences(ctx context.Context, r chatcore.SendPostWithReferencesRequest) (chatcore.Post, error) {
 	if !s.recordsReady() {
 		return chatcore.Post{}, chatcore.ErrUnavailable

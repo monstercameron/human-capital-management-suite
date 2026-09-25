@@ -122,6 +122,11 @@ type JourneyConfig struct {
 	Tenant  string   `json:"tenant"`
 	Subject string   `json:"subject"`
 	Roles   []string `json:"roles"`
+	// TenantName and TenantLogo are the signed-in company's own display name
+	// and logo asset path, set only when one process serves several demo
+	// companies; empty keeps the header's tenant-derived fallback.
+	TenantName string `json:"tenant_name,omitempty"`
+	TenantLogo string `json:"tenant_logo,omitempty"`
 	// PagePermissions is the effective union of durable role grants. It is
 	// presentation metadata only; RPC handlers enforce the same policy.
 	PagePermissions []roleaccess.PagePermission `json:"page_permissions,omitempty"`
@@ -188,6 +193,7 @@ func (h *Handler) serveJourney(w http.ResponseWriter, r *http.Request) {
 			config.Roles = roles
 		}
 		config.Purpose = principal.DefaultPurpose()
+		h.applyCompanyBrand(&config)
 	}
 
 	doc, err := journeyShellDocument(config, JourneyBundleBuilt())

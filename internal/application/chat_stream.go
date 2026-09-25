@@ -419,6 +419,14 @@ func (s *streamingChatService) ResolveShareLink(ctx context.Context, p chatcore.
 	return v.ResolveShareLink(ctx, p, token)
 }
 
+func (s *streamingChatService) ReadAuthorizedReference(ctx context.Context, p chatcore.Principal, tenant, conversation, post string) (chatcore.Conversation, *chatcore.Post, error) {
+	reader, ok := s.ConversationService.(chatcore.AuthorizedReferenceReader)
+	if !ok {
+		return chatcore.Conversation{}, nil, chatcore.ErrUnavailable
+	}
+	return reader.ReadAuthorizedReference(ctx, p, tenant, conversation, post)
+}
+
 func (s *streamingChatService) ForwardPost(ctx context.Context, r chatcore.ForwardPostRequest) (chatcore.Post, error) {
 	v, err := s.referenceService()
 	if err != nil {

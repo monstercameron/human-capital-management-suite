@@ -497,3 +497,22 @@ func TestDocsEditorCopyIsComplete(t *testing.T) {
 		t.Error("stylesheet is missing the panes or uses a physical left offset")
 	}
 }
+
+// D-3: the editor drops a leading "# <title>" that repeats the Title field
+// and restores it, with the current title, on save; any other opening line
+// is left alone.
+func TestDocsEditorTitleHeadingRoundTrip(t *testing.T) {
+	body, had := docsEditorSplitTitleHeading("Handbook", "# Handbook\n\n## Purpose\n\nText")
+	if !had || body != "## Purpose\n\nText" {
+		t.Fatalf("split = %q %v", body, had)
+	}
+	if got := docsEditorJoinTitleHeading("Staff handbook", body, had); got != "# Staff handbook\n\n## Purpose\n\nText" {
+		t.Fatalf("join = %q", got)
+	}
+	if body, had := docsEditorSplitTitleHeading("Handbook", "# Hi\n\nText"); had || body != "# Hi\n\nText" {
+		t.Fatalf("a different heading was stripped: %q %v", body, had)
+	}
+	if got := docsEditorJoinTitleHeading("Handbook", "Text", false); got != "Text" {
+		t.Fatalf("join without a heading changed the body: %q", got)
+	}
+}

@@ -84,6 +84,12 @@ func workAuthorizer(store roleaccess.Store) func(context.Context, *trust.Princip
 	}
 }
 
+// WorkActionAuthorizer exposes the same durable action check to composition
+// ports that project a safe WorkItem reference outside WorkService.
+func WorkActionAuthorizer(store roleaccess.Store) func(context.Context, *trust.Principal, string) bool {
+	return workAuthorizer(store)
+}
+
 // workflowAuthorizer builds the WorkflowService capability hook over the
 // durable role store. Draft authoring, compilation and the designer catalog
 // need a durable designer grant; governed controls and reading an instance

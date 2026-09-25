@@ -46,6 +46,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatroutestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
 )
@@ -249,11 +250,31 @@ func spec(command string, rest []string) bootstrap.Spec {
 								return storeErr
 							}
 							defer store.Close()
+							// Seeded rooms must be registered in the core route
+							// directory the same way a live CreateConversation
+							// call registers them (composeChatRouting), or the
+							// routed service refuses every reaction, read-state
+							// and other lease-guarded write against them
+							// forever (CHAT-04). The directory lives in the core
+							// database, the "-database-url" this role already
+							// resolves for Goose -- not the chat database.
+							routeConn, routeErr := openSeedDB(ctx, url)
+							if routeErr != nil {
+								return routeErr
+							}
+							defer func() { _ = routeConn.Close(ctx) }()
+							routes, routesErr := chatroutestore.New(routeConn)
+							if routesErr != nil {
+								return routesErr
+							}
+							if routesErr = routes.Migrate(ctx); routesErr != nil {
+								return routesErr
+							}
 							reset, resetErr := deps.Values.Bool(fieldChatSeedReset)
 							if resetErr != nil {
 								return resetErr
 							}
-							return runChatSeedCommand(ctx, store, chatSeedOptions{
+							return runChatSeedCommand(ctx, store, routes, chatSeedOptions{
 								Tenant:    deps.Values.String(fieldTenant),
 								Scale:     deps.Values.String(fieldChatSeedScale),
 								Reset:     reset,

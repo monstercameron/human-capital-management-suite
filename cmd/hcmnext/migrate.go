@@ -13,11 +13,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projectstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
 	"github.com/monstercameron/human-capital-management-suite/migrations"
 )
@@ -54,5 +56,45 @@ func migrateUp(ctx context.Context, url string, logger bootstrap.Logger) error {
 		return err
 	}
 	logger.Info("hcmnext.schema_applied", "version", target, "applied_this_start", len(applied))
+	return nil
+}
+
+// migrateProjectUp applies the project-owned migration tree using its
+// restricted database role and isolated schema. The project store performs
+// the same-credential and pool validation used by serving before Goose runs.
+func migrateProjectUp(ctx context.Context, url, coreURL, schema string, logger bootstrap.Logger) error {
+	store, err := projectstore.New(ctx, projectstore.Config{DSN: url, CoreDSN: coreURL, Schema: schema, MaxConns: 8, MinConns: 1})
+	if err != nil {
+		return fmt.Errorf("validate project database: %w", err)
+	}
+	store.Close()
+
+	connCfg, err := pgx.ParseConfig(url)
+	if err != nil {
+		return fmt.Errorf("parse project database URL: %w", err)
+	}
+	connCfg.RuntimeParams["search_path"] = schema
+	db := stdlib.OpenDB(*connCfg)
+	defer func() { _ = db.Close() }()
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("connect project database: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE SCHEMA IF NOT EXISTS hcmnext_project`); err != nil {
+		return fmt.Errorf("provision project schema: %w", err)
+	}
+	migrationFS, err := fs.Sub(projectstore.Migrations, "migrations")
+	if err != nil {
+		return fmt.Errorf("read project migrations: %w", err)
+	}
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrationFS,
+		goose.WithVerbose(false), goose.WithDisableGlobalRegistry(true))
+	if err != nil {
+		return fmt.Errorf("build project migration provider: %w", err)
+	}
+	applied, err := provider.Up(ctx)
+	if err != nil {
+		return fmt.Errorf("apply project migrations: %w", err)
+	}
+	logger.Info("hcmnext.project_schema_applied", "schema", schema, "applied_this_start", len(applied))
 	return nil
 }

@@ -207,7 +207,7 @@ const executiveEntryGrade = "M4"
 // source could actually make. Grade, pay and reachability are checked
 // separately (see [promotionTargets]); this answers only "does this move make
 // sense for this person".
-func publishableTarget(source, target ladderRole) bool {
+func (p *Pack) publishableTarget(source, target ladderRole) bool {
 	switch {
 	case target.Family == source.Family:
 		// Stepping up inside your own discipline, wherever it is recorded.
@@ -217,14 +217,14 @@ func publishableTarget(source, target ladderRole) bool {
 		// neighbouring discipline: a product designer's director of product,
 		// a compliance manager's general counsel.
 		return true
-	case target.Division == source.Division && familiesAdjacent(source.Family, target.Family):
+	case target.Division == source.Division && p.familiesAdjacent(source.Family, target.Family):
 		// A neighbouring discipline inside the same division.
 		return true
-	case divisionLeadershipSeat(source, target):
+	case p.divisionLeadershipSeat(source, target):
 		// The division's own vice-presidency.
 		return true
 	default:
-		return executiveSeat(source, target)
+		return p.executiveSeat(source, target)
 	}
 }
 
@@ -232,17 +232,23 @@ func publishableTarget(source, target ladderRole) bool {
 // source's own division publishes, and whether source is senior enough to be
 // offered it.
 func divisionLeadershipSeat(source, target ladderRole) bool {
-	if source.Rank < gradeRank[divisionLeadershipGrade] {
+	return HarborCarePack.divisionLeadershipSeat(source, target)
+}
+
+func (p *Pack) divisionLeadershipSeat(source, target ladderRole) bool {
+	if p.divisionLeadershipGrade == "" || source.Rank < p.gradeRank[p.divisionLeadershipGrade] {
 		return false
 	}
-	seat, published := divisionVicePresident[source.Division]
+	seat, published := p.divisionVicePresident[source.Division]
 	return published && seat == target.Role.Code && target.Role.Code != source.Role.Code
 }
 
 // familiesAdjacent reports whether a move from one discipline to the other is
 // declared in [adjacentFamily].
-func familiesAdjacent(from, to string) bool {
-	for _, candidate := range adjacentFamily[from] {
+func familiesAdjacent(from, to string) bool { return HarborCarePack.familiesAdjacent(from, to) }
+
+func (p *Pack) familiesAdjacent(from, to string) bool {
+	for _, candidate := range p.adjacentFamily[from] {
 		if candidate == to {
 			return true
 		}
@@ -253,10 +259,14 @@ func familiesAdjacent(from, to string) bool {
 // executiveSeat reports whether target is a C-suite seat source's own
 // function feeds, and whether source is senior enough to be offered it.
 func executiveSeat(source, target ladderRole) bool {
-	if source.Rank < gradeRank[executiveEntryGrade] {
+	return HarborCarePack.executiveSeat(source, target)
+}
+
+func (p *Pack) executiveSeat(source, target ladderRole) bool {
+	if p.executiveEntryGrade == "" || source.Rank < p.gradeRank[p.executiveEntryGrade] {
 		return false
 	}
-	for _, seat := range executiveStep[source.Family] {
+	for _, seat := range p.executiveStep[source.Family] {
 		if seat == target.Role.Code {
 			return true
 		}
@@ -269,13 +279,15 @@ func executiveSeat(source, target ladderRole) bool {
 // in. A unit with no division above it -- the executive office -- resolves to
 // the company root, which no staffed role belongs to, so it never widens
 // anybody's ladder.
-func divisions() map[string]string {
-	units := make(map[string]OrganizationUnit, len(HarborCare.Units))
-	for _, unit := range HarborCare.Units {
+func divisions() map[string]string { return HarborCarePack.divisions() }
+
+func (p *Pack) divisions() map[string]string {
+	units := make(map[string]OrganizationUnit, len(p.Company.Units))
+	for _, unit := range p.Company.Units {
 		units[unit.Code] = unit
 	}
-	out := make(map[string]string, len(HarborCare.Units))
-	for _, unit := range HarborCare.Units {
+	out := make(map[string]string, len(p.Company.Units))
+	for _, unit := range p.Company.Units {
 		code, seen := unit.Code, map[string]bool{}
 		for code != "" && !seen[code] {
 			seen[code] = true
@@ -296,13 +308,16 @@ func divisions() map[string]string {
 // PromotionPaths computes the demo company's career ladder from its own
 // staffing catalog. It is pure and deterministic: no clock, no I/O, no
 // randomness, so two calls in the same build always agree.
-func PromotionPaths() []PromotionPathEdge {
-	roles := ladderRoles()
+func PromotionPaths() []PromotionPathEdge { return HarborCarePack.PromotionPaths() }
+
+// PromotionPaths computes this company's career ladder.
+func (p *Pack) PromotionPaths() []PromotionPathEdge {
+	roles := p.ladderRoles()
 	edges := make([]PromotionPathEdge, 0, len(roles)*MaxPromotionTargets)
 	for _, source := range roles {
-		for _, target := range promotionTargets(source, roles) {
+		for _, target := range p.promotionTargets(source, roles) {
 			kind := PromotionKindUpward
-			if JobFamilyFor(target.Role.Code) != JobFamilyFor(source.Role.Code) {
+			if p.JobFamilyFor(target.Role.Code) != p.JobFamilyFor(source.Role.Code) {
 				kind = PromotionKindCrossFamily
 			}
 			edges = append(edges, PromotionPathEdge{
@@ -331,14 +346,16 @@ func PromotionPaths() []PromotionPathEdge {
 // A role whose grade this package does not rank, or whose published base pay
 // is not exact cents, is left out rather than compared against a guess; the
 // package test proves the real catalog leaves nothing out.
-func ladderRoles() []ladderRole {
-	seats := allRoles()
+func ladderRoles() []ladderRole { return HarborCarePack.ladderRoles() }
+
+func (p *Pack) ladderRoles() []ladderRole {
+	seats := p.allRoles()
 	roles := make([]ladderRole, 0, len(seats))
-	division := divisions()
+	division := p.divisions()
 	for _, seat := range seats {
-		rank, ranked := gradeRank[seat.Role.Grade]
-		cents, exact := exactCents(seat.Role.BasePay)
-		family := JobFamilyFor(seat.Role.Code)
+		rank, ranked := p.gradeRank[seat.Role.Grade]
+		cents, exact := p.annualCents(seat.Role)
+		family := p.JobFamilyFor(seat.Role.Code)
 		if !ranked || !exact || family == "" {
 			continue
 		}
@@ -366,7 +383,7 @@ func ladderRoles() []ladderRole {
 // discipline, then a leadership seat; within a tier, the smallest grade step,
 // then the smallest pay gap, then job code. That puts the next step first and
 // the longer leap behind it.
-func promotionTargets(source ladderRole, roles []ladderRole) []ladderRole {
+func (p *Pack) promotionTargets(source ladderRole, roles []ladderRole) []ladderRole {
 	type candidate struct {
 		role       ladderRole
 		tier       int
@@ -381,11 +398,11 @@ func promotionTargets(source ladderRole, roles []ladderRole) []ladderRole {
 		if demoTargetPayDenominator*role.Cents > demoTargetPayNumerator*source.Cents {
 			continue
 		}
-		if !publishableTarget(source, role) {
+		if !p.publishableTarget(source, role) {
 			continue
 		}
 		candidates = append(candidates, candidate{
-			role: role, tier: targetTier(source, role),
+			role: role, tier: p.targetTier(source, role),
 			gradeSteps: role.Rank - source.Rank, payGap: role.Cents - source.Cents,
 		})
 	}
@@ -436,10 +453,13 @@ func exactCents(amount string) (int64, bool) {
 // sorted. It is exported so a caller publishing placements for the ladder
 // above (which is zone-agnostic) can cross every target job/grade with every
 // zone actually in use, without hard-coding the location table a second time.
-func PayZones() []string {
-	seen := make(map[string]bool, len(locations))
-	zones := make([]string, 0, len(locations))
-	for _, location := range locations {
+func PayZones() []string { return HarborCarePack.PayZones() }
+
+// PayZones returns the distinct pay zones this company's locations use.
+func (p *Pack) PayZones() []string {
+	seen := make(map[string]bool, len(p.locations))
+	zones := make([]string, 0, len(p.locations))
+	for _, location := range p.locations {
 		if !seen[location.Zone] {
 			seen[location.Zone] = true
 			zones = append(zones, location.Zone)
@@ -456,7 +476,7 @@ func PayZones() []string {
 // in one unit and hold different crafts, and offering the designer's rung
 // ahead of the manager's own director would read as a sideways shove rather
 // than a promotion.
-func targetTier(source, target ladderRole) int {
+func (p *Pack) targetTier(source, target ladderRole) int {
 	switch {
 	case target.Unit == source.Unit && target.Family == source.Family:
 		return 0 // the next rung of your own craft, on your own team
@@ -464,9 +484,21 @@ func targetTier(source, target ladderRole) int {
 		return 1 // your craft elsewhere in the company
 	case target.Unit == source.Unit:
 		return 2 // your team's other craft: its management step, usually
-	case familiesAdjacent(source.Family, target.Family) && target.Division == source.Division:
+	case p.familiesAdjacent(source.Family, target.Family) && target.Division == source.Division:
 		return 3 // a neighbouring discipline in your division
 	default:
 		return 4 // a leadership seat
 	}
+}
+
+// annualCents is a role's published base pay as annual cents. A salaried
+// role's base is already annual; an hourly role's rate is annualized over
+// the company's standard hours, so the ladder compares a foreman's rate and
+// a superintendent's salary on one scale.
+func (p *Pack) annualCents(role Role) (int64, bool) {
+	cents, exact := exactCents(role.BasePay)
+	if !exact || !p.IsHourlyJob(role.Code) {
+		return cents, exact
+	}
+	return cents * int64(p.StandardHours()), true
 }

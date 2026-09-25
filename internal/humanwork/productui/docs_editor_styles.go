@@ -9,6 +9,10 @@ func docsEditorStylesheet() string {
 	return `
 .docs-editor{display:grid;gap:var(--hcm-space-2);min-width:0;container:docseditor/inline-size}
 .docs-editor [hidden]{display:none !important}
+/* The suggest popover is position:fixed and never occupies flow space, so
+   its host never needs its own grid row (and the gap that would come with
+   one) between the toolbar and the panes. */
+.docs-suggest-host{display:contents}
 .docs-editor-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--hcm-space-2);flex-wrap:wrap}
 .docs-editor-title-field{display:grid;gap:4px;flex:1 1 20rem;min-width:0}
 .docs-editor-title-field label{font-size:var(--hcm-font-size-small);font-weight:650;color:var(--muted)}
@@ -21,7 +25,9 @@ func docsEditorStylesheet() string {
 .docs-editor-view-option:hover span{background:var(--hcm-hover-surface,var(--soft));color:var(--ink)}
 .docs-editor-view-option input:checked+span{background:var(--hcm-color-brand-soft);color:var(--accent)}
 .docs-editor-view-option input:focus-visible+span{outline:var(--hcm-focus-ring-width) solid var(--hcm-color-focus);outline-offset:1px}
-.docs-editor-help{margin:0;color:var(--muted);font-size:var(--hcm-font-size-small)}
+/* The global paragraph measure broke this one-line hint before its last
+   word ("Ctrl+S / saves.", D-22); it may use the editor's full width. */
+.docs-editor .docs-editor-help{margin:0;max-width:none;color:var(--muted);font-size:var(--hcm-font-size-small)}
 
 .docs-editor-toolbar{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:4px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface)}
 .docs-editor-tool{display:inline-grid;place-items:center;min-width:2rem;height:2rem;padding-inline:.35rem;border:0;border-radius:var(--hcm-radius-control);background:transparent;color:var(--ink);font:inherit;cursor:pointer}
@@ -33,7 +39,7 @@ func docsEditorStylesheet() string {
 .docs-editor-glyph{font-size:.95rem;font-weight:750;line-height:1}
 .docs-editor-glyph-italic{font-family:Georgia,serif;font-style:italic;font-weight:600}
 .docs-editor-glyph-strike{text-decoration:line-through}
-.docs-editor-sep{align-self:stretch;width:1px;margin:4px 3px;background:var(--line)}
+.docs-editor-sep{align-self:stretch;width:1px;margin:4px 6px;background:var(--line)}
 .docs-editor-style{position:relative;display:inline-flex}
 .docs-editor-style-trigger{display:inline-flex;align-items:center;justify-content:space-between;gap:4px;min-width:8.5rem;font-size:var(--hcm-font-size-small);font-weight:600}
 .docs-editor-style-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -80,7 +86,13 @@ func docsEditorStylesheet() string {
 .docs-editor-rich th,.docs-editor-rich td{min-width:4rem;padding:.35rem .6rem;border:1px solid var(--line);text-align:start;vertical-align:top}
 .docs-editor-rich .docs-align-end{text-align:end}.docs-editor-rich .docs-align-center{text-align:center}
 
-.docs-editor-foot{display:flex;align-items:center;justify-content:space-between;gap:var(--hcm-space-2);flex-wrap:wrap}
+/* The save bar is opaque down to the viewport edge: on a phone the page
+   scroller's bottom padding left a strip under the sticky bar where the
+   formatted text showed through below the buttons (D-23). The solid shadow
+   paints the bar's colour over that strip; the padding clears the home
+   indicator. */
+.docs-editor-foot{position:sticky;bottom:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:var(--hcm-space-2);flex-wrap:wrap;padding-block:var(--hcm-space-1) max(var(--hcm-space-1),env(safe-area-inset-bottom));background:var(--surface);border-block-start:1px solid var(--line)}
+@media (max-width:40rem){.docs-editor-foot{box-shadow:0 var(--hcm-space-4) 0 0 var(--surface)}}
 .docs-editor-meta{display:flex;align-items:center;gap:var(--hcm-space-2);flex-wrap:wrap;min-width:0;color:var(--muted);font-size:var(--hcm-font-size-small)}
 .docs-editor-status{margin:0}
 .docs-editor-status:empty{display:none}
@@ -95,6 +107,18 @@ func docsEditorStylesheet() string {
 .docs-editor-panes,.docs-editor-panes.is-split{grid-template-columns:minmax(0,1fr);height:auto}
 .docs-editor-panes .docs-editor-pane{height:clamp(20rem,65vh,40rem)}
 .docs-editor-panes.is-split .docs-editor-pane{height:clamp(16rem,45vh,30rem)}
+}
+@container docseditor (max-width: 40rem){
+/* Split cannot split at phone width; the editor opens in Formatted there
+   (docsEditorNarrow), so the choice is Markdown or Formatted (D-3). */
+.docs-editor-view-option:has(>#docs-editor-view-split){display:none}
+}
+@container docseditor (max-width: 30rem){
+/* A toolbar that wraps to several rows pushes the panes down and hides
+   most of the reader on first paint; one scrollable row keeps every
+   tool reachable without stealing that vertical space. */
+.docs-editor-toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+.docs-editor-tool,.docs-editor-style,.docs-editor-sep{flex:none}
 }
 `
 }

@@ -51,23 +51,36 @@ func TestTodo_INTG_018_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r1.ID != r2.ID || Explain(r1) != Explain(r2) {
-		t.Fatalf("duplicate changed identity: %#v %#v", r1, r2)
+	const want = "receipt=sha256:c0aa889c46685ea3b0176dadcb5671858048d6ce60a0edff6afbf537315421c4 event=evt-1 signature=VALID disposition=RECEIVED replay_key=ep-1:evt-1"
+	if got := Explain(r1); got != want {
+		t.Fatalf("receipt golden bytes = %q, want %q", got, want)
+	}
+	if r1.ID != "sha256:c0aa889c46685ea3b0176dadcb5671858048d6ce60a0edff6afbf537315421c4" || r1.ID != r2.ID || Explain(r2) != want {
+		t.Fatalf("duplicate changed deterministic identity: first=%#v duplicate=%#v", r1, r2)
 	}
 }
 
-func TestTodo_INTG_018_Integration(t *testing.T) {
+func TestStoreAcceptsDistinctEventsWithoutColliding(t *testing.T) {
 	ep, req, now := testEndpoint(t)
 	s := NewStore()
 	if err := s.RegisterEndpoint(ep); err != nil {
 		t.Fatal(err)
 	}
+	seen := make(map[string]bool)
 	for i := 0; i < 3; i++ {
 		req.EventID = "evt-" + string(rune('1'+i))
 		req.Signature = Sign(ep.Secret, req)
-		if _, err := s.Receive(req, now); err != nil {
+		receipt, err := s.Receive(req, now)
+		if err != nil {
 			t.Fatal(err)
 		}
+		if receipt.EventID != req.EventID || seen[receipt.ID] {
+			t.Fatalf("distinct event received unexpected identity: event=%q receipt=%+v", req.EventID, receipt)
+		}
+		seen[receipt.ID] = true
+	}
+	if len(seen) != 3 {
+		t.Fatalf("distinct events produced %d receipt identities, want 3", len(seen))
 	}
 }
 
@@ -187,6 +200,9 @@ func TestTodo_INTG_018_Race(t *testing.T) {
 
 func FuzzTodo_INTG_018(f *testing.F) {
 	f.Add([]byte("payload"), "promotion.v1")
+	f.Add([]byte{}, "not-allowed.v1")
+	f.Add([]byte("payload"), "")
+	f.Add(bytes.Repeat([]byte("x"), 1025), "promotion.v1")
 	f.Fuzz(func(t *testing.T, payload []byte, schema string) {
 		ep, req, now := testEndpoint(t)
 		req.Payload = payload
@@ -196,6 +212,31 @@ func FuzzTodo_INTG_018(f *testing.F) {
 		if err := s.RegisterEndpoint(ep); err != nil {
 			t.Fatal(err)
 		}
-		_, _ = s.Receive(req, now)
+		receipt, err := s.Receive(req, now)
+		switch {
+		case schema == "":
+			if !errors.Is(err, ErrInvalidRequest) {
+				t.Fatalf("empty schema error=%v, want ErrInvalidRequest", err)
+			}
+		case len(payload) > ep.MaxPayloadBytes:
+			if !errors.Is(err, ErrPayloadTooLarge) {
+				t.Fatalf("oversized payload (%d bytes) error=%v, want ErrPayloadTooLarge", len(payload), err)
+			}
+		case schema != "promotion.v1":
+			if !errors.Is(err, ErrUnknownSchema) {
+				t.Fatalf("disallowed schema %q error=%v, want ErrUnknownSchema", schema, err)
+			}
+		case err != nil:
+			t.Fatalf("allowed payload rejected: %v", err)
+		default:
+			wantPayloadHash := sha256.Sum256(payload)
+			if receipt.EventID != req.EventID || receipt.PayloadHash != hex.EncodeToString(wantPayloadHash[:]) || receipt.PayloadRef == "" || receipt.SignatureState != "VALID" {
+				t.Fatalf("accepted receipt violates identity/hash/quarantine invariant: %+v", receipt)
+			}
+			duplicate, err := s.Receive(req, now.Add(time.Second))
+			if err != nil || duplicate.ID != receipt.ID || duplicate.PayloadHash != receipt.PayloadHash {
+				t.Fatalf("identical replay = %+v, %v; want same receipt identity and hash", duplicate, err)
+			}
+		}
 	})
 }

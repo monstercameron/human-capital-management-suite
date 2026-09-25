@@ -97,12 +97,15 @@ func memberPicker(m Model, h handlers, kind ConversationKind) ui.Node {
 	}
 	full := kind == DirectMessage && len(local.picked) >= 1
 	if !full {
-		chips = append(chips, html.WithKey(html.Input(html.Props{ID: "new-chat-member-search", Class: "chip-input", Type: "text", AutoComplete: "off", Placeholder: m.t(KeyAddPeoplePlaceholder),
+		chips = append(chips, html.WithKey(html.Input(html.Props{ID: "new-chat-member-search", Class: "chip-input chat-input", Type: "text", AutoComplete: "off", Placeholder: m.t(KeyAddPeoplePlaceholder),
 			Data: map[string]string{"chat-value": local.pickQuery}, OnInput: h.pickInput, OnKeyDown: h.pickKey,
 			Aria: map[string]string{"controls": "new-chat-member-options", "autocomplete": "list"}}), "chip-input"))
 	}
 	suggestions := ui.Node(html.Div(html.Props{Class: "pick-slot"}))
-	if !full && strings.TrimSpace(local.pickQuery) != "" {
+	// C-4 (r4): adding people to an existing conversation lists the first
+	// few people not already in it before any typing, from the directory
+	// the session already holds, so the dialog is useful at a glance.
+	if !full && (strings.TrimSpace(local.pickQuery) != "" || m.ShowAddMembers) {
 		people := pickCandidates(m, local.pickQuery, local.picked)
 		rows := make([]ui.Node, 0, len(people))
 		for i, p := range people {
@@ -113,7 +116,7 @@ func memberPicker(m Model, h handlers, kind ConversationKind) ui.Node {
 			rows = append(rows, html.WithKey(html.Button(html.Props{Class: class, Type: "button", Role: "option", TabIndex: -1, Data: map[string]string{"action": "create-pick", "id": p.ID}, Aria: map[string]string{"selected": boolString(i == local.pickActive)}},
 				personAvatar(m, p.ID, p.Name, "avatar small"), html.Span(html.Props{Class: "mention-name", Text: p.Name})), "pick:"+p.ID))
 		}
-		if len(rows) == 0 {
+		if len(rows) == 0 && strings.TrimSpace(local.pickQuery) != "" {
 			rows = append(rows, html.P(html.Props{Class: "mention-empty", Text: m.tf(KeyMentionNone, map[string]string{"query": local.pickQuery})}))
 		}
 		suggestions = html.Div(html.Props{ID: "new-chat-member-options", Class: "pick-options", Role: "listbox", Aria: map[string]string{"label": m.t(KeyAddPeople)}}, rows...)
@@ -122,10 +125,39 @@ func memberPicker(m Model, h handlers, kind ConversationKind) ui.Node {
 	if kind == PublicChannel || kind == PrivateChannel {
 		label = m.t(KeyMembersOptional)
 	}
+	if m.ShowAddMembers {
+		// C-4 (r4): the dialog title already says "Add people to #room", so
+		// the field's visible label names what it takes instead.
+		label = m.t(KeyAddPeopleLabel)
+	}
 	return html.Div(html.Props{Class: "prefs-field member-picker"},
 		html.Label(html.Props{For: "new-chat-member-search", Text: label}),
 		html.Div(html.Props{Class: "chip-field"}, chips...),
 		suggestions)
+}
+
+// addMembersDialog lets a reader add people to the selected conversation
+// after it exists (ACCESS-01): AddMembership already exists on the server
+// (self-join uses it), the create dialog's people search already works, and
+// Details' Members section had no way to reach either.
+func addMembersDialog(m Model, h handlers) ui.Node {
+	c := m.selected()
+	name := displayName(m, c)
+	local := h.local
+	pending := m.AddMembersPending
+	fields := []ui.Node{
+		html.Div(html.Props{Class: "side-heading"}, html.H2(html.Props{Text: m.tf(KeyAddMembersTitle, map[string]string{"name": name})}), actionButton("icon-button", "close-add-members", "", m.t(KeyClose), m.Callbacks.CloseAddMembers == nil, icon("close"))),
+	}
+	if m.AddMembersError != "" {
+		fields = append(fields, html.P(html.Props{Class: "field-hint", Role: "alert", Text: m.AddMembersError}))
+	}
+	fields = append(fields, memberPicker(m, h, GroupChat),
+		html.Div(html.Props{Class: "dialog-actions"},
+			html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: m.Callbacks.CloseAddMembers == nil, Data: map[string]string{"action": "close-add-members"}, Text: m.t(KeyCancel)}),
+			html.Button(html.Props{Class: "button", Type: "submit", Disabled: m.Callbacks.AddMembers == nil || pending || len(local.picked) == 0, Text: map[bool]string{true: m.t(KeyAddMembersPending), false: m.t(KeyAddMembersSubmit)}[pending]})))
+	return html.Div(html.Props{Class: "chat-dialog-backdrop", Role: "presentation"},
+		html.Dialog(html.Props{Class: "chat-dialog add-members-dialog", Open: true, Role: "dialog", Aria: map[string]string{"label": m.tf(KeyAddMembersTitle, map[string]string{"name": name}), "modal": "true"}},
+			html.Form(html.Props{Class: "dialog-form", OnSubmit: h.addMembersSubmit}, fields...)))
 }
 
 // browseEntries is every channel the viewer can see: the discoverable ones
@@ -152,7 +184,14 @@ func browseEntries(m Model) []Conversation {
 		c.Joined = true
 		out = append(out, c)
 	}
-	sort.SliceStable(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
+	// C-15: unjoined channels are what browsing is for -- finding one to
+	// join, not re-finding one already in the rail -- so they lead.
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Joined != out[j].Joined {
+			return !out[i].Joined
+		}
+		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
+	})
 	return out
 }
 
@@ -160,6 +199,15 @@ func browseDialog(m Model, h handlers) ui.Node {
 	entries := browseEntries(m)
 	rows := make([]ui.Node, 0, len(entries))
 	for _, c := range entries {
+		// C-15: the row itself is the click target (data-action mirrors the
+		// row's own primary button, and eventAction resolves the closest
+		// match, so clicking the button directly still wins); the button
+		// only needs to be visible on hover/focus, not the whole row's only
+		// affordance.
+		rowAction := "join"
+		if c.Joined {
+			rowAction = "browse-open"
+		}
 		var action ui.Node
 		if c.Joined {
 			action = html.Button(html.Props{Class: "button secondary small", Type: "button", Disabled: m.Callbacks.SelectConversation == nil, Data: map[string]string{"action": "browse-open", "id": c.ID}, Text: m.t(KeyBrowseOpen)})
@@ -167,8 +215,9 @@ func browseDialog(m Model, h handlers) ui.Node {
 			action = html.Button(html.Props{Class: "button small", Type: "button", Disabled: m.Callbacks.JoinConversation == nil, Data: map[string]string{"action": "join", "id": c.ID}, Text: m.t(KeyJoin)})
 		}
 		meta := []string{m.t(kindKey(c.Kind))}
+		var joinedLabel ui.Node
 		if c.Joined {
-			meta = append([]string{"✓ " + m.t(KeyJoined)}, meta...)
+			joinedLabel = html.Span(html.Props{Class: "joined-label"}, icon("check"), ui.Text(m.t(KeyJoined)))
 		}
 		if c.MemberCount > 0 {
 			meta = append(meta, memberCountLabel(m, c.MemberCount))
@@ -176,12 +225,21 @@ func browseDialog(m Model, h handlers) ui.Node {
 		if when := activityLabel(m, c.LastActivity); when != "" {
 			meta = append(meta, when)
 		}
-		text := []ui.Node{html.Strong(html.Props{Text: c.Name}), html.Span(html.Props{Class: "browse-meta", Text: strings.Join(meta, " · ")})}
+		// Round 3 C-8: each fact is its own unbreakable part with the
+		// separator drawn in CSS before it, so a narrow sheet wraps between
+		// facts ("20 members" / "active 8h ago") rather than leaving a
+		// dangling "·" at a line end.
+		metaParts := make([]ui.Node, 0, len(meta))
+		for _, part := range meta {
+			metaParts = append(metaParts, html.Span(html.Props{Class: "meta-part", Text: part}))
+		}
+		text := []ui.Node{html.Strong(html.Props{Text: c.Name}), html.Span(html.Props{Class: "browse-meta"}, metaParts...)}
 		if topic := strings.TrimSpace(c.Topic); topic != "" {
 			text = append(text, html.Span(html.Props{Class: "browse-topic", Text: topic}))
 		}
-		rows = append(rows, html.WithKey(html.Li(html.Props{Class: "browse-row", Data: map[string]string{"conversation-id": c.ID}},
-			kindGlyph(m, c, m.t(kindKey(c.Kind))), html.Div(html.Props{Class: "browse-text"}, text...), action), "browse:"+c.ID))
+		rows = append(rows, html.WithKey(html.Li(html.Props{Class: "browse-row", Data: map[string]string{"conversation-id": c.ID, "action": rowAction, "id": c.ID}},
+			kindGlyph(m, c, m.t(kindKey(c.Kind))), html.Div(html.Props{Class: "browse-text"}, text...),
+			html.Div(html.Props{Class: "browse-actions"}, joinedLabel, action)), "browse:"+c.ID))
 	}
 	var body ui.Node = html.Ul(html.Props{Class: "browse-list"}, rows...)
 	if len(rows) == 0 {

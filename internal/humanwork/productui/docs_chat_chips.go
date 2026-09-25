@@ -256,14 +256,27 @@ func docsPersonChip(view View, p DocumentChatPersonReference) ui.Node {
 		html.Span(html.Props{Class: "docs-chat-name", Dir: "auto"}, ui.Text(p.DisplayName)))
 }
 
-// docsMessageCard quotes a chat message the reader may open; one they may
-// not reads only "Chat message unavailable". Spans throughout, so the card
-// stays valid inside the paragraph it was written in.
+// docsMessageCard quotes a chat message the reader may open. One they may
+// not either names the reason (DOCS-08): "deleted", the one distinction the
+// server can make without leaking anything the reader could not already
+// infer from the reference itself, complete with the channel it lived in
+// and an "Open channel" link when the server named it — or, for every other
+// unreadable case (no access, an unresolvable token), one neutral sentence
+// that does not confirm or deny what happened. Spans throughout, so the
+// card stays valid inside the paragraph it was written in.
 func docsMessageCard(view View, msg DocumentChatMessageReference) ui.Node {
 	locale := view.Locale.Resolved
 	if !msg.Readable {
-		return html.Span(html.Props{Class: "docs-chat-quote docs-chat-quote-locked", Raw: map[string]any{"role": "note"}},
-			productIcon("privacy", "docs-chat-icon"), html.Span(html.Props{}, ui.Text(docsChatText(locale, "message_unavailable"))))
+		children := []ui.Node{productIcon("privacy", "docs-chat-icon")}
+		if msg.ChannelName != "" {
+			children = append(children, html.Span(html.Props{}, ui.Text(docsChatText(locale, "message_deleted"))))
+			href := docsChatChannelHref(msg.ConversationID)
+			children = append(children, html.A(html.Props{Class: "docs-chat-quote-jump", Href: href, Data: map[string]string{"docs-action": "open", "docs-id": href}},
+				ui.Text(strings.ReplaceAll(docsChatText(locale, "open_locked_channel"), "{name}", msg.ChannelName))))
+		} else {
+			children = append(children, html.Span(html.Props{}, ui.Text(docsChatText(locale, "message_unavailable"))))
+		}
+		return html.Span(html.Props{Class: "docs-chat-quote docs-chat-quote-locked", Raw: map[string]any{"role": "note"}}, children...)
 	}
 	head := []ui.Node{html.Strong(html.Props{Class: "docs-chat-quote-author", Dir: "auto"}, ui.Text(msg.AuthorName))}
 	if msg.ChannelName != "" {
@@ -276,7 +289,7 @@ func docsMessageCard(view View, msg DocumentChatMessageReference) ui.Node {
 	label := strings.ReplaceAll(docsChatText(locale, "quoted_message"), "{name}", msg.AuthorName)
 	return html.Span(html.Props{Class: "docs-chat-quote", Raw: map[string]any{"role": "figure"}, Aria: map[string]string{"label": label}},
 		html.Span(html.Props{Class: "docs-chat-quote-head"}, head...),
-		html.Span(html.Props{Class: "docs-chat-quote-body", Dir: "auto"}, ui.Text(msg.Body)),
+		html.Span(html.Props{Class: "docs-chat-quote-body", Dir: "auto"}, docsPlainTextNodes(view, msg.Body)...),
 		html.A(html.Props{Class: "docs-chat-quote-jump", Href: href, Data: map[string]string{"docs-action": "open", "docs-id": href}},
 			productIcon("chat", "docs-chat-icon"), ui.Text(docsChatText(locale, "jump_to_message"))))
 }
@@ -289,7 +302,9 @@ var docsChatCopy = map[string]map[string]string{
 		"locked_hint":         "You are not a member of this channel",
 		"view_person":         "View {name}'s details",
 		"quoted_message":      "Chat message from {name}",
-		"message_unavailable": "Chat message unavailable",
+		"message_unavailable": "This message isn't available to you — it may have been deleted or moved.",
+		"message_deleted":     "This message was deleted.",
+		"open_locked_channel": "Open #{name}",
 		"jump_to_message":     "Jump to message",
 		"suggest_people":      "People", "suggest_channels": "Channels", "suggest_docs": "Documents",
 		"suggest_empty":   "No matches",
@@ -303,7 +318,9 @@ var docsChatCopy = map[string]map[string]string{
 		"locked_hint":         "Sie sind kein Mitglied dieses Kanals",
 		"view_person":         "Details zu {name} anzeigen",
 		"quoted_message":      "Chatnachricht von {name}",
-		"message_unavailable": "Chatnachricht nicht verfügbar",
+		"message_unavailable": "Diese Nachricht ist für Sie nicht verfügbar – sie wurde möglicherweise gelöscht oder verschoben.",
+		"message_deleted":     "Diese Nachricht wurde gelöscht.",
+		"open_locked_channel": "#{name} öffnen",
 		"jump_to_message":     "Zur Nachricht springen",
 		"suggest_people":      "Personen", "suggest_channels": "Kanäle", "suggest_docs": "Dokumente",
 		"suggest_empty":   "Keine Treffer",
@@ -317,7 +334,9 @@ var docsChatCopy = map[string]map[string]string{
 		"locked_hint":         "لست عضوًا في هذه القناة",
 		"view_person":         "عرض تفاصيل {name}",
 		"quoted_message":      "رسالة دردشة من {name}",
-		"message_unavailable": "رسالة الدردشة غير متاحة",
+		"message_unavailable": "هذه الرسالة غير متاحة لك — ربما تم حذفها أو نقلها.",
+		"message_deleted":     "تم حذف هذه الرسالة.",
+		"open_locked_channel": "فتح #{name}",
 		"jump_to_message":     "الانتقال إلى الرسالة",
 		"suggest_people":      "الأشخاص", "suggest_channels": "القنوات", "suggest_docs": "المستندات",
 		"suggest_empty":   "لا توجد نتائج",
@@ -337,11 +356,11 @@ func docsChatText(locale, key string) string {
 // editor's reference suggestions.
 func docsChatRefsStylesheet() string {
 	return `
-.docs-markdown .docs-chat-chip{display:inline-flex;align-items:baseline;gap:.25em;max-width:100%;padding:0 .45em;border-radius:999px;background:var(--soft);color:var(--ink);text-decoration:none;border:1px solid var(--line);line-height:1.5;vertical-align:baseline;overflow-wrap:anywhere}
+.docs-markdown .docs-chat-chip{display:inline-flex;align-items:baseline;gap:.25em;max-width:100%;padding:0 .45em;border-radius:999px;background:var(--soft);color:var(--ink);text-decoration:none;border:1px solid var(--line);line-height:1.5;vertical-align:baseline;white-space:nowrap}
 .docs-markdown a.docs-chat-chip:hover{border-color:var(--accent);color:var(--accent)}
 .docs-markdown a.docs-chat-chip:focus-visible,.docs-markdown .docs-chat-quote-jump:focus-visible{outline:var(--hcm-focus-ring-width) solid var(--hcm-color-focus);outline-offset:2px}
 .docs-chat-glyph{color:var(--muted);font-weight:600}
-.docs-chat-name{font-weight:600}
+.docs-chat-name{font-weight:600;max-width:16em;overflow:hidden;text-overflow:ellipsis}
 .docs-chat-meta{color:var(--muted);font-size:var(--hcm-font-size-small)}
 .docs-chat-icon{width:.95em;height:.95em;flex:none;align-self:center}
 .docs-markdown .docs-chat-locked{color:var(--muted);border-style:dashed;background:transparent}

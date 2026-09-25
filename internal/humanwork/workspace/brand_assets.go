@@ -4,20 +4,25 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/xml"
 	"errors"
+	_ "golang.org/x/image/webp"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/brandasset"
 )
+
+// BrandAssetRepository is the tenant scoped durable library used by the served
+// picker. Upload bytes and revision history are never stored in preferences.
+type BrandAssetRepository = brandasset.Repository
 
 const (
 	BrandAssetMaxBytes = 2 << 20
-	BrandAssetMaxSide  = 4096
+	BrandAssetMaxSide  = 1024
 	BrandAssetMinSide  = 16
 )
 
@@ -26,7 +31,7 @@ var (
 	ErrBrandAssetInvalidDimensions = errors.New("workspace: invalid brand asset dimensions")
 	ErrBrandAssetUnsafe            = errors.New("workspace: unsafe brand asset")
 	ErrBrandAssetUnauthorized      = errors.New("workspace: brand asset tenant mismatch")
-	ErrBrandAssetVersionConflict   = errors.New("workspace: stale brand asset revision")
+	ErrBrandAssetVersionConflict   = brandasset.ErrConflict
 )
 
 // BrandAssetUpload is the server-approved input to the appearance picker.
@@ -65,20 +70,15 @@ func ValidateBrandAsset(upload BrandAssetUpload) (BrandAsset, error) {
 	if !ok {
 		return BrandAsset{}, ErrBrandAssetInvalidType
 	}
-	if media == "image/svg+xml" {
-		lower := strings.ToLower(string(upload.Bytes))
-		if !strings.Contains(lower, "<svg") || strings.Contains(lower, "<script") || strings.Contains(lower, "javascript:") || strings.Contains(lower, "http://") || strings.Contains(lower, "https://") {
-			return BrandAsset{}, ErrBrandAssetUnsafe
-		}
-		width, height, ok := svgDimensions(upload.Bytes)
-		if !ok || width < BrandAssetMinSide || height < BrandAssetMinSide || width > BrandAssetMaxSide || height > BrandAssetMaxSide {
-			return BrandAsset{}, ErrBrandAssetInvalidDimensions
-		}
-		digest := sha256.Sum256(upload.Bytes)
-		return BrandAsset{TenantID: upload.TenantID, Name: name, MediaType: media, Width: width, Height: height, Digest: hex.EncodeToString(digest[:]), Original: "brand-original-" + hex.EncodeToString(digest[:8]) + ".svg", Proxy: "brand-proxy-" + hex.EncodeToString(digest[:8]) + ".jpg"}, nil
-	}
 	config, format, err := image.DecodeConfig(bytes.NewReader(upload.Bytes))
-	if err != nil || (format != "png" && format != "jpeg") {
+	wantFormat := strings.TrimPrefix(strings.ToLower(path.Ext(name)), ".")
+	if wantFormat == "jpg" {
+		wantFormat = "jpeg"
+	}
+	if err != nil || (format != "png" && format != "jpeg" && format != "webp") || format != wantFormat {
+		if err == nil && format != wantFormat {
+			return BrandAsset{}, ErrBrandAssetInvalidType
+		}
 		return BrandAsset{}, ErrBrandAssetUnsafe
 	}
 	if config.Width < BrandAssetMinSide || config.Height < BrandAssetMinSide || config.Width > BrandAssetMaxSide || config.Height > BrandAssetMaxSide {
@@ -86,35 +86,6 @@ func ValidateBrandAsset(upload BrandAssetUpload) (BrandAsset, error) {
 	}
 	digest := sha256.Sum256(upload.Bytes)
 	return BrandAsset{TenantID: upload.TenantID, Name: name, MediaType: media, Width: config.Width, Height: config.Height, Digest: hex.EncodeToString(digest[:]), Original: "brand-original-" + hex.EncodeToString(digest[:8]) + "." + strings.ToLower(format), Proxy: "brand-proxy-" + hex.EncodeToString(digest[:8]) + ".jpg"}, nil
-}
-
-func svgDimensions(body []byte) (int, int, bool) {
-	var root struct {
-		XMLName xml.Name `xml:"svg"`
-		Width   string   `xml:"width,attr"`
-		Height  string   `xml:"height,attr"`
-		ViewBox string   `xml:"viewBox,attr"`
-	}
-	if err := xml.Unmarshal(body, &root); err != nil || root.XMLName.Local != "svg" {
-		return 0, 0, false
-	}
-	parse := func(value string) (int, bool) {
-		value = strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(value, "px"), "pt"))
-		n, err := strconv.ParseFloat(value, 64)
-		return int(n), err == nil && n > 0
-	}
-	if width, ok := parse(root.Width); ok {
-		if height, ok := parse(root.Height); ok {
-			return width, height, true
-		}
-	}
-	parts := strings.Fields(root.ViewBox)
-	if len(parts) == 4 {
-		width, a := parse(parts[2])
-		height, b := parse(parts[3])
-		return width, height, a && b
-	}
-	return 0, 0, false
 }
 
 func brandAssetMedia(name string) (string, bool) {
@@ -125,8 +96,6 @@ func brandAssetMedia(name string) (string, bool) {
 		return "image/jpeg", true
 	case ".webp":
 		return "image/webp", true
-	case ".svg":
-		return "image/svg+xml", true
 	default:
 		return "", false
 	}

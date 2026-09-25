@@ -210,10 +210,13 @@ func TestTodo_ENDPOINT_001_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	if len(m.Endpoints) != len(golden) {
-		t.Fatalf("expected %d endpoints, got %d", len(golden), len(m.Endpoints))
+	if len(m.Endpoints) != len(golden)+38 {
+		t.Fatalf("expected %d endpoints including 38 ProjectService methods, got %d", len(golden)+38, len(m.Endpoints))
 	}
 	for _, e := range m.Endpoints {
+		if strings.HasPrefix(e.EndpointID, "hcmnext.project.v1.ProjectService/") {
+			continue // covered by TestTodo_PM_026_Conformance below
+		}
 		w, ok := golden[e.EndpointID]
 		if !ok {
 			t.Errorf("unexpected endpoint in manifest: %s", e.EndpointID)

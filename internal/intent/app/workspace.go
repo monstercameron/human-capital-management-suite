@@ -86,6 +86,7 @@ func (c *Cell) WorkspaceHandler() (http.Handler, error) {
 		Config:       c.Config,
 		Now:          c.Config.Now,
 		RoleAccess:   c.RoleAccess,
+		BrandAssets:  c.BrandAssets,
 		Catalogs:     c.Catalogs,
 		PublicOrigin: c.PublicOrigin(),
 		// Nil on every cell composed without both an execution driver and its

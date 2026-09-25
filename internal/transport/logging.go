@@ -28,17 +28,27 @@ type LogRecord struct {
 	EvidenceID string
 	// Duration is the wall-clock time the request occupied.
 	Duration time.Duration
-	// Code is the owned outcome condition; [envelope.CodeUnspecified] means
-	// the request succeeded.
+	// Code is the owned outcome condition on a failure. It is meaningless on
+	// its own: [envelope.CodeUnspecified] is both the zero value (no error at
+	// all) and the fallback code an unclassified internal error projects to,
+	// so Code alone cannot tell a success from an unnamed failure. Failed is
+	// the field that can.
 	Code envelope.Code
 	// ReasonRef is the owned reason identifier on a failure.
 	ReasonRef string
 	// ErrorType is a bounded classification, never the diagnostic message.
 	ErrorType string
+	// Failed reports whether the request produced an error, set independently
+	// of Code at construction time (see [NewLogRecord]). An unclassified
+	// internal error carries Code == CodeUnspecified, the same value a
+	// successful call carries, so Succeeded must not infer from Code alone -
+	// doing so is what previously logged a request that failed with
+	// "chat.internal_error" as "outcome":"OK".
+	Failed bool
 }
 
 // Succeeded reports whether the record describes a successful request.
-func (r LogRecord) Succeeded() bool { return r.Code == envelope.CodeUnspecified }
+func (r LogRecord) Succeeded() bool { return !r.Failed }
 
 // Logger receives one [LogRecord] per completed request. It is a port so that
 // the process's telemetry stack (OBS-*) plugs in without the transport
@@ -71,6 +81,7 @@ func NewLogRecord(method string, kind Kind, inv *Invocation, requestID string, d
 		}
 	}
 	if err != nil {
+		record.Failed = true
 		record.ErrorType = diagnosticType(err)
 		record.Code = err.Code()
 		record.ReasonRef = err.ReasonRef()

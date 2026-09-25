@@ -33,8 +33,14 @@ import (
 // Service is the bounded RPC surface needed by the product shell. Most pages
 // consume reads; workflow authoring adds only its explicit draft mutations.
 type Service struct {
-	ListDocuments                func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error)
-	GetDocument                  func(context.Context, *documentv1.GetDocumentRequest) (*documentv1.GetDocumentResponse, error)
+	ListDocuments func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error)
+	GetDocument   func(context.Context, *documentv1.GetDocumentRequest) (*documentv1.GetDocumentResponse, error)
+	// ResolveDocsProjectTaskPreview returns only a task projection the current
+	// principal may read. A false found value represents denial and absence.
+	ResolveDocsProjectTaskPreview func(context.Context, productui.DocsProjectTaskReference) (productui.DocsProjectTaskPreview, bool, error)
+	// ResolveDocsJourneyPreview returns only a journey quick look the current
+	// viewer is authorized to read; found=false for refused or missing ones.
+	ResolveDocsJourneyPreview    func(context.Context, string) (productui.DocsJourneyPreview, bool, error)
 	ListDocumentComments         func(context.Context, *documentv1.ListDocumentCommentsRequest) (*documentv1.ListDocumentCommentsResponse, error)
 	ShareDocument                func(context.Context, *documentv1.ShareDocumentRequest) (*documentv1.ShareDocumentResponse, error)
 	GetDocumentLibrary           func(context.Context, *documentv1.GetDocumentLibraryRequest) (*documentv1.GetDocumentLibraryResponse, error)
@@ -87,6 +93,17 @@ type Session struct {
 	LauncherActions       []productui.LauncherActionProjection
 	EnforceRoleVisibility bool
 	LogoutHref            string
+	// TenantName is the company's own display name when the server supplied
+	// one; empty derives the label from Tenant.
+	TenantName string
+}
+
+// tenantLabel is the name the shell shows for the session's company.
+func (session Session) tenantLabel() string {
+	if name := strings.TrimSpace(session.TenantName); name != "" {
+		return name
+	}
+	return displayLabel(session.Tenant)
 }
 
 // State is presentation-only address-bar state.
@@ -100,7 +117,7 @@ type State struct {
 // for the cell. It shares the resolved view's humanized session labels and
 // address state without manufacturing any business records or counts.
 func LoadingView(session Session, state State) productui.View {
-	view := productui.NewView(state.Page, displayLabel(session.Tenant), displayLabel(session.Principal), displayLabel(session.Scope))
+	view := productui.NewView(state.Page, session.tenantLabel(), displayLabel(session.Principal), displayLabel(session.Scope))
 	view.ViewerSubject = strings.TrimSpace(session.Principal)
 	view.LogoutHref = session.LogoutHref
 	if session.EnforceRoleVisibility {
@@ -462,6 +479,8 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	var libraryResponse *documentv1.GetDocumentLibraryResponse
 	var documentResponse *documentv1.GetDocumentResponse
 	var documentCommentsResponse *documentv1.ListDocumentCommentsResponse
+	var documentProjectTasks []productui.DocsProjectTaskPreview
+	var documentJourneys []productui.DocsJourneyPreview
 	var knowledgeResponse *journeyv1.SearchKnowledgeResponse
 	var positionObject *productui.PositionObjectProjection
 	var positionOccupancy *productui.PositionOccupancyProjection
@@ -729,6 +748,20 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		}
 	}
 	reads.Wait()
+	if documentResponse != nil && documentResponse.GetDocument() != nil && service.ResolveDocsProjectTaskPreview != nil {
+		documentProjectTasks = resolveDocsProjectTaskPreviews(ctx, documentResponse.GetMarkdown(), service.ResolveDocsProjectTaskPreview)
+	}
+	if documentResponse != nil && documentResponse.GetDocument() != nil && service.ResolveDocsJourneyPreview != nil {
+		for _, id := range productui.DocsJourneyReferences(documentResponse.GetMarkdown()) {
+			if len(documentJourneys) >= 16 {
+				break
+			}
+			if preview, found, err := service.ResolveDocsJourneyPreview(ctx, id); err == nil && found && preview.IntentID == id {
+				preview.Authorized = true
+				documentJourneys = append(documentJourneys, preview)
+			}
+		}
+	}
 	if positionOptionsErr != nil {
 		failures = append(failures, positionOptionsErr)
 		view.PositionOptions = nil
@@ -810,6 +843,8 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		view.Document = nil
 	} else if documentResponse != nil {
 		view.Document = projectDocument(documentResponse, documentCommentsResponse, documentCommentsErr != nil)
+		view.Document.ProjectTasks = documentProjectTasks
+		view.Document.Journeys = documentJourneys
 	}
 	directoryDenied := false
 	if workersErr != nil && status.Code(errors.Unwrap(workersErr)) == codes.PermissionDenied {
@@ -1112,6 +1147,48 @@ func projectDocument(response *documentv1.GetDocumentResponse, commentsResponse 
 	return detail
 }
 
+// resolveDocsProjectTaskPreviews resolves only canonical references that name
+// both selectors. A bare task:<id> cannot be used to discover a project, and
+// absent/denied/error responses stay absent so Docs renders one neutral state.
+func resolveDocsProjectTaskPreviews(ctx context.Context, markdown string, resolve func(context.Context, productui.DocsProjectTaskReference) (productui.DocsProjectTaskPreview, bool, error)) []productui.DocsProjectTaskPreview {
+	refs := productui.DocsProjectTaskReferences(markdown)
+	if len(refs) > 64 {
+		refs = refs[:64]
+	}
+	previews := make([]productui.DocsProjectTaskPreview, len(refs))
+	var wg sync.WaitGroup
+	limit := make(chan struct{}, 8)
+	for index, ref := range refs {
+		if ref.ProjectID == "" {
+			continue
+		}
+		wg.Add(1)
+		go func(index int, ref productui.DocsProjectTaskReference) {
+			defer wg.Done()
+			select {
+			case limit <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+			defer func() { <-limit }()
+			preview, found, err := resolve(ctx, ref)
+			if err != nil || !found || preview.ProjectID != ref.ProjectID || preview.TaskID != ref.TaskID || strings.TrimSpace(preview.Title) == "" || ref.TaskID != "" && strings.TrimSpace(preview.Status) == "" {
+				return
+			}
+			preview.Authorized = true
+			previews[index] = preview
+		}(index, ref)
+	}
+	wg.Wait()
+	result := make([]productui.DocsProjectTaskPreview, 0, len(previews))
+	for _, preview := range previews {
+		if preview.Authorized {
+			result = append(result, preview)
+		}
+	}
+	return result
+}
+
 // projectDocumentLinks is the reader's safe view of every doc: target this
 // version names (HUB-035): a target the caller cannot read carries readable
 // = false and no title, exactly as the server already withheld it.
@@ -1272,14 +1349,14 @@ func projectWorkerIDPolicy(p *journeyv1.WorkerIDPolicy, previews []string) produ
 // and local-development deployments both match the authenticated subject to
 // a stable worker reference or ID returned by the authorized workforce read.
 func projectViewerProfile(session Session, people []productui.Person) productui.ViewerProfile {
-	name := displayLabel(session.Principal)
+	name := displayLabel(withoutPersonaPrefix(session.Principal))
 	fallback := productui.ViewerProfile{Name: name, Initials: uicomponents.Initials(name)}
 	principal := normalizedIdentity(session.Principal)
 	for _, person := range people {
 		// Only stable worker identifiers may bind the account to a self-service
 		// profile. A display name is mutable and non-unique, so it can never be
 		// used as an identity join.
-		if principal != "" && (normalizedIdentity(person.ID) == principal || normalizedIdentity(person.WorkerID) == principal) {
+		if principal != "" && (normalizedIdentity(person.ID) == principal || normalizedIdentity(person.WorkerID) == principal || normalizedIdentity(person.SubjectID) == principal) {
 			return viewerProfileFromPerson(person)
 		}
 	}
@@ -1304,6 +1381,18 @@ func bindViewerToRoutedWork(viewer *productui.ViewerProfile, session Session, wo
 			return
 		}
 	}
+}
+
+// withoutPersonaPrefix drops a "hc-050-" style directory prefix (letters, then
+// a number) from a subject so an unbound viewer is named "Rafael Torres", not
+// "Hc 050 Rafael Torres" with the initials "HT".
+func withoutPersonaPrefix(subject string) string {
+	parts := strings.SplitN(strings.TrimSpace(subject), "-", 3)
+	if len(parts) == 3 && parts[0] != "" && parts[1] != "" && parts[2] != "" &&
+		strings.Trim(parts[1], "0123456789") == "" && strings.Trim(strings.ToLower(parts[0]), "abcdefghijklmnopqrstuvwxyz") == "" {
+		return parts[2]
+	}
+	return subject
 }
 
 func viewerProfileFromPerson(person productui.Person) productui.ViewerProfile {

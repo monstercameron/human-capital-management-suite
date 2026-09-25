@@ -162,9 +162,8 @@ func TestTodo_API_001_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderDefaultDiscoveryDocument: %v", err)
 	}
-	// REV-007-04 served the four analysis-to-action and intent-inspection
-	// reads, moving the endpoint inventory from fourteen to eighteen.
-	if len(doc.Endpoints) != 18 || len(doc.Capabilities) != 11 || len(doc.IntentDefinitions) != 14 {
+	// The ProjectService surface now includes task-link add and remove mutations.
+	if len(doc.Endpoints) != 56 || len(doc.Capabilities) != 11 || len(doc.IntentDefinitions) != 14 {
 		t.Fatalf("unexpected production shape: %d endpoints, %d capabilities, %d intent definitions",
 			len(doc.Endpoints), len(doc.Capabilities), len(doc.IntentDefinitions))
 	}

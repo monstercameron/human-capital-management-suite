@@ -28,7 +28,7 @@ func Render(view View) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("productui: render: %w", err)
 	}
-	return document(ResolveDocumentPageTitle(view), appearance, view.Accessibility, view.Locale, stylesheet, body), nil
+	return document(ResolveDocumentPageTitle(view), appearance, view.Accessibility, view.Locale, view.Tenant, stylesheet, body), nil
 }
 
 // Build returns the same component tree used by SSR tests and the browser
@@ -62,7 +62,7 @@ func BuildEmbedded(view View, content ui.Node) ui.Node {
 	return appShellWithHeading(view, content, false)
 }
 
-func document(title string, appearance CustomerTheme, accessibility AccessibilityPreferences, locale LocaleContext, stylesheet, body string) string {
+func document(title string, appearance CustomerTheme, accessibility AccessibilityPreferences, locale LocaleContext, tenant, stylesheet, body string) string {
 	appearance = NormalizeCustomerTheme(appearance)
 	accessibility = NormalizeAccessibilityPreferences(accessibility)
 	locale = locale.normalized()
@@ -86,7 +86,17 @@ func document(title string, appearance CustomerTheme, accessibility Accessibilit
 		root += ` ` + name + `="` + escapeTitle(accessibilityAttributes[name]) + `"`
 	}
 	root += `>`
-	brand := escapeTitle(appearance.BrandName)
+	// Titles: the WASM client re-titles the document on every client-side
+	// navigation with HeaderBrandIdentity(appearance, tenant) (theme_wasm.go),
+	// which derives a tenant-display name ("Harborcare Demo") whenever the
+	// appearance is still the unconfigured default. This first, server-
+	// rendered paint used the raw, un-derived appearance.BrandName instead
+	// ("Human Capital Management Suite"), so the very first page a session
+	// lands on read one suffix and every page reached by clicking through
+	// read another. Resolving the same way here keeps the first paint and
+	// every subsequent navigation on one suffix.
+	brandName, _ := HeaderBrandIdentity(appearance, tenant)
+	brand := escapeTitle(brandName)
 	return "<!doctype html>" + root + "<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"" + escapeTitle(ColorSchemeContent(attributes["data-hcm-color-mode"])) + "\"><meta name=\"application-name\" content=\"" + brand + "\"><title>" + escapeTitle(title) + " · " + brand + "</title><style>" + stylesheet + "</style></head><body>" + body + "</body></html>"
 }
 

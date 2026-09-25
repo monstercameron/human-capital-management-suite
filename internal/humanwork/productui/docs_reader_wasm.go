@@ -8,14 +8,23 @@ import "syscall/js"
 // while the page scrolls or resizes. One animation-frame callback is made up
 // front and scheduled at most once per frame; the cleanup removes both
 // listeners, cancels a pending frame and releases the callbacks, so nothing
-// keeps running once the document page is gone.
-func docsWatchLayout() func() {
+// keeps running once the document page is gone. The same frame reports the
+// section being read to onSection (the outline's scroll-spy, D-7), only
+// when it changes.
+func docsWatchLayout(onSection func(string)) func() {
 	scheduled := false
+	lastSection := ""
 	var frameID js.Value
 	frame := js.FuncOf(func(js.Value, []js.Value) any {
 		scheduled = false
 		docsPlacePins()
 		docsDrawConnector()
+		if onSection != nil {
+			if id := docsCurrentSection(); id != lastSection {
+				lastSection = id
+				onSection(id)
+			}
+		}
 		return nil
 	})
 	redraw := js.FuncOf(func(js.Value, []js.Value) any {
@@ -38,6 +47,37 @@ func docsWatchLayout() func() {
 		redraw.Release()
 		frame.Release()
 	}
+}
+
+// docsSectionLine is how far below the viewport top a heading must have
+// scrolled for its section to count as the one being read.
+const docsSectionLine = 120
+
+// docsCurrentSection is the id of the last outline heading at or above
+// docsSectionLine, or "" before the first one (and when there is no
+// reader).
+func docsCurrentSection() string {
+	doc := js.Global().Get("document")
+	headings := doc.Call("querySelectorAll", "#"+docsAnchorRootID+" :is(h2,h3,h4)[id]")
+	// Once the document's end is on screen, the short closing sections can
+	// never scroll up to the line; the last heading in view is then the one
+	// being read, not one that already left the top (r5).
+	line := float64(docsSectionLine)
+	if root := doc.Call("getElementById", docsAnchorRootID); root.Truthy() {
+		viewport := js.Global().Get("innerHeight").Float()
+		if root.Call("getBoundingClientRect").Get("bottom").Float() <= viewport+4 {
+			line = viewport - docsSectionLine
+		}
+	}
+	current := ""
+	for i := 0; i < headings.Get("length").Int(); i++ {
+		heading := headings.Index(i)
+		if heading.Call("getBoundingClientRect").Get("top").Float() > line {
+			break
+		}
+		current = heading.Get("id").String()
+	}
+	return current
 }
 
 // docsSetLinked shows which comment the pointer is on without re-rendering

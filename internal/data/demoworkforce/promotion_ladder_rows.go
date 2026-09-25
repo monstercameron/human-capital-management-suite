@@ -36,8 +36,11 @@ func PromotionPathRef(orgUnit, sourceJobCode, targetJobCode string) string {
 // storage shape, in the same order [PromotionPaths] returns it, numbering
 // each source's targets from one so the nearest step stays first when the
 // ladder is read back.
-func PromotionLadderEdges() []promotionladder.Edge {
-	authored := PromotionPaths()
+func PromotionLadderEdges() []promotionladder.Edge { return HarborCarePack.PromotionLadderEdges() }
+
+// PromotionLadderEdges projects this company's ladder onto storage rows.
+func (p *Pack) PromotionLadderEdges() []promotionladder.Edge {
+	authored := p.PromotionPaths()
 	edges := make([]promotionladder.Edge, 0, len(authored))
 	ordinals := make(map[string]int, len(authored))
 	for _, edge := range authored {
@@ -47,12 +50,12 @@ func PromotionLadderEdges() []promotionladder.Edge {
 			PathID:   PromotionPathRef(edge.OrgUnit, edge.SourceJobCode, edge.TargetJobCode),
 			Revision: PromotionPathRevision,
 			OrgUnit:  edge.OrgUnit, Kind: edge.Kind, Ordinal: ordinals[source],
-			SourceProfileID: JobProfileID(edge.SourceJobCode),
+			SourceProfileID: p.JobProfileID(edge.SourceJobCode),
 			SourceJobCode:   edge.SourceJobCode, SourceGrade: edge.SourceGrade,
-			TargetProfileID: JobProfileID(edge.TargetJobCode),
+			TargetProfileID: p.JobProfileID(edge.TargetJobCode),
 			TargetJobCode:   edge.TargetJobCode, TargetGrade: edge.TargetGrade, TargetTitle: edge.TargetTitle,
 			MinimumBaseIncrease: edge.MinimumBaseIncrease, MaximumBaseIncrease: edge.MaximumBaseIncrease,
-			Lifecycle: promotionladder.LifecyclePublished, PolicyVersion: PromotionLadderVersion,
+			Lifecycle: promotionladder.LifecyclePublished, PolicyVersion: p.ladderVersion,
 		})
 	}
 	return edges
@@ -62,6 +65,11 @@ func PromotionLadderEdges() []promotionladder.Edge {
 // owns and has already scoped to tenant. It is replay-safe: see
 // [promotionladder.Seed].
 func SeedPromotionLadder(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, recordedAt time.Time) (promotionladder.Summary, error) {
+	return HarborCarePack.SeedPromotionLadder(ctx, tx, tenant, recordedAt)
+}
+
+// SeedPromotionLadder records this company's ladder inside tx.
+func (p *Pack) SeedPromotionLadder(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, recordedAt time.Time) (promotionladder.Summary, error) {
 	if tx == nil || tenant == uuid.Nil {
 		return promotionladder.Summary{}, fmt.Errorf("demoworkforce: seed the promotion ladder: a transaction and tenant are required")
 	}
@@ -69,6 +77,6 @@ func SeedPromotionLadder(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, re
 	if recorded.IsZero() {
 		return promotionladder.Summary{}, fmt.Errorf("demoworkforce: seed the promotion ladder: recorded_at is required")
 	}
-	return promotionladder.Seed(ctx, tx, tenant, PromotionLadderEdges(),
+	return promotionladder.Seed(ctx, tx, tenant, p.PromotionLadderEdges(),
 		CatalogEffectiveFrom, JobArchitectureKnownFrom, recorded)
 }

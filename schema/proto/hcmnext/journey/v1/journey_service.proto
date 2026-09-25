@@ -462,6 +462,12 @@ message Journey {
   // than re-deriving them from stage. It is unset only on a response the
   // engine did not resolve for a viewer.
   JourneyViewerProjection viewer = 21;
+  // current_pay_basis and proposed_pay_basis are the bases current_base and
+  // proposed_base are expressed in -- ANNUAL_SALARY or HOURLY_RATE -- so an
+  // hourly rate reads "$28.00/hr" rather than as a salary. Empty is
+  // ANNUAL_SALARY.
+  string current_pay_basis = 22;
+  string proposed_pay_basis = 23;
 }
 
 // JourneyViewerProjection is one journey as it stands for the calling viewer
@@ -1461,6 +1467,16 @@ message PromotionPathOption {
   string maximum_base_increase = 12;
   string compensation_policy_ref = 13;
   repeated string benefit_rule_refs = 14;
+  // target_pay_basis is the pay basis the target job is paid on --
+  // ANNUAL_SALARY or HOURLY_RATE -- so a proposal names its base in the
+  // target's own unit ("per hour" for an hourly craft role). Empty is
+  // ANNUAL_SALARY, which is what every edge meant before hourly jobs existed.
+  string target_pay_basis = 15;
+  // annualization_hours is the scheduled hours a year an hourly rate is
+  // annualized over when the source and target are paid on different bases
+  // (a foreman's rate becoming a superintendent's salary). Zero when both
+  // ends share a basis.
+  int32 annualization_hours = 16;
 }
 
 message ListWorkersRequest {}

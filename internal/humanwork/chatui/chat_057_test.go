@@ -141,20 +141,22 @@ func TestTodo_CHAT_057_Accessibility(t *testing.T) {
 	}}
 	markup := render(t, localized)
 	for _, want := range []string{
-		`aria-label="Les GIF nécessitent une clé administrateur"`, "Les GIF nécessitent une clé administrateur",
 		`data-loading="Chargement des GIF"`,
 		`data-load-error="Erreur de chargement des GIF"`,
 		`data-no-results="Aucun GIF trouvé"`,
 		`data-close="Fermer les GIF"`,
-		`role="dialog"`, `role="status"`,
+		`role="dialog"`,
 		`Rechercher des GIF`, `Powered by GIPHY`, `maxLength="50"`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("GIPHY picker accessibility markup is missing %q", want)
 		}
 	}
-	if !strings.Contains(markup, `data-action="giphy-toggle"`) || !strings.Contains(markup, "disabled") {
-		t.Fatal("an unconfigured picker's trigger must be disabled, not silently broken")
+	// Round 3 C-6: an unconfigured picker has no trigger at all -- a
+	// permanently disabled "GIF" in every composer read as broken. The
+	// localized no-key explanation is what "/giphy" answers with instead.
+	if strings.Contains(markup, `data-action="giphy-toggle"`) {
+		t.Fatal("an unconfigured picker must not render a trigger")
 	}
 
 	configured := Model{State: StateReady, SelectedID: "room", GiphyAPIKey: "public-key", Conversations: []Conversation{{ID: "room", Name: "People"}}}

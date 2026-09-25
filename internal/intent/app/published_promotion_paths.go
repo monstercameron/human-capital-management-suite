@@ -83,9 +83,33 @@ func publishedPromotionPathsFrom(edges []demoworkforce.PromotionPathEdge) ([]pub
 			// option left the form saying "no exact range is available"
 			// while the gate refused amounts outside a range it knew.
 			MinimumBaseIncrease: edge.MinimumBaseIncrease, MaximumBaseIncrease: edge.MaximumBaseIncrease,
+			TargetPayBasis: edgeTargetPayBasis(edge), AnnualizationHours: edgeAnnualizationHours(edge),
 		}})
 	}
 	return out, nil
+}
+
+// edgeTargetPayBasis is the pay basis the edge's target job is paid on. An
+// edge whose company pays the target by the hour says so; every other edge
+// (every HarborCare edge, every corpus path) leaves it empty, which means
+// ANNUAL_SALARY, so their published options are unchanged.
+func edgeTargetPayBasis(edge demoworkforce.PromotionPathEdge) string {
+	pack, ok := demoworkforce.PackForJob(edge.TargetJobCode)
+	if !ok || !pack.IsHourlyJob(edge.TargetJobCode) {
+		return ""
+	}
+	return demoworkforce.PayBasisHourly
+}
+
+// edgeAnnualizationHours is the company's standard hours when the edge
+// crosses pay bases (an hourly foreman to a salaried superintendent), and
+// zero when both ends share one.
+func edgeAnnualizationHours(edge demoworkforce.PromotionPathEdge) int32 {
+	pack, ok := demoworkforce.PackForJob(edge.SourceJobCode)
+	if !ok || pack.IsHourlyJob(edge.SourceJobCode) == pack.IsHourlyJob(edge.TargetJobCode) {
+		return 0
+	}
+	return int32(pack.StandardHours())
 }
 
 // matches reports whether the edge leads from current's job and grade to the

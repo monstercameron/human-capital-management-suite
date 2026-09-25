@@ -228,7 +228,7 @@ func TestTodo_PM_019_Migration08RestrictedOwnerAndImmutableActivity(t *testing.T
 	if err != nil || !more || len(entries) != 1 || entries[0].Kind != "COMMENT_CREATED" || entries[0].Sequence != 1 {
 		t.Fatalf("first legacy page was not deterministically ranked: %#v more=%v err=%v", entries, more, err)
 	}
-	entries, last, _, more, err = store.TimelinePage(ctx, "tenant-a", "project-a", "task-a", last, ceiling, 1)
+	entries, _, _, more, err = store.TimelinePage(ctx, "tenant-a", "project-a", "task-a", last, ceiling, 1)
 	if err != nil || more || len(entries) != 1 || entries[0].Kind != "task.created" || entries[0].Sequence != 2 {
 		t.Fatalf("second legacy page was not deterministic: %#v more=%v err=%v", entries, more, err)
 	}

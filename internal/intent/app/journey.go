@@ -826,9 +826,44 @@ func validatePublishedPromotionPathFrom(
 		if err != nil {
 			return fmt.Errorf("app: journey: invalid demo ladder maximum: %w", err)
 		}
-		return validatePublishedBaseIncrease(in.ProposedBase, baseline, minimum, maximum)
+		comparable, err := baselineInTargetBasis(baseline, edge)
+		if err != nil {
+			return err
+		}
+		return validatePublishedBaseIncrease(in.ProposedBase, comparable, minimum, maximum)
 	}
 	return journeyInputError("target_job_code", "the target job and grade are not a published next step from the worker's current profile")
+}
+
+// baselineInTargetBasis expresses the worker's current base in the unit the
+// target job is paid in, so the ladder's increase bounds compare like with
+// like. An edge whose ends share a basis is returned unchanged -- a
+// journeyman's $34.50 an hour against a foreman's hourly rate, a salary
+// against a salary. An edge that crosses bases (an hourly foreman to a
+// salaried superintendent) annualizes the rate over the company's standard
+// hours, or turns a salary into its hourly equivalent, rounded half-even to
+// the cent the ladder bounds are computed in.
+func baselineInTargetBasis(baseline journeyBaselineFacts, edge demoworkforce.PromotionPathEdge) (journeyBaselineFacts, error) {
+	hours := edgeAnnualizationHours(edge)
+	if hours == 0 {
+		return baseline, nil
+	}
+	current, err := values.NewDecimal(baseline.currentBase, fixtures.MoneyScale, fixtures.MoneyRounding)
+	if err != nil {
+		return journeyBaselineFacts{}, fmt.Errorf("app: journey: parse current base for annualization: %w", err)
+	}
+	factor := values.MustDecimal(strconv.Itoa(int(hours)), 0, values.RoundingExactRequired)
+	var converted values.Decimal
+	if edgeTargetPayBasis(edge) == demoworkforce.PayBasisHourly {
+		converted, err = current.Div(factor, fixtures.MoneyScale, values.RoundingHalfEven)
+	} else {
+		converted, err = current.Mul(factor, fixtures.MoneyScale, values.RoundingExactRequired)
+	}
+	if err != nil {
+		return journeyBaselineFacts{}, fmt.Errorf("app: journey: annualize the current base: %w", err)
+	}
+	baseline.currentBase = converted.String()
+	return baseline, nil
 }
 
 // validatePublishedBaseIncrease compares exact decimal money differences with
@@ -1052,11 +1087,11 @@ func journeyRequestPayload(
 		stream = promotionRevisionStream(workerKey)
 		sequence = promotionRevisionSequence
 	}
-	side := func(base string) map[string]any {
+	side := func(base, jobCode string) map[string]any {
 		return map[string]any{
 			"base":              base,
 			"currency":          baseline.currency,
-			"pay_basis":         "ANNUAL_SALARY",
+			"pay_basis":         requestPayBasis(jobCode),
 			"bonus_target":      baseline.bonusTarget,
 			"effective_date":    baseline.effectiveText,
 			"revision_stream":   stream,
@@ -1093,8 +1128,8 @@ func journeyRequestPayload(
 			"position_id": strings.TrimSpace(in.TargetPositionID),
 			"pay_zone":    current.payZone,
 		},
-		"current":  side(baseline.currentBase),
-		"proposed": side(strings.TrimSpace(in.ProposedBase)),
+		"current":  side(baseline.currentBase, current.jobCode),
+		"proposed": side(strings.TrimSpace(in.ProposedBase), strings.TrimSpace(in.TargetJobCode)),
 		"budget": map[string]any{
 			"available_amount": baseline.budgetAvailabe,
 			"currency":         baseline.currency,
@@ -1262,6 +1297,8 @@ func journeySummaryFromProto(msg *intentsv1.IntentInstance) (workspace.JourneySu
 			summary.Currency = optionalStr(proposedPay, "currency")
 		}
 	}
+	summary.CurrentPayBasis = jobPayBasis(summary.Current.JobCode)
+	summary.ProposedPayBasis = jobPayBasis(summary.Target.JobCode)
 	if ts := msg.GetCreatedAt(); ts != nil {
 		summary.CreatedAt = ts.AsTime().UTC()
 	}
@@ -1270,4 +1307,27 @@ func journeySummaryFromProto(msg *intentsv1.IntentInstance) (workspace.JourneySu
 	}
 	summary.GovernanceVersion = msg.GetInstanceVersion()
 	return summary, nil
+}
+
+// requestPayBasis is the request payload's pay-basis token for an amount
+// paid on jobCode: HOURLY for a job its demo company pays by the hour, so the
+// governed simulation annualizes the rate before it compares it with a band
+// or a salary, and ANNUAL_SALARY for every other job, which is the token every
+// request carried before hourly jobs existed.
+func requestPayBasis(jobCode string) string {
+	if jobPayBasis(jobCode) == demoworkforce.PayBasisHourly {
+		return "HOURLY"
+	}
+	return "ANNUAL_SALARY"
+}
+
+// jobPayBasis is HOURLY_RATE for a job its demo company pays by the hour and
+// empty (ANNUAL_SALARY) for every other job, so a salaried journey's summary
+// is unchanged.
+func jobPayBasis(jobCode string) string {
+	pack, ok := demoworkforce.PackForJob(jobCode)
+	if !ok || !pack.IsHourlyJob(jobCode) {
+		return ""
+	}
+	return demoworkforce.PayBasisHourly
 }

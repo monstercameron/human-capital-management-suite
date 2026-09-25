@@ -125,6 +125,20 @@ func TestOracleStrengthRejectsExecutionOnlyAssertions(t *testing.T) {
 	}
 }
 
+func TestOracleStrengthRejectsMissingGreenOracle(t *testing.T) {
+	fixture := "- [ ] `MissingGreen` **[P0][LUNA] Fixture.**\n" +
+		"  - **TEST:** `TestMissingGreen`.\n" +
+		"  - **RED:** replay of the seeded duplicate settlement returns typed ErrDuplicateSettlement.\n" +
+		"  - **REFACTOR:** preserves the oracle.\n"
+	findings, err := CheckMarkdown(fixture, "fixture.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasReason(findings, "GREEN oracle is missing") {
+		t.Fatalf("todo without a GREEN oracle accepted: %+v", findings)
+	}
+}
+
 func TestTodo_GOV_021_Property(t *testing.T) {
 	strongRed := "replay of the seeded duplicate settlement returns typed ErrDuplicateSettlement"
 	strongGreen := "returns the exact typed ErrDuplicateSettlement, persists exactly one ledger row and emits zero outbox events"

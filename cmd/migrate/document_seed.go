@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
@@ -593,6 +594,15 @@ type documentSeedOptions struct {
 	// Chat, when set, lets the showcase link seeded chat rooms and post
 	// messages that link back to the documents.
 	Chat *chatstore.Store
+	// Routes is the core route directory the chat seeder registers each
+	// seeded room in (chatroutestore.New in main.go). The showcase chat
+	// posts write into those same rooms and need the same route write
+	// lease the chat seeder's own writes use (chatSeedWriteLeaseContext in
+	// chat_seed.go), or chatstore's routeFence refuses them with
+	// ErrNoRouteLease now that a live tenant's rooms carry a non-empty
+	// route_shard. Nil when Chat is nil or chat routing is not wired; such
+	// rooms stay unrouted and the showcase posts write unleased, as before.
+	Routes chatrouting.Directory
 	// MediaRoot is where showcase asset bytes are written.
 	MediaRoot string
 }

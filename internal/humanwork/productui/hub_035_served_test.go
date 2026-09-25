@@ -117,7 +117,7 @@ func TestTodo_HUB_035(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(empty, "No other document you can read links here yet.") {
+	if !strings.Contains(empty, "No documents link here yet.") {
 		t.Fatalf("empty authorized backlink set did not render the empty state:\n%s", empty)
 	}
 	if strings.Contains(empty, "doc-1") || strings.Contains(empty, "Handbook") {

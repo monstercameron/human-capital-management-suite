@@ -15,17 +15,14 @@ func appearancePage(view View) ui.Node {
 		}
 		previewPages = append(previewPages, AppearancePreviewPage{ID: page, Label: view.Locale.Text(definition.LabelKey)})
 	}
-	var approved []BrandAssetOption
-	if view.Tenant == "Harborcare Demo" || view.Tenant == "harborcare-demo" {
-		approved = []BrandAssetOption{{Label: view.Locale.Text("appearance.use_sample_logo"), URL: "/workspace/assets/harborcare-logo.svg"}}
-	}
 	return ui.CreateElement(AppearancePage, AppearancePageProps{
 		I18nProps: I18nProps{Locale: view.Locale},
-		Theme:     view.Appearance, ColorModes: localizedColorModeOptions(view.Locale), Palettes: PaletteOptions(), Shapes: ShapeOptions(),
+		Theme:     view.Appearance, PublishedTheme: view.Appearance, ColorModes: localizedColorModeOptions(view.Locale), Palettes: PaletteOptions(), Shapes: ShapeOptions(),
 		Densities: DensityOptions(), Glyphs: GlyphOptions(), Typefaces: TypefaceOptions(),
 		Navigation: NavigationOptions(), Motions: MotionOptions(),
-		Editable: editable, OnPreview: view.PreviewTheme, OnSave: view.SaveTheme, OnReset: view.ResetTheme,
-		PreviewPages: previewPages, PreviewTenant: view.Tenant, ApprovedLogos: approved,
+		Editable: editable, OnPreview: view.PreviewTheme, OnSave: view.SaveTheme, OnReset: view.ResetTheme, OnUploadBrandAsset: view.UploadBrandAsset,
+		OnLoadBrandAssets: view.LoadBrandAssets, OnRemoveBrandAsset: view.RemoveBrandAsset, OnRollbackBrandAsset: view.RollbackBrandAsset, OnPreviewBrandAsset: view.PreviewBrandAsset,
+		PreviewPages: previewPages, PreviewTenant: view.Tenant,
 		RenderPreview: func(page PageID) ui.Node {
 			if !view.Allows(page, "view") {
 				return unavailablePanel(view.Locale.Text("shell.page_unavailable"), view.Locale.Text("shell.page_recovery"))

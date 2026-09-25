@@ -47,3 +47,66 @@ func TestValidChatNavigationState(t *testing.T) {
 		})
 	}
 }
+
+// TestChatChannelFragmentRoundTrip is NAV-01's pure URL<->state mapping for
+// the chat "#channel=" fragment: a uniquely named channel is written by its
+// readable name and read back to its id; every other room keeps its id; an id
+// fragment (older history entries, pasted links) still resolves.
+func TestChatChannelFragmentRoundTrip(t *testing.T) {
+	rooms := []chatui.Conversation{
+		{ID: "id-announcements", Name: "announcements", Kind: chatui.PublicChannel, Joined: true},
+		{ID: "id-benefits", Name: "benefits", Kind: chatui.PublicChannel, Joined: true},
+		{ID: "id-payroll", Name: "payroll-close", Kind: chatui.PrivateChannel, Joined: true},
+		{ID: "id-dm", Name: "Ana Lopez", Kind: chatui.DirectMessage, Joined: true},
+		{ID: "id-group", Name: "Q4 hiring huddle", Kind: chatui.GroupChat, Joined: true},
+		{ID: "id-dup-1", Name: "ops", Kind: chatui.PublicChannel, Joined: true},
+		{ID: "id-dup-2", Name: "OPS", Kind: chatui.PrivateChannel, Joined: true},
+		{ID: "id-blank", Name: " ", Kind: chatui.PublicChannel, Joined: true},
+		{ID: "id-shadow", Name: "id-benefits", Kind: chatui.PublicChannel, Joined: true},
+	}
+	for _, test := range []struct {
+		name, id, want string
+	}{
+		{name: "public channel by name", id: "id-announcements", want: "announcements"},
+		{name: "private channel by name", id: "id-payroll", want: "payroll-close"},
+		{name: "direct message keeps id", id: "id-dm", want: "id-dm"},
+		{name: "group keeps id", id: "id-group", want: "id-group"},
+		{name: "ambiguous name keeps id", id: "id-dup-1", want: "id-dup-1"},
+		{name: "blank name keeps id", id: "id-blank", want: "id-blank"},
+		{name: "name equal to another room id keeps id", id: "id-shadow", want: "id-shadow"},
+		{name: "unlisted room keeps id", id: "id-elsewhere", want: "id-elsewhere"},
+		{name: "no room", id: "", want: ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got := chatChannelFragmentValue(rooms, test.id)
+			if got != test.want {
+				t.Fatalf("chatChannelFragmentValue(%q) = %q, want %q", test.id, got, test.want)
+			}
+			if test.id == "" {
+				return
+			}
+			back, _ := resolveChatChannelFragment(rooms, got)
+			if back != test.id {
+				t.Fatalf("resolveChatChannelFragment(%q) = %q, want round trip to %q", got, back, test.id)
+			}
+		})
+	}
+	for _, test := range []struct {
+		name, value, want string
+		ok                bool
+	}{
+		{name: "legacy id form", value: "id-benefits", want: "id-benefits", ok: true},
+		{name: "name is case-insensitive", value: "Benefits", want: "id-benefits", ok: true},
+		{name: "ambiguous name is unresolved", value: "ops", want: "ops"},
+		{name: "direct message name is not a channel", value: "Ana Lopez", want: "Ana Lopez"},
+		{name: "unknown value passes through as an id", value: "some-uuid", want: "some-uuid"},
+		{name: "empty", value: "", want: ""},
+	} {
+		t.Run("resolve "+test.name, func(t *testing.T) {
+			got, ok := resolveChatChannelFragment(rooms, test.value)
+			if got != test.want || ok != test.ok {
+				t.Fatalf("resolveChatChannelFragment(%q) = %q/%v, want %q/%v", test.value, got, ok, test.want, test.ok)
+			}
+		})
+	}
+}

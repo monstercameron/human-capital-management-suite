@@ -113,7 +113,9 @@ func chatReferenceMessages(refs ChatReferences, out *documentv1.GetDocumentRespo
 	}
 	for _, m := range refs.Messages {
 		if !m.Readable {
-			out.Messages = append(out.Messages, &documentv1.DocumentMessageReference{Token: m.Token})
+			// A deleted message still names its channel (DOCS-08); an
+			// inaccessible or unresolvable one carries only its token.
+			out.Messages = append(out.Messages, &documentv1.DocumentMessageReference{Token: m.Token, ConversationId: m.ConversationID, ChannelName: m.ChannelName})
 			continue
 		}
 		msg := &documentv1.DocumentMessageReference{Token: m.Token, Readable: true, ConversationId: m.ConversationID, ChannelName: m.ChannelName, PostId: m.PostID, AuthorId: m.AuthorID, AuthorName: m.AuthorName, Body: m.Body}

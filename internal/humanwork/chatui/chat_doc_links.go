@@ -116,15 +116,25 @@ func docLinkReferenceBody(m Model, body string) []ui.Node {
 		if ref.Start > last {
 			nodes = append(nodes, channelReferenceBody(m, body[last:ref.Start])...)
 		}
-		label := "doc:" + ref.ID
-		if preview, ok := m.DocPreviews[ref.ID]; ok && preview.State == "ready" {
-			if preview.Readable {
+		// C-3: a pending preview must not show the raw address ("doc:<id>")
+		// as the link text -- that is an implementation detail, not a title.
+		// C-1 (r4): while the read is in flight the link is the plain noun
+		// ("document") behind the document glyph. "Opening document…" read as
+		// navigation already under way; "Linked document" is the card's
+		// eyebrow, and as link text it told the reader nothing. A failed read
+		// falls back to it.
+		label := m.t(KeyDocLinkPending)
+		if preview, ok := m.DocPreviews[ref.ID]; ok {
+			switch {
+			case preview.State == "ready" && preview.Readable && preview.Title != "":
 				label = preview.Title
-			} else {
+			case preview.State == "ready":
 				label = m.t(KeyDocRestricted)
+			case preview.State == "unavailable":
+				label = m.t(KeyDocEmbedTitle)
 			}
 		}
-		nodes = append(nodes, html.A(html.Props{Class: "chat-doc-reference", Href: DocReferenceURL(ref.ID), Data: map[string]string{"action": "open-doc-reference", "id": ref.ID}, Aria: map[string]string{"label": m.tf(KeyOpenDocument, map[string]string{"title": label})}}, ui.Text(label)))
+		nodes = append(nodes, html.A(html.Props{Class: "chat-doc-reference", Href: DocReferenceURL(ref.ID), Data: map[string]string{"action": "open-doc-reference", "id": ref.ID}, Aria: map[string]string{"label": m.tf(KeyOpenDocument, map[string]string{"title": label})}}, icon("document"), ui.Text(label)))
 		last = ref.End
 	}
 	if last < len(body) {
@@ -159,6 +169,39 @@ func docPreviewEmbeds(m Model, body string) []ui.Node {
 	return out
 }
 
+// resolveDocTokensForSnippet replaces every doc:<id> token in body with its
+// resolved title, or a neutral label while unresolved, before the body is
+// snippeted and highlighted for a search result (CROSS-01). Search results
+// render bare text (searchSnippet/highlightText), not the ui.Node tree
+// docLinkReferenceBody builds for the timeline, so the address itself must
+// never be what a reader sees.
+func resolveDocTokensForSnippet(m Model, body string) string {
+	refs := DocReferences(body, m.EmbedOrigin)
+	if len(refs) == 0 {
+		return body
+	}
+	var out strings.Builder
+	last := 0
+	for _, ref := range refs {
+		if ref.Start < last {
+			continue
+		}
+		out.WriteString(body[last:ref.Start])
+		label := m.t(KeyDocEmbedTitle)
+		if preview, ok := m.DocPreviews[ref.ID]; ok && preview.State == "ready" {
+			if preview.Readable && preview.Title != "" {
+				label = preview.Title
+			} else if !preview.Readable {
+				label = m.t(KeyDocRestricted)
+			}
+		}
+		out.WriteString(label)
+		last = ref.End
+	}
+	out.WriteString(body[last:])
+	return out.String()
+}
+
 func docPreviewCard(m Model, preview DocPreview) ui.Node {
 	content := []ui.Node{html.Span(html.Props{Class: "chat-embed-label", Text: m.t(KeyDocEmbedTitle)})}
 	switch preview.State {
@@ -179,9 +222,21 @@ func docPreviewCard(m Model, preview DocPreview) ui.Node {
 			content = append(content, html.P(html.Props{Class: "chat-embed-body", Dir: "auto", Text: preview.Snippet}))
 		}
 	case "unavailable":
-		content = append(content, html.Span(html.Props{Text: m.t(KeyEmbedUnavailable)}))
+		// A document card never borrows the forwarded-message copy
+		// ("Message preview unavailable").
+		content = append(content, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: m.t(KeyDocRestricted)}))
 	default:
-		content = append(content, html.Span(html.Props{Text: m.t(KeyEmbedLoading)}))
+		// C-1 (r4): an unresolved card is a skeleton -- a title bar and a
+		// shorter byline bar in the ready card's own rows -- so the layout
+		// does not jump when the read lands and a slow read does not look
+		// like a stalled one. The loading copy stays for assistive
+		// technology only (C-3: its own copy, never the forwarded-message
+		// embed's).
+		content = append(content,
+			html.Span(html.Props{Class: "chat-doc-skeleton chat-doc-skeleton-title", Aria: map[string]string{"hidden": "true"}}),
+			html.Span(html.Props{Class: "chat-doc-skeleton chat-doc-skeleton-byline", Aria: map[string]string{"hidden": "true"}}),
+			html.Span(html.Props{Class: "sr-only", Text: m.t(KeyDocEmbedLoading)}))
+		return html.Div(html.Props{Class: "chat-embed chat-doc-embed is-loading", Data: map[string]string{"embed-state": preview.State}, Aria: map[string]string{"busy": "true"}}, content...)
 	}
 	if preview.State == "ready" && preview.Readable {
 		return html.A(html.Props{Class: "chat-embed chat-embed-link chat-doc-embed", Href: DocReferenceURL(preview.ID), Data: map[string]string{"action": "open-doc-reference", "id": preview.ID}}, content...)

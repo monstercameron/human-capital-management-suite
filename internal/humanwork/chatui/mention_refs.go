@@ -47,7 +47,7 @@ func mentionIndex(m Model) []mentionTarget {
 // reference renderer. A name nobody resolves stays plain text.
 func mentionReferenceBody(m Model, body string) []ui.Node {
 	if !strings.Contains(body, "@") {
-		return docLinkReferenceBody(m, body)
+		return journeyReferenceBody(m, body)
 	}
 	index := m.mentions
 	if !m.mentionsReady {
@@ -74,7 +74,7 @@ func mentionReferenceBody(m Model, body string) []ui.Node {
 				continue
 			}
 			if i > last {
-				nodes = append(nodes, docLinkReferenceBody(m, body[last:i])...)
+				nodes = append(nodes, journeyReferenceBody(m, body[last:i])...)
 			}
 			nodes = append(nodes, mentionChip(m, target))
 			last = i + 1 + len(target.name)
@@ -83,7 +83,7 @@ func mentionReferenceBody(m Model, body string) []ui.Node {
 		}
 	}
 	if last < len(body) {
-		nodes = append(nodes, docLinkReferenceBody(m, body[last:])...)
+		nodes = append(nodes, journeyReferenceBody(m, body[last:])...)
 	}
 	return nodes
 }

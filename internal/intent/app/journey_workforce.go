@@ -427,7 +427,7 @@ func appendDemoWorkforcePlacements(options *workspace.WorkforceOptions, edges []
 	if len(edges) == 0 {
 		return
 	}
-	zones := demoworkforce.PayZones()
+	zones := ladderPayZones(edges)
 	jobCodes, grades := newStringSet(), newStringSet()
 	seenPlacement := map[string]bool{}
 	for _, edge := range edges {
@@ -918,3 +918,17 @@ func (e *journeyEngine) workforceInstant() time.Time { return e.now().UTC() }
 // into something the person on the form can act on.
 func isWorkforceDuplicate(err error) bool  { return errors.Is(err, workforce.ErrDuplicate) }
 func isWorkforceInvalidRow(err error) bool { return errors.Is(err, workforce.ErrInvalidRow) }
+
+// ladderPayZones is the pay zones of the demo company whose ladder edges
+// is: the company that publishes the edges' source jobs. Job codes are
+// distinct across the shipped companies, so a ladder names exactly one; a
+// ladder no company recognises keeps HarborCare's zones, which is what every
+// caller published before a second company existed.
+func ladderPayZones(edges []demoworkforce.PromotionPathEdge) []string {
+	for _, edge := range edges {
+		if pack, ok := demoworkforce.PackForJob(edge.SourceJobCode); ok {
+			return pack.PayZones()
+		}
+	}
+	return demoworkforce.PayZones()
+}

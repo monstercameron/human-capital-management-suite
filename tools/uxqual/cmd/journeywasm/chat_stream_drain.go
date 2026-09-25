@@ -38,7 +38,7 @@ func chatStreamApplyAccessLoss(model *chatui.Model, conversationID, tenant, subj
 	model.ShowThread, model.ShowPerson, model.ShowDetails = false, false, false
 	model.PersonDetails = nil
 	model.SearchChannels, model.SearchPeople, model.SearchMessages = nil, nil, nil
-	model.DocPreviews, model.Embeds = nil, nil
+	model.DocPreviews, model.ProjectTaskPreviews, model.Embeds = nil, nil, nil
 	model.EditDrafts = nil
 	return true
 }

@@ -1,5 +1,5 @@
 {
-  "ReleaseDigest": "37c01593a1f8b959ba952f876cde1c776d88eca4b83aae85864e4087e18e7813",
+  "ReleaseDigest": "1366ec055c2c863c2d8a310f98b4f68d4ff4acf35aeabfb98c030a57adad7ec4",
   "Entries": [
     {
       "Version": 1,
@@ -1680,6 +1680,14 @@
       "Compatibility": "UNREVIEWED",
       "Direction": "UP",
       "Requires": [362]
+    },
+    {
+      "Version": 364,
+      "Name": "00364_brand_asset_library",
+      "Checksum": "025a5d376ab751640e217b26d7bf5d6f794e4e93b0e2ecade7475e759237b03c",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [363]
     }
   ],
   "Phases": ["EXPAND", "BACKFILL", "SHADOW", "CUTOVER", "CONTRACT"],

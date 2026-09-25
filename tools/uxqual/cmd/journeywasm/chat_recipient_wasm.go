@@ -19,6 +19,26 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// pendingSidebarRetry, when set, is what the notice's Try again control runs
+// next (CHAT-02): a sidebar-save failure needs its own write retried, not
+// the unrelated stream resubscribe the shared Retry callback otherwise does.
+var pendingSidebarRetryMu sync.Mutex
+var pendingSidebarRetryFn func()
+
+func setPendingSidebarRetry(fn func()) {
+	pendingSidebarRetryMu.Lock()
+	pendingSidebarRetryFn = fn
+	pendingSidebarRetryMu.Unlock()
+}
+
+func takePendingSidebarRetry() func() {
+	pendingSidebarRetryMu.Lock()
+	fn := pendingSidebarRetryFn
+	pendingSidebarRetryFn = nil
+	pendingSidebarRetryMu.Unlock()
+	return fn
+}
+
 type recipientChatRef struct {
 	HostTenantID   string `json:"hostTenantId"`
 	ConversationID string `json:"conversationId"`
@@ -704,6 +724,56 @@ func ensureRecipientSections(model *chatui.Model) {
 	if !direct {
 		model.Sections = append(model.Sections, chatui.SidebarSection{ID: "direct", Name: "Direct messages"})
 	}
+	adoptOrphanedSectionConversations(model)
+}
+
+// adoptOrphanedSectionConversations places every joined conversation that
+// exists in model.Conversations but appears in no section's Chats into its
+// default section by kind (CHAT-02). A freshly created channel, a self-join
+// from Browse, and a new DM all only ever appended to model.Conversations;
+// the rail renders from model.Sections once any exist (see rail() in
+// chatui/render.go), and a PutSidebar write serializes each section's own
+// Chats, not model.Conversations -- so a conversation missing from every
+// section was invisible in the rail and never reached the sidebar write, no
+// matter how it was created. This runs at the one place every sidebar write
+// already funnels through, so it covers all three cases without new call
+// sites.
+func adoptOrphanedSectionConversations(model *chatui.Model) {
+	placed := make(map[string]bool, len(model.Conversations))
+	for _, section := range model.Sections {
+		for _, c := range section.Chats {
+			placed[c.ID] = true
+		}
+	}
+	channelsIdx, directIdx := -1, -1
+	for i, section := range model.Sections {
+		switch section.ID {
+		case "channels":
+			channelsIdx = i
+		case "direct":
+			directIdx = i
+		}
+	}
+	for _, c := range model.Conversations {
+		if c.ID == "" || placed[c.ID] || !c.Joined {
+			continue
+		}
+		placed[c.ID] = true
+		if c.Kind == chatui.DirectMessage || c.Kind == chatui.GroupChat {
+			if directIdx >= 0 {
+				model.Sections[directIdx].Chats = append(model.Sections[directIdx].Chats, c)
+				continue
+			}
+		} else if channelsIdx >= 0 {
+			model.Sections[channelsIdx].Chats = append(model.Sections[channelsIdx].Chats, c)
+			continue
+		}
+		// Neither default section exists (a custom-only layout): append to
+		// the first section rather than drop the conversation.
+		if len(model.Sections) > 0 {
+			model.Sections[0].Chats = append(model.Sections[0].Chats, c)
+		}
+	}
 }
 func changeRecipientPane(cfg journeyclient.Config, refresh func(), change func(*chatui.PaneSizes)) {
 	model := chatBrowser.mutate(func(model *chatui.Model) {
@@ -724,6 +794,44 @@ func changeRecipientPane(cfg journeyclient.Config, refresh func(), change func(*
 	refresh()
 	persistChatRecipientSidebar(cfg, model)
 }
+
+// chatSidebarReadyPoll and chatSidebarReadyTimeout bound
+// awaitChatSidebarReadWriteReady. A var, not a const, so a test can shrink
+// the poll interval rather than wait out the real one.
+var chatSidebarReadyPoll = 50 * time.Millisecond
+var chatSidebarReadyTimeout = 2 * time.Second
+
+// awaitChatSidebarReadWriteReady blocks the first sidebar write of a session
+// until the two reads CHAT-02 found racing it have both landed: the
+// conversation list (chatBrowser reaching StateReady) and the recipient
+// projection's own GetSidebar read, which is what sets
+// chatRecipientBrowser.sidebarRevision away from its zero value. A write
+// that went out before that read landed used the wrong expected revision --
+// a PutSidebar the server correctly refused, which the reader saw once, on
+// load, as "we couldn't save your sidebar" for no visible reason, self-
+// healing the moment any later action (switching channels) retried it after
+// the read had caught up.
+//
+// Bounded, not indefinite: a session whose recipient projection legitimately
+// never starts (no client wired, or the caller is a unit test) must not wedge
+// every later save behind a wait that can never resolve. Every write after
+// the first passes the check immediately, so this costs nothing once ready.
+func awaitChatSidebarReadWriteReady() {
+	deadline := time.Now().Add(chatSidebarReadyTimeout)
+	for {
+		chatRecipientBrowser.Lock()
+		recipientRead := !chatRecipientBrowser.loadedAt.IsZero() || chatRecipientBrowser.client == nil
+		chatRecipientBrowser.Unlock()
+		if chatBrowser.snapshot().State == chatui.StateReady && recipientRead {
+			return
+		}
+		if time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(chatSidebarReadyPoll)
+	}
+}
+
 func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, draftOnly ...bool) {
 	cfg = chatBrowser.config(cfg)
 	chatRecipientBrowser.Lock()
@@ -732,6 +840,10 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 	go func() {
 		chatRecipientBrowser.sidebarWrite.Lock()
 		defer chatRecipientBrowser.sidebarWrite.Unlock()
+		// CHAT-02: the first write of a session must not race the two reads
+		// that decide what it should contain -- see
+		// awaitChatSidebarReadWriteReady.
+		awaitChatSidebarReadWriteReady()
 		// Queued writers read the newest model only after taking the write lock.
 		// A shallow model captured by an older callback must never write last.
 		model = chatBrowser.snapshot()
@@ -770,6 +882,7 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 				layout.Starred = append(layout.Starred, c.ID)
 			}
 		}
+		inSection := make(map[string]bool, len(model.Sections))
 		for _, section := range model.Sections {
 			x := recipientSection{ID: section.ID, Name: section.Name, Collapsed: section.Collapsed}
 			for _, c := range section.Chats {
@@ -778,12 +891,30 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 					host = cfg.Tenant
 				}
 				x.Chats = append(x.Chats, recipientChatRef{HostTenantID: host, ConversationID: c.ID})
+				inSection[c.ID] = true
 			}
 			layout.Sections = append(layout.Sections, x)
 		}
+		// CHAT-02: a draft for a room no section can find (adoption raced,
+		// or the room was left/removed since the draft was typed) is a
+		// conversation the write's own Sections list would not admit either
+		// -- writing it anyway is what produced a sidebar the server had to
+		// refuse.
+		for id := range layout.Drafts {
+			if !inSection[id] {
+				delete(layout.Drafts, id)
+			}
+		}
 		reportWriteError := func(err error) {
 			if recipientGenerationActive(generation) {
-				recipientActionError("save your sidebar", err)
+				// CHAT-02: this is a background sidebar write, not the
+				// creation/join/DM action that triggered it -- that action
+				// already reported its own success. Wording it as "sidebar"
+				// rather than repeating the action keeps a save failure from
+				// reading as if the channel itself failed, and Try again
+				// retries the save specifically.
+				setPendingSidebarRetry(func() { persistChatRecipientSidebar(cfg, chatBrowser.snapshot(), draftOnly...) })
+				noteChatActionWithRetry(actionFailureNotice("save your sidebar", err))
 				invalidateChatRecipientProjection()
 			}
 		}
@@ -851,6 +982,7 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 		if !recipientGenerationActive(generation) {
 			return
 		}
+		takePendingSidebarRetry()
 		chatBrowser.markDraftsPersisted(draftRevision, cfg, draftEpoch)
 		chatRecipientBrowser.Lock()
 		if generation != chatRecipientBrowser.generation {

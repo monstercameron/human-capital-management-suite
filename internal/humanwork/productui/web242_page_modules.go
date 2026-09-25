@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/projectui"
 )
 
 // PageRenderer renders an already-authorized page projection. Modules hold a
@@ -69,6 +70,8 @@ const (
 	RouteProfileWorkflow        RouteProfile = "workflow_designer"
 	RouteProfileDocs            RouteProfile = "docs"
 	RouteProfilePosition        RouteProfile = "position"
+	RouteProfileProjects        RouteProfile = "projects"
+	RouteProfileProject         RouteProfile = "project"
 )
 
 // DataProfile identifies a reusable authorized dataset contract. It carries
@@ -116,6 +119,7 @@ type RouteStateProfile struct {
 	WorkflowDesigner      bool
 	Person                bool
 	Position              bool
+	Project               bool
 	// CarriesDirectoryQuery declares that this page adopts the People
 	// directory's remembered search (the stored table filter) when its own
 	// address names none, and that the adopted search is written back into
@@ -170,6 +174,9 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 	case RouteProfilePosition:
 		result.Position = true
 		result.QueryKeys = []string{"position_ref"}
+	case RouteProfileProject:
+		result.Project = true
+		result.QueryKeys = []string{"project", "task", "board_view", "cursor", "view", "lane", "filter", "q"}
 	case RouteProfileKnowledgeSearch:
 		result.QueryKeys = []string{"q"}
 	}
@@ -516,6 +523,24 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 	if spec.Position && strings.TrimSpace(view.PositionReference) != "" {
 		values.Set("position_ref", strings.TrimSpace(view.PositionReference))
 	}
+	// Shell links on a project board (the navigation toggle, the locale
+	// switch) must keep the board's selectors; without them the address
+	// named no project and the board failed as a malformed route.
+	if spec.Project && projectRouteID.MatchString(view.ProjectID) {
+		values.Set("project", view.ProjectID)
+		if projectRouteID.MatchString(view.ProjectBoardViewID) {
+			values.Set("board_view", view.ProjectBoardViewID)
+		}
+		if projectRouteID.MatchString(view.ProjectTaskID) {
+			values.Set("task", view.ProjectTaskID)
+		}
+		if view.ProjectCursor != "" {
+			values.Set("cursor", view.ProjectCursor)
+		}
+		if view.ProjectBoard != nil && view.ProjectBoard.Mode != "" && view.ProjectBoard.Mode != projectui.ViewBoard {
+			values.Set("view", string(view.ProjectBoard.Mode))
+		}
+	}
 }
 
 // IdentityMatches reports whether warm content can remain visible while this
@@ -587,6 +612,10 @@ type PageModule struct {
 
 func routeProfileFor(route string) RouteProfile {
 	switch route {
+	case "/workspace/app/projects":
+		return RouteProfileProjects
+	case "/workspace/app/project":
+		return RouteProfileProject
 	case "/workspace/app/home":
 		return RouteProfileHome
 	case "/workspace/app/insights":
@@ -830,7 +859,8 @@ func validRouteProfile(profile RouteProfile) bool {
 	case RouteProfileWorkspace, RouteProfileNested, RouteProfileSupport, RouteProfileKnowledgeSearch, RouteProfileAdmin, RouteProfilePublic,
 		RouteProfileHome, RouteProfileInsights, RouteProfileMyself, RouteProfileJourneys, RouteProfileWork,
 		RouteProfileHistory, RouteProfilePeople, RouteProfilePerson, RouteProfileOrganization, RouteProfileOrgOutline,
-		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow, RouteProfileDocs, RouteProfilePosition:
+		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow, RouteProfileDocs, RouteProfilePosition,
+		RouteProfileProjects, RouteProfileProject:
 		return true
 	default:
 		return false

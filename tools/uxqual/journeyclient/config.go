@@ -63,6 +63,10 @@ type Config struct {
 	Tenant  string   `json:"tenant"`
 	Subject string   `json:"subject"`
 	Roles   []string `json:"roles"`
+	// TenantName and TenantLogo are the signed-in company's display name and
+	// logo path, present only when the server serves several demo companies.
+	TenantName string `json:"tenant_name,omitempty"`
+	TenantLogo string `json:"tenant_logo,omitempty"`
 	// PagePermissions is the effective, server-derived union of the signed-in
 	// worker's durable role grants. It only controls browser discoverability
 	// and affordances; every mutation is authorized again by the service.

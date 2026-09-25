@@ -55,11 +55,18 @@ func TestDocsReader_DocumentTitleIsThePageHeading(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(listDoc, `class="page-head"`) {
-		t.Fatal("the library lost its page head")
+	// D-7: the library owns its own heading (one h1#page-title stating the
+	// current collection with its count), the same way the reader owns its
+	// document title, so the shell's generic "Documents" page-head no
+	// longer repeats it.
+	if strings.Contains(listDoc, `class="page-head"`) {
+		t.Fatal("the library repeats the shell's generic page head")
 	}
-	if !docsOwnsPageHeading(docsReaderTestView("en-US")) || docsOwnsPageHeading(list) {
-		t.Fatal("docsOwnsPageHeading does not follow the open document")
+	if !regexp.MustCompile(`<h1[^>]*id="page-title"`).MatchString(listDoc) {
+		t.Fatal("the library did not render its own h1#page-title")
+	}
+	if !docsOwnsPageHeading(docsReaderTestView("en-US")) || !docsOwnsPageHeading(list) {
+		t.Fatal("docsOwnsPageHeading does not cover both the reader and the library list")
 	}
 }
 

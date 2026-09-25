@@ -1405,7 +1405,9 @@ func detailView(p Page, v DetailView) ui.Node {
 	}
 	l := liveOf(p)
 	return html.Div(html.Props{Class: "jn-stack"},
-		detailNavigationLocale(p.Locale, v),
+		html.Div(html.Props{Class: "jn-detail-toolbar"},
+			detailNavigationLocale(p.Locale, v),
+			productui.ProjectJourneyActions(p.Locale, v.Journey.WorkerName)),
 		heroSectionLocale(p.Locale, v.Journey, v.Diagnostics),
 		blockedFindingBannerLocale(p.Locale, v),
 		actionsSection(l, v.Actions),

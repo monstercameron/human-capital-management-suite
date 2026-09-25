@@ -5,6 +5,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/organization"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/projectui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -20,6 +21,8 @@ const (
 	PageChat     PageID = "chat"
 	PageDocs     PageID = "docs"
 	PageWork     PageID = "work"
+	PageProjects PageID = "projects"
+	PageProject  PageID = "project"
 	// PageJourneyDiagnostics is not a navigable route: it names PROMOUX-008's
 	// authorized diagnostics disclosure (raw identifiers such as a journey's
 	// work-item id) within the Journeys and My Work pages. It shares its
@@ -507,12 +510,30 @@ type View struct {
 	Chat chatui.Model
 	// Documents contains only summaries authorized by the Knowledge service.
 	// The product renderer never discovers or grants access to documents.
-	Documents             []DocumentSummary
-	DocumentsReady        bool
-	DocumentQuery         string
-	DocumentCollection    string
-	DocumentPageToken     string
-	DocumentNextPageToken string
+	Documents []DocumentSummary
+	// Projects, ProjectBoard, and ProjectDetail are explicit service projections.
+	// State distinguishes loading from an authorized empty result; nil content
+	// never stands in for a synthetic board or project.
+	Projects                  []ProjectSummaryProjection
+	ProjectsState             ProjectProjectionState
+	ProjectCreateReady        bool
+	ProjectID                 string
+	ProjectTaskID             string
+	ProjectBoardViewID        string
+	ProjectCursor             string
+	ProjectBoard              *projectui.Model
+	ProjectBoardState         ProjectProjectionState
+	ProjectMovesReady         bool
+	ProjectTaskCreateReady    bool
+	ProjectBoardSettingsReady bool
+	ProjectDetailSelected     bool
+	ProjectDetail             *projectui.DetailModel
+	ProjectDetailState        ProjectProjectionState
+	DocumentsReady            bool
+	DocumentQuery             string
+	DocumentCollection        string
+	DocumentPageToken         string
+	DocumentNextPageToken     string
 	// DocumentFolder, DocumentSort and DocumentOwner narrow the list; they are
 	// the viewer's own organization and never widen access. DocumentPage
 	// and DocumentPerPage place the list; DocumentTotal is every match.
@@ -564,6 +585,16 @@ type View struct {
 	// CompareDocumentVersions reads one immutable version by ID for the
 	// version-compare flow (docs_compare.go, HUB-033); nil hides compare.
 	CompareDocumentVersions func(documentID, versionID string, done func(DocumentVersionProjection, error))
+	// ListDocumentVersions lists a document's versions for the compare
+	// dialog's From/To pickers (docs_compare.go, DOCS-01); nil falls the
+	// dialog back to comparing only the version currently open.
+	ListDocumentVersions func(documentID string, done func([]DocumentVersionSummary, error))
+	// WithdrawDocument and RestoreDocument are the recoverable-removal pair
+	// (docs_page.go/docs_library.go, DOCS-07); nil hides the Remove action.
+	// WithdrawDocument's callback carries the version that was live, for an
+	// Undo that calls RestoreDocument with it.
+	WithdrawDocument func(documentID string, done func(versionID string, err error))
+	RestoreDocument  func(documentID, versionID string, done func(error))
 	// LoadDocumentBacklinks reads the authorized inbound links to an open
 	// document (docs_backlinks.go, HUB-035); nil hides the backlinks panel.
 	LoadDocumentBacklinks func(documentID string, done func([]DocumentBacklink, error))
@@ -695,6 +726,11 @@ type View struct {
 	Accessibility                AccessibilityPreferences
 	PreviewTheme                 func(CustomerTheme)
 	SaveTheme                    func(CustomerTheme)
+	UploadBrandAsset             func(string, []byte, func(string, error))
+	LoadBrandAssets              func(int, func([]BrandAssetOption, int, error))
+	RemoveBrandAsset             func(int, func(error))
+	RollbackBrandAsset           func(int, int, func(string, error))
+	PreviewBrandAsset            func(string)
 	ResetTheme                   func()
 	SaveWorkerIDPolicy           func(WorkerIDPolicy)
 	SaveChatRetentionPolicy      func(ChatRetentionPolicy)

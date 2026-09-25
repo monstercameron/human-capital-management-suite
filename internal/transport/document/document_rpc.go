@@ -67,6 +67,9 @@ func NewHandler(deps Dependencies, opts ...connect.HandlerOption) http.Handler {
 	registerDocumentUnary(mux, opts, documentv1.DocumentService_AgentSearchDocuments_FullMethodName, s.AgentSearchDocuments)
 	registerDocumentUnary(mux, opts, documentv1.DocumentService_GetDocumentVersion_FullMethodName, s.GetDocumentVersion)
 	registerDocumentUnary(mux, opts, documentv1.DocumentService_GetDocumentBacklinks_FullMethodName, s.GetDocumentBacklinks)
+	registerDocumentUnary(mux, opts, documentv1.DocumentService_ListDocumentVersions_FullMethodName, s.ListDocumentVersions)
+	registerDocumentUnary(mux, opts, documentv1.DocumentService_WithdrawDocument_FullMethodName, s.WithdrawDocument)
+	registerDocumentUnary(mux, opts, documentv1.DocumentService_RestoreDocument_FullMethodName, s.RestoreDocument)
 	return mux
 }
 

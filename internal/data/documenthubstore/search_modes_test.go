@@ -291,6 +291,22 @@ func TestStripMarkdownAndSnippets(t *testing.T) {
 	if snippetAround("", 3) != "" {
 		t.Fatal("empty text snippet")
 	}
+	// C-5: the display text keeps block boundaries and drops the title
+	// heading and the metadata lead, while stripMarkdown (the comment
+	// anchor coordinate space) stays one run-on line.
+	doc := "# Lactation policy\n\n**Owner:** Rafael Torres, Director · **Last reviewed:** September 3, 2026\n\nWe support employees who need to express milk at work.\n\n## Scope\n\nThis policy applies to all\nemployees.\n\n- First step\n- Second step\n"
+	if got, want := snippetText("Lactation policy", doc), "We support employees who need to express milk at work. Scope. This policy applies to all employees. First step. Second step."; got != want {
+		t.Fatalf("snippetText = %q, want %q", got, want)
+	}
+	if got := stripMarkdown(doc); !strings.Contains(got, "Owner: Rafael Torres") || !strings.Contains(got, "at work. Scope This policy") {
+		t.Fatalf("stripMarkdown changed: %q", got)
+	}
+	if got := snippetText("", "Body\n```mermaid\nflowchart TD\n```\n**Note:** kept when not leading"); got != "Body. Note: kept when not leading." {
+		t.Fatalf("snippetText fences/lead = %q", got)
+	}
+	if sn := snippetAround(strings.Repeat("word ", 37)+"abc employees. "+strings.Repeat("tail ", 60), 0); !strings.HasSuffix(sn, "employees…") {
+		t.Fatalf("snippet keeps punctuation before the ellipsis: %q", sn)
+	}
 	if s := trigramSimilarity(trigrams("onbaording"), trigrams("onboarding")); s < 0.3 {
 		t.Fatalf("typo similarity = %v", s)
 	}

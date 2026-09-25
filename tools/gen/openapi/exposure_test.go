@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
+	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/transporttest"
 )
 
@@ -45,6 +46,9 @@ func TestRegisteredServicesMatchTheCellGRPCServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewGRPCServer: %v", err)
 	}
+	// ProjectService is composed by the application root on the same direct
+	// gRPC server after the generic cell constructor returns.
+	transportproject.Register(srv, transportproject.Dependencies{})
 	defer srv.Stop()
 	info := srv.GetServiceInfo()
 	var got []string
@@ -92,7 +96,12 @@ func mounted(t *testing.T, server *httptest.Server, path string) bool {
 // httpAliases against the served composition: of every declared procedure,
 // the cell's HTTP edge mounts exactly the listed ones, plus each alias.
 func TestHTTPExposedProceduresMatchTheCellEdge(t *testing.T) {
-	h, err := cell.NewEdgeHandlerWithDependencies(testCell(t), nil, nil, nil, []byte("intapi-008-cursor-key"), nil, transporthumanwork.WritePorts{}, nil)
+	projectDeps := &transportproject.Dependencies{}
+	h, err := cell.NewEdgeHandlerWithTunnelAndDependenciesAndChatAndServices(
+		testCell(t), nil, nil, nil, nil, []byte("intapi-008-cursor-key"), nil,
+		transporthumanwork.WritePorts{}, nil, nil,
+		cell.ServiceHandlers{Project: projectDeps},
+	)
 	if err != nil {
 		t.Fatalf("NewEdgeHandlerWithDependencies: %v", err)
 	}

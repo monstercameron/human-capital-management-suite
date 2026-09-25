@@ -59,6 +59,41 @@ func timerDispatcher(tenantID string, tenant string, resume firedTimerResumer) e
 	})
 }
 
+// composeServedSchedulers runs one timer scheduler per served tenant. The
+// scheduler claims its queue lease, and dispatches only rows, of a single
+// tenant, so a process serving two demo companies runs two of them side by
+// side under the one scheduler workload; a single-tenant process gets
+// exactly the workload composeSchedulerWorkload always built.
+func composeServedSchedulers(cfg ServeConfig, pool *pgxadapter.Pool, identity string, cell *app.Cell, provider *hcmotel.Provider, logger bootstrap.Logger, now func() time.Time) (bootstrap.Workload, error) {
+	tenants := cfg.ServedTenants()
+	if len(tenants) <= 1 {
+		return composeSchedulerWorkload(cfg, pool, identity, cell, provider, logger, now)
+	}
+	workloads := make([]bootstrap.Workload, 0, len(tenants))
+	for _, tenant := range tenants {
+		scoped := cfg
+		scoped.Tenant = tenant
+		workload, err := composeSchedulerWorkload(scoped, pool, identity, cell, provider, logger, now)
+		if err != nil {
+			return bootstrap.Workload{}, fmt.Errorf("tenant %s: %w", tenant, err)
+		}
+		workloads = append(workloads, workload)
+	}
+	return bootstrap.Workload{Name: workloadNameScheduler, Run: func(ctx context.Context) error {
+		errs := make(chan error, len(workloads))
+		for _, workload := range workloads {
+			go func(run func(context.Context) error) { errs <- run(ctx) }(workload.Run)
+		}
+		var first error
+		for range workloads {
+			if err := <-errs; err != nil && first == nil {
+				first = err
+			}
+		}
+		return first
+	}}, nil
+}
+
 func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity string, cell *app.Cell, provider *hcmotel.Provider, logger bootstrap.Logger, now func() time.Time) (bootstrap.Workload, error) {
 	if pool == nil {
 		return bootstrap.Workload{}, fmt.Errorf("application: -%s needs a database pool", FieldScheduler)

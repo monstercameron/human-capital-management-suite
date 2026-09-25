@@ -156,7 +156,7 @@ func main() {
 	switch args[0] {
 	case "serve":
 		spec, err := application.SpecFor(application.RoleServe, args[1:],
-			application.WithMigrator(migrateUp))
+			application.WithMigrator(migrateUp), application.WithProjectMigrator(migrateProjectUp))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "hcmnext: %v\n", err)
 			os.Exit(1)

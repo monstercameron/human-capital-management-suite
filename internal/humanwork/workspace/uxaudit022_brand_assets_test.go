@@ -20,7 +20,7 @@ func brandPNG(t *testing.T, width, height int) []byte {
 	return out.Bytes()
 }
 
-func TestTodo_UXAUDIT_022_Integration(t *testing.T) {
+func TestTodo_UXAUDIT_022_LifecycleUnit(t *testing.T) {
 	asset, err := ValidateBrandAsset(BrandAssetUpload{TenantID: "tenant-a", Name: "logo.png", Bytes: brandPNG(t, 320, 120)})
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestTodo_UXAUDIT_022_Integration(t *testing.T) {
 	}
 }
 
-func TestTodo_UXAUDIT_022_Security(t *testing.T) {
+func TestTodo_UXAUDIT_022_SecurityValidationUnit(t *testing.T) {
 	valid := brandPNG(t, 64, 64)
 	cases := []struct {
 		name, filename string
@@ -56,8 +56,9 @@ func TestTodo_UXAUDIT_022_Security(t *testing.T) {
 		want           error
 	}{
 		{"traversal", "../logo.png", valid, ErrBrandAssetUnsafe},
-		{"remote", "logo.png", []byte("<svg><image href=\"https://evil.test/x\"></svg>"), ErrBrandAssetUnsafe},
-		{"script", "logo.svg", []byte("<svg><script>alert(1)</script></svg>"), ErrBrandAssetUnsafe},
+		{"remote SVG rejected", "logo.svg", []byte(`<svg width="64" height="64"><image href="//evil.test/x"/></svg>`), ErrBrandAssetInvalidType},
+		{"event SVG rejected", "logo.svg", []byte(`<svg width="64" height="64" onload="alert(1)"/>`), ErrBrandAssetInvalidType},
+		{"external SVG rejected", "logo.svg", []byte(`<svg width="64" height="64"><image href="/same-origin/secret"/></svg>`), ErrBrandAssetInvalidType},
 		{"wrong type", "logo.gif", valid, ErrBrandAssetInvalidType},
 		{"too small", "logo.png", brandPNG(t, 8, 32), ErrBrandAssetInvalidDimensions},
 		{"too large", "logo.png", brandPNG(t, BrandAssetMaxSide+1, 32), ErrBrandAssetInvalidDimensions},

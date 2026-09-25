@@ -20,22 +20,32 @@ type docsMarkdownBodyProps struct {
 	// Links is the reader's authorized view of this version's doc: targets,
 	// encoded (docs_markdown.go, HUB-035) so the props still compare by value.
 	Links string
+	// ProjectTasks carries only authorized Docs task previews; a refreshed
+	// projection replaces this value so revocation removes titles immediately.
+	ProjectTasks string
+	// Journeys is the encoded authorized journey previews.
+	Journeys string
+	Navigate func(string)
 	// DocumentID and Media let attachment references load their files;
 	// Media is one stable pointer for the page, so it compares by value too.
 	DocumentID string
 	Media      *DocumentMediaPort
+	// Origin is the workspace origin, so an absolute project address copied
+	// from the address bar is recognised as this workspace's own.
+	Origin string
 }
 
 // docsMarkdownBody is the reader's text. Its nodes are built once per
 // document version and locale.
 func docsMarkdownBody(props docsMarkdownBodyProps) ui.Node {
 	nodes := ui.UseMemo(func() []ui.Node {
-		view := View{Locale: LocaleContext{Resolved: props.Locale}, DocumentID: props.DocumentID, DocumentMedia: props.Media}
-		if props.ChatRefs != "" || props.Links != "" {
-			view.Document = &DocumentDetail{Chat: decodeDocsChatRefs(props.ChatRefs), Links: decodeDocsLinks(props.Links)}
+		view := View{Locale: LocaleContext{Resolved: props.Locale}, DocumentID: props.DocumentID, DocumentMedia: props.Media, DocumentOrigin: props.Origin}
+		if props.ChatRefs != "" || props.Links != "" || props.ProjectTasks != "" || props.Journeys != "" {
+			view.Document = &DocumentDetail{Chat: decodeDocsChatRefs(props.ChatRefs), Links: decodeDocsLinks(props.Links), ProjectTasks: decodeDocsProjectTasks(props.ProjectTasks), Journeys: decodeDocsJourneys(props.Journeys)}
 		}
+		view.Navigate = props.Navigate
 		return docsASTMarkdownNodes(view, props.Markdown)
-	}, props.Locale, props.VersionID, props.Markdown, props.ChatRefs, props.Links, props.DocumentID, props.Media)
+	}, props.Locale, props.VersionID, props.Markdown, props.ChatRefs, props.Links, props.ProjectTasks, props.Journeys, props.Navigate, props.DocumentID, props.Media, props.Origin)
 	return html.Div(html.Props{ID: "docs-markdown", Class: "docs-markdown", Dir: docsContentDirection(props.Markdown), Raw: map[string]any{"tabindex": "0"}}, nodes...)
 }
 
@@ -60,8 +70,14 @@ func docsContentDirection(markdown string) string {
 
 // docsOwnsPageHeading reports whether the page renders its own h1: an open
 // document is titled by its name, not by the shell's "Documents" head.
+// docsOwnsPageHeading reports whether Docs renders its own h1#page-title
+// instead of the shell's generic "Documents" head (D-7): the reader always
+// did (its document title), and the library list does too now, since its
+// own heading already states the current collection with its count —
+// repeating that as a second, generic "Documents" head above it said
+// nothing new.
 func docsOwnsPageHeading(view View) bool {
-	return view.Page == PageDocs && view.Document != nil
+	return view.Page == PageDocs
 }
 
 // docsLocaleDigits writes a number the way the locale writes its dates.

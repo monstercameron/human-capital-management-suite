@@ -31,6 +31,7 @@ import (
 
 	"connectrpc.com/connect"
 	positionv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
+	projectv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/project/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -53,6 +54,7 @@ import (
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/otelmw"
 	transportposition "github.com/monstercameron/human-capital-management-suite/internal/transport/position"
+	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
@@ -66,6 +68,7 @@ type ServiceHandlers struct {
 	Integration          transport.IntegrationHandler
 	IntegrationPublisher http.Handler
 	Parameters           http.Handler
+	Project              *transportproject.Dependencies
 }
 
 // NewGRPCServer builds the canonical gRPC surface over an already composed
@@ -300,7 +303,7 @@ func newTunnelGRPCServer(
 	extensions transportextensions.Service, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	return newTunnelGRPCServerWithDocument(c, instances, workQueue, cursorKey, previousCursorKey,
-		workWrites, thresholds, chatService, extensions, nil, nil, opts...)
+		workWrites, thresholds, chatService, extensions, nil, nil, nil, opts...)
 }
 
 func newTunnelGRPCServerWithDocument(
@@ -309,6 +312,23 @@ func newTunnelGRPCServerWithDocument(
 	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
 	extensions transportextensions.Service, documentService transportdocument.Service,
 	positionDeps *transportposition.Dependencies,
+	projectService transportproject.Service,
+	opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocumentAndProjectActivity(
+		c, instances, workQueue, cursorKey, previousCursorKey, workWrites, thresholds,
+		chatService, extensions, documentService, positionDeps, projectService, nil, nil, opts...)
+}
+
+func newTunnelGRPCServerWithDocumentAndProjectActivity(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps *transportposition.Dependencies,
+	projectService transportproject.Service,
+	projectActivity transportproject.ActivityService,
+	projectSearch transportproject.TaskSearchService,
 	opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	if c == nil {
@@ -351,6 +371,11 @@ func newTunnelGRPCServerWithDocument(
 		positionv1.RegisterPositionServiceServer(srv, positionv1.UnimplementedPositionServiceServer{})
 	} else {
 		transportposition.Register(srv, *positionDeps)
+	}
+	if projectService == nil {
+		projectv1.RegisterProjectServiceServer(srv, projectv1.UnimplementedProjectServiceServer{})
+	} else {
+		transportproject.Register(srv, transportproject.Dependencies{Service: projectService, Activity: projectActivity, Search: projectSearch})
 	}
 	return srv, nil
 }
@@ -427,7 +452,7 @@ func newEdgeHandlerWithDependenciesAndServices(c *app.Cell, grpcServer *grpc.Ser
 	opts = append(opts, connect.WithInterceptors(otelmw.NewConnectInterceptor(c.Telemetry)))
 	rpc, err := edge.NewHandler(edge.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
-		DataOps: services.DataOps, Integration: services.Integration,
+		DataOps: services.DataOps, Integration: services.Integration, Project: services.Project,
 		Journey: &transportjourney.Dependencies{
 			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
 			Knowledge:         app.KnowledgeSearchService{Source: c.KnowledgeSearch},
@@ -464,6 +489,7 @@ func newEdgeHandlerWithDependenciesAndServices(c *app.Cell, grpcServer *grpc.Ser
 			DevPersonas:       c.DevPersonas(),
 			DevDirectory:      c.DevDirectory(),
 			RoleAccess:        c.RoleAccess,
+			BrandAssets:       c.BrandAssets,
 			Preferences:       c.Preferences,
 			PageLedger:        c.PageLedger,
 			Catalogs:          c.Catalogs,

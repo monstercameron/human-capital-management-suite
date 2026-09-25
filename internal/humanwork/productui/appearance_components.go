@@ -14,6 +14,7 @@ import (
 type AppearancePageProps struct {
 	I18nProps
 	Theme                CustomerTheme
+	PublishedTheme       CustomerTheme
 	ColorModes           []AppearanceOption
 	Palettes             []AppearanceOption
 	Shapes               []AppearanceOption
@@ -28,10 +29,11 @@ type AppearancePageProps struct {
 	OnReset              func()
 	BrandAssetStatus     string
 	ApprovedLogos        []BrandAssetOption
-	OnUploadBrandAsset   func(string)
+	OnUploadBrandAsset   func(string, []byte, func(string, error))
+	OnLoadBrandAssets    func(int, func([]BrandAssetOption, int, error))
 	OnPreviewBrandAsset  func(string)
-	OnRemoveBrandAsset   func()
-	OnRollbackBrandAsset func()
+	OnRemoveBrandAsset   func(int, func(error))
+	OnRollbackBrandAsset func(int, int, func(string, error))
 	PreviewPages         []AppearancePreviewPage
 	RenderPreview        func(PageID) ui.Node
 	PreviewTenant        string
@@ -47,23 +49,6 @@ type AppearancePreviewPage struct {
 // AppearancePage is the composed administration surface for tenant branding.
 func AppearancePage(props AppearancePageProps) ui.Node {
 	draft := NormalizeCustomerTheme(props.Theme)
-	var removeLogo, rollbackLogo func()
-	if props.OnPreview != nil {
-		removeLogo = func() {
-			draft.BrandLogoURL = ""
-			previewAppearance(props.OnPreview, draft)
-		}
-		rollbackLogo = func() {
-			draft.BrandLogoURL = props.Theme.BrandLogoURL
-			previewAppearance(props.OnPreview, draft)
-		}
-	}
-	if props.OnRemoveBrandAsset != nil {
-		removeLogo = props.OnRemoveBrandAsset
-	}
-	if props.OnRollbackBrandAsset != nil {
-		rollbackLogo = props.OnRollbackBrandAsset
-	}
 	previewProps := props
 	previewProps.OnReset = func() {
 		resetAppearanceDraft(&draft, props.OnReset)
@@ -95,11 +80,13 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 						previewAppearance(props.OnPreview, draft)
 					}, BrandAssetPickerProps{
 						I18nProps: props.I18nProps, Name: draft.BrandName, Mark: draft.BrandMark, LogoURL: draft.BrandLogoURL,
-						Editable: props.Editable, Status: props.BrandAssetStatus, Approved: props.ApprovedLogos,
+						PublishedLogoURL: props.PublishedTheme.BrandLogoURL,
+						Editable:         props.Editable, Status: props.BrandAssetStatus, Approved: props.ApprovedLogos,
 						OnUpload:   props.OnUploadBrandAsset,
+						OnLoad:     props.OnLoadBrandAssets,
 						OnPreview:  props.OnPreviewBrandAsset,
-						OnRemove:   removeLogo,
-						OnRollback: rollbackLogo,
+						OnRemove:   props.OnRemoveBrandAsset,
+						OnRollback: props.OnRollbackBrandAsset,
 					}),
 					appearanceChoices(props.Text("appearance.color_mode"), props.Text("appearance.color_mode_help"), "color_mode", draft.ColorMode, props.ColorModes, "color-mode-choices", func(value string) {
 						draft.ColorMode = value

@@ -13,6 +13,37 @@ import (
 // docsAnchorDraft is a passage the reader selected to comment on.
 type docsAnchorDraft struct {
 	Quote, Prefix, Suffix string
+	// Derived marks visible Chat text expanded from a reference. It cannot be
+	// stored as a version anchor because the text is absent from the Markdown.
+	Derived bool
+}
+
+func docsCommentRequest(documentID, versionID, body, locale string, anchor docsAnchorDraft) DocumentCommentCreateRequest {
+	request := DocumentCommentCreateRequest{DocumentID: documentID, VersionID: versionID, Body: body}
+	if anchor.Derived {
+		intro := "Selected Chat text: “" + anchor.Quote + "”"
+		switch locale {
+		case "de-DE":
+			intro = "Ausgewählter Chat-Text: „" + anchor.Quote + "“"
+		case "ar":
+			intro = "نص الدردشة المحدد: «" + anchor.Quote + "»"
+		}
+		request.Body = intro + "\n\n" + body
+		return request
+	}
+	request.Quote, request.Prefix, request.Suffix = anchor.Quote, anchor.Prefix, anchor.Suffix
+	return request
+}
+
+func docsDerivedCommentCopy(locale string) (label, hint string) {
+	switch locale {
+	case "de-DE":
+		return "Zum ausgewählten Chat-Text", "Der Auszug wird in den Kommentar aufgenommen. Der Kommentar gilt für das gesamte Dokument; antworten Sie über „Zur Nachricht“, wenn Sie den Chat besprechen möchten."
+	case "ar":
+		return "حول نص الدردشة المحدد", "سيُدرج المقتطف في التعليق. ينطبق التعليق على المستند كله؛ استخدم الانتقال إلى الرسالة للرد في الدردشة."
+	default:
+		return "About selected Chat text", "The excerpt will be included in your comment. The comment applies to the whole document; use Jump to message to reply in Chat."
+	}
 }
 
 type docsCommentsProps struct {
@@ -77,7 +108,7 @@ func docsComments(props docsCommentsProps) ui.Node {
 		}
 		busy.Set(true)
 		failed.Set("")
-		request := DocumentCommentCreateRequest{DocumentID: props.DocumentID, VersionID: props.VersionID, Body: text, Quote: props.Anchor.Quote, Prefix: props.Anchor.Prefix, Suffix: props.Anchor.Suffix}
+		request := docsCommentRequest(props.DocumentID, props.VersionID, text, locale, props.Anchor)
 		props.Add(request, func(err error) {
 			busy.Set(false)
 			if err != nil {
@@ -170,13 +201,22 @@ func docsComments(props docsCommentsProps) ui.Node {
 		}
 		items = append(items, html.WithKey(docsThreadCard(props, thread, replies[thread.ID], now, replyTo.Get(), replyInput, replySubmit, busy.Get()), "thread:"+thread.ID))
 	}
-	if len(items) == 0 {
+	canCompose := props.CanComment && props.Add != nil
+	emptyShown := len(items) == 0
+	// r4 D-8: with a composer on screen, "no open comments" is the
+	// composer's own helper line, not a dashed box stacked above it.
+	emptyInComposer := emptyShown && canCompose && !showResolved.Get() && !props.Unavailable
+	if len(items) == 0 && !emptyInComposer {
 		key := "comments_none_open"
 		switch {
 		case props.Unavailable:
 			key = "comments_unavailable"
 		case showResolved.Get():
 			key = "comments_none_resolved"
+		case !canCompose:
+			// "Select text to comment" is an instruction this reader cannot
+			// follow; the read-only note below says why (D-8).
+			key = "comments_none_readonly"
 		}
 		items = append(items, html.WithKey(html.Li(html.Props{Class: "docs-thread-empty", Role: "status"}, ui.Text(docsText(locale, key))), "empty"))
 	}
@@ -191,20 +231,41 @@ func docsComments(props docsCommentsProps) ui.Node {
 	}
 	children := []ui.Node{
 		html.Header(html.Props{Class: "docs-comments-head"},
-			html.H2(html.Props{ID: "docs-comments-heading"}, ui.Text(docsText(locale, "comments_heading")),
-				html.Span(html.Props{Class: "docs-comments-count"}, ui.Text(docsLocaleDigits(locale, strconv.Itoa(open))))),
+			html.H2(html.Props{ID: "docs-comments-heading"}, ui.Text(docsText(locale, "comments_heading")), docsCommentsCount(locale, open)),
 			toggle,
 		),
-		html.Ol(html.Props{Class: "docs-threads"}, items...),
+		html.Ol(html.Props{Class: "docs-threads", Hidden: len(items) == 0}, items...),
 	}
-	if props.CanComment && props.Add != nil {
+	if !canCompose && !props.Unavailable {
+		// A shared-with-you reader had no composer and no word on why (D-8).
+		children = append(children, html.P(html.Props{Class: "docs-compose-hint docs-comments-readonly"}, ui.Text(docsText(locale, "comments_readonly_note"))))
+	}
+	if canCompose {
+		// With the empty state already saying "select text to comment", the
+		// composer hint keeps only the send shortcut instead of repeating it.
+		// The shortcut is a .kbd-hint, hidden on touch screens (r4 C-8).
+		hint := []ui.Node{html.Span(html.Props{Class: "kbd-hint"}, ui.Text(docsText(locale, "comment_hint_send")))}
+		if !(emptyShown && !showResolved.Get() && !props.Unavailable) {
+			hint = append([]ui.Node{ui.Text(docsText(locale, "comment_hint_select") + " ")}, hint...)
+		}
 		composer := []ui.Node{}
+		if emptyInComposer {
+			composer = append(composer, html.P(html.Props{Class: "docs-compose-empty", Role: "status"}, ui.Text(docsText(locale, "comments_none_open"))))
+		}
 		if props.Anchor.Quote != "" {
+			label := docsText(locale, "comment_on")
+			if props.Anchor.Derived {
+				label, _ = docsDerivedCommentCopy(locale)
+			}
 			composer = append(composer, html.Div(html.Props{Class: "docs-compose-quote"},
-				html.Span(html.Props{Class: "docs-compose-quote-label"}, ui.Text(docsText(locale, "comment_on"))),
+				html.Span(html.Props{Class: "docs-compose-quote-label"}, ui.Text(label)),
 				html.Tag("q", html.Props{Dir: "auto"}, ui.Text(docsClip(props.Anchor.Quote, 140))),
 				html.Button(html.Props{Class: "docs-pick-remove", Type: "button", Aria: map[string]string{"label": docsText(locale, "comment_clear_quote")}, Data: map[string]string{"docs-action": "comment-clear-anchor"}}, productIcon("close", "docs-chip-icon")),
 			))
+			if props.Anchor.Derived {
+				_, hint := docsDerivedCommentCopy(locale)
+				composer = append(composer, html.P(html.Props{Class: "docs-compose-hint"}, ui.Text(hint)))
+			}
 		}
 		placeholder := docsText(locale, "comment_placeholder")
 		if props.Anchor.Quote != "" {
@@ -214,7 +275,7 @@ func docsComments(props docsCommentsProps) ui.Node {
 			html.Label(html.Props{For: "docs-comment-body", Class: "sr-only"}, ui.Text(docsText(locale, "comment_body"))),
 			html.Textarea(html.WithProps(html.Props{ID: "docs-comment-body", Name: "body", Dir: "auto", Rows: 2, MaxLength: 4000, Placeholder: placeholder, OnInput: input, OnKeyDown: composerKey, Raw: map[string]any{"aria-describedby": "docs-comment-help"}}, html.Ref(composerRef))),
 			html.Div(html.Props{Class: "docs-compose-foot"},
-				html.P(html.Props{ID: "docs-comment-help", Class: "docs-compose-hint"}, ui.Text(docsText(locale, "comment_hint"))),
+				html.P(html.Props{ID: "docs-comment-help", Class: "docs-compose-hint"}, hint...),
 				html.Button(html.Props{Class: "button primary compact", Type: "submit", Disabled: busy.Get() || strings.TrimSpace(body.Get()) == ""}, ui.Text(docsText(locale, "comment_action"))),
 			),
 		)
@@ -320,8 +381,11 @@ func docsCommentEntry(props docsCommentsProps, comment DocumentComment, now time
 	for _, person := range props.People {
 		if docsPersonIs(person, comment.AuthorID) {
 			photo = person.PhotoURL
-			if author == comment.AuthorID {
-				author = docsPersonName(person)
+			// The directory's full name always wins over whatever the
+			// comment's own Author field carries (sometimes only a first
+			// name), so every entry in a thread reads the same way.
+			if name := docsPersonName(person); name != "" {
+				author = name
 			}
 			break
 		}
@@ -380,4 +444,14 @@ func docsNumberedThreads(comments []DocumentComment) []DocumentComment {
 		return out[i].CreatedAt < out[j].CreatedAt
 	})
 	return out
+}
+
+// docsCommentsCount is the open-comment count beside the heading, left out
+// at zero: "Comments 0" put a badge on nothing, and the empty state below
+// already says there are none (D-25).
+func docsCommentsCount(locale string, open int) ui.Node {
+	if open <= 0 {
+		return nil
+	}
+	return html.Span(html.Props{Class: "docs-comments-count"}, ui.Text(docsLocaleDigits(locale, strconv.Itoa(open))))
 }

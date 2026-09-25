@@ -49,7 +49,7 @@ func TestDocsChatChipsRenderResolvedReferences(t *testing.T) {
 		`docs-chat-locked`, `Private channel`, `You are not a member of this channel`,
 		`href="/workspace/app/chat#person=hc-050-rafael-torres"`, `>Rafael Torres<`, `aria-label="View Rafael Torres&#39;s details"`,
 		`class="docs-chat-quote"`, `role="figure"`, `>Ana Lopez<`, `We ship Friday.`, `>#people-ops<`, `datetime="2026-09-02T09:00:00Z"`, `Jump to message`, `href="/workspace/app/chat#share=tokOK"`,
-		`docs-chat-quote-locked`, `Chat message unavailable`,
+		`docs-chat-quote-locked`, `This message isn&#39;t available to you`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("render omitted %q:\n%s", want, out)
@@ -63,6 +63,32 @@ func TestDocsChatChipsRenderResolvedReferences(t *testing.T) {
 	// No inline styles (CSP).
 	if strings.Contains(out, "style=") {
 		t.Fatalf("inline style in chips:\n%s", out)
+	}
+}
+
+// TestDocsMessageCardDeletedNamesChannel proves DOCS-08's one safe
+// distinction: a message the server could resolve enough to know it was
+// deleted still names the channel and offers to open it, while a message
+// that is merely unreadable (no channel info returned) falls back to the
+// neutral "isn't available" sentence that never confirms or denies why.
+func TestDocsMessageCardDeletedNamesChannel(t *testing.T) {
+	refs := DocumentChatRefs{Messages: []DocumentChatMessageReference{
+		{Token: "tokDeleted", ConversationID: "conv-9", ChannelName: "release-notes"},
+		{Token: "tokGone"},
+	}}
+	view := docsChatRefsTestView("en-US", refs)
+	deleted := docsChatRender(t, view, "/workspace/app/chat#share=tokDeleted\n")
+	for _, want := range []string{"This message was deleted.", `href="/workspace/app/chat#channel=conv-9"`, "release-notes"} {
+		if !strings.Contains(deleted, want) {
+			t.Fatalf("deleted message card omitted %q:\n%s", want, deleted)
+		}
+	}
+	gone := docsChatRender(t, view, "/workspace/app/chat#share=tokGone\n")
+	if strings.Contains(gone, "conv-9") || strings.Contains(gone, "was deleted") {
+		t.Fatalf("unreadable message leaked channel info it does not have:\n%s", gone)
+	}
+	if !strings.Contains(gone, "This message isn&#39;t available to you") {
+		t.Fatalf("unreadable message did not fall back to the neutral sentence:\n%s", gone)
 	}
 }
 

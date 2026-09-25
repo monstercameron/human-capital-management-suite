@@ -1,6 +1,7 @@
 package journeyclient
 
 import (
+	"strconv"
 	"strings"
 
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
@@ -199,6 +200,9 @@ func proposalPayRangeFor(worker *journeyv1.Worker, options *journeyv1.WorkforceO
 	if err != nil {
 		return nil
 	}
+	if current, err = currentInTargetBasis(current, worker, path); err != nil {
+		return nil
+	}
 	minimum, err := values.NewPercentage(path.GetMinimumBaseIncrease(), 4, values.RoundingExactRequired)
 	if err != nil {
 		return nil
@@ -222,4 +226,32 @@ func (r *proposalPayRange) localizedBounds(copy productui.LocaleContext) map[str
 		"minimum": copy.FormatMoney(r.minimum.Amount().String(), r.minimum.Currency(), 2),
 		"maximum": copy.FormatMoney(r.maximum.Amount().String(), r.maximum.Currency(), 2),
 	}
+}
+
+// currentInTargetBasis expresses the worker's current base in the unit the
+// path's target is paid in, the same conversion the server's ladder gate
+// makes: an hourly rate is annualized over the path's annualization hours
+// for a salaried target, and a salary is turned into its hourly equivalent
+// for an hourly one. A path that does not cross bases returns current
+// unchanged.
+func currentInTargetBasis(current values.Money, worker *journeyv1.Worker, path *journeyv1.PromotionPathOption) (values.Money, error) {
+	hours := path.GetAnnualizationHours()
+	if hours <= 0 {
+		return current, nil
+	}
+	factor, err := values.NewDecimal(strconv.Itoa(int(hours)), 0, values.RoundingExactRequired)
+	if err != nil {
+		return values.Money{}, err
+	}
+	if path.GetTargetPayBasis() == payBasisHourly && worker.GetPayBasis() != payBasisHourly {
+		amount, err := current.Amount().Div(factor, 2, values.RoundingHalfEven)
+		if err != nil {
+			return values.Money{}, err
+		}
+		return values.NewMoney(amount.String(), current.Currency(), 2, values.RoundingExactRequired)
+	}
+	if path.GetTargetPayBasis() != payBasisHourly && worker.GetPayBasis() == payBasisHourly {
+		return current.MulDecimal(factor, 2, values.RoundingExactRequired)
+	}
+	return current, nil
 }

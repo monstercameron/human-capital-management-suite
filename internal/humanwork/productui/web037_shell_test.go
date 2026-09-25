@@ -150,7 +150,14 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// Re-pinned 2026-09-24 after the shell's route announcement was resolved
 	// from the active page projection. The structural checks above continue to
 	// pin landmarks, navigation authorization, and loading semantics.
-	const want = "83913b36ed65a6ee44ef68149a781fd87e7566e1d9443e3bef7897979f3d1495"
+	// S-1 re-pins again: the action launcher trigger's copy keys
+	// (action_launcher.trigger / action_launcher.navigation_trigger) now
+	// both resolve to "Jump to" instead of diverging into "Start an
+	// action" / "Go to", so the same control reads identically wherever it
+	// appears. This fixture has no PersonWorkflows/People, so its trigger
+	// already rendered the navigation-only copy; only the label text itself
+	// changed.
+	const want = "22aeea3594b4aba2d8683f77a3e6c2a5b919b0c9a3d4bcb5d77dd2508be3d7a2"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

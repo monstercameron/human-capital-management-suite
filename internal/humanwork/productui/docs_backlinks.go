@@ -6,10 +6,49 @@ package productui
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
+
+// docsBacklinksTimeout bounds how long the rail says "Loading linked
+// documents…" before it offers a retry instead.
+const docsBacklinksTimeout = 20 * time.Second
+
+// docsDedupeBacklinks keeps one entry per source document. The read returns
+// one row per link, so a document that links here twice (two blocks, or a
+// heading and a paragraph) was listed twice under the same title (D-11). The
+// first row wins, and a clean state beats a stale or broken one.
+func docsDedupeBacklinks(rows []DocumentBacklink) []DocumentBacklink {
+	out := make([]DocumentBacklink, 0, len(rows))
+	index := map[string]int{}
+	for _, row := range rows {
+		key := row.SourceDocumentID
+		if key == "" {
+			out = append(out, row)
+			continue
+		}
+		if at, seen := index[key]; seen {
+			if out[at].State != "" && row.State == "" {
+				out[at].State = ""
+			}
+			continue
+		}
+		index[key] = len(out)
+		out = append(out, row)
+	}
+	return out
+}
+
+// docsBacklinksResult is one finished backlinks read for Key: its rows, or
+// Failed when the read errored or timed out.
+type docsBacklinksResult struct {
+	Key    docsFetchKey
+	Rows   []DocumentBacklink
+	Failed bool
+	Done   bool
+}
 
 type docsBacklinksPanelProps struct {
 	Locale      string
@@ -53,7 +92,10 @@ func docsBacklinksPanel(props docsBacklinksPanelProps) ui.Node {
 	case props.Loading:
 		body = html.P(html.Props{Class: "docs-backlinks-empty", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(locale, "backlinks_loading")))
 	case props.Unavailable:
-		body = html.P(html.Props{Class: "docs-backlinks-empty", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(locale, "comments_unavailable")))
+		body = html.Div(html.Props{Class: "docs-backlinks-retry"},
+			html.P(html.Props{Class: "docs-backlinks-empty", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(locale, "backlinks_unavailable"))),
+			html.Button(html.Props{Class: "button secondary", Type: "button", Data: map[string]string{"docs-action": "backlinks-retry"}}, ui.Text(docsText(locale, "compare_versions_retry"))),
+		)
 	case len(items) == 0:
 		body = html.P(html.Props{Class: "docs-backlinks-empty"}, ui.Text(docsText(locale, "backlinks_empty")))
 	default:
@@ -67,9 +109,12 @@ func docsBacklinksPanel(props docsBacklinksPanelProps) ui.Node {
 
 func docsBacklinksStylesheet() string {
 	return `
-.docs-backlinks{margin-block-start:var(--hcm-space-3)}
+.docs-backlinks{margin-block-start:var(--hcm-space-3);padding:var(--hcm-space-2);border:1px solid var(--line);border-radius:var(--hcm-radius-surface);background:var(--surface)}
+.docs-backlinks h2{margin:0 0 var(--hcm-space-1);font-size:var(--hcm-font-size-small);font-weight:650;color:var(--muted)}
 .docs-backlinks-list{list-style:none;margin:0;padding:0;display:grid;gap:var(--hcm-space-1)}
-.docs-backlinks-empty{color:var(--muted)}
+.docs-backlinks-empty{margin:0;color:var(--muted);font-size:var(--hcm-font-size-small)}
+.docs-backlink-title{color:var(--ink)}
 .docs-backlink-state{color:var(--muted);font-size:var(--hcm-font-size-small)}
+.docs-backlinks-retry{display:grid;justify-items:start;gap:var(--hcm-space-1)}
 `
 }

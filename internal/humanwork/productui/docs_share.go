@@ -280,6 +280,29 @@ func docsShareDialog(props docsShareDialogProps) ui.Node {
 		value := event.GetValue()
 		update(func(s *docsShareState) { s.role = value })
 	})
+	// ACCESS-02: an existing recipient's role select re-shares at the new
+	// role; the server upserts the same grant in place (sharing.go), so
+	// this never adds a duplicate entry.
+	entryRoleChange := ui.UseEvent(func(event ui.ChangeEvent) {
+		action, id, _ := docsEventAction(event)
+		if action != "share-role-change" || props.Share == nil || id == "" {
+			return
+		}
+		role := event.GetValue()
+		update(func(s *docsShareState) { s.busy = true })
+		props.Share(DocumentShareRequest{DocumentID: props.DocumentID, RecipientID: id, Role: role}, func(err error) {
+			update(func(s *docsShareState) {
+				s.busy = false
+				if err != nil {
+					s.failed, s.message = true, docsText(props.Locale, "role_change_failed")
+					return
+				}
+				s.failed = false
+				s.message = docsText(props.Locale, "role_changed")
+			})
+			load()
+		})
+	})
 	submit := ui.UseEvent(func(event ui.FormEvent) {
 		event.PreventDefault()
 		value := state.Get()
@@ -360,9 +383,12 @@ func docsShareDialog(props docsShareDialogProps) ui.Node {
 	}
 	form := html.Form(html.Props{Class: "docs-share-form", OnSubmit: submit},
 		html.Label(html.Props{For: "docs-share-people", Class: "docs-share-label"}, ui.Text(docsText(props.Locale, "share_add_people"))),
-		html.Div(html.Props{Class: "docs-share-field"}, chips...),
-		html.Ul(html.Props{ID: listID, Class: "docs-share-options", Role: "listbox", Hidden: len(options) == 0}, options...),
-		html.Div(html.Props{Class: "docs-share-submit"},
+		// The field, role and Share button sit in one row (D-18): a
+		// minmax(9rem,1fr) column for the field and two auto columns for
+		// the role and the button. Below a 30rem form (phone) the field
+		// takes its own row and the role and button share the next (D-2).
+		html.Div(html.Props{Class: "docs-share-add-row"},
+			html.Div(html.Props{Class: "docs-share-field"}, chips...),
 			html.Label(html.Props{Class: "docs-role"},
 				html.Span(html.Props{Class: "sr-only"}, ui.Text(docsText(props.Locale, "role_label"))),
 				html.Select(html.Props{Name: "role", OnChange: roleChange},
@@ -372,6 +398,7 @@ func docsShareDialog(props docsShareDialogProps) ui.Node {
 			),
 			html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: current.busy || len(current.picked) == 0}, ui.Text(shareLabel)),
 		),
+		html.Ul(html.Props{ID: listID, Class: "docs-share-options", Role: "listbox", Hidden: len(options) == 0}, options...),
 	)
 	access := []ui.Node{}
 	switch {
@@ -381,7 +408,17 @@ func docsShareDialog(props docsShareDialogProps) ui.Node {
 		access = append(access, html.Li(html.Props{Key: "failed", Class: "docs-notice"}, ui.Text(docsText(props.Locale, "access_failed"))))
 	default:
 		for _, entry := range current.entries {
-			controls := html.Span(html.Props{Class: "docs-access-role"}, ui.Text(docsText(props.Locale, "role_"+entry.Role)))
+			var controls ui.Node
+			if entry.Removable && props.Share != nil {
+				controls = html.Label(html.Props{Class: "docs-access-role docs-access-role-edit"},
+					html.Span(html.Props{Class: "sr-only"}, ui.Text(strings.ReplaceAll(docsText(props.Locale, "role_label_for"), "{name}", entry.Name))),
+					html.Select(html.Props{Disabled: current.busy, Data: map[string]string{"docs-action": "share-role-change", "docs-id": entry.SubjectID}},
+						html.Option(html.Props{Value: "commenter", Selected: entry.Role != "viewer"}, ui.Text(docsText(props.Locale, "role_commenter"))),
+						html.Option(html.Props{Value: "viewer", Selected: entry.Role == "viewer"}, ui.Text(docsText(props.Locale, "role_viewer"))),
+					))
+			} else {
+				controls = html.Span(html.Props{Class: "docs-access-role"}, ui.Text(docsText(props.Locale, "role_"+entry.Role)))
+			}
 			row := []ui.Node{personAvatar(entry.Name, "", entry.PhotoURL, "small"), html.Span(html.Props{Class: "docs-access-name"}, ui.Text(entry.Name)), controls}
 			if entry.Removable && props.Revoke != nil {
 				row = append(row, html.Button(html.Props{Class: "docs-access-remove", Type: "button", Disabled: current.busy, Aria: map[string]string{"label": docsText(props.Locale, "remove") + ": " + entry.Name}, Data: map[string]string{"docs-action": "share-revoke", "docs-id": entry.SubjectID}}, ui.Text(docsText(props.Locale, "remove"))))
@@ -421,7 +458,7 @@ func docsShareDialog(props docsShareDialogProps) ui.Node {
 		docsDialog("docs-share-dialog", title, docsText(props.Locale, "close"), close, keydown,
 			form, status,
 			html.H3(html.Props{Class: "docs-access-heading"}, ui.Text(docsText(props.Locale, "access_heading"))),
-			html.Ul(html.Props{Class: "docs-access-list"}, access...),
+			html.Ul(html.Props{Class: "docs-access-list", OnChange: entryRoleChange}, access...),
 			footer,
 		))
 }

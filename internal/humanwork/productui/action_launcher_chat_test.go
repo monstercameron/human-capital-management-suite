@@ -78,7 +78,7 @@ func TestChatGoToUsesContextualLabelAndShowsRecordedDestination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render chat Go to: %v", err)
 	}
-	for _, want := range []string{`aria-label="Go to"`, `Incident Review`, `/workspace/app/chat#channel=incident-review`} {
+	for _, want := range []string{`aria-label="Jump to"`, `Incident Review`, `/workspace/app/chat#channel=incident-review`} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("chat Go to markup missing %q: %s", want, markup)
 		}

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"net/url"
 	"strconv"
 	"syscall/js"
 
@@ -18,6 +19,39 @@ type chatHistoryController struct {
 }
 
 var chatHistory = &chatHistoryController{}
+
+// chatHistoryHref is the visible address a chat navigation state is stamped
+// under. NAV-01: the private hcmChatNavigation history.state blob used to be
+// the only record of which room was open -- the browser address never moved,
+// so the URL, Back/Forward and reload all disagreed with what was on screen.
+// The existing "#channel=" deep-link fragment (already used for pasted room
+// links, see chat_channel_wasm.go) is reused here as the one URL form for the
+// room a chat navigation selects -- carrying the channel's readable name when
+// it is unambiguous, else the id (chatChannelFragmentValue) -- so a
+// push/replace that changes the
+// room also changes the address bar, and a reload or Back/Forward reads the
+// room back from that same fragment (openChatChannelFragment).
+func chatHistoryHref(conversationID string) string {
+	if conversationID == "" {
+		return browserLocationHref()
+	}
+	href := currentPath()
+	if query := currentQuery(); query != "" {
+		href += "?" + query
+	}
+	return href + "#channel=" + url.QueryEscape(chatChannelFragmentValue(chatFragmentRooms(), conversationID))
+}
+
+// chatFragmentRooms is the room listing the "#channel=" fragment is written
+// and resolved against: the rail plus an unjoined channel being previewed.
+func chatFragmentRooms() []chatui.Conversation {
+	model := chatBrowser.snapshot()
+	rooms := model.Conversations
+	if model.PreviewConversation != nil {
+		rooms = append(append([]chatui.Conversation(nil), rooms...), *model.PreviewConversation)
+	}
+	return rooms
+}
 
 func (controller *chatHistoryController) seed(model chatui.Model) {
 	if controller == nil || controller.seeded {
@@ -84,7 +118,7 @@ func (controller *chatHistoryController) pushState(state chatNavigationState) {
 		return
 	}
 	clone.Set(chatHistoryStateField, encodeChatNavigationState(state))
-	if _, ok := browserCall(history, "pushState", clone, "", browserLocationHref()); !ok {
+	if _, ok := browserCall(history, "pushState", clone, "", chatHistoryHref(state.ConversationID)); !ok {
 		return
 	}
 	productHistory.RecordSameRoutePush()
@@ -130,7 +164,7 @@ func (controller *chatHistoryController) replace(model chatui.Model) {
 		return
 	}
 	clone.Set(chatHistoryStateField, encodeChatNavigationState(state))
-	browserHistoryReplaceState(history, clone, browserLocationHref())
+	browserHistoryReplaceState(history, clone, chatHistoryHref(state.ConversationID))
 }
 
 func (controller *chatHistoryController) restore(event js.Value, cfg journeyclient.Config) {
@@ -145,6 +179,14 @@ func (controller *chatHistoryController) restore(event js.Value, cfg journeyclie
 	state, ok := readChatNavigationState(historyState)
 	if !ok || state.OwnerTenantID == "" || state.OwnerSubject == "" || state.OwnerTenantID != cfg.Tenant || state.OwnerSubject != cfg.Subject {
 		return
+	}
+	// NAV-01: a back/forward navigation has already moved location.hash by
+	// the time popstate fires, so the fragment -- not the private cache in
+	// history.state -- names the room the address bar now shows. Prefer it;
+	// fall back to the cached id only for an entry stamped before this room
+	// carried its own fragment (mixed-version history in the same tab).
+	if urlID, _ := currentChatChannelFragment(); urlID != "" {
+		state.ConversationID = urlID
 	}
 	controller.restoring = true
 	defer func() { controller.restoring = false }()

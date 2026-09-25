@@ -82,13 +82,11 @@ func (s *Store) DocumentPreviews(ctx context.Context, tenantID, actorID string, 
 	return out, nil
 }
 
-// previewSnippet is the opening of a document's plain text, without a
-// leading repeat of its title, cut at a word boundary.
+// previewSnippet is the opening of a document's display text (snippetText:
+// block boundaries kept, no title heading, no metadata lead line), cut at a
+// word boundary.
 func previewSnippet(markdown, title string) string {
-	text := strings.Join(strings.Fields(PlainText(markdown)), " ")
-	if t := strings.TrimSpace(title); t != "" && strings.HasPrefix(strings.ToLower(text), strings.ToLower(t)) {
-		text = strings.TrimSpace(text[len(t):])
-	}
+	text := snippetText(title, markdown)
 	if utf8.RuneCountInString(text) <= previewSnippetRunes {
 		return text
 	}

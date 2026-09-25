@@ -16,8 +16,8 @@ var docsEditorCopy = map[string]map[string]string{
 		"editor_label": "Document editor", "editor_toolbar": "Formatting", "editor_view": "View",
 		"editor_view_split": "Split", "editor_view_source": "Markdown", "editor_view_rich": "Formatted",
 		"editor_source": "Markdown", "editor_rich": "Formatted", "editor_rich_label": "Formatted document",
-		"editor_source_help": "Edit the Markdown or the formatted text; each side follows the other. Ctrl+S saves.",
-		"editor_style":       "Text style", "editor_paragraph": "Paragraph", "editor_h1": "Heading 1", "editor_h2": "Heading 2", "editor_h3": "Heading 3",
+		"editor_source_help": "Markdown and formatted views stay in sync.", "editor_save_hint": "Ctrl+S saves.",
+		"editor_style": "Text style", "editor_paragraph": "Paragraph", "editor_h1": "Heading 1", "editor_h2": "Heading 2", "editor_h3": "Heading 3",
 		"editor_bold": "Bold (Ctrl+B)", "editor_italic": "Italic (Ctrl+I)", "editor_strike": "Strikethrough", "editor_code": "Inline code",
 		"editor_link": "Link (Ctrl+K)", "editor_ul": "Bulleted list", "editor_ol": "Numbered list", "editor_task": "Task list",
 		"editor_quote": "Quote", "editor_codeblock": "Code block", "editor_table": "Insert table", "editor_hr": "Horizontal rule",
@@ -33,8 +33,8 @@ var docsEditorCopy = map[string]map[string]string{
 		"editor_label": "Dokumenteditor", "editor_toolbar": "Formatierung", "editor_view": "Ansicht",
 		"editor_view_split": "Geteilt", "editor_view_source": "Markdown", "editor_view_rich": "Formatiert",
 		"editor_source": "Markdown", "editor_rich": "Formatiert", "editor_rich_label": "Formatiertes Dokument",
-		"editor_source_help": "Bearbeiten Sie das Markdown oder den formatierten Text; beide Seiten bleiben gleich. Strg+S speichert.",
-		"editor_style":       "Textformat", "editor_paragraph": "Absatz", "editor_h1": "Überschrift 1", "editor_h2": "Überschrift 2", "editor_h3": "Überschrift 3",
+		"editor_source_help": "Markdown- und formatierte Ansicht bleiben synchron.", "editor_save_hint": "Strg+S speichert.",
+		"editor_style": "Textformat", "editor_paragraph": "Absatz", "editor_h1": "Überschrift 1", "editor_h2": "Überschrift 2", "editor_h3": "Überschrift 3",
 		"editor_bold": "Fett (Strg+B)", "editor_italic": "Kursiv (Strg+I)", "editor_strike": "Durchgestrichen", "editor_code": "Code im Text",
 		"editor_link": "Link (Strg+K)", "editor_ul": "Aufzählung", "editor_ol": "Nummerierte Liste", "editor_task": "Aufgabenliste",
 		"editor_quote": "Zitat", "editor_codeblock": "Codeblock", "editor_table": "Tabelle einfügen", "editor_hr": "Trennlinie",
@@ -50,8 +50,8 @@ var docsEditorCopy = map[string]map[string]string{
 		"editor_label": "محرر المستند", "editor_toolbar": "التنسيق", "editor_view": "العرض",
 		"editor_view_split": "مقسّم", "editor_view_source": "Markdown", "editor_view_rich": "منسّق",
 		"editor_source": "Markdown", "editor_rich": "منسّق", "editor_rich_label": "المستند المنسّق",
-		"editor_source_help": "حرّر نص Markdown أو النص المنسّق؛ يتبع كل جانب الآخر. Ctrl+S للحفظ.",
-		"editor_style":       "نمط النص", "editor_paragraph": "فقرة", "editor_h1": "عنوان 1", "editor_h2": "عنوان 2", "editor_h3": "عنوان 3",
+		"editor_source_help": "تبقى طريقة عرض Markdown والعرض المنسّق متزامنتين.", "editor_save_hint": "Ctrl+S للحفظ.",
+		"editor_style": "نمط النص", "editor_paragraph": "فقرة", "editor_h1": "عنوان 1", "editor_h2": "عنوان 2", "editor_h3": "عنوان 3",
 		"editor_bold": "غامق (Ctrl+B)", "editor_italic": "مائل (Ctrl+I)", "editor_strike": "يتوسطه خط", "editor_code": "رمز ضمن النص",
 		"editor_link": "رابط (Ctrl+K)", "editor_ul": "قائمة نقطية", "editor_ol": "قائمة مرقّمة", "editor_task": "قائمة مهام",
 		"editor_quote": "اقتباس", "editor_codeblock": "كتلة رمز", "editor_table": "إدراج جدول", "editor_hr": "خط فاصل",
@@ -93,8 +93,12 @@ func docsEditorCounts(locale string, stats docsEditorStats) string {
 type docsSplitEditorProps struct {
 	Locale                                     string
 	DocumentID, BaseVersionID, Title, Markdown string
-	Save                                       func(DocumentEditRequest, func(error))
-	Cancel                                     func()
+	// Shared reports whether this document has readers beyond its owner, so
+	// the save confirmation only mentions "shared readers keep seeing the
+	// published version" when that sentence is actually true (DOCS-06).
+	Shared bool
+	Save   func(DocumentEditRequest, func(error))
+	Cancel func()
 	// Media uploads images and PDFs (docs_media.go); nil hides the tools.
 	Media *DocumentMediaPort
 	// Suggest answers the "@", "#" and "[[" autocomplete
@@ -262,6 +266,33 @@ func docsEditorIcon(path string) ui.Node {
 	}}, html.Tag("path", html.Props{Raw: map[string]any{"d": path}}))
 }
 
+// docsEditorSplitTitleHeading removes a leading "# <title>" line (and the
+// blank lines after it) from markdown when it repeats title, reporting
+// whether it did so that the save can put it back.
+func docsEditorSplitTitleHeading(title, markdown string) (string, bool) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return markdown, false
+	}
+	rest := strings.TrimLeft(markdown, "\r\n")
+	line, after, _ := strings.Cut(rest, "\n")
+	heading, ok := strings.CutPrefix(strings.TrimSpace(line), "# ")
+	if !ok || strings.TrimSpace(heading) != title {
+		return markdown, false
+	}
+	return strings.TrimLeft(after, "\r\n"), true
+}
+
+// docsEditorJoinTitleHeading is docsEditorSplitTitleHeading's inverse: when
+// the body had a title heading it is restored from the (possibly renamed)
+// title, so the saved Markdown keeps the document's shape.
+func docsEditorJoinTitleHeading(title, body string, heading bool) string {
+	if !heading || strings.TrimSpace(title) == "" {
+		return body
+	}
+	return "# " + strings.TrimSpace(title) + "\n\n" + strings.TrimLeft(body, "\r\n")
+}
+
 // docsSplitEditor edits a document as Markdown and as formatted text side
 // by side. The two panes are never GWC children: the textarea holds its
 // text as a DOM value and the formatted pane as imperatively set HTML, so
@@ -270,12 +301,28 @@ func docsEditorIcon(path string) ui.Node {
 func docsSplitEditor(props docsSplitEditorProps) ui.Node {
 	locale := props.Locale
 	controller := ui.UseRef[*docsEditorController](nil)
+	// The body usually opens with "# <title>", the same text the Title field
+	// already holds, and the formatted pane then shows it a third time as an
+	// H1 (D-3). The editor works on the body without that line and puts the
+	// heading back, with the current title, when it saves.
+	editBody, titleHeading := docsEditorSplitTitleHeading(props.Title, props.Markdown)
 	if controller.Get() == nil {
-		controller.Set(newDocsEditorController(locale, props.Title, props.Markdown))
+		controller.Set(newDocsEditorController(locale, props.Title, editBody))
 	}
 	c := controller.Get()
+	// Hydration can preserve the server's editor effect dependency without
+	// running the browser mount. A client-only state transition gives the
+	// imperative panes one mount after hydration, and the keyed effect still
+	// owns listener cleanup when the editor leaves the route.
+	browserReady := ui.UseState(false)
+	ui.UseLayoutEffect(func() func() {
+		if !browserReady.Get() {
+			browserReady.Set(true)
+		}
+		return nil
+	})
 	mode := ui.UseState("split")
-	stats := ui.UseState(docsEditorStatsOf(props.Markdown))
+	stats := ui.UseState(docsEditorStatsOf(editBody))
 	dirty := ui.UseState(false)
 	formats := ui.UseState("")
 	headingOpen := ui.UseState(false)
@@ -346,7 +393,7 @@ func docsSplitEditor(props docsSplitEditorProps) ui.Node {
 		saved.Set(false)
 		missing.Set(false)
 		title, body := c.title, c.markdown
-		props.Save(DocumentEditRequest{DocumentID: props.DocumentID, BaseVersionID: props.BaseVersionID, Title: title, Markdown: body}, func(err error) {
+		props.Save(DocumentEditRequest{DocumentID: props.DocumentID, BaseVersionID: props.BaseVersionID, Title: title, Markdown: docsEditorJoinTitleHeading(title, body, titleHeading)}, func(err error) {
 			busy.Set(false)
 			if err != nil {
 				failed.Set(true)
@@ -361,14 +408,28 @@ func docsSplitEditor(props docsSplitEditorProps) ui.Node {
 
 	// The browser half attaches its listeners once per document version and
 	// re-seeds the fields whenever a render has replaced them.
-	ui.UseEffect(func() func() {
+	ui.UseLayoutEffect(func() func() {
+		if !browserReady.Get() {
+			return nil
+		}
 		if docsEditorNarrow() {
 			mode.Set("rich")
 			c.mode = "rich"
 		}
-		return docsEditorMount(c)
-	}, props.DocumentID+"@"+props.BaseVersionID)
-	ui.UseEffect(func() func() { return docsSuggestMount(c, suggest) }, props.DocumentID+"@"+props.BaseVersionID)
+		cleanup := docsEditorMount(c)
+		// A document just created from its title (r4 D-3) opens with an
+		// empty body: the cursor starts in the body, ready to write.
+		if strings.TrimSpace(c.markdown) == "" {
+			docsEditorFocus(c.pane)
+		}
+		return cleanup
+	}, browserReady.Get(), props.DocumentID+"@"+props.BaseVersionID)
+	ui.UseEffect(func() func() {
+		if !browserReady.Get() {
+			return nil
+		}
+		return docsSuggestMount(c, suggest)
+	}, browserReady.Get(), props.DocumentID+"@"+props.BaseVersionID)
 	ui.UseLayoutEffect(func() func() {
 		docsEditorEnsure(c)
 		return nil
@@ -593,7 +654,10 @@ func docsSplitEditor(props docsSplitEditorProps) ui.Node {
 	case busy.Get():
 		statusKey = "edit_busy"
 	case saved.Get():
-		statusKey = "edit_saved"
+		statusKey = "edit_saved_private"
+		if props.Shared {
+			statusKey = "edit_saved"
+		}
 	}
 	return html.Section(html.Props{
 		Key: "docs-editor-" + props.DocumentID + "@" + props.BaseVersionID, ID: "docs-editor", Class: "docs-editor",
@@ -607,7 +671,7 @@ func docsSplitEditor(props docsSplitEditorProps) ui.Node {
 			),
 			viewSwitch,
 		),
-		html.P(html.Props{Key: "help", ID: "docs-editor-help", Class: "docs-editor-help"}, ui.Text(text("editor_source_help"))),
+		html.P(html.Props{Key: "help", ID: "docs-editor-help", Class: "docs-editor-help"}, ui.Text(text("editor_source_help")), ui.Text(" "), html.Span(html.Props{Class: "kbd-hint"}, ui.Text(text("editor_save_hint")))),
 		html.Div(html.Props{Key: "toolbar", Class: "docs-editor-toolbar", Role: "toolbar", Aria: map[string]string{"label": text("editor_toolbar"), "controls": "docs-editor-source docs-editor-rich"}, OnClick: toolbarClick, OnMouseDown: keepFocus, OnKeyDown: toolbarKey}, tools...),
 		linkForm,
 		media.Status,

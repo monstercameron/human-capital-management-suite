@@ -51,6 +51,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		config.Subject = principal.Subject()
 		config.Roles = principal.Roles()
 		config.Purpose = principal.DefaultPurpose()
+		h.applyCompanyBrand(&config)
 	}
 	access, loadErr := h.resolveProductAccess(admitted.Context(), principal)
 	if loadErr != nil {
@@ -119,6 +120,11 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 			TextSize: stored.TextSize, Contrast: stored.Contrast, Motion: stored.Motion, Links: stored.Links,
 		})
 		savedLocale = snapshot.User.Locale
+	}
+	if config.TenantLogo != "" && appearance.BrandLogoURL == "" {
+		// A multi-company workspace shows the signed-in company's own logo
+		// until an administrator configures one.
+		appearance.BrandLogoURL = config.TenantLogo
 	}
 	locale = productui.ResolveProductLocalePreference(query.Get("locale"), savedLocale)
 	if h.catalogs != nil && config.Tenant != "" {
@@ -339,7 +345,11 @@ func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bund
 		// through journeyclient.Config/journeyApp in
 		// tools/uxqual/cmd/journeywasm/product_wasm.go, untouched by this
 		// SSR loading shell.
-		view := productui.NewView(page, productui.DisplayLabel(config.Tenant), productui.DisplayLabel(config.Subject), "")
+		tenantLabel := productui.DisplayLabel(config.Tenant)
+		if config.TenantName != "" {
+			tenantLabel = config.TenantName
+		}
+		view := productui.NewView(page, tenantLabel, productui.DisplayLabel(config.Subject), "")
 		view.Appearance = theme
 		// Hydration preserves live input values. Seed the request's query in the
 		// loading shell so an empty SSR value cannot hide an active client filter.

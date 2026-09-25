@@ -198,7 +198,7 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 			html.Span(html.Props{Class: "mention-detail", Text: detail})), "mention:"+person.ID))
 	}
 	return html.Div(html.Props{ID: target + "-mentions", Class: "mention-menu", Role: "listbox", Aria: map[string]string{"label": m.t(KeyMentionTitle)}},
-		append(rows, html.P(html.Props{Class: "mention-hint", Aria: map[string]string{"hidden": "true"}, Text: m.t(KeyMentionHint)}))...)
+		append(rows, html.P(html.Props{Class: "mention-hint kbd-hint", Aria: map[string]string{"hidden": "true"}, Text: m.t(KeyMentionHint)}))...)
 }
 
 // mentionFieldAria points a composer at its open suggestion list so a screen

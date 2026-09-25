@@ -432,6 +432,8 @@ modules:
     allowed_import_roots:
       [
         internal/transport,
+        internal/application/projectactivity,
+        internal/data/projectcommentstore,
         tools/uxqual/forms,
         tools/uxqual/qual,
         tools/uxqual/hydration,
@@ -441,9 +443,9 @@ modules:
     upgrade_sla: Tracks google.golang.org/grpc's own pin; security patch within 7 days.
     exposure: >-
       grpc-go's HTTP/2 transport framing; carries all gRPC traffic.
-      The two uxqual roots use only html/atom as a deterministic, read-only
-      browser-fixture parser; they do not participate in a request path or
-      define UX authority.
+      Project activity and comment persistence parse bounded task comment
+      formatting; the uxqual roots use html/atom for read-only browser
+      fixtures. No parser type crosses an owned API.
     replacement_strategy: Tracks google.golang.org/grpc.
 
   - path: golang.org/x/sync
@@ -505,7 +507,12 @@ modules:
     license_owner: platform-foundation
     security_owner: platform-foundation
     allowed_import_roots:
-      [internal/collaboration/chatmedia, internal/humanwork/docsexport]
+      [
+        internal/collaboration/chatmedia,
+        internal/data/brandassetstore,
+        internal/humanwork/docsexport,
+        internal/humanwork/workspace,
+      ]
     direct_import_expected: true
     upgrade_sla: Tracks the Go project's own release cadence; security patch within 14 days.
     exposure: >-
@@ -514,7 +521,8 @@ modules:
       mechanics remain behind the media adapter and do not define HCM policy.
       internal/humanwork/docsexport uses its Go fonts (BSD, embedded in
       exported PDFs), sfnt glyph metrics and the WebP decoder for attached
-      images; no x/image type crosses its API.
+      images. Brand asset storage and the workspace asset handler decode WebP
+      through the image codec registry; no x/image type crosses an owned API.
     replacement_strategy: Standard-library image codecs and scaling code if the x/image package is no longer maintained.
 
   - path: golang.org/x/tools
@@ -615,6 +623,7 @@ modules:
         internal/experience/journeycss,
         internal/experience/tokens,
         internal/humanwork/productui,
+        internal/humanwork/projectui,
         internal/humanwork/uicomponents,
         internal/humanwork/workspace,
         internal/humanwork/chatui,
@@ -629,8 +638,8 @@ modules:
       components, typed CSS). The experience style roots own typed CSS
       emission; docsdiagram owns HTML/SVG diagram rendering. No business
       semantics may come from it.
-      internal/humanwork/chatui imports only the html/ui subpackages to
-      render the chat workspace tree from owned types.
+      internal/humanwork/chatui and projectui import only the html/ui
+      subpackages to render workspace trees from owned types.
     replacement_strategy: Go html/template server-side rendering with progressive enhancement (UX-QUAL-001 fallback).
 
   - path: github.com/monstercameron/schemaflux
@@ -1037,6 +1046,7 @@ modules:
         tools/uxqual/journeyclient,
         tools/uxqual/cmd/journeywasm,
         tools/uxqual/productclient,
+        tools/uxqual/projectclient,
         tools/quality/bufprotovalidatekit,
       ]
     direct_import_expected: true
@@ -1052,7 +1062,8 @@ modules:
       validation qualification kit; those packages do not own business rules
       or export wire values through domain and capability ports.
       schema/proto/gen holds protoc-generated message code that is wire
-      encoding like gen/.
+      encoding like gen/. The project client projects protobuf responses for
+      the browser and does not expose protobuf types to product UI components.
     replacement_strategy: No realistic replacement; Protobuf is the canonical wire contract per the Go technology constitution.
 
   - path: github.com/rogpeppe/go-internal

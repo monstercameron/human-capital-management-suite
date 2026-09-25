@@ -120,6 +120,29 @@ func TestTodo_CHAT_030_SecurityLinkResolveRechecksHistoryAndDeletion(t *testing.
 	}
 }
 
+func TestReadAuthorizedReferenceDoesNotCreateLocatorAndRechecksPostVisibility(t *testing.T) {
+	joined := time.Unix(30, 0).UTC()
+	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1, HistoryVisibility: FromJoin, JoinedAt: &joined}, post: Post{ID: "p1", TenantID: "t1", ConversationID: "c1", Body: "visible", CreatedAt: time.Unix(40, 0).UTC()}}
+	s := NewService(f, func() time.Time { return time.Unix(50, 0).UTC() })
+	s.SetAuthority(referenceAuthority{})
+	room, post, err := s.ReadAuthorizedReference(context.Background(), principal(), "t1", "c1", "p1")
+	if err != nil || room.ID != "c1" || post == nil || post.Body != "visible" {
+		t.Fatalf("authorized reference = room=%+v post=%+v err=%v", room, post, err)
+	}
+	f.membership.HistoryVisibility = NoHistory
+	if _, post, err := s.ReadAuthorizedReference(context.Background(), principal(), "t1", "c1", "p1"); err != ErrNotFound || post != nil {
+		t.Fatalf("revoked history reference = post=%+v err=%v", post, err)
+	}
+	f.membership.HistoryVisibility = FullHistory
+	f.post.Deleted = true
+	if _, post, err := s.ReadAuthorizedReference(context.Background(), principal(), "t1", "c1", "p1"); err != ErrNotFound || post != nil {
+		t.Fatalf("deleted post reference = post=%+v err=%v", post, err)
+	}
+	if _, _, err := s.ReadAuthorizedReference(context.Background(), Principal{TenantID: "t1", SubjectID: "other"}, "t1", "c1", "p1"); err != ErrPermissionDenied {
+		t.Fatalf("unauthorized private reference err=%v", err)
+	}
+}
+
 func TestForwardPostUsesSendPost(t *testing.T) {
 	f := &fakeStore{conversation: conversation(), membership: Membership{TenantID: "t1", HomeTenantID: "t1", ConversationID: "c1", SubjectID: "u1", Revision: 1}, post: Post{ID: "p1", TenantID: "t1", ConversationID: "c1", AuthorID: "u2", Body: "source", Revision: 3}}
 	s := NewService(f, func() time.Time { return time.Unix(20, 0).UTC() })

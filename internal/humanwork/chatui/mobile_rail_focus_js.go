@@ -110,7 +110,7 @@ func syncMobileRailFocus(open bool) {
 				if !target.Truthy() {
 					target = search
 				}
-				target.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+				focusMobileRailTarget(target)
 				// Reconciliation can replace the focused precommit node. Verify on
 				// the next frame before declaring the drawer settled.
 				attempts++
@@ -131,6 +131,56 @@ func syncMobileRailFocus(open bool) {
 		return nil
 	})
 	frame.Invoke(callback)
+}
+
+// railKeyboardModality records whether the last input was a key press, so
+// the drawer can tell a keyboard open from a tap or a touch landing.
+var railKeyboardModality bool
+var railModalityListeners js.Func
+
+func trackRailInputModality() {
+	if railModalityListeners.Truthy() {
+		return
+	}
+	doc := js.Global().Get("document")
+	if !doc.Truthy() || doc.Get("addEventListener").Type() != js.TypeFunction {
+		return
+	}
+	railModalityListeners = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) > 0 {
+			railKeyboardModality = args[0].Get("type").String() == "keydown"
+		}
+		return nil
+	})
+	options := js.ValueOf(map[string]any{"capture": true, "passive": true})
+	doc.Call("addEventListener", "keydown", railModalityListeners, options)
+	doc.Call("addEventListener", "pointerdown", railModalityListeners, options)
+}
+
+// focusMobileRailTarget moves focus into the open drawer. Round 3 C-5: a
+// programmatic focus on a touch landing matched :focus-visible and drew a
+// 2px ring around the selected row, which read as an error state. Focus
+// still moves (the drawer is modal), but unless the last input was a key
+// press the row is marked quiet -- CSS drops the ring -- until a key is
+// pressed inside the rail or focus leaves it.
+func focusMobileRailTarget(target js.Value) {
+	trackRailInputModality()
+	if railKeyboardModality || target.Get("setAttribute").Type() != js.TypeFunction || target.Get("addEventListener").Type() != js.TypeFunction {
+		target.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+		return
+	}
+	target.Call("setAttribute", "data-quiet-focus", "")
+	var clear js.Func
+	clear = js.FuncOf(func(js.Value, []js.Value) any {
+		target.Call("removeAttribute", "data-quiet-focus")
+		target.Call("removeEventListener", "keydown", clear)
+		target.Call("removeEventListener", "blur", clear)
+		clear.Release()
+		return nil
+	})
+	target.Call("addEventListener", "keydown", clear)
+	target.Call("addEventListener", "blur", clear)
+	target.Call("focus", js.ValueOf(map[string]any{"preventScroll": true, "focusVisible": false}))
 }
 
 func trapMobileRailFocus(event ui.Event) bool {

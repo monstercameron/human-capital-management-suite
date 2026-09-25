@@ -29,12 +29,23 @@ func renderDocsMarkdown(t *testing.T, view View, markdown string) string {
 }
 
 // TestDocsMedia_ReaderRendersAttachments: an attachment image renders as a
-// labelled placeholder that loads lazily (no src until it is near the
-// viewport), a PDF link as a card with its name, and ordinary images and
-// links keep their old rendering. No style attribute is ever written.
+// labelled placeholder until its authenticated URL resolves, a PDF link as a
+// card with its name, and ordinary images and links keep their old rendering.
+// No style attribute is ever written.
 func TestDocsMedia_ReaderRendersAttachments(t *testing.T) {
-	view := View{Locale: LocaleContext{Resolved: "en-US"}, DocumentID: "doc-1", DocumentMedia: docsMediaTestPort()}
+	port := docsMediaTestPort()
+	var imageCalls int
+	port.ObjectURL = func(documentID, attachmentID string, done func(string, error)) {
+		imageCalls++
+		if documentID != "doc-1" || attachmentID != "docm-1" {
+			t.Errorf("unexpected image request: %s/%s", documentID, attachmentID)
+		}
+	}
+	view := View{Locale: LocaleContext{Resolved: "en-US"}, DocumentID: "doc-1", DocumentMedia: port}
 	markup := renderDocsMarkdown(t, view, "Intro\n\n![Org chart](attachment:docm-1)\n\n[Policy.pdf](attachment:docm-2)\n\n![remote](https://evil.example/x.png) and [site](https://example.com)\n")
+	if imageCalls != 1 {
+		t.Fatalf("image requests = %d, want one render-time request", imageCalls)
+	}
 	for _, want := range []string{
 		`class="docs-media-figure"`, `data-attachment-id="docm-1"`, `role="img"`, `aria-label="Org chart"`, `aria-busy="true"`, "Loading image…",
 		`class="docs-media-card"`, `data-attachment-id="docm-2"`, "Policy.pdf", `aria-label="Open Policy.pdf"`, `aria-label="Download Policy.pdf"`, `data-media-action="download"`,

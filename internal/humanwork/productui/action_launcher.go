@@ -43,7 +43,22 @@ func declareActionLauncherStyles() {
 	declareGlobal(".action-launcher", gwccss.Position.Relative, gwccss.MinWidth(gwccss.Px(0)))
 	declareGlobal(".action-launcher-trigger",
 		gwccss.Display.InlineFlex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(7)),
-		gwccss.MinHeight(gwccss.RawLength("var(--hcm-control-height)")), gwccss.MaxWidth(gwccss.Px(230)),
+		gwccss.MinHeight(gwccss.RawLength("var(--hcm-control-height)")),
+		// S-1: the trigger used to read "Start an action" on pages with real
+		// actions and "Go to" on destination-only pages (chat), which put
+		// two different names on what is visibly the same control (same
+		// icon, same position). Two copy keys still exist
+		// (action_launcher.trigger / action_launcher.navigation_trigger,
+		// picked by actionLauncherCopyKeys/actionLauncherCopyKeysForPage)
+		// because the dialog's contents still differ, but both now resolve
+		// to the same "Jump to" (en) label so the trigger itself reads
+		// identically everywhere; only the opened dialog's own heading still
+		// distinguishes "Start an action" from "Go to a page". A fixed
+		// MinWidth alongside MaxWidth stops a shorter label from shrinking
+		// the trigger and reflowing the global-search box next to it
+		// (".header-navigation-tools>.global-search" is flex:1 1 0 and fills
+		// whatever width the trigger gives back).
+		gwccss.MinWidth(gwccss.Px(150)), gwccss.MaxWidth(gwccss.Px(230)),
 		gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(11)),
 		gwccss.Raw("border", "1px solid var(--control-border,var(--line))"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
@@ -224,7 +239,10 @@ func declareActionLauncherStyles() {
 		mediaRule(gwccss.RawMedia("(min-width:431px) and (max-width:1050px)"), gwccss.Display.None),
 	)
 	declareGlobal(".action-launcher-trigger",
-		mediaRule(gwccss.RawMedia("(min-width:431px) and (max-width:1050px)"), gwccss.W(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("justify-content", "center")),
+		// The label is hidden in this band (icon-only), so the desktop
+		// MinWidth reserved for the longer "Start an action" label would
+		// otherwise force this collapsed button wider than its own icon.
+		mediaRule(gwccss.RawMedia("(min-width:431px) and (max-width:1050px)"), gwccss.W(gwccss.Px(44)), gwccss.MinWidth(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("justify-content", "center")),
 	)
 	declareGlobal(".action-launcher-trigger",
 		mediaRule(gwccss.MaxW(760), gwccss.MaxWidth(gwccss.Px(190))),

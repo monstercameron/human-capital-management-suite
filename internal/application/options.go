@@ -43,6 +43,11 @@ import (
 // silently skipped.
 type Migrator func(ctx context.Context, databaseURL string, logger bootstrap.Logger) error
 
+// ProjectMigrator applies the project-owned Goose tree under its fixed
+// isolated schema. It is supplied by cmd/hcmnext so application remains free
+// of Goose imports.
+type ProjectMigrator func(ctx context.Context, databaseURL, coreDatabaseURL, schema string, logger bootstrap.Logger) error
+
 // ListenFunc opens the TCP listeners the two surfaces are published on. Nil
 // means net.Listen.
 type ListenFunc func(network, address string) (net.Listener, error)
@@ -104,6 +109,8 @@ type Options struct {
 
 	// Migrate applies the schema. Required when ServeConfig.Migrate is true.
 	Migrate Migrator
+	// MigrateProject applies the project schema when its restricted role is configured.
+	MigrateProject ProjectMigrator
 	// Listen opens the two surfaces' listeners.
 	Listen ListenFunc
 
@@ -202,6 +209,11 @@ func WithTelemetryProvider(provider *hcmotel.Provider) Option {
 // WithMigrator supplies the schema migration adapter.
 func WithMigrator(migrate Migrator) Option {
 	return func(o *Options) { o.Migrate = migrate }
+}
+
+// WithProjectMigrator supplies the project schema migration adapter.
+func WithProjectMigrator(migrate ProjectMigrator) Option {
+	return func(o *Options) { o.MigrateProject = migrate }
 }
 
 // WithListener supplies the listener factory both surfaces are opened with.

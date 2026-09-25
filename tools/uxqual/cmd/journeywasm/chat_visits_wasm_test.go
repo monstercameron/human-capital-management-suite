@@ -40,9 +40,9 @@ func TestChatGoToUsesLiveVisitsAndCurrentMembership(t *testing.T) {
 	defer fixture.Cleanup()
 	fixture.Render(productui.BuildShell(view, html.Section(html.Props{ID: "chat-visit-shell"}, ui.Text("chat")), true))
 	fixture.Stabilize()
-	trigger := fixture.ByRole("button", "Go to")
+	trigger := fixture.ByRole("button", "Jump to")
 	if trigger == nil {
-		t.Fatal("chat shell did not render its contextual Go to trigger")
+		t.Fatal("chat shell did not render its contextual Jump to trigger")
 	}
 	trigger.Click()
 	fixture.Stabilize()

@@ -71,6 +71,23 @@ service DocumentService {
   // caller may also read (HUB-035/HUB-022); a source the caller cannot read
   // is left out entirely, never named.
   rpc GetDocumentBacklinks(GetDocumentBacklinksRequest) returns (GetDocumentBacklinksResponse);
+  // ListDocumentVersions lists a document's immutable versions oldest
+  // first, for the compare pickers (DOCS-01). Each entry is already
+  // policy-redacted against the document's current classification: a
+  // version more sensitive than current policy carries only its ID and
+  // redacted=true.
+  rpc ListDocumentVersions(ListDocumentVersionsRequest) returns (ListDocumentVersionsResponse);
+  // WithdrawDocument removes the document's live default-scope pointer
+  // (DOCS-07): the document stops being shared/deployed to anyone but its
+  // owner, but every immutable version and record is kept, and the
+  // withdrawal can be undone with RestoreDocument while nothing else has
+  // been deployed since.
+  rpc WithdrawDocument(WithdrawDocumentRequest) returns (WithdrawDocumentResponse);
+  // RestoreDocument redeploys a version WithdrawDocument just withdrew,
+  // undoing the withdrawal (DOCS-07). It only succeeds while the scope is
+  // still empty and fresh review evidence for that version and scope
+  // exists; otherwise it reports why it could not restore automatically.
+  rpc RestoreDocument(RestoreDocumentRequest) returns (RestoreDocumentResponse);
 }
 
 message ListDocumentsRequest {
@@ -615,3 +632,45 @@ message DocumentBacklink {
 message GetDocumentBacklinksResponse {
   repeated DocumentBacklink backlinks = 1;
 }
+
+message ListDocumentVersionsRequest {
+  string document_id = 1;
+}
+
+// DocumentVersionSummary is one entry in a document's version history
+// (HUB-017), already policy-redacted. author_id is sent only when the
+// store can name the version's author; is_current marks the version the
+// document currently resolves to.
+message DocumentVersionSummary {
+  string version_id = 1;
+  string title = 2;
+  google.protobuf.Timestamp created_at = 3;
+  string author_id = 4;
+  bool is_current = 5;
+  bool redacted = 6;
+}
+
+message ListDocumentVersionsResponse {
+  // versions is ordered oldest first.
+  repeated DocumentVersionSummary versions = 1;
+}
+
+message WithdrawDocumentRequest {
+  string document_id = 1;
+  // reason is the audited explanation for the withdrawal; the server
+  // fills a default when empty.
+  string reason = 2;
+}
+
+message WithdrawDocumentResponse {
+  // version_id is the version that was live before this withdrawal, kept
+  // so the caller can offer an Undo that calls RestoreDocument with it.
+  string version_id = 1;
+}
+
+message RestoreDocumentRequest {
+  string document_id = 1;
+  string version_id = 2;
+}
+
+message RestoreDocumentResponse {}

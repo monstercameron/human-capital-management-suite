@@ -24131,7 +24131,7 @@ A read-only check of the migrations and `internal/data` against `AGENTS.md`, `de
   - **GREEN:** each PERMANENT table either denies in-place updates or is reclassified with a history table; a new migration drops the stray UPDATE grants; a registry test compares every `append_only` flag with the live `pg_trigger` catalogue and fails on disagreement.
   - **REFACTOR:** none.
   - **Refs:** `definitions/storage/storage-disposition.yaml`, `internal/data/tenancy/storagedisposition`, `migrations`.
-  - **Evidence (2026-09-23):** `TestTodo_REV_102_03` and its PRIMARY/GOLDEN/FAULT/RECOVERY matrix; live-catalog assertions compare every registry append-only flag with full forbid_mutation triggers, detect unguarded PERMANENT UPDATE grants and stray UPDATE grants on sealed rows, and verify the mutable compensation row reconstructs from immutable history. Migration 00323 seals legal_rule_pack, removes the stray leave_availability_revision UPDATE grant, and `go test -count=1 ./internal/data/tenancy/storagedisposition/ -run '^TestTodo_REV_102_03($|_)'` PASS per owner.
+  - **Evidence (2026-09-23):** `TestTodo_REV_102_03` and its PRIMARY/GOLDEN/FAULT/RECOVERY matrix; live-catalog assertions compare every registry append-only flag with full forbid*mutation triggers, detect unguarded PERMANENT UPDATE grants and stray UPDATE grants on sealed rows, and verify the mutable compensation row reconstructs from immutable history. Migration 00323 seals legal_rule_pack, removes the stray leave_availability_revision UPDATE grant, and `go test -count=1 ./internal/data/tenancy/storagedisposition/ -run '^TestTodo_REV_102_03($|*)'` PASS per owner.
     ecord_copy_link/performance_rating_case are reclassified OPERATIONAL; 00345 adds append-only compensation-operation history and its storage classification. workflow_compiled_version keeps guarded lifecycle status changes recorded in workflow_version_transition. go run ./tools/policy/migrationci/cmd/migrationci -root . -manifest migrations/manifest.json PASS (193 entries); storagemanifest regenerated. No PostgreSQL rerun in this record update.
 
 - [ ] `REV-102-04` **[GATE_C][SOL_LOW] Standardize money, quantity and FTE column types and remove floating point from pay-relevant Go code.**
@@ -26601,7 +26601,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-002` **[GATE_C][SOL_HIGH] Register core-owned conversation routing and shard placement contract.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_002`, `TestTodo_CHAT_002_Integration`, `TestTodo_CHAT_002_Security` exist and assert the GREEN behaviour (Route reservation, tenant-scoped lookup refusal (ErrTenant), unknown-route refusal (ErrNotFound), collision/idempotency and stale-epoch rejection are all implemented and asserted against real return values/errors); `go test -count=1 ./internal/collaboration/chatrouting/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_002`, `TestTodo_CHAT_002_Integration`, `TestTodo_CHAT_002_Security` exist and assert the GREEN behaviour (Route reservation, tenant-scoped lookup refusal (ErrTenant), unknown-route refusal (ErrNotFound), collision/idempotency and stale-epoch rejection are all implemented and asserted against real return values/errors); `go test -count=1 ./internal/collaboration/chatrouting/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=register core-owned conversation routing and shard placement contract through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_002`.
@@ -26612,7 +26612,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-003` **[GATE_C][SOL_HIGH] Provision an independent chat database and bounded pool.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_003`, `TestTodo_CHAT_003_Integration`, `TestTodo_CHAT_003_Security` exist and assert the GREEN behaviour (sameDatabase/sameDatabaseCredential logic rejects shared core credentials/DSNs (including loopback aliasing tricks) before network access; New() returns ErrCoreCredential; real production code in store.go implements it); `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_003`, `TestTodo_CHAT_003_Integration`, `TestTodo_CHAT_003_Security` exist and assert the GREEN behaviour (sameDatabase/sameDatabaseCredential logic rejects shared core credentials/DSNs (including loopback aliasing tricks) before network access; New() returns ErrCoreCredential; real production code in store.go implements it); `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=provision an independent chat database and bounded pool through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_003`.
@@ -26623,7 +26623,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-004` **[GATE_C][SOL_HIGH] Enforce tenant isolation on every chat-owned table.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_004`, `_Security`, `_Integration` in `internal/data/chatstore` (RLS catalog, non-BYPASSRLS cross-tenant refusal); `go test -count=1 ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_004`, `_Security`, `_Integration` in `internal/data/chatstore` (RLS catalog, non-BYPASSRLS cross-tenant refusal); `go test -count=1 ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-003`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=enforce tenant isolation on every chat-owned table through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_004`.
@@ -26634,7 +26634,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-005` **[GATE_C][SOL_HIGH] Cache and invalidate core conversation routes safely.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_005`, `TestTodo_CHAT_005_Fault`, `TestTodo_CHAT_005_Security` exist and assert the GREEN behaviour (RouteCache lease resolution, epoch-invalidation on BeginMove/stale-write rejection, TTL expiry re-resolve, and cross-tenant cache lookup refusal are all implemented in cache.go and asserted with real return checks); `go test -count=1 ./internal/collaboration/chatrouting/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_005`, `TestTodo_CHAT_005_Fault`, `TestTodo_CHAT_005_Security` exist and assert the GREEN behaviour (RouteCache lease resolution, epoch-invalidation on BeginMove/stale-write rejection, TTL expiry re-resolve, and cross-tenant cache lookup refusal are all implemented in cache.go and asserted with real return checks); `go test -count=1 ./internal/collaboration/chatrouting/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=cache and invalidate core conversation routes safely through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_005`.
@@ -26645,7 +26645,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-006` **[GATE_C][SOL_HIGH] Reconcile pending route and conversation creation.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_006`, `TestTodo_CHAT_006_Integration`, `TestTodo_CHAT_006_Recovery` exist and assert the GREEN behaviour (CreateCoordinator.Create/Reconcile implement idempotent conversation creation and pending-repair recovery after a mid-creation failure; tests assert on route state, call counts, and lookup consistency); `go test -count=1 ./internal/collaboration/chatrouting/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_006`, `TestTodo_CHAT_006_Integration`, `TestTodo_CHAT_006_Recovery` exist and assert the GREEN behaviour (CreateCoordinator.Create/Reconcile implement idempotent conversation creation and pending-repair recovery after a mid-creation failure; tests assert on route state, call counts, and lookup consistency); `go test -count=1 ./internal/collaboration/chatrouting/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-002`, `CHAT-003`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=reconcile pending route and conversation creation through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_006`.
@@ -26656,7 +26656,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-007` **[GATE_C][SOL_HIGH] Fence chat writes during shard moves.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_007`, `TestTodo_CHAT_007_Integration`, `TestTodo_CHAT_007_Recovery` exist and assert the GREEN behaviour (MoveCoordinator.Move implements copy/verify/drain fencing with rollback on verify failure and a race test proving only one concurrent BeginMove wins; real state/sequence assertions throughout); `go test -count=1 ./internal/collaboration/chatrouting/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_007`, `TestTodo_CHAT_007_Integration`, `TestTodo_CHAT_007_Recovery` exist and assert the GREEN behaviour (MoveCoordinator.Move implements copy/verify/drain fencing with rollback on verify failure and a race test proving only one concurrent BeginMove wins; real state/sequence assertions throughout); `go test -count=1 ./internal/collaboration/chatrouting/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-005`, `CHAT-006`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=fence chat writes during shard moves through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_007`.
@@ -26667,7 +26667,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-008` **[GATE_C][SOL_LOW] Publish canonical conversation RPC schemas and capability manifests.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_008`, `TestTodo_CHAT_008_Conformance`, `TestTodo_CHAT_008_Golden` exist and assert the GREEN behaviour (Conversation/Post/Membership contract types and typed sentinel errors exist with a compile-time ConversationService assertion and golden field checks (provenance/home-tenant fields, revision fencing)); `go test -count=1 ./internal/collaboration/chat/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_008`, `TestTodo_CHAT_008_Conformance`, `TestTodo_CHAT_008_Golden` exist and assert the GREEN behaviour (Conversation/Post/Membership contract types and typed sentinel errors exist with a compile-time ConversationService assertion and golden field checks (provenance/home-tenant fields, revision fencing)); `go test -count=1 ./internal/collaboration/chat/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=publish canonical conversation RPC schemas and capability manifests through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_008`.
@@ -26678,7 +26678,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-009` **[GATE_C][SOL_HIGH] Expose integration HTTP bindings with RPC parity.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_009`, `TestTodo_CHAT_009_Conformance`, `TestTodo_CHAT_009_Integration`, `TestTodo_CHAT_009_Security` exist and assert the GREEN behaviour (Real HTTP-vs-native-RPC parity is proven with proto.Equal comparisons of actual server responses through the mounted Connect route, plus idempotency-key/actor propagation checks); `go test -count=1 ./internal/transport/chat/`, `go test -count=1 ./internal/transport/chatresource/`, `go test -count=1 ./internal/transport/cell/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_009`, `TestTodo_CHAT_009_Conformance`, `TestTodo_CHAT_009_Integration`, `TestTodo_CHAT_009_Security` exist and assert the GREEN behaviour (Real HTTP-vs-native-RPC parity is proven with proto.Equal comparisons of actual server responses through the mounted Connect route, plus idempotency-key/actor propagation checks); `go test -count=1 ./internal/transport/chat/`, `go test -count=1 ./internal/transport/chatresource/`, `go test -count=1 ./internal/transport/cell/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-008`, `INTAPI-007`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=expose integration HTTP bindings with RPC parity through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_009`.
@@ -26689,7 +26689,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-010` **[GATE_C][SOL_HIGH] Evaluate channel eligibility from roles qualifications and allowlists.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_010`, `TestTodo_CHAT_010_Golden`, `TestTodo_CHAT_010_Property`, `TestTodo_CHAT_010_Security` exist and assert the GREEN behaviour (Evaluate() implements role/qualification currency, mandatory deny overriding allowlists, RoleMode composition (ANY/ALL) with fail-closed on an undeclared mode, and a golden discover/join/read/post decision matrix — all asserted on Evaluate()'s actual return values); `go test -count=1 ./internal/collaboration/chatpolicy/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_010`, `TestTodo_CHAT_010_Golden`, `TestTodo_CHAT_010_Property`, `TestTodo_CHAT_010_Security` exist and assert the GREEN behaviour (Evaluate() implements role/qualification currency, mandatory deny overriding allowlists, RoleMode composition (ANY/ALL) with fail-closed on an undeclared mode, and a golden discover/join/read/post decision matrix — all asserted on Evaluate()'s actual return values); `go test -count=1 ./internal/collaboration/chatpolicy/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-004`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=evaluate channel eligibility from roles qualifications and allowlists through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_010`.
@@ -26700,7 +26700,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-011` **[GATE_C][SOL_HIGH] Bind chat sessions and streams to current principal authority.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_011`, `TestTodo_CHAT_011_Fault`, `TestTodo_CHAT_011_Golden`, `TestTodo_CHAT_011_Security` exist and assert the GREEN behaviour (Session revocation invalidates cached authority and denies further resolves; TestTodo_CHAT_011_Fault_StreamClosesWithinConfiguredBudget proves a live stream actually closes with ErrRevoked within the configured 10ms recheck budget after revocation — a real timing/behavioral assertion backed by NewChatStreamRuntime); `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_011`, `TestTodo_CHAT_011_Fault`, `TestTodo_CHAT_011_Golden`, `TestTodo_CHAT_011_Security` exist and assert the GREEN behaviour (Session revocation invalidates cached authority and denies further resolves; TestTodo_CHAT_011_Fault_StreamClosesWithinConfiguredBudget proves a live stream actually closes with ErrRevoked within the configured 10ms recheck budget after revocation — a real timing/behavioral assertion backed by NewChatStreamRuntime); `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-010`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=bind chat sessions and streams to current principal authority through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_011`.
@@ -26711,7 +26711,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-012` **[GATE_C][SOL_HIGH] Create bilateral cross-company conversation grants.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_012`, `TestTodo_CHAT_012_Golden`, `TestTodo_CHAT_012_Integration`, `TestTodo_CHAT_012_Security` exist and assert the GREEN behaviour (Bilateral cross-company grant lifecycle with full matrix coverage and real assertions); `go test -count=1 ./internal/collaboration/chatpolicy/`, `go test -count=1 ./internal/collaboration/chatpolicyadapter/`, `go test -count=1 ./internal/data/chatstore/`, `go test -count=1 ./internal/data/chatauthority/`, `go test -count=1 ./internal/transport/chatextensions/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_012`, `TestTodo_CHAT_012_Golden`, `TestTodo_CHAT_012_Integration`, `TestTodo_CHAT_012_Security` exist and assert the GREEN behaviour (Bilateral cross-company grant lifecycle with full matrix coverage and real assertions); `go test -count=1 ./internal/collaboration/chatpolicy/`, `go test -count=1 ./internal/collaboration/chatpolicyadapter/`, `go test -count=1 ./internal/data/chatstore/`, `go test -count=1 ./internal/data/chatauthority/`, `go test -count=1 ./internal/transport/chatextensions/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-010`, `CHAT-002`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create bilateral cross-company conversation grants through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_012`.
@@ -26722,7 +26722,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-013` **[GATE_C][SOL_HIGH] Implement current-authority conversation membership lifecycle.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_013`, `_Security`, `_Integration`, `_Golden` in `internal/collaboration/chatpolicy` (golden pins the membership-lifecycle decision matrix); `go test -count=1 ./internal/collaboration/chatpolicy/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_013`, `_Security`, `_Integration`, `_Golden` in `internal/collaboration/chatpolicy` (golden pins the membership-lifecycle decision matrix); `go test -count=1 ./internal/collaboration/chatpolicy/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-010`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=implement current-authority conversation membership lifecycle through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_013`.
@@ -26733,7 +26733,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-014` **[GATE_C][SOL_HIGH] Create rename archive restore and transfer channels.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_014`, `TestTodo_CHAT_014_Golden`, `TestTodo_CHAT_014_Integration`, `TestTodo_CHAT_014_Security` exist and assert the GREEN behaviour (Rename/archive/restore/transfer lifecycle with full matrix coverage and enforced revision/authority checks); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_014`, `TestTodo_CHAT_014_Golden`, `TestTodo_CHAT_014_Integration`, `TestTodo_CHAT_014_Security` exist and assert the GREEN behaviour (Rename/archive/restore/transfer lifecycle with full matrix coverage and enforced revision/authority checks); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-013`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create rename archive restore and transfer channels through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_014`.
@@ -26744,7 +26744,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-015` **[GATE_C][SOL_HIGH] Create one-to-one direct messages with stable participant identity.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_015`, `TestTodo_CHAT_015_Golden`, `TestTodo_CHAT_015_Property`, `TestTodo_CHAT_015_Security` exist and assert the GREEN behaviour (Stable DM pair identity fully implemented with matching matrix tests); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_015`, `TestTodo_CHAT_015_Golden`, `TestTodo_CHAT_015_Property`, `TestTodo_CHAT_015_Security` exist and assert the GREEN behaviour (Stable DM pair identity fully implemented with matching matrix tests); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-013`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create one-to-one direct messages with stable participant identity through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_015`.
@@ -26755,7 +26755,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-016` **[GATE_C][SOL_HIGH] Create private group chats and shared names.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_016`, `TestTodo_CHAT_016_Golden`, `TestTodo_CHAT_016_Integration`, `TestTodo_CHAT_016_Security` exist and assert the GREEN behaviour (Private group chat lifecycle fully implemented with matching matrix tests); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_016`, `TestTodo_CHAT_016_Golden`, `TestTodo_CHAT_016_Integration`, `TestTodo_CHAT_016_Security` exist and assert the GREEN behaviour (Private group chat lifecycle fully implemented with matching matrix tests); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-013`, `CHAT-015`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create private group chats and shared names through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_016`.
@@ -26766,7 +26766,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-017` **[GATE_C][SOL_LOW] Commit ordered posts and chat outbox atomically.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_017`, `TestTodo_CHAT_017_Integration`, `TestTodo_CHAT_017_Race` exist and assert the GREEN behaviour (Atomic ordered post + outbox commit fully implemented with matching matrix tests); `go test -count=1 ./internal/data/chatstore/`, `go test -count=1 ./internal/collaboration/chat/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_017`, `TestTodo_CHAT_017_Integration`, `TestTodo_CHAT_017_Race` exist and assert the GREEN behaviour (Atomic ordered post + outbox commit fully implemented with matching matrix tests); `go test -count=1 ./internal/data/chatstore/`, `go test -count=1 ./internal/collaboration/chat/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-003`, `CHAT-008`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=commit ordered posts and chat outbox atomically through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_017`.
@@ -26777,7 +26777,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-018` **[GATE_C][SOL_HIGH] Stream authorized conversation events with bounded backpressure.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_018`, `TestTodo_CHAT_018_Race`, `TestTodo_CHAT_018_Security` exist and assert the GREEN behaviour (Bounded backpressure streaming implemented with matching matrix tests asserting real error conditions); `go test -count=1 ./internal/collaboration/chatstream/`, `go test -count=1 ./internal/transport/chat/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_018`, `TestTodo_CHAT_018_Race`, `TestTodo_CHAT_018_Security` exist and assert the GREEN behaviour (Bounded backpressure streaming implemented with matching matrix tests asserting real error conditions); `go test -count=1 ./internal/collaboration/chatstream/`, `go test -count=1 ./internal/transport/chat/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-017`, `CHAT-011`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=stream authorized conversation events with bounded backpressure through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_018`.
@@ -26788,7 +26788,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-019` **[GATE_C][SOL_HIGH] Resume live chat from signed sequence cursors.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_019`, `TestTodo_CHAT_019_Recovery`, `TestTodo_CHAT_019_Security` exist and assert the GREEN behaviour (Signed sequence cursor resume implemented with matching matrix tests asserting exact behaviour); `go test -count=1 ./internal/collaboration/chatstream/`, `go test -count=1 ./internal/collaboration/chatroutingadapter/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_019`, `TestTodo_CHAT_019_Recovery`, `TestTodo_CHAT_019_Security` exist and assert the GREEN behaviour (Signed sequence cursor resume implemented with matching matrix tests asserting exact behaviour); `go test -count=1 ./internal/collaboration/chatstream/`, `go test -count=1 ./internal/collaboration/chatroutingadapter/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-018`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=resume live chat from signed sequence cursors through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_019`.
@@ -26799,7 +26799,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-020` **[GATE_C][SOL_HIGH] Propagate revocation through chat reads and derived views.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_020`, `TestTodo_CHAT_020_Fault`, `TestTodo_CHAT_020_Security` exist and assert the GREEN behaviour (Revocation propagation through derived views implemented with matching matrix tests and broad supporting coverage); `go test -count=1 ./internal/collaboration/chatstream/`, `go test -count=1 ./internal/collaboration/chatpolicy/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_020`, `TestTodo_CHAT_020_Fault`, `TestTodo_CHAT_020_Security` exist and assert the GREEN behaviour (Revocation propagation through derived views implemented with matching matrix tests and broad supporting coverage); `go test -count=1 ./internal/collaboration/chatstream/`, `go test -count=1 ./internal/collaboration/chatpolicy/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-011`, `CHAT-019`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=propagate revocation through chat reads and derived views through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_020`.
@@ -26810,7 +26810,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-021` **[GATE_C][SOL_HIGH] Index and query authorized chat history.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_021`, `TestTodo_CHAT_021_Integration`, `TestTodo_CHAT_021_Security` exist and assert the GREEN behaviour (Indexed authorized chat search implemented with matching matrix tests asserting no leakage); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_021`, `TestTodo_CHAT_021_Integration`, `TestTodo_CHAT_021_Security` exist and assert the GREEN behaviour (Indexed authorized chat search implemented with matching matrix tests asserting no leakage); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-017`, `CHAT-020`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=index and query authorized chat history through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_021`.
@@ -26821,7 +26821,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-022` **[GATE_C][SOL_LOW] Maintain per-recipient unread and mention positions.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_022`, `TestTodo_CHAT_022_Integration`, `TestTodo_CHAT_022_Race` exist and assert the GREEN behaviour (Per-recipient unread/mention cursor tracking with matching matrix tests including a race test; PROGRESS note predates apparent completion of the race test); `go test -count=1 ./internal/collaboration/chatrecipient/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_022`, `TestTodo_CHAT_022_Integration`, `TestTodo_CHAT_022_Race` exist and assert the GREEN behaviour (Per-recipient unread/mention cursor tracking with matching matrix tests including a race test; PROGRESS note predates apparent completion of the race test); `go test -count=1 ./internal/collaboration/chatrecipient/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-017`, `CHAT-013`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=maintain per-recipient unread and mention positions through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_022`.
@@ -26833,7 +26833,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-023` **[GATE_C][SOL_HIGH] Implement threaded replies and follow state.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_023`, `_Integration`, `_Security` in `internal/data/chatstore` and `internal/collaboration/chatrecipient` (ordered thread navigation, follow/unfollow, tombstone context); `go test -count=1 ./internal/data/chatstore/ ./internal/collaboration/chatrecipient/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_023`, `_Integration`, `_Security` in `internal/data/chatstore` and `internal/collaboration/chatrecipient` (ordered thread navigation, follow/unfollow, tombstone context); `go test -count=1 ./internal/data/chatstore/ ./internal/collaboration/chatrecipient/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-017`, `CHAT-022`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=implement threaded replies and follow state through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_023`.
@@ -26845,7 +26845,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-024` **[GATE_C][SOL_HIGH] Implement bounded reactions and pins.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_024`, `_Security`, `_Integration` in `internal/collaboration/chat` and `internal/data/chatstore`; `go test -count=1 ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_024`, `_Security`, `_Integration` in `internal/collaboration/chat` and `internal/data/chatstore`; `go test -count=1 ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-017`, `CHAT-013`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=implement bounded reactions and pins through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_024`.
@@ -26857,7 +26857,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-025` **[GATE_C][SOL_HIGH] Create immutable post edit revisions.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_025`, `_Security`, `_Integration`, `_Mutation`, `_ReferencesPersist` in `internal/data/chatstore` and `TestTodo_CHAT_025_Revalidation` in `internal/collaboration/chat`. Edits now go through `ContentPolicy` (DLP/classification hook, also on send), revalidate supplied mentions, drop carried-over mentions of people who left, and persist the committed reference set in the post and revision ledger; `go test -count=1 ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS. No production DLP policy is composed yet; the hook is nil-safe; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_025`, `_Security`, `_Integration`, `_Mutation`, `_ReferencesPersist` in `internal/data/chatstore` and `TestTodo_CHAT_025_Revalidation` in `internal/collaboration/chat`. Edits now go through `ContentPolicy` (DLP/classification hook, also on send), revalidate supplied mentions, drop carried-over mentions of people who left, and persist the committed reference set in the post and revision ledger; `go test -count=1 ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS. No production DLP policy is composed yet; the hook is nil-safe; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-017`, `CHAT-021`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create immutable post edit revisions through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_025`.
@@ -26868,7 +26868,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-026` **[GATE_C][SOL_HIGH] Create post deletion tombstones with records preservation.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_026`, `_Security`, `_Integration` in `internal/data/chatstore` (`record_hold.go`: a delete under an active hold keeps the body only in the revision ledger; unheld deletes stay destructive); `go test -count=1 ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_026`, `_Security`, `_Integration` in `internal/data/chatstore` (`record_hold.go`: a delete under an active hold keeps the body only in the revision ledger; unheld deletes stay destructive); `go test -count=1 ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-025`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=create post deletion tombstones with records preservation through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_026`.
@@ -26879,7 +26879,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-027` **[GATE_C][SOL_HIGH] Resolve person and agent mentions by current audience.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_027`, `TestTodo_CHAT_027_Property`, `TestTodo_CHAT_027_Security` exist and assert the GREEN behaviour (All three TEST MATRIX tests exist, assert real GREEN behavior (mention resolution against current membership, forgery resistance), and production code implements it); `go test -count=1 ./internal/collaboration/chat/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_027`, `TestTodo_CHAT_027_Property`, `TestTodo_CHAT_027_Security` exist and assert the GREEN behaviour (All three TEST MATRIX tests exist, assert real GREEN behavior (mention resolution against current membership, forgery resistance), and production code implements it); `go test -count=1 ./internal/collaboration/chat/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-010`, `CHAT-017`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=resolve person and agent mentions by current audience through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_027`.
@@ -26890,7 +26890,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-028` **[GATE_C][SOL_HIGH] Bind slash commands to invoker and app capabilities.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_028`, `TestTodo_CHAT_028_Integration`, `TestTodo_CHAT_028_Security` exist and assert the GREEN behaviour (All three TEST MATRIX tests exist with real assertions on command binding and authority intersection, and production code (Service.Invoke) implements the described GREEN behavior); `go test -count=1 ./internal/collaboration/chatapps/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_028`, `TestTodo_CHAT_028_Integration`, `TestTodo_CHAT_028_Security` exist and assert the GREEN behaviour (All three TEST MATRIX tests exist with real assertions on command binding and authority intersection, and production code (Service.Invoke) implements the described GREEN behavior); `go test -count=1 ./internal/collaboration/chatapps/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-017`, `CHAT-009`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=bind slash commands to invoker and app capabilities through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_028`.
@@ -26901,7 +26901,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-029` **[GATE_C][SOL_HIGH] Resolve channel and chat references without discovery leaks.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_029`, `TestTodo_CHAT_029_Integration`, `TestTodo_CHAT_029_Security` exist and assert the GREEN behaviour (All three TEST MATRIX tests exist and assert real inert-projection/no-discovery-leak behavior, backed by production reference-visibility code and a real-DB integration test); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_029`, `TestTodo_CHAT_029_Integration`, `TestTodo_CHAT_029_Security` exist and assert the GREEN behaviour (All three TEST MATRIX tests exist and assert real inert-projection/no-discovery-leak behavior, backed by production reference-visibility code and a real-DB integration test); `go test -count=1 ./internal/collaboration/chat/`, `go test -count=1 ./internal/data/chatstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-010`, `CHAT-017`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=resolve channel and chat references without discovery leaks through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_029`.
@@ -26912,7 +26912,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-030` **[GATE_C][SOL_HIGH] Share conversation links and forward posts with disclosure checks.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_030`, `_Security`, `_Integration` in `internal/collaboration/chat` and `internal/data/chatstore`; `go test -count=1 ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_030`, `_Security`, `_Integration` in `internal/collaboration/chat` and `internal/data/chatstore`; `go test -count=1 ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-012`, `CHAT-017`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=share conversation links and forward posts with disclosure checks through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_030`.
@@ -26923,7 +26923,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-031` **[GATE_C][TERRA] Build accessible channel and message workspace shell.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_031` and `TestTodo_CHAT_031_Browser` (js/wasm under node) in `internal/humanwork/chatui`, with the existing accessibility coverage; `go test -count=1 ./internal/humanwork/chatui/` PASS and the `GOOS=js GOARCH=wasm` browser test PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_031` and `TestTodo_CHAT_031_Browser` (js/wasm under node) in `internal/humanwork/chatui`, with the existing accessibility coverage; `go test -count=1 ./internal/humanwork/chatui/` PASS and the `GOOS=js GOARCH=wasm` browser test PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-008`, `CHAT-017`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=build accessible channel and message workspace shell through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_031`.
@@ -26935,7 +26935,7 @@ Related open items are not duplicated here:
   - **Partial progress (2026-09-23):** Added a channel poll create/vote surface, tenant-scoped PostgreSQL persistence with immutable revision history, membership and routed-policy checks, and a caller-only vote selection projection. Focused chat UI, copy, application and transport tests plus the JS/WASM build pass. The real PostgreSQL store test is still unverified because the shared Windows `pgtest` startup sweep contended with another full test suite; browser create/vote/results verification remains pending. `CHAT-031` stays open.
 
 - [x] `CHAT-032` **[GATE_C][TERRA] Persist personal sidebar sections and manual chat order.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_032`, `_Browser` in `internal/humanwork/chatui` and `TestTodo_CHAT_032_Integration` in `internal/data/chatstore` (sidebar sections and manual order persist per person and sync across sessions); `go test -count=1 ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_032`, `_Browser` in `internal/humanwork/chatui` and `TestTodo_CHAT_032_Integration` in `internal/data/chatstore` (sidebar sections and manual order persist per person and sync across sessions); `go test -count=1 ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-031`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=persist personal sidebar sections and manual chat order through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_032`.
@@ -26946,7 +26946,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-033` **[GATE_C][TERRA] Resize and restore desktop chat panes accessibly.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_033`, `_Accessibility` and `TestTodo_CHAT_033_Browser` (js/wasm: pointer-drag clamp, hydration never clobbers a live drag, release commits) in `internal/humanwork/chatui`; PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/humanwork/chatui/` PASS (windows/arm64 Go 1.26).
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_033`, `_Accessibility` and `TestTodo_CHAT_033_Browser` (js/wasm: pointer-drag clamp, hydration never clobbers a live drag, release commits) in `internal/humanwork/chatui`; PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/humanwork/chatui/` PASS (windows/arm64 Go 1.26).
   - **Depends:** `CHAT-031`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=resize and restore desktop chat panes accessibly through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_033`.
@@ -26957,7 +26957,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-034` **[GATE_C][TERRA] Apply chat notification preferences without suppressing HCM notices.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_034` (`chatrecipient`), `_Security` (`chat`), `_Integration` (`chatstore`); `go test -count=1 ./internal/collaboration/chatrecipient/ ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_034` (`chatrecipient`), `_Security` (`chat`), `_Integration` (`chatstore`); `go test -count=1 ./internal/collaboration/chatrecipient/ ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-022`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=apply chat notification preferences without suppressing HCM notices through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_034`.
@@ -26968,7 +26968,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-035` **[GATE_C][TERRA] Retain and clear per-conversation drafts safely.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_035`, `TestTodo_CHAT_035_Browser`, `TestTodo_CHAT_035_Security` exist and assert the GREEN behaviour (Per-conversation draft retention/clearing is implemented and covered by real assertions across all three matrix tests); `go test -count=1 ./internal/humanwork/chatui/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_035`, `TestTodo_CHAT_035_Browser`, `TestTodo_CHAT_035_Security` exist and assert the GREEN behaviour (Per-conversation draft retention/clearing is implemented and covered by real assertions across all three matrix tests); `go test -count=1 ./internal/humanwork/chatui/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-031`, `CHAT-011`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=retain and clear per-conversation drafts safely through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_035`.
@@ -26979,7 +26979,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-036` **[GATE_C][SOL_HIGH] Admit chat uploads through quarantine and typed references.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_036`, `TestTodo_CHAT_036_Integration`, `TestTodo_CHAT_036_Security` exist and assert the GREEN behaviour (Chat upload quarantine and typed-reference admission is implemented and asserted end to end); `go test -count=1 ./internal/collaboration/chatmedia/`, `go test -count=1 ./internal/transport/chatmedia/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_036`, `TestTodo_CHAT_036_Integration`, `TestTodo_CHAT_036_Security` exist and assert the GREEN behaviour (Chat upload quarantine and typed-reference admission is implemented and asserted end to end); `go test -count=1 ./internal/collaboration/chatmedia/`, `go test -count=1 ./internal/transport/chatmedia/`, `go test -count=1 ./internal/application/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-017`, `DOC-MAL-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=admit chat uploads through quarantine and typed references through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_036`.
@@ -26990,7 +26990,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-037` **[GATE_C][SOL_HIGH] Play recorded MP3 and WAV messages with accessible alternatives.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_037`, `_Security`, `_Browser` in `internal/collaboration/chatmedia` (bounded seek reads carry the transcript; mismatched audio containers refused at admission); `go test -count=1 ./internal/collaboration/chatmedia/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_037`, `_Security`, `_Browser` in `internal/collaboration/chatmedia` (bounded seek reads carry the transcript; mismatched audio containers refused at admission); `go test -count=1 ./internal/collaboration/chatmedia/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-036`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=play recorded MP3 and WAV messages with accessible alternatives through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_037`.
@@ -27001,7 +27001,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-038` **[GATE_C][SOL_HIGH] Serve BMP PNG GIF and MP4 safely through protected media.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_038`, `TestTodo_CHAT_038_Integration`, `TestTodo_CHAT_038_Security` exist and assert the GREEN behaviour (Protected media serving for BMP/PNG/GIF/MP4 with bounded derivatives and range/revocation handling is implemented and thoroughly tested); `go test -count=1 ./internal/collaboration/chatmedia/`, `go test -count=1 ./internal/transport/chatmedia/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_038`, `TestTodo_CHAT_038_Integration`, `TestTodo_CHAT_038_Security` exist and assert the GREEN behaviour (Protected media serving for BMP/PNG/GIF/MP4 with bounded derivatives and range/revocation handling is implemented and thoroughly tested); `go test -count=1 ./internal/collaboration/chatmedia/`, `go test -count=1 ./internal/transport/chatmedia/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-036`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=serve BMP PNG GIF and MP4 safely through protected media through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_038`.
@@ -27012,7 +27012,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-039` **[GATE_C][SOL_HIGH] Sandbox approved interactive web embeds.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_039`, `TestTodo_CHAT_039_Browser`, `TestTodo_CHAT_039_Security` exist and assert the GREEN behaviour (Sandboxed interactive web embed approval and origin/bridge enforcement is implemented and asserted); `go test -count=1 ./internal/collaboration/chatmedia/`, `go test -count=1 ./internal/humanwork/chatui/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_039`, `TestTodo_CHAT_039_Browser`, `TestTodo_CHAT_039_Security` exist and assert the GREEN behaviour (Sandboxed interactive web embed approval and origin/bridge enforcement is implemented and asserted); `go test -count=1 ./internal/collaboration/chatmedia/`, `go test -count=1 ./internal/humanwork/chatui/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-017`, `CHAT-010`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=sandbox approved interactive web embeds through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_039`.
@@ -27023,7 +27023,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-040` **[GATE_C][SOL_HIGH] Install upgrade suspend and revoke conversation apps.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_040`, `_Security`, `_Golden` in `internal/collaboration/chatapps` and `TestTodo_CHAT_040_Integration` in `internal/data/chatappstore`; `go test -count=1 ./internal/collaboration/chatapps/ ./internal/data/chatappstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_040`, `_Security`, `_Golden` in `internal/collaboration/chatapps` and `TestTodo_CHAT_040_Integration` in `internal/data/chatappstore`; `go test -count=1 ./internal/collaboration/chatapps/ ./internal/data/chatappstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-009`, `CHAT-013`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=install upgrade suspend and revoke conversation apps through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_040`.
@@ -27034,7 +27034,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-041` **[GATE_C][SOL_HIGH] Serve typed plugin cards tabs and command callbacks.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_041`, `_Security`, `_Golden` in `internal/collaboration/chatapps` (server-owned escaped `RenderCard`) and `TestTodo_CHAT_041_Browser` in `internal/humanwork/chatui` (js/wasm); `go test -count=1 ./internal/collaboration/chatapps/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_041`, `_Security`, `_Golden` in `internal/collaboration/chatapps` (server-owned escaped `RenderCard`) and `TestTodo_CHAT_041_Browser` in `internal/humanwork/chatui` (js/wasm); `go test -count=1 ./internal/collaboration/chatapps/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-040`, `CHAT-028`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=serve typed plugin cards tabs and command callbacks through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_041`.
@@ -27045,7 +27045,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-042` **[GATE_C][SOL_HIGH] Deliver conversation webhooks and pull events with replay.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_042`, `TestTodo_CHAT_042_Golden`, `TestTodo_CHAT_042_Recovery`, `TestTodo_CHAT_042_Security` exist and assert the GREEN behaviour (Webhook/pull event delivery with replay, signing and per-installation isolation is implemented and asserted across all four matrix tests); `go test -count=1 ./internal/collaboration/chatapps/`, `go test -count=1 ./internal/data/chatappstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_042`, `TestTodo_CHAT_042_Golden`, `TestTodo_CHAT_042_Recovery`, `TestTodo_CHAT_042_Security` exist and assert the GREEN behaviour (Webhook/pull event delivery with replay, signing and per-installation isolation is implemented and asserted across all four matrix tests); `go test -count=1 ./internal/collaboration/chatapps/`, `go test -count=1 ./internal/data/chatappstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-040`, `CHAT-017`, `INTAPI-013`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=deliver conversation webhooks and pull events with replay through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_042`.
@@ -27056,7 +27056,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-043` **[GATE_C][SOL_HIGH] Register visible agent identities and installations.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_043`, `_Security`, `_Golden` in `internal/collaboration/chatapps` and `TestTodo_CHAT_043_Integration` (pgtest plus HTTP installed agent) in `internal/application`; PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/collaboration/chatapps/ ./internal/application/` PASS (windows/arm64 Go 1.26).
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_043`, `_Security`, `_Golden` in `internal/collaboration/chatapps` and `TestTodo_CHAT_043_Integration` (pgtest plus HTTP installed agent) in `internal/application`; PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/collaboration/chatapps/ ./internal/application/` PASS (windows/arm64 Go 1.26).
   - **Depends:** `CHAT-040`, `CHAT-010`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=register visible agent identities and installations through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_043`.
@@ -27067,7 +27067,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-044` **[GATE_C][SOL_HIGH] Budget autonomous agent triggers and stop loops.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_044`, `TestTodo_CHAT_044_Fault`, `TestTodo_CHAT_044_Golden`, `TestTodo_CHAT_044_Security` exist and assert the GREEN behaviour (Autonomous agent trigger budgeting, loop detection and kill switch are implemented and asserted across all four matrix tests); `go test -count=1 ./internal/collaboration/chatapps/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_044`, `TestTodo_CHAT_044_Fault`, `TestTodo_CHAT_044_Golden`, `TestTodo_CHAT_044_Security` exist and assert the GREEN behaviour (Autonomous agent trigger budgeting, loop detection and kill switch are implemented and asserted across all four matrix tests); `go test -count=1 ./internal/collaboration/chatapps/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-043`, `CHAT-027`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=budget autonomous agent triggers and stop loops through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_044`.
@@ -27078,7 +27078,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-045` **[GATE_C][SOL_HIGH] Carry agent-proposed HCM actions through BusinessIntent.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_045`, `_Security` in `internal/collaboration/chatapps` and `TestTodo_CHAT_045_Integration` in `internal/application`: `chatAppsIntentAdapter` proposes through `IntentService.CreateIntent` as the verified caller (SIMULATE by default) and the intent is read back durably; PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/collaboration/chatapps/ ./internal/application/` PASS (windows/arm64 Go 1.26).
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_045`, `_Security` in `internal/collaboration/chatapps` and `TestTodo_CHAT_045_Integration` in `internal/application`: `chatAppsIntentAdapter` proposes through `IntentService.CreateIntent` as the verified caller (SIMULATE by default) and the intent is read back durably; PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/collaboration/chatapps/ ./internal/application/` PASS (windows/arm64 Go 1.26).
   - **Depends:** `CHAT-044`, `CHAT-028`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.ALL; DIRECT=none; WHY=carry agent-proposed HCM actions through BusinessIntent through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_045`.
@@ -27089,7 +27089,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-046` **[GATE_C][SOL_HIGH] Protect chat and workflow capacity with separate admission lanes.**
-  - **Evidence (2026-09-24, code audit): `BenchmarkTodo_CHAT_046`, `TestTodo_CHAT_046`, `TestTodo_CHAT_046_Fault` exist and assert the GREEN behaviour (Separate admission lanes for chat vs workflow capacity are implemented with matching benchmark and fault tests); `go test -count=1 ./internal/collaboration/chatadmission/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `BenchmarkTodo_CHAT_046`, `TestTodo_CHAT_046`, `TestTodo_CHAT_046_Fault` exist and assert the GREEN behaviour (Separate admission lanes for chat vs workflow capacity are implemented with matching benchmark and fault tests); `go test -count=1 ./internal/collaboration/chatadmission/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-003`, `CHAT-017`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=protect chat and workflow capacity with separate admission lanes through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_046`.
@@ -27100,7 +27100,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-047` **[GATE_C][SOL_HIGH] Audit chat membership moderation sharing and app changes.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_047`, `_Golden` and the moderation/classification audit tests in `internal/collaboration/chatrecords` and `internal/data/chatrecordstore` (body-free audit events committed atomically with the mutation); `go test -count=1 ./internal/collaboration/chatrecords/ ./internal/data/chatrecordstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_047`, `_Golden` and the moderation/classification audit tests in `internal/collaboration/chatrecords` and `internal/data/chatrecordstore` (body-free audit events committed atomically with the mutation); `go test -count=1 ./internal/collaboration/chatrecords/ ./internal/data/chatrecordstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-013`, `CHAT-040`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=audit chat membership moderation sharing and app changes through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_047`.
@@ -27113,7 +27113,7 @@ Related open items are not duplicated here:
   - **Partial evidence (2026-09-21):** Core conversation/membership/post/reaction/pin and app installation/upgrade/status writes now project audit, outbox and inventory in their canonical tenant transactions. `TestTodo_CHAT_047_Integration_AppMutationAuditAtomicity` injects PostgreSQL audit faults for installation and status and verifies both rollbacks, retries, and stale-write conflict; `TestTodo_CHAT_047_Security_AuditScopeBoundToMutation` rejects a reused tenant/conversation/principal authorization context. Share links only generate locators. Classification, moderation and complete pilot/race evidence remain open; this todo remains unchecked.
 
 - [x] `CHAT-048` **[GATE_C][SOL_HIGH] Apply chat retention legal holds exports and deletion.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_048`, `TestTodo_CHAT_048_Golden`, `TestTodo_CHAT_048_Integration`, `TestTodo_CHAT_048_Security` exist and assert the GREEN behaviour (Retention, legal hold, export, and deletion behavior is implemented with a full and behaviorally-asserting matrix); `go test -count=1 ./internal/collaboration/chatrecords/`, `go test -count=1 ./internal/data/chatrecordstore/`, `go test -count=1 ./internal/transport/chatextensions/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_048`, `TestTodo_CHAT_048_Golden`, `TestTodo_CHAT_048_Integration`, `TestTodo_CHAT_048_Security` exist and assert the GREEN behaviour (Retention, legal hold, export, and deletion behavior is implemented with a full and behaviorally-asserting matrix); `go test -count=1 ./internal/collaboration/chatrecords/`, `go test -count=1 ./internal/data/chatrecordstore/`, `go test -count=1 ./internal/transport/chatextensions/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-025`, `CHAT-036`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=apply chat retention legal holds exports and deletion through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_048`.
@@ -27124,7 +27124,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-049` **[GATE_C][SOL_HIGH] Backup restore and reconcile the chat database independently.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_049`, `TestTodo_CHAT_049_Fault`, `TestTodo_CHAT_049_Recovery` exist and assert the GREEN behaviour (Independent chat backup/restore/reconcile is implemented and the matrix asserts real recovery invariants); `go test -count=1 ./internal/collaboration/chatrecords/`, `go test -count=1 ./internal/data/chatrecordstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_049`, `TestTodo_CHAT_049_Fault`, `TestTodo_CHAT_049_Recovery` exist and assert the GREEN behaviour (Independent chat backup/restore/reconcile is implemented and the matrix asserts real recovery invariants); `go test -count=1 ./internal/collaboration/chatrecords/`, `go test -count=1 ./internal/data/chatrecordstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-003`, `CHAT-017`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=backup restore and reconcile the chat database independently through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_049`.
@@ -27135,7 +27135,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-050` **[GATE_C][SOL_HIGH] Moderate reports blocks and abuse without broad private access.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_050`, `_Security`, `_Integration`, `_Golden` in `internal/collaboration/chatrecords` (golden pins the moderation audit event and case action digest); `go test -count=1 ./internal/collaboration/chatrecords/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_050`, `_Security`, `_Integration`, `_Golden` in `internal/collaboration/chatrecords` (golden pins the moderation audit event and case action digest); `go test -count=1 ./internal/collaboration/chatrecords/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `CHAT-026`, `CHAT-047`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=moderate reports blocks and abuse without broad private access through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_050`.
@@ -27146,7 +27146,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-051` **[GATE_C][SOL_HIGH] Prove cross-company chat and API end to end.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_051`, `TestTodo_CHAT_051_Conformance`, `TestTodo_CHAT_051_Security` exist and assert the GREEN behaviour (Cross-company chat and API grant enforcement is implemented and proven end-to-end with a full, behavior-asserting matrix); `go test -count=1 ./internal/collaboration/chatpolicy/`, `go test -count=1 ./test/chat/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_051`, `TestTodo_CHAT_051_Conformance`, `TestTodo_CHAT_051_Security` exist and assert the GREEN behaviour (Cross-company chat and API grant enforcement is implemented and proven end-to-end with a full, behavior-asserting matrix); `go test -count=1 ./internal/collaboration/chatpolicy/`, `go test -count=1 ./test/chat/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-012`, `CHAT-018`, `CHAT-036`, `CHAT-042`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=prove cross-company chat and API end to end through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_051`.
@@ -27181,7 +27181,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-054` **[PHASE_2][SOL_LOW] Design and prove deferred one-to-one P2P audio video calling.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_054`, `TestTodo_CHAT_054_Conformance` exist and assert the GREEN behaviour (Deferred P2P call admission contract (consent, network identity, recording/caption policy) is implemented and fully matrix-tested); `go test -count=1 ./internal/collaboration/chatcalls/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_054`, `TestTodo_CHAT_054_Conformance` exist and assert the GREEN behaviour (Deferred P2P call admission contract (consent, network identity, recording/caption policy) is implemented and fully matrix-tested); `go test -count=1 ./internal/collaboration/chatcalls/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-053`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=design and prove deferred one-to-one P2P audio video calling through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_054`.
@@ -27192,7 +27192,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-055` **[PHASE_2][SOL_LOW] Design and prove deferred server-backed team calling.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_CHAT_055`, `TestTodo_CHAT_055_Conformance` exist and assert the GREEN behaviour (Deferred server-backed team calling contract (routing, capacity, cost budget, recording) is implemented and fully matrix-tested); `go test -count=1 ./internal/collaboration/chatcalls/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_CHAT_055`, `TestTodo_CHAT_055_Conformance` exist and assert the GREEN behaviour (Deferred server-backed team calling contract (routing, capacity, cost budget, recording) is implemented and fully matrix-tested); `go test -count=1 ./internal/collaboration/chatcalls/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-054`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=design and prove deferred server-backed team calling through the scoped collaboration surface`.
   - **TEST:** `TestTodo_CHAT_055`.
@@ -27203,7 +27203,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-056` **[GATE_C][SOL_HIGH] Let members browse and self-join public channels through a channel directory.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_056`, `_Security` in `internal/collaboration/chat` and `TestTodo_CHAT_056_Integration` in `internal/data/chatstore`; `go test -count=1 ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_056`, `_Security` in `internal/collaboration/chat` and `TestTodo_CHAT_056_Integration` in `internal/data/chatstore`; `go test -count=1 ./internal/collaboration/chat/ ./internal/data/chatstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **PROGRESS (2026-09-24, backfill):** Implemented in commit `5f827c6f` without a todo. `ListConversations` takes `IncludeDiscoverable` and a `ConversationScope`, and `AddMembership` handles self-join through `chatpolicy.ActionJoin` (`internal/collaboration/chat/service.go`, `contracts.go`). Coverage exists as `TestDiscoverableListingIsScopedAndPolicyFiltered`, `TestSelfJoinOfAPublicChannelConsultsActionJoin` and `TestSelfJoinIsRefusedWhenTheJoinPolicyDenies` in `internal/collaboration/chat/discovery_test.go`; the matrix names below are not yet present.
   - **Depends:** `CHAT-013`, `CHAT-029`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=let members discover and self-join public channels through the scoped collaboration surface`.
@@ -27215,7 +27215,7 @@ Related open items are not duplicated here:
   - **Refs:** [Company chat](specs/company-chat-and-collaboration.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `CHAT-057` **[GATE_C][SOL_HIGH] Search and embed validated GIPHY GIFs from a `/giphy` composer command.**
-  - **Evidence (2026-09-24): `TestTodo_CHAT_057`, `_Security`, `_Accessibility` in `internal/humanwork/chatui` (`/giphy` parsing, key gating, ID/URL/rating/host validation, localized picker states); `go test -count=1 ./internal/humanwork/chatui/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_CHAT_057`, `_Security`, `_Accessibility` in `internal/humanwork/chatui` (`/giphy` parsing, key gating, ID/URL/rating/host validation, localized picker states); `go test -count=1 ./internal/humanwork/chatui/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **PROGRESS (2026-09-24, backfill):** Picker and embed landed in commit `3e3bf943` without a todo (`internal/humanwork/chatui/giphy*.go`); the `/giphy` command files (`giphy_command*.go`) were untracked in-flight work at audit time. Coverage exists as `TestGiphyIDAndCanonicalURLValidation`, `TestGiphyMediaURLAllowlist`, `TestResolveGiphyPostEmbedsMatchesValidatedIDsAndKeepsLinks`, `TestResolveGiphyPostEmbedsRejectsInvalidRatingAndMedia`, `TestResolveGiphyPostEmbedsPreservesAPIResultOrderForDistinctLinks`, `TestGiphyPickerRendersLocalizedStatusAndAccessibleNoKeyState` and `TestGiphyPickerConfiguredControlIsEnabled`; the matrix names below are not yet present.
   - **Depends:** `CHAT-038`, `CHAT-039`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=offer third-party GIF search in the composer without widening the media trust boundary`.
@@ -27231,7 +27231,7 @@ Related open items are not duplicated here:
 > The document database, Markdown version and deployment, access, links and search work follows the scope decision in `CHAT-001`. Document-processing and signature todos in section 23 have different evidence-file semantics and do not satisfy these Knowledge product tasks.
 
 - [x] `HUB-001` **[GATE_C][SOL_HIGH] Provision a document database isolated from chat and workflow.**
-  - **Evidence (2026-09-24, code audit): `TestTodo_HUB_001`, `TestTodo_HUB_001_Integration`, `TestTodo_HUB_001_Security` exist and assert the GREEN behaviour (Document database isolation (separate DSN/pool, no shared core/chat DB, forced RLS) is fully implemented and tested); `go test -count=1 ./internal/data/documenthubstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
+  - **Evidence (2026-09-24, code audit):** `TestTodo_HUB_001`, `TestTodo_HUB_001_Integration`, `TestTodo_HUB_001_Security` exist and assert the GREEN behaviour (Document database isolation (separate DSN/pool, no shared core/chat DB, forced RLS) is fully implemented and tested); `go test -count=1 ./internal/data/documenthubstore/`; `go vet` clean on those packages, windows/arm64 Go 1.26. Tests were not executed in this audit pass; CI remains the run evidence.
   - **Depends:** `CHAT-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=provision a document database isolated from chat and workflow through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_001`.
@@ -27242,7 +27242,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-002` **[GATE_C][SOL_HIGH] Register core-owned document ID routes and shard epochs.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_002`, `_Security`, `_Integration` in `internal/data/documenthubstore` (`routing.go`) and `internal/application` (`document_routes.go`); stale-epoch and foreign-tenant routes refused before reads. The route directory is in memory, like chat's CHAT-002 directory; `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_002`, `_Security`, `_Integration` in `internal/data/documenthubstore` (`routing.go`) and `internal/application` (`document_routes.go`); stale-epoch and foreign-tenant routes refused before reads. The route directory is in memory, like chat's CHAT-002 directory; `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Served (2026-09-24):** `CreateDocument` registers a core route and `GetDocument`/`CreateDocumentVersion` call `RequireCurrentRoute` first; the directory is composed in `serve.go`. `TestTodo_HUB_002_Served` in `internal/application` PASS.
   - **Depends:** `HUB-001`, `CHAT-002`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=register core-owned document ID routes and shard epochs through the scoped Knowledge surface`.
@@ -27254,7 +27254,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-003` **[GATE_C][SOL_HIGH] Enforce tenant isolation across document-owned tables.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_003`, `_Security`, `_Integration` in `internal/data/documenthubstore` (isolation registry + RLS conformance); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_003`, `_Security`, `_Integration` in `internal/data/documenthubstore` (isolation registry + RLS conformance); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=enforce tenant isolation across document-owned tables through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_003`.
@@ -27265,7 +27265,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-004` **[GATE_C][SOL_LOW] Define immutable Markdown version storage and hashes.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_004`, `_Integration`, `_Mutation` in `internal/data/documenthubstore` (immutable versions + hashes, migration 00002); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_004`, `_Integration`, `_Mutation` in `internal/data/documenthubstore` (immutable versions + hashes, migration 00002); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=define immutable Markdown version storage and hashes through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_004`.
@@ -27276,7 +27276,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-005` **[GATE_C][SOL_HIGH] Parse and sanitize the supported Markdown profile.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_005`, `_Security`, `FuzzTodo_HUB_005` in `internal/data/documenthubstore` (Markdown parse + sanitize); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_005`, `_Security`, `FuzzTodo_HUB_005` in `internal/data/documenthubstore` (Markdown parse + sanitize); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-004`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=parse and sanitize the supported Markdown profile through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_005`.
@@ -27287,7 +27287,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-006` **[GATE_C][SOL_LOW] Create candidate versions with expected-base conflict handling.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_006`, `_Race`, `_Integration` in `internal/data/documenthubstore` (candidates + expected-base conflicts, migration 00003); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_006`, `_Race`, `_Integration` in `internal/data/documenthubstore` (candidates + expected-base conflicts, migration 00003); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-004`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=create candidate versions with expected-base conflict handling through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_006`.
@@ -27298,7 +27298,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-007` **[GATE_C][SOL_LOW] Model document default and placement deployment pointers.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_007`, `_Property`, `_Integration` in `internal/data/documenthubstore` (deployment pointers, migration 00004); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_007`, `_Property`, `_Integration` in `internal/data/documenthubstore` (deployment pointers, migration 00004); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-004`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=model document default and placement deployment pointers through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_007`.
@@ -27309,7 +27309,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-008` **[GATE_C][SOL_HIGH] Review an exact candidate hash independently.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_008`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (hash-bound review, migration 00005); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_008`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (hash-bound review, migration 00005); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-006`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=review an exact candidate hash independently through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_008`.
@@ -27320,7 +27320,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-009` **[GATE_C][SOL_HIGH] Deploy a reviewed version atomically with document outbox.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_009`, `_Race`, `_Recovery`, `_Golden` in `internal/data/documenthubstore` (atomic deploy + outbox); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_009`, `_Race`, `_Recovery`, `_Golden` in `internal/data/documenthubstore` (atomic deploy + outbox); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-007`, `HUB-008`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=deploy a reviewed version atomically with document outbox through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_009`.
@@ -27331,7 +27331,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-010` **[GATE_C][SOL_HIGH] Withdraw or redeploy an old version with fresh evidence.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_010`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (withdraw/redeploy, migration 00008); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_010`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (withdraw/redeploy, migration 00008); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-009`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=withdraw or redeploy an old version with fresh evidence through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_010`.
@@ -27342,7 +27342,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-011` **[GATE_C][SOL_HIGH] Grant document actions separately from read access.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_011`, `_Property`, `_Security`, `_Golden` in `internal/data/documenthubstore` (action grants, migration 00006); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_011`, `_Property`, `_Security`, `_Golden` in `internal/data/documenthubstore` (action grants, migration 00006); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-003`, `HUB-007`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=grant document actions separately from read access through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_011`.
@@ -27353,7 +27353,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-012` **[GATE_C][SOL_HIGH] Make personal documents private by default and explicitly shareable.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_012`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (private-by-default personal docs); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_012`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (private-by-default personal docs); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-011`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=make personal documents private by default and explicitly shareable through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_012`.
@@ -27364,7 +27364,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-013` **[GATE_C][SOL_HIGH] Bind team and channel document paths to current eligibility.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_013`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (`eligibility.go`: live team/channel membership rechecked on every call); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_013`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (`eligibility.go`: live team/channel membership rechecked on every call); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Served (2026-09-24):** `GetDocumentPlacement`/`PlaceDocument` RPCs resolve placement through `chatAudienceEligibility` (live chat membership), composed in `serve.go`. `TestTodo_HUB_014_Served` in `internal/transport/document` and `internal/application` PASS.
   - **Depends:** `HUB-011`, `CHAT-010`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=bind team and channel document paths to current eligibility through the scoped Knowledge surface`.
@@ -27376,7 +27376,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-014` **[GATE_C][SOL_HIGH] Place reviewed documents officially in team and channel Docs tabs.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_014`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (`placement.go`, migration 00022 custodian); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_014`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (`placement.go`, migration 00022 custodian); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Served (2026-09-24):** `PlaceDocument`/`GetDocumentPlacement` RPCs on `DocumentService`. `TestTodo_HUB_014_Served` in `internal/transport/document` and `internal/application` PASS.
   - **Depends:** `HUB-008`, `HUB-013`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=place reviewed documents officially in team and channel Docs tabs through the scoped Knowledge surface`.
@@ -27388,7 +27388,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-015` **[GATE_C][SOL_HIGH] Gate cross-company document grants and egress.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_015`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` and `internal/application` (`crosscompany.go`, migration 00023; expiry compared at stored microsecond precision); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_015`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` and `internal/application` (`crosscompany.go`, migration 00023; expiry compared at stored microsecond precision); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Served (2026-09-24):** `ProposeCrossCompanyGrant`/`AcceptCrossCompanyGrant`/`RevokeCrossCompanyGrant` RPCs. `TestTodo_HUB_015_Served` in `internal/transport/document` and `internal/application` PASS.
   - **Depends:** `HUB-013`, `CHAT-012`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=gate cross-company document grants and egress through the scoped Knowledge surface`.
@@ -27400,7 +27400,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-016` **[GATE_C][SOL_HIGH] Propagate document revocation to histories attachments and caches.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_016`, `_Fault`, `_Golden`, `_Security` in `internal/data/documenthubstore` (revocation propagation, migration 00009); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_016`, `_Fault`, `_Golden`, `_Security` in `internal/data/documenthubstore` (revocation propagation, migration 00009); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-011`, `HUB-009`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=propagate document revocation to histories attachments and caches through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_016`.
@@ -27411,7 +27411,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-017` **[GATE_C][SOL_HIGH] Limit document version history by current policy.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_017`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (history capability + per-version classification redaction; `history.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_017`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (history capability + per-version classification redaction; `history.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-016`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=limit document version history by current policy through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_017`.
@@ -27422,7 +27422,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-018` **[GATE_C][SOL_HIGH] Create version-anchored comments and mentions.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_018`, `_Golden`, `_Integration`, `_Security` in `internal/data/documenthubstore` (version-anchored comments, migration 00010); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_018`, `_Golden`, `_Integration`, `_Security` in `internal/data/documenthubstore` (version-anchored comments, migration 00010); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-006`, `HUB-011`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=create version-anchored comments and mentions through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_018`.
@@ -27433,7 +27433,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-019` **[GATE_C][SOL_LOW] Extract canonical document links from Markdown versions.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_019`, `_Golden`, `FuzzTodo_HUB_019` in `internal/data/documenthubstore` (canonical link extraction, migration 00007); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_019`, `_Golden`, `FuzzTodo_HUB_019` in `internal/data/documenthubstore` (canonical link extraction, migration 00007); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-005`, `HUB-004`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=extract canonical document links from Markdown versions through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_019`.
@@ -27444,7 +27444,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-020` **[GATE_C][SOL_HIGH] Validate outgoing links before official deployment.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_020`, `_Golden`, `_Property` in `internal/data/documenthubstore` (outgoing link validation; `linkcheck.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_020`, `_Golden`, `_Property` in `internal/data/documenthubstore` (outgoing link validation; `linkcheck.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-019`, `HUB-009`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=validate outgoing links before official deployment through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_020`.
@@ -27455,7 +27455,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-021` **[GATE_C][SOL_HIGH] Resolve latest and pinned document links by context.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_021`, `_Golden`, `_Property` in `internal/data/documenthubstore` (latest/pinned link resolution; `resolve.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_021`, `_Golden`, `_Property` in `internal/data/documenthubstore` (latest/pinned link resolution; `resolve.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-019`, `HUB-007`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=resolve latest and pinned document links by context through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_021`.
@@ -27466,7 +27466,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-022` **[GATE_C][SOL_HIGH] Index authorized backlinks and stale references.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_022`, `_Security`, `_Integration` in `internal/data/documenthubstore` (jointly-readable backlinks, checker marks broken/stale + owner alerts; `backlinks.go`, migration 00016); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_022`, `_Security`, `_Integration` in `internal/data/documenthubstore` (jointly-readable backlinks, checker marks broken/stale + owner alerts; `backlinks.go`, migration 00016); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-019`, `HUB-016`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=index authorized backlinks and stale references through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_022`.
@@ -27477,7 +27477,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-023` **[GATE_C][SOL_LOW] Preserve stable block anchors across Markdown redeploys.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_023`, `_Property`, `_Golden` in `internal/data/documenthubstore` (heading-derived block anchors surviving redeploys; `blocks.go`, migration 00011); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_023`, `_Property`, `_Golden` in `internal/data/documenthubstore` (heading-derived block anchors surviving redeploys; `blocks.go`, migration 00011); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-019`, `HUB-006`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=preserve stable block anchors across Markdown redeploys through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_023`.
@@ -27488,7 +27488,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-024` **[GATE_C][SOL_HIGH] Serve safe document attachments from protected storage.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_024`, `_Security`, `_Integration` in `internal/data/documenthubstore` (admitted-only attachments, per-read authz, no public URL; `attachments.go`, migration 00012); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_024`, `_Security`, `_Integration` in `internal/data/documenthubstore` (admitted-only attachments, per-read authz, no public URL; `attachments.go`, migration 00012); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-005`, `DOC-MAL-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=serve safe document attachments from protected storage through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_024`.
@@ -27499,7 +27499,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-025` **[GATE_C][SOL_HIGH] Build lexical search over authorized deployed Markdown.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_025`, `_Security`, `_Integration` in `internal/data/documenthubstore` (lexical search over deployed versions with grant prefilter + recheck; `search.go`, migration 00013); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_025`, `_Security`, `_Integration` in `internal/data/documenthubstore` (lexical search over deployed versions with grant prefilter + recheck; `search.go`, migration 00013); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-009`, `HUB-011`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build lexical search over authorized deployed Markdown through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_025`.
@@ -27510,7 +27510,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-026` **[GATE_C][SOL_HIGH] Generate tenant-scoped embeddings for deployed sections.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_026`, `_Security`, `_Integration` in `internal/data/documenthubstore` (approved-model + egress-gated section vectors; `embeddings.go`, migration 00014); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_026`, `_Security`, `_Integration` in `internal/data/documenthubstore` (approved-model + egress-gated section vectors; `embeddings.go`, migration 00014); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-009`, `HUB-016`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=generate tenant-scoped embeddings for deployed sections through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_026`.
@@ -27521,7 +27521,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-027` **[GATE_C][SOL_LOW] Fuse lexical and semantic search with relevance controls.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_027`, `_Golden`, `BenchmarkTodo_HUB_027` in `internal/data/documenthubstore` (hybrid fusion with lexical priority + explanations; `hybrid.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_027`, `_Golden`, `BenchmarkTodo_HUB_027` in `internal/data/documenthubstore` (hybrid fusion with lexical priority + explanations; `hybrid.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-025`, `HUB-026`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=fuse lexical and semantic search with relevance controls through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_027`.
@@ -27532,7 +27532,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-028` **[GATE_C][SOL_HIGH] Constrain vector retrieval by current document access.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_028`, `_Security`, `BenchmarkTodo_HUB_028` in `internal/data/documenthubstore` (exact retrieval baseline + index conformance gate; `retrieval.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_028`, `_Security`, `BenchmarkTodo_HUB_028` in `internal/data/documenthubstore` (exact retrieval baseline + index conformance gate; `retrieval.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-026`, `HUB-016`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=constrain vector retrieval by current document access through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_028`.
@@ -27543,7 +27543,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-029` **[GATE_C][SOL_HIGH] Reconcile search index on deploy revoke retire and model change.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_029`, `_Recovery`, `_Security` in `internal/data/documenthubstore` (idempotent outbox consumer with watermarks; `reconcile.go`, migration 00017); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_029`, `_Recovery`, `_Security` in `internal/data/documenthubstore` (idempotent outbox consumer with watermarks; `reconcile.go`, migration 00017); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-027`, `HUB-028`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=reconcile search index on deploy revoke retire and model change through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_029`.
@@ -27554,7 +27554,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-030` **[GATE_C][SOL_HIGH] Expose typed document search filters and safe result cards.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_030`, `_Security`, `_Integration` in `internal/data/documenthubstore` (`search_filters.go`: team/channel/status/owner/locale/date filters in the same SQL as the grant check plus a per-hit recheck); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_030`, `_Security`, `_Integration` in `internal/data/documenthubstore` (`search_filters.go`: team/channel/status/owner/locale/date filters in the same SQL as the grant check plus a per-hit recheck); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Served (2026-09-24):** `SearchDocuments` RPC with typed filters. `TestTodo_HUB_030_Served` in `internal/application` PASS.
   - **Depends:** `HUB-027`, `HUB-013`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=expose typed document search filters and safe result cards through the scoped Knowledge surface`.
@@ -27576,8 +27576,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 - [x] `HUB-032` **[GATE_C][TERRA] Build personal team and channel document navigation.**
-  - **Evidence (2026-09-24, served): Browser matrix: `TestTodo_HUB_032_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts private versus team-official cards (owner, deployed version, official scope, review date, sharing state); `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-hub.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted.
-  - **Evidence (2026-09-24): `TestTodo_HUB_032`, `_Accessibility` in `internal/humanwork/productui` plus `tools/uxqual/browser/docs-hub.spec.mjs` (desktop and 390px) as the Browser evidence, as for HUB-033; PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24, served):** Browser matrix: `TestTodo_HUB_032_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts private versus team-official cards (owner, deployed version, official scope, review date, sharing state); `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-hub.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_032`, `_Accessibility` in `internal/humanwork/productui` plus `tools/uxqual/browser/docs-hub.spec.mjs` (desktop and 390px) as the Browser evidence, as for HUB-033; PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `HUB-012`, `HUB-014`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build personal team and channel document navigation through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_032`.
@@ -27587,9 +27587,9 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 - [ ] `HUB-033` **[GATE_C][TERRA] Build Markdown candidate editor and version compare flow.**
-  - **Evidence (2026-09-24, served): Browser matrix: `TestTodo_HUB_033_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts the editor carries its base version into candidate submission; `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-editor.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted. Served evidence: `docsSplitEditor` submits candidates through `CreateDocumentVersion` with base-conflict display; the `GetDocumentVersion` RPC backs `docsCompareDialog`. `TestTodo_HUB_033`, `_Accessibility` in `internal/humanwork/productui` PASS.
+  - **Evidence (2026-09-24, served):** Browser matrix: `TestTodo_HUB_033_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts the editor carries its base version into candidate submission; `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-editor.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted. Served evidence: `docsSplitEditor` submits candidates through `CreateDocumentVersion` with base-conflict display; the `GetDocumentVersion` RPC backs `docsCompareDialog`. `TestTodo_HUB_033`, `_Accessibility` in `internal/humanwork/productui` PASS.
   - **Audit (2026-09-24):** Reopened: the checked evidence relies on fixture-based browser specs and references `tools/uxqual/render/docs`, while the ownership registry assigns multiple product owners and does not establish one accountable runtime owner. Keep open pending live served browser proof and explicit ownership.
-  - **Evidence (2026-09-22): `TestTodo_HUB_033`, `_Accessibility` in `tools/uxqual/render/docs` (`go test -count=1 ./tools/uxqual/render/docs/` PASS) + `tools/uxqual/browser/docs-editor.spec.mjs` 2/2 Chromium (desktop + 390px, keyboard order, conflict alert); candidate editor + version compare (en-US/de-DE/RTL-ar)
+  - **Evidence (2026-09-22):** `TestTodo_HUB_033`, `_Accessibility` in `tools/uxqual/render/docs` (`go test -count=1 ./tools/uxqual/render/docs/` PASS) + `tools/uxqual/browser/docs-editor.spec.mjs` 2/2 Chromium (desktop + 390px, keyboard order, conflict alert); candidate editor + version compare (en-US/de-DE/RTL-ar)
   - **Depends:** `HUB-005`, `HUB-006`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build Markdown candidate editor and version compare flow through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_033`.
@@ -27600,8 +27600,8 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-034` **[GATE_C][TERRA] Build reviewer and publisher deployment controls.**
-  - **Evidence (2026-09-24, served): Browser matrix: `TestTodo_HUB_034_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts the same version hash in the review and deploy forms and nothing exposed without authority; `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-review.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted.
-  - **Evidence (2026-09-24): `TestTodo_HUB_034`, `_Security` in `internal/humanwork/productui` (review and deploy forms carry the same version hash; authority checked per render) plus `tools/uxqual/browser/docs-review.spec.mjs` 2/2; PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24, served):** Browser matrix: `TestTodo_HUB_034_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts the same version hash in the review and deploy forms and nothing exposed without authority; `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-review.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_034`, `_Security` in `internal/humanwork/productui` (review and deploy forms carry the same version hash; authority checked per render) plus `tools/uxqual/browser/docs-review.spec.mjs` 2/2; PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `HUB-008`, `HUB-009`, `HUB-032`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build reviewer and publisher deployment controls through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_034`.
@@ -27611,9 +27611,9 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 - [ ] `HUB-035` **[GATE_C][TERRA] Build accessible document link picker and backlinks UI.**
-  - **Evidence (2026-09-24, served): Browser matrix: `TestTodo_HUB_035_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts safe link target states and the authorized backlinks panel; `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-picker.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted. Served evidence: the `[[` picker inserts stable `doc:<id>` references; the reader marks unreadable targets from `GetDocument` links; the `GetDocumentBacklinks` RPC backs `docsBacklinksPanel`. `TestTodo_HUB_035`, `_Accessibility` in `internal/humanwork/productui` PASS.
+  - **Evidence (2026-09-24, served):** Browser matrix: `TestTodo_HUB_035_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts safe link target states and the authorized backlinks panel; `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-picker.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted. Served evidence: the `[[` picker inserts stable `doc:<id>` references; the reader marks unreadable targets from `GetDocument` links; the `GetDocumentBacklinks` RPC backs `docsBacklinksPanel`. `TestTodo_HUB_035`, `_Accessibility` in `internal/humanwork/productui` PASS.
   - **Audit (2026-09-24):** Reopened: the checked evidence relies on fixture-based browser specs and references `tools/uxqual/render/docs`, while the ownership registry assigns multiple product owners and does not establish one accountable runtime owner. Keep open pending live served browser proof and explicit ownership.
-  - **Evidence (2026-09-22): `TestTodo_HUB_035`, `_Accessibility` in `tools/uxqual/render/docs` (`go test -count=1 ./tools/uxqual/render/docs/` PASS) + `tools/uxqual/browser/docs-picker.spec.mjs` 2/2 Chromium (keyboard picker, state text at desktop + 390px); stable-ID link picker + backlinks UI
+  - **Evidence (2026-09-22):** `TestTodo_HUB_035`, `_Accessibility` in `tools/uxqual/render/docs` (`go test -count=1 ./tools/uxqual/render/docs/` PASS) + `tools/uxqual/browser/docs-picker.spec.mjs` 2/2 Chromium (keyboard picker, state text at desktop + 390px); stable-ID link picker + backlinks UI
   - **Depends:** `HUB-021`, `HUB-022`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build accessible document link picker and backlinks UI through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_035`.
@@ -27624,8 +27624,8 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-036` **[GATE_C][TERRA] Build keyword and semantic search UI with fallback.**
-  - **Evidence (2026-09-24, served): Browser matrix: `TestTodo_HUB_036_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts a provenance label per result, labelled filters, escaped snippets and a usable lexical fallback; `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-search.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted.
-  - **Evidence (2026-09-24): `TestTodo_HUB_036`, `_Accessibility` in `internal/humanwork/productui` (provenance labels, filters, escaped snippets, lexical fallback) plus `tools/uxqual/browser/docs-search.spec.mjs`; PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24, served):** Browser matrix: `TestTodo_HUB_036_Browser` in `tools/uxqual/docsbrowser` scores the served `productui.Render` output with `tools/uxqual/qual` (keyboard, screen-reader semantics, AA contrast, reflow) and asserts a provenance label per result, labelled filters, escaped snippets and a usable lexical fallback; `go test -count=1 ./tools/uxqual/docsbrowser/` PASS. Playwright `docs-search.spec.mjs` runs against fixtures rendered from productui (`genfixtures`), not `tools/uxqual/render/docs`; 9/9 docs specs PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_036`, `_Accessibility` in `internal/humanwork/productui` (provenance labels, filters, escaped snippets, lexical fallback) plus `tools/uxqual/browser/docs-search.spec.mjs`; PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `HUB-030`, `HUB-032`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=build keyword and semantic search UI with fallback through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_036`.
@@ -27635,7 +27635,7 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep immutable content, current access and derived search in their owning modules; reuse existing transport and records ports without changing the proven outcome.
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 - [x] `HUB-037` **[GATE_C][SOL_HIGH] Declare document records retention hold and disposition.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_037`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (holds freeze disposal; derivatives removed, immutable core retained; `records.go`, migration 00015); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_037`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` (holds freeze disposal; derivatives removed, immutable core retained; `records.go`, migration 00015); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-004`, `HUB-009`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=declare document records retention hold and disposition through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_037`.
@@ -27646,7 +27646,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-038` **[GATE_C][SOL_HIGH] Export raw Markdown versions assets and link manifests.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_038`, `_Security`, `_Integration` in `internal/data/documenthubstore` (read+export authorized bundle: versions, deployments, artifacts, link map, holds + records policy; `export.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_038`, `_Security`, `_Integration` in `internal/data/documenthubstore` (read+export authorized bundle: versions, deployments, artifacts, link map, holds + records policy; `export.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-019`, `HUB-037`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=export raw Markdown versions assets and link manifests through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_038`.
@@ -27657,7 +27657,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-039` **[GATE_C][SOL_HIGH] Import Markdown through validation and link remapping.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_039`, `_Security`, `FuzzTodo_HUB_039` (280k execs PASS) in `internal/data/documenthubstore` (quarantined import with remap + provenance; `import.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_039`, `_Security`, `FuzzTodo_HUB_039` (280k execs PASS) in `internal/data/documenthubstore` (quarantined import with remap + provenance; `import.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-005`, `HUB-019`, `HUB-024`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=import Markdown through validation and link remapping through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_039`.
@@ -27668,7 +27668,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-040` **[GATE_C][SOL_HIGH] Transfer ownership after employee or team departure.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_040`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` and `internal/application` (`ownership.go`, append-only migration 00024); PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/data/documenthubstore/ ./internal/application/` PASS (windows/arm64 Go 1.26).
+  - **Evidence (2026-09-24):** `TestTodo_HUB_040`, `_Security`, `_Integration`, `_Golden` in `internal/data/documenthubstore` and `internal/application` (`ownership.go`, append-only migration 00024); PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/data/documenthubstore/ ./internal/application/` PASS (windows/arm64 Go 1.26).
   - **Served (2026-09-24):** `TransferDocumentOwnership` and `ListDocumentOwnershipHistory` RPCs. `TestTodo_HUB_040_Served` in `internal/application` PASS.
   - **Depends:** `HUB-011`, `HUB-014`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=transfer ownership after employee or team departure through the scoped Knowledge surface`.
@@ -27680,7 +27680,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-041` **[GATE_C][SOL_HIGH] Publish document RPC and integration HTTP parity.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_041`, `_Conformance`, `_Security` in `internal/transport/document`, `TestTodo_HUB_041_Integration` in `internal/application` (pgtest, HTTP against native RPC) and `TestTodo_HUB_041_ServedOverlay` in `internal/transport/cell`; the projection is served by `transportcell.DocumentHTTPOverlay` under chat's admission; PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/transport/document/ ./internal/application/ ./internal/transport/cell/` PASS (windows/arm64 Go 1.26).
+  - **Evidence (2026-09-24):** `TestTodo_HUB_041`, `_Conformance`, `_Security` in `internal/transport/document`, `TestTodo_HUB_041_Integration` in `internal/application` (pgtest, HTTP against native RPC) and `TestTodo_HUB_041_ServedOverlay` in `internal/transport/cell`; the projection is served by `transportcell.DocumentHTTPOverlay` under chat's admission; PASS; windows/arm64 Go 1.26. Uncommitted; `go test -count=1 ./internal/transport/document/ ./internal/application/ ./internal/transport/cell/` PASS (windows/arm64 Go 1.26).
   - **Depends:** `HUB-009`, `HUB-011`, `INTAPI-007`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=publish document RPC and integration HTTP parity through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_041`.
@@ -27691,7 +27691,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-042` **[GATE_C][SOL_HIGH] Restore document database and rebuild derived search.**
-  - **Evidence (2026-09-22): `TestTodo_HUB_042`, `_Recovery`, `_Fault` in `internal/data/documenthubstore` (independent snapshot/restore with hash verification + reconcile to consistent watermark; `backup.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
+  - **Evidence (2026-09-22):** `TestTodo_HUB_042`, `_Recovery`, `_Fault` in `internal/data/documenthubstore` (independent snapshot/restore with hash verification + reconcile to consistent watermark; `backup.go`); `go test -count=1 ./internal/data/documenthubstore/` PASS, `go vet` clean, 84.1% statements, windows/arm64 Go 1.26, 2026-09-22; uncommitted
   - **Depends:** `HUB-001`, `HUB-029`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=restore document database and rebuild derived search through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_042`.
@@ -27702,7 +27702,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-043` **[GATE_C][SOL_HIGH] Load-test the 1000-person document hub and workflow isolation.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_043`, `_Conformance`, `_Fault` in `internal/data/documenthubstore` (isolated pools; env-scalable to the named planning scale; the budgets are local regression budgets, not the signed planning SLO); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_043`, `_Conformance`, `_Fault` in `internal/data/documenthubstore` (isolated pools; env-scalable to the named planning scale; the budgets are local regression budgets, not the signed planning SLO); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `HUB-027`, `HUB-042`, `CHAT-052`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=load-test the 1000-person document hub and workflow isolation through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_043`.
@@ -27725,7 +27725,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-045` **[GATE_C][SOL_HIGH] Run document authorization and search adversarial conformance.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_045`, `_Conformance`, `_Security`, `_CompanyGrantNeedsBilateral` in `internal/data/documenthubstore`; the adversarial pass found that a directly written company grant bypassed the bilateral gate, now closed in `authorizeTx`; `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_045`, `_Conformance`, `_Security`, `_CompanyGrantNeedsBilateral` in `internal/data/documenthubstore`; the adversarial pass found that a directly written company grant bypassed the bilateral gate, now closed in `authorizeTx`; `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **Depends:** `HUB-015`, `HUB-021`, `HUB-028`, `HUB-041`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=run document authorization and search adversarial conformance through the scoped Knowledge surface`.
   - **TEST:** `TestTodo_HUB_045`.
@@ -27736,7 +27736,7 @@ Related open items are not duplicated here:
   - **Refs:** [Documentation hub](specs/channel-documentation-hub.md), [chat routing](specs/chat-core-routing-and-isolation.md).
 
 - [x] `HUB-046` **[GATE_C][SOL_HIGH] Give each person private folders, stars and an owner access list for their document library.**
-  - **Evidence (2026-09-24): `TestTodo_HUB_046`, `_Security`, `_Integration` in `internal/data/documenthubstore` (100-document move cap, owner never revoked, counts only readable documents); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
+  - **Evidence (2026-09-24):** `TestTodo_HUB_046`, `_Security`, `_Integration` in `internal/data/documenthubstore` (100-document move cap, owner never revoked, counts only readable documents); `go test -count=1 ./internal/data/documenthubstore/` PASS; windows/arm64 Go 1.26. Uncommitted.
   - **PROGRESS (2026-09-24, backfill):** In-flight and uncommitted at audit time: `internal/data/documenthubstore/library.go` (`GetLibrary`, `CreateFolder`, `RenameFolder`, `DeleteFolder`, `MoveDocuments`, `SetStarred`, `ListAccess`, `RevokePersonAccess`) with application plumbing in `internal/application/document.go`. Coverage exists as `TestDocumentLibraryFoldersStarsAccess_Integration`, `TestDocumentListSortSearchOwner_Integration`, `TestDocumentLibraryApplication_Integration`, `TestDocumentLibraryErrorMapping`, `TestDocumentOwnerSortApplication_Integration` and `TestOwnerDisplayNames`; the matrix names below are not yet present.
   - **Depends:** `HUB-012`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.DOCUMENTS; DIRECT=none; WHY=let a person organize their own documents and see who holds access through the scoped Knowledge surface`.
@@ -27953,8 +27953,8 @@ Related open items are not duplicated here:
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=save personal and project board views without widening task access through the scoped project-management surface`.
   - **TEST:** `TestTodo_PM_016`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_PM_016`; `SECURITY=TestTodo_PM_016_Security`; `INTEGRATION=TestTodo_PM_016_Integration`.
-  - **RED:** A personal filter reveals hidden counts or a contributor edits a project-wide view.
-  - **GREEN:** Versioned filters, grouping, columns, order, and card fields use PERSONAL or PROJECT audience; current task authorization is applied first.
+  - **RED:** A personal filter or swim lane reveals hidden counts, a contributor edits a project-wide view, or columns become independent task states.
+  - **GREEN:** Versioned filters, stable status-to-column mapping, optional assignee/priority/type/ENUM swim lanes, order, and card fields use PERSONAL or PROJECT audience; current task authorization precedes grouping and counts, with 100-card paging across all lanes.
   - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
   - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
 
@@ -28095,8 +28095,8 @@ Related open items are not duplicated here:
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=build paginated board and list views with safe task moves through the scoped project-management surface`.
   - **TEST:** `TestTodo_PM_030`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_PM_030`; `BROWSER=TestTodo_PM_030_Browser`; `ACCESSIBILITY=TestTodo_PM_030_Accessibility`.
-  - **RED:** Drag reports success before server commit or keyboard users cannot move a card.
-  - **GREEN:** Board/list render 100-card pages, keyboard equivalent moves, optimistic pending state, and conflict rollback with focus restoration.
+  - **RED:** Drag reports success before server commit, cross-lane moves bypass field permission or transition rules, or keyboard users cannot move a card.
+  - **GREEN:** Board/list render 100-card pages across columns and lanes; status and editable-lane moves have keyboard equivalents, pending state, and conflict rollback with focus restoration.
   - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
   - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
 
@@ -28169,6 +28169,16 @@ Related open items are not duplicated here:
   - **GREEN:** Named under-1000-employee partner finishes an operational project with measured use, support load, rollback, and signed continue-or-stop criteria.
   - **REFACTOR:** Preserve project-owned authority and reuse existing identity, capability, records, and transport boundaries without changing the proved outcome.
   - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `PM-074` **[PHASE_3][TERRA] Create linked project tasks from Chat and Docs and share tasks back.**
+  - **Depends:** `PM-020`, `PM-030`, `PM-031`, `CHAT-030`, `HUB-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.DOCUMENTS,BI.EXPERIENCE; DIRECT=none; WHY=connect project execution to the governing conversation and document through authorized in-app actions`.
+  - **TEST:** `TestTodo_PM_074`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_PM_074`; `BROWSER=TestTodo_PM_074_Browser`; `SECURITY=TestTodo_PM_074_Security`; `INTEGRATION=TestTodo_PM_074_Integration`.
+  - **RED:** Creating or sharing a task copies protected source text, bypasses either side's write/read grant, changes a deployed document, or reloads the app and corrupts browser history.
+  - **GREEN:** Authorized Chat post and deployed Docs passage actions create a task with a typed source reference and explicit user-entered description; task links can be shared back through authorized Chat posting or a Docs candidate edit, with neutral restricted states, stable deep links, and Back/Forward without full-page reload.
+  - **REFACTOR:** Reuse Chat and Docs commands, project links, and the persistent router; project owns only its tasks and references.
+  - **Refs:** [Project boards](specs/customer-project-management-and-adaptive-boards.md), [Company chat](specs/company-chat-and-collaboration.md), [Documentation hub](specs/channel-documentation-hub.md).
 
 - [ ] `PM-038` **[PHASE_3][SOL_LOW] Define the typed AI BoardProposal schema and enabled-capability vocabulary.**
   - **Depends:** `PM-012`, `PM-037`.

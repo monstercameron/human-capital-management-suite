@@ -131,6 +131,13 @@ type PromotionExecutionConfig struct {
 	// value is configuration, never a literal in routing logic: no cost-center
 	// relationship graph exists in this release to resolve it from.
 	FinancePartnerPrincipalID string
+	// FinancePartnerByTenant and ManagerApproverByTenant override
+	// FinancePartnerPrincipalID and ManagerApproverPrincipalID for the named
+	// tenant rows. A cell that serves several demo companies routes each
+	// company's approvals to that company's own people; a tenant absent from
+	// the maps keeps the process-wide principals exactly as before.
+	FinancePartnerByTenant  map[uuid.UUID]string
+	ManagerApproverByTenant map[uuid.UUID]string
 	// Managers resolves the executable plan's CurrentManagerOf(worker)
 	// approval (PROMOUX-015). Nil means [JourneyWorkerManagers], the
 	// journey_worker manager relationship internal/data/orgfacts also reads.
@@ -416,13 +423,16 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 		stepRunner.capabilities = capabilityDispatch(pinned)
 	}
 
+	workItems := promotionWorkItems{approver: approver, managerApprover: managerApprover, financePartner: cfg.FinancePartnerPrincipalID,
+		financeByTenant: cfg.FinancePartnerByTenant, managerByTenant: cfg.ManagerApproverByTenant,
+		managers: managerFallback{base: cfg.Managers, fallback: managerApprover, byTenant: cfg.ManagerApproverByTenant}, plan: selected}
 	options := execute.Options{
 		DB:            cfg.DB,
 		StartRetry:    startRetry,
 		StartRetryFor: startRetryFor,
 		ConflictFence: cfg.ConflictFence,
 		Steps:         stepRunner,
-		WorkItems:     WithWorkNotifications(promotionWorkItems{approver: approver, managerApprover: managerApprover, financePartner: cfg.FinancePartnerPrincipalID, managers: managerFallback{base: cfg.Managers, fallback: managerApprover}, plan: selected}),
+		WorkItems:     WithWorkNotifications(workItems),
 		Terminal:      WithRequesterStatusTerminal(cfg.Terminal),
 		Guard:         guard,
 		Retention:     retention,
@@ -683,8 +693,19 @@ type promotionWorkItems struct {
 	approver        string
 	managerApprover string
 	financePartner  string
+	financeByTenant map[uuid.UUID]string
+	managerByTenant map[uuid.UUID]string
 	managers        ManagerResolver
 	plan            PromotionPlan
+}
+
+// managerApproverFor is the reapproval owner and manager fallback for one
+// tenant: its own configured principal, else the process-wide one.
+func (f promotionWorkItems) managerApproverFor(tenant uuid.UUID) string {
+	if principal := f.managerByTenant[tenant]; principal != "" {
+		return principal
+	}
+	return f.managerApprover
 }
 
 // CurrentWorkItemAudience re-resolves the owner from the same trusted route
@@ -699,7 +720,7 @@ func (f promotionWorkItems) CurrentWorkItemAudience(ctx context.Context, ex work
 	if item.Kind == workitem.KindApproval && plan == PLAN_EXECUTE {
 		switch item.NodeID {
 		case promotionexec.NodeApproveFinance:
-			route, err := f.financeRoute()
+			route, err := f.financeRoute(item.TenantID)
 			if err != nil {
 				return "", "", err
 			}
@@ -717,7 +738,7 @@ func (f promotionWorkItems) CurrentWorkItemAudience(ctx context.Context, ex work
 			return "", "", errors.New("platform execution: unsupported approval audience route")
 		}
 	} else if item.Kind == workitem.KindTask {
-		owner = f.managerApprover
+		owner = f.managerApproverFor(item.TenantID)
 		if owner == "" {
 			var err error
 			owner, err = promotionexec.ManagerApproverFor(f.approver)
@@ -739,6 +760,7 @@ func (f promotionWorkItems) CurrentWorkItemAudience(ctx context.Context, ex work
 type managerFallback struct {
 	base     ManagerResolver
 	fallback string
+	byTenant map[uuid.UUID]string
 }
 
 func (m managerFallback) CurrentManagerOf(ctx context.Context, ex workitem.Executor, tenantID uuid.UUID, workerRef string) (ManagerOf, error) {
@@ -747,8 +769,12 @@ func (m managerFallback) CurrentManagerOf(ctx context.Context, ex workitem.Execu
 		base = JourneyWorkerManagers{}
 	}
 	answer, err := base.CurrentManagerOf(ctx, ex, tenantID, workerRef)
-	if err == nil && !answer.InGraph && m.fallback != "" {
-		answer.ManagerPrincipal = m.fallback
+	fallback := m.fallback
+	if principal := m.byTenant[tenantID]; principal != "" {
+		fallback = principal
+	}
+	if err == nil && !answer.InGraph && fallback != "" {
+		answer.ManagerPrincipal = fallback
 	}
 	return answer, err
 }
@@ -848,7 +874,7 @@ func (f promotionWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Exec
 }
 
 func (f promotionWorkItems) createExecuteTask(ctx context.Context, ex workitem.Executor, req execute.WorkItemRequest) (workitem.WorkItem, error) {
-	approver := f.managerApprover
+	approver := f.managerApproverFor(req.Continuation.TenantID)
 	if approver == "" {
 		var err error
 		approver, err = promotionexec.ManagerApproverFor(f.approver)

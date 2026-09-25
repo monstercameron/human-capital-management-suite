@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
@@ -67,6 +68,7 @@ func composeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		}
 		startRetryFor = composeExecutionRetryFor(pool, cfg, now)
 	}
+	financePartners, managerApprovers := servedCompanyApprovers(cfg, pgstore.TenantID)
 	executionConfig := platformexecution.PromotionExecutionConfig{
 		DB:                         pool,
 		StartRetryFor:              startRetryFor,
@@ -75,6 +77,8 @@ func composeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 		ApproverPrincipalID:        cfg.ExecutionApprover,
 		ManagerApproverPrincipalID: cfg.ExecutionManagerApprover,
 		FinancePartnerPrincipalID:  cfg.ExecutionFinancePartner,
+		FinancePartnerByTenant:     financePartners,
+		ManagerApproverByTenant:    managerApprovers,
 		AuthorityDigest:            cfg.ExecutionAuthorityDigest,
 		CellID:                     cfg.CellID,
 		RequiredRole:               cfg.ExecutionAuthorityRole,
@@ -131,4 +135,31 @@ func composeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 // value it only ever forwards.
 func tenantKeyMapper[Key ~string, Row any](derive func(string) Row) func(Key) Row {
 	return func(tenant Key) Row { return derive(string(tenant)) }
+}
+
+// servedCompanyApprovers routes each additional demo company this process
+// serves to that company's own finance partner and fallback manager
+// approver. The default tenant keeps the -execution-* flags; only the other
+// served tenants are named here, and only on a dev-login process, because
+// these principals are demo pack data.
+//
+// It is generic over the tenant row key for the same reason tenantKeyMapper
+// is: this composition root does not name the store's identifier type.
+func servedCompanyApprovers[K comparable](cfg ServeConfig, rowKey func(string) K) (finance, manager map[K]string) {
+	if !cfg.DevBrowserLogin {
+		return nil, nil
+	}
+	for _, tenant := range cfg.ServedTenants() {
+		pack, isDemo := demoworkforce.PackFor(tenant)
+		if !isDemo || tenant == cfg.Tenant {
+			continue
+		}
+		if finance == nil {
+			finance, manager = map[K]string{}, map[K]string{}
+		}
+		row := rowKey(tenant)
+		finance[row] = pack.FinancePartnerKey
+		manager[row] = pack.ManagerApproverKey
+	}
+	return finance, manager
 }

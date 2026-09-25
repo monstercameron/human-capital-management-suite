@@ -30,6 +30,9 @@ type cspPolicy struct {
 	blobImages       bool
 	allowBlobScript  bool
 	allowWASM        bool
+	// dataImages admits inline data: images and nothing else; only the
+	// multi-company sign-in page, which inlines company logos, sets it.
+	dataImages bool
 }
 
 func (p cspPolicy) header() string {
@@ -86,6 +89,8 @@ func (p cspPolicy) header() string {
 		directives = append(directives, "img-src 'self'")
 	case p.blobImages:
 		directives = append(directives, "img-src blob:")
+	case p.dataImages:
+		directives = append(directives, "img-src data:")
 	default:
 		directives = append(directives, "img-src 'none'")
 	}

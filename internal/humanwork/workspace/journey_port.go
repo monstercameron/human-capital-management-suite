@@ -169,6 +169,9 @@ type JourneySummary struct {
 	CurrentBase  string
 	ProposedBase string
 	Currency     string
+	// CurrentPayBasis and ProposedPayBasis are the bases the two amounts are
+	// expressed in (HOURLY_RATE for an hourly job; empty is ANNUAL_SALARY).
+	CurrentPayBasis, ProposedPayBasis string
 
 	// EffectiveDate is ISO-8601 (YYYY-MM-DD).
 	EffectiveDate  string
@@ -860,6 +863,12 @@ type PromotionPathOption struct {
 	MaximumBaseIncrease        string
 	CompensationPolicyRef      string
 	BenefitRuleRefs            []string
+	// TargetPayBasis is the basis the target job is paid on (ANNUAL_SALARY or
+	// HOURLY_RATE; empty is ANNUAL_SALARY), and AnnualizationHours the yearly
+	// hours an hourly rate is annualized over when the two ends of the move
+	// are paid on different bases.
+	TargetPayBasis     string
+	AnnualizationHours int32
 }
 
 // JourneyEngine is the live engine the journey page reads and acts through.

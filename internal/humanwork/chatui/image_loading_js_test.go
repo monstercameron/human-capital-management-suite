@@ -743,3 +743,75 @@ func TestChatImageLoaderRebindsWhenWorkspaceNodeIsReplaced(t *testing.T) {
 		t.Fatal("visible GIF in the replacement workspace never received a thumbnail source")
 	}
 }
+
+// TestChatImageStuckFetchRevealsFallback covers the second half of the C-2
+// live re-check: a fetch that mints its grant and reads its bytes but whose
+// blob URL is discarded before it reaches the <img> (see loadThumbnail's own
+// staleness guard) -- or one that simply never settles -- leaves an <img>
+// with no src, which never fires "error" and so never revealed the
+// pre-rendered .attachment-fallback on its own. The watchdog added to
+// loadThumbnail must mark the tile failed once it has waited too long,
+// exactly like the click on an OnError callback already does.
+func TestChatImageStuckFetchRevealsFallback(t *testing.T) {
+	oldWatchdog := chatImageWatchdogMillis
+	chatImageWatchdogMillis = 20
+	defer func() { chatImageWatchdogMillis = oldWatchdog }()
+
+	oldFetch := js.Global().Get("fetch")
+	defer js.Global().Set("fetch", oldFetch)
+	var executor js.Func
+	executor = js.FuncOf(func(js.Value, []js.Value) any { return nil })
+	defer executor.Release()
+	pending := js.FuncOf(func(js.Value, []js.Value) any {
+		// A promise that never resolves or rejects: the request is sent and
+		// then stalls, the same shape a dropped connection or a response
+		// that never completes its body would leave behind.
+		return js.Global().Get("Promise").New(executor)
+	})
+	defer pending.Release()
+	js.Global().Set("fetch", pending)
+
+	classes := map[string]bool{}
+	classList := js.Global().Get("Object").New()
+	addFn := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) > 0 {
+			classes[args[0].String()] = true
+		}
+		return nil
+	})
+	defer addFn.Release()
+	classList.Set("add", addFn)
+	figure := js.Global().Get("Object").New()
+	figure.Set("classList", classList)
+	closestFn := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) > 0 && args[0].String() == ".attachment-image" {
+			return figure
+		}
+		return js.Null()
+	})
+	defer closestFn.Release()
+
+	button := js.Global().Get("Object").New()
+	button.Set("isConnected", true)
+	button.Set("closest", closestFn)
+	button.Set("dataset", js.ValueOf(map[string]any{"mediaId": "artifact"}))
+	image := js.Global().Get("Object").New()
+
+	loader := &chatImageLoader{records: map[string]*chatImageRecord{
+		"k1": {button: button, image: image, thumbURL: "thumbnail", displayURL: "display"},
+	}}
+	button.Set("__chatImageRecordKey", "k1")
+	old := activeChatImageLoader
+	activeChatImageLoader = loader
+	defer func() { activeChatImageLoader = old }()
+
+	loader.loadThumbnail(button)
+	time.Sleep(150 * time.Millisecond)
+
+	if !classes["failed"] {
+		t.Fatal("a thumbnail fetch that never resolved did not reveal the attachment fallback")
+	}
+	if !loader.records["k1"].failed {
+		t.Fatal("the stuck record was not marked failed")
+	}
+}

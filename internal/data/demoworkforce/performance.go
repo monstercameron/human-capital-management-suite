@@ -132,15 +132,15 @@ func containsOrdinal(ordinals []int, ordinal int) bool {
 }
 
 // bandFor returns the standing of the worker at 1-based ordinal.
-func bandFor(ordinal int) ratingBand {
+func (p *Pack) bandFor(ordinal int) ratingBand {
 	switch {
-	case containsOrdinal(topPerformerOrdinals, ordinal):
+	case containsOrdinal(p.topPerformers, ordinal):
 		return bandTop
-	case containsOrdinal(strongPerformerOrdinals, ordinal):
+	case containsOrdinal(p.strongPerformers, ordinal):
 		return bandStrong
-	case containsOrdinal(calibratedOrdinals, ordinal):
+	case containsOrdinal(p.calibrated, ordinal):
 		return bandCalibrated
-	case containsOrdinal(belowExpectationOrdinals, ordinal):
+	case containsOrdinal(p.belowExpectation, ordinal):
 		return bandBelow
 	case ordinal%6 == 0:
 		return bandSolidLow
@@ -190,7 +190,12 @@ type PerformanceSummary struct {
 // pure function of the workforce plan: no clock, no randomness, and every
 // identity is derived from the cycle and the worker.
 func PlanPerformance(tenant uuid.UUID) (PerformancePlan, error) {
-	employees, err := Plan(tenant)
+	return HarborCarePack.PlanPerformance(tenant)
+}
+
+// PlanPerformance derives this company's performance record.
+func (p *Pack) PlanPerformance(tenant uuid.UUID) (PerformancePlan, error) {
+	employees, err := p.Plan(tenant)
 	if err != nil {
 		return PerformancePlan{}, err
 	}
@@ -199,20 +204,20 @@ func PlanPerformance(tenant uuid.UUID) (PerformancePlan, error) {
 		workerIDByKey[employee.Row.WorkerKey] = employee.Row.WorkerID.String()
 	}
 
-	ratingRule, err := demoRatingRule()
+	ratingRule, err := p.demoRatingRule()
 	if err != nil {
 		return PerformancePlan{}, err
 	}
-	calibrationRule, err := performance.NewCalibrationRule(PerformanceCalibrationRuleID, "v1",
+	calibrationRule, err := performance.NewCalibrationRule(p.policyPrefix+".performance.calibration", "v1",
 		values.MustDecimal("0.50", 2, values.RoundingExactRequired),
 		[]performance.CalibrationReasonCode{performance.CalibrationReasonConsistency, performance.CalibrationReasonEvidence})
 	if err != nil {
 		return PerformancePlan{}, fmt.Errorf("demoworkforce: calibration rule: %w", err)
 	}
 
-	plan := PerformancePlan{Cycles: make([]PlannedPerformanceCycle, 0, len(PerformanceCycles))}
-	for _, spec := range PerformanceCycles {
-		planned, err := planPerformanceCycle(spec, employees, workerIDByKey, ratingRule, calibrationRule)
+	plan := PerformancePlan{Cycles: make([]PlannedPerformanceCycle, 0, len(p.performanceCycles))}
+	for _, spec := range p.performanceCycles {
+		planned, err := p.planPerformanceCycle(spec, employees, workerIDByKey, ratingRule, calibrationRule)
 		if err != nil {
 			return PerformancePlan{}, err
 		}
@@ -221,8 +226,8 @@ func PlanPerformance(tenant uuid.UUID) (PerformancePlan, error) {
 	return plan, nil
 }
 
-func demoRatingRule() (performance.ProposedRatingRule, error) {
-	rule, err := performance.NewProposedRatingRule(PerformanceRatingRuleID, "v1",
+func (p *Pack) demoRatingRule() (performance.ProposedRatingRule, error) {
+	rule, err := performance.NewProposedRatingRule(p.policyPrefix+".performance.rating", "v1",
 		PerformanceRatingScale, PerformanceRatingScale, values.RoundingHalfEven, 2,
 		map[performance.ReviewerRelationshipKind]values.Decimal{
 			performance.ReviewerRelationshipManager: values.MustDecimal("2.00", 2, values.RoundingExactRequired),
@@ -237,20 +242,20 @@ func demoRatingRule() (performance.ProposedRatingRule, error) {
 // cycleReferences are the three governed documents a cycle binds. They are
 // derived from the cycle id so a cycle's population, calendar and rating
 // scale cannot silently belong to another cycle.
-func cycleReferences(spec PerformanceCycleSpec) (performance.PopulationBindingRef, performance.CalendarBindingRef, performance.RatingScaleVersionRef) {
+func (p *Pack) cycleReferences(spec PerformanceCycleSpec) (performance.PopulationBindingRef, performance.CalendarBindingRef, performance.RatingScaleVersionRef) {
 	version := fmt.Sprintf("%d", spec.Year)
 	return performance.PopulationBindingRef{
-			DefinitionID:    "harborcare.performance.population",
+			DefinitionID:    p.policyPrefix + ".performance.population",
 			RevisionVersion: version,
 			Digest:          demoDigest("performance-population", spec.CycleID),
 		},
 		performance.CalendarBindingRef{
-			Ref:     "harborcare.performance.calendar",
+			Ref:     p.policyPrefix + ".performance.calendar",
 			Version: version,
 			Digest:  demoDigest("performance-calendar", spec.CycleID),
 		},
 		performance.RatingScaleVersionRef{
-			ID:      "harborcare.performance.scale.five-point",
+			ID:      p.policyPrefix + ".performance.scale.five-point",
 			Version: "1",
 			Digest:  demoDigest("performance-rating-scale", "five-point/1"),
 		}
@@ -283,9 +288,9 @@ func reviewerPanel(employees []Employee, index int, workerIDByKey map[string]str
 	return manager, ""
 }
 
-func planPerformanceCycle(spec PerformanceCycleSpec, employees []Employee, workerIDByKey map[string]string,
+func (p *Pack) planPerformanceCycle(spec PerformanceCycleSpec, employees []Employee, workerIDByKey map[string]string,
 	ratingRule performance.ProposedRatingRule, calibrationRule performance.CalibrationRule) (PlannedPerformanceCycle, error) {
-	population, calendar, scale := cycleReferences(spec)
+	population, calendar, scale := p.cycleReferences(spec)
 	planned, err := performance.NewPerformanceCycle(spec.CycleID, population, calendar, scale)
 	if err != nil {
 		return PlannedPerformanceCycle{}, fmt.Errorf("demoworkforce: cycle %s: %w", spec.CycleID, err)
@@ -329,7 +334,7 @@ func planPerformanceCycle(spec PerformanceCycleSpec, employees []Employee, worke
 		return PlannedPerformanceCycle{}, fmt.Errorf("demoworkforce: %s review collection: %w", spec.CycleID, err)
 	}
 	for index := range employees {
-		band := bandFor(index + 1)
+		band := p.bandFor(index + 1)
 		participant := employees[index].Row.WorkerID.String()
 		manager, peer := reviewerPanel(employees, index, workerIDByKey)
 		for _, item := range []struct {
@@ -366,7 +371,7 @@ func planPerformanceCycle(spec PerformanceCycleSpec, employees []Employee, worke
 	// A closed cycle carries the calibration evidence its transitions
 	// require, and one calibration session per organization unit.
 	evidence := performance.EvidenceRef{
-		ID: "harborcare.performance.calibration-pack", Version: fmt.Sprintf("%d", spec.Year),
+		ID: p.policyPrefix + ".performance.calibration-pack", Version: fmt.Sprintf("%d", spec.Year),
 		Digest: demoDigest("performance-calibration-pack", spec.CycleID),
 	}
 	calibrating, err := opened.BeginCalibration(evidence)
@@ -379,7 +384,7 @@ func planPerformanceCycle(spec PerformanceCycleSpec, employees []Employee, worke
 	}
 	cycle.Revisions = append(cycle.Revisions, calibrating, closed)
 
-	sessions, err := planCalibrationSessions(spec, employees, collection, graph, ratingRule, calibrationRule)
+	sessions, err := p.planCalibrationSessions(spec, employees, collection, graph, ratingRule, calibrationRule)
 	if err != nil {
 		return PlannedPerformanceCycle{}, err
 	}
@@ -390,11 +395,11 @@ func planPerformanceCycle(spec PerformanceCycleSpec, employees []Employee, worke
 // planCalibrationSessions calibrates one cycle, one organization unit at a
 // time, the way a real calibration runs. The panel is the unit's own head and
 // the chief people officer; the facilitator chairs but never adjusts.
-func planCalibrationSessions(spec PerformanceCycleSpec, employees []Employee, collection performance.ReviewCollection,
+func (p *Pack) planCalibrationSessions(spec PerformanceCycleSpec, employees []Employee, collection performance.ReviewCollection,
 	graph performance.FrozenParticipantReviewerGraph, ratingRule performance.ProposedRatingRule,
 	calibrationRule performance.CalibrationRule) ([]PlannedCalibrationSession, error) {
-	unitOrder := make([]string, 0, len(HarborCare.Units))
-	membersByUnit := make(map[string][]int, len(HarborCare.Units))
+	unitOrder := make([]string, 0, len(p.Company.Units))
+	membersByUnit := make(map[string][]int, len(p.Company.Units))
 	for index := range employees {
 		unit := employees[index].Organization.Code
 		if _, seen := membersByUnit[unit]; !seen {
@@ -405,7 +410,7 @@ func planCalibrationSessions(spec PerformanceCycleSpec, employees []Employee, co
 	// The chief people officer sits on every panel; the domain refuses an
 	// adjustment whose only adjuster is the participant's own manager, so the
 	// one worker they manage directly is never calibrated by them alone.
-	peopleOfficer := employees[3].Row.WorkerID.String()
+	peopleOfficer := employees[p.peopleOfficerIndex].Row.WorkerID.String()
 
 	sessions := make([]PlannedCalibrationSession, 0, len(unitOrder))
 	for _, unit := range unitOrder {
@@ -429,7 +434,7 @@ func planCalibrationSessions(spec PerformanceCycleSpec, employees []Employee, co
 			return nil, fmt.Errorf("demoworkforce: calibration session %s/%s: %w", spec.CycleID, unit, err)
 		}
 		for _, index := range members {
-			band := bandFor(index + 1)
+			band := p.bandFor(index + 1)
 			if band.CalibrateTo == "" {
 				continue
 			}
@@ -496,13 +501,18 @@ func cohortRating(cohort []performance.ProposedRating, participant string) value
 // append-only, and an ON CONFLICT DO NOTHING insert on a derived primary key
 // is the only replay these tables can have.
 func SeedPerformance(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (PerformanceSummary, error) {
+	return HarborCarePack.SeedPerformance(ctx, tx, tenant)
+}
+
+// SeedPerformance records this company's performance history inside tx.
+func (p *Pack) SeedPerformance(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (PerformanceSummary, error) {
 	if tx == nil || tenant == uuid.Nil {
 		return PerformanceSummary{}, fmt.Errorf("demoworkforce: seed performance: a transaction and tenant are required")
 	}
 	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
 		return PerformanceSummary{}, err
 	}
-	plan, err := PlanPerformance(tenant)
+	plan, err := p.PlanPerformance(tenant)
 	if err != nil {
 		return PerformanceSummary{}, err
 	}

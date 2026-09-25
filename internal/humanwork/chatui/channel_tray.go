@@ -21,14 +21,18 @@ func channelTray(m Model, h handlers, open string) ui.Node {
 		}
 	}
 	chips := []ui.Node{}
-	if total > 0 || open == "todo" {
+	// Round 3 C-18: a chip is a summary of something that exists. An empty
+	// to-do list or poll opened from the header gets only its card; a chip
+	// that repeated the header button and the card title said the same
+	// thing three times.
+	if total > 0 {
 		label := m.t(KeyTodoTitle)
 		if total > 0 {
 			label += " · " + m.tf(KeyTodoProgress, map[string]string{"done": m.nz(done), "total": m.nz(total)})
 		}
 		chips = append(chips, trayChip(m, "todo", open, "checklist", label))
 	}
-	if m.ChannelPoll.Question != "" || open == "poll" {
+	if m.ChannelPoll.Question != "" {
 		label := m.t(KeyPollTitle)
 		if q := m.ChannelPoll.Question; q != "" {
 			votes := m.tf(KeyPollVotes, map[string]string{"n": m.nz(m.ChannelPoll.TotalVotes)})
@@ -39,10 +43,13 @@ func channelTray(m Model, h handlers, open string) ui.Node {
 		}
 		chips = append(chips, trayChip(m, "poll", open, "poll", label))
 	}
-	if len(chips) == 0 {
+	if len(chips) == 0 && open == "" {
 		return html.Div(html.Props{Class: "channel-tray-slot"})
 	}
-	children := []ui.Node{html.Div(html.Props{Class: "channel-tray-bar", Role: "toolbar", Aria: map[string]string{"label": m.t(KeyChannelTools)}}, chips...)}
+	children := []ui.Node{}
+	if len(chips) > 0 {
+		children = append(children, html.Div(html.Props{Class: "channel-tray-bar", Role: "toolbar", Aria: map[string]string{"label": m.t(KeyChannelTools)}}, chips...))
+	}
 	if open != "" {
 		var body ui.Node
 		title := m.t(KeyTodoTitle)

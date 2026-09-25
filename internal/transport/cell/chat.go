@@ -21,6 +21,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportposition "github.com/monstercameron/human-capital-management-suite/internal/transport/position"
+	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
 )
 
 const ChatExtensionsProcedurePrefix = "/hcmnext.chat.v1.ChatExtensionsService/"
@@ -81,7 +82,7 @@ func NewTunnelGRPCServerWithChatAndDocument(
 	opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	return newTunnelGRPCServerWithDocument(c, instances, workQueue, cursorKey, previousCursorKey,
-		workWrites, thresholds, chatService, extensions, documentService, nil, opts...)
+		workWrites, thresholds, chatService, extensions, documentService, nil, nil, opts...)
 }
 
 // NewTunnelGRPCServerWithChatDocumentAndPosition composes the typed position
@@ -94,7 +95,51 @@ func NewTunnelGRPCServerWithChatDocumentAndPosition(
 	positionDeps transportposition.Dependencies, opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	return newTunnelGRPCServerWithDocument(c, instances, workQueue, cursorKey, previousCursorKey,
-		workWrites, thresholds, chatService, extensions, documentService, &positionDeps, opts...)
+		workWrites, thresholds, chatService, extensions, documentService, &positionDeps, nil, opts...)
+}
+
+// NewTunnelGRPCServerWithChatDocumentPositionAndProject adds ProjectService
+// to the admitted browser tunnel. The same service value is also registered
+// on the direct listener by the application composition root.
+func NewTunnelGRPCServerWithChatDocumentPositionAndProject(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps transportposition.Dependencies, projectService transportproject.Service, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocument(c, instances, workQueue, cursorKey, previousCursorKey,
+		workWrites, thresholds, chatService, extensions, documentService, &positionDeps, projectService, opts...)
+}
+
+// NewTunnelGRPCServerWithChatDocumentPositionAndProjectActivity adds the
+// project comment/activity application port while preserving the older
+// project-only constructor for callers that do not compose activity storage.
+func NewTunnelGRPCServerWithChatDocumentPositionAndProjectActivity(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps transportposition.Dependencies, projectService transportproject.Service,
+	projectActivity transportproject.ActivityService, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocumentAndProjectActivity(c, instances, workQueue, cursorKey, previousCursorKey,
+		workWrites, thresholds, chatService, extensions, documentService, &positionDeps, projectService, projectActivity, nil, opts...)
+}
+
+// NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearch adds the
+// authorized task-search port to the same browser tunnel ProjectService.
+func NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearch(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps transportposition.Dependencies, projectService transportproject.Service,
+	projectActivity transportproject.ActivityService, projectSearch transportproject.TaskSearchService,
+	opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocumentAndProjectActivity(c, instances, workQueue, cursorKey, previousCursorKey,
+		workWrites, thresholds, chatService, extensions, documentService, &positionDeps, projectService, projectActivity, projectSearch, opts...)
 }
 
 // registerTunnelChat puts both chat services on a tunnel server: composed

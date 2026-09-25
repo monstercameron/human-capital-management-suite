@@ -111,6 +111,9 @@ type Options struct {
 	// PageLedger is the tenant-scoped durable publication ledger. Nil keeps
 	// the in-memory governance used by isolated previews and tests.
 	PageLedger pageledger.Store
+	// BrandAssets is the durable tenant-scoped content and revision library
+	// used by Appearance. Nil disables upload and mutation actions.
+	BrandAssets BrandAssetRepository
 	// Catalogs resolves the durable active product catalog revision per tenant.
 	// Nil retains the reviewed build-time product catalog.
 	Catalogs i18n.ActivatedCatalogStore
@@ -165,6 +168,8 @@ type Handler struct {
 	// serve the compiled registry definition.
 	pages                  *PageGovernance
 	pageLedger             pageledger.Store
+	brandAssets            BrandAssetRepository
+	brandAssetUploadSlots  chan struct{}
 	pageGovernanceMu       sync.Mutex
 	pageGovernanceByTenant map[string]*PageGovernance
 	oidcFlow               *oidc.Flow
@@ -198,6 +203,12 @@ type DevPersona struct {
 	// WorkerRef is an optional server-owned binding checked against the verified
 	// credential before its persona card advertises any access.
 	WorkerRef string
+	// Company is the tenant key of the demo company the persona belongs to,
+	// and Slot the quick-pick slot ("admin", "hiring-manager", ...) a
+	// company's persona fills. Both are empty for a composition that serves
+	// one company and names neither, which renders exactly as before.
+	Company string
+	Slot    string
 }
 
 // NewHandler builds the workspace HTTP surface.
@@ -286,6 +297,8 @@ func NewHandler(opts Options) (*Handler, error) {
 		publicAuthority:        publicAuthority,
 		pages:                  nil,
 		pageLedger:             opts.PageLedger,
+		brandAssets:            opts.BrandAssets,
+		brandAssetUploadSlots:  make(chan struct{}, 2),
 		pageGovernanceByTenant: make(map[string]*PageGovernance),
 		oidcFlow:               opts.OIDCFlow, oidcTenant: opts.OIDCTenant, oidcIssuerURL: strings.TrimSpace(opts.OIDCIssuerURL),
 		oidcSessionIssuer: opts.OIDCSessionIssuer, loginEnabled: loginEnabled,
@@ -300,6 +313,10 @@ func NewHandler(opts Options) (*Handler, error) {
 	mux.HandleFunc("GET "+PathPromotion, h.servePromotion)
 	mux.HandleFunc("GET "+PathJourney, h.serveJourney)
 	mux.HandleFunc("POST "+PathCatalogPublication, h.publishCatalog)
+	mux.HandleFunc("POST "+PathBrandAssets, h.uploadBrandAsset)
+	mux.HandleFunc("GET "+PathBrandAssets, h.listBrandAssets)
+	mux.HandleFunc("POST "+PathBrandAssetLifecycle, h.changeBrandAsset)
+	mux.HandleFunc("GET "+PathBrandAssetPrefix+"{digest}", h.serveBrandAsset)
 	// Product routes may be nested (for example, Admin-owned configuration
 	// pages). Capture the complete suffix so a cold reload reaches the same
 	// registered route as client-side navigation.
@@ -333,6 +350,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // a published route is always a route that exists.
 func Routes() []Route {
 	return []Route{
+		{Path: PathBrandAssets, Method: http.MethodPost, Description: "Upload and validate a tenant-owned brand image revision.", EffectClass: "CONTROLLED_WRITE"},
+		{Path: PathBrandAssets, Method: http.MethodGet, Description: "List tenant-owned brand asset revisions without exposing stored image bytes.", EffectClass: effectClassReadOnly},
+		{Path: PathBrandAssetLifecycle, Method: http.MethodPost, Description: "Remove or roll back a tenant-owned brand image revision.", EffectClass: "CONTROLLED_WRITE"},
+		{Path: PathBrandAssetPrefix + "{digest}", Method: http.MethodGet, Description: "Serve a tenant-owned approved brand image by content digest.", EffectClass: effectClassReadOnly},
 		{
 			Path: PathCatalogPublication, Method: http.MethodPost,
 			Description: "Publish and activate one immutable reviewed product catalog revision for the authenticated tenant.",
@@ -690,7 +711,14 @@ const paramLoginPersona = "persona"
 // search is a native GET, so its whole state is the request's own query.
 func (h *Handler) serveLoginForm(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	h.writeLoginPageQuery(w, http.StatusOK, "", query.Get(paramDirectoryQuery), query.Get(paramDirectoryRole))
+	company := ""
+	if companies := h.devCompanies(); len(companies) > 0 {
+		company = selectedCompany(companies, requestedCompany(r)).Key
+		if query.Get(paramLoginCompany) != "" {
+			h.rememberCompany(w, company)
+		}
+	}
+	h.writeLoginPageFor(w, http.StatusOK, "", query.Get(paramDirectoryQuery), query.Get(paramDirectoryRole), company, query.Get("locale"))
 }
 
 func (h *Handler) serveOIDCLogin(w http.ResponseWriter, r *http.Request) {
@@ -814,6 +842,9 @@ func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 		Expires:  h.now().Add(12 * time.Hour),
 	})
+	if selected != nil && selected.Company != "" && len(h.devCompanies()) > 0 {
+		h.rememberCompany(w, selected.Company)
+	}
 	writeRedirect(w, r, destination, http.StatusSeeOther)
 }
 
@@ -885,6 +916,20 @@ func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem stri
 // persona is never echoed, and neither is anything else the failed request
 // carried.
 func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem, directoryQuery, directoryRole string) {
+	h.writeLoginPageFor(w, status, problem, directoryQuery, directoryRole, "", "")
+}
+
+// writeLoginPageFor is writeLoginPageQuery for one company of a
+// multi-company composition. company "" is the default company; a
+// single-company composition ignores both company and locale and renders
+// byte for byte what it always rendered.
+func (h *Handler) writeLoginPageFor(w http.ResponseWriter, status int, problem, directoryQuery, directoryRole, companyKey, locale string) {
+	companies := h.devCompanies()
+	company := selectedCompany(companies, companyKey)
+	defaultCompany := ""
+	if len(companies) > 0 {
+		defaultCompany = companies[0].Key
+	}
 	var banner string
 	if problem != "" {
 		banner = `<div class="status-banner" data-status="failed" role="alert">` + html.EscapeString(problem) + ` <a href="#credential-sign-in">Use a bearer credential</a></div>`
@@ -892,6 +937,9 @@ func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem
 	var personaForms strings.Builder
 	for _, set := range DevPersonaRoleSets() {
 		persona, ok := h.devPersonas[set.ID]
+		if len(companies) > 0 {
+			persona, ok = h.companyPersona(company, defaultCompany, set.ID)
+		}
 		if !ok {
 			continue
 		}
@@ -925,6 +973,14 @@ func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem
 		heading = "Choose a workspace persona"
 	}
 	stylesheet := loginStylesheet()
+	brand := `<div class="login-brand"><span class="login-mark" aria-hidden="true">H</span><strong>HarborCare</strong></div>`
+	selector, directory := "", h.loginDirectorySection(directoryQuery, directoryRole)
+	if len(companies) > 0 {
+		stylesheet += loginCompanyStylesheet()
+		brand = companyBrand(company)
+		selector = companySelector(companies, company, locale)
+		directory = h.loginCompanyDirectorySection(directoryQuery, directoryRole, company.Key)
+	}
 	doc := `<!doctype html>
 <html lang="en">
 <head>
@@ -935,16 +991,20 @@ func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem
 </head>
 <body>
 <main id="main-content" class="login-shell"><section class="login-card">
-<div class="login-brand"><span class="login-mark" aria-hidden="true">H</span><strong>HarborCare</strong></div>
+` + brand + `
 <p class="persona-access">` + map[bool]string{true: "Local development", false: "Organization sign-in"}[h.devBrowserLogin] + `</p><h1>` + heading + `</h1>
 <p class="login-intro">Each persona starts a signed server session with different permissions. Production deployments use the configured enterprise identity provider.</p>
-` + oidcLink + `<h2 id="quick-pick-heading">Quick picks</h2><p class="login-intro">The fixed identities the reference promotion is wired to: a proposer, a manager approver, a finance approver, and the employee.</p>
+` + oidcLink + selector + `<h2 id="quick-pick-heading">Quick picks</h2><p class="login-intro">The fixed identities the reference promotion is wired to: a proposer, a manager approver, a finance approver, and the employee.</p>
 <div class="persona-grid" role="group" aria-labelledby="quick-pick-heading">` + personaForms.String() + `</div>
-` + banner + h.loginDirectorySection(directoryQuery, directoryRole) + credentialForm + `
+` + banner + directory + credentialForm + `
 </section></main>
 </body>
 </html>
 `
+	if len(companies) > 0 {
+		h.writeCompanyLoginDocument(w, status, doc, stylesheet)
+		return
+	}
 	h.writeLoginDocument(w, status, doc, stylesheet)
 }
 
@@ -1154,6 +1214,17 @@ func (h *Handler) writeLoginDocument(w http.ResponseWriter, status int, doc, sty
 	writeHTMLDocument(w, status, doc, cspPolicy{
 		styleHashes:    []string{sha256Source(stylesheet)},
 		formActionSelf: true,
+	}.header())
+}
+
+// writeCompanyLoginDocument is writeLoginDocument for the multi-company
+// page, which additionally shows each company's logo inline as a data: image
+// (the asset route admits only a signed-in request).
+func (h *Handler) writeCompanyLoginDocument(w http.ResponseWriter, status int, doc, stylesheet string) {
+	writeHTMLDocument(w, status, doc, cspPolicy{
+		styleHashes:    []string{sha256Source(stylesheet)},
+		formActionSelf: true,
+		dataImages:     true,
 	}.header())
 }
 

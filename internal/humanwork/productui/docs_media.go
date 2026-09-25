@@ -203,33 +203,40 @@ type docsAttachmentImageProps struct {
 	Media                       *DocumentMediaPort
 }
 
+type docsAttachmentImageLoad struct {
+	key, url string
+	failed   bool
+}
+
 // docsAttachmentImage is an attached image in the reader: a placeholder
-// until it scrolls near the viewport, then the image itself (responsive,
-// lazily decoded, with its alt text) inside a button that opens it full
-// size in a dialog.
+// while its authenticated media is fetched, then the image itself
+// (responsive, lazily decoded, with its alt text) inside a button that
+// opens it full size in a dialog.
 func docsAttachmentImage(props docsAttachmentImageProps) ui.Node {
-	ref := ui.UseDOMRef()
-	near := ui.UseIntersection(ref)
-	wanted := ui.UseRef(false)
-	source := ui.UseState("")
-	failed := ui.UseState(false)
+	loaded := ui.UseState(docsAttachmentImageLoad{})
 	open := ui.UseState(false)
-	if near {
-		wanted.Set(true)
-	}
-	ui.UseEffect(func() func() {
-		if !wanted.Get() || source.Get() != "" || failed.Get() || props.Media == nil || props.Media.ObjectURL == nil {
-			return nil
-		}
+	requested := ui.UseRef("")
+	key := props.DocumentID + "/" + props.ID
+	// The reader can hydrate an existing paragraph without running its
+	// nested image's mount effect. Start the authenticated load when that
+	// paragraph renders; the ref prevents duplicate requests on rerenders.
+	if props.Media != nil && props.Media.ObjectURL != nil && requested.Get() != key {
+		requested.Set(key)
 		props.Media.ObjectURL(props.DocumentID, props.ID, func(url string, err error) {
-			if err != nil || url == "" {
-				failed.Set(true)
+			if requested.Get() != key {
 				return
 			}
-			source.Set(url)
+			ui.PostAsync(func() {
+				if requested.Get() == key {
+					loaded.Set(docsAttachmentImageLoad{key: key, url: url, failed: err != nil || url == ""})
+				}
+			})
 		})
-		return nil
-	}, props.DocumentID, props.ID, wanted.Get())
+	}
+	image := loaded.Get()
+	if image.key != key {
+		image = docsAttachmentImageLoad{}
+	}
 	openImage := ui.UseEvent(func(ui.MouseEvent) { open.Set(true) })
 	closeImage := ui.UseEvent(func(ui.MouseEvent) { open.Set(false) })
 	keydown := ui.UseEvent(func(ui.KeyboardEvent) {})
@@ -248,10 +255,10 @@ func docsAttachmentImage(props docsAttachmentImageProps) ui.Node {
 	}
 	var body ui.Node
 	switch {
-	case source.Get() != "":
+	case image.url != "":
 		body = html.Button(html.Props{Class: "docs-media-open", Type: "button", OnClick: openImage, Aria: map[string]string{"label": docsMediaText(props.Locale, "media_image_open", "{alt}", name), "haspopup": "dialog"}},
-			html.Img(html.Props{Class: "docs-media-img", Src: source.Get(), Alt: alt, Loading: "lazy", Raw: map[string]any{"decoding": "async"}}))
-	case failed.Get() || props.Media == nil:
+			html.Img(html.Props{Class: "docs-media-img", Src: image.url, Alt: alt, Loading: "lazy", Raw: map[string]any{"decoding": "async"}}))
+	case image.failed || props.Media == nil || props.Media.ObjectURL == nil:
 		body = html.Span(html.Props{Class: "docs-media-placeholder is-unavailable", Role: "img", Aria: map[string]string{"label": name + " — " + docsMediaText(props.Locale, "media_image_unavailable")}},
 			docsMediaIcon(docsMediaImagePath, "docs-media-placeholder-icon"), html.Span(html.Props{}, ui.Text(docsMediaText(props.Locale, "media_image_unavailable"))))
 	default:
@@ -259,11 +266,11 @@ func docsAttachmentImage(props docsAttachmentImageProps) ui.Node {
 			docsMediaIcon(docsMediaImagePath, "docs-media-placeholder-icon"), html.Span(html.Props{}, ui.Text(docsMediaText(props.Locale, "media_image_loading"))))
 	}
 	children := []ui.Node{body}
-	if open.Get() && source.Get() != "" {
+	if open.Get() && image.url != "" {
 		children = append(children, docsDialog("docs-media-lightbox", name, docsMediaText(props.Locale, "media_close"), closeImage, keydown,
-			html.Img(html.Props{Class: "docs-lightbox-img", Src: source.Get(), Alt: alt})))
+			html.Img(html.Props{Class: "docs-lightbox-img", Src: image.url, Alt: alt})))
 	}
-	return html.Span(html.WithProps(html.Props{Class: "docs-media-figure", Data: map[string]string{"attachment-id": props.ID}}, html.Ref(ref)), children...)
+	return html.Span(html.Props{Class: "docs-media-figure", Data: map[string]string{"attachment-id": props.ID}}, children...)
 }
 
 type docsAttachmentCardProps struct {
@@ -612,7 +619,7 @@ func docsMediaStylesheet() string {
 .docs-media-img{display:block;max-inline-size:100%;block-size:auto;border-radius:8px;border:1px solid var(--line);background:var(--surface)}
 .docs-media-placeholder{display:flex;align-items:center;justify-content:center;gap:.5rem;min-block-size:6rem;max-inline-size:32rem;padding:1rem;border:1px dashed var(--line);border-radius:8px;background:var(--soft);color:var(--muted);text-align:center}
 .docs-media-placeholder-icon{inline-size:1.5rem;block-size:1.5rem;flex:none}
-.docs-media-card{display:flex;align-items:center;gap:.75rem;max-inline-size:36rem;margin-block:.5rem;padding:.625rem .875rem;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);text-align:start}
+.docs-media-card{display:inline-flex;vertical-align:middle;align-items:center;gap:.75rem;max-inline-size:36rem;margin-block:.5rem;padding:.625rem .875rem;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);text-align:start}
 .docs-media-card-icon{flex:none;inline-size:2rem;block-size:2rem;color:var(--accent)}
 .docs-media-card-body{display:flex;flex:1 1 10rem;flex-direction:column;min-inline-size:0}
 .docs-media-card-name{font-weight:600;overflow-wrap:anywhere}
@@ -624,12 +631,17 @@ func docsMediaStylesheet() string {
 .docs-attachments{margin-block-start:2rem;padding-block-start:1rem;border-block-start:1px solid var(--line)}
 .docs-attachments h2{margin:0 0 .5rem;font-size:1rem}
 .docs-attachments-list{display:grid;gap:.5rem;margin:0;padding:0;list-style:none}
-.docs-attachments-list .docs-media-card{flex-wrap:wrap;margin:0}
+.docs-attachments-list .docs-media-card{display:flex;flex-wrap:wrap;margin:0}
 #docs-media-lightbox{inline-size:min(96vw,1200px);max-inline-size:96vw}
 .docs-lightbox-img{display:block;max-inline-size:100%;max-block-size:78vh;margin-inline:auto;object-fit:contain}
 .docs-export-menu{display:flex;flex-direction:column;border-block-start:1px solid var(--line);margin-block-start:.25rem;padding-block-start:.25rem}
 .docs-menu-label{padding:.25rem .75rem;color:var(--muted);font-size:.8em;font-weight:600;text-align:start}
 .docs-editor-media-status{margin:0;min-block-size:1.25em;color:var(--muted);font-size:.85em;text-align:start}
+/* Idle, the live region reserved a 1.25em row that, with the editor grid's
+   two gaps around it, made a 49px dead band between the toolbar and the
+   panes (D-3). Empty, it is taken out of flow but stays in the tree, so the
+   first upload message is still announced. */
+.docs-editor-media-status:empty{position:absolute;min-block-size:0;block-size:0;overflow:hidden}
 .docs-editor-media-status.is-alert{color:var(--hcm-color-danger,var(--danger,var(--ink)))}
 .docs-editor.is-dropping .docs-editor-panes{outline:2px dashed var(--accent);outline-offset:4px}
 @media (max-width:480px){.docs-media-card{flex-wrap:wrap}.docs-media-card-actions{flex-basis:100%}}

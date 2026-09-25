@@ -23,9 +23,12 @@ type browserThemeController struct {
 	// organization theme this controller saves (REV-092-01).
 	personalDensity string
 	tenant          string
-	save            func(productui.CustomerTheme, func(error))
-	logoLoad        js.Func
-	logoError       js.Func
+	// defaultLogo is the signed-in company's own logo, shown while the
+	// organization has configured none (multi-company servers only).
+	defaultLogo string
+	save        func(productui.CustomerTheme, func(error))
+	logoLoad    js.Func
+	logoError   js.Func
 }
 
 func newBrowserThemeController(tenant string, save func(productui.CustomerTheme, func(error))) *browserThemeController {
@@ -43,6 +46,9 @@ func newBrowserThemeController(tenant string, save func(productui.CustomerTheme,
 
 func (c *browserThemeController) Load(theme productui.CustomerTheme) {
 	if c != nil {
+		if theme.BrandLogoURL == "" && c.defaultLogo != "" {
+			theme.BrandLogoURL = c.defaultLogo
+		}
 		c.saved = productui.NormalizeCustomerTheme(theme)
 		c.loaded = true
 		c.Apply(productui.EffectiveAppearance(c.saved, c.personalDensity))

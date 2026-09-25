@@ -27,6 +27,7 @@ type handlers struct {
 	quietToggle, quietTZ, quietStart, quietEnd               ui.Handler
 	notifyMode                                               ui.Handler
 	editInput, editSubmit, createSubmit, kindPick            ui.Handler
+	addMembersSubmit                                         ui.Handler
 	threadSubmit, threadKey, threadInput                     ui.Handler
 	browseFilter                                             ui.Handler
 	shareFilter                                              ui.Handler
@@ -37,7 +38,7 @@ type handlers struct {
 	todoPolicyMode, todoPolicyMember                         ui.Handler
 	todoNewMode, todoNewMember                               ui.Handler
 	teamPurposeSubmit, projectDetailsSubmit, milestoneSubmit ui.Handler
-	pollCreate                                               ui.Handler
+	pollCreate, pollInput                                    ui.Handler
 	pickInput, pickKey                                       ui.Handler
 	// mentionView is the "@" suggestion list as of this render.
 	mentionView mentionState
@@ -113,6 +114,10 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			next.Active = current.Active
 		}
 		mention.Set(next)
+		// C-19: reposition every keystroke -- the caret, and so the anchor,
+		// moves as the reader types. The menu is not in the DOM yet on the
+		// render that opens it, so this also runs from a layout effect below.
+		positionMentionMenu(target)
 	}
 	mentionKey := func(e ui.KeyboardEvent, target string) bool {
 		state := mention.Get()
@@ -250,7 +255,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 					m.Callbacks.CloseBrowse()
 				}
 				return
-			case "open-browse", "open-create", "browse-to-create":
+			case "open-browse", "open-create", "browse-to-create", "open-add-members":
 				closeDrawer()
 				local.resetCreate()
 			}
@@ -273,6 +278,18 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				openDocReference(e, m, id)
 				return
 			}
+			if action, id, _ := eventAction(e); action == "open-journey-reference" {
+				if journeyReferenceNavigate(m, id, eventPlainClick(e)) {
+					e.PreventDefault()
+				}
+				return
+			}
+			if action, projectID, taskID := eventAction(e); action == "open-project-task-reference" {
+				if projectReferenceNavigate(m, projectID, taskID, eventPlainClick(e)) {
+					e.PreventDefault()
+				}
+				return
+			}
 			if action, _, _ := eventAction(e); action == "view-image" {
 				openImageViewer(e, m.t(KeyImageViewer), m.t(KeyCloseImageViewer), m.t(KeyDownloadAttachment), m.t(KeyImageActualSize), m.t(KeyImageFitToScreen))
 				return
@@ -286,6 +303,8 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				} else if m.ShowBrowse {
 					act("close-browse", "")
 					restoreChatDialogFocus()
+				} else if m.ShowAddMembers {
+					act("close-add-members", "")
 				}
 				return
 			}
@@ -457,6 +476,8 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			case m.ShowBrowse:
 				act("close-browse", "")
 				restoreChatDialogFocus()
+			case m.ShowAddMembers:
+				act("close-add-members", "")
 			case m.ShowPerson:
 				act("close-person", "")
 			case m.Search != "" && m.Callbacks.Search != nil:
@@ -578,6 +599,26 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			}
 			m.Callbacks.CreateConversation(kind, name, members)
 		}),
+		// ACCESS-01: shares the create dialog's member picker plumbing
+		// (local.picked, the same create-pick/create-unpick actions) --
+		// only one of the two dialogs is ever open at a time, and
+		// "open-add-members" resets local.picked the same way opening the
+		// create dialog does.
+		addMembersSubmit: ui.UseEvent(func(e ui.FormEvent) {
+			e.PreventDefault()
+			if m.Callbacks.AddMembers == nil {
+				return
+			}
+			st := local.get()
+			if len(st.picked) == 0 {
+				return
+			}
+			ids := make([]string, 0, len(st.picked))
+			for _, p := range st.picked {
+				ids = append(ids, p.ID)
+			}
+			m.Callbacks.AddMembers(ids)
+		}),
 		kindPick: ui.UseEvent(func(ui.ChangeEvent) {}),
 		pickInput: ui.UseEvent(func(e ui.InputEvent) {
 			value := e.GetValue()
@@ -598,7 +639,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				e.PreventDefault()
 				local.update(func(u *localUI) { u.pickActive = nextMention(u.pickActive, delta, len(people)) })
 			case "Enter":
-				if strings.TrimSpace(st.pickQuery) != "" && len(people) > 0 {
+				if (strings.TrimSpace(st.pickQuery) != "" || m.ShowAddMembers) && len(people) > 0 {
 					e.PreventDefault()
 					pick(people[min(st.pickActive, len(people)-1)].ID)
 				}
@@ -759,8 +800,15 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			}
 			question := strings.TrimSpace(domValue("channel-poll-question"))
 			options := pollOptions(domValue("channel-poll-options"))
-			if question != "" {
+			if question != "" && len(options) >= 2 {
 				m.Callbacks.CreateChannelPoll(question, options)
+				local.update(func(u *localUI) { u.pollReady = false })
+			}
+		}),
+		pollInput: ui.UseEvent(func(ui.InputEvent) {
+			ready := pollFormReady(domValue("channel-poll-question"), domValue("channel-poll-options"))
+			if ready != local.get().pollReady {
+				local.update(func(u *localUI) { u.pollReady = ready })
 			}
 		}),
 		threadSubmit: ui.UseEvent(func(e ui.FormEvent) { e.PreventDefault(); threadSend() }),
@@ -939,7 +987,7 @@ func (m Model) act(action, id string) {
 				}
 			}
 		}
-	case "rail-copy-api-curl":
+	case "rail-copy-api-curl", "copy-conversation-api-curl":
 		if cb.CopyConversationAPICurl != nil {
 			for _, conversation := range m.Conversations {
 				if conversation.ID == id {
@@ -1022,6 +1070,10 @@ func (m Model) act(action, id string) {
 		call(cb.OpenBrowse)
 	case "close-browse":
 		call(cb.CloseBrowse)
+	case "open-add-members":
+		call(cb.OpenAddMembers)
+	case "close-add-members":
+		call(cb.CloseAddMembers)
 	case "browse-to-create":
 		call(cb.CloseBrowse)
 		call(cb.OpenCreate)
@@ -1043,11 +1095,24 @@ func (m Model) act(action, id string) {
 		if cb.ToggleSidebar != nil {
 			cb.ToggleSidebar(true)
 		}
+	case "clear-search":
+		// C-5: the phone results' back control ends the search, which drops
+		// the results overlay and leaves the conversation drawer showing.
+		if cb.Search != nil {
+			cb.Search("")
+		}
 	case "close-rail":
 		if cb.ToggleSidebar != nil {
 			cb.ToggleSidebar(false)
 		}
 	case "details":
+		// C-4: the side column shows the open thread over Details
+		// (sideColumn), so opening Details while a thread is open must close
+		// the thread -- otherwise the button flips ShowDetails and nothing
+		// on screen changes.
+		if m.ShowThread {
+			call(cb.CloseThread)
+		}
 		if cb.ToggleDetails != nil {
 			cb.ToggleDetails(!m.ShowDetails)
 		}
@@ -1304,6 +1369,8 @@ func Workspace(model Model) ui.Node {
 		})
 	}, struct{ tenant, principal string }{model.CurrentTenantID, model.CurrentUser})
 	ui.UseLayoutEffect(func() func() { return startChatImageLoading() }, struct{ room, principal string }{model.SelectedID, model.CurrentUser})
+	ui.UseEffectOf(func() func() { revealSelectedRailRow(model.SelectedID); return nil }, model.SelectedID)
+	ui.UseEffectOf(func() func() { syncEditFocus(model.EditingID); return nil }, model.EditingID)
 	ui.UseEffectOf(func() func() { revealThreadParent(model.ShowThread, model.ThreadParentID); return nil }, struct {
 		open bool
 		id   string
@@ -1333,6 +1400,20 @@ func Workspace(model Model) ui.Node {
 		}
 	}
 	h := bindHandlers(model, giphy, mention, local, drafts)
+	// C-19: the menu the first keystroke opens is not in the DOM until this
+	// render commits, so mentionTrack's own positionMentionMenu call (fired
+	// before that commit) cannot find it yet; this catches that first open
+	// and every later reposition once the caret index or query changes.
+	ui.UseLayoutEffect(func() func() {
+		if h.mentionView.Open {
+			positionMentionMenu(h.mentionView.Target)
+		}
+		return nil
+	}, struct {
+		open           bool
+		target, query  string
+		start, caretAt int
+	}{h.mentionView.Open, h.mentionView.Target, h.mentionView.Query, h.mentionView.Start, h.mentionView.End})
 	if model.Locale == "" {
 		model.Locale = "en-US"
 	}
@@ -1364,6 +1445,9 @@ func Workspace(model Model) ui.Node {
 	}
 	if model.ShowBrowse {
 		children = append(children, browseDialog(model, h))
+	}
+	if model.ShowAddMembers {
+		children = append(children, addMembersDialog(model, h))
 	}
 	if model.JoinPromptID != "" {
 		children = append(children, joinChannelDialog(model))
@@ -1523,7 +1607,9 @@ func railRow(m Model, c Conversation) ui.Node {
 	if label == "" {
 		label = m.t(KeyConversation)
 	}
-	children := []ui.Node{kindGlyph(m, c, m.t(kindKey(c.Kind))), html.Span(html.Props{Class: "chat-row-name", Text: label})}
+	// C-13: a title attribute lets a reader see the full name of a row this
+	// column's width still truncates.
+	children := []ui.Node{kindGlyph(m, c, m.t(kindKey(c.Kind))), html.Span(html.Props{Class: "chat-row-name", Text: label, Title: label})}
 	if c.Mentions > 0 {
 		children = append(children, html.Span(html.Props{Class: "chat-badge mention", Text: m.n(c.Mentions), Aria: map[string]string{"label": m.tf(KeyMentionCount, map[string]string{"n": m.n(c.Mentions)})}}))
 	} else if c.Unread > 0 {
@@ -1549,9 +1635,11 @@ func railMenu(m Model) ui.Node {
 			break
 		}
 	}
+	// CHAT-08 (retest): "Copy API curl" no longer lives in this everyday
+	// menu at all -- it moved to Details' Integrations section, which is
+	// itself gated to admins/owners. Every member reaches this menu.
 	items := []ui.Node{html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.OpenConversationDetails == nil, Data: map[string]string{"action": "rail-details", "id": m.RailMenuID}, Text: m.t(KeyDetails)})}
 	items = append(items, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.CopyConversationReference == nil || !found, Data: map[string]string{"action": "rail-copy-reference", "id": m.RailMenuID}}, icon("link"), html.Span(html.Props{Text: m.t(KeyCopyConversationReference)})))
-	items = append(items, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.CopyConversationAPICurl == nil || !found, Data: map[string]string{"action": "rail-copy-api-curl", "id": m.RailMenuID}}, icon("copy"), html.Span(html.Props{Text: m.t(KeyCopyConversationAPICurl)})))
 	sections := m.Sections
 	if len(sections) == 0 {
 		sections = defaultSections(m)
@@ -1634,6 +1722,16 @@ func conversationAvatar(m Model, c Conversation) ui.Node {
 	return html.Div(html.Props{Class: "large-avatar", Aria: map[string]string{"hidden": "true"}, Text: initials(displayName(m, c))})
 }
 
+// conversationHeaderAvatar is the small header-scoped variant of
+// conversationAvatar: the header is 52px tall, so the avatar must fit at
+// 28px rather than the 64px intro/details size (C-1).
+func conversationHeaderAvatar(m Model, c Conversation) ui.Node {
+	if c.Kind == DirectMessage {
+		return personAvatar(m, m.PeerIDs[c.ID], displayName(m, c), "large-avatar header-avatar")
+	}
+	return html.Div(html.Props{Class: "large-avatar header-avatar", Aria: map[string]string{"hidden": "true"}, Text: initials(displayName(m, c))})
+}
+
 func railPreferences(m Model, h handlers) ui.Node {
 	p := m.Preferences
 	pill := html.Span(html.Props{Class: "prefs-pill", Text: m.t(KeyOff)})
@@ -1691,25 +1789,35 @@ func timeline(m Model, h handlers) ui.Node {
 	if title == "" {
 		title = m.t(KeyConversation)
 	}
-	audience := m.t(kindKey(c.Kind))
+	// Round 4 C-12: the subtitle's parts are separate spans so a narrow
+	// conversation column can drop the kind ("Public channel") -- the
+	// leading glyph already carries it -- and keep "19 members" whole
+	// instead of truncating it to "19 memb…".
+	topicParts := []ui.Node{html.Span(html.Props{Class: "topic-kind", Text: m.t(kindKey(c.Kind))})}
 	if c.MemberCount > 0 {
-		audience += " · " + memberCountLabel(m, c.MemberCount)
+		topicParts = append(topicParts, html.Span(html.Props{Class: "topic-count"}, html.Span(html.Props{Class: "topic-sep", Text: " · "}), ui.Text(memberCountLabel(m, c.MemberCount))))
+	}
+	if topic := strings.TrimSpace(c.Topic); topic != "" {
+		topicParts = append(topicParts, html.Span(html.Props{Class: "topic-text", Text: topic}))
 	}
 	hasSelection := m.SelectedID != ""
 	titleBlock := html.Div(html.Props{Class: "conversation-title"},
 		kindGlyph(m, c, m.t(kindKey(c.Kind))),
 		html.Div(html.Props{Class: "conversation-heading"},
 			html.H1(html.Props{Text: title}),
-			html.P(html.Props{Class: "conversation-topic", Text: strings.TrimSpace(strings.Join([]string{audience, c.Topic}, "  "))}),
+			html.P(html.Props{Class: "conversation-topic"}, topicParts...),
 		),
 	)
 	if c.Kind == DirectMessage && m.PeerIDs[c.ID] != "" {
 		peer := m.PeerIDs[c.ID]
+		// C-7: a DM header names the person, not the kind of conversation or
+		// its member count ("Direct message · 2 members" reads as noise), and
+		// the name belongs in the document heading, not a plain span.
 		titleBlock = html.Div(html.Props{Class: "conversation-title"},
-			personButton(m, peer, title, "person-avatar-button", conversationAvatar(m, c)),
+			personButton(m, peer, title, "person-avatar-button", conversationHeaderAvatar(m, c)),
 			html.Div(html.Props{Class: "conversation-heading"},
-				personButton(m, peer, title, "conversation-person-name", ui.Text(title)),
-				html.P(html.Props{Class: "conversation-topic", Text: strings.TrimSpace(strings.Join([]string{audience, c.Topic}, "  "))}),
+				html.H1(html.Props{Class: "conversation-person-heading"}, personButton(m, peer, title, "conversation-person-name", ui.Text(title))),
+				html.P(html.Props{Class: "conversation-topic", Text: directMessageSubtitle(m, c, peer)}),
 			),
 		)
 	}
@@ -1721,8 +1829,15 @@ func timeline(m Model, h handlers) ui.Node {
 			html.Div(html.Props{Class: "conversation-heading"}, html.H1(html.Props{Class: "sr-only", Text: m.t(KeyNoneTitle)})))
 	}
 	if strings.TrimSpace(m.Search) != "" {
+		// Round 3 C-7: the result count sits under the title the way a
+		// channel's "Public channel · 19 members" does. The panel's own
+		// live status still announces it; this copy is visual only.
+		var countLine ui.Node
+		if count := searchCountLabel(m); count != "" {
+			countLine = html.P(html.Props{Class: "conversation-topic search-head-count", Aria: map[string]string{"hidden": "true"}, Text: count})
+		}
 		titleBlock = html.Div(html.Props{Class: "conversation-title"},
-			html.Div(html.Props{Class: "conversation-heading"}, html.H1(html.Props{Text: m.tf(KeySearchResults, map[string]string{"query": strings.TrimSpace(m.Search)})})))
+			html.Div(html.Props{Class: "conversation-heading"}, html.H1(html.Props{Text: m.tf(KeySearchResults, map[string]string{"query": strings.TrimSpace(m.Search)})}), countLine))
 	}
 	detailsBtn := actionButton("icon-button", "details", "", m.t(KeyDetails), m.Callbacks.ToggleDetails == nil || !hasSelection, icon("info"))
 	headerChildren := []ui.Node{
@@ -1732,7 +1847,7 @@ func timeline(m Model, h handlers) ui.Node {
 	if hasSelection && strings.TrimSpace(m.Search) == "" {
 		actions := []ui.Node{detailsBtn}
 		if c.Kind == PublicChannel || c.Kind == PrivateChannel {
-			actions = append(actions, channelTodoTrigger(m))
+			actions = append(actions, channelTodoTrigger(m, h))
 			actions = append(actions, channelPollTrigger(m))
 		}
 		headerChildren = append(headerChildren, html.Div(html.Props{Class: "conversation-actions", Aria: map[string]string{"pressed": boolString(m.ShowDetails)}}, actions...))
@@ -1772,9 +1887,31 @@ func timeline(m Model, h handlers) ui.Node {
 	return html.Section(html.Props{Class: "chat-main", Role: "region", Aria: map[string]string{"label": m.t(KeyMessagesRegion)}}, content...)
 }
 
+// searchCountLabel is "2 results" once a search has answered, or "" while
+// it is loading or failed.
+func searchCountLabel(m Model) string {
+	if m.SearchLoading || m.SearchError != "" {
+		return ""
+	}
+	total := len(m.SearchChannels) + len(m.SearchPeople) + len(m.SearchMessages)
+	if total == 1 {
+		return m.t(KeySearchCountOne)
+	}
+	return m.tf(KeySearchCount, map[string]string{"n": m.n(total)})
+}
+
 func searchResultsPanel(m Model) ui.Node {
 	query := strings.TrimSpace(m.Search)
-	children := []ui.Node{html.H2(html.Props{Text: m.tf(KeySearchResults, map[string]string{"query": query})}), searchFilterBar(m, query)}
+	// Round 3 C-5: on a phone the results are lifted over the conversation
+	// drawer (see .chat-workspace[data-sidebar-open] .chat-search-results),
+	// which hid every way back and the query itself. The head carries a
+	// back control to the conversation list and makes the title visible
+	// there; on wider layouts the conversation header already shows it.
+	head := html.Div(html.Props{Class: "search-results-head"},
+		html.Button(html.Props{Class: "rail-pill search-results-back", Type: "button", Disabled: m.Callbacks.Search == nil, Data: map[string]string{"action": "clear-search"}, Aria: map[string]string{"label": m.t(KeyOpenConversations)}, Title: m.t(KeyOpenConversations)}, icon("arrow-left"), html.Span(html.Props{Text: m.t(KeyRailTitle)})),
+		html.H2(html.Props{Text: m.tf(KeySearchResults, map[string]string{"query": query})}),
+		html.Span(html.Props{Class: "search-head-count", Aria: map[string]string{"hidden": "true"}, Text: searchCountLabel(m)}))
+	children := []ui.Node{head, searchFilterBar(m, query)}
 	if m.SearchLoading {
 		children = append(children, html.P(html.Props{Class: "search-status", Role: "status", Aria: map[string]string{"live": "polite", "busy": "true"}, Text: m.t(KeySearchLoading)}))
 	}
@@ -1783,11 +1920,7 @@ func searchResultsPanel(m Model) ui.Node {
 		return html.Div(html.Props{ID: "chat-search-results", Class: "chat-search-results", Role: "region", Aria: map[string]string{"label": m.tf(KeySearchResults, map[string]string{"query": query})}}, children...)
 	}
 	total := len(m.SearchChannels) + len(m.SearchPeople) + len(m.SearchMessages)
-	if !m.SearchLoading && m.SearchError == "" {
-		count := m.tf(KeySearchCount, map[string]string{"n": m.n(total)})
-		if total == 1 {
-			count = m.t(KeySearchCountOne)
-		}
+	if count := searchCountLabel(m); count != "" {
 		children = append(children, html.P(html.Props{Class: "search-status search-count", Role: "status", Aria: map[string]string{"live": "polite"}, Text: count}))
 	}
 	if !m.SearchLoading && total == 0 && !m.SearchHasMore && !m.SearchHasMoreChannels {
@@ -1797,14 +1930,23 @@ func searchResultsPanel(m Model) ui.Node {
 		rows := []ui.Node{searchGroupHeading(m, KeySearchChannels, len(m.SearchChannels))}
 		for _, channel := range m.SearchChannels {
 			name := channel.Name
-			if channel.Kind == PublicChannel || channel.Kind == PrivateChannel {
+			if channel.Kind == PublicChannel {
 				name = "#" + name
 			}
 			action, label, disabled := "select", m.t(conversationKindKey(channel.Kind)), m.Callbacks.SelectConversation == nil
 			if !channel.Joined {
 				action, label, disabled = "browse-search-channel", m.tf(KeySearchBrowseChannel, map[string]string{"channel": name}), m.Callbacks.OpenSearchChannel == nil
 			}
-			rows = append(rows, html.WithKey(html.Button(html.Props{Class: "search-result", Type: "button", Data: map[string]string{"action": action, "id": channel.ID}, Disabled: disabled}, html.Strong(html.Props{}, highlightText(name, query)...), html.Span(html.Props{Text: label})), "channel:"+channel.ID))
+			// Round 3 C-7: the rail's own glyph (# or lock) leads the name, so
+			// a private channel no longer reads "#payroll-close" here while
+			// the rail shows it locked.
+			// The name is one span: as direct flex children, the highlight
+			// and the rest of the name were split by the flex gap
+			// ("payroll -close"). Round 4 C-6: the span carries a class so
+			// the reconciler cannot elide a prop-less wrapper and hand its
+			// parts back to the flex container.
+			title := html.Strong(html.Props{Class: "search-channel-name"}, kindGlyph(m, channel, m.t(kindKey(channel.Kind))), html.Span(html.Props{Class: "search-channel-label"}, highlightText(channel.Name, query)...))
+			rows = append(rows, html.WithKey(html.Button(html.Props{Class: "search-result", Type: "button", Data: map[string]string{"action": action, "id": channel.ID}, Disabled: disabled}, title, html.Span(html.Props{Text: label})), "channel:"+channel.ID))
 		}
 		children = append(children, html.Div(html.Props{Class: "search-result-group"}, rows...))
 		if m.SearchMoreChannelsError != "" {
@@ -1845,9 +1987,9 @@ func searchResultsPanel(m Model) ui.Node {
 				if room.ID != hit.ConversationID {
 					continue
 				}
-				if (room.Kind == PublicChannel || room.Kind == PrivateChannel) && !strings.HasPrefix(channel, "#") {
+				if room.Kind == PublicChannel && !strings.HasPrefix(channel, "#") {
 					channel = "#" + channel
-				} else if room.Kind == GroupChat || room.Kind == DirectMessage {
+				} else if room.Kind == PrivateChannel || room.Kind == GroupChat || room.Kind == DirectMessage {
 					glyph = kindGlyph(m, room, m.t(kindKey(room.Kind)))
 				}
 				break
@@ -1857,7 +1999,7 @@ func searchResultsPanel(m Model) ui.Node {
 				personAvatar(m, hit.Message.AuthorID, name, "avatar small"),
 				html.Span(html.Props{Class: "search-result-main"},
 					html.Span(html.Props{Class: "search-result-meta"}, html.Strong(html.Props{Text: name}), html.Span(html.Props{Class: "search-result-context"}, searchContext(m, glyph, channel)...), html.Span(html.Props{Class: "search-result-time", Text: searchWhen(m, hit.Message)})),
-					html.Span(html.Props{Class: "search-result-snippet"}, highlightText(searchSnippet(hit.Message.Body, query, 180), query)...))), "message:"+hit.ConversationID+":"+hit.Message.ID))
+					html.Span(html.Props{Class: "search-result-snippet"}, highlightText(searchSnippet(resolveJourneyReferencesForSnippet(m, resolveProjectTaskReferencesForSnippet(m, resolveDocTokensForSnippet(m, hit.Message.Body))), query, 180), query)...))), "message:"+hit.ConversationID+":"+hit.Message.ID))
 		}
 		children = append(children, html.Div(html.Props{Class: "search-result-group"}, rows...))
 		if m.SearchMoreError != "" {
@@ -1995,12 +2137,18 @@ func chronological(in []Message) []Message {
 // above a lone "Today" divider.
 func channelIntro(m Model) ui.Node {
 	c := m.selected()
-	body := m.t(KeyIntroPublic)
+	// C-8: a DM (and a private group, which is just as personal a
+	// conversation as a DM) reads as a conversation with someone, not a
+	// "channel" -- the private-channel copy was grammatically wrong for a
+	// person's name and misdescribed a group as a channel.
+	titleKey, body := KeyIntroTitle, m.t(KeyIntroPublic)
 	switch c.Kind {
-	case PrivateChannel, GroupChat:
+	case PrivateChannel:
 		body = m.t(KeyIntroPrivate)
+	case GroupChat:
+		titleKey, body = KeyIntroTitleDirect, m.t(KeyIntroDirect)
 	case DirectMessage:
-		body = m.t(KeyIntroDirect)
+		titleKey, body = KeyIntroTitleDirect, m.t(KeyIntroDirect)
 		if m.CurrentUser != "" && m.PeerIDs[c.ID] == m.CurrentUser {
 			body = m.t(KeyIntroSelf)
 		}
@@ -2011,7 +2159,7 @@ func channelIntro(m Model) ui.Node {
 	}
 	return html.Div(html.Props{Class: "channel-intro"},
 		conversationAvatar(m, c),
-		html.H2(html.Props{Text: m.tf(KeyIntroTitle, map[string]string{"name": name})}),
+		html.H2(html.Props{Text: m.tf(titleKey, map[string]string{"name": name})}),
 		html.P(html.Props{Text: body}),
 	)
 }
@@ -2037,9 +2185,9 @@ func dayLabel(m Model, t time.Time) string {
 		return m.t(KeyYesterday)
 	}
 	if t.Year() == today.Year() {
-		return t.Format("Monday, January 2")
+		return formatDay(m.Locale, t, false)
 	}
-	return t.Format("January 2, 2006")
+	return formatDay(m.Locale, t, true)
 }
 
 func message(m Model, h handlers, msg Message, continued bool) ui.Node {
@@ -2154,6 +2302,8 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	contentChildren := []ui.Node{html.Div(html.Props{Class: "message-meta"}, meta...), body}
 	contentChildren = append(contentChildren, linkEmbeds(m, msg.Body)...)
 	contentChildren = append(contentChildren, docPreviewEmbeds(m, msg.Body)...)
+	contentChildren = append(contentChildren, projectPreviewEmbeds(m, msg.Body)...)
+	contentChildren = append(contentChildren, journeyPreviewEmbeds(m, msg.Body)...)
 	if len(msg.Attachments) > 0 {
 		contentChildren = append(contentChildren, attachments(m, msg))
 	}
@@ -2308,7 +2458,7 @@ func composer(m Model, h handlers) ui.Node {
 		html.Textarea(html.Props{ID: id, Class: "composer-input", Name: "message", Placeholder: placeholder, Rows: 3, Dir: "auto", Data: map[string]string{"chat-value": m.Draft}, Disabled: disabled,
 			OnInput: h.composerInput, OnKeyDown: h.composerKey,
 			Aria: docSuggestFieldAria(h.local.docSuggest, id, mentionFieldAria(h.mentionView, id, map[string]string{"describedby": "composer-help"}))}),
-		html.Div(html.Props{Class: "composer-embeds"}, append(append(linkEmbeds(m, m.Draft), docPreviewEmbeds(m, m.Draft)...), channelReferenceLinks(m, m.Draft)...)...),
+		html.Div(html.Props{Class: "composer-embeds"}, append(append(append(append(linkEmbeds(m, m.Draft), docPreviewEmbeds(m, m.Draft)...), projectPreviewEmbeds(m, m.Draft)...), journeyPreviewEmbeds(m, m.Draft)...), channelReferenceLinks(m, m.Draft)...)...),
 		html.Div(html.Props{Class: "composer-toolbar"},
 			html.Div(html.Props{Class: "composer-tools"},
 				formatToolbar(m, id, disabled),
@@ -2316,7 +2466,7 @@ func composer(m Model, h handlers) ui.Node {
 				giphyPickerControl(m, id, disabled),
 				html.Button(html.Props{Class: "tool-button", Type: "button", Disabled: true, Aria: map[string]string{"label": m.t(KeyAttach)}, Title: m.t(KeyAttach)}, icon("attach")),
 			),
-			html.Span(html.Props{ID: "composer-help", Class: "composer-help", Text: m.t(KeyComposeHint)}),
+			html.Span(html.Props{ID: "composer-help", Class: "composer-help kbd-hint", Text: m.t(KeyComposeHint)}),
 			html.Button(html.Props{Class: "send-button", Type: "submit", Disabled: !canSend, Aria: map[string]string{"label": m.t(KeySend)}, Title: m.t(KeySend)}, icon("send"), html.Span(html.Props{Class: "send-label", Text: m.t(KeySend)})),
 		),
 	)
@@ -2373,7 +2523,7 @@ func activityLabel(m Model, at time.Time) string {
 	case age < 14*24*time.Hour:
 		return m.tf(KeyActiveDaysAgo, map[string]string{"n": itoa(int(age / (24 * time.Hour)))})
 	}
-	return m.tf(KeyActiveOn, map[string]string{"date": at.Format("Jan 2")})
+	return m.tf(KeyActiveOn, map[string]string{"date": formatShortDate(m.Locale, at.Local())})
 }
 
 // paneHandle is the draggable seam on a column's inner edge. The browser
@@ -2592,6 +2742,8 @@ func threadPane(m Model, h handlers) ui.Node {
 			html.Button(html.Props{Class: "thread-view-in-channel", Type: "button", Data: map[string]string{"action": "reveal-thread-parent"}, Text: m.t(KeyViewInChannel)})), html.Div(html.Props{Class: "message-body", Dir: "auto"}, markdownMessageBody(m, root.Body)...)}
 		rootChildren = append(rootChildren, linkEmbeds(m, root.Body)...)
 		rootChildren = append(rootChildren, docPreviewEmbeds(m, root.Body)...)
+		rootChildren = append(rootChildren, projectPreviewEmbeds(m, root.Body)...)
+		rootChildren = append(rootChildren, journeyPreviewEmbeds(m, root.Body)...)
 		if len(root.Attachments) > 0 {
 			rootChildren = append(rootChildren, attachments(m, *root))
 		}
@@ -2622,6 +2774,8 @@ func threadPane(m Model, h handlers) ui.Node {
 			content := []ui.Node{html.Div(html.Props{Class: "message-meta"}, personButton(m, msg.AuthorID, msg.Author, "message-author person-name", ui.Text(msg.Author)), html.Time(html.Props{Class: "message-time", Text: msg.TimeLabel})), html.Div(html.Props{Class: "message-body", Dir: "auto"}, markdownMessageBody(m, msg.Body)...)}
 			content = append(content, linkEmbeds(m, msg.Body)...)
 			content = append(content, docPreviewEmbeds(m, msg.Body)...)
+			content = append(content, projectPreviewEmbeds(m, msg.Body)...)
+			content = append(content, journeyPreviewEmbeds(m, msg.Body)...)
 			content = append(content, threadMessageMenu(m, msg)...)
 			replies = append(replies, html.Div(html.Props{Class: "thread-message", Data: map[string]string{"message-id": msg.ID}}, personButton(m, msg.AuthorID, msg.Author, "person-avatar-button", personAvatar(m, msg.AuthorID, msg.Author, "avatar small")), html.Div(html.Props{Class: "thread-message-body"}, content...)))
 		}
@@ -2643,7 +2797,7 @@ func threadPane(m Model, h handlers) ui.Node {
 			formatToolbar(m, "thread-composer", !canReply),
 			emojiPicker(m, "thread-composer", !canReply),
 			giphyPickerControl(m, "thread-composer", !canReply),
-			html.Span(html.Props{Class: "composer-help", Text: m.t(KeyComposeHint)}),
+			html.Span(html.Props{Class: "composer-help kbd-hint", Text: m.t(KeyComposeHint)}),
 			html.Button(html.Props{Class: "send-button", Type: "submit", Disabled: !canReply, Aria: map[string]string{"label": m.t(KeyReplySend)}, Title: m.t(KeyReplySend)}, icon("send"), html.Span(html.Props{Class: "send-label", Text: m.t(KeyReplySend)})),
 		),
 	)
@@ -2701,11 +2855,50 @@ func details(m Model, h handlers) ui.Node {
 		html.Section(html.Props{Class: "details-section"},
 			html.Div(html.Props{Class: "details-section-head"},
 				html.H3(html.Props{Text: membersHeading(m, c)}),
-				actionButton("icon-button", "refresh-members", "", m.t(KeyRefreshMembers), m.Callbacks.LoadMembers == nil, icon("refresh")),
+				// ACCESS-01: public channels are open membership, so anyone
+				// there may add people; a private channel or group is
+				// invite-only, so only its owner can (the model carries no
+				// finer-grained role than that today).
+				// Round 3 C-14: the add and refresh controls sit together at the
+				// end of the heading row instead of space-between spreading them.
+				html.Div(html.Props{Class: "details-section-actions"},
+					addMembersButton(m, c),
+					actionButton("icon-button", "refresh-members", "", m.t(KeyRefreshMembers), m.Callbacks.LoadMembers == nil, icon("refresh"))),
 			),
 			memberFilter(m, h),
 			html.Ul(html.Props{Class: "member-list"}, memberNodes...)),
+		integrationsSection(m, c),
 	)
+}
+
+// integrationsSection is CHAT-08's Copy API curl move out of the everyday
+// More-options menu: a developer-facing action belongs somewhere a reader
+// has to go looking for it, described rather than dropped bare into a list,
+// and visible only to the people who administer the workspace (a tenant
+// admin) or this one conversation (its owner) -- not every member.
+func integrationsSection(m Model, c Conversation) ui.Node {
+	if !m.IsTenantAdmin && !(m.CurrentUser != "" && c.OwnerID == m.CurrentUser) {
+		return nil
+	}
+	return html.Section(html.Props{Class: "details-section integrations-section"},
+		html.H3(html.Props{Text: m.t(KeyIntegrationsTitle)}),
+		html.P(html.Props{Class: "field-hint", Text: m.t(KeyIntegrationsHint)}),
+		html.Button(html.Props{Class: "button secondary small", Type: "button", Disabled: m.Callbacks.CopyConversationAPICurl == nil, Data: map[string]string{"action": "copy-conversation-api-curl", "id": c.ID}}, icon("copy"), html.Span(html.Props{Text: m.t(KeyCopyConversationAPICurl)})),
+	)
+}
+
+// addMembersButton is nil (renders nothing) for a DM, which has no
+// membership to add to, and for a private channel or group the viewer does
+// not own.
+func addMembersButton(m Model, c Conversation) ui.Node {
+	if c.Kind == DirectMessage {
+		return nil
+	}
+	allowed := c.Kind == PublicChannel || (m.CurrentUser != "" && c.OwnerID == m.CurrentUser)
+	if !allowed {
+		return nil
+	}
+	return actionButton("icon-button", "open-add-members", "", m.t(KeyAddPeople), m.Callbacks.OpenAddMembers == nil, icon("people"))
 }
 
 func todoCompletedBy(m Model, item ChannelTodoItem) string {
@@ -2902,7 +3095,7 @@ func todoNewPolicyControls(m Model, h handlers) ui.Node {
 	return html.Div(html.Props{Class: "channel-todo-new-policy"}, controls...)
 }
 
-func channelTodoTrigger(m Model) ui.Node {
+func channelTodoTrigger(m Model, h handlers) ui.Node {
 	remaining := 0
 	for _, item := range m.ChannelTodo.Items {
 		if !item.Completed {
@@ -2919,8 +3112,11 @@ func channelTodoTrigger(m Model) ui.Node {
 		label = m.t(KeyTodoOpen) + ", " + m.t(KeyTodoLoading)
 		count = "…"
 	}
+	// C-4: this button's pressed state is its own tray ("todo"), not the
+	// unrelated Details pane -- it used to read as pressed whenever Details
+	// happened to be open and never otherwise.
 	return html.Button(html.Props{Class: "channel-todo-trigger", Type: "button", Disabled: m.Callbacks.OpenChannelTodo == nil,
-		Data: map[string]string{"action": "open-todo"}, Aria: map[string]string{"label": label, "pressed": boolString(m.ShowDetails), "busy": boolString(m.ChannelTodoLoading)}, Title: label},
+		Data: map[string]string{"action": "open-todo"}, Aria: map[string]string{"label": label, "pressed": boolString(h.local.tray == "todo"), "busy": boolString(m.ChannelTodoLoading)}, Title: label},
 		icon("checklist"), html.Span(html.Props{Class: "channel-todo-trigger-label", Text: m.t(KeyTodoTitle)}),
 		html.Span(html.Props{Class: "channel-todo-count", Text: count}))
 }
@@ -2991,8 +3187,11 @@ func channelTodoSection(m Model, h handlers) ui.Node {
 		content = append(content, html.Form(html.Props{Class: "channel-todo-form", OnSubmit: h.todoSubmit},
 			html.Div(html.Props{Class: "channel-todo-add-row"},
 				html.Label(html.Props{Class: "sr-only", For: "chat-todo-new", Text: m.t(KeyTodoNew)}),
-				html.Input(html.Props{ID: "chat-todo-new", Class: "chat-input", Type: "text", MaxLength: 500, Placeholder: m.t(KeyTodoNew), Data: map[string]string{"chat-value": m.ChannelTodoDraft}, OnInput: h.todoDraft, Disabled: m.Callbacks.AddChannelTodo == nil || m.ChannelTodoPending}),
-				html.Button(html.Props{Class: "button small", Type: "submit", Disabled: m.Callbacks.AddChannelTodo == nil || m.ChannelTodoPending || m.ChannelTodoError != "", Text: m.t(KeyTodoAdd)})),
+				html.Input(html.Props{ID: "chat-todo-new", Class: "chat-input", Type: "text", MaxLength: 500, Required: true, Placeholder: m.t(KeyTodoNew), Data: map[string]string{"chat-value": m.ChannelTodoDraft}, OnInput: h.todoDraft, Disabled: m.Callbacks.AddChannelTodo == nil || m.ChannelTodoPending}),
+				// CHAT-07: an empty title submitted quietly (todoSubmit
+				// returns without calling AddChannelTodo), so Add looked
+				// broken instead of merely declining a blank task.
+				html.Button(html.Props{Class: "button small", Type: "submit", Disabled: m.Callbacks.AddChannelTodo == nil || m.ChannelTodoPending || m.ChannelTodoError != "" || strings.TrimSpace(m.ChannelTodoDraft) == "", Text: m.t(KeyTodoAdd)})),
 			html.Details(html.Props{Class: "channel-todo-options"},
 				html.Summary(html.Props{Text: m.t(KeyTodoMoreOptions)}),
 				html.Label(html.Props{Class: "prefs-field", For: "chat-todo-pin", Text: m.t(KeyTodoAttachPin)}),
@@ -3148,10 +3347,18 @@ func attachments(m Model, msg Message) ui.Node {
 					raw["height"] = itoa(a.Height)
 				}
 				media := map[string]string{"action": "view-image", "id": a.ID, "media-id": a.ID, "media-thumb": "thumbnail", "media-display": "display", "media-original": "original", "media-width": itoa(a.Width), "media-height": itoa(a.Height), "media-bytes": strconv.FormatInt(a.Bytes, 10), "media-animated": strconv.FormatBool(a.IsGIF()), "media-name": name}
-				children = append(children, html.Button(html.Props{Class: "attachment-image-open", Type: "button", Data: media, Aria: map[string]string{"label": m.t(KeyOpenImage) + ": " + name}, Title: m.t(KeyOpenImage)}, html.Img(html.Props{Alt: name, Raw: raw})))
+				children = append(children, html.Button(html.Props{Class: "attachment-image-open", Type: "button", Data: media, Aria: map[string]string{"label": m.t(KeyOpenImage) + ": " + name}, Title: m.t(KeyOpenImage)}, html.Img(html.Props{Alt: name, OnError: chatAttachmentImageErrorHandler(), Raw: raw})))
 				if m.Callbacks.DownloadAttachment != nil {
 					children = append(children, html.Button(html.Props{Class: "attachment-download", Type: "button", Data: map[string]string{"action": "download-attachment", "id": msg.ID, "extra": a.ID}, Aria: map[string]string{"label": m.t(KeyDownloadAttachment) + ": " + name}, Text: m.t(KeyDownloadAttachment)}))
 				}
+				// C-2: a load failure (a stale grant, a fetch abort, a decode
+				// error) must not leave the broken-image glyph on screen. This
+				// fallback is pre-rendered and hidden; chatAttachmentImageErrorHandler
+				// toggles the sibling ".failed" class that swaps visibility, so
+				// nothing here mutates the DOM imperatively.
+				children = append(children, html.Div(html.Props{Class: "attachment-pending attachment-fallback", Role: "status"},
+					html.Span(html.Props{Text: m.t(KeyAttachmentUnavailable)}),
+					html.Button(html.Props{Class: "attachment-download", Type: "button", Disabled: m.Callbacks.DownloadAttachment == nil, Data: map[string]string{"action": "download-attachment", "id": msg.ID, "extra": a.ID}, Aria: map[string]string{"label": m.t(KeyDownloadAttachment) + ": " + name}, Text: m.t(KeyDownloadAttachment)})))
 			} else if a.PreviewUnavailable || a.URL != "" {
 				children = append(children, html.Div(html.Props{Class: "attachment-pending", Role: "status"},
 					html.Span(html.Props{Text: m.t(KeyAttachmentUnavailable)}),
@@ -3162,7 +3369,20 @@ func attachments(m Model, msg Message) ui.Node {
 			if a.IsGIF() {
 				children = append(children, html.Span(html.Props{Class: "attachment-badge", Text: m.t(KeyGIF)}))
 			}
-			tiles = append(tiles, html.Figure(html.Props{Class: class, Data: data, Title: name, Raw: frame}, children...))
+			// C-2 live re-check: nothing here carried a stable key, so an
+			// unrelated re-render (a stream event, a reaction, anything that
+			// touches this message's props at all) was free to let the
+			// reconciler recreate this figure's <button>/<img> subtree. The
+			// image loader's in-flight fetch (image_loading_js.go) captures
+			// that DOM node by reference; a swap mid-fetch orphaned the
+			// blob it eventually got back -- the node the objectURL was
+			// meant for no longer existed; it got revoked instead of
+			// applied. On a quiet fixture (no live stream) this never
+			// reproduced, only against a real server pushing continuous
+			// updates. Keying the figure by artifact ID is what every other
+			// list in this file already does to stop exactly this class of
+			// reconciler churn.
+			tiles = append(tiles, html.WithKey(html.Figure(html.Props{Class: class, Data: data, Title: name, Raw: frame}, children...), "attachment:"+a.ID))
 			continue
 		}
 		size := ""
@@ -3197,6 +3417,20 @@ func humanBytes(n int64) string {
 		return itoa(int((n+512)/(1<<10))) + " KB"
 	}
 	return itoa(int(n)) + " B"
+}
+
+// directMessageSubtitle is the line under a DM's name (round 4 C-7): the
+// conversation's topic when it has one, else the person's job title when
+// their directory card is loaded, else "Direct message", so a DM header
+// carries a subtitle the way a channel's "Public channel · 19 members" does.
+func directMessageSubtitle(m Model, c Conversation, peer string) string {
+	if topic := strings.TrimSpace(c.Topic); topic != "" {
+		return topic
+	}
+	if p := m.PersonDetails; p != nil && p.ID == peer && strings.TrimSpace(p.JobTitle) != "" {
+		return strings.TrimSpace(p.JobTitle)
+	}
+	return m.t(KeyKindDirect)
 }
 
 // memberCountLabel selects singular copy for a one-member direct message.

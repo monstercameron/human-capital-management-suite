@@ -42,18 +42,19 @@ import (
 // carry a pinned version/digest, source, license, CVE status, owner,
 // update SLA and replacement path.
 type Entry struct {
-	Name            string `yaml:"name"`
-	Category        string `yaml:"category"`
-	Version         string `yaml:"version"`
-	Digest          string `yaml:"digest,omitempty"`
-	Source          string `yaml:"source"`
-	License         string `yaml:"license"`
-	CVEStatus       string `yaml:"cve_status"`
-	Owner           string `yaml:"owner"`
-	UpdateSLA       string `yaml:"update_sla"`
-	ReplacementPath string `yaml:"replacement_path"`
-	DerivedFrom     string `yaml:"derived_from"`
-	Note            string `yaml:"note,omitempty"`
+	Name            string            `yaml:"name"`
+	Category        string            `yaml:"category"`
+	Version         string            `yaml:"version"`
+	Digest          string            `yaml:"digest,omitempty"`
+	PlatformDigests map[string]string `yaml:"platform_digests,omitempty"`
+	Source          string            `yaml:"source"`
+	License         string            `yaml:"license"`
+	CVEStatus       string            `yaml:"cve_status"`
+	Owner           string            `yaml:"owner"`
+	UpdateSLA       string            `yaml:"update_sla"`
+	ReplacementPath string            `yaml:"replacement_path"`
+	DerivedFrom     string            `yaml:"derived_from"`
+	Note            string            `yaml:"note,omitempty"`
 }
 
 // requiredFields lists, in RED-clause order, the fields every entry must
@@ -163,7 +164,19 @@ func Equal(a, b Manifest) bool {
 	sort.Slice(sortedA, func(i, j int) bool { return sortedA[i].Name < sortedA[j].Name })
 	sort.Slice(sortedB, func(i, j int) bool { return sortedB[i].Name < sortedB[j].Name })
 	for i := range sortedA {
-		if sortedA[i] != sortedB[i] {
+		if !equalEntry(sortedA[i], sortedB[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func equalEntry(a, b Entry) bool {
+	if a.Name != b.Name || a.Category != b.Category || a.Version != b.Version || a.Digest != b.Digest || a.Source != b.Source || a.License != b.License || a.CVEStatus != b.CVEStatus || a.Owner != b.Owner || a.UpdateSLA != b.UpdateSLA || a.ReplacementPath != b.ReplacementPath || a.DerivedFrom != b.DerivedFrom || a.Note != b.Note || len(a.PlatformDigests) != len(b.PlatformDigests) {
+		return false
+	}
+	for platform, digest := range a.PlatformDigests {
+		if b.PlatformDigests[platform] != digest {
 			return false
 		}
 	}
@@ -190,7 +203,16 @@ func Marshal(m Manifest) ([]byte, error) {
 	sorted := m
 	sorted.Tools = append([]Entry{}, m.Tools...)
 	sort.Slice(sorted.Tools, func(i, j int) bool { return sorted.Tools[i].Name < sorted.Tools[j].Name })
-	return yaml.Marshal(sorted)
+	var out strings.Builder
+	encoder := yaml.NewEncoder(&out)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(sorted); err != nil {
+		return nil, err
+	}
+	if err := encoder.Close(); err != nil {
+		return nil, err
+	}
+	return []byte(out.String()), nil
 }
 
 // VerifyDigests reports whether every entry in m carries the digest a
@@ -215,11 +237,23 @@ func VerifyDigests(root string, m Manifest) error {
 		if !ok {
 			return fmt.Errorf("toolinventory: %s is not produced by the current generator (stale or renamed entry)", e.Name)
 		}
-		if e.Digest != f.Digest {
-			return fmt.Errorf("toolinventory: %s digest %q does not match freshly derived %q", e.Name, e.Digest, f.Digest)
+		if e.Digest != f.Digest || !equalStringMap(e.PlatformDigests, f.PlatformDigests) {
+			return fmt.Errorf("toolinventory: %s digest data does not match freshly derived values", e.Name)
 		}
 	}
 	return nil
+}
+
+func equalStringMap(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if b[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 // Generate rebuilds the full tool inventory from the repository's own
@@ -227,7 +261,7 @@ func VerifyDigests(root string, m Manifest) error {
 func Generate(root string) (Manifest, error) {
 	var tools []Entry
 
-	bufEntry, lockProtocGo, lockProtocGoGRPC, err := loadToolsLockEntry(root)
+	bufEntry, lockProtocGo, lockProtocGoGRPC, lockProtocGoSum, lockProtocGoGRPCSum, err := loadToolsLockEntry(root)
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -237,7 +271,6 @@ func Generate(root string) (Manifest, error) {
 	if err != nil {
 		return Manifest{}, err
 	}
-	tools = append(tools, goModEntries...)
 
 	if lockProtocGo != "" && modProtocGo != "" && lockProtocGo != modProtocGo {
 		return Manifest{}, fmt.Errorf("toolinventory: gen/TOOLS.lock protoc_gen_go_version %q does not match the go.mod-pinned %q", lockProtocGo, modProtocGo)
@@ -245,6 +278,29 @@ func Generate(root string) (Manifest, error) {
 	if lockProtocGoGRPC != "" && modProtocGoGRPC != "" && lockProtocGoGRPC != modProtocGoGRPC {
 		return Manifest{}, fmt.Errorf("toolinventory: gen/TOOLS.lock protoc_gen_go_grpc_version %q does not match the go.mod-pinned %q", lockProtocGoGRPC, modProtocGoGRPC)
 	}
+	goSumData, err := os.ReadFile(filepath.Join(root, "go.sum"))
+	if err != nil {
+		return Manifest{}, fmt.Errorf("toolinventory: reading go.sum: %w", err)
+	}
+	lockedModuleSums := map[string]struct {
+		modulePath string
+		version    string
+		sum        string
+	}{
+		"protoc-gen-go":      {"google.golang.org/protobuf", lockProtocGo, lockProtocGoSum},
+		"protoc-gen-go-grpc": {"google.golang.org/grpc/cmd/protoc-gen-go-grpc", lockProtocGoGRPC, lockProtocGoGRPCSum},
+	}
+	for i := range goModEntries {
+		pin, ok := lockedModuleSums[goModEntries[i].Name]
+		if !ok {
+			continue
+		}
+		if moduleSum(string(goSumData), pin.modulePath, pin.version) != pin.sum {
+			return Manifest{}, fmt.Errorf("toolinventory: %s module checksum in gen/TOOLS.lock does not match go.sum", goModEntries[i].Name)
+		}
+		goModEntries[i].Digest = pin.sum
+	}
+	tools = append(tools, goModEntries...)
 
 	embeddedPG, err := loadEmbeddedPostgresEntry(root)
 	if err != nil {
@@ -293,32 +349,42 @@ func digestString(s string) string {
 
 // toolsLockFile is the shape of gen/TOOLS.lock.
 type toolsLockFile struct {
-	BufVersion             string `json:"buf_version"`
-	ProtocGenGoVersion     string `json:"protoc_gen_go_version"`
-	ProtocGenGoGRPCVersion string `json:"protoc_gen_go_grpc_version"`
+	BufVersion                string            `json:"buf_version"`
+	BufBinarySHA256ByPlatform map[string]string `json:"buf_binary_sha256_by_platform"`
+	BufChecksumsSource        string            `json:"buf_checksums_source"`
+	ProtocGenGoVersion        string            `json:"protoc_gen_go_version"`
+	ProtocGenGoModuleSum      string            `json:"protoc_gen_go_module_sum"`
+	ProtocGenGoGRPCVersion    string            `json:"protoc_gen_go_grpc_version"`
+	ProtocGenGoGRPCModuleSum  string            `json:"protoc_gen_go_grpc_module_sum"`
 }
 
 // loadToolsLockEntry reads gen/TOOLS.lock and returns the buf Entry, plus
 // its recorded protoc-gen-go/protoc-gen-go-grpc versions so Generate can
 // cross-check them against go.mod's own pins.
-func loadToolsLockEntry(root string) (entry Entry, protocGoVersion, protocGoGRPCVersion string, err error) {
+func loadToolsLockEntry(root string) (entry Entry, protocGoVersion, protocGoGRPCVersion, protocGoModuleSum, protocGoGRPCModuleSum string, err error) {
 	p := filepath.Join(root, "gen", "TOOLS.lock")
 	data, err := os.ReadFile(p)
 	if err != nil {
-		return Entry{}, "", "", fmt.Errorf("toolinventory: reading gen/TOOLS.lock: %w", err)
+		return Entry{}, "", "", "", "", fmt.Errorf("toolinventory: reading gen/TOOLS.lock: %w", err)
 	}
 	var tl toolsLockFile
 	if err := json.Unmarshal(data, &tl); err != nil {
-		return Entry{}, "", "", fmt.Errorf("toolinventory: parsing gen/TOOLS.lock: %w", err)
+		return Entry{}, "", "", "", "", fmt.Errorf("toolinventory: parsing gen/TOOLS.lock: %w", err)
 	}
 	if tl.BufVersion == "" {
-		return Entry{}, "", "", fmt.Errorf("toolinventory: gen/TOOLS.lock has no buf_version")
+		return Entry{}, "", "", "", "", fmt.Errorf("toolinventory: gen/TOOLS.lock has no buf_version")
+	}
+	if tl.BufChecksumsSource == "" || len(tl.BufBinarySHA256ByPlatform) == 0 {
+		return Entry{}, "", "", "", "", fmt.Errorf("toolinventory: gen/TOOLS.lock has no authoritative Buf binary digests")
+	}
+	if tl.ProtocGenGoModuleSum == "" || tl.ProtocGenGoGRPCModuleSum == "" {
+		return Entry{}, "", "", "", "", fmt.Errorf("toolinventory: gen/TOOLS.lock has no Protobuf plugin module checksums")
 	}
 	entry = Entry{
 		Name:            "buf",
 		Category:        "protobuf_toolchain",
 		Version:         tl.BufVersion,
-		Digest:          digestString("buf@" + tl.BufVersion),
+		PlatformDigests: cloneStringMap(tl.BufBinarySHA256ByPlatform),
 		Source:          "https://github.com/bufbuild/buf",
 		License:         "Apache-2.0",
 		CVEStatus:       "PENDING_MANUAL_REVIEW",
@@ -326,8 +392,27 @@ func loadToolsLockEntry(root string) (entry Entry, protocGoVersion, protocGoGRPC
 		UpdateSLA:       "reviewed on every buf.yaml/gen/TOOLS.lock bump",
 		ReplacementPath: "protoc CLI directly invoked with the pinned protoc-gen-go/protoc-gen-go-grpc plugins (see buf.gen.yaml)",
 		DerivedFrom:     "gen/TOOLS.lock",
+		Note:            "platform binary SHA-256 values are from " + tl.BufChecksumsSource,
 	}
-	return entry, tl.ProtocGenGoVersion, tl.ProtocGenGoGRPCVersion, nil
+	return entry, tl.ProtocGenGoVersion, tl.ProtocGenGoGRPCVersion, tl.ProtocGenGoModuleSum, tl.ProtocGenGoGRPCModuleSum, nil
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	cloned := make(map[string]string, len(values))
+	for key, value := range values {
+		cloned[key] = value
+	}
+	return cloned
+}
+
+func moduleSum(goSumText, modulePath, version string) string {
+	for _, line := range strings.Split(goSumText, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && fields[0] == modulePath && fields[1] == version && strings.HasPrefix(fields[2], "h1:") {
+			return fields[2]
+		}
+	}
+	return ""
 }
 
 // loadGoModToolEntries parses go.mod's `tool` directives and resolves

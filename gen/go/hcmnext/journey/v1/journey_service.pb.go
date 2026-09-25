@@ -749,9 +749,15 @@ type Journey struct {
 	// reads responsibility, next step and lifecycle closure from here rather
 	// than re-deriving them from stage. It is unset only on a response the
 	// engine did not resolve for a viewer.
-	Viewer        *JourneyViewerProjection `protobuf:"bytes,21,opt,name=viewer,proto3" json:"viewer,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Viewer *JourneyViewerProjection `protobuf:"bytes,21,opt,name=viewer,proto3" json:"viewer,omitempty"`
+	// current_pay_basis and proposed_pay_basis are the bases current_base and
+	// proposed_base are expressed in -- ANNUAL_SALARY or HOURLY_RATE -- so an
+	// hourly rate reads "$28.00/hr" rather than as a salary. Empty is
+	// ANNUAL_SALARY.
+	CurrentPayBasis  string `protobuf:"bytes,22,opt,name=current_pay_basis,json=currentPayBasis,proto3" json:"current_pay_basis,omitempty"`
+	ProposedPayBasis string `protobuf:"bytes,23,opt,name=proposed_pay_basis,json=proposedPayBasis,proto3" json:"proposed_pay_basis,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Journey) Reset() {
@@ -929,6 +935,20 @@ func (x *Journey) GetViewer() *JourneyViewerProjection {
 		return x.Viewer
 	}
 	return nil
+}
+
+func (x *Journey) GetCurrentPayBasis() string {
+	if x != nil {
+		return x.CurrentPayBasis
+	}
+	return ""
+}
+
+func (x *Journey) GetProposedPayBasis() string {
+	if x != nil {
+		return x.ProposedPayBasis
+	}
+	return ""
 }
 
 // JourneyViewerProjection is one journey as it stands for the calling viewer
@@ -5429,8 +5449,18 @@ type PromotionPathOption struct {
 	MaximumBaseIncrease   string                 `protobuf:"bytes,12,opt,name=maximum_base_increase,json=maximumBaseIncrease,proto3" json:"maximum_base_increase,omitempty"`
 	CompensationPolicyRef string                 `protobuf:"bytes,13,opt,name=compensation_policy_ref,json=compensationPolicyRef,proto3" json:"compensation_policy_ref,omitempty"`
 	BenefitRuleRefs       []string               `protobuf:"bytes,14,rep,name=benefit_rule_refs,json=benefitRuleRefs,proto3" json:"benefit_rule_refs,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// target_pay_basis is the pay basis the target job is paid on --
+	// ANNUAL_SALARY or HOURLY_RATE -- so a proposal names its base in the
+	// target's own unit ("per hour" for an hourly craft role). Empty is
+	// ANNUAL_SALARY, which is what every edge meant before hourly jobs existed.
+	TargetPayBasis string `protobuf:"bytes,15,opt,name=target_pay_basis,json=targetPayBasis,proto3" json:"target_pay_basis,omitempty"`
+	// annualization_hours is the scheduled hours a year an hourly rate is
+	// annualized over when the source and target are paid on different bases
+	// (a foreman's rate becoming a superintendent's salary). Zero when both
+	// ends share a basis.
+	AnnualizationHours int32 `protobuf:"varint,16,opt,name=annualization_hours,json=annualizationHours,proto3" json:"annualization_hours,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PromotionPathOption) Reset() {
@@ -5559,6 +5589,20 @@ func (x *PromotionPathOption) GetBenefitRuleRefs() []string {
 		return x.BenefitRuleRefs
 	}
 	return nil
+}
+
+func (x *PromotionPathOption) GetTargetPayBasis() string {
+	if x != nil {
+		return x.TargetPayBasis
+	}
+	return ""
+}
+
+func (x *PromotionPathOption) GetAnnualizationHours() int32 {
+	if x != nil {
+		return x.AnnualizationHours
+	}
+	return 0
 }
 
 type ListWorkersRequest struct {
@@ -8810,7 +8854,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\vposition_id\x18\x03 \x01(\tR\n" +
 	"positionId\x12\x19\n" +
 	"\borg_unit\x18\x04 \x01(\tR\aorgUnit\x12\x19\n" +
-	"\bpay_zone\x18\x05 \x01(\tR\apayZone\"\xd2\a\n" +
+	"\bpay_zone\x18\x05 \x01(\tR\apayZone\"\xac\b\n" +
 	"\aJourney\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12%\n" +
 	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\x12\x1d\n" +
@@ -8838,7 +8882,9 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"updated_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12-\n" +
 	"\x12governance_version\x18\x13 \x01(\x04R\x11governanceVersion\x12V\n" +
 	"\x11current_work_item\x18\x14 \x01(\v2*.hcmnext.journey.v1.JourneyWorkItemSummaryR\x0fcurrentWorkItem\x12C\n" +
-	"\x06viewer\x18\x15 \x01(\v2+.hcmnext.journey.v1.JourneyViewerProjectionR\x06viewer\"\x94\x03\n" +
+	"\x06viewer\x18\x15 \x01(\v2+.hcmnext.journey.v1.JourneyViewerProjectionR\x06viewer\x12*\n" +
+	"\x11current_pay_basis\x18\x16 \x01(\tR\x0fcurrentPayBasis\x12,\n" +
+	"\x12proposed_pay_basis\x18\x17 \x01(\tR\x10proposedPayBasis\"\x94\x03\n" +
 	"\x17JourneyViewerProjection\x12S\n" +
 	"\rrelationships\x18\x01 \x03(\x0e2-.hcmnext.journey.v1.JourneyViewerRelationshipR\rrelationships\x12W\n" +
 	"\x0eresponsibility\x18\x02 \x01(\x0e2/.hcmnext.journey.v1.JourneyViewerResponsibilityR\x0eresponsibility\x12@\n" +
@@ -9234,7 +9280,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\bjob_code\x18\x01 \x01(\tR\ajobCode\x12\x14\n" +
 	"\x05grade\x18\x02 \x01(\tR\x05grade\x12\x19\n" +
 	"\bpay_zone\x18\x03 \x01(\tR\apayZone\x12\x1a\n" +
-	"\bcurrency\x18\x04 \x01(\tR\bcurrency\"\xc1\x04\n" +
+	"\bcurrency\x18\x04 \x01(\tR\bcurrency\"\x9c\x05\n" +
 	"\x13PromotionPathOption\x12\x19\n" +
 	"\bpath_ref\x18\x01 \x01(\tR\apathRef\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\tR\brevision\x12,\n" +
@@ -9250,7 +9296,9 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x15minimum_base_increase\x18\v \x01(\tR\x13minimumBaseIncrease\x122\n" +
 	"\x15maximum_base_increase\x18\f \x01(\tR\x13maximumBaseIncrease\x126\n" +
 	"\x17compensation_policy_ref\x18\r \x01(\tR\x15compensationPolicyRef\x12*\n" +
-	"\x11benefit_rule_refs\x18\x0e \x03(\tR\x0fbenefitRuleRefs\"\x14\n" +
+	"\x11benefit_rule_refs\x18\x0e \x03(\tR\x0fbenefitRuleRefs\x12(\n" +
+	"\x10target_pay_basis\x18\x0f \x01(\tR\x0etargetPayBasis\x12/\n" +
+	"\x13annualization_hours\x18\x10 \x01(\x05R\x12annualizationHours\"\x14\n" +
 	"\x12ListWorkersRequest\"\x8b\x01\n" +
 	"\x13ListWorkersResponse\x124\n" +
 	"\aworkers\x18\x01 \x03(\v2\x1a.hcmnext.journey.v1.WorkerR\aworkers\x12>\n" +

@@ -40,6 +40,13 @@ func (a auditConversation) SendPost(_ context.Context, r chatcore.SendPostReques
 	}
 	return chatcore.Post{ID: "post", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.Principal.SubjectID, Revision: 1}, nil
 }
+func (a auditConversation) ReadAuthorizedReference(_ context.Context, p chatcore.Principal, tenant, conversation, postID string) (chatcore.Conversation, *chatcore.Post, error) {
+	room := chatcore.Conversation{ID: conversation, TenantID: tenant, OwnerID: p.SubjectID, Revision: 1}
+	if postID == "" {
+		return room, nil, nil
+	}
+	return room, &chatcore.Post{ID: postID, ConversationID: conversation, TenantID: tenant, AuthorID: p.SubjectID, Body: "reference preview", Revision: 1}, nil
+}
 
 func TestTodo_CHAT_047_AuditPostAndReplay(t *testing.T) {
 	repo := chatrecords.NewMemoryRepository()
@@ -66,6 +73,22 @@ func TestTodo_CHAT_047_FailedMutationHasNoAudit(t *testing.T) {
 	rows, _ := repo.List(context.Background(), "tenant")
 	if len(rows) != 0 {
 		t.Fatalf("audited failed mutation: %#v", rows)
+	}
+}
+
+func TestProjectReferenceReadDoesNotCreateShareAudit(t *testing.T) {
+	repo := chatrecords.NewMemoryRepository()
+	s := &auditedChatService{ConversationService: auditConversation{}, records: &chatrecords.Service{Repo: repo, Auth: ChatRecordAuthority{}}}
+	room, post, err := s.ReadAuthorizedReference(context.Background(), chatcore.Principal{TenantID: "tenant", SubjectID: "viewer"}, "tenant", "conv", "post")
+	if err != nil || room.ID != "conv" || post == nil || post.ID != "post" {
+		t.Fatalf("authorized reference read: room=%+v post=%+v err=%v", room, post, err)
+	}
+	rows, err := repo.List(context.Background(), "tenant")
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("read created Chat audit records: %#v err=%v", rows, err)
+	}
+	if pending, dropped := s.PendingAudits(); pending != 0 || dropped != 0 {
+		t.Fatalf("read queued Chat audit: pending=%d dropped=%d", pending, dropped)
 	}
 }
 

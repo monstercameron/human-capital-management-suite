@@ -273,17 +273,31 @@ func docsMediaObjectURL(documentID, attachmentID string, done func(string, error
 	}()
 }
 
-// docsMediaOpen shows the file in a new tab from its blob: URL.
+// docsMediaOpen shows the file in a new tab from its blob: URL. The tab must
+// open synchronously, inside the click that asked for it, or every browser's
+// popup blocker treats the later window.open (after the async fetch that
+// built the blob URL) as unrequested and silently drops it — and doing that
+// with "noopener" makes the drop undetectable, since window.open then
+// answers null whether or not a tab actually opened (DOCS-04). So: open a
+// blank, same-origin-capable tab right here, retarget it once the blob URL
+// is ready, and fall back to a same-tab download if even the blank tab was
+// blocked.
 func docsMediaOpen(documentID, attachmentID string, done func(error)) {
+	handle := js.Global().Call("open", "", "_blank")
+	if !handle.Truthy() {
+		docsMediaDownload(documentID, attachmentID, done)
+		return
+	}
 	go func() {
 		raw, err := docsMediaBlobURL(documentID, attachmentID)
 		ui.PostAsync(func() {
-			if err == nil {
-				// With noopener the call answers null whether or not a tab
-				// opened, so there is nothing further to check.
-				js.Global().Call("open", raw, "_blank", "noopener")
+			if err != nil {
+				handle.Call("close")
+				done(err)
+				return
 			}
-			done(err)
+			handle.Get("location").Set("href", raw)
+			done(nil)
 		})
 	}()
 }

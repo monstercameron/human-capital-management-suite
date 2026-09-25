@@ -47,7 +47,8 @@ func NewPromotionApprovalAuthority(cfg PromotionExecutionConfig) PromotionApprov
 	}
 	return PromotionApprovalAuthority{routes: promotionWorkItems{
 		approver: approver, managerApprover: managerApprover, financePartner: cfg.FinancePartnerPrincipalID,
-		managers: managerFallback{base: cfg.Managers, fallback: managerApprover}, plan: cfg.Plan,
+		financeByTenant: cfg.FinancePartnerByTenant, managerByTenant: cfg.ManagerApproverByTenant,
+		managers: managerFallback{base: cfg.Managers, fallback: managerApprover, byTenant: cfg.ManagerApproverByTenant}, plan: cfg.Plan,
 	}}
 }
 
@@ -70,7 +71,7 @@ func (a PromotionApprovalAuthority) CurrentApprovalAuthority(
 	var holder routedApprover
 	switch class {
 	case promotionexec.AuthorityClassFinancePartner:
-		route, err := a.routes.financeRoute()
+		route, err := a.routes.financeRoute(q.TenantID)
 		if err != nil {
 			return promotionexec.CurrentApprovalAuthority{}, err
 		}

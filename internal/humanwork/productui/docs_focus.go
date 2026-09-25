@@ -18,6 +18,11 @@ const docsFocusPatience = 4 * time.Second
 // notice is cleared, so the same message can play again and be announced.
 const docsToastLifetime = 4200 * time.Millisecond
 
+// docsActionToastLifetime gives an actionable toast (one with an Undo
+// button, e.g. DOCS-07's remove flow) longer to be seen and used than a
+// plain confirmation gets.
+const docsActionToastLifetime = 8000 * time.Millisecond
+
 // docsFocusRequest names where keyboard focus goes after the next render.
 // Each target is an element id written "id:<id>" or a CSS selector; the
 // first one present wins.
@@ -100,6 +105,12 @@ func docsMenuNext(key string, current, count int) int {
 type docsNoticeValue struct {
 	text string
 	seq  int
+	// actionLabel, action and id describe an optional Undo-shaped control
+	// the toast carries: a docs-action/docs-id pair routed through the
+	// page's own delegated click handler, exactly like every other
+	// docs-action button (docsEventAction). A plain notice leaves all
+	// three empty.
+	actionLabel, action, id string
 }
 
 // docsNotice is the Docs page's one-line confirmation ("Link copied"). It has
@@ -121,7 +132,11 @@ func useDocsNotice() docsNotice {
 			return nil
 		}
 		shown := current.seq
-		return docsAfter(docsToastLifetime, func() {
+		lifetime := docsToastLifetime
+		if current.actionLabel != "" {
+			lifetime = docsActionToastLifetime
+		}
+		return docsAfter(lifetime, func() {
 			ui.PostAsync(func() {
 				state.Update(func(value docsNoticeValue) docsNoticeValue {
 					if value.seq == shown {
@@ -145,6 +160,16 @@ func (notice docsNotice) Set(text string) {
 	notice.state.Set(docsNoticeValue{text: text, seq: next})
 }
 
+// SetAction is Set plus one Undo-shaped control: action and id are the
+// docs-action/docs-id pair the toast's button carries, caught by the same
+// delegated click handler every other docs-action button already uses, so
+// no new event wiring is needed here.
+func (notice docsNotice) SetAction(text, actionLabel, action, id string) {
+	next := notice.seq.Get() + 1
+	notice.seq.Set(next)
+	notice.state.Set(docsNoticeValue{text: text, seq: next, actionLabel: actionLabel, action: action, id: id})
+}
+
 // Live is the polite status line that reads the notice. The text sits in a
 // span keyed by the notice's sequence, so repeating a message replaces the
 // node and screen readers announce it again.
@@ -158,13 +183,26 @@ func (notice docsNotice) Live(class string) ui.Node {
 }
 
 // Toast is the visual echo of the notice. Its key carries the sequence, so
-// the same message twice mounts a fresh toast and its animation plays again.
-func (notice docsNotice) Toast() ui.Node {
-	value := notice.state.Get()
+// the same message twice mounts a fresh toast and its animation plays
+// again. A toast carrying an action (SetAction) is not aria-hidden: its
+// button is a real, keyboard-reachable control, and the toast itself
+// becomes its own polite live region so the action is announced too.
+func (notice docsNotice) Toast() ui.Node { return docsNoticeToastNode(notice.state.Get()) }
+
+// docsNoticeToastNode is Toast's pure rendering step, split out so it can
+// be exercised directly with a literal docsNoticeValue in tests, without
+// standing up a hook fiber.
+func docsNoticeToastNode(value docsNoticeValue) ui.Node {
 	if value.text == "" {
 		return nil
 	}
-	return html.Div(html.Props{Key: "toast:" + strconv.Itoa(value.seq), Class: "docs-toast", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text(value.text))
+	if value.actionLabel == "" {
+		return html.Div(html.Props{Key: "toast:" + strconv.Itoa(value.seq), Class: "docs-toast", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text(value.text))
+	}
+	return html.Div(html.Props{Key: "toast:" + strconv.Itoa(value.seq), Class: "docs-toast docs-toast-action", Raw: map[string]any{"role": "status", "aria-live": "polite"}},
+		html.Span(html.Props{}, ui.Text(value.text)),
+		html.Button(html.Props{Class: "docs-toast-undo", Type: "button", Data: map[string]string{"docs-action": value.action, "docs-id": value.id}}, ui.Text(value.actionLabel)),
+	)
 }
 
 // docsCopyOutcome turns a clipboard result into the notice to show: the

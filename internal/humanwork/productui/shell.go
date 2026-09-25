@@ -639,15 +639,36 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 	}
 	// An open document renders its own title as the page's h1#page-title,
 	// so the shell's "Documents" head would only repeat the list above it.
-	if showHeading && !docsOwnsPageHeading(view) {
-		children = append(children, html.WithKey(PageIdentityHeader(view), "page-identity"))
+	//
+	// D-1: the "page-identity" slot must stay in the children array on every
+	// render, whether or not it has anything to show. Opening a document
+	// toggles docsOwnsPageHeading from false to true without changing
+	// view.Page, so the only thing that used to change here was whether this
+	// slot existed at all -- and GWC's reconciler mounts a keyed node that
+	// newly appears at the END of its parent's real children (late-mount
+	// append) rather than at its array index. That put "page-content" (and
+	// then "page-footer" behind it) back in the DOM ahead of a footer that
+	// GWC had already mounted, so the footer rendered above the document. A
+	// hidden placeholder keeps the slot -- and therefore the index of
+	// page-content and page-footer after it -- stable across that toggle.
+	if showHeading {
+		if docsOwnsPageHeading(view) {
+			children = append(children, html.WithKey(html.Div(html.Props{Hidden: true}), "page-identity"))
+		} else {
+			children = append(children, html.WithKey(PageIdentityHeader(view), "page-identity"))
+		}
 	}
 	// A full-bleed page (chat) is an application surface: it takes the whole
 	// main region, owns its scrolling and has no document footer beneath its
 	// composer. Every other page keeps the framed document layout.
 	fullBleed := PageFullBleed(view.Page) && !signedOutState(view) && strings.TrimSpace(view.Tenant) != ""
 	children = append(children, keyUnlessKeyed(page, "page-content"))
-	if !fullBleed {
+	// D-6: Docs is an application surface too (library, reader, editor with
+	// their own chrome), and the product/source footer under a document read
+	// as an orphaned caption. Chat has none; Docs now matches. The page ID
+	// does not change while a document opens or closes, so the footer slot
+	// is stable within the route (see the D-1 note above).
+	if !fullBleed && view.Page != PageDocs {
 		children = append(children,
 			html.Footer(html.Props{Key: "page-footer", Class: "footer"},
 				html.Span(html.Props{Data: map[string]string{"hcm-brand-name": ""}}, ui.Text(NormalizeCustomerTheme(view.Appearance).BrandName)),

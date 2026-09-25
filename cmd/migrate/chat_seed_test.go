@@ -10,9 +10,104 @@ import (
 	"time"
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatroutingadapter"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatroutestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 )
+
+// TestChatSeedCommand_RegistersRoutesForLiveReactionsAndReadState pins the
+// CHAT-04 root cause: a seeded room only exists on the bare chat store
+// adapter this seeder writes with, but the live server's ConversationService
+// is chatroutingadapter-wrapped, and its AddReaction/UpdateReadState (and
+// every other lease-guarded write) refuse any conversation the core route
+// directory has never placed. Before runChatSeedCommand registered a route
+// for each room, that refusal surfaced as a raw chatrouting.ErrNotFound the
+// transport layer has no mapping for -- logged as an unclassified
+// INTERNAL_FAILURE for every reaction or read-state update against a seeded
+// room, which is exactly what the live audit's server.log recorded.
+func TestChatSeedCommand_RegistersRoutesForLiveReactionsAndReadState(t *testing.T) {
+	store, db := chatSeedStore(t)
+	ctx := context.Background()
+	tenant := "harborcare-demo"
+
+	routeConn := pgtest.NewEmpty(t).NewConn(t)
+	routes, err := chatroutestore.New(routeConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = routes.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := chatSeedOptions{Tenant: tenant, Scale: "small", MediaRoot: t.TempDir(), AssetDir: "../../internal/humanwork/workspace/assets", Now: time.Now().UTC()}
+	if err := runChatSeedCommand(ctx, store, routes, opts, &bytes.Buffer{}); err != nil {
+		t.Fatalf("chat seed: %v", err)
+	}
+
+	var conversationID string
+	if err := db.SQL.QueryRowContext(ctx, `SELECT id FROM chat_conversation WHERE kind='GROUP' LIMIT 1`).Scan(&conversationID); err != nil {
+		t.Fatalf("find a seeded group room: %v", err)
+	}
+	if _, err := routes.Lookup(ctx, conversationID, tenant); err != nil {
+		t.Fatalf("seeded room was not registered in the route directory: %v", err)
+	}
+	var memberID, homeTenantID string
+	if err := db.SQL.QueryRowContext(ctx, `SELECT member_id, home_tenant_id FROM chat_membership WHERE conversation_id=$1 LIMIT 1`, conversationID).Scan(&memberID, &homeTenantID); err != nil {
+		t.Fatalf("find a seeded member: %v", err)
+	}
+	var postID string
+	if err := db.SQL.QueryRowContext(ctx, `SELECT id FROM chat_post WHERE conversation_id=$1 ORDER BY sequence LIMIT 1`, conversationID).Scan(&postID); err != nil {
+		t.Fatalf("find a seeded post: %v", err)
+	}
+
+	adapter := chatstore.NewAdapter(store)
+	service := chatcore.NewService(adapter, func() time.Time { return time.Now().UTC() })
+	service.SetAuthority(seedTestAuthority{store: adapter})
+	routed, err := chatroutingadapter.New(service, chatroutingadapter.Options{
+		Directory: routes, DefaultShard: chatSeedRouteShard,
+		PlacementPolicy: chatSeedRoutePlacementPolicy, PlacementPolicyVersion: chatSeedRoutePolicyVersion,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal := chatcore.Principal{TenantID: homeTenantID, SubjectID: memberID}
+
+	if _, err := routed.AddReaction(ctx, chatcore.AddReactionRequest{
+		Principal: principal,
+		Reaction:  chatcore.Reaction{TenantID: tenant, ConversationID: conversationID, PostID: postID, Emoji: "tada"},
+	}); err != nil {
+		t.Fatalf("AddReaction on a seeded, routed room = %v, want success", err)
+	}
+	if _, err := routed.UpdateReadState(ctx, chatcore.UpdateReadStateRequest{
+		Principal:        principal,
+		ReadState:        chatcore.ReadState{TenantID: tenant, ConversationID: conversationID},
+		ExpectedRevision: 1,
+	}); err != nil {
+		t.Fatalf("UpdateReadState on a seeded, routed room = %v, want success", err)
+	}
+}
+
+// seedTestAuthority is the same membership-derived chatpolicy.Input the
+// CHAT-030 forwarding authority in internal/data/chatstore builds, copied
+// here (unexported there) so this package's routing test can authorize a
+// real chatcore.Service without a fake store.
+type seedTestAuthority struct{ store *chatstore.Adapter }
+
+func (a seedTestAuthority) Authorize(ctx context.Context, p chatcore.Principal, c chatcore.Conversation, _ chatpolicy.Action, at time.Time) (chatpolicy.Input, error) {
+	in := chatpolicy.Input{
+		Principal: chatpolicy.Principal{ID: p.SubjectID, Tenant: p.TenantID, Active: true, AuthorityRevision: 1},
+		Channel:   chatpolicy.Channel{ID: c.ID, HostTenant: c.TenantID, Private: c.Kind != chatcore.PublicChannel, Enabled: true, Revision: c.Revision},
+		Now:       at,
+	}
+	m, err := a.store.GetMembership(ctx, c.TenantID, c.ID, p.TenantID, p.SubjectID)
+	if err == nil && m.LeftAt == nil {
+		in.HasMembership = true
+		in.Membership = chatpolicy.Membership{ConversationID: c.ID, PrincipalID: p.SubjectID, Tenant: p.TenantID, State: chatpolicy.MembershipCurrent, Revision: m.Revision, JoinedAt: at.Add(-time.Hour)}
+	}
+	return in, nil
+}
 
 func chatSeedStore(t *testing.T) (*chatstore.Store, *pgtest.DB) {
 	t.Helper()
@@ -47,7 +142,7 @@ func TestChatSeedCommand_Integration(t *testing.T) {
 	now := time.Now().UTC()
 	var out bytes.Buffer
 	opts := chatSeedOptions{Tenant: tenant, Scale: "small", MediaRoot: t.TempDir(), AssetDir: "../../internal/humanwork/workspace/assets", Now: now}
-	if err := runChatSeedCommand(ctx, store, opts, &out); err != nil {
+	if err := runChatSeedCommand(ctx, store, nil, opts, &out); err != nil {
 		t.Fatalf("chat seed: %v", err)
 	}
 	if !strings.Contains(out.String(), "seeded chat demo for "+tenant) {
@@ -169,11 +264,11 @@ func TestChatSeedCommand_Integration(t *testing.T) {
 	}
 
 	// Re-running refuses, and -reset makes it idempotent rather than doubling.
-	if err := runChatSeedCommand(ctx, store, opts, &bytes.Buffer{}); err == nil {
+	if err := runChatSeedCommand(ctx, store, nil, opts, &bytes.Buffer{}); err == nil {
 		t.Fatal("a second seed without -reset succeeded")
 	}
 	opts.Reset = true
-	if err := runChatSeedCommand(ctx, store, opts, &bytes.Buffer{}); err != nil {
+	if err := runChatSeedCommand(ctx, store, nil, opts, &bytes.Buffer{}); err != nil {
 		t.Fatalf("reseed with reset: %v", err)
 	}
 	var afterConversations, afterPosts int

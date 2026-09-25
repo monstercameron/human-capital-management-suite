@@ -343,6 +343,45 @@ func payLine(currency, current, proposed string) string {
 	return line
 }
 
+// payBasisHourly is the workforce pay basis of an hourly rate.
+const payBasisHourly = "HOURLY_RATE"
+
+// perHourLocale suffixes an hourly amount ("$28.00/hr"). A salary, whose
+// basis is empty or ANNUAL_SALARY, is returned unchanged.
+func perHourLocale(locale, amount, basis string) string {
+	if amount == "" || basis != payBasisHourly {
+		return amount
+	}
+	return productui.ResolveProductLocale(locale).Text("journey.pay_per_hour", map[string]string{"amount": amount})
+}
+
+// payLineBasisLocale is payLineLocale for amounts that may be hourly rates:
+// "USD 28.00/hr → 34.50/hr (+23.2%)". Two salaries render exactly as
+// payLineLocale does. A move across bases (an hourly rate to a salary)
+// carries no percentage, because a rate and a salary are not a ratio.
+func payLineBasisLocale(locale, currency, current, proposed, currentBasis, proposedBasis string) string {
+	if currentBasis != payBasisHourly && proposedBasis != payBasisHourly {
+		return payLineLocale(locale, currency, current, proposed)
+	}
+	from := perHourLocale(locale, formatAmountLocale(locale, currency, current), currentBasis)
+	to := perHourLocale(locale, formatAmountLocale(locale, currency, proposed), proposedBasis)
+	switch {
+	case from == "" && to == "":
+		return ""
+	case from == "":
+		return to
+	case to == "":
+		return from
+	}
+	line := from + " → " + to
+	if currentBasis == proposedBasis {
+		if pct, ok := percentDeltaLocale(locale, current, proposed); ok {
+			line += " (" + pct + ")"
+		}
+	}
+	return line
+}
+
 func payLineLocale(locale, currency, current, proposed string) string {
 	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
 		return payLine(currency, current, proposed)

@@ -198,8 +198,8 @@ func TestStylesheetKeepsThreadBesideTimelineAtLaptopWidths(t *testing.T) {
 		`.chat-workspace{container:chat/inline-size}`,
 		`@container chat (max-width:1350px){.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(200px,var(--chat-rail)) minmax(0,1fr) minmax(280px,340px)}}`,
 		`@container chat (max-width:1100px) and (min-width:761px){.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(0,1fr) minmax(280px,360px)}.chat-workspace[data-details-open="true"] .chat-rail{display:none}`,
-		`@container chatmain (max-width:560px){.rail-pill>span:not(.rail-pill-dot),.channel-todo-trigger-label,.channel-poll-trigger-label{display:none}`, `.format-button[data-extra=code],.format-button[data-extra=bullets],.format-button[data-extra=quote]{display:none}`,
-		`.message-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;padding:8px 20px}`,
+		`@container chatmain (max-width:560px){.channel-todo-trigger-label,.channel-poll-trigger-label{display:none}`, `.format-button[data-extra=code],.format-button[data-extra=bullets],.format-button[data-extra=quote]{display:none}`,
+		`.message-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;padding:8px 20px;scroll-padding-top:8px}`,
 		`.mention-menu{`, `.search-hit{`,
 	} {
 		if !strings.Contains(Stylesheet, want) {

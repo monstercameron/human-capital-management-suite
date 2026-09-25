@@ -32,7 +32,7 @@ func TestTodo_UXBLIND_020_ClarifiesOrganizationAndDeviceAppearanceScope(t *testi
 	}
 }
 
-func TestTodo_UXBLIND_021_ExplainsGovernedLogoAssetPathWithoutInventingUpload(t *testing.T) {
+func TestTodo_UXBLIND_021_ExplainsBrandAssetPickerWithoutDeadEndActions(t *testing.T) {
 	doc, err := ui.RenderToString(AppearancePage(AppearancePageProps{
 		I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")},
 		Theme:     DefaultCustomerTheme(), ColorModes: ColorModeOptions(), Palettes: PaletteOptions(), Shapes: ShapeOptions(),
@@ -42,8 +42,8 @@ func TestTodo_UXBLIND_021_ExplainsGovernedLogoAssetPathWithoutInventingUpload(t 
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`id="appearance-brand-logo"`, `aria-describedby="appearance-brand-logo-help"`, `id="appearance-brand-logo-help"`,
-		`Paste a logo link provided by your administrator, or leave blank to show the workspace name.`,
+		`data-hcm-brand-asset-picker="true"`, `id="appearance-brand-logo-help"`,
+		`Choose an existing revision or upload a PNG, JPEG, or WebP image. Save appearance to publish your selection.`,
 	} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("logo guidance missing %q in %s", want, doc)

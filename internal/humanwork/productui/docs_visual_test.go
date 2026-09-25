@@ -70,8 +70,9 @@ func TestDocsVisualStylesheetRules(t *testing.T) {
 		`.docs-page-link{min-width:2.75rem;height:2.75rem}`,
 		// M11: phones keep New folder and the folder menus, with an edge fade.
 		`.docs-nav-section{display:flex;order:2;`,
+		`.docs-folder-item:has(>.docs-nav-link[aria-current=page]){background:`,
 		`.docs-folder-menu{display:block;position:static;opacity:1}`,
-		`.docs-nav::after{content:"";order:3;position:sticky;`,
+		`.docs-nav::before{content:"";order:0;position:sticky;`,
 		`position-anchor:--docs-folder-menu`,
 		// L5: the refresh bar moves by transform and stops under reduced motion.
 		`@keyframes docs-progress{from{transform:translateX(0)}to{transform:translateX(150%)}}`,
@@ -119,7 +120,7 @@ func TestDocsPrivateEdgeContrast(t *testing.T) {
 // target is the cell, not the 16px box.
 func TestDocsRowCheckboxesHaveCellSizedHitLabel(t *testing.T) {
 	view := docsReviewView()
-	markup := docsRender(t, docsTable(view, docsRouteOf(view), map[string]bool{}, func(DocumentSummary) bool { return false }, ui.Handler{}, false))
+	markup := docsRender(t, docsTable(view, docsRouteOf(view), map[string]bool{}, func(DocumentSummary) bool { return false }, ui.Handler{}, false, false))
 	hits := regexp.MustCompile(`<label class="docs-select-hit"><input [^>]*data-docs-action="select(-all)?"[^>]*type="checkbox"></label>`).FindAllString(markup, -1)
 	if len(hits) != len(view.Documents)+1 {
 		t.Fatalf("select hit labels = %d, want %d (header + rows): %s", len(hits), len(view.Documents)+1, markup)

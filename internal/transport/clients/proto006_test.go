@@ -424,22 +424,22 @@ func TestTodo_PROTO_006_Integration(t *testing.T) {
 }
 
 // TestTodo_PROTO_006_Conformance checks the manifest-to-generated-client
-// cross-join: exactly 29 methods, ExecuteIntent REFUSED_P1A, and the
+// cross-join: exactly 55 methods, ExecuteIntent REFUSED_P1A, and the
 // generated procedure set matches the manifest's grpc_procedure column
 // exactly.
 func TestTodo_PROTO_006_Conformance(t *testing.T) {
 	doc := loadEndpointManifest(t)
 
-	if len(doc.Endpoints) != 29 {
-		t.Fatalf("manifest names %d endpoints, want 29", len(doc.Endpoints))
+	if len(doc.Endpoints) != 55 {
+		t.Fatalf("manifest names %d endpoints, want 55", len(doc.Endpoints))
 	}
 
 	published := make(map[string]bool, len(clients.Procedures()))
 	for _, p := range clients.Procedures() {
 		published[p] = true
 	}
-	if len(published) != 29 {
-		t.Fatalf("generated clients publish %d procedures, want 29", len(published))
+	if len(published) != 55 {
+		t.Fatalf("generated clients publish %d procedures, want 55", len(published))
 	}
 
 	refused := map[string]bool{}

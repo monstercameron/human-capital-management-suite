@@ -221,13 +221,18 @@ type Preferences struct {
 // Callbacks are the narrow bridge into the authenticated chat client. Controls
 // whose callbacks are absent render disabled so the UI never offers a no-op.
 type Callbacks struct {
-	SelectConversation            func(string)
-	Search                        func(string)
-	SearchMore                    func()
-	SearchMoreChannels            func()
-	OpenSearchMessage             func(conversationID, postID string, sequence uint64)
-	OpenSearchChannel             func(conversationID string)
-	LoadMembers                   func()
+	SelectConversation func(string)
+	Search             func(string)
+	SearchMore         func()
+	SearchMoreChannels func()
+	OpenSearchMessage  func(conversationID, postID string, sequence uint64)
+	OpenSearchChannel  func(conversationID string)
+	LoadMembers        func()
+	// ACCESS-01: opening/closing the "Add people" picker and submitting it
+	// for the selected conversation.
+	OpenAddMembers                func()
+	CloseAddMembers               func()
+	AddMembers                    func(subjectIDs []string)
 	LoadOlder                     func()
 	LoadNewer                     func()
 	VisibleMessageIDs             func([]string)
@@ -406,33 +411,44 @@ type Model struct {
 	// find a visible coworker before the viewer has a direct message with them.
 	SearchDirectory []SearchPerson
 	ShowCreate      bool
-	ShowBrowse      bool
-	Browse          []Conversation
-	BrowseQuery     string
-	SidebarOpen     bool
-	ShowDetails     bool
-	ShowThread      bool
-	ShowPerson      bool
-	PersonDetails   *PersonDetails
-	ThreadFollowed  bool
-	ThreadParentID  string
-	ThreadParent    *Message
-	ThreadMessages  []Message
-	ThreadLoading   bool
-	ThreadHasOlder  bool
-	ThreadHasNewer  bool
-	EditingID       string
-	EditDrafts      map[string]string
-	NewKind         ConversationKind
-	NewName         string
-	Pane            PaneSizes
-	Preferences     Preferences
-	Callbacks       Callbacks
-	Locale          string
-	Direction       string
+	// ShowAddMembers opens the "Add people" picker over Details (ACCESS-01).
+	ShowAddMembers    bool
+	AddMembersPending bool
+	AddMembersError   string
+	ShowBrowse        bool
+	Browse            []Conversation
+	BrowseQuery       string
+	SidebarOpen       bool
+	ShowDetails       bool
+	ShowThread        bool
+	ShowPerson        bool
+	PersonDetails     *PersonDetails
+	ThreadFollowed    bool
+	ThreadParentID    string
+	ThreadParent      *Message
+	ThreadMessages    []Message
+	ThreadLoading     bool
+	ThreadHasOlder    bool
+	ThreadHasNewer    bool
+	EditingID         string
+	EditDrafts        map[string]string
+	NewKind           ConversationKind
+	NewName           string
+	Pane              PaneSizes
+	Preferences       Preferences
+	Callbacks         Callbacks
+	Locale            string
+	Direction         string
 	// GiphyAPIKey is the public browser key supplied by the authenticated shell.
 	GiphyAPIKey                  string
 	CurrentUser, CurrentTenantID string
+	// IsTenantAdmin gates chat surfaces that are an administrative or
+	// developer concern rather than an everyday one (CHAT-08: the API curl
+	// integration entry point). The chat model carries no membership role
+	// beyond Conversation.OwnerID, so this is the shell's own session role
+	// (hcm_admin), set once per render from productui's already-authorized
+	// view -- never derived in chatui itself.
+	IsTenantAdmin bool
 	// PhotoURLs contains authorized worker profile images keyed by subject ID.
 	PhotoURLs map[string]string
 	// PeerIDs comes from authorized direct-message memberships, keyed by room ID.
@@ -458,6 +474,13 @@ type Model struct {
 	// DocPreviews contains viewer-authorized document metadata for chat unfurls,
 	// keyed by document ID. It is transient client state, never message content.
 	DocPreviews map[string]DocPreview
+	// ProjectTaskPreviews contains viewer-authorized project task titles for
+	// message references, keyed by ProjectTaskPreviewKey. It is transient and
+	// must be cleared or revalidated when the viewer changes.
+	ProjectTaskPreviews map[string]ProjectTaskPreview
+	// JourneyPreviews holds viewer-authorized quick looks at shared
+	// in-progress workflows (promotion journeys), keyed by intent ID.
+	JourneyPreviews map[string]JourneyPreview
 	// Text resolves a catalog key to the viewer's language. When nil, or when
 	// the key is unknown to the caller's catalog, the reviewed English copy in
 	// this package is used so the tree never shows a raw key.
@@ -565,7 +588,9 @@ func (m *Model) Send() {
 // Column bounds. The rail and the side column (details or thread) can be
 // dragged between these, and RestorePanes returns them to the defaults.
 const (
-	RailMin, RailMax, RailDefault          = 220, 420, 280
+	// RailDefault: C-13 -- 280px truncated common rail names ("comp cycle
+	// working gr…") at a 1440px viewport; 288 stays well inside RailMax.
+	RailMin, RailMax, RailDefault          = 220, 420, 288
 	DetailsMin, DetailsMax, DetailsDefault = 240, 440, 320
 )
 

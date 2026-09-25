@@ -22,7 +22,7 @@ func TestChatSearchGroupsAuthorizedResultsWithoutReplacingConversationState(t *t
 	m := Model{State: StateReady, SelectedID: "old-room", Search: "launch", Draft: "keep this draft", Messages: []Message{{ID: "existing", Body: "current timeline"}}, SearchChannels: []Conversation{{ID: "room-1", Name: "Launch", Kind: PublicChannel}}, SearchPeople: []SearchPerson{{ID: "worker-1", Name: "Alex Rivera"}}, SearchMessages: []SearchMessage{{ConversationID: "room-1", ConversationName: "Launch", Message: Message{ID: "post-1", Sequence: 42, Author: "Sam Lee", Body: "launch tomorrow"}}},
 		Callbacks: Callbacks{Search: func(string) {}, SelectConversation: func(string) {}, OpenPerson: func(string) {}, OpenSearchMessage: func(string, string, uint64) {}, SearchMore: func() {}}}
 	markup := render(t, m)
-	for _, want := range []string{"Search results for launch", `aria-label="Search results for launch"`, "Channels", "People", "Messages", `<mark class="search-hit">Launch</mark>`, "Alex Rivera", `<mark class="search-hit">launch</mark> tomorrow`, `data-action="open-search-message"`, `data-id="room-1"`, `data-extra="post-1"`} {
+	for _, want := range []string{"Results for “launch”", `aria-label="Results for “launch”"`, "Channels", "People", "Messages", `<mark class="search-hit">Launch</mark>`, "Alex Rivera", `<mark class="search-hit">launch</mark> tomorrow`, `data-action="open-search-message"`, `data-id="room-1"`, `data-extra="post-1"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("search result panel missing %q", want)
 		}
@@ -76,12 +76,17 @@ func TestTodo_CHAT_032(t *testing.T) {
 }
 
 func TestRailMenuRendersSeparateButtonsAndTargetedMode(t *testing.T) {
-	m := Model{State: StateReady, SelectedID: "selected", RailMenuID: "other", Conversations: []Conversation{{ID: "selected", Name: "Selected"}, {ID: "other", Name: "Other"}}, Preferences: Preferences{Notifications: map[string]NotificationMode{"other": NotifyMention}}, Callbacks: Callbacks{SelectConversation: func(string) {}, OpenRailMenu: func(string) {}, OpenConversationDetails: func(string) {}, CopyConversationReference: func(string, string) {}, CopyConversationAPICurl: func(string) {}, SetConversationNotification: func(string, NotificationMode) {}}}
+	m := Model{State: StateReady, SelectedID: "selected", CurrentUser: "owner", RailMenuID: "other", Conversations: []Conversation{{ID: "selected", Name: "Selected"}, {ID: "other", Name: "Other", OwnerID: "owner"}}, Preferences: Preferences{Notifications: map[string]NotificationMode{"other": NotifyMention}}, Callbacks: Callbacks{SelectConversation: func(string) {}, OpenRailMenu: func(string) {}, OpenConversationDetails: func(string) {}, CopyConversationReference: func(string, string) {}, CopyConversationAPICurl: func(string) {}, SetConversationNotification: func(string, NotificationMode) {}}}
 	markup := render(t, m)
-	for _, want := range []string{`data-action="rail-menu" data-id="other"`, `aria-label="More options for Other"`, `role="menu"`, `data-action="rail-details" data-id="other"`, `data-action="rail-copy-reference" data-id="other"`, "Copy name and link", `data-action="rail-copy-api-curl" data-id="other"`, "Copy API curl", `data-action="rail-notify-mentions" data-id="other"`, `aria-checked="true"`, "✓"} {
+	for _, want := range []string{`data-action="rail-menu" data-id="other"`, `aria-label="More options for Other"`, `role="menu"`, `data-action="rail-details" data-id="other"`, `data-action="rail-copy-reference" data-id="other"`, "Copy name and link", `data-action="rail-notify-mentions" data-id="other"`, `aria-checked="true"`, "✓"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
 		}
+	}
+	// CHAT-08 (retest): the everyday menu never offers the API curl action
+	// at all now, for anyone -- it moved to Details' Integrations section.
+	if strings.Contains(markup, "rail-copy-api-curl") || strings.Contains(markup, "Copy API curl") {
+		t.Error("the rail menu still offers Copy API curl; it must live only in Details' Integrations section")
 	}
 	if strings.Contains(markup, `<button class="chat-row`) && strings.Contains(markup, `<button class="rail-row-more`) {
 		// The row's two buttons must be siblings, not nested interactive controls.
@@ -90,6 +95,40 @@ func TestRailMenuRendersSeparateButtonsAndTargetedMode(t *testing.T) {
 		if start < 0 || end < 0 || !strings.Contains(markup[start:start+end], "</button>") {
 			t.Fatal("rail controls are nested")
 		}
+	}
+}
+
+// TestIntegrationsSectionGatedToAdminOrOwner covers CHAT-08's retest: the
+// API curl action lives in Details' Integrations section now, described
+// with what it needs, and hidden from anyone who is neither a tenant admin
+// nor this conversation's owner.
+func TestIntegrationsSectionGatedToAdminOrOwner(t *testing.T) {
+	base := Model{State: StateReady, SelectedID: "room", ShowDetails: true,
+		Conversations: []Conversation{{ID: "room", Name: "Room", Kind: PublicChannel, OwnerID: "owner-1"}},
+		Callbacks:     Callbacks{CopyConversationAPICurl: func(string) {}}}
+
+	neither := base
+	neither.CurrentUser = "someone-else"
+	markup := render(t, neither)
+	if strings.Contains(markup, "integrations-section") || strings.Contains(markup, `data-action="copy-conversation-api-curl"`) {
+		t.Error("Integrations showed to a member who is neither the owner nor a tenant admin")
+	}
+
+	owner := base
+	owner.CurrentUser = "owner-1"
+	markup = render(t, owner)
+	for _, want := range []string{`class="details-section integrations-section"`, "Integrations", "Let an installed app read and post here", `data-action="copy-conversation-api-curl" data-id="room"`, "Copy API curl"} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("Integrations section (owner) missing %q", want)
+		}
+	}
+
+	admin := base
+	admin.CurrentUser = "someone-else"
+	admin.IsTenantAdmin = true
+	markup = render(t, admin)
+	if !strings.Contains(markup, "integrations-section") {
+		t.Error("Integrations did not show to a tenant admin who does not own the conversation")
 	}
 }
 

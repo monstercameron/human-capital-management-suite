@@ -34,7 +34,9 @@ func projectDocumentChatRefs(response *documentv1.GetDocumentResponse) productui
 			continue
 		}
 		if !m.GetReadable() {
-			refs.Messages = append(refs.Messages, productui.DocumentChatMessageReference{Token: m.GetToken()})
+			// A deleted message still names its channel (DOCS-08); anything
+			// else unreadable carries only its token.
+			refs.Messages = append(refs.Messages, productui.DocumentChatMessageReference{Token: m.GetToken(), ConversationID: m.GetConversationId(), ChannelName: m.GetChannelName()})
 			continue
 		}
 		msg := productui.DocumentChatMessageReference{Token: m.GetToken(), Readable: true, ConversationID: m.GetConversationId(), ChannelName: m.GetChannelName(), PostID: m.GetPostId(), AuthorID: m.GetAuthorId(), AuthorName: m.GetAuthorName(), Body: m.GetBody()}

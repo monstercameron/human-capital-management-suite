@@ -27,7 +27,7 @@ func TestTodo_HUB_032(t *testing.T) {
 	// HUB-032: the hub distinguishes private drafts from official guidance
 	// and shows owner, deployed version, official scope, review date and
 	// sharing state.
-	for _, text := range []string{"Private draft", "Team handbook", "People Ops", "Version v7", "Review due 2026-10-01", "Only you", "Team guidance", "docs-kind-private", "docs-kind-team_official", `href="/workspace/app/docs?document=doc-private"`, `href="/workspace/app/docs?document=doc-team"`} {
+	for _, text := range []string{"Private draft", "Team handbook", "People Ops", "Version v7", "Review due 2026-10-01", "Private", "Team guidance", "docs-kind-private", "docs-kind-team_official", `href="/workspace/app/docs?document=doc-private"`, `href="/workspace/app/docs?document=doc-team"`} {
 		if !strings.Contains(doc, text) {
 			t.Fatalf("docs page omitted %q", text)
 		}
@@ -282,7 +282,7 @@ func TestTodo_HUB_032_DocumentWorkspaceUsesPlatformTokens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`class="docs-table"`, `docs-row docs-kind-shared`, `New document`, `datetime="2026-09-22T10:00:00Z"`, `opaque-owner`, `Shared with you`, `aria-expanded="false"`, `aria-controls="docs-create-panel"`} {
+	for _, want := range []string{`class="docs-table"`, `docs-row docs-kind-shared`, `New document`, `datetime="2026-09-22T10:00:00Z"`, `opaque-owner`, `Shared`, `aria-expanded="false"`, `aria-controls="docs-create-panel"`} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("document workspace omitted %q", want)
 		}

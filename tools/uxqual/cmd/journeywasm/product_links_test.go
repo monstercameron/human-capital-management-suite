@@ -12,6 +12,8 @@ func TestProductLinkFallbackTarget(t *testing.T) {
 	}{
 		{"chat to doc", productLinkFallbackAnchor{Href: origin + "/workspace/app/docs?document=doc-1", Origin: origin, Current: "/workspace/app/chat"}, "/workspace/app/docs?document=doc-1", true},
 		{"doc to chat channel", productLinkFallbackAnchor{Href: origin + "/workspace/app/chat#channel=c1", Origin: origin, Current: "/workspace/app/docs?document=doc-1"}, "/workspace/app/chat#channel=c1", true},
+		{"chat to project task detail", productLinkFallbackAnchor{Href: origin + "/workspace/app/project?project=p-1&task=t-1", Origin: origin, Current: "/workspace/app/chat#channel=c1"}, "/workspace/app/project?project=p-1&task=t-1", true},
+		{"project board to docs", productLinkFallbackAnchor{Href: origin + "/workspace/app/docs?document=doc-1", Origin: origin, Current: "/workspace/app/project?project=p-1&view=list"}, "/workspace/app/docs?document=doc-1", true},
 		{"same-page fragment stays with the browser", productLinkFallbackAnchor{Href: origin + "/workspace/app/chat#person=p1", Origin: origin, Current: "/workspace/app/chat"}, "", false},
 		{"new tab", productLinkFallbackAnchor{Href: origin + "/workspace/app/docs", Target: "_blank", Origin: origin}, "", false},
 		{"download", productLinkFallbackAnchor{Href: origin + "/workspace/app/docs", Download: true, Origin: origin}, "", false},

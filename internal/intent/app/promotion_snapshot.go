@@ -295,6 +295,12 @@ func (a *promotionCompensationFacts) CompensationFactsAt(ctx context.Context, q 
 			return rewards.CompensationFactSet{}, fmt.Errorf("app: created worker revision: %w", err)
 		}
 		fact.KnownAt, fact.Revision = knownAt, revision
+		if row.PayBasis == "HOURLY_RATE" {
+			// An hourly worker's recorded base is a rate; the snapshot
+			// annualizes it over the declared hours before any band or
+			// salary comparison.
+			fact.PayBasis = rewards.PayBasisHourly
+		}
 		fact.Authority = evidence.SourceAuthority{Kind: evidence.AuthorityLocal, System: "hcmnext.workforce", PolicyRef: "hcmnext.workforce/2026.1"}
 		fact.Provenance = evidence.Provenance{Source: "hcmnext.workforce", EvidenceRef: "workforce." + row.WorkerID.String(), RecordedAt: recordedAt}
 		policyVersion = "hcmnext.workforce/2026.1"

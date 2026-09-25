@@ -75,3 +75,21 @@ func TestChannelPollPercentRoundsAndHandlesEmpty(t *testing.T) {
 		}
 	}
 }
+
+// Round 3 C-10: Create needs a question and two non-empty option lines.
+func TestPollFormReadyNeedsQuestionAndTwoOptions(t *testing.T) {
+	for _, c := range []struct {
+		question, options string
+		want              bool
+	}{
+		{"", "", false},
+		{"Lunch?", "", false},
+		{"Lunch?", "Tacos\n  \n", false},
+		{"  ", "Tacos\nSushi", false},
+		{"Lunch?", "Tacos\r\n\r\nSushi", true},
+	} {
+		if got := pollFormReady(c.question, c.options); got != c.want {
+			t.Errorf("pollFormReady(%q, %q) = %v, want %v", c.question, c.options, got, c.want)
+		}
+	}
+}

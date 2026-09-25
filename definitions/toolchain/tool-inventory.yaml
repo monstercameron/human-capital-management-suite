@@ -3,7 +3,21 @@ tools:
   - name: buf
     category: protobuf_toolchain
     version: 1.72.0
-    digest: sha256:82b76897ffe433b32ebfa492d7b68b1c838c849770d26b20a0b0e652f5869838
+    platform_digests:
+      darwin/amd64: eb815a2708d4a43d31799049d5a2987ea81d0a9e98b53976d47bd1e78d154a8f
+      darwin/arm64: 5176f23a6118b9978de1340c3e3301a4ed0d48e16a669510be44b4c355170d57
+      freebsd/amd64: 611fab61e2ec8feab3ea54a0b821a76aaab28775361c493e958e7f1d208cd227
+      freebsd/arm64: 1c34b2a46dc6b1e16e8ab5326ad49f320a3c1338ae96d637bb94855bff3614f1
+      linux/amd64: 8720830e26a733da55bb89bcd3cb44849c0965fc0c44fb5d691cccdc64dca5af
+      linux/arm: 9c3383b274211d77c33e596bc906d02547b6fa0a9323d63aa8498cce590fcdd4
+      linux/arm64: bdbb275fb9624104ef4d8513d269cc410a153138646e67136cb3f8cc185be289
+      linux/ppc64le: 019520499e3270a485b425f1d445b817eb0b853a5e6a098ca759d506793deb75
+      linux/riscv64: f444176f943b65d420460ac4d77ebbb8e145022cf67e0d19049109ea847224ef
+      linux/s390x: 33e31891250000c2276c803f4777384251b79be058a9b847ebdbb7fc61d4690d
+      openbsd/amd64: b6b2fa5dc5873084403dfa790bd1bf48394e4e69b93166bf210e2ff73c7a8577
+      openbsd/arm64: 68641dacd5174322df3c556e89d48db2e98909410f6be79c50c2f9e28a3109dd
+      windows/amd64: 6e8f6d043e520bc81cae7b85d4cd6d93e57716a8a9842d5d18200191ee259cb5
+      windows/arm64: cc06910c1b69715b598fc8d1958538c86b656c05f6dd0a516dfa90c325dcbead
     source: https://github.com/bufbuild/buf
     license: Apache-2.0
     cve_status: PENDING_MANUAL_REVIEW
@@ -11,6 +25,7 @@ tools:
     update_sla: reviewed on every buf.yaml/gen/TOOLS.lock bump
     replacement_path: protoc CLI directly invoked with the pinned protoc-gen-go/protoc-gen-go-grpc plugins (see buf.gen.yaml)
     derived_from: gen/TOOLS.lock
+    note: platform binary SHA-256 values are from https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt
   - name: embedded-postgres
     category: database_fixture
     version: v1.34.0
@@ -105,7 +120,7 @@ tools:
   - name: protoc-gen-go
     category: protobuf_toolchain
     version: v1.36.12
-    digest: sha256:e9bd8a17414e9691ff357e3fe20e572a25343236a2e58fd844569cfddac7bd28
+    digest: h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
     source: google.golang.org/protobuf/cmd/protoc-gen-go
     license: BSD-3-Clause
     cve_status: PENDING_GOVULNCHECK
@@ -116,7 +131,7 @@ tools:
   - name: protoc-gen-go-grpc
     category: protobuf_toolchain
     version: v1.6.2
-    digest: sha256:aa84f0b8252e76be4ee0e17b1040558531ab8ff37f5ea71847dc7fd12cccf0a0
+    digest: h1:rgSNvqscFZ1JgV/4wH5GOsZFSFkR2Eua9As3KIr2LlM=
     source: google.golang.org/grpc/cmd/protoc-gen-go-grpc
     license: BSD-3-Clause
     cve_status: PENDING_GOVULNCHECK

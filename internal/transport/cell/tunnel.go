@@ -57,6 +57,7 @@ var tunnelAllowedServices = map[string]bool{
 	"hcmnext.chat.v1.ChatExtensionsService":     true,
 	"hcmnext.document.v1.DocumentService":       true,
 	"hcmnext.position.v1.PositionService":       true,
+	"hcmnext.project.v1.ProjectService":         true,
 	"hcmnext.evidence.v1.EvidenceService":       false,
 	"hcmnext.dataops.v1.DataOpsService":         false,
 	"hcmnext.integration.v1.IntegrationService": false,

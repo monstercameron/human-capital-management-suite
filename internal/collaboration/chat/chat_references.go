@@ -154,6 +154,14 @@ type ReferenceService interface {
 	ForwardPost(context.Context, ForwardPostRequest) (Post, error)
 }
 
+// AuthorizedReferenceReader resolves a project-link target with current Chat
+// read authority without creating a share locator or recording share-link
+// creation. It is an internal read surface; the opaque link APIs remain for
+// links explicitly created by a user.
+type AuthorizedReferenceReader interface {
+	ReadAuthorizedReference(context.Context, Principal, string, string, string) (Conversation, *Post, error)
+}
+
 func (s *Service) SetReferenceDirectory(d ReferenceDirectory) { s.referenceDirectory = d }
 func (s *Service) SetDisclosureChecker(c DisclosureChecker)   { s.disclosureChecker = c }
 func (s *Service) SetLinkCodec(c LinkCodec)                   { s.linkCodec = c }
@@ -284,6 +292,23 @@ func (s *Service) CreateConversationLink(ctx context.Context, p Principal, tenan
 		return ConversationLink{}, err
 	}
 	return ConversationLink{URL: "/chat/share/" + url.PathEscape(token), TenantID: tenant, ConversationID: conversation, PostID: post}, nil
+}
+
+// ReadAuthorizedReference returns a conversation and, when requested, its
+// current visible post. It deliberately does not create a share locator.
+func (s *Service) ReadAuthorizedReference(ctx context.Context, p Principal, tenant, conversation, postID string) (Conversation, *Post, error) {
+	c, err := s.GetConversation(ctx, GetConversationRequest{Principal: p, TenantID: tenant, ConversationID: conversation})
+	if err != nil {
+		return Conversation{}, nil, err
+	}
+	if postID == "" {
+		return c, nil, nil
+	}
+	post, err := s.store.GetPost(ctx, tenant, conversation, postID)
+	if err != nil || post.Deleted || !s.postVisibleTo(ctx, p, c, post) {
+		return Conversation{}, nil, ErrNotFound
+	}
+	return c, &post, nil
 }
 
 // CreateShareLink is the product-facing name for a conversation locator.

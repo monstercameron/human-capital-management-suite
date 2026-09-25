@@ -57,6 +57,11 @@ func main() {
 // that cannot be constructed -- because every later failure is an RPC
 // refusal, which the page itself is the right place to show.
 func start() error {
+	// Read whatever #chat-search / #chat-composer already hold before this
+	// client does anything else that could disturb them -- a reader can be
+	// mid-keystroke in server-rendered, interactive markup for the several
+	// seconds this binary takes to fetch, instantiate and dial.
+	capturePreHydrationChatFieldValues()
 	raw, err := readIsland(configElementID)
 	if err != nil {
 		return err

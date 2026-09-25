@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	kernelvalues "github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
@@ -60,6 +61,13 @@ const EnvChatCursorKey = "HCMNEXT_CHAT_CURSOR_KEY"
 // EnvDocumentDatabaseURL selects Knowledge's independent PostgreSQL database.
 const EnvDocumentDatabaseURL = "HCMNEXT_DOCUMENT_DATABASE_URL"
 
+// EnvProjectDatabaseURL selects the project schema's restricted PostgreSQL role.
+const EnvProjectDatabaseURL = "HCMNEXT_PROJECT_DATABASE_URL"
+
+// ProjectSchemaName is the namespace owned by the project capability on the
+// shared PostgreSQL server.
+const ProjectSchemaName = "hcmnext_project"
+
 // EnvParameterEnvironment carries the deployment's isolated parameter-value
 // namespace. It has no default because production and sandbox are explicit
 // deployment decisions.
@@ -86,21 +94,23 @@ const (
 // declares them and ServeConfigFromValues reads them back: a typo between the
 // two is a startup failure rather than a silently defaulted value.
 const (
-	FieldProfile         = "profile"
-	FieldGRPCListen      = "grpc-listen"
-	FieldHTTPListen      = "http-listen"
-	FieldDatabaseURL     = "database-url"
-	FieldDevHMACKey      = "dev-hmac-key"
-	FieldIssuer          = "issuer"
-	FieldAudience        = "audience"
-	FieldTenant          = "tenant"
-	FieldCellID          = "cell-id"
-	FieldMaxDeadline     = "max-deadline"
-	FieldMigrate         = "migrate"
-	FieldWorkspace       = "workspace"
-	FieldDevBrowserLogin = "dev-browser-login"
-	FieldOTelExporter    = "otel-exporter"
-	FieldOTelEndpoint    = "otel-endpoint"
+	FieldProfile               = "profile"
+	FieldGRPCListen            = "grpc-listen"
+	FieldHTTPListen            = "http-listen"
+	FieldDatabaseURL           = "database-url"
+	FieldDevHMACKey            = "dev-hmac-key"
+	FieldIssuer                = "issuer"
+	FieldAudience              = "audience"
+	FieldTenant                = "tenant"
+	FieldTenants               = "tenants"
+	FieldCellID                = "cell-id"
+	FieldMaxDeadline           = "max-deadline"
+	FieldMigrate               = "migrate"
+	FieldWorkspace             = "workspace"
+	FieldDevBrowserLogin       = "dev-browser-login"
+	FieldDevWorkforceBootstrap = "dev-workforce-bootstrap"
+	FieldOTelExporter          = "otel-exporter"
+	FieldOTelEndpoint          = "otel-endpoint"
 
 	// FieldExecutionAuthority is the execution authority family. The engine
 	// is on by default: a cell composed with no flags runs promotions
@@ -146,6 +156,7 @@ const (
 	FieldChatEnabled               = "chat-enabled"
 	FieldChatDatabaseURL           = "chat-database-url"
 	FieldDocumentDatabaseURL       = "document-database-url"
+	FieldProjectDatabaseURL        = "project-database-url"
 	FieldChatCursorKey             = "chat-cursor-key"
 	FieldChatMediaRoot             = "chat-media-root"
 	FieldArtifactRoot              = "artifact-root"
@@ -257,17 +268,19 @@ type ServeConfig struct {
 	// DevHMACKey is the development signing key. It is carried, never
 	// logged: bootstrap.Field marks it Secret so the config fingerprint and
 	// the startup log attributes redact it.
-	DevHMACKey      string
-	Issuer          string
-	Audience        string
-	Tenant          string
-	CellID          string
-	MaxDeadline     time.Duration
-	Migrate         bool
-	Workspace       bool
-	DevBrowserLogin bool
-	OTelExporter    string
-	OTelEndpoint    string
+	DevHMACKey            string
+	Issuer                string
+	Audience              string
+	Tenant                string
+	Tenants               string
+	CellID                string
+	MaxDeadline           time.Duration
+	Migrate               bool
+	Workspace             bool
+	DevBrowserLogin       bool
+	DevWorkforceBootstrap bool
+	OTelExporter          string
+	OTelEndpoint          string
 
 	ExecutionAuthority       bool
 	ExecutionAuthorityDigest string
@@ -329,6 +342,7 @@ type ServeConfig struct {
 	ChatEnabled         bool
 	ChatDatabaseURL     string
 	DocumentDatabaseURL string
+	ProjectDatabaseURL  string
 	// ParameterEnvironment selects the deployment-owned value namespace. Empty
 	// leaves parameter serving unconfigured; when set it must name one of the
 	// two isolated environments exactly.
@@ -367,11 +381,13 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldIssuer, Usage: "the only credential issuer this listener accepts", Default: DefaultIssuer},
 		{Name: FieldAudience, Usage: "the audience this listener answers to", Default: DefaultAudience},
 		{Name: FieldTenant, Usage: "tenant slug to register on start; empty registers none"},
+		{Name: FieldTenants, Usage: "comma-separated tenant slugs this process serves and registers on start; -tenant is the default among them"},
 		{Name: FieldCellID, Usage: "cell identifier a registered tenant is bound to", Default: "cell-local"},
 		{Name: FieldMaxDeadline, Usage: "server-imposed cap on every request deadline", Default: "30s", Kind: bootstrap.KindDuration},
 		{Name: FieldMigrate, Usage: "apply pending migrations before the listeners start", Default: "true", Kind: bootstrap.KindBool},
 		{Name: FieldWorkspace, Usage: "serve the human-facing Promotion workspace on the HTTP edge", Default: "true", Kind: bootstrap.KindBool},
 		{Name: FieldDevBrowserLogin, Usage: "dev-only: serve a pasted-token sign-in form for the workspace at " + workspace.PathLogin, Default: "false", Kind: bootstrap.KindBool},
+		{Name: FieldDevWorkforceBootstrap, Usage: "dev-only: seed the deterministic local demo workforce on startup", Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldOTelExporter, Usage: "OTel exporter: none, stdout, or otlphttp", Default: OTelExporterNone},
 		{Name: FieldOTelEndpoint, Usage: "OTLP/HTTP collector endpoint; required when -" + FieldOTelExporter + "=" + OTelExporterOTLPHTTP},
 		{Name: FieldExecutionAuthority, Usage: "compose this cell with the caller-driven promotion execution driver, so ExecuteIntent runs through the workflow engine; false opts back out to the refusing cell (then -scheduler must also be false)", Default: "true", Kind: bootstrap.KindBool},
@@ -405,6 +421,7 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldChatEnabled, Usage: "compose native chat over its independent database", Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldChatDatabaseURL, Env: EnvChatDatabaseURL, Usage: "PostgreSQL connection URL for the independent chat database"},
 		{Name: FieldDocumentDatabaseURL, Env: EnvDocumentDatabaseURL, Usage: "PostgreSQL connection URL for the independent document database", Secret: true},
+		{Name: FieldProjectDatabaseURL, Env: EnvProjectDatabaseURL, Usage: "PostgreSQL connection URL for the restricted project schema role; empty disables project services", Secret: true},
 		{Name: FieldChatCursorKey, Env: EnvChatCursorKey, Usage: "HMAC key for chat cursors; required when chat is enabled", Secret: true},
 		{Name: FieldChatMediaRoot, Env: EnvChatMediaRoot, Usage: "durable root for chat media files"},
 		{Name: FieldArtifactRoot, Env: EnvArtifactRoot, Usage: "artifact root used when a chat media root is not supplied"},
@@ -427,16 +444,21 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 	if requestedServeProfile(args) != ServeProfileLocalDev {
 		return fields
 	}
+	// The approver defaults are the default tenant's own company's: a
+	// local-dev process started for another demo company routes its
+	// promotions to that company's people, not HarborCare's.
+	pack := localDevPack(requestedServeFlag(args, FieldTenant, LocalDevTenant))
 	defaults := map[string]string{
 		FieldDatabaseURL:              LocalDevDatabaseURL,
 		FieldDevHMACKey:               LocalDevHMACKey,
 		FieldTenant:                   LocalDevTenant,
 		FieldMigrate:                  "false",
 		FieldDevBrowserLogin:          "true",
+		FieldDevWorkforceBootstrap:    "true",
 		FieldExecutionAuthority:       "true",
 		FieldExecutionAuthorityDigest: "sha256:local-dev-profile-authority",
-		FieldExecutionApprover:        "hc-054-thomas-baker",
-		FieldExecutionManagerApprover: "hc-052-dominic-collins",
+		FieldExecutionApprover:        pack.ExecutionApproverKey,
+		FieldExecutionManagerApprover: pack.ManagerApproverKey,
 		// The executable plan contains a durable effective-date WAIT. Leaving
 		// its dispatcher disabled produces a half-enabled development profile:
 		// approvals succeed and a due-today timer is written, but nothing is
@@ -446,7 +468,7 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 		FieldWorkflowPlan: WorkflowPlanExecute,
 		// PROMOUX-015: the demo tenant's finance approvals route to its
 		// Finance Director, so a local promotion is approved by real personas.
-		FieldExecutionFinancePartner: LocalDevFinancePartner,
+		FieldExecutionFinancePartner: pack.FinancePartnerKey,
 		FieldChatEnabled:             "true",
 		FieldChatDatabaseURL:         LocalDevChatDatabaseURL,
 		FieldChatCursorKey:           LocalDevHMACKey,
@@ -464,22 +486,38 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 // bootstrap.ParseConfig remains the sole parser and reports malformed or
 // duplicate inputs in the usual way.
 func requestedServeProfile(args []string) string {
-	profile := ServeProfileStandard
+	return requestedServeFlag(args, FieldProfile, ServeProfileStandard)
+}
+
+// requestedServeFlag is the last value args give the named flag, or
+// fallback when they give none.
+func requestedServeFlag(args []string, name, fallback string) string {
+	value := fallback
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
-		case arg == "-"+FieldProfile || arg == "--"+FieldProfile:
+		case arg == "-"+name || arg == "--"+name:
 			if i+1 < len(args) {
-				profile = args[i+1]
+				value = args[i+1]
 				i++
 			}
-		case strings.HasPrefix(arg, "-"+FieldProfile+"="):
-			profile = strings.TrimPrefix(arg, "-"+FieldProfile+"=")
-		case strings.HasPrefix(arg, "--"+FieldProfile+"="):
-			profile = strings.TrimPrefix(arg, "--"+FieldProfile+"=")
+		case strings.HasPrefix(arg, "-"+name+"="):
+			value = strings.TrimPrefix(arg, "-"+name+"=")
+		case strings.HasPrefix(arg, "--"+name+"="):
+			value = strings.TrimPrefix(arg, "--"+name+"=")
 		}
 	}
-	return profile
+	return value
+}
+
+// localDevPack is the demo company a local-dev process started for tenant
+// takes its approver defaults from: that tenant's own company, or
+// HarborCare for a tenant that is no shipped demo company.
+func localDevPack(tenant string) *demoworkforce.Pack {
+	if pack, ok := demoworkforce.PackFor(tenant); ok {
+		return pack
+	}
+	return demoworkforce.HarborCarePack
 }
 
 // ServeConfigFromValues resolves parsed configuration into the value the
@@ -500,6 +538,7 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		Issuer:                    values.String(FieldIssuer),
 		Audience:                  values.String(FieldAudience),
 		Tenant:                    values.String(FieldTenant),
+		Tenants:                   values.String(FieldTenants),
 		CellID:                    values.String(FieldCellID),
 		OTelExporter:              values.String(FieldOTelExporter),
 		OTelEndpoint:              values.String(FieldOTelEndpoint),
@@ -526,6 +565,7 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		OIDCSessionSigningKey:     values.String(FieldOIDCSessionSigningKey),
 		ChatDatabaseURL:           values.String(FieldChatDatabaseURL),
 		DocumentDatabaseURL:       values.String(FieldDocumentDatabaseURL),
+		ProjectDatabaseURL:        values.String(FieldProjectDatabaseURL),
 		ParameterEnvironment:      values.String(FieldParameterEnvironment),
 		ChatCursorKey:             values.String(FieldChatCursorKey),
 		ChatMediaRoot:             values.String(FieldChatMediaRoot),
@@ -555,6 +595,9 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 	if cfg.DevBrowserLogin, err = values.Bool(FieldDevBrowserLogin); err != nil {
 		return ServeConfig{}, err
 	}
+	if cfg.DevWorkforceBootstrap, err = values.Bool(FieldDevWorkforceBootstrap); err != nil {
+		return ServeConfig{}, err
+	}
 	if cfg.ExecutionAuthority, err = values.Bool(FieldExecutionAuthority); err != nil {
 		return ServeConfig{}, err
 	}
@@ -580,6 +623,20 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 // semantic half of the contract: everything here is a statement about the
 // deployment, not about whether a string parsed.
 func (c ServeConfig) Validate() error {
+	if strings.TrimSpace(c.Tenants) != "" && strings.TrimSpace(c.Tenant) == "" {
+		return fmt.Errorf("-%s requires -%s to name the default tenant", FieldTenants, FieldTenant)
+	}
+	for _, tenant := range strings.Split(c.Tenants, ",") {
+		if tenant = strings.TrimSpace(tenant); tenant == "" {
+			continue
+		}
+		if err := kernelvalues.TenantId(tenant).Validate(); err != nil {
+			return fmt.Errorf("-%s: %w", FieldTenants, err)
+		}
+	}
+	if c.DevWorkforceBootstrap && c.Profile != ServeProfileLocalDev {
+		return fmt.Errorf("-%s is available only with -%s=%s", FieldDevWorkforceBootstrap, FieldProfile, ServeProfileLocalDev)
+	}
 	if c.ParameterEnvironment != "" && c.ParameterEnvironment != "SANDBOX" && c.ParameterEnvironment != "PRODUCTION" {
 		return fmt.Errorf("-%s must be SANDBOX or PRODUCTION", FieldParameterEnvironment)
 	}
@@ -895,6 +952,27 @@ func validateLocalDevBoundary(c ServeConfig) error {
 		return fmt.Errorf("-%s=%s requires a loopback PostgreSQL URL", FieldProfile, ServeProfileLocalDev)
 	}
 	return nil
+}
+
+// ServedTenants is every tenant this process serves, the default -tenant
+// first and each tenant once. A process started with no -tenants serves
+// -tenant alone, which is what every composition did before a process could
+// serve two demo companies.
+func (c ServeConfig) ServedTenants() []string {
+	served := make([]string, 0, 2)
+	seen := map[string]bool{}
+	add := func(tenant string) {
+		tenant = strings.TrimSpace(tenant)
+		if tenant != "" && !seen[tenant] {
+			seen[tenant] = true
+			served = append(served, tenant)
+		}
+	}
+	add(c.Tenant)
+	for _, tenant := range strings.Split(c.Tenants, ",") {
+		add(tenant)
+	}
+	return served
 }
 
 // TimerDataset is the dataset pair the execution driver's timers are

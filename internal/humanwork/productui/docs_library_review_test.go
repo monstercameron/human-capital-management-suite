@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
@@ -162,7 +163,7 @@ func TestDocsBulkBarOverlaysToolbar(t *testing.T) {
 		t.Fatalf("bulk bar is not layered over the toolbar row: %s", markup)
 	}
 	css := docsLibraryListStylesheet()
-	for _, want := range []string{".docs-toolbar-layer>.docs-bulk{position:absolute;inset:0", ".docs-toolbar-layer.has-bulk>.docs-toolbar{visibility:hidden}", ".docs-table-wrap.is-searching .docs-row:not(.docs-row-head){min-height:", ".docs-row-head .docs-cell-title{padding-inline-start:calc(var(--hcm-space-1) + 2.15rem)}"} {
+	for _, want := range []string{".docs-toolbar-layer>.docs-bulk{position:absolute;inset:0", ".docs-toolbar-layer.has-bulk>.docs-toolbar{visibility:hidden}", ".docs-table-wrap.is-pending .docs-row:not(.docs-row-head){opacity:", ".docs-row-head .docs-cell-title{padding-inline-start:calc(var(--hcm-space-1) + 2.15rem)}"} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("list stylesheet omitted %q", want)
 		}
@@ -176,7 +177,7 @@ func TestDocsBulkBarOverlaysToolbar(t *testing.T) {
 	responsive := docsLibraryStylesheet()
 	for _, want := range []string{
 		".docs-table.docs-no-owner .docs-cell-owner{display:none}",
-		".docs-row{grid-template-columns:2.5rem minmax(0,1fr) minmax(6rem,8rem) minmax(4.5rem,6rem) 5.5rem 2.75rem}",
+		".docs-row{grid-template-columns:2.5rem minmax(0,1fr) 8.5rem 4.5rem 2.75rem}",
 	} {
 		if !strings.Contains(responsive, want) {
 			t.Fatalf("responsive list stylesheet omitted %q", want)
@@ -192,5 +193,31 @@ func TestDocsListDOMHelpersNative(t *testing.T) {
 	setDocsSelectAllMixed(true)
 	if !docsAllOwnedByViewer(View{ViewerSubject: "a", Documents: []DocumentSummary{{OwnerID: "a"}}}) || docsAllOwnedByViewer(View{ViewerSubject: "a"}) {
 		t.Fatal("docsAllOwnedByViewer misjudged ownership")
+	}
+}
+
+// D-2: a search excerpt starts shortly before the first matched word, so
+// the word survives the two-line clamp; a title hit whose snippet never
+// mentions the query shows no passage; and a closing ellipsis does not
+// follow a full stop.
+func TestDocsSearchExcerpt(t *testing.T) {
+	snippet := "…September 19, 2026 Purpose Supports employees who need to express milk at work. Scope This policy applies to all HarborCare employees, including part-time…"
+	got := docsSearchExcerpt(snippet, "policy", "title")
+	if !strings.HasPrefix(got, "…") || strings.Contains(got, "September") {
+		t.Fatalf("excerpt kept the metadata lead: %q", got)
+	}
+	if at := strings.Index(got, "policy"); at < 0 || len([]rune(got[:at])) > docsExcerptLead+2 {
+		t.Fatalf("matched word is not near the start: %q", got)
+	}
+	if got := docsSearchExcerpt("…Purpose Explains accrual and carry-over.…", "policy", "title"); got != "" {
+		t.Fatalf("title hit without the query in its snippet kept a passage: %q", got)
+	}
+	if got := docsSearchExcerpt("Leave policy covers work.…", "policy", "text"); got != "Leave policy covers work…" {
+		t.Fatalf("closing ellipsis kept the full stop: %q", got)
+	}
+	nodes := docsTitleNodes("Paid time off policy", "policy")
+	markup := docsRender(t, html.Span(html.Props{}, nodes...))
+	if !strings.Contains(markup, "<mark>policy</mark>") {
+		t.Fatalf("title does not mark the query: %s", markup)
 	}
 }

@@ -21,6 +21,9 @@ type localUI struct {
 	// composerNotice explains a composer command that could not run, such as
 	// /giphy without a configured GIPHY key. The next keystroke clears it.
 	composerNotice string
+	// pollReady is whether the channel poll form holds a question and at
+	// least two options, so Create can be enabled (C-10, round 3).
+	pollReady bool
 	// docSuggest is the composer's "[[" / "doc:" list (chat_doc_suggest.go).
 	docSuggest docSuggestState
 	seq        uint64
@@ -45,6 +48,7 @@ func (s localStore) forRoom(room string) {
 	if s.box.room != room {
 		s.box.room = room
 		s.box.tray = ""
+		s.box.pollReady = false
 	}
 }
 
@@ -62,6 +66,17 @@ func (s localStore) resetCreate() {
 func pickCandidates(m Model, query string, picked []mentionCandidate) []mentionCandidate {
 	q := strings.ToLower(strings.TrimSpace(query))
 	skip := map[string]bool{m.CurrentUser: true}
+	limit := 6
+	if m.ShowAddMembers {
+		// Adding to an existing conversation never offers someone already
+		// in it; before any typing the list is a short starter set.
+		for _, p := range m.Members {
+			skip[p.ID] = true
+		}
+		if q == "" {
+			limit = 5
+		}
+	}
 	for _, p := range picked {
 		skip[p.ID] = true
 		skip["name:"+strings.ToLower(strings.TrimSpace(p.Name))] = true
@@ -111,8 +126,8 @@ func pickCandidates(m Model, query string, picked []mentionCandidate) []mentionC
 		}
 		return strings.ToLower(out[i].c.Name) < strings.ToLower(out[j].c.Name)
 	})
-	if len(out) > 6 {
-		out = out[:6]
+	if len(out) > limit {
+		out = out[:limit]
 	}
 	result := make([]mentionCandidate, len(out))
 	for i := range out {

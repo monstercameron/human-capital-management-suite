@@ -74,10 +74,12 @@ type roleSeat struct {
 // A job code declared twice is dropped on its second appearance rather than
 // published twice; [TestCatalogRolesAreDistinctAndClassified] proves the real
 // catalog never does that.
-func allRoles() []roleSeat {
-	seats := make([]roleSeat, 0, len(staffing)*4+len(catalogOnly))
+func allRoles() []roleSeat { return HarborCarePack.allRoles() }
+
+func (p *Pack) allRoles() []roleSeat {
+	seats := make([]roleSeat, 0, len(p.staffing)*4+len(p.catalogOnly))
 	seen := make(map[string]bool, cap(seats))
-	for _, groups := range [][]unitStaffing{staffing, catalogOnly} {
+	for _, groups := range [][]unitStaffing{p.staffing, p.catalogOnly} {
 		for _, group := range groups {
 			for _, role := range group.Roles {
 				if seen[role.Code] {
@@ -100,8 +102,19 @@ func allRoles() []roleSeat {
 // target got its own copy of that target's requisition, so the propose form
 // offered a Director of Product vacancy inside Engineering Platform. A seat
 // follows its job, not the person reaching for it.
+//
+// Job codes are distinct across every shipped company, so the lookup reads
+// whichever company publishes the code.
 func JobHomeUnit(jobCode string) string {
-	for _, seat := range allRoles() {
+	if pack, ok := PackForJob(jobCode); ok {
+		return pack.JobHomeUnit(jobCode)
+	}
+	return ""
+}
+
+// JobHomeUnit is the unit of this company that publishes jobCode.
+func (p *Pack) JobHomeUnit(jobCode string) string {
+	for _, seat := range p.allRoles() {
 		if seat.Role.Code == jobCode {
 			return seat.Unit
 		}

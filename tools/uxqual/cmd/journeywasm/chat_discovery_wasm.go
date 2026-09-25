@@ -307,9 +307,15 @@ func joinChatConversation(cfg journeyclient.Config, id string) {
 		}
 		model.Conversations = append(model.Conversations, joined)
 		sortChatRail(model.Conversations, activity)
+		// CHAT-02: put the self-joined channel where the rail can find it,
+		// the same reason CreateConversation does this.
+		ensureRecipientSections(model)
 	})
 	chatActionSucceeded("Joined the channel")
 	invalidateChatRecipientProjection()
+	// NAV: self-joining from Browse selected the new room without pushing
+	// it to the address bar; see pushChatHistoryForSelection.
+	pushChatHistoryForSelection(id)
 	openChatConversation(active, id)
 }
 

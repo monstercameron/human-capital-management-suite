@@ -110,8 +110,8 @@ func TestAppearanceBrandPickerUsesOnlyApprovedSameOriginChoices(t *testing.T) {
 	if !strings.Contains(markup, `data-hcm-asset-action="choose"`) || !strings.Contains(markup, `Use approved logo`) {
 		t.Fatal("approved logo choice missing")
 	}
-	if !strings.Contains(markup, `type="text"`) || strings.Contains(markup, `type="url"`) {
-		t.Fatal("same-origin logo path must not be blocked by absolute-URL form validation")
+	if strings.Contains(markup, `name="brand_logo_url"`) {
+		t.Fatal("appearance must not expose a free-form logo path input")
 	}
 	if strings.Contains(markup, "Bad remote") || strings.Contains(markup, "example.test") {
 		t.Fatal("remote asset leaked into approved logo picker")

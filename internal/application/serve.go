@@ -17,6 +17,7 @@ package application
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -31,6 +32,10 @@ import (
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/application/dataopsimport"
+	applicationprojectactivity "github.com/monstercameron/human-capital-management-suite/internal/application/projectactivity"
+	"github.com/monstercameron/human-capital-management-suite/internal/application/projectrefs"
+	"github.com/monstercameron/human-capital-management-suite/internal/application/projectsearch"
+	"github.com/monstercameron/human-capital-management-suite/internal/application/projectservice"
 	dataconfigbundlekill "github.com/monstercameron/human-capital-management-suite/internal/data/configbundlekill"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/configparamstore"
 	dataconfigregistry "github.com/monstercameron/human-capital-management-suite/internal/data/configregistry"
@@ -51,10 +56,18 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/performancestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/preferencestore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projectcommentstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projectconfigstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projectlinkstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projectmemberstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projectstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/projectviewstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/roleaccessstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workeridstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowversionstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/performance"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/projectaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/projectlink"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -75,6 +88,7 @@ import (
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	transportparameters "github.com/monstercameron/human-capital-management-suite/internal/transport/parameters"
+	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
 	transportreviewparticipants "github.com/monstercameron/human-capital-management-suite/internal/transport/reviewparticipants"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/streaming"
 	transportwebhook "github.com/monstercameron/human-capital-management-suite/internal/transport/webhook"
@@ -90,6 +104,8 @@ const (
 	ComponentConfig                   = "config"
 	ComponentDatabasePool             = "database-pool"
 	ComponentSchemaMigrator           = "schema-migrator"
+	ComponentProjectSchemaMigrator    = "project-schema-migrator"
+	ComponentProjectService           = "project-service"
 	ComponentIntentStore              = "intent-store"
 	ComponentCredentialVerifier       = "credential-verifier"
 	ComponentLegalEvidenceVerifier    = "legal-evidence-verifier"
@@ -218,6 +234,85 @@ type ServeInput struct {
 	Options  Options
 }
 
+type composedProjects struct {
+	service  projectservice.Service
+	activity *applicationprojectactivity.Service
+	search   projectsearch.Service
+	store    *projectstore.Store
+	close    func()
+}
+
+type tenantProjectCreator struct{}
+
+func (tenantProjectCreator) AuthorizeCreate(_ context.Context, tenantID, actor string) error {
+	if strings.TrimSpace(tenantID) == "" || strings.TrimSpace(actor) == "" {
+		return projectaccess.ErrUnauthorized
+	}
+	return nil
+}
+
+func composeProjects(ctx context.Context, cfg ServeConfig, chat any, docs any, workItems projectrefs.WorkItemProjection, invitees projectservice.InviteeEligibility, now func() time.Time) (composedProjects, error) {
+	if strings.TrimSpace(cfg.ProjectDatabaseURL) == "" {
+		return composedProjects{}, nil
+	}
+	store, err := projectstore.New(ctx, projectstore.Config{
+		DSN: cfg.ProjectDatabaseURL, CoreDSN: cfg.DatabaseURL, Schema: ProjectSchemaName, MaxConns: 8, MinConns: 1,
+	})
+	if err != nil {
+		return composedProjects{}, fmt.Errorf("open project database: %w", err)
+	}
+	members, err := projectmemberstore.New(store)
+	if err != nil {
+		store.Close()
+		return composedProjects{}, err
+	}
+	links, err := projectlinkstore.New(store)
+	if err != nil {
+		store.Close()
+		return composedProjects{}, err
+	}
+	var cursorKey [32]byte
+	if _, err := rand.Read(cursorKey[:]); err != nil {
+		store.Close()
+		return composedProjects{}, fmt.Errorf("create project cursor key: %w", err)
+	}
+	adapter := &projectservice.StoreAdapter{
+		Projects: store, Members: members, Configs: projectconfigstore.New(store),
+		Views: projectviewstore.New(store), Links: links, CursorKey: cursorKey[:],
+	}
+	chatLinks, _ := chat.(projectrefs.ChatLinks)
+	documentPlacements, _ := docs.(projectrefs.DocumentPlacements)
+	refs := projectrefs.Adapter{Chat: chatLinks, Documents: documentPlacements, WorkItems: workItems}
+	adapter.LinkResolver = projectlink.Resolver{Authorization: refs, Targets: refs}
+	authorizer := projectservice.MembershipAuthorizer{Membership: adapter, Creator: tenantProjectCreator{}, Standing: invitees}
+	service := projectservice.Service{
+		Auth:     authorizer,
+		Commands: adapter, Reads: adapter, Views: adapter, Pages: adapter,
+		Workflows: adapter, Links: adapter, LinkResolver: adapter.LinkResolver,
+		Members: adapter, Invitees: invitees,
+	}
+	comments, err := projectcommentstore.New(store)
+	if err != nil {
+		store.Close()
+		return composedProjects{}, err
+	}
+	if now == nil {
+		now = time.Now
+	}
+	activity, err := applicationprojectactivity.New(applicationprojectactivity.Config{
+		Authorizer: authorizer, Store: comments,
+		Sanitizer: applicationprojectactivity.NewPlainTextSanitizer(),
+		Mentions:  members,
+		CursorKey: cursorKey[:], Now: now,
+	})
+	if err != nil {
+		store.Close()
+		return composedProjects{}, fmt.Errorf("compose project activity: %w", err)
+	}
+	search := projectsearch.Service{Auth: members, Standing: invitees, Tasks: projectsearch.StoreRepository{Store: store}, CursorKey: cursorKey[:]}
+	return composedProjects{service: service, activity: activity, search: search, store: store, close: store.Close}, nil
+}
+
 // ComposeServe builds the serve role: the store, the verifier, the telemetry
 // provider, the evidence sink, the cell (its intent and capability
 // registries, its governed gateway and its application service), the optional
@@ -251,27 +346,41 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			return nil, err
 		}
 	}
+	graph.add(ComponentProjectSchemaMigrator, KindAdapter, options.MigrateProject)
+	if strings.TrimSpace(cfg.ProjectDatabaseURL) != "" && cfg.Migrate {
+		if options.MigrateProject == nil {
+			return nil, fmt.Errorf("application: -%s requires a project schema migrator; the command supplies one", FieldProjectDatabaseURL)
+		}
+		if err := options.MigrateProject(ctx, cfg.ProjectDatabaseURL, cfg.DatabaseURL, ProjectSchemaName, logger); err != nil {
+			return nil, err
+		}
+	}
 
 	store, err := composeStore(in.Pool, cfg, options)
 	if err != nil {
 		return nil, err
 	}
 	graph.add(ComponentIntentStore, KindAdapter, store, ComponentDatabasePool, ComponentConfig)
-	if cfg.Tenant != "" {
-		if err := store.Bootstrap(ctx, cfg.Tenant); err != nil {
+	// Every served tenant is registered, and every served demo company's
+	// workforce seeded, on start: one process serves them all, and each
+	// request is scoped by its own credential's tenant.
+	for _, tenant := range cfg.ServedTenants() {
+		if err := store.Bootstrap(ctx, tenant); err != nil {
 			return nil, err
 		}
-		logger.Info("hcmnext.tenant_registered", "tenant", cfg.Tenant, "cell_id", cfg.CellID)
+		logger.Info("hcmnext.tenant_registered", "tenant", tenant, "cell_id", cfg.CellID)
 	}
-	if cfg.DevBrowserLogin {
-		workforceSummary, organizationSummary, seedErr := bootstrapLocalDevWorkforce(ctx, in.Pool, cfg.Tenant)
-		if seedErr != nil {
-			return nil, seedErr
-		}
-		if workforceSummary.Planned > 0 {
-			logger.Info("hcmnext.local_dev_workforce_ready",
-				"tenant", cfg.Tenant, "workers", workforceSummary.Planned, "workers_inserted", workforceSummary.Inserted,
-				"organization_units", organizationSummary.UnitsPlanned, "organization_units_inserted", organizationSummary.UnitsInserted)
+	if cfg.DevBrowserLogin && cfg.DevWorkforceBootstrap {
+		for _, tenant := range cfg.ServedTenants() {
+			workforceSummary, organizationSummary, seedErr := bootstrapLocalDevWorkforce(ctx, in.Pool, tenant)
+			if seedErr != nil {
+				return nil, seedErr
+			}
+			if workforceSummary.Planned > 0 {
+				logger.Info("hcmnext.local_dev_workforce_ready",
+					"tenant", tenant, "workers", workforceSummary.Planned, "workers_inserted", workforceSummary.Inserted,
+					"organization_units", organizationSummary.UnitsPlanned, "organization_units_inserted", organizationSummary.UnitsInserted)
+			}
 		}
 	}
 
@@ -339,24 +448,34 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	workspaceEnabled := cfg.Workspace
 	workerIDs := workeridstore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
 	roleAccess := roleaccessstore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), productFeatureCatalog()...)
-	if cfg.Tenant != "" && in.Pool != nil {
-		if err := roleAccess.Bootstrap(ctx, kernelvalues.TenantId(cfg.Tenant), "system:bootstrap"); err != nil {
+	for _, tenant := range cfg.ServedTenants() {
+		if in.Pool == nil {
+			break
+		}
+		if err := roleAccess.Bootstrap(ctx, kernelvalues.TenantId(tenant), "system:bootstrap"); err != nil {
 			return nil, fmt.Errorf("bootstrap role access: %w", err)
 		}
-		if cfg.DevBrowserLogin && cfg.Tenant == demoworkforce.CompanyKey {
-			if err := roleAccess.BootstrapLocalDevPersonaPermissions(ctx, kernelvalues.TenantId(cfg.Tenant)); err != nil {
+		if _, isDemo := demoworkforce.PackFor(tenant); cfg.DevBrowserLogin && isDemo {
+			if err := roleAccess.BootstrapLocalDevPersonaPermissions(ctx, kernelvalues.TenantId(tenant)); err != nil {
 				return nil, fmt.Errorf("bootstrap local development personas: %w", err)
 			}
 			// The role catalog exists now, so every seeded worker can be given
 			// the durable role set migrations/00238 provides for. This adds
 			// rows only: no grant or gating rule changes.
-			assigned, err := bootstrapLocalDevRoleAssignments(ctx, in.Pool, cfg.Tenant)
+			assigned, err := bootstrapLocalDevRoleAssignments(ctx, in.Pool, tenant)
 			if err != nil {
 				return nil, err
 			}
 			if assigned.Workers > 0 {
 				logger.Info("hcmnext.local_dev_role_assignments_ready",
-					"tenant", cfg.Tenant, "workers", assigned.Workers, "assignments", assigned.Assignments)
+					"tenant", tenant, "workers", assigned.Workers, "assignments", assigned.Assignments)
+			}
+			branded, err := bootstrapLocalDevBranding(ctx, in.Pool, tenant)
+			if err != nil {
+				return nil, err
+			}
+			if branded > 0 {
+				logger.Info("hcmnext.local_dev_branding_ready", "tenant", tenant, "scopes", branded)
 			}
 		}
 	}
@@ -575,10 +694,41 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if documentRuntime.store != nil {
 		graph.add(ComponentDocumentStore, KindAdapter, documentRuntime.store, ComponentConfig)
 	}
+	// Both WorkService and safe project references use the same tenant-scoped
+	// WorkItem reader. The project projection still applies current WorkService
+	// action and row visibility checks before exposing its small summary.
+	workQueueReader := app.NewWorkItemQueueReader(in.Pool,
+		tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
+	graph.add(ComponentWorkItemQueueRead, KindPort, workQueueReader, ComponentDatabasePool)
+	var projectWorkItems projectrefs.WorkItemProjection
+	var projectInvitees projectservice.InviteeEligibility
+	if in.Pool != nil {
+		projectWorkItems = projectrefs.WorkItemProjector{
+			Source: workQueueReader, Authorize: transportcell.WorkActionAuthorizer(cell.RoleAccess),
+			TenantID: tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), Now: options.Now,
+		}
+		projectInvitees = projectservice.WorkforceInviteeEligibility{
+			DB: in.Pool, TenantID: tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID),
+		}
+	}
+	projects, err := composeProjects(ctx, cfg, chatRuntime.service, documentRuntime.service, projectWorkItems, projectInvitees, options.Now)
+	if err != nil {
+		return nil, fmt.Errorf("compose projects: %w", err)
+	}
+	projectsCommitted := false
+	defer func() {
+		if !projectsCommitted && projects.close != nil {
+			projects.close()
+		}
+	}()
+	if projects.store != nil {
+		graph.add(ComponentProjectService, KindEngine, projects.service, ComponentProjectSchemaMigrator)
+		serviceHandlers.Project = &transportproject.Dependencies{Service: projects.service, Activity: projects.activity, Search: projects.search}
+	}
 
 	var schedulerWorkload, progressWorkload bootstrap.Workload
 	if cfg.Scheduler {
-		schedulerWorkload, err = composeSchedulerWorkload(cfg, in.Pool, in.Identity, cell, telemetryProvider, logger, options.Now)
+		schedulerWorkload, err = composeServedSchedulers(cfg, in.Pool, in.Identity, cell, telemetryProvider, logger, options.Now)
 		if err != nil {
 			return nil, fmt.Errorf("compose workflow scheduler: %w", err)
 		}
@@ -604,12 +754,8 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	graph.add(ComponentWorkflowControlRead, KindPort, workflowControlReader, ComponentDatabasePool)
 	workflowInspector := app.NewWorkflowInstanceInspector(in.Pool,
 		tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), workflowversionstore.Store{DB: in.Pool})
-	// EP-WORK-001: the work-item queue reader is composed over the same pool
-	// and tenant mapping; it powers WorkService.ListWorkItems/GetWorkItem on
-	// both surfaces below.
-	workQueueReader := app.NewWorkItemQueueReader(in.Pool,
-		tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
-	graph.add(ComponentWorkItemQueueRead, KindPort, workQueueReader, ComponentDatabasePool)
+	// EP-WORK-001: the reader above powers WorkService.ListWorkItems and
+	// GetWorkItem on both surfaces below.
 	operationStore := operationStoreAdapter{store: operationstore.New(in.Pool,
 		func(tenant string) string { return pgstore.TenantID(tenant).String() })}
 
@@ -669,6 +815,9 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	transportadmin.RegisterLedgerEvidence(grpcServer, NewLedgerEvidenceExport(in.Pool))
 	transportcell.RegisterChatExtensions(grpcServer, chatRuntime.extensions)
 	transportcell.RegisterDocument(grpcServer, documentRuntime.service, pageCursorKey)
+	if projects.store != nil {
+		transportproject.Register(grpcServer, transportproject.Dependencies{Service: projects.service, Activity: projects.activity, Search: projects.search})
+	}
 	graph.add(ComponentGRPCSurface, KindTransport, grpcServer, ComponentCell, ComponentWorkflowControlRead, ComponentNotificationFeed)
 
 	// INTAPI-006: the tunnel bridges a workspace-only server, never the
@@ -701,9 +850,17 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		}), options.Now,
 	)
 	positionDeps := positionTransportDependencies(positionReads)
-	tunnelServer, err := transportcell.NewTunnelGRPCServerWithChatDocumentAndPosition(
+	var browserProjectService transportproject.Service
+	var browserProjectActivity transportproject.ActivityService
+	var browserProjectSearch transportproject.TaskSearchService
+	if projects.store != nil {
+		browserProjectService = projects.service
+		browserProjectActivity = projects.activity
+		browserProjectSearch = projects.search
+	}
+	tunnelServer, err := transportcell.NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearch(
 		cell, workflowControlReader, workQueueReader, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds,
-		chatRuntime.service, chatRuntime.extensions, documentRuntime.service, positionDeps)
+		chatRuntime.service, chatRuntime.extensions, documentRuntime.service, positionDeps, browserProjectService, browserProjectActivity, browserProjectSearch)
 	if err != nil {
 		return nil, err
 	}
@@ -941,6 +1098,12 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			},
 		})
 	}
+	if projects.close != nil {
+		shutdown = append(shutdown, bootstrap.ShutdownStep{
+			Name: "shutdown:close-project-database",
+			Run:  func(context.Context) error { projects.close(); return nil },
+		})
+	}
 	graph.add(ComponentWorkloadGRPC, KindWorkload, workloads[0].Run, ComponentGRPCSurface)
 	graph.add(ComponentWorkloadHTTP, KindWorkload, workloads[1].Run, ComponentHTTPEdge)
 	if configBundleControl != nil {
@@ -959,6 +1122,9 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if documentRuntime.close != nil {
 		graph.add(ComponentShutdownDocument, KindShutdown, shutdown[4].Run, ComponentDocumentStore)
 	}
+	if projects.close != nil {
+		graph.add("shutdown:close-project-database", KindShutdown, shutdown[len(shutdown)-1].Run, ComponentProjectService)
+	}
 
 	// From here the caller's lifecycle owns the provider's lifetime through
 	// the ordered shutdown step above. Earlier returns leave this function
@@ -966,6 +1132,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	telemetryCommitted = true
 	chatCommitted = true
 	documentCommitted = true
+	projectsCommitted = true
 	return &App{
 		role:             RoleServe,
 		graph:            graph.graph(),
@@ -1115,9 +1282,6 @@ func ledgerMetadataOnlyDecision() *authz.Decision {
 }
 
 func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() time.Time) []workspace.DevPersona {
-	if !cfg.DevBrowserLogin || cfg.Tenant != demoworkforce.CompanyKey {
-		return nil
-	}
 	issuer, ok := verifier.(developmentTokenIssuer)
 	if !ok {
 		return nil
@@ -1125,36 +1289,38 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 	if now == nil {
 		now = time.Now
 	}
-	// id, workerNumber, access, and purpose are the only facts specific to
-	// this demo-tenant binding; the role bundle each persona is issued comes
-	// from workspace.DevPersonaRoleSets, the one fixture the sign-in page's
-	// derived copy (loginPersonaDescription) and this package's own tests
-	// also read, so a persona's promised copy and its signed roles cannot
-	// drift apart (UXAUDIT-014 REFACTOR).
-	type personaSpec struct {
-		id, workerNumber, access, purpose string
+	var personas []workspace.DevPersona
+	for _, pack := range devServedCompanies(cfg) {
+		personas = append(personas, composeCompanyPersonas(issuer, cfg, pack, now)...)
 	}
-	specs := []personaSpec{
-		// PROMOUX-015: the four slots are one separated promotion. admin
-		// (Rafael Torres, Director of People Operations) is the manager
-		// approver -- he manages Linh Tran -- and the execution operator.
-		// hiring-manager (Darius Bennett, Chief People Officer) is the
-		// proposer: Linh's skip-level manager, so the reference workflow's
-		// CurrentManagerOf(worker) approval routes to somebody else.
-		// finance-partner (Thomas Baker, Finance Director) is the finance
-		// approver the local-dev profile's -execution-finance-partner names.
-		// individual-contributor (Linh Tran) is the employee.
-		{id: "admin", workerNumber: "HC-21050", access: "HCM administrator", purpose: "compensation_review"},
-		{id: "hiring-manager", workerNumber: "HC-21004", access: "Hiring manager", purpose: "compensation_review"},
-		// finance-partner replaced UXAUDIT-014's worker_self payroll-manager
-		// slot. Its finance_partner role is backed by authz.PolicyTable under
-		// compensation_review, the purpose it signs, and by roleaccess's
-		// narrow finance_partner page grant. Do not give this slot a payroll
-		// label or purpose: no role bundle backs one (UXAUDIT-014).
-		{id: "finance-partner", workerNumber: "HC-21054", access: "Finance partner", purpose: "compensation_review"},
-		{id: "individual-contributor", workerNumber: "HC-21051", access: "Individual contributor", purpose: "self_service_view"},
-	}
-	workers, err := demoworkforce.Plan(pgstore.TenantID(cfg.Tenant))
+	return personas
+}
+
+// composeCompanyPersonas mints one company's four quick-pick personas. The
+// default tenant's personas keep the bare slot ids ("admin"); every other
+// company's are namespaced by its tenant ("ironridge-demo:admin"), so two
+// companies' quick picks can never shadow one another.
+//
+// The worker each slot signs in as, its access label and its purpose are the
+// company's own pack data (demoworkforce.Pack.Personas); the role bundle each
+// persona is issued comes from workspace.DevPersonaRoleSets, the one fixture
+// the sign-in page's derived copy (loginPersonaDescription) and this
+// package's own tests also read, so a persona's promised copy and its signed
+// roles cannot drift apart (UXAUDIT-014 REFACTOR).
+//
+// PROMOUX-015: for HarborCare the four slots are one separated promotion.
+// admin (Rafael Torres, Director of People Operations) is the manager
+// approver -- he manages Linh Tran -- and the execution operator.
+// hiring-manager (Darius Bennett, Chief People Officer) is the proposer:
+// Linh's skip-level manager, so the reference workflow's
+// CurrentManagerOf(worker) approval routes to somebody else. finance-partner
+// (Thomas Baker, Finance Director) is the finance approver the local-dev
+// profile's -execution-finance-partner names. individual-contributor (Linh
+// Tran) is the employee. The finance-partner slot's finance_partner role is
+// backed by authz.PolicyTable under compensation_review, the purpose it
+// signs; do not give it a payroll label or purpose (UXAUDIT-014).
+func composeCompanyPersonas(issuer developmentTokenIssuer, cfg ServeConfig, pack *demoworkforce.Pack, now func() time.Time) []workspace.DevPersona {
+	workers, err := pack.Plan(pgstore.TenantID(pack.Key))
 	if err != nil {
 		return nil
 	}
@@ -1162,23 +1328,27 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 	for _, worker := range workers {
 		workersByNumber[worker.Row.WorkerNumber] = worker
 	}
-	personas := make([]workspace.DevPersona, 0, len(specs))
-	for _, spec := range specs {
-		worker, found := workersByNumber[spec.workerNumber]
+	personas := make([]workspace.DevPersona, 0, len(pack.Personas))
+	for _, spec := range pack.Personas {
+		worker, found := workersByNumber[spec.WorkerNumber]
 		if !found || worker.Row.WorkerKey == "" || worker.Row.LegalName == "" || worker.Row.LifecycleStatus != "active" {
 			continue
 		}
-		roles, ok := workspace.DevPersonaRoles(spec.id)
+		roles, ok := workspace.DevPersonaRoles(spec.ID)
 		if !ok {
 			// No canonical role bundle is named for this persona id: issuing
 			// an unscoped credential would be worse than not offering the
 			// persona at all.
 			continue
 		}
+		id := spec.ID
+		if pack.Key != cfg.Tenant {
+			id = pack.Key + ":" + spec.ID
+		}
 		claims := trust.Claims{
-			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: worker.Row.WorkerKey, SubjectKind: "human", Tenant: cfg.Tenant,
-			OrganizationScopeID: "org:" + cfg.Tenant + ":people-ops", Roles: roles, Purposes: []string{spec.purpose},
-			AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session-local-persona-" + spec.id,
+			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: worker.Row.WorkerKey, SubjectKind: "human", Tenant: pack.Key,
+			OrganizationScopeID: pack.OrgScope(), Roles: roles, Purposes: []string{spec.Purpose},
+			AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session-local-persona-" + id,
 		}
 		issueToken := func() (string, error) {
 			timestamp := now().UTC()
@@ -1190,7 +1360,7 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 		if err != nil {
 			continue
 		}
-		access := spec.access
+		access := spec.Access
 		if access == "" {
 			// Derived from this worker's own record (their real job title),
 			// not hand-written, so a slot with no access label of its own can
@@ -1199,7 +1369,7 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 			// one cannot re-assert a capability its role does not hold.
 			access = worker.JobTitle + " (self-service)"
 		}
-		personas = append(personas, workspace.DevPersona{ID: spec.id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token, IssueToken: issueToken, WorkerRef: worker.Row.WorkerKey})
+		personas = append(personas, workspace.DevPersona{ID: id, Name: worker.Row.LegalName, Access: access, Roles: roles, Token: token, IssueToken: issueToken, WorkerRef: worker.Row.WorkerKey, Company: pack.Key, Slot: spec.ID})
 	}
 	return personas
 }

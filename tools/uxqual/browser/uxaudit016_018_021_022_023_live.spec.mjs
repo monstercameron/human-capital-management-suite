@@ -185,11 +185,14 @@ test.describe("UXAUDIT live experience acceptance", () => {
     const picker = page.locator('[data-hcm-brand-asset-picker="true"]');
     await expect(picker).toBeVisible();
     await expect(picker).toHaveAttribute("data-hcm-brand-asset-governed", "true");
-    const upload = picker.locator('input[type="file"]');
-    await expect(upload).toHaveAttribute("accept", /image\/svg\+xml/);
+    const upload = picker.locator('[data-hcm-asset-action="upload"]');
+    await expect(upload).toBeEnabled();
     await expect(picker.locator('[data-hcm-asset-action="preview"]')).toBeVisible();
     await expect(picker.locator('[data-hcm-asset-action="remove"]')).toBeVisible();
-    await expect(picker.locator('[data-hcm-asset-action="rollback"]')).toBeVisible();
+    const rollback = picker.locator('[data-hcm-asset-action="rollback"]');
+    if (await rollback.count()) await expect(rollback.first()).toBeEnabled();
+    await expect(picker.locator("[data-hcm-asset-variants]")).toBeVisible();
+    await expect(picker.locator("[data-hcm-brand-asset-diff]")).toBeVisible();
     await expect(page.locator("main")).not.toContainText(/file path|filesystem path/i);
     await expect(page.locator("[data-hcm-preview-surface]")).toBeVisible();
   });
@@ -199,14 +202,12 @@ test.describe("UXAUDIT live experience acceptance", () => {
   }) => {
     await page.goto("/workspace/app/appearance");
     const picker = page.locator('[data-hcm-brand-asset-picker="true"]');
-    const input = picker.locator('input[type="file"]');
-    const id = await input.getAttribute("id");
-    expect(id, "upload control requires a stable id for its label").toBeTruthy();
-    await expect(page.locator(`label[for="${id}"]`)).toBeVisible();
-    await expect(input).toHaveAttribute(
+    const upload = picker.locator('[data-hcm-asset-action="upload"]');
+    await expect(upload).toHaveAttribute(
       "aria-describedby",
       /appearance-brand-logo-help/,
     );
+    await expect(upload).toHaveAccessibleName(/upload image/i);
     await expect(page.locator("#appearance-brand-logo-help")).toBeVisible();
     await expect(page.locator("[data-hcm-preview-surface]")).toHaveAttribute(
       "aria-label",

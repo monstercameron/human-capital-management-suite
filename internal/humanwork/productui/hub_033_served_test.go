@@ -19,7 +19,7 @@ import (
 func TestTodo_HUB_033(t *testing.T) {
 	view := NewView(PageDocs, "tenant-a", "reader-a", "scope-a")
 	view.Document = &DocumentDetail{
-		Summary:  DocumentSummary{ID: "doc-42", Title: "Handbook", VersionID: "version-7"},
+		Summary:  DocumentSummary{ID: "doc-42", Title: "Handbook", VersionID: "version-7", CanManageAccess: true},
 		Markdown: "# Current\n\nBody text.",
 		CanEdit:  true,
 	}
@@ -57,6 +57,18 @@ func TestTodo_HUB_033(t *testing.T) {
 	// past the port that answers it.
 	if !strings.Contains(doc, `data-docs-action="compare"`) {
 		t.Fatalf("compare action is not reachable from the open document:\n%s", doc)
+	}
+	// Version history is its own grant that viewer and commenter shares do
+	// not hold, so a reader without manage access is not offered a compare
+	// that could only fail to list versions (D-3).
+	reader := view
+	readerDoc := *view.Document
+	readerDoc.Summary.CanManageAccess = false
+	reader.Document = &readerDoc
+	if readerMarkup, err := Render(reader); err != nil {
+		t.Fatal(err)
+	} else if strings.Contains(readerMarkup, `data-docs-action="compare"`) {
+		t.Fatal("compare was offered to a reader without history access")
 	}
 
 	// A base-version conflict is a distinct, recognized condition, not a
@@ -154,8 +166,11 @@ func TestTodo_HUB_033_Accessibility(t *testing.T) {
 		if strings.Contains(compareMarkup, "⟦") {
 			t.Fatalf("compare dialog has an untranslated placeholder in %s", locale)
 		}
-		if !strings.Contains(compareMarkup, `for="docs-compare-input"`) || !strings.Contains(compareMarkup, `id="docs-compare-input"`) {
-			t.Fatalf("compare version input is not labelled in %s", locale)
+		if !strings.Contains(compareMarkup, `for="docs-compare-from"`) || !strings.Contains(compareMarkup, `id="docs-compare-from"`) {
+			t.Fatalf("compare From picker is not labelled in %s", locale)
+		}
+		if !strings.Contains(compareMarkup, `for="docs-compare-to"`) || !strings.Contains(compareMarkup, `id="docs-compare-to"`) {
+			t.Fatalf("compare To picker is not labelled in %s", locale)
 		}
 		if !strings.Contains(compareMarkup, `role="dialog"`) || !strings.Contains(compareMarkup, `aria-modal="true"`) {
 			t.Fatalf("compare dialog is not exposed as a modal dialog in %s", locale)

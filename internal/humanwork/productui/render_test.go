@@ -16,10 +16,11 @@ func TestRenderEveryAuthorizedProductPage(t *testing.T) {
 			}
 
 			wants := []string{"Human Capital Management Suite", `id="main-content"`, `aria-label="Main"`, "manager"}
-			if !definition.FullBleed {
+			if !definition.FullBleed && definition.ID != PageDocs {
 				// A full-bleed application page (chat) has no document
-				// footer beneath its composer; every framed page keeps the
-				// live-source statement.
+				// footer beneath its composer, and Docs (D-6) drops it as
+				// well; every other framed page keeps the live-source
+				// statement.
 				wants = append(wants, "Workspace information")
 			}
 			for _, want := range wants {

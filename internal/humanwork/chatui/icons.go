@@ -48,6 +48,7 @@ var iconPaths = map[string]string{
 	"arrow-left":    "M19 12H5M11 18l-6-6 6-6",
 	"panel-left":    "M4 5h16v14H4zM9 5v14",
 	"check":         "M5 12.5l4.5 4.5L19 7.5",
+	"document":      "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6",
 }
 
 // iconSVGAttrs and iconPathAttrs are built once and only read: the renderer

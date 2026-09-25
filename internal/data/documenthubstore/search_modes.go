@@ -95,6 +95,9 @@ type searchCandidate struct {
 type versionText struct {
 	plain, lowerPlain, lowerTitle string
 	titleWords, bodyWords         []string
+	// display and lowerDisplay are the snippet text (snippetText): matching
+	// runs on plain, excerpts are cut from display.
+	display, lowerDisplay string
 }
 
 // versionTextCacheMax bounds the cache; when full it starts over.
@@ -115,7 +118,8 @@ func (c *versionTextCache) get(key, title, markdown string) *versionText {
 		}
 	}
 	plain := plainBody(title, markdown)
-	v := &versionText{plain: plain, lowerPlain: strings.ToLower(plain), lowerTitle: strings.ToLower(title), titleWords: uniqueWords(title), bodyWords: uniqueWords(plain)}
+	display := snippetText(title, markdown)
+	v := &versionText{plain: plain, lowerPlain: strings.ToLower(plain), lowerTitle: strings.ToLower(title), titleWords: uniqueWords(title), bodyWords: uniqueWords(plain), display: display, lowerDisplay: strings.ToLower(display)}
 	if c != nil {
 		c.mu.Lock()
 		if c.m == nil || len(c.m) >= versionTextCacheMax {
@@ -372,7 +376,7 @@ func exactHits(terms []string, candidates []searchCandidate) []searchHit {
 		if inTitle {
 			h.match, h.score = MatchTitle, 2
 		}
-		h.snippet = snippetAround(c.plain, wordPosition(c.lowerPlain, terms[0]))
+		h.snippet = snippetAround(c.display, wordPosition(c.lowerDisplay, terms[0]))
 		out = append(out, h)
 	}
 	return out
@@ -387,12 +391,13 @@ func containsHits(lowerQuery string, candidates []searchCandidate) []searchHit {
 	var out []searchHit
 	for _, c := range candidates {
 		bodyPos := indexLower(c.plain, c.lowerPlain, lowerQuery)
+		snippet := snippetAround(c.display, indexLower(c.display, c.lowerDisplay, lowerQuery))
 		if strings.Contains(c.lowerTitle, lowerQuery) {
-			out = append(out, searchHit{id: c.id, match: MatchTitle, score: 2, snippet: snippetAround(c.plain, bodyPos)})
+			out = append(out, searchHit{id: c.id, match: MatchTitle, score: 2, snippet: snippet})
 			continue
 		}
 		if bodyPos >= 0 {
-			out = append(out, searchHit{id: c.id, match: MatchText, score: 1 - float64(bodyPos)/float64(len(c.plain)+1), snippet: snippetAround(c.plain, bodyPos)})
+			out = append(out, searchHit{id: c.id, match: MatchText, score: 1 - float64(bodyPos)/float64(len(c.plain)+1), snippet: snippet})
 		}
 	}
 	return out
@@ -480,7 +485,7 @@ func fuzzyHits(terms []string, candidates []searchCandidate, strict bool) []sear
 		if !ok {
 			continue
 		}
-		out = append(out, searchHit{id: c.id, match: MatchFuzzy, score: total / float64(len(terms)), snippet: snippetAround(c.plain, wordPosition(c.lowerPlain, bestWord))})
+		out = append(out, searchHit{id: c.id, match: MatchFuzzy, score: total / float64(len(terms)), snippet: snippetAround(c.display, wordPosition(c.lowerDisplay, bestWord))})
 	}
 	return out
 }
@@ -516,12 +521,12 @@ func meaningHits(vectors map[string]sectionMatch, candidates []searchCandidate, 
 				if i := strings.IndexByte(text, '\n'); i >= 0 {
 					text = text[i+1:]
 				}
-				snippet = snippetAround(stripMarkdown(text), 0)
+				snippet = snippetAround(snippetText("", text), 0)
 				break
 			}
 		}
 		if snippet == "" {
-			snippet = snippetAround(c.plain, 0)
+			snippet = snippetAround(c.display, 0)
 		}
 		out = append(out, searchHit{id: c.id, match: MatchMeaning, score: best.cosine, snippet: snippet})
 	}
@@ -793,6 +798,120 @@ func plainBody(title, markdown string) string {
 	return plain
 }
 
+// mdLeadLabel matches a metadata lead line ("**Owner:** … · **Last
+// reviewed:** …"): a paragraph that opens with a bold label ending in a
+// colon.
+var mdLeadLabel = regexp.MustCompile(`^\s*(\*\*|__)[^*_\n]+:\s*(\*\*|__)`)
+
+// mdHeading matches an ATX heading line.
+var mdHeading = regexp.MustCompile(`^\s*#{1,6}\s+`)
+
+// snippetText is the display text that search snippets and link previews
+// are cut from (C-5). It is deliberately separate from stripMarkdown and
+// PlainText, whose output is the coordinate space of stored comment
+// anchors and must not change. Unlike them it keeps block boundaries (a
+// heading, list item, table row or paragraph that ends without sentence
+// punctuation gets a full stop, so "Scope" and "This policy applies…" no
+// longer run together), and it drops the document's own title heading and
+// the metadata lead line that follows it.
+func snippetText(title, markdown string) string {
+	var blocks, para []string
+	opening := true // no content block emitted yet
+	title = strings.TrimSpace(title)
+	flush := func() {
+		if len(para) == 0 {
+			return
+		}
+		lead := opening && mdLeadLabel.MatchString(para[0])
+		text := ""
+		for _, line := range para {
+			text += " " + snippetInline(line)
+		}
+		para = para[:0]
+		text = strings.TrimSpace(mdSpaces.ReplaceAllString(text, " "))
+		if text == "" || lead {
+			return
+		}
+		blocks = append(blocks, snippetSentence(text))
+		opening = false
+	}
+	inFence, inDiagram := false, false
+	for _, line := range strings.Split(markdown, "\n") {
+		if fence := strings.TrimSpace(line); strings.HasPrefix(fence, "```") {
+			flush()
+			if inFence {
+				inFence, inDiagram = false, false
+			} else {
+				inFence = true
+				inDiagram = strings.EqualFold(strings.TrimSpace(strings.TrimPrefix(fence, "```")), "mermaid")
+			}
+			continue
+		}
+		if inDiagram {
+			continue
+		}
+		if strings.TrimSpace(line) == "" || mdRule.MatchString(line) {
+			flush()
+			continue
+		}
+		if mdHeading.MatchString(line) {
+			flush()
+			text := strings.TrimSpace(snippetInline(line))
+			if opening && len(blocks) == 0 && title != "" && strings.EqualFold(text, title) {
+				continue
+			}
+			if text != "" {
+				blocks = append(blocks, snippetSentence(text))
+				opening = false
+			}
+			continue
+		}
+		if inFence || mdLineStart.MatchString(line) || strings.HasPrefix(strings.TrimSpace(line), "|") {
+			// Code lines, list items, quotes and table rows are blocks of
+			// their own.
+			flush()
+			para = append(para, line)
+			flush()
+			continue
+		}
+		para = append(para, line)
+	}
+	flush()
+	text := strings.Join(blocks, " ")
+	if title != "" && strings.HasPrefix(strings.ToLower(text), strings.ToLower(title)) {
+		text = strings.TrimSpace(text[len(title):])
+	}
+	return text
+}
+
+// snippetInline strips one line's block markers and inline Markdown, the
+// same way stripMarkdown does.
+func snippetInline(line string) string {
+	for {
+		next := mdLineStart.ReplaceAllString(line, "")
+		if next == line {
+			break
+		}
+		line = next
+	}
+	line = strings.ReplaceAll(line, "|", " ")
+	line = mdImage.ReplaceAllString(line, "$1")
+	line = mdLink.ReplaceAllString(line, "$1")
+	line = mdStrong.ReplaceAllString(line, "$2")
+	line = mdEmphasis.ReplaceAllString(line, "$1$2")
+	return mdCode.ReplaceAllString(line, "$1")
+}
+
+// snippetSentence ends a block with a full stop unless it already ends in
+// sentence or separating punctuation.
+func snippetSentence(text string) string {
+	last, _ := utf8.DecodeLastRuneInString(text)
+	if strings.ContainsRune(".!?…:;。؟؛\"'”’", last) {
+		return text
+	}
+	return text + "."
+}
+
 // snippetAround returns about snippetWindow characters of text centered on
 // byte offset pos (or from the start when pos is negative), cut at word
 // boundaries and marked with ellipses where text was dropped.
@@ -827,6 +946,11 @@ func snippetAround(text string, pos int) string {
 		out = "…" + out
 	}
 	if end < len(text) {
+		// "employees.…" reads as a typo: the ellipsis replaces trailing
+		// punctuation rather than following it (C-5).
+		if trimmed := strings.TrimRight(out, " ,.;:"); trimmed != "" {
+			out = trimmed
+		}
 		out += "…"
 	}
 	for len(out) > snippetMax {

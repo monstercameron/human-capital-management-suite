@@ -44,6 +44,11 @@ type PayBandSummary struct {
 // so a second boot writes nothing rather than superseding a live row with an
 // identical one.
 func SeedPayBands(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, recordedAt time.Time) (PayBandSummary, error) {
+	return HarborCarePack.SeedPayBands(ctx, tx, tenant, recordedAt)
+}
+
+// SeedPayBands records this company's published pay bands inside tx.
+func (p *Pack) SeedPayBands(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, recordedAt time.Time) (PayBandSummary, error) {
 	if tx == nil || tenant == uuid.Nil {
 		return PayBandSummary{}, fmt.Errorf("demoworkforce: seed pay bands: a transaction and tenant are required")
 	}
@@ -51,7 +56,7 @@ func SeedPayBands(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, recordedA
 	if recorded.IsZero() {
 		return PayBandSummary{}, fmt.Errorf("demoworkforce: seed pay bands: recorded_at is required")
 	}
-	specs, err := PayBandSpecs()
+	specs, err := p.PayBandSpecs()
 	if err != nil {
 		return PayBandSummary{}, err
 	}
@@ -73,8 +78,12 @@ func SeedPayBands(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, recordedA
 		default:
 			return PayBandSummary{}, fmt.Errorf("demoworkforce: read pay band %s: %w", spec.ID, readErr)
 		}
+		// The stored band is annual, which is the unit the governed
+		// simulation compares annualized pay in; an hourly band's rates are
+		// its annual equivalent over standard hours (for a salaried band the
+		// two are the same amounts).
 		band, buildErr := aggregates.NewCompensationBand(tenant, id, CatalogEffectiveFrom, nil, recorded,
-			spec.JobCode, spec.Grade, spec.PayZone, spec.Minimum, spec.Midpoint, spec.Maximum)
+			spec.JobCode, spec.Grade, spec.PayZone, spec.AnnualMinimum, spec.AnnualMidpoint, spec.AnnualMaximum)
 		if buildErr != nil {
 			return PayBandSummary{}, fmt.Errorf("demoworkforce: pay band %s: %w", spec.ID, buildErr)
 		}

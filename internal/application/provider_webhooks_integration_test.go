@@ -20,7 +20,7 @@ import (
 	transportwebhook "github.com/monstercameron/human-capital-management-suite/internal/transport/webhook"
 )
 
-func TestTodo_INTG_018_ServedHTTPPostgres(t *testing.T) {
+func TestTodo_INTG_018_Integration(t *testing.T) {
 	db := pgtest.New(t)
 	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{"search_path": db.Schema})
 	if err != nil {

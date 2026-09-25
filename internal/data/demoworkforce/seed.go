@@ -25,14 +25,20 @@ type Summary struct {
 // projection. A replay verifies every existing row rather than treating an
 // arbitrary uniqueness collision as a successful seed.
 func Seed(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (Summary, error) {
+	return HarborCarePack.Seed(ctx, tx, tenant)
+}
+
+// Seed appends this company's deterministic people to the workforce
+// projection.
+func (p *Pack) Seed(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (Summary, error) {
 	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
 		return Summary{}, err
 	}
-	employees, err := Plan(tenant)
+	employees, err := p.Plan(tenant)
 	if err != nil {
 		return Summary{}, err
 	}
-	summary := Summary{Tenant: tenant, Company: HarborCare.Name, Planned: len(employees)}
+	summary := Summary{Tenant: tenant, Company: p.Company.Name, Planned: len(employees)}
 	store := workforce.Store{}
 	for _, employee := range employees {
 		if employee.HasProfilePhoto {
@@ -51,7 +57,7 @@ func Seed(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (Summary, error) 
 			return Summary{}, fmt.Errorf("demoworkforce: verify %s: %w", employee.Row.WorkerKey, getErr)
 		}
 		if !found || !sameSeedIdentity(existing, employee.Row) {
-			return Summary{}, fmt.Errorf("demoworkforce: existing worker %s conflicts with the deterministic HarborCare seed", employee.Row.WorkerKey)
+			return Summary{}, fmt.Errorf("demoworkforce: existing worker %s conflicts with the deterministic %s seed", employee.Row.WorkerKey, p.DisplayName)
 		}
 		summary.Skipped++
 	}

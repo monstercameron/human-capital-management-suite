@@ -234,6 +234,8 @@ func toJourney(s workspace.JourneySummary, diagAuthorized bool) *journeyv1.Journ
 		CurrentBase:        s.CurrentBase,
 		ProposedBase:       s.ProposedBase,
 		Currency:           s.Currency,
+		CurrentPayBasis:    s.CurrentPayBasis,
+		ProposedPayBasis:   s.ProposedPayBasis,
 		EffectiveDate:      s.EffectiveDate,
 		BusinessReason:     s.BusinessReason,
 		Stage:              stageToProto(s.Stage),
@@ -703,6 +705,8 @@ func toWorkforceOptions(o workspace.WorkforceOptions) *journeyv1.WorkforceOption
 			MaximumBaseIncrease:   path.MaximumBaseIncrease,
 			CompensationPolicyRef: path.CompensationPolicyRef,
 			BenefitRuleRefs:       append([]string(nil), path.BenefitRuleRefs...),
+			TargetPayBasis:        path.TargetPayBasis,
+			AnnualizationHours:    path.AnnualizationHours,
 		})
 	}
 	// UXLIVE-011: the vacancy list crosses whole. Reference is the one field
@@ -748,6 +752,8 @@ func fromWorkforceOptions(o *journeyv1.WorkforceOptions) workspace.WorkforceOpti
 			MaximumBaseIncrease:   path.GetMaximumBaseIncrease(),
 			CompensationPolicyRef: path.GetCompensationPolicyRef(),
 			BenefitRuleRefs:       append([]string(nil), path.GetBenefitRuleRefs()...),
+			TargetPayBasis:        path.GetTargetPayBasis(),
+			AnnualizationHours:    path.GetAnnualizationHours(),
 		})
 	}
 	for _, vacancy := range o.GetPositionVacancies() {

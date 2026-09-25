@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/projectui"
 )
 
 var (
@@ -68,6 +69,7 @@ func initPlatformStyles() {
 	platformStyles += workflowEditorStylesheet()
 	platformStyles += columnChooserStylesheet()
 	platformStyles += docsStylesheet()
+	platformStyles += projectui.Styles() + projectPageStylesheet()
 	platformStyles += workflowNotificationStylesheet()
 	platformDarkStyles = darkModeStylesStylesheet()
 }

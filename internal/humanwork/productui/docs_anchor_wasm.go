@@ -115,6 +115,25 @@ func docsCurrentSelection() (quote, prefix, suffix string, ok bool) {
 	return quote, prefix, suffix, true
 }
 
+// docsSelectionFromChatProjection reports whether the selected range touches
+// live Chat content. That content is expanded from a reference and is not in
+// the document version's Markdown, which the comment service validates quoted
+// anchors against.
+func docsSelectionFromChatProjection() bool {
+	selection := js.Global().Call("getSelection")
+	if !selection.Truthy() || selection.Get("rangeCount").Int() == 0 {
+		return false
+	}
+	r := selection.Call("getRangeAt", 0)
+	projections := js.Global().Get("document").Call("querySelectorAll", "#docs-markdown .docs-chat-quote,#docs-markdown .docs-chat-chip")
+	for i := 0; i < projections.Get("length").Int(); i++ {
+		if r.Call("intersectsNode", projections.Index(i)).Bool() {
+			return true
+		}
+	}
+	return false
+}
+
 // docsLocateQuote finds the best occurrence of quote using its context.
 func docsLocateQuote(text []rune, quote, prefix, suffix string) (int, int, bool) {
 	q := []rune(quote)

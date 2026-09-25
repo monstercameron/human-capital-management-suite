@@ -92,6 +92,8 @@ var ImplicitAllowlist = []ImplicitEntry{
 	{Package: "internal/data/inboundmsg", Owner: "messaging platform", Reason: "inbound message persistence remains a supporting adapter"},
 	{Package: "internal/data/jobs", Owner: "scheduling platform", Reason: "durable job storage remains below the scheduling engine"},
 	{Package: "internal/data/outbox", Owner: "messaging platform", Reason: "transactional outbox mechanics remain below the messaging owner"},
+	{Package: "internal/data/projectoutboxstore", Owner: "messaging platform", Reason: "project event outbox persistence is an adapter below the messaging owner"},
+	{Package: "internal/application/projectsearch", Owner: "search platform", Reason: "project-scoped search coordinates authorized reads; the search substrate remains owned by internal/data/search"},
 	{Package: "internal/engines/messagetemplate", Owner: "workflow platform", Reason: "message rendering is a semantic engine, not the messaging substrate owner"},
 	{Package: "internal/engines/search", Owner: "search platform", Reason: "authorized search digests through canonicalbytes; the engine is a consumer of canonical encoding, not its owner"},
 	{Package: "internal/experience/reportschedule", Owner: "experience platform", Reason: "report scheduling is an experience-owned consumer of scheduling"},

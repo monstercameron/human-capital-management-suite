@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="40" viewBox="0 0 180 40" role="img" aria-labelledby="title">
+  <title id="title">Ironridge Builders</title>
+  <rect x=".5" y=".5" width="179" height="39" rx="7" fill="#23272c" stroke="#464c54"/>
+  <rect x="4" y="4" width="32" height="32" rx="5" fill="#c2410c"/>
+  <path d="M9 27l8-13 5 7 3-4 6.5 10z" fill="#feecdc"/>
+  <rect x="9" y="28.5" width="22.5" height="2.5" rx="1" fill="#fff"/>
+  <text x="42" y="21" font-family="Segoe UI Variable, Segoe UI, sans-serif" font-size="15" font-weight="800" letter-spacing=".6" fill="#f7f5f1">IRONRIDGE</text>
+  <text x="43" y="32" font-family="Bahnschrift, Segoe UI, sans-serif" font-size="6" font-weight="600" letter-spacing="1.6" fill="#fb923c">BUILDERS · DENVER</text>
+</svg>

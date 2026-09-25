@@ -28,6 +28,17 @@ func TestCustomerThemePresetsCompileIntoTheGovernedStylesheet(t *testing.T) {
 	}
 }
 
+func TestBrandAssetRevisionLabelIsLocalized(t *testing.T) {
+	for _, test := range []struct{ locale, want string }{
+		{"en-US", "revision 3"}, {"de-DE", "Version 3"}, {"ar", "الإصدار 3"},
+	} {
+		got := ResolveProductLocale(test.locale).Text("appearance.asset_revision_label", map[string]string{"revision": "3"})
+		if got != test.want {
+			t.Errorf("locale %s label = %q, want %q", test.locale, got, test.want)
+		}
+	}
+}
+
 func TestCustomerThemeRejectsUnknownStoredChoices(t *testing.T) {
 	got := NormalizeCustomerTheme(CustomerTheme{BrandName: "\x00", BrandMark: "<>$", ColorMode: "sepia", Palette: `red;display:none`, Shape: "unknown", Density: "0", Glyphs: "emoji", Typeface: "remote-font", Navigation: "css", Motion: "infinite"})
 	if !reflect.DeepEqual(got, DefaultCustomerTheme()) {
@@ -56,6 +67,8 @@ func TestBrandLogoAcceptsOnlyGovernedWorkspaceImages(t *testing.T) {
 	}{
 		{value: "/workspace/assets/harborcare-logo.svg", want: "/workspace/assets/harborcare-logo.svg"},
 		{value: "/workspace/assets/tenant.webp", want: "/workspace/assets/tenant.webp"},
+		{value: "/workspace/brand-assets/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", want: "/workspace/brand-assets/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+		{value: "/workspace/brand-assets/0123456789ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef"},
 		{value: "https://example.com/logo.svg"},
 		{value: "//example.com/logo.svg"},
 		{value: "/workspace/assets/../secret.svg"},
@@ -66,6 +79,21 @@ func TestBrandLogoAcceptsOnlyGovernedWorkspaceImages(t *testing.T) {
 		if got := NormalizeCustomerTheme(CustomerTheme{BrandLogoURL: test.value}).BrandLogoURL; got != test.want {
 			t.Errorf("logo %q normalized to %q, want %q", test.value, got, test.want)
 		}
+	}
+}
+
+func TestBrandAssetDigestReferenceSurvivesThemeNormalizationAndRendering(t *testing.T) {
+	url := "/workspace/brand-assets/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	theme := NormalizeCustomerTheme(CustomerTheme{BrandName: "Northwind", BrandMark: "N", BrandLogoURL: url})
+	if theme.BrandLogoURL != url {
+		t.Fatalf("digest route normalized to %q, want %q", theme.BrandLogoURL, url)
+	}
+	markup, err := ui.RenderToString(ui.CreateElement(BrandLogo, BrandLogoProps{Name: theme.BrandName, Mark: theme.BrandMark, LogoURL: theme.BrandLogoURL}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(markup, `src="`+url+`"`) {
+		t.Fatalf("rendered logo did not retain its tenant asset ref: %s", markup)
 	}
 }
 
@@ -127,7 +155,7 @@ func TestAppearancePageIsADecomposedAccessibleEditor(t *testing.T) {
 		`>Color mode</legend>`, `name="color_mode"`, `value="system"`,
 		`<fieldset`, `>Color palette</legend>`, `name="palette"`, `value="evergreen"`, `checked`,
 		`>Surface shape</legend>`, `name="shape"`, `>Glyph set</legend>`, `name="glyphs"`,
-		`>Brand signature</legend>`, `name="brand_name"`, `name="brand_mark"`, `name="brand_logo_url"`,
+		`>Brand signature</legend>`, `name="brand_name"`, `name="brand_mark"`, `data-hcm-brand-asset-picker="true"`,
 		`>Typography character</legend>`, `name="typeface"`, `>Navigation treatment</legend>`, `name="navigation"`,
 		`>Light color system</legend>`, `>Dark color system</legend>`, `name="light-color.brand.primary"`, `name="dark-color.brand.primary"`,
 		`for="appearance-light-color-brand-primary"`, `for="appearance-dark-color-brand-primary"`,
@@ -136,6 +164,9 @@ func TestAppearancePageIsADecomposedAccessibleEditor(t *testing.T) {
 		if !strings.Contains(doc, expected) {
 			t.Errorf("appearance editor missing %q", expected)
 		}
+	}
+	if strings.Contains(doc, `name="brand_logo_url"`) {
+		t.Fatal("appearance must not expose a free-form logo path input")
 	}
 	if strings.Contains(doc, ` style=`) {
 		t.Fatal("appearance editor emitted an inline style instead of the CSP-pinned preset classes")

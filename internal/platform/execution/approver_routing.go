@@ -127,7 +127,7 @@ type approverRoute struct {
 // enforced when the finance approval is raised, not after finance has decided.
 func (f promotionWorkItems) resolveApprovers(ctx context.Context, ex workitem.Executor, req execute.WorkItemRequest) (approverRoute, error) {
 	var route approverRoute
-	finance, err := f.financeRoute()
+	finance, err := f.financeRoute(req.Continuation.TenantID)
 	if err != nil {
 		return approverRoute{}, err
 	}
@@ -153,7 +153,10 @@ func (f promotionWorkItems) resolveApprovers(ctx context.Context, ex workitem.Ex
 // approver when none is configured. It reads no durable fact, so routing and
 // the decision-time authority recheck ([PromotionApprovalAuthority]) derive it
 // through this one function.
-func (f promotionWorkItems) financeRoute() (routedApprover, error) {
+func (f promotionWorkItems) financeRoute(tenant uuid.UUID) (routedApprover, error) {
+	if partner := f.financeByTenant[tenant]; partner != "" {
+		return routedApprover{principal: partner, termRef: termFinancePartner, directoryVersion: directoryFinancePartner}, nil
+	}
 	if f.financePartner != "" {
 		return routedApprover{principal: f.financePartner, termRef: termFinancePartner, directoryVersion: directoryFinancePartner}, nil
 	}

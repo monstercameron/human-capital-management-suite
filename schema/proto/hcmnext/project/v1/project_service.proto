@@ -1,0 +1,863 @@
+syntax = "proto3";
+
+package hcmnext.project.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/project/v1;projectv1";
+
+import "hcmnext/common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+// ProjectService exposes bounded, tenant-scoped project work. The caller's
+// principal and tenant authority are derived from authenticated context; the
+// optional ScopeContext is a requested scope that the server must verify.
+service ProjectService {
+  // P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.
+  rpc GetProjectMembership(GetProjectMembershipRequest) returns (GetProjectMembershipResponse);
+  // P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.
+  rpc ListProjectMembers(ListProjectMembersRequest) returns (ListProjectMembersResponse);
+  // P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.
+  rpc InviteProjectMember(InviteProjectMemberRequest) returns (MutateProjectMembershipResponse);
+  // P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.
+  rpc AcceptProjectInvitation(AcceptProjectInvitationRequest) returns (MutateProjectMembershipResponse);
+  // P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.
+  rpc ChangeProjectMemberRole(ChangeProjectMemberRoleRequest) returns (MutateProjectMembershipResponse);
+  // P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.
+  rpc RevokeProjectMember(RevokeProjectMemberRequest) returns (MutateProjectMembershipResponse);
+  // P1A disposition: OUT; project membership administration is beyond the Phase 1 surface.
+  rpc TransferProjectOwnership(TransferProjectOwnershipRequest) returns (MutateProjectMembershipResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Reads one currently authorized project summary.
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Lists only projects currently admitted to the caller, in bounded pages.
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Creates an active project with its own stable identity and timezone.
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+  // P1A disposition: OUT; project settings are not part of the Phase 1 surface.
+  // Updates project name and timezone under an exact project revision.
+  rpc UpdateProjectSettings(UpdateProjectSettingsRequest) returns (UpdateProjectSettingsResponse);
+  // P1A disposition: OUT; project lifecycle management is not part of the Phase 1 surface.
+  // Archives an owned project without deleting task or audit history.
+  rpc ArchiveProject(SetProjectLifecycleRequest) returns (SetProjectLifecycleResponse);
+  // P1A disposition: OUT; project lifecycle management is not part of the Phase 1 surface.
+  // Restores an archived owned project under an exact revision fence.
+  rpc RestoreProject(SetProjectLifecycleRequest) returns (SetProjectLifecycleResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Creates one ordinary task under the project's currently published
+  // workflow configuration.
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Reads one currently authorized task.
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Lists a bounded page of currently authorized tasks for a project.
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  // P1A disposition: OUT; project task search is not part of the Phase 1 surface.
+  // Searches current project tasks. Free-text search is unavailable until the
+  // index can revalidate each result; exact predicates remain available.
+  rpc SearchTasks(SearchTasksRequest) returns (SearchTasksResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Moves one task under exact task and workflow revisions. An optional typed
+  // lane field edit is committed atomically with the status transition.
+  rpc MoveTask(MoveTaskRequest) returns (MoveTaskResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Revises sparse project-owned task details under exact task/workflow revisions.
+  rpc PatchTask(PatchTaskRequest) returns (PatchTaskResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Retains an archived task and its complete activity history.
+  rpc ArchiveTask(ArchiveTaskRequest) returns (ArchiveTaskResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Restores an archived task under an exact revision fence.
+  rpc RestoreTask(RestoreTaskRequest) returns (RestoreTaskResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Creates or updates an author-owned workflow draft under an exact revision.
+  rpc SaveWorkflowDraft(SaveWorkflowDraftRequest) returns (SaveWorkflowDraftResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Reloads an authorized draft without inferring its contents from board cards.
+  rpc GetWorkflowDraft(GetWorkflowDraftRequest) returns (GetWorkflowDraftResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Validates a named draft and previews its exact impact without publishing.
+  rpc PreviewWorkflowDraft(PreviewWorkflowDraftRequest) returns (PreviewWorkflowDraftResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Publishes the exact reviewed workflow digest and creates a new immutable
+  // project workflow version.
+  rpc PublishWorkflowDraft(PublishWorkflowDraftRequest) returns (PublishWorkflowDraftResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Reads the current published status, field, and transition configuration.
+  rpc GetWorkflowConfiguration(GetWorkflowConfigurationRequest) returns (GetWorkflowConfigurationResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Saves a personal or project-audience view. The view never widens task
+  // authorization; every board read rechecks task access.
+  rpc SaveBoardView(SaveBoardViewRequest) returns (SaveBoardViewResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Lists bounded saved views that the current project member may read.
+  rpc ListBoardViews(ListBoardViewsRequest) returns (ListBoardViewsResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Reads a bounded page of authorized cards for one project view. No total
+  // task count is returned; the opaque cursor is bound to caller, view and
+  // project revisions.
+  rpc GetBoard(GetBoardRequest) returns (GetBoardResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Adds an allowlisted typed link to a task. A reference does not grant
+  // access to its chat or document target.
+  rpc AddTaskLink(AddTaskLinkRequest) returns (AddTaskLinkResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Resolves links against current target authorization, returning a neutral
+  // restricted state for both inaccessible and absent targets.
+  rpc ListTaskLinks(ListTaskLinksRequest) returns (ListTaskLinksResponse);
+  // P1A disposition: OUT; reverse task-link lookup is a Phase 3 project operation.
+  // Reverse link read: the live tasks that link one workflow run (journey)
+  // or work item, limited to projects the caller may read. Tasks in other
+  // projects are omitted, not reported.
+  rpc ListTaskLinksByTarget(ListTaskLinksByTargetRequest) returns (ListTaskLinksByTargetResponse);
+  // P1A disposition: OUT; task-link removal is a Phase 3 project operation.
+  // Tombstones a typed task link under exact task revision and idempotency
+  // fences. The target is retained only as an audit reference and is no longer
+  // resolved or returned by ListTaskLinks.
+  rpc RemoveTaskLink(RemoveTaskLinkRequest) returns (RemoveTaskLinkResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Adds a sanitized comment to one authorized task.
+  rpc AddTaskComment(AddTaskCommentRequest) returns (AddTaskCommentResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Corrects one comment under an exact revision fence.
+  rpc EditTaskComment(EditTaskCommentRequest) returns (EditTaskCommentResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Tombstones one comment under an exact revision fence.
+  rpc DeleteTaskComment(DeleteTaskCommentRequest) returns (DeleteTaskCommentResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Reads a bounded page of current comment revisions for one authorized task.
+  rpc ListTaskComments(ListTaskCommentsRequest) returns (ListTaskCommentsResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Reads a bounded page of ordered comment activity for one authorized task.
+  rpc ListTaskActivity(ListTaskActivityRequest) returns (ListTaskActivityResponse);
+}
+
+message ProjectMember { string user_id = 1; string role = 2; string state = 3; uint64 revision = 4; }
+message GetProjectMembershipRequest { hcmnext.common.v1.ScopeContext scope = 1; string project_id = 2; string user_id = 3; }
+message GetProjectMembershipResponse { ProjectMember member = 1; uint64 membership_revision = 2; }
+message ListProjectMembersRequest { hcmnext.common.v1.ScopeContext scope = 1; string project_id = 2; int32 page_size = 3; string page_cursor = 4; }
+message ListProjectMembersResponse { repeated ProjectMember members = 1; uint64 membership_revision = 2; string next_page_cursor = 3; }
+message InviteProjectMemberRequest { hcmnext.common.v1.ScopeContext scope = 1; string project_id = 2; string user_id = 3; string role = 4; uint64 expected_membership_revision = 5; string idempotency_key = 6; }
+message AcceptProjectInvitationRequest { hcmnext.common.v1.ScopeContext scope = 1; string project_id = 2; uint64 expected_membership_revision = 3; string idempotency_key = 4; }
+message ChangeProjectMemberRoleRequest { hcmnext.common.v1.ScopeContext scope = 1; string project_id = 2; string user_id = 3; string role = 4; uint64 expected_membership_revision = 5; string idempotency_key = 6; }
+message RevokeProjectMemberRequest { hcmnext.common.v1.ScopeContext scope = 1; string project_id = 2; string user_id = 3; uint64 expected_membership_revision = 4; string idempotency_key = 5; }
+message TransferProjectOwnershipRequest { hcmnext.common.v1.ScopeContext scope = 1; string project_id = 2; string user_id = 3; uint64 expected_membership_revision = 4; string idempotency_key = 5; }
+message MutateProjectMembershipResponse { uint64 membership_revision = 1; }
+
+message CreateProjectRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string name = 3;
+  string project_timezone = 4;
+}
+
+message Project {
+  string project_id = 1;
+  string name = 2;
+  string project_timezone = 3;
+  ProjectLifecycle lifecycle = 4;
+  uint64 revision = 5;
+  uint64 workflow_revision = 6;
+  string owner_id = 7;
+}
+
+message GetProjectRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+}
+
+message GetProjectResponse { Project project = 1; }
+
+message ListProjectsRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  hcmnext.common.v1.PageRequest page = 2;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+}
+
+enum ProjectLifecycle {
+  PROJECT_LIFECYCLE_UNSPECIFIED = 0;
+  PROJECT_LIFECYCLE_ACTIVE = 1;
+  PROJECT_LIFECYCLE_SUSPENDED = 2;
+  PROJECT_LIFECYCLE_ARCHIVED = 3;
+}
+
+message CreateProjectResponse { Project project = 1; }
+
+message UpdateProjectSettingsRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string name = 3;
+  string project_timezone = 4;
+  uint64 expected_project_revision = 5;
+  string idempotency_key = 6;
+}
+message UpdateProjectSettingsResponse { Project project = 1; }
+
+message SetProjectLifecycleRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  uint64 expected_project_revision = 3;
+  string idempotency_key = 4;
+}
+message SetProjectLifecycleResponse { Project project = 1; }
+
+message CreateTaskRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  uint64 expected_workflow_revision = 4;
+  string title = 5;
+  string description = 6;
+  string task_type_id = 7;
+  string initial_status_id = 8;
+  string assignee_id = 9;
+  // Civil date in the project's timezone, encoded YYYY-MM-DD.
+  string due_date = 10;
+  repeated TypedFieldValue custom_fields = 11;
+  TaskPriority priority = 12;
+  ProjectSourceReference source_reference = 13;
+}
+
+message ProjectTask {
+  string task_id = 1;
+  string project_id = 2;
+  string title = 3;
+  string description = 4;
+  string task_type_id = 5;
+  string status_id = 6;
+  string assignee_id = 7;
+  string due_date = 8;
+  repeated TypedFieldValue custom_fields = 9;
+  uint64 revision = 10;
+  uint64 workflow_revision = 11;
+  TaskPriority priority = 12;
+  bool archived = 13;
+  // Server-maintained record times; read-only to clients.
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+  // Subject that created the task (the reporter); empty for legacy rows.
+  string created_by = 16;
+  // Planning fields a project manager maintains.
+  repeated string labels = 17;
+  // Civil date in the project's timezone, YYYY-MM-DD; empty when unset.
+  string start_date = 18;
+  // Relative size estimate; 0 means not estimated.
+  uint32 story_points = 19;
+}
+
+// TaskLabels replaces a task's whole label set in a patch; an empty list
+// clears the labels, and an absent message leaves them unchanged.
+message TaskLabels {
+  repeated string values = 1;
+}
+
+enum TaskPriority {
+  TASK_PRIORITY_UNSPECIFIED = 0;
+  TASK_PRIORITY_LOW = 1;
+  TASK_PRIORITY_NORMAL = 2;
+  TASK_PRIORITY_HIGH = 3;
+  TASK_PRIORITY_URGENT = 4;
+}
+
+message CreateTaskResponse { ProjectTask task = 1; }
+
+message GetTaskRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string task_id = 3;
+}
+
+message GetTaskResponse { ProjectTask task = 1; }
+
+message ListTasksRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  BoardFilter filter = 3;
+  hcmnext.common.v1.PageRequest page = 4;
+}
+
+message ListTasksResponse {
+  repeated ProjectTask tasks = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+  uint64 project_revision = 3;
+  uint64 workflow_revision = 4;
+}
+
+message SearchTaskFieldFilter {
+  string field_id = 1;
+  repeated string values = 2;
+}
+
+message SearchTaskFilter {
+  repeated string status_ids = 1;
+  string assignee_id = 2;
+  repeated string task_type_ids = 3;
+  string due_date_from = 4;
+  string due_date_to = 5;
+  repeated SearchTaskFieldFilter fields = 6;
+}
+
+message SearchTasksRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string text = 3;
+  SearchTaskFilter filter = 4;
+  hcmnext.common.v1.PageRequest page = 5;
+}
+
+message SearchTasksResponse {
+  repeated ProjectTask tasks = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+  SearchFreshness freshness = 3;
+}
+
+enum SearchFreshness {
+  SEARCH_FRESHNESS_UNSPECIFIED = 0;
+  SEARCH_FRESHNESS_CURRENT = 1;
+  SEARCH_FRESHNESS_DEGRADED_EXACT_FILTER = 2;
+}
+
+// TypedFieldValue keeps project custom values explicit and rejects implicit
+// string coercion. Exactly one value arm is set for an actual value.
+message TypedFieldValue {
+  string field_id = 1;
+  oneof value {
+    string text_value = 2;
+    hcmnext.common.v1.Decimal number_value = 3;
+    string date_value = 4;
+    string enum_value = 5;
+    string person_id = 6;
+    string link_value = 7;
+    bool boolean_value = 8;
+  }
+}
+
+message MoveTaskRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  string task_id = 4;
+  string target_status_id = 5;
+  uint64 expected_task_revision = 6;
+  uint64 expected_workflow_revision = 7;
+  // Optional atomic field edit, used when a move also changes a configured
+  // lane field. Both the ID and typed value must be supplied together.
+  TypedFieldValue lane_field_edit = 8;
+}
+
+message MoveTaskResponse { ProjectTask task = 1; }
+
+message PatchTaskRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  string task_id = 4;
+  uint64 expected_task_revision = 5;
+  uint64 expected_workflow_revision = 6;
+  optional string title = 7;
+  optional string description = 8;
+  optional string assignee_id = 9;
+  // Civil date in the project's timezone, YYYY-MM-DD; empty clears it.
+  optional string due_date = 10;
+  optional TaskPriority priority = 11;
+  // Civil date in the project's timezone, YYYY-MM-DD; empty clears it.
+  optional string start_date = 12;
+  optional uint32 story_points = 13;
+  TaskLabels labels = 14;
+}
+
+message PatchTaskResponse { ProjectTask task = 1; }
+
+message ArchiveTaskRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  string task_id = 4;
+  uint64 expected_task_revision = 5;
+  uint64 expected_workflow_revision = 6;
+}
+
+message ArchiveTaskResponse { ProjectTask task = 1; }
+
+message RestoreTaskRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  string task_id = 4;
+  uint64 expected_task_revision = 5;
+  uint64 expected_workflow_revision = 6;
+}
+
+message RestoreTaskResponse { ProjectTask task = 1; }
+
+enum ProjectStatusCategory {
+  PROJECT_STATUS_CATEGORY_UNSPECIFIED = 0;
+  PROJECT_STATUS_CATEGORY_NOT_STARTED = 1;
+  PROJECT_STATUS_CATEGORY_ACTIVE = 2;
+  PROJECT_STATUS_CATEGORY_BLOCKED = 3;
+  PROJECT_STATUS_CATEGORY_DONE = 4;
+  PROJECT_STATUS_CATEGORY_CANCELLED = 5;
+}
+
+message ProjectStatus {
+  string status_id = 1;
+  string name = 2;
+  ProjectStatusCategory category = 3;
+  repeated string allowed_next_status_ids = 4;
+  repeated string required_field_ids = 5;
+  bool retired = 6;
+}
+
+message ProjectTaskType {
+  string task_type_id = 1;
+  string name = 2;
+  repeated string field_ids = 3;
+  string initial_status_id = 4;
+  repeated string required_field_ids = 5;
+}
+
+message ProjectWorkflowTransition {
+  string from_status_id = 1;
+  string to_status_id = 2;
+  string task_type_id = 3;
+  repeated string required_field_ids = 4;
+}
+
+message ProjectWorkflowColumn {
+  string column_id = 1;
+  string name = 2;
+  repeated string status_ids = 3;
+}
+
+message ProjectFieldDefinition {
+  string field_id = 1;
+  string name = 2;
+  ProjectFieldType type = 3;
+  bool required = 4;
+  repeated string enum_values = 5;
+  optional int64 min_length = 6;
+  optional int64 max_length = 7;
+  optional double min_number = 8;
+  optional double max_number = 9;
+  string default_json = 10;
+  string classification = 11;
+  bool indexed = 12;
+  bool searchable = 13;
+  bool retired = 14;
+}
+
+enum ProjectFieldType {
+  PROJECT_FIELD_TYPE_UNSPECIFIED = 0;
+  PROJECT_FIELD_TYPE_TEXT = 1;
+  PROJECT_FIELD_TYPE_NUMBER = 2;
+  PROJECT_FIELD_TYPE_DATE = 3;
+  PROJECT_FIELD_TYPE_ENUM = 4;
+  PROJECT_FIELD_TYPE_PERSON = 5;
+  PROJECT_FIELD_TYPE_LINK = 6;
+  PROJECT_FIELD_TYPE_BOOLEAN = 7;
+}
+
+message WorkflowConfiguration {
+  string project_id = 1;
+  uint64 revision = 2;
+  string digest = 3;
+  repeated ProjectStatus statuses = 4;
+  repeated ProjectTaskType task_types = 5;
+  repeated ProjectFieldDefinition fields = 6;
+  repeated ProjectWorkflowTransition transitions = 7;
+  repeated ProjectWorkflowColumn columns = 8;
+}
+
+// WorkflowConfigurationSpec contains only authored content. Revisions and
+// digests are server-owned and appear only on WorkflowConfiguration results.
+message WorkflowConfigurationSpec {
+  repeated ProjectStatus statuses = 1;
+  repeated ProjectTaskType task_types = 2;
+  repeated ProjectFieldDefinition fields = 3;
+  repeated ProjectWorkflowTransition transitions = 4;
+  repeated ProjectWorkflowColumn columns = 5;
+}
+
+message SaveWorkflowDraftRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  uint64 expected_draft_revision = 4;
+  WorkflowConfigurationSpec configuration = 5;
+}
+
+message SaveWorkflowDraftResponse {
+  string draft_id = 1;
+  uint64 draft_revision = 2;
+}
+
+message GetWorkflowDraftRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string draft_id = 3;
+}
+
+message GetWorkflowDraftResponse {
+  string draft_id = 1;
+  uint64 draft_revision = 2;
+  WorkflowConfigurationSpec configuration = 3;
+}
+
+message PreviewWorkflowDraftRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string draft_id = 3;
+  uint64 expected_draft_revision = 4;
+  repeated WorkflowStatusMigrationMapping status_mappings = 5;
+  repeated WorkflowFieldMigrationMapping field_mappings = 6;
+}
+
+message WorkflowStatusMigrationMapping {
+  string source_status_id = 1;
+  string target_status_id = 2;
+}
+
+message WorkflowFieldMigrationMapping {
+  string source_field_id = 1;
+  string target_field_id = 2;
+}
+
+message WorkflowDiagnostic {
+  string code = 1;
+  string subject_id = 2;
+  string field_path = 3;
+  string safe_detail = 4;
+}
+
+message PreviewWorkflowDraftResponse {
+  string draft_id = 1;
+  uint64 draft_revision = 2;
+  string reviewed_digest = 3;
+  bool valid = 4;
+  uint64 affected_task_count = 5;
+  repeated string affected_task_ids = 6;
+  repeated WorkflowDiagnostic diagnostics = 7;
+  string migration_plan_digest = 8;
+}
+
+message PublishWorkflowDraftRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  string draft_id = 4;
+  uint64 expected_project_workflow_revision = 5;
+  uint64 expected_draft_revision = 6;
+  string reviewed_digest = 7;
+  string reviewed_migration_plan_digest = 8;
+  repeated WorkflowStatusMigrationMapping status_mappings = 9;
+  repeated WorkflowFieldMigrationMapping field_mappings = 10;
+}
+
+message PublishWorkflowDraftResponse { WorkflowConfiguration configuration = 1; }
+
+message GetWorkflowConfigurationRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+}
+
+message GetWorkflowConfigurationResponse { WorkflowConfiguration configuration = 1; }
+
+enum BoardViewAudience {
+  BOARD_VIEW_AUDIENCE_UNSPECIFIED = 0;
+  BOARD_VIEW_AUDIENCE_PERSONAL = 1;
+  BOARD_VIEW_AUDIENCE_PROJECT = 2;
+}
+
+message BoardFilter {
+  repeated string status_ids = 1;
+  repeated string assignee_ids = 2;
+  repeated string task_type_ids = 3;
+  repeated TaskPriority priorities = 4;
+  repeated EnumBoardFilter enum_filters = 5;
+}
+
+message EnumBoardFilter {
+  string field_id = 1;
+  repeated string values = 2;
+}
+
+enum BoardSwimlaneGrouping {
+  BOARD_SWIMLANE_GROUPING_UNSPECIFIED = 0;
+  BOARD_SWIMLANE_GROUPING_NONE = 1;
+  BOARD_SWIMLANE_GROUPING_ASSIGNEE = 2;
+  BOARD_SWIMLANE_GROUPING_PRIORITY = 3;
+  BOARD_SWIMLANE_GROUPING_ENUM_FIELD = 4;
+}
+
+message BoardColumn {
+  string column_id = 1;
+  string name = 2;
+  repeated string status_ids = 3;
+  int32 position = 4;
+}
+
+message BoardView {
+  string view_id = 1;
+  string project_id = 2;
+  string name = 3;
+  BoardViewAudience audience = 4;
+  BoardFilter filter = 5;
+  repeated BoardColumn columns = 6;
+  repeated string card_field_ids = 7;
+  uint64 revision = 8;
+  BoardSwimlaneGrouping swimlane_grouping = 9;
+  string swimlane_field_id = 10;
+  BoardOrder order = 11;
+  repeated string swimlane_value_order = 12;
+}
+
+enum BoardOrder {
+  BOARD_ORDER_UNSPECIFIED = 0;
+  BOARD_ORDER_MANUAL = 1;
+  BOARD_ORDER_PRIORITY = 2;
+  BOARD_ORDER_DUE_DATE = 3;
+  BOARD_ORDER_UPDATED = 4;
+  BOARD_ORDER_TITLE = 5;
+}
+
+message SaveBoardViewRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  string view_id = 4;
+  uint64 expected_view_revision = 5;
+  BoardView view = 6;
+}
+
+message SaveBoardViewResponse { BoardView view = 1; }
+
+message ListBoardViewsRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  hcmnext.common.v1.PageRequest page = 3;
+}
+
+message ListBoardViewsResponse {
+  repeated BoardView views = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+}
+
+message GetBoardRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string view_id = 3;
+  hcmnext.common.v1.PageRequest page = 4;
+}
+
+message GetBoardResponse {
+  BoardView view = 1;
+  repeated ProjectTask tasks = 2;
+  hcmnext.common.v1.PageResponse page = 3;
+  uint64 project_revision = 4;
+  uint64 workflow_revision = 5;
+  BoardFreshness freshness = 6;
+}
+
+enum BoardFreshness {
+  BOARD_FRESHNESS_UNSPECIFIED = 0;
+  BOARD_FRESHNESS_CURRENT = 1;
+  BOARD_FRESHNESS_BOUNDED_STALE = 2;
+}
+
+message TaskLinkReference {
+  oneof target {
+    ChatConversationLink chat_conversation = 1;
+    ChatPostLink chat_post = 2;
+    DeployedDocumentLink deployed_document = 3;
+    WorkItemLink work_item = 4;
+    // An in-progress workflow run such as a promotion journey. Its preview
+    // is identity-only; clients read the journey through JourneyService.
+    JourneyLink journey = 5;
+  }
+}
+
+message JourneyLink { string intent_id = 1; }
+
+message ProjectSourceReference {
+  oneof source {
+    ChatConversationLink chat_conversation = 1;
+    ChatPostLink chat_post = 2;
+    DeployedDocumentLink deployed_document = 3;
+  }
+}
+
+message ChatConversationLink { string conversation_id = 1; }
+
+message ChatPostLink {
+  string conversation_id = 1;
+  string post_id = 2;
+}
+
+message DeployedDocumentLink {
+  string document_id = 1;
+  string deployed_version_id = 2;
+  string scope_id = 3;
+}
+
+// WorkItemLink identifies the owning Human Work record. Its safe status and
+// observed version are resolved by the owning domain at read time.
+message WorkItemLink { string work_item_id = 1; }
+
+message AddTaskLinkRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string idempotency_key = 2;
+  string project_id = 3;
+  string task_id = 4;
+  TaskLinkReference reference = 5;
+  uint64 expected_task_revision = 6;
+}
+
+message AddTaskLinkResponse {
+  string link_id = 1;
+  uint64 task_revision = 2;
+}
+
+enum TaskLinkResolutionState {
+  TASK_LINK_RESOLUTION_STATE_UNSPECIFIED = 0;
+  TASK_LINK_RESOLUTION_STATE_AVAILABLE = 1;
+  TASK_LINK_RESOLUTION_STATE_RESTRICTED = 2;
+}
+
+message TaskLinkPreview {
+  string title = 1;
+  string snippet = 2;
+  uint64 observed_work_item_version = 3;
+  string safe_work_item_status = 4;
+  string freshness = 5;
+}
+
+message ResolvedTaskLink {
+  string link_id = 1;
+  TaskLinkReference reference = 2;
+  TaskLinkResolutionState state = 3;
+  // Empty unless state is AVAILABLE. Target authorization is checked at read
+  // time; this preview never grants access.
+  TaskLinkPreview preview = 4;
+}
+
+message ListTaskLinksByTargetRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  // Only journey and work_item targets are supported.
+  TaskLinkReference target = 2;
+  hcmnext.common.v1.PageRequest page = 3;
+}
+message LinkedTask {
+  string project_id = 1;
+  string task_id = 2;
+  string title = 3;
+  string status_id = 4;
+}
+message ListTaskLinksByTargetResponse {
+  repeated LinkedTask tasks = 1;
+}
+message ListTaskLinksRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string task_id = 3;
+  hcmnext.common.v1.PageRequest page = 4;
+}
+
+message ListTaskLinksResponse {
+  repeated ResolvedTaskLink links = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+}
+
+message RemoveTaskLinkRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string task_id = 3;
+  string link_id = 4;
+  uint64 expected_task_revision = 5;
+  string idempotency_key = 6;
+}
+
+message RemoveTaskLinkResponse { uint64 task_revision = 1; }
+
+message AddTaskCommentRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string task_id = 3;
+  string idempotency_key = 4;
+  string body_text = 5;
+}
+
+message EditTaskCommentRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string task_id = 3;
+  string comment_id = 4;
+  uint64 expected_revision = 5;
+  string idempotency_key = 6;
+  string body_text = 7;
+}
+
+message DeleteTaskCommentRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string task_id = 3;
+  string comment_id = 4;
+  uint64 expected_revision = 5;
+  string idempotency_key = 6;
+}
+
+message ProjectTaskComment {
+  string comment_id = 1;
+  uint64 current_revision = 2;
+  string safe_html = 3;
+  string source_text = 4;
+  bool tombstone = 5;
+  string actor_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message AddTaskCommentResponse { ProjectTaskComment comment = 1; }
+
+message EditTaskCommentResponse { ProjectTaskComment comment = 1; }
+
+message DeleteTaskCommentResponse { ProjectTaskComment comment = 1; }
+
+message ListTaskCommentsRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string task_id = 3;
+  int32 page_size = 4;
+  string page_cursor = 5;
+}
+
+message ListTaskCommentsResponse {
+  repeated ProjectTaskComment comments = 1;
+  string next_page_cursor = 2;
+}
+
+message ListTaskActivityRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string project_id = 2;
+  string task_id = 3;
+  int32 page_size = 4;
+  string page_cursor = 5;
+}
+
+message ProjectTaskActivity {
+  uint64 sequence = 1;
+  string comment_id = 2;
+  string kind = 3;
+  uint64 revision = 4;
+  string actor_id = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+}
+
+message ListTaskActivityResponse {
+  repeated ProjectTaskActivity entries = 1;
+  string next_page_cursor = 2;
+}

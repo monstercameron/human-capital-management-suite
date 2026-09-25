@@ -142,7 +142,13 @@ func (s *Service) routeContext(ctx context.Context, tenant, conversation string)
 	lease, err := s.cache.Resolve(ctx, s.directory, conversation, tenant)
 	if err != nil {
 		if errors.Is(err, chatrouting.ErrNotFound) {
-			return nil, err
+			// Named in the chat contract's own vocabulary, the same as a
+			// missing conversation anywhere else in this service: without
+			// this, an unrouted ID reached the transport as a raw
+			// chatrouting.ErrNotFound callErr has no case for, and was
+			// logged as an unclassified INTERNAL_FAILURE instead of the
+			// NOT_FOUND it actually is.
+			return nil, fmt.Errorf("%w: %w", chat.ErrNotFound, err)
 		}
 		return nil, err
 	}
@@ -289,6 +295,14 @@ func (s *Service) ResolveShareLink(ctx context.Context, p chat.Principal, token 
 		return chat.Conversation{}, nil, err
 	}
 	return v.ResolveShareLink(ctx, p, token)
+}
+
+func (s *Service) ReadAuthorizedReference(ctx context.Context, p chat.Principal, tenant, conversation, post string) (chat.Conversation, *chat.Post, error) {
+	v, ok := s.ConversationService.(chat.AuthorizedReferenceReader)
+	if !ok {
+		return chat.Conversation{}, nil, chat.ErrUnavailable
+	}
+	return v.ReadAuthorizedReference(ctx, p, tenant, conversation, post)
 }
 
 func (s *Service) ForwardPost(ctx context.Context, r chat.ForwardPostRequest) (chat.Post, error) {

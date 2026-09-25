@@ -10,8 +10,8 @@ package tunnel_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -227,8 +227,8 @@ func TestTodo_TOOL_009(t *testing.T) {
 // GOLDEN Test Matrix: TestTodo_TOOL_009_Golden
 // ============================================================================
 
-// TestTodo_TOOL_009_Golden validates that the conformance suite fixtures
-// are stable and produce consistent results across multiple runs.
+// TestTodo_TOOL_009_Golden checks the ordered tunnel fixture's content
+// digests and sequence labels.
 func TestTodo_TOOL_009_Golden(t *testing.T) {
 	engine := newFakeConformanceEngine()
 	engine.setOrderedMessages(10)
@@ -251,6 +251,7 @@ func TestTodo_TOOL_009_Golden(t *testing.T) {
 
 	events := drain(stream)
 	digests := []string{}
+	wantWorkers := []string{"Worker-0", "Worker-1", "Worker-2", "Worker-3", "Worker-4"}
 
 	// Collect digests from the first 5 messages.
 	for i := 0; i < 5; i++ {
@@ -260,6 +261,9 @@ func TestTodo_TOOL_009_Golden(t *testing.T) {
 		}
 		if evt.msg == nil {
 			t.Fatalf("message %d is nil", i)
+		}
+		if got := evt.msg.GetDetail().GetJourney().GetWorkerName(); got != wantWorkers[i] {
+			t.Fatalf("message %d worker = %q, want %q", i, got, wantWorkers[i])
 		}
 		digests = append(digests, evt.msg.GetDetail().GetDetailDigest())
 	}
@@ -275,9 +279,6 @@ func TestTodo_TOOL_009_Golden(t *testing.T) {
 		}
 	}
 
-	// Verify the digests are stable across runs (deterministic hash).
-	// The exact values depend on the full journey detail, not just MaterialDigest.
-	// What matters is that they're consistent and distinct.
 	if len(digests) != 5 {
 		t.Errorf("expected 5 digests, got %d", len(digests))
 	}
@@ -400,50 +401,37 @@ func testOrdering(t *testing.T) {
 // limited by timeouts.
 func testOrdering200Messages(t *testing.T) {
 	engine := newFakeConformanceEngine()
-	// Use 50 messages as a substantial but reasonable test that completes
-	// within the default deadline without excessive wall-clock time.
-	engine.setOrderedMessages(50)
+	engine.setOrderedMessages(200)
 
 	c := newCellWith(t, true, engine)
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
 	conn := c.dial(ctx, c.authorizedUpgrade())
 	client := journeyv1.NewJourneyServiceClient(conn)
 
-	callCtx := metadata.AppendToOutgoingContext(ctx,
-		transport.AuthorizationMetadataKey, c.token)
+	callCtx, endStream := context.WithCancel(metadata.AppendToOutgoingContext(ctx,
+		transport.AuthorizationMetadataKey, c.token))
+	defer endStream()
 
 	stream, err := client.WatchJourney(callCtx,
-		&journeyv1.WatchJourneyRequest{IntentId: "intent-ordering-50"})
+		&journeyv1.WatchJourneyRequest{IntentId: "intent-ordering-200"})
 	if err != nil {
 		t.Fatalf("open WatchJourney: %v", err)
 	}
 
 	events := drain(stream)
-	previousDigest := ""
-	messageCount := 0
-
-	// Collect messages until stream closes or timeout, up to the 50 we created.
-	for messageCount < 50 {
-		evt := nextWatchEvent(t, events, 60*time.Second)
+	// WorkerName is copied from the fake's indexed source detail, so checking
+	// the full sequence proves both delivery and ordering.
+	for i := 0; i < 200; i++ {
+		evt := nextWatchEvent(t, events, 30*time.Second)
 		if evt.err != nil {
-			// Stream closed; this is expected when we've received all messages
-			// or when the journey has stabilized.
-			break
+			t.Fatalf("message %d: stream ended early: %v", i, evt.err)
 		}
-
-		digest := evt.msg.GetDetail().GetDetailDigest()
-		if digest == previousDigest {
-			t.Errorf("message %d: reordering detected, same digest as previous", messageCount)
+		if evt.msg.GetDetail().GetJourney().GetWorkerName() != fmt.Sprintf("Worker-%d", i) {
+			t.Fatalf("message %d worker = %q, want %q", i,
+				evt.msg.GetDetail().GetJourney().GetWorkerName(), fmt.Sprintf("Worker-%d", i))
 		}
-
-		previousDigest = digest
-		messageCount++
-	}
-
-	if messageCount < 10 {
-		t.Errorf("expected at least 10 messages, got %d", messageCount)
 	}
 }
 
@@ -457,11 +445,11 @@ func testCancellation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Baseline goroutine count.
-	baselineGoroutines := runtime.NumGoroutine()
-
 	conn := c.dial(ctx, c.authorizedUpgrade())
 	client := journeyv1.NewJourneyServiceClient(conn)
+	// Include the persistent connection workers in the baseline, then check
+	// that closing its stream does not leave additional workers behind.
+	baselineGoroutines := runtime.NumGoroutine()
 
 	callCtx, endStream := context.WithCancel(
 		metadata.AppendToOutgoingContext(ctx, transport.AuthorizationMetadataKey, c.token))
@@ -500,13 +488,11 @@ func testCancellation(t *testing.T) {
 	finalGoroutines := runtime.NumGoroutine()
 	leakedGoroutines := finalGoroutines - baselineGoroutines
 
-	// Allow for some transient goroutines or cleanup tasks that persist briefly.
-	// A tolerance of 15 goroutines accounts for runtime overhead and the tunnel
-	// bridge's internal workers that may persist after disconnection.
+	// Allow for runtime overhead and workers owned by the persistent tunnel
+	// connection, which was included in the baseline before the stream cycles.
 	if leakedGoroutines > 15 {
-		t.Logf("goroutine leak warning: baseline=%d, final=%d, leaked=%d",
+		t.Errorf("goroutine leak: baseline=%d, final=%d, leaked=%d",
 			baselineGoroutines, finalGoroutines, leakedGoroutines)
-		// Don't fail on this for now; the tunnel may have internal workers.
 	}
 }
 
@@ -532,29 +518,18 @@ func testSlowConsumer(t *testing.T) {
 		t.Fatalf("open WatchJourney: %v", err)
 	}
 
-	events := drain(stream)
-
-	// Receive messages with delays between them (slow consumer).
-	previousDigest := ""
+	// Read on this test goroutine and pause between Recv calls so the bridge
+	// sees a genuinely slow consumer rather than a background drain worker.
 	for i := 0; i < 20; i++ {
-		evt := nextWatchEvent(t, events, 10*time.Second)
-		if evt.err != nil {
-			t.Fatalf("message %d: %v", i, evt.err)
+		if i > 0 {
+			time.Sleep(time.Second)
 		}
-
-		digest := evt.msg.GetDetail().GetDetailDigest()
-
-		// Verify no reordering.
-		if digest == previousDigest {
-			t.Errorf("message %d: reordering detected, same digest as previous", i)
+		msg, err := stream.Recv()
+		if err != nil {
+			t.Fatalf("message %d: %v", i, err)
 		}
-
-		previousDigest = digest
-
-		// Simulate slow consumer by sleeping between reads.
-		// This tests that the tunnel buffers messages correctly.
-		if i < 19 {
-			time.Sleep(50 * time.Millisecond)
+		if got, want := msg.GetDetail().GetJourney().GetWorkerName(), fmt.Sprintf("Worker-%d", i); got != want {
+			t.Fatalf("message %d worker = %q, want %q", i, got, want)
 		}
 	}
 }
@@ -645,10 +620,11 @@ func testMetadataForwarding(t *testing.T) {
 
 	if len(authValues) == 0 {
 		t.Errorf("server did not receive %s metadata", transport.AuthorizationMetadataKey)
-	} else if len(authValues) > 0 {
-		if authValues[0] != c.token {
-			t.Errorf("server received authorization: %q, want %q", authValues[0], c.token)
-		}
+	} else if authValues[0] != c.token {
+		t.Errorf("server received authorization: %q, want %q", authValues[0], c.token)
+	}
+	if got := seenMd.Get("x-custom-header"); len(got) != 1 || got[0] != "test-value" {
+		t.Errorf("server custom metadata = %v, want [test-value]", got)
 	}
 }
 
@@ -710,9 +686,8 @@ func testNoGoroutineLeak(t *testing.T) {
 	// After 5 iterations, allow for some persistent tunnel infrastructure.
 	// A tolerance of 20 goroutines accounts for the bridge's internal workers.
 	if leakedGoroutines > 20 {
-		t.Logf("goroutine accumulation after 5 iterations: baseline=%d, final=%d, accumulated=%d",
+		t.Errorf("goroutine accumulation after 5 iterations: baseline=%d, final=%d, accumulated=%d",
 			baselineGoroutines, finalGoroutines, leakedGoroutines)
-		// Don't fail; the tunnel bridge may maintain workers across cycles.
 	}
 }
 
@@ -721,18 +696,25 @@ func testNoGoroutineLeak(t *testing.T) {
 // queue unbounded messages.
 func testBackpressureBounded(t *testing.T) {
 	engine := newFakeConformanceEngine()
-	engine.setOrderedMessages(50)
-	engine.setInspectDelay(100 * time.Millisecond) // Slow server
+	engine.setOrderedMessages(10)
+	// A response larger than HTTP/2's initial per-stream flow-control window
+	// makes the second send wait for the client to consume data.
+	engine.mu.Lock()
+	for i := range engine.orderedMessages {
+		engine.orderedMessages[i].Summary.WorkerName = fmt.Sprintf("Worker-%d-%s", i, strings.Repeat("x", 256*1024))
+	}
+	engine.mu.Unlock()
 
 	c := newCellWith(t, true, engine)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	conn := c.dial(ctx, c.authorizedUpgrade())
 	client := journeyv1.NewJourneyServiceClient(conn)
 
-	callCtx := metadata.AppendToOutgoingContext(ctx,
-		transport.AuthorizationMetadataKey, c.token)
+	callCtx, endStream := context.WithCancel(metadata.AppendToOutgoingContext(ctx,
+		transport.AuthorizationMetadataKey, c.token))
+	defer endStream()
 
 	stream, err := client.WatchJourney(callCtx,
 		&journeyv1.WatchJourneyRequest{IntentId: "intent-backpressure"})
@@ -740,37 +722,23 @@ func testBackpressureBounded(t *testing.T) {
 		t.Fatalf("open WatchJourney: %v", err)
 	}
 
-	events := drain(stream)
-
-	// Receive messages. Under backpressure, the client should receive them
-	// sequentially, with the server adding delay between each.
-	previousTime := time.Now()
-	minExpectedDelay := 50 * time.Millisecond // At least part of inspect delay
-
-	for i := 0; i < 10; i++ {
-		evt := nextWatchEvent(t, events, 30*time.Second)
-		if evt.err != nil {
-			t.Fatalf("message %d: %v", i, evt.err)
-		}
-
-		currentTime := time.Now()
-		timeSinceLastMsg := currentTime.Sub(previousTime)
-
-		// Verify that we're not receiving all messages instantaneously
-		// (which would indicate the server is buffering everything).
-		// This is a loose check: we expect some delay due to server processing.
-		if i > 0 && timeSinceLastMsg < minExpectedDelay/2 {
-			// Some delay expected due to the 100ms inspect delay.
-			// We're lenient here to account for timing variations.
-		}
-
-		previousTime = currentTime
+	if _, err := stream.Recv(); err != nil {
+		t.Fatalf("opening message: %v", err)
+	}
+	if got := engine.getInspectCallCount(); got != 1 {
+		t.Fatalf("Inspect calls after opening message = %d, want 1", got)
 	}
 
-	// Verify the server actually received the calls (not just returned cached data).
-	callCount := engine.getInspectCallCount()
-	if callCount < 5 {
-		t.Logf("backpressure test: Inspect called %d times (expected at least 5)", callCount)
+	// Stop reading until the server has tried another send. It may have one
+	// poll in flight, but must not keep inspecting and queueing messages while
+	// that large send is blocked by flow control.
+	time.Sleep(4 * time.Second)
+	if got := engine.getInspectCallCount(); got > 3 {
+		t.Fatalf("Inspect calls while client was not reading = %d, want at most 3", got)
+	}
+	endStream()
+	if _, err := stream.Recv(); status.Code(err) != codes.Canceled {
+		t.Fatalf("stream after cancellation = %v, want CANCELED", err)
 	}
 }
 
@@ -787,8 +755,9 @@ func testHalfClosePreservesMessages(t *testing.T) {
 	conn := c.dial(ctx, c.authorizedUpgrade())
 	client := journeyv1.NewJourneyServiceClient(conn)
 
-	callCtx := metadata.AppendToOutgoingContext(ctx,
-		transport.AuthorizationMetadataKey, c.token)
+	callCtx, endStream := context.WithCancel(metadata.AppendToOutgoingContext(ctx,
+		transport.AuthorizationMetadataKey, c.token))
+	defer endStream()
 
 	stream, err := client.WatchJourney(callCtx,
 		&journeyv1.WatchJourneyRequest{IntentId: "intent-half-close"})
@@ -798,26 +767,15 @@ func testHalfClosePreservesMessages(t *testing.T) {
 
 	// Server-streaming RPC: the client has sent its full request (implicit
 	// half-close for unary-like begins), and the server continues sending.
-	// The stream should remain open and messages should continue arriving.
-
-	events := drain(stream)
-	messageCount := 0
-
-	// Try to receive multiple messages after implicit half-close.
+	// The stream should remain open and messages should continue arriving
+	// after the generated client has sent its one request and half-closed.
 	for i := 0; i < 5; i++ {
-		evt := nextWatchEvent(t, events, 10*time.Second)
-		if evt.err != nil {
-			// Expected if stream is cancelled, but we haven't cancelled.
-			// If we get here, half-close may have prematurely terminated the stream.
-			if evt.err == io.EOF {
-				t.Logf("half-close test: stream closed after %d messages (unexpected early close)", messageCount)
-			}
-			break
+		msg, err := stream.Recv()
+		if err != nil {
+			t.Fatalf("message %d after request half-close: %v", i, err)
 		}
-		messageCount++
-	}
-
-	if messageCount < 5 {
-		t.Errorf("expected at least 5 messages after half-close, got %d", messageCount)
+		if got, want := msg.GetDetail().GetJourney().GetWorkerName(), fmt.Sprintf("Worker-%d", i); got != want {
+			t.Fatalf("message %d worker = %q, want %q", i, got, want)
+		}
 	}
 }

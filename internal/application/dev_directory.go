@@ -28,11 +28,36 @@ import (
 // somebody. Both the directory and the credentials derive from this one call,
 // so a row a tester can see and the bundle they would sign in with cannot
 // come from two different readings of the plan.
+//
+// It reads the default tenant's company; [devServedCompanies] lists every
+// company a multi-tenant process serves.
 func devSeededWorkforce(cfg ServeConfig) ([]demoworkforce.Employee, map[string]bool, bool) {
-	if !cfg.DevBrowserLogin || cfg.Tenant != demoworkforce.CompanyKey {
+	pack, isDemo := demoworkforce.PackFor(cfg.Tenant)
+	if !cfg.DevBrowserLogin || !isDemo {
 		return nil, nil, false
 	}
-	workers, err := demoworkforce.Plan(pgstore.TenantID(cfg.Tenant))
+	return devSeededWorkforceFor(pack)
+}
+
+// devServedCompanies is every demo company this process serves, the default
+// tenant's first. A served tenant that is not a shipped demo company has no
+// personas and no directory, exactly as a lone non-demo tenant never did.
+func devServedCompanies(cfg ServeConfig) []*demoworkforce.Pack {
+	if !cfg.DevBrowserLogin {
+		return nil
+	}
+	packs := make([]*demoworkforce.Pack, 0, 2)
+	for _, tenant := range cfg.ServedTenants() {
+		if pack, isDemo := demoworkforce.PackFor(tenant); isDemo {
+			packs = append(packs, pack)
+		}
+	}
+	return packs
+}
+
+// devSeededWorkforceFor resolves one company's plan and its managers.
+func devSeededWorkforceFor(pack *demoworkforce.Pack) ([]demoworkforce.Employee, map[string]bool, bool) {
+	workers, err := pack.Plan(pgstore.TenantID(pack.Key))
 	if err != nil {
 		return nil, nil, false
 	}
@@ -56,22 +81,17 @@ func devSeededWorkforce(cfg ServeConfig) ([]demoworkforce.Employee, map[string]b
 // executive, and a finance or people-operations leader keeps the narrow
 // partner bundle their function names rather than being widened to a manager
 // because they happen to have reports. Seniority never silently adds reach.
+//
+// The classification is the worker's own company's (Pack.BundleFor): for
+// HarborCare, grades E6 and E7 are the executive band and the people
+// operations and finance units are the functional partners; another company
+// names its own executive and finance jobs.
 func devEmployeeBundle(worker demoworkforce.Employee, managesAnybody bool) workspace.DevEmployeeBundle {
-	// Grades E6 and E7 are the seed's executive band (chief officers and the
-	// general counsel); M and P grades are management and professional.
-	if strings.HasPrefix(worker.Row.Grade, "E") {
-		return workspace.DevEmployeeBundleExecutive
+	pack, known := demoworkforce.PackForJob(worker.Row.JobCode)
+	if !known {
+		pack = demoworkforce.HarborCarePack
 	}
-	switch worker.Organization.Code {
-	case "people-operations":
-		return workspace.DevEmployeeBundlePeopleOps
-	case "finance":
-		return workspace.DevEmployeeBundleFinance
-	}
-	if managesAnybody {
-		return workspace.DevEmployeeBundleManager
-	}
-	return workspace.DevEmployeeBundleSelf
+	return workspace.DevEmployeeBundle(pack.BundleFor(worker, managesAnybody))
 }
 
 // composeDevEmployeePersonas mints one server-held credential per active
@@ -83,11 +103,10 @@ func devEmployeeBundle(worker demoworkforce.Employee, managesAnybody bool) works
 // before any access is resolved), the declared purpose is one the bundle's
 // roles are granted by the live P1A policy, and the token itself never leaves
 // the server - the page carries only the opaque persona id.
+//
+// A process serving several demo companies mints every company's employees,
+// each credential bound to its own company's tenant.
 func composeDevEmployeePersonas(verifier trust.Verifier, cfg ServeConfig, now func() time.Time) []workspace.DevPersona {
-	workers, manages, ok := devSeededWorkforce(cfg)
-	if !ok {
-		return nil
-	}
 	issuer, isIssuer := verifier.(developmentTokenIssuer)
 	if !isIssuer {
 		return nil
@@ -95,7 +114,19 @@ func composeDevEmployeePersonas(verifier trust.Verifier, cfg ServeConfig, now fu
 	if now == nil {
 		now = time.Now
 	}
-	timestamp := now().UTC()
+	var personas []workspace.DevPersona
+	for _, pack := range devServedCompanies(cfg) {
+		personas = append(personas, composeCompanyEmployeePersonas(issuer, cfg, pack, now().UTC())...)
+	}
+	return personas
+}
+
+// composeCompanyEmployeePersonas mints one company's employee credentials.
+func composeCompanyEmployeePersonas(issuer developmentTokenIssuer, cfg ServeConfig, pack *demoworkforce.Pack, timestamp time.Time) []workspace.DevPersona {
+	workers, manages, ok := devSeededWorkforceFor(pack)
+	if !ok {
+		return nil
+	}
 	personas := make([]workspace.DevPersona, 0, len(workers))
 	for _, worker := range workers {
 		if worker.Row.WorkerKey == "" || worker.Row.LegalName == "" || worker.Row.LifecycleStatus != "active" {
@@ -110,8 +141,8 @@ func composeDevEmployeePersonas(verifier trust.Verifier, cfg ServeConfig, now fu
 		}
 		id := workspace.DevEmployeePersonaID(worker.Row.WorkerKey)
 		token, err := issuer.Issue(trust.Claims{
-			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: worker.Row.WorkerKey, SubjectKind: "human", Tenant: cfg.Tenant,
-			OrganizationScopeID:  "org:" + cfg.Tenant + ":" + worker.Organization.Code,
+			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: worker.Row.WorkerKey, SubjectKind: "human", Tenant: pack.Key,
+			OrganizationScopeID:  "org:" + pack.Key + ":" + worker.Organization.Code,
 			Roles:                access.Roles,
 			Purposes:             []string{access.Purpose},
 			AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session-local-employee-" + worker.Row.WorkerKey,
@@ -122,23 +153,46 @@ func composeDevEmployeePersonas(verifier trust.Verifier, cfg ServeConfig, now fu
 		}
 		personas = append(personas, workspace.DevPersona{
 			ID: id, Name: worker.Row.LegalName, Access: access.Label,
-			Roles: access.Roles, Token: token, WorkerRef: worker.Row.WorkerKey,
+			Roles: access.Roles, Token: token, WorkerRef: worker.Row.WorkerKey, Company: pack.Key,
 		})
 	}
 	return personas
 }
 
 // devDirectorySnapshot is the immutable directory one composition produced.
+//
+// snapshot is the default company's; companies holds every served
+// company's, keyed by tenant, for the sign-in page's company selector.
 type devDirectorySnapshot struct {
-	snapshot workspace.DevDirectorySnapshot
+	snapshot  workspace.DevDirectorySnapshot
+	companies map[string]workspace.DevDirectorySnapshot
+	offered   []workspace.DevCompany
+}
+
+// DevCompanies implements workspace.DevCompanyDirectory.
+func (directory devDirectorySnapshot) DevCompanies() []workspace.DevCompany {
+	return append([]workspace.DevCompany(nil), directory.offered...)
 }
 
 // DevDirectorySnapshot implements workspace.DevDirectory. It hands back
 // copies so a renderer cannot reach back into the composed value.
 func (directory devDirectorySnapshot) DevDirectorySnapshot() workspace.DevDirectorySnapshot {
+	return copyDevDirectorySnapshot(directory.snapshot)
+}
+
+// DevCompanyDirectorySnapshot implements workspace.DevCompanyDirectory.
+func (directory devDirectorySnapshot) DevCompanyDirectorySnapshot(company string) (workspace.DevDirectorySnapshot, bool) {
+	snapshot, ok := directory.companies[company]
+	if !ok {
+		return workspace.DevDirectorySnapshot{}, false
+	}
+	return copyDevDirectorySnapshot(snapshot), true
+}
+
+func copyDevDirectorySnapshot(snapshot workspace.DevDirectorySnapshot) workspace.DevDirectorySnapshot {
 	return workspace.DevDirectorySnapshot{
-		Units:     append([]workspace.DevDirectoryUnit(nil), directory.snapshot.Units...),
-		Employees: append([]workspace.DevDirectoryEmployee(nil), directory.snapshot.Employees...),
+		Units:     append([]workspace.DevDirectoryUnit(nil), snapshot.Units...),
+		Employees: append([]workspace.DevDirectoryEmployee(nil), snapshot.Employees...),
 	}
 }
 
@@ -148,15 +202,34 @@ func (directory devDirectorySnapshot) DevDirectorySnapshot() workspace.DevDirect
 // sign-in page selects a token by opaque id from the server-owned persona
 // collection, and nothing here is capable of disclosing one.
 func composeDevDirectory(cfg ServeConfig) workspace.DevDirectory {
-	workers, _, ok := devSeededWorkforce(cfg)
-	if !ok {
+	if _, _, ok := devSeededWorkforce(cfg); !ok {
 		return nil
 	}
+	directory := devDirectorySnapshot{companies: map[string]workspace.DevDirectorySnapshot{}, offered: composeDevCompanies(cfg)}
+	for _, pack := range devServedCompanies(cfg) {
+		snapshot, ok := companyDevDirectory(pack)
+		if !ok {
+			continue
+		}
+		directory.companies[pack.Key] = snapshot
+		if pack.Key == cfg.Tenant {
+			directory.snapshot = snapshot
+		}
+	}
+	return directory
+}
+
+// companyDevDirectory is one company's org chart and employee list.
+func companyDevDirectory(pack *demoworkforce.Pack) (workspace.DevDirectorySnapshot, bool) {
+	workers, _, ok := devSeededWorkforceFor(pack)
+	if !ok {
+		return workspace.DevDirectorySnapshot{}, false
+	}
 	snapshot := workspace.DevDirectorySnapshot{
-		Units:     make([]workspace.DevDirectoryUnit, 0, len(demoworkforce.HarborCare.Units)),
+		Units:     make([]workspace.DevDirectoryUnit, 0, len(pack.Company.Units)),
 		Employees: make([]workspace.DevDirectoryEmployee, 0, len(workers)),
 	}
-	for _, unit := range demoworkforce.HarborCare.Units {
+	for _, unit := range pack.Company.Units {
 		snapshot.Units = append(snapshot.Units, workspace.DevDirectoryUnit{
 			Code: unit.Code, Name: unit.Name, ParentCode: unit.ParentCode,
 		})
@@ -175,5 +248,19 @@ func composeDevDirectory(cfg ServeConfig) workspace.DevDirectory {
 			ManagerKey:   worker.ManagerKey,
 		})
 	}
-	return devDirectorySnapshot{snapshot: snapshot}
+	return snapshot, true
+}
+
+// composeDevCompanies lists the demo companies the sign-in page's company
+// selector offers, the default tenant's first.
+func composeDevCompanies(cfg ServeConfig) []workspace.DevCompany {
+	packs := devServedCompanies(cfg)
+	companies := make([]workspace.DevCompany, 0, len(packs))
+	for _, pack := range packs {
+		companies = append(companies, workspace.DevCompany{
+			Key: pack.Key, Name: pack.Company.Name, ShortName: pack.DisplayName,
+			Description: pack.Tagline, Headcount: pack.WorkerCount, Logo: pack.LogoAsset,
+		})
+	}
+	return companies
 }

@@ -98,6 +98,12 @@ type DocumentDetail struct {
 	// one entry per distinct target in first-appearance order. A target the
 	// caller cannot open carries no title (docs_markdown.go, HUB-035).
 	Links []DocumentLinkTarget
+	// ProjectTasks contains only server-authorized task previews for targets
+	// named by this document. Denied and unknown targets carry no task data.
+	ProjectTasks []DocsProjectTaskPreview
+	// Journeys contains only server-authorized quick looks at shared
+	// in-progress workflows (promotion journeys) this document names.
+	Journeys []DocsJourneyPreview
 }
 
 // DocumentLinkTarget is the reader's safe view of one linked document: its
@@ -113,6 +119,17 @@ type DocumentLinkTarget struct {
 type DocumentVersionProjection struct {
 	DocumentID, VersionID, Title, Markdown string
 	Readable                               bool
+}
+
+// DocumentVersionSummary is one entry in a document's version history, for
+// the compare dialog's From/To pickers (DOCS-01). AuthorID is empty when
+// the store cannot name the version's author. Redacted entries carry only
+// VersionID: the store withheld everything else because this version is
+// more sensitive than the document's current classification.
+type DocumentVersionSummary struct {
+	VersionID, Title, AuthorID string
+	CreatedAt                  time.Time
+	IsCurrent, Redacted        bool
 }
 
 // DocumentBacklink is one inbound link to the open document from a source
@@ -146,22 +163,22 @@ type DocumentEditRequest struct {
 var docsCopy = map[string]map[string]string{
 	"en-US": {
 		"private": "My documents", "shared": "Shared with me", "team_official": "Team documents", "channel_official": "Channel documents",
-		"unavailable": "Documents are not connected to this workspace yet.", "empty": "No documents are available in this view.", "owner": "Owner", "version": "Version", "deployed_version": "Deployed version", "scope": "Official scope", "review": "Review due", "sharing": "Sharing", "heading": "Documents", "lede": "Browse the documents this workspace has authorized you to read.", "search_heading": "Search documents", "search": "Search", "search_action": "Search", "search_help": "Search deployed documents by title, text, team, or channel.", "keyword": "Keyword", "semantic": "Semantic", "keyword_fallback": "Semantic search is unavailable, so keyword search is being used.", "why": "Match", "provenance_keyword": "Keyword match", "provenance_semantic": "Semantic match", "provenance_title": "Title match", "provenance_fuzzy": "Fuzzy match", "search_filters": "Filters", "filter_team": "Team", "filter_channel": "Channel", "filter_owner": "Owner", "filter_status": "Status", "filter_date_from": "From", "filter_date_to": "To", "search_no_results": "No documents match this search.", "review_hash": "Exact content hash", "review_scope": "Deploy scope", "review_diff": "Exact changes", "review_unauthorized": "You do not currently have authority to review or deploy this version.", "review_heading": "Review and publish", "review_state": "Review status", "create_heading": "Create a private document", "title": "Title", "markdown": "Markdown", "create_help": "Your draft starts private and becomes a new immutable version.", "create_action": "Create draft", "create_failed": "The draft could not be created. Your text is still here; try again.", "share_heading": "Share document", "share_help": "Sharing publishes the current personal version for this recipient. Later shares use the current published version.", "share_recipient": "Recipient employee ID", "share_url": "Workspace document link", "share_action": "Share document", "share_cancel": "Cancel", "share_busy": "Sharing document…", "share_failed": "The document could not be shared. The recipient was not added.", "share_success": "Document shared with this recipient.", "comments_heading": "Comments", "comments_empty": "No comments on this version yet.", "comments_unavailable": "Comments could not be loaded.", "comment_author": "Author", "comment_body": "Comment", "comment_action": "Add comment", "comment_busy": "Adding comment…", "comment_failed": "The comment could not be added. Your text is still here; try again.", "comment_help": "Comments are attached to this document version.", "edit_open": "Edit document", "edit_heading": "Edit document", "edit_help": "Saving creates a private immutable version. It stays private until an authorized share or publish action; shared readers keep seeing the published version until then.", "edit_save": "Save new version", "edit_cancel": "Cancel", "edit_busy": "Saving new version…", "edit_saved": "New private version saved. Refreshing the document; shared readers keep seeing the published version until then.", "edit_failed": "The new version could not be saved. Your edits are still here; try again.", "edit_conflict": "This document changed while you were editing. Reload it, merge your changes, and try again.", "link_unavailable": "Not available to you", "compare_action": "Compare versions", "compare_heading": "Compare versions", "compare_close": "Close comparison", "compare_base": "Your base version", "compare_other": "Current version", "compare_loading": "Loading versions…", "compare_failed": "One of these versions could not be loaded.", "backlinks_heading": "Linked from", "backlinks_empty": "No other document you can read links here yet.", "backlinks_state_stale": "may be out of date", "backlinks_state_broken": "link needs review", "backlinks_loading": "Loading linked documents…",
+		"unavailable": "Documents are not connected to this workspace yet.", "empty": "No documents are available in this view.", "owner": "Owner", "version": "Version", "deployed_version": "Deployed version", "scope": "Official scope", "review": "Review due", "sharing": "Sharing", "heading": "Documents", "lede": "Browse the documents this workspace has authorized you to read.", "search_heading": "Search documents", "search": "Search", "search_action": "Search", "search_help": "Search deployed documents by title, text, team, or channel.", "keyword": "Keyword", "semantic": "Semantic", "keyword_fallback": "Semantic search is unavailable, so keyword search is being used.", "why": "Match", "provenance_keyword": "Keyword match", "provenance_semantic": "Semantic match", "provenance_title": "Title match", "provenance_fuzzy": "Fuzzy match", "search_filters": "Filters", "filter_team": "Team", "filter_channel": "Channel", "filter_owner": "Owner", "filter_status": "Status", "filter_date_from": "From", "filter_date_to": "To", "search_no_results": "No documents match this search.", "review_hash": "Exact content hash", "review_scope": "Deploy scope", "review_diff": "Exact changes", "review_unauthorized": "You do not currently have authority to review or deploy this version.", "review_heading": "Review and publish", "review_state": "Review status", "create_heading": "Create a private document", "title": "Title", "markdown": "Markdown", "create_title_placeholder": "Untitled document", "create_help": "Your draft starts private and becomes a new immutable version.", "create_action": "Create draft", "create_failed": "The draft could not be created. Your text is still here; try again.", "share_heading": "Share document", "share_help": "Sharing publishes the current personal version for this recipient. Later shares use the current published version.", "share_recipient": "Recipient employee ID", "share_url": "Workspace document link", "share_action": "Share document", "share_cancel": "Cancel", "share_busy": "Sharing document…", "share_failed": "The document could not be shared. The recipient was not added.", "share_success": "Document shared with this recipient.", "comments_heading": "Comments", "comments_empty": "No comments on this version yet.", "comments_unavailable": "Comments could not be loaded.", "comment_author": "Author", "comment_body": "Comment", "comment_action": "Add comment", "comment_busy": "Adding comment…", "comment_failed": "The comment could not be added. Your text is still here; try again.", "comment_help": "Comments are attached to this document version.", "edit_open": "Edit document", "edit_heading": "Edit document", "edit_help": "Saving creates a private immutable version. It stays private until an authorized share or publish action; shared readers keep seeing the published version until then.", "edit_save": "Save new version", "edit_cancel": "Cancel", "edit_busy": "Saving new version…", "edit_saved": "New private version saved. Refreshing the document; shared readers keep seeing the published version until then.", "edit_saved_private": "New version saved.", "edit_failed": "The new version could not be saved. Your edits are still here; try again.", "edit_conflict": "This document changed while you were editing. Reload it, merge your changes, and try again.", "link_unavailable": "Not available to you", "compare_action": "Compare versions", "compare_heading": "Compare versions", "compare_close": "Close comparison", "compare_base": "Your base version", "compare_other": "Current version", "compare_loading": "Loading versions…", "compare_failed": "One of these versions could not be loaded.", "compare_from": "From", "compare_to": "To", "compare_choose": "Choose a version", "compare_current": "current", "compare_versions_loading": "Loading the version list…", "compare_versions_failed": "The version list could not be loaded.", "compare_versions_retry": "Try again", "compare_single": "This document has one version so far. Save an edit and you can compare the two here.", "backlinks_heading": "Linked from", "backlinks_empty": "No documents link here yet.", "backlinks_unavailable": "Linked documents could not be loaded.", "backlinks_state_stale": "may be out of date", "backlinks_state_broken": "link needs review", "backlinks_loading": "Loading linked documents…",
 	},
 	"de-DE": {
 		"private": "Meine Dokumente", "shared": "Mit mir geteilt", "team_official": "Teamdokumente", "channel_official": "Kanaldokumente",
-		"unavailable": "Dokumente sind noch nicht mit diesem Arbeitsbereich verbunden.", "empty": "In dieser Ansicht sind keine Dokumente verfügbar.", "owner": "Verantwortlich", "version": "Version", "deployed_version": "Veröffentlichte Version", "scope": "Offizieller Bereich", "review": "Prüfung fällig", "sharing": "Freigabe", "heading": "Dokumente", "lede": "Durchsuchen Sie die für diesen Arbeitsbereich freigegebenen Dokumente.", "search_heading": "Dokumente durchsuchen", "search": "Suche", "search_action": "Suchen", "search_help": "Durchsuchen Sie veröffentlichte Dokumente nach Titel, Text, Team oder Kanal.", "keyword": "Schlüsselwort", "semantic": "Semantisch", "keyword_fallback": "Die semantische Suche ist nicht verfügbar; die Schlüsselwortsuche wird verwendet.", "why": "Treffer", "provenance_keyword": "Schlüsselworttreffer", "provenance_semantic": "Semantischer Treffer", "provenance_title": "Titeltreffer", "provenance_fuzzy": "Unscharfer Treffer", "search_filters": "Filter", "filter_team": "Team", "filter_channel": "Kanal", "filter_owner": "Verantwortlich", "filter_status": "Status", "filter_date_from": "Von", "filter_date_to": "Bis", "search_no_results": "Keine Dokumente entsprechen dieser Suche.", "review_hash": "Exakter Inhaltshash", "review_scope": "Bereitstellungsbereich", "review_diff": "Exakte Änderungen", "review_unauthorized": "Sie sind derzeit nicht berechtigt, diese Version zu prüfen oder zu veröffentlichen.", "review_heading": "Prüfen und veröffentlichen", "review_state": "Prüfstatus", "create_heading": "Privates Dokument erstellen", "title": "Titel", "markdown": "Markdown", "create_help": "Der Entwurf bleibt privat und wird zu einer neuen unveränderlichen Version.", "create_action": "Entwurf erstellen", "create_failed": "Der Entwurf konnte nicht erstellt werden. Ihr Text bleibt erhalten; versuchen Sie es erneut.", "comments_heading": "Kommentare", "comments_empty": "Für diese Version gibt es noch keine Kommentare.", "comments_unavailable": "Kommentare konnten nicht geladen werden.", "comment_author": "Autor", "comment_body": "Kommentar", "comment_action": "Kommentar hinzufügen", "comment_busy": "Kommentar wird hinzugefügt…", "comment_failed": "Der Kommentar konnte nicht hinzugefügt werden. Ihr Text bleibt erhalten; versuchen Sie es erneut.", "comment_help": "Kommentare gehören zu dieser Dokumentversion.", "edit_open": "Dokument bearbeiten", "edit_heading": "Dokument bearbeiten", "edit_help": "Beim Speichern wird eine private, unveränderliche Version erstellt. Veröffentlichen und Teilen bleiben separate Schritte; geteilte Leser sehen bis dahin die veröffentlichte Version.", "edit_save": "Neue Version speichern", "edit_cancel": "Abbrechen", "edit_busy": "Neue Version wird gespeichert…", "edit_saved": "Neue private Version gespeichert. Das Dokument wird aktualisiert; geteilte Leser sehen bis dahin die veröffentlichte Version.", "edit_failed": "Die neue Version konnte nicht gespeichert werden. Ihre Änderungen sind noch vorhanden; versuchen Sie es erneut.", "edit_conflict": "Das Dokument wurde während der Bearbeitung geändert. Laden Sie es neu, führen Sie Ihre Änderungen zusammen und versuchen Sie es erneut.", "link_unavailable": "Für Sie nicht verfügbar", "compare_action": "Versionen vergleichen", "compare_heading": "Versionen vergleichen", "compare_close": "Vergleich schließen", "compare_base": "Ihre Ausgangsversion", "compare_other": "Aktuelle Version", "compare_loading": "Versionen werden geladen…", "compare_failed": "Eine dieser Versionen konnte nicht geladen werden.", "backlinks_heading": "Verlinkt von", "backlinks_empty": "Noch kein für Sie lesbares Dokument verlinkt hierher.", "backlinks_state_stale": "möglicherweise veraltet", "backlinks_state_broken": "Link muss geprüft werden", "backlinks_loading": "Verlinkte Dokumente werden geladen…",
+		"unavailable": "Dokumente sind noch nicht mit diesem Arbeitsbereich verbunden.", "empty": "In dieser Ansicht sind keine Dokumente verfügbar.", "owner": "Verantwortlich", "version": "Version", "deployed_version": "Veröffentlichte Version", "scope": "Offizieller Bereich", "review": "Prüfung fällig", "sharing": "Freigabe", "heading": "Dokumente", "lede": "Durchsuchen Sie die für diesen Arbeitsbereich freigegebenen Dokumente.", "search_heading": "Dokumente durchsuchen", "search": "Suche", "search_action": "Suchen", "search_help": "Durchsuchen Sie veröffentlichte Dokumente nach Titel, Text, Team oder Kanal.", "keyword": "Schlüsselwort", "semantic": "Semantisch", "keyword_fallback": "Die semantische Suche ist nicht verfügbar; die Schlüsselwortsuche wird verwendet.", "why": "Treffer", "provenance_keyword": "Schlüsselworttreffer", "provenance_semantic": "Semantischer Treffer", "provenance_title": "Titeltreffer", "provenance_fuzzy": "Unscharfer Treffer", "search_filters": "Filter", "filter_team": "Team", "filter_channel": "Kanal", "filter_owner": "Verantwortlich", "filter_status": "Status", "filter_date_from": "Von", "filter_date_to": "Bis", "search_no_results": "Keine Dokumente entsprechen dieser Suche.", "review_hash": "Exakter Inhaltshash", "review_scope": "Bereitstellungsbereich", "review_diff": "Exakte Änderungen", "review_unauthorized": "Sie sind derzeit nicht berechtigt, diese Version zu prüfen oder zu veröffentlichen.", "review_heading": "Prüfen und veröffentlichen", "review_state": "Prüfstatus", "create_heading": "Privates Dokument erstellen", "title": "Titel", "markdown": "Markdown", "create_title_placeholder": "Unbenanntes Dokument", "create_help": "Der Entwurf bleibt privat und wird zu einer neuen unveränderlichen Version.", "create_action": "Entwurf erstellen", "create_failed": "Der Entwurf konnte nicht erstellt werden. Ihr Text bleibt erhalten; versuchen Sie es erneut.", "comments_heading": "Kommentare", "comments_empty": "Für diese Version gibt es noch keine Kommentare.", "comments_unavailable": "Kommentare konnten nicht geladen werden.", "comment_author": "Autor", "comment_body": "Kommentar", "comment_action": "Kommentar hinzufügen", "comment_busy": "Kommentar wird hinzugefügt…", "comment_failed": "Der Kommentar konnte nicht hinzugefügt werden. Ihr Text bleibt erhalten; versuchen Sie es erneut.", "comment_help": "Kommentare gehören zu dieser Dokumentversion.", "edit_open": "Dokument bearbeiten", "edit_heading": "Dokument bearbeiten", "edit_help": "Beim Speichern wird eine private, unveränderliche Version erstellt. Veröffentlichen und Teilen bleiben separate Schritte; geteilte Leser sehen bis dahin die veröffentlichte Version.", "edit_save": "Neue Version speichern", "edit_cancel": "Abbrechen", "edit_busy": "Neue Version wird gespeichert…", "edit_saved": "Neue private Version gespeichert. Das Dokument wird aktualisiert; geteilte Leser sehen bis dahin die veröffentlichte Version.", "edit_saved_private": "Neue Version gespeichert.", "edit_failed": "Die neue Version konnte nicht gespeichert werden. Ihre Änderungen sind noch vorhanden; versuchen Sie es erneut.", "edit_conflict": "Das Dokument wurde während der Bearbeitung geändert. Laden Sie es neu, führen Sie Ihre Änderungen zusammen und versuchen Sie es erneut.", "link_unavailable": "Für Sie nicht verfügbar", "compare_action": "Versionen vergleichen", "compare_heading": "Versionen vergleichen", "compare_close": "Vergleich schließen", "compare_base": "Ihre Ausgangsversion", "compare_other": "Aktuelle Version", "compare_loading": "Versionen werden geladen…", "compare_failed": "Eine dieser Versionen konnte nicht geladen werden.", "compare_from": "Von", "compare_to": "Bis", "compare_choose": "Version auswählen", "compare_current": "aktuell", "compare_versions_loading": "Versionsliste wird geladen…", "compare_versions_failed": "Die Versionsliste konnte nicht geladen werden.", "compare_versions_retry": "Erneut versuchen", "compare_single": "Dieses Dokument hat bisher nur eine Version. Speichern Sie eine Änderung, dann können Sie beide hier vergleichen.", "backlinks_heading": "Verlinkt von", "backlinks_empty": "Noch keine Dokumente verlinken hierher.", "backlinks_unavailable": "Verlinkte Dokumente konnten nicht geladen werden.", "backlinks_state_stale": "möglicherweise veraltet", "backlinks_state_broken": "Link muss geprüft werden", "backlinks_loading": "Verlinkte Dokumente werden geladen…",
 	},
 	"ar": {
 		"private": "مستنداتي", "shared": "مشتركة معي", "team_official": "مستندات الفريق", "channel_official": "مستندات القناة",
-		"unavailable": "لم يتم ربط المستندات بمساحة العمل هذه بعد.", "empty": "لا توجد مستندات متاحة في هذا العرض.", "owner": "المالك", "version": "النسخة", "deployed_version": "النسخة المنشورة", "scope": "النطاق الرسمي", "review": "موعد المراجعة", "sharing": "المشاركة", "heading": "المستندات", "lede": "تصفح المستندات المصرح لك بقراءتها في مساحة العمل هذه.", "search_heading": "البحث في المستندات", "search": "بحث", "search_action": "ابحث", "search_help": "ابحث في المستندات المنشورة حسب العنوان أو النص أو الفريق أو القناة.", "keyword": "كلمة مفتاحية", "semantic": "دلالي", "keyword_fallback": "البحث الدلالي غير متاح، لذلك سيتم استخدام البحث بالكلمات المفتاحية.", "why": "سبب التطابق", "provenance_keyword": "تطابق كلمة مفتاحية", "provenance_semantic": "تطابق دلالي", "provenance_title": "تطابق العنوان", "provenance_fuzzy": "تطابق تقريبي", "search_filters": "عوامل التصفية", "filter_team": "الفريق", "filter_channel": "القناة", "filter_owner": "المالك", "filter_status": "الحالة", "filter_date_from": "من", "filter_date_to": "إلى", "search_no_results": "لا توجد مستندات تطابق هذا البحث.", "review_hash": "تجزئة المحتوى الدقيقة", "review_scope": "نطاق النشر", "review_diff": "التغييرات الدقيقة", "review_unauthorized": "ليست لديك حاليًا صلاحية مراجعة هذه النسخة أو نشرها.", "review_heading": "المراجعة والنشر", "review_state": "حالة المراجعة", "create_heading": "إنشاء مستند خاص", "title": "العنوان", "markdown": "Markdown", "create_help": "تبدأ المسودة خاصة وتصبح نسخة جديدة غير قابلة للتغيير.", "create_action": "إنشاء مسودة", "create_failed": "تعذر إنشاء المسودة. لا يزال النص محفوظًا هنا؛ حاول مرة أخرى.", "comments_heading": "التعليقات", "comments_empty": "لا توجد تعليقات على هذه النسخة بعد.", "comments_unavailable": "تعذر تحميل التعليقات.", "comment_author": "الكاتب", "comment_body": "التعليق", "comment_action": "إضافة تعليق", "comment_busy": "جارٍ إضافة التعليق…", "comment_failed": "تعذر إضافة التعليق. لا يزال النص محفوظًا هنا؛ حاول مرة أخرى.", "comment_help": "ترتبط التعليقات بنسخة المستند هذه.", "edit_open": "تحرير المستند", "edit_heading": "تحرير المستند", "edit_help": "يؤدي الحفظ إلى إنشاء نسخة خاصة غير قابلة للتغيير. يظل النشر والمشاركة خطوتين منفصلتين؛ وسيواصل القراء المشاركون رؤية النسخة المنشورة حتى ذلك الحين.", "edit_save": "حفظ نسخة جديدة", "edit_cancel": "إلغاء", "edit_busy": "جارٍ حفظ النسخة الجديدة…", "edit_saved": "تم حفظ نسخة خاصة جديدة. جارٍ تحديث المستند؛ وسيواصل القراء المشاركون رؤية النسخة المنشورة حتى ذلك الحين.", "edit_failed": "تعذر حفظ النسخة الجديدة. لا تزال تعديلاتك موجودة؛ حاول مرة أخرى.", "edit_conflict": "تم تغيير المستند أثناء تحريرك له. أعد تحميله وادمج تغييراتك ثم حاول مرة أخرى.", "link_unavailable": "غير متاح لك", "compare_action": "مقارنة النسخ", "compare_heading": "مقارنة النسخ", "compare_close": "إغلاق المقارنة", "compare_base": "نسختك الأساسية", "compare_other": "النسخة الحالية", "compare_loading": "جارٍ تحميل النسخ…", "compare_failed": "تعذر تحميل إحدى هاتين النسختين.", "backlinks_heading": "روابط من", "backlinks_empty": "لا يوجد بعد أي مستند يمكنك قراءته يرتبط بهذا المستند.", "backlinks_state_stale": "قد يكون قديمًا", "backlinks_state_broken": "الرابط يحتاج إلى مراجعة", "backlinks_loading": "جارٍ تحميل المستندات المرتبطة…",
+		"unavailable": "لم يتم ربط المستندات بمساحة العمل هذه بعد.", "empty": "لا توجد مستندات متاحة في هذا العرض.", "owner": "المالك", "version": "النسخة", "deployed_version": "النسخة المنشورة", "scope": "النطاق الرسمي", "review": "موعد المراجعة", "sharing": "المشاركة", "heading": "المستندات", "lede": "تصفح المستندات المصرح لك بقراءتها في مساحة العمل هذه.", "search_heading": "البحث في المستندات", "search": "بحث", "search_action": "ابحث", "search_help": "ابحث في المستندات المنشورة حسب العنوان أو النص أو الفريق أو القناة.", "keyword": "كلمة مفتاحية", "semantic": "دلالي", "keyword_fallback": "البحث الدلالي غير متاح، لذلك سيتم استخدام البحث بالكلمات المفتاحية.", "why": "سبب التطابق", "provenance_keyword": "تطابق كلمة مفتاحية", "provenance_semantic": "تطابق دلالي", "provenance_title": "تطابق العنوان", "provenance_fuzzy": "تطابق تقريبي", "search_filters": "عوامل التصفية", "filter_team": "الفريق", "filter_channel": "القناة", "filter_owner": "المالك", "filter_status": "الحالة", "filter_date_from": "من", "filter_date_to": "إلى", "search_no_results": "لا توجد مستندات تطابق هذا البحث.", "review_hash": "تجزئة المحتوى الدقيقة", "review_scope": "نطاق النشر", "review_diff": "التغييرات الدقيقة", "review_unauthorized": "ليست لديك حاليًا صلاحية مراجعة هذه النسخة أو نشرها.", "review_heading": "المراجعة والنشر", "review_state": "حالة المراجعة", "create_heading": "إنشاء مستند خاص", "title": "العنوان", "markdown": "Markdown", "create_title_placeholder": "مستند بلا عنوان", "create_help": "تبدأ المسودة خاصة وتصبح نسخة جديدة غير قابلة للتغيير.", "create_action": "إنشاء مسودة", "create_failed": "تعذر إنشاء المسودة. لا يزال النص محفوظًا هنا؛ حاول مرة أخرى.", "comments_heading": "التعليقات", "comments_empty": "لا توجد تعليقات على هذه النسخة بعد.", "comments_unavailable": "تعذر تحميل التعليقات.", "comment_author": "الكاتب", "comment_body": "التعليق", "comment_action": "إضافة تعليق", "comment_busy": "جارٍ إضافة التعليق…", "comment_failed": "تعذر إضافة التعليق. لا يزال النص محفوظًا هنا؛ حاول مرة أخرى.", "comment_help": "ترتبط التعليقات بنسخة المستند هذه.", "edit_open": "تحرير المستند", "edit_heading": "تحرير المستند", "edit_help": "يؤدي الحفظ إلى إنشاء نسخة خاصة غير قابلة للتغيير. يظل النشر والمشاركة خطوتين منفصلتين؛ وسيواصل القراء المشاركون رؤية النسخة المنشورة حتى ذلك الحين.", "edit_save": "حفظ نسخة جديدة", "edit_cancel": "إلغاء", "edit_busy": "جارٍ حفظ النسخة الجديدة…", "edit_saved": "تم حفظ نسخة خاصة جديدة. جارٍ تحديث المستند؛ وسيواصل القراء المشاركون رؤية النسخة المنشورة حتى ذلك الحين.", "edit_saved_private": "تم حفظ نسخة جديدة.", "edit_failed": "تعذر حفظ النسخة الجديدة. لا تزال تعديلاتك موجودة؛ حاول مرة أخرى.", "edit_conflict": "تم تغيير المستند أثناء تحريرك له. أعد تحميله وادمج تغييراتك ثم حاول مرة أخرى.", "link_unavailable": "غير متاح لك", "compare_action": "مقارنة النسخ", "compare_heading": "مقارنة النسخ", "compare_close": "إغلاق المقارنة", "compare_base": "نسختك الأساسية", "compare_other": "النسخة الحالية", "compare_loading": "جارٍ تحميل النسخ…", "compare_failed": "تعذر تحميل إحدى هاتين النسختين.", "compare_from": "من", "compare_to": "إلى", "compare_choose": "اختر نسخة", "compare_current": "الحالية", "compare_versions_loading": "جارٍ تحميل قائمة النسخ…", "compare_versions_failed": "تعذر تحميل قائمة النسخ.", "compare_versions_retry": "حاول مرة أخرى", "compare_single": "لهذا المستند نسخة واحدة حتى الآن. احفظ تعديلًا وستتمكن من مقارنة النسختين هنا.", "backlinks_heading": "روابط من", "backlinks_empty": "لا توجد مستندات ترتبط بهذا المستند بعد.", "backlinks_unavailable": "تعذر تحميل المستندات المرتبطة.", "backlinks_state_stale": "قد يكون قديمًا", "backlinks_state_broken": "الرابط يحتاج إلى مراجعة", "backlinks_loading": "جارٍ تحميل المستندات المرتبطة…",
 	},
 }
 
 var docsWorkspaceCopy = map[string]map[string]string{
-	"en-US": {"create_open": "New document", "create_cancel": "Cancel", "create_busy": "Creating document…", "create_help": "Only you can read this draft until you share or publish it.", "updated": "Updated", "status_private": "Personal", "status_shared": "Shared", "status_team_official": "Team guidance", "status_channel_official": "Channel guidance", "back": "All documents", "markdown_content": "Document content", "browse_all": "All accessible", "browse_private": "Mine", "browse_shared": "Shared with me", "browse_search": "Search documents", "browse_submit": "Search", "browse_clear": "Clear search", "browse_next": "Next page", "browse_count": "on this page", "browse_no_match": "No documents match this search.", "browse_no_shared": "No documents have been shared with you.", "browse_no_private": "You have not created a document yet."},
-	"de-DE": {"create_open": "Neues Dokument", "create_cancel": "Abbrechen", "create_busy": "Dokument wird erstellt…", "create_help": "Nur Sie können diesen Entwurf lesen, bis Sie ihn freigeben oder veröffentlichen.", "updated": "Aktualisiert", "status_private": "Persönlich", "status_shared": "Geteilt", "status_team_official": "Teamleitfaden", "status_channel_official": "Kanalleitfaden", "back": "Alle Dokumente", "markdown_content": "Dokumentinhalt", "browse_all": "Alle verfügbaren", "browse_private": "Meine", "browse_shared": "Mit mir geteilt", "browse_search": "Dokumente durchsuchen", "browse_submit": "Suchen", "browse_clear": "Suche löschen", "browse_next": "Nächste Seite", "browse_count": "auf dieser Seite", "browse_no_match": "Keine Dokumente entsprechen dieser Suche.", "browse_no_shared": "Es wurden keine Dokumente mit Ihnen geteilt.", "browse_no_private": "Sie haben noch kein Dokument erstellt."},
-	"ar":    {"create_open": "مستند جديد", "create_cancel": "إلغاء", "create_busy": "جارٍ إنشاء المستند…", "create_help": "يمكنك وحدك قراءة هذه المسودة حتى تشاركها أو تنشرها.", "updated": "تم التحديث", "status_private": "شخصي", "status_shared": "مشترك", "status_team_official": "إرشادات الفريق", "status_channel_official": "إرشادات القناة", "back": "كل المستندات", "markdown_content": "محتوى المستند", "browse_all": "كل المتاح", "browse_private": "مستنداتي", "browse_shared": "مشترك معي", "browse_search": "البحث في المستندات", "browse_submit": "بحث", "browse_clear": "مسح البحث", "browse_next": "الصفحة التالية", "browse_count": "في هذه الصفحة", "browse_no_match": "لا توجد مستندات تطابق هذا البحث.", "browse_no_shared": "لم تتم مشاركة أي مستندات معك.", "browse_no_private": "لم تنشئ مستندًا بعد."},
+	"en-US": {"create_open": "New document", "create_cancel": "Cancel", "create_busy": "Creating document…", "create_help": "Only you can read this draft until you share or publish it.", "updated": "Updated", "status_private": "Personal", "status_shared": "Shared", "status_team_official": "Team guidance", "status_channel_official": "Channel guidance", "back": "All documents", "markdown_content": "Document content", "browse_all": "All accessible", "browse_private": "Mine", "browse_shared": "Shared with me", "browse_search": "Search documents", "browse_submit": "Search", "browse_clear": "Clear search", "browse_next": "Next page", "browse_count": "on this page", "browse_no_match": "No documents match this search.", "browse_no_shared": "No documents have been shared with you.", "browse_no_private": "You have not created a document yet.", "remove_action": "Remove from library", "remove_heading": "Remove this document?", "remove_body": "It will no longer be shared with anyone. Every version is kept, and you can undo this right after.", "remove_confirm": "Remove", "remove_cancel": "Cancel", "remove_failed": "The document could not be removed. Try again.", "remove_done": "Document removed.", "undo": "Undo", "restore_done": "Document restored.", "restore_failed": "This document could not be restored automatically. Ask its owner to share it again."},
+	"de-DE": {"create_open": "Neues Dokument", "create_cancel": "Abbrechen", "create_busy": "Dokument wird erstellt…", "create_help": "Nur Sie können diesen Entwurf lesen, bis Sie ihn freigeben oder veröffentlichen.", "updated": "Aktualisiert", "status_private": "Persönlich", "status_shared": "Geteilt", "status_team_official": "Teamleitfaden", "status_channel_official": "Kanalleitfaden", "back": "Alle Dokumente", "markdown_content": "Dokumentinhalt", "browse_all": "Alle verfügbaren", "browse_private": "Meine", "browse_shared": "Mit mir geteilt", "browse_search": "Dokumente durchsuchen", "browse_submit": "Suchen", "browse_clear": "Suche löschen", "browse_next": "Nächste Seite", "browse_count": "auf dieser Seite", "browse_no_match": "Keine Dokumente entsprechen dieser Suche.", "browse_no_shared": "Es wurden keine Dokumente mit Ihnen geteilt.", "browse_no_private": "Sie haben noch kein Dokument erstellt.", "remove_action": "Aus der Bibliothek entfernen", "remove_heading": "Dieses Dokument entfernen?", "remove_body": "Es wird mit niemandem mehr geteilt. Jede Version bleibt erhalten, und Sie können es direkt danach rückgängig machen.", "remove_confirm": "Entfernen", "remove_cancel": "Abbrechen", "remove_failed": "Das Dokument konnte nicht entfernt werden. Versuchen Sie es erneut.", "remove_done": "Dokument entfernt.", "undo": "Rückgängig", "restore_done": "Dokument wiederhergestellt.", "restore_failed": "Dieses Dokument konnte nicht automatisch wiederhergestellt werden. Bitten Sie den Eigentümer, es erneut freizugeben."},
+	"ar":    {"create_open": "مستند جديد", "create_cancel": "إلغاء", "create_busy": "جارٍ إنشاء المستند…", "create_help": "يمكنك وحدك قراءة هذه المسودة حتى تشاركها أو تنشرها.", "updated": "تم التحديث", "status_private": "شخصي", "status_shared": "مشترك", "status_team_official": "إرشادات الفريق", "status_channel_official": "إرشادات القناة", "back": "كل المستندات", "markdown_content": "محتوى المستند", "browse_all": "كل المتاح", "browse_private": "مستنداتي", "browse_shared": "مشترك معي", "browse_search": "البحث في المستندات", "browse_submit": "بحث", "browse_clear": "مسح البحث", "browse_next": "الصفحة التالية", "browse_count": "في هذه الصفحة", "browse_no_match": "لا توجد مستندات تطابق هذا البحث.", "browse_no_shared": "لم تتم مشاركة أي مستندات معك.", "browse_no_private": "لم تنشئ مستندًا بعد.", "remove_action": "إزالة من المكتبة", "remove_heading": "إزالة هذا المستند؟", "remove_body": "لن تتم مشاركته مع أي شخص بعد الآن. تُحفظ كل النسخ، ويمكنك التراجع عن ذلك مباشرةً بعده.", "remove_confirm": "إزالة", "remove_cancel": "إلغاء", "remove_failed": "تعذرت إزالة المستند. حاول مرة أخرى.", "remove_done": "تمت إزالة المستند.", "undo": "تراجع", "restore_done": "تمت استعادة المستند.", "restore_failed": "تعذرت استعادة هذا المستند تلقائيًا. اطلب من مالكه مشاركته مرة أخرى."},
 }
 
 func docsText(locale, key string) string {
@@ -198,13 +215,16 @@ func docsPage(view View) ui.Node {
 		}
 		return html.Div(html.Props{Class: "docs-hub docs-unavailable"},
 			html.Div(html.Props{Class: "docs-empty", Role: "status"},
-				html.P(html.Props{Class: "docs-empty-title"}, ui.Text(docsText(locale, "document_unavailable"))),
+				// Docs owns the page heading (docsOwnsPageHeading), so every
+				// state it renders carries the h1 the main region is named by.
+				html.H1(html.Props{ID: "page-title", TabIndex: -1, Class: "docs-empty-title"}, ui.Text(docsText(locale, "document_unavailable"))),
 				html.P(html.Props{Class: "docs-empty-hint"}, ui.Text(docsText(locale, "document_unavailable_hint"))),
 				appLink(view, html.Props{Class: "docs-back"}, back, productIcon("history-back", "docs-back-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "back_to_documents")))),
 			))
 	}
 	if !view.DocumentsReady {
 		return html.Div(html.Props{Class: "docs-hub"},
+			html.H1(html.Props{ID: "page-title", TabIndex: -1, Class: "docs-state-title"}, ui.Text(docsText(locale, "heading"))),
 			html.P(html.Props{Class: "docs-empty", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(locale, "unavailable"))),
 		)
 	}
@@ -291,9 +311,21 @@ func docsDetail(props docsDetailProps) ui.Node {
 	shareOpen := ui.UseState(false)
 	moveOpen := ui.UseState(false)
 	compareOpen := ui.UseState(false)
-	backlinks := ui.UseState([]DocumentBacklink{})
-	backlinksLoading := ui.UseState(false)
-	backlinksUnavailable := ui.UseState(false)
+	removeOpen := ui.UseState(false)
+	// withdrawnVersion carries the version WithdrawDocument just took
+	// live, so the toast's Undo button can call RestoreDocument with it
+	// (DOCS-07).
+	withdrawnVersion := ui.UseState("")
+	// The backlinks read is keyed by document and attempt ("Try again"
+	// bumps the attempt). The rail shows loading until the result for the
+	// current key lands; a reply or timeout for an earlier key is dropped.
+	// Replies and the timeout arrive off the frame loop, so they apply
+	// through ui.PostAsync: set directly from the RPC goroutine, the rail
+	// could stay on "Loading linked documents…" for good (D-11).
+	backlinksAttempt := ui.UseState(0)
+	backlinksResult := ui.UseState(docsBacklinksResult{})
+	backlinksWanted := ui.UseRef(docsFetchKey{})
+	backlinksKey := docsFetchKey{document.Summary.ID, backlinksAttempt.Get()}
 	starOverride := ui.UseState(0)
 	notice := useDocsNotice()
 	useDocsMenuKeys()
@@ -302,6 +334,10 @@ func docsDetail(props docsDetailProps) ui.Node {
 	// or there is nothing left to read by the time the click lands.
 	keepSelection := ui.UseEvent(func(event ui.MouseEvent) { event.PreventDefault() })
 	activeComment := ui.UseState("")
+	// The outline marks the section being read: docsWatchLayout reports the
+	// last heading scrolled past the top of the viewport (D-7), and a click
+	// on an outline link marks it at once.
+	activeOutline := ui.UseState("")
 	// Hovering a pin, passage or thread links them through classes and the
 	// highlight registry (docsSetLinked); it never re-renders the article.
 	hoveredComment := ui.UseRef("")
@@ -330,7 +366,15 @@ func docsDetail(props docsDetailProps) ui.Node {
 	// passages comments point at are highlighted without touching the DOM.
 	// Both window listeners live exactly as long as this page.
 	ui.UseEffectOf(func() func() { return docsWatchSelection() }, "docs-selection")
-	ui.UseEffectOf(func() func() { return docsWatchLayout() }, "docs-layout")
+	ui.UseEffectOf(func() func() {
+		return docsWatchLayout(func(id string) {
+			ui.PostAsync(func() {
+				if id != activeOutline.Get() {
+					activeOutline.Set(id)
+				}
+			})
+		})
+	}, "docs-layout")
 	draft := anchor.Get()
 	ui.UseLayoutEffect(func() func() {
 		current := currentLink()
@@ -344,19 +388,33 @@ func docsDetail(props docsDetailProps) ui.Node {
 		if view.LoadDocumentBacklinks == nil {
 			return nil
 		}
-		backlinksLoading.Set(true)
-		backlinksUnavailable.Set(false)
-		documentID := document.Summary.ID
-		view.LoadDocumentBacklinks(documentID, func(rows []DocumentBacklink, err error) {
-			backlinksLoading.Set(false)
+		key := backlinksKey
+		backlinksWanted.Set(key)
+		settle := func(result docsBacklinksResult) {
+			ui.PostAsync(func() {
+				if backlinksWanted.Get() != key {
+					return
+				}
+				if current := backlinksResult.Get(); current.Key == key && current.Done {
+					return
+				}
+				result.Key, result.Done = key, true
+				backlinksResult.Set(result)
+			})
+		}
+		// The same 20s bound chat's document links use: a read that never
+		// answers turns into the retryable "could not be loaded" state.
+		timeout := time.AfterFunc(docsBacklinksTimeout, func() { settle(docsBacklinksResult{Failed: true}) })
+		view.LoadDocumentBacklinks(key.ID, func(rows []DocumentBacklink, err error) {
+			timeout.Stop()
 			if err != nil {
-				backlinksUnavailable.Set(true)
+				settle(docsBacklinksResult{Failed: true})
 				return
 			}
-			backlinks.Set(rows)
+			settle(docsBacklinksResult{Rows: docsDedupeBacklinks(rows)})
 		})
-		return nil
-	}, document.Summary.ID)
+		return func() { timeout.Stop() }
+	}, backlinksKey)
 	ui.UseEffectOf(func() func() {
 		if composerFocus.Get() > 0 {
 			docsRevealComposer()
@@ -409,8 +467,28 @@ func docsDetail(props docsDetailProps) ui.Node {
 			shareOpen.Set(true)
 		case "move":
 			moveOpen.Set(true)
+		case "backlinks-retry":
+			backlinksAttempt.Set(backlinksAttempt.Get() + 1)
 		case "compare":
 			compareOpen.Set(true)
+		case "remove":
+			removeOpen.Set(true)
+		case "undo-remove":
+			if view.RestoreDocument == nil {
+				return
+			}
+			version := withdrawnVersion.Get()
+			if version == "" {
+				return
+			}
+			withdrawnVersion.Set("")
+			view.RestoreDocument(summary.ID, version, func(err error) {
+				if err != nil {
+					notice.Set(docsText(locale, "restore_failed"))
+					return
+				}
+				notice.Set(docsText(locale, "restore_done"))
+			})
 		case "edit":
 			if view.Navigate != nil {
 				view.Navigate(docsEditHref(summary.ID, true))
@@ -423,11 +501,12 @@ func docsDetail(props docsDetailProps) ui.Node {
 			// In-page anchors scroll the reader; they never touch the route.
 			event.PreventDefault()
 			docsScrollIntoView(id)
+			activeOutline.Set(id)
 		case "copy-text":
 			copyToClipboard(document.Markdown, func(err error) { notice.Set(docsCopyOutcome(locale, "text_copied", err)) })
 		case "comment-selection":
 			if quote, prefix, suffix, ok := docsCurrentSelection(); ok {
-				anchor.Set(docsAnchorDraft{Quote: quote, Prefix: prefix, Suffix: suffix})
+				anchor.Set(docsAnchorDraft{Quote: quote, Prefix: prefix, Suffix: suffix, Derived: docsSelectionFromChatProjection()})
 				docsClearSelection()
 				composerFocus.Set(composerFocus.Get() + 1)
 			}
@@ -489,6 +568,10 @@ func docsDetail(props docsDetailProps) ui.Node {
 		actions = append(actions, html.Button(html.Props{Class: "button secondary", Type: "button", Data: map[string]string{"docs-action": "copy-link"}}, productIcon("link", "docs-button-icon"), ui.Text(docsText(locale, "copy_link"))))
 	}
 	menu := []ui.Node{}
+	// Copy text lives in this menu instead of floating over the reader body,
+	// where it forced an early wrap and duplicated the header's copy-link
+	// action (D-15).
+	menu = append(menu, html.Button(html.Props{Class: "docs-menu-item", Type: "button", Raw: map[string]any{"title": docsText(locale, "copy_text_help")}, Data: map[string]string{"docs-action": "copy-text"}}, productIcon("copy", "docs-menu-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "copy_text")))))
 	if summary.CanManageAccess && view.ShareDocument != nil && view.DocumentOrigin != "" {
 		menu = append(menu, html.Button(html.Props{Class: "docs-menu-item", Type: "button", Data: map[string]string{"docs-action": "copy-link"}}, productIcon("link", "docs-menu-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "copy_link")))))
 	}
@@ -498,8 +581,19 @@ func docsDetail(props docsDetailProps) ui.Node {
 	if view.DocumentMedia != nil {
 		menu = append(menu, ui.CreateElement(docsExportMenu, docsExportMenuProps{Locale: locale, DocumentID: summary.ID, Media: view.DocumentMedia, Notify: notice.Set}))
 	}
-	if view.CompareDocumentVersions != nil {
+	// Version history is its own grant (documenthubstore ActionHistory):
+	// owners hold it, while viewer and commenter shares hold only read and
+	// comment, so the list call answers NOT_FOUND for them and the dialog
+	// could only ever show "could not be loaded" (D-3). Offer it to the
+	// people who hold manage, the same owner/manager gate Share uses.
+	if view.CompareDocumentVersions != nil && summary.CanManageAccess {
 		menu = append(menu, html.Button(html.Props{Class: "docs-menu-item", Type: "button", Data: map[string]string{"docs-action": "compare"}}, productIcon("history", "docs-menu-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "compare_action")))))
+	}
+	// Remove is recoverable and reaches only owners/managers, the same
+	// gate Share uses (DOCS-07): it withdraws the document's live
+	// deployment rather than disposing it.
+	if summary.CanManageAccess && view.WithdrawDocument != nil {
+		menu = append(menu, html.Button(html.Props{Class: "docs-menu-item docs-menu-danger", Type: "button", Data: map[string]string{"docs-action": "remove"}}, productIcon("trash", "docs-menu-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "remove_action")))))
 	}
 	if len(menu) > 0 {
 		actions = append(actions, ui.CreateElement(TransientPopover, TransientPopoverProps{
@@ -527,6 +621,13 @@ func docsDetail(props docsDetailProps) ui.Node {
 	if when := docsWhen(view.Locale, summary.UpdatedAt, time.Now()); when != nil {
 		facts = append(facts, fact("updated", when))
 	}
+	// The lead line's review date moves into the facts row; the lead no
+	// longer repeats it (docsLeadNodes, r4 D-4).
+	if reviewed := docsLeadReviewed(docsWithoutLeadingTitle(document.Markdown, summary.Title)); reviewed != "" {
+		if when := docsWhen(view.Locale, reviewed, time.Now()); when != nil {
+			facts = append(facts, fact("reviewed", when))
+		}
+	}
 	if version := docsDisplayVersion(summary); version != "" {
 		facts = append(facts, fact("version", ui.Text(version)))
 	}
@@ -552,16 +653,16 @@ func docsDetail(props docsDetailProps) ui.Node {
 	// the interface's direction for its own label.
 	reader := html.Section(html.Props{ID: "docs-reader-box", Class: "docs-reader", Dir: docsContentDirection(markdown), Raw: map[string]any{"aria-labelledby": "docs-reader-heading"}},
 		html.H2(html.Props{ID: "docs-reader-heading", Class: "sr-only"}, ui.Text(docsText(locale, "markdown_content"))),
-		html.Button(html.Props{Class: "docs-copy-text", Type: "button", Dir: string(view.Locale.normalized().Direction), Raw: map[string]any{"title": docsText(locale, "copy_text_help")}, Data: map[string]string{"docs-action": "copy-text"}}, productIcon("copy", "docs-button-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "copy_text")))),
 		html.Div(html.Props{Class: "docs-anchor-gutter", Aria: map[string]string{"label": docsText(locale, "comment_pins")}, Role: "group", Hidden: len(pins) == 0}, pins...),
-		ui.CreateElement(docsMarkdownBody, docsMarkdownBodyProps{Locale: locale, VersionID: summary.VersionID, Markdown: markdown, ChatRefs: encodeDocsChatRefs(document.Chat), Links: encodeDocsLinks(document.Links), DocumentID: summary.ID, Media: view.DocumentMedia}),
+		ui.CreateElement(docsMarkdownBody, docsMarkdownBodyProps{Locale: locale, VersionID: summary.VersionID, Markdown: markdown, ChatRefs: encodeDocsChatRefs(document.Chat), Links: encodeDocsLinks(document.Links), ProjectTasks: encodeDocsProjectTasks(document.ProjectTasks), Journeys: encodeDocsJourneys(document.Journeys), Navigate: view.Navigate, DocumentID: summary.ID, Media: view.DocumentMedia, Origin: view.DocumentOrigin}),
 		ui.CreateElement(docsAttachmentsSection, docsAttachmentsSectionProps{Locale: locale, DocumentID: summary.ID, VersionID: summary.VersionID, Media: view.DocumentMedia}),
 	)
 	var primary ui.Node = reader
 	if editing {
 		primary = ui.CreateElement(docsSplitEditor, docsSplitEditorProps{
 			Locale: locale, DocumentID: summary.ID, BaseVersionID: summary.VersionID, Title: summary.Title, Markdown: document.Markdown,
-			Save: view.CreateDocumentVersion, Media: view.DocumentMedia, Suggest: view.SuggestDocsReferences,
+			Shared: summary.ReaderCount > 0 || docsDisplayStatus(summary) == string(DocumentShared),
+			Save:   view.CreateDocumentVersion, Media: view.DocumentMedia, Suggest: view.SuggestDocsReferences,
 			Cancel: func() {
 				if view.Navigate != nil {
 					view.Navigate(docsEditHref(summary.ID, false))
@@ -578,7 +679,12 @@ func docsDetail(props docsDetailProps) ui.Node {
 			top = min(top, heading.Level)
 		}
 		for _, heading := range outline {
-			items = append(items, html.Li(html.Props{Class: "docs-outline-d" + strconv.Itoa(heading.Level-top)}, html.A(html.Props{Href: "#" + heading.ID, Data: map[string]string{"docs-action": "jump", "docs-id": heading.ID}}, ui.Text(heading.Text))))
+			linkProps := html.Props{Href: "#" + heading.ID, Data: map[string]string{"docs-action": "jump", "docs-id": heading.ID}}
+			if heading.ID == activeOutline.Get() {
+				linkProps.Class = "is-current"
+				linkProps.Aria = map[string]string{"current": "true"}
+			}
+			items = append(items, html.Li(html.Props{Class: "docs-outline-d" + strconv.Itoa(heading.Level-top)}, html.A(linkProps, ui.Text(heading.Text))))
 		}
 		rail = append(rail, html.Nav(html.Props{Class: "docs-outline", Aria: map[string]string{"labelledby": "docs-outline-heading"}},
 			html.H2(html.Props{ID: "docs-outline-heading"}, ui.Text(docsText(locale, "outline"))),
@@ -593,26 +699,36 @@ func docsDetail(props docsDetailProps) ui.Node {
 			Active: activeComment.Get(), Linked: linked, Numbers: numbers, Activate: func(id string) { activeComment.Set(id) }, ComposerFocusSignal: composerFocus.Get(),
 		}))
 		if view.LoadDocumentBacklinks != nil {
+			backlinksShown := backlinksResult.Get()
+			backlinksDone := backlinksShown.Key == backlinksKey && backlinksShown.Done
+			if !backlinksDone {
+				backlinksShown = docsBacklinksResult{}
+			}
 			rail = append(rail, docsBacklinksPanel(docsBacklinksPanelProps{
-				Locale: locale, Backlinks: backlinks.Get(), Loading: backlinksLoading.Get(), Unavailable: backlinksUnavailable.Get(),
+				Locale: locale, Backlinks: backlinksShown.Rows, Loading: !backlinksDone, Unavailable: backlinksDone && backlinksShown.Failed,
 			}))
 		}
 	}
 	layoutClass := "docs-detail-layout"
+	headerClass := "docs-detail-header docs-kind-" + docsDisplayStatus(summary)
 	if editing {
 		layoutClass += " is-editing"
+		headerClass += " is-editing"
 	}
 	children := []ui.Node{
 		html.Nav(html.Props{Class: "docs-crumbs", Aria: map[string]string{"label": docsText(locale, "breadcrumb")}}, crumbs...),
-		html.Header(html.Props{Class: "docs-detail-header docs-kind-" + docsDisplayStatus(summary)},
+		html.Header(html.Props{Class: headerClass},
 			html.Div(html.Props{Class: "docs-detail-title-row"},
 				// The shell leaves out its "Documents" head here
 				// (docsOwnsPageHeading), so this is the page title the
-				// router focuses and the main region is named by.
-				html.H1(html.Props{ID: "page-title", TabIndex: -1}, ui.Text(summary.Title)),
-				html.Div(html.Props{Class: "docs-detail-actions"}, actions...),
+				// router focuses and the main region is named by. While
+				// editing, the editor's own Title field and rendered
+				// heading already say the title (D-16), so this H1 stays
+				// in the DOM for focus but is visually hidden.
+				html.H1(html.Props{ID: "page-title", TabIndex: -1, Class: docsIfClass(editing, "sr-only")}, ui.Text(summary.Title)),
+				html.Div(html.Props{Class: "docs-detail-actions", Hidden: editing}, actions...),
 			),
-			html.Tag("dl", html.Props{Class: "docs-facts"}, facts...),
+			html.Tag("dl", html.Props{Class: "docs-facts", Hidden: editing}, facts...),
 		),
 		html.Div(html.Props{Class: layoutClass},
 			html.Div(html.Props{Class: "docs-detail-content"}, primary),
@@ -641,8 +757,27 @@ func docsDetail(props docsDetailProps) ui.Node {
 		children = append(children, ui.CreateElement(docsCompareDialog, docsCompareDialogProps{
 			Locale: locale, DocumentID: summary.ID,
 			Base:                    DocumentVersionProjection{DocumentID: summary.ID, VersionID: summary.VersionID, Title: summary.Title, Markdown: document.Markdown, Readable: true},
+			ListVersions:            view.ListDocumentVersions,
 			CompareDocumentVersions: view.CompareDocumentVersions,
 			Close:                   func() { compareOpen.Set(false) },
+		}))
+	}
+	if removeOpen.Get() && view.WithdrawDocument != nil {
+		children = append(children, ui.CreateElement(docsRemoveDialog, docsRemoveDialogProps{
+			Locale: locale, Title: summary.Title,
+			Remove: func(done func(error)) {
+				view.WithdrawDocument(summary.ID, func(versionID string, err error) {
+					if err != nil {
+						done(err)
+						return
+					}
+					removeOpen.Set(false)
+					withdrawnVersion.Set(versionID)
+					notice.SetAction(docsText(locale, "remove_done"), docsText(locale, "undo"), "undo-remove", summary.ID)
+					done(nil)
+				})
+			},
+			Close: func() { removeOpen.Set(false) },
 		}))
 	}
 	return html.Article(html.Props{Class: "docs-detail", OnClick: click, OnPointerMove: hover, OnMouseLeave: leave, Data: map[string]string{"document-id": summary.ID, "version-id": summary.VersionID}}, children...)
@@ -814,7 +949,7 @@ func docsStylesheet() string {
 .docs-review-diff{white-space:pre-wrap;overflow:auto;padding:var(--hcm-space-2);background:var(--surface-subtle,var(--soft));border-radius:var(--hcm-radius-control)}
 .docs-search-provenance{display:inline-block;font-weight:600;padding:0 var(--hcm-space-1);border-radius:var(--hcm-radius-xs);background:var(--surface-subtle,var(--soft))}
 @media (max-width:40rem){.docs-search-filters{flex-direction:column}.docs-actions{flex-direction:column;align-items:stretch}}
-` + docsLibraryStylesheet() + docsLibraryListStylesheet() + docsEditorStylesheet() + docsdiagram.Stylesheet() + docsVisualStylesheet() + docsReaderStylesheet() + docsDialogStylesheet() + docsChatRefsStylesheet() + docsMediaStylesheet() + docsCompareStylesheet() + docsBacklinksStylesheet()
+` + docsLibraryStylesheet() + docsLibraryListStylesheet() + docsEditorStylesheet() + docsdiagram.Stylesheet() + docsVisualStylesheet() + docsReaderStylesheet() + docsDialogStylesheet() + docsChatRefsStylesheet() + docsProjectTaskStylesheet() + docsProjectEmbedStylesheet() + docsJourneyStylesheet() + docsMediaStylesheet() + docsCompareStylesheet() + docsBacklinksStylesheet() + docsRemoveStylesheet()
 }
 
 // docsWithoutLeadingTitle drops a first heading that only repeats the

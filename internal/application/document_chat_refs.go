@@ -278,14 +278,27 @@ func resolveDocumentPeople(keys []string, people []documentPerson) []transportdo
 
 // resolveDocumentMessage opens one permalink through chat's own share-link
 // authorization. Anything short of a live post in the reader's tenant is
-// unreadable and carries only its token.
+// unreadable and carries only its token, except a post that share-link
+// authorization could resolve but that was since deleted (DOCS-08): that
+// case names the channel too, because the reader already knows this
+// reference existed (it is written into a document they can read), so
+// naming the channel it lived in leaks nothing new. Every other failure
+// (no access, wrong tenant, an unresolvable token) stays token-only, since
+// those cannot be told apart from "never existed" without exposing more
+// than the reader is authorized to learn.
 func resolveDocumentMessage(ctx context.Context, chat documentChatReader, p chatcore.Principal, token string, names map[string]string) transportdocument.MessageReference {
 	ref := transportdocument.MessageReference{Token: token}
 	rctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	room, post, err := chat.ResolveShareLink(rctx, p, token)
-	if err != nil || post == nil || post.Deleted || room.TenantID != p.TenantID || post.TenantID != p.TenantID || post.ConversationID != room.ID {
+	if err != nil || post == nil {
 		return ref
+	}
+	if room.TenantID != p.TenantID || post.TenantID != p.TenantID || post.ConversationID != room.ID {
+		return ref
+	}
+	if post.Deleted {
+		return transportdocument.MessageReference{Token: token, ConversationID: room.ID, ChannelName: room.Name}
 	}
 	body := post.Body
 	if utf8.RuneCountInString(body) > maxQuotedMessageRunes {

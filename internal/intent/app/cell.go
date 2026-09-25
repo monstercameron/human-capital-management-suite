@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/fakeincumbent"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/bandfacts"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/brandassetstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
@@ -366,6 +367,7 @@ type Cell struct {
 	// transport-shaped composition of its own.
 	Telemetry       *hcmotel.Provider
 	Preferences     preferences.Store
+	BrandAssets     workspace.BrandAssetRepository
 	KnowledgeSearch knowledge.SearchSource
 	RoleAccess      roleaccess.Store
 	PageLedger      pageledger.Store
@@ -861,6 +863,13 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 				return transport.CredentialQuotaOutcome(decision.Outcome), decision.RetryAfter, err
 			},
 		},
+	}
+	if cfg.ExecutionDB != nil && cfg.TenantUUID != nil {
+		assets, err := brandassetstore.New(cfg.ExecutionDB, cfg.TenantUUID)
+		if err != nil {
+			return nil, err
+		}
+		cell.BrandAssets = assets
 	}
 	// WF-RUN-034: the execution driver was composed before this cell built
 	// the gateway its promotion steps invoke, so the steps bind now.

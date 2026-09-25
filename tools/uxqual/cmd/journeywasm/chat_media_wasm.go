@@ -184,7 +184,22 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 		return ""
 	}
 	if !chatMediaCache.Wanted(id) {
-		return ""
+		// C-2: the visible-message sync that marks an artifact "wanted" runs
+		// from its own layout effect and can commit a render or two after the
+		// image loader starts observing an already-visible attachment. Without
+		// this wait a post seeded (or streamed) with its image already on
+		// screen never gets a first attempt: the gate was false once, nothing
+		// here ever asks again, and the tile is stuck as a broken image
+		// forever. Wait briefly for the sync to catch up before giving up.
+		for wait := 0; wait < 80 && !signal.Get("aborted").Truthy(); wait++ {
+			time.Sleep(25 * time.Millisecond)
+			if chatMediaCache.Wanted(id) {
+				break
+			}
+		}
+		if !chatMediaCache.Wanted(id) {
+			return ""
+		}
 	}
 	select {
 	case chatMediaSlots <- struct{}{}:

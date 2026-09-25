@@ -9,10 +9,15 @@ import (
 
 const chatImageSelector = ".attachment-image-open[data-media-thumb][data-media-display][data-media-id]"
 
+// chatImageWatchdogMillis bounds how long a thumbnail fetch may sit
+// unresolved before it is treated as failed (C-2 live re-check). A var, not
+// a const, so a test can shorten it rather than sleep for the real bound.
+var chatImageWatchdogMillis = 15000
+
 type chatImageRecord struct {
 	button, image          js.Value
 	thumbURL, displayURL   string
-	abort                  js.Value
+	abort, retryTarget     js.Value
 	objectURL              string
 	failed, retryAttempted bool
 }
@@ -39,8 +44,14 @@ func startChatImageLoading() func() {
 	}
 	initChatImageLoading(root)
 	loader := activeChatImageLoader
+	if loader == nil {
+		return func() {}
+	}
+	// The loader may be reused (rebound) by the next room's effect before
+	// this cleanup runs; only close it if it still serves this effect's room.
+	room, principal := loader.room, loader.principal
 	return func() {
-		if activeChatImageLoader == loader {
+		if activeChatImageLoader == loader && loader.room == room && loader.principal == principal {
 			loader.close()
 		}
 	}
@@ -88,7 +99,14 @@ func initChatImageLoading(root js.Value) {
 		for i := 0; i < entries.Get("length").Int(); i++ {
 			entry := entries.Index(i)
 			if entry.Get("isIntersecting").Truthy() {
-				loader.retryThumbnail(entry.Get("target"))
+				target := entry.Get("target")
+				button := target
+				if target.Get("matches").Type() == js.TypeFunction && target.Call("matches", ".attachment-image").Bool() {
+					button = target.Call("querySelector", chatImageSelector)
+				}
+				if button.Truthy() {
+					loader.retryThumbnail(button)
+				}
 			}
 		}
 		return nil
@@ -151,14 +169,28 @@ func (l *chatImageLoader) sync() {
 		// Keep the direct-root seam available to the WASM unit tests.
 		currentRoot = l.root
 	}
-	if !currentRoot.Truthy() ||
-		!currentRoot.Get("isConnected").Truthy() ||
-		currentRoot.Get("dataset").Get("selectedId").String() != l.room ||
-		currentRoot.Get("dataset").Get("principal").String() != l.principal {
+	if !currentRoot.Truthy() || !currentRoot.Get("isConnected").Truthy() {
 		if activeChatImageLoader == l {
 			l.close()
 		}
 		return
+	}
+	// Round 3 C-4 (live): closing on a room or principal change left no
+	// loader at all whenever the attribute mutation reached this observer
+	// after the workspace's layout effect had already reused it, so every
+	// tile in the next room kept a src-less <img> (the broken-image glyph)
+	// and never even started its fetch or watchdog. Rebind instead: drop
+	// the old room's records -- aborting their fetches, so a late response
+	// still cannot decorate the new room -- and adopt the current one.
+	if room, principal := currentRoot.Get("dataset").Get("selectedId").String(), currentRoot.Get("dataset").Get("principal").String(); room != l.room || principal != l.principal {
+		if activeChatImageLoader != l {
+			return
+		}
+		for key, record := range l.records {
+			l.releaseRecord(key, record)
+		}
+		l.records = map[string]*chatImageRecord{}
+		l.room, l.principal = room, principal
 	}
 	// GWC may replace .chat-workspace while an async route refresh keeps the
 	// same room and principal. Recreate both observers too: the old root was
@@ -242,8 +274,37 @@ func (l *chatImageLoader) loadThumbnail(button js.Value) {
 	controller := js.Global().Get("AbortController").New()
 	record.abort = controller
 	url := record.thumbURL
+	// C-2 live re-check: an <img> that never gets a src never fires "error",
+	// so a request that stalls -- or resolves after this record was
+	// discarded (see the guard just below) -- left the tile stuck looking
+	// like it was still loading forever, with no fallback and nothing to
+	// retry it. This bounds that: if the record is still unresolved once
+	// the watchdog fires, it is treated as failed the same way an actual
+	// error event would.
+	var watchdogFn js.Func
+	watchdogReleased := false
+	releaseWatchdog := func() {
+		if !watchdogReleased {
+			watchdogReleased = true
+			watchdogFn.Release()
+		}
+	}
+	watchdogFn = js.FuncOf(func(js.Value, []js.Value) any {
+		defer releaseWatchdog()
+		if activeChatImageLoader == l && l.records[key] == record && record.abort.Equal(controller) && record.objectURL == "" && !record.failed {
+			record.abort = js.Undefined()
+			controller.Call("abort")
+			record.failed = true
+			markChatAttachmentImageFailed(button)
+			l.armThumbnailRetry(record)
+		}
+		return nil
+	})
+	watchdog := js.Global().Call("setTimeout", watchdogFn, chatImageWatchdogMillis)
 	startProtectedImageFetch(button, "thumbnail", url, controller.Get("signal"), func(objectURL string) {
-		if activeChatImageLoader != l || l.records[key] != record || !button.Get("isConnected").Truthy() || button.Get("dataset").Get("mediaThumb").String() != url {
+		js.Global().Call("clearTimeout", watchdog)
+		releaseWatchdog()
+		if activeChatImageLoader != l || l.records[key] != record || !record.abort.Equal(controller) || !button.Get("isConnected").Truthy() || button.Get("dataset").Get("mediaThumb").String() != url {
 			if objectURL != "" {
 				revokeChatImageURL(objectURL)
 			}
@@ -252,16 +313,74 @@ func (l *chatImageLoader) loadThumbnail(button js.Value) {
 		record.abort = js.Undefined()
 		if objectURL == "" {
 			record.failed = true
-			if !record.retryAttempted && l.retryObserver.Truthy() {
-				l.retryObserver.Call("observe", button)
-			}
+			markChatAttachmentImageFailed(button)
+			l.armThumbnailRetry(record)
 			return
 		}
 		record.failed = false
 		record.objectURL = objectURL
+		// Fetching is already bounded by the near-viewport observer. Native lazy
+		// loading would postpone decoding a retried image indefinitely while the
+		// failure fallback hides its button with display:none.
+		record.image.Set("loading", "eager")
 		record.image.Set("decoding", "async")
-		record.image.Set("src", objectURL)
+		// Round 3 C-4: a fetched blob the browser cannot decode fails at the
+		// <img>, after the watchdog above has been cleared. The declarative
+		// OnError prop is not reliable for that (error does not bubble, and
+		// a virtual row can remount the <img> under the reconciler), so the
+		// loader listens on the element it just gave a src to and reaches
+		// the same .failed state the watchdog and fetch-failure paths use.
+		image := record.image
+		if image.Get("addEventListener").Type() != js.TypeFunction {
+			image.Set("src", objectURL)
+			return
+		}
+		var decodeError, decoded js.Func
+		settle := func() {
+			image.Call("removeEventListener", "error", decodeError)
+			image.Call("removeEventListener", "load", decoded)
+			decodeError.Release()
+			decoded.Release()
+		}
+		decodeError = js.FuncOf(func(js.Value, []js.Value) any {
+			settle()
+			if activeChatImageLoader == l && l.records[key] == record && image.Equal(record.image) {
+				revokeChatImageURL(record.objectURL)
+				record.objectURL = ""
+				record.failed = true
+				markChatAttachmentImageFailed(button)
+				l.armThumbnailRetry(record)
+			}
+			return nil
+		})
+		decoded = js.FuncOf(func(js.Value, []js.Value) any {
+			settle()
+			if activeChatImageLoader == l && l.records[key] == record && image.Equal(record.image) {
+				markChatAttachmentImageLoaded(button)
+			}
+			return nil
+		})
+		image.Call("addEventListener", "error", decodeError)
+		image.Call("addEventListener", "load", decoded)
+		image.Set("src", objectURL)
 	})
+}
+
+// The failed style hides the image button, so observing the button itself
+// cannot report a later viewport crossing. The surrounding figure remains
+// visible as the fallback tile and is the stable retry target.
+func (l *chatImageLoader) armThumbnailRetry(record *chatImageRecord) {
+	if record.retryAttempted || !l.retryObserver.Truthy() {
+		return
+	}
+	target := record.button
+	if record.button.Get("closest").Type() == js.TypeFunction {
+		if figure := record.button.Call("closest", ".attachment-image"); figure.Truthy() {
+			target = figure
+		}
+	}
+	record.retryTarget = target
+	l.retryObserver.Call("observe", target)
 }
 
 func (l *chatImageLoader) retryThumbnail(button js.Value) {
@@ -275,8 +394,9 @@ func (l *chatImageLoader) retryThumbnail(button js.Value) {
 	}
 	record.retryAttempted = true
 	record.failed = false
-	if l.retryObserver.Truthy() {
-		l.retryObserver.Call("unobserve", button)
+	if l.retryObserver.Truthy() && record.retryTarget.Truthy() {
+		l.retryObserver.Call("unobserve", record.retryTarget)
+		record.retryTarget = js.Undefined()
 	}
 	l.loadThumbnail(button)
 }
@@ -458,8 +578,8 @@ func (l *chatImageLoader) releaseRecord(key string, record *chatImageRecord) {
 	if l.observer.Truthy() {
 		l.observer.Call("unobserve", record.button)
 	}
-	if l.retryObserver.Truthy() {
-		l.retryObserver.Call("unobserve", record.button)
+	if l.retryObserver.Truthy() && record.retryTarget.Truthy() {
+		l.retryObserver.Call("unobserve", record.retryTarget)
 	}
 	if record.abort.Truthy() {
 		record.abort.Call("abort")

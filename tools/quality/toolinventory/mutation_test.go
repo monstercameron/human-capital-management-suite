@@ -33,6 +33,25 @@ func TestTodo_TOOL_025_Mutation(t *testing.T) {
 		}
 	})
 
+	t.Run("a_tampered_platform_binary_digest_is_caught", func(t *testing.T) {
+		tampered := m
+		tampered.Tools = append([]toolinventory.Entry{}, m.Tools...)
+		for i := range tampered.Tools {
+			if tampered.Tools[i].Name != "buf" {
+				continue
+			}
+			digests := make(map[string]string, len(tampered.Tools[i].PlatformDigests))
+			for platform, digest := range tampered.Tools[i].PlatformDigests {
+				digests[platform] = digest
+			}
+			digests["windows/amd64"] = "0000000000000000000000000000000000000000000000000000000000000000"
+			tampered.Tools[i].PlatformDigests = digests
+		}
+		if err := toolinventory.VerifyDigests(root, tampered); err == nil {
+			t.Fatal("expected VerifyDigests to reject a tampered Buf platform digest")
+		}
+	})
+
 	t.Run("a_renamed_entry_is_caught", func(t *testing.T) {
 		tampered := m
 		tampered.Tools = append([]toolinventory.Entry{}, m.Tools...)

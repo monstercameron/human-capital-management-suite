@@ -805,6 +805,18 @@ func declareBaseStyles() {
 		gwccss.Raw("font-weight", "600"),
 		gwccss.Raw("text-decoration", "none"),
 	)
+	// The one primary-button recipe, in every theme: background and border
+	// --accent, ink --on-brand, hover --accent-hover. The theme layer
+	// (typed_mig_D.go) pairs those tokens per mode -- light is the brand
+	// color with white ink (6.5:1), dark is the brand color mixed 40% toward
+	// white with #071118 ink (10:1), high contrast and customer palettes set
+	// their own pair -- so a button never has to know which mode it is in.
+	// Chat's .send-button and .button (chatui/styles.go) use the same three
+	// tokens. D-1 (round 3): an earlier (prefers-color-scheme:dark) override
+	// here swapped only the background to the undiluted brand color and
+	// white ink; the :where(.app-shell) rule below restored the dark ink
+	// on top of it (#071118 on #006b57, 2.9:1), and the media query never
+	// matched an explicit data-hcm-color-mode="dark" on a light OS anyway.
 	declareGlobal(".button.primary",
 		gwccss.Bg(gwccss.Var("accent")),
 		gwccss.BorderColor(gwccss.Var("accent")),
@@ -812,6 +824,20 @@ func declareBaseStyles() {
 	)
 	declareGlobal(".button.primary:hover",
 		gwccss.Bg(gwccss.Var("accent-hover")),
+	)
+	// A destructive confirm (Remove from library): the danger colour with
+	// the same theme-paired ink as primary. Light is #b42318 with white
+	// (6.6:1); dark is #ff9d95 with #071118 (9.5:1). --on-brand is the ink
+	// that flips with the theme, which is what the danger fill does too.
+	// Named destructive, not danger: Settings' Sign out already carries a
+	// bare "button danger" class and is deliberately not a filled button.
+	declareGlobal(".button.destructive",
+		gwccss.Bg(gwccss.Var("hcm-color-danger")),
+		gwccss.BorderColor(gwccss.Var("hcm-color-danger")),
+		gwccss.TextColor(gwccss.Var("on-brand")),
+	)
+	declareGlobal(".button.destructive:hover",
+		gwccss.Raw("background-color", "color-mix(in srgb,var(--hcm-color-danger) 86%,var(--ink))"),
 	)
 	declareGlobal(".button.secondary",
 		gwccss.Bg(gwccss.Var("surface")),
@@ -964,6 +990,20 @@ func declareBaseStyles() {
 		gwccss.Shadow(gwccss.ShadowInset(gwccss.Px(3), gwccss.Zero, gwccss.Zero, gwccss.Zero, gwccss.Var("accent"))),
 		gwccss.Raw("font-weight", "700"),
 	)
+	// S-4: at a laptop's short viewport (max-height 820px covers 13" 1280x800
+	// and similar), .nav-link's 46px pitch clipped Insights and hid Admin at
+	// the bottom of the sidebar with no cue that more items existed below the
+	// fold. This 40px pitch is for fine pointers; coarse pointers get their
+	// 44px target back in declarenavigationInteractionRefinementsStyles
+	// (typed_mig_B.go), which also tightens the rail's spacing at this height
+	// and owns the scroll-shadow affordance for any role whose pages still
+	// overflow.
+	declareGlobal(".nav-link",
+		mediaRule(gwccss.RawMedia("(max-height:820px)"), gwccss.MinHeight(gwccss.Px(40))),
+	)
+	// The ".primary-nav::after" scroll affordance lives with the other
+	// desktop rail rules in declarenavigationInteractionRefinementsStyles
+	// (typed_mig_B.go), next to the @supports block that drives it.
 	declareGlobal(".nav-count",
 		gwccss.Raw("margin-left", "auto"),
 		gwccss.PaddingY(gwccss.Px(2)), gwccss.PaddingX(gwccss.Px(7)),
@@ -974,6 +1014,16 @@ func declareBaseStyles() {
 	declareGlobal(".nav-bottom",
 		gwccss.Display.Grid,
 		gwccss.Raw("margin-top", "auto"),
+		// S-3: margin-top:auto already pushes this group to the bottom of
+		// the flex-column sidebar, but at shorter viewports (laptop
+		// 1180x780) the primary nav's own content nearly fills the space
+		// margin-top:auto has to push through, so Admin (the last primary
+		// item) and Help (the first support item) end up flush against each
+		// other with nothing to show they are different groups. A border
+		// plus a little breathing room makes the boundary visible
+		// regardless of how much slack margin-top:auto actually had.
+		gwccss.Raw("padding-top", "12px"),
+		gwccss.Raw("border-top", "1px solid var(--line)"),
 	)
 	declareGlobal(".main",
 		gwccss.W(gwccss.Percent(100)),
@@ -1007,6 +1057,29 @@ func declareBaseStyles() {
 		gwccss.Bg(gwccss.Var("surface-subtle")),
 		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(10)),
 	)
+	declareGlobal(".brand-asset-variant-previews",
+		gwccss.Display.Grid,
+		gwccss.Raw("grid-template-columns", "repeat(auto-fit,minmax(min(13rem,100%),1fr))"),
+		gwccss.Gap(gwccss.Px(8)),
+	)
+	declareGlobal(".brand-asset-variant-previews>div",
+		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(6)),
+		gwccss.Padding(gwccss.Px(10)),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+	)
+	declareGlobal(".brand-asset-variant-contrast-light", gwccss.Bg(gwccss.Hex("ffffff")), gwccss.TextColor(gwccss.Hex("172033")))
+	declareGlobal(".brand-asset-variant-contrast-dark", gwccss.Bg(gwccss.Hex("172033")), gwccss.TextColor(gwccss.Hex("ffffff")))
+	declareGlobal(".brand-asset-variant-favicon img", gwccss.W(gwccss.Px(32)), gwccss.H(gwccss.Px(32)), gwccss.Raw("object-fit", "contain"))
+	declareGlobal(".brand-asset-diff",
+		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(6)),
+		gwccss.Padding(gwccss.Px(10)),
+		gwccss.Border(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-control")),
+	)
+	declareGlobal(".brand-asset-diff-fields", gwccss.Display.Grid, gwccss.Gap(gwccss.Px(4)))
+	declareGlobal(".brand-asset-diff-row", gwccss.Display.Grid, gwccss.Raw("grid-template-columns", "minmax(7rem,auto) minmax(0,1fr)"), gwccss.Gap(gwccss.Px(8)), gwccss.Raw("overflow-wrap", "anywhere"))
+	declareGlobal(".brand-asset-diff h3", gwccss.FontSize(gwccss.Rem(0.875)), gwccss.Raw("margin", "0"))
 	// The panel's explanation and status read as helper text beside its
 	// fields' 14px help, not as 16px body copy above them.
 	declareGlobal(".brand-asset-picker p",
@@ -2297,6 +2370,9 @@ func declareVisualFoundationStyles() {
 	declareGlobal(":where(.app-shell) :is(.button.primary,.button.secondary):hover",
 		gwccss.BorderColor(gwccss.Var("accent-hover")),
 	)
+	// Same ink as .button.primary above and deliberately identical: at
+	// equal specificity and later in the sheet this rule wins, so it must
+	// never disagree with the recipe there (D-1).
 	declareGlobal(":where(.app-shell) .button.primary",
 		gwccss.TextColor(gwccss.Var("on-brand")),
 	)
@@ -3002,7 +3078,11 @@ func declareMobileShellStyles() {
 		mediaRule(gwccss.MaxW(430), gwccss.Raw("inset-inline-start", "15px")),
 	)
 	declareGlobal(".action-launcher-trigger,.utility-drawer-trigger",
-		mediaRule(gwccss.MaxW(430), gwccss.W(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.MinHeight(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("justify-content", "center")),
+		// S-3's MinWidth(150px) on ".action-launcher-trigger" (action_launcher.go)
+		// has no media qualifier, so it would otherwise win the CSS sizing
+		// clamp over this rule's own explicit W(44px) and hold the phone's
+		// icon-only trigger open wide.
+		mediaRule(gwccss.MaxW(430), gwccss.W(gwccss.Px(44)), gwccss.MinWidth(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.MinHeight(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("justify-content", "center")),
 	)
 	// Collapsed to glyphs, search and the header actions are icon buttons,
 	// drawn like the menu, notification and profile icons beside them: no

@@ -118,12 +118,20 @@ func payrollDigest(kind, key string) string {
 
 // PayrollRunID is the deterministic run id of one pay period.
 func PayrollRunID(period PayPeriodSpec) string {
-	return "harborcare-payroll-" + period.ID
+	return HarborCarePack.payGroups[0].runID(period)
+}
+
+// runID is the deterministic run id of one of this group's pay periods.
+func (g PayGroupSpec) runID(period PayPeriodSpec) string {
+	return g.RunPrefix + period.ID
 }
 
 // PlanPayroll derives the demo tenant's payroll history from its workforce.
-func PlanPayroll(tenant uuid.UUID) (PayrollPlan, error) {
-	employees, err := Plan(tenant)
+func PlanPayroll(tenant uuid.UUID) (PayrollPlan, error) { return HarborCarePack.PlanPayroll(tenant) }
+
+// PlanPayroll derives this company's payroll history from its workforce.
+func (p *Pack) PlanPayroll(tenant uuid.UUID) (PayrollPlan, error) {
+	employees, err := p.Plan(tenant)
 	if err != nil {
 		return PayrollPlan{}, err
 	}
@@ -131,34 +139,46 @@ func PlanPayroll(tenant uuid.UUID) (PayrollPlan, error) {
 	for _, employee := range employees {
 		rows = append(rows, employee.Row)
 	}
-	return PlanPayrollFor(rows)
+	return p.PlanPayrollFor(rows)
 }
 
 // PlanPayrollFor plans the payroll history of an arbitrary workforce. It is
 // the whole of [PlanPayroll]'s logic; the demo plan is just one input.
 func PlanPayrollFor(rows []workforce.WorkerRow) (PayrollPlan, error) {
-	plan := PayrollPlan{Runs: make([]PlannedPayrollRun, 0, len(DemoPayPeriods))}
-	for _, period := range DemoPayPeriods {
-		run, err := planPayrollRun(period, rows)
-		if err != nil {
-			return PayrollPlan{}, err
+	return HarborCarePack.PlanPayrollFor(rows)
+}
+
+// PlanPayrollFor plans an arbitrary workforce's history under this
+// company's pay groups: every group's periods, in group order.
+func (p *Pack) PlanPayrollFor(rows []workforce.WorkerRow) (PayrollPlan, error) {
+	total := 0
+	for _, group := range p.payGroups {
+		total += len(group.Periods)
+	}
+	plan := PayrollPlan{Runs: make([]PlannedPayrollRun, 0, total)}
+	for _, group := range p.payGroups {
+		for _, period := range group.Periods {
+			run, err := planPayrollRun(group, period, rows)
+			if err != nil {
+				return PayrollPlan{}, err
+			}
+			plan.Runs = append(plan.Runs, run)
 		}
-		plan.Runs = append(plan.Runs, run)
 	}
 	return plan, nil
 }
 
-func planPayrollRun(period PayPeriodSpec, rows []workforce.WorkerRow) (PlannedPayrollRun, error) {
-	runID := PayrollRunID(period)
+func planPayrollRun(group PayGroupSpec, period PayPeriodSpec, rows []workforce.WorkerRow) (PlannedPayrollRun, error) {
+	runID := group.runID(period)
 	periodRef := payroll.PeriodRef{
-		ID: "harborcare.payroll.period." + period.ID, Version: "1",
+		ID: group.PolicyPrefix + ".period." + period.ID, Version: "1",
 		Digest: payrollDigest("payroll-period", period.ID),
 	}
 	binding := payroll.PopulationBindingRef{
-		DefinitionID: "harborcare.payroll.population." + DemoPayGroupRef, RevisionVersion: period.ID,
-		Digest: payrollDigest("payroll-population", DemoPayGroupRef+"/"+period.ID),
+		DefinitionID: group.PolicyPrefix + ".population." + group.Ref, RevisionVersion: period.ID,
+		Digest: payrollDigest("payroll-population", group.Ref+"/"+period.ID),
 	}
-	draft, err := payroll.NewPayrollRun(runID, DemoPayGroupRef, periodRef, binding,
+	draft, err := payroll.NewPayrollRun(runID, group.Ref, periodRef, binding,
 		payrollDigest("payroll-calculation-input", runID))
 	if err != nil {
 		return PlannedPayrollRun{}, fmt.Errorf("demoworkforce: payroll run %s: %w", runID, err)
@@ -179,7 +199,7 @@ func planPayrollRun(period PayPeriodSpec, rows []workforce.WorkerRow) (PlannedPa
 	members := make([]payroll.PopulationMember, 0, len(rows))
 	lateEntries := make([]payroll.PopulationAmendment, 0)
 	for _, row := range rows {
-		member, standing, err := payrollMembership(row, period)
+		member, standing, err := payrollMembership(group, row, period)
 		if err != nil {
 			return PlannedPayrollRun{}, err
 		}
@@ -228,8 +248,8 @@ const (
 // paid on another basis is not in this pay group at all; a worker who had not
 // started by the period's close is absent; a worker who started inside the
 // period is a late entry, never a full-period member.
-func payrollMembership(row workforce.WorkerRow, period PayPeriodSpec) (payroll.PopulationMember, payrollStanding, error) {
-	if row.PayBasis != DemoPayBasis {
+func payrollMembership(group PayGroupSpec, row workforce.WorkerRow, period PayPeriodSpec) (payroll.PopulationMember, payrollStanding, error) {
+	if row.PayBasis != group.Basis {
 		return payroll.PopulationMember{}, payrollStandingAbsent, nil
 	}
 	hire, err := time.Parse(workforce.DateLayout, row.HireDate)
@@ -240,7 +260,7 @@ func payrollMembership(row workforce.WorkerRow, period PayPeriodSpec) (payroll.P
 	member := payroll.PopulationMember{
 		WorkerRef:     row.WorkerID.String(),
 		EmploymentRef: row.EmploymentID,
-		PayGroupRef:   DemoPayGroupRef,
+		PayGroupRef:   group.Ref,
 	}
 	switch {
 	case !hire.Before(period.End):
@@ -257,13 +277,18 @@ func payrollMembership(row workforce.WorkerRow, period PayPeriodSpec) (payroll.P
 // left alone: these tables are append-only and every revision identity is
 // derived from the period, so a replay has nothing to add.
 func SeedPayroll(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (PayrollSummary, error) {
+	return HarborCarePack.SeedPayroll(ctx, tx, tenant)
+}
+
+// SeedPayroll records this company's payroll history inside tx.
+func (p *Pack) SeedPayroll(ctx context.Context, tx dbport.Tx, tenant uuid.UUID) (PayrollSummary, error) {
 	if tx == nil || tenant == uuid.Nil {
 		return PayrollSummary{}, fmt.Errorf("demoworkforce: seed payroll: a transaction and tenant are required")
 	}
 	if err := tenancy.WithTenant(ctx, tx, tenant); err != nil {
 		return PayrollSummary{}, err
 	}
-	plan, err := PlanPayroll(tenant)
+	plan, err := p.PlanPayroll(tenant)
 	if err != nil {
 		return PayrollSummary{}, err
 	}
