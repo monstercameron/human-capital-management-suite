@@ -1,0 +1,473 @@
+syntax = "proto3";
+
+package hcmnext.workorder.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workorder/v1;workorderv1";
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/common/v1/common.proto";
+
+// WorkOrderService is the typed boundary for field execution records. Caller
+// identity and tenant authority come from authenticated context; scope is
+// checked by the server against that authority. Failures carry the canonical
+// hcmnext.common.v1.ErrorDetail through the transport error contract.
+service WorkOrderService {
+  rpc CreateWorkOrder(CreateWorkOrderRequest) returns (CreateWorkOrderResponse);
+  rpc GetWorkOrder(GetWorkOrderRequest) returns (GetWorkOrderResponse);
+  rpc ListWorkOrders(ListWorkOrdersRequest) returns (ListWorkOrdersResponse);
+  rpc SubmitInitiatorRequest(SubmitInitiatorRequestRequest) returns (SubmitInitiatorRequestResponse);
+  rpc DecideInitiatorRequest(DecideInitiatorRequestRequest) returns (DecideInitiatorRequestResponse);
+  rpc AddWorkOrderNote(AddWorkOrderNoteRequest) returns (AddWorkOrderNoteResponse);
+  rpc RequestPhaseTransition(RequestPhaseTransitionRequest) returns (RequestPhaseTransitionResponse);
+  rpc RecordWorkEntry(RecordWorkEntryRequest) returns (RecordWorkEntryResponse);
+  rpc RecordProgressEntry(RecordProgressEntryRequest) returns (RecordProgressEntryResponse);
+  rpc RecordSpendEntry(RecordSpendEntryRequest) returns (RecordSpendEntryResponse);
+  rpc RequestWorkOrderReport(RequestWorkOrderReportRequest) returns (RequestWorkOrderReportResponse);
+  rpc RequestBillingDraft(RequestBillingDraftRequest) returns (RequestBillingDraftResponse);
+}
+
+enum WorkOrderStatus {
+  WORK_ORDER_STATUS_UNSPECIFIED = 0;
+  WORK_ORDER_STATUS_DRAFT = 1;
+  WORK_ORDER_STATUS_ACTIVE = 2;
+  WORK_ORDER_STATUS_BLOCKED = 3;
+  WORK_ORDER_STATUS_ACCEPTED = 4;
+  WORK_ORDER_STATUS_CLOSED = 5;
+  WORK_ORDER_STATUS_CANCELLED = 6;
+}
+
+enum InitiatorRequestKind {
+  INITIATOR_REQUEST_KIND_UNSPECIFIED = 0;
+  INITIATOR_REQUEST_KIND_BUDGET = 1;
+  INITIATOR_REQUEST_KIND_APPROVAL = 2;
+  INITIATOR_REQUEST_KIND_CREW = 3;
+  INITIATOR_REQUEST_KIND_MATERIAL = 4;
+  INITIATOR_REQUEST_KIND_EQUIPMENT = 5;
+  INITIATOR_REQUEST_KIND_INSPECTION = 6;
+  INITIATOR_REQUEST_KIND_DOCUMENT = 7;
+  INITIATOR_REQUEST_KIND_CHANGE_ORDER = 8;
+  INITIATOR_REQUEST_KIND_BILLING_REVIEW = 9;
+}
+
+enum RequestStatus {
+  REQUEST_STATUS_UNSPECIFIED = 0;
+  REQUEST_STATUS_PENDING = 1;
+  REQUEST_STATUS_APPROVED = 2;
+  REQUEST_STATUS_REJECTED = 3;
+  REQUEST_STATUS_RETURNED = 4;
+  REQUEST_STATUS_CANCELLED = 5;
+}
+
+enum DecisionKind {
+  DECISION_KIND_UNSPECIFIED = 0;
+  DECISION_KIND_APPROVE = 1;
+  DECISION_KIND_REJECT = 2;
+  DECISION_KIND_RETURN_FOR_REVISION = 3;
+}
+
+enum WorkEntryKind {
+  WORK_ENTRY_KIND_UNSPECIFIED = 0;
+  WORK_ENTRY_KIND_LABOR = 1;
+  WORK_ENTRY_KIND_MATERIAL = 2;
+  WORK_ENTRY_KIND_EQUIPMENT = 3;
+  WORK_ENTRY_KIND_SUBCONTRACT = 4;
+  WORK_ENTRY_KIND_OTHER = 5;
+}
+
+enum SpendDisposition {
+  SPEND_DISPOSITION_UNSPECIFIED = 0;
+  SPEND_DISPOSITION_COMMITMENT = 1;
+  SPEND_DISPOSITION_INCURRED = 2;
+}
+
+enum ProgressStatus {
+  PROGRESS_STATUS_UNSPECIFIED = 0;
+  PROGRESS_STATUS_SUBMITTED = 1;
+  PROGRESS_STATUS_VERIFIED = 2;
+  PROGRESS_STATUS_ACCEPTED = 3;
+  PROGRESS_STATUS_REJECTED = 4;
+}
+
+enum ReportKind {
+  REPORT_KIND_UNSPECIFIED = 0;
+  REPORT_KIND_DAILY_FIELD = 1;
+  REPORT_KIND_QUANTITY_PROGRESS = 2;
+  REPORT_KIND_COST_VARIANCE = 3;
+  REPORT_KIND_OPEN_REQUESTS = 4;
+  REPORT_KIND_CLOSEOUT_EVIDENCE = 5;
+}
+
+enum BillingDraftStatus {
+  BILLING_DRAFT_STATUS_UNSPECIFIED = 0;
+  BILLING_DRAFT_STATUS_PENDING_REVIEW = 1;
+  BILLING_DRAFT_STATUS_APPROVED = 2;
+  BILLING_DRAFT_STATUS_REJECTED = 3;
+}
+
+message WorkOrder {
+  string id = 1;
+  string project_id = 2;
+  string title = 3;
+  string scope = 4;
+  string template_id = 5;
+  string template_version = 6;
+  string phase_id = 7;
+  WorkOrderStatus status = 8;
+  string initiator_id = 9;
+  string supervisor_id = 10;
+  uint64 revision = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message CreateWorkOrderResponse { WorkOrder work_order = 1; }
+message GetWorkOrderResponse { WorkOrder work_order = 1; }
+
+message CreateWorkOrderRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string project_id = 2;
+  string title = 3;
+  string scope = 4;
+  string template_id = 5;
+  string template_version = 6;
+  string supervisor_id = 7;
+  repeated string linked_task_ids = 8;
+  string idempotency_key = 9;
+}
+
+message GetWorkOrderRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+}
+
+message ListWorkOrdersRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string project_id = 2;
+  WorkOrderStatus status = 3;
+  hcmnext.common.v1.PageRequest page = 4;
+}
+
+message ListWorkOrdersResponse {
+  repeated WorkOrder work_orders = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+}
+
+message BudgetRequest {
+  hcmnext.common.v1.Money requested_limit = 1;
+  string cost_category = 2;
+  string funding_source = 3;
+  string rationale = 4;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 5;
+}
+
+message ApprovalRequest {
+  string subject = 1;
+  string proposed_action = 2;
+  string approver_class = 3;
+  google.protobuf.Timestamp due_at = 4;
+  string rationale = 5;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 6;
+}
+
+message ResourceRequest {
+  string role_or_item = 1;
+  hcmnext.common.v1.Decimal quantity = 2;
+  string unit = 3;
+  string location = 4;
+  google.protobuf.Timestamp needed_from = 5;
+  google.protobuf.Timestamp needed_until = 6;
+  hcmnext.common.v1.Money estimated_cost = 7;
+  string rationale = 8;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 9;
+}
+
+message InspectionRequest {
+  string inspection_scope = 1;
+  google.protobuf.Timestamp due_at = 2;
+  string evidence_policy_ref = 3;
+  string rationale = 4;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 5;
+}
+
+message DocumentRequest {
+  string document_kind = 1;
+  google.protobuf.Timestamp due_at = 2;
+  string evidence_policy_ref = 3;
+  string rationale = 4;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 5;
+}
+
+message ChangeOrderRequest {
+  string scope_delta = 1;
+  hcmnext.common.v1.Decimal quantity_delta = 2;
+  string unit = 3;
+  hcmnext.common.v1.Money price_delta = 4;
+  int64 schedule_delta_seconds = 5;
+  uint64 baseline_revision = 6;
+  string rationale = 7;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 8;
+}
+
+message BillingReviewRequest {
+  google.protobuf.Timestamp period_start = 1;
+  google.protobuf.Timestamp period_end = 2;
+  string contract_version = 3;
+  uint64 source_cutoff_revision = 4;
+  string rationale = 5;
+}
+
+message InitiatorRequest {
+  string id = 1;
+  string work_order_id = 2;
+  InitiatorRequestKind kind = 3;
+  RequestStatus status = 4;
+  string requester_id = 5;
+  string rationale = 6;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 7;
+  google.protobuf.Timestamp created_at = 8;
+  uint64 work_order_revision = 9;
+  oneof details {
+    BudgetRequest budget = 10;
+    ApprovalRequest approval = 11;
+    ResourceRequest resource = 12;
+    InspectionRequest inspection = 13;
+    ChangeOrderRequest change_order = 14;
+    BillingReviewRequest billing_review = 15;
+    DocumentRequest document = 16;
+  }
+}
+
+message SubmitInitiatorRequestRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  uint64 expected_revision = 3;
+  string idempotency_key = 4;
+  InitiatorRequestKind kind = 5;
+  oneof details {
+    BudgetRequest budget = 6;
+    ApprovalRequest approval = 7;
+    ResourceRequest resource = 8;
+    InspectionRequest inspection = 9;
+    ChangeOrderRequest change_order = 10;
+    BillingReviewRequest billing_review = 11;
+    DocumentRequest document = 12;
+  }
+  // Template-defined scalar form values, including fields such as
+  // SCOPE_FORM, drawing_revision, or BILLING_FORM references. The service
+  // rejects more than 64 entries, keys over 128 UTF-8 bytes, values over
+  // 4096 UTF-8 bytes, or a combined key/value size over 65536 bytes.
+  map<string, string> form_values = 13;
+}
+
+message SubmitInitiatorRequestResponse {
+  InitiatorRequest request = 1;
+  WorkOrder work_order = 2;
+}
+message DecideInitiatorRequestResponse {
+  InitiatorRequest request = 1;
+  WorkOrder work_order = 2;
+}
+
+message DecideInitiatorRequestRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  string request_id = 3;
+  uint64 expected_revision = 4;
+  DecisionKind decision = 5;
+  string reason = 6;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 7;
+  string idempotency_key = 8;
+}
+
+enum NoteVisibility {
+  NOTE_VISIBILITY_UNSPECIFIED = 0;
+  NOTE_VISIBILITY_PARTICIPANTS = 1;
+  NOTE_VISIBILITY_SUPERVISORS = 2;
+  NOTE_VISIBILITY_FINANCE = 3;
+}
+
+message WorkOrderNote {
+  string id = 1;
+  string work_order_id = 2;
+  string author_id = 3;
+  string body = 4;
+  NoteVisibility visibility = 5;
+  string classification = 6;
+  string phase_id = 7;
+  string line_id = 8;
+  repeated hcmnext.common.v1.EvidenceRef attachments = 9;
+  uint64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message AddWorkOrderNoteRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  uint64 expected_revision = 3;
+  string body = 4;
+  NoteVisibility visibility = 5;
+  string classification = 6;
+  string phase_id = 7;
+  string line_id = 8;
+  repeated hcmnext.common.v1.EvidenceRef attachments = 9;
+  string idempotency_key = 10;
+}
+message AddWorkOrderNoteResponse { WorkOrderNote note = 1; WorkOrder work_order = 2; }
+
+message RequestPhaseTransitionRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  uint64 expected_revision = 3;
+  string target_phase_id = 4;
+  string reason = 5;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 6;
+  string idempotency_key = 7;
+}
+
+message PhaseTransitionResult {
+  bool applied = 1;
+  string transition_id = 2;
+  repeated string outstanding_requirement_refs = 3;
+  string refusal_reason_ref = 4;
+}
+message RequestPhaseTransitionResponse { WorkOrder work_order = 1; PhaseTransitionResult result = 2; }
+
+message WorkEntry {
+  string id = 1;
+  string work_order_id = 2;
+  string worker_id = 3;
+  WorkEntryKind kind = 4;
+  hcmnext.common.v1.LocalDate work_date = 5;
+  string timezone = 6;
+  int64 duration_seconds = 7;
+  string line_id = 8;
+  hcmnext.common.v1.Decimal quantity = 9;
+  string unit = 10;
+  string source_ref = 11;
+  string correction_of_entry_id = 12;
+  uint64 revision = 13;
+  string description = 14;
+}
+message RecordWorkEntryRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  uint64 expected_revision = 3;
+  string worker_id = 4;
+  WorkEntryKind kind = 5;
+  hcmnext.common.v1.LocalDate work_date = 6;
+  string timezone = 7;
+  int64 duration_seconds = 8;
+  string line_id = 9;
+  hcmnext.common.v1.Decimal quantity = 10;
+  string unit = 11;
+  string source_ref = 12;
+  string correction_of_entry_id = 13;
+  string idempotency_key = 14;
+  string description = 15;
+}
+message RecordWorkEntryResponse { WorkEntry entry = 1; WorkOrder work_order = 2; }
+
+message ProgressEntry {
+  string id = 1;
+  string work_order_id = 2;
+  string line_id = 3;
+  hcmnext.common.v1.Decimal completed_quantity = 4;
+  string unit = 5;
+  ProgressStatus status = 6;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 7;
+  string verifier_id = 8;
+  string correction_of_entry_id = 9;
+  uint64 revision = 10;
+}
+message RecordProgressEntryRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  uint64 expected_revision = 3;
+  string line_id = 4;
+  hcmnext.common.v1.Decimal completed_quantity = 5;
+  string unit = 6;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 7;
+  string correction_of_entry_id = 8;
+  string idempotency_key = 9;
+}
+message RecordProgressEntryResponse { ProgressEntry entry = 1; WorkOrder work_order = 2; }
+
+message SpendEntry {
+  string id = 1;
+  string work_order_id = 2;
+  WorkEntryKind category = 3;
+  SpendDisposition disposition = 4;
+  hcmnext.common.v1.Money amount = 5;
+  hcmnext.common.v1.Decimal quantity = 6;
+  string unit = 7;
+  string source_document_ref = 8;
+  string approver_id = 9;
+  string correction_of_entry_id = 10;
+  uint64 revision = 11;
+}
+message RecordSpendEntryRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  uint64 expected_revision = 3;
+  WorkEntryKind category = 4;
+  SpendDisposition disposition = 5;
+  hcmnext.common.v1.Money amount = 6;
+  hcmnext.common.v1.Decimal quantity = 7;
+  string unit = 8;
+  string source_document_ref = 9;
+  string correction_of_entry_id = 10;
+  string idempotency_key = 11;
+}
+message RecordSpendEntryResponse { SpendEntry entry = 1; WorkOrder work_order = 2; }
+
+message RequestWorkOrderReportRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  uint64 expected_revision = 3;
+  ReportKind kind = 4;
+  string definition_id = 5;
+  uint32 definition_version = 6;
+  string idempotency_key = 7;
+}
+message WorkOrderReport {
+  string id = 1;
+  string work_order_id = 2;
+  ReportKind kind = 3;
+  string definition_id = 4;
+  uint32 definition_version = 5;
+  uint64 source_cutoff_revision = 6;
+  string completeness_state = 7;
+  string artifact_ref = 8;
+  google.protobuf.Timestamp generated_at = 9;
+}
+message RequestWorkOrderReportResponse { WorkOrderReport report = 1; }
+
+message RequestBillingDraftRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string work_order_id = 2;
+  uint64 expected_revision = 3;
+  string contract_version = 4;
+  google.protobuf.Timestamp period_start = 5;
+  google.protobuf.Timestamp period_end = 6;
+  string idempotency_key = 7;
+}
+message BillingDraft {
+  string id = 1;
+  string work_order_id = 2;
+  string contract_version = 3;
+  uint64 source_cutoff_revision = 4;
+  BillingDraftStatus status = 5;
+  repeated BillingDraftLine lines = 6;
+  hcmnext.common.v1.Money total = 7;
+  google.protobuf.Timestamp generated_at = 8;
+}
+message BillingDraftLine {
+  string id = 1;
+  string description = 2;
+  hcmnext.common.v1.Decimal quantity = 3;
+  string unit = 4;
+  hcmnext.common.v1.Money amount = 5;
+  repeated string source_entry_ids = 6;
+  string pricing_rule_ref = 7;
+}
+message RequestBillingDraftResponse { BillingDraft draft = 1; }

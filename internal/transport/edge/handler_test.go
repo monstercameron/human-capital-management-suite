@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportjourney "github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
+	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -88,5 +89,42 @@ func TestSemanticPromotionRouteIsMountedWithTheTypedRequestFactory(t *testing.T)
 	}
 	if _, ok := requestFactories[transportjourney.ProposeIntoManagementProcedure]; !ok {
 		t.Fatalf("semantic promotion route has no strict-decoding request factory")
+	}
+}
+
+func TestWorkOrderRoutesAreMountedWithStrictDecodingFactories(t *testing.T) {
+	h, err := NewHandler(Options{
+		Config:    transport.Config{Verifier: promotionRouteVerifier{}},
+		WorkOrder: &transportworkorder.Dependencies{},
+	})
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	for _, procedure := range []string{
+		transportworkorder.CreateWorkOrderProcedure,
+		transportworkorder.GetWorkOrderProcedure,
+		transportworkorder.ListWorkOrdersProcedure,
+		transportworkorder.SubmitInitiatorRequestProcedure,
+		transportworkorder.DecideInitiatorRequestProcedure,
+		transportworkorder.AddWorkOrderNoteProcedure,
+		transportworkorder.RequestPhaseTransitionProcedure,
+		transportworkorder.RecordWorkEntryProcedure,
+		transportworkorder.RecordProgressEntryProcedure,
+		transportworkorder.RecordSpendEntryProcedure,
+		transportworkorder.RequestWorkOrderReportProcedure,
+		transportworkorder.RequestBillingDraftProcedure,
+	} {
+		t.Run(procedure, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, procedure, nil)
+			req.Header.Set("Content-Type", "application/proto")
+			res := httptest.NewRecorder()
+			h.ServeHTTP(res, req)
+			if res.Code == http.StatusNotFound {
+				t.Fatalf("work order route %s returned 404", procedure)
+			}
+			if _, ok := requestFactories[procedure]; !ok {
+				t.Fatalf("work order route %s has no strict-decoding request factory", procedure)
+			}
+		})
 	}
 }

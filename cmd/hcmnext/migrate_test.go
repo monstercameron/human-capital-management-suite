@@ -102,6 +102,32 @@ func TestMigrateUpRejectsAnUnusableDatabaseURL(t *testing.T) {
 	}
 }
 
+func TestMigrateWorkOrderUpCreatesItsIsolatedSchema(t *testing.T) {
+	db := pgtest.NewEmpty(t)
+	logger := &recordingMigrateLogger{}
+	const schema = "hcmnext_workorder_migration_test"
+	if err := migrateWorkOrderUp(context.Background(), db.URL, "", schema, logger); err != nil {
+		t.Fatalf("migrateWorkOrderUp on an empty schema: %v", err)
+	}
+	if !logger.saw("hcmnext.work_order_schema_applied") {
+		t.Fatal("work-order schema migration did not report success")
+	}
+	var exists bool
+	if err := db.SQL.QueryRow(`SELECT EXISTS (
+		SELECT 1 FROM information_schema.tables
+		WHERE table_schema = $1 AND table_name = 'work_order'
+	)`, schema).Scan(&exists); err != nil {
+		t.Fatalf("check isolated work-order table: %v", err)
+	}
+	if !exists {
+		t.Fatalf("work_order table was not created in schema %q", schema)
+	}
+	// A second startup must see an already-applied version and stay idempotent.
+	if err := migrateWorkOrderUp(context.Background(), db.URL, "", schema, logger); err != nil {
+		t.Fatalf("migrateWorkOrderUp on a schema already at head: %v", err)
+	}
+}
+
 // TestMigrateUpSatisfiesTheApplicationMigratorPort is what makes this
 // function the adapter the composition root asks for: the command hands it to
 // application.WithMigrator, and a signature change here has to be a
@@ -114,6 +140,20 @@ func TestMigrateUpSatisfiesTheApplicationMigratorPort(t *testing.T) {
 	spec, err := application.SpecFor(application.RoleServe, nil, application.WithMigrator(port))
 	if err != nil {
 		t.Fatalf("SpecFor with this command's migrator: %v", err)
+	}
+	if spec.Build == nil {
+		t.Error("the composed spec has no build step")
+	}
+}
+
+func TestMigrateWorkOrderUpSatisfiesTheApplicationMigratorPort(t *testing.T) {
+	var port application.WorkOrderMigrator = migrateWorkOrderUp
+	if port == nil {
+		t.Fatal("migrateWorkOrderUp does not satisfy application.WorkOrderMigrator")
+	}
+	spec, err := application.SpecFor(application.RoleServe, nil, application.WithWorkOrderMigrator(port))
+	if err != nil {
+		t.Fatalf("SpecFor with this command's work-order migrator: %v", err)
 	}
 	if spec.Build == nil {
 		t.Error("the composed spec has no build step")

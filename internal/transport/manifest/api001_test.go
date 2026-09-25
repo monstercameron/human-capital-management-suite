@@ -162,8 +162,9 @@ func TestTodo_API_001_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderDefaultDiscoveryDocument: %v", err)
 	}
-	// The ProjectService surface now includes task-link add and remove mutations.
-	if len(doc.Endpoints) != 56 || len(doc.Capabilities) != 11 || len(doc.IntentDefinitions) != 14 {
+	// ProjectService task links and the modular WorkOrderService surface are
+	// both represented in discovery.
+	if len(doc.Endpoints) != 68 || len(doc.Capabilities) != 11 || len(doc.IntentDefinitions) != 14 {
 		t.Fatalf("unexpected production shape: %d endpoints, %d capabilities, %d intent definitions",
 			len(doc.Endpoints), len(doc.Capabilities), len(doc.IntentDefinitions))
 	}

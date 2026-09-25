@@ -18,6 +18,7 @@ import (
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/project/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workorder/v1"
 )
 
 // governedServices lists the fully qualified service names this manifest
@@ -28,6 +29,7 @@ var governedServices = []protoreflect.FullName{
 	"hcmnext.intents.v1.IntentService",
 	"hcmnext.registry.v1.RegistryService",
 	"hcmnext.project.v1.ProjectService",
+	"hcmnext.workorder.v1.WorkOrderService",
 }
 
 // RPCDescriptor is one method of one governed service, read directly from

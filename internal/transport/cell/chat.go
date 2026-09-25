@@ -22,6 +22,7 @@ import (
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportposition "github.com/monstercameron/human-capital-management-suite/internal/transport/position"
 	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
+	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 )
 
 const ChatExtensionsProcedurePrefix = "/hcmnext.chat.v1.ChatExtensionsService/"
@@ -56,7 +57,7 @@ func RegisterChat(srv *grpc.Server, service chatcore.ConversationService) {
 }
 
 // NewTunnelGRPCServerWithChat is the tunnel server the workspace page
-// actually bridges: the four workspace services plus the two chat services,
+// actually bridges: the core workspace services, work orders and chat services,
 // which the browser client speaks over the same tunnel. Chat is a member of
 // [tunnelAllowedServices], so both services are always registered — with the
 // composed implementation when chat is enabled, and with the generated
@@ -140,6 +141,24 @@ func NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearch(
 ) (*grpc.Server, error) {
 	return newTunnelGRPCServerWithDocumentAndProjectActivity(c, instances, workQueue, cursorKey, previousCursorKey,
 		workWrites, thresholds, chatService, extensions, documentService, &positionDeps, projectService, projectActivity, projectSearch, opts...)
+}
+
+// NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearchAndWorkOrder
+// adds WorkOrderService to the authenticated browser tunnel. Its service
+// dependencies are composed by the application root and shared with the
+// direct gRPC and Connect surfaces.
+func NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearchAndWorkOrder(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps transportposition.Dependencies, projectService transportproject.Service,
+	projectActivity transportproject.ActivityService, projectSearch transportproject.TaskSearchService,
+	workOrder *transportworkorder.Dependencies, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(c, instances, workQueue, cursorKey, previousCursorKey,
+		workWrites, thresholds, chatService, extensions, documentService, &positionDeps,
+		projectService, projectActivity, projectSearch, workOrder, opts...)
 }
 
 // registerTunnelChat puts both chat services on a tunnel server: composed

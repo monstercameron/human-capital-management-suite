@@ -20,6 +20,7 @@ import (
 	"github.com/pressly/goose/v3"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projectstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/workorderstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
 	"github.com/monstercameron/human-capital-management-suite/migrations"
 )
@@ -96,5 +97,46 @@ func migrateProjectUp(ctx context.Context, url, coreURL, schema string, logger b
 		return fmt.Errorf("apply project migrations: %w", err)
 	}
 	logger.Info("hcmnext.project_schema_applied", "schema", schema, "applied_this_start", len(applied))
+	return nil
+}
+
+// migrateWorkOrderUp applies the work-order-owned migration tree in its
+// isolated schema. The work-order capability owns a separate schema and
+// migration stream so its operational records do not become part of the HCM
+// employee-record schema.
+func migrateWorkOrderUp(ctx context.Context, url, coreURL, schema string, logger bootstrap.Logger) error {
+	store, err := workorderstore.New(ctx, workorderstore.Config{DSN: url, CoreDSN: coreURL, Schema: schema})
+	if err != nil {
+		return fmt.Errorf("validate work order database: %w", err)
+	}
+	store.Close()
+
+	connCfg, err := pgx.ParseConfig(url)
+	if err != nil {
+		return fmt.Errorf("parse work order database URL: %w", err)
+	}
+	connCfg.RuntimeParams["search_path"] = schema
+	db := stdlib.OpenDB(*connCfg)
+	defer func() { _ = db.Close() }()
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("connect work order database: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE SCHEMA IF NOT EXISTS `+pgx.Identifier{schema}.Sanitize()); err != nil {
+		return fmt.Errorf("provision work order schema: %w", err)
+	}
+	migrationFS, err := fs.Sub(workorderstore.Migrations, "migrations")
+	if err != nil {
+		return fmt.Errorf("read work order migrations: %w", err)
+	}
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrationFS,
+		goose.WithVerbose(false), goose.WithDisableGlobalRegistry(true))
+	if err != nil {
+		return fmt.Errorf("build work order migration provider: %w", err)
+	}
+	applied, err := provider.Up(ctx)
+	if err != nil {
+		return fmt.Errorf("apply work order migrations: %w", err)
+	}
+	logger.Info("hcmnext.work_order_schema_applied", "schema", schema, "applied_this_start", len(applied))
 	return nil
 }

@@ -56,6 +56,7 @@ import (
 	transportposition "github.com/monstercameron/human-capital-management-suite/internal/transport/position"
 	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
+	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -69,6 +70,7 @@ type ServiceHandlers struct {
 	IntegrationPublisher http.Handler
 	Parameters           http.Handler
 	Project              *transportproject.Dependencies
+	WorkOrder            *transportworkorder.Dependencies
 }
 
 // NewGRPCServer builds the canonical gRPC surface over an already composed
@@ -234,6 +236,11 @@ func newGRPCServerWithWorkflowInspectorAndOperations(
 		Decisions: workWrites.Decisions, Idempotency: workWrites.Idempotency,
 		Authorize: workAuthorizer(c.RoleAccess),
 	})
+	workOrderDeps := transportworkorder.Dependencies{}
+	if services.WorkOrder != nil {
+		workOrderDeps = *services.WorkOrder
+	}
+	transportworkorder.Register(srv, workOrderDeps)
 	transportoperations.Register(srv, transportoperations.Dependencies{Store: operationStore})
 	transporthealth.RegisterServer(srv, healthServer(c))
 	return srv, nil
@@ -272,11 +279,11 @@ func NewGRPCServerWithWorkflowInspectorAndOperationsAndChatAndAdminDependencies(
 
 // NewTunnelGRPCServer builds the workspace-only gRPC surface the tunnel
 // bridges. It registers exactly the services the workspace page uses —
-// IntentService, JourneyService, WorkflowService and WorkService — under
-// the same admission and telemetry interceptor chain as the main server,
-// and nothing else: the operator surfaces (AdminService,
-// OnboardingService), the registry, the operation store, health and chat
-// stay on the direct gRPC surface. [tunnelAllowedServices] names the set
+// IntentService, JourneyService, WorkflowService, WorkService and
+// WorkOrderService — under the same admission and telemetry interceptor
+// chain as the main server. Operator surfaces (AdminService,
+// OnboardingService), the registry, the operation store and health stay on
+// the direct gRPC surface. [tunnelAllowedServices] names the set
 // and TestTunnelServesOnlyWorkspaceServices fails the build if this
 // constructor and that set ever disagree.
 //
@@ -331,6 +338,23 @@ func newTunnelGRPCServerWithDocumentAndProjectActivity(
 	projectSearch transportproject.TaskSearchService,
 	opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(c, instances, workQueue,
+		cursorKey, previousCursorKey, workWrites, thresholds, chatService, extensions, documentService,
+		positionDeps, projectService, projectActivity, projectSearch, nil, opts...)
+}
+
+func newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps *transportposition.Dependencies,
+	projectService transportproject.Service,
+	projectActivity transportproject.ActivityService,
+	projectSearch transportproject.TaskSearchService,
+	workOrder *transportworkorder.Dependencies,
+	opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
 	if c == nil {
 		return nil, fmt.Errorf("transport cell: application cell is required")
 	}
@@ -377,6 +401,11 @@ func newTunnelGRPCServerWithDocumentAndProjectActivity(
 	} else {
 		transportproject.Register(srv, transportproject.Dependencies{Service: projectService, Activity: projectActivity, Search: projectSearch})
 	}
+	workOrderDeps := transportworkorder.Dependencies{}
+	if workOrder != nil {
+		workOrderDeps = *workOrder
+	}
+	transportworkorder.Register(srv, workOrderDeps)
 	return srv, nil
 }
 
@@ -452,7 +481,7 @@ func newEdgeHandlerWithDependenciesAndServices(c *app.Cell, grpcServer *grpc.Ser
 	opts = append(opts, connect.WithInterceptors(otelmw.NewConnectInterceptor(c.Telemetry)))
 	rpc, err := edge.NewHandler(edge.Options{
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
-		DataOps: services.DataOps, Integration: services.Integration, Project: services.Project,
+		DataOps: services.DataOps, Integration: services.Integration, Project: services.Project, WorkOrder: services.WorkOrder,
 		Journey: &transportjourney.Dependencies{
 			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
 			Knowledge:         app.KnowledgeSearchService{Source: c.KnowledgeSearch},

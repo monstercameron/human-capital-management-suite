@@ -90,6 +90,19 @@ var requiredFieldPaths = map[string][]string{
 	"/hcmnext.project.v1.ProjectService/DeleteTaskComment":        {"idempotency_key", "project_id", "task_id", "comment_id", "expected_revision", "scope"},
 	"/hcmnext.project.v1.ProjectService/ListTaskComments":         {"project_id", "task_id", "page_size", "scope"},
 	"/hcmnext.project.v1.ProjectService/ListTaskActivity":         {"project_id", "task_id", "page_size", "scope"},
+
+	"/hcmnext.workorder.v1.WorkOrderService/CreateWorkOrder":        {"idempotency_key", "project_id", "title", "scope", "template_id", "template_version"},
+	"/hcmnext.workorder.v1.WorkOrderService/GetWorkOrder":           {"work_order_id", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/ListWorkOrders":         {"project_id", "page", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/SubmitInitiatorRequest": {"idempotency_key", "work_order_id", "expected_revision", "kind", "details", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/DecideInitiatorRequest": {"idempotency_key", "work_order_id", "request_id", "expected_revision", "decision", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/AddWorkOrderNote":       {"idempotency_key", "work_order_id", "expected_revision", "body", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/RequestPhaseTransition": {"idempotency_key", "work_order_id", "expected_revision", "target_phase_id", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/RecordWorkEntry":        {"idempotency_key", "work_order_id", "expected_revision", "worker_id", "kind", "work_date", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/RecordProgressEntry":    {"idempotency_key", "work_order_id", "expected_revision", "line_id", "completed_quantity", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/RecordSpendEntry":       {"idempotency_key", "work_order_id", "expected_revision", "category", "disposition", "amount", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/RequestWorkOrderReport": {"idempotency_key", "work_order_id", "expected_revision", "kind", "definition_id", "definition_version", "scope_context"},
+	"/hcmnext.workorder.v1.WorkOrderService/RequestBillingDraft":    {"idempotency_key", "work_order_id", "expected_revision", "contract_version", "period_start", "period_end", "scope_context"},
 }
 
 // RequiredFieldPaths returns the required request field paths for one gRPC

@@ -18,6 +18,7 @@ import (
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
+	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 )
 
 // defaultMaxBodyBytes bounds an inbound request body. Bounded decoding is part
@@ -41,6 +42,7 @@ type Options struct {
 	Work        *transporthumanwork.Dependencies
 	Operations  *transportoperations.Dependencies
 	Project     *transportproject.Dependencies
+	WorkOrder   *transportworkorder.Dependencies
 	Health      *transporthealth.Server
 	// MaxBodyBytes bounds an inbound body. Zero means 4 MiB.
 	MaxBodyBytes int
@@ -70,7 +72,7 @@ func NewHandler(opts Options) (http.Handler, error) {
 	if opts.Config.Verifier == nil {
 		return nil, ErrNoVerifier
 	}
-	if opts.Intent == nil && opts.Registry == nil && opts.DataOps == nil && opts.Integration == nil && opts.Journey == nil && opts.Workflow == nil && opts.Work == nil && opts.Operations == nil && opts.Project == nil && opts.Health == nil {
+	if opts.Intent == nil && opts.Registry == nil && opts.DataOps == nil && opts.Integration == nil && opts.Journey == nil && opts.Workflow == nil && opts.Work == nil && opts.Operations == nil && opts.Project == nil && opts.WorkOrder == nil && opts.Health == nil {
 		return nil, ErrNoHandlers
 	}
 	maxBody := opts.MaxBodyBytes
@@ -170,6 +172,9 @@ func NewHandler(opts Options) (http.Handler, error) {
 	}
 	if opts.Project != nil {
 		mux.Handle("/hcmnext.project.v1.ProjectService/", transportproject.NewConnectHandler(*opts.Project, handlerOptions...))
+	}
+	if opts.WorkOrder != nil {
+		mux.Handle(transportworkorder.ProcedurePrefix, transportworkorder.NewConnectHandler(*opts.WorkOrder, handlerOptions...))
 	}
 	if opts.Health != nil {
 		mux.HandleFunc("/healthz", opts.Health.Healthz)

@@ -64,9 +64,16 @@ const EnvDocumentDatabaseURL = "HCMNEXT_DOCUMENT_DATABASE_URL"
 // EnvProjectDatabaseURL selects the project schema's restricted PostgreSQL role.
 const EnvProjectDatabaseURL = "HCMNEXT_PROJECT_DATABASE_URL"
 
+// EnvWorkOrderDatabaseURL selects the work order capability's restricted
+// PostgreSQL role.
+const EnvWorkOrderDatabaseURL = "HCMNEXT_WORKORDER_DATABASE_URL"
+
 // ProjectSchemaName is the namespace owned by the project capability on the
 // shared PostgreSQL server.
 const ProjectSchemaName = "hcmnext_project"
+
+// WorkOrderSchemaName is the namespace owned by the work order capability.
+const WorkOrderSchemaName = "hcmnext_workorder"
 
 // EnvParameterEnvironment carries the deployment's isolated parameter-value
 // namespace. It has no default because production and sandbox are explicit
@@ -157,6 +164,7 @@ const (
 	FieldChatDatabaseURL           = "chat-database-url"
 	FieldDocumentDatabaseURL       = "document-database-url"
 	FieldProjectDatabaseURL        = "project-database-url"
+	FieldWorkOrderDatabaseURL      = "workorder-database-url"
 	FieldChatCursorKey             = "chat-cursor-key"
 	FieldChatMediaRoot             = "chat-media-root"
 	FieldArtifactRoot              = "artifact-root"
@@ -339,10 +347,11 @@ type ServeConfig struct {
 	// ChatEnabled composes the native chat surface and its independent pool.
 	// It is opt in so standard deployments do not acquire a second database
 	// dependency by default.
-	ChatEnabled         bool
-	ChatDatabaseURL     string
-	DocumentDatabaseURL string
-	ProjectDatabaseURL  string
+	ChatEnabled          bool
+	ChatDatabaseURL      string
+	DocumentDatabaseURL  string
+	ProjectDatabaseURL   string
+	WorkOrderDatabaseURL string
 	// ParameterEnvironment selects the deployment-owned value namespace. Empty
 	// leaves parameter serving unconfigured; when set it must name one of the
 	// two isolated environments exactly.
@@ -422,6 +431,7 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldChatDatabaseURL, Env: EnvChatDatabaseURL, Usage: "PostgreSQL connection URL for the independent chat database"},
 		{Name: FieldDocumentDatabaseURL, Env: EnvDocumentDatabaseURL, Usage: "PostgreSQL connection URL for the independent document database", Secret: true},
 		{Name: FieldProjectDatabaseURL, Env: EnvProjectDatabaseURL, Usage: "PostgreSQL connection URL for the restricted project schema role; empty disables project services", Secret: true},
+		{Name: FieldWorkOrderDatabaseURL, Env: EnvWorkOrderDatabaseURL, Usage: "PostgreSQL connection URL for the restricted work order schema role; requires project services", Secret: true},
 		{Name: FieldChatCursorKey, Env: EnvChatCursorKey, Usage: "HMAC key for chat cursors; required when chat is enabled", Secret: true},
 		{Name: FieldChatMediaRoot, Env: EnvChatMediaRoot, Usage: "durable root for chat media files"},
 		{Name: FieldArtifactRoot, Env: EnvArtifactRoot, Usage: "artifact root used when a chat media root is not supplied"},
@@ -566,6 +576,7 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		ChatDatabaseURL:           values.String(FieldChatDatabaseURL),
 		DocumentDatabaseURL:       values.String(FieldDocumentDatabaseURL),
 		ProjectDatabaseURL:        values.String(FieldProjectDatabaseURL),
+		WorkOrderDatabaseURL:      values.String(FieldWorkOrderDatabaseURL),
 		ParameterEnvironment:      values.String(FieldParameterEnvironment),
 		ChatCursorKey:             values.String(FieldChatCursorKey),
 		ChatMediaRoot:             values.String(FieldChatMediaRoot),

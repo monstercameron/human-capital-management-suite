@@ -88,8 +88,8 @@ func TestTodo_PROTO_010_Property(t *testing.T) {
 }
 
 // TestTodo_PROTO_010_Golden pins the exact disposition distribution: thirteen
-// SERVED, one REFUSED_P1A, zero NOT_EXPOSED, across the fourteen current
-// methods of IntentService and RegistryService. ExecuteIntent is the one
+// SERVED, one REFUSED_P1A, zero NOT_EXPOSED, across the current
+// IntentService, RegistryService, ProjectService and WorkOrderService methods. ExecuteIntent is the one
 // method still refused for the duration of P1A.
 func TestTodo_PROTO_010_Golden(t *testing.T) {
 	m, err := Build()
@@ -110,10 +110,10 @@ func TestTodo_PROTO_010_Golden(t *testing.T) {
 	// EP-INTENT-003 served SubmitIntent, CancelIntent and SupersedeIntent,
 	// moving three methods from refused to served. ExecuteIntent is the one
 	// write still refused for the duration of P1A. REV-007-04 served the
-	// four analysis-to-action and intent-inspection reads. ProjectService now
-	// contributes thirty-seven served methods, including revisioned link mutations.
-	if served != 55 || refused != 1 || notExposed != 0 || len(m.Endpoints) != 56 {
-		t.Fatalf("disposition distribution = {served:%d refused:%d not_exposed:%d total:%d}, want {55 1 0 56}",
+	// four analysis-to-action and intent-inspection reads. ProjectService and
+	// WorkOrderService contribute fifty served methods between them.
+	if served != 67 || refused != 1 || notExposed != 0 || len(m.Endpoints) != 68 {
+		t.Fatalf("disposition distribution = {served:%d refused:%d not_exposed:%d total:%d}, want {67 1 0 68}",
 			served, refused, notExposed, len(m.Endpoints))
 	}
 }
@@ -150,8 +150,8 @@ func TestTodo_PROTO_010_Conformance(t *testing.T) {
 	for range rpcs {
 		wantCount++
 	}
-	if wantCount != 56 {
-		t.Fatalf("expected 56 total RPC methods across IntentService (14), RegistryService (4), and ProjectService (38), found %d", wantCount)
+	if wantCount != 68 {
+		t.Fatalf("expected 68 total RPC methods across IntentService (14), RegistryService (4), ProjectService (38), and WorkOrderService (12), found %d", wantCount)
 	}
 
 	m, err := Build()

@@ -289,6 +289,9 @@ func rules() map[string]rule {
 	for endpoint, r := range projectRules() {
 		out[endpoint] = r
 	}
+	for endpoint, r := range workOrderRules() {
+		out[endpoint] = r
+	}
 	return out
 }
 

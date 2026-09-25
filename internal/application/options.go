@@ -48,6 +48,10 @@ type Migrator func(ctx context.Context, databaseURL string, logger bootstrap.Log
 // of Goose imports.
 type ProjectMigrator func(ctx context.Context, databaseURL, coreDatabaseURL, schema string, logger bootstrap.Logger) error
 
+// WorkOrderMigrator applies the work order capability's isolated Goose tree.
+// It is supplied by cmd/hcmnext so application remains free of Goose imports.
+type WorkOrderMigrator func(ctx context.Context, databaseURL, coreDatabaseURL, schema string, logger bootstrap.Logger) error
+
 // ListenFunc opens the TCP listeners the two surfaces are published on. Nil
 // means net.Listen.
 type ListenFunc func(network, address string) (net.Listener, error)
@@ -111,6 +115,8 @@ type Options struct {
 	Migrate Migrator
 	// MigrateProject applies the project schema when its restricted role is configured.
 	MigrateProject ProjectMigrator
+	// MigrateWorkOrder applies the work order schema when its restricted role is configured.
+	MigrateWorkOrder WorkOrderMigrator
 	// Listen opens the two surfaces' listeners.
 	Listen ListenFunc
 
@@ -214,6 +220,11 @@ func WithMigrator(migrate Migrator) Option {
 // WithProjectMigrator supplies the project schema migration adapter.
 func WithProjectMigrator(migrate ProjectMigrator) Option {
 	return func(o *Options) { o.MigrateProject = migrate }
+}
+
+// WithWorkOrderMigrator supplies the work order schema migration adapter.
+func WithWorkOrderMigrator(migrate WorkOrderMigrator) Option {
+	return func(o *Options) { o.MigrateWorkOrder = migrate }
 }
 
 // WithListener supplies the listener factory both surfaces are opened with.

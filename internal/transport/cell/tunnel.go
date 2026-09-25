@@ -58,6 +58,7 @@ var tunnelAllowedServices = map[string]bool{
 	"hcmnext.document.v1.DocumentService":       true,
 	"hcmnext.position.v1.PositionService":       true,
 	"hcmnext.project.v1.ProjectService":         true,
+	"hcmnext.workorder.v1.WorkOrderService":     true,
 	"hcmnext.evidence.v1.EvidenceService":       false,
 	"hcmnext.dataops.v1.DataOpsService":         false,
 	"hcmnext.integration.v1.IntegrationService": false,
@@ -108,7 +109,7 @@ const tunnelMaxConnectionsPerClient = 8
 // services (IntentService, JourneyService, WorkflowService, WorkService)
 // over real gRPC frames carried on a WebSocket. There is exactly one
 // contract, and the page is a client of it. The bridged server carries
-// only those services — [NewTunnelGRPCServer] builds it — so the operator
+// only those services — including WorkOrderService — [NewTunnelGRPCServer] builds it — so the operator
 // surfaces are unreachable here no matter what credential the socket
 // holds.
 //

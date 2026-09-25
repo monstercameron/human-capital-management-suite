@@ -14,10 +14,12 @@ import (
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	registryv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
+	workorderv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workorder/v1"
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportjourney "github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
+	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 )
 
 // Procedure paths. They are the gRPC method names verbatim, so one method
@@ -154,8 +156,20 @@ var requestFactories = map[string]func() proto.Message{
 	transporthumanwork.GetThresholdTableProcedure: func() proto.Message {
 		return &humanworkv1.GetThresholdTableRequest{}
 	},
-	transportoperations.GetOperationProcedure:    func() proto.Message { return &evidencev1.GetOperationRequest{} },
-	transportoperations.CancelOperationProcedure: func() proto.Message { return &evidencev1.CancelOperationRequest{} },
+	transportoperations.GetOperationProcedure:          func() proto.Message { return &evidencev1.GetOperationRequest{} },
+	transportoperations.CancelOperationProcedure:       func() proto.Message { return &evidencev1.CancelOperationRequest{} },
+	transportworkorder.CreateWorkOrderProcedure:        func() proto.Message { return &workorderv1.CreateWorkOrderRequest{} },
+	transportworkorder.GetWorkOrderProcedure:           func() proto.Message { return &workorderv1.GetWorkOrderRequest{} },
+	transportworkorder.ListWorkOrdersProcedure:         func() proto.Message { return &workorderv1.ListWorkOrdersRequest{} },
+	transportworkorder.SubmitInitiatorRequestProcedure: func() proto.Message { return &workorderv1.SubmitInitiatorRequestRequest{} },
+	transportworkorder.DecideInitiatorRequestProcedure: func() proto.Message { return &workorderv1.DecideInitiatorRequestRequest{} },
+	transportworkorder.AddWorkOrderNoteProcedure:       func() proto.Message { return &workorderv1.AddWorkOrderNoteRequest{} },
+	transportworkorder.RequestPhaseTransitionProcedure: func() proto.Message { return &workorderv1.RequestPhaseTransitionRequest{} },
+	transportworkorder.RecordWorkEntryProcedure:        func() proto.Message { return &workorderv1.RecordWorkEntryRequest{} },
+	transportworkorder.RecordProgressEntryProcedure:    func() proto.Message { return &workorderv1.RecordProgressEntryRequest{} },
+	transportworkorder.RecordSpendEntryProcedure:       func() proto.Message { return &workorderv1.RecordSpendEntryRequest{} },
+	transportworkorder.RequestWorkOrderReportProcedure: func() proto.Message { return &workorderv1.RequestWorkOrderReportRequest{} },
+	transportworkorder.RequestBillingDraftProcedure:    func() proto.Message { return &workorderv1.RequestBillingDraftRequest{} },
 }
 
 // Procedures returns every procedure path this edge publishes.

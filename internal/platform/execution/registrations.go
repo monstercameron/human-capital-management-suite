@@ -20,7 +20,6 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
-	"github.com/monstercameron/human-capital-management-suite/internal/platform/execution/promotionsteps"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/effects"
@@ -47,15 +46,17 @@ const (
 // compiled node carries to resolve through the registration table.
 const capabilityReleaseHold = "hcmnext.rewards.release_compensation_budget"
 
-// StepRunFunc executes one node through the composed promotion runner. The
-// runner is built per step from the late-bound ports, so handlers stay
-// valid across the application's BindStepServices call.
-type StepRunFunc func(ctx context.Context, runner *promotionsteps.Runner, req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error)
+// StepRunFunc executes one node using the composition's domain-neutral step
+// runner. A handler may delegate to that runner or use workflow-specific
+// typed ports captured by its registration. This keeps domain routing and
+// authorization in the owning composition rather than requiring promotion
+// types at the registration boundary.
+type StepRunFunc func(ctx context.Context, runner execute.StepRunner, req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error)
 
-// defaultStepRun dispatches through the shared promotion runner: the
-// selection key was the registration's capability id, the execution is the
-// one runner every plan already uses.
-func defaultStepRun(ctx context.Context, runner *promotionsteps.Runner, req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
+// defaultStepRun dispatches through the shared runtime step runner. A
+// promotion composition supplies its existing promotion runner as the
+// adapter; other compositions can supply a runner for their own domain.
+func defaultStepRun(ctx context.Context, runner execute.StepRunner, req execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
 	if runner == nil {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("platform execution: no step runner for node %q", req.Node.ID)
 	}
@@ -67,7 +68,7 @@ func defaultStepRun(ctx context.Context, runner *promotionsteps.Runner, req exec
 // fetch resolves through this entry until the market-rate port is bound
 // through the registration.
 func unboundCapabilityStepRun(capabilityID string) StepRunFunc {
-	return func(context.Context, *promotionsteps.Runner, execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
+	return func(context.Context, execute.StepRunner, execute.StepRequest) (frontier.NodeOutcome, runtime.GovernanceRefs, error) {
 		return frontier.NodeOutcome{}, runtime.GovernanceRefs{}, fmt.Errorf("platform execution: capability %q is not bound to a step port in this composition", capabilityID)
 	}
 }

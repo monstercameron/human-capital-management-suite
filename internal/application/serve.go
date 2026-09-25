@@ -92,6 +92,7 @@ import (
 	transportreviewparticipants "github.com/monstercameron/human-capital-management-suite/internal/transport/reviewparticipants"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/streaming"
 	transportwebhook "github.com/monstercameron/human-capital-management-suite/internal/transport/webhook"
+	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/session"
@@ -106,6 +107,8 @@ const (
 	ComponentSchemaMigrator           = "schema-migrator"
 	ComponentProjectSchemaMigrator    = "project-schema-migrator"
 	ComponentProjectService           = "project-service"
+	ComponentWorkOrderSchemaMigrator  = "workorder-schema-migrator"
+	ComponentWorkOrderService         = "workorder-service"
 	ComponentIntentStore              = "intent-store"
 	ComponentCredentialVerifier       = "credential-verifier"
 	ComponentLegalEvidenceVerifier    = "legal-evidence-verifier"
@@ -151,11 +154,13 @@ const (
 	ComponentShutdownChat             = "shutdown:close-chat-database"
 	ComponentDocumentStore            = "document-store"
 	ComponentShutdownDocument         = "shutdown:close-document-database"
+	ComponentShutdownWorkOrder        = "shutdown:close-workorder-database"
 	workloadNameGRPC                  = "grpc-surface"
 	workloadNameHTTP                  = "http-edge"
 	shutdownNameHTTP                  = "stop-http-edge"
 	shutdownNameGRPC                  = "stop-grpc-surface"
 	shutdownNameChat                  = "close-chat-database"
+	shutdownNameWorkOrder             = "close-workorder-database"
 	shutdownNameDocument              = "close-document-database"
 	shutdownNameTelemetry             = "shutdown-telemetry"
 	httpEdgeReadHeaderTimeoutValue    = 10 * time.Second
@@ -235,11 +240,16 @@ type ServeInput struct {
 }
 
 type composedProjects struct {
-	service  projectservice.Service
-	activity *applicationprojectactivity.Service
-	search   projectsearch.Service
-	store    *projectstore.Store
-	close    func()
+	service            projectservice.Service
+	activity           *applicationprojectactivity.Service
+	search             projectsearch.Service
+	store              *projectstore.Store
+	members            *projectmemberstore.Store
+	adapter            *projectservice.StoreAdapter
+	chatLinks          projectrefs.ChatLinks
+	documentPlacements projectrefs.DocumentPlacements
+	workItems          projectrefs.WorkItemProjection
+	close              func()
 }
 
 type tenantProjectCreator struct{}
@@ -310,7 +320,8 @@ func composeProjects(ctx context.Context, cfg ServeConfig, chat any, docs any, w
 		return composedProjects{}, fmt.Errorf("compose project activity: %w", err)
 	}
 	search := projectsearch.Service{Auth: members, Standing: invitees, Tasks: projectsearch.StoreRepository{Store: store}, CursorKey: cursorKey[:]}
-	return composedProjects{service: service, activity: activity, search: search, store: store, close: store.Close}, nil
+	return composedProjects{service: service, activity: activity, search: search, store: store, members: members, adapter: adapter,
+		chatLinks: chatLinks, documentPlacements: documentPlacements, workItems: workItems, close: store.Close}, nil
 }
 
 // ComposeServe builds the serve role: the store, the verifier, the telemetry
@@ -352,6 +363,15 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			return nil, fmt.Errorf("application: -%s requires a project schema migrator; the command supplies one", FieldProjectDatabaseURL)
 		}
 		if err := options.MigrateProject(ctx, cfg.ProjectDatabaseURL, cfg.DatabaseURL, ProjectSchemaName, logger); err != nil {
+			return nil, err
+		}
+	}
+	graph.add(ComponentWorkOrderSchemaMigrator, KindAdapter, options.MigrateWorkOrder)
+	if strings.TrimSpace(cfg.WorkOrderDatabaseURL) != "" && cfg.Migrate {
+		if options.MigrateWorkOrder == nil {
+			return nil, fmt.Errorf("application: -%s requires a work order schema migrator; the command supplies one", FieldWorkOrderDatabaseURL)
+		}
+		if err := options.MigrateWorkOrder(ctx, cfg.WorkOrderDatabaseURL, cfg.DatabaseURL, WorkOrderSchemaName, logger); err != nil {
 			return nil, err
 		}
 	}
@@ -725,6 +745,30 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		graph.add(ComponentProjectService, KindEngine, projects.service, ComponentProjectSchemaMigrator)
 		serviceHandlers.Project = &transportproject.Dependencies{Service: projects.service, Activity: projects.activity, Search: projects.search}
 	}
+	workOrders, err := composeWorkOrders(ctx, cfg, projects, cell.Workers, projectInvitees, in.Pool, options.Now)
+	if err != nil {
+		return nil, fmt.Errorf("compose work orders: %w", err)
+	}
+	workOrdersCommitted := false
+	defer func() {
+		if !workOrdersCommitted && workOrders.close != nil {
+			workOrders.close()
+		}
+	}()
+	var workOrderDeps *transportworkorder.Dependencies
+	if workOrders.store != nil {
+		graph.add(ComponentWorkOrderService, KindEngine, workOrders.service, ComponentWorkOrderSchemaMigrator, ComponentProjectService, ComponentWorkerFacts)
+		workOrderDeps = &transportworkorder.Dependencies{Service: workOrders.service}
+		serviceHandlers.WorkOrder = workOrderDeps
+		refs := projectrefs.Adapter{
+			Chat: projects.chatLinks, Documents: projects.documentPlacements,
+			WorkItems: projects.workItems, WorkOrders: workOrders.projection,
+		}
+		resolver := projectlink.Resolver{Authorization: refs, Targets: refs}
+		projects.adapter.LinkResolver = resolver
+		projects.service.LinkResolver = resolver
+		serviceHandlers.Project = &transportproject.Dependencies{Service: projects.service, Activity: projects.activity, Search: projects.search}
+	}
 
 	var schedulerWorkload, progressWorkload bootstrap.Workload
 	if cfg.Scheduler {
@@ -858,9 +902,9 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		browserProjectActivity = projects.activity
 		browserProjectSearch = projects.search
 	}
-	tunnelServer, err := transportcell.NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearch(
+	tunnelServer, err := transportcell.NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearchAndWorkOrder(
 		cell, workflowControlReader, workQueueReader, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds,
-		chatRuntime.service, chatRuntime.extensions, documentRuntime.service, positionDeps, browserProjectService, browserProjectActivity, browserProjectSearch)
+		chatRuntime.service, chatRuntime.extensions, documentRuntime.service, positionDeps, browserProjectService, browserProjectActivity, browserProjectSearch, workOrderDeps)
 	if err != nil {
 		return nil, err
 	}
@@ -1098,6 +1142,12 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			},
 		})
 	}
+	if workOrders.close != nil {
+		shutdown = append(shutdown, bootstrap.ShutdownStep{
+			Name: shutdownNameWorkOrder,
+			Run:  func(context.Context) error { workOrders.close(); return nil },
+		})
+	}
 	if projects.close != nil {
 		shutdown = append(shutdown, bootstrap.ShutdownStep{
 			Name: "shutdown:close-project-database",
@@ -1123,7 +1173,10 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		graph.add(ComponentShutdownDocument, KindShutdown, shutdown[4].Run, ComponentDocumentStore)
 	}
 	if projects.close != nil {
-		graph.add("shutdown:close-project-database", KindShutdown, shutdown[len(shutdown)-1].Run, ComponentProjectService)
+		graph.add("shutdown:close-project-database", KindShutdown, func(context.Context) error { projects.close(); return nil }, ComponentProjectService)
+	}
+	if workOrders.close != nil {
+		graph.add(ComponentShutdownWorkOrder, KindShutdown, func(context.Context) error { workOrders.close(); return nil }, ComponentWorkOrderService)
 	}
 
 	// From here the caller's lifecycle owns the provider's lifetime through
@@ -1133,6 +1186,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	chatCommitted = true
 	documentCommitted = true
 	projectsCommitted = true
+	workOrdersCommitted = true
 	return &App{
 		role:             RoleServe,
 		graph:            graph.graph(),
