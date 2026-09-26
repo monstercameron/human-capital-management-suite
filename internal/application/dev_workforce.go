@@ -174,6 +174,17 @@ func bootstrapLocalDevWorkflowVersions(ctx context.Context, cfg ServeConfig, ver
 	if err != nil {
 		return nil, fmt.Errorf("bootstrap the local development workflow versions: %w", err)
 	}
+	for _, tenant := range cfg.ServedTenants() {
+		if tenant != demoworkforce.IronridgeKey {
+			continue
+		}
+		pilot, err := platformexecution.PublishIronridgeWorkOrder(registry, at)
+		if err != nil {
+			return nil, fmt.Errorf("publish the Ironridge work order workflow: %w", err)
+		}
+		released = append(released, pilot)
+		break
+	}
 	return released, nil
 }
 

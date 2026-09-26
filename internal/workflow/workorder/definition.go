@@ -188,7 +188,13 @@ func Compile(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, er
 	if len(definitions) == 1 {
 		definition = definitions[0]
 	}
-	return workflow.Compile(definition, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilityRecords()})
+	return workflow.Compile(definition, CompileOptions())
+}
+
+// CompileOptions is shared by preview compilation and governed publication.
+// A publisher must recompile with these exact capability records.
+func CompileOptions() workflow.Options {
+	return workflow.Options{Phase: workflow.PhaseP1B, Capabilities: capabilityRecords()}
 }
 
 func schema(name string) workflow.SchemaRef {

@@ -9,14 +9,14 @@ import (
 )
 
 func TestIronridgeRiversideWorkOrderSeedIsPublishedAndResolvable(t *testing.T) {
-	pilot := RiversideStairStringerPilot()
+	pilot := RiversideGymWingPilot()
 	if pilot.TenantKey != TenantKey || pilot.ProjectKey != "RIV" || pilot.TemplateID != TemplateID || pilot.TemplateVersion != TemplateVersion {
 		t.Fatalf("pilot identity = %+v", pilot)
 	}
-	if !reflect.DeepEqual(pilot.LinkedTaskKeys, []string{"RIV-14", "RIV-27", "RIV-10"}) {
+	if !reflect.DeepEqual(pilot.LinkedTaskKeys, []string{"RIV-35", "RIV-32", "RIV-34"}) {
 		t.Fatalf("linked Riverside tasks = %v", pilot.LinkedTaskKeys)
 	}
-	if !reflect.DeepEqual(pilot.DocumentKeys, []string{"rfi-log-riverside", "change-order-procedure"}) || !reflect.DeepEqual(pilot.ConversationKeys, []string{"leadership"}) {
+	if !reflect.DeepEqual(pilot.DocumentKeys, []string{"riverside-project-overview", "daily-report-template", "riverside-gym-wing-work-order"}) || !reflect.DeepEqual(pilot.ConversationKeys, []string{"jobsite-riverside", "foremen"}) {
 		t.Fatalf("cross-collaboration refs = docs %v, chats %v", pilot.DocumentKeys, pilot.ConversationKeys)
 	}
 

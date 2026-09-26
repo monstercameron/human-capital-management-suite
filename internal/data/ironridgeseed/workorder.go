@@ -15,7 +15,7 @@ const (
 	TemplatePublishedBy  = "hcmnext.seed/ironridge-demo"
 	TemplateReviewRef    = "planning/research/work-order-workflow-2026-09-25.md#Ironridge-pilot-case"
 	PilotProjectKey      = "RIV"
-	PilotWorkOrderKey    = "RIV-WO-STAIR-STRINGER-01"
+	PilotWorkOrderKey    = "RIV-WO-GYM-CLOSEOUT-01"
 	PilotInitiatorWorker = "ir-005-greg-novak"
 	PilotSupervisor      = "ir-008-curtis-bell"
 )
@@ -29,19 +29,19 @@ type PilotSpec struct {
 	LinkedTaskKeys, DocumentKeys, ConversationKeys          []string
 }
 
-// RiversideStairStringerPilot is deliberately only a plan. A runner must
+// RiversideGymWingPilot is deliberately only a plan. A runner must
 // resolve these natural keys and call Service.Create with a verified principal
 // and current project authority; it must not persist a hand-built snapshot.
-func RiversideStairStringerPilot() PilotSpec {
+func RiversideGymWingPilot() PilotSpec {
 	return PilotSpec{
 		Key: PilotWorkOrderKey, TenantKey: TenantKey, ProjectKey: PilotProjectKey,
 		TemplateID: TemplateID, TemplateVersion: TemplateVersion,
-		Title:           "Riverside stair stringer redesign and installation",
-		Scope:           "Resolve the RFI-014 embed conflict, execute the CO-03 revised stringer scope, record labor and material spend, document inspection evidence, and reconcile final billing.",
+		Title:           "Riverside gym wing punch and closeout",
+		Scope:           "Coordinate the gym wing punch walk, wall protection repairs, inspection evidence, crew time, material spend, and turnover billing before the district walk. The earlier stair stringer CO-03 remains in the approved change-order record.",
 		InitiatorWorker: PilotInitiatorWorker, SupervisorWorker: PilotSupervisor,
-		LinkedTaskKeys:   []string{"RIV-14", "RIV-27", "RIV-10"},
-		DocumentKeys:     []string{"rfi-log-riverside", "change-order-procedure"},
-		ConversationKeys: []string{"leadership"},
+		LinkedTaskKeys:   []string{"RIV-35", "RIV-32", "RIV-34"},
+		DocumentKeys:     []string{"riverside-project-overview", "daily-report-template", "riverside-gym-wing-work-order"},
+		ConversationKeys: []string{"jobsite-riverside", "foremen"},
 	}
 }
 
@@ -93,7 +93,7 @@ func fieldWorkDraft() workordertemplate.Draft {
 			{ID: "BILLING_REVIEW", Kind: workordertemplate.RequestBillingReview, FormRef: "BILLING_FORM", AllowedPhases: []string{"ACCEPTED"}, ApprovalPolicyRef: "ironridge.work_order.billing_approval/v1"},
 		},
 		Evidence: []workordertemplate.EvidenceRequirement{
-			{ID: "INSTALLATION_PHOTOS", Description: "Photographs of the installed stringers and embed connections", AtPhase: "INSPECTION", Required: true},
+			{ID: "INSTALLATION_PHOTOS", Description: "Dated field photographs of completed work and punch corrections", AtPhase: "INSPECTION", Required: true},
 			{ID: "INSPECTION_RESULT", Description: "Signed inspection result and any corrective work evidence", AtPhase: "INSPECTION", Required: true},
 		},
 		Roles: []workordertemplate.RoleGrant{
@@ -105,7 +105,7 @@ func fieldWorkDraft() workordertemplate.Draft {
 			{Role: "INSPECTOR", Actions: []string{"read", "inspect", "note"}},
 		},
 		ReportPolicies: []workordertemplate.ReportPolicy{{ID: "ironridge.work_order.field_report", Version: "1", Kind: workordertemplate.ReportDailyField, Required: true}, {ID: "ironridge.work_order.billing_report", Version: "1", Kind: workordertemplate.ReportCost, Required: true}},
-		Billing:        &workordertemplate.BillingPolicy{ID: "ironridge.work_order.riverside_unit_rates", Version: "1", Mode: "UNIT_PRICE", Required: true},
+		Billing:        &workordertemplate.BillingPolicy{ID: "ironridge.work_order.field_unit_rates", Version: "1", Mode: "UNIT_PRICE", Required: true},
 		PolicyRefs: []workordertemplate.PolicyRef{
 			{ID: "ironridge.work_order.authorization", Version: "v1"},
 			{ID: "ironridge.work_order.site_safety", Version: "v1"},

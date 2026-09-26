@@ -362,7 +362,13 @@ func (s *server) ListWorkflowPublications(ctx context.Context, _ *workflowv1.Lis
 	if err != nil {
 		return nil, projectReadError(err, inv, p)
 	}
-	selected := selectCatalogVersions(versions)
+	visible := make([]workflowversion.CompiledVersion, 0, len(versions))
+	for _, publication := range versions {
+		if publicationVisibleToTenant(publication, p.Tenant().String()) {
+			visible = append(visible, publication)
+		}
+	}
+	selected := selectCatalogVersions(visible)
 	response := &workflowv1.ListWorkflowPublicationsResponse{Publications: make([]*workflowv1.WorkflowPublicationSummary, 0, len(selected))}
 	for _, publication := range selected {
 		view, err := workflowview.Build(publication, nil)
@@ -423,11 +429,19 @@ func (s *server) GetWorkflowDefinitionView(ctx context.Context, req *workflowv1.
 	if !found {
 		return nil, projectReadError(ErrNotFound, inv, p)
 	}
+	if !publicationVisibleToTenant(publication, p.Tenant().String()) {
+		return nil, projectReadError(ErrNotFound, inv, p)
+	}
 	view, err := workflowview.Build(publication, live)
 	if err != nil {
 		return nil, projectReadError(err, inv, p)
 	}
 	return &workflowv1.GetWorkflowDefinitionViewResponse{View: projectDefinitionView(view)}, nil
+}
+
+func publicationVisibleToTenant(publication workflowversion.CompiledVersion, tenant string) bool {
+	scope := publication.ToolVersions["catalog_tenant"]
+	return scope == "" || scope == tenant
 }
 
 func selectCatalogVersions(versions []workflowversion.CompiledVersion) []workflowversion.CompiledVersion {

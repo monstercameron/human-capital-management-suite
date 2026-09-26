@@ -9,6 +9,8 @@ import (
 	"time"
 
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/ironridgeseed"
+	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/transporttest"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -17,6 +19,26 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/prototype"
 	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
+
+func TestIronridgeCatalogPublicationDoesNotLeakToAnotherTenant(t *testing.T) {
+	registry := workflowversion.NewRegistry()
+	publication, err := platformexecution.PublishIronridgeWorkOrder(registry, time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !publicationVisibleToTenant(publication, ironridgeseed.TenantKey) || publicationVisibleToTenant(publication, transporttest.Tenant) {
+		t.Fatal("Ironridge publication was not scoped to Ironridge")
+	}
+	srv := &server{deps: Dependencies{Definitions: registry, Authorize: allowWorkflowCalls}}
+	catalog, err := srv.ListWorkflowPublications(workflowTestContext(t, ListWorkflowPublicationsProcedure), &workflowv1.ListWorkflowPublicationsRequest{})
+	if err != nil || len(catalog.GetPublications()) != 0 {
+		t.Fatalf("other tenant catalog = %+v, %v", catalog, err)
+	}
+	_, err = srv.GetWorkflowDefinitionView(workflowTestContext(t, GetWorkflowDefinitionViewProcedure), &workflowv1.GetWorkflowDefinitionViewRequest{WorkflowId: publication.WorkflowID})
+	if owned, ok := envelope.As(err); !ok || owned.Code() != envelope.CodeNotFound {
+		t.Fatalf("other tenant definition = %v, want not found", err)
+	}
+}
 
 func TestTodo_WF_UI_002_TransportCatalogAndLiveInspectorOverlay(t *testing.T) {
 	registry, publication := wfui002Publication(t)
