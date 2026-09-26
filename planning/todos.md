@@ -29011,3 +29011,97 @@ Related open items are not duplicated here:
   - **GREEN:** AI proposes a diff to a tenant draft with reasons and uncertainty; owner accepts selected changes and the ordinary validator, evaluation, reviewer, and immutable publication path still apply.
   - **REFACTOR:** Reuse Agent Studio draft/version APIs; keep generated prose outside executable authority.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
+
+## 88. Field time tracking and crew scheduling delivery
+
+> Candidate workstream for Ironridge field crews, unscheduled until `FTIME-001` decides the pilot and payroll boundary. The Clock capability owns observed punches, scheduling owns planned shifts, and work orders own allocation of approved time to field work. A scheduled shift never proves attendance; a punch never silently becomes paid time or an approved work-order cost. Reuse the existing clock, attendance and scheduling kernels by wiring them into one served application path rather than creating parallel time records in Projects or Work Orders.
+
+- [ ] `FTIME-001` **[DESIGN][SOL_HIGH] Decide field-time authority, pilot scope and payroll handoff.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=choose who owns punches, approved time, schedules, work-order costing and payroll for the Ironridge pilot`.
+  - **TEST:** `TestTodo_FTIME_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_001`; `CONFORMANCE=TestTodo_FTIME_001_Conformance`.
+  - **RED:** A work-order duration entry is treated as a clock punch or payroll-ready timesheet without source, reviewer, jurisdiction or correction policy.
+  - **GREEN:** A signed scope decision names the first crew and locations, browser/device sources, clock and schedule owners, break and overtime policy source, supervisor approval, payroll system of record, retention, success measures and displaced work; the initial delivery may be costing-only but labels its payroll status explicitly.
+  - **REFACTOR:** Extend the existing Clock, Attendance and Schedule concepts; keep WorkOrder work entries as allocations of reviewed time.
+  - **Refs:** [Work order research](research/work-order-workflow-2026-09-25.md), [workforce models](data/models/people-workforce.md), [endpoint contract](specs/http-grpc-endpoint-contract.md).
+
+- [ ] `FTIME-002` **[PHASE_4][SOL_HIGH] Persist tenant-scoped punch observations and open sessions.**
+  - **Depends:** `FTIME-001`, `CLOCK-003`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.WORKFORCE; DIRECT=none; WHY=make clock events durable and replay-safe across devices, servers and restarts`.
+  - **TEST:** `TestTodo_FTIME_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_002`; `INTEGRATION=TestTodo_FTIME_002_Integration`; `RACE=TestTodo_FTIME_002_Race`; `RECOVERY=TestTodo_FTIME_002_Recovery`; `SECURITY=TestTodo_FTIME_002_Security`.
+  - **RED:** Restart loses an open session, two simultaneous clock-ins both succeed, or a cross-tenant query exposes a punch.
+  - **GREEN:** Isolated persistence records immutable observations, server receipt time, source/worker/project scope, idempotency digest and correction lineage; one active session per worker per tenant is enforced transactionally; tenant RLS, retention and outbox recovery are tested.
+  - **REFACTOR:** Use the existing Clock observation model and data-store conventions.
+  - **Refs:** `internal/domains/clock`, `internal/data/workorderstore`, [storage dispositions](../definitions/storage/storage-disposition.yaml).
+
+- [ ] `FTIME-003` **[PHASE_4][SOL_HIGH] Serve authenticated clock in, clock out and break commands.**
+  - **Depends:** `FTIME-002`, `CLOCK-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=let an eligible worker capture actual field time with trustworthy state transitions`.
+  - **TEST:** `TestTodo_FTIME_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_003`; `SECURITY=TestTodo_FTIME_003_Security`; `RACE=TestTodo_FTIME_003_Race`; `FAULT=TestTodo_FTIME_003_Fault`.
+  - **RED:** A client chooses authoritative receipt time, clocks in another worker without delegation, clocks out twice, or a retry creates duplicate labor time.
+  - **GREEN:** ClockIn, StartBreak, EndBreak and ClockOut resolve the current HCM worker, source, project and optional work order before writing; return open-session state and typed conflicts; signed source time and server receipt time stay distinct; unscheduled work is captured with an exception rather than discarded.
+  - **REFACTOR:** Keep transport handlers thin and place pairing and authorization in the time application service.
+  - **Refs:** `internal/domains/clock`, `internal/application/workorderservice`, [identity resolution](specs/identity-resolution-and-entity-linkage.md).
+
+- [ ] `FTIME-004` **[PHASE_4][SOL_HIGH] Review timecards and correct punches without rewriting history.**
+  - **Depends:** `FTIME-003`, `CLOCK-006`, `ATTEND-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=turn observed sessions into reviewable worked time while preserving worker and supervisor evidence`.
+  - **TEST:** `TestTodo_FTIME_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_004`; `SECURITY=TestTodo_FTIME_004_Security`; `INTEGRATION=TestTodo_FTIME_004_Integration`; `RACE=TestTodo_FTIME_004_Race`.
+  - **RED:** A missing out punch silently becomes zero hours, a correction overwrites the original, or approval ignores an unresolved break or overlap exception.
+  - **GREEN:** Worker and supervisor see source and timezone, paired intervals, breaks, schedule comparison, exceptions and correction history; a reasoned correction appends evidence; approval pins the reviewed revision and applicable rules, with typed reopen and rejection paths.
+  - **REFACTOR:** Reuse attendance exception evaluation and Human Work review rather than putting approvals in chat or project comments.
+  - **Refs:** `internal/domains/attendance`, `internal/domains/clock`, [Human Work](specs/human-work-forms-and-rules.md).
+
+- [ ] `FTIME-005` **[PHASE_4][SOL_HIGH] Allocate approved time to work orders and reconcile payroll handoff.**
+  - **Depends:** `FTIME-004`, `LABOR-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.WORK,BI.REWARDS; DIRECT=none; WHY=connect reviewed time to field progress and costing without making a manual work entry a payroll punch`.
+  - **TEST:** `TestTodo_FTIME_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_005`; `INTEGRATION=TestTodo_FTIME_005_Integration`; `SECURITY=TestTodo_FTIME_005_Security`; `RACE=TestTodo_FTIME_005_Race`.
+  - **RED:** One approved minute is charged to two orders, a denied project member sees pay rates, or a corrected timecard leaves a stale work-order total.
+  - **GREEN:** Approved intervals allocate exactly across authorized project/work-order lines with source references and idempotent revisions; corrections create deltas and reconcile reports and billing drafts. Payroll export runs only after the `FTIME-001` authority decision and carries an explicit accepted/rejected receipt.
+  - **REFACTOR:** Keep punch, allocation, cost and payroll records in their owning capabilities with typed links.
+  - **Refs:** `internal/domains/workorder`, `internal/application/workorderservice`, `internal/domains/labor`, [workforce models](data/models/rewards-payroll-workforce.md).
+
+- [ ] `FTIME-006` **[PHASE_4][SOL_HIGH] Create and publish revisioned crew shifts.**
+  - **Depends:** `FTIME-001`, `PM-006`, `SCHED-OPT-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=plan field coverage by eligible worker, project and work order before labor is dispatched`.
+  - **TEST:** `TestTodo_FTIME_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_006`; `INTEGRATION=TestTodo_FTIME_006_Integration`; `SECURITY=TestTodo_FTIME_006_Security`; `PROPERTY=TestTodo_FTIME_006_Property`.
+  - **RED:** A draft assignment appears as a published shift, daylight-saving transitions change worked hours silently, or one worker is double-booked across projects.
+  - **GREEN:** Draft and published shifts carry worker/role, site, project, optional work order, local timezone, start/end instants, break plan and revision; publication checks current worker eligibility, qualifications, project access, overlap, rest and configured notice policy, and records who approved each change.
+  - **REFACTOR:** Manual crew scheduling is the first slice; the optimizer can propose shifts but cannot publish outside the same authority path.
+  - **Refs:** `internal/domains/schedopt`, `internal/domains/clock`, [project boards](specs/customer-project-management-and-adaptive-boards.md).
+
+- [ ] `FTIME-007` **[PHASE_4][SOL_HIGH] Reconcile schedule changes and attendance exceptions.**
+  - **Depends:** `FTIME-003`, `FTIME-006`, `ATTEND-002`, `ATTEND-003`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=show planned versus actual labor without confusing either record with the other`.
+  - **TEST:** `TestTodo_FTIME_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_007`; `INTEGRATION=TestTodo_FTIME_007_Integration`; `RACE=TestTodo_FTIME_007_Race`; `SECURITY=TestTodo_FTIME_007_Security`.
+  - **RED:** A schedule edit rewrites an earlier punch, an unscheduled clock-in vanishes, or a revoked worker retains a shift through a stale publish.
+  - **GREEN:** Publish, cancel and reassign actions require expected revision and current grants, notify affected workers, retain prior versions, and compare actual punches with the shift to surface late, early, missed, unscheduled and break exceptions for review.
+  - **REFACTOR:** Reuse attendance rules and the existing schedule publish/reconcile model; leave shift swaps and open shifts to their separate backlog item.
+  - **Refs:** `internal/domains/attendance`, `internal/domains/schedopt`, `REV-045-02`, `REV-045-03`.
+
+- [ ] `FTIME-008` **[PHASE_4][SOL_HIGH] Expose time and schedule operations over gRPC and HTTP.**
+  - **Depends:** `FTIME-003`, `FTIME-004`, `FTIME-006`, `FTIME-007`, `INTAPI-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORKFORCE,BI.INTEGRATION; DIRECT=none; WHY=make clock, timecard and schedule operations usable by workspace clients and external integrators through one contract`.
+  - **TEST:** `TestTodo_FTIME_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_008`; `CONFORMANCE=TestTodo_FTIME_008_Conformance`; `SECURITY=TestTodo_FTIME_008_Security`; `INTEGRATION=TestTodo_FTIME_008_Integration`.
+  - **RED:** HTTP bypasses worker/project authorization, a machine client can impersonate a worker, or the same idempotency key produces different results over gRPC and HTTP.
+  - **GREEN:** Versioned Protobuf services and generated HTTP/Connect JSON routes expose clock commands, current session, timecards, shifts and bounded lists; both transports call the same application service with identical identity, field masking, revision, idempotency, error and pagination behavior. The endpoint manifest, discovery and OpenAPI contract describe the live surface and parity tests exercise both.
+  - **REFACTOR:** Reuse the edge registry and machine-client authentication; do not create a second REST business-logic path.
+  - **Refs:** `schema/proto`, `definitions/api/endpoint-manifest.json`, `internal/transport/edge`, [endpoint contract](specs/http-grpc-endpoint-contract.md).
+
+- [ ] `FTIME-009` **[PHASE_4][SOL_HIGH] Prove the Ironridge clock and schedule journey in the workspace.**
+  - **Depends:** `FTIME-005`, `FTIME-008`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.WORKFORCE,BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=show one real crew shift, punch, correction and work-order allocation in the live company workspace`.
+  - **TEST:** `TestTodo_FTIME_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_009`; `BROWSER=TestTodo_FTIME_009_Browser`; `INTEGRATION=TestTodo_FTIME_009_Integration`; `SECURITY=TestTodo_FTIME_009_Security`.
+  - **RED:** The demo shows static hours, loses an open session on reload, or a manager can see another crew's private time and pay data.
+  - **GREEN:** An Ironridge worker sees a scheduled Riverside shift, clocks in/out and breaks through the live API, sees a reviewable timecard, and a supervisor corrects and approves it; approved minutes appear once on the linked work order and planned-versus-actual report. Browser back/forward and reload preserve server state; keyboard, narrow layout, en-US/de-DE/ar RTL and authorization tests pass.
+  - **REFACTOR:** Use existing workspace navigation, project/work-order links and shared localization components.
+  - **Refs:** `internal/humanwork`, `internal/application/workorderservice`, [experience UI](specs/experience-ui-and-branding.md).

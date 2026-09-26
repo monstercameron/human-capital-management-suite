@@ -1,3 +1,7 @@
+## 2026-09-25 — field time and crew scheduling plan
+
+- Added candidate `FTIME-001`–`FTIME-009` TODOs for clock in/out, timecard review, work-order time allocation, crew scheduling, gRPC and HTTP parity, and an Ironridge live journey. The plan keeps observed punches, planned shifts, work-order costs, and payroll approval under separate owners.
+
 ## 2026-09-25 — work order backend foundation
 
 - Added a tenant-scoped work order aggregate with configurable published templates, phase and approval rules, append-only records, labor entries, progress, spending, notes, request forms, reports, and billing draft calculations. Work orders can be linked to project tasks through authorized identity-only previews.
