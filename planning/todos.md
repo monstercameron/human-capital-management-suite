@@ -29022,7 +29022,7 @@ Related open items are not duplicated here:
   - **TEST:** `TestTodo_FTIME_001`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_001`; `CONFORMANCE=TestTodo_FTIME_001_Conformance`.
   - **RED:** A work-order duration entry is treated as a clock punch or payroll-ready timesheet without source, reviewer, jurisdiction or correction policy.
-  - **GREEN:** A signed scope decision names the first crew and locations, browser/device sources, clock and schedule owners, break and overtime policy source, supervisor approval, payroll system of record, retention, success measures and displaced work; the initial delivery may be costing-only but labels its payroll status explicitly.
+  - **GREEN:** A signed scope decision names the first crew and locations, browser/device sources, geofence consent and evidence policy, clock and schedule owners, break and overtime policy source, supervisor approval, payroll system of record, retention, success measures and displaced work; the initial delivery may be costing-only but labels its payroll status explicitly.
   - **REFACTOR:** Extend the existing Clock, Attendance and Schedule concepts; keep WorkOrder work entries as allocations of reviewed time.
   - **Refs:** [Work order research](research/work-order-workflow-2026-09-25.md), [workforce models](data/models/people-workforce.md), [endpoint contract](specs/http-grpc-endpoint-contract.md).
 
@@ -29105,3 +29105,23 @@ Related open items are not duplicated here:
   - **GREEN:** An Ironridge worker sees a scheduled Riverside shift, clocks in/out and breaks through the live API, sees a reviewable timecard, and a supervisor corrects and approves it; approved minutes appear once on the linked work order and planned-versus-actual report. Browser back/forward and reload preserve server state; keyboard, narrow layout, en-US/de-DE/ar RTL and authorization tests pass.
   - **REFACTOR:** Use existing workspace navigation, project/work-order links and shared localization components.
   - **Refs:** `internal/humanwork`, `internal/application/workorderservice`, [experience UI](specs/experience-ui-and-branding.md).
+
+- [ ] `FTIME-010` **[PHASE_4][SOL_HIGH] Govern jobsite geofences and location evidence for time capture.**
+  - **Depends:** `FTIME-001`, `PM-005`, `CLOCK-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORKFORCE,BI.WORK,BI.PRIVACY; DIRECT=none; WHY=make site boundaries and location signals reviewable before they can affect a worker's time`.
+  - **TEST:** `TestTodo_FTIME_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_010`; `PROPERTY=TestTodo_FTIME_010_Property`; `SECURITY=TestTodo_FTIME_010_Security`; `GOLDEN=TestTodo_FTIME_010_Golden`.
+  - **RED:** A stale or client-chosen boundary closes a shift, untrusted coordinates or weak GPS are treated as a confirmed exit, or raw location history is retained beyond the declared purpose.
+  - **GREEN:** Each project site has a versioned, authorized boundary and effective interval with accuracy threshold, exit grace, hysteresis, effective-time and retention policy. A time session pins the applicable version; location evidence separates device observation from server receipt, records consent/source and confidence, and retains only the minimum proof needed for a time decision. Missing permission, stale evidence and ambiguous indoor signals return unknown.
+  - **REFACTOR:** Reuse Clock location evidence and Project site authority; do not build general employee tracking.
+  - **Refs:** `internal/domains/clock`, [project boards](specs/customer-project-management-and-adaptive-boards.md), [workforce models](data/models/people-workforce.md).
+
+- [ ] `FTIME-011` **[PHASE_4][SOL_HIGH] Auto clock out after a confirmed jobsite exit.**
+  - **Depends:** `FTIME-003`, `FTIME-004`, `FTIME-008`, `FTIME-010`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=close an open field-time session when reliable exit evidence shows the worker left the assigned site`.
+  - **TEST:** `TestTodo_FTIME_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FTIME_011`; `INTEGRATION=TestTodo_FTIME_011_Integration`; `SECURITY=TestTodo_FTIME_011_Security`; `RACE=TestTodo_FTIME_011_Race`; `FAULT=TestTodo_FTIME_011_Fault`; `BROWSER=TestTodo_FTIME_011_Browser`.
+  - **RED:** GPS bounce, lost signal, revoked consent, app suspension or duplicate exit events clock a worker out twice or silently reduce approved/payable time.
+  - **GREEN:** Sustained, sufficiently accurate exit evidence starts a server-owned grace timer; re-entry cancels it. Expiry atomically closes only the matching open session with an idempotent AUTO_OUT observation and provisional effective time under the pinned site policy, notifies the worker, and marks the timecard for confirmation or supervisor review before pay or work-order allocation. Missing or uncertain location leaves the session open with a visible exception; a correction preserves the original event and audit trail. gRPC and HTTP return the same session and event state, including after restart.
+  - **REFACTOR:** Reuse the ordinary ClockOut, exception and correction paths; keep authentication session logout separate from time capture.
+  - **Refs:** `internal/domains/clock`, `internal/domains/attendance`, `internal/transport/edge`, [endpoint contract](specs/http-grpc-endpoint-contract.md).

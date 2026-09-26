@@ -1,6 +1,6 @@
 ## 2026-09-25 — field time and crew scheduling plan
 
-- Added candidate `FTIME-001`–`FTIME-009` TODOs for clock in/out, timecard review, work-order time allocation, crew scheduling, gRPC and HTTP parity, and an Ironridge live journey. The plan keeps observed punches, planned shifts, work-order costs, and payroll approval under separate owners.
+- Added candidate `FTIME-001`–`FTIME-011` TODOs for clock in/out, timecard review, work-order time allocation, crew scheduling, gRPC and HTTP parity, a live Ironridge journey, and geofence-triggered auto clock-out. The plan keeps observed punches, planned shifts, work-order costs, and payroll approval under separate owners.
 
 ## 2026-09-25 — work order backend foundation
 
