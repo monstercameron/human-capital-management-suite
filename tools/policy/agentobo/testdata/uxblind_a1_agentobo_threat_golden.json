@@ -1,0 +1,17 @@
+{
+  "canonical_digest": "sha256:46e39c8f9e88a13ca0338c4d65cecd0584196355c3908423498fbe71f498e9c4",
+  "attack_classes": [
+    "GOAL_HIJACK",
+    "TOOL_MISUSE",
+    "IDENTITY_AND_PRIVILEGE_ABUSE",
+    "CONFUSED_DEPUTY_AND_TOKEN_PASSTHROUGH",
+    "MEMORY_AND_CONTEXT_POISONING",
+    "INSECURE_AGENT_TO_AGENT_DELEGATION",
+    "CASCADING_FAILURE",
+    "HUMAN_AGENT_TRUST_EXPLOITATION",
+    "ROGUE_AGENT_VERSION"
+  ],
+  "threat_count": 9,
+  "control_count": 24,
+  "red_team_case": "AGENT2-023"
+}

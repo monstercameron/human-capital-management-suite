@@ -41,6 +41,25 @@ func TestRunReportsMitigatedThreatRegister(t *testing.T) {
 	}
 }
 
+func TestRunValidatesAgentThreatExtension(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	err := run([]string{
+		"-register", repoRoot + "/definitions/planning/gates/threat-001-register.yaml",
+		"-agent-register", repoRoot + "/definitions/architecture/agent-threat-model.yaml",
+	}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("expected the AGENT2-002 extension to validate: %v; stderr: %s", err, stderr.String())
+	}
+	for _, want := range []string{"agent_register:", "(18 threats)", "agent_register_digest:"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("stdout missing %q; got:\n%s", want, stdout.String())
+		}
+	}
+	if strings.Contains(stderr.String(), "AGENT REGISTER VIOLATION:") {
+		t.Errorf("unexpected agent register violation: %s", stderr.String())
+	}
+}
+
 func TestRunFailsOnUnknownFlag(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	err := run([]string{"-this-flag-does-not-exist"}, &stdout, &stderr)

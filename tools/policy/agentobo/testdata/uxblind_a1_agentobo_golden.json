@@ -1,0 +1,7 @@
+{
+  "canonical_digest": "sha256:59c929c0d0e8c6b45878dfac642930686a21ed6bfb434775a6116dfedfa8451c",
+  "run_modes": ["ON_BEHALF_OF", "SPONSORED"],
+  "tiers": ["T0:READ", "T1:PRIVATE_DRAFT", "T2:COMMUNICATE", "T3:SUBMIT_GOVERNED", "T4:EXTERNAL_WRITE"],
+  "gate": "G-AGENT-OBO",
+  "required_todos": ["AGENT2-023", "AGENT2-024", "AGENT2-025"]
+}

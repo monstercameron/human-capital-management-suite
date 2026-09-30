@@ -1,8 +1,10 @@
 // Command threatregister reports on THREAT-001's signed Phase 1
-// trust-boundary threat register
+// trust-boundary threat register and can validate the unified agent threat register
 // (definitions/planning/gates/threat-001-register.yaml): it loads the
 // register, validates its structure, verifies its signature, evaluates
-// whether it currently blocks release, and prints a summary. It exits
+// whether it currently blocks release, and prints a summary. With
+// -agent-register, it also validates the unified agent/persona register.
+// It exits
 // non-zero on any structural violation, signature failure or release
 // block, so it can gate a CI step exactly like
 // `go run ./tools/planning/cmd/pilotprovider` does for SELECT-002's
@@ -34,6 +36,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("threatregister", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	path := flags.String("register", "definitions/planning/gates/threat-001-register.yaml", "path to the threat register")
+	agentPath := flags.String("agent-register", "", "optional path to the combined AGENT2-002 and AGENTP-002 threat register")
+	flags.StringVar(agentPath, "agent-extension", "", "deprecated alias for -agent-register")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -89,6 +93,25 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 	if blocked {
 		return fmt.Errorf("release blocked by %d unmitigated critical finding(s)", len(blockers))
+	}
+	if *agentPath != "" {
+		agent, err := threatregister.LoadAgentExtension(*agentPath)
+		if err != nil {
+			return fmt.Errorf("loading agent register %s: %w", *agentPath, err)
+		}
+		violations := agent.Validate()
+		for _, v := range violations {
+			fmt.Fprintln(stderr, "AGENT REGISTER VIOLATION:", v.String())
+		}
+		if len(violations) != 0 {
+			return fmt.Errorf("%d agent register violation(s)", len(violations))
+		}
+		agentDigest, err := agent.CanonicalDigest()
+		if err != nil {
+			return fmt.Errorf("computing agent register digest: %w", err)
+		}
+		fmt.Fprintf(stdout, "  agent_register: %s (%d threats)\n", *agentPath, len(agent.Threats))
+		fmt.Fprintf(stdout, "  agent_register_digest: %s\n", agentDigest)
 	}
 	return nil
 }

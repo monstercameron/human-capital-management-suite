@@ -1,0 +1,6 @@
+{
+  "canonical_digest": "sha256:3a2edb270bc5011efaaed8c6347896c4567f7befa66030c1d24b9289e01bf41a",
+  "gate": "G-AGENT-PERSONA",
+  "required": ["G-AGENT-OBO", "AGENTP-021", "AGENTP-022", "AGENTP-024"],
+  "owner_count": 13
+}

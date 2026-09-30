@@ -1,0 +1,140 @@
+schema_version: 1
+decision_id: AGENTP-001
+title: "Persona invocation, audience, approval, ownership, and release decision"
+status: DECIDED
+decision_date: "2026-09-28"
+owner: agent-product-governance
+parent_decisions: [AGENT2-001, AGENT2-002, AGENT-006]
+
+# A persona is a profile over an immutable agent version. It is never a
+# principal, a sponsor, or a source of standing privilege.
+authority:
+  persona_kind: PROFILE_OVER_AGENT_VERSION
+  invocation_mode: ON_BEHALF_OF
+  effective_authority: "persona_version_skill_pins intersected with installation_grant, channel_policy_ceiling, and invoker_current_authority"
+  forbidden_authorities: [AUTHOR, BUSINESS_OWNER, TECHNICAL_STEWARD, INSTALLER, ADMINISTRATOR]
+  sponsored_mode_from_mention: FORBIDDEN
+  persona_service_credential: NONE
+  decision_todo: AGENTP-001
+
+invocation:
+  starts_only_from: [SERVER_RESOLVED_HANDLE, SERVER_RESOLVED_SLASH_COMMAND]
+  new_post_authored_by_invoker: REQUIRED
+  rejected_sources: [QUOTED_TEXT, FORWARDED_TEXT, EDITED_TEXT, BOT_POST, AGENT_POST, PERSONA_MENTION]
+  automatic_routing: FORBIDDEN
+  persona_discovery_by_agents: FORBIDDEN
+  decision_todo: AGENTP-008
+
+context:
+  default_scope: [INVOKING_POST, INVOKER_READABLE_THREAD]
+  maximum_recent_posts: 50
+  wider_scope_requires_skill: T0_CONVERSATION_SEARCH
+  all_non_invoker_posts: UNTRUSTED_PEER
+  bot_and_agent_posts: UNTRUSTED_PEER
+  peer_post_taint: UNTRUSTED_PEER
+  peer_posts_to_planner: AGENT2-015_QUARANTINED_EXTRACTION_ONLY
+  decision_todo: AGENTP-010
+
+audience_floor:
+  shared_result_commit_requires: [EVERY_CITED_SOURCE_READABLE, EVERY_RECORD_AND_FIELD_READABLE, EVERY_DATA_CLASS_ALLOWED_BY_CHANNEL_POLICY]
+  public_channel_audience: CURRENT_MEMBERS_PLUS_CHAT010_ELIGIBILITY_POPULATION
+  private_channel_audience: CURRENT_MEMBERS
+  group_dm_audience: CURRENT_MEMBERS
+  guests_and_external_members_count: REQUIRED
+  failure_receipt: "@invoker asked the persona; the answer was sent privately"
+  failure_delivery: [INVOKER_EPHEMERAL_POST, INVOKER_ONE_TO_ONE_PERSONA_DM]
+  one_to_one_persona_dm: ALWAYS_PRIVATE
+  channel_policy_may_force_private: true
+  invoker_share: "invoker's own T2 act after a fresh audience check; failing items are dropped with a visible count"
+  decision_todo: AGENTP-012
+
+writes:
+  T0: INVOCATION_SCOPED
+  T1: INVOKER_PRIVATE_SPACE_ONLY
+  T2: INVOKER_CONFIRMATION_PER_DESTINATION_PER_INVOCATION
+  T3: AGENT2-006_EXACT_DIGEST_APPROVAL
+  T4: AGENT2-006_EXACT_DIGEST_APPROVAL
+  approval_actor: INVOKER_ONLY
+  forbidden_approvers: [OTHER_MEMBER, CHANNEL_OWNER, REACTION, REPLY_TEXT, PERSONA]
+  card_bindings: [INTENT_DIGEST, INVOCATION_ID, INVOKER_ID]
+  chat_card_expiry: 15m
+  chat_card_scope: "T2 confirmation or one non-high-risk T3 item"
+  task_view_only: [T4, HIGH_RISK, BATCH, STEP_UP_REQUIRED]
+  decision_todo: AGENTP-014
+
+ownership:
+  required_roles: [BUSINESS_OWNER, TECHNICAL_STEWARD]
+  lifecycle: [DRAFT, IN_REVIEW, PUBLISHED, SUSPENDED, RETIRED]
+  publication_requires: [REVIEWER_OTHER_THAN_AUTHOR, PASSING_PERSONA_EVALUATION]
+  material_change_new_version: [SKILLS, TIER_CEILING, AUDIENCE, CHANNEL_CLASSES]
+  owner_loss_suspension_after: 14d
+  decision_todo: AGENTP-006
+
+placement:
+  one_to_one_dm: AVAILABLE_TO_PERSONA_AUDIENCE
+  shared_conversation: CHANNEL_MANAGER_INSTALLATION_REQUIRED
+  allowed_channel_classes_required: true
+  external_and_cross_company: OFF_BY_DEFAULT
+  maximum_personas_per_conversation: 5
+  decision_todo: AGENTP-007
+
+limits:
+  per_invoker_per_persona_per_hour: 30
+  concurrent_tasks_per_invoker_persona: 3
+  per_conversation_per_hour: 120
+  persona_tenant_daily_spend: SET_AT_PUBLICATION
+  nested_ceiling: AGENT2-012_TASK_USER_TENANT
+  limit_response: EPHEMERAL
+  decision_todo: AGENTP-015
+
+stop:
+  revocation_epoch_owner: AGENT2-020
+  affected_scopes: [PERSONA_VERSION, PERSONA, INSTALLATION, TENANT]
+  stop_before: NEXT_STEP
+  suspended_mention: UNAVAILABLE_NO_RUN
+  owner_loss_window: 14d
+  decision_todo: AGENTP-016
+
+ux:
+  reply_location: THREAD_UNDER_INVOKING_POST
+  progress_visibility: INVOKER_ONLY_UNTIL_PUBLIC_RESULT
+  task_handoff_after: 20s
+  task_handoff_for: [WAIT, T3, T4]
+  agent_badge: REQUIRED
+  acting_for_label: "acting for @invoker"
+  decision_todo: AGENTP-020
+
+audit:
+  actor_chain: [INVOKER, PERSONA_ID_AND_VERSION, INSTALLATION, CONVERSATION, INVOKING_POST, INVOCATION, TASK, PLAN_REVISION, STEP, SKILL_CALL]
+  context_evidence: POST_ID_AND_DIGEST_WITH_TAINT
+  decision_todo: AGENTP-017
+
+output_safety:
+  auto_loading_images: FORBIDDEN
+  remote_embeds: FORBIDDEN
+  allowed_links: [TENANT_ORIGIN, ADMINISTRATOR_ALLOWLIST]
+  tainted_url_construction: FORBIDDEN
+  decision_todo: AGENTP-012
+
+release_gate:
+  id: G-AGENT-PERSONA
+  requires: [G-AGENT-OBO, AGENTP-021, AGENTP-022, AGENTP-024]
+  first_release_tiers_in_channels: [T0, T1, T2]
+  first_release_t3: ONE_TO_ONE_PERSONA_DM_ONLY
+  first_release_t4: DISABLED
+  decision_todo: AGENTP-021
+
+decision_owners:
+  - {decision: authority, owner_todo: AGENTP-001}
+  - {decision: invocation, owner_todo: AGENTP-008}
+  - {decision: context, owner_todo: AGENTP-010}
+  - {decision: audience_floor, owner_todo: AGENTP-012}
+  - {decision: writes, owner_todo: AGENTP-014}
+  - {decision: ownership, owner_todo: AGENTP-006}
+  - {decision: placement, owner_todo: AGENTP-007}
+  - {decision: limits, owner_todo: AGENTP-015}
+  - {decision: stop, owner_todo: AGENTP-016}
+  - {decision: ux, owner_todo: AGENTP-020}
+  - {decision: audit, owner_todo: AGENTP-017}
+  - {decision: output_safety, owner_todo: AGENTP-012}
+  - {decision: release_gate, owner_todo: AGENTP-021}

@@ -1,0 +1,92 @@
+schema_version: 1
+decision_id: AGENT2-001
+title: "On-behalf-of agent identity, effect tiers, and Phase 1 execution gate"
+status: DECIDED
+decision_date: "2026-09-28"
+owner: agent-product-governance
+
+refs:
+  - "planning/todos.md#AGENT2-001"
+  - "planning/todos.md#AGENT2-002"
+  - "planning/specs/customer-agent-creation-business-context-and-chat.md"
+  - "planning/plan.md#74-explicitly-deferred-scope"
+  - "planning/plan.md#96-ai-governance-contract"
+
+# An agent has no independent standing privilege. These are the only run modes
+# and the mode is fixed by the trigger, not selected by the model.
+run_modes:
+  - id: ON_BEHALF_OF
+    default_for: [chat_dm, agents_page, user_started_task, user_owned_schedule]
+    effective_authority: "signed_in_user_current_authority intersected with agent_version, installation, and skill ceilings"
+    allowed_tiers: [T0, T1, T2, T3, T4]
+    actor_rule: "audit names the signed-in user as principal and the agent version, installation, task, and step as actor chain"
+  - id: SPONSORED
+    default_for: [autonomous_channel, event_schedule, business_schedule]
+    effective_authority: "sponsor and installation ceilings; no user delegation is implied"
+    allowed_tiers: [T0, T1, T2]
+    forbidden_tiers: [T3, T4]
+    actor_rule: "audit names the nonhuman sponsor and the agent version; no governed submission or external write"
+
+side_effect_tiers:
+  - id: T0
+    name: READ
+    effect: "read governed records or connection data"
+  - id: T1
+    name: PRIVATE_DRAFT
+    effect: "create a draft visible only to the signed-in user"
+  - id: T2
+    name: COMMUNICATE
+    effect: "post, message, or notify another person or destination"
+  - id: T3
+    name: SUBMIT_GOVERNED
+    effect: "submit a BusinessIntent into its normal approval workflow"
+  - id: T4
+    name: EXTERNAL_WRITE
+    effect: "write through an administrator-granted external connection"
+
+approval_defaults:
+  - tiers: [T0, T1]
+    rule: "run inside the user-confirmed plan without a prompt"
+  - tiers: [T2]
+    rule: "per-task confirmation of every destination is required"
+  - tiers: [T3, T4]
+    rule: "the user approves the exact digest per action or per listed batch"
+batch_max_items: 25
+high_risk_rule: STEP_UP
+approval_surface: PRODUCT_SURFACE_ONLY
+
+invariants:
+  agent_is_approver: false
+  agent_is_approval_task_decision_target: false
+  agent_may_change_own_grants: false
+  agent_may_change_own_plan_skills: false
+  agent_may_change_own_connections: false
+
+task_limits:
+  maximum_lifetime: 7d
+  maximum_steps: 200
+  active_wall_clock_per_wake: 30m
+  spend_ceiling: TENANT_SET
+
+phase1:
+  autonomous_execution: DEFERRED
+  rationale: "T3 and T4 effects are the signed-in user's own approved submissions; the agent never supplies approval authority"
+  gate:
+    id: G-AGENT-OBO
+    required_todos: [AGENT2-023, AGENT2-024, AGENT2-025]
+    tenant_opt_in: true
+    t3_default: DISABLED_PER_TENANT
+    t4_first_release: DISABLED_EXCEPT_ALLOWLISTED_REVERSIBLE_OPERATIONS
+    shadow_period: "T3 steps render as drafts only"
+    pushes: [unattended_t0_t1_work_for_days, batched_exact_digest_approval]
+
+model_gateway:
+  implementation_todo: AGENT2-026
+  module: github.com/monstercameron/schemaflux
+  gateway: SchemaFlux
+  all_agent_calls: [planning, tool_call_selection, quarantined_extraction, summarisation, evaluations]
+  typed_output: "schemaflux.Generating[T] validated against Go types"
+  free_text_parsing: false
+  provider_selection: SCHEMAFLUX_OPTIONS_ONLY
+  web_search: SCHEMAFLUX_OPTIONS_ONLY
+  other_llm_client_libraries: FORBIDDEN_IN_PRODUCTION

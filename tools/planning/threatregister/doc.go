@@ -1,8 +1,8 @@
 // Package threatregister implements THREAT-001's signed trust-boundary
-// threat register for every Phase 1 vertical slice
-// (definitions/planning/gates/threat-001-register.yaml). See register.go
-// for the schema; this file records the design decisions the todo's
-// REFACTOR clause and "what matters most" guidance call out specifically.
+// register and validates the combined AGENT2-002 and AGENTP-002 threat register
+// (definitions/architecture/agent-threat-model.yaml). See register.go and
+// agent_extension.go for their schemas; this file records design decisions
+// the todos' REFACTOR clauses and "what matters most" guidance call out.
 //
 // # What "every Phase 1 vertical slice" means today
 //

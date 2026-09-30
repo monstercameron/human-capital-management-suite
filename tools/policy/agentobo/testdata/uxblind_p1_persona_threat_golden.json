@@ -1,0 +1,28 @@
+{
+  "canonical_digest": "sha256:448b366316cb88a6a0bf188a7b95100aa104a30ceeb2a3208de3dcfa945603ac",
+  "attack_classes": [
+    "PEER_MESSAGE_INJECTION",
+    "AUDIENCE_LEAKAGE",
+    "OUTPUT_EXFILTRATION",
+    "CROSS_INVOKER_CONTEXT_BLEED",
+    "APPROVAL_HIJACK_AND_FATIGUE",
+    "HANDLE_IMPERSONATION",
+    "PERSONA_RECRUITMENT_LOOP",
+    "STALE_MEMBERSHIP",
+    "SUSPENDED_PERSONA_RUN"
+  ],
+  "threat_count": 9,
+  "control_count": 13,
+  "red_team_case": "AGENTP-022",
+  "case_ids": {
+    "PEER_MESSAGE_INJECTION": "peer-injection",
+    "AUDIENCE_LEAKAGE": "audience-leak",
+    "OUTPUT_EXFILTRATION": "audience-leak",
+    "CROSS_INVOKER_CONTEXT_BLEED": "peer-injection",
+    "APPROVAL_HIJACK_AND_FATIGUE": "approval-hijack",
+    "HANDLE_IMPERSONATION": "handle-impersonation",
+    "PERSONA_RECRUITMENT_LOOP": "recruitment",
+    "STALE_MEMBERSHIP": "audience-leak",
+    "SUSPENDED_PERSONA_RUN": "suspend-race"
+  }
+}
