@@ -13,10 +13,38 @@ import (
 
 func watchService(t *testing.T) (*streamingChatService, *chatServiceStub) {
 	t.Helper()
-	runtime := laneRuntime(t, defaultChatAdmissionConfig())
+	config := runtimeConfig("lane-key")
+	config.Budgets = defaultChatAdmissionConfig()
+	capture := &watchSequenceReader{offsets: make(chan uint64, 8)}
+	config.Reader = capture
+	runtime, err := NewChatStreamRuntime(config)
+	if err != nil {
+		t.Fatal(err)
+	}
 	inner := newChatServiceStub()
-	resolver := membershipResolverStub{member: chatcore.Membership{TenantID: "t", ConversationID: "c", HomeTenantID: "t", SubjectID: "u", Revision: 3}}
+	resolver := &watchSequenceResolver{membershipResolverStub: membershipResolverStub{member: chatcore.Membership{TenantID: "t", ConversationID: "c", HomeTenantID: "t", SubjectID: "u", Revision: 3}}}
 	return &streamingChatService{ConversationService: inner, runtime: runtime, membership: resolver}, inner
+}
+
+type watchSequenceReader struct{ offsets chan uint64 }
+
+func (r *watchSequenceReader) Read(_ context.Context, request chatstream.ReadRequest) (chatstream.Page, error) {
+	select {
+	case r.offsets <- request.AfterSequence:
+	default:
+	}
+	return chatstream.Page{Complete: true}, nil
+}
+
+type watchSequenceResolver struct {
+	membershipResolverStub
+	called bool
+	public uint64
+}
+
+func (r *watchSequenceResolver) ResolvePublicSequence(_ context.Context, _, _ string, sequence uint64) (uint64, error) {
+	r.called, r.public = true, sequence
+	return sequence + 100, nil
 }
 
 func watchRequest() chatcore.WatchConversationRequest {
@@ -100,6 +128,23 @@ func TestTodo_CHAT_018_WatchResumesFromAfterSequence(t *testing.T) {
 	if err != nil || ch == nil {
 		t.Fatalf("watch with after_sequence = %v", err)
 	}
+	mapper := service.membership.(*watchSequenceResolver)
+	if !mapper.called || mapper.public != 41 {
+		t.Fatalf("public after_sequence was not resolved to the stream offset: %+v", mapper)
+	}
+	reader := service.runtime.bridge.Reader.(*watchSequenceReader)
+	select {
+	case offset := <-reader.offsets:
+		if offset != 141 {
+			t.Fatalf("reader received offset %d; want resolved global offset 141", offset)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("stream reader did not receive the mapped resume offset")
+	}
+	service.membership = membershipResolverStub{member: chatcore.Membership{TenantID: "t", ConversationID: "c", HomeTenantID: "t", SubjectID: "u", Revision: 3}}
+	if _, _, err := service.WatchConversationWithErrors(ctx, watchRequestWithAfterSequence(42)); !errors.Is(err, chatcore.ErrUnavailable) {
+		t.Fatalf("public after_sequence without mapper = %v; want fail-closed unavailable", err)
+	}
 
 	// Naming both positions is still a bad request rather than a precedence rule.
 	both := watchRequest()
@@ -107,6 +152,12 @@ func TestTodo_CHAT_018_WatchResumesFromAfterSequence(t *testing.T) {
 	if _, err := service.WatchConversation(ctx, both); !errors.Is(err, chatcore.ErrInvalidArgument) {
 		t.Fatalf("both positions = %v, want ErrInvalidArgument", err)
 	}
+}
+
+func watchRequestWithAfterSequence(sequence uint64) chatcore.WatchConversationRequest {
+	req := watchRequest()
+	req.AfterSequence = sequence
+	return req
 }
 
 // TestTodo_CHAT_018_WatchSubscribeFailuresAreNamed proves the cause of a failed

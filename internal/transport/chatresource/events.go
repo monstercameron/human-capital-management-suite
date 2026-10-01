@@ -108,7 +108,9 @@ func (h handler) events(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			result.ResumeCursor = item.ResumeCursor
-			if item.Event.Kind == chatcore.PostCreated || item.Event.Kind == chatcore.PostEdited || item.Event.Kind == chatcore.PostDeleted {
+			if item.EphemeralDelivery != nil {
+				result.Events = append(result.Events, projectEphemeral(*item.EphemeralDelivery))
+			} else if item.Event.Kind == chatcore.PostCreated || item.Event.Kind == chatcore.PostEdited || item.Event.Kind == chatcore.PostDeleted {
 				result.Events = append(result.Events, projectEvent(item.Event))
 			}
 		}
@@ -135,11 +137,22 @@ type eventPage struct {
 }
 
 type eventResponse struct {
-	Kind     chatcore.ConversationEventKind `json:"kind"`
-	Sequence uint64                         `json:"sequence"`
-	Revision uint64                         `json:"revision"`
-	Post     any                            `json:"post,omitempty"`
-	Removed  bool                           `json:"removed"`
+	Kind      chatcore.ConversationEventKind `json:"kind"`
+	Sequence  uint64                         `json:"sequence"`
+	Revision  uint64                         `json:"revision"`
+	Post      any                            `json:"post,omitempty"`
+	Removed   bool                           `json:"removed"`
+	Ephemeral *ephemeralResponse             `json:"ephemeral,omitempty"`
+}
+
+type ephemeralResponse struct {
+	ID               string    `json:"id"`
+	ThreadID         string    `json:"thread_id"`
+	Body             string    `json:"body"`
+	OnlyVisibleToYou bool      `json:"only_visible_to_you"`
+	CreatedAt        time.Time `json:"created_at"`
+	ExpiresAt        time.Time `json:"expires_at"`
+	ThreadLink       string    `json:"thread_link"`
 }
 
 func projectEvent(v chatcore.ConversationEvent) eventResponse {
@@ -148,4 +161,13 @@ func projectEvent(v chatcore.ConversationEvent) eventResponse {
 		out.Post = postJSON(*v.Post)
 	}
 	return out
+}
+
+func projectEphemeral(v chatcore.EphemeralDelivery) eventResponse {
+	return eventResponse{Ephemeral: &ephemeralResponse{
+		ID: v.ID, ThreadID: v.ThreadID, Body: v.Body,
+		OnlyVisibleToYou: v.OnlyVisibleToYou,
+		CreatedAt:        v.CreatedAt, ExpiresAt: v.ExpiresAt,
+		ThreadLink: v.ThreadLink,
+	}}
 }

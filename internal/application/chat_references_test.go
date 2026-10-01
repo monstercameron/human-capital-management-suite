@@ -11,6 +11,26 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatapps"
 )
 
+type chatReferencePersonaSource struct {
+	candidates []chat.ReferenceCandidate
+	facts      map[string]personaReferenceFacts
+	err        error
+	principal  chat.Principal
+}
+
+func (s *chatReferencePersonaSource) ListPersonaReferenceCandidates(_ context.Context, principal chat.Principal, _, _, _ string) ([]chat.ReferenceCandidate, error) {
+	s.principal = principal
+	return s.candidates, s.err
+}
+
+func (s *chatReferencePersonaSource) LookupPersonaReference(_ context.Context, _, _, id string) (personaReferenceFacts, error) {
+	facts, ok := s.facts[id]
+	if !ok {
+		return personaReferenceFacts{}, errPersonaReferenceNotPersona
+	}
+	return facts, nil
+}
+
 type referenceDirectoryStore struct {
 	chat.Store
 	members       chat.ListMembershipsResponse
@@ -106,5 +126,51 @@ func TestChatReferenceDirectoryAgentsRespectInstallation(t *testing.T) {
 	d.apps = nil
 	if got, err := d.Agents(ctx, chat.Principal{}, "host", "conv", ""); err != nil || len(got) != 0 || d.AgentEligible(ctx, "host", "conv", "active") {
 		t.Fatalf("unconfigured=%+v %v", got, err)
+	}
+}
+
+func TestChatReferenceDirectoryAgentsMergeCurrentAudienceFilteredPersonas(t *testing.T) {
+	ctx := context.Background()
+	at := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+	repo := chatapps.NewMemoryRepository()
+	app := chatapps.Installation{ID: "app", Tenant: "host", Conversation: "conv", Version: 1, Status: chatapps.Active, CreatedAt: at.Add(-time.Hour)}
+	app.Manifest.Agent = &chatapps.AgentManifest{DisplayName: "Calendar App"}
+	if err := repo.Put(ctx, app); err != nil {
+		t.Fatal(err)
+	}
+	source := &chatReferencePersonaSource{
+		candidates: []chat.ReferenceCandidate{
+			{Reference: chat.Reference{Kind: chat.AgentMention, TenantID: "host", ID: "persona:payroll", ConversationID: "conv", Display: "Payroll Helper"}, Eligible: true},
+			{Reference: chat.Reference{Kind: chat.AgentMention, TenantID: "other", ID: "persona:hidden", Display: "Hidden"}, Eligible: true},
+			{Reference: chat.Reference{Kind: chat.AgentMention, TenantID: "host", ID: "persona:stale", Display: "Stale"}, Eligible: true},
+		},
+		facts: map[string]personaReferenceFacts{
+			"persona:payroll": {ReferenceID: "persona:payroll", TenantID: "host", ConversationID: "conv", PersonaID: "persona.payroll", InstallationID: "install:payroll", PersonaVersion: 2, CurrentVersion: 2, InstallationState: personaReferenceActive, PersonaLifecycle: personaReferencePublished},
+			"persona:stale":   {ReferenceID: "persona:stale", TenantID: "host", ConversationID: "conv", PersonaID: "persona.stale", InstallationID: "install:stale", PersonaVersion: 1, CurrentVersion: 2, InstallationState: personaReferenceActive, PersonaLifecycle: personaReferencePublished},
+		},
+	}
+	d := chatReferenceDirectory{apps: &chatapps.Service{Repo: repo, Now: func() time.Time { return at }}, personas: source}
+	principal := chat.Principal{TenantID: "host", SubjectID: "member"}
+	got, err := d.Agents(ctx, principal, "host", "conv", "")
+	if err != nil || len(got) != 2 {
+		t.Fatalf("agents=%+v err=%v", got, err)
+	}
+	if got[0].Reference.ID != "persona:payroll" || got[1].Reference.ID != "app" || !reflect.DeepEqual(source.principal, principal) {
+		t.Fatalf("merged agents=%+v principal=%+v", got, source.principal)
+	}
+	if d.AgentEligible(ctx, "host", "conv", "persona:stale") || !d.AgentEligible(ctx, "host", "conv", "persona:payroll") || !d.AgentEligible(ctx, "host", "conv", "app") {
+		t.Fatal("persona eligibility did not recheck canonical current state")
+	}
+}
+
+func TestChatReferenceDirectoryAgentsFailClosedOnPersonaSourceError(t *testing.T) {
+	fault := errors.New("persona source unavailable")
+	source := &chatReferencePersonaSource{err: fault}
+	d := chatReferenceDirectory{personas: source}
+	if _, err := d.Agents(context.Background(), chat.Principal{}, "host", "conv", ""); !errors.Is(err, fault) {
+		t.Fatalf("agents error=%v, want source error", err)
+	}
+	if d.AgentEligible(context.Background(), "host", "conv", "persona:payroll") {
+		t.Fatal("source failure made persona eligible")
 	}
 }

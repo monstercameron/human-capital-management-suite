@@ -42,3 +42,34 @@ func TestChatSeedAdminPersonaResolves(t *testing.T) {
 		t.Fatalf("%d workers match %q", matches, chatSeedAdminPrefix)
 	}
 }
+
+func TestChatSeedAdminPersonaResolvesPerTenant(t *testing.T) {
+	for _, tc := range []struct {
+		name, tenant, want string
+	}{
+		{name: "harborcare", tenant: "harborcare-demo", want: "hc-050-rafael-torres"},
+		{name: "ironridge", tenant: "ironridge-demo", want: "ir-001-walt-brennan"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			employees, err := chatSeedWorkforce(tc.tenant)
+			if err != nil {
+				t.Fatal(err)
+			}
+			people := make([]string, 0, len(employees))
+			for _, e := range employees {
+				people = append(people, e.Row.WorkerKey)
+			}
+			index := adminIndexForTenant(tc.tenant, people)
+			if index < 0 || people[index] != tc.want {
+				t.Fatalf("admin = %q, want %q", peopleAt(people, index), tc.want)
+			}
+		})
+	}
+}
+
+func peopleAt(people []string, index int) string {
+	if index < 0 || index >= len(people) {
+		return ""
+	}
+	return people[index]
+}

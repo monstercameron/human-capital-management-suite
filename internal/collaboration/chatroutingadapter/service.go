@@ -182,6 +182,39 @@ func (s *Service) SendPost(ctx context.Context, r chat.SendPostRequest) (chat.Po
 	})
 }
 
+// CommitPersonaReply forwards the server-owned persona reply only while the
+// conversation's current route lease is attached to the request. The
+// committer is an optional chat extension, but its write still obeys the same
+// tenant and placement fence as SendPost.
+func (s *Service) CommitPersonaReply(ctx context.Context, r chat.PersonaReplyCommitRequest) (chat.Post, error) {
+	committer, ok := s.ConversationService.(chat.PersonaReplyCommitter)
+	if !ok {
+		return chat.Post{}, chat.ErrUnavailable
+	}
+	return leaseWrite(ctx, s, r.TenantID, r.ConversationID, func(c context.Context) (chat.Post, error) {
+		return committer.CommitPersonaReply(c, r)
+	})
+}
+
+func (s *Service) SendEphemeralPost(ctx context.Context, r chat.SendEphemeralPostRequest) (chat.EphemeralPost, error) {
+	ephemeral, ok := s.ConversationService.(chat.EphemeralService)
+	if !ok {
+		return chat.EphemeralPost{}, chat.ErrUnavailable
+	}
+	// The inner service resolves the canonical persona DM before its durable
+	// SendPost. An empty destination would otherwise bypass this adapter's
+	// route fence and reach that nested write without a lease. Never fall back
+	// to the source conversation: private delivery must fail closed.
+	if strings.TrimSpace(r.DurableCopyConversationID) == "" {
+		return chat.EphemeralPost{}, chat.ErrInvalidArgument
+	}
+	// The durable copy is the actual write. Lease that 1:1 conversation so the
+	// nested normal SendPost call cannot bypass the placement fence.
+	return leaseWrite(ctx, s, r.TenantID, r.DurableCopyConversationID, func(c context.Context) (chat.EphemeralPost, error) {
+		return ephemeral.SendEphemeralPost(c, r)
+	})
+}
+
 func (s *Service) UpdateConversation(ctx context.Context, r chat.UpdateConversationRequest) (chat.Conversation, error) {
 	return leaseWrite(ctx, s, r.Conversation.TenantID, r.Conversation.ID, func(c context.Context) (chat.Conversation, error) {
 		return s.ConversationService.UpdateConversation(c, r)

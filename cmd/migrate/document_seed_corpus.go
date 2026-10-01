@@ -435,7 +435,8 @@ func documentSeedBody(in seedBodyInput) string {
 	if in.IsRevision && in.RevisionNote != "" {
 		body += "\n> **Draft note:** " + in.RevisionNote + "\n"
 	}
-	return body + relatedSection(in.Links)
+	body += relatedSection(in.Links)
+	return seedTenantTextForWorker(in.Owner.Key, body)
 }
 
 func findPolicy(name string) policyTopic {

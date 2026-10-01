@@ -40,6 +40,12 @@ func (a auditConversation) SendPost(_ context.Context, r chatcore.SendPostReques
 	}
 	return chatcore.Post{ID: "post", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.Principal.SubjectID, Revision: 1}, nil
 }
+func (a auditConversation) CommitPersonaReply(_ context.Context, r chatcore.PersonaReplyCommitRequest) (chatcore.Post, error) {
+	if a.fail {
+		return chatcore.Post{}, chatcore.ErrPermissionDenied
+	}
+	return chatcore.Post{ID: "persona-post", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.AuthorID, Revision: 1}, nil
+}
 func (a auditConversation) ReadAuthorizedReference(_ context.Context, p chatcore.Principal, tenant, conversation, postID string) (chatcore.Conversation, *chatcore.Post, error) {
 	room := chatcore.Conversation{ID: conversation, TenantID: tenant, OwnerID: p.SubjectID, Revision: 1}
 	if postID == "" {
@@ -63,6 +69,31 @@ func TestTodo_CHAT_047_AuditPostAndReplay(t *testing.T) {
 		t.Fatalf("audit inventory: %#v %v", rows, err)
 	}
 }
+
+func TestPersonaReplyTraversesAuditedRoutedDecoratorStack(t *testing.T) {
+	audited := &auditedChatService{
+		ConversationService: auditConversation{},
+		records:             &chatrecords.Service{Repo: chatrecords.NewMemoryRepository(), Auth: ChatRecordAuthority{}},
+		atomicCore:          true,
+	}
+	directory := chatrouting.NewMemoryDirectory()
+	routed, err := chatroutingadapter.New(audited, chatroutingadapter.Options{Directory: directory, DefaultShard: "s1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	route, err := directory.Reserve(context.Background(), chatrouting.ReserveRequest{ConversationID: "persona-room", HostTenantID: "tenant", ShardID: "s1", IdempotencyKey: "persona-route"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = directory.Activate(context.Background(), "persona-room", "tenant", route.Epoch); err != nil {
+		t.Fatal(err)
+	}
+	post, err := routed.CommitPersonaReply(context.Background(), chatcore.PersonaReplyCommitRequest{TenantID: "tenant", ConversationID: "persona-room", AuthorID: "persona", AuthorHomeTenantID: "tenant", Body: "answer", IdempotencyKey: "reply-1", ExpectedAudienceRevision: 1})
+	if err != nil || post.ID != "persona-post" {
+		t.Fatalf("post=%+v err=%v", post, err)
+	}
+}
+
 func TestTodo_CHAT_047_FailedMutationHasNoAudit(t *testing.T) {
 	repo := chatrecords.NewMemoryRepository()
 	s := &auditedChatService{ConversationService: auditConversation{fail: true}, records: &chatrecords.Service{Repo: repo, Auth: ChatRecordAuthority{}}}

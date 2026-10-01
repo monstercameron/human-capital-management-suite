@@ -26,13 +26,25 @@ func (a streamIntegrationAuthority) Authorize(ctx context.Context, p chatcore.Pr
 	}
 	in := chatpolicy.Input{
 		Principal:     chatpolicy.Principal{ID: p.SubjectID, Tenant: p.TenantID, Active: true, AuthorityRevision: 1},
-		Channel:       chatpolicy.Channel{ID: c.ID, HostTenant: c.TenantID, Enabled: true, Private: c.Kind != chatcore.PublicChannel, Revision: c.Revision},
+		Channel:       chatpolicy.Channel{ID: c.ID, HostTenant: c.TenantID, Enabled: true, Private: c.Kind != chatcore.PublicChannel, Revision: c.Revision, Classification: "internal", Residency: "us"},
 		Membership:    chatpolicy.Membership{ConversationID: c.ID, PrincipalID: p.SubjectID, Tenant: p.TenantID, State: chatpolicy.MembershipCurrent, Revision: m.Revision},
 		HasMembership: true, Now: now,
 	}
 	if p.TenantID != c.TenantID {
+		terms := chatpolicy.ConversationGrantTerms{
+			ConversationID: c.ID, HostTenant: c.TenantID, ConsumerTenant: p.TenantID,
+			Scope: "conversation", Classification: "internal", Residency: "us", ExpiresAt: now.Add(time.Hour),
+		}
+		grant, err := chatpolicy.ProposeConversationGrant("integration-grant", terms, 1, now)
+		if err != nil {
+			return chatpolicy.Input{}, fmt.Errorf("propose integration grant: %w", err)
+		}
+		grant, err = chatpolicy.AcceptConversationGrant(grant, p.TenantID, now)
+		if err != nil {
+			return chatpolicy.Input{}, fmt.Errorf("accept integration grant: %w", err)
+		}
 		in.HasGrant = true
-		in.Grant = chatpolicy.Grant{ID: "integration-grant", ConversationID: c.ID, HostTenant: c.TenantID, ConsumerTenant: p.TenantID, Version: 1, Proposed: true, AcceptedByHost: true, AcceptedByConsumer: true}
+		in.Grant = grant
 	}
 	return in, nil
 }

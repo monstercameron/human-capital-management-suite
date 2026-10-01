@@ -49,6 +49,7 @@ var seedPurgeOrder = []struct{ table, column string }{
 	{"chat_preference", "conversation_id"},
 	{"chat_thread_follow", "conversation_id"},
 	{"chat_post", "conversation_id"},
+	{"chat_channel_policy", "conversation_id"},
 	{"chat_membership", "conversation_id"},
 	{"chat_conversation_idempotency", "conversation_id"},
 	{"chat_conversation", "id"},

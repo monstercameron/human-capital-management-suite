@@ -661,7 +661,11 @@ func (s *server) run(c context.Context, r *chatv1.WatchConversationRequest, send
 				// terminal cause, when the owner reports one, is the answer.
 				return terminalErr(fail)
 			}
-			if err := send(&chatv1.WatchConversationResponse{Event: event(e.Event), ResumeCursor: e.ResumeCursor}); err != nil {
+			response := &chatv1.WatchConversationResponse{Event: event(e.Event), ResumeCursor: e.ResumeCursor}
+			if e.EphemeralDelivery != nil {
+				response.EphemeralDelivery = ephemeralDelivery(*e.EphemeralDelivery)
+			}
+			if err := send(response); err != nil {
 				// The client went away mid-send. The producer still needs
 				// somebody to read until it closes, and the failure is named
 				// rather than handed back raw: a nameless UNAVAILABLE in the
@@ -1029,6 +1033,16 @@ func event(v chatcore.ConversationEvent) *chatv1.ConversationEvent {
 		o.Pin = pin(*v.Pin)
 	}
 	return o
+}
+
+func ephemeralDelivery(v chatcore.EphemeralDelivery) *chatv1.EphemeralDelivery {
+	return &chatv1.EphemeralDelivery{
+		Id: v.ID, ThreadId: v.ThreadID, Body: v.Body,
+		OnlyVisibleToYou: v.OnlyVisibleToYou,
+		CreatedAt:        tsp(v.CreatedAt),
+		ExpiresAt:        tsp(v.ExpiresAt),
+		ThreadLink:       v.ThreadLink,
+	}
 }
 func ts(v *time.Time) *timestamppb.Timestamp {
 	if v == nil {

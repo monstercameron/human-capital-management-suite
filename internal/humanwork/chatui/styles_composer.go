@@ -129,4 +129,9 @@ const composerPolishStyles = `.thread-composer{position:relative}` +
 	// 44x44 round icon button (its aria-label and title still say
 	// "Conversations"); the 145px labelled pill had squeezed the channel
 	// subtitle to "Public ch…" and put the unread dot on the final "s".
-	`@container chatmain (max-width:560px){.conversation-header .rail-pill.mobile-chat-toggle{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;justify-content:center}.conversation-header .rail-pill.mobile-chat-toggle>span:not(.rail-pill-dot){display:none}.conversation-header .rail-pill.mobile-chat-toggle .rail-pill-dot{top:8px;inset-inline-end:8px}}`
+	`@container chatmain (max-width:560px){.conversation-header .rail-pill.mobile-chat-toggle{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;justify-content:center}.conversation-header .rail-pill.mobile-chat-toggle>span:not(.rail-pill-dot){display:none}.conversation-header .rail-pill.mobile-chat-toggle .rail-pill-dot{top:8px;inset-inline-end:8px}}` +
+	// UXBLIND-126: the thread side pane can be narrower than the viewport on
+	// phones. Keep author/time on one metadata row and give the root's channel
+	// link its own row; the absolute desktop placement otherwise overlaps a
+	// timestamp and flex-wrap can split a short time label across lines.
+	`@media(max-width:760px){.thread-root-body .message-meta,.thread-message-body .message-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 8px;padding-inline-end:44px}.thread-root-body .message-meta .thread-view-in-channel{position:static;grid-column:1 / -1;justify-self:start;margin-top:2px;white-space:nowrap}.thread-pane .message-time{white-space:nowrap}.thread-pane .message-author{min-width:0;overflow-wrap:anywhere}}`

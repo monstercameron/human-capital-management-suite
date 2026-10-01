@@ -37,11 +37,11 @@ func documentSubcommand(command string) string {
 
 func validateDocumentCommand(action, documentURL, coreURL, chatURL string) error {
 	switch action {
-	case "up", "status", "seed", "embed", "prune":
+	case "up", "status", "seed", "seed-upgrade", "embed", "prune":
 	case "":
-		return errors.New("usage: migrate document up|status|seed|embed|prune")
+		return errors.New("usage: migrate document up|status|seed|seed-upgrade|embed|prune")
 	default:
-		return fmt.Errorf("unknown document command %q; usage: migrate document up|status|seed|embed|prune", action)
+		return fmt.Errorf("unknown document command %q; usage: migrate document up|status|seed|seed-upgrade|embed|prune", action)
 	}
 	if strings.TrimSpace(documentURL) == "" {
 		return fmt.Errorf("%s is not set; pass -%s or set the environment variable", EnvDocumentDatabaseURL, fieldDocumentDatabaseURL)
@@ -166,6 +166,27 @@ func runDocumentSeedAction(ctx context.Context, documentURL, coreURL, chatURL, t
 		opts.Routes = routes
 	}
 	return runDocumentSeedCommand(ctx, store, people, opts, out)
+}
+
+func runDocumentSeedUpgradeAction(ctx context.Context, documentURL, coreURL, tenant string, apply bool, out io.Writer) error {
+	if strings.TrimSpace(tenant) == "" {
+		return errors.New("-tenant is required for document seed-upgrade")
+	}
+	store, err := documenthubstore.New(ctx, documenthubstore.Config{DSN: documentURL, CoreDSN: coreURL})
+	if err != nil {
+		return fmt.Errorf("open document store: %w", err)
+	}
+	defer store.Close()
+	conn, err := openSeedDB(ctx, coreURL)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = conn.Close(ctx) }()
+	people, err := loadSeedPeople(ctx, conn, tenant)
+	if err != nil {
+		return err
+	}
+	return runDocumentSeedUpgradeCommand(ctx, store, people, tenant, apply, out)
 }
 
 // runDocumentEmbedAction enqueues an index job for every searchable

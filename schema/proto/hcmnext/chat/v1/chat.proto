@@ -273,5 +273,17 @@ enum ConversationEventKind {
   CONVERSATION_EVENT_KIND_PIN_CHANGED = 7;
 }
 message ConversationEvent { ConversationEventKind kind = 1; uint64 sequence = 2; uint64 revision = 3; Post post = 4; Membership membership = 5; Conversation conversation = 6; Reaction reaction = 7; Pin pin = 8; bool removed = 9; }
+// EphemeralDelivery is visible only to the authenticated watcher that
+// received it. Recipient identity and durable persona-DM post identifiers
+// are deliberately absent from this transport projection.
+message EphemeralDelivery {
+  string id = 1;
+  string thread_id = 2;
+  string body = 3;
+  bool only_visible_to_you = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  string thread_link = 7;
+}
 message WatchConversationRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; uint64 after_sequence = 4; string resume_cursor = 5; }
-message WatchConversationResponse { ConversationEvent event = 1; string resume_cursor = 2; }
+message WatchConversationResponse { ConversationEvent event = 1; string resume_cursor = 2; EphemeralDelivery ephemeral_delivery = 3; }

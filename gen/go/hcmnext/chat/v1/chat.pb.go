@@ -4833,6 +4833,101 @@ func (x *ConversationEvent) GetRemoved() bool {
 	return false
 }
 
+// EphemeralDelivery is visible only to the authenticated watcher that
+// received it. Recipient identity and durable persona-DM post identifiers
+// are deliberately absent from this transport projection.
+type EphemeralDelivery struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ThreadId         string                 `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3" json:"thread_id,omitempty"`
+	Body             string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	OnlyVisibleToYou bool                   `protobuf:"varint,4,opt,name=only_visible_to_you,json=onlyVisibleToYou,proto3" json:"only_visible_to_you,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ThreadLink       string                 `protobuf:"bytes,7,opt,name=thread_link,json=threadLink,proto3" json:"thread_link,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *EphemeralDelivery) Reset() {
+	*x = EphemeralDelivery{}
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EphemeralDelivery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EphemeralDelivery) ProtoMessage() {}
+
+func (x *EphemeralDelivery) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EphemeralDelivery.ProtoReflect.Descriptor instead.
+func (*EphemeralDelivery) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *EphemeralDelivery) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EphemeralDelivery) GetThreadId() string {
+	if x != nil {
+		return x.ThreadId
+	}
+	return ""
+}
+
+func (x *EphemeralDelivery) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *EphemeralDelivery) GetOnlyVisibleToYou() bool {
+	if x != nil {
+		return x.OnlyVisibleToYou
+	}
+	return false
+}
+
+func (x *EphemeralDelivery) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *EphemeralDelivery) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *EphemeralDelivery) GetThreadLink() string {
+	if x != nil {
+		return x.ThreadLink
+	}
+	return ""
+}
+
 type WatchConversationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -4847,7 +4942,7 @@ type WatchConversationRequest struct {
 
 func (x *WatchConversationRequest) Reset() {
 	*x = WatchConversationRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[68]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4859,7 +4954,7 @@ func (x *WatchConversationRequest) String() string {
 func (*WatchConversationRequest) ProtoMessage() {}
 
 func (x *WatchConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[68]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4872,7 +4967,7 @@ func (x *WatchConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchConversationRequest.ProtoReflect.Descriptor instead.
 func (*WatchConversationRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{68}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{69}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -4912,16 +5007,17 @@ func (x *WatchConversationRequest) GetResumeCursor() string {
 }
 
 type WatchConversationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Event         *ConversationEvent     `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
-	ResumeCursor  string                 `protobuf:"bytes,2,opt,name=resume_cursor,json=resumeCursor,proto3" json:"resume_cursor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Event             *ConversationEvent     `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	ResumeCursor      string                 `protobuf:"bytes,2,opt,name=resume_cursor,json=resumeCursor,proto3" json:"resume_cursor,omitempty"`
+	EphemeralDelivery *EphemeralDelivery     `protobuf:"bytes,3,opt,name=ephemeral_delivery,json=ephemeralDelivery,proto3" json:"ephemeral_delivery,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *WatchConversationResponse) Reset() {
 	*x = WatchConversationResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[69]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4933,7 +5029,7 @@ func (x *WatchConversationResponse) String() string {
 func (*WatchConversationResponse) ProtoMessage() {}
 
 func (x *WatchConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[69]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4946,7 +5042,7 @@ func (x *WatchConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchConversationResponse.ProtoReflect.Descriptor instead.
 func (*WatchConversationResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{69}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *WatchConversationResponse) GetEvent() *ConversationEvent {
@@ -4961,6 +5057,13 @@ func (x *WatchConversationResponse) GetResumeCursor() string {
 		return x.ResumeCursor
 	}
 	return ""
+}
+
+func (x *WatchConversationResponse) GetEphemeralDelivery() *EphemeralDelivery {
+	if x != nil {
+		return x.EphemeralDelivery
+	}
+	return nil
 }
 
 var File_hcmnext_chat_v1_chat_proto protoreflect.FileDescriptor
@@ -5319,16 +5422,28 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\fconversation\x18\x06 \x01(\v2\x1d.hcmnext.chat.v1.ConversationR\fconversation\x125\n" +
 	"\breaction\x18\a \x01(\v2\x19.hcmnext.chat.v1.ReactionR\breaction\x12&\n" +
 	"\x03pin\x18\b \x01(\v2\x14.hcmnext.chat.v1.PinR\x03pin\x12\x18\n" +
-	"\aremoved\x18\t \x01(\bR\aremoved\"\xea\x01\n" +
+	"\aremoved\x18\t \x01(\bR\aremoved\"\x9a\x02\n" +
+	"\x11EphemeralDelivery\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tthread_id\x18\x02 \x01(\tR\bthreadId\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12-\n" +
+	"\x13only_visible_to_you\x18\x04 \x01(\bR\x10onlyVisibleToYou\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1f\n" +
+	"\vthread_link\x18\a \x01(\tR\n" +
+	"threadLink\"\xea\x01\n" +
 	"\x18WatchConversationRequest\x12<\n" +
 	"\tprincipal\x18\x01 \x01(\v2\x1a.hcmnext.chat.v1.PrincipalB\x02\x18\x01R\tprincipal\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12'\n" +
 	"\x0fconversation_id\x18\x03 \x01(\tR\x0econversationId\x12%\n" +
 	"\x0eafter_sequence\x18\x04 \x01(\x04R\rafterSequence\x12#\n" +
-	"\rresume_cursor\x18\x05 \x01(\tR\fresumeCursor\"z\n" +
+	"\rresume_cursor\x18\x05 \x01(\tR\fresumeCursor\"\xcd\x01\n" +
 	"\x19WatchConversationResponse\x128\n" +
 	"\x05event\x18\x01 \x01(\v2\".hcmnext.chat.v1.ConversationEventR\x05event\x12#\n" +
-	"\rresume_cursor\x18\x02 \x01(\tR\fresumeCursor*\xbd\x01\n" +
+	"\rresume_cursor\x18\x02 \x01(\tR\fresumeCursor\x12Q\n" +
+	"\x12ephemeral_delivery\x18\x03 \x01(\v2\".hcmnext.chat.v1.EphemeralDeliveryR\x11ephemeralDelivery*\xbd\x01\n" +
 	"\x10ConversationKind\x12!\n" +
 	"\x1dCONVERSATION_KIND_UNSPECIFIED\x10\x00\x12$\n" +
 	" CONVERSATION_KIND_PUBLIC_CHANNEL\x10\x01\x12%\n" +
@@ -5373,7 +5488,7 @@ func file_hcmnext_chat_v1_chat_proto_rawDescGZIP() []byte {
 }
 
 var file_hcmnext_chat_v1_chat_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_hcmnext_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 70)
+var file_hcmnext_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 71)
 var file_hcmnext_chat_v1_chat_proto_goTypes = []any{
 	(ConversationKind)(0),              // 0: hcmnext.chat.v1.ConversationKind
 	(MembershipRole)(0),                // 1: hcmnext.chat.v1.MembershipRole
@@ -5448,23 +5563,24 @@ var file_hcmnext_chat_v1_chat_proto_goTypes = []any{
 	(*ForwardPostRequest)(nil),         // 70: hcmnext.chat.v1.ForwardPostRequest
 	(*ForwardPostResponse)(nil),        // 71: hcmnext.chat.v1.ForwardPostResponse
 	(*ConversationEvent)(nil),          // 72: hcmnext.chat.v1.ConversationEvent
-	(*WatchConversationRequest)(nil),   // 73: hcmnext.chat.v1.WatchConversationRequest
-	(*WatchConversationResponse)(nil),  // 74: hcmnext.chat.v1.WatchConversationResponse
-	(*timestamppb.Timestamp)(nil),      // 75: google.protobuf.Timestamp
+	(*EphemeralDelivery)(nil),          // 73: hcmnext.chat.v1.EphemeralDelivery
+	(*WatchConversationRequest)(nil),   // 74: hcmnext.chat.v1.WatchConversationRequest
+	(*WatchConversationResponse)(nil),  // 75: hcmnext.chat.v1.WatchConversationResponse
+	(*timestamppb.Timestamp)(nil),      // 76: google.protobuf.Timestamp
 }
 var file_hcmnext_chat_v1_chat_proto_depIdxs = []int32{
 	3,  // 0: hcmnext.chat.v1.Reference.kind:type_name -> hcmnext.chat.v1.ReferenceKind
 	0,  // 1: hcmnext.chat.v1.Conversation.kind:type_name -> hcmnext.chat.v1.ConversationKind
-	75, // 2: hcmnext.chat.v1.Conversation.last_activity_at:type_name -> google.protobuf.Timestamp
+	76, // 2: hcmnext.chat.v1.Conversation.last_activity_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: hcmnext.chat.v1.Membership.role:type_name -> hcmnext.chat.v1.MembershipRole
-	75, // 4: hcmnext.chat.v1.Membership.joined_at:type_name -> google.protobuf.Timestamp
-	75, // 5: hcmnext.chat.v1.Membership.left_at:type_name -> google.protobuf.Timestamp
+	76, // 4: hcmnext.chat.v1.Membership.joined_at:type_name -> google.protobuf.Timestamp
+	76, // 5: hcmnext.chat.v1.Membership.left_at:type_name -> google.protobuf.Timestamp
 	2,  // 6: hcmnext.chat.v1.Membership.history_visibility:type_name -> hcmnext.chat.v1.ReadHistoryFrom
-	75, // 7: hcmnext.chat.v1.Post.created_at:type_name -> google.protobuf.Timestamp
+	76, // 7: hcmnext.chat.v1.Post.created_at:type_name -> google.protobuf.Timestamp
 	6,  // 8: hcmnext.chat.v1.Post.references:type_name -> hcmnext.chat.v1.Reference
 	7,  // 9: hcmnext.chat.v1.Post.source_attribution:type_name -> hcmnext.chat.v1.SourceAttribution
-	75, // 10: hcmnext.chat.v1.Reaction.created_at:type_name -> google.protobuf.Timestamp
-	75, // 11: hcmnext.chat.v1.Pin.created_at:type_name -> google.protobuf.Timestamp
+	76, // 10: hcmnext.chat.v1.Reaction.created_at:type_name -> google.protobuf.Timestamp
+	76, // 11: hcmnext.chat.v1.Pin.created_at:type_name -> google.protobuf.Timestamp
 	11, // 12: hcmnext.chat.v1.Pin.post:type_name -> hcmnext.chat.v1.Post
 	5,  // 13: hcmnext.chat.v1.CreateConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
 	0,  // 14: hcmnext.chat.v1.CreateConversationRequest.kind:type_name -> hcmnext.chat.v1.ConversationKind
@@ -5539,13 +5655,16 @@ var file_hcmnext_chat_v1_chat_proto_depIdxs = []int32{
 	8,  // 83: hcmnext.chat.v1.ConversationEvent.conversation:type_name -> hcmnext.chat.v1.Conversation
 	12, // 84: hcmnext.chat.v1.ConversationEvent.reaction:type_name -> hcmnext.chat.v1.Reaction
 	13, // 85: hcmnext.chat.v1.ConversationEvent.pin:type_name -> hcmnext.chat.v1.Pin
-	5,  // 86: hcmnext.chat.v1.WatchConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	72, // 87: hcmnext.chat.v1.WatchConversationResponse.event:type_name -> hcmnext.chat.v1.ConversationEvent
-	88, // [88:88] is the sub-list for method output_type
-	88, // [88:88] is the sub-list for method input_type
-	88, // [88:88] is the sub-list for extension type_name
-	88, // [88:88] is the sub-list for extension extendee
-	0,  // [0:88] is the sub-list for field type_name
+	76, // 86: hcmnext.chat.v1.EphemeralDelivery.created_at:type_name -> google.protobuf.Timestamp
+	76, // 87: hcmnext.chat.v1.EphemeralDelivery.expires_at:type_name -> google.protobuf.Timestamp
+	5,  // 88: hcmnext.chat.v1.WatchConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	72, // 89: hcmnext.chat.v1.WatchConversationResponse.event:type_name -> hcmnext.chat.v1.ConversationEvent
+	73, // 90: hcmnext.chat.v1.WatchConversationResponse.ephemeral_delivery:type_name -> hcmnext.chat.v1.EphemeralDelivery
+	91, // [91:91] is the sub-list for method output_type
+	91, // [91:91] is the sub-list for method input_type
+	91, // [91:91] is the sub-list for extension type_name
+	91, // [91:91] is the sub-list for extension extendee
+	0,  // [0:91] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_chat_v1_chat_proto_init() }
@@ -5559,7 +5678,7 @@ func file_hcmnext_chat_v1_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_chat_v1_chat_proto_rawDesc), len(file_hcmnext_chat_v1_chat_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   70,
+			NumMessages:   71,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

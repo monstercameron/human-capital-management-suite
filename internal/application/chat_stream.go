@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -25,6 +26,7 @@ type ChatStreamRuntime struct {
 	stream    *chatstream.Stream
 	bridge    chatstream.Bridge
 	admission *chatadmission.Admission
+	clock     func() time.Time
 }
 
 type ChatStreamRuntimeConfig struct {
@@ -45,6 +47,9 @@ func NewChatStreamRuntime(c ChatStreamRuntimeConfig) (*ChatStreamRuntime, error)
 	if c.CursorKey == "" {
 		return nil, ErrChatStreamingDisabled
 	}
+	if c.Clock == nil {
+		c.Clock = time.Now
+	}
 	stream, err := chatstream.New(chatstream.Config{Key: []byte(c.CursorKey), Reader: c.Reader, Authorizer: c.Authorizer, QueueSize: c.QueueSize, ReplayLimit: c.ReplayLimit, CursorTTL: c.CursorTTL, Clock: c.Clock, RecheckInterval: c.RecheckInterval})
 	if err != nil {
 		return nil, err
@@ -53,7 +58,7 @@ func NewChatStreamRuntime(c ChatStreamRuntimeConfig) (*ChatStreamRuntime, error)
 	if err != nil {
 		return nil, err
 	}
-	return &ChatStreamRuntime{stream: stream, admission: admission, bridge: chatstream.Bridge{Stream: stream, Reader: c.Reader, PollInterval: c.PollInterval, PageLimit: c.PageLimit}}, nil
+	return &ChatStreamRuntime{stream: stream, admission: admission, clock: c.Clock, bridge: chatstream.Bridge{Stream: stream, Reader: c.Reader, PollInterval: c.PollInterval, PageLimit: c.PageLimit}}, nil
 }
 
 func (r *ChatStreamRuntime) Watch(ctx context.Context, req chatstream.WatchRequest) (*chatstream.Subscription, *chatadmission.Lease, error) {
@@ -167,6 +172,9 @@ type chatServiceReader struct {
 type chatDurableEventReader interface {
 	ReadConversationEvents(context.Context, chatcore.WatchConversationRequest, uint64, int) (chatstore.EventPage, error)
 }
+type chatPublicSequenceMapper interface {
+	ResolvePublicSequence(context.Context, string, string, uint64) (uint64, error)
+}
 type chatMembershipResolver interface {
 	GetMembership(context.Context, string, string, string, string) (chatcore.Membership, error)
 }
@@ -199,7 +207,7 @@ func (r chatServiceReader) Read(ctx context.Context, q chatstream.ReadRequest) (
 	// The membership epoch is a property of the reader's principal and
 	// conversation, not of an individual event, so it is resolved once per page.
 	epoch := uint64(0)
-	if len(page.Events) > 0 {
+	if len(page.Events) > 0 || len(page.EphemeralPosts) > 0 {
 		epoch, err = chatMembershipEpoch(ctx, r.service, r.membership, q.TenantID, q.ConversationID, principal)
 		if err != nil {
 			return chatstream.Page{}, err
@@ -216,6 +224,18 @@ func (r chatServiceReader) Read(ctx context.Context, q chatstream.ReadRequest) (
 		}
 		out = append(out, chatstream.Event{TenantID: q.TenantID, ConversationID: q.ConversationID, Sequence: sequence, MembershipEpoch: epoch, Payload: payload})
 	}
+	for _, post := range page.EphemeralPosts {
+		payload, marshalErr := json.Marshal(post)
+		if marshalErr != nil {
+			return chatstream.Page{}, marshalErr
+		}
+		out = append(out, chatstream.Event{
+			TenantID: q.TenantID, ConversationID: q.ConversationID, Sequence: post.Sequence,
+			MembershipEpoch: epoch, RecipientHomeTenantID: post.RecipientHomeTenantID, RecipientSubjectID: post.RecipientSubjectID,
+			Ephemeral: true, ExpiresAt: post.ExpiresAt, Payload: payload,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Sequence < out[j].Sequence })
 	return chatstream.Page{Events: out, NextSequence: page.NextOffset, Complete: page.Complete}, nil
 }
 
@@ -290,9 +310,33 @@ func chatMembershipEpoch(ctx context.Context, service chatcore.ConversationServi
 // affected subscriptions and drops the cached facts before returning.
 type streamingChatService struct {
 	chatcore.ConversationService
-	runtime    *ChatStreamRuntime
-	membership chatMembershipResolver
-	authority  *chatAuthorityCache
+	runtime           *ChatStreamRuntime
+	membership        chatMembershipResolver
+	authority         *chatAuthorityCache
+	personaDM         chatcore.PersonaDMResolver
+	personaInvocation *PersonaInvocationServeWiring
+}
+
+// bindPersonaInvocation installs the post-commit mention handoff while leaving
+// this decorator as the served ConversationService. The handoff writes through
+// the already routed and audited inner service, so this layer owns send admission
+// exactly once and every other optional chat port remains promoted unchanged.
+func (s *streamingChatService) bindPersonaInvocation(wiring *PersonaInvocationServeWiring) error {
+	if s == nil || s.ConversationService == nil || wiring == nil || wiring.Chat == nil {
+		return errPersonaInvocationServeWiring
+	}
+	s.personaInvocation = wiring
+	return nil
+}
+
+func (s *streamingChatService) sendPost(ctx context.Context, request chatcore.SendPostRequest) (chatcore.Post, error) {
+	if s == nil || s.ConversationService == nil {
+		return chatcore.Post{}, chatcore.ErrUnavailable
+	}
+	if s.personaInvocation != nil {
+		return s.personaInvocation.SendPost(ctx, request)
+	}
+	return s.ConversationService.SendPost(ctx, request)
 }
 
 // lease reserves one chat lane for a request. A composition without a stream
@@ -360,18 +404,77 @@ func (s *streamingChatService) RemoveMembership(ctx context.Context, r chatcore.
 
 func (s *streamingChatService) SendPost(ctx context.Context, req chatcore.SendPostRequest) (chatcore.Post, error) {
 	if s.runtime == nil {
-		return s.ConversationService.SendPost(ctx, req)
+		return s.sendPost(ctx, req)
 	}
 	lease, err := s.runtime.AcquireSend(ctx, req.TenantID, req.ConversationID)
 	if err != nil {
 		return chatcore.Post{}, err
 	}
 	defer lease.Release()
-	post, err := s.ConversationService.SendPost(ctx, req)
+	return s.sendPost(ctx, req)
+}
+
+// CommitPersonaReply preserves the optional server-owned write through the
+// streaming decorator and reserves the same bounded send capacity as a post.
+// Routed and audit semantics remain with the inner decorated service.
+func (s *streamingChatService) CommitPersonaReply(ctx context.Context, req chatcore.PersonaReplyCommitRequest) (chatcore.Post, error) {
+	lease, err := s.lease(ctx, chatadmission.LaneSend, req.TenantID, req.ConversationID)
 	if err != nil {
 		return chatcore.Post{}, err
 	}
-	return post, nil
+	defer releaseChatLease(lease)
+	committer, ok := s.ConversationService.(chatcore.PersonaReplyCommitter)
+	if !ok {
+		return chatcore.Post{}, chatcore.ErrUnavailable
+	}
+	return committer.CommitPersonaReply(ctx, req)
+}
+func (s *streamingChatService) SendEphemeralPost(ctx context.Context, req chatcore.SendEphemeralPostRequest) (chatcore.EphemeralPost, error) {
+	if s.personaDM == nil {
+		return chatcore.EphemeralPost{}, chatcore.ErrUnavailable
+	}
+	if req.Principal.TenantID != req.TenantID || req.TenantID == "" || req.Principal.SubjectID == "" || req.ConversationID == "" {
+		return chatcore.EphemeralPost{}, chatcore.ErrPermissionDenied
+	}
+	dmConversation, err := s.personaDM.ResolvePersonaDM(ctx, req.Principal, req.TenantID)
+	if err != nil {
+		return chatcore.EphemeralPost{}, err
+	}
+	if dmConversation == "" {
+		return chatcore.EphemeralPost{}, chatcore.ErrPermissionDenied
+	}
+	// A request routing hint is never allowed to choose which conversation
+	// admission protects. Resolve the canonical persona DM from server-owned
+	// identity, then reserve both writes in a stable order to avoid deadlocks.
+	req.DurableCopyConversationID = dmConversation
+	conversationIDs := []string{req.ConversationID, dmConversation}
+	if conversationIDs[0] > conversationIDs[1] {
+		conversationIDs[0], conversationIDs[1] = conversationIDs[1], conversationIDs[0]
+	}
+	leases := make([]*chatadmission.Lease, 0, 2)
+	for i, conversationID := range conversationIDs {
+		if i > 0 && conversationID == conversationIDs[i-1] {
+			continue
+		}
+		lease, leaseErr := s.lease(ctx, chatadmission.LaneSend, req.TenantID, conversationID)
+		if leaseErr != nil {
+			for j := len(leases) - 1; j >= 0; j-- {
+				releaseChatLease(leases[j])
+			}
+			return chatcore.EphemeralPost{}, leaseErr
+		}
+		leases = append(leases, lease)
+	}
+	defer func() {
+		for i := len(leases) - 1; i >= 0; i-- {
+			releaseChatLease(leases[i])
+		}
+	}()
+	ephemeral, ok := s.ConversationService.(chatcore.EphemeralService)
+	if !ok {
+		return chatcore.EphemeralPost{}, chatcore.ErrUnavailable
+	}
+	return ephemeral.SendEphemeralPost(ctx, req)
 }
 
 func (s *streamingChatService) referenceService() (chatcore.ReferenceService, error) {
@@ -477,6 +580,17 @@ func (s *streamingChatService) WatchConversationWithErrors(ctx context.Context, 
 	if err != nil {
 		return nil, nil, chatStreamError(err)
 	}
+	if req.AfterSequence != 0 {
+		mapper, ok := s.membership.(chatPublicSequenceMapper)
+		if !ok || mapper == nil {
+			return nil, nil, chatcore.ErrUnavailable
+		}
+		offset, mapErr := mapper.ResolvePublicSequence(ctx, req.TenantID, req.ConversationID, req.AfterSequence)
+		if mapErr != nil {
+			return nil, nil, mapErr
+		}
+		req.AfterSequence = offset
+	}
 	sub, _, err := s.runtime.Watch(ctx, chatstream.WatchRequest{TenantID: req.TenantID, HomeTenantID: req.Principal.TenantID, SubjectID: req.Principal.SubjectID, ConversationID: req.ConversationID, MembershipEpoch: epoch, RouteEpoch: routeEpoch, Cursor: req.ResumeCursor, AfterSequence: req.AfterSequence})
 	if err != nil {
 		return nil, nil, chatStreamError(err)
@@ -500,19 +614,75 @@ func (s *streamingChatService) WatchConversationWithErrors(ctx context.Context, 
 				}
 				return
 			}
-			var conversationEvent chatcore.ConversationEvent
-			if unmarshalErr := json.Unmarshal(event.Payload, &conversationEvent); unmarshalErr != nil {
-				fail <- fmt.Errorf("chat stream payload: %w: %w", chatcore.ErrUnavailable, unmarshalErr)
+			projected, projectErr := projectChatStreamEvent(ctx, req, event, s.runtime.clock())
+			if projectErr != nil {
+				if errors.Is(projectErr, chatcore.ErrEphemeralExpired) {
+					// Subscription.Next has already advanced its signed cursor over
+					// this offset. An expired recipient envelope is a skipped record,
+					// not a terminal failure for the shared conversation watch.
+					continue
+				}
+				fail <- chatStreamError(projectErr)
 				return
 			}
+			projected.ResumeCursor = sub.Cursor()
 			select {
-			case out <- chatcore.WatchEvent{Event: conversationEvent, ResumeCursor: sub.Cursor()}:
+			case out <- projected:
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 	return out, fail, nil
+}
+
+func projectChatStreamEvent(ctx context.Context, request chatcore.WatchConversationRequest, event chatstream.Event, now time.Time) (chatcore.WatchEvent, error) {
+	if !event.Ephemeral {
+		var conversationEvent chatcore.ConversationEvent
+		if err := json.Unmarshal(event.Payload, &conversationEvent); err != nil {
+			return chatcore.WatchEvent{}, fmt.Errorf("chat stream payload: %w: %w", chatcore.ErrUnavailable, err)
+		}
+		return chatcore.WatchEvent{Event: conversationEvent}, nil
+	}
+	if event.TenantID != request.TenantID || event.ConversationID != request.ConversationID ||
+		event.RecipientHomeTenantID != request.Principal.TenantID || event.RecipientSubjectID != request.Principal.SubjectID ||
+		request.Principal.TenantID == "" || request.Principal.SubjectID == "" {
+		return chatcore.WatchEvent{}, chatcore.ErrPermissionDenied
+	}
+	if verified, ok := trust.FromContext(ctx); ok {
+		if verified.SubjectKind() != trust.SubjectKindHuman || verified.Tenant().String() != request.Principal.TenantID || verified.Subject() != request.Principal.SubjectID {
+			return chatcore.WatchEvent{}, chatcore.ErrPermissionDenied
+		}
+	}
+	if event.ExpiresAt.IsZero() {
+		return chatcore.WatchEvent{}, fmt.Errorf("chat ephemeral envelope expiry: %w", chatcore.ErrUnavailable)
+	}
+	if !now.Before(event.ExpiresAt) {
+		return chatcore.WatchEvent{}, chatcore.ErrEphemeralExpired
+	}
+	var post chatcore.EphemeralPost
+	if err := json.Unmarshal(event.Payload, &post); err != nil {
+		return chatcore.WatchEvent{}, fmt.Errorf("chat ephemeral payload: %w: %w", chatcore.ErrUnavailable, err)
+	}
+	if post.ExpiresAt.IsZero() {
+		return chatcore.WatchEvent{}, fmt.Errorf("chat ephemeral payload expiry: %w", chatcore.ErrUnavailable)
+	}
+	if !now.Before(post.ExpiresAt) {
+		return chatcore.WatchEvent{}, chatcore.ErrEphemeralExpired
+	}
+	if post.TenantID != request.TenantID || post.ConversationID != request.ConversationID ||
+		post.RecipientHomeTenantID != request.Principal.TenantID || post.RecipientSubjectID != request.Principal.SubjectID ||
+		post.Sequence == 0 || post.Sequence != event.Sequence || post.ID == "" || post.ThreadID == "" ||
+		!post.OnlyVisibleToYou || post.Body == "" || post.CreatedAt.IsZero() || post.ThreadLink == "" ||
+		!post.ExpiresAt.After(post.CreatedAt) || post.ExpiresAt.After(post.CreatedAt.Add(chatcore.EphemeralLifetime)) ||
+		!post.ExpiresAt.Equal(event.ExpiresAt) || !now.Before(post.ExpiresAt) {
+		return chatcore.WatchEvent{}, chatcore.ErrPermissionDenied
+	}
+	delivery := &chatcore.EphemeralDelivery{
+		ID: post.ID, ThreadID: post.ThreadID, Body: post.Body, OnlyVisibleToYou: true,
+		CreatedAt: post.CreatedAt, ExpiresAt: post.ExpiresAt, ThreadLink: post.ThreadLink,
+	}
+	return chatcore.WatchEvent{EphemeralDelivery: delivery}, nil
 }
 
 // WatchConversation keeps the canonical single-channel contract for callers that

@@ -30,6 +30,120 @@ type mentionCandidate struct {
 	Member   bool
 }
 
+// PersonaMentionSuggestion is supplied by the caller after it has resolved
+// current, invocable personas for this viewer and conversation. This package
+// never discovers personas from message text or from the people directory.
+type PersonaMentionSuggestion struct {
+	TenantID, ID, Display                                      string
+	Purpose, Owner, Version                                    string
+	Invocable, AudienceIncludesViewer, InstalledInConversation bool
+	Skills                                                     []PersonaMentionSkill
+	DataClasses, CannotDo                                      []string
+	ReplyPlacement                                             PersonaReplyPlacement
+	// Actor carries trusted identity attribution when the server provides it.
+	// The menu never derives this from Display.
+	Actor *PersonaActor
+}
+
+// ChatReference is the typed reference sent alongside a chat post. Display is
+// a rendering snapshot; Kind, TenantID and ID carry canonical identity.
+type ChatReference struct {
+	Kind, TenantID, ID, Display, ConversationID string
+}
+
+// ResolvedPersonaMention combines the canonical candidate returned by the
+// server's chat reference resolver with the safe profile projection shown in
+// the menu. Eligibility is represented by presence in this server-filtered
+// list; client-set booleans never grant visibility.
+type ResolvedPersonaMention struct {
+	Reference               ChatReference
+	Purpose, Owner, Version string
+	Skills                  []PersonaMentionSkill
+	DataClasses, CannotDo   []string
+	ReplyPlacement          PersonaReplyPlacement
+	Actor                   *PersonaActor
+}
+
+type mentionOption struct {
+	person  *mentionCandidate
+	persona *ResolvedPersonaMention
+}
+
+func (m Model) personaMentionsEnabled(target string) bool {
+	if target == "thread-composer" {
+		return m.Callbacks.ReplyInThreadWithReferences != nil
+	}
+	return m.Callbacks.SendMessageWithReferences != nil
+}
+
+// selectPersonaMention rejects missing, malformed, or stale menu entries. The
+// caller must pass only the current authorized suggestions and revalidate the
+// returned reference at post commit.
+func selectPersonaMention(candidates []ResolvedPersonaMention, index int, conversationID string) (ChatReference, bool) {
+	if index < 0 || index >= len(candidates) {
+		return ChatReference{}, false
+	}
+	reference := candidates[index].Reference
+	if !validResolvedPersonaReference(reference, conversationID) {
+		return ChatReference{}, false
+	}
+	return reference, true
+}
+
+func validResolvedPersonaReference(reference ChatReference, conversationID string) bool {
+	return reference.Kind == "AGENT_MENTION" && strings.TrimSpace(reference.TenantID) != "" && strings.TrimSpace(reference.ID) != "" && strings.TrimSpace(reference.Display) != "" && conversationID != "" && reference.ConversationID == conversationID
+}
+
+// applyPersonaMention inserts the selected display label while retaining the
+// canonical reference separately for the typed send-post path.
+func applyPersonaMention(value string, start, end int, candidate ResolvedPersonaMention, conversationID string) (string, int, ChatReference, bool) {
+	reference, ok := selectPersonaMention([]ResolvedPersonaMention{candidate}, 0, conversationID)
+	if !ok {
+		return value, end, ChatReference{}, false
+	}
+	updated, caret := insertEmojiAtUTF16(value, "@"+strings.TrimSpace(reference.Display)+" ", start, end)
+	return updated, caret, reference, true
+}
+
+func personaMentionCandidates(m Model, query string) []ResolvedPersonaMention {
+	q := strings.ToLower(strings.TrimSpace(query))
+	out := make([]ResolvedPersonaMention, 0, len(m.ResolvedPersonaMentions))
+	for _, candidate := range m.ResolvedPersonaMentions {
+		reference := candidate.Reference
+		display := strings.TrimSpace(reference.Display)
+		if !validResolvedPersonaReference(reference, m.SelectedID) {
+			continue
+		}
+		if q != "" && !strings.Contains(strings.ToLower(display), q) && !strings.Contains(strings.ToLower(reference.ID), q) {
+			continue
+		}
+		candidate.Reference.Display = display
+		out = append(out, candidate)
+		if len(out) == mentionLimit {
+			break
+		}
+	}
+	return out
+}
+
+func mentionOptions(m Model, query, target string) []mentionOption {
+	people := mentionCandidates(m, query)
+	var personas []ResolvedPersonaMention
+	if m.personaMentionsEnabled(target) {
+		personas = personaMentionCandidates(m, query)
+	}
+	options := make([]mentionOption, 0, len(people)+len(personas))
+	for i := range people {
+		person := people[i]
+		options = append(options, mentionOption{person: &person})
+	}
+	for i := range personas {
+		persona := personas[i]
+		options = append(options, mentionOption{persona: &persona})
+	}
+	return options
+}
+
 // mentionTokenAt finds the "@query" the caret sits at the end of. The "@" must
 // start a word, and the query is the run of name characters typed after it,
 // so an email address or a finished mention followed by a space is ignored.
@@ -171,46 +285,96 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 	if !state.Open || state.Target != target {
 		return html.Div(html.Props{Class: "mention-slot"})
 	}
-	people := mentionCandidates(m, state.Query)
-	if len(people) == 0 {
-		return html.Div(html.Props{Class: "mention-menu empty", Role: "status"}, html.P(html.Props{Class: "mention-empty", Text: m.tf(KeyMentionNone, map[string]string{"query": state.Query})}))
+	options := mentionOptions(m, state.Query, target)
+	if len(options) == 0 {
+		empty := m.tf(KeyMentionNone, map[string]string{"query": state.Query})
+		if m.personaMentionsEnabled(target) {
+			empty = personaMentionText(m.Locale, "none")
+		}
+		return html.Div(html.Props{ID: target + "-mentions", Class: "mention-menu empty", Role: "status", Aria: map[string]string{"live": "polite"}}, html.P(html.Props{Class: "mention-empty", Text: empty}))
 	}
-	rows := make([]ui.Node, 0, len(people)+1)
-	rows = append(rows, html.P(html.Props{Class: "mention-heading", Aria: map[string]string{"hidden": "true"}, Text: m.t(KeyMentionTitle)}))
+	rows := make([]ui.Node, 0, len(options)+2)
+	peopleHeading, agentsHeading := false, false
 	outsiders := false
-	for i, person := range people {
+	for i, option := range options {
 		class := "mention-option"
 		if i == state.Active {
 			class += " active"
 		}
 		// People outside the room are listed once under their own heading
 		// rather than carrying the same note on every row.
-		if !person.Member && !outsiders {
+		if option.person != nil && !option.person.Member && !outsiders {
 			outsiders = true
 			rows = append(rows, html.WithKey(html.P(html.Props{Class: "mention-heading outside", Aria: map[string]string{"hidden": "true"}, Text: m.t(KeyMentionNotMember)}), "outside"))
 		}
-		detail := ""
+		detail, label, key := "", "", ""
+		avatar := ui.Node(nil)
+		if option.person != nil {
+			person := *option.person
+			if !peopleHeading {
+				peopleHeading = true
+				rows = append(rows, html.P(html.Props{Class: "mention-heading", Aria: map[string]string{"hidden": "true"}, Text: m.t(KeyMentionTitle)}))
+			}
+			label, key = person.Name, "person:"+person.ID
+			avatar = personAvatar(m, person.ID, person.Name, "avatar small")
+		} else if option.persona != nil {
+			persona := *option.persona
+			if !agentsHeading {
+				agentsHeading = true
+				rows = append(rows, html.P(html.Props{Class: "mention-heading agents", Aria: map[string]string{"hidden": "true"}, Text: personaMentionText(m.Locale, "agents")}))
+			}
+			label, key, detail = persona.Reference.Display, "agent:"+persona.Reference.TenantID+":"+persona.Reference.ID, personaMentionText(m.Locale, "agent_badge")
+			class += " persona"
+			pick := html.Button(html.Props{ID: target + "-mention-" + itoa(i+1), Class: class, Type: "button", Role: "option", TabIndex: -1,
+				Data: map[string]string{"action": "mention-pick", "id": target, "extra": itoa(i + 1)},
+				Aria: map[string]string{"selected": boolString(i == state.Active)}},
+				html.Span(html.Props{Class: "mention-name", Text: label}),
+				html.Span(html.Props{Class: "mention-detail agent-badge", Text: detail}),
+				personaMentionAttribution(persona.Actor),
+				html.Span(html.Props{Class: "mention-purpose", Text: persona.Purpose}))
+			rows = append(rows, html.WithKey(html.Div(html.Props{Class: "mention-agent-row", Role: "group", Aria: map[string]string{"label": persona.Reference.Display}}, pick,
+				html.Details(html.Props{Class: "mention-agent-profile"},
+					html.Summary(html.Props{Class: "mention-profile-trigger", Text: personaMentionText(m.Locale, "profile")}),
+					personaProfileCard(m.Locale, persona))), key))
+			continue
+		}
 		rows = append(rows, html.WithKey(html.Button(html.Props{ID: target + "-mention-" + itoa(i+1), Class: class, Type: "button", Role: "option", TabIndex: -1,
 			Data: map[string]string{"action": "mention-pick", "id": target, "extra": itoa(i + 1)},
 			Aria: map[string]string{"selected": boolString(i == state.Active)}},
-			personAvatar(m, person.ID, person.Name, "avatar small"),
-			html.Span(html.Props{Class: "mention-name", Text: person.Name}),
-			html.Span(html.Props{Class: "mention-detail", Text: detail})), "mention:"+person.ID))
+			avatar,
+			html.Span(html.Props{Class: "mention-name", Text: label}),
+			html.Span(html.Props{Class: "mention-detail", Text: detail})), key))
 	}
-	return html.Div(html.Props{ID: target + "-mentions", Class: "mention-menu", Role: "listbox", Aria: map[string]string{"label": m.t(KeyMentionTitle)}},
+	return html.Div(html.Props{ID: target + "-mentions", Class: "mention-menu", Role: "listbox", Aria: map[string]string{"label": personaMentionText(m.Locale, "menu")}},
 		append(rows, html.P(html.Props{Class: "mention-hint kbd-hint", Aria: map[string]string{"hidden": "true"}, Text: m.t(KeyMentionHint)}))...)
+}
+
+func personaMentionAttribution(actor *PersonaActor) ui.Node {
+	if actor == nil {
+		return nil
+	}
+	return html.Span(html.Props{Class: "mention-attribution", Text: actor.attribution()})
 }
 
 // mentionFieldAria points a composer at its open suggestion list so a screen
 // reader announces the highlighted person while focus stays in the field.
 func mentionFieldAria(state mentionState, target string, aria map[string]string) map[string]string {
-	out := map[string]string{"autocomplete": "list"}
+	out := map[string]string{"autocomplete": "list", "haspopup": "listbox", "expanded": "false"}
 	for k, v := range aria {
 		out[k] = v
 	}
 	if state.Open && state.Target == target {
+		out["expanded"] = "true"
 		out["controls"] = target + "-mentions"
 		out["activedescendant"] = target + "-mention-" + itoa(state.Active+1)
+	}
+	return out
+}
+
+func mentionModelFieldAria(model Model, state mentionState, target string, aria map[string]string) map[string]string {
+	out := mentionFieldAria(state, target, aria)
+	if state.Open && state.Target == target && len(mentionOptions(model, state.Query, target)) == 0 {
+		delete(out, "activedescendant")
 	}
 	return out
 }
@@ -221,8 +385,16 @@ func mentionFieldAria(state mentionState, target string, aria map[string]string)
 // the new "@a" never opened it. Handlers read and write the box; the tick
 // only asks for a render.
 type mentionBox struct {
-	state mentionState
-	seq   uint64
+	state    mentionState
+	personas []personaDraftMention
+	seq      uint64
+}
+
+type personaDraftMention struct {
+	Target         string
+	ConversationID string
+	Start, End     int
+	Reference      ChatReference
 }
 
 type mentionStore struct {
@@ -239,6 +411,69 @@ func (s mentionStore) Set(v mentionState) {
 	s.box.state = v
 	s.box.seq++
 	s.tick.Set(s.box.seq)
+}
+
+func (s mentionStore) AddPersona(target, conversationID string, start, end int, reference ChatReference) {
+	s.box.personas = append(s.box.personas, personaDraftMention{Target: target, ConversationID: conversationID, Start: start, End: end, Reference: reference})
+	s.box.seq++
+	s.tick.Set(s.box.seq)
+}
+
+func (s mentionStore) ReconcilePersonas(target, value string) {
+	kept := s.box.personas[:0]
+	for _, item := range s.box.personas {
+		if item.Target == target && !personaReferenceAt(value, item) {
+			continue
+		}
+		kept = append(kept, item)
+	}
+	if len(kept) != len(s.box.personas) {
+		s.box.personas = kept
+		s.box.seq++
+		s.tick.Set(s.box.seq)
+	}
+}
+
+func (s mentionStore) PersonaReferences(target, conversationID, value string) []ChatReference {
+	var out []ChatReference
+	for _, item := range s.box.personas {
+		if item.Target == target && item.ConversationID == conversationID && personaReferenceAt(value, item) {
+			out = append(out, item.Reference)
+		}
+	}
+	return out
+}
+
+func (s mentionStore) RemovePersonas(target, conversationID string) {
+	kept := s.box.personas[:0]
+	for _, item := range s.box.personas {
+		if item.Target == target && item.ConversationID == conversationID {
+			continue
+		}
+		kept = append(kept, item)
+	}
+	if len(kept) != len(s.box.personas) {
+		s.box.personas = kept
+		s.box.seq++
+		s.tick.Set(s.box.seq)
+	}
+}
+
+func personaReferenceAt(value string, item personaDraftMention) bool {
+	units := utf16.Encode([]rune(value))
+	if item.Start < 0 || item.End > len(units) || item.End <= item.Start {
+		return false
+	}
+	want := utf16.Encode([]rune("@" + item.Reference.Display))
+	if item.End-item.Start != len(want) {
+		return false
+	}
+	for i := range want {
+		if units[item.Start+i] != want[i] {
+			return false
+		}
+	}
+	return item.End == len(units) || unicode.IsSpace(rune(units[item.End]))
 }
 
 // composerNotice is a one-line status above the composer for a command that

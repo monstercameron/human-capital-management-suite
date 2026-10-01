@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/application/documentembed"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
@@ -147,6 +149,311 @@ func TestDocumentSeedPlanShape(t *testing.T) {
 	}
 	if _, err := planDocumentSeed([]seedPerson{{Key: "hc-001-x"}}, now); err == nil {
 		t.Fatal("population without the viewer accepted")
+	}
+}
+
+func TestDocumentSeedPlanUsesTenantViewerAndPeople(t *testing.T) {
+	pack := demoworkforce.IronridgePack
+	employees, err := pack.Plan(uuid.MustParse("4377b942-46df-5b4e-b504-43ff7cfb2aa0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	people := make([]seedPerson, 0, len(employees))
+	for _, e := range employees {
+		people = append(people, seedPerson{Key: e.Row.WorkerKey, Name: e.Row.LegalName, Title: e.JobTitle, Unit: e.Row.OrgUnit})
+	}
+	plan, err := planDocumentSeedForTenant(people, time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC), demoworkforce.IronridgeKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Viewer.Key != "ir-001-walt-brennan" {
+		t.Fatalf("viewer = %q", plan.Viewer.Key)
+	}
+	for _, d := range plan.Docs {
+		if strings.HasPrefix(d.Owner.Key, "hc-") {
+			t.Fatalf("cross-tenant owner %q", d.Owner.Key)
+		}
+		for _, share := range d.Shares {
+			if strings.HasPrefix(share.Recipient, "hc-") {
+				t.Fatalf("cross-tenant share %q", share.Recipient)
+			}
+		}
+	}
+	body := documentSeedBody(seedBodyInput{Spec: seedSpec{Kind: kindPolicy, Title: "Holiday pay", Topic: "Holiday pay"}, Title: "Holiday pay", Owner: plan.Viewer, Written: time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC), Rand: rand.New(rand.NewPCG(1, 1))})
+	if strings.Contains(body, "HarborCare") || !strings.Contains(body, "Ironridge Builders") {
+		t.Fatalf("tenant brand mismatch: %q", body)
+	}
+	for _, d := range plan.Docs {
+		text := strings.ToLower(d.Title + " " + documentSeedBody(seedBodyInput{Spec: d.Spec, Title: d.Title, Owner: d.Owner, People: seedTeam(plan.People, d.Spec.Domain), Written: d.Created, Rand: rand.New(rand.NewPCG(d.seed, 1))}))
+		for _, forbidden := range []string{"patient", "clinical", "infection control", "icu", "care coordination", "nurse"} {
+			if strings.Contains(text, forbidden) {
+				t.Fatalf("Ironridge document %q retains healthcare term %q", d.Title, forbidden)
+			}
+		}
+	}
+}
+
+func TestSeedTenantText_DistinguishesClinicalAndClinic(t *testing.T) {
+	input := "Clinical review; Clinic access; clinical checklist; clinic entrance; [Clinical guide](doc:clinical); [Clinic guide](doc:clinic)"
+	got := seedTenantTextForWorker("ir-001-walt-brennan", input)
+	want := "Field review; Jobsite access; field checklist; jobsite entrance; [Field guide](doc:clinical); [Jobsite guide](doc:clinic)"
+	if got != want {
+		t.Fatalf("tenant text = %q, want %q", got, want)
+	}
+	if strings.Contains(got, "Jobsiteal") {
+		t.Fatalf("clinical replacement was corrupted: %q", got)
+	}
+	if unchanged := seedTenantTextForWorker("hc-001-demo", input); unchanged != input {
+		t.Fatalf("HarborCare text changed: %q", unchanged)
+	}
+}
+
+func TestUpgradeUnchangedSeedDocumentIsGuardedAndIdempotent(t *testing.T) {
+	store := documentSeedStore(t)
+	ctx := context.Background()
+	employees, err := demoworkforce.IronridgePack.Plan(uuid.MustParse("4377b942-46df-5b4e-b504-43ff7cfb2aa0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	people := make([]seedPerson, 0, len(employees))
+	for _, e := range employees {
+		people = append(people, seedPerson{Key: e.Row.WorkerKey, Name: e.Row.LegalName, Title: e.JobTitle, Unit: e.Row.OrgUnit})
+	}
+	plan, err := planDocumentSeedForTenant(people, time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC), demoworkforce.IronridgeKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d seedDocPlan
+	for _, candidate := range plan.Docs {
+		legacyInput := seedBodyInput{Spec: candidate.Spec, Title: legacySeedTitle(candidate, plan.Viewer), Owner: candidate.Owner, People: seedTeam(plan.People, candidate.Spec.Domain), Written: candidate.Created, Rand: rand.New(rand.NewPCG(candidate.seed, 1))}
+		adaptedInput := legacyInput
+		adaptedInput.Rand = rand.New(rand.NewPCG(candidate.seed, 1))
+		legacy := strings.ToLower(legacySeedBody(legacyInput, legacyInput.Title))
+		adapted := documentSeedBody(adaptedInput)
+		if candidate.Spec.Kind == kindClinical && legacy != strings.ToLower(adapted) {
+			d = candidate
+			break
+		}
+	}
+	if d.Title == "" {
+		t.Fatal("no Ironridge document has an adapted body")
+	}
+	input := seedBodyInput{Spec: d.Spec, Title: d.Title, Owner: d.Owner, People: seedTeam(plan.People, d.Spec.Domain), Written: d.Created, Rand: rand.New(rand.NewPCG(d.seed, 1))}
+	legacyLinks := []seedLink{{Title: "Clinical safety guide", ID: "doc-target"}}
+	input.Links = []seedLink{{Title: "Jobsite safety guide", ID: "doc-target"}}
+	legacyTitle := legacySeedTitle(d, plan.Viewer)
+	legacyInput := input
+	legacyInput.Rand = rand.New(rand.NewPCG(d.seed, 1))
+	legacyInput.Links = legacyLinks
+	legacyBody := legacySeedBody(legacyInput, legacyTitle)
+	resetRand := func() { input.Rand = rand.New(rand.NewPCG(d.seed, 1)) }
+	id, _, err := store.CreatePersonalDocument(ctx, demoworkforce.IronridgeKey, d.Owner.Key, legacyTitle, legacyBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resetRand()
+	upgraded, err := upgradeUnchangedSeedDocument(ctx, store, demoworkforce.IronridgeKey, id, d, input, legacyLinks)
+	if err != nil || !upgraded {
+		_, got, readErr := store.ReadPersonalDocument(ctx, demoworkforce.IronridgeKey, d.Owner.Key, id)
+		t.Fatalf("first upgrade = %v, %v; got title=%q hash=%q want title=%q hash=%q read=%v", upgraded, err, got.Title, got.Hash, legacyTitle, documenthubstore.HashContent(documenthubstore.NormalizeMarkdown(legacyBody)), readErr)
+	}
+	upgraded, err = upgradeUnchangedSeedDocument(ctx, store, demoworkforce.IronridgeKey, id, d, input, legacyLinks)
+	if err != nil || upgraded {
+		t.Fatalf("second upgrade = %v, %v", upgraded, err)
+	}
+	resetRand()
+	expected := documenthubstore.NormalizeMarkdown(documentSeedBody(input))
+	_, latest, err := store.ReadPersonalDocument(ctx, demoworkforce.IronridgeKey, d.Owner.Key, id)
+	if err != nil || latest.Title != d.Title || latest.Markdown != expected || latest.Hash != documenthubstore.HashContent(expected) {
+		t.Fatalf("latest title/hash/body mismatch: title=%q hash=%q body=%q err=%v", latest.Title, latest.Hash, latest.Markdown, err)
+	}
+	var versions int
+	if err := store.RunTenantTx(ctx, demoworkforce.IronridgeKey, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM document_version WHERE tenant_id=$1 AND document_id=$2`, demoworkforce.IronridgeKey, id).Scan(&versions)
+	}); err != nil || versions != 2 {
+		t.Fatalf("version count=%d err=%v", versions, err)
+	}
+
+	changed, changedFirst, err := store.CreatePersonalDocument(ctx, demoworkforce.IronridgeKey, d.Owner.Key, legacyTitle, legacyBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreatePersonalDocumentVersion(ctx, demoworkforce.IronridgeKey, changed, d.Owner.Key, changedFirst.ID, legacyTitle, "# User edit\n"); err != nil {
+		t.Fatal(err)
+	}
+	resetRand()
+	upgraded, err = upgradeUnchangedSeedDocument(ctx, store, demoworkforce.IronridgeKey, changed, d, input, legacyLinks)
+	if err != nil || upgraded {
+		t.Fatalf("changed row upgrade = %v, %v", upgraded, err)
+	}
+	restored, restoredFirst, err := store.CreatePersonalDocument(ctx, demoworkforce.IronridgeKey, d.Owner.Key, legacyTitle, legacyBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited, err := store.CreatePersonalDocumentVersion(ctx, demoworkforce.IronridgeKey, restored, d.Owner.Key, restoredFirst.ID, legacyTitle, "# User edit\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreatePersonalDocumentVersion(ctx, demoworkforce.IronridgeKey, restored, d.Owner.Key, edited.ID, legacyTitle, legacyBody); err != nil {
+		t.Fatal(err)
+	}
+	resetRand()
+	upgraded, err = upgradeUnchangedSeedDocument(ctx, store, demoworkforce.IronridgeKey, restored, d, input, legacyLinks)
+	if err != nil || upgraded {
+		t.Fatalf("restored user row upgrade = %v, %v", upgraded, err)
+	}
+}
+
+func TestDocumentSeedUpgradeCommand_PreflightApplyAndRerun(t *testing.T) {
+	store := documentSeedStore(t)
+	ctx := context.Background()
+	employees, err := demoworkforce.IronridgePack.Plan(uuid.MustParse("4377b942-46df-5b4e-b504-43ff7cfb2aa0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	people := make([]seedPerson, 0, len(employees))
+	for _, e := range employees {
+		people = append(people, seedPerson{Key: e.Row.WorkerKey, Name: e.Row.LegalName, Title: e.JobTitle, Unit: e.Row.OrgUnit})
+	}
+	now := time.Now().UTC()
+	plan, err := planDocumentSeedForTenant(people, now, demoworkforce.IronridgeKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d seedDocPlan
+	for _, candidate := range plan.Docs {
+		if candidate.Spec.Kind == kindClinical && len(candidate.Links) == 0 {
+			d = candidate
+			break
+		}
+	}
+	if d.Title == "" {
+		t.Fatal("no link-free clinical seed document")
+	}
+	// The persisted seed row predates this invocation by multiple days; the
+	// command must reconstruct from its stored version timestamp, not now.
+	d.Created = now.Add(-72 * time.Hour)
+	legacyTitle := legacySeedTitle(d, plan.Viewer)
+	input := seedBodyInput{Spec: d.Spec, Title: d.Title, Owner: d.Owner, People: seedTeam(plan.People, d.Spec.Domain), Written: d.Created, Rand: rand.New(rand.NewPCG(d.seed, 1))}
+	legacyBody := legacySeedBody(input, legacyTitle)
+	id, first, err := store.CreatePersonalDocument(ctx, demoworkforce.IronridgeKey, d.Owner.Key, legacyTitle, legacyBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := backdateSeedDocument(ctx, store, demoworkforce.IronridgeKey, id, first.ID, "", d, nil); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := runDocumentSeedUpgradeCommand(ctx, store, people, demoworkforce.IronridgeKey, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), id+" eligible ") {
+		t.Fatalf("preflight output=%q", out.String())
+	}
+	if _, latest, err := store.ReadPersonalDocument(ctx, demoworkforce.IronridgeKey, d.Owner.Key, id); err != nil || latest.ID != first.ID || latest.Markdown != documenthubstore.NormalizeMarkdown(legacyBody) {
+		t.Fatalf("preflight mutated row: latest=%+v err=%v", latest, err)
+	}
+	out.Reset()
+	if err := runDocumentSeedUpgradeCommand(ctx, store, people, demoworkforce.IronridgeKey, true, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), id+" upgraded ") {
+		t.Fatalf("apply output=%q", out.String())
+	}
+	_, latest, err := store.ReadPersonalDocument(ctx, demoworkforce.IronridgeKey, d.Owner.Key, id)
+	if err != nil || latest.Title != d.Title || latest.Markdown == documenthubstore.NormalizeMarkdown(legacyBody) {
+		t.Fatalf("apply result=%+v err=%v", latest, err)
+	}
+	out.Reset()
+	if err := runDocumentSeedUpgradeCommand(ctx, store, people, demoworkforce.IronridgeKey, true, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), id+" history ") {
+		t.Fatalf("rerun output=%q", out.String())
+	}
+}
+
+func TestDocumentSeedUpgradeCommand_HistoricalDatedLinkUsesPersistedTitle(t *testing.T) {
+	store := documentSeedStore(t)
+	ctx := context.Background()
+	employees, err := demoworkforce.IronridgePack.Plan(uuid.MustParse("4377b942-46df-5b4e-b504-43ff7cfb2aa0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	people := make([]seedPerson, 0, len(employees))
+	for _, e := range employees {
+		people = append(people, seedPerson{Key: e.Row.WorkerKey, Name: e.Row.LegalName, Title: e.JobTitle, Unit: e.Row.OrgUnit})
+	}
+	now := time.Now().UTC()
+	plan, err := planDocumentSeedForTenant(people, now, demoworkforce.IronridgeKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var source, target seedDocPlan
+	var targetIndex int
+	for _, candidate := range plan.Docs {
+		for _, j := range candidate.Links {
+			if plan.Docs[j].Spec.Dated && len(plan.Docs[j].Links) == 0 {
+				source, target, targetIndex = candidate, plan.Docs[j], j
+				break
+			}
+		}
+		if source.Title != "" {
+			break
+		}
+	}
+	if source.Title == "" {
+		t.Fatal("no dated linked seed pair")
+	}
+	historical := now.Add(-72 * time.Hour)
+	target.Created = historical
+	targetTitle := legacySeedTitle(target, target.Owner)
+	targetInput := seedBodyInput{Spec: target.Spec, Title: target.Title, Owner: target.Owner, People: seedTeam(plan.People, target.Spec.Domain), Written: target.Created, Rand: rand.New(rand.NewPCG(target.seed, 1))}
+	targetBody := legacySeedBody(targetInput, targetTitle)
+	targetID, targetFirst, err := store.CreatePersonalDocument(ctx, demoworkforce.IronridgeKey, target.Owner.Key, targetTitle, targetBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := backdateSeedDocument(ctx, store, demoworkforce.IronridgeKey, targetID, targetFirst.ID, "", target, nil); err != nil {
+		t.Fatal(err)
+	}
+	source.Created = historical
+	sourceTitle := legacySeedTitle(source, source.Owner)
+	sourceInput := seedBodyInput{Spec: source.Spec, Title: source.Title, Owner: source.Owner, People: seedTeam(plan.People, source.Spec.Domain), Written: source.Created, Rand: rand.New(rand.NewPCG(source.seed, 1)), Links: []seedLink{{Title: targetTitle, ID: targetID}}}
+	sourceBody := legacySeedBody(sourceInput, sourceTitle)
+	sourceID, sourceFirst, err := store.CreatePersonalDocument(ctx, demoworkforce.IronridgeKey, source.Owner.Key, sourceTitle, sourceBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := backdateSeedDocument(ctx, store, demoworkforce.IronridgeKey, sourceID, sourceFirst.ID, "", source, nil); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := runDocumentSeedUpgradeCommand(ctx, store, people, demoworkforce.IronridgeKey, true, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), sourceID+" upgraded ") {
+		t.Fatalf("source output=%q source=%s target=%s target-index=%d", out.String(), sourceID, targetID, targetIndex)
+	}
+	_, latest, err := store.ReadPersonalDocument(ctx, demoworkforce.IronridgeKey, source.Owner.Key, sourceID)
+	var adaptedLinks []seedLink
+	for _, j := range source.Links {
+		link := seedLink{Title: plan.Docs[j].Title}
+		if j == targetIndex {
+			link.ID = targetID
+		}
+		adaptedLinks = append(adaptedLinks, link)
+	}
+	adaptedInput := seedBodyInput{Spec: source.Spec, Title: source.Title, Owner: source.Owner, People: seedTeam(plan.People, source.Spec.Domain), Written: historical, Rand: rand.New(rand.NewPCG(source.seed, 1)), Links: adaptedLinks}
+	expected := documenthubstore.NormalizeMarkdown(documentSeedBody(adaptedInput))
+	if err != nil || latest.Title != source.Title || latest.Markdown != expected || latest.Hash != documenthubstore.HashContent(expected) {
+		t.Fatalf("linked source latest=%+v want hash=%q err=%v", latest, documenthubstore.HashContent(expected), err)
+	}
+	var versions int
+	if err := store.RunTenantTx(ctx, demoworkforce.IronridgeKey, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM document_version WHERE tenant_id=$1 AND document_id=$2`, demoworkforce.IronridgeKey, sourceID).Scan(&versions)
+	}); err != nil || versions != 2 {
+		t.Fatalf("linked source versions=%d err=%v", versions, err)
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
@@ -292,6 +293,11 @@ type SendRequest struct {
 	// and the column default stands, so no request path can choose its own
 	// timestamp by accident.
 	CreatedAt time.Time
+	// TrustedAuthor is set only by the server-owned persona reply port. It
+	// bypasses ordinary member authorization after that port validates its
+	// server-issued identity and audience fence.
+	TrustedAuthor            bool
+	ExpectedAudienceRevision uint64
 }
 type OutboxEvent struct {
 	ID                               int64
@@ -374,24 +380,26 @@ func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	if err = tenant(ctx, tx, r.TenantID); err != nil {
 		return out, err
 	}
-	var member string
 	if r.HomeTenantID == "" {
 		r.HomeTenantID = r.TenantID
 	}
-	machine, identityErr := machineActor(ctx, r.HomeTenantID, r.AuthorID)
-	if identityErr != nil {
-		return out, identityErr
-	}
-	if machine {
-		if r.HomeTenantID != r.TenantID {
+	if !r.TrustedAuthor {
+		var member string
+		machine, identityErr := machineActor(ctx, r.HomeTenantID, r.AuthorID)
+		if identityErr != nil {
+			return out, identityErr
+		}
+		if machine {
+			if r.HomeTenantID != r.TenantID {
+				return out, ErrNotMember
+			}
+			err = tx.QueryRow(ctx, `SELECT id FROM chat_app_installation WHERE tenant_id=$1 AND conversation_id=$2 AND app_id=$3 AND id=$4 AND status='ACTIVE' AND version>0 AND created_at<=now() AND $5=ANY(granted_scopes) FOR UPDATE`, r.TenantID, r.ConversationID, r.AuthorID, r.TenantID+":"+r.ConversationID+":"+r.AuthorID, "chat.posts.write").Scan(&member)
+		} else {
+			err = tx.QueryRow(ctx, `SELECT member_id FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND state='active' FOR UPDATE`, r.TenantID, r.ConversationID, r.HomeTenantID, r.AuthorID).Scan(&member)
+		}
+		if err != nil {
 			return out, ErrNotMember
 		}
-		err = tx.QueryRow(ctx, `SELECT id FROM chat_app_installation WHERE tenant_id=$1 AND conversation_id=$2 AND app_id=$3 AND id=$4 AND status='ACTIVE' AND version>0 AND created_at<=now() AND $5=ANY(granted_scopes) FOR UPDATE`, r.TenantID, r.ConversationID, r.AuthorID, r.TenantID+":"+r.ConversationID+":"+r.AuthorID, "chat.posts.write").Scan(&member)
-	} else {
-		err = tx.QueryRow(ctx, `SELECT member_id FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND state='active' FOR UPDATE`, r.TenantID, r.ConversationID, r.HomeTenantID, r.AuthorID).Scan(&member)
-	}
-	if err != nil {
-		return out, ErrNotMember
 	}
 	// The fence locks only this conversation row, which also gives each
 	// conversation a stable sequence under concurrent writers without a
@@ -411,6 +419,19 @@ func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 		}
 		if !errors.Is(e, dbport.ErrNoRows) {
 			return out, e
+		}
+	}
+	if r.TrustedAuthor {
+		var audienceRevision int64
+		var personaConversationKind string
+		if err = tx.QueryRow(ctx, `SELECT audience_revision,kind FROM chat_conversation WHERE tenant_id=$1 AND id=$2`, r.TenantID, r.ConversationID).Scan(&audienceRevision, &personaConversationKind); err != nil {
+			return out, err
+		}
+		if personaConversationKind != string(chat.PublicChannel) {
+			return out, chat.ErrPermissionDenied
+		}
+		if r.ExpectedAudienceRevision == 0 || uint64(audienceRevision) != r.ExpectedAudienceRevision {
+			return out, chat.ErrAudienceChanged
 		}
 	}
 	// The per-conversation post counter lives on the row this transaction holds.

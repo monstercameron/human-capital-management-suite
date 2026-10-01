@@ -117,6 +117,35 @@ func (f *fakeStore) SendPost(_ context.Context, _ SendPostRequest, p Post) (Post
 	}
 	return f.post, nil
 }
+
+type personaReplyStore struct {
+	*fakeStore
+	called bool
+}
+
+func (f *personaReplyStore) CommitPersonaReply(_ context.Context, r PersonaReplyCommitRequest) (Post, error) {
+	f.called = true
+	return Post{ID: "persona-post", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.AuthorID, Body: r.Body}, nil
+}
+
+func TestCommitPersonaReplyForwardsServerOwnedStoreExtension(t *testing.T) {
+	store := &personaReplyStore{fakeStore: &fakeStore{}}
+	service := NewService(store, func() time.Time { return time.Unix(10, 0).UTC() })
+	request := PersonaReplyCommitRequest{TenantID: "tenant", ConversationID: "conversation", AuthorID: "persona", AuthorHomeTenantID: "tenant", Body: "answer", IdempotencyKey: "reply-1", ExpectedAudienceRevision: 1}
+	post, err := service.CommitPersonaReply(context.Background(), request)
+	if err != nil || post.ID != "persona-post" || !store.called {
+		t.Fatalf("post=%+v err=%v called=%t", post, err, store.called)
+	}
+}
+
+func TestCommitPersonaReplyUnavailableWithoutStoreExtension(t *testing.T) {
+	service := NewService(&fakeStore{}, time.Now)
+	_, err := service.CommitPersonaReply(context.Background(), PersonaReplyCommitRequest{TenantID: "tenant", ConversationID: "conversation"})
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("err=%v, want unavailable", err)
+	}
+}
+
 func (f *fakeStore) ListPosts(_ context.Context, _ Principal, _, _ string, _ uint64, _ Page, w PostWindow) (ListPostsResponse, error) {
 	f.window = w
 	return ListPostsResponse{}, nil

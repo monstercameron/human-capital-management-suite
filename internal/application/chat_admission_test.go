@@ -17,8 +17,9 @@ import (
 // an admission refusal from a call that went through.
 type chatServiceStub struct {
 	chatcore.ConversationService
-	calls      map[string]int
-	membership chatcore.Membership
+	calls          map[string]int
+	membership     chatcore.Membership
+	personaRequest chatcore.PersonaReplyCommitRequest
 }
 
 func newChatServiceStub() *chatServiceStub {
@@ -29,6 +30,11 @@ func (s *chatServiceStub) note(name string) { s.calls[name]++ }
 func (s *chatServiceStub) GetConversation(_ context.Context, r chatcore.GetConversationRequest) (chatcore.Conversation, error) {
 	s.note("GetConversation")
 	return chatcore.Conversation{ID: r.ConversationID, TenantID: r.TenantID, Revision: 1}, nil
+}
+func (s *chatServiceStub) CommitPersonaReply(_ context.Context, r chatcore.PersonaReplyCommitRequest) (chatcore.Post, error) {
+	s.note("CommitPersonaReply")
+	s.personaRequest = r
+	return chatcore.Post{ID: "persona-reply", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.AuthorID}, nil
 }
 func (s *chatServiceStub) ListPosts(_ context.Context, _ chatcore.ListPostsRequest) (chatcore.ListPostsResponse, error) {
 	s.note("ListPosts")
@@ -72,6 +78,37 @@ func laneRuntime(t *testing.T, budgets chatadmission.Config) *ChatStreamRuntime 
 		t.Fatal(err)
 	}
 	return r
+}
+
+// TestTodo_AGENTP_012_StreamingCommitterAdmission proves the outer production
+// decorator forwards the optional persona write and meters it on the send lane.
+func TestTodo_AGENTP_012_StreamingCommitterAdmission(t *testing.T) {
+	runtime := laneRuntime(t, chatadmission.Config{TenantConcurrent: 4, ConversationConcurrent: 4, SendConcurrent: 1, WatchConcurrent: 2, ReadConcurrent: 2, DerivedConcurrent: 2})
+	inner := newChatServiceStub()
+	service := &streamingChatService{ConversationService: inner, runtime: runtime}
+	request := chatcore.PersonaReplyCommitRequest{TenantID: "tenant", ConversationID: "conversation", AuthorID: "persona", AuthorHomeTenantID: "tenant", Body: "answer", ExpectedAudienceRevision: 9, OutputDigest: "digest"}
+
+	held, err := runtime.AcquireSend(context.Background(), request.TenantID, request.ConversationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.CommitPersonaReply(context.Background(), request); !errors.Is(err, chatcore.ErrUnavailable) {
+		t.Fatalf("saturated persona send=%v, want retryable unavailable", err)
+	}
+	if inner.calls["CommitPersonaReply"] != 0 {
+		t.Fatal("persona write reached the inner service after admission refusal")
+	}
+	if err := held.Release(); err != nil {
+		t.Fatal(err)
+	}
+
+	post, err := service.CommitPersonaReply(context.Background(), request)
+	if err != nil || post.ID != "persona-reply" {
+		t.Fatalf("post=%+v err=%v", post, err)
+	}
+	if inner.calls["CommitPersonaReply"] != 1 || inner.personaRequest != request {
+		t.Fatalf("inner calls=%v request=%+v", inner.calls, inner.personaRequest)
+	}
 }
 
 // TestTodo_CHAT_046_ReadAndDerivedLanesAreAdmitted proves the read path is

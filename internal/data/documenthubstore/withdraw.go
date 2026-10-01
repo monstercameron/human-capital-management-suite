@@ -32,6 +32,13 @@ func (s *Store) Withdraw(ctx context.Context, tenantID string, in WithdrawInput)
 	}
 	var result Withdrawal
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
+		var locked string
+		if err := tx.QueryRow(ctx, `SELECT id FROM document WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, tenantID, in.DocumentID).Scan(&locked); err != nil {
+			if errors.Is(err, dbport.ErrNoRows) {
+				return ErrDenied
+			}
+			return err
+		}
 		if err := authorizeTx(ctx, tx, tenantID, in.DocumentID, "person", in.ActorID, ActionRetire); err != nil {
 			return err
 		}

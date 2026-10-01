@@ -30,7 +30,17 @@ type Event struct {
 	ConversationID  string
 	Sequence        uint64
 	MembershipEpoch uint64
-	Payload         []byte
+	// RecipientSubjectID scopes an ephemeral event to one subscriber. An empty
+	// value is a normal conversation event; a non-empty value is never fanned
+	// out to another subject, even when both subscriptions share a room.
+	RecipientSubjectID string
+	// RecipientHomeTenantID further scopes an ephemeral event to the recipient's
+	// home tenant. It is required for ephemeral events and must match both
+	// recipient identity components.
+	RecipientHomeTenantID string
+	Ephemeral             bool
+	ExpiresAt             time.Time
+	Payload               []byte
 }
 
 type Page struct {
@@ -136,10 +146,14 @@ func (b Bridge) poll(ctx context.Context, sub *Subscription, req WatchRequest) {
 			return
 		}
 		for _, event := range page.Events {
-			if err := b.Stream.Publish(ctx, event); err != nil {
+			if err := b.Stream.validateEvent(event); err != nil {
 				sub.close(err)
 				return
 			}
+			// Reader pages are already filtered for this subscription. Publishing
+			// through the room hub would incorrectly fan a member's view out to
+			// every other member in the conversation.
+			sub.deliver(ctx, event)
 			if event.Sequence > after {
 				after = event.Sequence
 			}
@@ -256,6 +270,13 @@ func (s *Stream) Watch(ctx context.Context, req WatchRequest) (*Subscription, er
 	}
 	sub := &Subscription{h: s.h, access: a, watchCtx: ctx, queue: make(chan Event, s.h.config.QueueSize), done: make(chan struct{}), last: start}
 	for _, event := range page.Events {
+		if event.Ephemeral && (!recipientMatches(a, event) || !s.h.config.Clock().Before(event.ExpiresAt)) {
+			if event.Sequence > start {
+				start = event.Sequence
+			}
+			sub.last = start
+			continue
+		}
 		if err := s.h.authorizeEvent(ctx, a, event); err != nil {
 			return nil, fmt.Errorf("%w: replay sequence %d", ErrUnauthorized, event.Sequence)
 		}
@@ -300,8 +321,11 @@ func (s *Stream) Watch(ctx context.Context, req WatchRequest) (*Subscription, er
 }
 
 func (s *Stream) Publish(ctx context.Context, event Event) error {
-	if s == nil || s.h == nil || event.TenantID == "" || event.ConversationID == "" || event.Sequence == 0 {
-		return ErrInvalidConfig
+	if err := s.validateEvent(event); err != nil {
+		return err
+	}
+	if event.Ephemeral && !s.h.config.Clock().Before(event.ExpiresAt) {
+		return nil
 	}
 	key := subscriptionKey(event.TenantID, event.ConversationID)
 	s.h.mu.RLock()
@@ -312,6 +336,19 @@ func (s *Stream) Publish(ctx context.Context, event Event) error {
 	s.h.mu.RUnlock()
 	for _, sub := range subscribers {
 		sub.deliver(ctx, event)
+	}
+	return nil
+}
+
+func (s *Stream) validateEvent(event Event) error {
+	if s == nil || s.h == nil || event.TenantID == "" || event.ConversationID == "" || event.Sequence == 0 {
+		return ErrInvalidConfig
+	}
+	if !event.Ephemeral && event.RecipientSubjectID != "" {
+		return ErrInvalidConfig
+	}
+	if event.Ephemeral && (event.RecipientSubjectID == "" || event.RecipientHomeTenantID == "" || event.ExpiresAt.IsZero()) {
+		return ErrInvalidConfig
 	}
 	return nil
 }
@@ -416,6 +453,11 @@ func (s *Subscription) deliver(_ context.Context, event Event) {
 	if event.TenantID != s.access.TenantID {
 		return
 	}
+	if event.Ephemeral {
+		if !recipientMatches(s.access, event) || !s.h.config.Clock().Before(event.ExpiresAt) {
+			return
+		}
+	}
 	if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
 		s.close(ErrRevoked)
 		return
@@ -472,6 +514,12 @@ func (h *hub) authorizeEvent(ctx context.Context, a Access, e Event) error {
 	a.Sequence = e.Sequence
 	return h.config.Authorizer.Authorize(ctx, a)
 }
+
+func recipientMatches(a Access, event Event) bool {
+	return event.RecipientSubjectID != "" && event.RecipientHomeTenantID != "" &&
+		event.RecipientSubjectID == a.SubjectID && event.RecipientHomeTenantID == a.HomeTenantID
+}
+
 func cloneEvent(e Event) Event { e.Payload = append([]byte(nil), e.Payload...); return e }
 
 func (h *hub) encodeCursor(c cursor) string {

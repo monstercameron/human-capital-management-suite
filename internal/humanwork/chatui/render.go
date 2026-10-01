@@ -58,7 +58,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			giphy.openSearch("thread-composer", m.GiphyAPIKey, query)
 			return
 		}
-		replyInThread(m)
+		replyInThread(m, mention)
 	}
 	closeDrawer := func() {
 		if m.SidebarOpen && m.Callbacks.ToggleSidebar != nil {
@@ -80,9 +80,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		}
 	}
 	mentionPick := func(state mentionState, index int) {
-		people := mentionCandidates(m, state.Query)
+		options := mentionOptions(m, state.Query, state.Target)
 		mention.Set(mentionState{})
-		if !state.Open || index < 0 || index >= len(people) {
+		if !state.Open || index < 0 || index >= len(options) {
 			return
 		}
 		// Re-read the field: the list was drawn a keystroke ago, and the
@@ -92,8 +92,20 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			return
 		}
 		if _, start, found := mentionTokenAt(value, caret); found && start == state.Start {
-			updated, next := applyMention(value, start, caret, people[index].Name)
-			replaceComposerText(state.Target, updated, next)
+			option := options[index]
+			if option.person != nil {
+				updated, next := applyMention(value, start, caret, option.person.Name)
+				replaceComposerText(state.Target, updated, next)
+				return
+			}
+			if option.persona != nil {
+				updated, next, reference, ok := applyPersonaMention(value, start, caret, *option.persona, m.SelectedID)
+				if !ok {
+					return
+				}
+				replaceComposerText(state.Target, updated, next)
+				mention.AddPersona(state.Target, m.SelectedID, start, next-1, reference)
+			}
 		}
 	}
 	mentionTrack := func(target string) {
@@ -124,7 +136,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		if !state.Open || state.Target != target {
 			return false
 		}
-		count := len(mentionCandidates(m, state.Query))
+		count := len(mentionOptions(m, state.Query, target))
 		switch e.GetKey() {
 		case "ArrowDown", "ArrowUp":
 			if count == 0 {
@@ -173,10 +185,22 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			giphy.openSearch("chat-composer", m.GiphyAPIKey, query)
 			return
 		}
-		if body == "" || m.SelectedID == "" || m.Callbacks.SendMessage == nil {
+		if body == "" || m.SelectedID == "" {
 			return
 		}
-		m.Callbacks.SendMessage(m.SelectedID, body)
+		raw := domValue("chat-composer")
+		refs := mention.PersonaReferences("chat-composer", m.SelectedID, raw)
+		if len(refs) > 0 {
+			if m.Callbacks.SendMessageWithReferences == nil {
+				return
+			}
+			m.Callbacks.SendMessageWithReferences(m.SelectedID, body, refs)
+		} else if m.Callbacks.SendMessage != nil {
+			m.Callbacks.SendMessage(m.SelectedID, body)
+		} else {
+			return
+		}
+		mention.RemovePersonas("chat-composer", m.SelectedID)
 		setDOMValue("chat-composer", "")
 		drafts.set(m.SelectedID, "")
 		if m.Callbacks.DraftChanged != nil {
@@ -514,6 +538,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			}
 		}),
 		composerInput: ui.UseEvent(func(e ui.InputEvent) {
+			mention.ReconcilePersonas("chat-composer", e.GetValue())
 			drafts.set(m.SelectedID, e.GetValue())
 			if m.Callbacks.DraftChanged != nil {
 				m.Callbacks.DraftChanged(m.SelectedID, e.GetValue())
@@ -812,7 +837,10 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			}
 		}),
 		threadSubmit: ui.UseEvent(func(e ui.FormEvent) { e.PreventDefault(); threadSend() }),
-		threadInput:  ui.UseEvent(func(ui.InputEvent) { mentionTrack("thread-composer") }),
+		threadInput: ui.UseEvent(func(e ui.InputEvent) {
+			mention.ReconcilePersonas("thread-composer", e.GetValue())
+			mentionTrack("thread-composer")
+		}),
 		threadKey: ui.UseEvent(func(e ui.KeyboardEvent) {
 			if mentionKey(e, "thread-composer") {
 				return
@@ -834,12 +862,24 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 	}
 }
 
-func replyInThread(m Model) {
+func replyInThread(m Model, mention mentionStore) {
 	body := strings.TrimSpace(domValue("thread-composer"))
-	if body == "" || m.ThreadParentID == "" || m.Callbacks.ReplyInThread == nil {
+	if body == "" || m.ThreadParentID == "" {
 		return
 	}
-	m.Callbacks.ReplyInThread(m.ThreadParentID, body)
+	raw := domValue("thread-composer")
+	refs := mention.PersonaReferences("thread-composer", m.SelectedID, raw)
+	if len(refs) > 0 {
+		if m.Callbacks.ReplyInThreadWithReferences == nil {
+			return
+		}
+		m.Callbacks.ReplyInThreadWithReferences(m.ThreadParentID, body, refs)
+	} else if m.Callbacks.ReplyInThread != nil {
+		m.Callbacks.ReplyInThread(m.ThreadParentID, body)
+	} else {
+		return
+	}
+	mention.RemovePersonas("thread-composer", m.SelectedID)
 	setDOMValue("thread-composer", "")
 }
 
@@ -1995,10 +2035,14 @@ func searchResultsPanel(m Model) ui.Node {
 				break
 			}
 			label := m.tf(KeySearchOpenMessage, map[string]string{"channel": channel, "author": name})
+			searchActor := ui.Node(nil)
+			if hit.Message.PersonaActor != nil {
+				searchActor = PersonaBadgeLocalized(m.Locale, hit.Message.PersonaActor)
+			}
 			rows = append(rows, html.WithKey(html.Button(html.Props{Class: "search-result search-message-result", Type: "button", Data: map[string]string{"action": "open-search-message", "id": hit.ConversationID, "extra": hit.Message.ID}, Aria: map[string]string{"label": label}, Disabled: m.Callbacks.OpenSearchMessage == nil},
 				personAvatar(m, hit.Message.AuthorID, name, "avatar small"),
 				html.Span(html.Props{Class: "search-result-main"},
-					html.Span(html.Props{Class: "search-result-meta"}, html.Strong(html.Props{Text: name}), html.Span(html.Props{Class: "search-result-context"}, searchContext(m, glyph, channel)...), html.Span(html.Props{Class: "search-result-time", Text: searchWhen(m, hit.Message)})),
+					html.Span(html.Props{Class: "search-result-meta"}, html.Strong(html.Props{Text: name}), searchActor, html.Span(html.Props{Class: "search-result-context"}, searchContext(m, glyph, channel)...), html.Span(html.Props{Class: "search-result-time", Text: searchWhen(m, hit.Message)})),
 					html.Span(html.Props{Class: "search-result-snippet"}, highlightText(searchSnippet(resolveJourneyReferencesForSnippet(m, resolveProjectTaskReferencesForSnippet(m, resolveDocTokensForSnippet(m, hit.Message.Body))), query, 180), query)...))), "message:"+hit.ConversationID+":"+hit.Message.ID))
 		}
 		children = append(children, html.Div(html.Props{Class: "search-result-group"}, rows...))
@@ -2074,10 +2118,11 @@ func timelineBody(m Model, h handlers) []ui.Node {
 				html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: m.Callbacks.OpenCreate == nil, Data: map[string]string{"action": "open-create"}, Text: m.t(KeyNewConversation)}),
 			))}
 	}
-	if len(m.Messages) == 0 {
+	ephemeral := VisibleEphemeralMessages(m.EphemeralMessages, time.Now())
+	if len(m.Messages) == 0 && len(ephemeral) == 0 {
 		return []ui.Node{html.Div(html.Props{Class: "state-panel", Role: "status"}, html.H2(html.Props{Text: m.t(KeyNoMessages)}), html.P(html.Props{Text: m.t(KeyEmptyBody)}))}
 	}
-	items := make([]ui.Node, 0, len(m.Messages)+4)
+	items := make([]ui.Node, 0, len(m.Messages)+len(ephemeral)+4)
 	messages := chronological(m.Messages)
 	if !m.HasOlder {
 		items = append(items, html.WithKey(channelIntro(m), "intro"))
@@ -2099,6 +2144,9 @@ func timelineBody(m Model, h handlers) []ui.Node {
 		continued := !unread && i > 0 && day == prevDay && msg.AuthorID != "" && msg.AuthorID == prev.AuthorID && !msg.SentAt.IsZero() && msg.SentAt.Sub(prev.SentAt) < 5*time.Minute && m.EditingID != msg.ID && m.EditingID != prev.ID
 		items = append(items, html.WithKey(message(m, h, msg, continued), "message:"+msg.ID))
 		prev, prevDay = msg, day
+	}
+	for _, privateMessage := range ephemeral {
+		items = append(items, html.WithKey(RenderEphemeralMessage(m, privateMessage, time.Now()), "ephemeral:"+privateMessage.ID))
 	}
 	if m.HasNewer {
 		items = append(items, html.WithKey(html.Button(html.Props{Class: "button secondary small load-newer", Type: "button", Disabled: m.Callbacks.LoadNewer == nil, Data: map[string]string{"action": "load-newer"}, Text: m.t(KeyLoadNewer)}), "load-newer"))
@@ -2191,6 +2239,7 @@ func dayLabel(m Model, t time.Time) string {
 }
 
 func message(m Model, h handlers, msg Message, continued bool) ui.Node {
+	msg = personaTrustedMessage(m, msg)
 	own := msg.AuthorID != "" && msg.AuthorID == m.CurrentUser
 	reactAction, reactLabel, reactIcon := "react", m.t(KeyReact), "smile"
 	if msg.Reacted {
@@ -2276,6 +2325,9 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	meta := []ui.Node{}
 	if !continued {
 		meta = append(meta, personButton(m, msg.AuthorID, msg.Author, "message-author person-name", ui.Text(msg.Author)))
+		if msg.PersonaActor != nil {
+			meta = append(meta, PersonaBadgeLocalized(m.Locale, msg.PersonaActor))
+		}
 	}
 	if msg.TimeLabel != "" {
 		meta = append(meta, html.Time(html.Props{Class: "message-time", Text: msg.TimeLabel}))
@@ -2300,6 +2352,7 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	// Focusable so keyboard users reach the action toolbar and a tap on a
 	// phone reveals it (actions are hidden there until the row has focus).
 	contentChildren := []ui.Node{html.Div(html.Props{Class: "message-meta"}, meta...), body}
+	contentChildren = append(contentChildren, personaPostProfiles(m, msg))
 	contentChildren = append(contentChildren, linkEmbeds(m, msg.Body)...)
 	contentChildren = append(contentChildren, docPreviewEmbeds(m, msg.Body)...)
 	contentChildren = append(contentChildren, projectPreviewEmbeds(m, msg.Body)...)
@@ -2449,7 +2502,7 @@ func composer(m Model, h handlers) ui.Node {
 	// Enter that lands while the box is disabled is silently dropped, and a
 	// send used to trigger exactly such a refresh, eating the next message.
 	disabled := m.SelectedID == "" || m.State == StateError
-	canSend := m.Callbacks.SendMessage != nil && !disabled
+	canSend := (m.Callbacks.SendMessage != nil || (m.Callbacks.SendMessageWithReferences != nil && len(personaMentionCandidates(m, "")) > 0)) && !disabled
 	return html.Form(html.Props{Class: "chat-composer", OnSubmit: h.composerSubmit, Aria: map[string]string{"label": m.t(KeyComposeRegion)}},
 		html.Label(html.Props{Class: "sr-only", For: id}, ui.Text(m.t(KeyMessage))),
 		mentionMenu(m, h.mentionView, id),
@@ -2457,7 +2510,7 @@ func composer(m Model, h handlers) ui.Node {
 		composerNotice(h.local.composerNotice),
 		html.Textarea(html.Props{ID: id, Class: "composer-input", Name: "message", Placeholder: placeholder, Rows: 3, Dir: "auto", Data: map[string]string{"chat-value": m.Draft}, Disabled: disabled,
 			OnInput: h.composerInput, OnKeyDown: h.composerKey,
-			Aria: docSuggestFieldAria(h.local.docSuggest, id, mentionFieldAria(h.mentionView, id, map[string]string{"describedby": "composer-help"}))}),
+			Aria: docSuggestFieldAria(h.local.docSuggest, id, mentionModelFieldAria(m, h.mentionView, id, map[string]string{"describedby": "composer-help"}))}),
 		html.Div(html.Props{Class: "composer-embeds"}, append(append(append(append(linkEmbeds(m, m.Draft), docPreviewEmbeds(m, m.Draft)...), projectPreviewEmbeds(m, m.Draft)...), journeyPreviewEmbeds(m, m.Draft)...), channelReferenceLinks(m, m.Draft)...)...),
 		html.Div(html.Props{Class: "composer-toolbar"},
 			html.Div(html.Props{Class: "composer-tools"},
@@ -2724,6 +2777,10 @@ func threadPane(m Model, h handlers) ui.Node {
 			break
 		}
 	}
+	if root != nil {
+		trusted := personaTrustedMessage(m, *root)
+		root = &trusted
+	}
 	roomName := displayName(m, m.selected())
 	if k := m.selected().Kind; k == PublicChannel || k == PrivateChannel {
 		roomName = "#" + roomName
@@ -2741,6 +2798,10 @@ func threadPane(m Model, h handlers) ui.Node {
 		rootChildren := []ui.Node{html.Div(html.Props{Class: "message-meta"}, personButton(m, root.AuthorID, root.Author, "message-author person-name", ui.Text(root.Author)), html.Time(html.Props{Class: "message-time", Text: root.TimeLabel}),
 			html.Button(html.Props{Class: "thread-view-in-channel", Type: "button", Data: map[string]string{"action": "reveal-thread-parent"}, Text: m.t(KeyViewInChannel)})), html.Div(html.Props{Class: "message-body", Dir: "auto"}, markdownMessageBody(m, root.Body)...)}
 		rootChildren = append(rootChildren, linkEmbeds(m, root.Body)...)
+		rootChildren = append(rootChildren, personaPostProfiles(m, *root))
+		if root.PersonaActor != nil {
+			rootChildren = append(rootChildren, PersonaBadgeLocalized(m.Locale, root.PersonaActor))
+		}
 		rootChildren = append(rootChildren, docPreviewEmbeds(m, root.Body)...)
 		rootChildren = append(rootChildren, projectPreviewEmbeds(m, root.Body)...)
 		rootChildren = append(rootChildren, journeyPreviewEmbeds(m, root.Body)...)
@@ -2771,8 +2832,13 @@ func threadPane(m Model, h handlers) ui.Node {
 	} else {
 		replies := []ui.Node{}
 		for _, msg := range m.ThreadMessages {
+			msg = personaTrustedMessage(m, msg)
 			content := []ui.Node{html.Div(html.Props{Class: "message-meta"}, personButton(m, msg.AuthorID, msg.Author, "message-author person-name", ui.Text(msg.Author)), html.Time(html.Props{Class: "message-time", Text: msg.TimeLabel})), html.Div(html.Props{Class: "message-body", Dir: "auto"}, markdownMessageBody(m, msg.Body)...)}
 			content = append(content, linkEmbeds(m, msg.Body)...)
+			if msg.PersonaActor != nil {
+				content = append(content, PersonaBadgeLocalized(m.Locale, msg.PersonaActor))
+			}
+			content = append(content, personaPostProfiles(m, msg))
 			content = append(content, docPreviewEmbeds(m, msg.Body)...)
 			content = append(content, projectPreviewEmbeds(m, msg.Body)...)
 			content = append(content, journeyPreviewEmbeds(m, msg.Body)...)
@@ -2785,14 +2851,15 @@ func threadPane(m Model, h handlers) ui.Node {
 	if m.ThreadHasNewer {
 		items = append(items, html.Button(html.Props{Class: "button secondary small load-newer", Type: "button", Disabled: m.Callbacks.LoadNewerThread == nil, Data: map[string]string{"action": "load-newer-thread"}, Text: m.t(KeyLoadNewerThread)}))
 	}
+	items = append(items, personaThreadProgress(m))
 	heading := items[0]
 	body := html.Div(html.Props{Class: "thread-scroll"}, items[1:]...)
-	canReply := m.Callbacks.ReplyInThread != nil && m.ThreadParentID != ""
+	canReply := (m.Callbacks.ReplyInThread != nil || (m.Callbacks.ReplyInThreadWithReferences != nil && len(personaMentionCandidates(m, "")) > 0)) && m.ThreadParentID != ""
 	composer := html.Form(html.Props{Class: "thread-composer", OnSubmit: h.threadSubmit, Aria: map[string]string{"label": m.t(KeyReplySend)}},
 		html.Label(html.Props{Class: "sr-only", For: "thread-composer"}, ui.Text(m.t(KeyReplySend))),
 		mentionMenu(m, h.mentionView, "thread-composer"),
 		html.Textarea(html.Props{ID: "thread-composer", Class: "composer-input", Name: "reply", Placeholder: m.t(KeyReplyPlaceholder), Rows: 1, Dir: "auto", Disabled: !canReply, Data: map[string]string{"chat-value": ""}, OnKeyDown: h.threadKey, OnInput: h.threadInput,
-			Aria: mentionFieldAria(h.mentionView, "thread-composer", nil)}),
+			Aria: mentionModelFieldAria(m, h.mentionView, "thread-composer", nil)}),
 		html.Div(html.Props{Class: "composer-toolbar"},
 			formatToolbar(m, "thread-composer", !canReply),
 			emojiPicker(m, "thread-composer", !canReply),
@@ -2834,6 +2901,12 @@ func details(m Model, h handlers) ui.Node {
 			row = append(row, html.Span(html.Props{Class: "member-status", Text: p.Subtitle}))
 		}
 		memberNodes = append(memberNodes, html.Li(html.Props{Class: "member-row"}, row...))
+	}
+	for _, persona := range m.ResolvedPersonaMentions {
+		if query != "" && !strings.Contains(strings.ToLower(persona.Reference.Display), query) {
+			continue
+		}
+		memberNodes = append(memberNodes, html.Li(html.Props{Class: "member-row persona-member-row"}, html.Details(html.Props{}, html.Summary(html.Props{Text: persona.Reference.Display + " · " + personaMentionText(m.Locale, "agent_badge")}), personaProfileCard(m.Locale, persona))))
 	}
 	mode := m.Preferences.Notifications[m.SelectedID]
 	if mode == "" {

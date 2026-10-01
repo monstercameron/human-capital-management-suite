@@ -60,6 +60,22 @@ func (f *fakeService) SendPost(ctx context.Context, r chat.SendPostRequest) (cha
 	return chat.Post{ID: "p1", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.Principal.SubjectID, Body: r.Body}, nil
 }
 
+type personaCommitFake struct {
+	*fakeService
+	commitCalls int
+	commitLease chatrouting.WriteLease
+}
+
+func (f *personaCommitFake) CommitPersonaReply(ctx context.Context, r chat.PersonaReplyCommitRequest) (chat.Post, error) {
+	f.commitCalls++
+	lease, ok := chatrouting.WriteLeaseFromContext(ctx)
+	if !ok {
+		return chat.Post{}, errors.New("missing route lease")
+	}
+	f.commitLease = lease
+	return chat.Post{ID: "persona-post", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.AuthorID, Body: r.Body}, nil
+}
+
 type validatingFake struct {
 	*fakeService
 	validationErr error
@@ -149,6 +165,73 @@ func TestSendPassesLeaseAndRejectsMovedEpoch(t *testing.T) {
 	}
 	if f.sendCalls != 1 {
 		t.Fatalf("stale send reached chat: %d", f.sendCalls)
+	}
+}
+
+func personaReplyRequest(tenant, conversation string) chat.PersonaReplyCommitRequest {
+	return chat.PersonaReplyCommitRequest{
+		TenantID: tenant, ConversationID: conversation, AuthorID: "persona", AuthorHomeTenantID: tenant,
+		Body: "answer", IdempotencyKey: "persona-reply-1", ExpectedAudienceRevision: 1,
+	}
+}
+
+func TestCommitPersonaReplyPassesCurrentRouteLease(t *testing.T) {
+	f := &personaCommitFake{fakeService: &fakeService{}}
+	s, d := newAdapter(t, f)
+	route, err := d.Reserve(context.Background(), chatrouting.ReserveRequest{ConversationID: "c-persona", HostTenantID: "t1", ShardID: "s1", IdempotencyKey: "persona-route"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = d.Activate(context.Background(), "c-persona", "t1", route.Epoch); err != nil {
+		t.Fatal(err)
+	}
+	post, err := s.CommitPersonaReply(context.Background(), personaReplyRequest("t1", "c-persona"))
+	if err != nil || post.ID != "persona-post" {
+		t.Fatalf("commit = %+v err=%v", post, err)
+	}
+	if f.commitCalls != 1 || f.commitLease.Route.HostTenantID != "t1" || f.commitLease.Route.Epoch != route.Epoch {
+		t.Fatalf("calls=%d lease=%+v", f.commitCalls, f.commitLease)
+	}
+}
+
+func TestCommitPersonaReplyRejectsStaleRouteBeforeStore(t *testing.T) {
+	f := &personaCommitFake{fakeService: &fakeService{}}
+	s, d := newAdapter(t, f)
+	route, err := d.Reserve(context.Background(), chatrouting.ReserveRequest{ConversationID: "c-persona", HostTenantID: "t1", ShardID: "s1", IdempotencyKey: "persona-route"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = d.Activate(context.Background(), "c-persona", "t1", route.Epoch); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = d.BeginMove(context.Background(), "c-persona", "t1", route.Epoch, "s2"); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.CommitPersonaReply(context.Background(), personaReplyRequest("t1", "c-persona"))
+	if !errors.Is(err, chatrouting.ErrStaleEpoch) && !errors.Is(err, chatrouting.ErrNotWritable) {
+		t.Fatalf("stale commit = %v", err)
+	}
+	if f.commitCalls != 0 {
+		t.Fatalf("stale commit reached chat: %d", f.commitCalls)
+	}
+}
+
+func TestCommitPersonaReplyRejectsForeignTenantRouteBeforeStore(t *testing.T) {
+	f := &personaCommitFake{fakeService: &fakeService{}}
+	s, d := newAdapter(t, f)
+	route, err := d.Reserve(context.Background(), chatrouting.ReserveRequest{ConversationID: "c-persona", HostTenantID: "t1", ShardID: "s1", IdempotencyKey: "persona-route"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = d.Activate(context.Background(), "c-persona", "t1", route.Epoch); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.CommitPersonaReply(context.Background(), personaReplyRequest("t2", "c-persona"))
+	if !errors.Is(err, chatrouting.ErrTenant) {
+		t.Fatalf("foreign-tenant commit = %v", err)
+	}
+	if f.commitCalls != 0 {
+		t.Fatalf("foreign-tenant commit reached chat: %d", f.commitCalls)
 	}
 }
 

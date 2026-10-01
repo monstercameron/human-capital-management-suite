@@ -13,6 +13,7 @@ import (
 	chat "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"math"
 	"sort"
 	"strconv"
@@ -22,13 +23,39 @@ import (
 
 // Adapter exposes the collaboration contract without overloading the raw
 // repository methods used by the chat outbox and migration code.
-type Adapter struct{ *Store }
+type Adapter struct {
+	*Store
+	ephemeral chat.EphemeralStore
+}
 
-func NewAdapter(s *Store) *Adapter { return &Adapter{Store: s} }
+func NewAdapter(s *Store) *Adapter {
+	return &Adapter{Store: s, ephemeral: NewDurableEphemeralStore(s)}
+}
 
 var _ chat.Store = (*Adapter)(nil)
+var _ chat.EphemeralStore = (*Adapter)(nil)
+
+// PutEphemeral and ListEphemeral persist only the recipient-scoped delivery
+// envelope; the body never enters chat_post or chat_outbox.
+func (s *Adapter) PutEphemeral(ctx context.Context, p chat.EphemeralPost) (chat.EphemeralPost, error) {
+	if s == nil || s.ephemeral == nil {
+		return chat.EphemeralPost{}, chat.ErrEphemeralUnavailable
+	}
+	return s.ephemeral.PutEphemeral(ctx, p)
+}
+
+func (s *Adapter) ListEphemeral(ctx context.Context, p chat.Principal, tenant, conversation string, after uint64, limit int) ([]chat.EphemeralPost, uint64, error) {
+	if s == nil || s.ephemeral == nil {
+		return nil, after, chat.ErrEphemeralUnavailable
+	}
+	return s.ephemeral.ListEphemeral(ctx, p, tenant, conversation, after, limit)
+}
 
 func (s *Adapter) CreateConversation(ctx context.Context, c chat.Conversation, members []chat.Membership, key string) (chat.Conversation, error) {
+	return s.createConversation(ctx, c, members, key, nil)
+}
+
+func (s *Adapter) createConversation(ctx context.Context, c chat.Conversation, members []chat.Membership, key string, audiencePolicy *AudiencePolicy) (chat.Conversation, error) {
 	if c.TenantID == "" || c.ID == "" || len(members) == 0 {
 		return chat.Conversation{}, chat.ErrInvalidArgument
 	}
@@ -45,11 +72,21 @@ func (s *Adapter) CreateConversation(ctx context.Context, c chat.Conversation, m
 		identity = append(identity, m.HomeTenantID+"\x00"+m.SubjectID+"\x00"+string(m.Role))
 	}
 	sort.Strings(identity)
-	fpBytes, _ := json.Marshal(struct {
-		Kind        chat.ConversationKind
-		Name, Owner string
-		Members     []string
-	}{c.Kind, c.Name, c.OwnerID, identity})
+	var fpBytes []byte
+	if audiencePolicy == nil {
+		fpBytes, _ = json.Marshal(struct {
+			Kind        chat.ConversationKind
+			Name, Owner string
+			Members     []string
+		}{c.Kind, c.Name, c.OwnerID, identity})
+	} else {
+		fpBytes, _ = json.Marshal(struct {
+			Kind        chat.ConversationKind
+			Name, Owner string
+			Members     []string
+			Policy      AudiencePolicy
+		}{c.Kind, c.Name, c.OwnerID, identity, *audiencePolicy})
+	}
 	fp := fingerprint(string(fpBytes))
 	if key != "" {
 		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, fingerprint(c.TenantID+"\x00"+c.OwnerID+"\x00"+key)); err != nil {
@@ -95,6 +132,11 @@ func (s *Adapter) CreateConversation(ctx context.Context, c chat.Conversation, m
 		}
 		_, err = tx.Exec(ctx, `INSERT INTO chat_membership(tenant_id,conversation_id,home_tenant_id,member_id,role,state,history_visibility,revision) VALUES($1,$2,$3,$4,$5,'active',$6,1)`, c.TenantID, c.ID, m.HomeTenantID, m.SubjectID, string(m.Role), string(m.HistoryVisibility))
 		if err != nil {
+			return chat.Conversation{}, err
+		}
+	}
+	if audiencePolicy != nil {
+		if _, err = tx.Exec(ctx, `INSERT INTO chat_channel_policy(tenant_id,conversation_id,revision,required_roles,role_mode,required_qualifications,allowed_principals,allowed_tenants,classification,residency) VALUES($1,$2,1,$3,$4,$5,$6,$7,$8,$9)`, c.TenantID, c.ID, nonNil(audiencePolicy.RequiredRoles), audiencePolicy.RoleMode, nonNil(audiencePolicy.RequiredQualifications), nonNil(audiencePolicy.AllowedPrincipals), nonNil(audiencePolicy.AllowedTenants), audiencePolicy.Classification, audiencePolicy.Residency); err != nil {
 			return chat.Conversation{}, err
 		}
 	}
@@ -280,7 +322,7 @@ func (s *Adapter) UpdateConversation(ctx context.Context, actor chat.Principal, 
 		}
 	}
 	var rev int64
-	err = tx.QueryRow(ctx, `UPDATE chat_conversation SET name=$1,owner_id=$2,settings_revision=settings_revision+1,lifecycle=$3 WHERE tenant_id=$4 AND id=$5 AND settings_revision=$6 RETURNING settings_revision,owner_id`, c.Name, c.OwnerID, map[bool]string{true: "ARCHIVED", false: "ACTIVE"}[c.Archived], c.TenantID, c.ID, expected).Scan(&rev, &c.OwnerID)
+	err = tx.QueryRow(ctx, `UPDATE chat_conversation SET name=$1,owner_id=$2,settings_revision=settings_revision+1,audience_revision=audience_revision+1,lifecycle=$3 WHERE tenant_id=$4 AND id=$5 AND settings_revision=$6 RETURNING settings_revision,owner_id`, c.Name, c.OwnerID, map[bool]string{true: "ARCHIVED", false: "ACTIVE"}[c.Archived], c.TenantID, c.ID, expected).Scan(&rev, &c.OwnerID)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return c, chat.ErrConflict
 	}
@@ -436,6 +478,9 @@ func (s *Adapter) PutMembership(ctx context.Context, actor chat.Principal, m cha
 	m.JoinedAt = &joined
 	m.LeftAt = nil
 	m.Revision = uint64(rev)
+	if _, err = tx.Exec(ctx, `UPDATE chat_conversation SET audience_revision=audience_revision+1 WHERE tenant_id=$1 AND id=$2`, m.TenantID, m.ConversationID); err != nil {
+		return m, err
+	}
 	if err = emitAdapterEvent(ctx, tx, m.TenantID, m.ConversationID, "membership.added", actor.TenantID, actor.SubjectID, m.HomeTenantID+":"+m.SubjectID, m.Revision, m); err != nil {
 		return m, err
 	}
@@ -469,6 +514,9 @@ func (s *Adapter) RemoveMembership(ctx context.Context, actor chat.Principal, t,
 	}
 	m.LeftAt = &left
 	m.Revision = uint64(rev)
+	if _, err = tx.Exec(ctx, `UPDATE chat_conversation SET audience_revision=audience_revision+1 WHERE tenant_id=$1 AND id=$2`, t, cid); err != nil {
+		return m, err
+	}
 	if err = emitAdapterEvent(ctx, tx, t, cid, "membership.removed", actor.TenantID, actor.SubjectID, home+":"+mid, m.Revision, m); err != nil {
 		return m, err
 	}
@@ -511,6 +559,95 @@ func (s *Adapter) SendPost(ctx context.Context, r chat.SendPostRequest, p chat.P
 	q, e := s.sendPostRaw(ctx, raw)
 	if e != nil {
 		return p, e
+	}
+	return chatPost(q)
+}
+
+// AudienceRevision returns the chat-owned audience revision used as the
+// server-owned audience fence. Membership and effective policy mutations
+// advance it in their committing transaction, and persona replies compare it
+// while holding the same conversation row lock.
+func (s *Adapter) AudienceRevision(ctx context.Context, tenantID, conversationID string) (uint64, error) {
+	if strings.TrimSpace(tenantID) == "" || strings.TrimSpace(conversationID) == "" {
+		return 0, chat.ErrInvalidArgument
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	if err = tenant(ctx, tx, tenantID); err != nil {
+		return 0, err
+	}
+	var revision int64
+	if err = tx.QueryRow(ctx, `SELECT audience_revision FROM chat_conversation WHERE tenant_id=$1 AND id=$2`, tenantID, conversationID).Scan(&revision); err != nil {
+		return 0, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return uint64(revision), nil
+}
+
+// AdvanceAudienceRevision records a local chat-side audience or policy
+// version. It is not an atomic cross-database transaction: a production
+// audience authority must keep public persona delivery uncomposed unless it
+// can bind its external eligibility/policy version to this revision through a
+// shared lease or transaction boundary.
+func (s *Adapter) AdvanceAudienceRevision(ctx context.Context, tenantID, conversationID string) error {
+	if strings.TrimSpace(tenantID) == "" || strings.TrimSpace(conversationID) == "" {
+		return chat.ErrInvalidArgument
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err = tenant(ctx, tx, tenantID); err != nil {
+		return err
+	}
+	if err = fenceContextWrite(ctx, tx, tenantID, conversationID); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE chat_conversation SET audience_revision=audience_revision+1 WHERE tenant_id=$1 AND id=$2`, tenantID, conversationID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// CommitPersonaReply inserts a public persona reply only when the supplied
+// audience revision still matches. The comparison, idempotency lookup and
+// post/outbox insert all occur in one chat transaction.
+func (s *Adapter) CommitPersonaReply(ctx context.Context, r chat.PersonaReplyCommitRequest) (chat.Post, error) {
+	if strings.TrimSpace(r.TenantID) == "" || strings.TrimSpace(r.ConversationID) == "" ||
+		strings.TrimSpace(r.AuthorID) == "" || strings.TrimSpace(r.AuthorHomeTenantID) == "" ||
+		strings.TrimSpace(r.Body) == "" || strings.TrimSpace(r.IdempotencyKey) == "" ||
+		strings.TrimSpace(r.OutputDigest) == "" || r.ExpectedAudienceRevision == 0 {
+		return chat.Post{}, chat.ErrInvalidArgument
+	}
+	if r.Proof == nil || !r.Proof.ValidFor(r.TenantID, r.ConversationID, r.AuthorID, r.ExpectedAudienceRevision, r.OutputDigest, r.Body, r.ParentID) {
+		return chat.Post{}, chat.ErrPermissionDenied
+	}
+	principal, ok := trust.FromContext(ctx)
+	if !ok || principal.Tenant().String() != r.TenantID || principal.Tenant().String() != r.AuthorHomeTenantID || principal.Subject() != r.AuthorID ||
+		(principal.SubjectKind() != trust.SubjectKindAgent && principal.SubjectKind() != trust.SubjectKindIntegration) ||
+		!time.Now().UTC().Before(principal.ExpiresAt()) {
+		return chat.Post{}, chat.ErrPermissionDenied
+	}
+	p := chat.Post{
+		TenantID: r.TenantID, ConversationID: r.ConversationID,
+		AuthorID: r.AuthorID, AuthorHomeTenantID: r.AuthorHomeTenantID, Body: r.Body,
+		ParentID: r.ParentID, Revision: 1, References: nil,
+	}
+	raw := SendRequest{
+		TenantID: r.TenantID, ConversationID: r.ConversationID, HomeTenantID: r.AuthorHomeTenantID,
+		AuthorID: r.AuthorID, ClientKey: r.IdempotencyKey, Body: p.Body, ParentID: r.ParentID,
+		TrustedAuthor: true, ExpectedAudienceRevision: r.ExpectedAudienceRevision,
+	}
+	raw.RouteEpoch, raw.ShardID = leaseFence(ctx)
+	q, err := s.sendPostRaw(ctx, raw)
+	if err != nil {
+		return chat.Post{}, err
 	}
 	return chatPost(q)
 }
@@ -1378,20 +1515,14 @@ func (s *Adapter) watchFrom(ctx context.Context, r chat.WatchConversationRequest
 // events, so a subscriber with restricted history can catch up without replaying
 // the same old records on every poll.
 type EventPage struct {
-	Events     []chat.WatchEvent
-	NextOffset uint64
-	Complete   bool
+	Events         []chat.WatchEvent
+	EphemeralPosts []chat.EphemeralPost
+	NextOffset     uint64
+	Complete       bool
 }
 
 func (s *Adapter) ReadConversationEvents(ctx context.Context, r chat.WatchConversationRequest, after uint64, limit int) (EventPage, error) {
-	if after > uint64(^uint64(0)>>1) {
-		return EventPage{}, chat.ErrInvalidArgument
-	}
-	next, events, complete, err := s.watchPage(ctx, r, int64(after), limit)
-	if err != nil {
-		return EventPage{}, err
-	}
-	return EventPage{Events: events, NextOffset: uint64(next), Complete: complete}, nil
+	return s.readConversationEventPage(ctx, r, after, limit)
 }
 
 func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest, after int64, limit int) (int64, []chat.WatchEvent, bool, error) {

@@ -29,6 +29,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/application"
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatmedia"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
@@ -196,7 +197,7 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 	if opts.MediaRoot == "" {
 		opts.MediaRoot = filepath.Join(defaultArtifactRootPath, "chat-media")
 	}
-	employees, err := demoworkforce.Plan(pgstore.TenantID(opts.Tenant))
+	employees, err := chatSeedWorkforce(opts.Tenant)
 	if err != nil {
 		return err
 	}
@@ -207,35 +208,29 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 		names = append(names, e.Row.LegalName)
 	}
 	adapter := chatstore.NewAdapter(store)
-	rooms := chatSeedRooms(opts.Scale, len(people))
-	// The signed-in persona belongs in every room: a demo where the person
-	// looking at it is a member of nothing shows an empty product.
-	if admin := adminIndex(people); admin >= 0 {
-		for i := range rooms {
-			if rooms[i].Kind == roomDirect {
-				continue
-			}
-			if !containsIndex(rooms[i].Members, admin) {
-				rooms[i].Members = append(rooms[i].Members, admin)
-			}
-		}
-		// One direct message with the persona in it, so the DM list is not all
-		// other people's conversations.
-		if len(rooms) > 0 {
-			for i := range rooms {
-				if rooms[i].Kind == roomDirect {
-					rooms[i].Members = []int{admin, rooms[i].Members[1]}
-					break
-				}
-			}
-		}
-	}
+	rooms := chatSeedRoomsForTenant(opts.Scale, opts.Tenant, people)
 
 	present, err := chatSeedPresent(ctx, store, opts.Tenant, rooms)
 	if err != nil {
 		return err
 	}
 	if present && !opts.Reset {
+		repaired, repairErr := repairChatSeedAudiencePolicies(ctx, store, adapter, opts.Tenant, rooms, people, employees)
+		if repairErr != nil {
+			return repairErr
+		}
+		personaPolicies, personaPolicyErr := provisionChatSeedPersonaPolicies(ctx, store, opts.Tenant, rooms)
+		if personaPolicyErr != nil {
+			return personaPolicyErr
+		}
+		if repaired > 0 {
+			fmt.Fprintf(out, "repaired audience policies for %d existing chat demo rooms in %s; history and memberships were preserved\n", repaired, opts.Tenant)
+			return nil
+		}
+		if personaPolicies > 0 {
+			fmt.Fprintf(out, "provisioned %d persona audience and room policies for existing chat demo rooms in %s; history and memberships were preserved\n", personaPolicies, opts.Tenant)
+			return nil
+		}
 		return fmt.Errorf("chat demo rooms already exist in %s; pass -%s to wipe and recreate them", opts.Tenant, fieldChatSeedReset)
 	}
 	if present {
@@ -245,6 +240,10 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 	}
 
 	media, err := newSeedMedia(opts.MediaRoot, opts.AssetDir)
+	if err != nil {
+		return err
+	}
+	classifier, err := application.NewLocalDevPersonaPostClassifier(store, true)
 	if err != nil {
 		return err
 	}
@@ -270,26 +269,29 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 
 	for roomIndex, room := range rooms {
 		conversation := chatSeedConversationID(opts.Tenant, room.Key)
-		owner := people[room.Members[0]]
+		owner, members, membersErr := chatSeedMemberships(opts.Tenant, conversation, room, people)
+		if membersErr != nil {
+			return fmt.Errorf("members %s: %w", room.Key, membersErr)
+		}
 		name := room.Name
 		if name == "" {
 			name = strings.Join(memberNames(names, room.Members), ", ")
 		}
-		members := make([]chatcore.Membership, 0, len(room.Members))
-		for _, index := range room.Members {
-			role := chatcore.Member
-			if people[index] == owner {
-				role = chatcore.Manager
-			}
-			// FULL_HISTORY throughout: a seeded member joining "now" with
-			// FROM_JOIN would see none of the history this seeder just wrote.
-			members = append(members, chatcore.Membership{ConversationID: conversation, TenantID: opts.Tenant, HomeTenantID: opts.Tenant, SubjectID: people[index], Role: role, HistoryVisibility: chatcore.FullHistory, Revision: 1})
+		audiencePolicy, requiresAudiencePolicy, policyErr := chatSeedAudiencePolicy(opts.Tenant, room, members, employees)
+		if policyErr != nil {
+			return fmt.Errorf("classify %s audience: %w", room.Key, policyErr)
 		}
 		leasedCtx, reserved, err := leaseSeedRoute(ctx, routes, opts.Tenant, conversation, "seed:"+room.Key)
 		if err != nil {
 			return fmt.Errorf("reserve route %s: %w", room.Key, err)
 		}
-		if _, err = adapter.CreateConversation(leasedCtx, chatcore.Conversation{ID: conversation, TenantID: opts.Tenant, Kind: kindOf(room.Kind), Name: name, OwnerID: owner, Revision: 1}, members, "seed:"+room.Key); err != nil {
+		conversationInput := chatcore.Conversation{ID: conversation, TenantID: opts.Tenant, Kind: kindOf(room.Kind), Name: name, OwnerID: owner, Revision: 1}
+		if requiresAudiencePolicy {
+			_, err = adapter.CreateConversationWithAudiencePolicy(leasedCtx, conversationInput, members, "seed:"+room.Key, audiencePolicy)
+		} else {
+			_, err = adapter.CreateConversation(leasedCtx, conversationInput, members, "seed:"+room.Key)
+		}
+		if err != nil {
 			return fmt.Errorf("create %s: %w", room.Key, err)
 		}
 		if err = activateSeedRoute(ctx, routes, opts.Tenant, conversation, reserved); err != nil {
@@ -301,11 +303,15 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 		if err = seedRoomHistory(writeCtx, adapter, media, seedRoomInput{
 			opts: opts, room: room, roomIndex: roomIndex, conversation: conversation,
 			people: people, names: names, start: start, rng: rng,
+			classifier: classifier,
 		}, &receipt); err != nil {
 			return fmt.Errorf("seed %s: %w", room.Key, err)
 		}
 	}
 
+	if _, err = provisionChatSeedPersonaPolicies(ctx, store, opts.Tenant, rooms); err != nil {
+		return err
+	}
 	if err = seedAdminReadState(writeCtx, adapter, opts, rooms, people); err != nil {
 		return err
 	}
@@ -313,6 +319,42 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 		opts.Tenant, opts.Scale, receipt.Conversations, receipt.Memberships, receipt.Posts, receipt.Threads, receipt.ThreadReplies, receipt.Reactions, receipt.Pins, receipt.Images, receipt.GIFs)
 	fmt.Fprintf(out, "history spans %s to %s\n", receipt.EarliestPost.Format(time.RFC3339), receipt.LatestPost.Format(time.RFC3339))
 	return nil
+}
+
+// chatSeedWorkforce resolves the tenant's own demo pack. Plan is retained as
+// the HarborCare compatibility wrapper, so calling it directly here would
+// silently put HarborCare workers into every other tenant's chat.
+func chatSeedWorkforce(tenant string) ([]demoworkforce.Employee, error) {
+	pack, ok := demoworkforce.PackFor(tenant)
+	if !ok {
+		return nil, fmt.Errorf("chat seed: unknown demo tenant %q", tenant)
+	}
+	return pack.Plan(pgstore.TenantID(tenant))
+}
+
+func chatSeedRoomsForTenant(scale, tenant string, people []string) []roomSpec {
+	rooms := chatSeedRooms(scale, len(people))
+	// The signed-in persona belongs in every room: a demo where the person
+	// looking at it is a member of nothing shows an empty product.
+	if admin := adminIndexForTenant(tenant, people); admin >= 0 {
+		for i := range rooms {
+			if rooms[i].Kind == roomDirect {
+				continue
+			}
+			if !containsIndex(rooms[i].Members, admin) {
+				rooms[i].Members = append(rooms[i].Members, admin)
+			}
+		}
+		// One direct message with the persona in it, so the DM list is not all
+		// other people's conversations.
+		for i := range rooms {
+			if rooms[i].Kind == roomDirect {
+				rooms[i].Members = []int{admin, rooms[i].Members[1]}
+				break
+			}
+		}
+	}
+	return rooms
 }
 
 // leaseSeedRoute places a seeded conversation in the core route directory
@@ -459,6 +501,7 @@ type seedRoomInput struct {
 	names        []string
 	start        time.Time
 	rng          *rand.Rand
+	classifier   *application.LocalDevPersonaPostClassifier
 }
 
 // seedRoomHistory writes one room's two weeks. The clock steps forward for every
@@ -501,6 +544,9 @@ func seedRoomHistory(ctx context.Context, adapter *chatstore.Adapter, media *see
 		if err != nil {
 			return err
 		}
+		if err := classifyChatSeedPersonaPost(ctx, in, i, -1, "", post); err != nil {
+			return err
+		}
 		receipt.Posts++
 		if len(mediaRefs) > 0 {
 			receipt.MediaPosts++
@@ -519,9 +565,13 @@ func seedRoomHistory(ctx context.Context, adapter *chatstore.Adapter, media *see
 					clock = in.opts.Now
 				}
 				replyAuthor := in.people[in.room.Members[(i+r+1)%len(in.room.Members)]]
-				if _, err = adapter.SendPost(ctx,
+				reply, replyErr := adapter.SendPost(ctx,
 					chatcore.SendPostRequest{Principal: chatcore.Principal{TenantID: in.opts.Tenant, SubjectID: replyAuthor}, TenantID: in.opts.Tenant, ConversationID: in.conversation, IdempotencyKey: fmt.Sprintf("seed:%s:%d:%d", in.room.Key, i, r), ParentID: post.ID},
-					chatcore.Post{AuthorID: replyAuthor, AuthorHomeTenantID: in.opts.Tenant, Body: threadReplies[(i+r)%len(threadReplies)], ParentID: post.ID, CreatedAt: clock}); err != nil {
+					chatcore.Post{AuthorID: replyAuthor, AuthorHomeTenantID: in.opts.Tenant, Body: threadReplies[(i+r)%len(threadReplies)], ParentID: post.ID, CreatedAt: clock})
+				if replyErr != nil {
+					return replyErr
+				}
+				if err := classifyChatSeedPersonaPost(ctx, in, i, r, post.ID, reply); err != nil {
 					return err
 				}
 				receipt.Posts++
@@ -607,8 +657,30 @@ func adminIndex(people []string) int {
 	return -1
 }
 
+func adminIndexForTenant(tenant string, people []string) int {
+	pack, ok := demoworkforce.PackFor(tenant)
+	if !ok {
+		return adminIndex(people)
+	}
+	employees, err := pack.Plan(pgstore.TenantID(tenant))
+	if err != nil || len(pack.Personas) == 0 {
+		return adminIndex(people)
+	}
+	for _, employee := range employees {
+		if employee.Row.WorkerNumber != pack.Personas[0].WorkerNumber {
+			continue
+		}
+		for i, key := range people {
+			if key == employee.Row.WorkerKey {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
 func seedAdminReadState(ctx context.Context, adapter *chatstore.Adapter, opts chatSeedOptions, rooms []roomSpec, people []string) error {
-	index := adminIndex(people)
+	index := adminIndexForTenant(opts.Tenant, people)
 	if index < 0 {
 		return nil
 	}

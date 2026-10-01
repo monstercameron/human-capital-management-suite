@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/agentsecurity"
 )
 
 var (
@@ -15,6 +17,9 @@ var (
 	ErrAlreadyExists    = errors.New("chat: already exists")
 	ErrConflict         = errors.New("chat: conflict")
 	ErrUnavailable      = errors.New("chat: unavailable")
+	// ErrAudienceChanged means a server-owned public persona reply was based on
+	// an audience revision that is no longer current at commit time.
+	ErrAudienceChanged = errors.New("chat: audience changed")
 )
 
 type Principal struct {
@@ -174,6 +179,56 @@ type SendPostRequest struct {
 	References                                               []Reference
 	SourceAttribution                                        *SourceAttribution
 }
+
+// PersonaReplyCommitRequest is the narrow server-owned write contract for a
+// public persona reply. It deliberately does not extend SendPostRequest:
+// persona output is admitted by a separate audience-floor authority and must
+// carry both that authority's revision and a durable result identity.
+type PersonaReplyCommitRequest struct {
+	TenantID, ConversationID       string
+	AuthorID, AuthorHomeTenantID   string
+	ParentID, Body, IdempotencyKey string
+	ExpectedAudienceRevision       uint64
+	OutputDigest                   string
+	// Proof is an opaque server-issued delivery capability. Its marker method
+	// is intentionally unimplementable outside this package; the issuer must
+	// bind it to this tenant, conversation, persona and invocation.
+	Proof PersonaDeliveryProof
+}
+
+// PersonaDeliveryProof is the non-forgeable capability required by the
+// server-owned public persona reply port. The issuer is deliberately outside
+// the chat persistence package and must bind the proof to the exact delivery.
+type PersonaDeliveryProof interface {
+	personaDeliveryProof()
+	ValidFor(tenantID, conversationID, authorID string, audienceRevision uint64, outputDigest, body, parentID string) bool
+}
+
+// PersonaAudienceFloor is the application-owned reauthorization boundary.
+// Implementations must validate every FinalOutput material for the current
+// audience, render the sanitized public body, and return the exact chat
+// audience revision used by that decision. If external eligibility or policy
+// state cannot share this revision through one lease/transaction boundary,
+// callers must leave public delivery disabled.
+type PersonaAudienceFloor interface {
+	AuthorizePersonaOutput(context.Context, agentsecurity.FinalOutputPersistence) (PersonaAudienceDecision, error)
+}
+
+// PersonaAudienceDecision is the server-rendered, audience-authorized public
+// projection. Body and ParentID are included in the proof so a valid output
+// capability cannot be replayed with caller-supplied text or another thread.
+type PersonaAudienceDecision struct {
+	Revision uint64
+	Body     string
+	ParentID string
+}
+
+// PersonaReplyCommitter atomically compares the audience revision and inserts
+// a public persona reply. Implementations must treat the request as a
+// server-owned capability, not as a client-authorized SendPost request.
+type PersonaReplyCommitter interface {
+	CommitPersonaReply(context.Context, PersonaReplyCommitRequest) (Post, error)
+}
 type ListPostsRequest struct {
 	Principal                Principal
 	TenantID, ConversationID string
@@ -318,9 +373,25 @@ type ConversationEvent struct {
 	Pin                *Pin
 	Removed            bool
 }
+
+// EphemeralDelivery is the recipient-only projection of an in-conversation
+// ephemeral post. Recipient identity is checked by the authenticated stream
+// reader before this value reaches a watcher; durable DM identifiers stay out
+// of the live transport contract.
+type EphemeralDelivery struct {
+	ID               string
+	ThreadID         string
+	Body             string
+	OnlyVisibleToYou bool
+	CreatedAt        time.Time
+	ExpiresAt        time.Time
+	ThreadLink       string
+}
+
 type WatchEvent struct {
-	Event        ConversationEvent
-	ResumeCursor string
+	Event             ConversationEvent
+	EphemeralDelivery *EphemeralDelivery
+	ResumeCursor      string
 }
 
 type ChatCounts struct {

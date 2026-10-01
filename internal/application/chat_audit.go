@@ -247,6 +247,34 @@ func (s *auditedChatService) SendPost(ctx context.Context, r chatcore.SendPostRe
 	s.audit(ctx, r.Principal, postRecord(p, chatrecords.KindPost), "chat.post.send")
 	return p, nil
 }
+
+// CommitPersonaReply preserves the server-owned persona reply extension across
+// the audit decorator. Its proof and audience fence remain enforced by the
+// chat service/store below; this layer only records the committed post when it
+// is responsible for post-commit audit writes.
+func (s *auditedChatService) CommitPersonaReply(ctx context.Context, r chatcore.PersonaReplyCommitRequest) (chatcore.Post, error) {
+	if !s.recordsReady() {
+		return chatcore.Post{}, chatcore.ErrUnavailable
+	}
+	committer, ok := s.ConversationService.(chatcore.PersonaReplyCommitter)
+	if !ok {
+		return chatcore.Post{}, chatcore.ErrUnavailable
+	}
+	p, err := committer.CommitPersonaReply(ctx, r)
+	if err != nil {
+		return p, err
+	}
+	s.audit(ctx, chatcore.Principal{TenantID: r.AuthorHomeTenantID, SubjectID: r.AuthorID}, postRecord(p, chatrecords.KindPost), "chat.persona.reply")
+	return p, nil
+}
+
+func (s *auditedChatService) SendEphemeralPost(ctx context.Context, r chatcore.SendEphemeralPostRequest) (chatcore.EphemeralPost, error) {
+	ephemeral, ok := s.ConversationService.(chatcore.EphemeralService)
+	if !ok {
+		return chatcore.EphemeralPost{}, chatcore.ErrUnavailable
+	}
+	return ephemeral.SendEphemeralPost(ctx, r)
+}
 func (s *auditedChatService) EditPost(ctx context.Context, r chatcore.EditPostRequest) (chatcore.Post, error) {
 	if !s.recordsReady() {
 		return chatcore.Post{}, chatcore.ErrUnavailable

@@ -20,12 +20,14 @@ import (
 	"io"
 	"math/rand/v2"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
@@ -105,6 +107,112 @@ type documentSeedReceipt struct {
 	Relinked, RelinkVersions, Widened  int
 }
 
+// runDocumentSeedUpgradeCommand reports or applies only pristine Ironridge
+// standard seed upgrades. It intentionally omits every broad seed side effect.
+func runDocumentSeedUpgradeCommand(ctx context.Context, store *documenthubstore.Store, people []seedPerson, tenant string, apply bool, out io.Writer) error {
+	if store == nil {
+		return errors.New("document seed upgrade: document store is required")
+	}
+	plan, err := planDocumentSeedForTenant(people, time.Now().UTC(), tenant)
+	if err != nil {
+		return err
+	}
+	existing, err := existingSeedDocuments(ctx, store, tenant)
+	if err != nil {
+		return err
+	}
+	ids := make([]string, len(plan.Docs))
+	// Keep the original persisted title for each linked seed document. A
+	// document earlier in plan order may be upgraded before a later document
+	// that links to it is checked; rereading it then would incorrectly build
+	// the legacy hash with its adapted title.
+	legacyTitles := make([]string, len(plan.Docs))
+	for i, d := range plan.Docs {
+		var links, legacyLinks []seedLink
+		for _, j := range d.Links {
+			links = append(links, seedLink{Title: plan.Docs[j].Title, ID: ids[j]})
+			if ids[j] != "" {
+				if legacyTitles[j] == "" {
+					targetTitle, _, readErr := readSeedFirstVersion(ctx, store, tenant, ids[j])
+					if readErr == nil {
+						legacyTitles[j] = targetTitle
+					}
+				}
+				if legacyTitles[j] != "" {
+					legacyLinks = append(legacyLinks, seedLink{Title: legacyTitles[j], ID: ids[j]})
+				}
+			}
+		}
+		id, ok := existing[d.Owner.Key+"\x00"+d.Title]
+		if !ok && strings.HasPrefix(d.Owner.Key, "ir-") {
+			id, ok = existing[d.Owner.Key+"\x00"+legacySeedTitle(d, plan.Viewer)]
+		}
+		if !ok && d.Spec.Dated {
+			var matches []string
+			prefix := d.Owner.Key + "\x00" + d.Spec.Title + ": "
+			for key, candidateID := range existing {
+				if !strings.HasPrefix(key, prefix) {
+					continue
+				}
+				candidateTitle, candidateCreated, readErr := readSeedFirstVersion(ctx, store, tenant, candidateID)
+				if readErr != nil || candidateCreated.IsZero() {
+					continue
+				}
+				candidateInput := seedBodyInput{Spec: d.Spec, Title: d.Title, Owner: d.Owner, People: seedTeam(plan.People, d.Spec.Domain), Links: legacyLinks, Written: candidateCreated, Rand: rand.New(rand.NewPCG(d.seed, 1))}
+				candidateTitle = legacySeedTitle(seedDocPlan{Spec: d.Spec, Created: candidateCreated}, d.Owner)
+				candidateBody := documenthubstore.NormalizeMarkdown(legacySeedBody(candidateInput, candidateTitle))
+				_, candidate, readErr := store.ReadPersonalDocument(ctx, tenant, d.Owner.Key, candidateID)
+				if readErr != nil {
+					continue
+				}
+				if candidate.Title == candidateTitle && candidate.Hash == documenthubstore.HashContent(candidateBody) {
+					matches = append(matches, candidateID)
+				}
+			}
+			if len(matches) == 1 {
+				id, ok = matches[0], true
+			}
+		}
+		if !ok {
+			continue
+		}
+		ids[i] = id
+		persistedTitle, persistedCreated, readErr := readSeedFirstVersion(ctx, store, tenant, id)
+		if readErr == nil {
+			if !persistedCreated.IsZero() {
+				d.Created = persistedCreated
+			}
+			// Capture the immutable first-version title before applying this
+			// document's upgrade.
+			legacyTitles[i] = persistedTitle
+		}
+		input := seedBodyInput{Spec: d.Spec, Title: d.Title, Owner: d.Owner, People: seedTeam(plan.People, d.Spec.Domain), Links: links, Written: d.Created, Rand: rand.New(rand.NewPCG(d.seed, 1))}
+		legacyInput := input
+		legacyInput.Rand = rand.New(rand.NewPCG(d.seed, 1))
+		legacyInput.Links = legacyLinks
+		adaptedInput := input
+		adaptedInput.Rand = rand.New(rand.NewPCG(d.seed, 1))
+		check := documenthubstore.SeedUpgradeInput{DocumentID: id, OwnerID: d.Owner.Key, LegacyTitle: legacySeedTitle(d, d.Owner), LegacyHash: documenthubstore.HashContent(documenthubstore.NormalizeMarkdown(legacySeedBody(legacyInput, legacySeedTitle(d, d.Owner)))), AdaptedTitle: d.Title, AdaptedMarkdown: documenthubstore.NormalizeMarkdown(documentSeedBody(adaptedInput))}
+		decision, err := store.InspectPristineSeed(ctx, tenant, check)
+		if err != nil {
+			return err
+		}
+		if decision.Eligible && apply {
+			upgraded, err := store.UpgradePristineSeed(ctx, tenant, check)
+			if err != nil {
+				return err
+			}
+			if upgraded {
+				decision.Reason = "upgraded"
+			} else {
+				decision.Reason = "changed-before-apply"
+			}
+		}
+		fmt.Fprintf(out, "%s %s %s\n", id, decision.Reason, d.Title)
+	}
+	return nil
+}
+
 var seedCommentBodies = []string{
 	"Can we add an example for part-time staff here?",
 	"This matches what we agreed in the leadership meeting. Thanks for writing it up.",
@@ -171,10 +279,31 @@ func loadSeedPeople(ctx context.Context, db dbport.Beginner, tenant string) ([]s
 // comment, link, folder and star. It is deterministic for a given people
 // list and clock.
 func planDocumentSeed(people []seedPerson, now time.Time) (documentSeedPlan, error) {
+	return planDocumentSeedForTenant(people, now, defaultDocumentSeedTenant)
+}
+
+func planDocumentSeedForTenant(people []seedPerson, now time.Time, tenant string) (documentSeedPlan, error) {
 	viewerIndex := -1
-	for i, p := range people {
-		if strings.HasPrefix(p.Key, chatSeedAdminPrefix) {
-			viewerIndex = i
+	if pack, ok := demoworkforce.PackFor(tenant); ok {
+		if employees, err := pack.Plan(pgstore.TenantID(tenant)); err == nil && len(pack.Personas) > 0 {
+			for _, employee := range employees {
+				if employee.Row.WorkerNumber != pack.Personas[0].WorkerNumber {
+					continue
+				}
+				for i, p := range people {
+					if p.Key == employee.Row.WorkerKey {
+						viewerIndex = i
+						break
+					}
+				}
+			}
+		}
+	}
+	if viewerIndex < 0 {
+		for i, p := range people {
+			if strings.HasPrefix(p.Key, chatSeedAdminPrefix) {
+				viewerIndex = i
+			}
 		}
 	}
 	if viewerIndex < 0 {
@@ -229,6 +358,7 @@ func planDocumentSeed(people []seedPerson, now time.Time) (documentSeedPlan, err
 		if s.Dated {
 			title = s.Title + ": " + created.Format("Jan 2, 2006")
 		}
+		title = seedTenantTextForWorker(viewer.Key, title)
 		docs[i] = seedDocPlan{Spec: s, Title: title, Created: created, seed: r.Uint64()}
 	}
 
@@ -579,6 +709,122 @@ func containsString(list []string, v string) bool {
 	return false
 }
 
+// seedPersonForPrefix keeps the historical corpus roles while resolving them
+// to the current tenant's workforce. Prefixes in the corpus are fixture role
+// slots, never IDs to copy across tenants.
+func seedPersonForPrefix(people []seedPerson, prefix string) (seedPerson, bool) {
+	for _, p := range people {
+		if strings.HasPrefix(p.Key, prefix) {
+			return p, true
+		}
+	}
+	if len(people) == 0 {
+		return seedPerson{}, false
+	}
+	if strings.HasPrefix(prefix, "hc-") {
+		part := strings.TrimPrefix(prefix, "hc-")
+		part = strings.TrimSuffix(part, "-")
+		n, err := strconv.Atoi(part)
+		if err == nil {
+			if n == 50 {
+				return people[0], true
+			}
+			return people[(n-1)%len(people)], true
+		}
+	}
+	return seedPerson{}, false
+}
+
+func seedTenantTextForWorker(workerKey, value string) string {
+	if !strings.HasPrefix(workerKey, "ir-") {
+		return value
+	}
+	value, links := protectSeedDocumentLinks(value)
+	for _, replacement := range []struct{ old, new string }{
+		{"HarborCare", "Ironridge Builders"},
+		{"Care coordination", "Field coordination"},
+		{"care coordination", "field coordination"},
+		{"Infection control", "Jobsite safety"},
+		{"infection control", "jobsite safety"},
+		{"Patients", "Crew members"},
+		{"patients", "crew members"},
+		{"Patient", "Crew member"},
+		{"patient", "crew member"},
+		{"Nurses", "Forepersons"},
+		{"nurses", "forepersons"},
+		{"Nurse", "Foreperson"},
+		{"nurse", "foreperson"},
+		{"ICU", "active jobsite"},
+		{"hospital", "jobsite"},
+		{"Hospital", "Jobsite"},
+		{"clinical", "field"},
+		{"Clinical", "Field"},
+		{"clinic", "jobsite"},
+		{"Clinic", "Jobsite"},
+		{"EHR", "project management system"},
+		{"charge nurse", "site supervisor"},
+		{"People Operations", "People team"},
+	} {
+		value = strings.ReplaceAll(value, replacement.old, replacement.new)
+	}
+	return restoreSeedDocumentLinks(value, links)
+}
+
+func protectSeedDocumentLinks(value string) (string, []string) {
+	var links []string
+	for {
+		start := strings.Index(value, "(doc:")
+		if start < 0 {
+			return value, links
+		}
+		endOffset := strings.IndexByte(value[start:], ')')
+		if endOffset < 0 {
+			return value, links
+		}
+		end := start + endOffset + 1
+		links = append(links, value[start:end])
+		value = value[:start] + "(__SEED_DOC_LINK_" + strconv.Itoa(len(links)-1) + "__)" + value[end:]
+	}
+}
+
+func restoreSeedDocumentLinks(value string, links []string) string {
+	for i, link := range links {
+		value = strings.ReplaceAll(value, "(__SEED_DOC_LINK_"+strconv.Itoa(i)+"__)", link)
+	}
+	return value
+}
+
+func legacySeedTitle(d seedDocPlan, viewer seedPerson) string {
+	title := d.Spec.Title
+	if d.Spec.Dated {
+		title += ": " + d.Created.Format("Jan 2, 2006")
+	}
+	return title
+}
+
+func legacySeedBody(in seedBodyInput, title string) string {
+	owner := in.Owner
+	owner.Key = "hc-legacy-seed"
+	in.Owner, in.Title = owner, title
+	return strings.ReplaceAll(documentSeedBody(in), "HarborCare", "Ironridge Builders")
+}
+
+func upgradeUnchangedSeedDocument(ctx context.Context, store *documenthubstore.Store, tenant string, id string, d seedDocPlan, input seedBodyInput, legacyLinks []seedLink) (bool, error) {
+	if tenant != demoworkforce.IronridgeKey || !strings.HasPrefix(input.Owner.Key, "ir-") {
+		return false, nil
+	}
+	legacyInput := input
+	legacyInput.Rand = rand.New(rand.NewPCG(d.seed, 1))
+	legacyInput.Links = legacyLinks
+	adaptedInput := input
+	adaptedInput.Rand = rand.New(rand.NewPCG(d.seed, 1))
+	legacy := documenthubstore.NormalizeMarkdown(legacySeedBody(legacyInput, legacySeedTitle(d, input.Owner)))
+	adapted := documenthubstore.NormalizeMarkdown(documentSeedBody(adaptedInput))
+	return store.UpgradePristineSeed(ctx, tenant, documenthubstore.SeedUpgradeInput{
+		DocumentID: id, OwnerID: input.Owner.Key, LegacyTitle: legacySeedTitle(d, input.Owner), LegacyHash: documenthubstore.HashContent(legacy), AdaptedTitle: d.Title, AdaptedMarkdown: adapted,
+	})
+}
+
 // documentSeedOptions configures one seed run. MaxDocuments trims the plan
 // for tests; zero means the whole plan.
 type documentSeedOptions struct {
@@ -618,7 +864,7 @@ func runDocumentSeedCommand(ctx context.Context, store *documenthubstore.Store, 
 	if opts.Now.IsZero() {
 		opts.Now = time.Now().UTC()
 	}
-	plan, err := planDocumentSeed(people, opts.Now)
+	plan, err := planDocumentSeedForTenant(people, opts.Now, opts.Tenant)
 	if err != nil {
 		return err
 	}
@@ -640,17 +886,26 @@ func runDocumentSeedCommand(ctx context.Context, store *documenthubstore.Store, 
 	owners := map[string]bool{}
 	for i, d := range plan.Docs {
 		owners[d.Owner.Key] = true
-		if id, ok := existing[d.Owner.Key+"\x00"+d.Title]; ok {
+		var links []seedLink
+		var legacyLinks []seedLink
+		for _, j := range d.Links {
+			links = append(links, seedLink{Title: plan.Docs[j].Title, ID: ids[j]})
+			legacyLinks = append(legacyLinks, seedLink{Title: legacySeedTitle(plan.Docs[j], plan.Viewer), ID: ids[j]})
+		}
+		input := seedBodyInput{Spec: d.Spec, Title: d.Title, Owner: d.Owner, People: seedTeam(plan.People, d.Spec.Domain), Links: links, Written: d.Created, Rand: rand.New(rand.NewPCG(d.seed, 1))}
+		id, ok := existing[d.Owner.Key+"\x00"+d.Title]
+		if !ok && strings.HasPrefix(d.Owner.Key, "ir-") {
+			id, ok = existing[d.Owner.Key+"\x00"+legacySeedTitle(d, plan.Viewer)]
+		}
+		if ok {
 			ids[i] = id
 			reused[i] = true
 			receipt.Reused++
+			if _, err := upgradeUnchangedSeedDocument(ctx, store, opts.Tenant, id, d, input, legacyLinks); err != nil {
+				return fmt.Errorf("upgrade %q: %w", d.Title, err)
+			}
 			continue
 		}
-		var links []seedLink
-		for _, j := range d.Links {
-			links = append(links, seedLink{Title: plan.Docs[j].Title, ID: ids[j]})
-		}
-		input := seedBodyInput{Spec: d.Spec, Title: d.Title, Owner: d.Owner, People: seedTeam(plan.People, d.Spec.Domain), Links: links, Written: d.Created, Rand: rand.New(rand.NewPCG(d.seed, 1))}
 		id, first, err := store.CreatePersonalDocument(ctx, opts.Tenant, d.Owner.Key, d.Title, documentSeedBody(input))
 		if err != nil {
 			return fmt.Errorf("create %q: %w", d.Title, err)
@@ -754,6 +1009,18 @@ func existingSeedDocuments(ctx context.Context, store *documenthubstore.Store, t
 		return rows.Err()
 	})
 	return out, err
+}
+
+// readSeedFirstVersion returns immutable seed identity metadata. The latest
+// version may already be the adapted tenant text, so maintenance matching must
+// use the original candidate title and timestamp.
+func readSeedFirstVersion(ctx context.Context, store *documenthubstore.Store, tenant, documentID string) (string, time.Time, error) {
+	var title string
+	var created time.Time
+	err := store.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT title,created_at FROM document_version WHERE tenant_id=$1 AND document_id=$2 AND parent_id='' ORDER BY created_at,id LIMIT 1`, tenant, documentID).Scan(&title, &created)
+	})
+	return title, created, err
 }
 
 // backdateSeedDocument moves one freshly created document's timestamps into

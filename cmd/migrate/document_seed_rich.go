@@ -403,12 +403,7 @@ All metrics exclude contractors and per-diem staff unless a dashboard says other
 // adds anchored comment threads to newly created documents only.
 func seedRichDocuments(ctx context.Context, store *documenthubstore.Store, plan documentSeedPlan, now time.Time, tenant string, existing map[string]string, out io.Writer) error {
 	byPrefix := func(prefix string) (seedPerson, bool) {
-		for _, p := range plan.People {
-			if strings.HasPrefix(p.Key, prefix) {
-				return p, true
-			}
-		}
-		return seedPerson{}, false
+		return seedPersonForPrefix(plan.People, prefix)
 	}
 	var created, reused, shared, comments, replies, resolved, filed int
 	folders := map[string][]string{}
@@ -418,6 +413,7 @@ func seedRichDocuments(ctx context.Context, store *documenthubstore.Store, plan 
 			owner = plan.People[i%len(plan.People)]
 		}
 		body := strings.ReplaceAll(d.Body, "'''", "```")
+		body = seedTenantTextForWorker(plan.Viewer.Key, body)
 		if id, ok := existing[owner.Key+"\x00"+d.Title]; ok {
 			reused++
 			if d.Folder != "" {
@@ -458,7 +454,9 @@ func seedRichDocuments(ctx context.Context, store *documenthubstore.Store, plan 
 					author = p.Key
 				}
 			}
-			in := documenthubstore.CommentInput{DocumentID: id, VersionID: first.ID, AuthorID: author, Body: c.Body, Quote: c.Quote, Prefix: c.Prefix, Suffix: c.Suffix}
+			in := documenthubstore.CommentInput{DocumentID: id, VersionID: first.ID, AuthorID: author,
+				Body: seedTenantTextForWorker(plan.Viewer.Key, c.Body), Quote: seedTenantTextForWorker(plan.Viewer.Key, c.Quote),
+				Prefix: seedTenantTextForWorker(plan.Viewer.Key, c.Prefix), Suffix: seedTenantTextForWorker(plan.Viewer.Key, c.Suffix)}
 			if c.ReplyTo >= 0 && c.ReplyTo < j {
 				in.ParentID = ids[c.ReplyTo]
 				replies++

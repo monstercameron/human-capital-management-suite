@@ -103,6 +103,10 @@ type Message struct {
 	Chips             []ReactionChip
 	ForwardedAuthor   string
 	ForwardedAuthorID string
+	// PersonaActor is supplied only from the trusted actor projection. A nil or
+	// incomplete value is rendered as unavailable; display names never infer it.
+	PersonaActor      *PersonaActor
+	PersonaReferences []ChatReference
 }
 
 // ChannelPin is an authorized pin projection, independent of the timeline page.
@@ -230,28 +234,31 @@ type Callbacks struct {
 	LoadMembers        func()
 	// ACCESS-01: opening/closing the "Add people" picker and submitting it
 	// for the selected conversation.
-	OpenAddMembers                func()
-	CloseAddMembers               func()
-	AddMembers                    func(subjectIDs []string)
-	LoadOlder                     func()
-	LoadNewer                     func()
-	VisibleMessageIDs             func([]string)
-	DownloadAttachment            func(string, string)
-	OpenCreate                    func()
-	CloseCreate                   func()
-	CreateConversation            func(ConversationKind, string, []string)
-	OpenBrowse                    func()
-	CloseBrowse                   func()
-	RequestJoinConversation       func(string)
-	JoinConversation              func(string)
-	DismissJoinPrompt             func()
-	ToggleSection                 func(string)
-	ReorderSection                func(string, int)
-	CreateSection                 func(string)
-	RemoveSection                 func(string)
-	MoveConversationSection       func(string, string)
-	MoveConversationOrder         func(string, int)
-	SendMessage                   func(string, string)
+	OpenAddMembers          func()
+	CloseAddMembers         func()
+	AddMembers              func(subjectIDs []string)
+	LoadOlder               func()
+	LoadNewer               func()
+	VisibleMessageIDs       func([]string)
+	DownloadAttachment      func(string, string)
+	OpenCreate              func()
+	CloseCreate             func()
+	CreateConversation      func(ConversationKind, string, []string)
+	OpenBrowse              func()
+	CloseBrowse             func()
+	RequestJoinConversation func(string)
+	JoinConversation        func(string)
+	DismissJoinPrompt       func()
+	ToggleSection           func(string)
+	ReorderSection          func(string, int)
+	CreateSection           func(string)
+	RemoveSection           func(string)
+	MoveConversationSection func(string, string)
+	MoveConversationOrder   func(string, int)
+	SendMessage             func(string, string)
+	// SendMessageWithReferences submits the body and its canonical references
+	// together. Persona suggestions are unavailable when this callback is nil.
+	SendMessageWithReferences     func(string, string, []ChatReference)
 	DraftChanged                  func(string, string)
 	OpenThread                    func(string)
 	CloseThread                   func()
@@ -305,6 +312,8 @@ type Callbacks struct {
 	// ReplyInThread posts a reply under the open thread's root message. When
 	// nil the thread pane has no composer of its own.
 	ReplyInThread func(parentID, body string)
+	// ReplyInThreadWithReferences posts a reply with canonical typed references.
+	ReplyInThreadWithReferences func(parentID, body string, refs []ChatReference)
 	// FilterBrowse narrows Model.Browse by a typed query.
 	FilterBrowse func(query string)
 	// FilterMembers narrows the details member list by a typed query.
@@ -365,31 +374,48 @@ type Model struct {
 	SelectedID          string
 	// RevokedConversationID asks the workspace to discard only this room's
 	// unsent draft after a conversation-level authorization refusal.
-	RevokedConversationID     string
-	Messages                  []Message
-	ChannelPins               []ChannelPin
-	ChannelTodo               ChannelTodoList
-	ChannelTodoLoading        bool
-	ChannelTodoPending        bool
-	ChannelTodoError          string
-	ChannelTodoDraft          string
-	ChannelTodoSourcePin      string
-	ChannelTodoNewMode        string
-	ChannelTodoNewSelected    []ChannelTodoSelectedMember
-	CanPinChannelTodo         bool
-	ChannelTeam               ChannelTeamWidget
-	ChannelProject            ChannelProjectWidget
-	ChannelWidgetsLoading     bool
-	ChannelWidgetsPending     bool
-	ChannelWidgetsError       string
-	ChannelPoll               ChannelPoll
-	ChannelPollLoading        bool
-	ChannelPollPending        bool
-	ChannelPollError          string
-	PinReferenceUnavailable   bool
-	HasOlder                  bool
-	HasNewer                  bool
-	Members                   []Member
+	RevokedConversationID string
+	Messages              []Message
+	// EphemeralMessages are recipient-only stream deliveries. They are kept
+	// outside Messages so shared history, search, unread counts, and exports
+	// can never accidentally consume private persona content.
+	EphemeralMessages       []EphemeralMessage
+	ChannelPins             []ChannelPin
+	ChannelTodo             ChannelTodoList
+	ChannelTodoLoading      bool
+	ChannelTodoPending      bool
+	ChannelTodoError        string
+	ChannelTodoDraft        string
+	ChannelTodoSourcePin    string
+	ChannelTodoNewMode      string
+	ChannelTodoNewSelected  []ChannelTodoSelectedMember
+	CanPinChannelTodo       bool
+	ChannelTeam             ChannelTeamWidget
+	ChannelProject          ChannelProjectWidget
+	ChannelWidgetsLoading   bool
+	ChannelWidgetsPending   bool
+	ChannelWidgetsError     string
+	ChannelPoll             ChannelPoll
+	ChannelPollLoading      bool
+	ChannelPollPending      bool
+	ChannelPollError        string
+	PinReferenceUnavailable bool
+	HasOlder                bool
+	HasNewer                bool
+	Members                 []Member
+	// PersonaMentions contains only currently invocable personas authorized by
+	// the caller for this viewer and selected conversation. It is retained for
+	// source compatibility only; mention UI deliberately ignores it.
+	PersonaMentions []PersonaMentionSuggestion
+	// ResolvedPersonaMentions contains the server-resolved, conversation-bound
+	// references eligible for this viewer. The caller must omit ineligible
+	// candidates and must populate profile facts from the same authorized read.
+	ResolvedPersonaMentions []ResolvedPersonaMention
+	// PersonaInvocations is an authenticated, invoker-only projection. Entries
+	// are keyed by their invoking post, so updates stay in that thread.
+	PersonaInvocations        []PersonaThreadInvocation
+	PersonaPostActors         map[string]PersonaPostActor
+	RenderPersonaTask         func(PersonaTaskCardProps) ui.Node
 	Draft                     string
 	Search                    string
 	SearchLoading             bool

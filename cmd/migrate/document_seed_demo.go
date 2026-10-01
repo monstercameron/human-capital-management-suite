@@ -380,10 +380,8 @@ type demoSeedReceipt struct {
 // case channels are named without links and no messages are written.
 func seedDemoDocuments(ctx context.Context, store *documenthubstore.Store, chat *chatstore.Store, plan documentSeedPlan, opts documentSeedOptions, existing map[string]string, out io.Writer) error {
 	byPrefix := func(prefix string) seedPerson {
-		for _, p := range plan.People {
-			if strings.HasPrefix(p.Key, prefix) {
-				return p
-			}
+		if p, ok := seedPersonForPrefix(plan.People, prefix); ok {
+			return p
 		}
 		return plan.Viewer
 	}
@@ -462,7 +460,9 @@ func ensureDemoDocument(ctx context.Context, store *documenthubstore.Store, blob
 	env.media = map[string]string{}
 	id, ok := existing[owner.Key+"\x00"+d.Title]
 	if !ok {
-		newID, first, err := store.CreatePersonalDocument(ctx, opts.Tenant, owner.Key, d.Title, documenthubstore.NormalizeMarkdown(d.Body(env)))
+		body := d.Body(env)
+		body = seedTenantTextForWorker(owner.Key, body)
+		newID, first, err := store.CreatePersonalDocument(ctx, opts.Tenant, owner.Key, d.Title, documenthubstore.NormalizeMarkdown(body))
 		if err != nil {
 			return "", fmt.Errorf("create %q: %w", d.Title, err)
 		}
@@ -472,7 +472,7 @@ func ensureDemoDocument(ctx context.Context, store *documenthubstore.Store, blob
 		sp.Created = opts.Now.Add(-time.Duration(d.AgeHours) * time.Hour).Truncate(time.Second)
 		revisionID := ""
 		if len(d.Assets) > 0 {
-			v, err := store.CreatePersonalDocumentVersion(ctx, opts.Tenant, newID, owner.Key, first.ID, d.Title, documenthubstore.NormalizeMarkdown(d.Body(env)))
+			v, err := store.CreatePersonalDocumentVersion(ctx, opts.Tenant, newID, owner.Key, first.ID, d.Title, documenthubstore.NormalizeMarkdown(body))
 			if err != nil {
 				return "", fmt.Errorf("reference attachments in %q: %w", d.Title, err)
 			}
@@ -496,7 +496,9 @@ func ensureDemoDocument(ctx context.Context, store *documenthubstore.Store, blob
 	if err := addDemoMedia(ctx, store, blobs, opts.Tenant, id, owner.Key, env, d.Assets, receipt); err != nil {
 		return "", err
 	}
-	markdown := documenthubstore.NormalizeMarkdown(d.Body(env))
+	body := d.Body(env)
+	body = seedTenantTextForWorker(owner.Key, body)
+	markdown := documenthubstore.NormalizeMarkdown(body)
 	_, latest, err := store.ReadPersonalDocument(ctx, opts.Tenant, owner.Key, id)
 	if err != nil {
 		return "", fmt.Errorf("read %q: %w", d.Title, err)

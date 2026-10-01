@@ -124,6 +124,15 @@ type ChatAdmissionConfig = chatadmission.Config
 // the chat composition rather than in the general serve options so the chat
 // lanes and the policy freshness bound stay owned by chat.
 type ChatComposition struct {
+	// PersonaReferences resolves only current, installed persona identities for
+	// the viewer. A nil source leaves persona mentions unavailable.
+	PersonaReferences personaChatReferenceSource
+	// PersonaDM resolves the invoker's canonical persona direct conversation.
+	// Private replies fail closed when no trusted resolver is composed.
+	PersonaDM chatcore.PersonaDMResolver
+	// PersonaDMFactory binds current persona owners once the routed chat and
+	// its durable store exist. It cannot be combined with a fixed resolver.
+	PersonaDMFactory func(chatcore.Store, chatcore.ConversationService) (chatcore.PersonaDMResolver, error)
 	// Admission overrides the chat admission bounds field by field.
 	Admission ChatAdmissionConfig
 	// AuthorityTTL bounds cached principal facts and channel policy. Zero means
@@ -180,6 +189,7 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	}
 	adapter := chatstore.NewAdapter(store)
 	service := chatcore.NewService(adapter, now)
+	service.SetEphemeralStore(adapter)
 	apps := &chatapps.Service{Repo: chatappstore.NewChatStore(store), Secret: []byte(cfg.ChatCursorKey), Now: now}
 	if intentService != nil {
 		// CHAT-045: an agent's proposed HCM action is carried through the real
@@ -187,7 +197,7 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		// under the caller's own authenticated context, not a same-package fake.
 		apps.Intent = chatAppsIntentAdapter{intent: intentService}
 	}
-	service.SetReferenceDirectory(chatReferenceDirectory{store: adapter, apps: apps})
+	service.SetReferenceDirectory(chatReferenceDirectory{store: adapter, apps: apps, personas: input.PersonaReferences})
 	// One policy and grant authority over the chat database, shared by the
 	// conversation authority and the company grant surface.
 	policy := chatauthority.New(store)
@@ -208,6 +218,18 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		store.Close()
 		return composedChat{}, fmt.Errorf("application: compose chat routing: %w", err)
 	}
+	if input.PersonaDMFactory != nil {
+		if input.PersonaDM != nil {
+			store.Close()
+			return composedChat{}, fmt.Errorf("application: persona DM resolver configured twice")
+		}
+		input.PersonaDM, err = input.PersonaDMFactory(adapter, routed)
+		if err != nil || isNilPersonaOutputPort(input.PersonaDM) {
+			store.Close()
+			return composedChat{}, fmt.Errorf("application: compose persona DM: %w", errPersonaDMResolverUnavailable)
+		}
+	}
+	service.SetPersonaDMResolver(input.PersonaDM)
 	grants := NewChatCompanyGrants(facts, policy)
 	extensions := &ChatExtensions{
 		Conversations: routed,
@@ -239,7 +261,7 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	if err != nil {
 		if errors.Is(err, ErrChatStreamingDisabled) {
 			grants.withRevocation(authorityCache, nil)
-			return composedChat{service: &streamingChatService{ConversationService: routed, membership: adapter, authority: authorityCache}, extensions: extensions, close: store.Close}, nil
+			return composedChat{service: &streamingChatService{ConversationService: routed, membership: adapter, authority: authorityCache, personaDM: input.PersonaDM}, extensions: extensions, close: store.Close}, nil
 		}
 		store.Close()
 		return composedChat{}, fmt.Errorf("application: compose chat stream: %w", err)
@@ -248,5 +270,5 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	// cached authority and closes that tenant's live subscriptions.
 	grants.withRevocation(authorityCache, streamRuntime)
 	extensions.Admission = streamRuntime
-	return composedChat{service: &streamingChatService{ConversationService: routed, runtime: streamRuntime, membership: adapter, authority: authorityCache}, extensions: extensions, close: store.Close}, nil
+	return composedChat{service: &streamingChatService{ConversationService: routed, runtime: streamRuntime, membership: adapter, authority: authorityCache, personaDM: input.PersonaDM}, extensions: extensions, close: store.Close}, nil
 }

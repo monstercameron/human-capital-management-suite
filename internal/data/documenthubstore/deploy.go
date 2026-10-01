@@ -39,6 +39,13 @@ type DeployInput struct {
 func (s *Store) Deploy(ctx context.Context, tenantID string, in DeployInput) (Deployment, error) {
 	var result Deployment
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
+		var locked string
+		if err := tx.QueryRow(ctx, `SELECT id FROM document WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, tenantID, in.DocumentID).Scan(&locked); err != nil {
+			if errors.Is(err, dbport.ErrNoRows) {
+				return ErrDenied
+			}
+			return err
+		}
 		version, err := loadVersion(ctx, tx, tenantID, in.DocumentID, in.VersionID)
 		if err != nil {
 			return err

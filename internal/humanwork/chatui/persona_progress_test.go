@@ -1,0 +1,105 @@
+package chatui
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/monstercameron/GoWebComponents/v5/html"
+	"github.com/monstercameron/GoWebComponents/v5/ui"
+)
+
+func renderPersonaProgressTest(t *testing.T, model Model, projection PersonaProgressProjection) string {
+	t.Helper()
+	// This test proves delegation and private placement. The shared task
+	// renderer's markup and locales are exercised in productui itself.
+	model.RenderPersonaTask = func(task PersonaTaskCardProps) ui.Node {
+		return html.Article(html.Props{Data: map[string]string{"agent-task-card": task.ID, "agent-task-revision": task.Revision}}, html.A(html.Props{Href: task.OpenTaskHref, Text: task.Title}), html.Span(html.Props{Text: personaProgressText(model, "chat.persona.awaiting_approval", "Awaiting approval")}))
+	}
+	markup, err := ui.RenderToString(RenderPersonaProgress(model, projection))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return markup
+}
+
+func personaProgressFixture() PersonaProgressProjection {
+	return PersonaProgressProjection{
+		ViewerID: "user-1", InvokerID: "user-1",
+		Progress: &PersonaProgressProps{InvocationID: "inv-1", InvokerID: "user-1", AgentName: "Comp Analyst", Activity: "reading 3 sources", CurrentStep: 2, TotalSteps: 5, Visible: true},
+		Task:     &PersonaTaskCardProps{ID: "task-1", Title: "Prepare compensation scenario", Goal: "Draft a scenario for my review", State: "awaiting_approval", Revision: "rev-2", OpenTaskHref: "/chat/agents?task=task-1", AwaitingApproval: true},
+	}
+}
+
+func TestTodo_AGENTP_020(t *testing.T) {
+	markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, personaProgressFixture())
+	for _, want := range []string{"persona-progress-status", "reading 3 sources", `agent-task-card="task-1"`, `agent-task-revision="rev-2"`, `href="/chat/agents?task=task-1"`, "Awaiting approval"} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("persona progress missing %q: %s", want, markup)
+		}
+	}
+	if strings.Count(markup, `agent-task-card="task-1"`) != 1 {
+		t.Fatalf("task card was duplicated: %s", markup)
+	}
+}
+
+func TestTodo_AGENTP_020_Accessibility(t *testing.T) {
+	p := personaProgressFixture()
+	markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p)
+	for _, want := range []string{`role="status"`, `aria-live="polite"`, `aria-atomic="true"`} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("accessibility/failure contract missing %q: %s", want, markup)
+		}
+	}
+	if !strings.Contains(PersonaProgressStyles, "prefers-reduced-motion:reduce") || !strings.Contains(PersonaProgressStyles, "animation:none") {
+		t.Fatal("reduced-motion rule missing")
+	}
+}
+
+func TestTodo_AGENTP_020_Fault(t *testing.T) {
+	p := personaProgressFixture()
+	p.Failure = &PersonaProgressFailure{InvocationID: "inv-1", InvokerID: "user-1", Code: "MODEL_UNAVAILABLE", Message: "Provider failed", Retryable: true}
+	markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p)
+	for _, want := range []string{`role="alert"`, `aria-live="assertive"`, `data-agent-failure-code="MODEL_UNAVAILABLE"`, `data-agent-action="retry"`, "Provider failed"} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("failure missing %q: %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, "persona-progress-status") {
+		t.Fatalf("failure retained working status: %s", markup)
+	}
+	p.Failure.Retryable = false
+	if markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p); strings.Contains(markup, `data-agent-action="retry"`) {
+		t.Fatalf("permanent failure permits retry: %s", markup)
+	}
+}
+
+func TestTodo_AGENTP_020_I18n(t *testing.T) {
+	for _, tc := range []struct{ locale, want string }{{"en-US", "Awaiting approval"}, {"de-DE", "Wartet auf Genehmigung"}, {"ar", "بانتظار الموافقة"}} {
+		markup := renderPersonaProgressTest(t, Model{Locale: tc.locale}, personaProgressFixture())
+		if !strings.Contains(markup, tc.want) || strings.Contains(markup, "chat.persona.") {
+			t.Fatalf("%s localization missing: %s", tc.locale, markup)
+		}
+	}
+}
+
+func TestTodo_AGENTP_020_InvokerOnlyAndResultClearsProgress(t *testing.T) {
+	p := personaProgressFixture()
+	member := renderPersonaProgressTest(t, Model{Locale: "en-US"}, PersonaProgressProjection{ViewerID: "member-2", InvokerID: "user-1", Progress: p.Progress, Task: p.Task})
+	if strings.Contains(member, "reading 3 sources") || strings.Contains(member, "persona-task-card") {
+		t.Fatalf("non-invoker saw private progress or task: %s", member)
+	}
+	p.Progress.ResultReady = true
+	result := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p)
+	if strings.Contains(result, "persona-progress-status") {
+		t.Fatalf("progress remained after result: %s", result)
+	}
+}
+
+func TestTodo_AGENTP_020_OnlyReportsSuppliedStepCounts(t *testing.T) {
+	p := personaProgressFixture()
+	p.Progress.CurrentStep, p.Progress.TotalSteps = 0, 0
+	markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p)
+	if strings.Contains(markup, "(1/1)") || !strings.Contains(markup, "reading 3 sources") {
+		t.Fatalf("missing steps were fabricated: %s", markup)
+	}
+}

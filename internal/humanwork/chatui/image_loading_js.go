@@ -295,6 +295,7 @@ func (l *chatImageLoader) loadThumbnail(button js.Value) {
 			record.abort = js.Undefined()
 			controller.Call("abort")
 			record.failed = true
+			setChatImageDiagnostic(button, "failed", "watchdog", "")
 			markChatAttachmentImageFailed(button)
 			l.armThumbnailRetry(record)
 		}
@@ -313,6 +314,7 @@ func (l *chatImageLoader) loadThumbnail(button js.Value) {
 		record.abort = js.Undefined()
 		if objectURL == "" {
 			record.failed = true
+			setChatImageDiagnostic(button, "failed", "empty-response", "")
 			markChatAttachmentImageFailed(button)
 			l.armThumbnailRetry(record)
 			return
@@ -348,6 +350,7 @@ func (l *chatImageLoader) loadThumbnail(button js.Value) {
 				revokeChatImageURL(record.objectURL)
 				record.objectURL = ""
 				record.failed = true
+				setChatImageDiagnostic(button, "failed", "decode-error", "")
 				markChatAttachmentImageFailed(button)
 				l.armThumbnailRetry(record)
 			}
@@ -356,6 +359,7 @@ func (l *chatImageLoader) loadThumbnail(button js.Value) {
 		decoded = js.FuncOf(func(js.Value, []js.Value) any {
 			settle()
 			if activeChatImageLoader == l && l.records[key] == record && image.Equal(record.image) {
+				setChatImageDiagnostic(button, "loaded", "", "")
 				markChatAttachmentImageLoaded(button)
 			}
 			return nil
@@ -488,6 +492,7 @@ func loadChatImageDisplay(button, fullImage js.Value, ready func(bool)) func() {
 }
 
 func startProtectedImageFetch(button js.Value, variant, url string, signal js.Value, done func(string)) {
+	setChatImageDiagnostic(button, "fetching", "", "")
 	if bridge := js.Global().Get("hcmChatMediaFetch"); bridge.Type() == js.TypeFunction {
 		promise := bridge.Invoke(button.Get("dataset").Get("mediaId").String(), variant, signal)
 		if !promise.Truthy() || !promise.Get("then").Truthy() {
@@ -507,16 +512,23 @@ func startProtectedImageFetch(button js.Value, variant, url string, signal js.Va
 		}
 		then = js.FuncOf(func(_ js.Value, args []js.Value) any {
 			if len(args) > 0 {
+				setChatImageDiagnostic(button, "object-url", "", "")
 				finish(args[0].String())
 			} else {
+				setChatImageDiagnostic(button, "failed", "empty-response", "")
 				finish("")
 			}
 			return nil
 		})
-		catch = js.FuncOf(func(js.Value, []js.Value) any { finish(""); return nil })
+		catch = js.FuncOf(func(js.Value, []js.Value) any {
+			setChatImageDiagnostic(button, "failed", "fetch-rejected", "")
+			finish("")
+			return nil
+		})
 		promise.Call("then", then).Call("catch", catch)
 		return
 	}
+	setChatImageDiagnostic(button, "failed", "bridge-missing", "")
 	// The integrated app installs an authenticated bridge; URL-backed loading
 	// remains as a small standalone test seam for chatui.
 	var response, blob, failure js.Func
@@ -562,6 +574,33 @@ func startProtectedImageFetch(button js.Value, variant, url string, signal js.Va
 	})
 	options := js.ValueOf(map[string]any{"credentials": "same-origin", "cache": "no-store", "signal": signal})
 	js.Global().Call("fetch", url, options).Call("then", response).Call("then", blob).Call("catch", failure)
+}
+
+// setChatImageDiagnostic exposes sanitized media lifecycle state on the
+// attachment button for local diagnostics. It never includes URLs or tokens.
+func setChatImageDiagnostic(button js.Value, state, failure, status string) {
+	if !button.Truthy() {
+		return
+	}
+	data := button.Get("dataset")
+	data.Set("mediaLoadState", state)
+	if failure != "" {
+		data.Set("mediaFailure", failure)
+	}
+	if status != "" {
+		data.Set("mediaStatus", status)
+	}
+	if diagnostic := js.Global().Get("hcmChatMediaDiagnostic"); diagnostic.Type() == js.TypeFunction {
+		item := diagnostic.Invoke(button.Get("dataset").Get("mediaId").String())
+		if item.Truthy() {
+			if value := item.Get("failure"); value.Truthy() {
+				data.Set("mediaFailure", value.String())
+			}
+			if value := item.Get("status"); value.Truthy() {
+				data.Set("mediaStatus", value.String())
+			}
+		}
+	}
 }
 
 func validChatImageVariantDescriptor(raw, variant string) bool {

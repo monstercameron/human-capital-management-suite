@@ -63,6 +63,8 @@ type Service struct {
 	linkCodec          LinkCodec
 	mediaDirectory     MediaDirectory
 	contentPolicy      ContentPolicy
+	ephemeral          EphemeralStore
+	personaDM          PersonaDMResolver
 }
 
 // SetAuthority installs the current-authority resolver used by subsequent
@@ -353,6 +355,18 @@ func (s *Service) RemoveMembership(ctx context.Context, r RemoveMembershipReques
 
 func (s *Service) SendPost(ctx context.Context, r SendPostRequest) (Post, error) {
 	return s.sendPost(ctx, r, false)
+}
+
+// CommitPersonaReply forwards the server-owned persona delivery capability to
+// the durable store. The store owns proof, identity and audience-revision
+// validation; this service deliberately does not reinterpret the capability as
+// an ordinary caller-authored SendPost.
+func (s *Service) CommitPersonaReply(ctx context.Context, r PersonaReplyCommitRequest) (Post, error) {
+	committer, ok := s.store.(PersonaReplyCommitter)
+	if !ok {
+		return Post{}, ErrUnavailable
+	}
+	return committer.CommitPersonaReply(ctx, r)
 }
 
 func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource bool) (Post, error) {

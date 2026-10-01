@@ -256,6 +256,9 @@ func virtualTimelineBody(m Model, h handlers, messages []Message, layout virtual
 		prevDay = dayKey(msg.SentAt)
 	}
 	items = append(items, html.WithKey(html.Div(html.Props{Class: "virtual-spacer", Data: map[string]string{"virtual-spacer": "after"}}), "spacer-after"))
+	for _, privateMessage := range VisibleEphemeralMessages(m.EphemeralMessages, time.Now()) {
+		items = append(items, html.WithKey(RenderEphemeralMessage(m, privateMessage, time.Now()), "ephemeral:"+privateMessage.ID))
+	}
 	protected := []string{m.EditingID, m.MenuID, m.PickerID, focusedVirtualMessageID()}
 	seen := map[string]bool{}
 	for _, id := range protected {
