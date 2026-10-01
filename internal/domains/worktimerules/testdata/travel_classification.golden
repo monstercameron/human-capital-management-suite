@@ -1,0 +1,5 @@
+segment=0 class=COMMUTE paid=false counts=false minutes=30
+segment=1 class=INTER_SITE paid=true counts=true minutes=45
+segment=2 class=SPECIAL_ONE_DAY_ASSIGNMENT paid=true counts=true minutes=240
+segment=3 class=OVERNIGHT_WITHIN_NORMAL_HOURS paid=true counts=true minutes=360
+segment=4 class=WORK_WHILE_TRAVELLING paid=true counts=true minutes=60

@@ -1,0 +1,301 @@
+syntax = "proto3";
+
+package hcmnext.time.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1;timev1";
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/common/v1/common.proto";
+import "hcmnext/time/v1/events.proto";
+import "hcmnext/time/v1/time.proto";
+import "hcmnext/time/v1/vocabulary.proto";
+
+// TimeService is the typed boundary for clock commands, timecards, shifts
+// and time profiles, used by workspace clients and external integrators
+// (FTIME-008). Caller identity and tenant authority come from authenticated
+// context; scope is checked by the server against that authority. Failures
+// carry the canonical hcmnext.common.v1.ErrorDetail through the transport
+// error contract. Every write below carries idempotency_key and, where it
+// mutates an existing resource, expected_revision; every read returns the
+// resource's etag; every list is bounded by
+// hcmnext.common.v1.PageRequest/PageResponse.
+service TimeService {
+  // Session lifecycle.
+  rpc ClockIn(ClockInRequest) returns (ClockInResponse);
+  rpc StartBreak(StartBreakRequest) returns (StartBreakResponse);
+  rpc EndBreak(EndBreakRequest) returns (EndBreakResponse);
+  rpc TransferJob(TransferJobRequest) returns (TransferJobResponse);
+  rpc ClockOut(ClockOutRequest) returns (ClockOutResponse);
+  rpc GetCurrentSession(GetCurrentSessionRequest) returns (GetCurrentSessionResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+
+  // Timecard review.
+  rpc GetTimecard(GetTimecardRequest) returns (GetTimecardResponse);
+  rpc ListTimecards(ListTimecardsRequest) returns (ListTimecardsResponse);
+  rpc SubmitTimecard(SubmitTimecardRequest) returns (SubmitTimecardResponse);
+  rpc AttestTimecard(AttestTimecardRequest) returns (AttestTimecardResponse);
+  rpc ApproveTimecard(ApproveTimecardRequest) returns (ApproveTimecardResponse);
+  rpc ReopenTimecard(ReopenTimecardRequest) returns (ReopenTimecardResponse);
+
+  // Punch correction and missed-punch review (TCLOCK-011).
+  rpc CorrectPunch(CorrectPunchRequest) returns (CorrectPunchResponse);
+  rpc RequestMissedPunch(RequestMissedPunchRequest) returns (RequestMissedPunchResponse);
+  rpc DecideMissedPunch(DecideMissedPunchRequest) returns (DecideMissedPunchResponse);
+
+  // Shift scheduling.
+  rpc CreateShift(CreateShiftRequest) returns (CreateShiftResponse);
+  rpc PublishShift(PublishShiftRequest) returns (PublishShiftResponse);
+  rpc CancelShift(CancelShiftRequest) returns (CancelShiftResponse);
+  rpc ListShifts(ListShiftsRequest) returns (ListShiftsResponse);
+
+  // Time profile.
+  rpc GetTimeProfile(GetTimeProfileRequest) returns (GetTimeProfileResponse);
+  rpc AssignTimeProfile(AssignTimeProfileRequest) returns (AssignTimeProfileResponse);
+
+  // Event pull cursor (TCLOCK-012 consumer side).
+  rpc ListTimeEvents(ListTimeEventsRequest) returns (ListTimeEventsResponse);
+}
+
+message ClockInRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string worker_id = 2;
+  string job_id = 3;
+  string cost_code_id = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  string timezone = 6;
+  string source_ref = 7;
+  string idempotency_key = 8;
+}
+message ClockInResponse { ClockSession session = 1; }
+
+message StartBreakRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string session_id = 2;
+  uint64 expected_revision = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+  string idempotency_key = 5;
+}
+message StartBreakResponse { ClockSession session = 1; }
+
+message EndBreakRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string session_id = 2;
+  uint64 expected_revision = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+  string idempotency_key = 5;
+}
+message EndBreakResponse { ClockSession session = 1; }
+
+message TransferJobRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string session_id = 2;
+  uint64 expected_revision = 3;
+  string job_id = 4;
+  string cost_code_id = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+  string idempotency_key = 7;
+}
+message TransferJobResponse { ClockSession session = 1; }
+
+message ClockOutRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string session_id = 2;
+  uint64 expected_revision = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+  string idempotency_key = 5;
+}
+message ClockOutResponse { ClockSession session = 1; }
+
+message GetCurrentSessionRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string worker_id = 2;
+}
+message GetCurrentSessionResponse {
+  // session is unset (not an error) when the worker has no open session.
+  ClockSession session = 1;
+}
+
+message ListSessionsRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string worker_id = 2;
+  SessionStatus status = 3;
+  google.protobuf.Timestamp opened_after = 4;
+  google.protobuf.Timestamp opened_before = 5;
+  hcmnext.common.v1.PageRequest page = 6;
+}
+message ListSessionsResponse {
+  repeated ClockSession sessions = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+}
+
+message GetTimecardRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string timecard_id = 2;
+}
+message GetTimecardResponse { Timecard timecard = 1; }
+
+message ListTimecardsRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string worker_id = 2;
+  TimecardStatus status = 3;
+  hcmnext.common.v1.PageRequest page = 4;
+}
+message ListTimecardsResponse {
+  repeated Timecard timecards = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+}
+
+message SubmitTimecardRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string timecard_id = 2;
+  uint64 expected_revision = 3;
+  string idempotency_key = 4;
+}
+message SubmitTimecardResponse { Timecard timecard = 1; }
+
+// AttestationAnswer is one worker statement collected against a versioned
+// attestation question at clock-out or timecard submission (TCLOCK-010).
+message AttestationAnswer {
+  string question_ref = 1;
+  string answer = 2;
+}
+
+message AttestTimecardRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string timecard_id = 2;
+  uint64 expected_revision = 3;
+  repeated AttestationAnswer answers = 4;
+  string idempotency_key = 5;
+}
+message AttestTimecardResponse { Timecard timecard = 1; }
+
+message ApproveTimecardRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string timecard_id = 2;
+  uint64 expected_revision = 3;
+  string idempotency_key = 4;
+}
+message ApproveTimecardResponse { Timecard timecard = 1; }
+
+message ReopenTimecardRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string timecard_id = 2;
+  uint64 expected_revision = 3;
+  string reason = 4;
+  string idempotency_key = 5;
+}
+message ReopenTimecardResponse { Timecard timecard = 1; }
+
+message CorrectPunchRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string session_id = 2;
+  uint64 expected_revision = 3;
+  string punch_id = 4;
+  PunchEventType corrected_event_type = 5;
+  google.protobuf.Timestamp corrected_occurred_at = 6;
+  string reason = 7;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 8;
+  string idempotency_key = 9;
+}
+message CorrectPunchResponse { ClockSession session = 1; }
+
+message RequestMissedPunchRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string worker_id = 2;
+  string session_id = 3;
+  PunchEventType claimed_event_type = 4;
+  google.protobuf.Timestamp claimed_occurred_at = 5;
+  string reason = 6;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 7;
+  string idempotency_key = 8;
+}
+message RequestMissedPunchResponse { MissedPunchRequest request = 1; }
+
+message DecideMissedPunchRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string request_id = 2;
+  uint64 expected_revision = 3;
+  MissedPunchRequestStatus decision = 4;
+  string reason = 5;
+  string idempotency_key = 6;
+}
+message DecideMissedPunchResponse { MissedPunchRequest request = 1; }
+
+message CreateShiftRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string site_id = 2;
+  string worker_id = 3;
+  string job_id = 4;
+  google.protobuf.Timestamp starts_at = 5;
+  google.protobuf.Timestamp ends_at = 6;
+  string timezone = 7;
+  string idempotency_key = 8;
+}
+message CreateShiftResponse { Shift shift = 1; }
+
+message PublishShiftRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string shift_id = 2;
+  uint64 expected_revision = 3;
+  string idempotency_key = 4;
+}
+message PublishShiftResponse { Shift shift = 1; }
+
+message CancelShiftRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string shift_id = 2;
+  uint64 expected_revision = 3;
+  string reason = 4;
+  string idempotency_key = 5;
+}
+message CancelShiftResponse { Shift shift = 1; }
+
+message ListShiftsRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string site_id = 2;
+  string worker_id = 3;
+  ShiftStatus status = 4;
+  google.protobuf.Timestamp starting_after = 5;
+  google.protobuf.Timestamp starting_before = 6;
+  hcmnext.common.v1.PageRequest page = 7;
+}
+message ListShiftsResponse {
+  repeated Shift shifts = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+}
+
+message GetTimeProfileRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string worker_id = 2;
+}
+message GetTimeProfileResponse { TimeProfile profile = 1; }
+
+message AssignTimeProfileRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string worker_id = 2;
+  uint64 expected_revision = 3;
+  CaptureMode capture_mode = 4;
+  PayBasis pay_basis = 5;
+  ExemptionStatus exemption_status = 6;
+  WorkerCategory worker_category = 7;
+  TimeDestination destination = 8;
+  OvertimeMethod overtime_method = 9;
+  TimeTemplate template = 10;
+  repeated ControlClass control_classes = 11;
+  hcmnext.common.v1.EffectiveTimeRange effective_range = 12;
+  string idempotency_key = 13;
+}
+message AssignTimeProfileResponse { TimeProfile profile = 1; }
+
+message ListTimeEventsRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  // event_types filters to these hcmnext.time.v1 event type refs (for
+  // example "clock.punch.accepted"); empty means every type the caller's
+  // scope is granted.
+  repeated string event_types = 2;
+  hcmnext.common.v1.PageRequest page = 3;
+}
+message ListTimeEventsResponse {
+  repeated ClockEvent events = 1;
+  hcmnext.common.v1.PageResponse page = 2;
+}

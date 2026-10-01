@@ -1,0 +1,47 @@
+timecalc v1
+calculation calc-1 ruleset=US-FLSA/2026.1 jurisdiction=US method=FLUCTUATING_WEEK
+day 0 2026-01-05 rule=NONE worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 1 2026-01-06 rule=NONE worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 2 2026-01-07 rule=NONE worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 3 2026-01-08 rule=NONE worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 4 2026-01-09 rule=NONE worked=5:30:00 regular=5:30:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 7 2026-01-12 rule=NONE worked=9:00:00 regular=9:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 8 2026-01-13 rule=NONE worked=9:00:00 regular=9:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 9 2026-01-14 rule=NONE worked=9:00:00 regular=9:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 10 2026-01-15 rule=NONE worked=9:00:00 regular=9:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 11 2026-01-16 rule=NONE worked=8:00:00 regular=4:00:00 overtime=4:00:00 double_time=0:00:00 comp_time=0:00:00
+day 14 2026-01-19 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 15 2026-01-20 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 16 2026-01-21 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 17 2026-01-22 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 18 2026-01-23 rule=NONE worked=10:00:00 regular=0:00:00 overtime=10:00:00 double_time=0:00:00 comp_time=0:00:00
+day 21 2026-01-26 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 22 2026-01-27 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 23 2026-01-28 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 24 2026-01-29 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 25 2026-01-30 rule=NONE worked=8:00:00 regular=0:00:00 overtime=8:00:00 double_time=0:00:00 comp_time=0:00:00
+period 0 2026-01-05 worked=37:30:00 regular=37:30:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00 regular_rate=16.00
+  line SALARY code=WEEKLY_SALARY hours=37:30:00 rate=0.00 amount=600.00 in_regular_rate=true rule=US-FLSA:FWW_SALARY_778_114
+period 1 2026-01-12 worked=44:00:00 regular=40:00:00 overtime=4:00:00 double_time=0:00:00 comp_time=0:00:00 regular_rate=13.64
+  line SALARY code=WEEKLY_SALARY hours=44:00:00 rate=0.00 amount=600.00 in_regular_rate=true rule=US-FLSA:FWW_SALARY_778_114
+  line OVERTIME_PREMIUM code=OVERTIME_PREMIUM hours=4:00:00 rate=6.82 amount=27.28 in_regular_rate=false rule=US-FLSA:OVERTIME_PREMIUM
+period 2 2026-01-19 worked=50:00:00 regular=40:00:00 overtime=10:00:00 double_time=0:00:00 comp_time=0:00:00 regular_rate=12.00
+  line SALARY code=WEEKLY_SALARY hours=50:00:00 rate=0.00 amount=600.00 in_regular_rate=true rule=US-FLSA:FWW_SALARY_778_114
+  line OVERTIME_PREMIUM code=OVERTIME_PREMIUM hours=10:00:00 rate=6.00 amount=60.00 in_regular_rate=false rule=US-FLSA:OVERTIME_PREMIUM
+period 3 2026-01-26 worked=48:00:00 regular=40:00:00 overtime=8:00:00 double_time=0:00:00 comp_time=0:00:00 regular_rate=12.50
+  line SALARY code=WEEKLY_SALARY hours=48:00:00 rate=0.00 amount=600.00 in_regular_rate=true rule=US-FLSA:FWW_SALARY_778_114
+  line OVERTIME_PREMIUM code=OVERTIME_PREMIUM hours=8:00:00 rate=6.25 amount=50.00 in_regular_rate=false rule=US-FLSA:OVERTIME_PREMIUM
+totals worked=179:30:00 regular=157:30:00 overtime=22:00:00 double_time=0:00:00 comp_time=0:00:00 premium_hours=0:00:00 gross=2537.28
+comp_time converted=0:00:00 accrued=0:00:00 before=0:00:00 after=0:00:00 cap=0:00:00
+trace US-FLSA:RULESET version=2026.1 jurisdiction=US citation=29 USC 207; 29 CFR 778
+trace US-FLSA:METHOD method=FLUCTUATING_WEEK aggregation_key=worker-1
+trace US-FLSA:CALENDAR zone=America/Los_Angeles start=2026-01-05 workweek_start=Monday at=00:00 days=28
+trace US-FLSA:THRESHOLDS daily_ot_after=0:00:00 daily_dt_after=0:00:00 period_days=7 period_ot_after=40:00:00 ot_factor=1.5 dt_factor=2 rate_decimals=2 pay_decimals=2 rounding=HALF_UP
+trace US-FLSA:CLASSIFY period=0 daily_ot=0:00:00 daily_dt=0:00:00 period_ot=0:00:00 seventh_day_ot=0:00:00 seventh_day_dt=0:00:00 alternative_ot=0:00:00 alternative_dt=0:00:00
+trace US-FLSA:REGULAR_RATE_FWW_778_114 period=0 included_earnings=600.00 hours=37:30:00 regular_rate=16.00
+trace US-FLSA:CLASSIFY period=1 daily_ot=0:00:00 daily_dt=0:00:00 period_ot=4:00:00 seventh_day_ot=0:00:00 seventh_day_dt=0:00:00 alternative_ot=0:00:00 alternative_dt=0:00:00
+trace US-FLSA:REGULAR_RATE_FWW_778_114 period=1 included_earnings=600.00 hours=44:00:00 regular_rate=13.64
+trace US-FLSA:CLASSIFY period=2 daily_ot=0:00:00 daily_dt=0:00:00 period_ot=10:00:00 seventh_day_ot=0:00:00 seventh_day_dt=0:00:00 alternative_ot=0:00:00 alternative_dt=0:00:00
+trace US-FLSA:REGULAR_RATE_FWW_778_114 period=2 included_earnings=600.00 hours=50:00:00 regular_rate=12.00
+trace US-FLSA:CLASSIFY period=3 daily_ot=0:00:00 daily_dt=0:00:00 period_ot=8:00:00 seventh_day_ot=0:00:00 seventh_day_dt=0:00:00 alternative_ot=0:00:00 alternative_dt=0:00:00
+trace US-FLSA:REGULAR_RATE_FWW_778_114 period=3 included_earnings=600.00 hours=48:00:00 regular_rate=12.50

@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/application/clockservice"
+	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	capauthority "github.com/monstercameron/human-capital-management-suite/internal/capability/authority"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/timestore"
 	clockdomain "github.com/monstercameron/human-capital-management-suite/internal/domains/clock"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -19,28 +22,85 @@ var (
 	errClockAuthorityInvalid     = errors.New("clock authority: invalid trusted principal or scope")
 )
 
-const (
-	clockCapabilityPunch         = "hcmnext.time.clock_punch"
-	clockCapabilityDeviceAdmin   = "hcmnext.time.clock_device_admin"
-	clockCapabilitySupervisor    = "hcmnext.time.clock_supervisor_override"
-	clockCapabilityMissingPunch  = "hcmnext.time.missing_punch.request"
-	clockCapabilityMissingReview = "hcmnext.time.missing_punch.decide"
-)
-
-// ClockAuthorization is the result of a current, governed authority check.
-// The decision is deliberately smaller than a capability decision: callers
-// need only the allow bit and the delegated marker needed by clockservice.
-type ClockAuthorization struct {
-	Allowed   bool
-	Delegated bool
+// ClockCapabilityIDs names published capability definitions. There are no
+// fallback IDs: an unpublished clock capability keeps the surface disabled.
+type ClockCapabilityIDs struct {
+	Punch, DeviceAdmin, SupervisorOverride, MissingPunchRequest, MissingPunchDecision string
 }
 
-// ClockAuthorityEvaluator evaluates a clock capability against current
-// server-resolved facts. Implementations must load roles, grants and
-// obligations from durable stores and use the existing governed evaluator;
-// this interface has no development or allow-all implementation.
-type ClockAuthorityEvaluator interface {
-	EvaluateClock(context.Context, *trust.Principal, string, string, string, string, time.Time) (ClockAuthorization, error)
+// ClockAuthorityFacts resolves current roles, grants, delegation, step-up and
+// dual-approval evidence from their authoritative stores.
+type ClockAuthorityFacts interface {
+	ResolveClockAuthority(context.Context, *trust.Principal, string, string, string, string, time.Time) (capauthority.Authority, error)
+}
+
+// RegistryClockAuthority is the concrete governed evaluator used by the
+// production clock adapter. It resolves a published capability definition
+// and evaluates it with capability/authority.Authorize; an unknown ID or
+// missing server-resolved facts fails closed.
+type RegistryClockAuthority struct {
+	Registry *capability.Registry
+	Facts    ClockAuthorityFacts
+}
+
+// ProductionClockAuthorityFacts binds the governed capability evaluator to
+// the durable role-assignment snapshot and authoritative worker directory.
+// It deliberately supplies no synthetic delegation, scope or approval data.
+type ProductionClockAuthorityFacts struct {
+	Roles                 roleaccess.Store
+	Workers               clockservice.WorkerDirectory
+	DeviceAdminCapability string
+}
+
+var _ ClockAuthorityFacts = ProductionClockAuthorityFacts{}
+
+// ResolveClockAuthority resolves the actor's current role assignment and
+// validates any worker subject through the authoritative workforce reader.
+// Missing role assignments, inactive workers and malformed tenant scope fail
+// closed; credential-carried roles are never copied into EffectiveRoles.
+func (f ProductionClockAuthorityFacts) ResolveClockAuthority(ctx context.Context, p *trust.Principal, tenant, capabilityID, subject, _ string, _ time.Time) (capauthority.Authority, error) {
+	if f.Roles == nil || p == nil || string(p.Tenant()) != strings.TrimSpace(tenant) || p.OrganizationScopeID() == "" {
+		return capauthority.Authority{}, errClockAuthorityUnavailable
+	}
+	snapshot, err := f.Roles.Load(ctx, p.Tenant(), p.OrganizationScopeID())
+	if err != nil {
+		return capauthority.Authority{}, err
+	}
+	var roles []string
+	for _, assignment := range snapshot.Assignments {
+		if assignment.WorkerRef == p.Subject() {
+			roles = append(roles, assignment.RoleIDs...)
+			break
+		}
+	}
+	if len(roles) == 0 {
+		return capauthority.Authority{}, errClockAuthorityDenied
+	}
+	if f.Workers != nil && strings.TrimSpace(subject) != "" && capabilityID != f.DeviceAdminCapability {
+		if _, active, err := f.Workers.ResolveWorker(ctx, tenant, subject); err != nil || !active {
+			if err != nil {
+				return capauthority.Authority{}, err
+			}
+			return capauthority.Authority{}, errClockAuthorityDenied
+		}
+	}
+	return capauthority.Authority{EffectiveRoles: roles}, nil
+}
+
+func (e RegistryClockAuthority) evaluate(ctx context.Context, p *trust.Principal, tenant, id, subject, assignment string, now time.Time) (bool, error) {
+	if e.Registry == nil || e.Facts == nil || strings.TrimSpace(id) == "" {
+		return false, errClockAuthorityUnavailable
+	}
+	record, ok := e.Registry.LatestActive(id)
+	if !ok || record.Status != capability.StatusActive {
+		return false, errClockAuthorityDenied
+	}
+	facts, err := e.Facts.ResolveClockAuthority(ctx, p, tenant, id, subject, assignment, now)
+	if err != nil {
+		return false, err
+	}
+	decision := capauthority.Authorize(p, "timekeeping", record.Definition, facts, now)
+	return decision.Decision == capability.Allow, nil
 }
 
 // ProductionClockAuthority binds clockservice to the authoritative worker
@@ -48,13 +108,22 @@ type ClockAuthorityEvaluator interface {
 // canonical worker and assignment before evaluating authority, so a client
 // cannot authorize an alias, display name or forged subject reference.
 type ProductionClockAuthority struct {
-	Workers   clockservice.WorkerDirectory
-	Evaluator ClockAuthorityEvaluator
-	Clock     func() time.Time
+	Workers      clockservice.WorkerDirectory
+	Evaluator    RegistryClockAuthority
+	Capabilities ClockCapabilityIDs
+	Clock        func() time.Time
+}
+
+// MissingPunchSessionLookupAuthorizer is the pre-read gate for a session
+// lookup. It prevents a caller from using session existence or timing as an
+// oracle before the worker-specific authority can be evaluated.
+type MissingPunchSessionLookupAuthorizer interface {
+	AuthorizeSessionLookup(context.Context, *trust.Principal, string, string) error
 }
 
 var _ clockservice.Authorizer = ProductionClockAuthority{}
 var _ clockservice.MissingPunchAuthorization = ProductionClockAuthority{}
+var _ MissingPunchSessionLookupAuthorizer = ProductionClockAuthority{}
 
 // AuthorizePunch evaluates current authority for a canonical worker and
 // assignment. The worker and assignment are re-resolved at decision time.
@@ -63,14 +132,14 @@ func (a ProductionClockAuthority) AuthorizePunch(ctx context.Context, p *trust.P
 	if err != nil {
 		return false, err
 	}
-	decision, err := a.evaluate(ctx, p, tenant, clockCapabilityPunch, canonicalWorker, canonicalAssignment)
+	allowed, err := a.evaluate(ctx, p, tenant, a.Capabilities.Punch, canonicalWorker, canonicalAssignment)
 	if err != nil {
 		return false, err
 	}
-	if !decision.Allowed {
+	if !allowed {
 		return false, errClockAuthorityDenied
 	}
-	return decision.Delegated, nil
+	return false, nil
 }
 
 // AuthorizeDeviceAdmin evaluates device administration against the site
@@ -83,11 +152,11 @@ func (a ProductionClockAuthority) AuthorizeDeviceAdmin(ctx context.Context, p *t
 	if strings.TrimSpace(site) == "" {
 		return errClockAuthorityInvalid
 	}
-	decision, err := a.evaluate(ctx, p, tenant, clockCapabilityDeviceAdmin, site, "")
+	allowed, err := a.evaluate(ctx, p, tenant, a.Capabilities.DeviceAdmin, site, "")
 	if err != nil {
 		return err
 	}
-	if !decision.Allowed {
+	if !allowed {
 		return errClockAuthorityDenied
 	}
 	return nil
@@ -102,11 +171,11 @@ func (a ProductionClockAuthority) AuthorizeSupervisorOverride(ctx context.Contex
 	if strings.TrimSpace(site) == "" {
 		return errClockAuthorityInvalid
 	}
-	decision, err := a.evaluate(ctx, p, tenant, clockCapabilitySupervisor, site, "")
+	allowed, err := a.evaluate(ctx, p, tenant, a.Capabilities.SupervisorOverride, site, "")
 	if err != nil {
 		return err
 	}
-	if !decision.Allowed {
+	if !allowed {
 		return errClockAuthorityDenied
 	}
 	return nil
@@ -122,11 +191,28 @@ func (a ProductionClockAuthority) AuthorizeRequest(ctx context.Context, p *trust
 	if p.Subject() != canonical {
 		return errClockAuthorityDenied
 	}
-	decision, err := a.evaluate(ctx, p, tenant, clockCapabilityMissingPunch, canonical, "")
+	allowed, err := a.evaluate(ctx, p, tenant, a.Capabilities.MissingPunchRequest, canonical, "")
 	if err != nil {
 		return err
 	}
-	if !decision.Allowed {
+	if !allowed {
+		return errClockAuthorityDenied
+	}
+	return nil
+}
+
+// AuthorizeSessionLookup evaluates the published missing-punch request
+// capability at the session boundary before a session row is read. The
+// worker-specific request check remains mandatory after the row is loaded.
+func (a ProductionClockAuthority) AuthorizeSessionLookup(ctx context.Context, p *trust.Principal, tenant, session string) error {
+	if err := validatePrincipalTenant(p, tenant); err != nil || strings.TrimSpace(session) == "" {
+		return errClockAuthorityInvalid
+	}
+	allowed, err := a.evaluate(ctx, p, tenant, a.Capabilities.MissingPunchRequest, session, "")
+	if err != nil {
+		return err
+	}
+	if !allowed {
 		return errClockAuthorityDenied
 	}
 	return nil
@@ -143,11 +229,11 @@ func (a ProductionClockAuthority) AuthorizeDecision(ctx context.Context, p *trus
 	if p.Subject() == canonical {
 		return errClockAuthorityDenied
 	}
-	decision, err := a.evaluate(ctx, p, tenant, clockCapabilityMissingReview, canonical, "")
+	allowed, err := a.evaluate(ctx, p, tenant, a.Capabilities.MissingPunchDecision, canonical, "")
 	if err != nil {
 		return err
 	}
-	if !decision.Allowed {
+	if !allowed {
 		return errClockAuthorityDenied
 	}
 	return nil
@@ -180,19 +266,19 @@ func (a ProductionClockAuthority) resolveScope(ctx context.Context, p *trust.Pri
 	return canonical, strings.TrimSpace(assignment), nil
 }
 
-func (a ProductionClockAuthority) evaluate(ctx context.Context, p *trust.Principal, tenant, capability, subject, assignment string) (ClockAuthorization, error) {
-	if a.Evaluator == nil || a.Clock == nil {
-		return ClockAuthorization{}, errClockAuthorityUnavailable
+func (a ProductionClockAuthority) evaluate(ctx context.Context, p *trust.Principal, tenant, capability, subject, assignment string) (bool, error) {
+	if a.Evaluator.Registry == nil || a.Evaluator.Facts == nil || a.Clock == nil {
+		return false, errClockAuthorityUnavailable
 	}
 	now := a.Clock().UTC()
 	if now.IsZero() || p.IssuedAt().After(now) || !p.ExpiresAt().After(now) {
-		return ClockAuthorization{}, errClockAuthorityInvalid
+		return false, errClockAuthorityInvalid
 	}
-	decision, err := a.Evaluator.EvaluateClock(ctx, p, tenant, capability, subject, assignment, now)
+	allowed, err := a.Evaluator.evaluate(ctx, p, tenant, capability, subject, assignment, now)
 	if err != nil {
-		return ClockAuthorization{}, err
+		return false, err
 	}
-	return decision, nil
+	return allowed, nil
 }
 
 func validatePrincipalTenant(p *trust.Principal, tenant string) error {
@@ -206,19 +292,25 @@ func validatePrincipalTenant(p *trust.Principal, tenant string) error {
 // root to enable the clock surface. The root must provide real RLS-backed
 // workforce and governed-evaluation implementations.
 type ProductionClockDependencies struct {
-	Workers   clockservice.WorkerDirectory
-	Evaluator ClockAuthorityEvaluator
-	Clock     func() time.Time
+	Workers      clockservice.WorkerDirectory
+	Registry     *capability.Registry
+	Facts        ClockAuthorityFacts
+	Capabilities ClockCapabilityIDs
+	Clock        func() time.Time
 }
 
 // NewProductionClockAuthority validates and constructs the production
 // authority used by ComposeClock. Missing ports fail before any effect can be
 // attempted.
 func NewProductionClockAuthority(deps ProductionClockDependencies) (ProductionClockAuthority, error) {
-	if deps.Workers == nil || deps.Evaluator == nil || deps.Clock == nil {
+	if deps.Workers == nil || deps.Registry == nil || deps.Facts == nil || deps.Clock == nil || !validClockCapabilities(deps.Capabilities) {
 		return ProductionClockAuthority{}, errClockAuthorityUnavailable
 	}
-	return ProductionClockAuthority{Workers: deps.Workers, Evaluator: deps.Evaluator, Clock: deps.Clock}, nil
+	return ProductionClockAuthority{Workers: deps.Workers, Evaluator: RegistryClockAuthority{Registry: deps.Registry, Facts: deps.Facts}, Capabilities: deps.Capabilities, Clock: deps.Clock}, nil
+}
+
+func validClockCapabilities(ids ClockCapabilityIDs) bool {
+	return ids.Punch != "" && ids.DeviceAdmin != "" && ids.SupervisorOverride != "" && ids.MissingPunchRequest != "" && ids.MissingPunchDecision != ""
 }
 
 // ProductionMissingPunchResolver resolves only server-owned missing-punch
@@ -242,6 +334,13 @@ func (r ProductionMissingPunchResolver) ResolveMissingPunchSession(ctx context.C
 		return MissingPunchSessionFacts{}, errClockAuthorityUnavailable
 	}
 	tenant := string(p.Tenant())
+	lookup, ok := r.Authorization.(MissingPunchSessionLookupAuthorizer)
+	if !ok {
+		return MissingPunchSessionFacts{}, errClockAuthorityUnavailable
+	}
+	if err := lookup.AuthorizeSessionLookup(ctx, p, tenant, strings.TrimSpace(session)); err != nil {
+		return MissingPunchSessionFacts{}, err
+	}
 	facts, err := r.Sessions.GetMissingPunchSession(ctx, tenant, strings.TrimSpace(session))
 	if err != nil {
 		return MissingPunchSessionFacts{}, err

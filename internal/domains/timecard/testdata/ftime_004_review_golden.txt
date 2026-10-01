@@ -1,0 +1,1 @@
+worker=worker-1 source=kiosk-1 tz=America/Chicago pairs=1 minutes=480 complete=true outcome=COMPLIANT

@@ -1,0 +1,1 @@
+method=FINGERPRINT notice_version=notice-2026-1 destruction_at=2026-12-27T10:00:00Z digest=sha256:a9089eadc6d15e6743c1dc0838dc86e5def3a696685090dda21d5d70c706a41f

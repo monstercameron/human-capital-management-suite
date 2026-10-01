@@ -1,0 +1,39 @@
+{
+  "workerId": "worker-1",
+  "period": {
+    "start": "2026-09-01",
+    "end": "2026-09-15"
+  },
+  "revision": "rev-period-1",
+  "intervals": [
+    {
+      "date": "2026-09-01",
+      "minutes": 480,
+      "payCode": "REG",
+      "jobAllocation": {
+        "project": "proj-a",
+        "costCode": "CC-1",
+        "rateCode": "STD"
+      },
+      "sourceRevision": "rev-1"
+    },
+    {
+      "date": "2026-09-02",
+      "minutes": 540,
+      "payCode": "OT",
+      "jobAllocation": {
+        "project": "proj-a",
+        "costCode": "CC-1",
+        "rateCode": "STD"
+      },
+      "sourceRevision": "rev-2"
+    }
+  ],
+  "allowances": [
+    {
+      "code": "MEAL",
+      "amount": "12.50",
+      "currency": "USD"
+    }
+  ]
+}

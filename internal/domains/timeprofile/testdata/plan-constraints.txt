@@ -1,0 +1,12 @@
+employee:
+  required:  
+  forbidden: 
+contractor:
+  required:  
+  forbidden: SCHEDULE_LOCKOUT,MANDATORY_CLOCK_IN,GEOFENCE,PUNCH_PHOTO,BREAK_ATTESTATION,SHIFT_ASSIGNMENT
+minor_employee:
+  required:  MINOR_HOURS_DECISION
+  forbidden: 
+eu_duty_employee:
+  required:  REST_PERIOD_DECISION,DAILY_RECORDING
+  forbidden: 

@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package hcmnext.time.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1;timev1";
+
+import "google/protobuf/timestamp.proto";
+
+// MissingPunchService is the principal-bound correction request boundary.
+// Worker and tenant authority are resolved from authenticated context; they
+// are intentionally absent from command requests.
+service MissingPunchService {
+  rpc SubmitCorrection(SubmitCorrectionRequest) returns (SubmitCorrectionResponse);
+  rpc ReviewCorrection(ReviewCorrectionRequest) returns (ReviewCorrectionResponse);
+  rpc GetCorrectionContext(GetCorrectionContextRequest) returns (GetCorrectionContextResponse);
+  rpc ListPendingCorrections(ListPendingCorrectionsRequest) returns (ListPendingCorrectionsResponse);
+}
+
+enum MissingPunchDecision {
+  MISSING_PUNCH_DECISION_UNSPECIFIED = 0;
+  MISSING_PUNCH_DECISION_APPROVED = 1;
+  MISSING_PUNCH_DECISION_REJECTED = 2;
+}
+
+message WorkflowTrackedReceipt {
+  string receipt_id = 1;
+  string workflow_instance_ref = 2;
+  string workflow_trace_id = 3;
+  string workflow_node_id = 4;
+  int32 workflow_attempt = 5;
+  int64 workflow_instance_version = 6;
+  string workflow_id = 7;
+  string workflow_plan_digest = 8;
+}
+
+message MissingPunchCorrection {
+  string request_id = 1;
+  string worker_ref = 2;
+  string session_id = 3;
+  string claimed_event_type = 4;
+  google.protobuf.Timestamp claimed_occurred_at = 5;
+  string request_reason = 6;
+  string status = 7;
+  uint64 revision = 8;
+  string decision_reason = 9;
+  WorkflowTrackedReceipt workflow_receipt = 10;
+}
+
+message SubmitCorrectionRequest {
+  string session_id = 1;
+  string claimed_event_type = 2;
+  google.protobuf.Timestamp claimed_occurred_at = 3;
+  string reason = 4;
+  string idempotency_key = 5;
+  uint64 expected_revision = 6;
+}
+
+message SubmitCorrectionResponse {
+  MissingPunchCorrection correction = 1;
+}
+
+message ReviewCorrectionRequest {
+  string request_id = 1;
+  uint64 expected_revision = 2;
+  MissingPunchDecision decision = 3;
+  string reason = 4;
+  string idempotency_key = 5;
+}
+
+message ReviewCorrectionResponse {
+  MissingPunchCorrection correction = 1;
+}
+
+message GetCorrectionContextRequest {
+  string session_id = 1;
+}
+
+message CorrectionPunchFact {
+  string event_type = 1;
+  google.protobuf.Timestamp occurred_at = 2;
+  string observation_id = 3;
+}
+
+message CorrectionContext {
+  string session_id = 1;
+  string worker_ref = 2;
+  uint64 revision = 3;
+  string timezone = 4;
+  string period_ref = 5;
+  CorrectionPunchFact original_in = 6;
+  CorrectionPunchFact original_out = 7;
+  string original_workflow_id = 8;
+  string original_workflow_instance_ref = 9;
+  bool period_closed = 10;
+}
+
+message GetCorrectionContextResponse {
+  CorrectionContext context = 1;
+  repeated MissingPunchCorrection pending_corrections = 2;
+}
+
+message ListPendingCorrectionsRequest {
+  uint32 page_size = 1;
+}
+
+message ListPendingCorrectionsResponse {
+  repeated MissingPunchCorrection corrections = 1;
+}

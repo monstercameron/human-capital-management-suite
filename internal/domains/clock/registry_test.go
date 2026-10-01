@@ -77,3 +77,33 @@ func TestTodo_CLOCK_001_Mutation(t *testing.T) {
 		t.Fatalf("rejection=%v", err)
 	}
 }
+
+func TestTodo_CLOCK_001_ConformanceAdmission(t *testing.T) {
+	active := validRegistration("device-1")
+	revokedDevice := validRegistration("device-2")
+	revokedDevice.State = Revoked
+	revoked := validRegistration("source-1")
+	revoked.State = Revoked
+	registry, err := NewRegistry([]TimeDevice{active, revokedDevice}, []TimeSource{revoked})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := registry.Device("device-1"); !ok || got.ID != "device-1" {
+		t.Fatalf("device lookup = %+v, %v", got, ok)
+	}
+	if got, ok := registry.Source("source-1"); !ok || got.State != Revoked {
+		t.Fatalf("source lookup = %+v, %v", got, ok)
+	}
+	if err := registry.AcceptsDevice("device-1"); err != nil {
+		t.Fatalf("active device rejected: %v", err)
+	}
+	if err := registry.AcceptsDevice("device-2"); !errors.Is(err, ErrInvalidRegistration) {
+		t.Fatalf("revoked device error = %v", err)
+	}
+	if err := registry.AcceptsSource("source-1"); !errors.Is(err, ErrInvalidRegistration) {
+		t.Fatalf("revoked source error = %v", err)
+	}
+	if err := registry.AcceptsDevice("missing"); !errors.Is(err, ErrInvalidRegistration) {
+		t.Fatalf("missing device error = %v", err)
+	}
+}

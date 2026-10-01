@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package hcmnext.time.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1;timev1";
+
+// WorkerClockService is the browser worker's own clock boundary. Identity,
+// tenant and assignment come from the authenticated human principal and the
+// server's self-worker resolver; requests never carry a worker id.
+service WorkerClockService {
+  rpc GetSelfClock(GetSelfClockRequest) returns (GetSelfClockResponse);
+  rpc ExecuteSelfClockAction(ExecuteSelfClockActionRequest) returns (ExecuteSelfClockActionResponse);
+}
+
+message GetSelfClockRequest {}
+
+message GetSelfClockResponse {
+	string worker_label = 1;
+	string schedule_label = 2;
+	string status_label = 3;
+	string last_event_label = 4;
+	uint64 revision = 5;
+	// status_code is the server-owned position in the work session
+	// (CLOCKED_IN, CLOCKED_OUT or ON_BREAK); status_label is localized copy.
+	string status_code = 6;
+}
+
+message SelfClockProjection {
+	string worker_label = 1;
+	string schedule_label = 2;
+	string status_label = 3;
+	string last_event_label = 4;
+	uint64 revision = 5;
+	// status_code is the server-owned position in the work session
+	// (CLOCKED_IN, CLOCKED_OUT or ON_BREAK); status_label is localized copy.
+	string status_code = 6;
+}
+
+message ExecuteSelfClockActionRequest {
+  enum Action {
+    ACTION_UNSPECIFIED = 0;
+    ACTION_IN = 1;
+    ACTION_OUT = 2;
+    ACTION_START_BREAK = 3;
+    ACTION_END_BREAK = 4;
+  }
+  Action action = 1;
+  uint64 expected_revision = 2;
+  string idempotency_key = 3;
+}
+
+message ExecuteSelfClockActionResponse {
+  string receipt_id = 1;
+  string worker_ref = 2;
+  string assignment_ref = 3;
+  string workflow_instance_ref = 4;
+  string published_plan_ref = 5;
+  SelfClockProjection status = 6;
+  string workflow_trace_id = 7;
+  string workflow_node_id = 8;
+  int32 workflow_attempt = 9;
+  int64 workflow_instance_version = 10;
+  string workflow_id = 11;
+}

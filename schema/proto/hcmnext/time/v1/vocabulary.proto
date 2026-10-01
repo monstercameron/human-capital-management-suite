@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package hcmnext.time.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1;timev1";
+
+// This file carries the proto projection of the shared time-keeping
+// vocabulary owned by internal/domains/timeprofile/vocabulary.go. It is a
+// read-only mirror for wire contracts: the Go package remains the source of
+// truth, and a new token is added here only after it exists there.
+
+// CaptureMode is how time is recorded for an assignment
+// (timeprofile.CaptureMode).
+enum CaptureMode {
+  CAPTURE_MODE_UNSPECIFIED = 0;
+  CAPTURE_MODE_PUNCH = 1;
+  CAPTURE_MODE_DURATION = 2;
+  CAPTURE_MODE_EXCEPTION_ONLY = 3;
+  CAPTURE_MODE_NONE = 4;
+}
+
+// PayBasis is how the assignment is paid; it says nothing about overtime
+// (timeprofile.PayBasis).
+enum PayBasis {
+  PAY_BASIS_UNSPECIFIED = 0;
+  PAY_BASIS_HOURLY = 1;
+  PAY_BASIS_SALARY = 2;
+  PAY_BASIS_PIECE_RATE = 3;
+  PAY_BASIS_DAY_RATE = 4;
+  PAY_BASIS_CONTRACT_RATE = 5;
+}
+
+// ExemptionStatus is the overtime classification under the applicable law
+// (timeprofile.ExemptionStatus).
+enum ExemptionStatus {
+  EXEMPTION_STATUS_UNSPECIFIED = 0;
+  EXEMPTION_STATUS_NON_EXEMPT = 1;
+  EXEMPTION_STATUS_EXEMPT = 2;
+  EXEMPTION_STATUS_SALARIED_NON_EXEMPT = 3;
+  EXEMPTION_STATUS_NOT_APPLICABLE = 4;
+}
+
+// WorkerCategory is the legal relationship between the worker and the
+// tenant (timeprofile.WorkerCategory).
+enum WorkerCategory {
+  WORKER_CATEGORY_UNSPECIFIED = 0;
+  WORKER_CATEGORY_EMPLOYEE = 1;
+  WORKER_CATEGORY_CONTRACTOR = 2;
+  WORKER_CATEGORY_AGENCY_TEMP = 3;
+  WORKER_CATEGORY_PLATFORM_WORKER = 4;
+}
+
+// TimeDestination is where approved time is delivered (timeprofile.Destination).
+enum TimeDestination {
+  TIME_DESTINATION_UNSPECIFIED = 0;
+  TIME_DESTINATION_PAYROLL = 1;
+  TIME_DESTINATION_CONTRACTOR_INVOICE = 2;
+  TIME_DESTINATION_AGENCY_EXPORT = 3;
+  TIME_DESTINATION_COSTING_ONLY = 4;
+}
+
+// OvertimeMethod is how the regular rate and overtime are computed
+// (timeprofile.OvertimeMethod).
+enum OvertimeMethod {
+  OVERTIME_METHOD_UNSPECIFIED = 0;
+  OVERTIME_METHOD_NONE = 1;
+  OVERTIME_METHOD_SINGLE_RATE = 2;
+  OVERTIME_METHOD_WEIGHTED_AVERAGE = 3;
+  OVERTIME_METHOD_FLUCTUATING_WEEK = 4;
+  OVERTIME_METHOD_HEALTHCARE_8_80 = 5;
+  OVERTIME_METHOD_PUBLIC_COMP_TIME = 6;
+  OVERTIME_METHOD_PUBLIC_SAFETY_7K = 7;
+  OVERTIME_METHOD_PIECE_RATE_AVERAGE = 8;
+}
+
+// TimeTemplate names the workflow template a profile resolves to
+// (timeprofile.Template).
+enum TimeTemplate {
+  TIME_TEMPLATE_UNSPECIFIED = 0;
+  TIME_TEMPLATE_PUNCH_SESSION = 1;
+  TIME_TEMPLATE_DURATION_TIMESHEET = 2;
+  TIME_TEMPLATE_EXCEPTION_PERIOD = 3;
+  TIME_TEMPLATE_CONTRACTOR_INVOICE = 4;
+  TIME_TEMPLATE_AGENCY_VMS = 5;
+}
+
+// ControlClass tags a capability that directs when, where or how work is
+// done; contractor plans must not contain any (timeprofile.ControlClass).
+enum ControlClass {
+  CONTROL_CLASS_UNSPECIFIED = 0;
+  CONTROL_CLASS_SCHEDULE_LOCKOUT = 1;
+  CONTROL_CLASS_MANDATORY_CLOCK_IN = 2;
+  CONTROL_CLASS_GEOFENCE = 3;
+  CONTROL_CLASS_PUNCH_PHOTO = 4;
+  CONTROL_CLASS_BREAK_ATTESTATION = 5;
+  CONTROL_CLASS_SHIFT_ASSIGNMENT = 6;
+}
+
+// PunchEventType is the closed vocabulary of observable time events plus the
+// device-side job transfer (clock.EventType, extended per TCLOCK-003's
+// "job transfer" punch kind).
+enum PunchEventType {
+  PUNCH_EVENT_TYPE_UNSPECIFIED = 0;
+  PUNCH_EVENT_TYPE_CLOCK_IN = 1;
+  PUNCH_EVENT_TYPE_CLOCK_OUT = 2;
+  PUNCH_EVENT_TYPE_BREAK_START = 3;
+  PUNCH_EVENT_TYPE_BREAK_END = 4;
+  PUNCH_EVENT_TYPE_MEAL_START = 5;
+  PUNCH_EVENT_TYPE_MEAL_END = 6;
+  PUNCH_EVENT_TYPE_JOB_TRANSFER = 7;
+}
+
+// IdentificationMethod is how a worker was identified at a shared device,
+// each carrying a distinct assurance level (TCLOCK-005).
+enum IdentificationMethod {
+  IDENTIFICATION_METHOD_UNSPECIFIED = 0;
+  IDENTIFICATION_METHOD_PIN = 1;
+  IDENTIFICATION_METHOD_BADGE = 2;
+  IDENTIFICATION_METHOD_QR = 3;
+  IDENTIFICATION_METHOD_FACE = 4;
+  IDENTIFICATION_METHOD_SUPERVISOR_OVERRIDE = 5;
+}

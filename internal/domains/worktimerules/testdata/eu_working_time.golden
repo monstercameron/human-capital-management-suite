@@ -1,0 +1,4 @@
+avg_per_week=35 weekly_average_minutes=2100 findings=[]
+avg_per_week=48 weekly_average_minutes=2880 findings=[]
+avg_per_week=55 weekly_average_minutes=3300 findings=[WEEKLY_AVERAGE_CAP_BREACH]
+rolled_up_accrual_minutes=290

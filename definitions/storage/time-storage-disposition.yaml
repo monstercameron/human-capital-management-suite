@@ -1,0 +1,656 @@
+# Independent time-keeping database storage disposition (TCLOCK/WTIME).
+#
+# The time store is applied from internal/data/timestore/migrations into its
+# own schema and credential. Every base table is listed exactly once here.
+# The timestore registry tests compare these rows with the embedded migration
+# tree and with PostgreSQL's live RLS and trigger metadata.
+
+version: 1
+module: github.com/monstercameron/human-capital-management-suite
+database: time
+sources:
+  - internal/data/timestore/migrations/00001_time_foundation.sql
+  - internal/data/timestore/migrations/00002_sessions.sql
+  - internal/data/timestore/migrations/00003_session_events.sql
+  - internal/data/timestore/migrations/00004_observations.sql
+  - internal/data/timestore/migrations/00005_outbox.sql
+  - internal/data/timestore/migrations/00006_receipts.sql
+  - internal/data/timestore/migrations/00010_devices.sql
+  - internal/data/timestore/migrations/00011_enrollment.sql
+  - internal/data/timestore/migrations/00012_credentials.sql
+  - internal/data/timestore/migrations/00013_biometric.sql
+  - internal/data/timestore/migrations/00014_photos.sql
+  - internal/data/timestore/migrations/00015_heartbeats.sql
+  - internal/data/timestore/migrations/00016_tclock_workflow_dispatch.sql
+  - internal/data/timestore/migrations/00017_tclock_site_policy.sql
+  - internal/data/timestore/migrations/00020_time_profiles.sql
+  - internal/data/timestore/migrations/00021_timecards.sql
+  - internal/data/timestore/migrations/00022_missed_punch.sql
+  - internal/data/timestore/migrations/00023_shifts.sql
+  - internal/data/timestore/migrations/00024_work_order_allocations.sql
+  - internal/data/timestore/migrations/00025_working_time_ledger.sql
+  - internal/data/timestore/migrations/00026_destination_records.sql
+  - internal/data/timestore/migrations/00032_missing_punch_workflow.sql
+  - internal/data/timestore/migrations/00033_time_state_layers.sql
+  - internal/data/timestore/migrations/00034_machine_enrollment.sql
+  - internal/data/timestore/migrations/00035_photo_disposition.sql
+  - internal/data/timestore/migrations/00036_biometric_disposition.sql
+  - internal/data/timestore/migrations/00037_time_self_projection.sql
+  - internal/data/timestore/migrations/00038_time_session_active_break.sql
+
+defaults:
+  plane: TIME_DATA
+  isolation_package: internal/data/timestore
+  rls_policy: tenant_isolation
+  rls_required: true
+  encryption_class: PLATFORM_MANAGED
+
+tables:
+  - table: time_self_clock_projection
+    migration: internal/data/timestore/migrations/00037_time_self_projection.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_session
+    migration: internal/data/timestore/migrations/00002_sessions.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_session_event
+    migration: internal/data/timestore/migrations/00003_session_events.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_observation
+    migration: internal/data/timestore/migrations/00004_observations.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_outbox
+    migration: internal/data/timestore/migrations/00005_outbox.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: OUTBOX
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_receipt
+    migration: internal/data/timestore/migrations/00006_receipts.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_receipt_cursor
+    migration: internal/data/timestore/migrations/00006_receipts.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: PROJECTION
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: REBUILDABLE
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: time_receipt
+  - table: time_device
+    migration: internal/data/timestore/migrations/00010_devices.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_device_history
+    migration: internal/data/timestore/migrations/00010_devices.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_enrollment_code
+    migration: internal/data/timestore/migrations/00011_enrollment.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_worker_credential
+    migration: internal/data/timestore/migrations/00012_credentials.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_worker_credential_history
+    migration: internal/data/timestore/migrations/00012_credentials.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_device_lockout
+    migration: internal/data/timestore/migrations/00012_credentials.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_worker_lockout
+    migration: internal/data/timestore/migrations/00012_credentials.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_supervisor_override
+    migration: internal/data/timestore/migrations/00012_credentials.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_biometric_consent
+    migration: internal/data/timestore/migrations/00013_biometric.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_biometric_consent_history
+    migration: internal/data/timestore/migrations/00013_biometric.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_punch_photo
+    migration: internal/data/timestore/migrations/00014_photos.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_punch_photo_view
+    migration: internal/data/timestore/migrations/00014_photos.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_device_heartbeat_latest
+    migration: internal/data/timestore/migrations/00015_heartbeats.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: PROJECTION
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: REBUILDABLE
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: time_device_heartbeat_history
+  - table: time_device_heartbeat_history
+    migration: internal/data/timestore/migrations/00015_heartbeats.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_workflow_dispatch_cursor
+    migration: internal/data/timestore/migrations/00016_tclock_workflow_dispatch.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: PROJECTION
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: REBUILDABLE
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: time_outbox
+  - table: time_workflow_session_run
+    migration: internal/data/timestore/migrations/00016_tclock_workflow_dispatch.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_site_policy_version
+    migration: internal/data/timestore/migrations/00017_tclock_site_policy.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: REGISTRY
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_profile_version
+    migration: internal/data/timestore/migrations/00020_time_profiles.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: REGISTRY
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_eligibility_rule_version
+    migration: internal/data/timestore/migrations/00020_time_profiles.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: REGISTRY
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: time_assignment_profile_pin
+    migration: internal/data/timestore/migrations/00020_time_profiles.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: timecard
+    migration: internal/data/timestore/migrations/00021_timecards.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: timecard_event
+    migration: internal/data/timestore/migrations/00021_timecards.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: missed_punch_request
+    migration: internal/data/timestore/migrations/00022_missed_punch.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: missed_punch_decision
+    migration: internal/data/timestore/migrations/00022_missed_punch.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: missed_punch_workflow_request
+    migration: internal/data/timestore/migrations/00032_missing_punch_workflow.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: missed_punch_workflow_version
+    migration: internal/data/timestore/migrations/00032_missing_punch_workflow.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: crew_shift
+    migration: internal/data/timestore/migrations/00023_shifts.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: crew_shift_history
+    migration: internal/data/timestore/migrations/00023_shifts.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: work_order_allocation
+    migration: internal/data/timestore/migrations/00024_work_order_allocations.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: working_time_ledger
+    migration: internal/data/timestore/migrations/00025_working_time_ledger.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: working_time_ledger_interval
+    migration: internal/data/timestore/migrations/00025_working_time_ledger.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: working_time_ledger_decision
+    migration: internal/data/timestore/migrations/00025_working_time_ledger.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: destination_record
+    migration: internal/data/timestore/migrations/00026_destination_records.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+  - table: destination_receipt
+    migration: internal/data/timestore/migrations/00026_destination_records.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_state_layer
+    migration: internal/data/timestore/migrations/00033_time_state_layers.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_state_layer_registry
+    migration: internal/data/timestore/migrations/00033_time_state_layers.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_state_layer_ledger
+    migration: internal/data/timestore/migrations/00033_time_state_layers.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: missed_punch_workflow_execution_proof
+    migration: internal/data/timestore/migrations/00032_missing_punch_workflow.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_machine_enrollment_pending
+    migration: internal/data/timestore/migrations/00034_machine_enrollment.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_punch_photo_hold
+    migration: internal/data/timestore/migrations/00035_photo_disposition.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_punch_photo_exception
+    migration: internal/data/timestore/migrations/00035_photo_disposition.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_punch_photo_disposition
+    migration: internal/data/timestore/migrations/00035_photo_disposition.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_punch_photo_disposition_audit
+    migration: internal/data/timestore/migrations/00035_photo_disposition.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_biometric_disposition
+    migration: internal/data/timestore/migrations/00036_biometric_disposition.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_biometric_key_destroy_claim
+    migration: internal/data/timestore/migrations/00036_biometric_disposition.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_biometric_disposition_event
+    migration: internal/data/timestore/migrations/00036_biometric_disposition.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+
+  - table: time_state_base
+    migration: internal/data/timestore/migrations/00033_time_state_layers.sql
+    owner_package: internal/data/timestore
+    plane: TIME_DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/timestore
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null

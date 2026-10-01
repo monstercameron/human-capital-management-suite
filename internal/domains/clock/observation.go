@@ -30,17 +30,20 @@ var (
 type EventType string
 
 const (
-	EventClockIn    EventType = "CLOCK_IN"
-	EventClockOut   EventType = "CLOCK_OUT"
-	EventMealStart  EventType = "MEAL_START"
-	EventMealEnd    EventType = "MEAL_END"
-	EventBreakStart EventType = "BREAK_START"
-	EventBreakEnd   EventType = "BREAK_END"
+	EventClockIn     EventType = "CLOCK_IN"
+	EventClockOut    EventType = "CLOCK_OUT"
+	EventMealStart   EventType = "MEAL_START"
+	EventMealEnd     EventType = "MEAL_END"
+	EventBreakStart  EventType = "BREAK_START"
+	EventBreakEnd    EventType = "BREAK_END"
+	EventJobTransfer EventType = "JOB_TRANSFER"
 )
 
 func (e EventType) Valid() bool {
 	switch e {
 	case EventClockIn, EventClockOut, EventMealStart, EventMealEnd, EventBreakStart, EventBreakEnd:
+		return true
+	case EventJobTransfer:
 		return true
 	default:
 		return false
@@ -129,6 +132,14 @@ func observationPayloadDigest(req ObservationRequest) string {
 		req.Location.PolicyVersion,
 	}, "\x00")))
 	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// ObservationPayloadDigest returns the canonical payload digest a trusted
+// device must bind before CaptureObservation can accept its observation. The
+// application layer uses this exported projection to reach the domain
+// contract without duplicating its canonicalization rules.
+func ObservationPayloadDigest(req ObservationRequest) string {
+	return observationPayloadDigest(req)
 }
 
 func validTimezone(name string) bool {

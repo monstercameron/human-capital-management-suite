@@ -1,0 +1,19 @@
+timecalc v1
+calculation calc-1 ruleset=US-FLSA/2026.1 jurisdiction=US method=WEIGHTED_AVERAGE
+day 0 2026-01-05 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 1 2026-01-06 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 2 2026-01-07 rule=NONE worked=10:00:00 regular=10:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 3 2026-01-08 rule=NONE worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 4 2026-01-09 rule=NONE worked=7:00:00 regular=2:00:00 overtime=5:00:00 double_time=0:00:00 comp_time=0:00:00
+period 0 2026-01-05 worked=45:00:00 regular=40:00:00 overtime=5:00:00 double_time=0:00:00 comp_time=0:00:00 regular_rate=16.67
+  line STRAIGHT_TIME code=CASHIER hours=30:00:00 rate=15.00 amount=450.00 in_regular_rate=true rule=US-FLSA:STRAIGHT_TIME
+  line STRAIGHT_TIME code=STOCK hours=15:00:00 rate=20.00 amount=300.00 in_regular_rate=true rule=US-FLSA:STRAIGHT_TIME
+  line OVERTIME_PREMIUM code=OVERTIME_PREMIUM hours=5:00:00 rate=8.34 amount=41.70 in_regular_rate=false rule=US-FLSA:OVERTIME_PREMIUM
+totals worked=45:00:00 regular=40:00:00 overtime=5:00:00 double_time=0:00:00 comp_time=0:00:00 premium_hours=0:00:00 gross=791.70
+comp_time converted=0:00:00 accrued=0:00:00 before=0:00:00 after=0:00:00 cap=0:00:00
+trace US-FLSA:RULESET version=2026.1 jurisdiction=US citation=29 USC 207; 29 CFR 778
+trace US-FLSA:METHOD method=WEIGHTED_AVERAGE aggregation_key=worker-1
+trace US-FLSA:CALENDAR zone=America/Los_Angeles start=2026-01-05 workweek_start=Monday at=00:00 days=7
+trace US-FLSA:THRESHOLDS daily_ot_after=0:00:00 daily_dt_after=0:00:00 period_days=7 period_ot_after=40:00:00 ot_factor=1.5 dt_factor=2 rate_decimals=2 pay_decimals=2 rounding=HALF_UP
+trace US-FLSA:CLASSIFY period=0 daily_ot=0:00:00 daily_dt=0:00:00 period_ot=5:00:00 seventh_day_ot=0:00:00 seventh_day_dt=0:00:00 alternative_ot=0:00:00 alternative_dt=0:00:00
+trace US-FLSA:REGULAR_RATE_WEIGHTED_778_115 period=0 included_earnings=750.00 hours=45:00:00 regular_rate=16.67

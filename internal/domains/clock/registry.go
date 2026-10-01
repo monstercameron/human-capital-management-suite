@@ -105,6 +105,54 @@ func NewRegistry(devices []TimeDevice, sources []TimeSource) (Registry, error) {
 	return Registry{Version: RegistryVersion, Devices: append([]TimeDevice(nil), devices...), Sources: append([]TimeSource(nil), sources...)}, nil
 }
 
+// Device resolves one registered physical device by its governed identity.
+// The returned value is a copy of the immutable registry entry.
+func (r Registry) Device(id string) (TimeDevice, bool) {
+	for _, device := range r.Devices {
+		if device.ID == id {
+			return device, true
+		}
+	}
+	return TimeDevice{}, false
+}
+
+// Source resolves one registered logical source by its governed identity.
+// The returned value is a copy of the immutable registry entry.
+func (r Registry) Source(id string) (TimeSource, bool) {
+	for _, source := range r.Sources {
+		if source.ID == id {
+			return source, true
+		}
+	}
+	return TimeSource{}, false
+}
+
+// AcceptsDevice is the authoritative-observation admission check for a
+// physical device. Missing and revoked registrations fail closed with the
+// CLOCK-001 rejection shape; no default registration is inferred.
+func (r Registry) AcceptsDevice(id string) error {
+	device, ok := r.Device(id)
+	if !ok {
+		return reject("device.id", "MISSING", r.Version, "device is not registered")
+	}
+	if device.State == Revoked {
+		return reject("device.state", string(device.State), device.Version, "device registration is revoked")
+	}
+	return nil
+}
+
+// AcceptsSource is the corresponding admission check for a logical source.
+func (r Registry) AcceptsSource(id string) error {
+	source, ok := r.Source(id)
+	if !ok {
+		return reject("source.id", "MISSING", r.Version, "source is not registered")
+	}
+	if source.State == Revoked {
+		return reject("source.state", string(source.State), source.Version, "source registration is revoked")
+	}
+	return nil
+}
+
 func itoa(i int) string {
 	return strconv.Itoa(i)
 }

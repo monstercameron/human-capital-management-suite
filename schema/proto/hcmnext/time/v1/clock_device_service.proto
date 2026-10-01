@@ -1,0 +1,174 @@
+syntax = "proto3";
+
+package hcmnext.time.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1;timev1";
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/common/v1/common.proto";
+import "hcmnext/time/v1/clock_device.proto";
+import "hcmnext/time/v1/time.proto";
+import "hcmnext/time/v1/vocabulary.proto";
+
+// ClockDeviceService is the device- and kiosk-facing integration API: it is
+// how a physical clock or tablet enrolls, syncs the minimum data it needs
+// while offline, identifies a worker at a shared device and submits
+// buffered punches for per-punch receipt (TCLOCK-002, TCLOCK-003,
+// TCLOCK-004, TCLOCK-005, TCLOCK-008). Every path here writes the same
+// Clock observations FTIME-003 writes; no method here evaluates attendance
+// or produces a second punch store. CreateEnrollmentCode is the only admin
+// (non-device) call; every other method authenticates as the enrolled
+// device's own machine-client identity.
+service ClockDeviceService {
+  rpc CreateEnrollmentCode(CreateEnrollmentCodeRequest) returns (CreateEnrollmentCodeResponse);
+  rpc EnrollDevice(EnrollDeviceRequest) returns (EnrollDeviceResponse);
+  rpc RotateDeviceKey(RotateDeviceKeyRequest) returns (RotateDeviceKeyResponse);
+  rpc RevokeDevice(RevokeDeviceRequest) returns (RevokeDeviceResponse);
+  rpc SyncRoster(SyncRosterRequest) returns (SyncRosterResponse);
+  rpc IdentifyWorker(IdentifyWorkerRequest) returns (IdentifyWorkerResponse);
+  rpc SubmitPunches(SubmitPunchesRequest) returns (SubmitPunchesResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc GetWorkerStatus(GetWorkerStatusRequest) returns (GetWorkerStatusResponse);
+}
+
+message CreateEnrollmentCodeRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string site_id = 2;
+  string profile_ref = 3;
+  string timezone = 4;
+  int64 ttl_seconds = 5;
+  string idempotency_key = 6;
+}
+message CreateEnrollmentCodeResponse {
+  string enrollment_code_id = 1;
+  // code is single-use and returned only on this response; it is never
+  // retrievable again after issuance.
+  string code = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message EnrollDeviceRequest {
+  string enrollment_code = 1;
+  // public_key is the device-generated key the server will bind to its new
+  // machine-client identity.
+  bytes public_key = 2;
+  // challenge_signature proves possession of the private half over a
+  // server-issued challenge exchanged out of band with the enrollment code.
+  bytes challenge_signature = 3;
+  string device_model = 4;
+  string app_version = 5;
+  string idempotency_key = 6;
+}
+message EnrollDeviceResponse {
+  ClockDevice device = 1;
+  // machine_client_credential_ref names the issued machine-client identity
+  // the device authenticates with from now on; no bearer secret is
+  // returned inline.
+  string machine_client_credential_ref = 2;
+}
+
+message RotateDeviceKeyRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string device_id = 2;
+  uint64 expected_revision = 3;
+  bytes new_public_key = 4;
+  bytes challenge_signature = 5;
+  string idempotency_key = 6;
+}
+message RotateDeviceKeyResponse { ClockDevice device = 1; }
+
+message RevokeDeviceRequest {
+  hcmnext.common.v1.ScopeContext scope_context = 1;
+  string device_id = 2;
+  uint64 expected_revision = 3;
+  string reason = 4;
+  string idempotency_key = 5;
+}
+message RevokeDeviceResponse { ClockDevice device = 1; }
+
+message SyncRosterRequest {
+  string device_id = 1;
+  // cursor is empty for a full snapshot, or the next_cursor from a prior
+  // RosterSnapshot for a delta.
+  string cursor = 2;
+  int32 max_results = 3;
+}
+message SyncRosterResponse { RosterSnapshot snapshot = 1; }
+
+// WorkerPunchStatus is the device-facing summary returned after
+// identification so the kiosk can render the right screen without a second
+// round trip.
+message WorkerPunchStatus {
+  string worker_id = 1;
+  string display_name = 2;
+  hcmnext.time.v1.SessionStatus session_status = 3;
+  string current_job_id = 4;
+  string active_shift_id = 5;
+  repeated string allowed_next_events = 6;
+}
+
+message IdentifyWorkerRequest {
+  string device_id = 1;
+  IdentificationMethod method = 2;
+  oneof credential {
+    string pin = 3;
+    string badge_id = 4;
+    string qr_key_id = 5;
+    // supervisor_credential_ref plus reason are required together when
+    // method is SUPERVISOR_OVERRIDE (TCLOCK-005); the pair is stored as
+    // separate evidence from the resulting punch.
+    string supervisor_credential_ref = 6;
+  }
+  string override_reason = 7;
+}
+message IdentifyWorkerResponse {
+  // punch_token is a short-lived token scoped to this device and worker,
+  // presented back in SubmitPunches in place of a raw credential.
+  string punch_token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  WorkerPunchStatus status = 3;
+}
+
+message SubmitPunchesRequest {
+  string device_id = 1;
+  repeated DevicePunch punches = 2;
+}
+message SubmitPunchesResponse {
+  repeated PunchReceipt receipts = 1;
+  // highest_contiguous_sequence is the largest device_sequence such that
+  // every sequence up to and including it has a non-pending receipt; the
+  // device may trim its local queue up to this point.
+  uint64 highest_contiguous_sequence = 2;
+}
+
+message HeartbeatRequest {
+  string device_id = 1;
+  string app_version = 2;
+  int32 queue_depth = 3;
+  int64 oldest_unsent_age_seconds = 4;
+  int32 battery_percent = 5;
+  DevicePowerState power_state = 6;
+  int64 measured_clock_offset_seconds = 7;
+}
+
+// HeartbeatAction is the server's directive back to the device in response
+// to a heartbeat (TCLOCK-008).
+enum HeartbeatAction {
+  HEARTBEAT_ACTION_UNSPECIFIED = 0;
+  HEARTBEAT_ACTION_NONE = 1;
+  HEARTBEAT_ACTION_UPGRADE_REQUIRED = 2;
+  HEARTBEAT_ACTION_RESYNC_REQUIRED = 3;
+  HEARTBEAT_ACTION_REVOKED = 4;
+}
+
+message HeartbeatResponse {
+  google.protobuf.Timestamp server_time = 1;
+  HeartbeatAction action = 2;
+  string minimum_supported_app_version = 3;
+}
+
+message GetWorkerStatusRequest {
+  string device_id = 1;
+  string punch_token = 2;
+}
+message GetWorkerStatusResponse { WorkerPunchStatus status = 1; }

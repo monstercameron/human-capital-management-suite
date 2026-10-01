@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package hcmnext.time.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1;timev1";
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/time/v1/events.proto";
+import "hcmnext/time/v1/vocabulary.proto";
+
+// This file is the data model shared by ClockDeviceService: enrolled device
+// identity, the roster/policy snapshot devices sync down, and the batch
+// punch ingest shapes (TCLOCK-002, TCLOCK-003, TCLOCK-004, TCLOCK-008).
+// Nothing here stores worker credentials in the clear: SyncRoster carries
+// only verifiers (salted PIN hashes, badge IDs, QR key IDs), never a raw PIN.
+
+// ClockDeviceState is the revocable lifecycle of one enrolled device.
+enum ClockDeviceState {
+  CLOCK_DEVICE_STATE_UNSPECIFIED = 0;
+  CLOCK_DEVICE_STATE_ACTIVE = 1;
+  CLOCK_DEVICE_STATE_SUSPENDED = 2;
+  CLOCK_DEVICE_STATE_REVOKED = 3;
+}
+
+// ClockDevice is one enrolled physical clock or kiosk installation, scoped
+// to a tenant, site and timezone (TCLOCK-002).
+message ClockDevice {
+  string device_id = 1;
+  string tenant_id = 2;
+  string site_id = 3;
+  string profile_ref = 4;
+  string timezone = 5;
+  ClockDeviceState state = 6;
+  string public_key_ref = 7;
+  uint32 key_version = 8;
+  string app_version = 9;
+  uint64 revision = 10;
+  string etag = 11;
+  google.protobuf.Timestamp enrolled_at = 12;
+  google.protobuf.Timestamp last_seen_at = 13;
+}
+
+// WorkerCredentialVerifier is a verifier-only projection of one worker's
+// shared-device credential; it never carries the credential in the clear.
+message WorkerCredentialVerifier {
+  string worker_id = 1;
+  string display_name = 2;
+  IdentificationMethod method = 3;
+  // verifier_ref is a salted PIN hash reference, a badge identifier or a QR
+  // key ID, depending on method; never a raw PIN or key.
+  string verifier_ref = 4;
+  bool revoked = 5;
+}
+
+// JobCostCode is one selectable job/cost-code pair a device offers at
+// clock-in, transfer or attestation.
+message JobCostCode {
+  string job_id = 1;
+  string cost_code_id = 2;
+  string label = 3;
+}
+
+// LockoutShift is the minimal published-shift projection a device needs to
+// enforce an early clock-in lockout window (TCLOCK-009 shows this data;
+// evaluates nothing itself).
+message LockoutShift {
+  string shift_id = 1;
+  string worker_id = 2;
+  google.protobuf.Timestamp starts_at = 3;
+  google.protobuf.Timestamp ends_at = 4;
+}
+
+// AttestationQuestion is one versioned clock-out question shown in the
+// worker's language (TCLOCK-010).
+message AttestationQuestion {
+  string question_ref = 1;
+  string localized_text = 2;
+  bool required = 3;
+}
+
+// TipRule is a device-displayed rule for how a declared tip is recorded.
+message TipRule {
+  string rule_ref = 1;
+  string description = 2;
+}
+
+// LocalizedString is one translated string keyed for device-side display.
+message LocalizedString {
+  string key = 1;
+  string locale = 2;
+  string value = 3;
+}
+
+// RosterSnapshot is the cursor-delta payload a device pulls or is pushed on
+// SyncRoster: everything it needs to accept punches correctly while
+// offline, and nothing more (TCLOCK-004).
+message RosterSnapshot {
+  uint64 snapshot_revision = 1;
+  string next_cursor = 2;
+  repeated WorkerCredentialVerifier workers = 3;
+  repeated JobCostCode job_cost_codes = 4;
+  repeated LockoutShift published_shifts = 5;
+  repeated AttestationQuestion attestation_questions = 6;
+  repeated TipRule tip_rules = 7;
+  repeated LocalizedString localized_strings = 8;
+  string punch_policy_version = 9;
+  int64 max_offline_age_seconds = 10;
+  // urgent_removed_worker_ids lists workers the device must stop accepting
+  // punches for immediately, ahead of the next full snapshot (terminations
+  // and site removals).
+  repeated string urgent_removed_worker_ids = 11;
+}
+
+// DevicePowerState is the device's reported power source at heartbeat.
+enum DevicePowerState {
+  DEVICE_POWER_STATE_UNSPECIFIED = 0;
+  DEVICE_POWER_STATE_AC_POWERED = 1;
+  DEVICE_POWER_STATE_ON_BATTERY = 2;
+  DEVICE_POWER_STATE_LOW_BATTERY = 3;
+  DEVICE_POWER_STATE_CHARGING = 4;
+}
+
+// PunchReceiptStatus is the per-punch outcome of a SubmitPunches call
+// (TCLOCK-003).
+enum PunchReceiptStatus {
+  PUNCH_RECEIPT_STATUS_UNSPECIFIED = 0;
+  PUNCH_RECEIPT_STATUS_ACCEPTED = 1;
+  PUNCH_RECEIPT_STATUS_DUPLICATE = 2;
+  PUNCH_RECEIPT_STATUS_REJECTED = 3;
+  PUNCH_RECEIPT_STATUS_HELD_FOR_REVIEW = 4;
+}
+
+// WorkerCredentialRef identifies the worker a device punch claims, by
+// whichever handle the device holds: a short-lived punch token from
+// IdentifyWorker, or a raw credential presented at the same instant.
+message WorkerCredentialRef {
+  oneof ref {
+    string punch_token = 1;
+    string verifier_ref = 2;
+  }
+}
+
+// DevicePunch is one buffered punch in a SubmitPunches batch, keyed by the
+// device's own monotonic sequence number.
+message DevicePunch {
+  uint64 device_sequence = 1;
+  PunchEventType event_type = 2;
+  WorkerCredentialRef worker = 3;
+  google.protobuf.Timestamp device_occurred_at = 4;
+  // device_clock_offset_seconds is the device's own measured offset
+  // (device time minus server time) at capture, reported for confidence
+  // scoring; it never substitutes for the server receipt time.
+  int64 device_clock_offset_seconds = 5;
+  repeated AttestationAnswerInput attestation_answers = 6;
+  string tip_declaration = 7;
+  string job_id = 8;
+  string cost_code_id = 9;
+  string photo_artifact_ref = 10;
+  IdentificationMethod identification_method = 11;
+}
+
+// AttestationAnswerInput is one worker answer captured at the device,
+// keyed to the AttestationQuestion it answers.
+message AttestationAnswerInput {
+  string question_ref = 1;
+  string answer = 2;
+}
+
+// PunchReceipt is the server's disposition for one submitted DevicePunch,
+// echoed back keyed by the same device_sequence.
+message PunchReceipt {
+  uint64 device_sequence = 1;
+  PunchReceiptStatus status = 2;
+  string receipt_id = 3;
+  // original_receipt_id is set only when status is DUPLICATE, naming the
+  // receipt of the first accepted submission of this sequence.
+  string original_receipt_id = 4;
+  PunchRejectionReason rejection_reason = 5;
+  string rejection_detail = 6;
+}

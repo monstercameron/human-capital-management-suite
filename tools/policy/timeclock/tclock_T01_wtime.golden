@@ -1,0 +1,8 @@
+axes: capture_mode,pay_basis,exemption_status,worker_category
+eligibility: job_ref,position_ref,category,location_ref,legal_entity_ref
+unresolved: reject_time_recording_with_NO_RESOLVABLE_TIME_PROFILE
+hourly-employee-punch|1|PUNCH|HOURLY|NON_EXEMPT|EMPLOYEE|worker:w-1001|PAYROLL
+salaried-non-exempt-duration|1|DURATION|SALARY|SALARIED_NON_EXEMPT|EMPLOYEE|worker:w-1002|PAYROLL
+contractor-duration-invoice|1|DURATION|CONTRACT_RATE|NOT_APPLICABLE|CONTRACTOR|engagement:c-2001|CONTRACTOR_INVOICE
+agency-temp-punch-export|1|PUNCH|HOURLY|NOT_APPLICABLE|AGENCY_TEMP|agency-worker:a-3001|AGENCY_EXPORT
+platform-worker-duration-costing|1|DURATION|DAY_RATE|EXEMPT|PLATFORM_WORKER|worker:w-4001|COSTING_ONLY

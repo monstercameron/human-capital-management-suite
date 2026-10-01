@@ -1,0 +1,3 @@
+kind=HOME_TO_WORK_COMMUTE paid=false hours=false minutes=30
+kind=BETWEEN_SITES paid=true hours=true minutes=45
+kind=OVERNIGHT_WITHIN_NORMAL_HOURS paid=true hours=true minutes=360

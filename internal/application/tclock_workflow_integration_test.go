@@ -10,13 +10,14 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/application/clockservice"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
 
 // TestTodo_WTIME003004_Integration proves that the evidence reader accepts
 // only a real successful commit_punch execution linked to the exact durable
 // observation and session references. The rows are read from PostgreSQL after
 // insertion through the same tenant-scoped reader used by the application.
-func TestTodo_WTIME003004_Integration(t *testing.T) {
+func TestTodo_WTIME003004_EvidenceReaderIntegration(t *testing.T) {
 	db := pgtest.New(t)
 	ctx := context.Background()
 	tenantID := uuid.New()
@@ -35,10 +36,10 @@ func TestTodo_WTIME003004_Integration(t *testing.T) {
 		tenantID, instanceID, planDigest, []string{"time_session:" + sessionID}, strings.Repeat("b", 64), []string{"await_session_event"}, "clock-proof", now)
 	db.Exec(t, `INSERT INTO workflow_node_execution (
 		 tenant_id,node_execution_id,instance_id,node_id,attempt,step_type,status,
-		 output_artifact_ref,effect_refs,trace_id,started_at,completed_at,recorded_at)
-		 VALUES ($1,$2,$3,'commit_punch',1,'CAPABILITY','SUCCEEDED',$4,$5,$6,$7,$8,$8)`,
+		 output_artifact_ref,capability_execution_id,effect_refs,trace_id,started_at,completed_at,recorded_at)
+		 VALUES ($1,$2,$3,'commit_punch',1,'CAPABILITY','SUCCEEDED',$4,$5,$6,$7,$8,$9,$9)`,
 		tenantID, uuid.New(), instanceID, "sha256:"+strings.Repeat("c", 64),
-		[]string{"time_observation:" + observationID, "time_session:" + sessionID}, traceID, now, now)
+		runtime.NodeExecutionID(tenantID, instanceID, "commit_punch", 1), []string{"time_observation:" + observationID, "time_session:" + sessionID}, traceID, now, now)
 
 	reader := PostgresClockWorkflowEvidenceReader{DB: db.Conn}
 	evidence, found, err := reader.LoadPunchNodeEvidence(ctx, tenantID, instanceID, observationID)

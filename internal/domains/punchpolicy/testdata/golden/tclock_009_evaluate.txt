@@ -1,0 +1,9 @@
+policy: site-1010 v3
+raw:     2026-03-02T09:07:00Z -> 2026-03-02T16:56:00Z
+rounded: 2026-03-02T09:00:00Z -> 2026-03-02T17:00:00Z
+auto-deduct minutes: 30
+paid minutes: 450
+trace:
+  - rounded start 2026-03-02T09:07:00Z -> 2026-03-02T09:00:00Z and end 2026-03-02T16:56:00Z -> 2026-03-02T17:00:00Z at 15 minute NEAREST increments
+  - raw interval is within the configured early and late grace windows
+  - auto-deducted 30 minutes after 480 worked minutes exceeded the 360 minute threshold

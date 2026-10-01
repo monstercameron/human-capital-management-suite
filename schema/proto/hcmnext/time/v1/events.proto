@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package hcmnext.time.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1;timev1";
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/common/v1/common.proto";
+import "hcmnext/time/v1/vocabulary.proto";
+
+// This file defines the TCLOCK-012 event vocabulary emitted from the outbox
+// after commit and delivered through the managed subscription and the
+// ListTimeEvents pull cursor. Every payload here is deliberately minimal:
+// no photo, biometric or raw location data ever appears in an event body
+// (TCLOCK-012 RED); a subscriber needing that evidence follows the
+// evidence_ref into the artifact service under its own granted scope.
+
+// PunchRejectionReason is the closed, typed reason a submitted punch was not
+// accepted as an observation (TCLOCK-003).
+enum PunchRejectionReason {
+  PUNCH_REJECTION_REASON_UNSPECIFIED = 0;
+  PUNCH_REJECTION_REASON_UNKNOWN_WORKER = 1;
+  PUNCH_REJECTION_REASON_WORKER_NOT_ON_ROSTER = 2;
+  PUNCH_REJECTION_REASON_DEVICE_NOT_ELIGIBLE = 3;
+  PUNCH_REJECTION_REASON_POLICY_VIOLATION = 4;
+  PUNCH_REJECTION_REASON_SEQUENCE_GAP = 5;
+  PUNCH_REJECTION_REASON_MALFORMED = 6;
+  PUNCH_REJECTION_REASON_STALE_ROSTER = 7;
+  PUNCH_REJECTION_REASON_DUPLICATE_OF_REJECTED = 8;
+}
+
+// TimeExceptionKind is the closed vocabulary of clock exceptions raised
+// against a session or timecard.
+enum TimeExceptionKind {
+  TIME_EXCEPTION_KIND_UNSPECIFIED = 0;
+  TIME_EXCEPTION_KIND_SEQUENCE_GAP = 1;
+  TIME_EXCEPTION_KIND_MISSING_CLOCK_OUT = 2;
+  TIME_EXCEPTION_KIND_AMBIGUOUS_LOCATION = 3;
+  TIME_EXCEPTION_KIND_DEVICE_REVOKED_QUEUE = 4;
+  TIME_EXCEPTION_KIND_ATTESTATION_MISSING = 5;
+}
+
+message PunchAcceptedEvent {
+  string receipt_id = 1;
+  string device_id = 2;
+  string worker_id = 3;
+  string session_id = 4;
+  PunchEventType event_type = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+  uint64 device_sequence = 7;
+}
+
+message PunchRejectedEvent {
+  string device_id = 1;
+  string worker_credential_ref = 2;
+  uint64 device_sequence = 3;
+  PunchRejectionReason reason = 4;
+  string detail_ref = 5;
+}
+
+message SessionOpenedEvent {
+  string session_id = 1;
+  string worker_id = 2;
+  google.protobuf.Timestamp opened_at = 3;
+  string source_ref = 4;
+}
+
+message SessionClosedEvent {
+  string session_id = 1;
+  string worker_id = 2;
+  google.protobuf.Timestamp closed_at = 3;
+  int64 worked_seconds = 4;
+}
+
+message ExceptionRaisedEvent {
+  string subject_id = 1;
+  // subject_kind is "session", "timecard" or "device".
+  string subject_kind = 2;
+  TimeExceptionKind kind = 3;
+  string detail_ref = 4;
+}
+
+message TimecardApprovedEvent {
+  string timecard_id = 1;
+  string worker_id = 2;
+  string approved_by = 3;
+  hcmnext.common.v1.LocalDate period_start = 4;
+  hcmnext.common.v1.LocalDate period_end = 5;
+}
+
+message TimecardReopenedEvent {
+  string timecard_id = 1;
+  string worker_id = 2;
+  string reopened_by = 3;
+  string reason = 4;
+}
+
+message DeviceOfflineEvent {
+  string device_id = 1;
+  string site_id = 2;
+  google.protobuf.Timestamp last_seen_at = 3;
+}
+
+// ClockEvent is the shared envelope for every hcmnext.time.v1 event type.
+// event_type is the stable dotted ref ("clock.punch.accepted", …) used for
+// subscription filters and the ListTimeEvents event_types filter; exactly
+// one payload field is set, matching event_type.
+message ClockEvent {
+  string event_id = 1;
+  string event_type = 2;
+  string tenant_id = 3;
+  uint64 sequence = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  google.protobuf.Timestamp emitted_at = 6;
+  oneof payload {
+    PunchAcceptedEvent punch_accepted = 10;
+    PunchRejectedEvent punch_rejected = 11;
+    SessionOpenedEvent session_opened = 12;
+    SessionClosedEvent session_closed = 13;
+    ExceptionRaisedEvent exception_raised = 14;
+    TimecardApprovedEvent timecard_approved = 15;
+    TimecardReopenedEvent timecard_reopened = 16;
+    DeviceOfflineEvent device_offline = 17;
+  }
+}

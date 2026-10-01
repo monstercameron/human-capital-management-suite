@@ -1,0 +1,5 @@
+tenant: ironridge-demo|crew: Riverside field crew|locations: 2
+sources: FIRST_PARTY_BROWSER,MANAGED_TABLET_KIOSK
+clock: hcm-next-clock-service|schedule: ironridge-workforce-scheduler|work_order: ironridge-field-operations|policy: ironridge-workforce-governance
+approval: Riverside crew supervisor|payroll: COSTING_ONLY_NOT_PAYROLL_READY|handoff: disabled_in_initial_pilot|destination: work_order_costing_projection
+geofence_consent: true|measures: 5|displaced: 3

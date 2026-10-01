@@ -1,0 +1,22 @@
+{
+  "schema": "tclock-profile-registry/v1",
+  "revision": "2026-09-28-adms-gateway-1",
+  "valid_from": "2026-09-28T00:00:00Z",
+  "valid_until": "2027-09-28T00:00:00Z",
+  "source_classes": [
+    {"class":"FIRST_PARTY_BROWSER","transport":"HTTPS","authentication":"SESSION_TOKEN","trust_ceiling":"HIGH","permitted_methods":["PIN","BADGE","QR"],"offline_limit":"0s","clock_trust_required":true,"first_partner":"first-party web client","status":"selected","decision":"Retained as the first-party browser path with server-authenticated sessions."},
+    {"class":"MANAGED_TABLET_KIOSK","transport":"HTTPS","authentication":"MDM_MANAGED_APP","trust_ceiling":"HIGH","permitted_methods":["PIN","BADGE","QR","FACE"],"offline_limit":"8h","clock_trust_required":true,"first_partner":"reference kiosk","status":"selected","decision":"Retained for managed tablet deployments; biometric use remains policy-gated."},
+    {"class":"DEVICE_PUSH_HTTP_HARDWARE","transport":"HTTPS_PUSH","authentication":"DEVICE_CERT","trust_ceiling":"MEDIUM","permitted_methods":["BADGE","FINGERPRINT"],"offline_limit":"24h","clock_trust_required":true,"first_partner":"ZKTeco PUSH/ADMS","status":"selected","decision":"First hardware target: ADMS-style authenticated device push through a gateway."},
+    {"class":"SERVER_PULL_VENDOR_API","transport":"HTTPS_REST","authentication":"OAUTH2_CLIENT_CREDENTIALS","trust_ceiling":"MEDIUM","permitted_methods":["BADGE","FINGERPRINT"],"offline_limit":"0s","clock_trust_required":false,"first_partner":"Suprema BioStar 2 T&A API","status":"deferred","decision":"Defer vendor pull until each partner publishes a stable authenticated revision contract."},
+    {"class":"SFTP_BATCH_FILE","transport":"SFTP","authentication":"SSH_KEY","trust_ceiling":"LOW","permitted_methods":["BADGE"],"offline_limit":"168h","clock_trust_required":false,"first_partner":"Acroprint timeQplus export","status":"deferred","decision":"Defer export-only clocks behind content hashing and replay controls."},
+    {"class":"THIRD_PARTY_TIME_APP","transport":"HTTPS_WEBHOOK","authentication":"SIGNED_WEBHOOK","trust_ceiling":"MEDIUM","permitted_methods":["PIN","QR"],"offline_limit":"0s","clock_trust_required":false,"first_partner":"Deputy webhooks","status":"deferred","decision":"Defer app webhooks until partner signatures bind a stable event sequence."}
+  ],
+  "definition_decisions": {
+    "selected": ["DEVICE_PUSH_HTTP_HARDWARE"],
+    "deferred": ["SERVER_PULL_VENDOR_API", "SFTP_BATCH_FILE", "THIRD_PARTY_TIME_APP"],
+    "adms_target": "ZKTeco PUSH/ADMS through an authenticated gateway",
+    "parser_requirement": "The current parser requires the seventh sequence field; records without it are rejected.",
+    "hardware_limitation": "The reviewed hardware standard does not expose a stable log sequence in every mode.",
+    "trust_model": "Verification uses a trusted Ed25519 public key over the complete payload, never a digest alone."
+  }
+}

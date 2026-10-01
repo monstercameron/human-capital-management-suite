@@ -1,0 +1,6 @@
+question set: clockout-ca-v1 v1 (US-CA)
+consequences:
+- question=q.break kind=PREMIUM_INPUT
+    premium: rule_ref=REV-045-01 reason="meal or rest break not provided"
+- question=q.injury kind=CASE_TASK
+    case_task: severity=REVIEW reason="worker reported an injury on shift"

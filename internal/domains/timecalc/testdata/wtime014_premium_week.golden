@@ -1,0 +1,35 @@
+timecalc v1
+calculation calc-1 ruleset=US-CA/2026.1 jurisdiction=US-CA method=WEIGHTED_AVERAGE
+day 0 2026-01-05 rule=DAILY worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 1 2026-01-06 rule=DAILY worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 2 2026-01-07 rule=DAILY worked=8:45:00 regular=8:00:00 overtime=0:45:00 double_time=0:00:00 comp_time=0:00:00
+day 3 2026-01-08 rule=DAILY worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 4 2026-01-09 rule=DAILY worked=12:00:00 regular=8:00:00 overtime=4:00:00 double_time=0:00:00 comp_time=0:00:00
+day 5 2026-01-10 rule=DAILY worked=1:00:00 regular=0:00:00 overtime=1:00:00 double_time=0:00:00 comp_time=0:00:00
+day 6 2026-01-11 rule=SEVENTH_DAY worked=3:00:00 regular=0:00:00 overtime=3:00:00 double_time=0:00:00 comp_time=0:00:00
+period 0 2026-01-05 worked=48:45:00 regular=40:00:00 overtime=8:45:00 double_time=0:00:00 comp_time=0:00:00 regular_rate=19.62
+  line STRAIGHT_TIME code=BASE hours=32:00:00 rate=20.00 amount=640.00 in_regular_rate=true rule=US-CA:STRAIGHT_TIME
+  line DIFFERENTIAL code=LOC_SF hours=8:00:00 rate=1.00 amount=8.00 in_regular_rate=true rule=US-CA:DIFFERENTIAL:LOC_SF
+  line STRAIGHT_TIME code=R20.00 hours=1:45:00 rate=20.00 amount=35.00 in_regular_rate=true rule=US-CA:STRAIGHT_TIME
+  line STRAIGHT_TIME code=R16.90 hours=12:00:00 rate=16.90 amount=202.80 in_regular_rate=true rule=US-CA:STRAIGHT_TIME
+  line DIFFERENTIAL code=NIGHT hours=1:00:00 rate=2.00 amount=2.00 in_regular_rate=true rule=US-CA:DIFFERENTIAL:NIGHT
+  line STRAIGHT_TIME code=ON_CALL hours=3:00:00 rate=18.00 amount=54.00 in_regular_rate=true rule=US-CA:STRAIGHT_TIME
+  line SPLIT_SHIFT code=2026-01-09 hours=1:00:00 rate=16.90 amount=14.90 in_regular_rate=true rule=US-CA:SPLIT_SHIFT
+  line OVERTIME_PREMIUM code=OVERTIME_PREMIUM hours=8:45:00 rate=9.81 amount=85.84 in_regular_rate=false rule=US-CA:OVERTIME_PREMIUM
+  line REPORTING_TIME code=sat-shift hours=3:00:00 rate=19.62 amount=58.86 in_regular_rate=false rule=US-CA:REPORTING_TIME
+  line CALL_BACK code=wed-callback hours=1:15:00 rate=19.62 amount=24.53 in_regular_rate=false rule=US-CA:CALL_BACK
+totals worked=48:45:00 regular=40:00:00 overtime=8:45:00 double_time=0:00:00 comp_time=0:00:00 premium_hours=4:15:00 gross=1125.93
+comp_time converted=0:00:00 accrued=0:00:00 before=0:00:00 after=0:00:00 cap=0:00:00
+trace US-CA:RULESET version=2026.1 jurisdiction=US-CA citation=Cal. Lab. Code 510, 226.2; IWC wage orders 3, 5
+trace US-CA:METHOD method=WEIGHTED_AVERAGE aggregation_key=worker-1
+trace US-CA:CALENDAR zone=America/Los_Angeles start=2026-01-05 workweek_start=Monday at=00:00 days=7
+trace US-CA:THRESHOLDS daily_ot_after=8:00:00 daily_dt_after=12:00:00 period_days=7 period_ot_after=40:00:00 ot_factor=1.5 dt_factor=2 rate_decimals=2 pay_decimals=2 rounding=HALF_UP
+trace US-CA:ON_CALL id=sun-site state=ENGAGED_TO_WAIT criterion=on_premises unworked_hours=3:00:00
+trace US-CA:ON_CALL id=sun-home state=WAITING_TO_BE_ENGAGED criterion=free_to_use_time unworked_hours=8:00:00
+trace US-CA:SEVENTH_DAY day=6 date=2026-01-11 ot_up_to=8:00:00 overtime=3:00:00 double_time=0:00:00
+trace US-CA:SPLIT_SHIFT day=2 date=2026-01-07 gap=6:00:00 gap_more_than=1:00:00 minimum_wage=16.90 offset_by_excess=true premium=0.00
+trace US-CA:SPLIT_SHIFT day=4 date=2026-01-09 gap=5:00:00 gap_more_than=1:00:00 minimum_wage=16.90 offset_by_excess=true premium=14.90
+trace US-CA:CLASSIFY period=0 daily_ot=4:45:00 daily_dt=0:00:00 period_ot=1:00:00 seventh_day_ot=3:00:00 seventh_day_dt=0:00:00 alternative_ot=0:00:00 alternative_dt=0:00:00
+trace US-CA:REGULAR_RATE_WEIGHTED_778_115 period=0 included_earnings=956.70 hours=48:45:00 regular_rate=19.62
+trace US-CA:REPORTING_TIME shift=sat-shift scheduled=8:00:00 worked=1:00:00 trigger_below=4:00:00 guarantee=4:00:00 basis=REGULAR_RATE premium_hours=3:00:00
+trace US-CA:CALL_BACK id=wed-callback worked=0:45:00 minimum=2:00:00 basis=REGULAR_RATE premium_hours=1:15:00

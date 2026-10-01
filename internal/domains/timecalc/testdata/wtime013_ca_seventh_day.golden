@@ -1,0 +1,22 @@
+timecalc v1
+calculation calc-1 ruleset=US-CA/2026.1 jurisdiction=US-CA method=SINGLE_RATE
+day 0 2026-01-05 rule=DAILY worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 1 2026-01-06 rule=DAILY worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 2 2026-01-07 rule=DAILY worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 3 2026-01-08 rule=DAILY worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 4 2026-01-09 rule=DAILY worked=8:00:00 regular=8:00:00 overtime=0:00:00 double_time=0:00:00 comp_time=0:00:00
+day 5 2026-01-10 rule=DAILY worked=8:00:00 regular=0:00:00 overtime=8:00:00 double_time=0:00:00 comp_time=0:00:00
+day 6 2026-01-11 rule=SEVENTH_DAY worked=10:00:00 regular=0:00:00 overtime=8:00:00 double_time=2:00:00 comp_time=0:00:00
+period 0 2026-01-05 worked=58:00:00 regular=40:00:00 overtime=16:00:00 double_time=2:00:00 comp_time=0:00:00 regular_rate=20.00
+  line STRAIGHT_TIME code=BASE hours=58:00:00 rate=20.00 amount=1160.00 in_regular_rate=true rule=US-CA:STRAIGHT_TIME
+  line OVERTIME_PREMIUM code=OVERTIME_PREMIUM hours=16:00:00 rate=10.00 amount=160.00 in_regular_rate=false rule=US-CA:OVERTIME_PREMIUM
+  line DOUBLE_TIME_PREMIUM code=DOUBLE_TIME_PREMIUM hours=2:00:00 rate=20.00 amount=40.00 in_regular_rate=false rule=US-CA:DOUBLE_TIME_PREMIUM
+totals worked=58:00:00 regular=40:00:00 overtime=16:00:00 double_time=2:00:00 comp_time=0:00:00 premium_hours=0:00:00 gross=1360.00
+comp_time converted=0:00:00 accrued=0:00:00 before=0:00:00 after=0:00:00 cap=0:00:00
+trace US-CA:RULESET version=2026.1 jurisdiction=US-CA citation=Cal. Lab. Code 510, 226.2; IWC wage orders 3, 5
+trace US-CA:METHOD method=SINGLE_RATE aggregation_key=worker-1
+trace US-CA:CALENDAR zone=America/Los_Angeles start=2026-01-05 workweek_start=Monday at=00:00 days=7
+trace US-CA:THRESHOLDS daily_ot_after=8:00:00 daily_dt_after=12:00:00 period_days=7 period_ot_after=40:00:00 ot_factor=1.5 dt_factor=2 rate_decimals=2 pay_decimals=2 rounding=HALF_UP
+trace US-CA:SEVENTH_DAY day=6 date=2026-01-11 ot_up_to=8:00:00 overtime=8:00:00 double_time=2:00:00
+trace US-CA:CLASSIFY period=0 daily_ot=0:00:00 daily_dt=0:00:00 period_ot=8:00:00 seventh_day_ot=8:00:00 seventh_day_dt=2:00:00 alternative_ot=0:00:00 alternative_dt=0:00:00
+trace US-CA:REGULAR_RATE_SINGLE period=0 included_earnings=1160.00 hours=58:00:00 regular_rate=20.00

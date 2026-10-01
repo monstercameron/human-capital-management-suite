@@ -1,0 +1,35 @@
+hourly_employee_punch:
+  category:    EMPLOYEE
+  capture:     PUNCH
+  exemption:   NON_EXEMPT
+  destination: PAYROLL
+  template:    time.punch_session
+  digest:      sha256:b3b7eac713aa6cff682f1a7370ce3632fba9e58d193a8c9dee39f33ed8b69abe
+salaried_exempt_duration:
+  category:    EMPLOYEE
+  capture:     DURATION
+  exemption:   EXEMPT
+  destination: PAYROLL
+  template:    time.duration_timesheet
+  digest:      sha256:2da6e75abb8094764a91e38314654d767496a2e0217ea310e88f24458dcdb66c
+contractor_invoice:
+  category:    CONTRACTOR
+  capture:     PUNCH
+  exemption:   NOT_APPLICABLE
+  destination: CONTRACTOR_INVOICE
+  template:    time.contractor_invoice
+  digest:      sha256:5d77f6fc7b5eb7488feec2f3364e06f81ba70ff77260edce8dad18f4ffb9e3e4
+minor_employee_punch:
+  category:    EMPLOYEE
+  capture:     PUNCH
+  exemption:   NON_EXEMPT
+  destination: PAYROLL
+  template:    time.punch_session
+  digest:      sha256:17bd10fac6ec1e8f79049ddb2b892996f52d1b950e5b16a4c49badf9221671e1
+eu_daily_recording_duration:
+  category:    EMPLOYEE
+  capture:     DURATION
+  exemption:   EXEMPT
+  destination: PAYROLL
+  template:    time.duration_timesheet
+  digest:      sha256:9b5a6543a74b29e2348657c8a4151f12f1d4ef98b22bd5f2ef80bce3a83f04a1

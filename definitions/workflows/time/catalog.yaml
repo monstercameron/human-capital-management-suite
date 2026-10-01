@@ -1,0 +1,295 @@
+catalog_version: 1
+catalog_family: time-reference-workflows
+after: WF-TIM-006
+simulation_projection: internal/workflow/conformance/time
+edge_cases:
+  - id: missing_out
+    template_id: time.punch_session
+    route: TIMED_OUT
+    evidence: no out punch was received before the session deadline
+  - id: reopen
+    template_id: time.exception_period
+    route: REOPEN_REQUIRED
+    evidence: a post-acceptance deviation reopens a linked correction path
+  - id: overlay_forbidden
+    template_id: all
+    route: OVERLAY_FORBIDDEN
+    evidence: an unmanifested decision or form is rejected before publication
+  - id: rest_breach
+    template_id: time.duration_timesheet
+    route: REST_BREACH
+    evidence: the submitted lines exceed the jurisdiction's required rest
+
+entries:
+  - id: WF-TIM-007
+    name: Run a punch session through close or missing-out repair
+    template_id: time.punch_session
+    workflow_id: hcmnext.workflows.time.punch_session
+    intent:
+      type: hcmnext.time.record_punch/v1
+      relation: creates
+    steps:
+      - n: 1
+        primitive: CAPABILITY
+        action: commit the raw punch with its worker, device and session identity
+      - n: 2
+        primitive: DECISION
+        action: classify duplicate, rest, minor, location, integrity and clock conditions
+      - n: 3
+        primitive: SIGNAL
+        action: accept typed break, transfer and out-punch events for the open session
+      - n: 4
+        primitive: WAIT
+        action: wait for the declared session close deadline without inventing an out punch
+      - n: 5
+        primitive: TRANSFORM
+        action: fold the session into a period-ready time result
+      - n: 6
+        primitive: END
+        action: close, hold, cancel, repair or record a missing-out exception
+    evidence:
+      - raw punch and device identity with the time-zone and tzdb pins
+      - classification route and the rule version that selected it
+      - every accepted session event or the missing-out deadline outcome
+    routes:
+      - ACCEPTED
+      - AMBIGUOUS
+      - APPROVED
+      - BREAK_END
+      - BREAK_START
+      - CANCELLED
+      - DUPLICATE_PUNCH
+      - EARLY_LOCKOUT
+      - REVIEW_CLOCK_SKEW
+      - REVIEW_DST_FOLD
+      - EXPIRED
+      - FAILED
+      - GEOFENCE
+      - INVALIDATED
+      - JOB_TRANSFER
+      - LATE
+      - MINOR_WINDOW
+      - REVIEW_OFFLINE_REPLAY
+      - OUT_PUNCH
+      - REJECTED
+      - REST_BREACH
+      - SESSION_CLOSING
+      - SESSION_OPEN
+      - REVIEW_SPOOF_SUSPECTED
+      - SUCCEEDED
+      - TIMED_OUT
+      - TRAVEL_TRANSFER
+      - UNKNOWN
+    jurisdiction:
+      us_federal: FLSA records must preserve hours worked; a missing-out path holds the record for correction rather than guessing time.
+      us_state_variation: State meal, rest, rounding and predictive-scheduling rules can make a punch a premium or review event.
+      international: EU and UK working-time rules require reliable actual-time records and minimum rest checks.
+
+  - id: WF-TIM-008
+    name: Submit a duration timesheet with coding and rest validation
+    template_id: time.duration_timesheet
+    workflow_id: hcmnext.workflows.time.duration_timesheet
+    intent:
+      type: hcmnext.time.submit_timesheet/v1
+      relation: creates
+    steps:
+      - n: 1
+        primitive: CAPABILITY
+        action: open a period-scoped timesheet for the worker
+      - n: 2
+        primitive: SIGNAL
+        action: receive typed daily duration lines from the timesheet or punch import
+      - n: 3
+        primitive: DECISION
+        action: validate daily completeness, taxonomy, minor hours, rest and daily limits
+      - n: 4
+        primitive: TASK
+        action: route invalid lines to correction with the failing rule named
+      - n: 5
+        primitive: TRANSFORM
+        action: fold accepted lines for period collection without dropping uncompensated time
+      - n: 6
+        primitive: END
+        action: submit, hold, cancel, repair or mark a missing submission
+    evidence:
+      - each duration line with work date, entry instant and project or cost taxonomy
+      - validation result including the rest-breach or missing-daily-entry route
+      - correction reason and the final period-complete result
+    routes:
+      - AMBIGUOUS
+      - CANCELLED
+      - EXPIRED
+      - FAILED
+      - LINES_VALID
+      - MISSING_DAILY_ENTRY
+      - MINOR_HOURS
+      - OVER_DAILY_LIMIT
+      - PERIOD_COMPLETE
+      - PERIOD_OPEN
+      - REJECTED
+      - REST_BREACH
+      - SUCCEEDED
+      - TAXONOMY_INVALID
+      - TIMED_OUT
+      - UNKNOWN
+    jurisdiction:
+      us_federal: DCAA total-time-accounting profiles retain daily work, leave and uncompensated overtime with auditable coding.
+      us_state_variation: State overtime, meal and rest rules may reject or hold a line even when the project coding is valid.
+      international: EU working-time recording duties require objective daily records and reliable rest compliance.
+
+  - id: WF-TIM-009
+    name: Reconcile an exception-only period against the expected pattern
+    template_id: time.exception_period
+    workflow_id: hcmnext.workflows.time.exception_period
+    intent:
+      type: hcmnext.time.report_exceptions/v1
+      relation: creates
+    steps:
+      - n: 1
+        primitive: CAPABILITY
+        action: seed the scheduled pattern as an explicit expected baseline
+      - n: 2
+        primitive: SIGNAL
+        action: receive deviations and absences for the period
+      - n: 3
+        primitive: TRANSFORM
+        action: prioritize deviations by pay impact and cutoff proximity
+      - n: 4
+        primitive: DECISION
+        action: classify no-deviation, review, invalid, default and reopen routes
+      - n: 5
+        primitive: APPROVAL
+        action: approve the exact resolution or preserve the unresolved obligation
+      - n: 6
+        primitive: END
+        action: accept, reject, reopen, cancel or repair the period with its evidence
+    evidence:
+      - expected schedule or pattern revision used as the baseline
+      - each absence or deviation with its actor, reason and pay impact
+      - confirmation, default-at-cutoff or reopen evidence bound to the period
+    routes:
+      - AMBIGUOUS
+      - APPROVED
+      - CANCELLED
+      - DEFAULT_AT_CUTOFF
+      - EXPIRED
+      - FAILED
+      - INVALIDATED
+      - INVALID_EXCEPTION
+      - NEEDS_REVIEW
+      - NO_DEVIATION
+      - REJECTED
+      - REOPEN_REQUIRED
+      - SUCCEEDED
+      - TIMED_OUT
+      - UNKNOWN
+      - UNRESOLVED
+    jurisdiction:
+      us_federal: Employers must pay hours they know or should know were worked; a default is retained as an explicit exception.
+      us_state_variation: Meal, rest and wage-statement rules can require a premium or prohibit a downward default.
+      international: Spain and Germany require actual daily recording, so an exception-only profile is not eligible there.
+
+  - id: WF-TIM-010
+    name: Turn approved contractor time into an accounts-payable invoice
+    template_id: time.contractor_invoice
+    workflow_id: hcmnext.workflows.time.contractor_invoice
+    intent:
+      type: hcmnext.time.contractor_time/v1
+      relation: creates
+    steps:
+      - n: 1
+        primitive: CAPABILITY
+        action: open the contractor invoice period from the engagement and purchase order
+      - n: 2
+        primitive: SIGNAL
+        action: receive contractor duration or milestone evidence
+      - n: 3
+        primitive: DECISION
+        action: validate SOW, rate card, currency, tax treatment and entry completeness
+      - n: 4
+        primitive: APPROVAL
+        action: obtain client approval without employee scheduling or clock controls
+      - n: 5
+        primitive: CAPABILITY
+        action: submit the approved invoice or self-billed draft to accounts payable
+      - n: 6
+        primitive: OBSERVE
+        action: reconcile acceptance and reopen a bounded correction when required
+    evidence:
+      - SOW, PO, rate card, currency, tax treatment and self-billing decision
+      - contractor-submitted time or milestone evidence and client approval
+      - AP acceptance, rejection or bounded reopen observation
+    routes:
+      - AMBIGUOUS
+      - APPROVED
+      - CANCELLED
+      - CURRENCY_MISSING
+      - ENTRY_INVALID
+      - EXPIRED
+      - FAIL
+      - INVALIDATED
+      - PARTIAL
+      - PASS
+      - RATE_OUTSIDE_SOW
+      - REJECTED
+      - SOW_MISSING
+      - SUCCEEDED
+      - TAX_TREATMENT_MISSING
+      - TIMED_OUT
+      - UNKNOWN
+      - VALID
+    jurisdiction:
+      us_federal: Contractor classification and tax treatment remain commercial and legal facts; the invoice path must not create employee-control evidence.
+      us_state_variation: State ABC tests and self-billing or sales-tax rules can change the required review and invoice treatment.
+      international: VAT, local invoicing and worker-classification rules are jurisdiction-specific and must remain pinned to the engagement.
+
+  - id: WF-TIM-011
+    name: Approve agency time and deliver it to a VMS
+    template_id: time.agency_vms
+    workflow_id: hcmnext.workflows.time.agency_vms
+    intent:
+      type: hcmnext.time.submit_agency_timesheet/v1
+      relation: creates
+    steps:
+      - n: 1
+        primitive: CAPABILITY
+        action: open a client-scoped agency timesheet for the assignment
+      - n: 2
+        primitive: SIGNAL
+        action: receive the agency or VMS submission with assignment correlation
+      - n: 3
+        primitive: APPROVAL
+        action: capture host-manager approval of the exact submitted hours
+      - n: 4
+        primitive: DECISION
+        action: validate period state, assignment, daily limits, rest and completeness
+      - n: 5
+        primitive: CAPABILITY
+        action: export only the approved assignment time to the registered VMS connector
+      - n: 6
+        primitive: OBSERVE
+        action: retain VMS acceptance, rejection, partial or ambiguous handoff evidence
+    evidence:
+      - assignment-scoped submission and host approval with the source revision
+      - validation route and the VMS export idempotency identity
+      - VMS response, watermark and any repair or reopen reference
+    routes:
+      - AGENCY_TIMESHEET_INVALID
+      - AGENCY_TIMESHEET_VALID
+      - AMBIGUOUS
+      - APPROVED
+      - CANCELLED
+      - EXPIRED
+      - FAIL
+      - INVALIDATED
+      - PARTIAL
+      - PASS
+      - PERIOD_CLOSED
+      - REJECTED
+      - SUCCEEDED
+      - TIMED_OUT
+      - UNKNOWN
+    jurisdiction:
+      us_federal: The host approves supplier time while the agency remains the employer and payroll destination.
+      us_state_variation: Joint-employer, wage, meal and rest rules can require client-side validation without routing agency time to host payroll.
+      international: UK agency-worker parity and EU working-time duties are evaluated for the assignment and destination jurisdiction.

@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package hcmnext.time.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1;timev1";
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/common/v1/common.proto";
+import "hcmnext/time/v1/vocabulary.proto";
+
+// SessionStatus is the lifecycle of one open-or-closed clock session.
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_OPEN = 1;
+  SESSION_STATUS_ON_BREAK = 2;
+  SESSION_STATUS_CLOSED = 3;
+  SESSION_STATUS_EXCEPTION = 4;
+}
+
+// PunchEvent is one recorded event within a session. It is append-only:
+// CorrectPunch never rewrites an existing event, it appends a correction
+// that references correction_of_punch_id.
+message PunchEvent {
+  string punch_id = 1;
+  PunchEventType event_type = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+  google.protobuf.Timestamp recorded_at = 4;
+  string job_id = 5;
+  string cost_code_id = 6;
+  string source_ref = 7;
+  string correction_of_punch_id = 8;
+  string reason = 9;
+}
+
+// ClockSession is the live or closed record for one worker's continuous
+// period of clock activity, spanning breaks and job transfers.
+message ClockSession {
+  string session_id = 1;
+  string worker_id = 2;
+  SessionStatus status = 3;
+  string current_job_id = 4;
+  string current_cost_code_id = 5;
+  string timezone = 6;
+  repeated PunchEvent events = 7;
+  google.protobuf.Timestamp opened_at = 8;
+  google.protobuf.Timestamp closed_at = 9;
+  uint64 revision = 10;
+  // etag is the opaque, server-computed optimistic-concurrency token for
+  // this read; it is derived from revision and is never client-constructed.
+  string etag = 11;
+}
+
+// TimecardStatus is the review lifecycle of one worker/period timecard.
+enum TimecardStatus {
+  TIMECARD_STATUS_UNSPECIFIED = 0;
+  TIMECARD_STATUS_DRAFT = 1;
+  TIMECARD_STATUS_SUBMITTED = 2;
+  TIMECARD_STATUS_ATTESTED = 3;
+  TIMECARD_STATUS_APPROVED = 4;
+  TIMECARD_STATUS_REOPENED = 5;
+  TIMECARD_STATUS_REJECTED = 6;
+}
+
+// TimecardLine is one date's worked and evaluated time within a timecard.
+message TimecardLine {
+  hcmnext.common.v1.LocalDate work_date = 1;
+  string job_id = 2;
+  string cost_code_id = 3;
+  int64 worked_seconds = 4;
+  int64 break_seconds = 5;
+  int64 overtime_seconds = 6;
+  repeated string source_session_ids = 7;
+}
+
+// Timecard is the reviewable, approvable aggregation of a worker's sessions
+// over one pay period.
+message Timecard {
+  string timecard_id = 1;
+  string worker_id = 2;
+  hcmnext.common.v1.LocalDate period_start = 3;
+  hcmnext.common.v1.LocalDate period_end = 4;
+  TimecardStatus status = 5;
+  repeated TimecardLine lines = 6;
+  string attested_by = 7;
+  google.protobuf.Timestamp attested_at = 8;
+  string approved_by = 9;
+  google.protobuf.Timestamp approved_at = 10;
+  string reopen_reason = 11;
+  uint64 revision = 12;
+  string etag = 13;
+}
+
+// MissedPunchRequestStatus is the decision lifecycle for a worker-reported
+// missed or wrong punch (TCLOCK-011).
+enum MissedPunchRequestStatus {
+  MISSED_PUNCH_REQUEST_STATUS_UNSPECIFIED = 0;
+  MISSED_PUNCH_REQUEST_STATUS_PENDING = 1;
+  MISSED_PUNCH_REQUEST_STATUS_APPROVED = 2;
+  MISSED_PUNCH_REQUEST_STATUS_REJECTED = 3;
+}
+
+// MissedPunchRequest is a worker's claim about a punch that never happened
+// or happened wrong; approval appends a correction, it never edits approved
+// time directly.
+message MissedPunchRequest {
+  string request_id = 1;
+  string worker_id = 2;
+  string session_id = 3;
+  PunchEventType claimed_event_type = 4;
+  google.protobuf.Timestamp claimed_occurred_at = 5;
+  string reason = 6;
+  MissedPunchRequestStatus status = 7;
+  string decided_by = 8;
+  string decision_reason = 9;
+  repeated hcmnext.common.v1.EvidenceRef evidence = 10;
+  uint64 revision = 11;
+  string etag = 12;
+}
+
+// ShiftStatus is the publication lifecycle of one scheduled shift.
+enum ShiftStatus {
+  SHIFT_STATUS_UNSPECIFIED = 0;
+  SHIFT_STATUS_DRAFT = 1;
+  SHIFT_STATUS_PUBLISHED = 2;
+  SHIFT_STATUS_CANCELLED = 3;
+}
+
+// Shift is one scheduled period a worker is expected to clock against; it
+// is also the basis for TCLOCK-004 device lockout windows and TCLOCK-009
+// early clock-in lockout.
+message Shift {
+  string shift_id = 1;
+  string site_id = 2;
+  string worker_id = 3;
+  string job_id = 4;
+  ShiftStatus status = 5;
+  google.protobuf.Timestamp starts_at = 6;
+  google.protobuf.Timestamp ends_at = 7;
+  string timezone = 8;
+  string cancel_reason = 9;
+  uint64 revision = 10;
+  string etag = 11;
+}
+
+// TimeProfile is the per-assignment configuration of how a worker's time is
+// captured, ruled and routed (internal/domains/timeprofile).
+message TimeProfile {
+  string profile_id = 1;
+  string worker_id = 2;
+  CaptureMode capture_mode = 3;
+  PayBasis pay_basis = 4;
+  ExemptionStatus exemption_status = 5;
+  WorkerCategory worker_category = 6;
+  TimeDestination destination = 7;
+  OvertimeMethod overtime_method = 8;
+  TimeTemplate template = 9;
+  repeated ControlClass control_classes = 10;
+  hcmnext.common.v1.EffectiveTimeRange effective_range = 11;
+  uint64 revision = 12;
+  string etag = 13;
+}
