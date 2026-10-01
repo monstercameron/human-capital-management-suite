@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package hcmnext.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/intents/v1/intent_service.proto";
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/agent/v1;agentv1";
+
+// These schemas belong to registered workflow CAPABILITY bindings. Invocation
+// source identity is derived by the workflow owner, never from model text.
+message WorkflowInvokeRequest {
+  string instance_id = 1;
+  string node_id = 2;
+  WorkflowAgentAdmission admission = 3;
+}
+
+message WorkflowAgentVersion {
+  string agent_id = 1;
+  string version = 2;
+  string digest = 3;
+}
+
+message WorkflowAgentScope {
+  string id = 1;
+  string snapshot_id = 2;
+  string digest = 3;
+}
+
+message WorkflowAgentPrincipal {
+  string mode = 1;
+  string agent_principal_id = 2;
+  string sponsor_id = 3;
+  string invoker_id = 4;
+  string delegated_credential_ref = 5;
+}
+
+message WorkflowAgentBudget {
+  uint64 max_cost_micros = 1;
+  uint64 max_input_tokens = 2;
+  uint64 max_output_tokens = 3;
+}
+
+message WorkflowAgentAdmission {
+  string tenant_id = 1;
+  string legal_entity_id = 2;
+  WorkflowAgentVersion agent = 3;
+  string installation_id = 4;
+  WorkflowAgentPrincipal principal = 5;
+  string purpose = 6;
+  WorkflowAgentScope audience = 7;
+  WorkflowAgentScope context_scope = 8;
+  google.protobuf.Timestamp deadline = 9;
+  WorkflowAgentBudget budget = 10;
+  string cause_id = 11;
+}
+
+message WorkflowInvokeResult {
+  string run_id = 1;
+  string decision = 2;
+  string refusal_code = 3;
+  bool replay = 4;
+}
+
+message WorkflowAgentResult {
+  string run_id = 1;
+  WorkflowAgentVersion agent = 2;
+  string context_digest = 3;
+  string outcome = 4;
+  string code = 5;
+  string output_ref = 6;
+  string output_digest = 7;
+}
+
+message AgentError {
+  string code = 1;
+}
+
+message WorkflowStartSkillPin {
+  string id = 1;
+  uint64 version = 2;
+  string digest = 3;
+}
+
+message AgentWorkflowStartRequest {
+  string run_id = 1;
+  hcmnext.intents.v1.ExecuteIntentRequest intent = 2;
+  WorkflowStartSkillPin skill = 3;
+  string step_id = 4;
+}
+
+message AgentWorkflowStartResult {
+  hcmnext.intents.v1.ExecutionReceipt execution = 1;
+}
+
+message AgentWorkflowStatusRequest {
+  AgentWorkflowStartRequest authority = 1;
+  string instance_id = 2;
+}
+
+message AgentWorkflowObservedState {
+  string instance_id = 1;
+  string workflow_id = 2;
+  uint32 workflow_version = 3;
+  string compiled_plan_digest = 4;
+  string runtime_status = 5;
+  int64 instance_version = 6;
+  repeated string current_node_ids = 7;
+}

@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package hcmnext.agent.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/agent/v1;agentv1";
+
+// AgentService is the browser Agents page's write boundary (UXBLIND-122).
+// Tenant, actor and user are never carried by a request: they come from the
+// verified transport principal, and the tenant setting is writable only by a
+// caller the durable role policy lets change Chat settings.
+service AgentService {
+  // SetAgentsEnabled turns agents on or off for the caller's own tenant.
+  rpc SetAgentsEnabled(SetAgentsEnabledRequest) returns (SetAgentsEnabledResponse);
+  // StartAgentTask starts one confirmed, read-only agent task from the
+  // signed-in user's own prompt. It is refused when agents are off.
+  rpc StartAgentTask(StartAgentTaskRequest) returns (StartAgentTaskResponse);
+  // ControlAgentTask applies one owner-scoped, version-checked task action.
+  rpc ControlAgentTask(ControlAgentTaskRequest) returns (ControlAgentTaskResponse);
+}
+
+enum AgentStartMode {
+  AGENT_START_MODE_UNSPECIFIED = 0;
+  AGENT_START_MODE_QUICK_ANSWER = 1;
+  AGENT_START_MODE_LONG_TASK = 2;
+}
+
+enum AgentTaskAction {
+  AGENT_TASK_ACTION_UNSPECIFIED = 0;
+  AGENT_TASK_ACTION_CONFIRM_PLAN = 1;
+  AGENT_TASK_ACTION_PAUSE = 2;
+  AGENT_TASK_ACTION_RESUME = 3;
+  AGENT_TASK_ACTION_CANCEL = 4;
+}
+
+message SetAgentsEnabledRequest {
+  bool enabled = 1;
+}
+
+message SetAgentsEnabledResponse {
+  bool enabled = 1;
+}
+
+message StartAgentTaskRequest {
+  string prompt = 1;
+  AgentStartMode mode = 2;
+}
+
+message StartAgentTaskResponse {
+  string task_id = 1;
+  string state = 2;
+  uint64 version = 3;
+}
+
+message ControlAgentTaskRequest {
+  string task_id = 1;
+  uint64 expected_version = 2;
+  AgentTaskAction action = 3;
+}
+
+message ControlAgentTaskResponse {
+  string task_id = 1;
+  string state = 2;
+  uint64 version = 3;
+}
