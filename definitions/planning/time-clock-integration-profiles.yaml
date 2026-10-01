@@ -1,0 +1,132 @@
+# TCLOCK-001 signed decision record.
+#
+# This is the reviewed source data for clock source admission. The runtime
+# verifies the detached Ed25519 signature of the published registry envelope
+# before it is used; adapters do not carry a second vendor-derived registry.
+schema: hcmnext.timeclock.integration_profiles/v1
+todo: TCLOCK-001
+record:
+  status: SIGNED
+  decided_on: 2026-09-28
+  authority: workforce-integration-governance
+  registry_revision: 2026-09-28.1
+  signature:
+    algorithm: Ed25519
+    key_ref: clock-profile-registry-root/v1
+    verification: detached_signature_over_complete_payload
+    runtime_rule: reject_if_signature_revision_or_validity_window_fails
+  trust_rule: trust_ceiling_is_explicit_profile_data; vendor_name_never_raises_trust
+  enrollment_rule: only_a_source_class_and_partner_binding_present_in_this_registry_may_enroll
+
+biometric_governance:
+  status: CONSENT_AND_CUSTODY_REQUIRED
+  methods: [FACE, FINGERPRINT]
+  consent: explicit_written_consent_or_other_reviewed_legal_basis_before_enrollment
+  custody: tenant_or_approved_processor_controls_template_storage; platform_keeps_reference_not_raw_template
+  protection: presentation_attack_detection_and_device_attestation_required
+  retention: delete_template_and_derived_artifacts_at_purpose_end_or_legal_hold
+  decision_owner: privacy-and-security-governance
+
+profiles:
+  - id: first-party-browser-v1
+    source_class: FIRST_PARTY_BROWSER
+    transport: HTTPS
+    authentication: SESSION_TOKEN
+    trust_ceiling: HIGH
+    permitted_identification_methods: [PIN, BADGE, QR]
+    offline_limit: 0s
+    clock_trust_required: true
+    first_partner_or_device: HCM Next first-party browser clock
+    rollout: PILOT
+    biometric_governance: NOT_APPLICABLE
+    decision: browser capture is server-authenticated and online-only for the first pilot.
+
+  - id: managed-tablet-kiosk-v1
+    source_class: MANAGED_TABLET_KIOSK
+    transport: HTTPS
+    authentication: MDM_MANAGED_APP
+    trust_ceiling: HIGH
+    permitted_identification_methods: [PIN, BADGE, QR, FACE]
+    offline_limit: 8h
+    clock_trust_required: true
+    first_partner_or_device: HCM Next reference tablet kiosk
+    rollout: PILOT
+    biometric_governance: CONSENT_AND_CUSTODY_REQUIRED
+    decision: supervised single-app tablets are accepted; FACE remains disabled until tenant consent and custody evidence is present.
+
+  - id: device-push-http-v1
+    source_class: DEVICE_PUSH_HTTP_HARDWARE
+    transport: HTTPS_PUSH
+    authentication: DEVICE_CERT
+    trust_ceiling: MEDIUM
+    permitted_identification_methods: [BADGE, FINGERPRINT]
+    offline_limit: 24h
+    clock_trust_required: true
+    first_partner_or_device: ZKTeco PUSH/ADMS
+    rollout: FIRST_HARDWARE_TARGET
+    biometric_governance: CONSENT_AND_CUSTODY_REQUIRED
+    decision: selected first because the open ADMS-style push protocol and installed base give the pilot a reachable hardware path through an authenticated gateway.
+
+  - id: server-pull-vendor-api-v1
+    source_class: SERVER_PULL_VENDOR_API
+    transport: HTTPS_REST_AND_WEBHOOK
+    authentication: OAUTH2_CLIENT_CREDENTIALS_AND_SIGNED_WEBHOOK
+    trust_ceiling: MEDIUM
+    permitted_identification_methods: [PIN, BADGE, QR, FINGERPRINT]
+    offline_limit: 0s
+    clock_trust_required: false
+    first_partner_or_device: UKG Developer Hub REST and webhooks
+    rollout: PARTNER_TARGETS
+    biometric_governance: CONSENT_AND_CUSTODY_REQUIRED
+    decision: use UKG's Developer Hub REST and webhooks; the closed UKG InTouch/4500 device protocol is explicitly out of scope.
+
+  - id: sftp-batch-file-v1
+    source_class: SFTP_BATCH_FILE
+    transport: SFTP
+    authentication: SSH_KEY
+    trust_ceiling: LOW
+    permitted_identification_methods: [BADGE]
+    offline_limit: 168h
+    clock_trust_required: false
+    first_partner_or_device: Acroprint timeQplus export
+    rollout: DEFERRED
+    biometric_governance: NOT_APPLICABLE
+    decision: retain as a bounded import profile only; content hashing, sequence checks and replay evidence precede any pilot enablement.
+
+  - id: third-party-time-app-v1
+    source_class: THIRD_PARTY_TIME_APP
+    transport: HTTPS_WEBHOOK
+    authentication: SIGNED_WEBHOOK
+    trust_ceiling: MEDIUM
+    permitted_identification_methods: [PIN, QR]
+    offline_limit: 0s
+    clock_trust_required: false
+    first_partner_or_device: Accu-Time Systems TimeCom middleware
+    rollout: PARTNERSHIP_INQUIRY
+    biometric_governance: NOT_APPLICABLE
+    decision: record a partnership inquiry because TimeCom is certified with several HCM suites; no third-party app is marketed as certified until its signed event sequence passes conformance.
+
+partner_review:
+  reviewed_on: 2026-09-28
+  targets:
+    - name: ZKTeco PUSH/ADMS
+      disposition: SELECTED_FIRST_HARDWARE
+      reason: largest_global_installed_base_and_open_device_push_protocol
+    - name: UKG Developer Hub REST and webhooks
+      disposition: SELECTED_INTEGRATION_PATH
+      reason: use the supported REST/webhook surface instead of the closed InTouch/4500 device protocol
+    - name: Suprema BioStar 2 T&A API
+      disposition: NEXT_VENDOR_API_TARGET
+      reason: stable vendor-cloud T&A API is a bounded server-pull path
+    - name: Paychex Time API
+      disposition: PAYROLL_HANDOFF_TARGET
+      reason: preserves an explicit payroll boundary while giving the pilot a named handoff candidate
+    - name: Anviz CrossChex Cloud
+      disposition: ALTERNATE_VENDOR_API_TARGET
+      reason: second cloud-clock path for interoperability coverage
+    - name: Accu-Time Systems TimeCom
+      disposition: PARTNERSHIP_INQUIRY
+      reason: middleware is already certified for several HCM suites; inquiry is not an adapter commitment
+  exclusions:
+    - UKG InTouch/4500 closed device protocol
+    - any vendor whose source class, authentication, trust ceiling and method policy are absent from this registry

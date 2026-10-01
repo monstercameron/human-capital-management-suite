@@ -1,0 +1,102 @@
+# FTIME-001 signed scope decision for the Ironridge field-time pilot.
+schema: hcmnext.timeclock.field_authority/v1
+todo: FTIME-001
+record:
+  status: SIGNED
+  decided_on: 2026-09-28
+  authority: ironridge-field-operations-and-workforce-governance
+  decision_revision: 2026-09-28.1
+  signature:
+    algorithm: Ed25519
+    signer_role: pilot-governance-reviewer
+    verification: detached_signature_over_complete_payload
+
+pilot:
+  tenant_ref: ironridge-demo
+  tenant_name: Ironridge Builders
+  first_crew:
+    id: ironridge-riverside-crew
+    name: Riverside field crew
+    supervisor_role: Riverside crew supervisor
+  locations:
+    - id: riverside-gym-wing
+      name: Riverside gym wing jobsite
+    - id: riverside-stair-stringer
+      name: Riverside stair-stringer work area
+  sources:
+    - FIRST_PARTY_BROWSER
+    - MANAGED_TABLET_KIOSK
+  excluded_sources:
+    - DEVICE_PUSH_HTTP_HARDWARE
+    - SERVER_PULL_VENDOR_API
+    - SFTP_BATCH_FILE
+    - THIRD_PARTY_TIME_APP
+  scope_reason: prove one crew's reviewed field time and work-order allocation before external device or payroll writes.
+
+authority:
+  clock_owner:
+    role: hcm-next-clock-service
+    owns: observed_punches_and_source_evidence
+  schedule_owner:
+    role: ironridge-workforce-scheduler
+    owns: published_shifts_and_schedule_revisions
+  work_order_owner:
+    role: ironridge-field-operations
+    owns: reviewed_time_allocations_and_costing_dimensions
+  policy_owner:
+    role: ironridge-workforce-governance
+    source: selected_jurisdiction_rule_pack_and_legal-005_review
+    owns: breaks_overtime_rounding_and_exception_policy
+  supervisor_approval:
+    required: true
+    approver: Riverside crew supervisor
+    approval_scope: reviewed_timecard_and_work_order_allocation
+  payroll_system_of_record:
+    owner: Ironridge existing payroll system
+    provider: NOT_YET_CONFIRMED
+    handoff: disabled_in_initial_pilot
+
+capture_and_evidence:
+  clock_event_source: browser_or_managed_kiosk_only
+  device_time: observation_only
+  authoritative_time: server_receipt_time_with_device_offset_and_clock_trust_evidence
+  geofence:
+    consent_required: true
+    purpose: validate_the_assigned_jobsite_for_time_review
+    evidence: retain_minimum_accuracy_source_consent_and_confidence_proof; no_continuous_tracking
+    unknown_behavior: missing_permission_stale_signal_or_ambiguous_indoor_location_goes_to_review
+  correction_policy: append_a_correction_linked_to_the_original_observation; never_mutate_or_delete_the_original
+  retention:
+    reviewed_time_and_timecard: retain_for_applicable_flsA_or_state_minimum_and_any_legal_hold
+    raw_location_and_photo: shorter_purpose_bound_retention_than_timecard
+    work_order_allocation: retain_with_the_approved_work_order_revision
+
+payroll_and_work_order_boundary:
+  payroll_status: COSTING_ONLY_NOT_PAYROLL_READY
+  approved_time_destination: work_order_costing_projection
+  payroll_export: none
+  work_order_entry_rule: a_work_order_entry_is_an_allocation_of_reviewed_time; it_is_not_a_punch_or_payroll_ready_timesheet
+  payroll_enablement_gate: name_provider_map_fields_and_run_payroll_conformance_before_any_external_write
+
+success_measures:
+  - id: source_lineage
+    measure: every_reviewed_interval_shows_source_worker_assignment_jurisdiction_and_correction_lineage
+  - id: approval
+    measure: supervisor_approval_is_required_before_work_order_costing
+  - id: duplicate_safety
+    measure: one_approved_interval_creates_one_work_order_allocation
+  - id: field_adoption
+    measure: replace_paper_and_spreadsheet_rekeying_for_the_first_crew
+  - id: recovery
+    measure: reload_and_network_recovery_preserve_open_sessions_and_queued_drafts
+
+displaced_work:
+  - paper punch sheets and handwritten break notes
+  - spreadsheet re-entry of crew hours into Riverside work-order costing
+  - manual matching of reviewed hours to project task and cost-code lines
+
+non_goals:
+  - payroll calculation or payroll submission
+  - employee tracking outside an active time decision
+  - automatic clock-out based solely on client-chosen geolocation
+  - treating work-order progress or board status as approved time

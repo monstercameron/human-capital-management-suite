@@ -1,0 +1,152 @@
+# WTIME-001 versioned per-assignment TimeProfile decision record.
+schema: hcmnext.timeclock.assignment_profile/v1
+todo: WTIME-001
+record:
+  status: SIGNED
+  decided_on: 2026-09-28
+  authority: workforce-payroll-regulatory-governance
+  decision_revision: 2026-09-28.1
+  signature:
+    algorithm: Ed25519
+    verification: detached_signature_over_complete_payload
+
+profile_contract:
+  versioned: true
+  effective_dated: true
+  attached_to: assignment
+  unresolved_profile_behavior: reject_time_recording_with_NO_RESOLVABLE_TIME_PROFILE
+  open_run_behavior: pin_profile_version_and_workflow_plan_until_session_or_period_end
+  definitions_rule: resolve_profile_by_eligibility_rule; adapters_never_read_profile_fields_directly
+  independent_axes:
+    - capture_mode
+    - pay_basis
+    - exemption_status
+    - worker_category
+  required_fields:
+    - id
+    - version
+    - tenant_ref
+    - effective_from
+    - effective_to
+    - capture_mode
+    - pay_basis
+    - exemption_status
+    - worker_category
+    - overtime_jurisdictions
+    - overtime_method
+    - piece_rate
+    - aggregation_key
+    - on_call_eligible
+    - reporting_time_eligible
+    - split_shift_eligible
+    - differential_eligible
+    - minor_age_band
+    - minor_permit_verified
+    - travel_classification_policy_ref
+    - eu_rest_period_duty_required
+    - uk_rest_period_duty_required
+    - daily_recording_duty_required
+    - government_contract_flags
+    - grant_flags
+    - project_taxonomies
+    - approval_chain_refs
+    - destination
+
+vocabulary:
+  capture_modes: [PUNCH, DURATION, EXCEPTION_ONLY, NONE]
+  pay_basis: [HOURLY, SALARY, PIECE_RATE, DAY_RATE, CONTRACT_RATE]
+  exemption_status: [NON_EXEMPT, EXEMPT, SALARIED_NON_EXEMPT, NOT_APPLICABLE]
+  worker_categories: [EMPLOYEE, CONTRACTOR, AGENCY_TEMP, PLATFORM_WORKER]
+  overtime_methods:
+    SINGLE_RATE: single_rate
+    WEIGHTED_AVERAGE: weighted_average
+    FLUCTUATING_WEEK: fluctuating_workweek
+    HEALTHCARE_8_80: eight_eighty
+    PUBLIC_COMP_TIME: seven_o_comp_time
+    PUBLIC_SAFETY_7K: seven_k
+    PIECE_RATE_AVERAGE: piece_rate_average
+    NONE: no_overtime_method
+  destinations: [PAYROLL, CONTRACTOR_INVOICE, AGENCY_EXPORT, COSTING_ONLY]
+  minor_age_bands: [NONE, UNDER_16, 16_17]
+
+cross_field_rules:
+  - id: salaried_non_exempt_is_independent
+    rule: SALARIED_NON_EXEMPT_requires_pay_basis_SALARY_and_is_not_EXEMPT
+  - id: contractor_boundary
+    rule: CONTRACTOR_requires_NOT_APPLICABLE_and_contract_rate_and_CONTRACTOR_INVOICE
+  - id: agency_boundary
+    rule: AGENCY_TEMP_requires_NOT_APPLICABLE_and_AGENCY_EXPORT
+  - id: non_exempt_capture
+    rule: NON_EXEMPT_or_SALARIED_NON_EXEMPT_cannot_use_NONE_or_EXCEPTION_ONLY_when_daily_recording_or_worked_time_is_required
+  - id: explicit_overtime_aggregation
+    rule: every_active_assignment_names_an_aggregation_key; concurrent_assignments_with_the_same_worker_key_fold_into_one_overtime_window
+  - id: eligibility_resolution
+    rule: tenant_matching_rule_may_match_job_position_category_location_and_legal_entity; ambiguous_or_missing_match_rejects_recording
+
+eligibility_rule_axes: [job_ref, position_ref, category, location_ref, legal_entity_ref]
+worker_aggregation:
+  key: explicit_profile_aggregation_key
+  default: none
+  concurrent_assignment_rule: assignments_for_one_worker_share_overtime_only_when_their_resolved_profiles_name_the_same_key
+
+profile_examples:
+  - id: hourly-employee-punch
+    version: 1
+    capture_mode: PUNCH
+    pay_basis: HOURLY
+    exemption_status: NON_EXEMPT
+    worker_category: EMPLOYEE
+    overtime_jurisdictions: [US-FED, US-CA]
+    overtime_method: SINGLE_RATE
+    piece_rate: false
+    aggregation_key: worker:w-1001
+    destination: PAYROLL
+    template: time.punch_session
+  - id: salaried-non-exempt-duration
+    version: 1
+    capture_mode: DURATION
+    pay_basis: SALARY
+    exemption_status: SALARIED_NON_EXEMPT
+    worker_category: EMPLOYEE
+    overtime_jurisdictions: [US-FED]
+    overtime_method: WEIGHTED_AVERAGE
+    piece_rate: false
+    aggregation_key: worker:w-1002
+    destination: PAYROLL
+    template: time.duration_timesheet
+  - id: contractor-duration-invoice
+    version: 1
+    capture_mode: DURATION
+    pay_basis: CONTRACT_RATE
+    exemption_status: NOT_APPLICABLE
+    worker_category: CONTRACTOR
+    overtime_jurisdictions: []
+    overtime_method: NONE
+    piece_rate: false
+    aggregation_key: engagement:c-2001
+    destination: CONTRACTOR_INVOICE
+    template: time.contractor_invoice
+  - id: agency-temp-punch-export
+    version: 1
+    capture_mode: PUNCH
+    pay_basis: HOURLY
+    exemption_status: NOT_APPLICABLE
+    worker_category: AGENCY_TEMP
+    overtime_jurisdictions: [US-FED, US-CA]
+    overtime_method: SINGLE_RATE
+    piece_rate: false
+    aggregation_key: agency-worker:a-3001
+    destination: AGENCY_EXPORT
+    template: time.agency_vms
+  - id: platform-worker-duration-costing
+    version: 1
+    capture_mode: DURATION
+    pay_basis: DAY_RATE
+    exemption_status: EXEMPT
+    worker_category: PLATFORM_WORKER
+    overtime_jurisdictions: [EU-REST]
+    overtime_method: NONE
+    piece_rate: false
+    aggregation_key: worker:w-4001
+    destination: COSTING_ONLY
+    template: time.duration_timesheet

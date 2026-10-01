@@ -1,0 +1,35 @@
+# Workflow start, history and custom page decision record (WFPAGE-001).
+#
+# Consumed by tools/planning/workflowpages. Decided 2026-09-28 by the owner
+# delegate: the GREEN defaults of WFPAGE-001 are adopted exactly as written.
+# Per-todo Refs point at this record instead of restating the defaults.
+version: 1
+decided_on: "2026-09-28"
+decided_by: owner-delegate
+routes:
+  start_catalog: /workspace/app/workflows
+  start: /workspace/app/workflows/start/{workflow}
+  history: /workspace/app/workflows/history
+defaults:
+  default_page_per_workflow_version: one generated default page per published workflow version
+  designer_role: override layer only (layout, widget choice, notes, guides, links, extra validations)
+  validations: declarative data evaluated by one rule engine on client and server, server authoritative
+  run_records_page_definition_version: true
+  draft:
+    scope: one server-side draft per user, workflow and subject
+    expiry_days: 30
+  sop_links: follow the latest deployed version unless pinned
+  support_channel: one per workflow with a tenant default
+  history_export:
+    max_rows: 10000
+    redacted_to_viewer: true
+scope_guard:
+  page_designer_may_add_nodes: false
+  page_designer_may_add_capabilities: false
+  page_designer_may_add_workflows: false
+  custom_pages_serve: existing governed workflows only
+budgets:
+  # journey.wasm.gz was about 10.5 MB when this record was made (UXBLIND-089
+  # owns the cold-load cut). The new surfaces may not grow it by more than 1%.
+  wasm_gzip_growth_bytes: 102400
+  filter_500_workflows_ms: 250
