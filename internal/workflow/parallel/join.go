@@ -16,6 +16,28 @@ const (
 	JoinBestEffort  = "BEST_EFFORT"
 )
 
+// ServingContractID identifies the bounded join contract composed by the
+// shipped application cell.
+const ServingContractID = "hcmnext.conformance.parallel-join/v1"
+
+// ValidateServingContract exercises the required-set join used by CONF-022.
+// It is read-only and proves a complete admitted result can be recognized by
+// the served composition without weakening the join vocabulary.
+func ValidateServingContract() error {
+	outcome, err := Join(JoinPlan{
+		Strategy: JoinRequiredSet, Version: "serving/v1", RequiredID: []string{"serving-branch"},
+	}, []BranchResult{{
+		BranchID: "serving-branch", IdempotencyKey: "ack:serving-branch", Outcome: OutcomeSucceeded,
+	}})
+	if err != nil {
+		return fmt.Errorf("parallel: serving contract join: %w", err)
+	}
+	if outcome.Verdict != JoinSucceeded || outcome.Counted != 1 || outcome.Degraded {
+		return fmt.Errorf("parallel: serving contract outcome is invalid: %#v", outcome)
+	}
+	return nil
+}
+
 // Join verdicts: the typed aggregate vocabulary.
 const (
 	JoinSucceeded = "SUCCEEDED"

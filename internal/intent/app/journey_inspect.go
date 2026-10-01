@@ -37,6 +37,7 @@ type journeyRecord struct {
 	instance       *runtime.Instance
 	nodes          []runtime.NodeExecution
 	items          []workitem.WorkItem
+	decisions      []workitem.DecisionRecord
 	transitions    []workspace.JourneyTransition
 	ledger         *workspace.JourneyLedgerEvent
 	durableRecords []workspace.JourneyRecordFamily
@@ -118,6 +119,10 @@ func (e *journeyEngine) readRecord(
 		return journeyRecord{}, fmt.Errorf("app: journey: %w", err)
 	}
 	record := journeyRecord{instance: &loaded.Instance, nodes: loaded.Nodes, items: loaded.WorkItems}
+	record.decisions, err = uxblindSLoadJourneyDecisions(ctx, tx, tenantID, instanceID)
+	if err != nil {
+		return journeyRecord{}, fmt.Errorf("app: journey: read decision records: %w", err)
+	}
 	for _, item := range record.items {
 		for _, t := range loaded.Transitions[item.WorkItemID.String()] {
 			record.transitions = append(record.transitions, workspace.JourneyTransition{
@@ -581,13 +586,18 @@ func (e *journeyEngine) inspectWithRelationships(
 	if record.instance == nil && requestEndedBeforeExecution(inst.Lifecycle.Request) {
 		detail.Summary.Stage = workspace.JourneyStageFailed
 	}
+	workerRef, _ := journeyWorkerRefFromIntent(msg)
+	viewerIsSubject := journeySubjectIsViewerRef(principal.Subject(), detail.Summary.Worker, workerRef)
+	if viewerIsSubject && !journeySubjectDisclosureAllowed(detail.Summary.Stage) {
+		return workspace.JourneyDetail{}, workspace.ErrJourneyUnknown
+	}
 	// PROMOUX-012: the same viewer projection the list resolves. The work item
 	// summary is used only for the viewer's own membership; the detail page
 	// reads the work items themselves.
-	detail.Summary.Viewer = journeyRecordViewerProjection(detail.Summary.Stage,
-		isJourneyInitiator(inst.Initiator.PrincipalID, principal.Subject()),
+	detail.Summary.Viewer = journeyRecordViewerDisclosureProjection(detail.Summary.Stage,
+		isJourneyInitiator(inst.Initiator.PrincipalID, principal.Subject()), viewerIsSubject,
 		journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), e.now(), nil), record)
-	detail.Nodes = journeyNodes(record.nodes)
+	detail.Nodes = uxblindSOrderJourneyNodes(journeyNodes(record.nodes))
 	detail.DurableRecords = append([]workspace.JourneyRecordFamily(nil), record.durableRecords...)
 	detail.WorkItems = record.items
 	if item, open := openJourneyWorkItem(record.items); open && item.Assignment.ChosenOwner != "" {
@@ -638,6 +648,17 @@ func (e *journeyEngine) inspectWithRelationships(
 	if err := detailTx.Rollback(ctx); err != nil {
 		return workspace.JourneyDetail{}, fmt.Errorf("app: journey: release detail read: %w", err)
 	}
+	// Read the authoritative intent stream only after releasing the detail
+	// transaction's pool connection. Timeline uses the store pool itself; a
+	// nested acquisition here would deadlock concurrent detail requests when
+	// the bounded pool is occupied by their still-open detail transactions.
+	// Visibility and subject disclosure were checked above before this read.
+	timelineEntries, timelineErr := e.svc.store.Timeline(ctx, principal.Tenant().String(), intentID)
+	if timelineErr != nil {
+		return workspace.JourneyDetail{}, fmt.Errorf("app: journey: read timeline: %w", timelineErr)
+	}
+	durableFailureEvents := journeyFailureEvents(timelineEntries, intentID)
+	detail.Timeline = append(detail.Timeline, durableFailureEvents...)
 	resolveName := e.assigneeNameResolver(ctx, principal.Tenant())
 	for i := range detail.Notes {
 		detail.Notes[i].AuthorDisplay = resolveName(detail.Notes[i].AuthorRef)
@@ -651,9 +672,11 @@ func (e *journeyEngine) inspectWithRelationships(
 	// guardrail, under this viewer's own authorization.
 	detail.Review = e.journeyPromotionReview(ctx, principal, purposeOf(principal, inv), msg,
 		summary.Worker, inst.CreatedAt, relationships)
+	assignJourneyInitiator(&detail, inst.Initiator.PrincipalID)
 	if !detail.DiagnosticsAvailable {
 		redactJourneyDiagnostics(&detail)
 	}
+	projectJourneyHistory(&detail, resolveName)
 	return detail, nil
 }
 
@@ -723,7 +746,24 @@ func applyJourneyChronology(detail *workspace.JourneyDetail, record journeyRecor
 		return
 	}
 	detail.Timeline = journeyTimeline(*detail)
+	uxblindSApplyJourneyDecisionHistory(detail, record.items, record.decisions)
 	applyDurableJourneyTime(&detail.Summary, record)
+}
+
+// assignJourneyInitiator records the durable intent initiator on the opening
+// history event. The caller resolves that principal through the tenant
+// directory later; this step must retain the stored actor rather than using
+// the viewer who happened to inspect the journey.
+func assignJourneyInitiator(detail *workspace.JourneyDetail, initiator string) {
+	if detail == nil || strings.TrimSpace(initiator) == "" {
+		return
+	}
+	for i := range detail.Timeline {
+		if detail.Timeline[i].Kind == JourneyEventIntentCreated {
+			detail.Timeline[i].Actor = initiator
+			return
+		}
+	}
 }
 
 // diagnosticsAllowed is the engine half of the one diagnostics disclosure
@@ -908,7 +948,59 @@ const (
 	JourneyEventNode            = "NODE"
 	JourneyEventWorkItem        = "WORK_ITEM"
 	JourneyEventLedgerRecorded  = "LEDGER_RECORDED"
+	JourneyEventNote            = "NOTE"
 )
+
+// projectJourneyHistory turns durable principals into display names after the
+// tenant transaction has closed and folds append-only notes into the same
+// chronological history. Automated entries retain a named System actor;
+// unresolved reviewer principals degrade to the client-local reviewer label.
+func projectJourneyHistory(detail *workspace.JourneyDetail, resolveName func(string) string) {
+	if detail == nil {
+		return
+	}
+	for i := range detail.Timeline {
+		event := &detail.Timeline[i]
+		actor := strings.TrimSpace(event.Actor)
+		if actor == "" {
+			switch event.Kind {
+			case JourneyEventIntentCreated, JourneyEventSimulated, JourneyEventInstanceStarted, JourneyEventLedgerRecorded:
+				event.Actor = "system"
+			default:
+				event.Actor = "reviewer"
+			}
+			continue
+		}
+		if actor == "system" || actor == "workflow" || strings.HasPrefix(actor, "system:") {
+			event.Actor = "system"
+			continue
+		}
+		if resolveName != nil {
+			if display := strings.TrimSpace(resolveName(actor)); display != "" {
+				event.Actor = display
+				continue
+			}
+		}
+		event.Actor = "reviewer"
+	}
+	uxblindSResolveHistoryMarkers(detail, resolveName)
+	for _, note := range detail.Notes {
+		if note.CreatedAt.IsZero() {
+			continue
+		}
+		actor := strings.TrimSpace(note.AuthorDisplay)
+		if actor == "" {
+			actor = "reviewer"
+		}
+		detail.Timeline = append(detail.Timeline, workspace.JourneyEvent{
+			At: note.CreatedAt, Actor: actor, Kind: JourneyEventNote,
+			Title: "Note added", Detail: note.Body,
+		})
+	}
+	sort.SliceStable(detail.Timeline, func(i, j int) bool {
+		return detail.Timeline[i].At.Before(detail.Timeline[j].At)
+	})
+}
 
 // journeyTimeline composes the chronological account of one journey from the
 // durable facts already loaded: nothing here is remembered between calls and

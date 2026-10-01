@@ -52,6 +52,10 @@ var (
 type PromotionStepCall struct {
 	// Delegation is the authority runtime.Start pinned for the instance.
 	Delegation runtime.ExecutionDelegation
+	// ProposalRevision is the immutable revision pinned by the execution step.
+	// Callers must pass the revision from the step request; services never
+	// replace it with a latest revision read.
+	ProposalRevision intent.ProposalRevision
 	// IntentID is the promotion intent the approved proposal revision binds.
 	IntentID string
 	// NodeID names the step, for evidence.
@@ -92,7 +96,11 @@ type PromotionStepServices struct {
 	// It shares the cell's evidence sink and clock, so its decisions land in
 	// the same chronology.
 	reads *capability.Gateway
-	now   func() time.Time
+	// proposalRevisions verifies the workflow's pinned proposal against the
+	// authoritative tenant-scoped revision row when the cell has a durable DB.
+	// Nil is limited to non-durable test compositions.
+	proposalRevisions *proposalRevisionReader
+	now               func() time.Time
 }
 
 // governedRead is the payload a graph read capability's handler runs once
@@ -112,7 +120,7 @@ func NewPromotionStepServices(cell *Cell) (*PromotionStepServices, error) {
 	now := func() time.Time { return svc.clock().Time() }
 	return &PromotionStepServices{
 		svc: svc, roleAccess: cell.RoleAccess, requiredRole: svc.executionAuthority.RequiredRole,
-		reads: svc.gateway, now: now,
+		reads: svc.gateway, now: now, proposalRevisions: cell.proposalRevisions,
 		marketRates: cell.MarketRateSource,
 	}, nil
 }
@@ -280,12 +288,35 @@ func (p *PromotionStepServices) open(ctx context.Context, call PromotionStepCall
 	if ownedErr != nil {
 		return nil, fmt.Errorf("app: load promotion intent %s: %w", call.IntentID, ownedErr)
 	}
+	if call.ProposalRevision.Tenant != values.TenantId(call.Delegation.TenantKey) {
+		return nil, fmt.Errorf("app: proposal revision tenant does not match the execution delegation")
+	}
+	if p.proposalRevisions != nil {
+		if err := p.proposalRevisions.Validate(ctx, call.Delegation.TenantKey, call.IntentID, call.ProposalRevision); err != nil {
+			return nil, fmt.Errorf("app: exact proposal revision is not bound to the intent: %w", err)
+		}
+	} else {
+		boundRevision := false
+		for _, candidate := range inst.ProposalRevisions {
+			if candidate.ProposalRevisionID == call.ProposalRevision.ProposalRevisionID && candidate.IntentID == call.ProposalRevision.IntentID &&
+				candidate.Revision == call.ProposalRevision.Revision && candidate.MaterialDigest.Digest == call.ProposalRevision.MaterialDigest.Digest {
+				boundRevision = true
+				break
+			}
+		}
+		if !boundRevision {
+			return nil, fmt.Errorf("app: exact proposal revision is not bound to the intent")
+		}
+	}
 	def, err := p.svc.defs.Resolve(inst.Definition)
 	if err != nil {
 		return nil, fmt.Errorf("app: resolve promotion definition: %w", err)
 	}
 	if def.Ref.TypeID != promotion.IntentType {
 		return nil, fmt.Errorf("app: intent %s is %s, not a promotion", call.IntentID, def.Ref.TypeID)
+	}
+	if call.ProposalRevision.IntentID == "" || call.ProposalRevision.IntentID != call.IntentID || call.ProposalRevision.Revision == 0 || call.ProposalRevision.MaterialDigest.Digest == "" {
+		return nil, fmt.Errorf("app: promotion step has no exact proposal revision")
 	}
 	resolved, err := p.svc.inputs.Resolve(ctx, ResolveRequest{Instance: inst, Definition: def, Principal: principal, Purpose: purpose})
 	if err != nil {
@@ -423,11 +454,15 @@ func (p *PromotionStepServices) ThresholdInputs(ctx context.Context, call Promot
 	if err != nil {
 		return rules.PromotionApprovalInput{}, s.answer, err
 	}
+	baselineGrade, err := exactAssignmentGrade(call.ProposalRevision, s.call.Promotion.Subject)
+	if err != nil {
+		return rules.PromotionApprovalInput{}, s.answer, err
+	}
 	in := rules.PromotionApprovalInput{
 		IncreasePercent: simulated.Delta.IncreasePercent,
 		BandPosition:    rules.BandPositionUnknown,
 		BudgetAuthority: rules.BudgetAuthorityUnknown,
-		GradeChange:     !strings.EqualFold(strings.TrimSpace(preflight.Input.Baseline.Grade), strings.TrimSpace(preflight.Input.Target.Grade)),
+		GradeChange:     !strings.EqualFold(strings.TrimSpace(baselineGrade), strings.TrimSpace(preflight.Input.Target.Grade)),
 	}
 	if preflight.Band.State == rewards.BandResultEvaluated {
 		if position := rules.BandPosition(preflight.Band.Evaluation.Position.Placement.String()); position.Valid() {
@@ -448,6 +483,26 @@ func (p *PromotionStepServices) ThresholdInputs(ctx context.Context, call Promot
 	return in, s.answer, nil
 }
 
+func exactAssignmentGrade(rev intent.ProposalRevision, subject values.EntityRef) (string, error) {
+	var grade string
+	for _, assertion := range rev.CurrentState {
+		if assertion.FieldPath != "assignment.grade" {
+			continue
+		}
+		if assertion.Subject.SubjectID != subject.Id || assertion.Subject.Kind == "" || assertion.ResourceKey.Tenant != subject.Tenant {
+			continue
+		}
+		if strings.TrimSpace(assertion.CanonicalText) == "" || grade != "" {
+			return "", fmt.Errorf("app: exact proposal revision has missing or ambiguous assignment.grade baseline")
+		}
+		grade = assertion.CanonicalText
+	}
+	if grade == "" {
+		return "", fmt.Errorf("app: exact proposal revision has no assignment.grade baseline")
+	}
+	return grade, nil
+}
+
 // AuthorizeCommit re-runs the governed promotion preflight at the commit
 // boundary, as the delegated principal, and refuses a promotion whose
 // preflight now blocks. It performs no write: the commit itself is the
@@ -458,6 +513,9 @@ func (p *PromotionStepServices) AuthorizeCommit(ctx context.Context, call Promot
 	s, err := p.open(ctx, call, promotion.IntentType)
 	if err != nil {
 		return PromotionStepAnswer{}, err
+	}
+	if err := p.svc.verifyAgentIntentCommit(trust.WithPrincipal(ctx, s.principal), call); err != nil {
+		return s.answer, err
 	}
 	preflight, err := p.preflight(ctx, s, call)
 	if err != nil {

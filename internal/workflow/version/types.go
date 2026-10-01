@@ -1,6 +1,10 @@
 package version
 
-import "time"
+import (
+	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
+)
 
 // ActivationStatus is a compiled workflow version's lifecycle status.
 // Publishing mints DRAFT; every other status is reached only through a
@@ -125,6 +129,10 @@ type CompiledVersion struct {
 	WorkflowID        string `json:"workflow_id"`
 	DefinitionVersion uint32 `json:"definition_version"`
 	SemanticVersion   string `json:"semantic_version"`
+	// Catalog is immutable release metadata copied from the source definition.
+	// It is separate from the executable plan so display changes cannot alter
+	// a plan digest or the behavior of pinned runs.
+	Catalog *workflow.CatalogMetadata `json:"catalog,omitempty"`
 
 	// DefinitionDigest is the content digest of the draft definition this
 	// version was compiled from.
@@ -182,6 +190,7 @@ func (v CompiledVersion) Verify() error {
 // back from this package can never reach into a [Store]'s own storage.
 func (v CompiledVersion) clone() CompiledVersion {
 	c := v
+	c.Catalog = v.Catalog.Clone()
 	c.CanonicalPlanBytes = append([]byte(nil), v.CanonicalPlanBytes...)
 	c.ToolVersions = cloneStringMap(v.ToolVersions)
 	c.FixtureRefs = append([]string(nil), v.FixtureRefs...)

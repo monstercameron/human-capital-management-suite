@@ -142,6 +142,12 @@ func (t ValueType) clone() ValueType {
 type Field struct {
 	Path string    `json:"path"`
 	Type ValueType `json:"type"`
+	// Label and Description are immutable definition metadata. They are
+	// presentation hints only; the path and type remain the workflow's
+	// authority and are what the compiler validates.
+	Label       string `json:"label,omitempty"`
+	Description string `json:"description,omitempty"`
+	Group       string `json:"group,omitempty"`
 }
 
 func fieldsByPath(fields []Field) map[string]ValueType {
@@ -158,7 +164,7 @@ func cloneFields(fields []Field) []Field {
 	}
 	out := make([]Field, len(fields))
 	for i, f := range fields {
-		out[i] = Field{Path: f.Path, Type: f.Type.clone()}
+		out[i] = Field{Path: f.Path, Type: f.Type.clone(), Label: f.Label, Description: f.Description, Group: f.Group}
 	}
 	return out
 }

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/fakeincumbent"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/agentsettingstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/bandfacts"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/brandassetstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/committedfacts"
@@ -22,6 +24,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionladder"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workflowdraftstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/workforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/balance"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/knowledge"
@@ -33,7 +36,9 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agentclient"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/definitions"
@@ -180,6 +185,10 @@ type CellConfig struct {
 	// otelmw.UnaryServerInterceptor/otelmw.NewConnectInterceptor from it,
 	// because only internal/transport may import connect/grpc (LIB-003).
 	Telemetry *hcmotel.Provider
+	// PersonaAdminClientFactory supplies a request-bound persona administration
+	// client to the transport edge. The application composition owns the
+	// implementation; nil leaves the persona catalog unavailable.
+	PersonaAdminClientFactory PersonaAdminClientFactory
 	// WorkflowRecorder receives the governed workflow controls' operations
 	// (spans and structured logs). Nil records nothing unless a caller
 	// context carries its own recorder.
@@ -345,10 +354,17 @@ type Cell struct {
 	Workers      people.WorkerFacts
 	Transactions intelligence.TransactionHistory
 	Gateway      *capability.Gateway
-	Evidence     EvidenceStore
-	Controls     Controls
-	Config       transport.Config
-	Inputs       DomainInputs
+	// CRM005 is the governed application-step executor for prospect conversion.
+	// It is composed with the same service that backs the published capability.
+	CRM005   *CRM005ConversionService
+	Evidence EvidenceStore
+	Controls Controls
+	Config   transport.Config
+	Inputs   DomainInputs
+	// BalanceIndex is the served cell's dependency index for approved
+	// future balance-plan components. Availability changes are evaluated against
+	// this owned index rather than a process-global registry.
+	BalanceIndex *balance.DependencyIndex
 
 	// Incumbent, Connection and Observations are the connectivity plane this
 	// cell observes the external system of record through. They are exposed so
@@ -365,9 +381,23 @@ type Cell struct {
 	// Telemetry is the OTel provider from CellConfig, or nil. Exported so
 	// internal/transport/cell can read it without this package exposing any
 	// transport-shaped composition of its own.
-	Telemetry       *hcmotel.Provider
-	Preferences     preferences.Store
-	BrandAssets     workspace.BrandAssetRepository
+	Telemetry                 *hcmotel.Provider
+	PersonaAdminClientFactory PersonaAdminClientFactory
+	Preferences               preferences.Store
+	BrandAssets               workspace.BrandAssetRepository
+	AgentSettings             workspace.AgentSettings // UXBLIND-122 tenant agents on/off; nil keeps agents off
+
+	// Agents, AgentStarter and AgentWaker are the composed agent runtime
+	// (UXBLIND-122, AGENT2-011): the Agents page read client, the task start
+	// port behind the agent gRPC service, and the per-tenant tick the scheduler
+	// runs to deliver wakes to parked tasks. All are nil on a cell composed
+	// without a database; the page then reports the agent service as not
+	// connected.
+	Agents          productui.AgentClient
+	AgentStarter    agentclient.Starter
+	AgentController agentclient.Controller
+	AgentWaker      AgentWaker
+
 	KnowledgeSearch knowledge.SearchSource
 	RoleAccess      roleaccess.Store
 	PageLedger      pageledger.Store
@@ -430,6 +460,11 @@ type Cell struct {
 	// afterwards would be a second answer to "who is this".
 	locateWorker WorkerLocator
 
+	// proposalRevisions is the authoritative tenant-scoped reader for
+	// immutable workflow proposal bindings. Nil is reserved for non-durable
+	// test compositions, which use the in-memory instance projection.
+	proposalRevisions *proposalRevisionReader
+
 	// positionReader is PROMOUX-004's real position.PositionFacts adapter
 	// (internal/data/positionfacts), composed on the same condition as the
 	// layered worker read below: without an execution database and a
@@ -468,6 +503,22 @@ type Cell struct {
 	publicOrigin string
 }
 
+// PersonaAdminClientFactory creates a persona administration client bound to
+// the verified request context. Implementations must perform request
+// authorization and return nil when the request is not eligible.
+type PersonaAdminClientFactory interface {
+	ClientForRequest(context.Context) productui.PersonaAdminClient
+}
+
+// ClientForRequest returns the request-bound persona administration client,
+// or nil when this cell has no persona administration capability.
+func (c *Cell) ClientForRequest(ctx context.Context) productui.PersonaAdminClient {
+	if c == nil || c.PersonaAdminClientFactory == nil {
+		return nil
+	}
+	return c.PersonaAdminClientFactory.ClientForRequest(ctx)
+}
+
 // NewCell composes a cell.
 func NewCell(cfg CellConfig) (*Cell, error) {
 	switch {
@@ -484,6 +535,13 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	digester, err := protomap.NewDefaultDigester()
 	if err != nil {
 		return nil, fmt.Errorf("app: build the canonical digester: %w", err)
+	}
+	var proposalRevisions *proposalRevisionReader
+	if cfg.ExecutionDB != nil || cfg.TenantUUID != nil {
+		proposalRevisions, err = newProposalRevisionReader(cfg.ExecutionDB, cfg.TenantUUID, digester)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	inputs, workers, bands := cfg.Inputs, cfg.Workers, cfg.Bands
@@ -827,27 +885,31 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 		devDirectory:     cfg.DevDirectory,
 		publicOrigin:     cfg.PublicOrigin,
 
-		Service:         svc,
-		Health:          cfg.Health,
-		Definitions:     defs,
-		Capabilities:    caps,
-		Workers:         workers,
-		Transactions:    handlers.transactions,
-		Gateway:         gateway,
-		Evidence:        sink,
-		Controls:        controls,
-		Inputs:          inputs,
-		Incumbent:       incumbent,
-		Connection:      connection,
-		Observations:    observations,
-		Clock:           monitor,
-		Discovery:       discovery,
-		Telemetry:       cfg.Telemetry,
-		Preferences:     cfg.Preferences,
-		PageLedger:      cfg.PageLedger,
-		Catalogs:        cfg.Catalogs,
-		KnowledgeSearch: cfg.KnowledgeSearch,
-		RoleAccess:      cfg.RoleAccess,
+		Service:                   svc,
+		proposalRevisions:         proposalRevisions,
+		Health:                    cfg.Health,
+		Definitions:               defs,
+		Capabilities:              caps,
+		Workers:                   workers,
+		Transactions:              handlers.transactions,
+		Gateway:                   gateway,
+		CRM005:                    handlers.crm005,
+		Evidence:                  sink,
+		Controls:                  controls,
+		Inputs:                    inputs,
+		BalanceIndex:              balance.NewDependencyIndex(),
+		Incumbent:                 incumbent,
+		Connection:                connection,
+		Observations:              observations,
+		Clock:                     monitor,
+		Discovery:                 discovery,
+		Telemetry:                 cfg.Telemetry,
+		PersonaAdminClientFactory: cfg.PersonaAdminClientFactory,
+		Preferences:               cfg.Preferences,
+		PageLedger:                cfg.PageLedger,
+		Catalogs:                  cfg.Catalogs,
+		KnowledgeSearch:           cfg.KnowledgeSearch,
+		RoleAccess:                cfg.RoleAccess,
 
 		MarketRateSource: cfg.MarketRateSource,
 		Config: transport.Config{
@@ -870,6 +932,11 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 			return nil, err
 		}
 		cell.BrandAssets = assets
+		agentSettings, err := agentsettingstore.New(cfg.ExecutionDB, cfg.TenantUUID)
+		if err != nil {
+			return nil, err
+		}
+		cell.AgentSettings = agentSettings
 	}
 	// WF-RUN-034: the execution driver was composed before this cell built
 	// the gateway its promotion steps invoke, so the steps bind now.

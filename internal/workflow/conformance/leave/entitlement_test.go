@@ -1,4 +1,4 @@
-package leave
+package leave_test
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/commercial"
 	app "github.com/monstercameron/human-capital-management-suite/internal/intent/app"
+	leave "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leave"
 )
 
 var conformanceAt = time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
@@ -33,7 +34,7 @@ func assertPromotionLeaveParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	leave, err := NewEntitlementGate(snapshot)
+	leaveGate, err := leave.NewEntitlementGate(snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +50,7 @@ func assertPromotionLeaveParity(t *testing.T) {
 				At: conformanceAt, Channel: channel, Phase: phase,
 			}
 			promotionDecision := promotion.Decide(request)
-			leaveDecision := leave.Decide(EntitlementRequest{
+			leaveDecision := leaveGate.Decide(leave.EntitlementRequest{
 				TenantID: request.TenantID, Capability: request.Capability,
 				At: request.At, Channel: channel, Phase: phase,
 			})
@@ -62,7 +63,7 @@ func assertPromotionLeaveParity(t *testing.T) {
 			if _, err := promotion.Admit(request); err == nil {
 				t.Fatalf("Promotion %s/%s bypassed suspended entitlement", channel, phase)
 			}
-			_, leaveErr := leave.Admit(EntitlementRequest{
+			_, leaveErr := leaveGate.Admit(leave.EntitlementRequest{
 				TenantID: request.TenantID, Capability: request.Capability,
 				At: request.At, Channel: channel, Phase: phase,
 			})
@@ -75,7 +76,7 @@ func assertPromotionLeaveParity(t *testing.T) {
 
 	for _, capability := range []string{commercial.PromotionEntitlementCapability, commercial.LeaveEntitlementCapability} {
 		p := promotion.Decide(app.PromotionEntitlementRequest{TenantID: "tenant-a", Capability: capability, At: conformanceAt, Channel: commercial.ChannelUI})
-		l := leave.Decide(EntitlementRequest{TenantID: "tenant-a", Capability: capability, At: conformanceAt, Channel: commercial.ChannelUI})
+		l := leaveGate.Decide(leave.EntitlementRequest{TenantID: "tenant-a", Capability: capability, At: conformanceAt, Channel: commercial.ChannelUI})
 		if p.Code != l.Code || p.Fingerprint != l.Fingerprint || p.Code != commercial.CodeContractSuspended {
 			t.Fatalf("capability=%q suspension parity failed: promotion=%+v leave=%+v", capability, p, l)
 		}
@@ -86,13 +87,22 @@ func TestPromotionAndLeaveEntitlementDenialParityAcrossAllInitiationAndResumeCha
 	assertPromotionLeaveParity(t)
 }
 
+func TestTodo_CROSS_CONF_002_Served(t *testing.T) {
+	if leave.ServingContractID == "" {
+		t.Fatal("serving contract ID is empty")
+	}
+	if err := leave.ValidateServingContract(); err != nil {
+		t.Fatalf("ValidateServingContract: %v", err)
+	}
+}
+
 func TestTodo_CROSS_CONF_002_Property(t *testing.T) { assertPromotionLeaveParity(t) }
 
 func TestTodo_CROSS_CONF_002_Golden(t *testing.T) { assertPromotionLeaveParity(t) }
 
 func TestTodo_CROSS_CONF_002_Race(t *testing.T) {
 	snapshot := conformanceSnapshot(t, commercial.StatusSuspended)
-	gate, err := NewEntitlementGate(snapshot)
+	gate, err := leave.NewEntitlementGate(snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +113,7 @@ func TestTodo_CROSS_CONF_002_Race(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			decisions <- gate.Decide(EntitlementRequest{TenantID: "tenant-a", Capability: commercial.LeaveEntitlementCapability, At: conformanceAt, Channel: commercial.ChannelWorkflow, Phase: "resume"})
+			decisions <- gate.Decide(leave.EntitlementRequest{TenantID: "tenant-a", Capability: commercial.LeaveEntitlementCapability, At: conformanceAt, Channel: commercial.ChannelWorkflow, Phase: "resume"})
 		}()
 	}
 	wg.Wait()

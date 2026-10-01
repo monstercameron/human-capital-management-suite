@@ -163,6 +163,11 @@ func DefinitionFor(template Template) workflow.Definition {
 	}
 	return workflow.Definition{
 		WorkflowID: WorkflowID, Version: template.Version, Name: "Work order execution",
+		Catalog: &workflow.CatalogMetadata{
+			DisplayName: "Work order", Category: "Operations",
+			Description: "Submit, approve and complete a governed work order.",
+			Keywords:    []string{"work order", "request", "operations"}, Icon: "work",
+		},
 		IntentType:  "WORK_ORDER_EXECUTE",
 		InputSchema: schema("Input"), OutputSchema: schema("Result"), VariablesSchema: schema("Variables"),
 		TenantScope: template.TenantScope, OrganizationScope: template.OrganizationScope, RiskClass: "HIGH",

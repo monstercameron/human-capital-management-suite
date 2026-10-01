@@ -71,6 +71,43 @@ func TestTodo_PM_003(t *testing.T) {
 	}
 }
 
+func TestTodo_PM_009_Integration(t *testing.T) {
+	s, _ := projectFixture(t)
+	ctx := context.Background()
+	project := ProjectRecord{ID: "pm009-project", TenantID: "tenant-pm009", OwnerID: "owner", Name: "Move proof", Timezone: "UTC", Lifecycle: "ACTIVE", Revision: 1}
+	if err := s.CreateProject(ctx, project, "owner", "HUMAN", "pm009-project"); err != nil {
+		t.Fatal(err)
+	}
+	seedCurrentWorkflow(t, s, project.TenantID, project.ID, "owner", 4)
+	task := TaskRecord{ID: "pm009-task", TenantID: project.TenantID, ProjectID: project.ID, Title: "Move me", StatusID: "todo", TypeID: "task_default", Priority: "NORMAL", Revision: 1}
+	if err := s.CreateTaskWithConfig(ctx, task, 4, "owner", "HUMAN", "pm009-task"); err != nil {
+		t.Fatal(err)
+	}
+	moved, err := s.MoveTask(ctx, project.TenantID, project.ID, task.ID, "doing", 1, 4, nil, "owner", "HUMAN", "pm009-move")
+	if err != nil || moved.StatusID != "doing" || moved.Revision != 2 {
+		t.Fatalf("committed move = %+v, err=%v", moved, err)
+	}
+	replayed, err := s.MoveTask(ctx, project.TenantID, project.ID, task.ID, "doing", 1, 4, nil, "owner", "HUMAN", "pm009-move")
+	if err != nil || replayed.Revision != 2 {
+		t.Fatalf("move replay = %+v, err=%v", replayed, err)
+	}
+	if _, err := s.MoveTask(ctx, project.TenantID, project.ID, task.ID, "done", 1, 4, nil, "owner", "HUMAN", "pm009-stale"); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale task revision error = %v", err)
+	}
+	var moves, outbox int
+	if err := s.RunTenantTx(ctx, project.TenantID, func(tx dbport.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM project_activity WHERE tenant_id=$1 AND project_id=$2 AND event_type='task.moved'`, project.TenantID, project.ID).Scan(&moves); err != nil {
+			return err
+		}
+		return tx.QueryRow(ctx, `SELECT count(*) FROM project_outbox WHERE tenant_id=$1 AND project_id=$2`, project.TenantID, project.ID).Scan(&outbox)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if moves != 1 || outbox != 2 {
+		t.Fatalf("move effects activity=%d outbox=%d, want 1 and 2", moves, outbox)
+	}
+}
+
 func TestTodo_PM_003_Integration(t *testing.T) {
 	s, schema := projectFixture(t)
 	ctx := context.Background()

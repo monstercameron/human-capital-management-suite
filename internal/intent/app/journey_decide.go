@@ -62,11 +62,20 @@ const (
 // pressing Execute twice reports a refusal rather than silently replaying the
 // driver's idempotent start.
 func (e *journeyEngine) Execute(ctx context.Context, intentID string) (detail workspace.JourneyDetail, retErr error) {
+	var principal *trust.Principal
+	var visible bool
+	var revisionID string
 	defer func() {
+		if retErr != nil && visible && principal != nil {
+			if recordErr := e.recordJourneyFailure(ctx, principal, intentID, revisionID, retErr); recordErr != nil {
+				retErr = errors.Join(retErr, recordErr)
+			}
+		}
 		e.journeyEvent(ctx, "journey.workflow_started", intentID, retErr, slog.String("stage", string(detail.Summary.Stage)))
 		e.publishCommitted(ctx, retErr, intentID)
 	}()
-	principal, err := journeyPrincipal(ctx)
+	var err error
+	principal, err = journeyPrincipal(ctx)
 	if err != nil {
 		return workspace.JourneyDetail{}, err
 	}
@@ -78,6 +87,7 @@ func (e *journeyEngine) Execute(ctx context.Context, intentID string) (detail wo
 		return workspace.JourneyDetail{}, fmt.Errorf("%w: %s is not a promotion journey",
 			workspace.ErrJourneyUnknown, intentID)
 	}
+	visible = true
 	// PROMOUX-013: the same terminal-RequestState guard [journeyEngine.Decide]
 	// applies, stated over the wire enum since this method reads the proto
 	// form rather than the kernel Instance.
@@ -97,6 +107,7 @@ func (e *journeyEngine) Execute(ctx context.Context, intentID string) (detail wo
 	if simulated.Revision == nil {
 		return workspace.JourneyDetail{}, fmt.Errorf("%w: executable simulation returned no minted proposal revision", workspace.ErrJourneyStage)
 	}
+	revisionID = artifact.GetProposalRevisionId()
 
 	if _, running, guardErr := e.instanceOf(ctx, principal, artifact); guardErr != nil {
 		return workspace.JourneyDetail{}, guardErr

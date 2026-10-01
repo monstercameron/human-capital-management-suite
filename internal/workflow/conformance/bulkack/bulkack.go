@@ -26,6 +26,44 @@ const (
 	RecipientPending      = "PENDING_MANDATORY"
 )
 
+// ServingContractID identifies the read-only bulk acknowledgement contract
+// composed by the shipped application cell.
+const ServingContractID = "hcmnext.conformance.bulk-policy-acknowledgement/v1"
+
+// ValidateServingContract exercises a bounded mandatory acknowledgement
+// through the production API. The missing signal must remain pending, which
+// proves the served path cannot turn delivery into legal satisfaction.
+func ValidateServingContract() error {
+	snapshot, err := FreezeAudience("serving/v1", []Recipient{{
+		ID: "serving-recipient", PayloadRef: "policy:serving", Locale: "en-US",
+		Accessible: true, Mandatory: true, AuthorityScope: []string{"policy.read"},
+	}})
+	if err != nil {
+		return fmt.Errorf("bulkack: serving contract audience: %w", err)
+	}
+	partitions, err := Partition(snapshot, []string{"policy.read"}, "artifact/serving", 1, 1, 1, 1)
+	if err != nil {
+		return fmt.Errorf("bulkack: serving contract partition: %w", err)
+	}
+	if len(partitions) != 1 || len(partitions[0]) != 1 {
+		return fmt.Errorf("bulkack: serving contract partition shape is invalid")
+	}
+	child := partitions[0][0]
+	aggregate, err := AggregateOutcomes(snapshot, []Child{child}, []ChildOutcome{{
+		ChildID: child.ChildID, IdempotencyKey: child.IdempotencyKey, Reachable: true,
+	}}, "REQUIRED_SET")
+	if err != nil {
+		return fmt.Errorf("bulkack: serving contract aggregate: %w", err)
+	}
+	if aggregate.LegalSatisfaction || aggregate.States[child.RecipientID] != RecipientPending {
+		return fmt.Errorf("bulkack: serving contract overstated mandatory acknowledgement")
+	}
+	if err := aggregate.Verify(); err != nil {
+		return fmt.Errorf("bulkack: serving contract seal: %w", err)
+	}
+	return nil
+}
+
 // Recipient is one audience member by reference: payloads never enter the
 // acknowledgement plane.
 type Recipient struct {

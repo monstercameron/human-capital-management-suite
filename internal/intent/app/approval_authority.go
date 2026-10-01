@@ -45,6 +45,10 @@ type ApprovalAuthorityQuery struct {
 	// SubjectID is the proposal's EMPLOYMENT subject, the worker whose
 	// relationships CurrentManagerOf reads.
 	SubjectID string
+	// RequesterID is the proposal revision's requester. A manager approval
+	// whose subject's current manager is the requester is held one level up
+	// the requester's reporting line (UXBLIND-001), so the recheck needs it.
+	RequesterID string
 	// AuthorityPrincipalID is the principal whose authority the decision
 	// relies on: the routed candidate, or the delegator a delegated candidate
 	// borrows authority from.
@@ -141,7 +145,8 @@ func (e *journeyEngine) validateRoutedJourneyApprover(
 	}
 	if revision.Tenant != principal.Tenant() || inst.Tenant != principal.Tenant() ||
 		item.Kind != workitem.KindApproval || item.NodeID != promotionexec.NodeApproveManager ||
-		candidate.Via != humanwork.SourceDirect || candidate.TermRef != "term:current-manager-of-worker" {
+		candidate.Via != humanwork.SourceDirect ||
+		(candidate.TermRef != "term:current-manager-of-worker" && candidate.TermRef != "term:current-manager-of-requester") {
 		return err
 	}
 	stale, lookupErr := e.recheckApprovalAuthority(ctx, ex, principal, inst, item, candidate, revision, at)
@@ -175,6 +180,7 @@ func (e *journeyEngine) recheckApprovalAuthority(
 	}
 	current, err := e.authority.CurrentApprovalAuthority(ctx, ex, ApprovalAuthorityQuery{
 		TenantID: item.TenantID, Item: item, SubjectID: employmentSubjectOf(inst, item),
+		RequesterID:          revision.CreatedBy.PrincipalID,
 		AuthorityPrincipalID: authorityPrincipal(candidate),
 		DeciderPrincipalID:   principal.Subject(), DeciderRoles: principal.Roles(), At: at,
 	})

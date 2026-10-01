@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -74,7 +75,7 @@ func TestTodo_PM_014_Golden(t *testing.T) {
 	}
 }
 
-func TestTodo_PM_014_InvalidValue(t *testing.T) {
+func TestTodo_PM_014_Fault(t *testing.T) {
 	current := workflowFixture()
 	pending := workflowFixture()
 	pending.Fields[1].Validation.Options = []string{"request"}
@@ -82,6 +83,19 @@ func TestTodo_PM_014_InvalidValue(t *testing.T) {
 	preview, err := PreviewMigration(MigrationRequest{Current: current, Pending: pending, Tasks: []TaskSnapshot{task}})
 	if !errors.Is(err, ErrUnsafeMigration) || !containsMigrationIssue(preview.Issues, "INVALID_PENDING_VALUE") || len(preview.InvalidValues) != 1 || preview.InvalidValues[0].TaskID != "t1" {
 		t.Fatalf("value incompatible with the pending enum was not reported: preview=%+v err=%v", preview, err)
+	}
+}
+
+func TestTodo_PM_014_Recovery(t *testing.T) {
+	current := workflowFixture()
+	pending := workflowFixture()
+	pending.TaskTypes[0].RequiredFields = append(pending.TaskTypes[0].RequiredFields, "priority")
+	pending.TaskTypes[0].FieldIDs = append(pending.TaskTypes[0].FieldIDs, "priority")
+	pending.Fields = append(pending.Fields, Field{ID: "priority", Name: "Priority", Type: FieldEnum, Classification: "INTERNAL", Default: json.RawMessage(`"normal"`), Validation: FieldValidation{Options: []string{"normal"}}})
+	task := TaskSnapshot{ID: "t1", TypeID: "task", StatusID: "todo", Fields: map[string]json.RawMessage{"owner": json.RawMessage(`"person"`)}}
+	preview, err := PreviewMigration(MigrationRequest{Current: current, Pending: pending, Tasks: []TaskSnapshot{task}})
+	if err != nil || !preview.Safe || len(preview.TaskMappings) != 1 || len(preview.TaskMappings[0].DefaultsApplied) != 1 || preview.TaskMappings[0].DefaultsApplied[0] != "priority" {
+		t.Fatalf("valid default did not recover the pending migration: %+v, %v", preview, err)
 	}
 }
 
@@ -122,6 +136,49 @@ func TestTodo_PM_015_Recovery(t *testing.T) {
 	preview, err := PreviewMigration(MigrationRequest{Current: current, Pending: pending, Tasks: []TaskSnapshot{task}})
 	if err != nil || !preview.Safe || len(preview.TaskMappings) != 1 || preview.TaskMappings[0].DefaultsApplied[0] != "priority" {
 		t.Fatalf("valid default did not repair the pending schema: %+v, %v", preview, err)
+	}
+}
+
+func TestTodo_PM_015_Race(t *testing.T) {
+	current := workflowFixture()
+	pending := workflowFixture()
+	pending.Statuses[1].Category = CategoryBlocked
+	tasks := []TaskSnapshot{{ID: "t1", TypeID: "task", StatusID: "doing", Revision: 4, Fields: map[string]json.RawMessage{"owner": json.RawMessage(`"person"`)}}}
+	request := MigrationRequest{Current: current, Pending: pending, Tasks: tasks}
+	const workers = 16
+	results := make(chan string, workers)
+	errorsOut := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			preview, err := PreviewMigration(request)
+			if err != nil {
+				errorsOut <- err
+				return
+			}
+			results <- DigestMigrationPlan("current", "pending", 2, 3, MigrationMappings{}, preview, tasks)
+		}()
+	}
+	wg.Wait()
+	close(results)
+	close(errorsOut)
+	for err := range errorsOut {
+		t.Fatal(err)
+	}
+	var want string
+	for got := range results {
+		if want == "" {
+			want = got
+			continue
+		}
+		if got != want {
+			t.Fatalf("concurrent migration plan digest changed: first=%q got=%q", want, got)
+		}
+	}
+	if want == "" {
+		t.Fatal("concurrent migration produced no plan digest")
 	}
 }
 

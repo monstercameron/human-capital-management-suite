@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ func TestTodo_CONFLICT_003_ProposalForBindsTypedWriteSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSequenceRevision: %v", err)
 	}
-	spec, err := proposalFor(intent.Instance{IntentID: "intent-1", Tenant: values.TenantId("acme"), OrganizationScopeID: "org-1", Subjects: []intent.SubjectReference{primary}, RequestedEffectiveAt: &at}, intent.Definition{}, promotion.PreflightRequest{Subject: subject}, promotion.SimulationResult{Projected: promotion.ProjectedWorkerState{Changes: []promotion.PlacementChange{{Field: "job_code", Before: "ENG-1", After: "ENG-2", Changed: true}, {Field: "grade", Before: "P2", After: "P2", Changed: false}}}}, intent.BaselineSnapshot{Revisions: map[string]values.RevisionToken{subject.String(): watermark}}, intent.ControlSnapshots{}, 1, "", "")
+	spec, err := proposalFor(intent.Instance{IntentID: "intent-1", Tenant: values.TenantId("acme"), OrganizationScopeID: "org-1", Subjects: []intent.SubjectReference{primary}, RequestedEffectiveAt: &at}, intent.Definition{}, promotion.PreflightRequest{Subject: subject}, promotion.SimulationResult{Projected: promotion.ProjectedWorkerState{Changes: []promotion.PlacementChange{{Field: "assignment.job_code", Before: "ENG-1", After: "ENG-2", Changed: true}, {Field: "assignment.grade", Before: "P2", After: "P2", Changed: false}}}}, intent.BaselineSnapshot{Revisions: map[string]values.RevisionToken{subject.String(): watermark}}, intent.ControlSnapshots{}, 1, "", "")
 	if err != nil {
 		t.Fatalf("proposalFor: %v", err)
 	}
@@ -42,6 +43,9 @@ func TestTodo_CONFLICT_003_ProposalForBindsTypedWriteSemantics(t *testing.T) {
 		t.Fatalf("writes = %d, want one material change", len(spec.Writes))
 	}
 	write := spec.Writes[0]
+	if write.FieldPath != "assignment.job_code" {
+		t.Errorf("placement write field = %q, want canonical assignment.job_code", write.FieldPath)
+	}
 	if write.Operation != intent.WriteOperationUpdate {
 		t.Errorf("operation = %q, want UPDATE", write.Operation)
 	}
@@ -67,5 +71,17 @@ func TestTodo_CONFLICT_003_ProposalForBindsTypedWriteSemantics(t *testing.T) {
 	}
 	if len(spec.Effects) != 0 {
 		t.Fatalf("typed write authoring introduced %d external effects", len(spec.Effects))
+	}
+	gradeBaseline := 0
+	for _, assertion := range spec.CurrentState {
+		if assertion.FieldPath == "assignment.grade" && assertion.CanonicalText == "P2" {
+			gradeBaseline++
+		}
+		if strings.HasPrefix(assertion.FieldPath, "assignment.assignment.") {
+			t.Errorf("proposal emitted doubly-prefixed placement field %q", assertion.FieldPath)
+		}
+	}
+	if gradeBaseline != 1 {
+		t.Errorf("exact grade baseline assertions = %d, want one assignment.grade=P2", gradeBaseline)
 	}
 }

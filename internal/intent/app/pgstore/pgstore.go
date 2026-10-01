@@ -483,6 +483,7 @@ func (s *Store) Timeline(ctx context.Context, tenant, intentID string) ([]app.Ti
 			DigestAlgorithm: event.DigestAlgorithm,
 			OccurredAt:      event.OccurredAt,
 			RecordedAt:      event.RecordedAt,
+			Payload:         append([]byte(nil), event.Payload...),
 		})
 	}
 	return out, nil

@@ -9,6 +9,7 @@ import (
 
 var _ TaskLifecycleRepository = (*StoreAdapter)(nil)
 var _ ProjectLifecycleRepository = (*StoreAdapter)(nil)
+var _ ProjectSuspensionRepository = (*StoreAdapter)(nil)
 
 func (a *StoreAdapter) UpdateProjectSettings(ctx context.Context, tenantID, projectID, name, timezone string, expected uint64, actor, key string) (ProjectRecord, error) {
 	if a == nil || a.Projects == nil {
@@ -26,6 +27,17 @@ func (a *StoreAdapter) TransitionProject(ctx context.Context, tenantID, projectI
 		return ProjectRecord{}, ErrUnavailable
 	}
 	record, err := a.Projects.TransitionProject(ctx, tenantID, projectID, target, int64(expected), actor, "HUMAN", key)
+	if err != nil {
+		return ProjectRecord{}, err
+	}
+	return ProjectRecord{ID: record.ID, TenantID: record.TenantID, OwnerID: record.OwnerID, Name: record.Name, Timezone: record.Timezone, State: project.Lifecycle(record.Lifecycle), Revision: uint64(record.Revision)}, nil
+}
+
+func (a *StoreAdapter) SuspendProject(ctx context.Context, tenantID, projectID string, expected uint64, actor, origin, reason, key string) (ProjectRecord, error) {
+	if a == nil || a.Projects == nil {
+		return ProjectRecord{}, ErrUnavailable
+	}
+	record, err := a.Projects.SuspendProject(ctx, tenantID, projectID, int64(expected), actor, origin, reason, key)
 	if err != nil {
 		return ProjectRecord{}, err
 	}

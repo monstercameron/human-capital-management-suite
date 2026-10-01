@@ -12,21 +12,68 @@ import (
 
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/authn"
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	selectedjurisdiction "github.com/monstercameron/human-capital-management-suite/internal/conformance/selectedjurisdiction"
+	connectivityedge "github.com/monstercameron/human-capital-management-suite/internal/connectivity/edge"
+	connectivityegress "github.com/monstercameron/human-capital-management-suite/internal/connectivity/egress"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
+	refdatastore "github.com/monstercameron/human-capital-management-suite/internal/data/refdata"
+	accessdomain "github.com/monstercameron/human-capital-management-suite/internal/domains/access"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/balance"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/career"
+	cbadomain "github.com/monstercameron/human-capital-management-suite/internal/domains/cba"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/contact"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/custom"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/employeerelations"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/evidence"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/headcount"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/leave"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/merit"
+	domainmobility "github.com/monstercameron/human-capital-management-suite/internal/domains/mobility"
+	paygldomain "github.com/monstercameron/human-capital-management-suite/internal/domains/paygl"
+	payinputdomain "github.com/monstercameron/human-capital-management-suite/internal/domains/payinput"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
+	privacydsr "github.com/monstercameron/human-capital-management-suite/internal/domains/privacy/dsr"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/program"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/pseudonym"
+	domainrefdata "github.com/monstercameron/human-capital-management-suite/internal/domains/refdata"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/rewards"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/safety"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/abuse"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/eligibility"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/readiness"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/draftflow"
+	recoveryoutcome "github.com/monstercameron/human-capital-management-suite/internal/experience/outcome"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	flowexperience "github.com/monstercameron/human-capital-management-suite/internal/flow"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/gateb"
+	privacygovernance "github.com/monstercameron/human-capital-management-suite/internal/governance/privacy"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/accessdrift"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/authorizedhealth"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/productcorrelation"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/releaseevidence"
+	configrevalidation "github.com/monstercameron/human-capital-management-suite/internal/platform/config/revalidation"
+	platformdiagnostics "github.com/monstercameron/human-capital-management-suite/internal/platform/diagnostics"
+	"github.com/monstercameron/human-capital-management-suite/internal/resource/reservation"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	transportconformance "github.com/monstercameron/human-capital-management-suite/internal/transport/conformance"
+	transporteastwest "github.com/monstercameron/human-capital-management-suite/internal/transport/eastwest"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/confidentialactor"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/bulkack"
+	workflowjurisdiction "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/jurisdiction"
+	workflowleave "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leave"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/mobility"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/triage"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/parallel"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
@@ -100,6 +147,10 @@ type Options struct {
 	Digester intent.Digester
 	// Controls is the pinned control context.
 	Controls Controls
+	// Diagnostics is the process-owned diagnostic admission adapter. Nil uses
+	// the default-off manifest; no transport or package-level listener is
+	// created by the service.
+	Diagnostics *platformdiagnostics.Manager
 	// IDs mints identifiers. Nil means intent.UUIDv7Source.
 	IDs intent.IDSource
 	// Clock supplies the recording time. Nil means time.Now in UTC.
@@ -205,19 +256,75 @@ type Options struct {
 	WorkerLocator WorkerLocator
 }
 
+// ExperienceScope owns mutable participant-flow state for one request or
+// session scope. The serving service creates scopes but never keeps one in a
+// package-level registry, so channel adapters remain responsible for tenant
+// and protected-local-storage policy around a resumed flow.
+type ExperienceScope struct {
+	Drafts    *draftflow.Store
+	Resume    *flowexperience.Store
+	Confirmer *draftflow.Confirmer
+}
+
+// ExperienceMechanics is the serving composition seam for participant-flow
+// mechanics. Domain truth, authorization, and durable intent records remain
+// owned by their semantic services; this value only exposes shared
+// draft/resume/recovery mechanics to those projections.
+type ExperienceMechanics struct{}
+
+// NewScope creates isolated mutable state for one request/session owner.
+func (ExperienceMechanics) NewScope(now func() time.Time) *ExperienceScope {
+	return &ExperienceScope{
+		Drafts:    draftflow.NewStore(now),
+		Resume:    flowexperience.NewStore(now),
+		Confirmer: draftflow.NewConfirmer(now),
+	}
+}
+
+func (ExperienceMechanics) Validate(d draftflow.Draft, validator draftflow.Validator) draftflow.ValidationResult {
+	return draftflow.Validate(d, validator)
+}
+
+func (ExperienceMechanics) Resolve(d draftflow.Draft, resolver draftflow.ResolveFunc) draftflow.Resolved {
+	return draftflow.Resolve(d, resolver)
+}
+
+func (ExperienceMechanics) Simulate(d draftflow.Draft, truth draftflow.TruthSnapshot, simulator draftflow.Simulator) draftflow.Simulation {
+	return draftflow.Simulate(d, truth, simulator)
+}
+
+func (ExperienceMechanics) Compare(requested, current, provenance map[string]string, uncertainty []string, material func(string) bool) draftflow.CompareResult {
+	return draftflow.Compare(requested, current, provenance, uncertainty, material)
+}
+
+func (e ExperienceMechanics) Confirm(scope *ExperienceScope, req draftflow.ConfirmRequest, proposal draftflow.Proposal) (draftflow.Confirmation, error) {
+	if scope == nil {
+		return draftflow.Confirmation{}, draftflow.ErrInvalid
+	}
+	return draftflow.ConfirmExact(scope.Confirmer, req, proposal)
+}
+
+func (ExperienceMechanics) Recover(req recoveryoutcome.Request) (recoveryoutcome.Recovery, error) {
+	return recoveryoutcome.Recover(req)
+}
+
 // IntentService is the application service behind both transports.
 //
 // It implements transport.IntentHandler and transport.RegistryHandler and
 // nothing else: the transports own protocol, this owns ordering, and the
 // kernel and the domain packages own every rule.
 type IntentService struct {
-	defs     *intent.Registry
-	caps     *capability.Registry
-	gateway  *capability.Gateway
-	store    Store
-	inputs   DomainInputs
-	digester intent.Digester
-	controls Controls
+	agentCommitAuthority AgentIntentCommitAuthority
+	defs                 *intent.Registry
+	caps                 *capability.Registry
+	gateway              *capability.Gateway
+	store                Store
+	inputs               DomainInputs
+	digester             intent.Digester
+	controls             Controls
+
+	diagnostics *platformdiagnostics.Manager
+
 	ids      intent.IDSource
 	clock    intent.Clock
 	executor ProposalExecutor
@@ -285,6 +392,12 @@ var (
 
 // NewIntentService validates the wiring and returns the service.
 func NewIntentService(opts Options) (*IntentService, error) {
+	if err := validatePrivacyServingContracts(); err != nil {
+		return nil, err
+	}
+	if err := validateConformanceServingContracts(); err != nil {
+		return nil, err
+	}
 	switch {
 	case opts.Definitions == nil:
 		return nil, errors.New("app: an intent definition registry is required")
@@ -307,6 +420,9 @@ func NewIntentService(opts Options) (*IntentService, error) {
 		inputs:   opts.Inputs,
 		digester: opts.Digester,
 		controls: opts.Controls,
+
+		diagnostics: opts.Diagnostics,
+
 		ids:      opts.IDs,
 		clock:    opts.Clock,
 		executor: opts.ProposalExecutor,
@@ -340,7 +456,95 @@ func NewIntentService(opts Options) (*IntentService, error) {
 	if svc.evidence == nil {
 		svc.evidence = NewMemoryEvidenceSink()
 	}
+	if svc.diagnostics == nil {
+		svc.diagnostics = platformdiagnostics.NewManager(platformdiagnostics.DefaultManifest())
+	}
 	return svc, nil
+}
+
+// Diagnostics returns the process-owned diagnostic admission adapter. The
+// adapter is default-off unless the composition root supplies a governed
+// manifest through Options.Diagnostics.
+func (s *IntentService) Diagnostics() *platformdiagnostics.Manager {
+	if s == nil {
+		return nil
+	}
+	return s.diagnostics
+}
+
+// Experience returns the participant-flow mechanics composed into the
+// serving service. Callers must create an explicit scope before storing draft
+// or resume state.
+func (s *IntentService) Experience() ExperienceMechanics {
+	return ExperienceMechanics{}
+}
+
+func validatePrivacyServingContracts() error {
+	if err := privacydsr.ValidateServingContract(); err != nil {
+		return fmt.Errorf("app: data-subject privacy serving contract: %w", err)
+	}
+	if err := privacygovernance.ValidateServingContract(); err != nil {
+		return fmt.Errorf("app: privacy-governance serving contract: %w", err)
+	}
+	if err := privacygovernance.ValidateProcessLogContract(); err != nil {
+		return fmt.Errorf("app: process-log serving contract: %w", err)
+	}
+	return nil
+}
+
+func validateConformanceServingContracts() error {
+	checks := []struct {
+		name string
+		fn   func() error
+	}{
+		{"balance-accumulator", balance.ValidateAccumulatorServingContract},
+		{"cba", cbadomain.ValidateServingContract},
+		{"access", accessdomain.ValidateServingContract},
+		{"access-drift", accessdrift.ValidateServingContract},
+		{"career", career.ValidateServingContract},
+		{"abuse", abuse.ValidateServingContract},
+		{"payroll-general-ledger", paygldomain.ValidateServingContract},
+		{"payroll-inputs", payinputdomain.ValidateServingContract},
+		{"eligibility", eligibility.ValidateServingContract},
+		{"readiness", readiness.ValidateServingContract},
+		{"mobility-domain", domainmobility.ValidateServingContract},
+		{"mobility", mobility.ValidateServingContract},
+		{"safety", safety.ValidateServingContract},
+		{"employee-relations", employeerelations.ValidateServingContract},
+		{"contact", contact.ValidateServingContract},
+		{"custom-object", custom.ValidateServingContract},
+		{"headcount", headcount.ValidateServingContract},
+		{"leave", leave.ValidateServingContract},
+		{"merit", merit.ValidateServingContract},
+		{"program", program.ValidateServingContract},
+		{"reference-data", domainrefdata.ValidateServingContract},
+		{"reference-data-store", refdatastore.ValidateServingContract},
+		{"reservation", reservation.ValidateServingContract},
+		{"bulkack", bulkack.ValidateServingContract},
+		{"parallel", parallel.ValidateServingContract},
+		{"triage", triage.ValidateServingContract},
+		{"config-revalidation", configrevalidation.ValidateServingContract},
+		{"gateb-evidence", gateb.ValidateServingContract},
+		{"selected-jurisdiction", selectedjurisdiction.ValidateServingContract},
+		{"workflow-jurisdiction", workflowjurisdiction.ValidateServingContract},
+		{"workflow-leave-entitlement", workflowleave.ValidateServingContract},
+		{"authn", authn.ValidateServingContract},
+		{"egress", connectivityegress.ValidateServingContract},
+		{"eastwest", transporteastwest.ValidateServingContract},
+		{"edge", connectivityedge.ValidateServingContract},
+		{"confidential-actor", confidentialactor.ValidateServingContract},
+		{"scoped-pseudonym", pseudonym.ValidateServingContract},
+		{"authorized-health", authorizedhealth.ValidateServingContract},
+		{"product-correlation", productcorrelation.ValidateServingContract},
+		{"release-evidence", releaseevidence.ValidateServingContract},
+		{"transport-conformance", transportconformance.ValidateServingContract},
+	}
+	for _, check := range checks {
+		if err := check.fn(); err != nil {
+			return fmt.Errorf("app: %s serving contract: %w", check.name, err)
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1542,7 +1746,7 @@ func mirrorsPromotionFinding(kernel intent.Finding, domain []promotion.Finding) 
 
 func promotionFindingMessage(f promotion.Finding) string {
 	if f.Code == promotion.CodeBudgetObservationOnly {
-		return "Finance confirmed the current budget baseline. Funds are reserved only when the promotion is recorded."
+		return "The system checked the current budget baseline. Funds are reserved only when the promotion is recorded."
 	}
 	return f.Message
 }

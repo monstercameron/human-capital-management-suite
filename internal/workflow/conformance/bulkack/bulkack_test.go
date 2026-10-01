@@ -422,3 +422,12 @@ func TestTodo_CONF_022_Mutation(t *testing.T) {
 		t.Fatal("forged aggregate verified")
 	}
 }
+
+func TestTodo_CONF_022_ServedPath(t *testing.T) {
+	if ServingContractID == "" {
+		t.Fatal("served contract id is empty")
+	}
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("serving contract: %v", err)
+	}
+}

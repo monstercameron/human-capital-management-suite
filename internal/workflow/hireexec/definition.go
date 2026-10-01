@@ -181,9 +181,14 @@ func Definition() workflow.Definition {
 // by the publication entrypoint.
 func definition(version uint32) workflow.Definition {
 	return workflow.Definition{
-		WorkflowID:        WorkflowID,
-		Version:           version,
-		Name:              "New employee hire",
+		WorkflowID: WorkflowID,
+		Version:    version,
+		Name:       "New employee hire",
+		Catalog: &workflow.CatalogMetadata{
+			DisplayName: "New hire onboarding", Category: "People changes",
+			Description: "Approve an offer, complete checks and forms, provision access, and welcome a new employee.",
+			Keywords:    []string{"new hire", "onboarding", "employee", "offer"}, Icon: "people",
+		},
 		InputSchema:       schema("Input"),
 		OutputSchema:      schema("Result"),
 		VariablesSchema:   schema("Variables"),

@@ -20,6 +20,11 @@ import (
 // The golden test cross-checks this value against tools/gen/deferredschema.
 const DB016PreviewDigest = "sha256:d7ebdf78cecd22a8a6a19aec97cc1cb81208e60b3ca7fa2bfb72fc11e527c1a4"
 
+// SpecificationOwner is the accountable owner of this review-only catalog.
+// It is deliberately distinct from SourceSystem and Authority: neither a
+// source system nor a deferred authority is a production write grant.
+const SpecificationOwner = "PLATFORM_ENGINEERING_OWNER"
+
 // ErrWriteAuthority classifies a deferred source that would expose a
 // production mutation capability.
 var ErrWriteAuthority = errors.New("deferred source set: write authority")
@@ -104,6 +109,9 @@ type DomainSource struct {
 	Authority     AuthorityClass
 	AuthorityRef  string
 	PreviewDigest string
+	// Owner identifies the one accountable owner for this library
+	// disposition. It is governance metadata, not an execution capability.
+	Owner string
 }
 
 // DeferredDomain is the descriptive alias used by callers that want to make
@@ -113,6 +121,9 @@ type DeferredDomain = DomainSource
 func (d DomainSource) Validate() error {
 	if strings.TrimSpace(d.Domain) == "" {
 		return errors.New("deferred source domain is required")
+	}
+	if d.Owner != SpecificationOwner {
+		return fmt.Errorf("%s: specification owner must be %q", d.Domain, SpecificationOwner)
 	}
 	if !d.SourceSystem.Valid() {
 		return fmt.Errorf("%s: invalid source system class %q", d.Domain, d.SourceSystem)
@@ -154,16 +165,16 @@ func validDigest(s string) bool {
 // Sources returns the complete DB-016 set in its stable domain order.
 func Sources() []DomainSource {
 	return []DomainSource{
-		{Domain: "payroll", Entities: entities("PayrollRun", "payroll_run", "PayrollLedgerEntry", "payroll_ledger_entry"), SourceSystem: SourcePayrollProcessor, Authority: AuthorityExternalMastered, AuthorityRef: "authority.payroll_external/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "benefits", Entities: entities("BenefitElection", "benefit_election", "BenefitElectionRevision", "benefit_election_revision"), SourceSystem: SourceBenefitsAdministrator, Authority: AuthorityExternalMastered, AuthorityRef: "authority.benefits_external/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "time", Entities: entities("Timecard", "timecard", "TimecardRevision", "timecard_revision"), SourceSystem: SourceTimekeepingSystem, Authority: AuthorityExternalMastered, AuthorityRef: "authority.time_external/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "leave", Entities: entities("LeaveRequest", "leave_request_preview", "LeaveRecord", "leave_record_preview"), SourceSystem: SourceLeavePlatform, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.leave_native_deferred/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "recruiting", Entities: entities("Requisition", "requisition", "RequisitionRevision", "requisition_revision"), SourceSystem: SourceApplicantTracking, Authority: AuthorityExternalMastered, AuthorityRef: "authority.recruiting_external/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "talent", Entities: entities("PerformanceReview", "performance_review", "PerformanceReviewRevision", "performance_review_revision"), SourceSystem: SourceTalentPlatform, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.talent_native_deferred/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "learning", Entities: entities("LearningEnrollment", "learning_enrollment", "LearningCompletion", "learning_completion"), SourceSystem: SourceLearningManagement, Authority: AuthorityExternalMastered, AuthorityRef: "authority.learning_external/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "case", Entities: entities("Case", "hr_case", "CaseTransition", "case_transition"), SourceSystem: SourceCaseManagement, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.case_native_deferred/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "access", Entities: entities("AccessGrant", "access_grant", "AccessOperation", "access_operation"), SourceSystem: SourceIdentityAccess, Authority: AuthorityExternalMastered, AuthorityRef: "authority.access_external/v1", PreviewDigest: DB016PreviewDigest},
-		{Domain: "regulatory", Entities: entities("GovernmentFiling", "government_filing", "FilingSubmissionAttempt", "filing_submission_attempt"), SourceSystem: SourceRegulatoryAuthority, Authority: AuthorityExternalMastered, AuthorityRef: "authority.regulatory_external/v1", PreviewDigest: DB016PreviewDigest},
+		{Domain: "payroll", Entities: entities("PayrollRun", "payroll_run", "PayrollLedgerEntry", "payroll_ledger_entry"), SourceSystem: SourcePayrollProcessor, Authority: AuthorityExternalMastered, AuthorityRef: "authority.payroll_external/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "benefits", Entities: entities("BenefitElection", "benefit_election", "BenefitElectionRevision", "benefit_election_revision"), SourceSystem: SourceBenefitsAdministrator, Authority: AuthorityExternalMastered, AuthorityRef: "authority.benefits_external/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "time", Entities: entities("Timecard", "timecard", "TimecardRevision", "timecard_revision"), SourceSystem: SourceTimekeepingSystem, Authority: AuthorityExternalMastered, AuthorityRef: "authority.time_external/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "leave", Entities: entities("LeaveRequest", "leave_request_preview", "LeaveRecord", "leave_record_preview"), SourceSystem: SourceLeavePlatform, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.leave_native_deferred/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "recruiting", Entities: entities("Requisition", "requisition", "RequisitionRevision", "requisition_revision"), SourceSystem: SourceApplicantTracking, Authority: AuthorityExternalMastered, AuthorityRef: "authority.recruiting_external/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "talent", Entities: entities("PerformanceReview", "performance_review", "PerformanceReviewRevision", "performance_review_revision"), SourceSystem: SourceTalentPlatform, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.talent_native_deferred/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "learning", Entities: entities("LearningEnrollment", "learning_enrollment", "LearningCompletion", "learning_completion"), SourceSystem: SourceLearningManagement, Authority: AuthorityExternalMastered, AuthorityRef: "authority.learning_external/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "case", Entities: entities("Case", "hr_case", "CaseTransition", "case_transition"), SourceSystem: SourceCaseManagement, Authority: AuthorityNativeDeferred, AuthorityRef: "authority.case_native_deferred/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "access", Entities: entities("AccessGrant", "access_grant", "AccessOperation", "access_operation"), SourceSystem: SourceIdentityAccess, Authority: AuthorityExternalMastered, AuthorityRef: "authority.access_external/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
+		{Domain: "regulatory", Entities: entities("GovernmentFiling", "government_filing", "FilingSubmissionAttempt", "filing_submission_attempt"), SourceSystem: SourceRegulatoryAuthority, Authority: AuthorityExternalMastered, AuthorityRef: "authority.regulatory_external/v1", PreviewDigest: DB016PreviewDigest, Owner: SpecificationOwner},
 	}
 }
 

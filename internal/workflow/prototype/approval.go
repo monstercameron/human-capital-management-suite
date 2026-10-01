@@ -35,6 +35,7 @@ func ApprovalDefinition() workflow.Definition {
 		WorkflowID:        ApprovalWorkflowID,
 		Version:           1,
 		Name:              "Prototype promotion approval",
+		Catalog:           &workflow.CatalogMetadata{Hidden: true},
 		InputSchema:       schema("ApprovalInput"),
 		OutputSchema:      schema("ApprovalResult"),
 		VariablesSchema:   schema("ApprovalVariables"),

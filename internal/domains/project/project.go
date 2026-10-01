@@ -138,9 +138,13 @@ func (p Project) CanWrite() bool { return p.State == LifecycleActive }
 
 type WorkItemProjection struct {
 	ID              string
+	TenantID        string
 	ObservedVersion uint64
 	SafeStatus      string
 	Freshness       string
+	Available       bool
+	LastEventID     string
+	ObservedAt      time.Time
 }
 
 type Task struct {

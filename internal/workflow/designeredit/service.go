@@ -16,6 +16,7 @@ import (
 )
 
 var ErrNotFound = errors.New("designeredit: draft or palette entry not found")
+var ErrNotDeletable = errors.New("designeredit: draft is not empty")
 
 const defaultDraftTTL = 30 * 24 * time.Hour
 
@@ -40,6 +41,18 @@ type SaveRequest struct {
 type Store interface {
 	Load(context.Context, values.TenantId, string) (Draft, error)
 	Save(context.Context, values.TenantId, SaveRequest) (Draft, error)
+}
+
+// DeletableStore is the optional persistence capability for removing an
+// untouched draft. Keeping it separate preserves the read/save port used by
+// older composition tests while making deletion explicit at the boundary.
+type DeletableStore interface {
+	Delete(context.Context, values.TenantId, DeleteRequest) error
+}
+
+type DeleteRequest struct {
+	DraftID   string
+	AuthorRef string
 }
 
 type Catalog interface {
@@ -174,6 +187,29 @@ func (s Service) Get(ctx context.Context, tenant values.TenantId, author, draftI
 		return View{}, err
 	}
 	return s.projectDraft(ctx, tenant, draft)
+}
+
+// Delete removes only an untouched draft owned by author. A draft with any
+// workflow node has entered authoring and is deliberately retained; published
+// and submitted versions therefore cannot be removed through this operation.
+func (s Service) Delete(ctx context.Context, tenant values.TenantId, author, draftID string) (retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.designer.delete", observe.Attrs{observe.KeyTenant: tenant.String()})
+	defer func() { observe.DoneWith(op, retErr) }()
+	if _, ok := s.Store.(DeletableStore); !ok {
+		return ErrInvalid
+	}
+	draft, err := s.owned(ctx, tenant, author, draftID)
+	if err != nil {
+		return err
+	}
+	definition, err := workflow.Load(draft.Document)
+	if err != nil {
+		return fmt.Errorf("%w: stored definition", ErrInvalid)
+	}
+	if len(definition.Nodes) != 0 {
+		return ErrNotDeletable
+	}
+	return s.Store.(DeletableStore).Delete(ctx, tenant, DeleteRequest{DraftID: draft.DraftID, AuthorRef: strings.TrimSpace(author)})
 }
 
 func (s Service) Insert(ctx context.Context, tenant values.TenantId, author string, request InsertRequest) (_ Change, retErr error) {

@@ -96,7 +96,7 @@ func proposalFor(
 	}
 
 	for _, change := range result.Projected.Changes {
-		field := "assignment." + change.Field
+		field := change.Field
 		spec.CurrentState = append(spec.CurrentState, intent.StateAssertion{
 			Subject: primary, ResourceKey: key, FieldPath: field, CanonicalText: change.Before,
 		})

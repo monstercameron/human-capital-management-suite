@@ -61,6 +61,7 @@ type recordIdentity struct {
 	WorkflowID         string
 	DefinitionVersion  uint32
 	SemanticVersion    string
+	Catalog            *workflow.CatalogMetadata `json:"catalog,omitempty"`
 	DefinitionDigest   string
 	CompiledPlanDigest string
 	CompilerVersion    string
@@ -78,6 +79,7 @@ func computeRecordDigest(v CompiledVersion) string {
 		WorkflowID:         v.WorkflowID,
 		DefinitionVersion:  v.DefinitionVersion,
 		SemanticVersion:    v.SemanticVersion,
+		Catalog:            v.Catalog,
 		DefinitionDigest:   v.DefinitionDigest,
 		CompiledPlanDigest: v.CompiledPlanDigest,
 		CompilerVersion:    v.CompilerVersion,

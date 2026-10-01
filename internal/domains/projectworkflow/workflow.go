@@ -18,14 +18,15 @@ import (
 )
 
 const (
-	MaxTaskTypes    = 25
-	MaxStatuses     = 50
-	MaxTransitions  = 500
-	MaxActiveFields = 25
-	MaxEnumOptions  = 100
-	MaxColumns      = 50
-	MaxIDLength     = 64
-	MaxLabelLength  = 120
+	MaxTaskTypes            = 25
+	MaxStatuses             = 50
+	MaxTransitions          = 500
+	MaxActiveFields         = 25
+	MaxEnumOptions          = 100
+	MaxColumns              = 50
+	MaxIDLength             = 64
+	MaxLabelLength          = 120
+	MaxClassificationLength = 64
 )
 
 var (
@@ -241,8 +242,13 @@ func Validate(c Config) ValidationErrors {
 		if !validFieldType(f.Type) {
 			add("INVALID_FIELD_TYPE", p+".type", "field type is not supported")
 		}
-		if f.Classification == "" {
+		classification := strings.TrimSpace(f.Classification)
+		if classification == "" {
 			add("MISSING_CLASSIFICATION", p+".classification", "classification is required")
+		} else if len([]rune(classification)) > MaxClassificationLength || strings.ContainsAny(classification, "\r\n\t") {
+			add("INVALID_CLASSIFICATION", p+".classification", "classification must be a single label of at most 64 characters")
+		} else if restrictedFieldClassification(classification) {
+			add("RESTRICTED_HCM_CLASSIFICATION", p+".classification", "restricted HCM data must be referenced through an authorized capability")
 		}
 		validateField(f, p, add)
 	}
@@ -654,6 +660,16 @@ func checkLabel(s, path string, add func(string, string, string)) {
 }
 func validCategory(c StatusCategory) bool {
 	return c == CategoryNotStarted || c == CategoryActive || c == CategoryBlocked || c == CategoryDone || c == CategoryCancelled
+}
+func restrictedFieldClassification(classification string) bool {
+	switch normalized := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToUpper(classification)); normalized {
+	case "BANK", "CANONICAL_EMPLOYEE", "COMPENSATION", "CONFIDENTIAL", "CONFIDENTIAL_HR",
+		"EMPLOYEE_CANONICAL", "HCM_RESTRICTED", "IMMIGRATION", "LEGAL", "MEDICAL", "PAYROLL",
+		"RESTRICTED", "RESTRICTED_HCM", "SALARY", "SECRET", "SENSITIVE":
+		return true
+	default:
+		return false
+	}
 }
 func validFieldType(t FieldType) bool {
 	return t == FieldText || t == FieldNumber || t == FieldDate || t == FieldEnum || t == FieldPerson || t == FieldLink || t == FieldBoolean

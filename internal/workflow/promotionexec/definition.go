@@ -217,9 +217,14 @@ func Definition() workflow.Definition {
 // 1.0.0 shape ([DefinitionV1_0]).
 func promotionDefinition(definitionVersion uint32, providerWaits bool) workflow.Definition {
 	return workflow.Definition{
-		WorkflowID:        WorkflowID,
-		Version:           definitionVersion,
-		Name:              "Promotion execute",
+		WorkflowID: WorkflowID,
+		Version:    definitionVersion,
+		Name:       "Promotion execute",
+		Catalog: &workflow.CatalogMetadata{
+			DisplayName: "Promotion and compensation change", Category: "People changes",
+			Description: "Review and complete a governed promotion with compensation, approvals, effective-date and reconciliation controls.",
+			Keywords:    []string{"promotion", "compensation", "raise", "job change"}, Icon: "promote",
+		},
 		InputSchema:       schema("PromotionExecuteInput"),
 		OutputSchema:      schema("PromotionExecuteResult"),
 		VariablesSchema:   schema("PromotionExecuteVariables"),

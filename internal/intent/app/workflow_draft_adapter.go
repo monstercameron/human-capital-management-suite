@@ -54,6 +54,16 @@ func (a workflowDraftStoreAdapter) Save(ctx context.Context, tenant values.Tenan
 	}, nil
 }
 
+func (a workflowDraftStoreAdapter) Delete(ctx context.Context, tenant values.TenantId, request designeredit.DeleteRequest) error {
+	id, err := uuid.Parse(request.DraftID)
+	if err != nil || a.store == nil {
+		return designeredit.ErrInvalid
+	}
+	return translateWorkflowDraftStoreError(a.store.Delete(ctx, tenant, workflowdraftstore.DeleteRequest{
+		DraftID: id, AuthorRef: request.AuthorRef,
+	}))
+}
+
 func (a workflowDraftStoreAdapter) LoadHistory(ctx context.Context, tenant values.TenantId, draftID string) (designeredit.History, error) {
 	id, err := uuid.Parse(draftID)
 	if err != nil || a.store == nil {

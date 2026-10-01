@@ -726,6 +726,9 @@ type Definition struct {
 	WorkflowID string `json:"workflow_id"`
 	Version    uint32 `json:"version"`
 	Name       string `json:"name"`
+	// Catalog is copied into the immutable publication record and is the only
+	// source of viewer-facing workflow discovery metadata.
+	Catalog *CatalogMetadata `json:"catalog,omitempty"`
 	// IntentType identifies the business intent this workflow accepts. It is
 	// selector metadata used by served cells; compilation still validates the
 	// workflow graph independently.

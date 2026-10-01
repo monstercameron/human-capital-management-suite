@@ -16,8 +16,11 @@ import (
 )
 
 const (
-	MetadataDisplayName = "hcmnext.designer.display_name"
-	metadataOverlays    = "hcmnext.designer.template_overlays"
+	MetadataDisplayName      = "hcmnext.designer.display_name"
+	MetadataTaskAssignee     = "hcmnext.designer.task_assignee"
+	MetadataTaskInstructions = "hcmnext.designer.task_instructions"
+	MetadataTaskDuePeriod    = "hcmnext.designer.task_due_period_days"
+	metadataOverlays         = "hcmnext.designer.template_overlays"
 )
 
 type ParameterKind string
@@ -213,6 +216,19 @@ func parameterViews(node workflow.Node) []ParameterView {
 		displayName = node.Metadata[MetadataDisplayName]
 	}
 	result := []ParameterView{{ID: "display_name", Label: "Display name", Kind: ParameterText, Value: displayName, Maximum: 120}}
+	if node.Type == workflow.StepTask {
+		assignee, instructions, duePeriod := "", "", ""
+		if node.Metadata != nil {
+			assignee = node.Metadata[MetadataTaskAssignee]
+			instructions = node.Metadata[MetadataTaskInstructions]
+			duePeriod = node.Metadata[MetadataTaskDuePeriod]
+		}
+		result = append(result,
+			ParameterView{ID: "task_assignee", Label: "Assignee (role or relationship)", Kind: ParameterText, Value: assignee, Required: true, Maximum: 160},
+			ParameterView{ID: "task_instructions", Label: "Instructions", Kind: ParameterText, Value: instructions, Maximum: 2000},
+			ParameterView{ID: "task_due_period_days", Label: "Due period (days)", Kind: ParameterInteger, Value: duePeriod, Minimum: 1, Maximum: 365},
+		)
+	}
 	if node.Retry != nil {
 		result = append(result, ParameterView{ID: "retry_max_attempts", Label: "Maximum attempts", Kind: ParameterInteger, Value: strconv.FormatUint(uint64(node.Retry.MaxAttempts), 10), Required: true, Minimum: 1, Maximum: 20})
 	}
@@ -253,6 +269,9 @@ func applyParameterValues(node *workflow.Node, values map[string]string) error {
 				return ErrInvalid
 			}
 		case ParameterInteger:
+			if value == "" && !field.Required {
+				break
+			}
 			parsed, err := strconv.ParseUint(value, 10, 64)
 			if err != nil || int64(parsed) < field.Minimum || (field.Maximum > 0 && int64(parsed) > field.Maximum) {
 				return ErrInvalid
@@ -277,6 +296,20 @@ func applyParameterValues(node *workflow.Node, values map[string]string) error {
 				delete(node.Metadata, MetadataDisplayName)
 			} else {
 				node.Metadata[MetadataDisplayName] = value
+			}
+		case "task_assignee", "task_instructions", "task_due_period_days":
+			if node.Metadata == nil {
+				node.Metadata = make(map[string]string)
+			}
+			metadataKey := map[string]string{
+				"task_assignee":        MetadataTaskAssignee,
+				"task_instructions":    MetadataTaskInstructions,
+				"task_due_period_days": MetadataTaskDuePeriod,
+			}[id]
+			if value == "" {
+				delete(node.Metadata, metadataKey)
+			} else {
+				node.Metadata[metadataKey] = value
 			}
 		case "retry_max_attempts":
 			parsed, _ := strconv.ParseUint(value, 10, 32)

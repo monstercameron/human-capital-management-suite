@@ -39,6 +39,11 @@ func Definition() workflow.Definition {
 	def.WorkflowID = WorkflowID
 	def.Version = Version
 	def.Name = "High-performer promotion"
+	def.Catalog = &workflow.CatalogMetadata{
+		DisplayName: "High-performer promotion", Category: "People changes",
+		Description: "Review a promotion using governed compensation and market-rate context.",
+		Keywords:    []string{"promotion", "high performer", "market rate", "compensation"}, Icon: "growth",
+	}
 	def.InputSchema = schema("HighPerformerPromotionInput")
 	def.Inputs = append(def.Inputs,
 		workflow.Field{Path: "target_grade", Type: plainString()},

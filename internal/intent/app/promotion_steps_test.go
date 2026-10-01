@@ -7,11 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/intentcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/rules"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
@@ -77,6 +82,33 @@ func newStepHarness(t *testing.T, access roleaccess.Store) *stepHarness {
 	if err != nil {
 		fatalWithDiagnostic(t, "CreateIntent", err)
 	}
+	instance, record, loadErr := bound.svc.loadInstance(context.Background(), string(fixtures.Tenant), created.GetIntent().GetIntentId())
+	if loadErr != nil {
+		t.Fatalf("load created intent: %v", loadErr)
+	}
+	def, err := bound.svc.defs.Resolve(instance.Definition)
+	if err != nil {
+		t.Fatalf("resolve created intent definition: %v", err)
+	}
+	simulated, simErr := bound.svc.simulateDetailed(context.Background(), principal, authz.PurposeCompensationReview, instance, def)
+	if simErr != nil {
+		fatalWithDiagnostic(t, "simulate in-memory proposal revision", simErr)
+	}
+	if simulated.Revision == nil {
+		t.Fatal("in-memory proposal simulation minted no revision")
+	}
+	// This hermetic, non-durable composition has no proposal_revision table.
+	// Seed the real simulated revision in the legacy envelope projection so
+	// this harness exercises only the documented in-memory fallback.
+	revision := *simulated.Revision
+	instance.ProposalRevisions = []intent.ProposalRevision{revision}
+	record.Envelope, err = encodeEnvelope(instance)
+	if err != nil {
+		t.Fatalf("encode in-memory proposal revision: %v", err)
+	}
+	store.mu.Lock()
+	store.byKey[memStoreKey(record.Tenant, record.IntentID)] = record
+	store.mu.Unlock()
 	now := time.Now().UTC()
 	return &stepHarness{cell: cell, services: bound, call: PromotionStepCall{
 		Delegation: runtime.ExecutionDelegation{
@@ -85,7 +117,8 @@ func newStepHarness(t *testing.T, access roleaccess.Store) *stepHarness {
 			AuthenticationMethod: "bearer_token", Assurance: "high", SessionRef: "session-submit-harness", EvidenceRef: principal.EvidenceID(),
 			RecordedAt: now.Add(-time.Minute),
 		},
-		IntentID: created.GetIntent().GetIntentId(), NodeID: "snapshot_worker", IdempotencyKey: "workflow:t:i:snapshot_worker:1",
+		ProposalRevision: revision,
+		IntentID:         created.GetIntent().GetIntentId(), NodeID: "snapshot_worker", IdempotencyKey: "workflow:t:i:snapshot_worker:1",
 		Deadline: now.Add(time.Minute), DeclaredEffects: []capability.EffectClass{capability.EffectPure, capability.EffectReadOnly},
 	}}
 }
@@ -238,5 +271,60 @@ func TestPromotionStepServicesComposition(t *testing.T) {
 	if d == nil || d.Validate() != nil || d.Subject != principal.Subject() || d.EvidenceRef != principal.EvidenceID() ||
 		d.AuthenticationMethod != "bearer_token" || d.Assurance != "high" || d.Purposes[0] != authz.PurposeCompensationReview {
 		t.Fatalf("executionDelegation = %+v", d)
+	}
+}
+
+func TestValidateProposalRevisionRowRequiresExactDurableBinding(t *testing.T) {
+	tenantID, intentID := uuid.New(), uuid.New()
+	digester, err := protomap.NewDefaultDigester()
+	if err != nil {
+		t.Fatalf("NewDefaultDigester: %v", err)
+	}
+	expected := pfRevision(intentID, pfDigest("proposal-revision-reader"))
+	expected.Tenant = values.TenantId(tenantID.String())
+	expected.MaterialDigest, err = digester.ProposalDigest(expected)
+	if err != nil {
+		t.Fatalf("ProposalDigest: %v", err)
+	}
+	payload, err := intentcontrol.EncodeFullProposal(expected)
+	if err != nil {
+		t.Fatalf("EncodeFullProposal: %v", err)
+	}
+	row := intentcontrol.Revision{
+		TenantID: tenantID, IntentID: intentID, Revision: expected.Revision,
+		ProposalDigest: expected.MaterialDigest.Digest, MaterialDigest: expected.MaterialDigest.Digest,
+		SchemaRef: executionProposalSchemaRef, Payload: payload,
+	}
+	if err := validateProposalRevisionRow(row, tenantID, expected, digester); err != nil {
+		t.Fatalf("validate exact durable revision: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name       string
+		mutateRow  func(*intentcontrol.Revision)
+		mutateWant func(*intent.ProposalRevision)
+	}{
+		{name: "tenant", mutateRow: func(r *intentcontrol.Revision) { r.TenantID = uuid.New() }},
+		{name: "intent", mutateRow: func(r *intentcontrol.Revision) { r.IntentID = uuid.New() }},
+		{name: "revision", mutateRow: func(r *intentcontrol.Revision) { r.Revision++ }},
+		{name: "proposal digest", mutateRow: func(r *intentcontrol.Revision) { r.ProposalDigest = pfDigest("different-proposal") }},
+		{name: "material digest", mutateRow: func(r *intentcontrol.Revision) { r.MaterialDigest = pfDigest("different-material") }},
+		{name: "schema", mutateRow: func(r *intentcontrol.Revision) { r.SchemaRef = "unknown-schema" }},
+		{name: "malformed payload", mutateRow: func(r *intentcontrol.Revision) { r.Payload = []byte(`{"truncated":`) }},
+		{name: "proposal id", mutateWant: func(r *intent.ProposalRevision) { r.ProposalRevisionID += ":other" }},
+		{name: "material digest", mutateWant: func(r *intent.ProposalRevision) { r.MaterialDigest.Digest = pfDigest("different-expected-material") }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gotRow, gotWant := row, expected
+			if tc.mutateRow != nil {
+				tc.mutateRow(&gotRow)
+			}
+			if tc.mutateWant != nil {
+				tc.mutateWant(&gotWant)
+			}
+			if err := validateProposalRevisionRow(gotRow, tenantID, gotWant, digester); err == nil {
+				t.Fatal("mismatched durable revision was accepted")
+			}
+		})
 	}
 }

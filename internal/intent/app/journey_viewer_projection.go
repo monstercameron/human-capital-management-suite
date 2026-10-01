@@ -7,6 +7,7 @@ import (
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/lifecycle"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 )
 
@@ -98,7 +99,14 @@ func requestProtoEndedBeforeExecution(state intentsv1.RequestState) bool {
 // from a run that actually reached the blocked terminal. Both share a business
 // stage, but only the latter belongs in History and has no remaining action.
 func journeyRecordViewerProjection(stage workspace.JourneyStage, viewerIsInitiator bool, work *workspace.JourneyWorkItemSummary, record journeyRecord) workspace.JourneyViewerProjection {
-	out := journeyViewerProjection(stage, viewerIsInitiator, work)
+	return journeyRecordViewerDisclosureProjection(stage, viewerIsInitiator, false, work, record)
+}
+
+// journeyRecordViewerDisclosureProjection is the record-aware form of the
+// viewer projection. The ordinary wrapper above keeps existing callers that
+// do not have a subject-disclosure answer explicit and fail-closed.
+func journeyRecordViewerDisclosureProjection(stage workspace.JourneyStage, viewerIsInitiator, viewerIsSubject bool, work *workspace.JourneyWorkItemSummary, record journeyRecord) workspace.JourneyViewerProjection {
+	out := journeyViewerDisclosureProjection(stage, viewerIsInitiator, viewerIsSubject, work)
 	if stage == workspace.JourneyStageBlocked && record.instance != nil && reachedNode(record.nodes, promotionexec.NodeEndBlocked) {
 		out.Closed = true
 		out.Responsibility = workspace.JourneyResponsibilityClosed
@@ -130,6 +138,19 @@ func journeyRecordViewerProjection(stage workspace.JourneyStage, viewerIsInitiat
 //     workflow, holds the next step -- a passive wait is never actionable;
 //   - OBSERVING otherwise.
 func journeyViewerProjection(stage workspace.JourneyStage, viewerIsInitiator bool, work *workspace.JourneyWorkItemSummary) workspace.JourneyViewerProjection {
+	return journeyViewerDisclosureProjection(stage, viewerIsInitiator, false, work)
+}
+
+// journeyViewerDisclosureProjection applies the employee disclosure rule at
+// the same boundary that decides the viewer's relationship and next step. A
+// subject may see a promotion only after the durable terminal fact is
+// recorded. Returning the zero projection is intentional: transport and UI
+// consumers have no stage, pay or action dimension to render for a withheld
+// journey.
+func journeyViewerDisclosureProjection(stage workspace.JourneyStage, viewerIsInitiator, viewerIsSubject bool, work *workspace.JourneyWorkItemSummary) workspace.JourneyViewerProjection {
+	if viewerIsSubject && !journeySubjectDisclosureAllowed(stage) {
+		return workspace.JourneyViewerProjection{}
+	}
 	transition := journeyStageTransition(stage)
 	out := workspace.JourneyViewerProjection{
 		NextStep: transition.step, NextStepOwner: transition.owner, AwaitsPerson: transition.awaitsPerson,
@@ -168,6 +189,49 @@ func journeyViewerProjection(stage workspace.JourneyStage, viewerIsInitiator boo
 		out.Responsibility = workspace.JourneyResponsibilityObserving
 	}
 	return out
+}
+
+// journeySubjectDisclosureAllowed is the recorded-decision policy for the
+// subject of a promotion. The subject is told once the promotion is recorded;
+// every earlier state (proposal, review, execution and effective-date wait)
+// remains confidential to the subject.
+func journeySubjectDisclosureAllowed(stage workspace.JourneyStage) bool {
+	return stage == workspace.JourneyStageRecorded
+}
+
+// journeySubjectIsViewerRef compares the authenticated subject with both
+// identities carried by a journey. Corpus journeys retain a stable worker key
+// in workerRef while durable workers use their opaque entity id, so either
+// match is required to avoid leaking an in-flight row or hiding an unrelated
+// employee's row.
+func journeySubjectIsViewerRef(viewer string, worker values.EntityRef, workerRef string) bool {
+	viewer = strings.TrimSpace(viewer)
+	if viewer == "" {
+		return false
+	}
+	for _, candidate := range []string{worker.Id, workerRef} {
+		if candidate != "" && strings.EqualFold(viewer, strings.TrimSpace(candidate)) {
+			return true
+		}
+	}
+	return false
+}
+
+// journeyIntentSubjectIsViewer is the conservative fallback for an intent
+// whose payload cannot be decoded. The durable EMPLOYMENT subject is still
+// safe to compare, while no display fields are copied out of the unreadable
+// request.
+func journeyIntentSubjectIsViewer(viewer string, msg *intentsv1.IntentInstance) bool {
+	viewer = strings.TrimSpace(viewer)
+	if viewer == "" || msg == nil {
+		return false
+	}
+	for _, subject := range msg.GetSubjects() {
+		if subject.GetSubjectKind() == "EMPLOYMENT" && strings.EqualFold(viewer, strings.TrimSpace(subject.GetSubjectId())) {
+			return true
+		}
+	}
+	return false
 }
 
 // isJourneyInitiator reports whether viewer is the stored initiator. Both

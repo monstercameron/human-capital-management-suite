@@ -89,6 +89,9 @@ type TimelineEntry struct {
 	DigestAlgorithm string
 	OccurredAt      time.Time
 	RecordedAt      time.Time
+	// Payload is the bounded typed ledger payload. Readers must validate its
+	// schema before projecting any user-facing fields.
+	Payload []byte
 }
 
 // IntentPage is one page of a list answer plus the cursor that continues it.

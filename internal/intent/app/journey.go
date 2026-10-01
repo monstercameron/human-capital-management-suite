@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/otel/trace"
-
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
@@ -27,7 +25,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
-	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/operator/workflowcontrol"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -278,6 +275,9 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 		}
 		summary, sumErr := journeySummaryFromProto(msg)
 		if sumErr != nil {
+			if journeyIntentSubjectIsViewer(principal.Subject(), msg) {
+				continue
+			}
 			// A promotion intent whose payload this build cannot read is a
 			// row the page must still be able to show, so it is listed at its
 			// stored identity with no derived placement rather than failing
@@ -322,10 +322,15 @@ func (e *journeyEngine) ListJourneys(ctx context.Context) ([]workspace.JourneySu
 		}
 		applyDurableJourneyTime(&summary, record)
 		summary.CurrentWorkItem = journeyWorkItemSummary(record.items, principal.Subject(), principal.OrganizationScopeID(), now, assigneeName)
+		workerRef, _ := journeyWorkerRefFromIntent(msg)
+		viewerIsSubject := journeySubjectIsViewerRef(principal.Subject(), summary.Worker, workerRef)
+		if viewerIsSubject && !journeySubjectDisclosureAllowed(summary.Stage) {
+			continue
+		}
 		// PROMOUX-012: the viewer's relationship and the next transition, from
 		// the stored initiator and the membership just disclosed above.
-		summary.Viewer = journeyRecordViewerProjection(summary.Stage,
-			isJourneyInitiator(msg.GetInitiator().GetPrincipalId(), principal.Subject()), summary.CurrentWorkItem, record)
+		summary.Viewer = journeyRecordViewerDisclosureProjection(summary.Stage,
+			isJourneyInitiator(msg.GetInitiator().GetPrincipalId(), principal.Subject()), viewerIsSubject, summary.CurrentWorkItem, record)
 		out = append(out, summary)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -533,80 +538,11 @@ func (e *journeyEngine) Propose(ctx context.Context, in workspace.ProposalInput)
 			slog.String("target_job_code", in.TargetJobCode), slog.String("target_grade", in.TargetGrade), slog.String("stage", string(proposed.Stage)))
 		e.publishCommitted(ctx, retErr, proposed.IntentID)
 	}()
-	principal, err := journeyPrincipal(ctx)
+	prepared, err := e.prepareAgentPromotion(ctx, in)
 	if err != nil {
 		return workspace.JourneySummary{}, err
 	}
-	if err := validateProposalInput(in); err != nil {
-		return workspace.JourneySummary{}, err
-	}
-	// The reference is resolved against both populations -- the fixed corpus
-	// and this tenant's own created workers -- because a journey has to be
-	// proposable for an employee somebody just made, not only for the four
-	// this release ships with.
-	subject, resolved, err := e.locate(ctx, principal.Tenant(), in.WorkerRef)
-	if err != nil {
-		return workspace.JourneySummary{}, err
-	}
-	if !resolved {
-		return workspace.JourneySummary{}, journeyInputError("worker_ref", "no such worker in this workforce")
-	}
-	worker := subject.Ref
-
-	baseline, err := journeyBaseline(in, subject)
-	if err != nil {
-		trace.SpanFromContext(ctx).AddEvent("promotion.baseline.unavailable")
-		return workspace.JourneySummary{}, err
-	}
-	if subject.Created != nil {
-		trace.SpanFromContext(ctx).AddEvent("promotion.baseline.durable_worker")
-	} else {
-		trace.SpanFromContext(ctx).AddEvent("promotion.baseline.declared_reference")
-	}
-	// WF-RUN-034: a worker whose earlier promotion has committed is proposed
-	// from the pay the aggregates now record, not the pay journey_worker
-	// froze when they were created. The placement half of the same fact
-	// reaches currentPlacement through the governed read's own overlay.
-	if subject.Created != nil {
-		committed, found, committedErr := e.committedPay(ctx, principal, subject.Created.WorkerID.String())
-		if committedErr != nil {
-			return workspace.JourneySummary{}, committedErr
-		}
-		if found {
-			baseline.currentBase, baseline.currency = committed.BasePay, committed.Currency
-		}
-	}
-	current, err := e.currentPlacement(ctx, principal, worker, baseline.effective)
-	if err != nil {
-		return workspace.JourneySummary{}, err
-	}
-	ladder, err := e.ladderEdges(ctx, principal.Tenant())
-	if err != nil {
-		return workspace.JourneySummary{}, err
-	}
-	if err := validatePublishedPromotionPathFrom(ladder, current, in, baseline); err != nil {
-		return workspace.JourneySummary{}, err
-	}
-	// A proposal that names no position is given the catalog vacancy when
-	// the tenant's catalog records one; without a catalog the proposal
-	// stays position-less and the run closes BLOCKED exactly as before.
-	if strings.TrimSpace(in.TargetPositionID) == "" {
-		selected, selectErr := e.selectTargetPosition(ctx, principal, current.orgUnit, strings.TrimSpace(in.TargetJobCode), strings.TrimSpace(in.TargetGrade), baseline.effective)
-		if selectErr != nil {
-			return workspace.JourneySummary{}, selectErr
-		}
-		in.TargetPositionID = selected
-	}
-
-	def, ownedErr := e.svc.defs.Resolve(intent.Ref{TypeID: promotion.IntentType, Version: 1})
-	if ownedErr != nil {
-		return workspace.JourneySummary{}, journeyError(envelope.New(envelope.CodeNotFound, reasonDefinitionUnknown,
-			"the resource does not exist or is not visible").WithDiagnostic(ownedErr))
-	}
-	payload, err := journeyRequestPayload(in, subject.Key, current, baseline)
-	if err != nil {
-		return workspace.JourneySummary{}, err
-	}
+	principal, worker, baseline, def, payload := prepared.principal, prepared.worker, prepared.baseline, prepared.definition, prepared.payload
 	key, keyErr := e.svc.ids()
 	if keyErr != nil {
 		return workspace.JourneySummary{}, fmt.Errorf("app: journey: mint an idempotency key: %w", keyErr)
@@ -1047,7 +983,7 @@ func (e *journeyEngine) currentPlacement(
 	}
 	current := journeyCurrent{
 		worker:     worker,
-		name:       disclosed[people.FieldPreferredName],
+		name:       journeyDisplayName(disclosed[people.FieldPreferredName], disclosed[people.FieldLegalName]),
 		jobCode:    disclosed[people.FieldJobCode],
 		grade:      disclosed[people.FieldGrade],
 		orgUnit:    disclosed[people.FieldOrgUnit],

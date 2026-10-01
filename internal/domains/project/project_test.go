@@ -46,6 +46,49 @@ func TestTodo_PM_008_ProjectSettingsRevision(t *testing.T) {
 	}
 }
 
+func TestTodo_PM_005(t *testing.T) {
+	p := fixture(t)
+	task := Task{ID: "task-due", ProjectID: p.ID, TenantID: p.TenantID, DueDate: "2026-01-01", Revision: 1}
+	preview, err := p.PreviewTimezoneChange("Europe/Paris", p.Revision, []DueDatePreviewTask{{Task: task, Category: projectworkflow.CategoryActive}}, time.Date(2026, 1, 2, 0, 30, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.ProjectID != p.ID || preview.FromTimezone != "America/New_York" || preview.ToTimezone != "Europe/Paris" || len(preview.Effects) != 1 {
+		t.Fatalf("timezone preview metadata = %+v", preview)
+	}
+	effect := preview.Effects[0]
+	if effect.TaskID != task.ID || effect.Before.Overdue || !effect.After.Overdue || effect.Before.AsOfDate != "2026-01-01" || effect.After.AsOfDate != "2026-01-02" {
+		t.Fatalf("timezone due-date effect = %+v", effect)
+	}
+	if p.Timezone != "America/New_York" || p.Revision != 1 {
+		t.Fatalf("preview mutated project = %+v", p)
+	}
+	if _, err := p.PreviewTimezoneChange("UTC", p.Revision+1, nil, time.Now()); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale preview revision = %v", err)
+	}
+}
+
+func TestTodo_PM_005_Golden(t *testing.T) {
+	p := fixture(t)
+	tasks := []DueDatePreviewTask{
+		{Task: Task{ID: "task-b", ProjectID: p.ID, TenantID: p.TenantID, DueDate: "2026-01-01", Revision: 1}, Category: projectworkflow.CategoryActive},
+		{Task: Task{ID: "task-a", ProjectID: p.ID, TenantID: p.TenantID, DueDate: "2026-01-01", Revision: 1}, Category: projectworkflow.CategoryDone},
+	}
+	preview, err := p.PreviewTimezoneChange("Europe/Paris", p.Revision, tasks, time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Effects) != 2 || preview.Effects[0].TaskID != "task-b" || preview.Effects[1].TaskID != "task-a" {
+		t.Fatalf("preview order changed input order = %+v", preview.Effects)
+	}
+	if preview.Effects[0].Before.AsOfDate != "2026-01-01" || preview.Effects[0].After.AsOfDate != "2026-01-02" || preview.Effects[0].Before.Overdue || !preview.Effects[0].After.Overdue {
+		t.Fatalf("active due-date golden effect = %+v", preview.Effects[0])
+	}
+	if preview.Effects[1].Before.Overdue || preview.Effects[1].After.Overdue {
+		t.Fatalf("completed task became overdue = %+v", preview.Effects[1])
+	}
+}
+
 func TestTodo_PM_002(t *testing.T) {
 	p := fixture(t)
 	task, err := NewTask("task-1", p, "Prepare rollout", "status.todo")

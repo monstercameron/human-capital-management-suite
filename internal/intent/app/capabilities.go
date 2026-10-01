@@ -8,8 +8,10 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/capability/authority"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/crm"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/dataops"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/intelligence"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/leave"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/simcontract"
@@ -95,8 +97,10 @@ var ErrCapabilityUnbound = errors.New("app: capability has no domain binding in 
 // domainHandlers binds the P1A capability table to the domain packages that
 // own each answer.
 type domainHandlers struct {
-	workers people.WorkerFacts
-	bands   rewards.PayBandCatalog
+	workers      people.WorkerFacts
+	bands        rewards.PayBandCatalog
+	crm005       *CRM005ConversionService
+	leaveAnchors *leave.AnchorStore
 	// history and observations are the two sides of every cross-system
 	// diagnostic: what this platform masters, and what the incumbent reports.
 	history      dataops.FieldHistory
@@ -127,11 +131,51 @@ func (h *domainHandlers) handlerFor(id string) capability.Handler {
 		return h.simulateRepair
 	case intelligence.ExplainTransactionIntentType:
 		return h.explainTransaction
+	case LeaveRequestCapabilityID:
+		return h.leaveRequest
+	case CRM005CapabilityID:
+		return h.crm005Conversion
 	default:
 		return func(context.Context, any) (any, error) {
 			return nil, fmt.Errorf("%w: %s", ErrCapabilityUnbound, id)
 		}
 	}
+}
+
+func (h *domainHandlers) leaveRequest(ctx context.Context, payload any) (any, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	switch request := payload.(type) {
+	case leave.ProcessRequest:
+		if h.leaveAnchors == nil {
+			return nil, errors.New("app: leave request anchor store is not composed")
+		}
+		record, created, err := h.leaveAnchors.Invoke(request)
+		if err != nil {
+			return nil, err
+		}
+		return LeaveRequestCapabilityResult{Record: record, Created: created}, nil
+	case LeaveDeterminationInvocation:
+		return serveLeaveDetermination(ctx, request)
+	case LeaveEvidenceReviewInvocation:
+		return serveLeaveEvidenceReview(ctx, request)
+	case leave.TraceInput:
+		return serveLeaveMedicalTrace(ctx, request)
+	default:
+		return nil, fmt.Errorf("app: leave request expects a supported Leave invocation, got %T", payload)
+	}
+}
+
+func (h *domainHandlers) crm005Conversion(ctx context.Context, payload any) (any, error) {
+	if h.crm005 == nil {
+		return nil, fmt.Errorf("app: CRM-005 conversion service is not composed")
+	}
+	request, ok := payload.(CRM005ConversionInvocation)
+	if !ok {
+		return nil, fmt.Errorf("app: CRM-005 conversion expects CRM005ConversionInvocation, got %T", payload)
+	}
+	return h.crm005.Execute(ctx, request)
 }
 
 func (h *domainHandlers) explainWorkerState(ctx context.Context, payload any) (any, error) {
@@ -255,6 +299,20 @@ func newCapabilityRegistry(h *domainHandlers) (*capability.Registry, error) {
 		if err := bound.Register(definition, handler); err != nil {
 			return nil, fmt.Errorf("app: bind capability %s: %w", definition.Key(), err)
 		}
+	}
+	if h.leaveAnchors == nil {
+		h.leaveAnchors = leave.NewAnchorStore()
+	}
+	for _, binding := range leaveCapabilityBindings() {
+		if err := bound.Register(binding.definition, h.leaveRequest); err != nil {
+			return nil, fmt.Errorf("app: bind capability %s: %w", binding.definition.Key(), err)
+		}
+	}
+	if h.crm005 == nil {
+		h.crm005 = NewCRM005ConversionService(crm.NewConversionStore())
+	}
+	if err := bound.Register(crm005CapabilityDefinition(), h.crm005Conversion); err != nil {
+		return nil, fmt.Errorf("app: bind capability %s: %w", crm005CapabilityDefinition().Key(), err)
 	}
 	return bound, nil
 }

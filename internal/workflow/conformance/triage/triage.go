@@ -23,6 +23,31 @@ const (
 	RouteHold           = "HOLD"
 )
 
+// ServingContractID identifies the read-only HR case triage contract
+// composed by the shipped application cell.
+const ServingContractID = "hcmnext.conformance.agent-case-triage/v1"
+
+// ValidateServingContract exercises the deterministic no-proposer fallback.
+// A served cell must retain a manual path and an explicit no-employment-
+// decision attestation when the agent path is unavailable.
+func ValidateServingContract() error {
+	verdict, err := Triage(CaseRequest{
+		ID: "serving-contract", Subject: "policy inquiry",
+		Messages: []Message{{Role: "user", Text: "Please route this question."}},
+		Taxonomy: TaxonomyStandardLeave,
+	}, nil, nil)
+	if err != nil {
+		return fmt.Errorf("triage: serving contract fallback: %w", err)
+	}
+	if verdict.Route != RouteManual || !verdict.AgentMadeNoDecision {
+		return fmt.Errorf("triage: serving contract fallback is unsafe: %#v", verdict)
+	}
+	if err := verdict.Verify(); err != nil {
+		return fmt.Errorf("triage: serving contract seal: %w", err)
+	}
+	return nil
+}
+
 // Cited taxonomy: only cited categories route; everything else is unknown.
 const (
 	TaxonomyStandardLeave        = "standard/leave-balance"

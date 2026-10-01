@@ -51,7 +51,7 @@ func (e *journeyEngine) journeyPromotionReview(
 	}
 	tenant := values.TenantId(msg.GetTenantId())
 	review := &workspace.JourneyPromotionReview{
-		Guardrail: journeyCompensationGuardrail(ctx, e.review.bands, principal, purpose, tenant, subject, evaluatedAt, relationships, payload),
+		Guardrail: e.journeyCompensationGuardrailForPayRule(ctx, e.review.bands, principal, purpose, tenant, subject, evaluatedAt, relationships, payload, e.uxblindYPayRule(ctx, tenant, payload)),
 	}
 	review.Impact, review.TargetManagerName = e.journeyManagementImpact(ctx, principal, purpose, tenant, subject, evaluatedAt, payload)
 	review.ManagerUnchanged = requestedManagerRef(payload) == ""

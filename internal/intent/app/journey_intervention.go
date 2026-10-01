@@ -72,11 +72,26 @@ const (
 	reasonInterventionAlreadyStarted   = "journey.intervention.unavailable.already_started"
 	reasonInterventionNotYetStarted    = "journey.intervention.unavailable.not_yet_started"
 	reasonInterventionAlreadyCommitted = "journey.intervention.unavailable.already_committed"
+	reasonJourneyFeatureActionDenied   = "journey.feature_action.denied"
 	// reasonEditNotCleanlyStoppable reports an edit refused because
 	// cancelling the original -- the precondition for minting an edited
 	// successor -- did not resolve to CANCELLED.
 	reasonEditNotCleanlyStoppable = "journey.edit.original_not_cleanly_stoppable"
 )
+
+// authorizeJourneyFeatureAction is the journey-level separation-of-duties
+// boundary for proposal interventions. The generic intent authorization
+// layer can admit a worker-scoped caller for a stored intent, but that does
+// not mean the caller authored this particular proposal. Interventions must
+// remain available only to its recorded proposer.
+func authorizeJourneyFeatureAction(viewer string, msg *intentsv1.IntentInstance) error {
+	if msg != nil && isJourneyInitiator(msg.GetInitiator().GetPrincipalId(), viewer) {
+		return nil
+	}
+	return envelope.New(envelope.CodePermissionDenied, reasonJourneyFeatureActionDenied,
+		"this journey action is not available to this viewer").WithViolation(
+		"journey_action", "only the proposer may change or withdraw this promotion proposal", reasonJourneyFeatureActionDenied)
+}
 
 // journeyWorkerRefFromIntent reads the stored "worker_ref" field an original
 // proposal's request payload carries -- the same key [journeyRequestPayload]
@@ -122,7 +137,8 @@ func (e *journeyEngine) EditProposal(
 		e.journeyEvent(ctx, "journey.proposal_edited", intentID, retErr, slog.String("successor_intent_id", successor.IntentID))
 		e.publishCommitted(ctx, retErr, intentID, successor.IntentID)
 	}()
-	if _, err := journeyPrincipal(ctx); err != nil {
+	principal, err := journeyPrincipal(ctx)
+	if err != nil {
 		return workspace.JourneySummary{}, "", err
 	}
 	switch {
@@ -138,9 +154,17 @@ func (e *journeyEngine) EditProposal(
 	if loadErr != nil {
 		return workspace.JourneySummary{}, "", loadErr
 	}
+	if err := authorizeJourneyFeatureAction(principal.Subject(), original); err != nil {
+		return workspace.JourneySummary{}, "", err
+	}
 	workerRef, wrErr := journeyWorkerRefFromIntent(original)
 	if wrErr != nil {
 		return workspace.JourneySummary{}, "", wrErr
+	}
+	if subject, resolved, locateErr := e.locate(ctx, principal.Tenant(), workerRef); locateErr != nil {
+		return workspace.JourneySummary{}, "", locateErr
+	} else if resolved && journeySubjectIsViewer(principal, subject) {
+		return workspace.JourneySummary{}, "", journeySelfPromotionError()
 	}
 
 	edited := workspace.ProposalInput{
@@ -266,6 +290,19 @@ func (e *journeyEngine) PreviewIntervention(
 	if err != nil {
 		return workspace.JourneyInterventionPreview{}, err
 	}
+	if kind == workspace.JourneyInterventionWithdraw || kind == workspace.JourneyInterventionCancel {
+		principal, principalErr := journeyPrincipal(ctx)
+		if principalErr != nil {
+			return workspace.JourneyInterventionPreview{}, principalErr
+		}
+		stored, loadErr := e.loadPromotionJourney(ctx, intentID)
+		if loadErr != nil {
+			return workspace.JourneyInterventionPreview{}, loadErr
+		}
+		if authErr := authorizeJourneyFeatureAction(principal.Subject(), stored); authErr != nil {
+			return workspace.JourneyInterventionPreview{}, authErr
+		}
+	}
 	// UXLIVE-006: REPAIR is not a stage-only question. Whether a repair is
 	// offered depends on this deployment holding the governed door and on
 	// this viewer holding the grant to open it, so it is answered by its own
@@ -364,8 +401,12 @@ func (e *journeyEngine) RequestIntervention(
 	case req.ExpectedInstanceVersion == 0:
 		return workspace.JourneyInterventionResult{}, journeyInputError("expected_instance_version", "is required")
 	}
-	if _, loadErr := e.loadPromotionJourney(ctx, intentID); loadErr != nil {
+	stored, loadErr := e.loadPromotionJourney(ctx, intentID)
+	if loadErr != nil {
 		return workspace.JourneyInterventionResult{}, loadErr
+	}
+	if authErr := authorizeJourneyFeatureAction(principal.Subject(), stored); authErr != nil {
+		return workspace.JourneyInterventionResult{}, authErr
 	}
 
 	cancelled, cancelErr := e.svc.CancelIntent(ctx, &intentsv1.CancelIntentRequest{

@@ -55,7 +55,14 @@ func (s *Store) UpdateProjectSettings(ctx context.Context, tenantID, projectID, 
 		if err != nil {
 			return mapNotFound(err)
 		}
-		if err := appendProjectEvent(ctx, tx, tenantID, projectID, projectID, actorID, origin, "project.settings_updated", expectedRevision, out.Revision, 0, map[string]any{"name": out.Name, "timezone": out.Timezone}); err != nil {
+		if err := appendProjectEvent(ctx, tx, tenantID, projectID, projectID, actorID, origin, "project.settings_updated", expectedRevision, out.Revision, 0, map[string]any{
+			"name":         out.Name,
+			"timezone":     out.Timezone,
+			"old_name":     prior.Name,
+			"old_timezone": prior.Timezone,
+			"new_name":     out.Name,
+			"new_timezone": out.Timezone,
+		}); err != nil {
 			return err
 		}
 		return finishIdempotency(ctx, tx, tenantID, actorID, "project.settings", key, out)

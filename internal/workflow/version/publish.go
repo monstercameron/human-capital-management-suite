@@ -96,6 +96,7 @@ func Publish(store Store, def workflow.Definition, plan *workflow.CompiledWorkfl
 		WorkflowID:         def.WorkflowID,
 		DefinitionVersion:  def.Version,
 		SemanticVersion:    m.SemanticVersion,
+		Catalog:            def.Catalog.Clone(),
 		DefinitionDigest:   computeDefinitionDigest(def),
 		CompiledPlanDigest: plan.Digest(),
 		CompilerVersion:    plan.CompilerVersion,

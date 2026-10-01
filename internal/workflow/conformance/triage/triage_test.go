@@ -430,3 +430,12 @@ func TestTodo_CONF_023_Mutation(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_CONF_023_ServedPath(t *testing.T) {
+	if ServingContractID == "" {
+		t.Fatal("served contract id is empty")
+	}
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("serving contract: %v", err)
+	}
+}

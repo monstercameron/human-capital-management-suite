@@ -3,6 +3,7 @@ package project
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/projectworkflow"
@@ -18,6 +19,61 @@ type TaskDueState struct {
 	DueDate  string
 	Overdue  bool
 	AsOfDate string
+}
+
+// DueDatePreviewTask supplies the published status category needed to
+// calculate a task's due state without making the project domain depend on a
+// workflow store.
+type DueDatePreviewTask struct {
+	Task     Task
+	Category projectworkflow.StatusCategory
+}
+
+// DueDateEffect records the before/after result for one task. Both states are
+// retained so a caller can explain a timezone change without re-reading the
+// project or task rows after the preview.
+type DueDateEffect struct {
+	TaskID TaskID
+	Before TaskDueState
+	After  TaskDueState
+}
+
+type TimezoneChangePreview struct {
+	ProjectID    ProjectID
+	FromTimezone string
+	ToTimezone   string
+	Effects      []DueDateEffect
+}
+
+// PreviewTimezoneChange validates the same expected project revision used by
+// UpdateSettings and calculates every supplied task in both project
+// timezones. It is a read-only preview; publishing remains the revisioned
+// settings mutation owned by the project store.
+func (p Project) PreviewTimezoneChange(timezone string, expected uint64, tasks []DueDatePreviewTask, now time.Time) (TimezoneChangePreview, error) {
+	if expected != p.Revision {
+		return TimezoneChangePreview{}, ErrRevisionConflict
+	}
+	if p.State != LifecycleActive || strings.TrimSpace(timezone) == "" {
+		return TimezoneChangePreview{}, ErrInvalidState
+	}
+	if _, err := time.LoadLocation(timezone); err != nil {
+		return TimezoneChangePreview{}, fmt.Errorf("%w: invalid project timezone %q", ErrInvalidState, timezone)
+	}
+	preview := TimezoneChangePreview{ProjectID: p.ID, FromTimezone: p.Timezone, ToTimezone: timezone, Effects: make([]DueDateEffect, 0, len(tasks))}
+	updated := p
+	updated.Timezone = timezone
+	for _, candidate := range tasks {
+		before, err := CalculateDueState(candidate.Task, p, candidate.Category, now)
+		if err != nil {
+			return TimezoneChangePreview{}, err
+		}
+		after, err := CalculateDueState(candidate.Task, updated, candidate.Category, now)
+		if err != nil {
+			return TimezoneChangePreview{}, err
+		}
+		preview.Effects = append(preview.Effects, DueDateEffect{TaskID: candidate.Task.ID, Before: before, After: after})
+	}
+	return preview, nil
 }
 
 // CalculateDueState compares an ISO due date with the current calendar date

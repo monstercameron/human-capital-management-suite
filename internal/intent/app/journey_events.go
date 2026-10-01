@@ -3,7 +3,10 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+
+	"github.com/google/uuid"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
@@ -48,6 +51,9 @@ func (e *journeyEngine) journeyEvent(ctx context.Context, name, intentID string,
 	} else if err != nil {
 		fields = append(fields, slog.String("error_code", observe.ErrorCode(err)))
 	}
+	if failureReason := journeyFailureReason(err); failureReason != "" {
+		fields = append(fields, slog.String("failure_reason", failureReason))
+	}
 	if intentID != "" {
 		fields = append(fields, slog.String("intent_id", intentID))
 	}
@@ -58,6 +64,39 @@ func (e *journeyEngine) journeyEvent(ctx context.Context, name, intentID string,
 		}
 	}
 	e.events.LogAttrs(ctx, level, name, append(fields, attrs...)...)
+}
+
+// recordJourneyFailure persists a classified approval-start failure after the
+// intent visibility check has succeeded. Recorder failures are logged without
+// raw diagnostics while the original operation error remains the result.
+func (e *journeyEngine) recordJourneyFailure(ctx context.Context, principal *trust.Principal, intentID, revisionID string, err error) error {
+	if e == nil || e.svc == nil || principal == nil || err == nil {
+		return nil
+	}
+	reason := journeyFailureReason(err)
+	if reason == "" {
+		return nil
+	}
+	recorder, ok := e.svc.store.(JourneyFailureRecorder)
+	if !ok {
+		return nil
+	}
+	event := JourneyFailureEvent{
+		Tenant: string(principal.Tenant()), IntentID: intentID,
+		Actor: string(principal.Subject()), ReasonRef: reason, RevisionID: revisionID,
+		OccurredAt: e.now().UTC(),
+		IdempotencyKey: fmt.Sprintf("journey:execute-failure:%s", uuid.NewSHA1(uuid.NameSpaceOID,
+			[]byte(fmt.Sprintf("%s:%s:%s:%s", intentID, principal.Subject(), revisionID, reason))).String()),
+	}
+	if recordErr := recorder.AppendJourneyFailure(ctx, event); recordErr != nil && e.events != nil {
+		e.events.LogAttrs(ctx, slog.LevelError, "journey.failure_record_failed",
+			slog.String("outcome", "failed"), slog.String("error_code", ErrJourneyFailureRecord.Error()), slog.String("intent_id", intentID),
+			slog.String("reason_ref", reason))
+		return journeyFailureRecordError{cause: recordErr}
+	} else if recordErr != nil {
+		return journeyFailureRecordError{cause: recordErr}
+	}
+	return nil
 }
 
 // intentCorrelation reads the correlation id the intent was created with.

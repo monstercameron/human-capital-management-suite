@@ -26,7 +26,7 @@ func TestTodo_MSRC_006(t *testing.T) {
 		t.Fatalf("deferred domains = %d, want 10", got)
 	}
 	for _, source := range sources {
-		if source.Authority == "" || source.SourceSystem == "" || len(source.Entities) != 2 {
+		if source.Owner != SpecificationOwner || source.Authority == "" || source.SourceSystem == "" || len(source.Entities) != 2 {
 			t.Fatalf("incomplete source authority: %+v", source)
 		}
 	}
@@ -97,6 +97,11 @@ func TestTodo_MSRC_006_Mutation(t *testing.T) {
 	if Sources()[0].Entities[0].PreviewTable == mutated[0].Entities[0].PreviewTable {
 		t.Fatal("Sources returned aliased entity storage")
 	}
+	ownerless := Sources()
+	ownerless[0].Owner = ""
+	if err := Validate(ownerless); err == nil {
+		t.Fatal("source without an accountable specification owner passed validation")
+	}
 
 	base, err := capability.NewBootstrapRegistry()
 	if err != nil {
@@ -125,8 +130,8 @@ func TestTodo_MSRC_006_Mutation(t *testing.T) {
 func encodeGolden(sources []DomainSource) string {
 	var b strings.Builder
 	for _, source := range sources {
-		fmt.Fprintf(&b, "%s|%s|%s|%s|%s|%s|%s\n", source.Domain, source.Entities[0].Ref, source.Entities[0].PreviewTable, source.SourceSystem, source.Authority, source.AuthorityRef, source.PreviewDigest)
-		fmt.Fprintf(&b, "%s|%s|%s|%s|%s|%s|%s\n", source.Domain, source.Entities[1].Ref, source.Entities[1].PreviewTable, source.SourceSystem, source.Authority, source.AuthorityRef, source.PreviewDigest)
+		fmt.Fprintf(&b, "%s|%s|%s|%s|%s|%s|%s|%s\n", source.Domain, source.Entities[0].Ref, source.Entities[0].PreviewTable, source.SourceSystem, source.Authority, source.AuthorityRef, source.Owner, source.PreviewDigest)
+		fmt.Fprintf(&b, "%s|%s|%s|%s|%s|%s|%s|%s\n", source.Domain, source.Entities[1].Ref, source.Entities[1].PreviewTable, source.SourceSystem, source.Authority, source.AuthorityRef, source.Owner, source.PreviewDigest)
 	}
 	return b.String()
 }

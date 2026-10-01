@@ -160,6 +160,77 @@ func TestTodo_PM_009_Golden(t *testing.T) {
 	}
 }
 
+func TestTodo_PM_011(t *testing.T) {
+	c := workflowFixture()
+	c.Fields[0].Classification = "PUBLIC"
+	if got := Validate(c); len(got) != 0 {
+		t.Fatalf("ordinary project classification rejected: %#v", got)
+	}
+
+	c.Fields[0].Classification = "CONFIDENTIAL-HR"
+	got := Validate(c)
+	if !hasCode(got, "RESTRICTED_HCM_CLASSIFICATION") {
+		t.Fatalf("restricted HCM classification accepted: %#v", got)
+	}
+
+	c = workflowFixture()
+	c.Fields[0].Classification = strings.Repeat("x", MaxClassificationLength+1)
+	if got := Validate(c); !hasCode(got, "INVALID_CLASSIFICATION") {
+		t.Fatalf("unbounded classification accepted: %#v", got)
+	}
+}
+
+func FuzzTodo_PM_011(f *testing.F) {
+	f.Add("customer_region", "Customer region", "INTERNAL", `"west"`)
+	f.Add("employee_salary", "Salary", "CONFIDENTIAL_HR", `125000`)
+	f.Add("", "", "", "not-json")
+	f.Fuzz(func(t *testing.T, id, name, classification, value string) {
+		c := workflowFixture()
+		c.Fields = append(c.Fields, Field{ID: id, Name: name, Type: FieldText, Classification: classification, Default: json.RawMessage(value)})
+		_ = Validate(c)
+	})
+}
+
+func TestTodo_PM_011_Security(t *testing.T) {
+	for _, classification := range []string{
+		"BANK", "CANONICAL_EMPLOYEE", "COMPENSATION", "CONFIDENTIAL", "EMPLOYEE_CANONICAL",
+		"HCM_RESTRICTED", "IMMIGRATION", "LEGAL", "MEDICAL", "PAYROLL", "RESTRICTED_HCM", "SECRET",
+	} {
+		t.Run(classification, func(t *testing.T) {
+			c := workflowFixture()
+			c.Fields[0].Classification = classification
+			if got := Validate(c); !hasCode(got, "RESTRICTED_HCM_CLASSIFICATION") {
+				t.Fatalf("restricted classification %q accepted: %#v", classification, got)
+			}
+		})
+	}
+}
+
+func TestTodo_PM_009_Race(t *testing.T) {
+	published, err := Publish(workflowFixture(), 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const workers = 16
+	results := make(chan TransitionErrors, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			results <- ValidateTransition(published, TransitionInput{
+				ExpectedConfigVersion: 7,
+				TaskTypeID:            "task",
+				FromStatusID:          "todo",
+				ToStatusID:            "doing",
+				CurrentFields:         map[string]json.RawMessage{"owner": json.RawMessage(`"person-1"`)},
+			})
+		}()
+	}
+	for i := 0; i < workers; i++ {
+		if got := <-results; len(got) != 0 {
+			t.Fatalf("concurrent valid transition rejected: %#v", got)
+		}
+	}
+}
+
 func TestTypedFieldDefinitionsRejectInvalidBoundsAndOptions(t *testing.T) {
 	c := workflowFixture()
 	c.Fields[2].Validation.MinLength = ptrInt(90)

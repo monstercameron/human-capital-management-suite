@@ -85,6 +85,13 @@ func (e *journeyEngine) positionVacancies(ctx context.Context, principal *trust.
 
 	out := make([]workspace.PositionVacancyOption, 0, len(rows))
 	for _, row := range rows {
+		// A position with any active incumbent is not an open target for a
+		// promotion, even when its capacity calculation would leave spare FTE.
+		// The picker promises genuinely open seats; exposing a partially
+		// occupied seat would turn a capacity detail into a misleading vacancy.
+		if len(row.Occupants) > 0 {
+			continue
+		}
 		// One call per row, each carrying only that row's own occupancy.
 		// position.Occupant names no position, so a pooled occupancy set
 		// would make every position look as full as the busiest one --

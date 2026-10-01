@@ -25,6 +25,46 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 )
 
+// ServingContractID identifies the selected-jurisdiction workflow contract
+// composed by the shipped application cell.
+const ServingContractID = "hcmnext.workflow.conformance.jurisdiction/v1"
+
+// ValidateServingContract proves both workflow slices pin a result and
+// replan rather than resume it when the rule release changes.
+func ValidateServingContract() error {
+	fixtures := ObligationFixture{
+		"US-CA": {
+			FlowPromotion:    {"wage-notice"},
+			FlowMedicalLeave: {"leave-notice"},
+		},
+	}
+	rule := RuleRelease{
+		Version:     "2026.9",
+		EffectiveAt: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC),
+		KnownAt:     time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC),
+	}
+	for _, flow := range []FlowKind{FlowPromotion, FlowMedicalLeave} {
+		request := EvaluationRequest{
+			Flow:        flow,
+			Legal:       LegalContext{Present: true, Selected: "US-CA", Release: "2026.9"},
+			CurrentRule: rule,
+			Fixtures:    fixtures,
+		}
+		initial, err := EvaluateSelectedJurisdiction(request)
+		if err != nil || initial.Verdict != VerdictProceed || initial.Pinned.ProposalID == "" || initial.Effects != 0 {
+			return fmt.Errorf("jurisdiction: serving contract initial %s = %+v: %v", flow, initial, err)
+		}
+		request.Pinned = initial.Pinned
+		request.ProposalID = initial.Pinned.ProposalID
+		request.CurrentRule.Version = "2026.10"
+		changed, err := EvaluateSelectedJurisdiction(request)
+		if err != nil || changed.Verdict != VerdictReplanRequired || changed.Successor == nil || changed.Successor.SuccessorOf != initial.Pinned.ProposalID || changed.Effects != 0 {
+			return fmt.Errorf("jurisdiction: serving contract replan %s = %+v: %v", flow, changed, err)
+		}
+	}
+	return nil
+}
+
 // FlowKind is the workflow slice under evaluation.
 type FlowKind string
 

@@ -227,6 +227,15 @@ func TestSelectedJurisdictionPromotionAndLeaveHandleAmbiguityRuleTimeAndReplanCo
 	}
 }
 
+func TestTodo_CROSS_CONF_001_Served(t *testing.T) {
+	if ServingContractID == "" {
+		t.Fatal("serving contract ID is empty")
+	}
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("ValidateServingContract: %v", err)
+	}
+}
+
 // TestTodo_CROSS_CONF_001_Property: evaluation is deterministic, pins what
 // it was given, and never guesses: ambiguous, multi-location, empty or
 // unknown jurisdiction never reaches PROCEED.

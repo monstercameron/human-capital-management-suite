@@ -82,13 +82,16 @@ func (c *Cell) WorkspacePort() workspace.Cell {
 // by the same transport.Config the RPC surfaces use.
 func (c *Cell) WorkspaceHandler() (http.Handler, error) {
 	return workspace.NewHandler(workspace.Options{
-		Cell:         c.WorkspacePort(),
-		Config:       c.Config,
-		Now:          c.Config.Now,
-		RoleAccess:   c.RoleAccess,
-		BrandAssets:  c.BrandAssets,
-		Catalogs:     c.Catalogs,
-		PublicOrigin: c.PublicOrigin(),
+		Cell:           c.WorkspacePort(),
+		Config:         c.Config,
+		Now:            c.Config.Now,
+		RoleAccess:     c.RoleAccess,
+		WorkflowStarts: c.WorkflowStartSource(),
+		BrandAssets:    c.BrandAssets,
+		AgentSettings:  c.AgentSettings,
+		Agents:         c.Agents,
+		Catalogs:       c.Catalogs,
+		PublicOrigin:   c.PublicOrigin(),
 		// Nil on every cell composed without both an execution driver and its
 		// database: the journey page then reports ErrJourneyUnavailable rather
 		// than rendering a surface nothing can act on.

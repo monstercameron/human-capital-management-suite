@@ -170,17 +170,18 @@ type AuthorizedBoardTasks struct {
 }
 
 type Service struct {
-	Auth         Authorizer
-	Commands     CommandRepository
-	Reads        ReadRepository
-	Views        ViewRepository
-	Members      MembershipRepository
-	Invitees     InviteeEligibility
-	Pages        BoardPageSource
-	Workflow     project.TransitionPolicy
-	Workflows    WorkflowPort
-	Links        LinkRepository
-	LinkResolver LinkResolver
+	Auth              Authorizer
+	Commands          CommandRepository
+	Reads             ReadRepository
+	Views             ViewRepository
+	Members           MembershipRepository
+	Invitees          InviteeEligibility
+	Pages             BoardPageSource
+	Workflow          project.TransitionPolicy
+	Workflows         WorkflowPort
+	AIProposalSources AIProposalSourcePort
+	Links             LinkRepository
+	LinkResolver      LinkResolver
 }
 
 const (

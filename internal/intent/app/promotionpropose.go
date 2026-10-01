@@ -409,16 +409,9 @@ func (e *journeyEngine) ProposePromotion(
 	if err := validatePublishedPromotionPathFrom(ladder, current, in, baseline); err != nil {
 		return nil, err
 	}
-	// The intent-only contract shares the page form's vacancy selection: a
-	// proposal that names no position is given the catalog vacancy when the
-	// tenant's catalog records one, and stays position-less otherwise.
-	if strings.TrimSpace(in.TargetPositionID) == "" {
-		selected, selectErr := e.selectTargetPosition(ctx, principal, current.orgUnit, strings.TrimSpace(in.TargetJobCode), strings.TrimSpace(in.TargetGrade), baseline.effective)
-		if selectErr != nil {
-			return nil, selectErr
-		}
-		in.TargetPositionID = selected
-	}
+	// The target position is optional. Preserve an empty value so the saved
+	// proposal records no position change when the proposer left the picker
+	// unselected.
 
 	def, ownedErr := e.svc.defs.Resolve(intent.Ref{TypeID: promotion.IntentType, Version: 1})
 	if ownedErr != nil {
