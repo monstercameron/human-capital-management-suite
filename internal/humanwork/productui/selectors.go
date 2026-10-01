@@ -144,7 +144,7 @@ func selectedWork(view View) WorkItem {
 // to nil.
 func admittedWork(view View) []WorkItem {
 	if !workVerdictsPresent(view) {
-		return view.Work
+		return workerDisplayNames(view.Work, view.People)
 	}
 	admitted := make([]WorkItem, 0, len(view.Work))
 	for _, item := range view.Work {
@@ -155,7 +155,7 @@ func admittedWork(view View) []WorkItem {
 	if len(admitted) == 0 {
 		return nil
 	}
-	return admitted
+	return workerDisplayNames(admitted, view.People)
 }
 
 // peopleVerdictsPresent reports whether the verdict map addresses the
@@ -236,11 +236,19 @@ func admittedPeople(view View) []Person {
 	return admitted
 }
 
+// visibleWorkforcePeople is the shared base population for workforce-facing
+// pages. People filters this projection further; Organization uses it for its
+// unfiltered scope counts. Keeping the lifecycle rule here prevents one page
+// from counting workers another page silently omits.
+func visibleWorkforcePeople(view View) []Person {
+	return matchingPeople(admittedPeople(view), PeopleQuery{Status: ParsePeopleStatusFilter(view.PeopleStatus)})
+}
+
 func filteredPeople(view View) []Person {
 	query := strings.ToLower(strings.TrimSpace(view.Query))
 	team := strings.ToLower(strings.TrimSpace(view.PeopleTeam))
 	location := strings.ToLower(strings.TrimSpace(view.PeopleLocation))
-	population := matchingPeople(admittedPeople(view), PeopleQuery{Status: ParsePeopleStatusFilter(view.PeopleStatus)})
+	population := visibleWorkforcePeople(view)
 	if query == "" && team == "" && location == "" && !view.PeopleEligibleOnly {
 		return population
 	}

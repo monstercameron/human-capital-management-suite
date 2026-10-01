@@ -23,6 +23,7 @@ type SettingsTaskGroupsProps struct {
 	SignOutDescription      string
 	Appearance              *ActionLinkProps
 	AppearanceLabel         string
+	Administration          []ActionLinkProps
 	Title                   string
 	AccountDescription      string
 	OrganizationTitle       string
@@ -114,15 +115,21 @@ func SettingsTaskGroups(props SettingsTaskGroupsProps) ui.Node {
 	preferences = append(preferences, settingsUnavailable(props.Notifications, "notifications"), settingsNavigation(props.Navigation))
 	account := []ui.Node{ui.CreateElement(AccessContext, props.Security)}
 	var organization ui.Node
+	organizationItems := make([]ui.Node, 0, len(props.Administration)+1)
 	if props.Appearance != nil {
-		appearance := html.Section(html.Props{Class: "surface settings-task-card", Data: map[string]string{"hcm-setting-group": "tenant-appearance"}, Raw: map[string]any{"aria-labelledby": "settings-appearance-title"}},
+		organizationItems = append(organizationItems, html.Section(html.Props{Class: "surface settings-task-card", Data: map[string]string{"hcm-setting-group": "tenant-appearance"}, Raw: map[string]any{"aria-labelledby": "settings-appearance-title"}},
 			html.H3(html.Props{ID: "settings-appearance-title"}, ui.Text(props.AppearanceLabel)),
 			html.P(html.Props{Class: "muted"}, ui.Text(settingsAppearanceBoundary(props.SettingsLocale))),
-			ui.CreateElement(ActionLink, *props.Appearance))
+			ui.CreateElement(ActionLink, *props.Appearance)))
+	}
+	for _, action := range props.Administration {
+		organizationItems = append(organizationItems, ui.CreateElement(ActionLink, action))
+	}
+	if len(organizationItems) > 0 {
 		organization = html.Div(html.Props{Class: "settings-group settings-organization-group", Data: map[string]string{"hcm-setting-group": "organization-configuration"}},
 			html.H2(html.Props{}, ui.Text(props.OrganizationTitle)),
 			html.P(html.Props{Class: "muted settings-group-description"}, ui.Text(props.OrganizationDescription)),
-			html.Div(html.Props{Class: "settings-group-content"}, appearance))
+			html.Div(html.Props{Class: "settings-group-content"}, organizationItems...))
 	}
 	if props.SignOut != nil {
 		children := []ui.Node{html.H3(html.Props{ID: "settings-signout-title"}, ui.Text(props.SignOut.Label))}

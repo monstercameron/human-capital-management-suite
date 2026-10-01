@@ -59,7 +59,9 @@ func TestTodo_UXAUDIT_020_InteractionEnhancerIsConnected(t *testing.T) {
 }
 
 func TestTodo_UXAUDIT_020_Browser(t *testing.T) {
-	view := testView(PageOrganization)
+	// UXBLIND-103: Organization now defaults to the nested hierarchy; the native details
+	// unit disclosures this test pins belong to the flat view, so request it explicitly.
+	view := ApplyRequest(testView(PageOrganization), PageRequest{OrganizationView: organizationViewFlat})
 	doc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +80,8 @@ func TestTodo_UXAUDIT_020_Browser(t *testing.T) {
 }
 
 func TestTodo_UXAUDIT_020_Accessibility(t *testing.T) {
-	view := testView(PageOrganization)
+	// UXBLIND-103: the default hierarchy is a WAI-ARIA tree; native details semantics are the flat view.
+	view := ApplyRequest(testView(PageOrganization), PageRequest{OrganizationView: organizationViewFlat})
 	view.Locale = ResolveProductLocale("ar")
 	doc, err := Render(view)
 	if err != nil {

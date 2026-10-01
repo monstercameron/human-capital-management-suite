@@ -18,8 +18,12 @@ const projectJourneyCurrent = "journey:current"
 // "Link to ticket…". It carries no identifiers and no forms; the browser
 // host reads the journey from the address and builds its dialogs, whose
 // words arrive here as data attributes.
-func ProjectJourneyActions(localeCode, worker string) ui.Node {
+func ProjectJourneyActions(localeCode, worker string, availability ...JourneyCapabilityAvailability) ui.Node {
 	locale := ResolveProductLocale(localeCode)
+	capabilities := JourneyCapabilityAvailability{Chat: true, Projects: true}
+	if len(availability) > 0 {
+		capabilities = availability[0]
+	}
 	copy := projectBoardCopy(locale)
 	title := locale.Text("projectui.workflow_promotion")
 	if strings.TrimSpace(worker) != "" {
@@ -42,9 +46,17 @@ func ProjectJourneyActions(localeCode, worker string) ui.Node {
 	for key, value := range words {
 		data["text-"+key] = value
 	}
-	share := &projectui.Share{Href: projectJourneyCurrent, Title: title}
-	link := html.Button(html.Props{Type: "button", Class: "projectui-share-trigger projectui-journey-link", Data: map[string]string{"projectui-action": "open-ticket-linker"}},
-		html.Span(html.Props{Class: "projectui-flow-icon", Aria: map[string]string{"hidden": "true"}}),
-		html.Span(html.Props{Text: text("projectui.link_to_ticket")}))
-	return html.Div(html.Props{Class: "projectui-journey-actions", Data: data}, projectui.ShareMenu(copy, share), link)
+	var children []ui.Node
+	if capabilities.Chat {
+		children = append(children, projectui.ShareMenu(copy, &projectui.Share{Href: projectJourneyCurrent, Title: title}))
+	}
+	if capabilities.Projects {
+		children = append(children, html.Button(html.Props{Type: "button", Class: "projectui-share-trigger projectui-journey-link", Data: map[string]string{"projectui-action": "open-ticket-linker"}},
+			html.Span(html.Props{Class: "projectui-flow-icon", Aria: map[string]string{"hidden": "true"}}),
+			html.Span(html.Props{Text: text("projectui.link_to_ticket")})))
+	}
+	if len(children) == 0 {
+		return nil
+	}
+	return html.Div(html.Props{Class: "projectui-journey-actions", Data: data}, children...)
 }

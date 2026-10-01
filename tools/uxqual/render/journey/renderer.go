@@ -5,6 +5,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
 // Build constructs the journey page component tree for p. It does not
@@ -37,13 +38,15 @@ func Build(p Page) ui.Node {
 		html.Div(html.Props{Class: "jn-shell"}, pageBody(p)),
 	)
 
-	return html.Div(html.Props{Class: "jn-page"},
-		skipLink(),
-		masthead(p),
-		noticeRegion(p),
-		main,
-		footer(p.Footer),
-	)
+	return productui.PopoverController(productui.PopoverControllerProps{Children: []ui.Node{
+		html.Div(html.Props{Class: "jn-page", Data: map[string]string{"hcm-popover-controller": "uxblind-q"}},
+			skipLink(),
+			masthead(p),
+			noticeRegion(p),
+			main,
+			footer(p.Footer),
+		),
+	}})
 }
 
 // BuildContent constructs the journey-owned content without its standalone

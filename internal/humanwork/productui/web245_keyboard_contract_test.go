@@ -64,7 +64,7 @@ func TestTodo_WEB_245_Accessibility(t *testing.T) {
 func TestTodo_WEB_245_Browser(t *testing.T) {
 	contracts := map[string][]string{
 		"global_search.go":         {`case "Escape":`, `case "ArrowDown":`, `case "ArrowUp":`, `case "Enter":`, "event.PreventDefault()"},
-		"action_launcher.go":       {`drawerEscapeCloses(event.GetKey())`, `event.GetKey() == "ArrowDown"`, `event.GetKey() == "ArrowUp"`, `event.GetKey() == "Enter"`, `usePopoverFocusDismissal("action-launcher"`},
+		"action_launcher.go":       {`drawerEscapeCloses(event.GetKey())`, `event.GetKey() == "ArrowDown"`, `event.GetKey() == "ArrowUp"`, `event.GetKey() == "Enter"`, `useUXBlindQPopoverDismissal("action-launcher"`}, // UXBLIND-057: one popover controller
 		"navigation_components.go": {`useDrawerFocusTrap("workspace-navigation", "nav-drawer-trigger"`, "OnKeyDown: onEscape"},
 		"appearance_components.go": {`useDrawerFocusTrap("appearance-preview-dialog", "appearance-preview-open"`, `drawerEscapeCloses(event.GetKey())`},
 		"utility_drawer.go":        {`useDrawerFocusTrap("utility-drawer-dialog", "utility-drawer-trigger"`, `drawerEscapeCloses(event.GetKey())`, `usePopoverFocusDismissal("utility-drawer", "utility-drawer-trigger"`},

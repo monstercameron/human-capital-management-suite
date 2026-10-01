@@ -16,7 +16,7 @@ func TestProductLocaleLocalizesShellNavigationAndComponents(t *testing.T) {
 	for _, want := range []string{
 		`<html lang="de-DE" dir="ltr"`, `data-hcm-catalog="product-ui.v1"`,
 		`data-hcm-message-fallback="en-US"`,
-		`>Mitarbeitende</`, `placeholder="Personen, Seiten, Workflows und Einstellungen suchen"`,
+		`>Mitarbeitende</`, `placeholder="Arbeitsbereich durchsuchen"`, // UXBLIND-026: the top bar shows the short topbar_placeholder,
 		`>Favoriten</li>`, `>Mitarbeitende suchen</label>`, `>Führungskraft</a>`, `>Alle Teams</option>`,
 		`locale=de-DE`,
 	} {

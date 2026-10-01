@@ -13,6 +13,7 @@ type workCollectionOptions struct {
 	Title      string
 	ListDetail bool
 	Kind       string
+	Pending    []WorkItem
 }
 
 func localizedWorkTitle(locale LocaleContext, item WorkItem) string {
@@ -35,8 +36,9 @@ func workPage(view View) ui.Node {
 	// The queue and its preview draw from the admitted population, so
 	// denied proposal artifacts never render.
 	scoped := view
-	scoped.Work = MyWorkItems(admittedWork(view), scoped.Viewer)
-	collection := workCollectionProps(scoped, workCollectionOptions{Title: scoped.Locale.Text("home.needs_action"), ListDetail: true})
+	viewerWork := MyWorkItems(admittedWork(view), scoped.Viewer)
+	scoped.Work = viewerWork
+	collection := workCollectionProps(scoped, workCollectionOptions{Title: scoped.Locale.Text("home.needs_action"), ListDetail: true, Pending: PendingWork(view)})
 	collection.Description = scoped.Locale.Text("work.action_queue_description")
 	if scoped.WorkFilter == "" {
 		collection.EmptyTitle = scoped.Locale.Text("work.empty_title")
@@ -108,7 +110,7 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 	// without opening each one (UXLIVE-018).
 	tabs := []WorkTabProps{
 		workTabProps(view, "", view.Locale.Text("work.all")),
-		workTabProps(view, "review", view.Locale.Text("work.awaiting")),
+		workTabProps(view, "review", view.Locale.Text("work.awaiting_my_approval")),
 		workTabProps(view, "blocked", view.Locale.Text("work.blocked")),
 		workTabProps(view, "mine", view.Locale.Text("work.mine")),
 		// PROMOUX-012: promotions the viewer proposed, tracked apart from the
@@ -120,7 +122,11 @@ func workCollectionProps(view View, options workCollectionOptions) WorkCollectio
 	if view.WorkFilter == "" {
 		// PROMOUX-012: the default view is the viewer's actionable work only;
 		// a visible journey that asks nothing of them is not "work".
-		items = ActionableWorkItems(items)
+		if options.Pending != nil {
+			items = options.Pending
+		} else {
+			items = ActionableWorkItems(items)
+		}
 	}
 	// UXAUDIT-017: an action queue orders by urgency, not admission order.
 	items = SortWorkByUrgency(items)
@@ -223,10 +229,11 @@ func workFilterHref(view View, filter string, keyValues ...string) string {
 // workNextStepText localizes a shared NextStep code; an empty or unknown code
 // renders nothing rather than a placeholder.
 func workNextStepText(locale LocaleContext, code string) string {
-	if !knownWorkNextSteps[code] {
+	step := ResolveNextStepLabel(locale, code)
+	if step == "" {
 		return ""
 	}
-	return locale.Text("work.row_next_step", map[string]string{"step": locale.Text("work.next_step." + code)})
+	return locale.Text("work.row_next_step", map[string]string{"step": step})
 }
 
 // workWaitingOnText localizes a shared StageActor code the same way.
@@ -304,37 +311,59 @@ func KnownWorkActor(code string) bool    { return knownWorkActors[code] }
 func workPreviewProps(view View, item WorkItem) WorkPreviewProps {
 	if item.ID == "" {
 		return WorkPreviewProps{
-			Empty: true, EmptyTitle: view.Locale.Text("work.nothing_selected"), EmptyDetail: view.Locale.Text("work.nothing_detail"),
+			I18nProps: I18nProps{Locale: view.Locale},
+			Empty:     true, EmptyTitle: view.Locale.Text("work.nothing_selected"), EmptyDetail: view.Locale.Text("work.nothing_detail"),
 			Action: ActionLinkProps{Label: view.Locale.Text("work.show_all"), Href: workFilterHref(view, ""), Class: "button secondary", Navigate: view.Navigate},
 		}
 	}
 	facts := []FactProps{}
 	if step := workNextStepText(view.Locale, item.NextStep); step != "" {
-		facts = append(facts, FactProps{Label: view.Locale.Text("work.next_step_label"), Value: view.Locale.Text("work.next_step." + item.NextStep)})
+		facts = append(facts, FactProps{Label: view.Locale.Text("work.next_step_label"), Value: ResolveNextStepLabel(view.Locale, item.NextStep)})
 	}
-	if workWaitingOnText(view.Locale, item.WaitingOn) != "" {
-		facts = append(facts, FactProps{Label: view.Locale.Text("work.waiting_on_label"), Value: view.Locale.Text("work.waiting_on." + item.WaitingOn)})
+	if waiting := workPreviewWaitingOnText(view.Locale, item); waiting != "" {
+		facts = append(facts, FactProps{Label: view.Locale.Text("work.waiting_on_label"), Value: waiting})
 	}
-	for _, text := range []string{workAssignmentText(view.Locale, item), workDueText(view.Locale, item), workNextActionText(view.Locale, item)} {
-		if text != "" {
-			facts = append(facts, FactProps{Label: view.Locale.Text("work.current_work_item_label"), Value: text})
-		}
+	if assignment := workAssignmentText(view.Locale, item); assignment != "" {
+		facts = append(facts, FactProps{Label: view.Locale.Text("work.assignment_label"), Value: assignment})
+	}
+	if due := workDueText(view.Locale, item); due != "" {
+		facts = append(facts, FactProps{Label: view.Locale.Text("work.due_label"), Value: due})
+	}
+	if next := workNextActionText(view.Locale, item); next != "" {
+		facts = append(facts, FactProps{Label: view.Locale.Text("work.next_action_label"), Value: next})
+	}
+	nextAction := WorkNextAction(item)
+	nextActionProps := ActionLinkProps{}
+	if nextAction != "" && item.Href != "" {
+		nextActionProps = ActionLinkProps{Label: view.Locale.Text("work.action." + nextAction), Href: item.Href, Class: "button primary full", Navigate: view.Navigate}
 	}
 	return WorkPreviewProps{
-		ID: item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: localizedWorkTitle(view.Locale, item), Person: item.Person,
+		I18nProps: I18nProps{Locale: view.Locale},
+		ID:        item.ID, Initials: item.Initials, PhotoURL: item.PhotoURL, Title: localizedWorkTitle(view.Locale, item), Person: item.Person,
 		Summary: item.Summary, JourneyStage: localizedWorkStatus(view.Locale, item), StatusProjection: item.StatusProjection, Provenance: item.Provenance,
 		Disposition: approvalDispositionCardProps(view.Locale, item.Disposition), FactsTitle: view.Locale.Text("work.server_proposal"),
 		Facts: append(facts,
 			FactProps{Label: view.Locale.Text("work.effective_date"), Value: valueOrUnavailableFor(view.Locale, item.EffectiveDate)},
-			FactProps{Label: view.Locale.Text("work.current_base"), Value: money(view.Locale, item.CurrentBase)},
-			FactProps{Label: view.Locale.Text("work.proposed_base"), Value: money(view.Locale, item.ProposedBase)},
+			FactProps{Label: view.Locale.Text("work.current_base"), Value: workPay(view.Locale, item.CurrentBase, item.CurrentPayBasis)},
+			FactProps{Label: view.Locale.Text("work.proposed_base"), Value: workPay(view.Locale, item.ProposedBase, item.ProposedPayBasis)},
 		),
 		// PROMOUX-008: the journey id is a work-item UUID -- RED names it by
 		// name -- so it no longer sits in the plain Facts list every viewer
 		// of this page reads. It is authorized diagnostics-only.
 		Diagnostics: workTechnicalDetails(view, item),
-		Action:      ActionLinkProps{Label: view.Locale.Text("work.open_journey"), Href: item.Href, Class: "button primary full", Navigate: view.Navigate},
+		NextAction:  nextActionProps,
+		Action:      ActionLinkProps{Label: view.Locale.Text("work.open_journey"), Href: item.Href, Class: "button secondary full", Navigate: view.Navigate},
 	}
+}
+
+func workPreviewWaitingOnText(locale LocaleContext, item WorkItem) string {
+	if !knownWorkActors[item.WaitingOn] {
+		return ""
+	}
+	if item.WaitingOn == "proposer" && WorkViewerInitiated(item) {
+		return locale.Text("work.waiting_on.you")
+	}
+	return locale.Text("work.waiting_on." + item.WaitingOn)
 }
 
 // workTechnicalDetails is PROMOUX-008's authorized-only disclosure for the
@@ -374,6 +403,16 @@ func money(locale LocaleContext, value values.Money) string {
 		return locale.Text("common.not_disclosed")
 	}
 	return locale.FormatMoney(value.Amount().String(), value.Currency(), int(value.Amount().Scale()))
+}
+
+func workPay(locale LocaleContext, value values.Money, basis string) string {
+	if value.Validate() != nil {
+		return money(locale, value)
+	}
+	if strings.TrimSpace(basis) == "" {
+		basis = "annual"
+	}
+	return locale.FormatMoneyWithUnit(value.Amount().String(), value.Currency(), basis, 2)
 }
 
 // percentage formats an exact decimal ratio without converting compensation

@@ -60,7 +60,7 @@ func JourneyListRouteKeys() []string {
 
 // JourneyListStatuses is the status vocabulary in presentation order.
 func JourneyListStatuses() []string {
-	return []string{JourneyListStatusOpen, JourneyListStatusReview, JourneyListStatusWaiting, JourneyListStatusIssue, JourneyListStatusClosed}
+	return JourneyStatusFilterValues()
 }
 
 // JourneyListGroupings is the grouping vocabulary in presentation order.

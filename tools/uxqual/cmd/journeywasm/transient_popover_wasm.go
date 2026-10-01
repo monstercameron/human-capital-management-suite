@@ -47,7 +47,7 @@ func (c *browserTransientPopoverController) Bind() {
 		}
 
 		details := target.Call("closest", transientPopoverSelector)
-		if !details.Truthy() || !details.Get("open").Bool() {
+		if !details.Truthy() || details.Get("tagName").String() != "DETAILS" || !details.Get("open").Bool() {
 			return nil
 		}
 		if transientPopoverLinkActivated(eventType, target.Call("closest", "a[href]").Truthy()) {

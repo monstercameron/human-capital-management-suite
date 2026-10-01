@@ -29,7 +29,7 @@ func TestTodo_WF_UI_002_PageIsRegisteredAndDiscoverable(t *testing.T) {
 		t.Fatal("workflow author navigation omits Workflow editor")
 	}
 	designerIndex := navigationPageIndex(items, PageWorkflowDesigner)
-	if got := items[designerIndex].Label; got != "Workflow editor" {
+	if got := items[designerIndex].Label; got != "Workflow Designer" { // UXBLIND-027: one page name
 		t.Fatalf("workflow editor navigation label = %q", got)
 	}
 	adminItems := navigationForRoles(ResolveProductLocale("en-US"), []string{RoleHCMAdmin})
@@ -107,7 +107,7 @@ func TestTodo_WF_UI_002_PageRouteState(t *testing.T) {
 	if !ok || profile != RouteProfileWorkflow {
 		t.Fatalf("workflow designer route profile = %q, ok=%t", profile, ok)
 	}
-	wantKeys := []string{"draft", "favorites", "locale", "menu_q", "nav", "node", "run", "workflow"}
+	wantKeys := []string{"draft", "favorites", "locale", "menu_q", "nav", "node", "run", "workflow", "workflow_references"}
 	gotKeys := append([]string(nil), profile.QueryKeys()...)
 	slices.Sort(gotKeys)
 	if !slices.Equal(gotKeys, wantKeys) {
@@ -224,8 +224,8 @@ func TestTodo_WF_UI_005_DesignerRendersDurableCollapsibleFragment(t *testing.T) 
 func TestTodo_WF_UI_002_PageResponsiveThemeAndLocales(t *testing.T) {
 	css := workflowDesignerStylesheet()
 	for _, want := range []string{
-		`grid-template-columns:minmax(14rem,18rem) minmax(0,1fr)`,
-		`@media (max-width:900px)`,
+		`grid-template-columns:minmax(20rem,24rem) minmax(0,1fr)`,
+		`@media (max-width:1099px)`,
 		`@media (max-width:640px)`,
 		`var(--hcm-radius-control)`,
 		`var(--soft)`,
@@ -305,5 +305,28 @@ func TestTodo_WF_UI_002_PageDoesNotMutateCatalog(t *testing.T) {
 	}
 	if !slices.Equal(catalog, before) {
 		t.Fatalf("renderer mutated caller catalog: got %+v want %+v", catalog, before)
+	}
+}
+
+func TestUXBLIND070_WorkflowReferenceToggleHydratesFromRoute(t *testing.T) {
+	view := ApplyRequest(NewView(PageWorkflowDesigner, "Ironridge", "Walt", "admin"), PageRequest{
+		Page: PageWorkflowDesigner, WorkflowID: "workflows.clock", WorkflowShowReferences: true,
+	})
+	view.PublishedWorkflows = []WorkflowCatalogItem{
+		{WorkflowID: "workflows.promotion", Name: "Promotion", Status: "ACTIVE"},
+		{WorkflowID: "reference.prototype", Name: "Prototype promotion approval", Status: "ACTIVE"},
+	}
+	markup, err := ui.RenderToString(workflowDesignerPage(view))
+	if err != nil {
+		t.Fatalf("render route-hydrated workflow designer: %v", err)
+	}
+	if !strings.Contains(markup, `checked type="checkbox"`) {
+		t.Fatalf("reference toggle was not restored from the route:\n%s", markup)
+	}
+	if !strings.Contains(markup, "workflow_references=1") {
+		t.Fatalf("reference toggle state was dropped from child links:\n%s", markup)
+	}
+	if !strings.Contains(markup, "Prototype promotion approval") {
+		t.Fatalf("reference workflow was not restored with the route toggle:\n%s", markup)
 	}
 }

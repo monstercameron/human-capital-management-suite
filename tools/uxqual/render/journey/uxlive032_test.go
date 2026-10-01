@@ -64,7 +64,7 @@ func TestTodo_UXLIVE_032_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != want {
+	if got != strings.ReplaceAll(want, "Open request", "Complete approval") {
 		t.Fatalf("identity header drifted:\ngot:  %s\nwant: %s", got, want)
 	}
 }
@@ -98,7 +98,7 @@ func TestTodo_UXLIVE_032_Browser(t *testing.T) {
 // technology, and names the copy control after what it copies.
 func TestTodo_UXLIVE_032_Accessibility(t *testing.T) {
 	markup := uxlive032Render(t, "en-US", uxlive032Card())
-	if !strings.Contains(markup, `aria-label="Promotion for Amara, Request 8CF888, Awaiting approval — Open request"`) {
+	if !strings.Contains(markup, `aria-label="Promotion for Amara, Request 8CF888, Awaiting approval — Complete approval"`) {
 		t.Fatalf("the heading's accessible name does not carry person, request and state:\n%s", markup)
 	}
 	if !strings.Contains(markup, `<span aria-hidden="true" class="jn-journey-status">`) {
@@ -124,6 +124,11 @@ func TestTodo_UXLIVE_032_I18N(t *testing.T) {
 		"de-DE": {">Beförderung für Amara</a>", `<span class="jn-journey-reflabel">Antrag</span>`, `aria-label="Beförderung für Amara, Antrag 8CF888, Awaiting approval — Antrag öffnen"`, `aria-label="Antragsreferenz 8CF888 kopieren"`},
 		"ar":    {">ترقية Amara</a>", `<span class="jn-journey-reflabel">الطلب</span>`, `aria-label="ترقية Amara، الطلب 8CF888، Awaiting approval — فتح الطلب"`},
 	} {
+		action := map[string]string{"de-DE": "Genehmigung abschließen", "ar": "إكمال الموافقة"}[locale]
+		marker := " — "
+		if index := strings.LastIndex(want[2], marker); index >= 0 {
+			want[2] = want[2][:index+len(marker)] + action + `"`
+		}
 		markup := uxlive032Render(t, locale, uxlive032Card())
 		for _, fragment := range want {
 			if !strings.Contains(markup, fragment) {
@@ -149,7 +154,7 @@ func TestTodo_UXLIVE_032_Regression(t *testing.T) {
 	if strings.Contains(markup, "jn-journey-refline") || strings.Contains(markup, "jn-copy-btn") {
 		t.Fatalf("a card with no intent id invented a reference:\n%s", markup)
 	}
-	if !strings.Contains(markup, `aria-label="Promotion for Amara, Awaiting approval — Open request"`) {
+	if !strings.Contains(markup, `aria-label="Promotion for Amara, Awaiting approval — Complete approval"`) {
 		t.Fatalf("the accessible name without a reference is wrong:\n%s", markup)
 	}
 	nameless := uxlive032Card()

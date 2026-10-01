@@ -223,10 +223,9 @@ func docsPage(view View) ui.Node {
 			))
 	}
 	if !view.DocumentsReady {
-		return html.Div(html.Props{Class: "docs-hub"},
-			html.H1(html.Props{ID: "page-title", TabIndex: -1, Class: "docs-state-title"}, ui.Text(docsText(locale, "heading"))),
-			html.P(html.Props{Class: "docs-empty", Raw: map[string]any{"role": "status"}}, ui.Text(docsText(locale, "unavailable"))),
-		)
+		// The library is not ready, but Docs still owns the page heading, so
+		// this state carries the h1 and subtitle the main region is named by.
+		return html.Div(html.Props{Class: "docs-hub"}, capabilityUnavailableFrame(view))
 	}
 	children := []ui.Node{ui.CreateElement(docsLibrary, docsLibraryProps{View: view})}
 	if view.DocumentSearch.Ready {
@@ -342,6 +341,9 @@ func docsDetail(props docsDetailProps) ui.Node {
 	// highlight registry (docsSetLinked); it never re-renders the article.
 	hoveredComment := ui.UseRef("")
 	activeRef := ui.UseRef("")
+	navigatorRef := ui.UseRef(&docsNavigator{})
+	docsNav := navigatorRef.Get()
+	docsNav.navigate = view.Navigate
 	activeRef.Set(activeComment.Get())
 	composerFocus := ui.UseState(0)
 	// Threads about a passage are numbered in the order their passages
@@ -654,7 +656,7 @@ func docsDetail(props docsDetailProps) ui.Node {
 	reader := html.Section(html.Props{ID: "docs-reader-box", Class: "docs-reader", Dir: docsContentDirection(markdown), Raw: map[string]any{"aria-labelledby": "docs-reader-heading"}},
 		html.H2(html.Props{ID: "docs-reader-heading", Class: "sr-only"}, ui.Text(docsText(locale, "markdown_content"))),
 		html.Div(html.Props{Class: "docs-anchor-gutter", Aria: map[string]string{"label": docsText(locale, "comment_pins")}, Role: "group", Hidden: len(pins) == 0}, pins...),
-		ui.CreateElement(docsMarkdownBody, docsMarkdownBodyProps{Locale: locale, VersionID: summary.VersionID, Markdown: markdown, ChatRefs: encodeDocsChatRefs(document.Chat), Links: encodeDocsLinks(document.Links), ProjectTasks: encodeDocsProjectTasks(document.ProjectTasks), Journeys: encodeDocsJourneys(document.Journeys), Navigate: view.Navigate, DocumentID: summary.ID, Media: view.DocumentMedia, Origin: view.DocumentOrigin}),
+		ui.CreateElement(docsMarkdownBody, docsMarkdownBodyProps{Locale: locale, VersionID: summary.VersionID, Markdown: markdown, ChatRefs: encodeDocsChatRefs(document.Chat), Links: encodeDocsLinks(document.Links), ProjectTasks: encodeDocsProjectTasks(document.ProjectTasks), Journeys: encodeDocsJourneys(document.Journeys), Navigate: docsNav, DocumentID: summary.ID, Media: view.DocumentMedia, Origin: view.DocumentOrigin}),
 		ui.CreateElement(docsAttachmentsSection, docsAttachmentsSectionProps{Locale: locale, DocumentID: summary.ID, VersionID: summary.VersionID, Media: view.DocumentMedia}),
 	)
 	var primary ui.Node = reader

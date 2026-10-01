@@ -51,7 +51,7 @@ func TestTodo_WEB_068(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	journeysCard := findCardByTitle(root, "Promotion workflows")
+	journeysCard := findCardByTitle(root, "Journeys") // UXBLIND lane I: one name per route
 	if journeysCard == nil {
 		t.Fatal("admin page loses the journey card")
 	}

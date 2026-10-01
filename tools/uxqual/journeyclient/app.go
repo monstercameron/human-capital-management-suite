@@ -93,7 +93,10 @@ type App struct {
 	options         *journeyv1.WorkforceOptions
 	listLoaded      bool
 	detail          *journeyv1.JourneyDetail
-	cancelWatch     context.CancelFunc
+	// failedApprovalStarts keeps failed start attempts visible in this page's
+	// history until the next authorized detail projection replaces them.
+	failedApprovalStarts map[string][]journey.TimelineEvent
+	cancelWatch          context.CancelFunc
 	// withdrawPreview and cancelPreview are PROMOUX-013's own consequence
 	// previews for the journey now on screen, read once when the detail is
 	// first loaded (loadDetail). They are best-effort: a refusal or
@@ -162,13 +165,14 @@ func New(cfg Config, svc Service, store *journey.Store, now func() time.Time) *A
 		now = time.Now
 	}
 	return &App{
-		cfg:        cfg,
-		svc:        svc,
-		store:      store,
-		now:        now,
-		Async:      func(f func()) { go f() },
-		WatchRetry: defaultWatchRetry,
-		ctx:        context.Background(),
+		cfg:                  cfg,
+		svc:                  svc,
+		store:                store,
+		now:                  now,
+		failedApprovalStarts: make(map[string][]journey.TimelineEvent),
+		Async:                func(f func()) { go f() },
+		WatchRetry:           defaultWatchRetry,
+		ctx:                  context.Background(),
 	}
 }
 
@@ -636,6 +640,7 @@ func (a *App) loadList(ctx context.Context, generation int) {
 		if a.stale(generation) {
 			return
 		}
+		projectJourneyWorkerNames(journeys.GetJourneys(), workers.GetWorkers())
 
 		a.mu.Lock()
 		if journeyEr == nil {
@@ -734,6 +739,23 @@ func (a *App) loadDetail(ctx context.Context, generation int, intentID string) {
 			a.showCurrent(generation, routeReadNotice(err))
 			return
 		}
+		a.mu.Lock()
+		workers := append([]*journeyv1.Worker(nil), a.workers...)
+		a.mu.Unlock()
+		// A bookmarked detail route has no preceding list load. Fetch the
+		// already-authorized workforce projection before composing the header,
+		// otherwise the detail reuses the stored preferred name and the same
+		// journey changes identity when the reader later visits the list.
+		if len(workers) == 0 {
+			if listed, listErr := a.svc.ListWorkers(ctx, &journeyv1.ListWorkersRequest{}); listErr == nil {
+				workers = listed.GetWorkers()
+				a.mu.Lock()
+				a.workers = append([]*journeyv1.Worker(nil), workers...)
+				a.options = listed.GetOptions()
+				a.mu.Unlock()
+			}
+		}
+		projectJourneyDetailWorkerName(resp.GetDetail(), workers)
 		a.loadInterventionPreviews(ctx, generation, intentID)
 		a.applyDetail(generation, resp.GetDetail(), arrival)
 		a.startWatch(generation, intentID, resp.GetDetail().GetDetailDigest())
@@ -1121,7 +1143,8 @@ func (a *App) execute(ctx context.Context, generation int, intentID string) {
 			return
 		}
 		if err != nil {
-			a.showCurrent(generation, noticeFromError(err, a.localeCopy()))
+			a.recordFailedApprovalStart(intentID, err)
+			a.showCurrent(generation, approvalStartNotice(err, a.localeCopy()))
 			return
 		}
 		a.applyDetail(generation, resp.GetDetail(), &journey.Notice{
@@ -1492,6 +1515,7 @@ func (a *App) show(notice *journey.Notice) {
 	a.mu.Lock()
 	cfg := a.cfg
 	route, detail := a.route, a.detail
+	failedApprovalStarts := append([]journey.TimelineEvent(nil), a.failedApprovalStarts[route.IntentID]...)
 	withdrawPreview, cancelPreview, repairPreview := a.withdrawPreview, a.cancelPreview, a.repairPreview
 	data := ListData{
 		Journeys:       a.list,
@@ -1510,7 +1534,10 @@ func (a *App) show(notice *journey.Notice) {
 	values := a.store.Values()
 	var page journey.Page
 	if route.Kind == RouteDetail && detail.GetJourney().GetIntentId() == route.IntentID {
-		page = DetailPageWithInterventions(cfg, detail, notice, values, withdrawPreview, cancelPreview, repairPreview)
+		page = DetailPageWithInterventions(cfg, detail, notice, values, withdrawPreview, cancelPreview, repairPreview, a.options)
+		if page.Detail != nil && len(failedApprovalStarts) > 0 {
+			page.Detail.Timeline = append(failedApprovalStarts, page.Detail.Timeline...)
+		}
 	} else if route.Kind == RouteDetail {
 		// The route names a journey whose answer has not arrived (or whose
 		// answer was a refusal). The chrome, the notice and the navigation
@@ -1544,8 +1571,9 @@ func (a *App) show(notice *journey.Notice) {
 // fallback (a plain navigation to the row's address), because the client can
 // do it without re-reading the tenant: the answers are already here.
 func (a *App) wire(p journey.Page) journey.Page {
-	p = journey.Wire(a.store, p, a.Navigate, a.Submit, journey.WithSelectWorker(a.selectWorker))
+	p = journey.Wire(a.store, p, a.Navigate, a.Submit, journey.WithSelectWorker(a.selectWorker), journey.WithReviewDismiss(a.dismissReview))
 	p.OnFocusField = a.FocusField
+	p.OnFieldBlur = a.validatePayOnBlur
 	// Re-project the dependent grade choices when a target job changes. The
 	// store remains the one controlled-input authority; this small wrapper
 	// only prevents a stale grade from surviving a new job selection.

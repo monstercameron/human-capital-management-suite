@@ -23,7 +23,7 @@ export default defineConfig({
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   reporter: "list",
-  outputDir: "../../../test-results/playwright-uxqual",
+  outputDir: "../../../.artifacts/test/playwright-uxqual",
   use: {
     colorScheme: "light",
     reducedMotion: "reduce",

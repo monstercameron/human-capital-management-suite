@@ -13,8 +13,9 @@ func TestHeaderViewerPhotoLinksToMyself(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`class="viewer-profile-link network-slot network-slot-ready"`, `href="/workspace/app/myself"`,
-		`aria-label="Open your employee profile, Taylor Morgan"`,
+		// UXBLIND-064: the avatar is the account disclosure trigger; Myself is its first link.
+		`class="popover-root account-menu network-slot network-slot-ready"`, `class="viewer-profile-link"`, `href="/workspace/app/myself`,
+		`aria-label="Account menu"`,
 		`src="/workspace/assets/person-hc-050-small.jpg"`,
 	} {
 		if !strings.Contains(doc, want) {

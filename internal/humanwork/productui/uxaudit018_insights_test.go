@@ -19,7 +19,7 @@ func TestTodo_UXAUDIT_018(t *testing.T) {
 	for _, want := range []string{
 		`class="insights-grid"`,
 		`class="insights-summary"`,
-		`Visible workflows</span><strong>2</strong>`,
+		`Promotion requests</span><strong>2</strong>`,
 		`In progress</span><strong>1</strong>`,
 		`Completed or closed</span><strong>1</strong>`,
 		"Period", "Last updated", "Includes", "Current view; no historical period selected",
@@ -28,7 +28,8 @@ func TestTodo_UXAUDIT_018(t *testing.T) {
 			t.Fatalf("insights summary missing %q", want)
 		}
 	}
-	if !strings.Contains(Stylesheet(), `.insights-grid{display:grid;gap:18px;grid-template-columns:minmax(0,1fr);}`) || strings.Contains(doc, `style="grid-template-columns`) {
+	// UXBLIND-106: the workforce snapshot bar rows carry their own inline track; the ban applies to the insights grid itself.
+	if !strings.Contains(Stylesheet(), `.insights-grid{display:grid;gap:18px;grid-template-columns:minmax(0,1fr);}`) || strings.Contains(doc, `class="insights-grid" style=`) {
 		t.Fatal("insights must use a stylesheet-owned full-width track, not an inline layout override")
 	}
 	if strings.Contains(doc, "attrition") || strings.Contains(doc, "trend") || strings.Contains(doc, "workforce analytics") {
@@ -84,7 +85,7 @@ func TestTodo_UXAUDIT_018_Security(t *testing.T) {
 	// The shell may retain an unrelated navigation badge from the fixture's
 	// original work collection. Assert the Insights measures themselves rather
 	// than treating every numeric token in the full document as page data.
-	if strings.Contains(doc, "Private worker") || !strings.Contains(doc, `Visible workflows</span><strong>1</strong>`) || !strings.Contains(doc, `In progress</span><strong>1</strong>`) {
+	if strings.Contains(doc, "Private worker") || !strings.Contains(doc, `Promotion requests</span><strong>1</strong>`) || !strings.Contains(doc, `In progress</span><strong>1</strong>`) {
 		t.Fatal("denied workflow influenced Insights")
 	}
 }

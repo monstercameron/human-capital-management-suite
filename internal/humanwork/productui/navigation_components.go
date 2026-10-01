@@ -63,6 +63,7 @@ type NavigationItemProps struct {
 	Children     []NavigationItemProps
 	Navigate     func(string)
 	OnSelect     func()
+	OnFavorite   func(PageID, bool)
 }
 
 type MenuFilterProps struct {
@@ -133,6 +134,7 @@ func navigationSelectNavigate(navigate func(string), onSelect func()) func(strin
 }
 
 func navigationSidebarPropsForQuery(view View) NavigationSidebarProps {
+	view = contentAwareNavigation(view)
 	favorites, items := projectNavigation(view)
 	filterView := view
 	filterView.MenuQuery = ""
@@ -187,7 +189,7 @@ func navigationSidebarPropsForQuery(view View) NavigationSidebarProps {
 	}
 	tenantLabel := view.Tenant
 	appearance := NormalizeCustomerTheme(view.Appearance)
-	if appearance.BrandName == DefaultCustomerTheme().BrandName && strings.TrimSpace(view.Tenant) != "" {
+	if (appearance.BrandName == DefaultCustomerTheme().BrandName || strings.EqualFold(strings.TrimSpace(appearance.BrandName), strings.TrimSpace(view.Tenant))) && strings.TrimSpace(view.Tenant) != "" {
 		// The header already shows the tenant as the fallback wordmark.
 		tenantLabel = ""
 	}
@@ -239,10 +241,6 @@ func menuFilterHiddenState(view View) []MenuHiddenInput {
 
 func projectNavigation(view View) ([]NavigationItemProps, []NavigationItemProps) {
 	favoritePages := authorizedFavoritePages(view.Navigation, view.FavoritePages)
-	favoriteSet := make(map[PageID]bool, len(favoritePages))
-	for _, page := range favoritePages {
-		favoriteSet[page] = true
-	}
 	leaves := make(map[PageID]NavItem)
 	for _, item := range view.Navigation {
 		collectNavigationLeaves(item, leaves)
@@ -255,8 +253,9 @@ func projectNavigation(view View) ([]NavigationItemProps, []NavigationItemProps)
 	}
 	sort.SliceStable(favorites, func(left, right int) bool { return favorites[left].MatchScore > favorites[right].MatchScore })
 	items := make([]NavigationItemProps, 0, len(view.Navigation))
+	openGroup := preferredNavigationGroup(view)
 	for _, item := range view.Navigation {
-		if projected, ok := projectNavigationItem(view, item, favoriteSet); ok {
+		if projected, ok := projectNavigationItem(view, item, openGroup); ok {
 			items = append(items, projected)
 		}
 	}
@@ -274,9 +273,9 @@ func collectNavigationLeaves(item NavItem, into map[PageID]NavItem) {
 	}
 }
 
-func projectNavigationItem(view View, item NavItem, favorites map[PageID]bool) (NavigationItemProps, bool) {
+func projectNavigationItem(view View, item NavItem, openGroup PageID) (NavigationItemProps, bool) {
 	if len(item.Children) == 0 {
-		if favorites[item.Page] || navigationSearchScore(item, view.MenuQuery) == 0 {
+		if navigationSearchScore(item, view.MenuQuery) == 0 {
 			return NavigationItemProps{}, false
 		}
 		return navigationLeafProps(view, item, false), true
@@ -284,10 +283,11 @@ func projectNavigationItem(view View, item NavItem, favorites map[PageID]bool) (
 	groupScore := navigationSearchScore(item, view.MenuQuery)
 	children := make([]NavigationItemProps, 0, len(item.Children))
 	for _, child := range item.Children {
-		if favorites[child.Page] || navigationSearchScore(child, view.MenuQuery) == 0 {
+		if navigationSearchScore(child, view.MenuQuery) == 0 {
 			continue
 		}
-		children = append(children, navigationLeafProps(view, child, false))
+		childProps := navigationLeafProps(view, child, false)
+		children = append(children, childProps)
 	}
 	sort.SliceStable(children, func(left, right int) bool { return children[left].MatchScore > children[right].MatchScore })
 	if len(children) == 0 {
@@ -297,6 +297,9 @@ func projectNavigationItem(view View, item NavItem, favorites map[PageID]bool) (
 	expanded := active
 	if saved, ok := view.NavigationGroupOpen[item.Page]; ok {
 		expanded = saved
+	}
+	if openGroup != "" {
+		expanded = item.Page == openGroup
 	}
 	if view.MenuQuery != "" {
 		expanded = true
@@ -309,6 +312,40 @@ func projectNavigationItem(view View, item NavItem, favorites map[PageID]bool) (
 	}, true
 }
 
+// preferredNavigationGroup keeps the two tall navigation groups mutually
+// exclusive. The active group wins unless the viewer explicitly closed it (a
+// saved choice outranks the contextual default); otherwise the first saved open group is
+// retained. This prevents the nested primary-nav scroller from hiding the
+// second group when a browser restores both disclosure states.
+func preferredNavigationGroup(view View) PageID {
+	for _, item := range view.Navigation {
+		if saved, ok := view.NavigationGroupOpen[item.Page]; ok && !saved {
+			continue // an explicit close outranks the contextual open
+		}
+		if len(item.Children) > 0 && navigationItemContainsPage(item, view.Page) {
+			return item.Page
+		}
+	}
+	for _, item := range view.Navigation {
+		if len(item.Children) > 0 && view.NavigationGroupOpen[item.Page] {
+			return item.Page
+		}
+	}
+	return ""
+}
+
+func navigationItemContainsPage(item NavItem, page PageID) bool {
+	if item.Page == page {
+		return true
+	}
+	for _, child := range item.Children {
+		if navigationItemContainsPage(child, page) {
+			return true
+		}
+	}
+	return false
+}
+
 func navigationLeafProps(view View, item NavItem, favorite bool) NavigationItemProps {
 	detail := ""
 	if view.MenuQuery != "" {
@@ -317,8 +354,8 @@ func navigationLeafProps(view View, item NavItem, favorite bool) NavigationItemP
 	return NavigationItemProps{
 		I18nProps: I18nProps{Locale: view.Locale},
 		Page:      item.Page, Label: item.Label, Icon: item.Icon, Count: item.Count,
-		Href: navigationHrefForItem(view, item), Active: navigationPageActive(item.Page, view.Page),
-		Favorite: favorite, FavoriteHref: favoriteToggleHref(view, item.Page), MatchScore: navigationSearchScore(item, view.MenuQuery), MatchDetail: detail, Navigate: view.Navigate,
+		Href: navigationHrefForItem(view, item), Active: !favorite && navigationPageActive(item.Page, view.Page),
+		Favorite: favorite, FavoriteHref: favoriteToggleHref(view, item.Page), MatchScore: navigationSearchScore(item, view.MenuQuery), MatchDetail: detail, Navigate: view.Navigate, OnFavorite: view.SaveFavorite,
 	}
 }
 
@@ -346,24 +383,13 @@ func navigationChildrenActive(children []NavigationItemProps) bool {
 }
 
 func favoriteToggleHref(view View, page PageID) string {
-	next := view
-	next.FavoritePages = make([]PageID, 0, len(view.FavoritePages)+1)
-	found := false
-	for _, favorite := range view.FavoritePages {
-		if favorite == page {
-			found = true
-			continue
-		}
-		next.FavoritePages = append(next.FavoritePages, favorite)
-	}
-	if !found {
-		next.FavoritePages = append([]PageID{page}, next.FavoritePages...)
-	}
-	href := currentPageHref(next, next.NavCollapsed)
-	if len(next.FavoritePages) == 0 {
-		return withExplicitEmptyQuery(href, "favorites")
-	}
-	return href
+	// The toggle is account state, so its destination must retain only the
+	// shareable route state. The preference write is owned by the live client;
+	// the address never carries the resulting favorite set. The href
+	// deliberately stays on the current page (not the starred item's page):
+	// without JS the star is inert, so its fallback must not look like
+	// navigation to a route the viewer may not be able to open.
+	return currentPageHref(view, view.NavCollapsed)
 }
 
 // NavigationSidebar renders independently scrolling, searchable navigation.
@@ -400,6 +426,7 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 			}
 		}
 	}
+	useCurrentNavigationScroll(navigationCurrentKey(props))
 	// The drawer's open/close and Escape wiring are unconditional hook calls
 	// (GWC requires a stable hook order every render); the resulting handlers
 	// are only ever reachable in practice at narrow viewports, where CSS is
@@ -547,9 +574,11 @@ func navigationDrawerTriggerAria(open bool, label string) map[string]string {
 // keyboard-operable disclosure group.
 func NavigationItem(props NavigationItemProps) ui.Node {
 	if len(props.Children) == 0 {
-		linkProps := html.Props{Class: "nav-link", Aria: map[string]string{"label": props.Label}, Raw: map[string]any{"title": props.Label}}
+		favoriteState := ui.UseState(props.Favorite)
+		linkProps := html.Props{Class: "nav-link", Aria: map[string]string{"label": props.Label}, Raw: uxblindOCollapsedNavigationTooltipAttrs(props.Label)}
 		if props.Active {
 			linkProps.Aria["current"] = "page"
+			linkProps.DataAttr = html.DataAttribute{Name: "hcm-nav-current", Value: "true"}
 		}
 		copy := []ui.Node{html.Span(html.Props{Class: "nav-label"}, ui.Text(props.Label))}
 		class := "nav-link"
@@ -566,11 +595,24 @@ func NavigationItem(props NavigationItemProps) ui.Node {
 		if props.FavoriteHref != "" {
 			label := props.Text("nav.favorite_add", map[string]string{"label": props.Label})
 			favoriteClass := "nav-favorite"
-			if props.Favorite {
+			favorite := favoriteState.Get()
+			if favorite {
 				label = props.Text("nav.favorite_remove", map[string]string{"label": props.Label})
 				favoriteClass += " is-favorite"
 			}
-			children = append(children, softwareLink(props.Navigate, html.Props{Class: favoriteClass, Aria: map[string]string{"label": label}, Raw: map[string]any{"title": label}}, props.FavoriteHref, productIcon("favorite", "nav-favorite-glyph")))
+			favoriteProps := html.Props{Class: favoriteClass, Aria: map[string]string{"label": label, "pressed": fmt.Sprint(favorite)}, Raw: map[string]any{"title": label}}
+			if props.OnFavorite != nil {
+				favoriteProps.Type = "button"
+				favoriteProps.OnClick = ui.UseEvent(func(event ui.MouseEvent) {
+					event.PreventDefault()
+					next := !favoriteState.Get()
+					favoriteState.Set(next)
+					props.OnFavorite(props.Page, next)
+				})
+				children = append(children, html.Button(favoriteProps, productIcon("favorite", "nav-favorite-glyph")))
+			} else {
+				children = append(children, softwareLink(props.Navigate, favoriteProps, props.FavoriteHref, productIcon("favorite", "nav-favorite-glyph")))
+			}
 		}
 		return html.Li(html.Props{Class: "nav-entry"}, children...)
 	}
@@ -596,7 +638,7 @@ func NavigationItem(props NavigationItemProps) ui.Node {
 	}
 	summary = append(summary, productIcon("expand", "nav-chevron"))
 	return html.Li(html.Props{}, html.Details(html.Props{Class: class, Raw: raw, Data: data},
-		html.Summary(html.Props{Class: "nav-group-summary"}, summary...),
+		html.Summary(html.Props{Class: "nav-group-summary", Aria: map[string]string{"label": props.Label}, Raw: uxblindOCollapsedNavigationTooltipAttrs(props.Label)}, summary...),
 		html.Ul(html.Props{Class: "subnav"}, children...),
 	))
 }

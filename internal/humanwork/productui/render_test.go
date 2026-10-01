@@ -247,8 +247,10 @@ func TestMyWorkKeepsTerminalJourneysInHistory(t *testing.T) {
 	if strings.Contains(doc, "Avery Patel") {
 		t.Fatal("terminal journey leaked into the open My Work collection")
 	}
-	if !strings.Contains(doc, `aria-label="Work overview, 1 promotion item needs your action."`) {
-		t.Fatal("work overview announced the total history instead of the open-work count")
+	// UXBLIND-056: the bell announces unread notifications; the open-work count
+	// is the Needs your action tab asserted above.
+	if !strings.Contains(doc, `aria-label="Notifications, 0 unread notifications"`) {
+		t.Fatal("notification bell did not announce its unread count")
 	}
 }
 
@@ -268,21 +270,20 @@ func TestMyWorkSelectsTheFirstOpenJourneyWhenTheURLHasNoSelection(t *testing.T) 
 }
 
 func TestWorkflowHistoryShowsOnlyTerminalRecordsAndPreservesFilters(t *testing.T) {
-	view := testView(PageHistory)
+	view := testView(PageWorkflowHistory)
 	view.HistoryQuery = "Avery"
-	view.HistoryOutcome = "completed"
+	view.HistoryOutcome = "closed"
 	view.NavCollapsed = true
 	doc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"Global workflow history", "Avery Patel", "DES2 G6 → DES3 G7", "Completed",
-		"Effective · 1 Aug 2026", "Closed · 4 Aug 2026 · 14:32 UTC",
-		`href="/workspace/app/journeys?journey=intent-2"`, "Open record",
-		`name="history_q"`, `name="history_person"`, `name="outcome"`, `name="history_year"`, `name="nav"`,
-		"Employee", "Change", "Closed ↓", "Outcome", `aria-sort="descending"`,
-		`href="/workspace/app/history?history_q=Avery&amp;nav=expanded&amp;outcome=completed"`,
+		"Workflow history", "Avery Patel", "COMPLETED · closed",
+		"2026-08-01", "4 Aug 2026 · 14:32 UTC",
+		`name="history_q"`, `name="history_person"`, `name="outcome"`, `name="nav"`,
+		"Workflow", "Version", "Subject", "Requester", "Participants", "Stage", "Started", "Updated",
+		`href="/workspace/app/workflows/history?history_q=Avery&amp;nav=expanded&amp;outcome=closed"`,
 	} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("workflow history missing %q", want)
@@ -317,7 +318,7 @@ func TestPerPersonHistoryKeepsScopedRouteAndFullControls(t *testing.T) {
 }
 
 func TestHistoryFiltersAndSortsAuthorizedTerminalRecords(t *testing.T) {
-	view := testView(PageHistory)
+	view := testView(PageWorkflowHistory)
 	view.Work = append(view.Work,
 		WorkItem{ID: "intent-3", Person: "Jordan Lee", PersonRef: "worker-jordan", Summary: "ENG3 G7 → ENG4 G8", Status: "Failed", Terminal: true, EffectiveDate: "2025-02-10", CompletedAt: "2 Feb 2025 · 10:00 UTC"},
 		WorkItem{ID: "intent-4", Person: "Elena Ruiz", PersonRef: "worker-elena", Summary: "VP1 G9 → VP2 G10", Status: "Completed", Terminal: true, EffectiveDate: "2026-09-01", CompletedAt: "5 Sep 2026 · 09:00 UTC"},
@@ -412,7 +413,7 @@ func TestPersonPageShowsServerFactsAndFilterableWorkflowLaunchers(t *testing.T) 
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"Avery Patel", "NW-40118", "CAD 118,000", "Start a workflow", `name="workflow_q"`,
+		"Avery Patel", "NW-40118", "CAD 118,000", "Start a workflow", // UXBLIND-026: the workflow filter appears only above five items or with an active query.
 		`href="/workspace/app/journeys?mode=new&amp;worker=worker-avery"`, "Start Promotion", "Start Internal transfer",
 		`href="/workspace/app/people"`, "Past workflows", `href="/workspace/app/journeys?journey=intent-2"`,
 	} {
@@ -537,7 +538,8 @@ func TestPeopleDirectoryCombinesFacetsSortAndPagination(t *testing.T) {
 func TestPeopleSortAndFacetControlsUseSharedResponsiveStyles(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{
-		`.people-filter-control{align-items:center;grid-template-columns:minmax(175px,1.25fr) minmax(132px,0.85fr) minmax(170px,1.1fr)`,
+		// UXBLIND-098: the restyled toolbar grid (search, two selects, then actions) keeps its responsive breakpoints below.
+		`.people-filter-control{align-items:center;grid-template-columns:minmax(220px,2fr) minmax(160px,1fr) minmax(160px,1fr) max-content max-content;}`,
 		`.people-filter select{background-color:var(--surface);border:1px solid var(--control-border);`,
 		`.people-sort{align-items:center;color:var(--muted);display:flex;font:inherit;min-height:44px;`,
 		`@media (max-width:760px){.people-filter-control{grid-template-columns:1fr;}`,

@@ -239,7 +239,10 @@ func TestTodo_UXAUDIT_006_I18N_DetailMoneyAndDates(t *testing.T) {
 	if got, want := formatDateLocale("ar", "2026-09-03"), "٣ سبتمبر ٢٠٢٦"; got != want {
 		t.Errorf("Arabic effective date = %q, want %q", got, want)
 	}
-	if got, want := formatAmountLocale("en-US", "USD", "1234.50"), "USD 1,234.50"; got != want {
+	// UXBLIND-075: en-US now goes through the same shared formatter path as
+	// every other locale (no page-local plain-space special case), which
+	// keeps currency and amount joined by a non-breaking space everywhere.
+	if got, want := formatAmountLocale("en-US", "USD", "1234.50"), "USD 1,234.50"; got != want {
 		t.Errorf("English compatibility = %q, want %q", got, want)
 	}
 }

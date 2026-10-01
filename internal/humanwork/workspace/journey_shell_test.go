@@ -413,6 +413,7 @@ func TestJourneyShellDocumentLoadsTheClientWhenBuilt(t *testing.T) {
 // that is not also a change to the policy is a page that will not start.
 func TestJourneyLoaderSourceIsTheDocumentedConstant(t *testing.T) {
 	const want = `(function(){if(!window.WebAssembly){return}` +
+		`var h="hcm:";function p(n){try{performance.mark(h+n)}catch(e){}document.documentElement.setAttribute("data-workspace-load-phase",n)}p("loader");` +
 		`var c=document.getElementById("journey-config"),j=JSON.parse(c?c.textContent||"{}":"{}");` +
 		`function o(i){return{credentials:"same-origin",headers:{authorization:"Bearer "+(j.bearer||"")},integrity:i||""}}` +
 		`function v(a){return a&&a.sha256?"?v="+encodeURIComponent(a.sha256):""}` +
@@ -421,8 +422,9 @@ func TestJourneyLoaderSourceIsTheDocumentedConstant(t *testing.T) {
 		`.then(function(r){if(!r.ok){throw new Error("asset manifest unavailable")}return r.json()})` +
 		`.then(function(m){var a,s;for(var i=0;i<m.assets.length;i++){if(m.assets[i].path=="/workspace/assets/journey.wasm"){a=m.assets[i]}else if(m.assets[i].path=="/workspace/assets/wasm_exec.js"){s=m.assets[i]}}` +
 		`if(!a||!s||typeof a.integrity!=="string"||typeof s.integrity!=="string"){throw new Error("asset integrity unavailable")}` +
-		`return k("/workspace/assets/wasm_exec.js"+v(s),s.integrity).then(function(r){if(!r.ok){throw new Error("wasm runtime unavailable")}return r.blob()}).then(function(b){var u=URL.createObjectURL(b);return import(u).then(function(){URL.revokeObjectURL(u)},function(e){URL.revokeObjectURL(u);throw e})}).then(function(){if(!window.Go){throw new Error("wasm runtime unavailable")}var g=new window.Go();return window.WebAssembly.instantiateStreaming(k("/workspace/assets/journey.wasm"+v(a),a.integrity),g.importObject).then(function(r){g.run(r.instance)})})})` +
-		`.catch(function(){});})();`
+		`p("manifest");var w=window.WebAssembly.compileStreaming(k("/workspace/assets/journey.wasm"+v(a),a.integrity).then(function(r){p("wasm-response");return r}));w.catch(function(){});` +
+		`return k("/workspace/assets/wasm_exec.js"+v(s),s.integrity).then(function(r){if(!r.ok){throw new Error("wasm runtime unavailable")}return r.blob()}).then(function(b){var u=URL.createObjectURL(b);return import(u).then(function(){URL.revokeObjectURL(u)},function(e){URL.revokeObjectURL(u);throw e})}).then(function(){if(!window.Go){throw new Error("wasm runtime unavailable")}var g=new window.Go();return w.then(function(b){p("compiled");return window.WebAssembly.instantiate(b,g.importObject)}).then(function(n){p("instantiated");g.run(n)})})})` +
+		`.catch(function(e){console.error("Workspace initialization failed",e&&e.message?e.message:"unavailable")});})();`
 	if journeyLoaderSource != want {
 		t.Fatalf("journeyLoaderSource =\n%q\nwant\n%q", journeyLoaderSource, want)
 	}

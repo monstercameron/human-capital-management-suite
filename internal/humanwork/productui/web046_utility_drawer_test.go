@@ -28,18 +28,20 @@ func TestTodo_WEB_046(t *testing.T) {
 		t.Fatalf("history parent label = %q, want registry My Work", related.Items[0].Label)
 	}
 
-	// UXAUDIT-011 removed unbuilt admin fallback surfaces from navigation.
-	// Roles now has four published siblings (Worker IDs, Organization
-	// visibility, Brand & appearance, and Chat settings) plus the Admin parent.
+	// Current admitted admin siblings are exact registry destinations; the
+	// current Roles page itself is excluded from the related list.
 	roles := ApplyRoleVisibility(testView(PageRoles), []string{RoleHCMAdmin})
 	adminSections := utilityDrawerSections(roles)
 	adminRelated := findDrawerSection(adminSections, "related")
-	if adminRelated == nil || len(adminRelated.Items) != 5 {
+	wantRelated := []PageID{PageAdmin, PageWorkerIDs, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageClockDevices}
+	if adminRelated == nil || len(adminRelated.Items) != len(wantRelated) {
 
-		t.Fatalf("roles drawer related = %#v, want Admin parent plus 4 published siblings", adminSections)
+		t.Fatalf("roles drawer related = %#v, want current admitted admin destinations", adminSections)
 	}
-	if adminRelated.Items[0].Href != "/workspace/app/admin" {
-		t.Fatalf("roles drawer first item = %#v, want Admin parent first", adminRelated.Items[0])
+	for index, want := range wantRelated {
+		if adminRelated.Items[index].Page != want || adminRelated.Items[index].Href != Path(want) {
+			t.Fatalf("roles drawer item %d = %#v, want %s at %s", index, adminRelated.Items[index], want, Path(want))
+		}
 	}
 
 	// A profile offers its launchable workflows when the identity may start them.
@@ -94,7 +96,9 @@ func TestTodo_WEB_046_Golden(t *testing.T) {
 	// longer aria-modal, and has a head with its title and an icon close
 	// button, matching the Start an action launcher. Inspected: the same five
 	// related pages, no unresolved key.
-	const want = "98f67909d47e17095344e5e474e7ca3510705e19254a59bd1c58dbbc372e9027"
+	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+	// Re-pinned 2026-09-28 after reading the render: same five related pages, Worker IDs now carries its own icon (UXBLIND-107), no unresolved key.
+	const want = "67c2278a7831d7aab4bedc2f46e8910fd07e5433e766f675a1629f07fdb8ab43"
 	if got != want {
 		t.Fatalf("utility drawer golden digest = %s, want %s", got, want)
 	}
@@ -182,9 +186,9 @@ func TestTodo_WEB_046_Browser(t *testing.T) {
 			t.Fatalf("drawer link leaves the page registry: %q", xhtmlAttr(link, "href"))
 		}
 	}
-	if len(collectElements(dialog, "a")) != 5 {
+	if len(collectElements(dialog, "a")) != 7 {
 
-		t.Fatalf("drawer links = %d, want 5 related and no actions on roles page", len(collectElements(dialog, "a")))
+		t.Fatalf("drawer links = %d, want 7 related and no actions on roles page", len(collectElements(dialog, "a")))
 	}
 
 	homeDoc, err := Render(testView(PageHome))

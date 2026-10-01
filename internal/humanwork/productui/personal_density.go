@@ -24,6 +24,24 @@ func NormalizePersonalDensity(value string) string {
 	return ""
 }
 
+// NormalizePersonalColorMode returns a personal light/dark override or empty
+// when the person follows the organization's mode.
+func NormalizePersonalColorMode(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "light" || value == "dark" {
+		return value
+	}
+	return ""
+}
+
+func EffectiveColorMode(theme CustomerTheme, personalColorMode string) CustomerTheme {
+	theme = NormalizeCustomerTheme(theme)
+	if personal := NormalizePersonalColorMode(personalColorMode); personal != "" {
+		theme.ColorMode = personal
+	}
+	return theme
+}
+
 // EffectiveAppearance is the one resolution every renderer uses for the
 // appearance a person sees: the organization theme, with the person's own
 // density when they chose one.
@@ -37,7 +55,8 @@ func EffectiveAppearance(theme CustomerTheme, personalDensity string) CustomerTh
 
 // EffectiveAppearance resolves the view's appearance for its viewer.
 func (view View) EffectiveAppearance() CustomerTheme {
-	return EffectiveAppearance(view.Appearance, view.StoredPreferences.Density)
+	theme := EffectiveAppearance(view.Appearance, view.StoredPreferences.Density)
+	return EffectiveColorMode(theme, view.Accessibility.ColorMode)
 }
 
 // PersonalDensityProps drives the Settings control for the person's own

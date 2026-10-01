@@ -220,7 +220,8 @@ func TestTodo_UXAUDIT_024(t *testing.T) {
 		if !strings.Contains(filterMarkup, `placeholder="`+view.Locale.Text("nav.filter_pages")+`"`) {
 			t.Fatal("menu filter must scope its placeholder to menu destinations")
 		}
-		if !strings.Contains(searchMarkup, `placeholder="`+view.Locale.Text("global_search.placeholder")+`"`) {
+		// UXBLIND-026: the top bar shows the short topbar_placeholder; the full scope stays in the aria-label.
+		if !strings.Contains(searchMarkup, `placeholder="`+view.Locale.Text("global_search.topbar_placeholder")+`"`) {
 			t.Fatal("global search must scope its placeholder to people/pages/workflows/settings")
 		}
 	})
@@ -698,7 +699,9 @@ func TestTodo_UXAUDIT_024_Browser(t *testing.T) {
 	// The spec expects native disclosure semantics for a nav group, not a
 	// div the browser's accessibility tree would never expose as
 	// expandable.
-	if !strings.Contains(doc, `<details class="nav-group"`) || !strings.Contains(doc, `<summary class="nav-group-summary">`) {
+	// UXBLIND-028/065: the group may carry the current state and its summary
+	// carries an accessible name and a collapsed-rail tooltip.
+	if !regexp.MustCompile(`<details class="nav-group[^"]*"`).MatchString(doc) || !regexp.MustCompile(`<summary [^>]*class="nav-group-summary"`).MatchString(doc) {
 		t.Error("composed page has no native <details>/<summary> nav group for the spec to open")
 	}
 

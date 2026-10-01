@@ -8,41 +8,36 @@ import (
 )
 
 func TestTodo_UXSCAN_003(t *testing.T) {
+	// UXBLIND-055 separates executable action discovery into the quick
+	// launcher, while global search keeps the Journeys page destination.
 	view := testView(PageHome)
 	items := globalSearchItems(view)
-	var promotion, journeys *GlobalSearchItem
+	var journeys *GlobalSearchItem
 	for index := range items {
 		item := &items[index]
 		switch item.ID {
 		case "action:promotion":
-			promotion = item
+			t.Fatal("global search must leave executable promotion actions to the quick launcher")
 		case "page:journeys":
 			journeys = item
 		case "workflow:promotion":
 			t.Fatal("promotion must not be advertised as a tracker workflow")
 		}
 	}
-	if promotion == nil || journeys == nil {
-		t.Fatalf("promotion search destinations missing: action=%v journeys=%v", promotion != nil, journeys != nil)
-	}
-	if promotion.Kind != "action" || promotion.KindLabel != view.Locale.Text("global_search.kind_action") {
-		t.Fatalf("promotion result type = %#v, want action", promotion)
-	}
-	if promotion.Href != statefulHref(view, PagePeople, "eligible", "1") {
-		t.Fatalf("promotion action href = %q, want authorized worker selection", promotion.Href)
+	if journeys == nil {
+		t.Fatal("global search lost the Journeys page result")
 	}
 	if journeys.Kind != "page" || journeys.KindLabel != view.Locale.Text("global_search.kind_page") {
 		t.Fatalf("journeys result type = %#v, want page", journeys)
 	}
-	if promotion.Description == "" || promotion.Description == journeys.Description {
-		t.Fatalf("promotion and tracker descriptions are not distinct: %q / %q", promotion.Description, journeys.Description)
-	}
-	if results := SearchGlobalItems(items, "promotion", globalSearchLimit); !hasSearchResult(results, "action:promotion") || !hasSearchResult(results, "page:journeys") {
+	if results := SearchGlobalItems(items, "promotion", globalSearchLimit); hasGlobalSearchKind(results, "action") || !hasSearchResult(results, "page:journeys") {
 		t.Fatalf("promotion search results = %#v", searchResultIDs(results))
 	}
 }
 
 func TestTodo_UXSCAN_003_Browser(t *testing.T) {
+	// The global-search browser contract now renders tracker destinations;
+	// action results are intentionally exercised by the launcher tests.
 	props := globalSearchProps(testView(PageHome))
 	props.InitialQuery = "promotion"
 	markup, err := ui.RenderToString(ui.CreateElement(GlobalSearch, props))
@@ -50,9 +45,7 @@ func TestTodo_UXSCAN_003_Browser(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`href="/workspace/app/people?eligible=1"`,
 		`href="/workspace/app/journeys"`,
-		viewText(props, "action_launcher.promote_worker"),
 		viewText(props, "page.journeys.label"),
 	} {
 		if !strings.Contains(markup, want) {
@@ -64,7 +57,7 @@ func TestTodo_UXSCAN_003_Browser(t *testing.T) {
 func TestTodo_UXSCAN_003_Accessibility(t *testing.T) {
 	view := testView(PageHome)
 	items := globalSearchItems(view)
-	for _, id := range []string{"action:promotion", "page:journeys"} {
+	for _, id := range []string{"page:journeys"} {
 		item := findGlobalSearchItem(items, id)
 		if item == nil || strings.TrimSpace(item.Label) == "" || strings.TrimSpace(item.Description) == "" || strings.TrimSpace(item.KindLabel) == "" {
 			t.Fatalf("result %q lacks accessible label/type/description: %#v", id, item)
@@ -94,18 +87,14 @@ func TestTodo_UXSCAN_003_Regression(t *testing.T) {
 }
 
 func TestTodo_UXSCAN_003_ShortResultListKeepsWorkerSelection(t *testing.T) {
+	// A short global-search result list must retain the tracker without
+	// reintroducing executable actions from the quick launcher.
 	view := testView(PageHome)
 	view.Work = nil
 	items := globalSearchItems(view)
-	for _, name := range []string{"Adrian", "Amara", "Andre", "Anika", "Aya", "Benjamin"} {
-		items = append(items, GlobalSearchItem{
-			ID: "action:promotion:" + name, Kind: "action", Label: "Start promotion for " + name,
-			Keywords: []string{"promotion"},
-		})
-	}
 	results := SearchGlobalItems(items, "promotion", 5)
-	if !hasSearchResult(results, "action:promotion") || !hasSearchResult(results, "page:journeys") {
-		t.Fatalf("short result list obscured selection or tracker: %#v", searchResultIDs(results))
+	if hasGlobalSearchKind(results, "action") || !hasSearchResult(results, "page:journeys") {
+		t.Fatalf("short result list did not preserve the tracker without duplicating actions: %#v", searchResultIDs(results))
 	}
 }
 

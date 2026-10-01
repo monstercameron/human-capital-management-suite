@@ -155,12 +155,7 @@ func signedInClient(t *testing.T, serverURL, personaID string) *http.Client {
 		t.Fatal(err)
 	}
 	res.Body.Close()
-	wantLanding := map[string]string{
-		"admin":                  PathProductHome,
-		"hiring-manager":         PathProductPrefix + "people",
-		"finance-partner":        PathProductHome,
-		"individual-contributor": PathProductPrefix + "myself",
-	}[personaID]
+	wantLanding := PathProductHome
 	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != wantLanding {
 		t.Fatalf("login as %s = %d location %q, want %q", personaID, res.StatusCode, res.Header.Get("Location"), wantLanding)
 	}
@@ -186,6 +181,10 @@ func uxaudit014Server(t *testing.T) (serverURL string) {
 	// that may sit in the past relative to whenever this suite runs.
 	handler.now = func() time.Time { return time.Now().UTC() }
 	handler.roleAccess = uxaudit014RoleAccess{}
+	// The cell runs the time clock, as every local development cell does, so
+	// the Time clock entry a persona card promises is the entry the menu shows
+	// (UXBLIND-123 hides it from a worker on a cell that runs no clock).
+	handler.clockEnabled = true
 	handler.devPersonas = make(map[string]DevPersona, 4)
 	for _, set := range DevPersonaRoleSets() {
 		handler.devPersonas[set.ID] = DevPersona{
@@ -294,7 +293,7 @@ func TestTodo_UXAUDIT_014_Browser(t *testing.T) {
 		{"finance-partner", PathProductPrefix + "myself", http.StatusOK},
 		{"finance-partner", PathProductPrefix + "organization", http.StatusOK},
 		{"finance-partner", PathProductPrefix + "work", http.StatusOK},
-		{"finance-partner", PathProductPrefix + "history", http.StatusOK},
+		{"finance-partner", PathProductPrefix + "workflows/history", http.StatusOK},
 		{"individual-contributor", PathProductPrefix + "people", http.StatusForbidden},
 		{"admin", PathProductPrefix + "admin", http.StatusOK},
 	}
@@ -346,7 +345,7 @@ func TestTodo_UXAUDIT_014_Security(t *testing.T) {
 		PathProductPrefix + "people",
 		PathProductPrefix + "journeys",
 		PathProductPrefix + "work",
-		PathProductPrefix + "history",
+		PathProductPrefix + "workflows/history",
 		PathProductPrefix + "admin",
 	}
 	// PROMOUX-015: finance-partner is admitted My Work and Work History (it

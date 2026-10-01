@@ -93,7 +93,8 @@ func TestOrganizationReportingDisclosuresAndAmbiguousNames(t *testing.T) {
 func TestOrganizationCountLabelsFollowLocale(t *testing.T) {
 	for locale, label := range map[string]string{"en-US": "People:", "de-DE": "Personen:", "ar": "الأشخاص:"} {
 		t.Run(locale, func(t *testing.T) {
-			view := ApplyRequest(testView(PageOrganization), PageRequest{Locale: locale})
+			// UXBLIND-103: the default view is the hierarchy; the "People: N" group count labels belong to the flat view.
+			view := ApplyRequest(testView(PageOrganization), PageRequest{Locale: locale, OrganizationView: organizationViewFlat})
 			doc, err := Render(view)
 			if err != nil {
 				t.Fatal(err)

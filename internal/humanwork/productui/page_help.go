@@ -7,7 +7,8 @@ import (
 )
 
 func helpPage(view View) ui.Node {
-	actions := make([]ActionLinkProps, 0, 6)
+	actions := make([]ActionLinkProps, 0, 12)
+	known := map[PageID]bool{}
 	for _, task := range []struct {
 		page PageID
 		key  string
@@ -21,9 +22,23 @@ func helpPage(view View) ui.Node {
 	} {
 		if view.Allows(task.page, "view") {
 			actions = append(actions, ActionLinkProps{Label: view.Locale.Text(task.key), Href: statefulHref(view, task.page), Navigate: view.Navigate})
+			known[task.page] = true
 		}
 	}
-	description := trimRetiredSupportBoundary(view.Locale.Text("help.access_detail"))
+	// Help topics follow the registry so published destinations remain
+	// reachable from support without a second page list to maintain.
+	for _, definition := range PageDefinitions() {
+		if known[definition.ID] || definition.ID == PageHelp || !definition.NavigationPublished || !view.Allows(definition.ID, "view") {
+			continue
+		}
+		actions = append(actions, ActionLinkProps{Label: view.Locale.Text(definition.LabelKey), Href: statefulHref(view, definition.ID), Navigate: view.Navigate})
+		known[definition.ID] = true
+	}
+	detailKey := "help.access_detail_viewer"
+	if view.Allows(PageRoles, "update") || view.Allows(PageAdmin, "view") {
+		detailKey = "help.access_detail_admin"
+	}
+	description := trimRetiredSupportBoundary(view.Locale.Text(detailKey))
 	support := InformationalPanelProps{Title: view.Locale.Text("help.access_title"), Class: "support-summary", Description: description, Destinations: authorizedSupportDestinations(view)}
 	if view.Allows(PageJourneys, "create") {
 		support.Title = view.Locale.Text("help.promotion_title")

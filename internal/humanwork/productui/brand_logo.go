@@ -294,8 +294,8 @@ func brandAssetVariantPreviews(name, mark, logoURL string, i18n I18nProps) ui.No
 	if strings.HasPrefix(logoURL, "/workspace/brand-assets/") {
 		proxyURL = logoURL + "?variant=proxy"
 	}
-	proxy := html.Img(html.Props{Src: proxyURL, Alt: "", Width: "32", Height: "32", Loading: "lazy", Class: "brand-asset-favicon-preview", Aria: map[string]string{"hidden": "true"}})
-	compactImage := html.Img(html.Props{Src: proxyURL, Alt: "", Width: "30", Height: "30", Loading: "lazy", Class: "brand-asset-compact-preview", Aria: map[string]string{"hidden": "true"}})
+	proxy := html.Img(html.Props{Src: proxyURL, Width: "32", Height: "32", Loading: "lazy", Class: "brand-asset-favicon-preview", Aria: map[string]string{"hidden": "true"}, Raw: map[string]any{"alt": ""}})
+	compactImage := html.Img(html.Props{Src: proxyURL, Width: "30", Height: "30", Loading: "lazy", Class: "brand-asset-compact-preview", Aria: map[string]string{"hidden": "true"}, Raw: map[string]any{"alt": ""}})
 	return html.Div(html.Props{Class: "brand-asset-variant-previews", Data: map[string]string{"hcm-asset-variants": "shell favicon compact contrast"}},
 		html.Div(html.Props{Class: "brand-asset-variant-shell", Data: map[string]string{"hcm-asset-variant": "shell"}},
 			html.Small(html.Props{}, ui.Text(i18n.Text("appearance.logo_preview"))),
@@ -341,6 +341,11 @@ func BrandLogo(props BrandLogoProps) ui.Node {
 	accessibleName := normalizedBrandText(props.AccessibleName, 120, name, false)
 	mark := normalizedBrandText(props.Mark, 3, DefaultCustomerTheme().BrandMark, true)
 	logoURL := normalizedBrandLogoURL(props.LogoURL)
+	failed := ui.UseState(false)
+	// Hooks are positional: the error handler is created on every render, not
+	// only when a logo is configured, so a logo that arrives or fails after the
+	// first render cannot shift this component's hook slots.
+	onError := ui.UseEvent(func(ui.Event) { failed.Set(true) })
 	state := "fallback"
 	imageProps := html.Props{
 		Class: "brand-logo-image", Width: "180", Height: "40", Loading: "eager",
@@ -348,9 +353,10 @@ func BrandLogo(props BrandLogoProps) ui.Node {
 		Data: map[string]string{"hcm-brand-logo": ""},
 		Raw:  map[string]any{"alt": "", "decoding": "async"},
 	}
-	if logoURL != "" {
+	if logoURL != "" && !failed.Get() {
 		state = "configured"
 		imageProps.Src = logoURL
+		imageProps.OnError = onError
 	}
 	className := strings.TrimSpace("brand-logo-slot " + props.Class)
 	return html.Span(html.Props{Class: className, Data: map[string]string{"hcm-brand-logo-slot": "", "hcm-brand-logo-state": state}},

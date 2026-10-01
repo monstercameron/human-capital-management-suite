@@ -60,15 +60,18 @@ func ResolveBreadcrumbs(view View) []BreadcrumbItem {
 }
 
 // showBreadcrumbTrail reports whether a resolved trail becomes a landmark.
-// A single generic crumb would duplicate the page title, so only
-// multi-segment trails and object-resolved singles (a profile naming its
-// worker) render.
+// A single generic crumb would duplicate the page title. A resolved person
+// crumb also duplicates its page heading, so only multi-segment trails and
+// other meaningful single-segment trails render.
 func showBreadcrumbTrail(view View, items []BreadcrumbItem) bool {
 	if len(items) == 0 {
 		return false
 	}
 	if len(items) > 1 {
 		return true
+	}
+	if view.Page == PagePerson && items[0].Current && items[0].Label == ResolvePageIdentity(view).Title {
+		return false
 	}
 	if definition, ok := LookupPage(view.Page); !ok || items[0].Label == view.Locale.Text(definition.LabelKey) {
 		return false

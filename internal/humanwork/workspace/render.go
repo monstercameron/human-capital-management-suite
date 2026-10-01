@@ -114,6 +114,7 @@ func RenderPage(page Page, csrf, worker string, enhanced bool) (string, error) {
 	}
 	doc = bindFormsForLocale(doc, csrf, worker, page.Locale.Resolved)
 	doc = localizeDocument(doc, page.Locale, page.Query, page.TranslationDiagnostics)
+	doc = strings.Replace(doc, "<body>", "<body"+recoveryAttributes(page)+">", 1)
 	if enhanced {
 		doc = strings.Replace(doc, "</body>",
 			contractIsland(page.Contract, csrf, worker, page.Locale.Resolved)+loaderScript()+"\n</body>", 1)

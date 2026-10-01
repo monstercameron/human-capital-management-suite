@@ -240,7 +240,10 @@ func OrganizationSearch(props OrganizationSearchProps) ui.Node {
 		html.Label(html.Props{For: "organization-search"}, ui.Text(props.Text("people.find"))),
 		html.Div(html.Props{Class: "organization-search-control"},
 			ui.CreateElement(SearchInput, input),
-			html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.Text("people.filter"))),
+			// Enter still submits the native GET form, while the live search
+			// remains a single, uncluttered control instead of a duplicate
+			// Filter button beside it.
+			html.Button(html.Props{Class: "sr-only", Type: "submit", Aria: map[string]string{"label": props.Text("people.filter")}}, ui.Text(props.Text("people.filter"))),
 		),
 	)
 	status := make([]ui.Node, 0, 2)

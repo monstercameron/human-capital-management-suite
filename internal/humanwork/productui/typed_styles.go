@@ -28,6 +28,45 @@ func declareHistoryNavigationStyles() {
 		// entire utility bar; its suggestions keep the same bounded anchor.
 		mediaRule(gwccss.MinW(1440), gwccss.MaxWidth(gwccss.Px(720))),
 	)
+	// At laptop widths the utility bar has five controls (history, search,
+	// action, utilities, and sometimes a context selector). Give it a full
+	// second row before its contents are forced into unreadable fragments.
+	declareGlobal(".topbar",
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1100px)"),
+			gwccss.GridCols(
+				gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)),
+				gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto")),
+			),
+			gwccss.Gap(gwccss.Px(8)), gwccss.Raw("padding-inline", "16px"),
+		),
+	)
+	declareGlobal(".topbar>.header-navigation-tools",
+		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1100px)"),
+			gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
+			gwccss.GridRow(gwccss.GridLineAt(2)), gwccss.Raw("padding", "0 0 14px"),
+		),
+	)
+	// Search stays a clearly labelled 44px icon at this width, then expands
+	// into a viewport-bound field on focus so it never exposes a one-letter
+	// placeholder or competes with the other header controls.
+	declareGlobal(".header-navigation-tools>.global-search",
+		mediaRule(gwccss.MaxW(1100), gwccss.Raw("flex", "0 0 44px"), gwccss.W(gwccss.Px(44)), gwccss.MinWidth(gwccss.Px(44)), gwccss.Padding(gwccss.Zero)),
+	)
+	declareGlobal(".global-search .global-search-input",
+		mediaRule(gwccss.MaxW(1100), gwccss.W(gwccss.Px(44)), gwccss.MinHeight(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("color", "transparent"), gwccss.Raw("cursor", "pointer")),
+	)
+	declareGlobal(".global-search .global-search-input::placeholder",
+		mediaRule(gwccss.MaxW(1100), gwccss.TextColor(gwccss.Color("transparent"))),
+	)
+	declareGlobal(".header-navigation-tools>.global-search:focus-within",
+		mediaRule(gwccss.MaxW(1100), gwccss.Position.Fixed, gwccss.Raw("inset-block-start", "68px"), gwccss.Raw("inset-inline", "12px"), gwccss.W(gwccss.RawLength("auto")), gwccss.ZIndex(90)),
+	)
+	declareGlobal(".global-search:focus-within .global-search-input",
+		mediaRule(gwccss.MaxW(1100), gwccss.W(gwccss.Percent(100)), gwccss.MinHeight(gwccss.Px(46)), gwccss.Raw("padding-inline", "42px 14px"), gwccss.TextColor(gwccss.Var("ink")), gwccss.Raw("cursor", "text")),
+	)
+	declareGlobal(".global-search:focus-within .global-search-input::placeholder",
+		mediaRule(gwccss.MaxW(1100), gwccss.TextColor(gwccss.Var("muted"))),
+	)
 	declareGlobal(".history-navigation-button",
 		gwccss.Display.Grid, gwccss.Raw("place-items", "center"),
 		gwccss.W(gwccss.RawLength("var(--hcm-control-height)")), gwccss.H(gwccss.RawLength("var(--hcm-control-height)")), gwccss.Padding(gwccss.Zero),
@@ -692,7 +731,7 @@ func declareViewerProfileStyles() {
 }
 
 func baseStylesheet() string {
-	return buildTypedSheet(declareBaseStyles)
+	return buildTypedSheet(declareBaseStyles) + agentsStylesheet()
 }
 
 func declareBaseStyles() {
@@ -1014,6 +1053,9 @@ func declareBaseStyles() {
 	declareGlobal(".nav-bottom",
 		gwccss.Display.Grid,
 		gwccss.Raw("margin-top", "auto"),
+	)
+	// UXBLIND-100: kept in its own rule so the pinned-footer contract above stays contiguous.
+	declareGlobal(".nav-bottom",
 		// S-3: margin-top:auto already pushes this group to the bottom of
 		// the flex-column sidebar, but at shorter viewports (laptop
 		// 1180x780) the primary nav's own content nearly fills the space
@@ -1407,6 +1449,12 @@ func declareBaseStyles() {
 		gwccss.MarginY(gwccss.Px(2)), gwccss.MarginX(gwccss.Zero),
 		gwccss.FontSize(gwccss.Rem(1.125)),
 	)
+	declareGlobal(".preview-head h2.work-preview-title",
+		gwccss.Raw("overflow-wrap", "normal"),
+		gwccss.Raw("word-break", "normal"),
+		gwccss.Raw("hyphens", "auto"),
+		gwccss.Raw("line-break", "auto"),
+	)
 	declareGlobal(".preview-head p",
 		gwccss.Margin(gwccss.Zero),
 		gwccss.FontSize(gwccss.Rem(0.8125)),
@@ -1661,6 +1709,50 @@ func declareBaseStyles() {
 		gwccss.Gap(gwccss.Px(10)),
 		gwccss.Items.Center,
 		gwccss.FontSize(gwccss.Rem(0.75)),
+	)
+	declareGlobal(".insights-breakdown .workforce-bar-row",
+		gwccss.GridCols(gwccss.TrackLen(gwccss.Px(176)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(0)), gwccss.Fr(1)), gwccss.TrackLen(gwccss.Px(40))),
+		gwccss.MinWidth(gwccss.Zero),
+		mediaRule(gwccss.MaxW(430), gwccss.GridCols(gwccss.TrackLen(gwccss.Px(128)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(0)), gwccss.Fr(1)), gwccss.TrackLen(gwccss.Px(40)))),
+	)
+	declareGlobal(".workforce-bar-label",
+		gwccss.Display.Block,
+		gwccss.MinWidth(gwccss.Zero),
+		gwccss.Raw("overflow", "hidden"),
+		gwccss.Raw("text-overflow", "ellipsis"),
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(".workforce-bar-legend",
+		gwccss.Raw("padding", "0 22px"),
+		gwccss.Raw("font-size", "0.75rem"),
+	)
+	declareGlobal(".workforce-bar-legend ul",
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Raw("gap", "8px 14px"),
+		gwccss.Raw("list-style", "none"),
+		gwccss.Margin(gwccss.Zero),
+		gwccss.Padding(gwccss.Zero),
+	)
+	declareGlobal(".workforce-bar-legend-item",
+		gwccss.Display.InlineFlex,
+		gwccss.Items.Center,
+		gwccss.Gap(gwccss.Px(5)),
+	)
+	declareGlobal(".workforce-bar-swatch",
+		gwccss.Display.InlineBlock,
+		gwccss.W(gwccss.Px(10)),
+		gwccss.H(gwccss.Px(10)),
+		gwccss.Rounded(gwccss.VarLength("hcm-radius-xs")),
+	)
+	declareGlobal(".bar-fill.workforce-bar-fill-0,.workforce-bar-swatch-0",
+		gwccss.Raw("background", "var(--accent)"),
+	)
+	declareGlobal(".bar-fill.workforce-bar-fill-1,.workforce-bar-swatch-1",
+		gwccss.Raw("background", "var(--info)"),
+	)
+	declareGlobal(".bar-fill.workforce-bar-fill-2,.workforce-bar-swatch-2",
+		gwccss.Raw("background", "var(--warning)"),
 	)
 	declareGlobal(".bar-track",
 		gwccss.H(gwccss.Px(19)),
@@ -2631,12 +2723,14 @@ func declareUtilityDrawerStyles() {
 			gwccss.MaxHeight(gwccss.RawLength("calc(100dvh - 80px)")),
 		),
 	)
-	// Icon-only between phone and desktop, like the launcher beside it.
+	// Icon-only below laptop width, like the launcher beside it. The trigger
+	// keeps its aria-label and title while the visible label yields space to
+	// the search control.
 	declareGlobal(".utility-drawer-trigger .utility-drawer-label",
-		mediaRule(gwccss.RawMedia("(min-width:431px) and (max-width:1050px)"), gwccss.Display.None),
+		mediaRule(gwccss.MaxW(1100), gwccss.Display.None),
 	)
 	declareGlobal(".utility-drawer-trigger",
-		mediaRule(gwccss.RawMedia("(min-width:431px) and (max-width:1050px)"), gwccss.W(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("justify-content", "center")),
+		mediaRule(gwccss.MaxW(1100), gwccss.W(gwccss.Px(44)), gwccss.MinWidth(gwccss.Px(44)), gwccss.H(gwccss.Px(44)), gwccss.Padding(gwccss.Zero), gwccss.Raw("justify-content", "center")),
 	)
 	declareGlobal(".utility-drawer-trigger,.utility-drawer-dialog,.utility-drawer-close",
 		mediaRule(gwccss.RawMedia("(forced-colors:active)"),
@@ -3042,7 +3136,7 @@ func declareMobileShellStyles() {
 		mediaRule(gwccss.MaxW(430), gwccss.Raw("overflow", "visible")),
 	)
 	declareGlobal(".topbar,.app-shell.nav-collapsed .topbar",
-		mediaRule(gwccss.MaxW(430), gwccss.Raw("grid-template-columns", "82px minmax(0,1fr) auto auto auto"), gwccss.Gap(gwccss.Px(6)), gwccss.Raw("padding-inline", "8px")),
+		mediaRule(gwccss.MaxW(430), gwccss.Raw("grid-template-columns", "minmax(0,120px) minmax(0,1fr) auto auto auto"), gwccss.Gap(gwccss.Px(6)), gwccss.Raw("padding-inline", "8px")),
 	)
 	declareGlobal(".topbar>.locale-menu",
 		mediaRule(gwccss.MaxW(430), gwccss.Display.None),
@@ -3100,29 +3194,29 @@ func declareMobileShellStyles() {
 	declareGlobal(".utility-drawer-trigger .utility-drawer-label",
 		mediaRule(gwccss.MaxW(430), gwccss.Display.None),
 	)
-	// Below 360px the search and action glyphs cannot share a row with the
+	// Below 430px the search and action glyphs cannot share a row with the
 	// brand, notification and viewer controls without one covering another.
 	declareGlobal(".topbar,.app-shell.nav-collapsed .topbar",
-		mediaRule(gwccss.MaxW(350),
+		mediaRule(gwccss.MaxW(430),
 			gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto"))),
 			gwccss.GridRows(gwccss.TrackLen(gwccss.Px(44)), gwccss.TrackLen(gwccss.Px(44))),
 			gwccss.Gap(gwccss.Px(6)), gwccss.PaddingY(gwccss.Px(4)), gwccss.PaddingX(gwccss.Px(8)),
 		),
 	)
 	declareGlobal(".topbar>.brand-cluster",
-		mediaRule(gwccss.MaxW(350), gwccss.GridColumn(gwccss.GridLineAt(1)), gwccss.GridRow(gwccss.GridLineAt(1))),
+		mediaRule(gwccss.MaxW(430), gwccss.GridColumn(gwccss.GridLineAt(1)), gwccss.GridRow(gwccss.GridLineAt(1))),
 	)
 	declareGlobal(".topbar>.header-navigation-tools",
-		mediaRule(gwccss.MaxW(350),
+		mediaRule(gwccss.MaxW(430),
 			gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
 			gwccss.GridRow(gwccss.GridLineAt(2)), gwccss.W(gwccss.Percent(100)), gwccss.Padding(gwccss.Zero),
 		),
 	)
 	declareGlobal(".topbar>.notifications",
-		mediaRule(gwccss.MaxW(350), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(1))),
+		mediaRule(gwccss.MaxW(430), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(1))),
 	)
 	declareGlobal(".topbar>.viewer-profile-link",
-		mediaRule(gwccss.MaxW(350), gwccss.GridColumn(gwccss.GridLineAt(3)), gwccss.GridRow(gwccss.GridLineAt(1))),
+		mediaRule(gwccss.MaxW(430), gwccss.GridColumn(gwccss.GridLineAt(3)), gwccss.GridRow(gwccss.GridLineAt(1))),
 	)
 }
 

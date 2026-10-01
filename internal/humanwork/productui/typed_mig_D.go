@@ -257,6 +257,9 @@ func declareLocalePreferenceStylesStyles() {
 	declareGlobal(".locale-choice-copy,.locale-choice-copy strong,.locale-choice-copy small",
 		gwccss.Display.Block,
 		gwccss.MinWidth(gwccss.Zero),
+		gwccss.Raw("white-space", "normal"),
+		gwccss.Raw("overflow-wrap", "normal"),
+		gwccss.Raw("word-break", "normal"),
 	)
 	declareGlobal(".locale-choice-copy small",
 		gwccss.Raw("margin-top", "3px"),

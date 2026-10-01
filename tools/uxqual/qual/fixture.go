@@ -387,17 +387,98 @@ func RunDocumentChecks(renderer, doc string, maskedNeedles []string) RendererRes
 	}
 }
 
-var styleBlockRE = regexp.MustCompile(`(?is)<style[^>]*>(.*?)</style>`)
-
 // ExtractInlineCSS pulls the concatenated contents of every <style> element
 // out of a full HTML document, renderer-agnostically, for CheckReflow.
 func ExtractInlineCSS(doc string) string {
 	var css strings.Builder
-	for _, m := range styleBlockRE.FindAllStringSubmatch(doc, -1) {
-		css.WriteString(m[1])
-		css.WriteString("\n")
+	for search := 0; search < len(doc); {
+		open := indexFold(doc, "<style", search)
+		if open < 0 {
+			break
+		}
+		script := indexFold(doc, "<script", search)
+		if script >= 0 && script < open && tagBoundary(doc, script+len("<script")) {
+			end := indexFold(doc, "</script>", script+len("<script"))
+			if end < 0 {
+				break
+			}
+			search = end + len("</script>")
+			continue
+		}
+		if !tagBoundary(doc, open+len("<style")) {
+			search = open + len("<style")
+			continue
+		}
+		if commentStartBefore(doc, open) {
+			search = open + len("<style")
+			continue
+		}
+		gt := strings.IndexByte(doc[open+len("<style"):], '>')
+		if gt < 0 {
+			break
+		}
+		bodyStart := open + len("<style") + gt + 1
+		end := indexFold(doc, "</style>", bodyStart)
+		if end < 0 {
+			break
+		}
+		css.WriteString(doc[bodyStart:end])
+		css.WriteByte('\n')
+		search = end + len("</style>")
 	}
 	return css.String()
+}
+
+func tagBoundary(doc string, index int) bool {
+	if index >= len(doc) {
+		return true
+	}
+	switch doc[index] {
+	case '>', '/', ' ', '\t', '\n', '\r', '\f':
+		return true
+	default:
+		return false
+	}
+}
+
+func commentStartBefore(doc string, index int) bool {
+	comment := strings.LastIndex(doc[:index], "<!--")
+	if comment < 0 {
+		return false
+	}
+	return strings.LastIndex(doc[:index], "-->") < comment
+}
+
+func indexFold(doc, needle string, from int) int {
+	if len(needle) == 0 {
+		return from
+	}
+	for i := strings.IndexByte(doc[from:], needle[0]); i >= 0; {
+		i += from
+		if i+len(needle) > len(doc) {
+			return -1
+		}
+		matched := true
+		for j := 0; j < len(needle); j++ {
+			if lowerASCII(doc[i+j]) != lowerASCII(needle[j]) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return i
+		}
+		from = i + 1
+		i = strings.IndexByte(doc[from:], needle[0])
+	}
+	return -1
+}
+
+func lowerASCII(char byte) byte {
+	if char >= 'A' && char <= 'Z' {
+		return char + ('a' - 'A')
+	}
+	return char
 }
 
 func attrMap(n *html.Node) map[string]string {

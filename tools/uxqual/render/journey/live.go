@@ -213,7 +213,8 @@ type WireOptions struct {
 	// row. When it is nil and nav is not, Wire falls back to navigating to
 	// that row's selection route, so the People table works on a client that
 	// supplied only the original two callbacks.
-	SelectWorker func(ref string)
+	SelectWorker    func(ref string)
+	OnReviewDismiss func(actionID string)
 }
 
 // WireOption configures WireOptions. A nil option is ignored rather than
@@ -224,6 +225,11 @@ type WireOption func(*WireOptions)
 // to a route change.
 func WithSelectWorker(fn func(ref string)) WireOption {
 	return func(o *WireOptions) { o.SelectWorker = fn }
+}
+
+// WithReviewDismiss binds form-local cleanup to a review surface dismissal.
+func WithReviewDismiss(fn func(actionID string)) WireOption {
+	return func(o *WireOptions) { o.OnReviewDismiss = fn }
 }
 
 // Wire returns a Page with every live callback the renderer understands
@@ -304,6 +310,9 @@ func Wire(s *Store, p Page, nav func(href string), submit func(actionID string, 
 			id := p.Detail.Actions[i].ID
 			p.Detail.Actions[i].OnSubmit = func(values map[string]string) { submit(id, values) }
 		}
+	}
+	if o.OnReviewDismiss != nil {
+		p.OnReviewDismiss = o.OnReviewDismiss
 	}
 	return p
 }

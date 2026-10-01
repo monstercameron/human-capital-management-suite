@@ -167,11 +167,12 @@ func companySelector(companies []DevCompany, selected DevCompany, locale string)
 		}
 		current := company.Key == selected.Key
 		out.WriteString(`<li><a class="company-option" href="` + html.EscapeString(href) + `" data-company="` + html.EscapeString(company.Key) + `"`)
+		accessibleName := copy.choose + " " + company.Name
 		if current {
+			accessibleName = company.Name + " (" + copy.current + ")"
 			out.WriteString(` aria-current="true"`)
-		} else {
-			out.WriteString(` aria-label="` + html.EscapeString(copy.choose+" "+company.Name) + `"`)
 		}
+		out.WriteString(` aria-label="` + html.EscapeString(accessibleName) + `"`)
 		out.WriteString(`>`)
 		if logo := companyLogoDataURI(company.Logo); logo != "" {
 			out.WriteString(`<img class="company-logo" src="` + logo + `" alt="" width="144" height="32">`)
@@ -195,9 +196,28 @@ func companyBrand(company DevCompany) string {
 	}
 	mark := "?"
 	if name := strings.TrimSpace(company.ShortName); name != "" {
-		mark = strings.ToUpper(name[:1])
+		mark = brandMarkForName(name)
 	}
 	return `<div class="login-brand"><span class="login-mark" aria-hidden="true">` + html.EscapeString(mark) + `</span><strong>` + html.EscapeString(company.ShortName) + `</strong></div>`
+}
+
+func brandMarkForName(name string) string {
+	parts := strings.Fields(strings.TrimSpace(name))
+	if len(parts) == 0 {
+		return "?"
+	}
+	mark := []rune(strings.ToUpper(string([]rune(parts[0])[0])))
+	if len(parts) > 1 {
+		mark = append(mark, []rune(strings.ToUpper(string([]rune(parts[len(parts)-1])[0])))...)
+	}
+	return string(mark)
+}
+
+func loginBodyAttributes(company DevCompany) string {
+	if key := strings.TrimSpace(company.Key); key != "" {
+		return ` data-hcm-company="` + html.EscapeString(key) + `"`
+	}
+	return ""
 }
 
 // companyForTenant is the served company a signed-in tenant belongs to, when
@@ -220,6 +240,7 @@ func (h *Handler) applyCompanyBrand(config *JourneyConfig) {
 		return
 	}
 	config.TenantName = company.Name
+	config.TenantMark = brandMarkForName(company.ShortName)
 	if _, known := FrontendAssetContentType(company.Logo); known {
 		config.TenantLogo = PathAssetPrefix + company.Logo
 	}
@@ -296,6 +317,17 @@ func declareLoginCompanyStyles() {
 		gwccss.FontSize(gwccss.Rem(.8)),
 		gwccss.Raw("font-weight", "700"),
 	)
+	// These declarations follow the shared login theme rules and the card's
+	// base rules, so the text colors remain readable in every card state.
+	declareGlobal(".company-option .company-name",
+		gwccss.TextColor(gwccss.Hex("17231d")),
+	)
+	declareGlobal(".company-option .company-description",
+		gwccss.TextColor(gwccss.Hex("34443a")),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .company-option[aria-current="true"]`,
+		gwccss.Raw("border-color", "#c2410c"), gwccss.Bg(gwccss.Hex("fdeee5")),
+	)
 	declareGlobal(".login-logo",
 		gwccss.Raw("height", "2.5rem"),
 		gwccss.Raw("width", "auto"),
@@ -303,4 +335,6 @@ func declareLoginCompanyStyles() {
 	declareGlobal(".company-picker ul",
 		mediaRule(gwccss.RawMedia("(max-width:42.5rem)"), gwccss.GridCols(gwccss.Fr(1))),
 	)
+	// Last, so the dark surfaces beat this sheet's light base rules.
+	declareLoginDarkStyles(true)
 }

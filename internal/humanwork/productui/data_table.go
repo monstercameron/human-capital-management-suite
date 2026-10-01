@@ -37,10 +37,12 @@ type DataTableProps struct {
 	// Busy retains the last resolved matrix while a caller resolves a newer
 	// sort, page, filter, or page-size projection. BusyLabel is both visible
 	// and announced; callers own its locale because DataTable is domain-neutral.
-	Busy      bool
-	BusyLabel string
-	Columns   []DataTableColumnProps
-	Rows      []DataTableRowProps
+	Busy        bool
+	BusyLabel   string
+	Columns     []DataTableColumnProps
+	Rows        []DataTableRowProps
+	StickyFirst bool
+	StickyLast  bool
 }
 
 // DataTableColumnProps configures one visible column. A non-empty Href makes
@@ -102,9 +104,11 @@ type DataTableCellProps struct {
 }
 
 type dataTableRowRenderProps struct {
-	Columns []DataTableColumnProps
-	Row     DataTableRowProps
-	Cells   []DataTableCellProps
+	Columns     []DataTableColumnProps
+	Row         DataTableRowProps
+	Cells       []DataTableCellProps
+	StickyFirst bool
+	StickyLast  bool
 }
 
 // DataTable renders a semantic, keyboard-scrollable table. The wrapper owns
@@ -113,7 +117,12 @@ type dataTableRowRenderProps struct {
 func DataTable(props DataTableProps) ui.Node {
 	columns := normalizedDataTableColumns(props.Columns)
 	headings := make([]ui.Node, 0, len(columns))
-	for _, column := range columns {
+	for index, column := range columns {
+		if props.StickyFirst && index == 0 {
+			column.Class = strings.TrimSpace(column.Class + " data-table-sticky-first")
+		} else if props.StickyLast && index == len(columns)-1 {
+			column.Class = strings.TrimSpace(column.Class + " data-table-sticky-last")
+		}
 		headings = append(headings, ui.CreateElement(DataTableColumn, column))
 	}
 	columnIndexes := make(map[string]int, len(columns))
@@ -123,7 +132,7 @@ func DataTable(props DataTableProps) ui.Node {
 	rows := make([]ui.Node, 0, len(props.Rows))
 	for _, row := range props.Rows {
 		rows = append(rows, ui.CreateElement(dataTableRow, dataTableRowRenderProps{
-			Columns: columns, Row: row, Cells: alignDataTableCells(row.Cells, columns, columnIndexes),
+			Columns: columns, Row: row, Cells: alignDataTableCells(row.Cells, columns, columnIndexes), StickyFirst: props.StickyFirst, StickyLast: props.StickyLast,
 		}))
 	}
 	class := strings.TrimSpace("data-table " + props.Class)
@@ -177,6 +186,11 @@ func DataTableColumn(column DataTableColumnProps) ui.Node {
 		class += " " + widthClass
 	}
 	props := html.Props{Class: class, Raw: map[string]any{"scope": "col"}}
+	if strings.Contains(class, "data-table-sticky-first") {
+		props.Style = map[string]string{"position": "sticky", "inset-inline-start": "0", "background": "var(--surface-subtle, var(--surface))", "z-index": "3"}
+	} else if strings.Contains(class, "data-table-sticky-last") {
+		props.Style = map[string]string{"position": "sticky", "inset-inline-end": "0", "background": "var(--surface-subtle, var(--surface))", "z-index": "3"}
+	}
 	if column.Href != "" && column.Sort != "" && column.Sort != DataTableUnsorted {
 		props.Aria = map[string]string{"sort": string(column.Sort)}
 	}
@@ -196,7 +210,13 @@ func DataTableColumn(column DataTableColumnProps) ui.Node {
 func dataTableRow(props dataTableRowRenderProps) ui.Node {
 	cells := make([]ui.Node, 0, len(props.Columns))
 	for index, column := range props.Columns {
-		cells = append(cells, dataTableCell(column, props.Cells[index]))
+		cell := props.Cells[index]
+		if props.StickyFirst && index == 0 {
+			cell.Class = strings.TrimSpace(cell.Class + " data-table-sticky-first")
+		} else if props.StickyLast && index == len(props.Columns)-1 {
+			cell.Class = strings.TrimSpace(cell.Class + " data-table-sticky-last")
+		}
+		cells = append(cells, dataTableCell(column, cell))
 	}
 	class := strings.TrimSpace("data-table-row " + props.Row.Class)
 	return html.Tr(html.Props{Class: class, Data: map[string]string{"row-id": props.Row.ID}}, cells...)
@@ -224,6 +244,11 @@ func dataTableCell(column DataTableColumnProps, cell DataTableCellProps) ui.Node
 		class += " align-end"
 	}
 	props := html.Props{Class: class, Data: map[string]string{"column": column.ID, "label": column.Label}}
+	if strings.Contains(class, "data-table-sticky-first") {
+		props.Style = map[string]string{"position": "sticky", "inset-inline-start": "0", "background": "var(--surface, white)", "z-index": "2"}
+	} else if strings.Contains(class, "data-table-sticky-last") {
+		props.Style = map[string]string{"position": "sticky", "inset-inline-end": "0", "background": "var(--surface, white)", "z-index": "2"}
+	}
 	children := cell.Children
 	if len(children) == 0 && cell.Text != "" {
 		children = []ui.Node{ui.Text(cell.Text)}

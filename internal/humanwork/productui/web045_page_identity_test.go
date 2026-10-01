@@ -33,7 +33,8 @@ func TestPageHeadingRendersResolvedIdentityWithoutPageView(t *testing.T) {
 func TestTodo_WEB_045(t *testing.T) {
 	history := ApplyRoleVisibility(testView(PageHistory), []string{"manager"})
 	identity := ResolvePageIdentity(history)
-	if identity.Page != PageHistory || identity.Title != "Workflow History" || identity.Subtitle == "" {
+	// UXBLIND-027: the page has one registered name, Work History.
+	if identity.Page != PageHistory || identity.Title != "Work History" || identity.Subtitle == "" {
 		t.Fatalf("history identity = %#v, want registry title and subtitle", identity)
 	}
 	if identity.ScopeHref != "" || identity.ScopeLabel != "" {
@@ -53,8 +54,10 @@ func TestTodo_WEB_045(t *testing.T) {
 
 	// Home greets the viewer; unknown pages fall back to Home, never blank.
 	home := ResolvePageIdentity(testView(PageHome))
-	if home.Page != PageHome || !strings.Contains(home.Title, "Taylor") {
-		t.Fatalf("home identity = %#v, want greeting for Taylor", home)
+	// UXBLIND-084: the greeting uses the preferred first name from the viewer's
+	// directory record (worker-jordan), not the session display name.
+	if home.Page != PageHome || !strings.Contains(home.Title, "Jordan") {
+		t.Fatalf("home identity = %#v, want greeting for Jordan", home)
 	}
 	unknown := ResolvePageIdentity(View{Page: PageID("no-such-page"), Locale: ResolveProductLocale("")})
 	if unknown.Page != PageHome || unknown.Title == "" || unknown.Subtitle == "" {
@@ -78,7 +81,8 @@ func TestTodo_WEB_045_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(node))
 	got := hex.EncodeToString(digest[:])
-	const want = "cc4d3b0c6e3b09d69b82eb3442dc4677b1a622849315a5237c1abea1d22cae5f"
+	// UXBLIND: re-pinned after the header_identity.go rework; the rendered header keeps breadcrumbs, one h1#page-title and the subtitle.
+	const want = "7ef48ef4d31e5b0e3818f2b915f867ae64dfdd7f4f224f835031348687f23527"
 	if got != want {
 		t.Fatalf("page-identity header golden digest = %s, want %s", got, want)
 	}
@@ -103,7 +107,7 @@ func TestTodo_WEB_045_Browser(t *testing.T) {
 		t.Fatalf("page-head data-hcm-page = %q, want stable history id", got)
 	}
 	title := findPageTitle(head)
-	if title == nil || textContent(title) != "Workflow History" {
+	if title == nil || textContent(title) != "Work History" { // UXBLIND-027: one page name
 		t.Fatal("page-head h1 does not carry the registry title")
 	}
 	mains := collectElements(root, "main")

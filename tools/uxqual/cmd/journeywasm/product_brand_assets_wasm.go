@@ -80,22 +80,16 @@ func loadBrandAssets(cfg journeyclient.Config, locale productui.LocaleContext, b
 			ui.PostAsync(func() { done(nil, 0, errBrandAssetUpload) })
 			return
 		}
-		wire := awaitChatJS(response.Call("json"))
-		rows := wire.Get("assets")
-		assets := make([]productui.BrandAssetOption, 0, rows.Length())
-		for index := 0; index < rows.Length(); index++ {
-			row := rows.Index(index)
-			if row.Get("removed").Bool() {
-				continue
-			}
-			revision := row.Get("revision").Int()
-			url := ""
-			if row.Get("url").Truthy() {
-				url = row.Get("url").String()
-			}
-			assets = append(assets, productui.BrandAssetOption{Label: row.Get("name").String() + " · " + locale.Text("appearance.asset_revision_label", map[string]string{"revision": strconv.Itoa(revision)}), URL: url, Revision: revision, HeadRevision: row.Get("head_revision").Int(), CanRollback: row.Get("can_rollback").Bool(), CanRemove: row.Get("can_remove").Bool(), Digest: row.Get("digest").String(), Width: row.Get("width").Int(), Height: row.Get("height").Int()})
+		text := awaitChatJS(response.Call("text"))
+		if text.Type() != js.TypeString {
+			ui.PostAsync(func() { done(nil, 0, errBrandAssetUpload) })
+			return
 		}
-		next := wire.Get("next_before").Int()
+		assets, next, err := decodeBrandAssetPage([]byte(text.String()), locale)
+		if err != nil {
+			ui.PostAsync(func() { done(nil, 0, errBrandAssetUpload) })
+			return
+		}
 		ui.PostAsync(func() { done(assets, next, nil) })
 	}()
 }

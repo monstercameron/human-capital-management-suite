@@ -145,7 +145,8 @@ func TestTodo_PROMOUX_007_Golden(t *testing.T) {
 			help = field.Help
 		}
 	}
-	const want = "For this role, base pay must increase by 5.00% to 15.00%. Benefit eligibility is reviewed separately; existing choices do not change with this request. Available base-pay range: USD\u00a0105.04 to USD\u00a0115.03 per year."
+	// UXBLIND-013: the form labels this bound as the allowed proposed pay, distinct from the role band.
+	const want = "For this role, base pay must increase by 5.00% to 15.00%. Benefit eligibility is reviewed separately; existing choices do not change with this request. Allowed proposed base-pay range: USD\u00a0105.04 to USD\u00a0115.03 per year."
 	if help != want {
 		t.Fatalf("published pay guidance changed:\n%s", help)
 	}

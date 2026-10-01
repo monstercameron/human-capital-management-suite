@@ -1,6 +1,7 @@
 package productui
 
 import (
+	"net/url"
 	"strings"
 	"testing"
 
@@ -100,5 +101,44 @@ func TestTodo_UXLIVE_007_Browser(t *testing.T) {
 		if !strings.Contains(doc, city) {
 			t.Fatalf("the scope footprint dropped %q under a search:\n%s", city, doc)
 		}
+	}
+}
+
+// TestTodo_UXLIVE_007_Golden pins the organization filter's address shape:
+// the filtered view owns q, and clearing it remains an explicit address
+// state rather than falling back to another page's remembered search.
+func TestTodo_UXLIVE_007_Golden(t *testing.T) {
+	view := ApplyRequest(uxlive007View("Jane"), PageRequest{Page: PageOrganization, Query: "Jane", OrganizationView: organizationViewFlat})
+	filtered := organizationFilterHref(view, "Jane")
+	cleared := organizationFilterHref(view, "")
+	for href, want := range map[string]string{filtered: "Jane", cleared: ""} {
+		parsed, err := url.Parse(href)
+		if err != nil {
+			t.Fatalf("parse organization href %q: %v", href, err)
+		}
+		if got := parsed.Query().Get("q"); got != want {
+			t.Fatalf("organization href %q q=%q, want %q", href, got, want)
+		}
+	}
+	if parsed, err := url.Parse(filtered); err != nil || parsed.Path != Path(PageOrganization) {
+		t.Fatalf("filtered organization href %q is not the organization route", filtered)
+	}
+}
+
+// TestTodo_UXLIVE_007_Security keeps user-entered filter text in the q
+// parameter. It cannot smuggle a person selector or another route key into
+// the organization address.
+func TestTodo_UXLIVE_007_Security(t *testing.T) {
+	view := ApplyRequest(uxlive007View("Jane"), PageRequest{Page: PageOrganization, Query: "Jane"})
+	href := organizationFilterHref(view, `Jane&person=worker-secret`)
+	parsed, err := url.Parse(href)
+	if err != nil {
+		t.Fatalf("parse organization href: %v", err)
+	}
+	if got := parsed.Query().Get("q"); got != `Jane&person=worker-secret` {
+		t.Fatalf("filter text was not kept inside q: %q", got)
+	}
+	if got := parsed.Query().Get("person"); got == "worker-secret" {
+		t.Fatalf("filter text injected a person selector: %q", got)
 	}
 }

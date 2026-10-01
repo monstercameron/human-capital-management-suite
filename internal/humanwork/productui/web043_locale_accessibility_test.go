@@ -127,7 +127,9 @@ func findLabelFor(root *xhtml.Node, id string) *xhtml.Node {
 }
 
 // web043GoldenDigest is pinned from the GREEN implementation run.
-const web043GoldenDigest = "e8785e1a30e918f53ca24d20e2e33ea3b8f2686c8ed8c175a3fdd6fa384e4d0e"
+// Re-pinned 2026-09-28 after reading the render: language and accessibility sections intact, no unresolved key.
+// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+const web043GoldenDigest = "11400f240400c4189c3c3f8fc6457e31aa5b2d81f2e38ed120f1cc633331b8c8"
 
 func TestTodo_WEB_043_Golden(t *testing.T) {
 	doc, err := Render(testView(PageSettings))

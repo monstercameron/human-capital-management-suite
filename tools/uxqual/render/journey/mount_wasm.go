@@ -37,16 +37,136 @@ func MountLive(store *Store, selector string) error {
 	if store == nil {
 		return ErrMountFailed
 	}
+	var stopIdentity func()
+	var stopViewport func()
 	return defaultMount.Mount(selector, func() error {
 		injectStylesheet()
 		ui.Render(LiveComponent(store), selector)
+		applyDocumentIdentity(store.Page())
+		stopIdentity = store.Subscribe(func() {
+			ui.PostAsync(func() { applyDocumentIdentity(store.Page()) })
+		})
+		stopViewport = bindNavigationViewport(selector)
 		return nil
 	}, func() {
+		if stopViewport != nil {
+			stopViewport()
+		}
+		if stopIdentity != nil {
+			stopIdentity()
+		}
 		// Rendering an empty root is GWC v5's public unmount path. It runs
 		// effect cleanups (including LiveComponent's Store unsubscribe) and
 		// removes the owned DOM tree without reaching into runtime internals.
 		ui.Render(nil, selector)
 	})
+}
+
+func applyDocumentIdentity(page Page) {
+	title := page.Title
+	if title == "" {
+		title = page.Brand
+	}
+	if page.TenantLabel != "" {
+		title += " · " + page.TenantLabel
+	} else if page.Brand != "" && page.Brand != title {
+		title += " · " + page.Brand
+	}
+	if title != "" {
+		js.Global().Get("document").Set("title", title)
+	}
+}
+
+// bindNavigationViewport makes the mount the single scroll owner for route
+// changes. Ordinary hash navigation starts at the top; browser Back/Forward
+// restores the position recorded for the destination. A focused control gets
+// one frame of protection around reconciler mutations so a controlled input
+// can never make the document jump while the user is typing.
+func bindNavigationViewport(selector string) func() {
+	window := js.Global()
+	document := window.Get("document")
+	positions := map[string]float64{}
+	lastHash := document.Get("location").Get("hash").String()
+	traversing := false
+	focusedScroll := 0.0
+	focusedControl := false
+	scrollY := func() float64 {
+		root := document.Call("querySelector", selector+" .jn-main")
+		if root.Truthy() {
+			return root.Get("scrollTop").Float()
+		}
+		return window.Get("scrollY").Float()
+	}
+	setScroll := func(y float64) {
+		root := document.Call("querySelector", selector+" .jn-main")
+		if root.Truthy() {
+			root.Call("scrollTo", 0, y)
+		}
+		window.Call("scrollTo", 0, y)
+	}
+	save := func(hash string) { positions[hash] = scrollY() }
+	hashChanged := js.FuncOf(func(js.Value, []js.Value) any {
+		save(lastHash)
+		lastHash = document.Get("location").Get("hash").String()
+		if traversing {
+			if y, ok := positions[lastHash]; ok {
+				setScroll(y)
+			} else {
+				setScroll(0)
+			}
+		} else {
+			setScroll(0)
+		}
+		traversing = false
+		return nil
+	})
+	popState := js.FuncOf(func(js.Value, []js.Value) any { traversing = true; return nil })
+	window.Call("addEventListener", "hashchange", hashChanged)
+	window.Call("addEventListener", "popstate", popState)
+	focusIn := js.FuncOf(func(js.Value, []js.Value) any { focusedControl = true; focusedScroll = scrollY(); return nil })
+	focusOut := js.FuncOf(func(js.Value, []js.Value) any { focusedControl = false; return nil })
+	window.Call("addEventListener", "focusin", focusIn)
+	window.Call("addEventListener", "focusout", focusOut)
+
+	var observer js.Value
+	var observerCallback js.Func
+	observerAttached := false
+	observerCallbackCreated := false
+	if ctor := window.Get("MutationObserver"); ctor.Truthy() {
+		observerCallback = js.FuncOf(func(js.Value, []js.Value) any {
+			active := document.Get("activeElement")
+			if focusedControl && active.Truthy() && active.Call("matches", "input,textarea,select,[contenteditable='true']").Truthy() {
+				y := focusedScroll
+				var restore js.Func
+				restore = js.FuncOf(func(js.Value, []js.Value) any { setScroll(y); restore.Release(); return nil })
+				window.Call("requestAnimationFrame", restore)
+			}
+			return nil
+		})
+		observerCallbackCreated = true
+		observer = ctor.New(observerCallback)
+		root := document.Call("querySelector", selector)
+		if root.Truthy() {
+			observer.Call("observe", root, map[string]any{"childList": true, "subtree": true})
+			observerAttached = true
+		}
+	}
+	return func() {
+		window.Call("removeEventListener", "hashchange", hashChanged)
+		window.Call("removeEventListener", "popstate", popState)
+		window.Call("removeEventListener", "focusin", focusIn)
+		window.Call("removeEventListener", "focusout", focusOut)
+		hashChanged.Release()
+		popState.Release()
+		focusIn.Release()
+		focusOut.Release()
+		if observerAttached {
+			observer.Call("disconnect")
+		}
+		if observerCallbackCreated {
+			observerCallback.Release()
+		}
+	}
 }
 
 var defaultMount = NewMountLifecycle()

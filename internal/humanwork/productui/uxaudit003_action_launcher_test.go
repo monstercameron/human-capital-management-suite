@@ -191,7 +191,7 @@ func TestTodo_UXAUDIT_003_Browser(t *testing.T) {
 	if eligible == nil || eligible.Href == "" {
 		t.Fatal("fixture lost its launchable eligible-worker action")
 	}
-	link := linkForRoute(root, eligible.Href)
+	link := launcherAnchorForHref(root, eligible.Href) // UXBLIND-066: linkForRoute now requires a nav-link class the launcher row does not carry.
 	if link == nil {
 		t.Fatalf("launchable action did not render as a real anchor with href %q", eligible.Href)
 	}
@@ -203,7 +203,7 @@ func TestTodo_UXAUDIT_003_Browser(t *testing.T) {
 	if blocked == nil || blocked.Reason == "" {
 		t.Fatal("fixture lost its blocked-worker explanation")
 	}
-	if linkForRoute(root, "") != nil {
+	if launcherAnchorForHref(root, "") != nil {
 		// Guard against a false-positive empty href ever matching by
 		// accident; the real assertion is the loop below.
 		t.Fatal("an anchor with an empty href was rendered")
@@ -331,7 +331,8 @@ func TestTodo_UXAUDIT_003_Accessibility(t *testing.T) {
 			t.Fatal(err)
 		}
 		body := string(source)
-		if !strings.Contains(body, `usePopoverFocusDismissal("action-launcher", "action-launcher-trigger", open.Get()`) {
+		// UXBLIND-057: one shared popover controller replaced the per-popover hook.
+		if !strings.Contains(body, `useUXBlindQPopoverDismissal("action-launcher", open.Get()`) {
 			t.Fatal("ActionLauncher does not wire outside-focus/pointer/Escape dismissal through the shared usePopoverFocusDismissal hook")
 		}
 	})
@@ -531,4 +532,15 @@ func TestTodo_UXAUDIT_003_Regression(t *testing.T) {
 			}
 		}
 	})
+}
+
+// launcherAnchorForHref finds the launcher's own anchor for one href.
+func launcherAnchorForHref(root *xhtml.Node, href string) *xhtml.Node {
+	var found *xhtml.Node
+	walkElements(root, func(node *xhtml.Node) {
+		if found == nil && node.Data == "a" && attr(node, "href") == href {
+			found = node
+		}
+	})
+	return found
 }

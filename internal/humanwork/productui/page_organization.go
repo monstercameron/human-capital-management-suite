@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/organization"
 )
 
 func organizationPage(view View) ui.Node {
@@ -19,7 +18,7 @@ func organizationRoutePage(view View, forceTree bool) ui.Node {
 }
 
 func organizationPageWithCopy(view View, title, description string, forceTree bool) ui.Node {
-	population := admittedPeople(view)
+	population := visibleWorkforcePeople(view)
 	filtered := filterOrganizationPeople(population, view.Query)
 	graph := readOrganizationGraph(view)
 	graphBacked := view.OrganizationGraph != nil
@@ -41,6 +40,8 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 		}
 		filtered = filterOrganizationPeople(population, view.Query)
 	}
+	workforce := visibleWorkforceSummary(population, graphBacked, graph)
+	metadataTitle := employeeOrganizationMetadataTitle(view, population)
 	scoped := view
 	scoped.People = population
 	relationships := newOrganizationRelationshipIndex(scoped)
@@ -54,12 +55,10 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 	// deriving them from the filter made the card report one unit, one
 	// location and one pay zone beside a workforce of sixty-four, under a
 	// heading that says it describes the scope (UXLIVE-007).
-	units := map[string]bool{}
 	locations := map[string]bool{}
 	payZones := map[string]bool{}
 	for index, person := range relationships.people {
 		if !graphBacked {
-			units[valueOrUnavailable(person.Team)] = true
 			if value := strings.TrimSpace(person.Location); value != "" {
 				locations[value] = true
 			}
@@ -74,18 +73,11 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 		members[team] = append(members[team], relationships.annotate(scoped, index))
 	}
 	if graphBacked {
-		units = map[string]bool{}
 		if graph.Err == nil {
-			for _, edge := range graph.Edges {
-				if edge.Type == organization.Hierarchy {
-					units[edge.Source] = true
-					units[edge.Target] = true
+			for locationID := range graph.LocationIDs {
+				if location, ok := graph.UnitByID[locationID]; ok && strings.TrimSpace(location.Name) != "" {
+					locations[location.Name] = true
 				}
-			}
-		}
-		for locationID := range graph.LocationIDs {
-			if location, ok := graph.UnitByID[locationID]; ok && strings.TrimSpace(location.Name) != "" {
-				locations[location.Name] = true
 			}
 		}
 	}
@@ -106,10 +98,10 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 	return ui.CreateElement(OrganizationPage, OrganizationPageProps{
 
 		I18nProps: I18nProps{Locale: view.Locale}, Title: title, Description: description, Groups: groups,
-		Summary: OrganizationSummaryProps{VisiblePeople: len(population), Units: len(units), Scope: view.Scope,
+		Summary: OrganizationSummaryProps{VisiblePeople: workforce.Workforce, Units: workforce.Units, Scope: view.Scope,
 			CompactLabel: densityLabel(view.Locale, "compact"), ComfortableLabel: densityLabel(view.Locale, "comfortable"), SpaciousLabel: densityLabel(view.Locale, "spacious"),
 			ExpandAllLabel: view.Locale.Text("nav.expand"), CollapseAllLabel: view.Locale.Text("nav.collapse")}, Density: view.EffectiveAppearance().Density,
-		ViewLabel: view.Locale.Text("organization.view_label"), TreeActive: forceTree || view.OrganizationView == organizationViewTree, TreeLocked: forceTree,
+		ViewLabel: view.Locale.Text("organization.view_label"), TreeActive: forceTree || normalizeOrganizationView(view.OrganizationView) == organizationViewTree, TreeLocked: forceTree,
 		FlatAction: ActionLinkProps{Label: view.Locale.Text("organization.view_flat"), Href: organizationStateHref(view, "org_view", organizationViewFlat), Class: "organization-view-option", Navigate: view.Navigate},
 		TreeAction: ActionLinkProps{Label: view.Locale.Text("organization.view_tree"), Href: organizationStateHref(view, "org_view", organizationViewTree), Class: "organization-view-option", Navigate: view.Navigate},
 		Search: OrganizationSearchProps{
@@ -125,11 +117,11 @@ func organizationPageWithCopy(view View, title, description string, forceTree bo
 		Tree:      filterOwnershipTree(relationships.tree(scoped), visible),
 		TreeLabel: view.Locale.Text("organization.tree_label"),
 		Metadata: BusinessMetadataProps{
-			Title: view.Locale.Text("organization.metadata_title"), Description: view.Locale.Text("organization.metadata_description"),
+			Title: metadataTitle, Description: view.Locale.Text("organization.metadata_description"),
 			Items: withKnownAccessScope(view, []BusinessMetadataItemProps{
 				{Label: view.Locale.Text("organization.business_name"), Value: valueOrUnavailableFor(view.Locale, view.Tenant)},
-				{Label: view.Locale.Text("organization.visible_workforce"), Value: number(len(population))},
-				{Label: view.Locale.Text("organization.units"), Value: number(len(units))},
+				{Label: view.Locale.Text("organization.visible_workforce"), Value: number(workforce.Workforce)},
+				{Label: view.Locale.Text("organization.units"), Value: number(workforce.Units)},
 				{Label: view.Locale.Text("organization.locations"), Value: number(len(locations))},
 				{Label: view.Locale.Text("organization.pay_zones"), Value: number(len(payZones))},
 			}),
@@ -184,7 +176,7 @@ func organizationSearchHiddenInputs(view View) map[string]string {
 
 func organizationSearchSummary(view View, filtered, total int) string {
 	if strings.TrimSpace(view.Query) == "" {
-		return organizationCountLabel(view, "organization.members_count", total)
+		return ""
 	}
 	return view.Locale.Text("people.filtered_count", map[string]string{
 		"filtered": view.Locale.FormatNumber(strconv.Itoa(filtered), 0),
@@ -293,6 +285,9 @@ const (
 )
 
 func normalizeOrganizationView(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return organizationViewTree
+	}
 	if strings.EqualFold(strings.TrimSpace(value), organizationViewTree) {
 		return organizationViewTree
 	}
@@ -321,6 +316,9 @@ type organizationRelationshipIndex struct {
 // breakOwnershipCycles for why a mutual reporting cycle can never nest.
 func newOrganizationRelationshipIndex(view View) organizationRelationshipIndex {
 	people := append([]Person(nil), view.People...)
+	for index := range people {
+		people[index].Name = PreferredFamilyName(people[index])
+	}
 	sort.SliceStable(people, func(i, j int) bool { return strings.ToLower(people[i].Name) < strings.ToLower(people[j].Name) })
 
 	byWorkerID := make(map[string]int, len(people))

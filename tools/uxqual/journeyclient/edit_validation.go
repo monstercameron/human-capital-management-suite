@@ -50,7 +50,38 @@ func (a *App) refuseEditProposal(errs map[string]string) {
 	a.editErrors = errs
 	a.proposalFocusRevision++
 	a.mu.Unlock()
-	a.show(keyedNotice(toneWarning, "journey.required_fields_title", "journey.required_fields_detail"))
+	// Required-field feedback belongs to the edit dialog. Publishing a page
+	// banner here leaves a pointer to fields that disappear when the dialog is
+	// dismissed.
+	a.show(nil)
+}
+
+func (a *App) dismissReview(actionID string) {
+	if actionID != ActionEditProposal {
+		return
+	}
+	a.mu.Lock()
+	hadErrors := len(a.editErrors) > 0
+	a.editErrors = nil
+	a.mu.Unlock()
+	if !hadErrors {
+		return
+	}
+	a.store.Update(func(page *journey.Page) {
+		if page.Detail == nil {
+			return
+		}
+		for i := range page.Detail.Actions {
+			if page.Detail.Actions[i].ID != ActionEditProposal {
+				continue
+			}
+			fields := append([]journey.Field(nil), page.Detail.Actions[i].Fields...)
+			for j := range fields {
+				fields[j].Error = ""
+			}
+			page.Detail.Actions[i].Fields = fields
+		}
+	})
 }
 
 // applyEditErrors copies the current edit-dialog errors onto the projected

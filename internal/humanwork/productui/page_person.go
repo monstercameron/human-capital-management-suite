@@ -21,7 +21,9 @@ func resolvedPersonPageLabel(view View) (string, bool) {
 	if !ok || !DiscoveryAdmitted(person.ID, workerIdentityVerdicts(view)) {
 		return "", false
 	}
-	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
+	displayPerson := person
+	displayPerson.Name = viewerDisplayName(view, person)
+	identity := ResolveWorkerIdentity(view.Locale, displayPerson, workerIdentityVerdicts(view))
 	if identity.NameStatus != WorkerFactPresent || strings.TrimSpace(identity.Name) == "" {
 		return "", false
 	}
@@ -40,6 +42,10 @@ func personPage(view View) ui.Node {
 	}
 
 	profile := personProfileProps(view, person, PagePerson)
+	// The shell already owns the person route's primary H1. Keep the profile
+	// hero as supporting identity (avatar, role and lifecycle) so the worker's
+	// display name is announced once rather than as two adjacent headings.
+	profile.Hero.Name = ""
 	props.Profile = &profile
 	return ui.CreateElement(PersonPage, props)
 }
@@ -49,7 +55,9 @@ func personPage(view View) ui.Node {
 // the same facts and composition; only their navigation state differs.
 func personProfileProps(view View, person Person, target PageID) PersonProfileProps {
 	text := view.Locale.Text
-	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
+	displayPerson := person
+	displayPerson.Name = viewerDisplayName(view, person)
+	identity := ResolveWorkerIdentity(view.Locale, displayPerson, workerIdentityVerdicts(view))
 	overview := ResolveWorkerOverview(view.Locale, person, view.RecordVerdicts)
 	employment := ResolveWorkerEmployment(view.Locale, person, view.RecordVerdicts)
 	pay := ResolveWorkerPay(view.Locale, person, view.RecordVerdicts)
@@ -101,8 +109,9 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 	compensation := profileFactsFromWorkerSection(pay)
 	personal := fact(nil, text("person.legal_name"), "legal_name", person.LegalName)
 	personal = fact(personal, text("person.preferred_name"), "preferred_name", person.PreferredName)
-	personal = fact(personal, text("person.worker_id"), "worker_id", person.WorkerID)
-	personal = fact(personal, text("person.worker_ref"), "record_id", person.ID)
+	// Internal worker and record identifiers are diagnostic-only and are not
+	// projected into the profile disclosure.
+	personal = append(personal, compensation...)
 
 	return PersonProfileProps{
 		Hero: PersonHeroProps{
@@ -118,12 +127,12 @@ func personProfileProps(view View, person Person, target PageID) PersonProfilePr
 		},
 		Compensation: EmploymentDetailsProps{
 			Title: text("person.compensation"), Description: text("person.compensation_detail"), Class: "compensation-details",
-			Facts: compensation},
+			Facts: nil},
 		Personal: SensitiveDetailsProps{
 			Title: text("person.personal_information"), Description: text("person.personal_hidden"), Badge: text("person.restricted"),
 			Facts: personal,
 		},
-		Workflows: personWorkflowLauncherProps(view, person, target),
+		Workflows: personWorkflowLauncherProps(view, displayPerson, target),
 		Active:    personActiveWorkflowsProps(view, person, target),
 		History: workflowHistoryPropsForTarget(view, person.ID, target, text("work.past"),
 			text("person.history_detail", map[string]string{"name": identity.Name}), true),
@@ -144,7 +153,9 @@ func profileFactsFromWorkerSection(section WorkerSection) []ProfileFactProps {
 }
 
 func personWorkflowLauncherProps(view View, person Person, target PageID) WorkflowLauncherProps {
-	identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
+	displayPerson := person
+	displayPerson.Name = viewerDisplayName(view, person)
+	identity := ResolveWorkerIdentity(view.Locale, displayPerson, workerIdentityVerdicts(view))
 	// UXLIVE-033: authority, the promotion verdict and the continuation of
 	// an open request come from the one projection the People row and the
 	// action launcher also read; this launcher only lays them out.
@@ -215,6 +226,13 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 	launcher := WorkflowLauncherProps{
 		UnavailableDetail: unavailableDetail,
 		PersonName:        identity.Label, TotalCount: len(available), Filter: filter, Workflows: workflows,
+	}
+	// A short launcher is already scannable; reserve the search affordance for
+	// five or more choices so a single workflow does not look like a catalogue.
+	if len(available) < 5 {
+		// TotalCount stays the number of cards held so an empty search can be
+		// told from an empty launcher (REV-095-03); only the count is hidden.
+		launcher.HideCount = true
 	}
 	if hasActivePromotion {
 		launcher.Heading = view.Locale.Text("workflow.continue_heading")

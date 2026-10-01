@@ -176,7 +176,9 @@ func TestTodo_WEB_063_Golden(t *testing.T) {
 	// Date-vocabulary re-pin: the Past workflows row reads "Effective · 1 Aug
 	// 2026" instead of the stored ISO key; substituting "2026-08-01" back
 	// reproduces the previous pin 05ce9c3b... exactly.
-	if got := hex.EncodeToString(digest[:]); got != "db38b862983f2a8c733e82a40c24ff240653edf55dd413389d013d4b34610794" {
+	// UXBLIND-027 re-pin: page title now equals the page label (one name
+	// per page), which shifts every registry-derived golden digest.
+	if got := hex.EncodeToString(digest[:]); got != "04fdec3197fe4b410c2f05680353649d5cb338a777e95dbd83ca7ff7eb3a3794" {
 		t.Fatalf("governed profile golden mismatch: %s\n%s", got, node)
 	}
 }

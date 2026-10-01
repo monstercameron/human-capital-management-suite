@@ -8,6 +8,65 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
+// capabilityUnavailablePanel is the shared presentation for an optional
+// service that this workspace has not composed. It deliberately has no
+// recovery link or action: retrying cannot enable a capability that the cell
+// did not publish, and the administrator is the person who can change that
+// composition.
+func capabilityUnavailablePanel(locale LocaleContext) ui.Node {
+	title := locale.Text("capability_unavailable.title")
+	detail := locale.Text("capability_unavailable.detail")
+	return ui.CreateElement(EmptyState, EmptyStateProps{Title: title, Description: detail, Role: "status", Class: "capability-unavailable"})
+}
+
+// capabilityUnavailableFrame keeps the route identity visible while an
+// optional capability is absent. Page components share this frame so an
+// unavailable service cannot erase the page's H1/subtitle or invent a tab
+// surface with no content behind it.
+func capabilityUnavailableFrame(view View) ui.Node {
+	identity := ResolvePageIdentity(view)
+	title, subtitle := strings.TrimSpace(view.Title), strings.TrimSpace(view.Subtitle)
+	if title == "" {
+		title = identity.Title
+	}
+	if subtitle == "" {
+		subtitle = identity.Subtitle
+	}
+	children := []ui.Node{
+		html.H1(html.Props{ID: "page-title", TabIndex: -1}, ui.Text(title)),
+	}
+	if subtitle != "" {
+		children = append(children, html.P(html.Props{Class: "capability-unavailable-subtitle"}, ui.Text(subtitle)))
+	}
+	children = append(children, capabilityUnavailablePanelForView(view))
+	return html.Section(html.Props{Class: "capability-unavailable-frame", Role: "region", Aria: map[string]string{"label": title}}, children...)
+}
+
+func capabilityUnavailablePanelForView(view View) ui.Node {
+	locale := view.Locale
+	if !capabilityUnavailableAdministrator(view) {
+		return ui.CreateElement(EmptyState, EmptyStateProps{
+			Title: locale.Text("capability_unavailable.title"), Description: locale.Text("capability_unavailable.request_detail"),
+			Role: "status", Class: "capability-unavailable",
+		})
+	}
+	return ui.CreateElement(EmptyState, EmptyStateProps{
+		Title: locale.Text("capability_unavailable.title"), Description: locale.Text("capability_unavailable.admin_detail"),
+		Role: "status", Class: "capability-unavailable",
+		Action: &ActionLinkProps{Label: locale.Text("capability_unavailable.open_admin"), Href: statefulHref(view, PageAdmin), Class: "button secondary", Navigate: view.Navigate},
+	})
+}
+
+func capabilityUnavailableAdministrator(view View) bool {
+	if len(view.Roles) > 0 {
+		return hasAnyProductRole(view.Roles, RoleHCMAdmin, "comp_admin")
+	}
+	if len(view.EffectivePermissions) > 0 {
+		return view.Can(PageAdmin, "view")
+	}
+	return false
+}
+
 // asyncRegionFailedClass marks a loading proxy that stands for a failed read.
 // Its styles stop the loading animations and draw the failure notice over
 // the unchanged body.

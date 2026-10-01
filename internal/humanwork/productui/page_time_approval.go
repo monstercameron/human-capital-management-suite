@@ -13,6 +13,9 @@ import (
 // body once the governed service publishes; until then
 // the UI will not simulate one.
 func timeApprovalPage(view View) ui.Node {
+	if view.TimeReviewProjection.State == TimeSurfaceReady {
+		return timeReviewPage(view, view.TimeReviewProjection, false)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("time_approval.unavailable_title"),
 		Description: view.Locale.Text("time_approval.unavailable_detail"),

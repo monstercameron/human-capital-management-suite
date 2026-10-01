@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	notificationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	positionv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
 	projectv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/project/v1"
 	reviewparticipantsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/reviewparticipants/v1"
@@ -71,17 +72,25 @@ func isProductPath(path string) bool {
 func startProduct(ctx context.Context, cfg journeyclient.Config, service journeyclient.Service, conn grpc.ClientConnInterface) error {
 	configureChatBrowser(conn, cfg)
 	configureChatRetention(conn)
+	configureAgentService(conn, cfg)
 	// Finite RPC work shares a bounded lane. WatchJourney subscriptions stay
 	// outside it, so an open detail page cannot reduce navigation/click
 	// capacity. Four slots allow the independent projection reads and a user
 	// action to overlap without permitting an unbounded goroutine burst.
 	frontendTasks := taskmux.New(taskmux.Options{MaxRunning: 4, MaxQueued: 64, PriorityBurst: 8})
+	clockBinding := newClockLiveBinding(cfg, conn)
 	liveService := productclient.Service{
 		ListJourneys: func(ctx context.Context, request *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error) {
 			return service.ListJourneys(ctx, request)
 		},
 		ListWorkers: func(ctx context.Context, request *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error) {
 			return service.ListWorkers(ctx, request)
+		},
+		ListNotifications: func(ctx context.Context, request *notificationv1.ListNotificationsRequest) (*notificationv1.ListNotificationsResponse, error) {
+			return notificationv1.NewNotificationServiceClient(conn).ListNotifications(chatRPCContext(ctx, cfg), request)
+		},
+		MarkNotificationRead: func(ctx context.Context, request *notificationv1.MarkNotificationReadRequest) (*notificationv1.MarkNotificationReadResponse, error) {
+			return notificationv1.NewNotificationServiceClient(conn).MarkNotificationRead(chatRPCContext(ctx, cfg), request)
 		},
 	}
 	// Docs uses the same authenticated gRPC connection as the rest of the
@@ -305,7 +314,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// journey experience itself (tools/uxqual/render/journey's
 	// principalChip), with a visually-hidden "Purpose: " explanation and
 	// its own sign-out exit action, mounted only on PageJourneys.
-	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath, TenantName: cfg.TenantName}
+	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, WorkflowStarts: projectWorkflowStarts(cfg.WorkflowStarts), WorkflowStartFavorites: cfg.WorkflowStartFavorites, WorkflowStartRecent: cfg.WorkflowStartRecent, Agents: projectAgents(cfg.Agents), Clock: projectClock(cfg.Clock), EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath, TenantName: cfg.TenantName}
 	preferences := newServerPreferenceController(ctx, service)
 	workflowAuthoring := newWorkflowAuthoringController(ctx, liveService)
 	// No Apply here. Both controllers start from defaults, and the document
@@ -341,6 +350,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	productRouter.SetFocusManagement(false)
 	// REV-090-01: a failed region's Retry re-runs the same route read.
 	productRouteRetry = productRouter.Revalidate
+	configurePersonaAdminBrowser(cfg, productRouter.Revalidate)
 	// The application shell is a persistent layout route. Leaf routes own only
 	// the outlet below /workspace/app, so navigation cannot temporarily unmount
 	// the header, sidebar, or their local interaction state.
@@ -419,7 +429,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		}
 		definition := definition
 		productRouter.Register(definition.Route, productRouteComponent, router.Options{
-			Title: definition.Title + " · Human Capital Management Suite",
+			// The router writes this before the route renders; name the company
+			// rather than the product so the tab never flashes the suite name.
+			Title: productui.DocumentTitle(definition.Title, productui.DefaultCustomerTheme(), tenantLabel),
 			Loader: func(loadCtx context.Context, routeContext router.RouteContext) (router.Attrs, error) {
 				if detailOnly && strings.TrimSpace(routeContext.Query.Get("journey")) == "" {
 					return nil, errors.New(productui.ResolveProductLocale(routeContext.Query.Get("locale")).Text("journey.error_denied_detail"))
@@ -478,6 +490,21 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				handle, scheduleErr := frontendTasks.Submit(loadCtx, taskmux.Spec{
 					Key: "product:route-projection", Priority: taskmux.UserVisible, Duplicate: taskmux.ReplaceExisting,
 				}, func(taskCtx context.Context) error {
+					bootMark(bootPhaseLoadStart)
+					defer bootMark(bootPhaseLoadDone)
+					if state.Page == productui.PagePersonaAdmin {
+						personaAdminBrowser.Lock()
+						selected, subject, conversation, previewSeq := personaAdminBrowser.selected, personaAdminBrowser.previewSubject, personaAdminBrowser.previewConversation, personaAdminBrowser.previewSeq
+						personaAdminBrowser.Unlock()
+						if snapshot, snapshotErr := fetchPersonaAdminSnapshot(taskCtx, cfg, selected, subject, conversation); snapshotErr == nil {
+							personaAdminBrowser.Lock()
+							if previewSeq == personaAdminBrowser.previewSeq && cfg.Tenant == personaAdminBrowser.tenant && cfg.Subject == personaAdminBrowser.subject && cfg.Bearer == personaAdminBrowser.bearer {
+								personaAdminBrowser.snapshot = &snapshot
+								personaAdminBrowser.selected = personaAdminCurrentSelection(snapshot, selected)
+							}
+							personaAdminBrowser.Unlock()
+						}
+					}
 					// The URL is a presentation bookmark, never an authorization or
 					// data snapshot. LoadWithBaseline still rereads every authoritative
 					// dataset consumed by this destination (and live preferences), while
@@ -488,6 +515,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					} else {
 						view, loadErr = productclient.Load(taskCtx, liveService, session, state)
 					}
+					if loadErr == nil {
+						hydratePersonaAdminView(&view, cfg)
+					}
 					if loadErr == nil && projectRoute {
 						var board projectui.Model
 						board, projectDetail, projectRows, projectsState, projectBoardState, projectDetailState, resolvedProjectViewID, loadErr = loadProjectPage(taskCtx, cfg, projectService, routeContext.Path, routeContext.Query.Encode())
@@ -497,6 +527,54 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					}
 					if loadErr == nil && state.Page == productui.PageChatSettings {
 						loadChatRetentionPolicy(taskCtx, cfg, &view)
+					}
+					if loadErr == nil && state.Page == productui.PageClock {
+						if view.ClockAvailability != nil && !view.ClockAvailability.Enabled {
+							// The workspace does not run the clock: state that, and do
+							// not ask a boundary that is not mounted.
+							view.ClockProjection = productui.ClockProjection{State: productui.ClockProjectionUnavailable, Reason: productui.ClockReasonNotEnabled}
+						} else {
+							clockRead := productclient.FetchClockProjection(taskCtx, clockBinding)
+							view.ClockProjection = clockRead.Projection
+							busy, _, actionError := clockBinding.ClockActionState()
+							view.ClockProjection.Busy = busy
+							if actionError != "" {
+								view.ClockProjection.ErrorLabel = view.Locale.Text("clock_page.action_error")
+							}
+							if view.ClockProjection.State == productui.ClockProjectionReady {
+								bindAction := func(action, labelKey string) *productui.ActionLinkProps {
+									return &productui.ActionLinkProps{Label: view.Locale.Text(labelKey), Href: productui.Path(productui.PageClock), Navigate: func(string) {
+										_, _ = clockBinding.SubmitClockAction(ctx, frontendTasks, action, func(clockActionWire, error) {
+											if currentPath() == productui.Path(productui.PageClock) {
+												productRouter.Revalidate()
+											}
+										})
+										productRouter.Revalidate()
+									}}
+								}
+								// Offer the actions allowed by the server's position.
+								switch clockActionForPhase(view.ClockProjection.Phase) {
+								case "in":
+									view.ClockProjection.ClockIn = bindAction("in", "clock_page.clock_in")
+								case "out":
+									view.ClockProjection.ClockOut = bindAction("out", "clock_page.clock_out")
+									view.ClockProjection.StartBreak = bindAction("start_break", "clock_page.start_break")
+								case "end_break":
+									view.ClockProjection.EndBreak = bindAction("end_break", "clock_page.end_break")
+									view.ClockProjection.ClockOut = bindAction("out", "clock_page.clock_out")
+								}
+								view.ClockProjection.Timecard, view.ClockProjection.FixPunch = clockRelatedLinks(view)
+								if at, ok := clockLastEventTime(view.ClockProjection.LastEventLabel); ok {
+									when := formatClockInstant(at, view.Locale.Resolved)
+									key := "clock_page.last_punch"
+									if view.ClockProjection.Phase == productui.ClockPhaseIn || view.ClockProjection.Phase == productui.ClockPhaseBreak {
+										key = "clock_page.since_in"
+									}
+									view.ClockProjection.LastEventLabel = when
+									view.ClockProjection.SinceLabel = strings.ReplaceAll(view.Locale.Text(key), "{time}", when)
+								}
+							}
+						}
 					}
 					return nil
 				})
@@ -551,6 +629,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				view.Chat = chatModel
 				view.Navigate = navigateProduct
 				view.NavigateReplace = replaceProduct
+				view.SaveFavorite = preferences.SaveFavorite
 				applyBrowserHistoryNavigation(&view)
 				view.NavigateDebounced = navigationDebounce.Schedule
 				view.CancelDebouncedNavigation = navigationDebounce.Cancel
@@ -590,6 +669,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				}
 				view.RollbackBrandAsset = func(revision, expected int, done func(string, error)) {
 					changeBrandAsset(cfg, "rollback", revision, expected, done)
+				}
+				view.SetAgentsEnabled = func(enabled bool, done func(error)) {
+					saveAgentSetting(cfg, enabled, done)
 				}
 				view.PreviewBrandAsset = func(url string) {
 					preview := view.Appearance
@@ -1081,6 +1163,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				}
 				view.Navigate = navigateProduct
 				view.NavigateReplace = replaceProduct
+				view.SaveFavorite = preferences.SaveFavorite
 				applyBrowserHistoryNavigation(&view)
 				view.NavigateDebounced = navigationDebounce.Schedule
 				view.CancelDebouncedNavigation = navigationDebounce.Cancel
@@ -1124,9 +1207,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			},
 		})
 	}
+	bootMark(bootPhaseHydrateStart)
 	if err := hydrateProductRouter(productRouter); err != nil {
 		return err
 	}
+	bootMark(bootPhaseHydrated)
 	// The shell may fall back to a separate startup mount when hydration
 	// fails. Bind document-level review listeners only after the live product
 	// tree is committed, so that fallback cannot leave a stale store behind.

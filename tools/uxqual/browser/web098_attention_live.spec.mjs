@@ -1,8 +1,5 @@
 // WEB-098 real Chromium proof for the live, service-backed attention queue.
-// Runs against the authenticated live app at localhost:8888.
 import { test, expect } from "@playwright/test";
-
-test.use({ baseURL: "http://localhost:8888" });
 
 async function signInAsManager(page) {
   await page.goto("/workspace/login");

@@ -14,6 +14,9 @@ import (
 // the governed service publishes; until then the UI will
 // not simulate one.
 func integrationOperationsPage(view View) ui.Node {
+	if view.IntegrationOperations != nil && view.IntegrationOperations.Ready {
+		return integrationOperationsLivePage(view, *view.IntegrationOperations)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("integration_operations.unavailable_title"),
 		Description: view.Locale.Text("integration_operations.unavailable_detail"),

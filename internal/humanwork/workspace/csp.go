@@ -24,6 +24,16 @@ type cspPolicy struct {
 	// PathChatMediaPrefix with its bearer and a grant header. The bytes are
 	// shown through blob URLs, so blobImages accompanies it.
 	allowMediaConnections bool
+	// allowPersonaAdminConnections lets the authenticated WASM product client
+	// refresh the tenant-scoped Persona Admin metadata projection.
+	allowPersonaAdminConnections bool
+	// allowAgentConnections names the authenticated product agent APIs. Their
+	// HTTP sources use the document scheme to keep the bounded header compact.
+	allowAgentConnections bool
+	// allowBrandAssetConnections lets the appearance page list, upload and
+	// retire tenant logos through PathBrandAssets and its lifecycle path with
+	// its bearer. The logo bytes themselves load as same-origin images.
+	allowBrandAssetConnections bool
 	// allowGiphy enables direct browser requests for the optional GIF picker.
 	allowGiphy       bool
 	sameOriginImages bool
@@ -71,7 +81,19 @@ func (p cspPolicy) header() string {
 		"style-src-attr 'none'",
 	)
 
-	connectSources := cspConnectSources(p.connectHost, p.allowAssetConnections, p.allowTunnelConnection, p.allowMediaConnections)
+	connectSources := cspConnectSources(p.connectHost, p.allowAssetConnections, p.allowTunnelConnection, p.allowMediaConnections, p.allowPersonaAdminConnections)
+	if p.allowBrandAssetConnections {
+		if brand := cspBrandAssetSources(p.connectHost); brand != "" {
+			if connectSources == "'none'" {
+				connectSources = brand
+			} else {
+				connectSources += " " + brand
+			}
+		}
+	}
+	if p.allowAgentConnections {
+		connectSources = cspProductAgentSources(p.connectHost, connectSources)
+	}
 	if p.allowGiphy {
 		if connectSources == "'none'" {
 			connectSources = "https://api.giphy.com"
@@ -101,6 +123,31 @@ func (p cspPolicy) header() string {
 		"manifest-src 'none'",
 	)
 	return strings.Join(directives, "; ")
+}
+
+func cspProductAgentSources(rawHost, existing string) string {
+	authority := sanitizeHostAuthority(rawHost)
+	if authority == "" {
+		return "'none'"
+	}
+	sources := make([]string, 0, 14)
+	seen := map[string]bool{}
+	for _, source := range strings.Fields(existing) {
+		if source == "'none'" || source == authority+PathPersonaAdminData {
+			continue
+		}
+		// These requests derive their HTTP scheme from the current document.
+		// Keep WebSocket sources explicit because their schemes differ.
+		source = strings.TrimPrefix(strings.TrimPrefix(source, "http://"), "https://")
+		if !seen[source] {
+			sources = append(sources, source)
+			seen[source] = true
+		}
+	}
+	for _, path := range []string{PathPersonaAdminData + "/", "/api/chat/personas/", "/api/agent-controls", "/api/agent-controls/", "/api/agents/"} {
+		sources = append(sources, authority+path)
+	}
+	return strings.Join(sources, " ")
 }
 
 func cspHashSource(value string) string {
@@ -145,15 +192,35 @@ func cspStyleSources(values []string) string {
 	return strings.Join(quoted, " ")
 }
 
-func cspConnectSources(rawHost string, allowAssets, allowTunnel, allowMedia bool) string {
-	if !allowAssets && !allowTunnel && !allowMedia {
+// cspBrandAssetSources names exactly the two brand-asset endpoints the WASM
+// client calls: the collection (GET list, POST upload) and the lifecycle
+// endpoint (POST remove/rollback). CSP matches a source path without a
+// trailing slash exactly, so neither the stored image bytes under
+// PathBrandAssetPrefix (loaded through img-src) nor any sibling path becomes
+// reachable by fetch.
+func cspBrandAssetSources(rawHost string) string {
+	authority := sanitizeHostAuthority(rawHost)
+	if authority == "" {
+		return ""
+	}
+	// A scheme-less host source follows the protected shell's scheme. Keeping
+	// one exact source per endpoint avoids repeating a long tenant authority
+	// for HTTP and HTTPS while retaining the same-origin path boundary.
+	return strings.Join([]string{
+		authority + PathBrandAssets,
+		authority + PathBrandAssetLifecycle,
+	}, " ")
+}
+
+func cspConnectSources(rawHost string, allowAssets, allowTunnel, allowMedia, allowPersonaAdmin bool) string {
+	if !allowAssets && !allowTunnel && !allowMedia && !allowPersonaAdmin {
 		return "'none'"
 	}
 	authority := sanitizeHostAuthority(rawHost)
 	if authority == "" {
 		return "'none'"
 	}
-	sources := make([]string, 0, 6)
+	sources := make([]string, 0, 8)
 	if allowAssets {
 		sources = append(sources,
 			"http://"+authority+PathAssetPrefix,
@@ -173,6 +240,13 @@ func cspConnectSources(rawHost string, allowAssets, allowTunnel, allowMedia bool
 			"ws://"+authority+PathTunnel,
 			"wss://"+authority+PathTunnel,
 		)
+	}
+	if allowPersonaAdmin {
+		// An omitted scheme is bound by CSP to the protected document's
+		// scheme. This keeps the exact host/path allowance valid for both the
+		// local HTTP shell and production HTTPS without duplicating a long
+		// authority in the header.
+		sources = append(sources, authority+PathPersonaAdminData)
 	}
 	return strings.Join(sources, " ")
 }

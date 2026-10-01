@@ -30,11 +30,14 @@ func RecentPeople(people []Person, recent []WorkItem, limits ...int) []RecentPer
 		if person.ID != "" {
 			byID[person.ID] = person
 		}
-		if person.Name != "" {
-			if previous, exists := byName[person.Name]; exists && previous.ID != person.ID {
-				delete(byName, person.Name)
+		for _, name := range []string{person.Name, PreferredFamilyName(person)} {
+			if name == "" {
+				continue
+			}
+			if previous, exists := byName[name]; exists && previous.ID != person.ID {
+				delete(byName, name)
 			} else {
-				byName[person.Name] = person
+				byName[name] = person
 			}
 		}
 	}
@@ -52,7 +55,7 @@ func RecentPeople(people []Person, recent []WorkItem, limits ...int) []RecentPer
 			continue
 		}
 		seen[person.ID] = true
-		result = append(result, RecentPerson{ID: person.ID, Name: person.Name, Initials: person.Initials, PhotoURL: person.PhotoURL, Role: person.Role})
+		result = append(result, RecentPerson{ID: person.ID, Name: PreferredFamilyName(person), Initials: person.Initials, PhotoURL: person.PhotoURL, Role: person.Role})
 		if len(result) == limit {
 			break
 		}

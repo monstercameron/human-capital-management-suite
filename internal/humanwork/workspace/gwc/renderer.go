@@ -18,6 +18,7 @@
 package gwc
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/tokens"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workspacecontract"
+	governedpage "github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/page"
 )
 
 // Build constructs the Promotion workspace component tree for the given
@@ -79,6 +81,15 @@ func layoutCSS() string {
 // the GWC-equivalent of ssr.Render, used by tools/uxqual/qual so both
 // renderers are scored as complete documents.
 func Document(c contract.WorkspaceContract) (string, error) {
+	// Keep the served Promotion document behind the same governed renderer
+	// contracts as the qualification suites. The current GWC contract remains
+	// the only visible renderer and still receives only the already-authorized
+	// workspace projection; this gate merely refuses renderer drift, an
+	// unpublished widget, or a missing semantic/mode contract before bytes are
+	// served.
+	if _, err := governedpage.BuildPromotionRuntimeContract(); err != nil {
+		return "", fmt.Errorf("workspace: governed renderer contract: %w", err)
+	}
 	body, err := RenderToString(c)
 	if err != nil {
 		return "", err

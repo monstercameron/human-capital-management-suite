@@ -17,10 +17,13 @@ func TestSettingsLocaleSwitcherPreservesNavigationState(t *testing.T) {
 		t.Fatalf("locale options = %d", len(props.Options))
 	}
 	for _, option := range props.Options {
-		for _, want := range []string{"locale=" + option.Code, "nav=collapsed", "menu_q=work", "favorites=people"} {
+		for _, want := range []string{"locale=" + option.Code, "nav=collapsed", "menu_q=work"} { // UXBLIND-066: favorites are an account preference, never address state
 			if !strings.Contains(option.Href, want) {
 				t.Fatalf("%s locale href lost %q: %s", option.Code, want, option.Href)
 			}
+		}
+		if strings.Contains(option.Href, "favorites=") {
+			t.Fatalf("%s locale href leaked favorites into the address: %s", option.Code, option.Href)
 		}
 		if option.Navigate == nil {
 			t.Fatalf("%s locale option has no software-navigation callback", option.Code)

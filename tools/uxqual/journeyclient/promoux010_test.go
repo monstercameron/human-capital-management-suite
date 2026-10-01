@@ -39,9 +39,9 @@ func TestTodo_PROMOUX_010_Regression(t *testing.T) {
 			got[f.Label] = f.Value
 		}
 		want := map[string]string{
-			"Employee":       "Rosa",
+			"Employee":       "Rosa Iglesias", // UXBLIND-082: shared full display name
 			"Placement":      "OPS-HRBP2 · P2 → OPS-HRBP3 · P3",
-			"Base pay":       "USD 78,000.00",
+			"Base pay":       "USD 72,500.00 per year → USD 78,000.00 per year (+7.6%) · +USD 5,500.00", // UXBLIND-010/020: compare current and proposed compensation with the currency joined by a non-breaking space
 			"Effective date": "1 Dec 2026",
 		}
 		for label, value := range want {
@@ -63,7 +63,7 @@ func TestTodo_PROMOUX_010_Regression(t *testing.T) {
 		if len(form.Confirmation) == 0 {
 			t.Fatal("FocusedProposalForm set no Confirmation -- the person-scoped Start route (the one the todo's live evidence measured) would submit with no review")
 		}
-		if form.Confirmation[0].Label != "Employee" || form.Confirmation[0].Value != "Rosa" {
+		if form.Confirmation[0].Label != "Employee" || form.Confirmation[0].Value != "Rosa Iglesias" { // UXBLIND-082
 			t.Fatalf("FocusedProposalForm's Confirmation does not name the pinned worker: %+v", form.Confirmation)
 		}
 	})

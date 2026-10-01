@@ -219,6 +219,7 @@ func TestTodo_WEB_030_Security(t *testing.T) {
 	}
 	serviceType := reflect.TypeOf(Service{})
 	explicitMutations := map[string]bool{
+		"MarkNotificationRead":         true,
 		"CreateWorkflowDraft":          true,
 		"InsertWorkflowPaletteEntry":   true,
 		"UpdateWorkflowDraftNode":      true,
@@ -232,7 +233,8 @@ func TestTodo_WEB_030_Security(t *testing.T) {
 		"ApplyWorkflowTemplateOverlay": true,
 		"ShareDocument":                true,
 	}
-	explicitReads := map[string]bool{"SearchKnowledge": true}
+	// Both Resolve* hooks return only projections the viewer may read; found=false is denial.
+	explicitReads := map[string]bool{"SearchKnowledge": true, "ResolveDocsProjectTaskPreview": true, "ResolveDocsJourneyPreview": true}
 	for index := 0; index < serviceType.NumField(); index++ {
 		name := serviceType.Field(index).Name
 		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") && !explicitReads[name] && !explicitMutations[name] {

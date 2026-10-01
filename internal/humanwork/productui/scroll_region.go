@@ -221,6 +221,12 @@ func declareScrollRegionStyles() {
 	declareGlobal(".workflow-history",
 		gwccss.Raw("overflow", "visible"),
 	)
+	// The current workflow-history page uses its canonical page class rather
+	// than the compatibility class above. Keep that page on the shell's main
+	// scroll owner so its table does not create a second vertical viewport.
+	declareGlobal(".workflow-history-page",
+		gwccss.Raw("overflow", "visible"),
+	)
 	declareGlobal(".history-columns",
 		gwccss.Position.Sticky,
 		gwccss.Top(gwccss.Zero),
@@ -260,6 +266,22 @@ func declareScrollRegionStyles() {
 		),
 	)
 	declareGlobal(".history-filter-controls input,.history-filter-controls select",
+		gwccss.Raw("text-overflow", "clip"),
+		gwccss.Raw("white-space", "normal"),
+	)
+	// The canonical filter grid wraps labelled controls at compact widths.
+	// Its earlier form-scoped rules used ellipsis/nowrap, which hid labels and
+	// selected values exactly where the grid was intended to prevent clipping.
+	const workflowHistoryForm = ".workflow-history-page .history-filter.workflow-history-filters"
+	declareGlobal(workflowHistoryForm+" .history-filter-controls>.labeled-control>span",
+		gwccss.Raw("overflow", "visible"),
+		gwccss.Raw("overflow-wrap", "anywhere"),
+		gwccss.Raw("text-overflow", "clip"),
+		gwccss.Raw("white-space", "normal"),
+	)
+	declareGlobal(workflowHistoryForm+" .history-filter-controls input,"+workflowHistoryForm+" .history-filter-controls select",
+		gwccss.Raw("overflow", "visible"),
+		gwccss.Raw("overflow-wrap", "anywhere"),
 		gwccss.Raw("text-overflow", "clip"),
 		gwccss.Raw("white-space", "normal"),
 	)

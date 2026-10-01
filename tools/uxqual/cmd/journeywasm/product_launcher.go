@@ -44,3 +44,31 @@ func projectLauncherActions(values []journeyclient.LauncherAction) []productui.L
 	}
 	return result
 }
+
+// projectWorkflowStarts converts the island's workflow start catalog into the
+// page contract. Entries without an id or name, and repeated ids, are dropped;
+// an unknown availability fails closed to missing_authority.
+func projectWorkflowStarts(values []journeyclient.WorkflowStart) []productui.WorkflowStartItem {
+	result := make([]productui.WorkflowStartItem, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		id, name := strings.TrimSpace(value.WorkflowID), strings.TrimSpace(value.Name)
+		if id == "" || name == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		availability := productui.WorkflowStartAvailability(strings.TrimSpace(value.Availability))
+		switch availability {
+		case productui.WorkflowStartAvailable, productui.WorkflowStartNoCapability, productui.WorkflowStartMissingAuthority,
+			productui.WorkflowStartMissingPrerequisite, productui.WorkflowStartQuarantined:
+		default:
+			availability = productui.WorkflowStartMissingAuthority
+		}
+		result = append(result, productui.WorkflowStartItem{
+			WorkflowID: id, Version: value.Version, SemanticVersion: value.SemanticVersion, Name: name,
+			Description: value.Description, Category: value.Category, Keywords: append([]string(nil), value.Keywords...),
+			Icon: value.Icon, Owner: value.Owner, Availability: availability,
+		})
+	}
+	return result
+}

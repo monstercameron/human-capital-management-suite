@@ -62,7 +62,8 @@ func TestTodo_WEB_213_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "8b25ac0593e1a865d9494d6642334280088b5de0d09bb2646e9058aae9695120"
+	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+	const want = "70229b283f51b927ca96e787893e25d3e351e8be2c5acdb2b36d3ec3d3b7ded7"
 	if got != want {
 		t.Fatalf("final-document delivery digest = %s, want %s", got, want)
 	}

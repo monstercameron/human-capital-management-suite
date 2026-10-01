@@ -3,6 +3,7 @@ package qual_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -87,6 +88,59 @@ func TestWorkspaceQualificationFixture(t *testing.T) {
 	if broken.Reflow.Pass {
 		t.Fatalf("expected a 900px fixed-width div to fail Reflow at 320px")
 	}
+}
+
+func TestExtractInlineCSS(t *testing.T) {
+	tests := []struct {
+		name string
+		doc  string
+		want string
+	}{
+		{name: "multiple blocks and mixed case", doc: `<style>.a{width:10px}</style><STYLE data-x="yes">.b{width:20px}</STYLE>`, want: ".a{width:10px}\n.b{width:20px}\n"},
+		{name: "comments and script raw text are ignored", doc: `<!-- <style>.comment{width:900px}</style> --><script>const s = "<style>.script{width:900px}</style>";</script><style>.real{width:30px}</style>`, want: ".real{width:30px}\n"},
+		{name: "malformed block has no match", doc: `<style data-x="unterminated>.bad{width:900px}`, want: ""},
+		{name: "style name prefix is not an element", doc: `<stylesheet>.bad{width:900px}</stylesheet><style>.real{width:40px}</style>`, want: ".real{width:40px}\n"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := qual.ExtractInlineCSS(test.doc); got != test.want {
+				t.Fatalf("ExtractInlineCSS() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func BenchmarkExtractInlineCSSProductionHTML(b *testing.B) {
+	doc := productionHTMLFixture()
+	b.ReportAllocs()
+	b.SetBytes(int64(len(doc)))
+	for i := 0; i < b.N; i++ {
+		got := qual.ExtractInlineCSS(doc)
+		if len(got) == 0 {
+			b.Fatal("ExtractInlineCSS returned no CSS")
+		}
+	}
+}
+
+func BenchmarkExtractInlineCSSProductionHTMLRegexp(b *testing.B) {
+	doc := productionHTMLFixture()
+	styleBlockRE := regexp.MustCompile(`(?is)<style[^>]*>(.*?)</style>`)
+	if len(doc) < 800*1024 {
+		b.Fatalf("benchmark fixture is %d bytes, want at least 819200", len(doc))
+	}
+	b.ReportAllocs()
+	b.SetBytes(int64(len(doc)))
+	for i := 0; i < b.N; i++ {
+		matches := styleBlockRE.FindAllStringSubmatch(doc, -1)
+		if len(matches) == 0 {
+			b.Fatal("regexp extraction returned no CSS")
+		}
+	}
+}
+
+func productionHTMLFixture() string {
+	cssBlock := strings.Repeat(".panel{display:grid;grid-template-columns:1fr;transition:opacity .2s}\n", 1000)
+	return "<html><head><style>" + cssBlock + "</style></head><body>" + strings.Repeat(`<div class="panel">content</div>`, 25000) + "</body></html>"
 }
 
 // TestTodo_UX_QUAL_001_Browser is the matrix BROWSER test: it verifies

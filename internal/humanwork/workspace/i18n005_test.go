@@ -72,7 +72,7 @@ func TestTodo_I18N_005(t *testing.T) {
 		t.Fatalf("GET product shell = %d: %s", recorder.Code, recorder.Body.String())
 	}
 	doc := recorder.Body.String()
-	for _, want := range []string{`<html lang="ar" dir="rtl" data-hcm-locale="ar" data-hcm-catalog="product-ui.v1"`, `<title>الرئيسية</title>`, "جارٍ تحميل بيانات مساحة عملك"} {
+	for _, want := range []string{`<html lang="ar" dir="rtl" data-hcm-locale="ar" data-hcm-catalog="product-ui.v1"`, `<title>الرئيسية · `, "جارٍ تحميل بيانات مساحة عملك"} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("Arabic first paint missing %q", want)
 		}
@@ -88,8 +88,8 @@ func TestTodo_I18N_005_Integration(t *testing.T) {
 		want           []string
 		forbid         string
 	}{
-		{"Alice", arabic.Body.String(), []string{`<html lang="ar" dir="rtl" data-hcm-locale="ar"`, `<title>الرئيسية</title>`, "جارٍ تحميل بيانات مساحة عملك"}, "Ihre Arbeitsbereichsdaten"},
-		{"Bob", german.Body.String(), []string{`<html lang="de-DE" dir="ltr" data-hcm-locale="de-DE"`, `<title>Start</title>`, "Ihre Arbeitsbereichsdaten werden geladen"}, "جارٍ تحميل بيانات مساحة عملك"},
+		{"Alice", arabic.Body.String(), []string{`<html lang="ar" dir="rtl" data-hcm-locale="ar"`, `<title>الرئيسية · `, "جارٍ تحميل بيانات مساحة عملك"}, "Ihre Arbeitsbereichsdaten"},
+		{"Bob", german.Body.String(), []string{`<html lang="de-DE" dir="ltr" data-hcm-locale="de-DE"`, `<title>Start · `, "Ihre Arbeitsbereichsdaten werden geladen"}, "جارٍ تحميل بيانات مساحة عملك"},
 	} {
 		if test.document == "" {
 			t.Fatalf("%s received an empty document", test.name)
@@ -108,7 +108,7 @@ func TestTodo_I18N_005_Integration(t *testing.T) {
 	}
 
 	explicit := i18n005Request(t, h, "alice", []string{"comp_admin"}, PathProductHome+"?locale=de-DE")
-	if explicit.Code != http.StatusOK || !strings.Contains(explicit.Body.String(), `<html lang="de-DE" dir="ltr" data-hcm-locale="de-DE"`) || !strings.Contains(explicit.Body.String(), `<title>Start</title>`) {
+	if explicit.Code != http.StatusOK || !strings.Contains(explicit.Body.String(), `<html lang="de-DE" dir="ltr" data-hcm-locale="de-DE"`) || !strings.Contains(explicit.Body.String(), `<title>Start · `) {
 		t.Fatal("explicit supported URL locale did not take precedence over saved Arabic locale")
 	}
 }

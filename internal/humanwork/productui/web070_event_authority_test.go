@@ -50,7 +50,12 @@ func TestTodo_WEB_070(t *testing.T) {
 		if center == nil {
 			t.Fatalf("%s renders no notification center", count.name)
 		}
-		want := view.Locale.Text("shell.work_overview") + ", " + view.Locale.Plural("shell.work_count", count.want)
+		// UXBLIND-056: the bell announces unread notifications; the
+		// authority-filtered open count now lives in the work stream itself.
+		if got := int64(len(OpenWorkItems(admittedWork(view)))); got != count.want {
+			t.Fatalf("%s admitted open work = %d, want %d", count.name, got, count.want)
+		}
+		want := view.Locale.Text("shell.notifications") + ", " + view.Locale.Plural("notifications.unread_count", 0)
 		if label := attr(findSummary(center), "aria-label"); label != want {
 			t.Fatalf("%s announces %q, want %q", count.name, label, want)
 		}
@@ -196,7 +201,12 @@ func TestTodo_WEB_070_Security(t *testing.T) {
 			t.Fatalf("%s governed shell loses the notification center", locale)
 		}
 		lc := ResolveProductLocale(locale)
-		want := lc.Text("shell.work_overview") + ", " + lc.Plural("shell.work_count", 0)
+		// UXBLIND-056: the bell announces unread notifications; the denied
+		// instance keeps no share of the admitted open work.
+		if got := len(OpenWorkItems(admittedWork(view))); got != 0 {
+			t.Fatalf("%s denied instance keeps admitted open work: %d", locale, got)
+		}
+		want := lc.Text("shell.notifications") + ", " + lc.Plural("notifications.unread_count", 0)
 		if label := attr(findSummary(center), "aria-label"); label != want {
 			t.Fatalf("%s denied instance keeps attention share: %q, want %q", locale, label, want)
 		}

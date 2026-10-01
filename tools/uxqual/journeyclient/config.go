@@ -35,6 +35,8 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
 // Config is the JSON island the shell writes into the document, parsed.
@@ -73,7 +75,19 @@ type Config struct {
 	PagePermissions    []PagePermission    `json:"page_permissions,omitempty"`
 	FeaturePermissions []FeaturePermission `json:"feature_permissions"`
 	LauncherActions    []LauncherAction    `json:"launcher_actions,omitempty"`
-	Purpose            string              `json:"purpose"`
+	// WorkflowStarts mirrors the server-authorized workflow start catalog.
+	WorkflowStarts         []WorkflowStart `json:"workflow_starts,omitempty"`
+	WorkflowStartFavorites []string        `json:"workflow_start_favorites,omitempty"`
+	WorkflowStartRecent    []string        `json:"workflow_start_recent,omitempty"`
+	// Agents mirrors the server's agents availability projection.
+	Agents *Agents `json:"agents,omitempty"`
+	// Clock mirrors the server's time clock availability projection.
+	Clock *Clock `json:"clock,omitempty"`
+	// PersonaAdminSnapshot is the server-authorized metadata projection for
+	// the administrator persona catalog. It is absent when the viewer lacks
+	// the page grant or the service is unavailable.
+	PersonaAdminSnapshot *productui.PersonaAdminSnapshot `json:"persona_admin_snapshot,omitempty"`
+	Purpose              string                          `json:"purpose"`
 	// JourneysPath is the page's own address, used for the masthead link back
 	// to itself.
 	JourneysPath string `json:"journeys_path"`
@@ -88,6 +102,21 @@ type Config struct {
 	CatalogRevision string            `json:"catalog_revision,omitempty"`
 	CatalogDigest   string            `json:"catalog_digest,omitempty"`
 	CatalogMessages map[string]string `json:"catalog_messages,omitempty"`
+}
+
+// WorkflowStart mirrors one server-authorized workflow start entry. Hidden
+// workflows are never present; Availability is a bounded vocabulary.
+type WorkflowStart struct {
+	WorkflowID      string   `json:"workflow_id"`
+	Version         uint32   `json:"version"`
+	SemanticVersion string   `json:"semantic_version,omitempty"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description,omitempty"`
+	Category        string   `json:"category,omitempty"`
+	Keywords        []string `json:"keywords,omitempty"`
+	Icon            string   `json:"icon,omitempty"`
+	Owner           string   `json:"owner,omitempty"`
+	Availability    string   `json:"availability"`
 }
 
 // LauncherAction mirrors the server-resolved presentation-safe action

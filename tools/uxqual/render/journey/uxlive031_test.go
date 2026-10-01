@@ -57,7 +57,8 @@ func TestTodo_UXLIVE_031_Browser(t *testing.T) {
 	card := uxlive010Card("01a0b189-e04c-7265-8926-9095318cf888")
 	markup := uxlive031Render(t, ListView{Journeys: []JourneyCard{card}, Filter: uxlive031Filter(true, 1, 4)})
 	for _, want := range []string{
-		`<form aria-label="Find requests" class="jn-journey-filter" method="get" role="search">`,
+		// UXBLIND-096: a short tracker collapses its secondary filters, so the form declares it.
+		`<form aria-label="Find requests" class="jn-journey-filter" data-collapsible="true" method="get" role="search">`,
 		`name="journey_q"`, `name="journey_status"`, `name="journey_from"`, `name="journey_to"`, `name="journey_sort"`, `name="journey_group"`,
 		`type="date"`, `>Apply filters<`, `href="#/journeys"`, `>1 of 4 requests<`,
 	} {

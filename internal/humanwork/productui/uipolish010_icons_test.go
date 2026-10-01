@@ -328,9 +328,11 @@ func TestTodo_UIPOLISH_010_SharedCheckGlyphsUseRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, markup := range map[string]string{"activity": activity, "self-service": boundary} {
-		if strings.Contains(markup, "✓") || !strings.Contains(markup, `aria-hidden="true"`) || !strings.Contains(markup, iconPath("check")) {
-			t.Errorf("%s bypasses the governed decorative check icon: %s", name, markup)
+	// UXBLIND-080: the view-only banner is an information notice, so it uses the
+	// governed info icon instead of the success check (which UXBLIND-042 forbids there).
+	for name, want := range map[string]struct{ markup, icon string }{"activity": {activity, iconPath("check")}, "self-service": {boundary, iconPath("info")}} {
+		if strings.Contains(want.markup, "✓") || !strings.Contains(want.markup, `aria-hidden="true"`) || !strings.Contains(want.markup, want.icon) {
+			t.Errorf("%s bypasses the governed decorative icon: %s", name, want.markup)
 		}
 	}
 }

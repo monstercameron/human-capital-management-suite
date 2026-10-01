@@ -305,12 +305,13 @@ func (h *Handler) loginCompanyDirectorySection(rawQuery, rawRole, company string
 // linkable, reloadable and reachable with the back button without script.
 func (d *directoryRender) searchForm() string {
 	var out strings.Builder
-	out.WriteString(`<form class="directory-search" method="get" action="` + PathLogin + `" role="search">`)
+	out.WriteString(`<form class="directory-search" method="get" action="` + PathLogin + `#directory-summary" role="search">`)
 	if d.company != "" {
 		out.WriteString(`<input type="hidden" name="` + paramLoginCompany + `" value="` + html.EscapeString(d.company) + `">`)
 	}
-	out.WriteString(`<label for="directory-query">Find an employee</label>`)
+	out.WriteString(`<div class="directory-field"><label for="directory-query">Find an employee</label>`)
 	out.WriteString(`<input type="search" id="directory-query" name="` + paramDirectoryQuery + `" value="` + html.EscapeString(d.query) + `" autocomplete="off" spellcheck="false" placeholder="Name, worker number, job title, team, or role">`)
+	out.WriteString(`</div>`)
 	out.WriteString(d.roleSelect())
 	out.WriteString(`<button type="submit">Search</button>`)
 	if d.filtering() {
@@ -333,7 +334,7 @@ func (d *directoryRender) roleSelect() string {
 		return ""
 	}
 	var out strings.Builder
-	out.WriteString(`<label for="directory-role">Role</label>`)
+	out.WriteString(`<div class="directory-field directory-role-field"><label for="directory-role">Role</label>`)
 	out.WriteString(`<select id="directory-role" name="` + paramDirectoryRole + `">`)
 	out.WriteString(`<option value=""`)
 	if d.role == "" {
@@ -356,6 +357,7 @@ func (d *directoryRender) roleSelect() string {
 		out.WriteString(`<option value="` + html.EscapeString(d.role) + `" selected>` + html.EscapeString(d.roleLabel) + `</option>`)
 	}
 	out.WriteString(`</select>`)
+	out.WriteString(`</div>`)
 	return out.String()
 }
 
@@ -363,7 +365,7 @@ func (d *directoryRender) roleSelect() string {
 // covers instead of repeating all sixty people above the tree.
 func (d *directoryRender) searchResults() string {
 	if !d.filtering() {
-		return `<p class="directory-summary" role="status">Showing the whole organization. Search by name, worker number, job title, team, or role to narrow it.</p>`
+		return `<p id="directory-summary" class="directory-summary" role="status" tabindex="-1">Showing the whole organization. Search by name, worker number, job title, team, or role to narrow it.</p>`
 	}
 	matched := make([]directoryRow, 0, len(d.rows))
 	for _, row := range d.rows {
@@ -373,7 +375,7 @@ func (d *directoryRender) searchResults() string {
 	}
 	summary := d.summaryLine(len(matched))
 	var out strings.Builder
-	out.WriteString(`<p class="directory-summary" role="status">` + html.EscapeString(summary) + `</p>`)
+	out.WriteString(`<p id="directory-summary" class="directory-summary" role="status" aria-live="polite" tabindex="-1" autofocus>` + html.EscapeString(summary) + `</p>`)
 	if len(matched) == 0 {
 		return out.String()
 	}
@@ -451,14 +453,19 @@ func (d *directoryRender) tree() string {
 	if len(d.roots) == 0 {
 		return ""
 	}
-	var out strings.Builder
-	out.WriteString(`<h2 id="directory-tree-heading">Organization</h2>`)
-	out.WriteString(`<ul class="org-tree" role="tree" aria-labelledby="directory-tree-heading">`)
+	var tree strings.Builder
 	visited := make(map[string]bool, len(d.units))
 	for _, code := range d.roots {
 		markup, _, _ := d.unit(code, 1, visited)
-		out.WriteString(markup)
+		tree.WriteString(markup)
 	}
+	if tree.Len() == 0 {
+		return ""
+	}
+	var out strings.Builder
+	out.WriteString(`<h2 id="directory-tree-heading">Organization</h2>`)
+	out.WriteString(`<ul class="org-tree" role="tree" aria-labelledby="directory-tree-heading">`)
+	out.WriteString(tree.String())
 	out.WriteString(`</ul>`)
 	return out.String()
 }
@@ -496,6 +503,12 @@ func (d *directoryRender) unit(code string, level int, visited map[string]bool) 
 		} else {
 			matches++
 		}
+		if d.filtering() {
+			// Filtered people already appear once in the result list above.
+			// Keep the tree as a path of matching groups, not a second result
+			// list that forces somebody to scan the same employee twice.
+			continue
+		}
 		children.WriteString(`<li class="org-person" role="treeitem" aria-level="` + strconv.Itoa(level+1) + `">` + row.entry() + `</li>`)
 	}
 
@@ -521,6 +534,9 @@ func (d *directoryRender) unit(code string, level int, visited map[string]bool) 
 		headcount = strconv.Itoa(matches) + " matches"
 		if matches == 1 {
 			headcount = "1 match"
+		}
+		if matches == 0 {
+			return "", people, matches
 		}
 	}
 

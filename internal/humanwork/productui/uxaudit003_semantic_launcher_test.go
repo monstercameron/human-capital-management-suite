@@ -43,7 +43,7 @@ func TestTodo_UXAUDIT_003_MergedUX(t *testing.T) {
 		t.Fatal("launcher disclosed promotion without an authorized workflow destination")
 	}
 	trigger, _, _, _ := actionLauncherCopyKeys(destinationItems)
-	if trigger != "action_launcher.navigation_trigger" {
+	if trigger != "action_launcher.navigation_title" {
 		t.Fatalf("destination-only launcher kept an action label: %q", trigger)
 	}
 }
@@ -193,7 +193,7 @@ func TestTodo_UXAUDIT_003_PhoneLauncherEscapesTheHeaderScrollport_MergedUX(t *te
 		`@media (max-width:760px){.action-launcher-dialog{inset-block-start:68px;inset-inline:12px;max-height:calc(100dvh - 80px);position:fixed;width:auto;}`,
 		`@media (max-width:430px){.history-navigation{display:none;}`,
 		`@media (max-width:430px){.topbar>.header-navigation-tools{overflow:visible;}`,
-		`@media (max-width:430px){.topbar,.app-shell.nav-collapsed .topbar{gap:6px;grid-template-columns:82px minmax(0,1fr) auto auto auto;padding-inline:8px;}`,
+		`@media (max-width:430px){.topbar,.app-shell.nav-collapsed .topbar{gap:6px;grid-template-columns:minmax(0,120px) minmax(0,1fr) auto auto auto;padding-inline:8px;}`,
 		`@media (max-width:430px){.topbar>.locale-menu{display:none;}`,
 		`@media (max-width:430px){.header-navigation-tools>.global-search{flex:0 0 44px;padding:0;width:44px;}`,
 		`@media (max-width:430px){.header-navigation-tools>.global-search:focus-within{inset-block-start:68px;inset-inline:12px;position:fixed;width:auto;z-index:90;}`,

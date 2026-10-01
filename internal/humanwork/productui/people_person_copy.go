@@ -7,6 +7,8 @@ func peoplePersonTranslations(locale string) map[string]string {
 	switch locale {
 	case "de-DE":
 		return map[string]string{
+			// UXBLIND lane G
+			"people.promotion_title": "Mitarbeitende für eine Beförderung auswählen", "people.promotion_detail": "Wählen Sie eine beförderungsberechtigte Person aus. Löschen Sie den Berechtigungsfilter, um alle sichtbaren Mitarbeitenden zu sehen.", "people.promotion_count": "{eligible} berechtigt von {visible} sichtbar",
 			"people.scope":         "Es werden nur Mitarbeitende angezeigt, die Sie sehen dürfen.",
 			"page.people.subtitle": "Finden Sie Mitarbeitende und starten Sie Aufgaben, für die Sie Zugriff haben.",
 			"people.table_aria":    "Für Sie sichtbare Mitarbeitende",
@@ -19,7 +21,7 @@ func peoplePersonTranslations(locale string) map[string]string {
 			"person.visible_scope": "Für Sie sichtbar", "person.employment_overview": "Beschäftigung im Überblick", "person.employment_overview_detail": "Aktuelle Angaben zu Beschäftigung und Stelle.",
 			"person.worker_number": "Personalnummer", "person.job_code": "Stellenkennung", "person.job_level": "Stufe", "person.hire_date": "Eintrittsdatum", "person.employment_type": "Beschäftigungsart", "person.time_type": "Arbeitszeitmodell", "person.record_source": "Datensatzquelle", "person.record_created": "Datensatz angelegt",
 			"person.organization": "Organisation", "person.organization_detail": "Führungskraft, Zuordnung und organisatorischer Zusammenhang.", "person.organization_unit": "Organisationseinheit", "person.manager": "Führungskraft", "person.position_id": "Positionsnummer", "person.work_location": "Arbeitsort", "person.company": "Unternehmen", "person.business_unit": "Geschäftsbereich", "person.cost_center": "Kostenstelle", "person.work_arrangement": "Arbeitsmodell",
-			"person.compensation": "Vergütung", "person.compensation_detail": "Vergütungsangaben, die Sie für diese Aufgabe sehen dürfen.", "person.base_pay": "Grundgehalt", "person.bonus_target": "Bonusziel", "person.pay_zone": "Vergütungszone", "person.pay_frequency": "Auszahlungsrhythmus",
+			"person.compensation": "Vergütung", "person.compensation_detail": "Vergütungsangaben sind in den eingeschränkten Details verborgen.", "person.base_pay": "Grundgehalt", "person.bonus_target": "Bonusziel", "person.pay_zone": "Vergütungszone", "person.pay_frequency": "Auszahlungsrhythmus",
 			"person.personal_information": "Persönliche Daten", "person.personal_hidden": "Persönliche Kennungen · standardmäßig verborgen", "person.restricted": "Eingeschränkt", "person.legal_name": "Amtlicher Name", "person.preferred_name": "Bevorzugter Name", "person.worker_id": "Interne Personalnummer", "person.worker_ref": "Stabile Beschäftigtenreferenz", "person.history_detail": "Abgeschlossene, abgelehnte und fehlgeschlagene Abläufe für {name}.",
 			"person.fact_status.present": "Verfügbar", "person.fact_status.missing": "Nicht angegeben", "person.fact_status.unknown": "Unbekannt", "person.fact_status.withheld": "Eingeschränkt",
 			"workflow.available_aria": "Verfügbare Abläufe", "workflow.filter_placeholder": "Abläufe filtern", "workflow.filter_aria": "Verfügbare Abläufe filtern", "workflow.find": "Ablauf finden", "workflow.filter": "Filtern", "workflow.start_named": "{name} starten",
@@ -29,6 +31,8 @@ func peoplePersonTranslations(locale string) map[string]string {
 		}
 	case "ar":
 		return map[string]string{
+			// UXBLIND lane G
+			"people.promotion_title": "اختر موظفًا للترقية", "people.promotion_detail": "اختر موظفًا مؤهلًا للترقية. امسح عامل التصفية لعرض جميع الموظفين الذين يمكنك رؤيتهم.", "people.promotion_count": "{eligible} مؤهل من أصل {visible} يمكنك رؤيتهم",
 			"page.history.subtitle": "راجع مسارات العمل المكتملة والمرفوضة والفاشلة.",
 			"people.scope":          "يظهر هنا الموظفون الذين يُسمح لك برؤيتهم فقط.",
 			"people.range":          "{first}–{last} من {total}",
@@ -45,7 +49,7 @@ func peoplePersonTranslations(locale string) map[string]string {
 			"person.visible_scope": "ظاهر لك", "person.employment_overview": "نظرة عامة على التوظيف", "person.employment_overview_detail": "بيانات التوظيف والوظيفة الحالية.",
 			"person.worker_number": "رقم الموظف", "person.job_code": "رمز الوظيفة", "person.job_level": "المستوى الوظيفي", "person.hire_date": "تاريخ التعيين", "person.employment_type": "نوع التوظيف", "person.time_type": "نظام الدوام", "person.record_source": "مصدر السجل", "person.record_created": "تاريخ إنشاء السجل",
 			"person.organization": "المؤسسة", "person.organization_detail": "خط الإشراف والتعيين والسياق التنظيمي.", "person.organization_unit": "الوحدة التنظيمية", "person.manager": "المدير", "person.position_id": "رقم المنصب", "person.work_location": "موقع العمل", "person.company": "الشركة", "person.business_unit": "وحدة الأعمال", "person.cost_center": "مركز التكلفة", "person.work_arrangement": "نظام العمل",
-			"person.compensation": "التعويضات", "person.compensation_detail": "بيانات التعويضات المسموح لك برؤيتها لهذه المهمة.", "person.base_pay": "الراتب الأساسي", "person.bonus_target": "المكافأة المستهدفة", "person.pay_zone": "نطاق الأجور", "person.pay_frequency": "وتيرة صرف الراتب",
+			"person.compensation": "التعويضات", "person.compensation_detail": "تم إخفاء بيانات التعويضات في التفاصيل المقيّدة.", "person.base_pay": "الراتب الأساسي", "person.bonus_target": "المكافأة المستهدفة", "person.pay_zone": "نطاق الأجور", "person.pay_frequency": "وتيرة صرف الراتب",
 			"person.personal_information": "البيانات الشخصية", "person.personal_hidden": "المعرّفات الشخصية · مخفية افتراضيًا", "person.restricted": "مقيّد", "person.legal_name": "الاسم القانوني", "person.preferred_name": "الاسم المفضل", "person.worker_id": "معرّف الموظف الداخلي", "person.worker_ref": "مرجع الموظف الثابت", "person.history_detail": "مسارات العمل المكتملة والمرفوضة والفاشلة المسجلة لـ {name}.",
 			"person.fact_status.present": "متاح", "person.fact_status.missing": "غير مقدّم", "person.fact_status.unknown": "غير معروف", "person.fact_status.withheld": "مقيّد",
 			"workflow.available_aria": "مسارات العمل المتاحة", "workflow.filter_placeholder": "تصفية مسارات العمل", "workflow.filter_aria": "تصفية مسارات العمل المتاحة", "workflow.find": "العثور على مسار عمل", "workflow.filter": "تصفية", "workflow.start_named": "بدء {name}",
@@ -58,9 +62,13 @@ func peoplePersonTranslations(locale string) map[string]string {
 		}
 	default:
 		return map[string]string{
+			// UXBLIND lane G
+			"people.promotion_title":            "Choose an employee to promote",
+			"people.promotion_detail":           "Choose an eligible employee to promote. Clear the eligibility filter to browse everyone you can see.",
+			"people.promotion_count":            "{eligible} eligible of {visible} you can see",
 			"people.scope":                      "Only employees you can access are shown.",
 			"person.employment_overview_detail": "Current employment and job details.",
-			"person.compensation_detail":        "Compensation details available for this task.",
+			"person.compensation_detail":        "Compensation details are hidden in Restricted details.",
 			"history.empty_terminal":            "Completed, rejected, and failed workflows will appear here after an outcome is recorded.",
 		}
 	}

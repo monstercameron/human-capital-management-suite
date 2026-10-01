@@ -336,6 +336,46 @@ func declareworkflowHistoryStyles() {
 	declareGlobal(".history-filter-controls .button",
 		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Percent(100))),
 	)
+	// The workflow history page renders labelled controls as grid items. Keep
+	// the fields readable on laptop/tablet widths instead of forcing the old
+	// four-track layout to squeeze labels, date controls, and native selects.
+	declareGlobal(".workflow-history-filters .history-filter-controls",
+		gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
+		gwccss.Gap(gwccss.Px(10)),
+	)
+	declareGlobal(".workflow-history-filters .history-filter-controls>.labeled-control",
+		gwccss.Display.Grid,
+		gwccss.Gap(gwccss.Px(4)),
+		gwccss.MinWidth(gwccss.Zero),
+	)
+	declareGlobal(".workflow-history-filters .history-filter-actions",
+		gwccss.Display.Flex,
+		gwccss.Items.Center,
+		gwccss.Gap(gwccss.Px(8)),
+		gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1))),
+		gwccss.Raw("flex-wrap", "wrap"),
+	)
+	declareGlobal(".workflow-history-filters .history-filter-actions .button",
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(".workflow-history-results .data-table-scroll",
+		gwccss.MinWidth(gwccss.Zero),
+		gwccss.Raw("overflow-x", "auto"),
+		gwccss.Raw("overflow-y", "visible"),
+	)
+	declareGlobal(".workflow-history-filters .history-filter-controls",
+		mediaRule(gwccss.MaxW(1100), gwccss.GridCols(gwccss.Repeat(2, gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1))))),
+	)
+	declareGlobal(".workflow-history-filters .history-filter-controls",
+		mediaRule(gwccss.MaxW(600), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
+	)
+	declareGlobal(".workflow-history-filters .history-filter-actions",
+		mediaRule(gwccss.MaxW(600), gwccss.Raw("flex-direction", "column"), gwccss.Raw("align-items", "stretch")),
+	)
+	declareGlobal(".workflow-history-filters .history-filter-actions .button",
+		mediaRule(gwccss.MaxW(600), gwccss.W(gwccss.Percent(100))),
+	)
+	declareWorkflowHistoryFilterGrid()
 	declareGlobal(".history-row",
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1)), gwccss.Gap(gwccss.Px(12))),
 	)
@@ -550,14 +590,17 @@ func declarepersonProfileStyles() {
 	declareGlobal(".profile-fact:nth-child(odd)",
 		gwccss.Raw("border-inline-end", "1px solid var(--line)"),
 	)
-	// Identifiers read as code: monospace, a step smaller, broken only at
-	// their own hyphens rather than mid-group.
+	// Identifiers read as code: monospace, a step smaller, and kept intact so
+	// job codes remain readable at narrow fact widths.
 	declareGlobal(".profile-fact dd.profile-fact-code",
 		gwccss.Raw("font-family", "var(--hcm-font-mono,ui-monospace,SFMono-Regular,Consolas,monospace)"),
 		gwccss.FontSize(gwccss.Rem(0.8125)),
 		gwccss.Raw("font-weight", "500"),
-		gwccss.Raw("overflow-wrap", "break-word"),
+		gwccss.Raw("overflow-wrap", "normal"),
 		gwccss.Raw("word-break", "normal"),
+		gwccss.Raw("white-space", "nowrap"),
+		gwccss.Raw("overflow", "hidden"),
+		gwccss.Raw("text-overflow", "ellipsis"),
 	)
 	declareGlobal(".profile-fact small",
 		gwccss.TextColor(gwccss.Var("muted")),
@@ -1386,4 +1429,160 @@ func declarecollapsibleNavigationStyles() {
 	declareGlobal(".sidebar.collapsed .nav-bottom",
 		mediaRule(gwccss.MaxW(760), gwccss.Display.None),
 	)
+}
+
+// declareWorkflowHistoryFilterGrid owns the workflow history filter card. The
+// generic .history-filter-controls rules (flex in typed_mig_C, an auto-flow
+// column grid from 1200px in scroll_region.go) serve the compact single-row
+// filters on other history pages, so this block outranks them by specificity
+// rather than editing them: four labelled columns from 1100px, two from 600px,
+// one below, every control full width, and the actions on their own row.
+func declareWorkflowHistoryFilterGrid() {
+	const form = ".history-filter.workflow-history-filters"
+	declareGlobal(form,
+		gwccss.Raw("padding", "18px 20px"),
+		gwccss.Raw("margin", "0 0 16px"),
+		gwccss.Raw("border", "1px solid var(--line)"),
+		gwccss.Raw("border-radius", "var(--radius)"),
+		gwccss.Raw("background", "var(--surface)"),
+		gwccss.Raw("min-width", "0"),
+	)
+	declareGlobal(form+" .history-filter-controls",
+		gwccss.Display.Grid,
+		gwccss.Raw("grid-template-columns", "repeat(4,minmax(0,1fr))"),
+		gwccss.Raw("grid-auto-flow", "row"),
+		gwccss.Raw("grid-auto-columns", "auto"),
+		gwccss.Raw("gap", "14px 16px"),
+		gwccss.Raw("align-items", "start"),
+	)
+	declareGlobal(form+" .history-filter-controls>.labeled-control",
+		gwccss.Display.Grid,
+		gwccss.Raw("gap", "6px"),
+		gwccss.Raw("align-content", "start"),
+		gwccss.Raw("min-width", "0"),
+	)
+	declareGlobal(form+" .labeled-control>span",
+		gwccss.Raw("color", "var(--muted)"),
+		gwccss.Raw("font-size", ".8125rem"),
+		gwccss.Raw("font-weight", "600"),
+		gwccss.Raw("line-height", "1.3"),
+		gwccss.Raw("overflow", "hidden"),
+		gwccss.Raw("text-overflow", "ellipsis"),
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(form+" .history-filter-controls input,"+form+" .history-filter-controls select",
+		gwccss.Raw("box-sizing", "border-box"),
+		gwccss.Raw("display", "block"),
+		gwccss.Raw("flex", "none"),
+		gwccss.Raw("width", "100%"),
+		gwccss.Raw("min-width", "0"),
+		gwccss.Raw("max-width", "100%"),
+		gwccss.Raw("min-height", "44px"),
+		gwccss.Raw("font", "inherit"),
+		gwccss.Raw("text-overflow", "ellipsis"),
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(form+" .history-filter-controls input[type=date]",
+		gwccss.Raw("min-width", "9.5rem"),
+	)
+	declareGlobal(form+" .history-filter-actions",
+		gwccss.Display.Flex,
+		gwccss.Raw("flex-direction", "row"),
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Raw("align-items", "center"),
+		gwccss.Raw("gap", "12px"),
+		gwccss.Raw("grid-column", "1/-1"),
+		gwccss.Raw("padding-top", "6px"),
+	)
+	declareGlobal(form+" .history-filter-actions .button",
+		gwccss.Raw("flex", "0 0 auto"),
+		gwccss.Raw("width", "auto"),
+		gwccss.Raw("min-height", "44px"),
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(form+" .history-filter-controls",
+		mediaRule(gwccss.MaxW(1099), gwccss.Raw("grid-template-columns", "repeat(2,minmax(0,1fr))")),
+	)
+	declareGlobal(form+" .history-filter-controls",
+		mediaRule(gwccss.MaxW(599), gwccss.Raw("grid-template-columns", "minmax(0,1fr)")),
+	)
+	declareGlobal(form+" .history-filter-actions",
+		mediaRule(gwccss.MaxW(599), gwccss.Raw("flex-direction", "column"), gwccss.Raw("align-items", "stretch")),
+	)
+	declareGlobal(form+" .history-filter-actions .button",
+		mediaRule(gwccss.MaxW(599), gwccss.Raw("width", "100%")),
+	)
+	declareGlobal(".workflow-history-page,.workflow-history-results",
+		gwccss.Raw("min-width", "0"),
+		gwccss.Raw("max-width", "100%"),
+	)
+	declareGlobal(".workflow-history-results .data-table-scroll",
+		gwccss.Raw("max-width", "100%"),
+		gwccss.Raw("border", "1px solid var(--line)"),
+		gwccss.Raw("border-radius", "var(--radius)"),
+		gwccss.Raw("max-height", "none"),
+	)
+	declareDataTableStaysTable(".workflow-history-results")
+	declareGlobal(".workflow-history-results .data-table",
+		gwccss.Raw("width", "max-content"),
+		gwccss.Raw("min-width", "100%"),
+	)
+	declareGlobal(".workflow-history-results .data-table th,.workflow-history-results .data-table td",
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(".workflow-history-page>.section-head",
+		gwccss.Raw("padding", "0 0 16px"),
+		gwccss.Raw("flex-wrap", "wrap"),
+		gwccss.Raw("gap", "12px 16px"),
+		gwccss.Raw("align-items", "center"),
+		gwccss.Raw("justify-content", "space-between"),
+	)
+	// The page h1 already names the page, so the section's own h2 stays for
+	// assistive technology only and the description sits beside Export.
+	declareGlobal(".workflow-history-page>.section-head h2",
+		gwccss.Raw("position", "absolute"),
+		gwccss.Raw("width", "1px"),
+		gwccss.Raw("height", "1px"),
+		gwccss.Raw("overflow", "hidden"),
+		gwccss.Raw("clip", "rect(0 0 0 0)"),
+		gwccss.Raw("white-space", "nowrap"),
+	)
+	declareGlobal(".workflow-history-page>.section-head p",
+		gwccss.Raw("margin", "0"),
+	)
+	declareGlobal(".workflow-history-results>p.muted",
+		gwccss.Raw("margin", "0 0 8px"),
+		gwccss.Raw("font-size", ".8125rem"),
+	)
+}
+
+// declareDataTableStaysTable keeps the shared DataTable a real table inside
+// scope at every width. Below 1050px the component stacks rows into cards and
+// turns the header into a "Sort by" bar, which detaches header labels from
+// wide, many-column tables; a scoped surface that scrolls sideways instead
+// restates the desktop values here, at higher specificity and with the same
+// !important the card rules use.
+func declareDataTableStaysTable(scope string) {
+	at := func(selector string, declarations ...any) {
+		declareGlobal(scope+" "+selector, mediaRule(gwccss.MaxW(1050), declarations...))
+	}
+	at(".data-table", gwccss.Raw("display", "table"))
+	at(".data-table thead",
+		gwccss.Raw("display", "table-header-group"), gwccss.Padding(gwccss.Zero),
+		gwccss.Raw("border-bottom", "0"), gwccss.Raw("background", "transparent"),
+		gwccss.Raw("overflow-x", "visible"), gwccss.Position.Static)
+	at(".data-table-head", gwccss.Raw("display", "table-row!important"))
+	at(".data-table-head>.data-table-column",
+		gwccss.Raw("display", "table-cell"), gwccss.PaddingY(gwccss.Zero), gwccss.PaddingX(gwccss.Px(14)),
+		gwccss.Raw("min-width", "9rem!important"),
+		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")), gwccss.Bg(gwccss.Var("surface-subtle")))
+	at(".data-table-sort-label", gwccss.Display.None)
+	at(".data-table-body", gwccss.Raw("display", "table-row-group"))
+	at(".data-table .data-table-row", gwccss.Raw("display", "table-row"))
+	at(".data-table .data-table-cell",
+		gwccss.Raw("display", "table-cell!important"), gwccss.PaddingY(gwccss.Px(11)), gwccss.PaddingX(gwccss.Px(14)),
+		gwccss.Raw("min-width", "9rem!important"),
+		gwccss.BorderBottom(gwccss.Px(1), gwccss.Var("line")),
+		gwccss.Raw("background", "var(--surface)!important"), gwccss.Raw("text-align", "start"))
+	at(".data-table .data-table-cell:not(.data-table-row-header):not(.people-row-actions):before", gwccss.Raw("content", "none"))
 }

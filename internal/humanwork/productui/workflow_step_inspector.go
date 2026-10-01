@@ -81,12 +81,18 @@ func WorkflowStepInspector(props WorkflowStepInspectorProps) ui.Node {
 			I18nProps: props.I18nProps, Draft: props.Draft, Node: node, Sources: sources, OnSetOutcome: props.OnSetOutcome,
 		}), "connect-from"))
 	}
+	if strings.EqualFold(node.StepType, "TASK") {
+		sections = append(sections, html.P(html.Props{Key: "task-help", Class: "workflow-inspector-note", Raw: map[string]any{"role": "note"}},
+			productIcon("info", "workflow-inspector-note-icon"),
+			html.Span(html.Props{}, ui.Text(props.Text("workflow_editor.task_help")))))
+	}
 
 	if len(others) > 0 {
 		fields := make([]ui.Node, 0, len(others))
 		for _, parameter := range others {
 			fields = append(fields, html.WithKey(ui.CreateElement(workflowParameterField, workflowParameterFieldProps{
 				I18nProps: props.I18nProps, NodeID: node.ID, Parameter: parameter, OnUpdate: props.OnUpdateNode,
+				AllowEmptyRequired: strings.EqualFold(node.StepType, "TASK") && parameter.ID == "task_assignee",
 			}), "parameter-"+parameter.ID))
 		}
 		sections = append(sections, html.Section(html.Props{Key: "settings", Class: "workflow-inspector-section", Aria: map[string]string{"labelledby": "workflow-inspector-settings"}},
@@ -207,16 +213,17 @@ func WorkflowStepInspector(props WorkflowStepInspectorProps) ui.Node {
 
 type workflowParameterFieldProps struct {
 	I18nProps
-	NodeID    string
-	Parameter WorkflowNodeParameter
-	OnUpdate  func(WorkflowNodeParameterChange)
+	NodeID             string
+	Parameter          WorkflowNodeParameter
+	OnUpdate           func(WorkflowNodeParameterChange)
+	AllowEmptyRequired bool
 }
 
 func workflowParameterField(props workflowParameterFieldProps) ui.Node {
 	parameter := props.Parameter
 	commit := ui.UseEvent(func(event ui.InputEvent) {
 		value := strings.TrimSpace(event.GetValue())
-		if props.OnUpdate == nil || value == parameter.Value || (parameter.Required && value == "") {
+		if props.OnUpdate == nil || !workflowParameterChangeAllowed(parameter, value, props.AllowEmptyRequired) {
 			return
 		}
 		props.OnUpdate(WorkflowNodeParameterChange{NodeID: props.NodeID, Values: map[string]string{parameter.ID: value}})
@@ -244,6 +251,13 @@ func workflowParameterField(props workflowParameterFieldProps) ui.Node {
 		control = html.Input(input)
 	}
 	return ui.CreateElement(LabeledControl, LabeledControlProps{For: id, Label: label, Control: control})
+}
+
+func workflowParameterChangeAllowed(parameter WorkflowNodeParameter, value string, allowEmptyRequired bool) bool {
+	if value == parameter.Value {
+		return false
+	}
+	return !parameter.Required || value != "" || allowEmptyRequired
 }
 
 type workflowOutcomeFieldProps struct {

@@ -1,10 +1,17 @@
 package productui
 
-import "github.com/monstercameron/GoWebComponents/v5/ui"
+import (
+	"strings"
+
+	"github.com/monstercameron/GoWebComponents/v5/ui"
+)
 
 func chatSettingsPage(view View) ui.Node {
 	if view.Roles != nil && !PageVisible(PageChatSettings, view.Roles) {
 		return unavailablePanel(view.Locale.Text("shell.page_unavailable"), view.Locale.Text("shell.page_recovery"))
+	}
+	if strings.TrimSpace(view.ChatRetentionError) != "" && !view.ChatRetentionConfigured {
+		return capabilityUnavailablePanel(view.Locale)
 	}
 	editable := len(view.EffectivePermissions) == 0 || view.Can(PageAdmin, "update")
 	return ui.CreateElement(ChatSettingsPage, ChatSettingsPageProps{

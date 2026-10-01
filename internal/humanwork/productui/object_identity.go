@@ -2,6 +2,34 @@ package productui
 
 import "strings"
 
+// PreferredFamilyName returns the viewer-safe display name used by people
+// surfaces. Preferred names remain primary, while the family name makes two
+// workers with the same preferred name distinguishable.
+func PreferredFamilyName(person Person) string {
+	preferred := strings.TrimSpace(person.PreferredName)
+	legal := strings.TrimSpace(person.LegalName)
+	name := strings.TrimSpace(person.Name)
+	if preferred == "" {
+		preferred = name
+	}
+	if preferred == "" {
+		return legal
+	}
+	if legal == "" {
+		return preferred
+	}
+	legalParts := strings.Fields(legal)
+	preferredParts := strings.Fields(preferred)
+	if len(legalParts) == 0 || len(preferredParts) == 0 {
+		return preferred
+	}
+	family := legalParts[len(legalParts)-1]
+	if strings.EqualFold(preferredParts[len(preferredParts)-1], family) {
+		return preferred
+	}
+	return preferred + " " + family
+}
+
 // ObjectIdentity is the typed identity header of one object card: what the
 // object is for a person (Primary, e.g. "Promotion for Amara"), the short
 // handle a reader can quote or copy (Reference, e.g. "8CF888"), and the one
@@ -58,4 +86,14 @@ func (identity ObjectIdentity) AccessibleName(locale LocaleContext) string {
 	default:
 		return primary
 	}
+}
+
+// viewerDisplayName is PreferredFamilyName limited to what the viewer may
+// see: a legal name the server withheld contributes no family name, so the
+// header, breadcrumb and title cannot leak it (UXAUDIT-016).
+func viewerDisplayName(view View, person Person) string {
+	if _, status := resolveIdentityField(view.Locale, person, workerIdentityVerdicts(view), "legal_name", person.LegalName); status == WorkerFactWithheld {
+		person.LegalName = ""
+	}
+	return PreferredFamilyName(person)
 }

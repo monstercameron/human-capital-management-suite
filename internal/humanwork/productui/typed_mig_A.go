@@ -85,6 +85,13 @@ func declarevisualQARefinementsStyles() {
 		gwccss.Raw("padding-block", "10px"),
 		gwccss.Raw("padding-inline", "48px 14px"),
 	)
+	// The laptop header turns search into a 44px icon until focus. Keep the
+	// compact control's box genuinely compact after this visual refinement
+	// rule; otherwise its wide-field padding forces it into the neighbouring
+	// Jump/Page utilities controls and they overlap at 800px.
+	declareGlobal(".global-search .global-search-input",
+		mediaRule(gwccss.MaxW(1100), gwccss.Padding(gwccss.Zero)),
+	)
 	// Square, like every icon: this widened the 18px glyph to 20x18.
 	declareGlobal(".global-search-glyph",
 		gwccss.W(gwccss.Px(18)),
@@ -657,6 +664,14 @@ func declareroleAccessStylesStyles() {
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
 		gwccss.Raw("overflow-wrap", "anywhere"),
+	)
+	// Role IDs are identifiers, not prose: keep the token intact and expose
+	// the full value through the native tooltip/accessible name when the card
+	// is narrower than the identifier.
+	declareGlobal(".access-role-identity code",
+		gwccss.MinWidth(gwccss.Zero), gwccss.Raw("max-inline-size", "100%"),
+		gwccss.Raw("overflow-wrap", "normal"), gwccss.Raw("word-break", "normal"),
+		gwccss.Raw("white-space", "nowrap"), gwccss.Raw("overflow", "hidden"), gwccss.Raw("text-overflow", "ellipsis"),
 	)
 	// The description is read, not scanned: 13px, not the 12px of a label.
 	declareGlobal(".access-role-card summary p",
@@ -1421,6 +1436,11 @@ func declareorganizationVisibilityStylesStyles() {
 		gwccss.Bg(gwccss.Var("surface")),
 		gwccss.Raw("cursor", "pointer"),
 	)
+	declareGlobal(".organization-visibility-unit>span,.organization-scope-unit",
+		gwccss.MinWidth(gwccss.Zero), gwccss.Raw("max-inline-size", "100%"),
+		gwccss.Raw("overflow-wrap", "normal"), gwccss.Raw("word-break", "normal"),
+		gwccss.Raw("white-space", "nowrap"), gwccss.Raw("overflow", "hidden"), gwccss.Raw("text-overflow", "ellipsis"),
+	)
 	declareGlobal(".organization-visibility-unit:has(input:checked)",
 		gwccss.BorderColor(gwccss.Var("accent")),
 		gwccss.Bg(gwccss.Var("soft")),
@@ -1671,8 +1691,7 @@ func declareworkerIDStylesStyles() {
 		gwccss.PaddingY(gwccss.Px(16)), gwccss.PaddingX(gwccss.Px(22)),
 		gwccss.BorderTop(gwccss.Px(1), gwccss.Var("line")),
 		gwccss.Bg(gwccss.Var("surface-subtle")),
-		gwccss.Position.Sticky,
-		gwccss.Bottom(gwccss.Zero),
+		gwccss.Position.Static,
 		gwccss.Raw("z-index", "2"),
 	)
 	declareGlobal(".worker-id-actions p",
@@ -1758,20 +1777,12 @@ func declareworkerIDStylesStyles() {
 		mediaRule(gwccss.MaxW(620),
 			gwccss.Items.Stretch,
 			gwccss.FlexDir.Col,
-			// The action bar is the last child of its edit fieldset, so sticky
-			// positioning is constrained by the fieldset end on short screens.
-			// Pin it to the mobile visual viewport; page padding below keeps the
-			// final fields reachable above it, including on safe-area devices.
-			gwccss.Raw("position", "fixed"),
-			gwccss.Raw("left", "12px"),
-			gwccss.Raw("right", "12px"),
-			gwccss.Raw("bottom", "max(12px, env(safe-area-inset-bottom, 0px))"),
-			gwccss.Raw("z-index", "20"),
-			gwccss.Raw("box-shadow", "0 8px 24px rgba(0,0,0,.18)"),
+			// Keep the action bar in document flow on narrow screens too, so it
+			// cannot cover the final help text or a focused field.
 		),
 	)
 	declareGlobal(".worker-id-page",
-		mediaRule(gwccss.MaxW(620), gwccss.Raw("padding-bottom", "190px")),
+		mediaRule(gwccss.MaxW(620), gwccss.Raw("padding-bottom", "0")),
 	)
 	declareGlobal(".worker-id-actions .button",
 		mediaRule(gwccss.MaxW(620), gwccss.W(gwccss.Percent(100))),

@@ -152,7 +152,7 @@ func TestContentLoadingKeepsResolvedShellAndScopesPendingStateToMain(t *testing.
 	for _, want := range []string{
 		`class="app-shell is-content-loading"`, `id="main-content"`, `aria-busy="true"`,
 		`data-network-state="pending"`, `loading-work-layout`, "Taylor",
-		`viewer-profile-link network-slot network-slot-ready`, `notifications network-slot network-slot-ready`,
+		`account-menu network-slot network-slot-ready`, `notifications network-slot network-slot-ready`, // UXBLIND-064
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("content loading surface missing %q", want)

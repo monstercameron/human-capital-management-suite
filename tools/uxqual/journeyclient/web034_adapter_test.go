@@ -158,6 +158,7 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 		got = append(got, fmt.Sprintf("%s|%d|%s|%s", method.name, method.kind, method.inputName, method.outputName))
 	}
 	sort.Strings(got)
+	// UXBLIND: ListChatDirectory and SearchKnowledge joined the journey service.
 	want := strings.Split(strings.TrimSpace(`
 /hcmnext.journey.v1.JourneyService/AcknowledgeJourney|1|hcmnext.journey.v1.AcknowledgeJourneyRequest|hcmnext.journey.v1.AcknowledgeJourneyResponse
 /hcmnext.journey.v1.JourneyService/AddJourneyNote|1|hcmnext.journey.v1.AddJourneyNoteRequest|hcmnext.journey.v1.AddJourneyNoteResponse
@@ -169,6 +170,7 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 /hcmnext.journey.v1.JourneyService/GetRoleAccess|1|hcmnext.journey.v1.GetRoleAccessRequest|hcmnext.journey.v1.GetRoleAccessResponse
 /hcmnext.journey.v1.JourneyService/GetWorkerIDPolicy|1|hcmnext.journey.v1.GetWorkerIDPolicyRequest|hcmnext.journey.v1.GetWorkerIDPolicyResponse
 /hcmnext.journey.v1.JourneyService/InspectJourney|1|hcmnext.journey.v1.InspectJourneyRequest|hcmnext.journey.v1.InspectJourneyResponse
+/hcmnext.journey.v1.JourneyService/ListChatDirectory|1|hcmnext.journey.v1.ListChatDirectoryRequest|hcmnext.journey.v1.ListChatDirectoryResponse
 /hcmnext.journey.v1.JourneyService/ListJourneys|1|hcmnext.journey.v1.ListJourneysRequest|hcmnext.journey.v1.ListJourneysResponse
 /hcmnext.journey.v1.JourneyService/ListWorkers|1|hcmnext.journey.v1.ListWorkersRequest|hcmnext.journey.v1.ListWorkersResponse
 /hcmnext.journey.v1.JourneyService/PreviewJourneyIntervention|1|hcmnext.journey.v1.PreviewJourneyInterventionRequest|hcmnext.journey.v1.PreviewJourneyInterventionResponse
@@ -186,6 +188,7 @@ func TestTodo_WEB_034_Golden(t *testing.T) {
 /hcmnext.journey.v1.JourneyService/SaveUserPreferences|1|hcmnext.journey.v1.SaveUserPreferencesRequest|hcmnext.journey.v1.SaveUserPreferencesResponse
 /hcmnext.journey.v1.JourneyService/SaveWorkerIDPolicy|1|hcmnext.journey.v1.SaveWorkerIDPolicyRequest|hcmnext.journey.v1.SaveWorkerIDPolicyResponse
 /hcmnext.journey.v1.JourneyService/SaveWorkerRoleAssignment|1|hcmnext.journey.v1.SaveWorkerRoleAssignmentRequest|hcmnext.journey.v1.SaveWorkerRoleAssignmentResponse
+/hcmnext.journey.v1.JourneyService/SearchKnowledge|1|hcmnext.journey.v1.SearchKnowledgeRequest|hcmnext.journey.v1.SearchKnowledgeResponse
 /hcmnext.journey.v1.JourneyService/WatchJourney|2|hcmnext.journey.v1.WatchJourneyRequest|hcmnext.journey.v1.WatchJourneyResponse
 /hcmnext.journey.v1.JourneyService/WatchPromotionInvalidations|2|hcmnext.journey.v1.WatchPromotionInvalidationsRequest|hcmnext.journey.v1.WatchPromotionInvalidationsResponse
 `), "\n")

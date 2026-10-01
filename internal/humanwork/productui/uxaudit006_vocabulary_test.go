@@ -145,7 +145,7 @@ func TestTodo_UXAUDIT_006_Golden(t *testing.T) {
 		{"en-US", "organization_visibility.boundary_title", "Applied automatically"},
 		{"en-US", "organization_visibility.boundary_detail", "Role grants are additive. Hidden workers, unit names, and reporting links are removed before worker records reach the browser; a worker can always receive their own record."},
 		{"en-US", "appearance.tenant", "Organization appearance"},
-		{"en-US", "insights.attention_description", "This summary covers promotion journeys you can view. Broader workforce reporting is not available yet."},
+		{"en-US", "insights.attention_description", "This summary covers promotion journeys you can view; the workforce snapshot below adds headcount by unit and location."}, // UXBLIND-036
 		{"de-DE", "shell.authenticated_scope", "Arbeitsbereichszugriff"},
 		{"de-DE", "appearance.tenant", "Unternehmensweite Darstellung"},
 		{"de-DE", "organization_visibility.boundary_title", "Automatisch angewendet"},
@@ -190,7 +190,7 @@ func TestTodo_UXAUDIT_006_Browser(t *testing.T) {
 		t.Fatal(err)
 	}
 	adminRoot := mustParse(t, adminDoc)
-	journeyCard := findCardByTitle(adminRoot, "Promotion workflows")
+	journeyCard := findCardByTitle(adminRoot, "Journeys") // UXBLIND lane I: one name per route, so the card carries the page label
 	if journeyCard == nil {
 		t.Fatal("admin home loses the journey card")
 	}
@@ -328,7 +328,8 @@ func TestTodo_UXAUDIT_006_Regression(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Promotion workflows", "Experience configuration"} {
+	// UXBLIND lane I: cards carry the one page label ("Worker IDs", "Journeys").
+	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker IDs", "Brand &amp; appearance", "Journeys", "Experience configuration"} {
 		if !strings.Contains(adminDoc, card) {
 			t.Fatalf("admin home lost capability card %q after the vocabulary fix", card)
 		}

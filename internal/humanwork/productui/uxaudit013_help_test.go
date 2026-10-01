@@ -89,7 +89,8 @@ func TestTodo_UXAUDIT_013_Security(t *testing.T) {
 			t.Fatalf("denied Help destination leaked: %s", denied)
 		}
 	}
-	if !strings.Contains(doc, "HR administrator") {
+	// UXBLIND-042: a viewer is pointed at the workspace administrator, not an HR dead end.
+	if !strings.Contains(doc, "workspace administrator") {
 		t.Fatal("denied Help state lost non-disclosing escalation guidance")
 	}
 }

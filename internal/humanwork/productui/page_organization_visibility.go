@@ -32,7 +32,9 @@ func organizationVisibilityPage(view View) ui.Node {
 	sort.Slice(units, func(i, j int) bool { return strings.ToLower(units[i]) < strings.ToLower(units[j]) })
 	return ui.CreateElement(OrganizationVisibilityPage, OrganizationVisibilityPageProps{
 		I18nProps: I18nProps{Locale: view.Locale}, Roles: view.AccessRoles, Policies: view.RoleVisibilityPolicies, AvailableUnits: units, AvailableDomains: AvailableDataDomains(),
-		Back:      ActionLinkProps{Label: "← " + view.Locale.Text("page.admin.title"), Href: statefulHref(view, PageAdmin), Class: "button secondary", Navigate: view.Navigate},
+		// The shell's Admin / Organization visibility breadcrumb is the single
+		// back affordance for this administration surface.
+		Back:      ActionLinkProps{},
 		RolesLink: ActionLinkProps{Label: "Manage roles", Href: statefulHref(view, PageRoles), Class: "button secondary", Navigate: view.Navigate},
 		Editable:  len(view.EffectivePermissions) == 0 || view.Can(PageOrganizationVisibility, "update"),
 		OnSave:    view.SaveRoleVisibility,

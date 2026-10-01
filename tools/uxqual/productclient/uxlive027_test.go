@@ -218,7 +218,8 @@ func TestTodo_UXLIVE_027_Regression(t *testing.T) {
 }
 
 var (
-	uxlive030FactLink = regexp.MustCompile(`<a ([^>]*class="fact-link"[^>]*)>(\d+)<span class="sr-only"> ([^<]+)</span></a>`)
+	// UXBLIND-RR: the link holds only the number; its label is the paired <dt>. Groups: label, link attributes, number.
+	uxlive030FactLink = regexp.MustCompile(`<dt>([^<]+)</dt><dd><a ([^>]*class="fact-link"[^>]*)>(\d+)</a>`)
 	uxlive030Href     = regexp.MustCompile(`href="([^"]+)"`)
 )
 
@@ -235,11 +236,11 @@ func TestTodo_UXLIVE_030_Integration(t *testing.T) {
 		t.Fatalf("Home drill-down links = %d, want every journey and workforce number linked:\n%s", len(links), doc)
 	}
 	for _, link := range links {
-		hrefMatch := uxlive030Href.FindStringSubmatch(link[1])
+		hrefMatch := uxlive030Href.FindStringSubmatch(link[2])
 		if hrefMatch == nil {
-			t.Fatalf("drill-down %q has no href: %s", link[3], link[0])
+			t.Fatalf("drill-down %q has no href: %s", link[1], link[0])
 		}
-		href, value, label := html.UnescapeString(hrefMatch[1]), link[2], link[3]
+		href, value, label := html.UnescapeString(hrefMatch[1]), link[3], link[1]
 		path, query, _ := strings.Cut(href, "?")
 		destination := uxlive027Load(t, service, path, query)
 		var listed int

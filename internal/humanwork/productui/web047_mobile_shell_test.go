@@ -45,11 +45,11 @@ func TestTodo_WEB_047(t *testing.T) {
 		`@media (max-width:430px){.global-search .global-search-input{`,
 		`@media (max-width:430px){.global-search .global-search-input::placeholder{color:transparent;}`,
 		`@media (max-width:430px){.global-search:focus-within .global-search-input::placeholder{color:var(--muted);}`,
-		`@media (max-width:350px){.topbar,.app-shell.nav-collapsed .topbar{`,
+		`@media (max-width:430px){.topbar,.app-shell.nav-collapsed .topbar{`,
 		`grid-template-columns:minmax(0,1fr) auto auto;grid-template-rows:44px 44px;`,
-		`@media (max-width:350px){.topbar>.header-navigation-tools{`,
-		`@media (max-width:350px){.topbar>.notifications{`,
-		`@media (max-width:350px){.topbar>.viewer-profile-link{`,
+		`@media (max-width:430px){.topbar>.header-navigation-tools{`,
+		`@media (max-width:430px){.topbar>.notifications{`,
+		`@media (max-width:430px){.topbar>.viewer-profile-link{`,
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("mobile shell stylesheet missing %q", want)
@@ -66,7 +66,8 @@ func TestTodo_WEB_047_Golden(t *testing.T) {
 	// tint, like the menu, notification and profile icons beside them (the
 	// tint is the shell's --hcm-hover-surface token). Inspected: nothing else
 	// in the layer changed.
-	const want = "4a14410c74f4c81d0ec8fdcc68b1bbee4a4987a3e99e0a8229bfa4afd0914ebe"
+	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+	const want = "f4937984bd74cabed619227444d0adc42b68aa9a04eb3ee168da652d713a8d4e"
 	if got != want {
 		t.Fatalf("mobile shell stylesheet golden digest = %s, want %s", got, want)
 	}

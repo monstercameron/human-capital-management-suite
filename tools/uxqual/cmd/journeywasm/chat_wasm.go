@@ -74,6 +74,7 @@ func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Confi
 	configureChatRecipientBrowser(conn, cfg)
 	configureChatDocuments(conn, cfg)
 	configureChatProjects(conn)
+	configurePersonaChatBrowser(cfg)
 }
 
 // loadChatDirectory reads the worker directory once per session.
@@ -559,6 +560,7 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 		promptChatChannelAccess(cfg, *previewAccess)
 	}
 	startChatRecipientProjection(cfg, chatMembershipRows(list.GetConversations()))
+	startPersonaChat(cfg, model.SelectedID)
 	startChatDMPeers(cfg, conversations)
 	openChatShareFragment(cfg)
 	openChatChannelFragment(cfg)
@@ -1033,6 +1035,12 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				return
 			}
 			go sendChatMessage(cfg, target, body)
+		},
+		SendMessageWithReferences: func(conversationID, body string, refs []chatui.ChatReference) {
+			go sendPersonaChat(cfg, conversationID, "", body, refs)
+		},
+		ReplyInThreadWithReferences: func(parentID, body string, refs []chatui.ChatReference) {
+			go sendPersonaChat(cfg, chatBrowser.selectedID(), parentID, body, refs)
 		},
 		ReplyInThread: func(parentID, body string) {
 			go func() {
@@ -1521,6 +1529,7 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 	clearChatMediaCache()
 	chatBrowser.releaseReactionRead()
 	_, generation := chatBrowser.selectChatConversation(id)
+	startPersonaChat(cfg, id)
 	refreshChatRoute()
 	go loadChannelTodo(cfg, id)
 	go loadChannelWidgets(cfg, id)

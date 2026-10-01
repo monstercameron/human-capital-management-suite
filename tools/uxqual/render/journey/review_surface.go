@@ -1,6 +1,7 @@
 package journey
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -75,6 +76,11 @@ type reviewSurfaceProps struct {
 	// BusyLabel defaults to "Submitting…" and is announced through a
 	// role="status" region once Busy is true.
 	BusyLabel string
+	// CloseOnFailure collapses the review after a failed request so the
+	// failure notice is visible in the page rather than trapped under the
+	// modal backdrop.
+	CloseOnFailure bool
+	OnDismiss      func()
 }
 
 // reviewSurface is the one confirmation component PROMOUX-010's REFACTOR
@@ -126,10 +132,20 @@ func reviewSurface(props reviewSurfaceProps) ui.Node {
 	// visible.
 	open := ui.UseState(false)
 	useReviewDetailsSync(detailsID, func(nowOpen bool) { open.Set(nowOpen) })
+	ui.UseEffectOf(func() func() {
+		if props.CloseOnFailure {
+			open.Set(false)
+			closeReviewDetails(detailsID)
+		}
+		return nil
+	}, detailsID+"-failure-"+strconv.FormatBool(props.CloseOnFailure))
 
 	dismiss := func() {
 		open.Set(false)
 		closeReviewDetails(detailsID)
+		if props.OnDismiss != nil {
+			props.OnDismiss()
+		}
 	}
 
 	cancelClick := ui.UseEvent(func(e ui.MouseEvent) {
@@ -151,6 +167,7 @@ func reviewSurface(props reviewSurfaceProps) ui.Node {
 	cancelBtn := html.Button(html.Props{
 		Type: "button", Class: "jn-btn jn-confirm-cancel",
 		DataAttr: html.DataAttribute{Name: "variant", Value: "secondary"},
+		Aria:     map[string]string{"label": cancelLabel},
 		OnClick:  cancelClick,
 	}, html.Text(cancelLabel))
 	bodyChildren = append(bodyChildren,
@@ -173,6 +190,7 @@ func reviewSurface(props reviewSurfaceProps) ui.Node {
 	return html.Details(html.Props{Class: "jn-confirm", ID: detailsID, Key: detailsID},
 		html.Summary(html.Props{Class: "jn-btn", ID: triggerID,
 			DataAttr: html.DataAttribute{Name: "variant", Value: triggerVariant},
+			Aria:     map[string]string{"label": props.TriggerLabel},
 			Raw:      map[string]any{"role": "button"}},
 			html.Span(html.Props{Class: "jn-confirm-open-label"}, html.Text(props.TriggerLabel)),
 			html.Span(html.Props{Class: "jn-confirm-close-label"}, html.Text(nonEmpty(props.DismissLabel, "Cancel review")))),

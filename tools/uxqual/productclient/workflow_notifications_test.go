@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	notificationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
@@ -56,5 +57,65 @@ func TestWorkflowNotificationsSurviveNavigationAndRefreshSafely(t *testing.T) {
 				t.Fatal("incorrect inbox availability")
 			}
 		})
+	}
+}
+
+func TestNotificationReadHandlerResolvesVersionAndDoesNotBlindRetry(t *testing.T) {
+	var marked *notificationv1.MarkNotificationReadRequest
+	service := Service{
+		ListNotifications: func(context.Context, *notificationv1.ListNotificationsRequest) (*notificationv1.ListNotificationsResponse, error) {
+			return &notificationv1.ListNotificationsResponse{Notifications: []*notificationv1.Notification{{Id: "notice-1", ReadState: "UNREAD", Version: 7}}}, nil
+		},
+		MarkNotificationRead: func(_ context.Context, request *notificationv1.MarkNotificationReadRequest) (*notificationv1.MarkNotificationReadResponse, error) {
+			marked = request
+			return &notificationv1.MarkNotificationReadResponse{}, nil
+		},
+	}
+	done := make(chan error, 1)
+	notificationReadHandler(context.Background(), service)("notice-1", func(err error) { done <- err })
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if marked == nil || marked.GetId() != "notice-1" || marked.GetExpectedVersion() != 7 {
+		t.Fatalf("mark request = %+v, want notice-1 at version 7", marked)
+	}
+
+	marked = nil
+	service.ListNotifications = func(context.Context, *notificationv1.ListNotificationsRequest) (*notificationv1.ListNotificationsResponse, error) {
+		return &notificationv1.ListNotificationsResponse{Notifications: []*notificationv1.Notification{{Id: "notice-1", ReadState: "READ", Version: 8}}}, nil
+	}
+	done = make(chan error, 1)
+	notificationReadHandler(context.Background(), service)("notice-1", func(err error) { done <- err })
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if marked != nil {
+		t.Fatal("already-read notification triggered a blind mutation")
+	}
+}
+
+func TestNotificationReadHandlerPagesBeforeMarking(t *testing.T) {
+	var calls int
+	var marked *notificationv1.MarkNotificationReadRequest
+	service := Service{
+		ListNotifications: func(_ context.Context, request *notificationv1.ListNotificationsRequest) (*notificationv1.ListNotificationsResponse, error) {
+			calls++
+			if request.GetCursor() == "" {
+				return &notificationv1.ListNotificationsResponse{Notifications: []*notificationv1.Notification{{Id: "first", ReadState: "UNREAD", Version: 1}}, NextCursor: "next"}, nil
+			}
+			return &notificationv1.ListNotificationsResponse{Notifications: []*notificationv1.Notification{{Id: "target", ReadState: "UNREAD", Version: 9}}}, nil
+		},
+		MarkNotificationRead: func(_ context.Context, request *notificationv1.MarkNotificationReadRequest) (*notificationv1.MarkNotificationReadResponse, error) {
+			marked = request
+			return &notificationv1.MarkNotificationReadResponse{}, nil
+		},
+	}
+	done := make(chan error, 1)
+	notificationReadHandler(context.Background(), service)("target", func(err error) { done <- err })
+	if err := <-done; err != nil || calls != 2 {
+		t.Fatalf("completion=%v list calls=%d, want two pages and success", err, calls)
+	}
+	if marked == nil || marked.GetExpectedVersion() != 9 {
+		t.Fatalf("mark request=%+v, want target version 9", marked)
 	}
 }

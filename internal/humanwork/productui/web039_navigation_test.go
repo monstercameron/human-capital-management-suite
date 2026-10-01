@@ -109,7 +109,8 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// S-1 re-pins again for the same reason as TestTodo_WEB_037_Golden's
 	// latest pin: the action launcher trigger now always reads "Jump to"
 	// instead of switching between "Start an action" and "Go to".
-	const want = "7a3099dbc07ac6c487434427a7440aa574a883d5edcca2b9a6c8e015c74a301e"
+	// UXBLIND blind-test lanes (top bar, scroll/loading, navigation rework) re-pin: whole-document digest, structural checks above unchanged.
+	const want = "808134e772d44d141d208681c535c20e5af09daf2c11f626d8274dd65bc6e96e"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}
@@ -224,7 +225,7 @@ func TestTodo_WEB_039_Security(t *testing.T) {
 	})
 
 	t.Run("repeated overview", func(t *testing.T) {
-		overview := AuthorizedNavigationItem{Page: PageWork, Label: "Work queue", LabelKey: "nav.work_queue", Icon: "work", Href: Path(PageWork), Authorized: true}
+		overview := AuthorizedNavigationItem{Page: PageWork, Label: "Overview", LabelKey: "nav.overview", Icon: "work", Href: Path(PageWork), Authorized: true}
 		group := authorizedNavigationTestItem(PageWork)
 		group.Children = []AuthorizedNavigationItem{overview, overview}
 		assertNavigationProjectionFailsClosed(t, AuthorizedNavigationProjection{Version: 1, Items: []AuthorizedNavigationItem{group}})
@@ -295,7 +296,9 @@ func TestNavigationProjectionStateCannotExpandAuthorityAndKeepsCurrentContext(t 
 	if strings.Contains(props.Favorites[0].Href, "admin") || strings.Contains(props.Favorites[0].FavoriteHref, "admin") {
 		t.Fatal("unauthorized favorite reached presentation address state")
 	}
-	if !props.Favorites[0].Active {
+	// UXBLIND-066: the Favorites shortcut is not the current-page marker; the
+	// in-place entry in the main list is, so aria-current is never duplicated.
+	if inPlace, ok := projectedNavigationItem(props.Items, PagePeople); !ok || !inPlace.Active || props.Favorites[0].Active {
 		t.Fatal("People navigation was not active for a Person route")
 	}
 
@@ -354,7 +357,8 @@ func web039NavigationProjection() AuthorizedNavigationProjection {
 		Items: []AuthorizedNavigationItem{
 			{Page: PageHome, Label: "Home", LabelKey: "page.home.label", Icon: "home", Href: Path(PageHome), Authorized: true},
 			{Page: PageWork, Label: "My Work", LabelKey: "page.work.label", Icon: "work", Href: Path(PageWork), Authorized: true, Children: []AuthorizedNavigationItem{
-				{Page: PageWork, Label: "Work queue", LabelKey: "nav.work_queue", Icon: "work", Href: Path(PageWork), Authorized: true},
+				// UXBLIND-102: My Work's overview is named for the actions it lists.
+				{Page: PageWork, Label: "Needs your action", LabelKey: "home.needs_action", Icon: "work", Href: Path(PageWork), Authorized: true},
 				{Page: PageHistory, Label: "Work History", LabelKey: "page.history.label", Icon: "history", Href: Path(PageHistory), Authorized: true},
 			}},
 			{Page: PagePeople, Label: "People", LabelKey: "page.people.label", Icon: "people", Href: Path(PagePeople), Authorized: true},

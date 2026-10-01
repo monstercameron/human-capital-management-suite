@@ -48,12 +48,34 @@ type AppearancePreviewPage struct {
 
 // AppearancePage is the composed administration surface for tenant branding.
 func AppearancePage(props AppearancePageProps) ui.Node {
-	draft := NormalizeCustomerTheme(props.Theme)
+	published := props.PublishedTheme
+	if published.BrandName == "" && published.ColorMode == "" && published.Palette == "" && published.Shape == "" && published.Density == "" && published.Glyphs == "" && published.Typeface == "" && published.Navigation == "" && published.Motion == "" {
+		published = props.Theme
+	}
+	source := NormalizeCustomerTheme(props.Theme)
+	draftState := ui.UseState(uxblindAppearanceDraftState{Source: source, Draft: source})
+	state := draftState.Get()
+	if uxblindAppearanceThemeChanged(state.Source, source) {
+		state = uxblindAppearanceDraftState{Source: source, Draft: source}
+		draftState.Set(state)
+	}
+	draft := state.Draft
+	previewDraft := func() {
+		state.Draft = draft
+		draftState.Set(state)
+		previewAppearance(props.OnPreview, draft)
+	}
+	dirty := uxblindAppearanceThemeChanged(draft, published)
 	previewProps := props
+	previewProps.Theme = draft
+	previewProps.PublishedTheme = published
 	previewProps.OnReset = func() {
 		resetAppearanceDraft(&draft, props.OnReset)
+		state.Draft = draft
+		draftState.Set(state)
+		previewAppearance(props.OnPreview, draft)
 	}
-	return html.Div(html.Props{Class: "appearance-page", Data: map[string]string{"hcm-appearance-scope": "tenant"}},
+	return AdminPageFrame("appearance-page",
 		html.Section(html.Props{Class: "surface appearance-intro"},
 			html.Div(html.Props{Class: "appearance-intro-copy"},
 				html.H2(html.Props{}, ui.Text(props.Text("appearance.intro_title"))),
@@ -63,24 +85,24 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 				html.Span(html.Props{Class: "appearance-badge"}, navIcon("palette"), ui.Text(props.Text("appearance.tenant"))),
 				ui.CreateElement(appearancePreviewLauncher, appearancePreviewProps{AppearancePageProps: previewProps, Draft: &draft}),
 			),
+			appearanceScopeGuidance(props.I18nProps),
 		),
-		appearanceScopeGuidance(props.I18nProps),
 		appearanceSectionNavigation(props.I18nProps),
-		html.Form(html.Props{Class: "appearance-form", OnSubmit: preventFormSubmit(props.OnSave, &draft)},
+		html.Form(html.Props{Class: "appearance-form", OnSubmit: preventFormSubmit(props.OnSave, &draft), Raw: map[string]any{"data-unsaved-protection": "true", "data-unsaved-form": "appearance", "data-unsaved": fmt.Sprint(dirty), "data-unsaved-message": props.Text("appearance.preview_unsaved")}},
 			html.Fieldset(html.Props{Class: "appearance-edit-boundary", Disabled: !props.Editable},
 				html.Div(html.Props{Class: "appearance-controls"},
-					appearanceBrandSignature(props.I18nProps, draft, props.PreviewTenant, func(value string) {
+					appearanceBrandSignature(props.I18nProps, appearanceBrandEditorTheme(draft, props.PreviewTenant), props.PreviewTenant, func(value string) {
 						draft.BrandName = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}, func(value string) {
 						draft.BrandMark = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}, func(value string) {
 						draft.BrandLogoURL = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}, BrandAssetPickerProps{
 						I18nProps: props.I18nProps, Name: draft.BrandName, Mark: draft.BrandMark, LogoURL: draft.BrandLogoURL,
-						PublishedLogoURL: props.PublishedTheme.BrandLogoURL,
+						PublishedLogoURL: published.BrandLogoURL,
 						Editable:         props.Editable, Status: props.BrandAssetStatus, Approved: props.ApprovedLogos,
 						OnUpload:   props.OnUploadBrandAsset,
 						OnLoad:     props.OnLoadBrandAssets,
@@ -90,7 +112,7 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 					}),
 					appearanceChoices(props.Text("appearance.color_mode"), props.Text("appearance.color_mode_help"), "color_mode", draft.ColorMode, props.ColorModes, "color-mode-choices", func(value string) {
 						draft.ColorMode = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceChoices(props.Text("appearance.palette"), props.Text("appearance.palette_help"), "palette", draft.Palette, props.Palettes, "palette-choices", func(value string) {
 						if value == "custom" && draft.Palette != "custom" {
@@ -101,7 +123,7 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 							draft.DarkTokenOverrides = nil
 						}
 						draft.Palette = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceCustomColors(props.I18nProps, draft, ThemeModeLight, func(name, value string) {
 						if draft.Palette != "custom" {
@@ -109,7 +131,7 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 						}
 						draft.Palette = "custom"
 						draft.TokenOverrides[name] = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceCustomColors(props.I18nProps, draft, ThemeModeDark, func(name, value string) {
 						if draft.Palette != "custom" {
@@ -120,31 +142,31 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 						}
 						draft.Palette = "custom"
 						draft.DarkTokenOverrides[name] = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceChoices(props.Text("appearance.shape"), props.Text("appearance.shape_help"), "shape", draft.Shape, props.Shapes, "", func(value string) {
 						draft.Shape = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceChoices(props.Text("appearance.density"), props.Text("appearance.density_help"), "density", draft.Density, props.Densities, "", func(value string) {
 						draft.Density = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceChoices(props.Text("appearance.glyphs"), props.Text("appearance.glyphs_help"), "glyphs", draft.Glyphs, props.Glyphs, "", func(value string) {
 						draft.Glyphs = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceChoices(props.Text("appearance.typeface"), props.Text("appearance.typeface_help"), "typeface", draft.Typeface, props.Typefaces, "", func(value string) {
 						draft.Typeface = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceChoices(props.Text("appearance.navigation"), props.Text("appearance.navigation_help"), "navigation", draft.Navigation, props.Navigation, "", func(value string) {
 						draft.Navigation = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceChoices(props.Text("appearance.motion"), props.Text("appearance.motion_help"), "motion", draft.Motion, props.Motions, "", func(value string) {
 						draft.Motion = value
-						previewAppearance(props.OnPreview, draft)
+						previewDraft()
 					}),
 					appearanceEditActions(previewProps),
 				),
@@ -152,6 +174,21 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 			),
 		),
 	)
+}
+
+// appearanceBrandEditorTheme keeps an unconfigured tenant's effective brand
+// in the field itself. The stored product default remains untouched until an
+// administrator types a name, so the fallback stays reversible and saves do
+// not silently turn a tenant display name into explicit branding.
+func appearanceBrandEditorTheme(theme CustomerTheme, tenant string) CustomerTheme {
+	name, mark := HeaderBrandIdentity(theme, tenant)
+	if name != theme.BrandName {
+		theme.BrandName = name
+	}
+	if mark != theme.BrandMark {
+		theme.BrandMark = mark
+	}
+	return theme
 }
 
 func resetAppearanceDraft(draft *CustomerTheme, onReset func()) {
@@ -238,7 +275,11 @@ func appearanceChoices(title, help, name, selected string, options []AppearanceO
 			}
 			content = append(content, html.Span(html.Props{Class: "appearance-swatches", Aria: map[string]string{"hidden": "true"}}, swatches...))
 		}
-		choices = append(choices, html.Label(html.Props{Class: "appearance-choice appearance-choice-" + name + "-" + option.ID}, content...))
+		choiceClass := "appearance-choice appearance-choice-" + name + "-" + option.ID
+		if option.ID == selected {
+			choiceClass += " is-selected"
+		}
+		choices = append(choices, html.Label(html.Props{Class: choiceClass}, content...))
 	}
 	choiceClass := "appearance-choices"
 	if class != "" {
@@ -258,7 +299,10 @@ type appearancePreviewProps struct {
 
 func appearancePreview(props appearancePreviewProps) ui.Node {
 	theme := NormalizeCustomerTheme(props.Theme)
-	return html.Aside(html.Props{Class: "surface appearance-preview", Data: map[string]string{"hcm-preview-surface": "appearance"}, Aria: map[string]string{"label": props.Text("appearance.preview_aria")}},
+	if props.Draft != nil {
+		theme = NormalizeCustomerTheme(*props.Draft)
+	}
+	return html.Aside(html.Props{Class: "surface appearance-preview", Data: map[string]string{"hcm-preview-surface": "appearance", "hcm-palette": theme.Palette}, Aria: map[string]string{"label": props.Text("appearance.preview_aria")}},
 		html.Div(html.Props{}, html.H2(html.Props{}, ui.Text(props.Text("appearance.preview"))), html.P(html.Props{Class: "muted"}, ui.Text(props.Text("appearance.preview_help")))),
 		html.Div(html.Props{Class: "appearance-preview-grid"},
 			appearancePreviewWindow(props.AppearancePageProps, theme, "light", appearancePreviewLabel(props.Locale, "light"), "appearance-preview-light"),
@@ -291,9 +335,14 @@ func appearanceSectionNavigation(props I18nProps) ui.Node {
 	}
 	items := make([]ui.Node, 0, len(links))
 	for _, link := range links {
-		items = append(items, html.A(html.Props{Href: "#appearance-section-" + link.id, Class: "appearance-section-link"}, ui.Text(link.label)))
+		linkProps := html.Props{Href: "#appearance-section-" + link.id, Class: "appearance-section-link"}
+		if link.id == "brand" {
+			linkProps.Class += " is-selected"
+			linkProps.Raw = map[string]any{"aria-current": "page"}
+		}
+		items = append(items, html.A(linkProps, ui.Text(link.label)))
 	}
-	return html.Nav(html.Props{Class: "appearance-section-nav surface", Aria: map[string]string{"label": props.Text("appearance.section_navigation")}}, items...)
+	return html.Nav(html.Props{Class: "appearance-section-nav surface", Aria: map[string]string{"label": props.Text("appearance.section_navigation")}, Raw: map[string]any{"data-appearance-toc": "true"}}, items...)
 }
 
 func appearanceEditActions(props AppearancePageProps) ui.Node {
@@ -302,7 +351,12 @@ func appearanceEditActions(props AppearancePageProps) ui.Node {
 		reset.OnClick = ui.UseEvent(func(ui.MouseEvent) { props.OnReset() })
 	}
 	summary := AppearanceThemeSummary(props.Locale, props.Theme)
-	return html.Div(html.Props{Class: "appearance-actions appearance-actions-sticky sticky-actions", Data: map[string]string{"hcm-sticky-actions": "true", "hcm-edit-dirty": "false"}},
+	dirty := uxblindAppearanceThemeChanged(props.Theme, props.PublishedTheme)
+	statusText := props.Text("appearance.no_changes")
+	if dirty {
+		statusText = props.Text("appearance.preview_unsaved")
+	}
+	return html.Div(html.Props{Class: "appearance-actions appearance-actions-sticky sticky-actions", Data: map[string]string{"hcm-sticky-actions": "true", "hcm-edit-dirty": fmt.Sprint(dirty)}},
 		html.Div(html.Props{Class: "appearance-edit-context"},
 			html.Div(html.Props{Class: "appearance-edit-current"},
 				html.Small(html.Props{Class: "appearance-context-long"}, ui.Text(props.Text("appearance.current_saved"))),
@@ -316,9 +370,9 @@ func appearanceEditActions(props AppearancePageProps) ui.Node {
 			),
 		),
 		html.Div(html.Props{Class: "appearance-edit-command"},
-			html.P(html.Props{ID: "appearance-status", Class: "appearance-status", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(props.Text("appearance.no_changes"))),
+			html.P(html.Props{ID: "appearance-status", Class: "appearance-status", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(statusText)),
 			html.Button(html.Props{Class: "button secondary appearance-edit-preview", Type: "button", Aria: map[string]string{"label": props.Text("appearance.open_preview")}, OnClick: ui.UseEvent(func(ui.MouseEvent) { requestAppearancePreview() })}, navIcon("expand")),
-			html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: true, Data: map[string]string{"hcm-action": "save-appearance", "hcm-editable": fmt.Sprint(props.Editable)}, Raw: map[string]any{"aria-describedby": "appearance-status"}},
+			html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: !props.Editable || !dirty, Data: map[string]string{"hcm-action": "save-appearance", "hcm-editable": fmt.Sprint(props.Editable)}, Raw: map[string]any{"aria-describedby": "appearance-status"}},
 				html.Span(html.Props{Class: "appearance-label-long"}, ui.Text(props.Text("appearance.save"))),
 				html.Span(html.Props{Class: "appearance-label-short"}, ui.Text(props.Text("appearance.save_short"))),
 			),

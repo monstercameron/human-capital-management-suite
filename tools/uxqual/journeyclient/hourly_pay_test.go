@@ -10,19 +10,22 @@ import (
 )
 
 func TestHourlyPayLinesReadAsRates(t *testing.T) {
-	if got := payLineBasisLocale("", "USD", "28.00", "34.50", payBasisHourly, payBasisHourly); !strings.Contains(got, "28.00/hr") || !strings.Contains(got, "34.50/hr") || !strings.Contains(got, "%") {
+	// UXBLIND-020/075: pay unit is now spelled out ("per hour"/"pro
+	// Stunde"/"بالساعة") through the one shared formatter, replacing the
+	// former "/hr" abbreviation that was local to this package.
+	if got := payLineBasisLocale("", "USD", "28.00", "34.50", payBasisHourly, payBasisHourly); !strings.Contains(got, "28.00 per hour") || !strings.Contains(got, "34.50 per hour") || !strings.Contains(got, "%") {
 		t.Fatalf("hourly pay line = %q", got)
 	}
-	if got := payLineBasisLocale("", "USD", "40.00", "108000.00", payBasisHourly, ""); !strings.Contains(got, "40.00/hr") || strings.Contains(got, "108,000.00/hr") || strings.Contains(got, "%") {
+	if got := payLineBasisLocale("", "USD", "40.00", "108000.00", payBasisHourly, ""); !strings.Contains(got, "40.00 per hour") || strings.Contains(got, "108,000.00 per hour") || strings.Contains(got, "%") {
 		t.Fatalf("rate-to-salary pay line = %q", got)
 	}
 	if got, want := payLineBasisLocale("", "USD", "93000.00", "98000.00", "", ""), payLineLocale("", "USD", "93000.00", "98000.00"); got != want {
 		t.Fatalf("a salaried pay line changed: %q != %q", got, want)
 	}
-	if got := payLineBasisLocale("de-DE", "USD", "28.00", "34.50", payBasisHourly, payBasisHourly); !strings.Contains(got, "/Std.") {
+	if got := payLineBasisLocale("de-DE", "USD", "28.00", "34.50", payBasisHourly, payBasisHourly); !strings.Contains(got, "pro Stunde") {
 		t.Fatalf("German hourly pay line = %q", got)
 	}
-	if got := payLineBasisLocale("ar", "USD", "28.00", "34.50", payBasisHourly, payBasisHourly); !strings.Contains(got, "/ساعة") {
+	if got := payLineBasisLocale("ar", "USD", "28.00", "34.50", payBasisHourly, payBasisHourly); !strings.Contains(got, "بالساعة") {
 		t.Fatalf("Arabic hourly pay line = %q", got)
 	}
 }

@@ -89,7 +89,30 @@ func reviewComparison(locale string, rows []journey.ComparisonRow, detail *journ
 		rows[i].Current = positionCell(rows[i].Current, review.GetCurrentPositionTitle())
 		rows[i].Proposed = positionCell(rows[i].Proposed, review.GetTargetPositionTitle())
 	}
+	if current := positionCode(detail.GetJourney().GetCurrent().GetJobCode()); current != "" || positionCode(detail.GetJourney().GetTarget().GetJobCode()) != "" {
+		rows = append(rows, journey.ComparisonRow{
+			Label:    productui.ResolveProductLocale(locale).Text("journey.position_reference"),
+			Current:  positionCodeOrDash(current),
+			Proposed: positionCodeOrDash(positionCode(detail.GetJourney().GetTarget().GetJobCode())),
+			Changed:  current != positionCode(detail.GetJourney().GetTarget().GetJobCode()),
+		})
+	}
 	return rows
+}
+
+func positionCode(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || looksLikeIdentifier(value) || strings.Contains(strings.ToLower(value), "revision") || strings.HasPrefix(strings.ToLower(value), "rev-") {
+		return ""
+	}
+	return value
+}
+
+func positionCodeOrDash(value string) string {
+	if value == "" {
+		return emDash
+	}
+	return value
 }
 
 func positionCell(value, title string) string {

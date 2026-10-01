@@ -125,6 +125,16 @@ type MyWorkBuckets struct {
 	PassiveWaits []WorkItem
 }
 
+// PendingWork is the single viewer-scoped pending-work projection shared by
+// Home, My Work, and Insights. It starts with the admitted work stream, binds
+// responsibility to the viewer, and then applies the same actionable filter
+// that the My Work default queue renders. Callers receive a fresh slice so a
+// page limit or sort cannot change another page's count.
+func PendingWork(view View) []WorkItem {
+	viewerWork := MyWorkItems(admittedWork(view), view.Viewer)
+	return append([]WorkItem(nil), FilterWorkCollection(viewerWork, WorkCollectionAll)...)
+}
+
 // ResolveMyWorkBuckets scopes first, then classifies. Keeping authorization
 // before categorization prevents denied records from influencing counts or
 // leaking through a secondary summary.

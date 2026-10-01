@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -25,8 +26,10 @@ type PeoplePageProps struct {
 // PeopleSummaryProps contains the two already-formatted directory summary
 // labels. Formatting them in the page adapter keeps this component reusable.
 type PeopleSummaryProps struct {
-	CountLabel string
-	ScopeLabel string
+	Heading     string
+	Description string
+	CountLabel  string
+	ScopeLabel  string
 }
 
 // PeopleFilterProps is the progressive-enhancement search contract. Action
@@ -216,32 +219,71 @@ func PeoplePage(props PeoplePageProps) ui.Node {
 
 // PeopleSummary renders the result and authorization-scope labels.
 func PeopleSummary(props PeopleSummaryProps) ui.Node {
+	context := []ui.Node{}
+	if strings.TrimSpace(props.Heading) != "" {
+		context = append(context, html.H2(html.Props{Class: "directory-context-title"}, ui.Text(props.Heading)))
+	}
+	if strings.TrimSpace(props.Description) != "" {
+		context = append(context, html.P(html.Props{Class: "directory-context-description"}, ui.Text(props.Description)))
+	}
+	context = append(context,
+		html.Strong(html.Props{}, ui.Text(props.CountLabel)),
+		html.P(html.Props{Class: "muted"}, ui.Text(props.ScopeLabel)),
+	)
 	return html.Div(html.Props{Class: "directory-tools"},
 		html.Div(html.Props{},
-			html.Strong(html.Props{}, ui.Text(props.CountLabel)),
-			html.P(html.Props{Class: "muted"}, ui.Text(props.ScopeLabel)),
+			context...,
 		),
 	)
 }
 
 // PeopleFilter renders an SSR-safe GET filter with an optional live callback.
 func PeopleFilter(props PeopleFilterProps) ui.Node {
-	query, team, location, eligibleOnly := props.Query, props.Team, props.Location, props.EligibleOnly
+	queryState := ui.UseState(props.Query)
+	lastRouteQuery := ui.UseRef(props.Query)
+	debouncedQuery := ui.UseDebounced(queryState.Get(), 250*time.Millisecond)
+	team, location, eligibleOnly := props.Team, props.Location, props.EligibleOnly
+	settled := strings.TrimSpace(debouncedQuery.Get())
+	routeQueryChanged := lastRouteQuery.Get() != props.Query
+	ui.UseEffect(func() func() {
+		if routeQueryChanged {
+			lastRouteQuery.Set(props.Query)
+			if next, changed := peopleFilterRouteQuery(true, props.Query, queryState.Get()); changed {
+				queryState.Set(next)
+			}
+		}
+		return nil
+	}, props.Query)
+	ui.UseEffect(func() func() {
+		if props.OnFilter != nil && peopleFilterQueryShouldNavigate(routeQueryChanged, props.Query, queryState.Get(), settled) {
+			props.OnFilter(settled, props.Team, props.Location, props.EligibleOnly)
+		}
+		return nil
+	}, settled, props.Query)
 	input := SearchInputProps{ID: "people-filter", Name: "q", Value: props.Query,
 		Placeholder: props.Text("people.filter_placeholder"), AriaLabel: props.Text("people.filter_aria")}
 	eligibleProps := html.Props{ID: "people-eligible-filter", Type: "checkbox", Name: "eligible", Value: "1", Checked: props.EligibleOnly, Aria: map[string]string{"label": props.Text("people.eligible_only")}}
 	formProps := html.Props{Class: "people-filter", Action: props.Action, Method: "get", Raw: map[string]any{"role": "search"}}
 	if props.OnFilter != nil {
-		input.OnInput = func(value string) { query = value }
+		input.OnInput = func(value string) { queryState.Set(value) }
 		onFilter := props.OnFilter
 		teamProps := html.Props{ID: "people-team-filter", Name: "team", Value: team, Raw: map[string]any{"aria-label": props.Text("people.team_aria")}}
 		locationProps := html.Props{ID: "people-location-filter", Name: "location", Value: location, Raw: map[string]any{"aria-label": props.Text("people.location_aria")}}
-		teamProps.OnChange = ui.UseEvent(func(event ui.InputEvent) { team = event.GetValue() })
-		locationProps.OnChange = ui.UseEvent(func(event ui.InputEvent) { location = event.GetValue() })
-		eligibleProps.OnChange = ui.UseEvent(func(ui.InputEvent) { eligibleOnly = !eligibleOnly })
+		teamProps.OnChange = ui.UseEvent(func(event ui.InputEvent) {
+			team = event.GetValue()
+			onFilter(queryState.Get(), team, location, eligibleOnly)
+		})
+		locationProps.OnChange = ui.UseEvent(func(event ui.InputEvent) {
+			location = event.GetValue()
+			onFilter(queryState.Get(), team, location, eligibleOnly)
+		})
+		eligibleProps.OnChange = ui.UseEvent(func(ui.InputEvent) {
+			eligibleOnly = !eligibleOnly
+			onFilter(queryState.Get(), team, location, eligibleOnly)
+		})
 		formProps.OnSubmit = ui.UseEvent(func(event ui.FormEvent) {
 			event.PreventDefault()
-			onFilter(query, team, location, eligibleOnly)
+			onFilter(queryState.Get(), team, location, eligibleOnly)
 		})
 		return peopleFilterForm(props, ui.CreateElement(SearchInput, input), teamProps, locationProps, eligibleProps, formProps)
 	}
@@ -250,6 +292,18 @@ func PeopleFilter(props PeopleFilterProps) ui.Node {
 		html.Props{ID: "people-location-filter", Name: "location", Value: location, Raw: map[string]any{"aria-label": props.Text("people.location_aria")}},
 		eligibleProps,
 		formProps)
+}
+
+func peopleFilterRouteQuery(routeChanged bool, routeQuery, localQuery string) (string, bool) {
+	if !routeChanged || strings.TrimSpace(routeQuery) == strings.TrimSpace(localQuery) {
+		return localQuery, false
+	}
+	return routeQuery, true
+}
+
+func peopleFilterQueryShouldNavigate(routeChanged bool, routeQuery, localQuery, settledQuery string) bool {
+	settledQuery = strings.TrimSpace(settledQuery)
+	return !routeChanged && strings.TrimSpace(localQuery) == settledQuery && strings.TrimSpace(routeQuery) != settledQuery
 }
 
 func peopleFilterForm(props PeopleFilterProps, input ui.Node, teamProps, locationProps, eligibleProps, formProps html.Props) ui.Node {
@@ -261,20 +315,26 @@ func peopleFilterForm(props PeopleFilterProps, input ui.Node, teamProps, locatio
 	for _, option := range props.Locations {
 		locationOptions = append(locationOptions, html.Option(html.Props{Value: option.Value, Selected: props.Location == option.Value}, ui.Text(option.Label)))
 	}
-	actions := []ui.Node{html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.Text("people.filter")))}
+	actions := []ui.Node{}
+	if props.OnFilter == nil {
+		actions = append(actions, html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(props.Text("people.filter"))))
+	}
 	if props.Query != "" || props.Team != "" || props.Location != "" || props.EligibleOnly {
 		actions = append(actions, softwareLink(props.Navigate, html.Props{Class: "button secondary"}, props.ClearHref, ui.Text(props.Text("people.clear"))))
 	}
+	controlChildren := []ui.Node{
+		input,
+		html.Select(teamProps, teamOptions...),
+		html.Select(locationProps, locationOptions...),
+		html.Label(html.Props{Class: "people-eligible-filter-label", For: "people-eligible-filter"},
+			html.Tag("input", eligibleProps), ui.Text(props.Text("people.eligible_only"))),
+	}
+	if len(actions) > 0 {
+		controlChildren = append(controlChildren, html.Div(html.Props{Class: "people-filter-actions"}, actions...))
+	}
 	children := []ui.Node{
 		html.Label(html.Props{For: "people-filter"}, ui.Text(props.Text("people.find"))),
-		html.Div(html.Props{Class: "people-filter-control"},
-			input,
-			html.Select(teamProps, teamOptions...),
-			html.Select(locationProps, locationOptions...),
-			html.Label(html.Props{Class: "people-eligible-filter-label", For: "people-eligible-filter"},
-				html.Tag("input", eligibleProps), ui.Text(props.Text("people.eligible_only"))),
-			html.Div(html.Props{Class: "people-filter-actions"}, actions...),
-		),
+		html.Div(html.Props{Class: "people-filter-control"}, controlChildren...),
 	}
 	for _, field := range []struct{ name, value string }{{"sort", props.Sort}, {"dir", props.Direction}, {"columns", props.Columns}} {
 		if field.value != "" {
@@ -376,7 +436,7 @@ func PeopleTable(props PeopleTableProps) ui.Node {
 	return ui.CreateElement(DataTable, DataTableProps{
 		ID: "people-directory-table", Caption: props.Text("people.table_aria"), AriaLabel: props.Text("people.table_aria"), SortLabel: props.Text("people.sort_by"),
 		Class: "people-table", HeaderClass: "people-columns", BodyClass: "people-rows", SortLabelClass: "people-sort-label",
-		Busy: props.Busy, BusyLabel: props.Text("table.loading"), Columns: columns, Rows: rows,
+		Busy: props.Busy, BusyLabel: props.Text("table.loading"), Columns: columns, Rows: rows, StickyFirst: true, StickyLast: true,
 	})
 }
 
@@ -449,10 +509,10 @@ func peopleDataTableRow(props PeopleRowProps) DataTableRowProps {
 	row := DataTableRowProps{ID: props.ID, Class: "people-row-item people-row", Cells: []DataTableCellProps{
 		{ColumnID: peopleSortName, RowHeader: true, Children: []ui.Node{softwareLink(props.Navigate, html.Props{Class: "person-cell people-person-link"}, props.Href,
 			personAvatar(props.Name, props.Initials, props.PhotoURL, ""), html.Span(html.Props{Class: "people-identity"}, identity...))}},
-		{ColumnID: peopleSortRole, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Role)},
+		{ColumnID: peopleSortRole, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, formattedPeopleRole(props.Role, props.ExtraValues[2]))},
 		{ColumnID: peopleSortTeam, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Team)},
 		{ColumnID: peopleSortManager, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Manager)},
-		{ColumnID: peopleSortLocation, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, props.Location)},
+		{ColumnID: peopleSortLocation, Class: "people-cell", Text: valueOrUnavailableFor(props.Locale, formattedPeopleLocation(props.Location))},
 		{ColumnID: "actions", Class: "people-row-actions", Children: cellChildren},
 	}}
 	for i, column := range peopleColumnDefinitions()[5:] {

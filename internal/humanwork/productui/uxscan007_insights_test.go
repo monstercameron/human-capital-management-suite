@@ -36,7 +36,7 @@ func TestTodo_UXSCAN_007_Integration(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`Visible workflows</span><strong>2</strong>`,
+		`Promotion requests</span><strong>2</strong>`,
 		`In progress</span><strong>1</strong>`,
 		`Completed or closed</span><strong>1</strong>`,
 		"Promotion journeys you can access",

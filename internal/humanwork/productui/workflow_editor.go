@@ -27,7 +27,10 @@ type WorkflowEditorProps struct {
 	// OnInsertAfter adds a step and then points the named result at it. The
 	// change's ToNodeID is left empty for the host to fill with the new step.
 	OnInsertAfter  func(WorkflowPaletteItem, WorkflowOutcomeChange)
+	OnCreate       func(WorkflowDraftCreateRequest)
+	CreateRequest  WorkflowDraftCreateRequest
 	OnRename       func(string)
+	OnDelete       func()
 	OnUpdateNode   func(WorkflowNodeParameterChange)
 	OnSetOutcome   func(WorkflowOutcomeChange)
 	OnClearOutcome func(WorkflowOutcomeChange)
@@ -134,12 +137,16 @@ func WorkflowEditor(props WorkflowEditorProps) ui.Node {
 		html.P(html.Props{Key: "announce", Class: "sr-only", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(announce)),
 		ui.CreateElement(workflowEditorBar, workflowEditorBarProps{
 			I18nProps: props.I18nProps, Draft: draft, Problems: problems, Status: props.Status, CatalogHref: props.CatalogHref,
-			Navigate: props.Navigate, OnRename: props.OnRename, OnHistory: props.OnHistory, OnSelect: choose,
+			Navigate: props.Navigate, OnRename: props.OnRename, OnDelete: props.OnDelete, OnCreate: props.OnCreate, CreateRequest: props.CreateRequest, OnHistory: props.OnHistory, OnSelect: choose,
 		}),
+		workflowReleasePanel(props.I18nProps, draft, problems, props.OnCreate),
 		html.Div(html.Props{Class: "workflow-editor-panes"},
 			ui.CreateElement(WorkflowPalette, WorkflowPaletteProps{
 				I18nProps: props.I18nProps, Items: library, OnInsert: insert,
 				CanInsert: func(item WorkflowPaletteItem) bool {
+					if strings.TrimSpace(draft.DraftID) == "" {
+						return false
+					}
 					if strings.EqualFold(item.Kind, "TEMPLATE") {
 						return len(draft.Nodes) == 0
 					}
@@ -219,23 +226,43 @@ func workflowNodeByID(draft WorkflowDraftView, id string) (WorkflowDraftNode, bo
 
 type workflowEditorBarProps struct {
 	I18nProps
-	Draft       WorkflowDraftView
-	Problems    []workflowPathProblem
-	Status      ui.Node
-	CatalogHref string
-	Navigate    func(string)
-	OnRename    func(string)
-	OnHistory   func(string)
-	OnSelect    func(string)
+	Draft         WorkflowDraftView
+	Problems      []workflowPathProblem
+	Status        ui.Node
+	CatalogHref   string
+	Navigate      func(string)
+	OnRename      func(string)
+	OnDelete      func()
+	OnCreate      func(WorkflowDraftCreateRequest)
+	CreateRequest WorkflowDraftCreateRequest
+	OnHistory     func(string)
+	OnSelect      func(string)
 }
 
 // workflowEditorBar holds what is true of the whole draft: its name, whether
 // it is saved, the way back through its history, and what is left to finish.
 func workflowEditorBar(props workflowEditorBarProps) ui.Node {
 	draft := props.Draft
+	name := ui.UseState(draft.Name)
+	unsaved := strings.TrimSpace(draft.DraftID) == ""
 	rename := ui.UseEvent(func(event ui.InputEvent) {
-		if name := strings.TrimSpace(event.GetValue()); name != "" && name != draft.Name && props.OnRename != nil {
-			props.OnRename(name)
+		value := strings.TrimSpace(event.GetValue())
+		name.Set(value)
+		if value != "" && value != draft.Name && props.OnRename != nil {
+			props.OnRename(value)
+		}
+	})
+	save := ui.UseEvent(func(ui.MouseEvent) {
+		if !unsaved || props.OnCreate == nil {
+			return
+		}
+		request := props.CreateRequest
+		request.Name = strings.TrimSpace(name.Get())
+		if request.SemanticVersion == "" {
+			request.SemanticVersion = draft.SemanticVersion
+		}
+		if request.Name != "" {
+			props.OnCreate(request)
 		}
 	})
 	undoClick := ui.UseEvent(func(ui.MouseEvent) {
@@ -248,14 +275,24 @@ func workflowEditorBar(props workflowEditorBarProps) ui.Node {
 			props.OnHistory("REDO")
 		}
 	})
+	confirmingDelete := ui.UseState(false)
+	requestDelete := ui.UseEvent(func(ui.MouseEvent) { confirmingDelete.Set(true) })
+	cancelDelete := ui.UseEvent(func(ui.MouseEvent) { confirmingDelete.Set(false) })
+	confirmDelete := ui.UseEvent(func(ui.MouseEvent) {
+		if props.OnDelete != nil {
+			props.OnDelete()
+		}
+		confirmingDelete.Set(false)
+	})
+	useWorkflowDraftDeleteFocus(confirmingDelete.Get())
 
 	title := ui.Node(html.H2(html.Props{ID: "workflow-draft-title", Class: "workflow-editor-name", Dir: "auto"}, ui.Text(draft.Name)))
-	if props.OnRename != nil {
+	if props.OnRename != nil || (unsaved && props.OnCreate != nil) {
 		title = html.Div(html.Props{Class: "workflow-editor-name-field"},
 			html.H2(html.Props{ID: "workflow-draft-title", Class: "sr-only", Dir: "auto"}, ui.Text(draft.Name)),
 			html.Label(html.Props{For: "workflow-draft-name", Class: "sr-only"}, ui.Text(props.Text("workflow_editor.name_label"))),
 			html.Input(html.Props{
-				ID: "workflow-draft-name", Name: "workflow_name", Type: "text", Value: draft.Name, Class: "workflow-editor-name",
+				ID: "workflow-draft-name", Name: "workflow_name", Type: "text", Value: name.Get(), Class: "workflow-editor-name",
 				Required: true, MaxLength: 120, AutoComplete: "off", Dir: "auto", OnChange: rename,
 			}),
 			productIcon("edit", "workflow-editor-name-icon"),
@@ -266,6 +303,10 @@ func workflowEditorBar(props workflowEditorBarProps) ui.Node {
 		Title: props.Text("workflow_draft.undo"), Aria: map[string]string{"label": props.Text("workflow_draft.undo")}}
 	redo := html.Props{Class: "button ghost compact icon-button", Type: "button", Disabled: !draft.CanRedo || props.OnHistory == nil, OnClick: redoClick,
 		Title: props.Text("workflow_draft.redo"), Aria: map[string]string{"label": props.Text("workflow_draft.redo")}}
+	deleteAction := ui.Node(nil)
+	if !unsaved && len(draft.Nodes) == 0 && props.OnDelete != nil {
+		deleteAction = html.Button(html.Props{ID: "workflow-draft-delete-trigger", Class: "button danger compact", Type: "button", Data: map[string]string{"workflow-action": "delete-draft"}, OnClick: requestDelete}, ui.Text(props.Text("workflow_draft.delete")))
+	}
 
 	return html.Header(html.Props{Class: "workflow-editor-bar"},
 		softwareLink(props.Navigate, html.Props{Class: "workflow-editor-back"}, props.CatalogHref,
@@ -282,9 +323,18 @@ func workflowEditorBar(props workflowEditorBarProps) ui.Node {
 				html.Button(undo, productIcon("undo", "")),
 				html.Button(redo, productIcon("redo", "")),
 			),
+			deleteAction,
 			workflowEditorChanges(props.I18nProps, draft),
+			func() ui.Node {
+				if !unsaved {
+					return nil
+				}
+				button := html.Props{Class: "button primary compact", Type: "button", Disabled: props.OnCreate == nil || strings.TrimSpace(name.Get()) == "", OnClick: save}
+				return html.Button(button, ui.Text(props.Text("workflow_release.action_save")))
+			}(),
 			ui.CreateElement(workflowEditorProblems, workflowEditorProblemsProps{I18nProps: props.I18nProps, Problems: props.Problems, Empty: len(draft.Nodes) == 0, OnSelect: props.OnSelect}),
 		),
+		workflowDraftDeleteConfirmation(props.I18nProps, confirmingDelete.Get(), cancelDelete, confirmDelete),
 	)
 }
 

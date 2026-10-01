@@ -137,18 +137,22 @@ func projectRouteHref(view View, taskID, cursor string, mode projectui.ViewMode)
 
 func projectsPage(view View) ui.Node {
 	copy := projectPageCopy(view.Locale)
+	if view.ProjectsState == ProjectProjectionRestricted || view.ProjectsState == ProjectProjectionUnavailable {
+		return html.Section(html.Props{Class: "project-page-home", Role: "region", Aria: map[string]string{"label": view.Title}}, capabilityUnavailableFrame(view))
+	}
 	heading := []ui.Node{html.H1(html.Props{Text: view.Title})}
 	if view.Subtitle != "" {
 		heading = append(heading, html.P(html.Props{Class: "project-page-description", Text: view.Subtitle}))
 	}
-	children := []ui.Node{html.Header(html.Props{Class: "project-page-home-header"},
-		html.Div(html.Props{Class: "project-page-home-heading"}, heading...),
-		projectCreateForm(copy, view.ProjectCreateReady),
-	)}
+	headerChildren := []ui.Node{html.Div(html.Props{Class: "project-page-home-heading"}, heading...)}
+	if view.ProjectsState != ProjectProjectionRestricted && view.ProjectsState != ProjectProjectionUnavailable && view.ProjectsState != ProjectProjectionFailed {
+		headerChildren = append(headerChildren, projectCreateForm(copy, view.ProjectCreateReady, view.Locale.normalized().TimeZone))
+	}
+	children := []ui.Node{html.Header(html.Props{Class: "project-page-home-header"}, headerChildren...)}
 	// Two tabs: the projects themselves and every ticket across them. The
 	// tab lives in the address, so Back and Forward move between them.
 	board := projectBoardCopy(view.Locale).Board
-	ticketsTab := view.ProjectBoard != nil && view.ProjectBoard.HomeTab == "tickets"
+	ticketsTab := view.ProjectBoard != nil && strings.EqualFold(strings.TrimSpace(view.ProjectBoard.HomeTab), "tickets")
 	// Counts: projects on this page, and tickets across them once the
 	// per-project counts are known.
 	ticketTotal, ticketsKnown := 0, len(view.Projects) > 0
@@ -186,14 +190,16 @@ func projectsPage(view View) ui.Node {
 		tab(board.TabProjects, homeHref, "projects", !ticketsTab, len(view.Projects), view.ProjectsState == ProjectProjectionReady),
 		tab(board.TabTickets, ticketsHref, "tickets", ticketsTab, ticketTotal, ticketsKnown)))
 	if ticketsTab {
-		children = append(children, projectTicketsTab(view, *view.ProjectBoard.Tickets))
+		if view.ProjectBoard.Tickets != nil {
+			children = append(children, projectTicketsTab(view, *view.ProjectBoard.Tickets))
+		} else {
+			children = append(children, capabilityUnavailablePanel(view.Locale))
+		}
 		return html.Section(html.Props{Class: "project-page-home", Role: "region", Aria: map[string]string{"label": view.Title}}, children...)
 	}
 	switch view.ProjectsState {
 	case "", ProjectProjectionLoading:
 		children = append(children, html.P(html.Props{Role: "status", Class: "project-page-notice", Text: copy.homeLoading}))
-	case ProjectProjectionRestricted, ProjectProjectionUnavailable:
-		children = append(children, html.P(html.Props{Role: "status", Class: "project-page-notice", Text: copy.projectUnavailable}))
 	case ProjectProjectionFailed:
 		children = append(children, html.P(html.Props{Role: "alert", Class: "project-page-notice", Text: copy.homeFailed}))
 	case ProjectProjectionReady:
@@ -244,11 +250,14 @@ func projectPage(view View) ui.Node {
 			softwareLink(view.Navigate, html.Props{Class: "project-page-open"}, Path(PageProjects), html.Span(html.Props{Text: copy.openProjects})),
 		)
 	}
+	if view.ProjectBoardState == ProjectProjectionRestricted || view.ProjectBoardState == ProjectProjectionUnavailable {
+		return html.Section(html.Props{Class: "project-page project-page-state", Role: "region", Aria: map[string]string{"label": view.Title}}, capabilityUnavailableFrame(view))
+	}
 	if view.ProjectBoardState != ProjectProjectionReady {
 		return projectStatePanel(view.Title, view.ProjectBoardState, copy.boardLoading, copy.boardFailed, copy.projectUnavailable)
 	}
 	if view.ProjectBoard == nil {
-		return projectStatePanel(view.Title, ProjectProjectionUnavailable, copy.boardLoading, copy.boardFailed, copy.projectUnavailable)
+		return html.Section(html.Props{Class: "project-page project-page-state", Role: "region", Aria: map[string]string{"label": view.Title}}, capabilityUnavailableFrame(view))
 	}
 	board := *view.ProjectBoard
 	board.Cards = append([]projectui.Card(nil), board.Cards...)
@@ -310,6 +319,9 @@ func projectPage(view View) ui.Node {
 		content = projectui.Board(board, actions...)
 	}
 	children := []ui.Node{content}
+	if view.ProjectWorkflowConfig != nil {
+		children = append([]ui.Node{ui.CreateElement(ProjectWorkflowConfiguration, *view.ProjectWorkflowConfig)}, children...)
+	}
 	props := html.Props{Class: "project-page-board", Role: "region", Aria: map[string]string{"label": view.Title}}
 	boardOnly := projectRouteHref(view, "", view.ProjectCursor, board.Mode)
 	projectNoteBoardShown(boardOnly, view.ProjectDetailSelected)
@@ -353,7 +365,7 @@ func projectTaskPage(view View, board projectui.Model) ui.Node {
 	case view.ProjectDetailState == ProjectProjectionLoading || view.ProjectDetailState == "":
 		return projectStatePanel(view.Title, ProjectProjectionLoading, copy.detailLoading, copy.detailFailed, copy.projectUnavailable)
 	default:
-		return projectStatePanel(view.Title, ProjectProjectionUnavailable, copy.detailLoading, copy.detailFailed, copy.projectUnavailable)
+		return html.Section(html.Props{Class: "project-page project-page-state", Role: "region", Aria: map[string]string{"label": view.Title}}, capabilityUnavailableFrame(view))
 	}
 }
 
@@ -776,7 +788,8 @@ func projectCancelButton(label string) ui.Node {
 }
 
 // projectTimeZones is the curated IANA list the create form offers. The
-// workspace default zone is not exposed to the page yet, so UTC leads.
+// viewer's server-resolved locale zone is selected when it is one of these
+// bounded choices; UTC remains the safe fallback for an unknown zone.
 var projectTimeZones = []string{
 	"UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Phoenix", "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu",
 	"America/Toronto", "America/Mexico_City", "America/Sao_Paulo", "Europe/London", "Europe/Dublin", "Europe/Lisbon", "Europe/Paris", "Europe/Berlin",
@@ -784,10 +797,20 @@ var projectTimeZones = []string{
 	"Asia/Karachi", "Asia/Kolkata", "Asia/Singapore", "Asia/Shanghai", "Asia/Tokyo", "Australia/Sydney", "Pacific/Auckland",
 }
 
-func projectCreateForm(copy projectPageCopyText, ready bool) ui.Node {
+func projectDefaultTimeZone(preferred string) string {
+	for _, zone := range projectTimeZones {
+		if zone == strings.TrimSpace(preferred) {
+			return zone
+		}
+	}
+	return "UTC"
+}
+
+func projectCreateForm(copy projectPageCopyText, ready bool, preferredZone string) ui.Node {
+	defaultZone := projectDefaultTimeZone(preferredZone)
 	zones := make([]ui.Node, 0, len(projectTimeZones))
 	for _, zone := range projectTimeZones {
-		zones = append(zones, html.Option(html.Props{Value: zone, Selected: zone == "UTC", Text: strings.ReplaceAll(zone, "_", " ")}))
+		zones = append(zones, html.Option(html.Props{Value: zone, Selected: zone == defaultZone, Text: strings.ReplaceAll(zone, "_", " ")}))
 	}
 	children := []ui.Node{
 		projectPopoverHead(copy.newProject, copy.closeDetail),

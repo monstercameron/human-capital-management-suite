@@ -48,8 +48,12 @@ func journeyFilterForm(l live, f *JourneyFilterView) ui.Node {
 	if f.ClearHref != "" {
 		actions = append(actions, html.A(html.Props{Class: "jn-journey-filter-clear", Href: f.ClearHref, OnClick: activate(f.OnClear)}, html.Text(f.ClearLabel)))
 	}
-	panel := make([]ui.Node, 0, len(f.Fields))
-	for _, field := range f.Fields[1:] {
+	primary := 2
+	if len(f.Fields) < primary {
+		primary = len(f.Fields)
+	}
+	panel := make([]ui.Node, 0, len(f.Fields)-primary)
+	for _, field := range f.Fields[primary:] {
 		panel = append(panel, fieldNode(l, field, false))
 	}
 	if len(actions) > 0 {
@@ -57,13 +61,20 @@ func journeyFilterForm(l live, f *JourneyFilterView) ui.Node {
 		panel = append(panel, html.Div(html.Props{Class: "jn-journey-filter-actions"}, actions...))
 	}
 	open := journeyFilterPanelOpen(l, f)
+	primaryFields := make([]ui.Node, 0, primary+1)
+	for _, field := range f.Fields[:primary] {
+		primaryFields = append(primaryFields, fieldNode(l, field, false))
+	}
+	if journeyFilterCollapsible(f) {
+		primaryFields = append(primaryFields, journeyFilterToggle(l, f, open))
+	}
+	primaryFields = append(primaryFields, html.Div(html.Props{ID: journeyFilterPanelID, Class: "jn-journey-filter-panel",
+		DataAttr: html.DataAttribute{Name: "open", Value: strconv.FormatBool(open)}}, panel...))
 	return html.Form(html.Props{Class: "jn-journey-filter", Method: "get", Role: "search",
-		Aria: map[string]string{"label": f.Label}, OnSubmit: l.submitHandler(f.OnSubmit, nil, f.Fields)},
+		DataAttr: html.DataAttribute{Name: "collapsible", Value: strconv.FormatBool(journeyFilterCollapsible(f))},
+		Aria:     map[string]string{"label": f.Label}, OnSubmit: l.submitHandler(f.OnSubmit, nil, f.Fields)},
 		html.Div(html.Props{Class: "jn-journey-filter-fields"},
-			fieldNode(l, f.Fields[0], false),
-			journeyFilterToggle(l, f, open),
-			html.Div(html.Props{ID: journeyFilterPanelID, Class: "jn-journey-filter-panel",
-				DataAttr: html.DataAttribute{Name: "open", Value: strconv.FormatBool(open)}}, panel...),
+			primaryFields...,
 		),
 	)
 }
@@ -78,6 +89,9 @@ const journeyFilterPanelID = "journey-filter-panel"
 // they made one, otherwise open exactly when a filter other than the search
 // is set, so an applied filter is never hidden behind a closed toggle.
 func journeyFilterPanelOpen(l live, f *JourneyFilterView) bool {
+	if !journeyFilterCollapsible(f) {
+		return true
+	}
 	switch l.values[JourneyFilterPanelField] {
 	case "open":
 		return true

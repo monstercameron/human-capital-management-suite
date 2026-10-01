@@ -1,7 +1,6 @@
 package productui
 
 import (
-	"fmt"
 	"net/url"
 	"sort"
 	"strings"
@@ -17,6 +16,7 @@ import (
 // not grant read, edit, or publication authority.
 type WorkflowCatalogItem struct {
 	WorkflowID      string
+	DraftID         string
 	Name            string
 	Version         uint32
 	SemanticVersion string
@@ -34,6 +34,7 @@ type WorkflowDesignerPageProps struct {
 	Navigate       func(string)
 	CanCreate      bool
 	OnCreate       func(WorkflowDraftCreateRequest)
+	OnBegin        func(WorkflowDraftCreateRequest)
 	OnInsert       func(WorkflowPaletteItem)
 	OnUpdateNode   func(WorkflowNodeParameterChange)
 	OnSetOutcome   func(WorkflowOutcomeChange)
@@ -46,6 +47,7 @@ type WorkflowDesignerPageProps struct {
 	OnSetOutcomes  func([]WorkflowOutcomeChange)
 	OnRemoveNode   func(string)
 	OnRename       func(string)
+	OnDelete       func()
 	SelectedNodeID string
 	OnSelectNode   func(string)
 }
@@ -133,6 +135,24 @@ type WorkflowDraftGroup struct {
 // editor and nothing else. The two were previously stacked on one page, which
 // put the step library a screen below the steps it adds to.
 func WorkflowDesignerPage(props WorkflowDesignerPageProps) ui.Node {
+	pending := ui.UseState(workflowPendingDraft{})
+	if props.Draft == nil && pending.Get().Active {
+		draft := pending.Get().Draft
+		props.Draft = &draft
+	}
+	if props.Draft == nil && props.OnCreate != nil && props.OnBegin == nil {
+		props.OnBegin = func(request WorkflowDraftCreateRequest) {
+			name := strings.TrimSpace(request.Name)
+			if name == "" && request.Template != nil {
+				name = strings.TrimSpace(request.Template.Name)
+			}
+			version := strings.TrimSpace(request.SemanticVersion)
+			if version == "" {
+				version = "0.1.0"
+			}
+			pending.Set(workflowPendingDraft{Active: true, Request: request, Draft: WorkflowDraftView{Name: name, SemanticVersion: version}})
+		}
+	}
 	status := html.P(html.Props{Key: "status", ID: "workflow-designer-status", Class: "workflow-designer-status", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(""))
 	if props.Draft != nil {
 		return html.Section(html.Props{Class: "workflow-designer-page editing", Aria: map[string]string{"labelledby": "workflow-draft-title"}},
@@ -140,7 +160,7 @@ func WorkflowDesignerPage(props WorkflowDesignerPageProps) ui.Node {
 				I18nProps: props.I18nProps, Draft: *props.Draft, Palette: props.Palette, SelectedNodeID: props.SelectedNodeID, Status: status,
 				OnInsertAfter: workflowEditorInsertAfter(props), OnSetOutcomes: props.OnSetOutcomes,
 				CatalogHref: workflowDesignerHref(props.BaseHref, "", ""), Navigate: props.Navigate, OnSelectNode: props.OnSelectNode,
-				OnInsert: workflowEditorInsert(props), OnRename: props.OnRename, OnUpdateNode: props.OnUpdateNode,
+				OnInsert: workflowEditorInsert(props), OnRename: props.OnRename, OnDelete: props.OnDelete, OnCreate: props.OnCreate, CreateRequest: pending.Get().Request, OnUpdateNode: props.OnUpdateNode,
 				OnSetOutcome: props.OnSetOutcome, OnClearOutcome: props.OnClearOutcome, OnBindInput: props.OnBindInput,
 				OnRemoveNode: props.OnRemoveNode, OnOverlay: props.OnOverlay, OnHistory: props.OnHistory,
 			}), "editor-"+props.Draft.DraftID),
@@ -153,6 +173,9 @@ func WorkflowDesignerPage(props WorkflowDesignerPageProps) ui.Node {
 // draft. A draft that came from a governed template records an addition as a
 // template change; any other draft simply gains the step.
 func workflowEditorInsert(props WorkflowDesignerPageProps) func(WorkflowPaletteItem) {
+	if props.Draft != nil && strings.TrimSpace(props.Draft.DraftID) == "" {
+		return nil
+	}
 	if props.OnInsert == nil && props.OnOverlay == nil && props.OnCreate == nil {
 		return nil
 	}
@@ -175,7 +198,7 @@ func workflowEditorInsert(props WorkflowDesignerPageProps) func(WorkflowPaletteI
 // template records each addition as a template change, which has its own
 // command and no place to say "and connect it".
 func workflowEditorInsertAfter(props WorkflowDesignerPageProps) func(WorkflowPaletteItem, WorkflowOutcomeChange) {
-	if props.OnInsertAfter == nil || props.Draft == nil || props.Draft.TemplateID != "" {
+	if props.OnInsertAfter == nil || props.Draft == nil || strings.TrimSpace(props.Draft.DraftID) == "" || props.Draft.TemplateID != "" {
 		return nil
 	}
 	return props.OnInsertAfter
@@ -198,41 +221,7 @@ func workflowCatalogPage(props WorkflowDesignerPageProps, status ui.Node) ui.Nod
 	if props.Selected != nil {
 		selectedID = props.Selected.WorkflowID
 	}
-	items := make([]ui.Node, 0, len(catalog))
-	for _, item := range catalog {
-		name := strings.TrimSpace(item.Name)
-		if name == "" {
-			name = item.WorkflowID
-		}
-		status := displayWorkflowToken(WorkflowViewerProps{I18nProps: props.I18nProps}, "publication", item.Status)
-		version := "v" + item.SemanticVersion
-		if item.SemanticVersion == "" {
-			version = fmt.Sprintf("definition %d", item.Version)
-		}
-		class := "workflow-catalog-link"
-		current := "false"
-		if selectedID != "" && item.WorkflowID == selectedID {
-			class += " active"
-			current = "page"
-		}
-		items = append(items, html.Li(html.Props{},
-			softwareLink(props.Navigate, html.Props{Class: class, Raw: map[string]any{"aria-current": current}}, workflowDesignerHref(props.BaseHref, item.WorkflowID, ""),
-				html.Span(html.Props{Class: "workflow-catalog-title", Dir: "auto"}, ui.Text(name)),
-				html.Span(html.Props{Class: "workflow-catalog-meta"},
-					html.Span(html.Props{}, ui.Text(version)),
-					html.Span(html.Props{Class: "status-chip", Data: map[string]string{"tone": workflowPublicationTone(item.Status)}}, ui.Text(status)),
-				),
-			),
-		))
-	}
-
-	catalogBody := ui.Node(html.Ul(html.Props{Class: "workflow-catalog-list", Raw: map[string]any{"role": "list"}}, items...))
-	if len(items) == 0 {
-		catalogBody = html.Div(html.Props{Class: "workflow-catalog-empty", Raw: map[string]any{"role": "status"}},
-			html.Strong(html.Props{}, ui.Text(props.Text("workflow_designer.empty_catalog_title"))),
-			html.P(html.Props{Class: "muted"}, ui.Text(props.Text("workflow_designer.empty_catalog_detail"))),
-		)
-	}
+	catalogBody := uxblindWorkflowScalableCatalog(props, catalog, selectedID)
 
 	workspace := ui.Node(html.Div(html.Props{Class: "surface workflow-designer-empty", Raw: map[string]any{"role": "status"}},
 		html.Div(html.Props{Class: "workflow-designer-empty-icon", Aria: map[string]string{"hidden": "true"}}, productIcon("studio", "")),
@@ -240,20 +229,25 @@ func workflowCatalogPage(props WorkflowDesignerPageProps, status ui.Node) ui.Nod
 		html.P(html.Props{Class: "muted"}, ui.Text(props.Text("workflow_designer.choose_detail"))),
 	))
 	if props.Selected != nil {
-		workspace = html.Div(html.Props{Class: "workflow-published-workspace"},
-			workflowPublishedVersionActions(props, *props.Selected),
-			WorkflowViewer(WorkflowViewerProps{
-				I18nProps:  props.I18nProps,
-				ID:         "workflow-designer-viewer",
-				Projection: *props.Selected,
-			}),
-		)
+		if uxblindWorkflowPublicationDraft(props.Selected.PublicationStatus) {
+			workspace = uxblindWorkflowDraftWorkspace(props, *props.Selected)
+		} else {
+			workspace = html.Div(html.Props{Class: "workflow-published-workspace"},
+				workflowPublishedIdentity(props, *props.Selected),
+				workflowPublishedVersionActions(props, *props.Selected),
+				WorkflowViewer(WorkflowViewerProps{
+					I18nProps:  props.I18nProps,
+					ID:         "workflow-designer-viewer",
+					Projection: *props.Selected,
+				}),
+			)
+		}
 	}
 
 	actions := make([]ui.Node, 0, 2)
 	if props.CanCreate {
 		actions = append(actions, html.WithKey(ui.CreateElement(workflowStartButton, workflowStartButtonProps{
-			I18nProps: props.I18nProps, Label: props.Text("workflow_designer.create"), Primary: true, OnCreate: props.OnCreate,
+			I18nProps: props.I18nProps, Label: props.Text("workflow_designer.create"), Primary: true, OnCreate: workflowStartCallback(props),
 			Request: WorkflowDraftCreateRequest{SemanticVersion: "0.1.0"},
 		}), "start-blank"))
 		for _, item := range props.Palette {
@@ -262,7 +256,7 @@ func workflowCatalogPage(props WorkflowDesignerPageProps, status ui.Node) ui.Nod
 			}
 			template := item
 			actions = append(actions, html.WithKey(ui.CreateElement(workflowStartButton, workflowStartButtonProps{
-				I18nProps: props.I18nProps, Label: props.Text("workflow_palette.add_template", map[string]string{"name": item.Name}), OnCreate: props.OnCreate,
+				I18nProps: props.I18nProps, Label: props.Text("workflow_palette.add_template", map[string]string{"name": item.Name}), OnCreate: workflowStartCallback(props),
 				Request: WorkflowDraftCreateRequest{Template: &template},
 			}), "start-"+item.ID))
 		}
@@ -279,8 +273,7 @@ func workflowCatalogPage(props WorkflowDesignerPageProps, status ui.Node) ui.Nod
 		html.Div(html.Props{Class: "workflow-designer-layout"},
 			html.Aside(html.Props{Class: "workflow-catalog", Aria: map[string]string{"labelledby": "workflow-catalog-heading"}},
 				html.Div(html.Props{Class: "workflow-catalog-heading"},
-					html.H3(html.Props{ID: "workflow-catalog-heading"}, ui.Text(props.Text("workflow_designer.catalog_title"))),
-					html.Span(html.Props{Class: "count-badge"}, ui.Text(fmt.Sprintf("%d", len(catalog)))),
+					html.H3(html.Props{ID: "workflow-catalog-heading"}, ui.Text(props.Text("workflow_designer.catalog_heading"))),
 				),
 				catalogBody,
 			),
@@ -289,12 +282,29 @@ func workflowCatalogPage(props WorkflowDesignerPageProps, status ui.Node) ui.Nod
 	)
 }
 
+func workflowCatalogReviewOnly(item WorkflowCatalogItem) bool {
+	return strings.Contains(strings.ToLower(strings.TrimSpace(item.Name)), "prototype") || strings.EqualFold(strings.TrimSpace(item.Status), "RETIRED")
+}
+
 type workflowStartButtonProps struct {
 	I18nProps
 	Label    string
 	Primary  bool
 	Request  WorkflowDraftCreateRequest
 	OnCreate func(WorkflowDraftCreateRequest)
+}
+
+func workflowStartCallback(props WorkflowDesignerPageProps) func(WorkflowDraftCreateRequest) {
+	if props.OnBegin != nil {
+		return props.OnBegin
+	}
+	return props.OnCreate
+}
+
+type workflowPendingDraft struct {
+	Active  bool
+	Request WorkflowDraftCreateRequest
+	Draft   WorkflowDraftView
 }
 
 // workflowStartButton opens a new draft, blank or from a governed template.
@@ -406,13 +416,29 @@ func workflowPublicationTone(status string) string {
 	}
 }
 
+func workflowPublishedIdentity(props WorkflowDesignerPageProps, selected workflowview.View) ui.Node {
+	name := strings.TrimSpace(selected.Name)
+	if name == "" {
+		name = strings.TrimSpace(selected.WorkflowID)
+	}
+	status := displayWorkflowToken(WorkflowViewerProps{I18nProps: props.I18nProps}, "publication", selected.PublicationStatus)
+	return html.Header(html.Props{Class: "workflow-published-identity", Aria: map[string]string{"labelledby": "workflow-published-identity-title"}},
+		html.P(html.Props{Class: "workflow-published-eyebrow muted"}, ui.Text(props.Text("workflow_version.published_eyebrow"))),
+		html.H2(html.Props{ID: "workflow-published-identity-title", Dir: "auto"}, ui.Text(name)),
+		html.Div(html.Props{Class: "workflow-published-metadata", Aria: map[string]string{"label": props.Text("workflow_viewer.metadata")}},
+			html.Span(html.Props{Class: "status-chip", Data: map[string]string{"tone": workflowPublicationTone(selected.PublicationStatus)}}, ui.Text(status)),
+			html.Span(html.Props{Class: "workflow-published-version-label"}, ui.Text(props.Text("workflow_version.published_title", map[string]string{"version": selected.SemanticVersion}))),
+		),
+	)
+}
+
 func workflowDesignerStylesheet() string {
 	return `.workflow-designer-page{display:grid;gap:var(--hcm-space-3)}
 .workflow-designer-header{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;gap:var(--hcm-space-2)}
 .workflow-designer-header h2{margin:0}.workflow-designer-header .muted{max-inline-size:60ch;margin-block:var(--hcm-space-1) 0}
 .workflow-designer-actions{display:flex;flex-wrap:wrap;gap:var(--hcm-space-1)}
 .workflow-designer-actions .button{display:inline-flex;align-items:center;gap:var(--hcm-space-1)}.workflow-designer-actions .button-icon{inline-size:1rem;block-size:1rem;flex:none}
-.workflow-designer-layout{display:grid;grid-template-columns:minmax(14rem,18rem) minmax(0,1fr);gap:var(--hcm-space-4);align-items:start}
+.workflow-designer-layout{display:grid;grid-template-columns:minmax(20rem,24rem) minmax(0,1fr);gap:var(--hcm-space-4);align-items:start}
 .workflow-catalog{position:sticky;inset-block-start:var(--hcm-space-2);max-block-size:calc(100dvh - var(--hcm-space-4));overflow:auto;display:grid;gap:var(--hcm-space-1);align-content:start}
 .workflow-catalog-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--hcm-space-1)}
 .workflow-catalog-heading h3{margin:0;font-size:var(--hcm-font-size-small);font-weight:600;color:var(--muted)}
@@ -427,9 +453,19 @@ func workflowDesignerStylesheet() string {
 .workflow-designer-empty-icon{inline-size:3rem;block-size:3rem;margin:auto;display:grid;place-items:center;border-radius:var(--hcm-radius-control);background:var(--soft);color:var(--accent)}
 .workflow-designer-empty-icon svg{inline-size:1.5rem;block-size:1.5rem}
 .workflow-published-workspace{display:grid;gap:var(--hcm-space-3)}
+.workflow-published-identity{display:grid;gap:var(--hcm-space-1);padding-block-end:var(--hcm-space-2);border-block-end:1px solid var(--line)}
+.workflow-published-identity h2,.workflow-published-identity p{margin:0}.workflow-published-eyebrow{font-size:var(--hcm-font-size-small)}
+.workflow-published-metadata{display:flex;flex-wrap:wrap;align-items:center;gap:var(--hcm-space-1) var(--hcm-space-2);color:var(--muted);font-size:var(--hcm-font-size-small)}
+.workflow-published-version-label{font-weight:600}
 .workflow-published-version{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:var(--hcm-space-2) var(--hcm-space-3);padding-block-end:var(--hcm-space-3);border-block-end:1px solid var(--line)}
 .workflow-published-version h3,.workflow-published-version p{margin:0}.workflow-published-version .muted{margin-block-start:var(--hcm-space-1);max-inline-size:60ch}
 .workflow-version-create{display:flex;align-items:end;gap:var(--hcm-space-2);flex:0 1 24rem}.workflow-version-create .labeled-control{flex:1;display:grid;gap:.25rem}.workflow-version-create .button{white-space:nowrap}
-@media (max-width:900px){.workflow-designer-layout{grid-template-columns:1fr}.workflow-catalog{position:static;max-block-size:none}.workflow-catalog-list{grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))}}
+.workflow-draft-workspace{display:grid;align-content:start;gap:var(--hcm-space-2);min-inline-size:0}
+.workflow-draft-workspace h3,.workflow-draft-workspace p{margin:0}
+.workflow-draft-selection{display:flex;flex-wrap:wrap;align-items:center;gap:var(--hcm-space-1) var(--hcm-space-2);min-inline-size:0;padding:var(--hcm-space-2);border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface)}
+.workflow-draft-selection strong{min-inline-size:0;overflow-wrap:anywhere}
+.workflow-draft-selection .status-chip{flex:none}
+.workflow-catalog-unavailable{color:var(--muted);font-size:var(--hcm-font-size-small)}
+@media (max-width:1099px){.workflow-designer-layout{grid-template-columns:1fr}.workflow-catalog{position:static;max-block-size:none}.workflow-catalog-list{grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))}}
 @media (max-width:640px){.workflow-catalog-list{grid-template-columns:1fr}.workflow-designer-empty{min-block-size:18rem;padding:var(--hcm-space-3)}.workflow-version-create{flex-basis:100%}}`
 }

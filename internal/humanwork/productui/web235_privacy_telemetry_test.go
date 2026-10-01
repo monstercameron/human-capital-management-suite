@@ -63,7 +63,8 @@ func TestTodo_WEB_235_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "bcca905fe9f40198a16f57a30ef80073722a87f8a2f46d23212899c3ac30f3b4"
+	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+	const want = "8386affbbddf6ca6ac03e458fe26550bc1690a605601a476cde21089f7d3f151"
 	if got != want {
 		t.Fatalf("privacy-safe frontend telemetry digest = %s, want %s", got, want)
 	}
@@ -87,6 +88,19 @@ func TestTodo_WEB_235_Browser(t *testing.T) {
 	resolved, ok := LookupRoute(definition.Route)
 	if !ok || resolved.ID != PagePrivacyTelemetry {
 		t.Fatal("privacy-safe frontend telemetry route does not round-trip")
+	}
+	live := testView(PagePrivacyTelemetry)
+	live.PrivacyTelemetry = &PrivacyTelemetryProjection{Ready: true, PolicyVersion: 1, PolicyDigest: "sha256:browser"}
+	firstLive, err := Render(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondLive, err := Render(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstLive != secondLive || !strings.Contains(firstLive, "sha256:browser") {
+		t.Fatal("live privacy telemetry render is not deterministic")
 	}
 }
 

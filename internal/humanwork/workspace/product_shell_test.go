@@ -33,6 +33,51 @@ func TestProductLoadingShellSeedsMenuQueryForHydration(t *testing.T) {
 	}
 }
 
+func TestProductShellCarriesOnlyAuthorizedPersonaMetadataProjection(t *testing.T) {
+	snapshot := productui.PersonaAdminSnapshot{Available: true, Personas: []productui.PersonaAdminPersona{{ID: "policy-helper", Name: "Policy Helper", DerivedData: []string{"POLICY"}}}}
+	doc, err := productShellDocumentForRoute(JourneyConfig{
+		TunnelURL:            "wss://cell.example" + PathTunnel,
+		Bearer:               "opaque-token",
+		Tenant:               "tenant-a",
+		Subject:              "admin-a",
+		PersonaAdminSnapshot: &snapshot,
+	}, true, productui.ResolveProductLocale("en-US"), productui.PagePersonaAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(doc, `"persona_admin_snapshot"`) || !strings.Contains(doc, "policy-helper") || !strings.Contains(doc, "POLICY") {
+		t.Fatalf("authorized persona metadata was not hydrated into the island: %s", doc)
+	}
+	if strings.Contains(doc, "task-secret") || strings.Contains(doc, "prompt") {
+		t.Fatalf("persona island leaked task content: %s", doc)
+	}
+}
+
+type personaAdminStageTestError struct{ stage string }
+
+func (e personaAdminStageTestError) Error() string                      { return "sensitive backend detail" }
+func (e personaAdminStageTestError) PersonaCatalogFailureStage() string { return e.stage }
+
+func TestTodo_AGENTP_018_PersonaSnapshotDiagnosticsAreBounded(t *testing.T) {
+	var records []transport.LogRecord
+	h := &Handler{config: transport.Config{Logger: transport.LoggerFunc(func(record transport.LogRecord) { records = append(records, record) })}}
+	h.logPersonaAdminSnapshotFailure(personaAdminStageTestError{stage: "targets"})
+	h.logPersonaAdminSnapshotFailure(personaAdminStageTestError{stage: "member_facts_absent"})
+	h.logPersonaAdminSnapshotFailure(personaAdminStageTestError{stage: "database-password=secret"})
+	if len(records) != 3 {
+		t.Fatalf("diagnostic records = %d, want 3", len(records))
+	}
+	if records[0].ErrorType != "targets" || records[0].Method != "GET /workspace/app/persona-admin" || !records[0].Failed {
+		t.Fatalf("stage record = %+v", records[0])
+	}
+	if records[1].ErrorType != "member_facts_absent" {
+		t.Fatalf("bounded nested stage was lost: %+v", records[1])
+	}
+	if records[2].ErrorType != "snapshot_unavailable" || strings.Contains(records[2].ErrorType, "secret") {
+		t.Fatalf("unbounded stage escaped: %+v", records[2])
+	}
+}
+
 func TestTodo_UXAUDIT_024_SSRHonorsExplicitCollapsedNavigation(t *testing.T) {
 	config := JourneyConfig{Tenant: "harborcare-demo", Roles: []string{"comp_admin"}}
 	for _, test := range []struct {
@@ -89,6 +134,16 @@ func TestProductShellCarriesAuthenticatedLiveClientConfiguration(t *testing.T) {
 	}
 	if got := recorder.Header().Get("Content-Security-Policy"); got != ProductContentSecurityPolicy("cell.test") {
 		t.Fatalf("product CSP = %q", got)
+	}
+}
+
+func TestProductCSPAllowsOnlyPersonaAdminProjectionEndpoint(t *testing.T) {
+	policy := ProductContentSecurityPolicy("cell.test")
+	if !strings.Contains(policy, "cell.test"+PathPersonaAdminData) {
+		t.Fatalf("persona admin projection endpoint missing from connect-src: %s", policy)
+	}
+	if strings.Contains(policy, "https://cell.test/workspace/") && !strings.Contains(policy, "cell.test"+PathPersonaAdminData) {
+		t.Fatalf("persona admin CSP must use the exact endpoint source: %s", policy)
 	}
 }
 
@@ -253,7 +308,7 @@ func TestProductShellUsesTheRouteShapedLoadingProxyBeforeWASMStarts(t *testing.T
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`class="app-shell is-loading"`, `class="loading-proxy loading-proxy-history"`,
+		`class="app-shell is-content-loading"`, `class="loading-proxy loading-proxy-history"`,
 		`aria-busy="true"`, "Loading your workspace data", "Harborcare Demo",
 	} {
 		if !strings.Contains(doc, want) {

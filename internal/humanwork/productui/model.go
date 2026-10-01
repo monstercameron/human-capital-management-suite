@@ -15,14 +15,15 @@ import (
 type PageID string
 
 const (
-	PageHome     PageID = "home"
-	PageMyself   PageID = "myself"
-	PageJourneys PageID = "journeys"
-	PageChat     PageID = "chat"
-	PageDocs     PageID = "docs"
-	PageWork     PageID = "work"
-	PageProjects PageID = "projects"
-	PageProject  PageID = "project"
+	PageHome          PageID = "home"
+	PageMyself        PageID = "myself"
+	PageJourneys      PageID = "journeys"
+	PageWorkflowStart PageID = "workflow-start"
+	PageChat          PageID = "chat"
+	PageDocs          PageID = "docs"
+	PageWork          PageID = "work"
+	PageProjects      PageID = "projects"
+	PageProject       PageID = "project"
 	// PageJourneyDiagnostics is not a navigable route: it names PROMOUX-008's
 	// authorized diagnostics disclosure (raw identifiers such as a journey's
 	// work-item id) within the Journeys and My Work pages. It shares its
@@ -205,12 +206,21 @@ type WorkItem struct {
 	TitleKey  string
 	Person    string
 	PersonRef string
+	// Requester and Participants are already redacted, viewer-scoped values
+	// from the server run projection. Empty means the field was not disclosed;
+	// the history page must not infer another principal from a role or URL.
+	Requester    string
+	Participants string
 	// AssigneeRef is the server-selected principal who currently owes the
 	// human decision. PersonRef remains the subject of the workflow.
-	AssigneeRef     string
-	Summary         string
-	Status          string
-	StatusKey       string
+	AssigneeRef string
+	Summary     string
+	Status      string
+	StatusKey   string
+	// Freshness is the server-projected currency of a safe work reference;
+	// empty preserves older journey projections and is never treated as fresh
+	// by project/My Work composition.
+	Freshness       string
 	Due             string
 	Tone            string
 	Href            string
@@ -221,7 +231,14 @@ type WorkItem struct {
 	MaterialDigest  string
 	CurrentBase     values.Money
 	ProposedBase    values.Money
-	Terminal        bool
+	// CurrentPayBasis and ProposedPayBasis are server vocabulary tokens for
+	// the amounts above. Empty preserves compatibility with older projections;
+	// the presentation adapter treats that absence as the annual default used
+	// by the journey projection, while an explicit hourly token remains
+	// distinct.
+	CurrentPayBasis  string
+	ProposedPayBasis string
+	Terminal         bool
 	// NextStep and WaitingOn are the stable codes of the single next step and
 	// the role class a journey's server stage names (UXAUDIT-017; see
 	// tools/uxqual/journeyclient.StageStatusDimension). They are workflow
@@ -473,11 +490,29 @@ type RoleFeaturePermission struct {
 // View is an already-authorized presentation projection. It contains no
 // credential or raw sensitive record and grants no action authority.
 type View struct {
-	Page      PageID
-	Title     string
-	Subtitle  string
-	Tenant    string
-	Principal string
+	// ClockProjection contains only the current authorized clock service view.
+	ClockProjection ClockProjection
+	// ClockAvailability is the workspace's answer for whether the time clock
+	// runs here and whether the viewer administers it (UXBLIND-123); nil only
+	// in component previews.
+	ClockAvailability *ClockAvailabilityProjection
+	// MissingPunchProjection contains authorized correction and review state.
+	MissingPunchProjection MissingPunchAdminProjection
+	// TimeReviewProjection and TimeExceptionsProjection carry the supervisor's
+	// authorized timecard queue and attendance-exception queue. Their zero
+	// value keeps the pages on the plain "not available yet" state.
+	TimeReviewProjection     TimeReviewProjection
+	TimeExceptionsProjection TimeExceptionsProjection
+	// These time-clock projections follow the same request-scoped, server-owned
+	// path as the supervisor queues above. Their zero values remain unavailable.
+	TimecardProjection     TimecardProjection
+	ClockFleetProjection   ClockFleetProjection
+	CrewScheduleProjection CrewScheduleProjection
+	Page                   PageID
+	Title                  string
+	Subtitle               string
+	Tenant                 string
+	Principal              string
 	// ViewerSubject is the signed-in principal subject exactly as services key
 	// it (document owners, grants, comment authors); Principal is its label.
 	ViewerSubject string
@@ -508,20 +543,34 @@ type View struct {
 	// by the request-owned view so SSR never shares conversation state between
 	// principals.
 	Chat chatui.Model
+	// AgentsProjection is the server's agents availability answer for this
+	// viewer (UXBLIND-122). It drives both the Agents navigation entry and
+	// the Agents page; nil only in component previews.
+	// PersonaAdminClient is a request-scoped, server-composed port. Its implementation
+	// must authorize every call from a verified principal context; nil means unavailable.
+	PersonaAdminClient PersonaAdminClient
+	AgentsProjection   *AgentsAvailabilityProjection
+	// SetAgentsEnabled persists the tenant agents setting for an
+	// administrator; nil renders the setting read-only.
+	SetAgentsEnabled func(enabled bool, done func(error))
 	// Documents contains only summaries authorized by the Knowledge service.
 	// The product renderer never discovers or grants access to documents.
 	Documents []DocumentSummary
 	// Projects, ProjectBoard, and ProjectDetail are explicit service projections.
 	// State distinguishes loading from an authorized empty result; nil content
 	// never stands in for a synthetic board or project.
-	Projects                  []ProjectSummaryProjection
-	ProjectsState             ProjectProjectionState
-	ProjectCreateReady        bool
-	ProjectID                 string
-	ProjectTaskID             string
-	ProjectBoardViewID        string
-	ProjectCursor             string
-	ProjectBoard              *projectui.Model
+	Projects           []ProjectSummaryProjection
+	ProjectsState      ProjectProjectionState
+	ProjectCreateReady bool
+	ProjectID          string
+	ProjectTaskID      string
+	ProjectBoardViewID string
+	ProjectCursor      string
+	ProjectBoard       *projectui.Model
+	// ProjectWorkflowConfig is an authorized project-owned configuration
+	// projection. It is optional so ordinary board loads do not invent a
+	// workflow editor or publication authority.
+	ProjectWorkflowConfig     *ProjectWorkflowConfigProps
 	ProjectBoardState         ProjectProjectionState
 	ProjectMovesReady         bool
 	ProjectTaskCreateReady    bool
@@ -609,8 +658,11 @@ type View struct {
 	Work                     []WorkItem
 	WorkflowNotifications    []WorkflowNotification
 	NotificationsUnavailable bool
-	People                   []Person
-	PersonWorkflows          []PersonWorkflow
+	// MarkNotificationRead persists a recipient's read transition. The callback
+	// owns transport and invokes done after the durable CAS finishes.
+	MarkNotificationRead func(id string, done func(error))
+	People               []Person
+	PersonWorkflows      []PersonWorkflow
 	// JourneyPopulation is the server's authorized summary over exactly the
 	// journeys in Work (UXLIVE-027). Nil when no summary was read.
 	JourneyPopulation *JourneyPopulation
@@ -673,43 +725,54 @@ type View struct {
 	HistoryQuery              string
 	HistoryOutcome            string
 	HistoryPerson             string
+	HistoryRequester          string
 	HistoryYear               string
 	HistorySort               string
 	HistoryDirection          string
 	HistoryPage               int
 	HistoryPageSize           int
 	WorkflowUses              map[string]int64
-	PreferenceVersion         int64
-	AppearanceVersion         int64
-	WorkerIDPolicy            WorkerIDPolicy
-	ChatRetentionConfigured   bool
-	ChatRetentionPolicy       ChatRetentionPolicy
-	ChatRetentionLoading      bool
-	ChatRetentionError        string
-	ChatRetentionNotice       string
-	WorkerIDValidation        ValidationState
-	OrganizationVisibility    OrganizationVisibilityPolicy
-	AccessRoles               []AccessRole
-	RoleAssignments           []WorkerRoleAssignment
-	RoleVisibilityPolicies    []OrganizationVisibilityPolicy
-	RolePagePermissions       []RolePagePermission
-	EffectivePermissions      []RolePagePermission
-	RoleFeaturePermissions    []RoleFeaturePermission
-	EffectiveFeatures         []RoleFeaturePermission
-	StoredPreferences         StoredUserPreferences
-	Mode                      string
-	WorkFilter                string
-	JourneyID                 string
-	JourneyWorker             string
-	JourneyMode               string
-	JourneyList               JourneyListFilter
+	// WorkflowStartCatalog is the server-authorized projection used by the
+	// dedicated launcher. It is kept separate from PublishedWorkflows because
+	// the designer catalogue is not a discoverability or start-authority grant.
+	WorkflowStartCatalog    []WorkflowStartItem
+	WorkflowStartWorkflowID string
+	WorkflowStartFavorites  []string
+	WorkflowStartRecent     []string
+	ToggleWorkflowFavorite  func(string, bool)
+	PreferenceVersion       int64
+	AppearanceVersion       int64
+	WorkerIDPolicy          WorkerIDPolicy
+	ChatRetentionConfigured bool
+	ChatRetentionPolicy     ChatRetentionPolicy
+	ChatRetentionLoading    bool
+	ChatRetentionError      string
+	ChatRetentionNotice     string
+	WorkerIDValidation      ValidationState
+	OrganizationVisibility  OrganizationVisibilityPolicy
+	AccessRoles             []AccessRole
+	RoleAssignments         []WorkerRoleAssignment
+	RoleVisibilityPolicies  []OrganizationVisibilityPolicy
+	RolePagePermissions     []RolePagePermission
+	EffectivePermissions    []RolePagePermission
+	RoleFeaturePermissions  []RoleFeaturePermission
+	EffectiveFeatures       []RoleFeaturePermission
+	StoredPreferences       StoredUserPreferences
+	Mode                    string
+	WorkFilter              string
+	JourneyID               string
+	JourneyWorker           string
+	JourneyMode             string
+	JourneyList             JourneyListFilter
 	// PublishedWorkflows and WorkflowView are authorized, read-only
 	// projections for the workflow designer. The product layer never parses a
 	// draft or reconstructs runtime state from URLs; adapters populate these
 	// values from the version registry and workflow inspector.
-	PublishedWorkflows      []WorkflowCatalogItem
-	WorkflowPalette         []WorkflowPaletteItem
-	WorkflowView            *workflowview.View
+	PublishedWorkflows []WorkflowCatalogItem
+	WorkflowPalette    []WorkflowPaletteItem
+	WorkflowView       *workflowview.View
+	// WorkflowShowReferences preserves the designer's address-backed catalog toggle.
+	WorkflowShowReferences  bool
 	WorkflowDraft           *WorkflowDraftView
 	SelectedWorkflowID      string
 	SelectedWorkflowRunID   string
@@ -756,6 +819,7 @@ type View struct {
 	InsertWorkflowStepAfter      func(WorkflowPaletteItem, WorkflowOutcomeChange)
 	SetWorkflowDraftOutcomes     func([]WorkflowOutcomeChange)
 	RenameWorkflowDraft          func(string)
+	DeleteWorkflowDraft          func()
 	ApplyWorkflowOverlay         func(WorkflowTemplateOverlayChange)
 	NavigateWorkflowDraftHistory func(string)
 	SelectWorkflowDraftNode      func(string)
@@ -784,7 +848,10 @@ type View struct {
 	// NavigateReplace moves to href in software without adding a history
 	// step, for presentation changes (the navigation toggle) that Back
 	// should not undo.
-	NavigateReplace           func(string)
+	NavigateReplace func(string)
+	// SaveFavorite persists one authorized navigation favorite without making
+	// the account preference part of the current route.
+	SaveFavorite              func(PageID, bool)
 	NavigateDebounced         func(string)
 	CancelDebouncedNavigation func()
 	// SearchDebounced reruns the route's loader for a server-backed search
@@ -823,6 +890,20 @@ type View struct {
 	// simulation. Nil means the viewer sees their own view; the panel
 	// assumes no authority either way.
 	PolicySimulation *PolicySimulationProps
+	// PolicyStudio and ConfigurationCenter are request-scoped, server-owned
+	// projections for the administrative pages. Nil means that the owning
+	// service did not publish a projection; the route adapters must then keep
+	// their honest unavailable state rather than inventing records.
+	PolicyStudio        *PolicyStudioProjection
+	ConfigurationCenter *ConfigurationCenterProjection
+	// Operations, reconciliation, privacy telemetry, and performance budgets
+	// are request-scoped, server-owned projections. A nil or not-ready answer
+	// keeps each route in its honest unavailable state; the UI never invents
+	// operational records, policy facts, or measurements.
+	IntegrationOperations   *IntegrationOperationsProjection
+	ReconciliationWorkbench *ReconciliationWorkbenchProjection
+	PrivacyTelemetry        *PrivacyTelemetryProjection
+	PerformanceBudgets      *PerformanceBudgetsProjection
 	// SignedOut carries the server-projected signed-out state. Non-nil
 	// converges every authority surface to revoked and makes the
 	// signed-out panel the content; nil means the session stands.

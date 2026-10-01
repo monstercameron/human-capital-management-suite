@@ -63,7 +63,8 @@ func TestTodo_WEB_236_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "1fcec49f0869249126f28362f3c05773f8a1b49b6f6a6762c8c6c406094e6370"
+	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+	const want = "2e38a22edadb583d6602f13c1d25c82cb03bb12d3a6785e4987ad356ec6b8deb"
 	if got != want {
 		t.Fatalf("frontend performance budgets digest = %s, want %s", got, want)
 	}
@@ -87,6 +88,26 @@ func TestTodo_WEB_236_Browser(t *testing.T) {
 	resolved, ok := LookupRoute(definition.Route)
 	if !ok || resolved.ID != PagePerformanceBudgets {
 		t.Fatal("frontend performance budgets route does not round-trip")
+	}
+	live := testView(PagePerformanceBudgets)
+	live.PerformanceBudgets = &PerformanceBudgetsProjection{Ready: true, Budgets: []PerformanceBudgetProjection{{ID: "browser-budget", Name: "startup", Target: "bounded"}}}
+	firstLive, err := Render(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondLive, err := Render(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstLive != secondLive {
+		at := 0
+		for at < len(firstLive) && at < len(secondLive) && firstLive[at] == secondLive[at] {
+			at++
+		}
+		t.Fatalf("live performance budgets render is not deterministic at %d: %q vs %q", at, firstLive[max(0, at-40):min(len(firstLive), at+100)], secondLive[max(0, at-40):min(len(secondLive), at+100)])
+	}
+	if !strings.Contains(firstLive, "startup") {
+		t.Fatal("live performance budget row missing")
 	}
 }
 

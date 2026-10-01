@@ -48,6 +48,9 @@ const (
 	wasmExecFile = "wasm_exec.js"
 )
 
+// wasmBuildTags are the build tags the browser bundle is compiled with.
+const wasmBuildTags = "grpcnotrace"
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -139,7 +142,12 @@ func build(outDir string, stdout io.Writer) error {
 	// Browser bundles do not need Go symbol/debug tables. Stripping them here
 	// reduces both the transferred module and the work WebAssembly performs
 	// while decoding it, without changing runtime behavior or stack safety.
-	cmd := exec.Command(goBin, "build", "-ldflags=-s -w", "-o", wasmPath, wasmPackage)
+	//
+	// grpcnotrace drops gRPC's golang.org/x/net/trace integration, which
+	// exists to serve /debug/requests pages from a server. A browser client
+	// cannot serve them, and the integration alone pulled html/template and
+	// text/template into the bundle (UXBLIND-089).
+	cmd := exec.Command(goBin, "build", "-tags="+wasmBuildTags, "-ldflags=-s -w", "-o", wasmPath, wasmPackage)
 	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	// The build's own diagnostics are the useful part of a failure, so they
 	// are carried into the error rather than discarded.

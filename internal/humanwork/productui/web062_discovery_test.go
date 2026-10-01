@@ -70,8 +70,8 @@ func TestTodo_WEB_062(t *testing.T) {
 	if _, ok := ids["person:worker-avery"]; !ok {
 		t.Fatal("disclosable record missing from search items")
 	}
-	if _, ok := ids["action:promotion:worker-avery"]; !ok {
-		t.Fatal("disclosable promotion action missing from search items")
+	if hasGlobalSearchKind(items, "action") {
+		t.Fatal("global search duplicated an executable action owned by the quick launcher")
 	}
 	for id, label := range ids {
 		if strings.Contains(label, "Jordan Lee") {

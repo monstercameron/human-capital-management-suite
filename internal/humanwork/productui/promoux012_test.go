@@ -165,9 +165,10 @@ func TestTodo_PROMOUX_012(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := `aria-label="` + view.Locale.Text("shell.work_overview") + ", " + view.Locale.Plural("shell.work_count", 3) + `"`
+		// UXBLIND-056: the bell announces unread notifications, never the open-work count.
+		want := `aria-label="` + view.Locale.Text("shell.notifications") + ", " + view.Locale.Plural("notifications.unread_count", 0) + `"`
 		if !strings.Contains(doc, want) {
-			t.Fatalf("notification summary is not the actionable count %q", want)
+			t.Fatalf("notification summary is not the unread count %q", want)
 		}
 		for _, stale := range []string{"need attention", "needs attention", "visible in this scope"} {
 			if strings.Contains(doc, stale) {

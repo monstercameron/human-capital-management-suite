@@ -1,6 +1,8 @@
 package productui
 
 import (
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
@@ -14,6 +16,9 @@ import (
 // once the governed service publishes; until then the UI
 // will not simulate one.
 func policySimulationPage(view View) ui.Node {
+	if view.PolicySimulation != nil && !signedOutState(view) && strings.TrimSpace(view.PolicySimulation.Subject) != "" {
+		return policySimulationLivePage(view)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("policy_simulation.unavailable_title"),
 		Description: view.Locale.Text("policy_simulation.unavailable_detail"),

@@ -16,7 +16,7 @@ func peoplePage(view View) ui.Node {
 	// The directory population is the admitted population: rows, facet
 	// options, and counts all derive from it, so denied workers appear
 	// nowhere once the server speaks.
-	population := admittedPeople(view)
+	population := visibleWorkforcePeople(view)
 	scoped := view
 	scoped.People = population
 	filtered := filteredPeople(scoped)
@@ -27,7 +27,7 @@ func peoplePage(view View) ui.Node {
 		I18nProps:     I18nProps{Locale: view.Locale},
 		ColumnChooser: peopleColumnChooserProps(view),
 		Summary: PeopleSummaryProps{
-			CountLabel: peopleCountLabel(view.Locale, filterActive, len(filtered), len(population)),
+			CountLabel: peopleCountLabel(view.Locale, filterActive, len(filtered), len(population), peoplePromotionMode(view)),
 			ScopeLabel: view.Locale.Text("people.scope"),
 		},
 		Filter: PeopleFilterProps{
@@ -43,13 +43,17 @@ func peoplePage(view View) ui.Node {
 			ClearHref: peopleClearHref(view), Navigate: view.Navigate,
 		},
 	}
+	if peoplePromotionMode(view) {
+		props.Summary.Heading = view.Locale.Text("people.promotion_title")
+		props.Summary.Description = view.Locale.Text("people.promotion_detail")
+	}
 	if view.Navigate != nil {
 		props.Filter.OnFilter = func(query, team, location string, eligibleOnly bool) {
 			view.Navigate(peopleDirectoryHref(view, 1, strings.TrimSpace(query), strings.TrimSpace(team), strings.TrimSpace(location), eligibleOnly, view.PeopleSort, view.PeopleDirection))
 		}
 	}
 	if window.Total > 0 {
-		props.Directory = peopleDirectoryProps(view, window)
+		props.Directory = peopleDirectoryProps(scoped, window)
 	}
 	return ui.CreateElement(PeoplePage, props)
 }
@@ -114,7 +118,14 @@ func peopleClearHref(view View) string {
 	return withExplicitEmptyQuery(href, "q", "team", "location", "eligible")
 }
 
-func peopleCountLabel(locale LocaleContext, filtered bool, filteredCount, totalCount int) string {
+func peoplePromotionMode(view View) bool {
+	return view.PeopleEligibleOnly || strings.EqualFold(strings.TrimSpace(view.Mode), "promotion")
+}
+
+func peopleCountLabel(locale LocaleContext, filtered bool, filteredCount, totalCount int, promotion bool) string {
+	if promotion {
+		return locale.Text("people.promotion_count", map[string]string{"eligible": fmt.Sprint(filteredCount), "visible": fmt.Sprint(totalCount)})
+	}
 	if filtered {
 		return locale.Text("people.filtered_count", map[string]string{"filtered": fmt.Sprint(filteredCount), "total": fmt.Sprint(totalCount)})
 	}
@@ -160,7 +171,9 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 		// without authority gets the identical withheld reason for every
 		// worker, whatever that worker's hidden eligibility.
 		projection := resolvePersonWorkflowActions(view, person, workflows)
-		identity := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view))
+		displayPerson := person
+		displayPerson.Name = viewerDisplayName(view, person)
+		identity := ResolveWorkerIdentity(view.Locale, displayPerson, workerIdentityVerdicts(view))
 		workerNumber := ""
 		if identity.WorkerNumberStatus == WorkerFactPresent {
 			workerNumber = identity.WorkerNumber
@@ -170,12 +183,33 @@ func peopleRowProps(view View, window peoplePageWindow) []PeopleRowProps {
 		rows = append(rows, PeopleRowProps{
 			ExtraValues: extra,
 			ID:          person.ID, Initials: identity.Initials, PhotoURL: identity.PhotoURL, Name: identity.Name, WorkerNumber: workerNumber, Role: identity.Role, Team: person.Team,
-			Manager: person.Manager, Location: person.Location, Navigate: view.Navigate,
+			Manager: peopleManagerDisplayName(view.People, person), Location: person.Location, Navigate: view.Navigate,
 			Href: peoplePersonHref(view, person.ID, window.Page), QuickActions: projection.Actions,
 			WorkflowsUnavailableReason: projection.Reason,
 		})
 	}
 	return rows
+}
+
+// peopleManagerDisplayName resolves the authorized manager endpoint against
+// the same admitted directory projection as the row. The short Manager field
+// remains a compatibility fallback for older projections without an endpoint.
+func peopleManagerDisplayName(people []Person, person Person) string {
+	managerRef := strings.TrimSpace(person.ManagerWorkerRef)
+	if managerRef == "" {
+		managerRef = strings.TrimSpace(person.ManagerID)
+	}
+	if managerRef != "" {
+		for _, manager := range people {
+			if strings.TrimSpace(manager.ID) != managerRef && strings.TrimSpace(manager.WorkerID) != managerRef {
+				continue
+			}
+			if name := PreferredFamilyName(manager); name != "" {
+				return name
+			}
+		}
+	}
+	return strings.TrimSpace(person.Manager)
 }
 
 // personWorkflowActions resolves the quick actions launchable for one
@@ -200,7 +234,9 @@ func personWorkflowActions(view View, person Person, workflows []PersonWorkflow)
 // scan the viewer's work a second time per directory row.
 func personWorkflowActionList(view View, person Person, workflows []PersonWorkflow) (actions []PeopleQuickActionProps, reason string, reasonWorkflow string, hasActiveJourney bool) {
 	actions = make([]PeopleQuickActionProps, 0, len(workflows))
-	accessiblePerson := ResolveWorkerIdentity(view.Locale, person, workerIdentityVerdicts(view)).Label
+	displayPerson := person
+	displayPerson.Name = viewerDisplayName(view, person)
+	accessiblePerson := ResolveWorkerIdentity(view.Locale, displayPerson, workerIdentityVerdicts(view)).Label
 	// PROMOUX-012: an open journey in view guards Start even when the
 	// availability verdict disagrees, the same rule the profile applies.
 	activeItem, hasActiveJourney := activePromotionWorkItem(view, person.ID)

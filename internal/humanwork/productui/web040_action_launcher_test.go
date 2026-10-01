@@ -186,7 +186,8 @@ func TestTodo_WEB_040(t *testing.T) {
 // so a per-worker action never embeds into a page's markup before the
 // viewer opens the control. UXSCAN-002 also clarifies the input's employee
 // search path; this digest pins that updated closed-state scaffold.
-const web040GoldenDigest = "4a3368bdc360c19776ffe1d59d1696d280a4287c0f9049927adc6154d8222b2b"
+// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+const web040GoldenDigest = "5f25774381cf4815644f7338169f8cd6b280e6f66513bb9e18777dbbdc5c1073"
 
 func TestTodo_WEB_040_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

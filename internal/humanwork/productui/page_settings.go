@@ -17,7 +17,7 @@ func settingsPage(view View) ui.Node {
 	locale := localePreferencesProps(view)
 	accessibility := AccessibilityPreferencesProps{
 		I18nProps: I18nProps{Locale: view.Locale}, Value: view.Accessibility,
-		TextSizes: AccessibilityTextSizeOptions(), Contrasts: AccessibilityContrastOptions(),
+		TextSizes: AccessibilityTextSizeOptions(), Contrasts: AccessibilityContrastOptions(), ColorModes: AccessibilityColorModeOptions(),
 		Motions: AccessibilityMotionOptions(), LinkStyles: AccessibilityLinkOptions(),
 		OnPreview: view.PreviewAccessibility, OnSave: view.SaveAccessibility, OnReset: view.ResetAccessibility,
 		Density: &PersonalDensityProps{Locale: view.Locale, Value: view.StoredPreferences.Density,
@@ -50,6 +50,14 @@ func settingsPage(view View) ui.Node {
 	if view.Allows(PageAppearance, "view") {
 		props.Appearance = &ActionLinkProps{Label: view.Locale.Text("admin.appearance_action"), Href: statefulHref(view, PageAppearance), Class: "button secondary", Navigate: view.Navigate}
 		props.AppearanceLabel = view.Locale.Text("page.appearance.title")
+	}
+	for _, destination := range []struct {
+		page  PageID
+		label string
+	}{{PagePersonaAdmin, "page.personas.label"}, {PageConfigurationCenter, "page.configuration_center.label"}, {PagePolicyStudio, "page.policy_studio.label"}} {
+		if view.Allows(destination.page, "view") {
+			props.Administration = append(props.Administration, ActionLinkProps{Label: view.Locale.Text(destination.label), Href: statefulHref(view, destination.page), Class: "button secondary", Navigate: view.Navigate})
+		}
 	}
 	if view.LogoutHref != "" {
 		props.SignOut = &ActionLinkProps{Label: view.Locale.Text("settings.signout_action"), Href: view.LogoutHref, Class: "button danger settings-signout-action", Navigate: view.Navigate}

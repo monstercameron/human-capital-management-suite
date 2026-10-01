@@ -30,6 +30,7 @@ func TestTodo_UIPOLISH_008(t *testing.T) {
 		`@media (max-width:420px){.data-table .data-table-cell{gap:8px;overflow-wrap:anywhere;padding:2px;}}`,
 		`@media (max-width:420px){.data-table-head{flex-wrap:wrap;overflow-x:visible;}}`,
 		`.workflow-history.history-density-compact .history-row{gap:12px;padding-bottom:12px;padding-left:16px;padding-right:16px;padding-top:12px;}`,
+		`.workflow-history-page.workflow-history.history-density-compact .data-table-cell{padding-bottom:calc(2px + var(--hcm-space-1) * var(--hcm-density));padding-top:calc(2px + var(--hcm-space-1) * var(--hcm-density));}`,
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("density stylesheet missing %q: %s", want, css)
@@ -38,24 +39,27 @@ func TestTodo_UIPOLISH_008(t *testing.T) {
 }
 
 func TestTodo_UIPOLISH_008_PersistedDensityReachesHistoryPage(t *testing.T) {
-	view := testView(PageHistory)
+	view := testView(PageWorkflowHistory)
 	view.Appearance = DefaultCustomerTheme()
 	view.Appearance.Density = "compact"
-	markup, err := ui.RenderToString(historyPage(view))
+	markup, err := ui.RenderToString(workflowHistoryPage(view))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, `class="surface workflow-history history-density-compact"`) {
+	if !strings.Contains(markup, `class="workflow-history-page workflow-history history-density-compact"`) {
 		t.Fatalf("persisted compact density did not reach the production history render: %s", markup)
 	}
 
 	view.Appearance.Density = "untrusted"
-	markup, err = ui.RenderToString(historyPage(view))
+	markup, err = ui.RenderToString(workflowHistoryPage(view))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(markup, "history-density-untrusted") {
 		t.Fatalf("untrusted persisted density reached the history class boundary: %s", markup)
+	}
+	if !strings.Contains(markup, `class="workflow-history-page workflow-history history-density-comfortable"`) {
+		t.Fatalf("untrusted density did not fall through to the comfortable canonical surface: %s", markup)
 	}
 }
 

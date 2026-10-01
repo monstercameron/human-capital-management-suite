@@ -311,7 +311,7 @@ func setProjectLaneCollapsed(lane js.Value, collapsed bool) {
 }
 
 // storeProjectLaneState remembers which lanes this viewer collapsed on this
-// board view. Storage is a convenience: when it is unavailable or throws,
+// board view. Memory is a convenience: when it is empty,
 // the board still works and simply forgets on reload.
 func storeProjectLaneState(region js.Value) {
 	key := projectAttr(region, "data-lane-store")
@@ -350,34 +350,22 @@ func projectCollapsedLanes(key string) map[string]bool {
 	return out
 }
 
-func projectStorageGet(key string) (value string) {
-	defer func() {
-		if recover() != nil {
-			value = ""
-		}
-	}()
-	storage := js.Global().Get("localStorage")
-	if !storage.Truthy() {
-		return ""
-	}
-	item := storage.Call("getItem", key)
-	if item.IsNull() || item.IsUndefined() {
-		return ""
-	}
-	return item.String()
+// projectLaneMemory remembers lane states for the life of the page. WEB-031
+// confines browser storage to the history adapter, so the board keeps this
+// convenience in memory: it survives soft navigation and is forgotten on
+// reload.
+var projectLaneMemory = map[string]string{}
+
+func projectStorageGet(key string) string {
+	return projectLaneMemory[key]
 }
 
 func projectStorageSet(key, value string) {
-	defer func() { _ = recover() }()
-	storage := js.Global().Get("localStorage")
-	if !storage.Truthy() {
-		return
-	}
 	if value == "" {
-		storage.Call("removeItem", key)
+		delete(projectLaneMemory, key)
 		return
 	}
-	storage.Call("setItem", key, value)
+	projectLaneMemory[key] = value
 }
 
 // ---- drag and drop -------------------------------------------------------

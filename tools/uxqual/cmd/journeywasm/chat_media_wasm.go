@@ -43,7 +43,26 @@ var chatMediaFetches = struct {
 }{active: map[string]chatMediaFetchControl{}}
 var chatMediaImageBridge js.Func
 var chatMediaDownloadBridge js.Func
+var chatMediaDiagnosticBridge js.Func
 var chatMediaBridgeSequence uint64
+
+var chatMediaDiagnostics = struct {
+	sync.Mutex
+	items map[string]map[string]string
+}{items: map[string]map[string]string{}}
+
+func setChatMediaDiagnostic(id, state, failure string, status int) {
+	chatMediaDiagnostics.Lock()
+	defer chatMediaDiagnostics.Unlock()
+	item := map[string]string{"state": state}
+	if failure != "" {
+		item["failure"] = failure
+	}
+	if status > 0 {
+		item["status"] = strconv.Itoa(status)
+	}
+	chatMediaDiagnostics.items[id] = item
+}
 
 type chatMediaFetchControl struct {
 	epoch      uint64
@@ -130,6 +149,17 @@ func syncVisibleChatMedia(cfg journeyclient.Config, messageIDs []string) {
 		}
 	}
 	chatMediaCache.SetWanted(artifacts)
+	chatMediaDiagnostics.Lock()
+	wanted := make(map[string]bool, len(artifacts))
+	for _, id := range artifacts {
+		wanted[id] = true
+	}
+	for id := range chatMediaDiagnostics.items {
+		if !wanted[id] {
+			delete(chatMediaDiagnostics.items, id)
+		}
+	}
+	chatMediaDiagnostics.Unlock()
 	// Image bytes are requested by chatui's near-viewport observer. Keeping
 	// only artifact IDs in this wanted set bounds grant caching without
 	// downloading original files for every mounted timeline row.
@@ -142,6 +172,23 @@ func installChatMediaImageBridge(cfg journeyclient.Config) {
 	if chatMediaDownloadBridge.Value.Truthy() {
 		chatMediaDownloadBridge.Release()
 	}
+	if chatMediaDiagnosticBridge.Value.Truthy() {
+		chatMediaDiagnosticBridge.Release()
+	}
+	chatMediaDiagnosticBridge = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 0 {
+			return js.Global().Get("Object").New()
+		}
+		id := args[0].String()
+		chatMediaDiagnostics.Lock()
+		item := chatMediaDiagnostics.items[id]
+		chatMediaDiagnostics.Unlock()
+		out := js.Global().Get("Object").New()
+		for key, value := range item {
+			out.Set(key, value)
+		}
+		return out
+	})
 	chatMediaImageBridge = js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) < 3 {
 			return js.Global().Get("Promise").Call("reject", "invalid image request")
@@ -171,16 +218,20 @@ func installChatMediaImageBridge(cfg journeyclient.Config) {
 	})
 	js.Global().Set("hcmChatMediaFetch", chatMediaImageBridge)
 	js.Global().Set("hcmChatMediaDownload", chatMediaDownloadBridge)
+	js.Global().Set("hcmChatMediaDiagnostic", chatMediaDiagnosticBridge)
 }
 
 func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, signal js.Value) string {
+	setChatMediaDiagnostic(id, "fetching", "", 0)
 	if id == "" || (variant != "thumbnail" && variant != "display" && variant != "original") || signal.Get("aborted").Truthy() {
+		setChatMediaDiagnostic(id, "failed", "invalid-request", 0)
 		return ""
 	}
 	model := chatBrowser.snapshot()
 	conversationID := model.SelectedID
 	active := chatBrowser.config(cfg)
 	if conversationID == "" {
+		setChatMediaDiagnostic(id, "failed", "no-conversation", 0)
 		return ""
 	}
 	if !chatMediaCache.Wanted(id) {
@@ -198,6 +249,7 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 			}
 		}
 		if !chatMediaCache.Wanted(id) {
+			setChatMediaDiagnostic(id, "failed", "not-wanted", 0)
 			return ""
 		}
 	}
@@ -205,6 +257,7 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 	case chatMediaSlots <- struct{}{}:
 		defer func() { <-chatMediaSlots }()
 	case <-time.After(30 * time.Second):
+		setChatMediaDiagnostic(id, "failed", "slot-timeout", 0)
 		return ""
 	}
 	for attempt := 0; attempt < 2; attempt++ {
@@ -249,18 +302,22 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 		}
 		response, err := chatMediaFetchVariant(chatMediaRoute+url.PathEscape(id), active, conversationID, grant.Token, variantName, signal)
 		if err != nil || !response.Truthy() {
+			setChatMediaDiagnostic(id, "failed", "fetch-rejected", 0)
 			return ""
 		}
 		status := response.Get("status").Int()
+		setChatMediaDiagnostic(id, "http", "", status)
 		if status == 403 && attempt == 0 {
 			chatMediaCache.Invalidate(id)
 			continue
 		}
 		if status != 200 {
+			setChatMediaDiagnostic(id, "failed", "http-status", status)
 			return ""
 		}
 		contentType := response.Get("headers").Call("get", "Content-Type")
 		if !contentType.Truthy() || !strings.HasPrefix(strings.ToLower(contentType.String()), "image/") {
+			setChatMediaDiagnostic(id, "failed", "content-type", status)
 			return ""
 		}
 		maxBytes := int64(chatMediaPreviewMaxBytes)
@@ -269,11 +326,13 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 		}
 		if length := response.Get("headers").Call("get", "Content-Length"); length.Truthy() {
 			if n, err := strconv.ParseInt(length.String(), 10, 64); err == nil && n > maxBytes {
+				setChatMediaDiagnostic(id, "failed", "content-length", status)
 				return ""
 			}
 		}
 		blob := awaitChatJS(response.Call("blob"))
 		if !blob.Truthy() || int64(blob.Get("size").Int()) > maxBytes || signal.Get("aborted").Truthy() {
+			setChatMediaDiagnostic(id, "failed", "blob", status)
 			return ""
 		}
 		if conversationID != chatBrowser.selectedID() || active.Subject != chatBrowser.config(cfg).Subject || active.Tenant != chatBrowser.config(cfg).Tenant {
@@ -281,8 +340,10 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 		}
 		objectURL := js.Global().Get("URL").Call("createObjectURL", blob).String()
 		if objectURL == "" {
+			setChatMediaDiagnostic(id, "failed", "object-url", status)
 			return ""
 		}
+		setChatMediaDiagnostic(id, "ready", "", status)
 		return objectURL
 	}
 	return ""
@@ -350,17 +411,22 @@ func fetchChatMedia(cfg journeyclient.Config, conversationID, id string, epoch u
 func mintChatMediaGrant(cfg journeyclient.Config, conversationID, id string, signal js.Value) (grant string, expiresAt time.Time, ok bool) {
 	response, err := chatMediaFetch(chatMediaRoute+id+"/grant", cfg, conversationID, "", signal)
 	if err != nil || !response.Truthy() {
+		setChatMediaDiagnostic(id, "failed", "grant-fetch", 0)
 		return "", time.Time{}, false
 	}
-	if response.Get("status").Int() != 200 {
+	status := response.Get("status").Int()
+	if status != 200 {
+		setChatMediaDiagnostic(id, "failed", "grant-http-status", status)
 		return "", time.Time{}, false
 	}
 	body := awaitChatJS(response.Call("json"))
 	if !body.Truthy() {
+		setChatMediaDiagnostic(id, "failed", "grant-json", status)
 		return "", time.Time{}, false
 	}
 	grant = body.Get("grant").String()
 	if grant == "" {
+		setChatMediaDiagnostic(id, "failed", "grant-empty", status)
 		return "", time.Time{}, false
 	}
 	if stated := body.Get("grant_expires_at").String(); stated != "" {

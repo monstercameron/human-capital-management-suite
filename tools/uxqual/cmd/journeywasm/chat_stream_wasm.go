@@ -288,11 +288,13 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 		Applied: func(event *chatv1.ConversationEvent) {
 			switch event.GetKind() {
 			case chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_MEMBERSHIP_CHANGED:
+				personaDirectoryRefresh.Schedule()
 				chatBrowser.invalidateChatEmbeds()
 				// Membership changed under the reader: the member list they may
 				// be looking at, and their own access, are both now stale.
 				go loadChatMembers(cfg)
 			case chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_POST_CREATED:
+				personaDirectoryRefresh.Schedule()
 				// The rail's unread and mention counts are the server's, not a
 				// number this client increments. Drop the cached counts so the
 				// next projection re-reads GetCounts.

@@ -151,6 +151,9 @@ type WorkPreviewProps struct {
 	// reviewer sees no work-item UUID); it lives only here, gated by
 	// Diagnostics.Available.
 	Diagnostics TechnicalDetailsProps
+	// NextAction is the server-authorized next step, offered inline when the
+	// selected work item exposes one. Action remains the journey fallback.
+	NextAction  ActionLinkProps
 	Action      ActionLinkProps
 	EmptyTitle  string
 	EmptyDetail string
@@ -382,7 +385,7 @@ func WorkPreview(props WorkPreviewProps) ui.Node {
 	children := []ui.Node{
 		html.Div(html.Props{Class: "preview-head"},
 			personAvatar(props.Person, props.Initials, props.PhotoURL, ""),
-			html.Div(html.Props{}, html.Small(html.Props{}, ui.Text(props.Text("work.selected_label"))), html.H2(html.Props{}, ui.Text(props.Title)), html.P(html.Props{Class: "muted"}, ui.Text(fmt.Sprintf("%s · %s", props.Person, props.Summary)))),
+			html.Div(html.Props{}, html.Small(html.Props{}, ui.Text(props.Text("work.selected_label"))), html.H2(html.Props{Class: "work-preview-title", Lang: props.Locale.normalized().Resolved, Dir: "auto"}, ui.Text(props.Title)), html.P(html.Props{Class: "muted"}, ui.Text(fmt.Sprintf("%s · %s", props.Person, props.Summary)))),
 			status,
 		),
 	}
@@ -395,10 +398,18 @@ func WorkPreview(props WorkPreviewProps) ui.Node {
 	}
 	diagnostics := props.Diagnostics
 	diagnostics.I18nProps = props.I18nProps
+	actions := make([]ui.Node, 0, 2)
+	if props.NextAction.Href != "" {
+		actions = append(actions, ui.CreateElement(ActionLink, props.NextAction))
+	}
+	if props.Action.Href != "" {
+		actions = append(actions, ui.CreateElement(ActionLink, props.Action))
+	}
 	children = append(children,
 		html.Div(html.Props{Class: "facts"}, facts...),
 		ui.CreateElement(TechnicalDetails, diagnostics),
-		provenance, ui.CreateElement(ActionLink, props.Action),
+		provenance,
 	)
+	children = append(children, actions...)
 	return html.Aside(html.Props{Class: "surface work-preview", Aria: map[string]string{"label": props.Text("work.selected_summary")}}, children...)
 }

@@ -60,7 +60,23 @@ func ResolveHomeQuickActions(view View) []ActionLinkProps {
 		appendHomePageActionInPlace(&actions, view, PageTimeOffRequest, view.Locale.Text("home.action_time_off"), "button secondary")
 	}
 	appendHomePageActionInPlace(&actions, view, PagePayStatements, view.Locale.Text("home.action_pay_statement"), "button secondary")
+	for _, workflow := range workflowStartFavoriteItems(view) {
+		actions = append(actions, ActionLinkProps{Label: workflow.Name, Href: WorkflowStartHref(view, workflow.WorkflowID), Class: "button secondary", Navigate: view.Navigate})
+	}
 	return dedupeHomeActions(actions)
+}
+
+func workflowStartFavoriteItems(view View) []WorkflowStartItem {
+	result := make([]WorkflowStartItem, 0, len(view.WorkflowStartFavorites))
+	for _, id := range view.WorkflowStartFavorites {
+		for _, workflow := range view.WorkflowStartCatalog {
+			if workflow.WorkflowID == id && workflow.Availability == WorkflowStartAvailable {
+				result = append(result, workflow)
+				break
+			}
+		}
+	}
+	return result
 }
 
 func appendHomePageActionInPlace(actions *[]ActionLinkProps, view View, page PageID, label, class string) {

@@ -73,7 +73,7 @@ func (c *serverPreferenceController) Adopt(view productui.View) {
 		}
 		access := stored.Accessibility
 		c.user = &journeyv1.UserPreferences{Version: stored.Version, Locale: stored.Locale, NavCollapsed: stored.NavCollapsed, NavigationGroups: groups, FavoritePages: favorites, Tables: tables, WorkflowUses: stored.WorkflowUses, Density: stored.Density,
-			Accessibility: &journeyv1.AccessibilityPreferences{TextSize: access.TextSize, Contrast: access.Contrast, Motion: access.Motion, Links: access.Links}}
+			Accessibility: &journeyv1.AccessibilityPreferences{TextSize: access.TextSize, Contrast: access.Contrast, Motion: access.Motion, Links: access.Links, ColorMode: access.ColorMode}}
 	}
 	if view.AppearanceVersion >= c.theme.GetVersion() {
 		c.theme = themeToProto(view.Appearance, view.AppearanceVersion)
@@ -270,7 +270,7 @@ func (c *serverPreferenceController) SaveWorkerIDPolicy(policy productui.WorkerI
 
 func (c *serverPreferenceController) SaveAccessibility(value productui.AccessibilityPreferences, done func(error)) {
 	c.saveUser(func(user *journeyv1.UserPreferences) {
-		user.Accessibility = &journeyv1.AccessibilityPreferences{TextSize: value.TextSize, Contrast: value.Contrast, Motion: value.Motion, Links: value.Links}
+		user.Accessibility = &journeyv1.AccessibilityPreferences{TextSize: value.TextSize, Contrast: value.Contrast, Motion: value.Motion, Links: value.Links, ColorMode: value.ColorMode}
 	}, done)
 }
 
@@ -285,13 +285,36 @@ func (c *serverPreferenceController) SaveNavigationGroups(groups map[string]bool
 	c.saveUser(func(user *journeyv1.UserPreferences) { user.NavigationGroups = groups }, nil)
 }
 
+func (c *serverPreferenceController) SaveFavorite(page productui.PageID, favorite bool) {
+	pageID := strings.TrimSpace(string(page))
+	if pageID == "" {
+		return
+	}
+	c.saveUser(func(user *journeyv1.UserPreferences) {
+		favorites := make([]string, 0, len(user.GetFavoritePages())+1)
+		found := false
+		for _, existing := range user.GetFavoritePages() {
+			if existing == pageID {
+				if favorite && !found {
+					favorites = append(favorites, existing)
+				}
+				found = true
+				continue
+			}
+			favorites = append(favorites, existing)
+		}
+		if favorite && !found {
+			favorites = append([]string{pageID}, favorites...)
+		}
+		user.FavoritePages = favorites
+	}, nil)
+}
+
 func (c *serverPreferenceController) PersistView(view productui.View) {
 	c.saveUser(func(user *journeyv1.UserPreferences) {
 		user.Locale, user.NavCollapsed = view.Locale.Resolved, view.NavCollapsed
-		user.FavoritePages = user.FavoritePages[:0]
-		for _, page := range view.FavoritePages {
-			user.FavoritePages = append(user.FavoritePages, string(page))
-		}
+		// Favorites are account state, not route state. SaveFavorite owns their
+		// writes so a route load cannot race and overwrite a recent star click.
 		if user.Tables == nil {
 			user.Tables = map[string]*journeyv1.TablePreferences{}
 		}

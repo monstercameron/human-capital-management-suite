@@ -87,7 +87,7 @@ func TestTodo_HUB_032_Browser(t *testing.T) {
 func TestTodo_HUB_033_Browser(t *testing.T) {
 	view := productui.NewView(productui.PageDocs, "tenant-a", "reader-a", "scope-a")
 	view.Document = &productui.DocumentDetail{
-		Summary:  productui.DocumentSummary{ID: "doc-42", Title: "Handbook", VersionID: "version-7"},
+		Summary:  productui.DocumentSummary{ID: "doc-42", Title: "Handbook", VersionID: "version-7", CanManageAccess: true},
 		Markdown: "# Current\n\nBody text.",
 		CanEdit:  true,
 	}

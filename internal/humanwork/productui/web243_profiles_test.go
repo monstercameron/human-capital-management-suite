@@ -98,3 +98,54 @@ func TestTodo_WEB_243_Regression(t *testing.T) {
 		}
 	}
 }
+
+func TestRouteProfileHistoryOutcomeRoundTrip(t *testing.T) {
+	statuses := append([]string{""}, JourneyStatusFilterValues()...)
+	// The compatibility /history, Myself and Person views still render these
+	// terminal outcomes through WorkflowHistoryFilter.
+	statuses = append(statuses, "completed", "rejected", "failed")
+	sorts := []string{"started", "updated", "status", "person", "change", "closed", "outcome"}
+	for _, status := range statuses {
+		statusName := status
+		if statusName == "" {
+			statusName = "all"
+		}
+		for _, sort := range sorts {
+			sort := sort
+			t.Run(statusName+"-"+sort, func(t *testing.T) {
+				request := PageRequest{
+					HistoryOutcome: status, HistoryQuery: "Promotion",
+					HistoryRequester: "Avery Patel", HistorySort: sort,
+				}
+				provided := map[string]bool{
+					"outcome": true, "history_q": true, "history_requester": true, "history_sort": true,
+				}
+				encoded := RouteProfileHistory.CanonicalValues(request, provided).Encode()
+				values, err := url.ParseQuery(encoded)
+				if err != nil {
+					t.Fatalf("canonical history query %q is invalid: %v", encoded, err)
+				}
+				if !RouteProfileHistory.ValidControlledValues(values) {
+					t.Fatalf("rendered outcome/sort %q/%q was rejected after URL round trip: %q", status, sort, encoded)
+				}
+				for key, want := range map[string]string{
+					"outcome": status, "history_q": "Promotion",
+					"history_requester": "Avery Patel", "history_sort": sort,
+				} {
+					if got := values.Get(key); got != want {
+						t.Errorf("round-tripped %s = %q, want %q", key, got, want)
+					}
+				}
+				values.Set("outcome", "arbitrary-status")
+				if RouteProfileHistory.ValidControlledValues(values) {
+					t.Fatal("route profile accepted an unrendered history outcome")
+				}
+				values.Set("outcome", status)
+				values.Set("history_sort", "arbitrary-sort")
+				if RouteProfileHistory.ValidControlledValues(values) {
+					t.Fatal("route profile accepted an unrendered history sort")
+				}
+			})
+		}
+	}
+}

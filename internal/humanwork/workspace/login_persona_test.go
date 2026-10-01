@@ -158,7 +158,7 @@ func TestTodo_UXAUDIT_014_Security_DurablePolicy(t *testing.T) {
 			t.Fatal("login card ignored the effective self-service assignment")
 		}
 		response := post(h)
-		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != PathProductPrefix+"myself" {
+		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != PathProductHome {
 			t.Fatalf("assigned self-service landing = %d, %q", response.Code, response.Header().Get("Location"))
 		}
 		request := httptest.NewRequest(http.MethodGet, PathProductPrefix+"admin", nil)

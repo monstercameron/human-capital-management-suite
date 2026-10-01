@@ -103,18 +103,17 @@ func RolesPage(props RolesPageProps) ui.Node {
 	}
 	pageControls := roleDirectoryPagination(props, window)
 
-	return html.Div(html.Props{Class: "roles-access-page"},
+	return AdminPageFrame("roles-access-page",
 		html.Div(html.Props{Class: "roles-access-intro"},
 			html.Nav(html.Props{Class: "roles-page-jumps", Aria: map[string]string{"label": props.Text("roles.sections")}},
 				html.A(html.Props{Href: "#role-catalog"}, ui.Text(props.Text("roles.catalog"))),
 				html.A(html.Props{Href: "#role-assignments"}, ui.Text(props.Text("roles.assignments"))),
 			),
-			props.BackNode(),
 		),
 		html.Div(html.Props{Class: "roles-access-layout"},
 			html.Section(html.Props{Class: "surface role-catalog", ID: "role-catalog"},
 				ui.CreateElement(SectionHeading, SectionHeadingProps{Title: props.Text("roles.catalog"), Description: props.Text("roles.catalog_help")}),
-				html.Tag("details", html.Props{Class: "role-create-disclosure"}, html.Tag("summary", html.Props{}, ui.Text(props.Text("roles.create"))), createRoleForm(props.I18nProps, props.CanCreate, props.OnSaveRole)),
+				html.Tag("details", html.Props{Class: "role-create-disclosure"}, html.Tag("summary", html.Props{}, ui.Text(props.Text("roles.create_toggle"))), createRoleForm(props.I18nProps, props.CanCreate, props.OnSaveRole)),
 				html.Div(html.Props{Class: "access-role-grid"}, roleCards...),
 			),
 			html.Section(html.Props{Class: "surface employee-role-directory", ID: "role-assignments"},
@@ -261,11 +260,12 @@ func roleDefinitionDisclosure(props RolesPageProps, role AccessRole, policy Orga
 		)
 	}
 	definitionFields = append(definitionFields,
-		html.Div(html.Props{}, html.Tag("dt", html.Props{}, ui.Text(props.Text("roles.page_access"))), html.Tag("dd", html.Props{}, ui.Text(strconv.Itoa(pageCount)))),
+		html.Div(html.Props{}, html.Tag("dt", html.Props{}, ui.Text(props.Text("roles.page_access"))), html.Tag("dd", html.Props{}, ui.Text(props.Text("roles.page_access_summary", map[string]string{"count": strconv.Itoa(pageCount)})))),
 	)
 	return html.Div(html.Props{Class: "role-definition"},
 		html.H3(html.Props{}, ui.Text(props.Text("roles.definition"))),
 		html.P(html.Props{Class: "muted"}, ui.Text(role.Description)),
+		html.P(html.Props{Class: "muted role-definition-explanation"}, ui.Text(props.Text("roles.access_explanation"))),
 		html.Tag("dl", html.Props{}, definitionFields...),
 		html.P(html.Props{Class: "muted role-definition-boundary"}, ui.Text(props.Text("organization_visibility.boundary_detail"))),
 	)
@@ -413,20 +413,58 @@ func createRoleForm(i18n I18nProps, editable bool, save func(AccessRole)) ui.Nod
 	if !editable || save == nil {
 		return html.Div(html.Props{Class: "create-role-form role-read-only"}, html.Strong(html.Props{}, ui.Text(i18n.Text("roles.read_only_heading"))), html.P(html.Props{Class: "muted"}, ui.Text(i18n.Text("roles.read_only_help"))))
 	}
-	draft := AccessRole{Active: true}
-	id := html.Props{ID: "new-role-id", Name: "role_id", Type: "text", Pattern: "[a-z][a-z0-9_]{1,62}", AutoComplete: "off", Required: true}
-	id.OnInput = ui.UseEvent(func(event ui.InputEvent) { draft.ID = event.GetValue() })
-	name := html.Props{ID: "new-role-name", Name: "role_name", Type: "text", MaxLength: 96, AutoComplete: "off", Required: true}
-	name.OnInput = ui.UseEvent(func(event ui.InputEvent) { draft.Name = event.GetValue() })
-	description := html.Props{ID: "new-role-description", Name: "role_description", MaxLength: 400}
-	description.OnInput = ui.UseEvent(func(event ui.InputEvent) { draft.Description = event.GetValue() })
-	return html.Form(html.Props{Class: "create-role-form", OnSubmit: saveRole(save, &draft)},
+	draftState := ui.UseState(AccessRole{Active: true})
+	validation := ui.UseState(roleCreateValidation{})
+	idDerived := ui.UseState(true)
+	idValue := ui.UseState("")
+	currentDraft := draftState.Get()
+	id := html.Props{ID: "new-role-id", Name: "role_id", Type: "text", Pattern: "[a-z][a-z0-9_]{1,62}", AutoComplete: "off", Required: true, Value: idValue.Get()}
+	id.OnInput = ui.UseEvent(func(event ui.InputEvent) {
+		draft := draftState.Get()
+		draft.ID = event.GetValue()
+		draftState.Set(draft)
+		idValue.Set(event.GetValue())
+		idDerived.Set(false)
+	})
+	name := html.Props{ID: "new-role-name", Name: "role_name", Type: "text", Value: currentDraft.Name, MaxLength: 96, AutoComplete: "off", Required: true}
+	name.OnInput = ui.UseEvent(func(event ui.InputEvent) {
+		draft := draftState.Get()
+		draft.Name = event.GetValue()
+		if idDerived.Get() {
+			derived := deriveRoleID(event.GetValue())
+			draft.ID = derived
+			idValue.Set(derived)
+		}
+		draftState.Set(draft)
+	})
+	description := html.Props{ID: "new-role-description", Name: "role_description", Value: currentDraft.Description, MaxLength: 400}
+	description.OnInput = ui.UseEvent(func(event ui.InputEvent) {
+		draft := draftState.Get()
+		draft.Description = event.GetValue()
+		draftState.Set(draft)
+	})
+	currentValidation := validation.Get()
+	if currentValidation.ID != "" {
+		id.Raw = map[string]any{"aria-invalid": "true", "aria-describedby": "new-role-id-error"}
+	}
+	if currentValidation.Name != "" {
+		name.Raw = map[string]any{"aria-invalid": "true", "aria-describedby": "new-role-name-error"}
+	}
+	fields := []ui.Node{
+		ui.CreateElement(LabeledControl, LabeledControlProps{For: id.ID, Label: i18n.Text("roles.role_id"), Control: html.Input(id), Help: i18n.Text("roles.create_id_help")}),
+		ui.CreateElement(LabeledControl, LabeledControlProps{For: name.ID, Label: i18n.Text("roles.display_name"), Control: html.Input(name)}),
+		ui.CreateElement(LabeledControl, LabeledControlProps{For: description.ID, Label: i18n.Text("roles.description_label"), Control: html.Textarea(description)}),
+	}
+	if currentValidation.ID != "" {
+		fields = append(fields, roleCreateErrorNode(i18n, "new-role-id-error", currentValidation.ID))
+	}
+	if currentValidation.Name != "" {
+		fields = append(fields, roleCreateErrorNode(i18n, "new-role-name-error", currentValidation.Name))
+	}
+	return html.Form(html.Props{Class: "create-role-form", Raw: map[string]any{"novalidate": true}, OnSubmit: saveRoleValidated(save, draftState.Get, validation.Set)},
 		html.H3(html.Props{}, ui.Text(i18n.Text("roles.create"))),
-		html.Div(html.Props{Class: "create-role-fields"},
-			ui.CreateElement(LabeledControl, LabeledControlProps{For: id.ID, Label: i18n.Text("roles.role_id"), Control: html.Input(id), Help: i18n.Text("roles.role_id_help")}),
-			ui.CreateElement(LabeledControl, LabeledControlProps{For: name.ID, Label: i18n.Text("roles.display_name"), Control: html.Input(name)}),
-			ui.CreateElement(LabeledControl, LabeledControlProps{For: description.ID, Label: i18n.Text("roles.description_label"), Control: html.Textarea(description)}),
-		),
+		html.Div(html.Props{Class: "create-role-fields"}, fields...),
+		html.P(html.Props{Class: "muted role-create-access-help"}, ui.Text(i18n.Text("roles.create_access_help"))),
 		html.Div(html.Props{Class: "role-form-actions"}, html.Button(html.Props{Class: "button primary", Type: "submit"}, ui.Text(i18n.Text("roles.create_action"))), html.P(html.Props{ID: "role-access-status", Class: "muted", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(i18n.Text("roles.status")))),
 	)
 }

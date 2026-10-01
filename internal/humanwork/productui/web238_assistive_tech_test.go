@@ -64,7 +64,8 @@ func TestTodo_WEB_238_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "3342724792a736f7aabaa6dcbb66544c5a28d01646c6f628d6d64b1e8c0b4d9c"
+	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+	const want = "4f423d03d859a833307ffa1ecfdfbce1886347b7447b181705b5daef3a03a39a"
 	if got != want {
 		t.Fatalf("assistive-technology compatibility digest = %s, want %s", got, want)
 	}

@@ -142,5 +142,10 @@ func uipolish002SettingsStylesheet() string {
 		declareGlobal(".viewer-profile-card .settings-profile-action",
 			mediaRule(gwccss.MaxW(600), gwccss.Raw("justify-self", "start")),
 		)
+		// UXBLIND lane I: settings headings are labels, not prose; keep them
+		// at word boundaries even when the global prose rule is permissive.
+		declareGlobal(".settings-group>h2,.settings-task-card :is(h2,h3)",
+			gwccss.Raw("overflow-wrap", "normal"), gwccss.Raw("word-break", "normal"),
+		)
 	})
 }

@@ -36,7 +36,7 @@ func TestTodo_UXSCAN_009_Golden(t *testing.T) {
 		fmt.Fprintf(&combined, "%s\x00%s\x00", page.name, markup)
 	}
 	digest := sha256.Sum256([]byte(combined.String()))
-	if got, want := hex.EncodeToString(digest[:]), "467d425a6c85e4938c3dce49b7bf872faad4a43fabe9a9a13f955aee78c7ae36"; got != want {
+	if got, want := hex.EncodeToString(digest[:]), "9a4c894ae50ab62e01f4fecd1f97269039b70926726388535b031065ea07e2cd"; got != want {
 		t.Fatalf("settings, visibility and admin copy/layout digest = %s, want %s", got, want)
 	}
 }
@@ -51,8 +51,9 @@ func TestTodo_UXSCAN_009_Accessibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse visibility document: %v", err)
 	}
+	// UXBLIND-039: the question is the single column header; each role's legend names the control.
 	legend := findHTMLNode(doc, func(n *xhtml.Node) bool { return n.Data == "legend" })
-	if legend == nil || !strings.Contains(htmlText(legend), "Which people can members of this role find?") {
+	if legend == nil || !strings.Contains(htmlText(legend), "Visibility setting for this role") || !strings.Contains(markup, "Which people can members of this role find?") {
 		t.Fatal("role visibility choices lack a descriptive legend")
 	}
 	if findHTMLNode(doc, func(n *xhtml.Node) bool { return n.Data == "fieldset" }) == nil {

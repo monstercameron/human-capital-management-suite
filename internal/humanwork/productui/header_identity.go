@@ -2,6 +2,8 @@ package productui
 
 import (
 	"strings"
+	"time"
+	"unicode"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -48,8 +50,8 @@ func ResolvePageIdentity(view View) PageIdentity {
 		Subtitle: view.Locale.Text(definition.SubtitleKey),
 	}
 	if definition.ID == PageHome {
-		if name := strings.TrimSpace(view.Viewer.Name); name != "" {
-			identity.Title = view.Locale.Text("page.home.greeting", map[string]string{"name": name})
+		if name := preferredViewerFirstName(view); name != "" {
+			identity.Title = homeGreeting(view.Locale, name)
 		}
 	}
 	if definition.ID == PagePerson {
@@ -60,14 +62,126 @@ func ResolvePageIdentity(view View) PageIdentity {
 	return identity
 }
 
+func preferredViewerFirstName(view View) string {
+	identities := []string{view.Viewer.PersonID, view.Principal}
+	for _, identity := range identities {
+		for _, person := range view.People {
+			if !personIdentityMatches(identity, person) {
+				continue
+			}
+			if preferred := firstName(person.PreferredName); preferred != "" {
+				return preferred
+			}
+			if name := firstName(person.Name); name != "" {
+				return name
+			}
+		}
+	}
+	name := strings.TrimSpace(view.Viewer.Name)
+	if name == "" {
+		name = strings.TrimSpace(view.Principal)
+	}
+	// An unbound worker-number or subject is not a first name. Failing closed
+	// here avoids greeting someone with a tenant/number fragment while the
+	// authorized worker projection is unavailable.
+	if strings.IndexFunc(name, unicode.IsDigit) == -1 {
+		return firstName(name)
+	}
+	return ""
+}
+
+func firstName(name string) string {
+	if fields := strings.Fields(strings.TrimSpace(name)); len(fields) > 0 {
+		return fields[0]
+	}
+	return ""
+}
+
+func personIdentityMatches(identity string, person Person) bool {
+	want := compactIdentity(identity)
+	if want == "" {
+		return false
+	}
+	for _, candidate := range []string{person.ID, person.WorkerID, person.SubjectID, person.WorkerNumber} {
+		if got := compactIdentity(candidate); got != "" && got == want {
+			return true
+		}
+	}
+	return false
+}
+
+func compactIdentity(value string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return unicode.ToLower(r)
+		}
+		return -1
+	}, strings.TrimSpace(value))
+}
+
+func homeGreeting(locale LocaleContext, name string) string {
+	key := "page.home.greeting"
+	if hour, ok := browserLocalHour(); ok {
+		switch {
+		case hour < 12:
+			key += ".morning"
+		case hour < 18:
+			key += ".afternoon"
+		default:
+			key += ".evening"
+		}
+	}
+	return locale.Text(key, map[string]string{"name": name})
+}
+
+// homeGreetingAt is kept pure for the native test matrix and for callers that
+// need deterministic copy selection without consulting the browser clock.
+func homeGreetingAt(locale LocaleContext, name string, at time.Time) string {
+	key := "page.home.greeting.morning"
+	switch hour := at.Hour(); {
+	case hour < 12:
+	case hour < 18:
+		key = "page.home.greeting.afternoon"
+	default:
+		key = "page.home.greeting.evening"
+	}
+	return locale.Text(key, map[string]string{"name": name})
+}
+
 // ResolveDocumentPageTitle keeps SSR and the live WASM title setter on the
 // same governed object identity. Other routes retain their established view
 // title until they adopt an object-specific identity of their own.
 func ResolveDocumentPageTitle(view View) string {
-	if view.Page == PagePerson {
+	switch view.Page {
+	case PageHome:
+		// The tab names the page; the personal greeting belongs to the page
+		// heading, not to a title read among other browser tabs (UXBLIND-087).
+		if definition, ok := LookupPage(PageHome); ok {
+			return view.Locale.Text(definition.TitleKey)
+		}
+	case PagePerson:
 		return ResolvePageIdentity(view).Title
 	}
+	// During a route transition the router may retain the previous English
+	// view title while the new page is still loading. The registry title is the
+	// localized interim identity and is safe before any page data arrives.
+	if definition, ok := LookupPage(view.Page); ok && (view.Loading || view.ContentLoading) {
+		return view.Locale.Text(definition.TitleKey)
+	}
 	return view.Title
+}
+
+// DocumentTitle is the one browser-tab title format shared by the server
+// shell, SSR and the WASM route renderer: "<page> · <company display name>".
+// The company is the tenant's configured brand name, or its display name
+// while the brand is still the product default.
+func DocumentTitle(pageTitle string, appearance CustomerTheme, tenant string) string {
+	brandName, _ := HeaderBrandIdentity(NormalizeCustomerTheme(appearance), tenant)
+	pageTitle = strings.TrimSpace(pageTitle)
+	if pageTitle == "" {
+		return brandName
+	}
+	return pageTitle + " · " + brandName
 }
 
 // PageIdentityHeader renders the canonical page head: the breadcrumb trail

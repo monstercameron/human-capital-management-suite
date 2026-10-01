@@ -152,6 +152,7 @@ func UtilityDrawer(props UtilityDrawerProps) ui.Node {
 			"label": props.Text("utility_drawer.trigger"), "haspopup": "dialog",
 			"expanded": fmt.Sprint(open.Get()), "controls": "utility-drawer-dialog",
 		},
+		Raw:     map[string]any{"title": props.Text("utility_drawer.trigger")},
 		OnClick: ui.UseEvent(func(ui.MouseEvent) { open.Set(!open.Get()) }),
 	}, navIcon("expand"), html.Span(html.Props{Class: "utility-drawer-label"}, ui.Text(props.Text("utility_drawer.trigger"))))
 	dialogProps := html.Props{

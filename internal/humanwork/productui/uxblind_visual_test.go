@@ -20,7 +20,7 @@ func TestUXBlindDirectoryDisambiguatesPreferredNames(t *testing.T) {
 	}
 }
 
-func TestTodo_UXBLIND_011(t *testing.T) {
+func TestLegacyUXBLIND_011(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{
 		`.people-page{gap:calc(var(--hcm-space-3) * var(--hcm-density));`,
@@ -38,7 +38,7 @@ func TestTodo_UXBLIND_011(t *testing.T) {
 	}
 }
 
-func TestTodo_UXBLIND_019(t *testing.T) {
+func TestLegacyUXBLIND_019(t *testing.T) {
 	css := Stylesheet()
 	want := `@media (min-width:761px){.sidebar .nav-copy>.nav-label{hyphens:none;overflow-wrap:normal;white-space:normal;word-break:normal;}`
 	if !strings.Contains(css, want) {
@@ -49,7 +49,7 @@ func TestTodo_UXBLIND_019(t *testing.T) {
 	}
 }
 
-func TestTodo_UXBLIND_026(t *testing.T) {
+func TestLegacyUXBLIND_026(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{
 		`.global-search .global-search-input{`,

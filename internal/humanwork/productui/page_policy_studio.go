@@ -13,6 +13,9 @@ import (
 // replaces this body once the governed service
 // publishes; until then the UI will not simulate one.
 func policyStudioPage(view View) ui.Node {
+	if view.PolicyStudio != nil && view.PolicyStudio.Ready {
+		return policyStudioLivePage(view, *view.PolicyStudio)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("policy_studio.unavailable_title"),
 		Description: view.Locale.Text("policy_studio.unavailable_detail"),

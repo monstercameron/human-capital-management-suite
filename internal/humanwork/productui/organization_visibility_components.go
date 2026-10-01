@@ -171,10 +171,11 @@ func OrganizationVisibilityPage(props OrganizationVisibilityPageProps) ui.Node {
 			Action: &props.RolesLink,
 		}))
 	}
-	return html.Div(html.Props{Class: "organization-visibility-page"},
+	return AdminPageFrame("organization-visibility-page",
 		html.Section(html.Props{Class: "surface organization-visibility-intro"},
 			html.P(html.Props{Class: "muted"}, ui.Text(props.Text("organization_visibility.description"))),
-			html.Div(html.Props{Class: "organization-visibility-nav"}, ui.CreateElement(ActionLink, props.RolesLink), ui.CreateElement(ActionLink, props.Back)),
+			html.Div(html.Props{Class: "role-visibility-column-header"}, html.Strong(html.Props{}, ui.Text(props.Text("organization_visibility.scope_title")))),
+			html.Div(html.Props{Class: "organization-visibility-nav"}, ui.CreateElement(ActionLink, props.RolesLink)),
 		),
 		html.Section(html.Props{Class: "role-visibility-list", Raw: map[string]any{"aria-label": props.Text("organization_visibility.configured_roles")}}, editors...),
 	)
@@ -246,7 +247,7 @@ func roleVisibilityEditor(props OrganizationVisibilityPageProps, role AccessRole
 		})
 		unitChoices = append(unitChoices, html.Label(html.Props{Class: "organization-visibility-unit"}, html.Input(input), html.Span(html.Props{}, ui.Text(unit))))
 	}
-	modeFieldset := append([]ui.Node{html.Legend(html.Props{}, ui.Text(props.Text("organization_visibility.scope_title")))}, modeChoices...)
+	modeFieldset := append([]ui.Node{html.Legend(html.Props{}, ui.Text(props.Text("organization_visibility.scope_control_label")))}, modeChoices...)
 	unitSelectionActive := strings.EqualFold(draft.Mode, "ALLOWLIST") || strings.EqualFold(draft.Mode, "DENYLIST")
 	formClass := "organization-visibility-form"
 	if !unitSelectionActive {
@@ -299,7 +300,6 @@ func roleVisibilityEditor(props OrganizationVisibilityPageProps, role AccessRole
 	return html.Tag("details", detailsProps,
 		html.Tag("summary", html.Props{},
 			html.Div(html.Props{}, html.Strong(html.Props{}, ui.Text(role.Name)), html.Code(html.Props{}, ui.Text(role.ID))),
-			html.Span(html.Props{Class: "organization-visibility-summary-prompt"}, ui.Text(props.Text("organization_visibility.scope_title"))),
 			html.Span(html.Props{Class: "status"}, ui.Text(summaryStatus))),
 		html.Form(html.Props{Class: formClass, OnSubmit: onSubmit}, formChildren...),
 	)

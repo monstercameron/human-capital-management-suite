@@ -72,6 +72,7 @@ const (
 	RouteProfilePosition        RouteProfile = "position"
 	RouteProfileProjects        RouteProfile = "projects"
 	RouteProfileProject         RouteProfile = "project"
+	RouteProfileAgents          RouteProfile = "agents"
 )
 
 // DataProfile identifies a reusable authorized dataset contract. It carries
@@ -137,7 +138,7 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 	case RouteProfileMyself:
 		result.History, result.HistoryViewer = true, true
 		result.WorkflowQuery = true
-		result.QueryKeys = []string{"workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
+		result.QueryKeys = []string{"workflow_q", "history_q", "outcome", "history_person", "history_requester", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
 	case RouteProfileJourneys:
 		result.Journeys = true
 		result.QueryKeys = append([]string{"journey", "mode", "worker"}, JourneyListRouteKeys()...)
@@ -146,7 +147,7 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.QueryKeys = []string{"filter", "selected"}
 	case RouteProfileHistory:
 		result.History = true
-		result.QueryKeys = []string{"history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
+		result.QueryKeys = append([]string{"history_q", "outcome", "history_person", "history_requester", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}, JourneyListRouteKeys()...)
 	case RouteProfilePeople:
 		result.PeopleDirectory = true
 		result.QueryKeys = []string{"q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "columns"}
@@ -157,7 +158,7 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.QueryKeys = []string{"person", "q", "page", "page_size", "team", "location", "eligible", "sort", "dir", "columns", "workflow_q", "history_q", "outcome", "history_person", "history_year", "history_sort", "history_dir", "history_page", "history_page_size"}
 	case RouteProfileOrganization, RouteProfileOrgOutline:
 		result.Organization = true
-		result.CarriesDirectoryQuery = true
+		// UXBLIND-024: Organization no longer adopts the People directory's remembered search.
 		result.OrganizationOutline = profile == RouteProfileOrgOutline
 		result.QueryKeys = organizationRouteStateKeys
 	case RouteProfileRoles:
@@ -168,7 +169,7 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.QueryKeys = []string{"mode"}
 	case RouteProfileWorkflow:
 		result.WorkflowDesigner = true
-		result.QueryKeys = []string{"workflow", "run", "draft", "node"}
+		result.QueryKeys = []string{"workflow", "run", "draft", "node", "workflow_references"}
 	case RouteProfileDocs:
 		result.QueryKeys = []string{"document", "docs_q", "collection", "cursor", "folder", "docs_sort", "docs_owner", "docs_page", "docs_size", "docs_mode", "docs_edit"}
 	case RouteProfilePosition:
@@ -177,6 +178,8 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 	case RouteProfileProject:
 		result.Project = true
 		result.QueryKeys = []string{"project", "task", "board_view", "cursor", "view", "lane", "filter", "q"}
+	case RouteProfileAgents:
+		result.QueryKeys = []string{"task"}
 	case RouteProfileKnowledgeSearch:
 		result.QueryKeys = []string{"q"}
 	}
@@ -201,10 +204,11 @@ func (profile RouteProfile) ValidControlledValues(values url.Values) bool {
 		}
 		return value == ""
 	}
+	historyOutcomes := append(JourneyStatusFilterValues(), "completed", "rejected", "failed")
 	if !oneOf("sort", peopleColumnIDs()...) ||
 		!oneOf("dir", "asc", "desc") || !oneOf("eligible", "1") ||
-		!oneOf("history_sort", "person", "change", "closed", "outcome") ||
-		!oneOf("history_dir", "asc", "desc") || !oneOf("outcome", "completed", "rejected", "failed") {
+		!oneOf("history_sort", "person", "change", "closed", "outcome", "started", "updated", "status") ||
+		!oneOf("history_dir", "asc", "desc") || !oneOf("outcome", historyOutcomes...) {
 		return false
 	}
 	spec := profile.StateProfile()
@@ -228,6 +232,9 @@ func (profile RouteProfile) ValidControlledValues(values url.Values) bool {
 		}
 	}
 	if spec.Studio && !oneOf("mode", "preview", "validate") {
+		return false
+	}
+	if profile == RouteProfileWorkflow && !oneOf("workflow_references", "1") {
 		return false
 	}
 	if profile == RouteProfileDocs && (!oneOf("docs_sort", "relevance", "updated", "updated_asc", "title", "title_desc", "owner", "owner_desc") || !oneOf("docs_size", "25", "50", "100") || !oneOf("docs_mode", "smart", "contains", "fuzzy", "meaning") || !oneOf("collection", "all", "private", "shared", "starred") || !oneOf("docs_edit", "1")) {
@@ -304,6 +311,7 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 		setProfileValue(values, provided, "history_q", request.HistoryQuery)
 		setProfileValue(values, provided, "outcome", request.HistoryOutcome)
 		setProfileValue(values, provided, "history_person", request.HistoryPerson)
+		setProfileValue(values, provided, "history_requester", request.HistoryRequester)
 		setProfileValue(values, provided, "history_year", request.HistoryYear)
 		setProfileValue(values, provided, "history_sort", request.HistorySort)
 		setProfileValue(values, provided, "history_dir", request.HistoryDirection)
@@ -334,6 +342,13 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 		setProfileValue(values, provided, "run", request.WorkflowRunID)
 		setProfileValue(values, provided, "draft", request.WorkflowDraftID)
 		setProfileValue(values, provided, "node", request.WorkflowNodeID)
+		if provided["workflow_references"] {
+			if request.WorkflowShowReferences {
+				values.Set("workflow_references", "1")
+			} else {
+				values.Del("workflow_references")
+			}
+		}
 	}
 	if profile == RouteProfileDocs {
 		setProfileValue(values, provided, "document", request.DocumentID)
@@ -352,6 +367,9 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 	}
 	if spec.Position {
 		setProfileValue(values, provided, "position_ref", request.PositionReference)
+	}
+	if profile == RouteProfileAgents {
+		setProfileValue(values, provided, "task", request.AgentTaskID)
 	}
 	return values
 }
@@ -425,6 +443,9 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 		if view.HistoryPerson != "" {
 			values.Set("history_person", view.HistoryPerson)
 		}
+		if view.HistoryRequester != "" {
+			values.Set("history_requester", view.HistoryRequester)
+		}
 		if view.HistoryYear != "" {
 			values.Set("history_year", view.HistoryYear)
 		}
@@ -481,6 +502,9 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 		if view.SelectedWorkflowNodeID != "" {
 			values.Set("node", view.SelectedWorkflowNodeID)
 		}
+		if view.WorkflowShowReferences {
+			values.Set("workflow_references", "1")
+		}
 	}
 	if profile == RouteProfileDocs {
 		// The open document is the page's subject: shell links that restate
@@ -522,6 +546,11 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 	}
 	if spec.Position && strings.TrimSpace(view.PositionReference) != "" {
 		values.Set("position_ref", strings.TrimSpace(view.PositionReference))
+	}
+	if profile == RouteProfileAgents && view.AgentsProjection != nil && view.AgentsProjection.Snapshot.SelectedTask != nil {
+		if taskID := strings.TrimSpace(view.AgentsProjection.Snapshot.SelectedTask.ID); taskID != "" {
+			values.Set("task", taskID)
+		}
 	}
 	// Shell links on a project board (the navigation toggle, the locale
 	// switch) must keep the board's selectors; without them the address
@@ -632,6 +661,8 @@ func routeProfileFor(route string) RouteProfile {
 		return RouteProfileWork
 	case "/workspace/app/history":
 		return RouteProfileHistory
+	case "/workspace/app/workflows/history":
+		return RouteProfileHistory
 	case "/workspace/app/people":
 		return RouteProfilePeople
 	case "/workspace/app/person":
@@ -648,6 +679,8 @@ func routeProfileFor(route string) RouteProfile {
 		return RouteProfileWorkflow
 	case "/workspace/app/organization/position", "/workspace/app/organization/position-occupancy":
 		return RouteProfilePosition
+	case "/workspace/app/chat/agents":
+		return RouteProfileAgents
 	}
 	switch {
 	case strings.Contains(route, "/admin/"):
@@ -765,6 +798,7 @@ func LookupPageModule(id PageID) (PageModule, bool) {
 }
 
 func LookupRouteModule(route string) (PageModule, bool) {
+	route = canonicalRouteLookup(route)
 	position := sort.Search(len(fixedPageRegistry.routes), func(index int) bool { return fixedPageRegistry.routes[index].route >= route })
 	if position == len(fixedPageRegistry.routes) || fixedPageRegistry.routes[position].route != route {
 		return PageModule{}, false
@@ -786,6 +820,7 @@ func PageProfiles(id PageID) (RouteProfile, DataProfile, bool) {
 // RouteProfiles resolves a canonical route to the page and its immutable
 // route/data contracts without exposing registry-owned slices.
 func RouteProfiles(route string) (PageID, RouteProfile, DataProfile, bool) {
+	route = canonicalRouteLookup(route)
 	position := sort.Search(len(fixedPageRegistry.routes), func(index int) bool {
 		return fixedPageRegistry.routes[index].route >= route
 	})
@@ -794,6 +829,48 @@ func RouteProfiles(route string) (PageID, RouteProfile, DataProfile, bool) {
 	}
 	module := fixedPageRegistry.modules[fixedPageRegistry.routes[position].index]
 	return module.Definition.ID, module.RouteProfile, module.DataProfile, true
+}
+
+// canonicalRouteLookup maps compatibility URLs to the registered route while
+// keeping navigation and generated links on the canonical path. Query values
+// are intentionally ignored because route profiles describe the page, not its
+// page-local state.
+func canonicalRouteLookup(route string) string {
+	// The registry's ordinary route keys are already clean relative paths.
+	// Keep that hot path allocation-free; url.Parse is only needed for an
+	// absolute compatibility URL or surrounding whitespace.
+	if !strings.ContainsAny(route, "?#") {
+		if route == "/workspace/app/appearance" {
+			return "/workspace/app/admin/appearance"
+		}
+		if route == "/workspace/app/admin/appearance" || route == "/" {
+			return route
+		}
+		route = strings.TrimRight(route, "/")
+		if route == "/workspace/app/appearance" {
+			return "/workspace/app/admin/appearance"
+		}
+		return route
+	}
+	if strings.HasPrefix(route, "/") {
+		pathEnd := strings.IndexAny(route, "?#")
+		route = strings.TrimRight(route[:pathEnd], "/")
+		if route == "/workspace/app/appearance" {
+			return "/workspace/app/admin/appearance"
+		}
+		return route
+	}
+	parsed, err := url.Parse(strings.TrimSpace(route))
+	if err == nil && parsed.Path != "" {
+		route = parsed.Path
+	}
+	if route != "/" {
+		route = strings.TrimRight(route, "/")
+	}
+	if route == "/workspace/app/appearance" {
+		return "/workspace/app/admin/appearance"
+	}
+	return route
 }
 
 func pageModuleFor(id PageID) (PageModule, bool) {
@@ -860,7 +937,7 @@ func validRouteProfile(profile RouteProfile) bool {
 		RouteProfileHome, RouteProfileInsights, RouteProfileMyself, RouteProfileJourneys, RouteProfileWork,
 		RouteProfileHistory, RouteProfilePeople, RouteProfilePerson, RouteProfileOrganization, RouteProfileOrgOutline,
 		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow, RouteProfileDocs, RouteProfilePosition,
-		RouteProfileProjects, RouteProfileProject:
+		RouteProfileProjects, RouteProfileProject, RouteProfileAgents:
 		return true
 	default:
 		return false

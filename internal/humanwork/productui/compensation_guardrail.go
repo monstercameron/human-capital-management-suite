@@ -136,9 +136,9 @@ func CompensationGuardrailPropsFrom(locale LocaleContext, g promotion.Compensati
 		Facts: []FactProps{
 			{Label: locale.Text("compensation_guardrail.current_pay"), Value: money(locale, g.CurrentAnnualized)},
 			{Label: locale.Text("compensation_guardrail.permitted_increase"), Value: percentage(locale, g.PermittedIncreasePercent.Fraction().String())},
-			{Label: locale.Text("compensation_guardrail.minimum"), Value: money(locale, g.MinimumAnnualized)},
-			{Label: locale.Text("compensation_guardrail.maximum"), Value: money(locale, g.MaximumAnnualized)},
-			{Label: locale.Text("compensation_guardrail.band_position"), Value: locale.Text(compensationGuardrailBandPositionKey(g.BandPosition))},
+			{Label: locale.Text("compensation_guardrail.allowed_minimum"), Value: money(locale, g.MinimumAnnualized)},
+			{Label: locale.Text("compensation_guardrail.allowed_maximum"), Value: money(locale, g.MaximumAnnualized)},
+			{Label: locale.Text("compensation_guardrail.role_band_position"), Value: locale.Text(compensationGuardrailBandPositionKey(g.BandPosition))},
 			{Label: locale.Text("compensation_guardrail.effective_date_basis"), Value: locale.FormatDate(basis)},
 		},
 	}

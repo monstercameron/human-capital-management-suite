@@ -96,8 +96,9 @@ func TestTodo_UXAUDIT_017(t *testing.T) {
 		myWork := view.Work[0].Href
 		// The Journeys tracker's card links journeyclient.DetailHref; the
 		// product router translates that fragment with ProductJourneyHref.
-		journeys := ProductJourneyHref(journeyclient.DetailHref(intent), "")
-		if myWork != journeys || myWork != "/workspace/app/journeys?journey="+intent {
+		// UXBLIND: every workspace link now carries the resolved locale.
+		journeys := ProductJourneyHref(journeyclient.DetailHref(intent), "locale=en-US")
+		if myWork != journeys || myWork != "/workspace/app/journeys?journey="+intent+"&locale=en-US" {
 			t.Fatalf("deep links diverge: My Work %q, Journeys %q", myWork, journeys)
 		}
 		// The queue item carries the same stage dimension the tracker shows.

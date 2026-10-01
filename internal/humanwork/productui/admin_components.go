@@ -32,6 +32,12 @@ type CapabilityCardProps struct {
 	Availability ActionState
 }
 
+// AdminPageFrame keeps administration surfaces on one layout contract while
+// preserving the surface-specific class used by responsive shell rules.
+func AdminPageFrame(class string, children ...ui.Node) ui.Node {
+	return html.Div(html.Props{Class: strings.TrimSpace("admin-page-frame " + class)}, children...)
+}
+
 func AdminPage(props AdminPageProps) ui.Node {
 	children := []ui.Node{ui.CreateElement(AdminHero, props.Hero)}
 	for _, capability := range props.Capabilities {
@@ -40,7 +46,7 @@ func AdminPage(props AdminPageProps) ui.Node {
 		}
 		children = append(children, ui.CreateElement(CapabilityCard, capability))
 	}
-	return html.Div(html.Props{Class: "admin-grid", Raw: map[string]any{"role": "list", "aria-labelledby": "admin-page-title"}}, children...)
+	return html.Div(html.Props{Class: "admin-page-frame admin-grid", Raw: map[string]any{"role": "list", "aria-labelledby": "admin-page-title"}}, children...)
 }
 
 func AdminHero(props AdminHeroProps) ui.Node {

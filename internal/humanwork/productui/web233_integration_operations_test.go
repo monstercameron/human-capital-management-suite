@@ -88,6 +88,19 @@ func TestTodo_WEB_233_Browser(t *testing.T) {
 	if !ok || resolved.ID != PageIntegrationOperations {
 		t.Fatal("integration operations route does not round-trip")
 	}
+	live := testView(PageIntegrationOperations)
+	live.IntegrationOperations = &IntegrationOperationsProjection{Ready: true, Operations: []IntegrationOperationProjection{{ID: "browser-op", Connector: "connector", Operation: "READ", State: "SUCCEEDED"}}}
+	firstLive, err := Render(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondLive, err := Render(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstLive != secondLive || !strings.Contains(firstLive, "browser-op") {
+		t.Fatal("live integration operations render is not deterministic")
+	}
 }
 
 // Conformance: integration operations keep the

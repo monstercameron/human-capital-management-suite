@@ -213,13 +213,15 @@ func TestTodo_UXLIVE_030_Browser(t *testing.T) {
 func TestTodo_UXLIVE_030_Accessibility(t *testing.T) {
 	view := uxlive030View()
 	markup := uxlive030Render(t, homePage(view))
-	link := regexp.MustCompile(`<a [^>]*class="fact-link"[^>]*>(\d+)<span class="sr-only"> ([^<]+)</span></a>`)
+	// UXBLIND-RR: the link holds only the number; its accessible label is the
+	// paired <dt>, so the name is not announced twice.
+	link := regexp.MustCompile(`<dt>([^<]+)</dt><dd><a [^>]*class="fact-link"[^>]*>(\d+)</a>`)
 	links := link.FindAllStringSubmatch(markup, -1)
 	if len(links) < 7 {
 		t.Fatalf("fact links = %d, want every summary number linked:\n%s", len(links), markup)
 	}
 	for _, match := range links {
-		if strings.TrimSpace(match[2]) == "" {
+		if strings.TrimSpace(match[1]) == "" {
 			t.Fatalf("drill-down %q has no accessible label", match[0])
 		}
 	}
@@ -359,7 +361,8 @@ func TestTodo_UXLIVE_030_LocalizedDigits(t *testing.T) {
 	population.Active = 6
 	home.JourneyPopulation = &population
 	markup := uxlive030Render(t, homePage(home))
-	if !strings.Contains(markup, ">"+six+`<span class="sr-only">`) {
+	// UXBLIND-RR: the fact link holds only the number (its label is the paired <dt>).
+	if !strings.Contains(markup, ">"+six+"</a>") {
 		t.Fatalf("Home summary count is not localized (%q):\n%s", six, markup)
 	}
 	insights := home

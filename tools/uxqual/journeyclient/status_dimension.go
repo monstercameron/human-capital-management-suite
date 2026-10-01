@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
 // NextStep is the stable code for the single next step a journey's server
@@ -98,6 +99,14 @@ var nextStepLabels = map[NextStep]string{
 // NextStepLabel is code's English wording, or "" for NextStepNone and any
 // code outside the closed vocabulary.
 func NextStepLabel(code NextStep) string { return nextStepLabels[code] }
+
+// LocalizedNextStepLabel resolves the same semantic step through the product
+// catalog used by My Work. The English vocabulary remains available through
+// NextStepLabel for diagnostics and compatibility, but rendered surfaces use
+// this locale-aware resolver so Journeys and My Work cannot drift.
+func LocalizedNextStepLabel(locale productui.LocaleContext, code NextStep) string {
+	return productui.ResolveNextStepLabel(locale, string(code))
+}
 
 // JourneyStatusDimension reads one journey's shared status dimension off the
 // server's PROMOUX-012 viewer projection. The server owns the stage-to-next-

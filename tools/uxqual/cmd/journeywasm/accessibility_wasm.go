@@ -92,10 +92,26 @@ func (c *browserAccessibilityController) Apply(value productui.AccessibilityPref
 	for _, name := range []string{"data-hcm-text-size", "data-hcm-contrast", "data-hcm-motion-preference", "data-hcm-links"} {
 		root.Call("setAttribute", name, attributes[name])
 	}
+	colorMode := attributes["data-hcm-personal-color-mode"]
+	if colorMode == "" {
+		colorMode = root.Call("getAttribute", "data-hcm-organization-color-mode").String()
+	}
+	if colorMode == "" {
+		colorMode = "system"
+	}
+	root.Call("setAttribute", "data-hcm-color-mode", colorMode)
+	meta := js.Global().Get("document").Call("querySelector", `meta[name="color-scheme"]`)
+	if meta.Truthy() {
+		meta.Call("setAttribute", "content", productui.ColorSchemeContent(colorMode))
+	}
 }
 
 func (c *browserAccessibilityController) syncEditor(value productui.AccessibilityPreferences) {
-	values := map[string]string{"text-size": value.TextSize, "contrast": value.Contrast, "motion-preference": value.Motion, "links": value.Links}
+	colorMode := value.ColorMode
+	if colorMode == "" {
+		colorMode = "organization"
+	}
+	values := map[string]string{"text-size": value.TextSize, "contrast": value.Contrast, "motion-preference": value.Motion, "links": value.Links, "color-mode": colorMode}
 	document := js.Global().Get("document")
 	for name, selected := range values {
 		inputs := document.Call("querySelectorAll", `input[name="`+name+`"]`)

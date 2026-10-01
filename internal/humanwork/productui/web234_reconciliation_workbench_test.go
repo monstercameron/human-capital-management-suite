@@ -63,7 +63,8 @@ func TestTodo_WEB_234_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "588bd09ba6b4233e86a56812d92a4009320f54d74842bcc6fd32ed60e0b8a80d"
+	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
+	const want = "5491658228766db92f14458b91237e771cb93eac0882317160360b22a13083e2"
 	if got != want {
 		t.Fatalf("reconciliation and repair workbench digest = %s, want %s", got, want)
 	}
@@ -87,6 +88,19 @@ func TestTodo_WEB_234_Browser(t *testing.T) {
 	resolved, ok := LookupRoute(definition.Route)
 	if !ok || resolved.ID != PageReconciliationWorkbench {
 		t.Fatal("reconciliation and repair workbench route does not round-trip")
+	}
+	live := testView(PageReconciliationWorkbench)
+	live.ReconciliationWorkbench = &ReconciliationWorkbenchProjection{Ready: true, Items: []ReconciliationFindingProjection{{ID: "browser-finding", Resource: "resource", Kind: "OUTBOX_STUCK", Severity: "MAJOR"}}}
+	firstLive, err := Render(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondLive, err := Render(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstLive != secondLive || !strings.Contains(firstLive, "browser-finding") {
+		t.Fatal("live reconciliation workbench render is not deterministic")
 	}
 }
 

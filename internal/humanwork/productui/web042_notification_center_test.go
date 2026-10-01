@@ -29,10 +29,10 @@ func TestTodo_WEB_042(t *testing.T) {
 	}
 	// The trigger announces the count it shows; the panel links the
 	// authorized work destination.
-	if got := attr(findSummary(center), "aria-label"); !strings.Contains(got, "Work overview") {
+	if got := attr(findSummary(center), "aria-label"); !strings.Contains(got, "Notifications, 0 unread notifications") { // UXBLIND-056: the bell announces unread notifications
 		t.Fatalf("notification trigger does not announce its count: %q", got)
 	}
-	if linkForRoute(center, "/workspace/app/work") == nil {
+	if notificationLinkForHref(center, "/workspace/app/work") == nil {
 		t.Fatal("notification center did not link the authorized work destination")
 	}
 
@@ -53,7 +53,7 @@ func TestTodo_WEB_042(t *testing.T) {
 	if deniedCenter == nil {
 		t.Fatal("notification center disappeared instead of rendering its honest restricted state")
 	}
-	if linkForRoute(deniedCenter, "/workspace/app/work") != nil {
+	if notificationLinkForHref(deniedCenter, "/workspace/app/work") != nil {
 		t.Fatal("notification center advertised a work destination the identity cannot view")
 	}
 
@@ -125,7 +125,8 @@ func renderNotificationSubtree(t *testing.T, view View) string {
 // re-pinned it for the actionable-count copy; substituting the previous
 // "promotion journey is visible in this scope." back reproduces the old pin.
 // NAAS-001 adds the localized empty inbox state before Open My Work.
-const web042GoldenDigest = "8074f1f620384865746a6529c49ed4fd6e659a6bcb12e3a25a3b009427d9af8e"
+// UXBLIND lane II re-pinned it for the top-bar notification popover rework.
+const web042GoldenDigest = "73c328ddab7245945e299cbe75693d4baa1d3c3226a8c092b961fa87948456f1"
 
 func TestTodo_WEB_042_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(renderNotificationSubtree(t, testView(PageWork))))
@@ -180,4 +181,20 @@ func TestTodo_WEB_042_Conformance(t *testing.T) {
 			t.Fatalf("locale %s lost the notification center surface", locale)
 		}
 	}
+}
+
+// notificationLinkForHref finds any anchor with the exact href inside the
+// notification panel. linkForRoute now only recognizes navigation links
+// (UXBLIND-066), and the panel's "Open work" link is not one.
+func notificationLinkForHref(root *xhtml.Node, href string) *xhtml.Node {
+	if root == nil {
+		return nil
+	}
+	var found *xhtml.Node
+	walkElements(root, func(node *xhtml.Node) {
+		if found == nil && node.Data == "a" && attr(node, "href") == href {
+			found = node
+		}
+	})
+	return found
 }

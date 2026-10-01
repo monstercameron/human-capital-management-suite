@@ -47,6 +47,52 @@ type Route struct {
 	Filter productui.JourneyListFilter
 }
 
+// ScrollMode is the shell's route-transition scroll decision. A new route
+// starts at its subject, while a history traversal may restore the position
+// captured for that address. The renderer does not infer this from markup,
+// which keeps an input re-render from becoming an accidental navigation.
+type ScrollMode uint8
+
+const (
+	ScrollTop ScrollMode = iota
+	ScrollRestore
+	// ScrollKeep is used when an address update does not change the route
+	// subject. In particular, controlled input updates must not turn a
+	// projection refresh into a scroll operation.
+	ScrollKeep
+)
+
+// ScrollModeForNavigation chooses the scroll action for one route transition.
+// Anchor navigation is represented by the caller scrolling to the named
+// anchor after choosing ScrollTop; the route policy itself remains one place.
+func ScrollModeForNavigation(from, to Route, historyTraversal, savedPosition bool) ScrollMode {
+	if sameScrollSubject(from, to) {
+		return ScrollKeep
+	}
+	if historyTraversal && savedPosition {
+		return ScrollRestore
+	}
+	return ScrollTop
+}
+
+func sameScrollSubject(from, to Route) bool {
+	if from.Kind != to.Kind {
+		return false
+	}
+	switch from.Kind {
+	case RouteList:
+		// Selection and filter changes update the same collection surface;
+		// they must not move a focused control or its surrounding content.
+		return true
+	case RouteProposal:
+		return from.WorkerRef == to.WorkerRef
+	case RouteDetail:
+		return from.IntentID == to.IntentID
+	default:
+		return from == to
+	}
+}
+
 // Route fragments. The list route is spelled out rather than left as the
 // empty fragment so that the address bar always says what is on screen.
 const (

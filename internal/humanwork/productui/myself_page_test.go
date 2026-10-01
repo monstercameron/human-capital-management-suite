@@ -43,7 +43,8 @@ func TestMyselfPageUsesOnlyTheAuthenticatedViewerBinding(t *testing.T) {
 	for _, want := range []string{
 		view.Locale.Text("myself.read_only_title"), "View only", "Avery Patel", "Payroll &amp; compensation",
 		"CAD 118,000", "CA-ON", "Pay statements, deductions, taxes, bank details, and pay schedules are not available here yet",
-		"My workflow history", `href="/workspace/app/journeys?mode=new&amp;worker=worker-avery"`,
+		// UXBLIND-006: a viewer never sees a promotion entry for their own record.
+		"My workflow history",
 		`action="/workspace/app/myself"`,
 		// UXAUDIT-004: the Myself subtree is a real WAI-ARIA tree
 		// (role="tree"/"treeitem"), not a generic role="list" -- see

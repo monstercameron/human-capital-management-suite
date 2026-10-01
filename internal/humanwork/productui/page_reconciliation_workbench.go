@@ -14,6 +14,9 @@ import (
 // governed service publishes; until then the UI will not
 // simulate one.
 func reconciliationWorkbenchPage(view View) ui.Node {
+	if view.ReconciliationWorkbench != nil && view.ReconciliationWorkbench.Ready {
+		return reconciliationWorkbenchLivePage(view, *view.ReconciliationWorkbench)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("reconciliation_workbench.unavailable_title"),
 		Description: view.Locale.Text("reconciliation_workbench.unavailable_detail"),

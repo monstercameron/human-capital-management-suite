@@ -12,6 +12,7 @@ type AccessibilityPreferencesProps struct {
 	Value      AccessibilityPreferences
 	TextSizes  []AccessibilityOption
 	Contrasts  []AccessibilityOption
+	ColorModes []AccessibilityOption
 	Motions    []AccessibilityOption
 	LinkStyles []AccessibilityOption
 	OnPreview  func(AccessibilityPreferences)
@@ -24,10 +25,18 @@ type AccessibilityPreferencesProps struct {
 
 func AccessibilityPreferencesPanel(props AccessibilityPreferencesProps) ui.Node {
 	draft := NormalizeAccessibilityPreferences(props.Value)
+	colorModes := props.ColorModes
+	if colorModes == nil {
+		colorModes = AccessibilityColorModeOptions()
+	}
 	density, savedDensity := "", ""
 	if props.Density != nil {
 		density = NormalizePersonalDensity(props.Density.Value)
 		savedDensity = density
+	}
+	colorMode := draft.ColorMode
+	if colorMode == "" {
+		colorMode = "organization"
 	}
 	return html.Section(html.Props{Class: "surface accessibility-preferences", Data: map[string]string{"hcm-setting-group": "accessibility"}, Raw: map[string]any{"aria-labelledby": "accessibility-title"}},
 		ui.CreateElement(SectionHeading, SectionHeadingProps{
@@ -36,6 +45,13 @@ func AccessibilityPreferencesPanel(props AccessibilityPreferencesProps) ui.Node 
 		html.Form(html.Props{Class: "accessibility-form", OnSubmit: saveAccessibilityPreferences(props.OnSave, &draft, props.Density, &density, savedDensity)},
 			accessibilityChoices(props, "text-size", props.Text("accessibility.text_size"), props.Text("accessibility.text_size_help"), draft.TextSize, props.TextSizes, func(value string) {
 				draft.TextSize = value
+				previewAccessibilityPreferences(props.OnPreview, draft)
+			}),
+			accessibilityChoices(props, "color-mode", props.Text("accessibility.color_mode"), props.Text("accessibility.color_mode_help"), colorMode, colorModes, func(value string) {
+				if value == "organization" {
+					value = ""
+				}
+				draft.ColorMode = value
 				previewAccessibilityPreferences(props.OnPreview, draft)
 			}),
 			accessibilityChoices(props, "contrast", props.Text("accessibility.contrast"), props.Text("accessibility.contrast_help"), draft.Contrast, props.Contrasts, func(value string) {
@@ -65,7 +81,8 @@ func accessibilityChoices(props AccessibilityPreferencesProps, name, title, help
 	for _, option := range options {
 		option := option
 		id := "accessibility-" + name + "-" + option.ID
-		input := html.Props{ID: id, Type: "radio", Name: name, Value: option.ID, Checked: option.ID == selected}
+		input := html.Props{ID: id, Type: "radio", Name: name, Value: option.ID, Checked: option.ID == selected,
+			Aria: map[string]string{"label": props.Text(option.LabelKey)}}
 		if onChange != nil {
 			input.OnChange = ui.UseEvent(func(ui.InputEvent) { onChange(option.ID) })
 		}

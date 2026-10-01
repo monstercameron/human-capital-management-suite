@@ -2,18 +2,22 @@ package productclient
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	timev1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type missingPunchClientFake struct {
-	submit *timev1.SubmitCorrectionRequest
-	review *timev1.ReviewCorrectionRequest
-	answer *timev1.MissingPunchCorrection
+	submit  *timev1.SubmitCorrectionRequest
+	review  *timev1.ReviewCorrectionRequest
+	answer  *timev1.MissingPunchCorrection
+	context *timev1.GetCorrectionContextResponse
+	queue   *timev1.ListPendingCorrectionsResponse
 }
 
 func (f *missingPunchClientFake) SubmitCorrection(_ context.Context, req *timev1.SubmitCorrectionRequest, _ ...grpc.CallOption) (*timev1.SubmitCorrectionResponse, error) {
@@ -26,12 +30,26 @@ func (f *missingPunchClientFake) ReviewCorrection(_ context.Context, req *timev1
 	return &timev1.ReviewCorrectionResponse{Correction: f.answer}, nil
 }
 
+func (f *missingPunchClientFake) GetCorrectionContext(context.Context, *timev1.GetCorrectionContextRequest, ...grpc.CallOption) (*timev1.GetCorrectionContextResponse, error) {
+	if f.context == nil {
+		return nil, errors.New("not used")
+	}
+	return f.context, nil
+}
+
+func (f *missingPunchClientFake) ListPendingCorrections(context.Context, *timev1.ListPendingCorrectionsRequest, ...grpc.CallOption) (*timev1.ListPendingCorrectionsResponse, error) {
+	if f.queue == nil {
+		return &timev1.ListPendingCorrectionsResponse{}, nil
+	}
+	return f.queue, nil
+}
+
 func validMissingPunchCorrection() *timev1.MissingPunchCorrection {
 	return &timev1.MissingPunchCorrection{
 		RequestId: "11111111-1111-4111-8111-111111111111", Status: "PENDING", Revision: 7,
 		WorkflowReceipt: &timev1.WorkflowTrackedReceipt{
 			ReceiptId: "22222222-2222-4222-8222-222222222222", WorkflowInstanceRef: "33333333-3333-4333-8333-333333333333",
-			WorkflowTraceId: "44444444-4444-4444-8444-444444444444", WorkflowNodeId: "commit_missing_punch_request",
+			WorkflowTraceId: "44444444444444444444444444444444", WorkflowNodeId: "commit_missing_punch_request",
 			WorkflowAttempt: 2, WorkflowInstanceVersion: 5, WorkflowId: "hcmnext.workflows.time.fix_missing_punch", WorkflowPlanDigest: "sha256:abc",
 		},
 	}
@@ -67,6 +85,29 @@ func TestTodo_TCLOCK011_MissingPunchTransportMapsReviewDecision(t *testing.T) {
 	}
 	if fake.review.GetRequestId() != validMissingPunchCorrection().GetRequestId() || fake.review.GetDecision() != timev1.MissingPunchDecision_MISSING_PUNCH_DECISION_APPROVED || fake.review.GetExpectedRevision() != 7 {
 		t.Fatalf("review mapping = %+v", fake.review)
+	}
+}
+
+func TestTodo_TCLOCK011_MissingPunchTransportLoadsServerProjection(t *testing.T) {
+	fake := &missingPunchClientFake{
+		context: &timev1.GetCorrectionContextResponse{Context: &timev1.CorrectionContext{
+			SessionId: "session-1", WorkerRef: "worker-1", Revision: 4, PeriodRef: "2026-09-28", PeriodClosed: true,
+			Timezone: "America/New_York", OriginalOut: &timev1.CorrectionPunchFact{ObservationId: "observation-1", EventType: "CLOCK_IN", OccurredAt: timestamppb.New(time.Date(2026, 9, 28, 13, 0, 0, 0, time.UTC))},
+		}},
+		queue: &timev1.ListPendingCorrectionsResponse{Corrections: []*timev1.MissingPunchCorrection{{
+			RequestId: "11111111-1111-4111-8111-111111111111", WorkerRef: "worker-2", SessionId: "session-2", Revision: 2,
+			ClaimedEventType: "CLOCK_OUT", ClaimedOccurredAt: timestamppb.New(time.Date(2026, 9, 27, 21, 0, 0, 0, time.UTC)), RequestReason: "Forgot",
+		}}},
+	}
+	got, err := NewMissingPunchTransport(context.Background(), fake).LoadMissingPunchProjection(context.Background(), "session-1")
+	if err != nil {
+		t.Fatalf("LoadMissingPunchProjection: %v", err)
+	}
+	if got.State != productui.MissingPunchReady || got.Session.WorkerRef != "worker-1" || got.Session.WorkerLabel != "worker-1" || got.Session.OriginalObservationID != "observation-1" || !got.Session.PeriodClosed || got.Session.ExpectedRevision != 4 || got.Session.IdempotencyKey == "" {
+		t.Fatalf("session projection = %+v", got.Session)
+	}
+	if len(got.Pending) != 1 || got.Pending[0].WorkerLabel != "worker-2" || got.Pending[0].RequestedBy != "worker-2" || got.Pending[0].IdempotencyKey == "" {
+		t.Fatalf("pending projection = %+v", got.Pending)
 	}
 }
 

@@ -15,7 +15,8 @@ func TestNotificationMenuPublishesItsTransientPopoverBehavior(t *testing.T) {
 		`class="popover-root notifications network-slot network-slot-ready"`,
 		`data-hcm-transient-popover="notification"`,
 		`data-hcm-popover-grace-ms="180"`,
-		`aria-label="Work overview, 1 promotion item needs your action."`,
+		// UXBLIND-056: the bell is a notification panel that announces its unread count.
+		`aria-label="Notifications, 0 unread notifications"`,
 		`class="popover-surface popover notification-popover"`,
 	} {
 		if !strings.Contains(doc, want) {
@@ -30,6 +31,16 @@ func TestNotificationMenuPublishesItsTransientPopoverBehavior(t *testing.T) {
 		if !strings.Contains(doc, want) {
 			t.Errorf("locale menu did not use shared popover contract %q", want)
 		}
+	}
+}
+
+func TestUnreadWorkflowNotificationsWithOverridesUpdatesBellCount(t *testing.T) {
+	items := []WorkflowNotification{{ID: "notice-1"}, {ID: "notice-2", Read: true}}
+	if got := unreadWorkflowNotificationsWithOverrides(items, map[string]bool{"notice-1": true}); got != 0 {
+		t.Fatalf("unread count with local read override = %d, want 0", got)
+	}
+	if got := unreadWorkflowNotificationsWithOverrides(items, map[string]bool{}); got != 1 {
+		t.Fatalf("unread count without override = %d, want 1", got)
 	}
 }
 
@@ -56,9 +67,11 @@ func TestTodo_REV_064_02(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `aria-label="` + view.Locale.Text("shell.work_overview") + ", " + view.Locale.Plural("shell.work_count", 1) + `"`
+	// UXBLIND-056: the bell announces unread notifications; the actionable
+	// work count asserted above no longer feeds it.
+	want := `aria-label="` + view.Locale.Text("shell.notifications") + ", " + view.Locale.Plural("notifications.unread_count", 0) + `"`
 	if !strings.Contains(doc, want) {
-		t.Fatalf("notification summary missing live actionable count %q", want)
+		t.Fatalf("notification summary missing unread count %q", want)
 	}
 }
 

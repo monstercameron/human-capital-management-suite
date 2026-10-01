@@ -6,7 +6,6 @@ import (
 
 	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/render/journey"
@@ -187,39 +186,16 @@ func validSupportReference(id string) bool {
 // ladder percentages through the same exact-cent predicate used by admission.
 // It is guidance, never a substitute for the server's current-fact check.
 type proposalPayRange struct {
-	minimum values.Money
-	maximum values.Money
+	minimum, maximum                 values.Money
+	minimumIncrease, maximumIncrease values.Percentage
 }
 
 func proposalPayRangeFor(worker *journeyv1.Worker, options *journeyv1.WorkforceOptions, path *journeyv1.PromotionPathOption) *proposalPayRange {
-	if worker == nil || path == nil || strings.TrimSpace(worker.GetBasePay()) == "" {
-		return nil
-	}
-	currency := workerCurrency(worker, options)
-	current, err := values.NewMoney(worker.GetBasePay(), currency, 2, values.RoundingExactRequired)
-	if err != nil {
-		return nil
-	}
-	if current, err = currentInTargetBasis(current, worker, path); err != nil {
-		return nil
-	}
-	minimum, err := values.NewPercentage(path.GetMinimumBaseIncrease(), 4, values.RoundingExactRequired)
-	if err != nil {
-		return nil
-	}
-	maximum, err := values.NewPercentage(path.GetMaximumBaseIncrease(), 4, values.RoundingExactRequired)
-	if err != nil {
-		return nil
-	}
-	lower, upper, err := promotion.BasePayBounds(current, minimum, maximum)
-	if err != nil {
-		return nil
-	}
-	return &proposalPayRange{minimum: lower, maximum: upper}
+	return payRuleProjectionFor(worker, options, path)
 }
 
 func (r *proposalPayRange) localizedBounds(copy productui.LocaleContext) map[string]string {
-	if r == nil {
+	if r == nil || r.minimum.Validate() != nil || r.maximum.Validate() != nil {
 		return nil
 	}
 	return map[string]string{

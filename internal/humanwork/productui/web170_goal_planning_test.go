@@ -36,8 +36,10 @@ func TestTodo_WEB_170(t *testing.T) {
 	if strings.Contains(doc, "⟦") {
 		t.Fatal("goal planning exposes an unresolved message key")
 	}
+	body := web063BodyText(t, doc)
 	for _, invented := range []string{"goal:", "target:", "milestone:", "achieved ✓"} {
-		if strings.Contains(doc, invented) {
+		// The shared stylesheet ships selectors such as ".is-drop-target:" on every page; only visible text can invent goal data.
+		if strings.Contains(body, invented) {
 			t.Fatalf("goal planning invents goal data: %q", invented)
 		}
 	}

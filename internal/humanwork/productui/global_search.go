@@ -52,13 +52,6 @@ func globalSearchProps(view View) GlobalSearchProps {
 	if view.MenuQuery != "" {
 		hidden["menu_q"] = view.MenuQuery
 	}
-	if len(view.FavoritePages) > 0 {
-		favorites := make([]string, 0, len(view.FavoritePages))
-		for _, page := range view.FavoritePages {
-			favorites = append(favorites, string(page))
-		}
-		hidden["favorites"] = strings.Join(favorites, ",")
-	}
 	fallback := pageHref(PageHome)
 	if PageVisible(PagePeople, view.Roles) {
 		fallback = pageHref(PagePeople)
@@ -70,6 +63,7 @@ func globalSearchProps(view View) GlobalSearchProps {
 }
 
 func globalSearchItems(view View) []GlobalSearchItem {
+	view = contentAwareNavigation(view)
 	items := make([]GlobalSearchItem, 0, len(view.People)*2+len(view.Work)+24)
 	allowed := make(map[PageID]bool)
 	seenPages := make(map[PageID]bool)
@@ -143,19 +137,6 @@ func globalSearchItems(view View) []GlobalSearchItem {
 	}
 
 	if allowed[PageJourneys] {
-		// Promotion is an executable action only when the same authorized
-		// semantic projection used by the action launcher is available. Its
-		// destination is the worker-selection step, while the Journeys page
-		// below remains the tracker destination.
-		if allowed[PagePeople] && globalSearchCanStartPromotion(view) {
-			if definition, ok := semanticLauncherDefinitionByID(SemanticActionPromoteWorker); ok {
-				items = append(items, GlobalSearchItem{
-					ID: "action:promotion", Kind: "action", KindLabel: globalSearchKindLabel(view.Locale, "action"),
-					Label: view.Locale.Text(definition.LabelKey), Description: view.Locale.Text(definition.DescriptionKey),
-					Href: definition.Href(view), Icon: definition.Icon, Keywords: append([]string(nil), definition.Keywords...),
-				})
-			}
-		}
 		seenWorkflows := map[string]bool{"promotion": true}
 		for _, workflow := range view.PersonWorkflows {
 			if seenWorkflows[workflow.ID] {
@@ -174,28 +155,18 @@ func globalSearchItems(view View) []GlobalSearchItem {
 				Href: href, Icon: "journeys", Keywords: []string{workflow.ID, workflow.Category, workflow.Description, "employee workflow"},
 			})
 		}
-		canStartPromotion := globalSearchCanStartPromotion(view)
-		for _, person := range view.People {
-			if !DiscoveryAdmitted(person.ID, workerVerdicts) {
+	}
+
+	if allowed[PageWorkflowStart] {
+		for _, workflow := range view.WorkflowStartCatalog {
+			if workflow.Availability != WorkflowStartAvailable || strings.TrimSpace(workflow.WorkflowID) == "" || strings.TrimSpace(workflow.Name) == "" {
 				continue
 			}
-			if !canStartPromotion {
-				break
-			}
-			if !personPromotionEligible(person) {
-				continue
-			}
-			identity := ResolveWorkerIdentity(view.Locale, person, workerVerdicts)
-			role := discoverySearchValue(view.Locale, person.ID, person.Role, "role", workerVerdicts)
-			team := discoverySearchValue(view.Locale, person.ID, person.Team, "organization_unit", workerVerdicts)
-			workerNumber := discoverySearchKeyword(person.ID, person.WorkerNumber, "worker_number", workerVerdicts)
-			jobCode := discoverySearchKeyword(person.ID, person.JobCode, "job_code", workerVerdicts)
 			items = append(items, GlobalSearchItem{
-				ID: "action:promotion:" + person.ID, Kind: "action", KindLabel: globalSearchKindLabel(view.Locale, "action"),
-				Label:       view.Locale.Text("global_search.promote_person", map[string]string{"name": identity.Label}),
-				Description: strings.Trim(strings.Join([]string{role, team}, " · "), " ·"),
-				Href:        JourneyProposalHref(view, person.ID), Icon: "journeys",
-				Keywords: compactDiscoveryKeywords("promotion", "promote", "start workflow", workerNumber, jobCode),
+				ID: "workflow-start:" + workflow.WorkflowID, Kind: "workflow", KindLabel: globalSearchKindLabel(view.Locale, "workflow"),
+				Label: workflow.Name, Description: strings.Trim(strings.Join([]string{workflow.Category, workflow.Description}, " · "), " ·"),
+				Href: WorkflowStartHref(view, workflow.WorkflowID), Icon: workflow.Icon,
+				Keywords: append(append([]string{workflow.WorkflowID, workflow.Category}, workflow.Keywords...), "start workflow"),
 			})
 		}
 	}
@@ -432,29 +403,17 @@ func globalSearchScore(item GlobalSearchItem, tokens []string) int {
 }
 
 func preparedGlobalSearchScore(item *preparedGlobalSearchItem, tokens []string) int {
-	fields := [4]struct {
-		value  string
-		weight int
-	}{{item.label, 48}, {item.description, 16}, {item.kindLabel, 8}, {item.kind, 6}}
-	total := 0
-	for _, token := range tokens {
-		best := 0
-		for _, field := range fields {
-			if score := fuzzyNormalizedFieldScore(field.value, token); score > 0 && score+field.weight > best {
-				best = score + field.weight
-			}
-		}
-		for _, keyword := range item.keywords {
-			if score := fuzzyNormalizedFieldScore(keyword, token); score > 0 && score+30 > best {
-				best = score + 30
-			}
-		}
-		if best == 0 {
-			return 0
-		}
-		total += best
+	fields := make([]uxblindOSearchField, 0, 4+len(item.keywords))
+	fields = append(fields,
+		uxblindOSearchField{value: item.label, weight: 48},
+		uxblindOSearchField{value: item.description, weight: 16},
+		uxblindOSearchField{value: item.kindLabel, weight: 8},
+		uxblindOSearchField{value: item.kind, weight: 6},
+	)
+	for _, keyword := range item.keywords {
+		fields = append(fields, uxblindOSearchField{value: keyword, weight: 30})
 	}
-	return total
+	return uxblindOSearchScore(fields, tokens, item.label)
 }
 
 func globalSearchKindPriority(kind string) int {
@@ -557,7 +516,7 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 	}
 	inputProps := html.Props{
 		ID: "global-search-input", Key: "global-search-input-" + fmt.Sprint(clearEpoch.Get()), Name: "q", Value: seed.Get(), Class: "global-search-input", Aria: inputAria,
-		Raw: map[string]any{"type": "search", "role": "combobox", "placeholder": props.Text("global_search.placeholder"), "autocomplete": "off", "spellcheck": "false"},
+		Raw: map[string]any{"type": "search", "role": "combobox", "placeholder": props.Text("global_search.topbar_placeholder"), "autocomplete": "off", "spellcheck": "false"},
 		OnInput: ui.UseEvent(func(event ui.InputEvent) {
 			// The event carries the field's own contents; it is recorded, never
 			// echoed back into the field.
@@ -645,8 +604,12 @@ func globalSearchResults(props GlobalSearchProps, results []GlobalSearchItem, ac
 			html.Span(html.Props{}, ui.Text(props.Text("global_search.hint"))),
 		),
 	}
-	if len(results) == 0 && current {
-		children = append(children, html.Div(html.Props{Class: "global-search-empty", Raw: map[string]any{"role": "status"}}, ui.Text(props.Text("global_search.no_results"))))
+	if len(results) == 0 {
+		if current {
+			children = append(children, html.Div(html.Props{Class: "global-search-empty", Raw: map[string]any{"role": "status"}}, ui.Text(props.Text("global_search.no_results"))))
+		} else {
+			children = append(children, html.Div(html.Props{Class: "global-search-loading", Raw: map[string]any{"role": "status", "aria-live": "polite"}}, ui.Text(props.Text("shell.loading_authorized"))))
+		}
 	} else {
 		for index, result := range results {
 			item := result

@@ -135,7 +135,7 @@ func journeyMatchesListFilter(j *journeyv1.Journey, filter productui.JourneyList
 		return false
 	}
 	return productui.MatchesJourneyListQuery(filter.Query,
-		j.GetWorkerName(), j.GetWorkerRef(), journey.JourneyReference(j.GetIntentId()), j.GetIntentId())
+		j.GetWorkerName(), j.GetWorkerRef(), journey.JourneyReference(j.GetIntentId()), j.GetIntentId(), j.GetCorrelationId())
 }
 
 // journeyActivity is the time a journey last changed: its update time, or

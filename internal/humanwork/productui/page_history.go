@@ -17,9 +17,9 @@ const (
 )
 
 func historyPage(view View) ui.Node {
-	props := workflowHistoryProps(view, "", view.Locale.Text("history.global_title"),
-		view.Locale.Text("history.global_detail"), true)
-	return ui.CreateElement(WorkflowHistory, props)
+	// The old route remains admitted for bookmarks, but it renders the same
+	// canonical surface and preserves its filters in canonical links.
+	return workflowHistoryPage(view)
 }
 
 func workflowHistoryProps(view View, personID, title, description string, withFilter bool) WorkflowHistoryProps {
@@ -101,7 +101,7 @@ func workflowHistoryPropsForTarget(view View, personID string, target PageID, ti
 
 func historyClearHref(view View, target PageID, personID, sortKey, direction string) string {
 	href := historyHref(view, target, personID, "", "", "", "", sortKey, direction)
-	return withExplicitEmptyQuery(href, "history_q", "outcome", "history_person", "history_year")
+	return withExplicitEmptyQuery(href, "history_q", "outcome", "history_person", "history_requester", "history_year")
 }
 
 type historyPageWindow struct {
@@ -431,7 +431,7 @@ func historyHref(view View, target PageID, personID, query, outcome, selectedPer
 		selectedPerson = ""
 	}
 	values := []string{
-		"history_q", query, "outcome", outcome, "history_person", selectedPerson, "history_year", year,
+		"history_q", query, "outcome", outcome, "history_person", selectedPerson, "history_requester", view.HistoryRequester, "history_year", year,
 		"history_sort", sortKey, "history_dir", direction,
 		"history_page_size", pageSizeValue(view.HistoryPageSize),
 	}

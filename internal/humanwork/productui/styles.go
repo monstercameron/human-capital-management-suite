@@ -66,11 +66,16 @@ func initPlatformStyles() {
 	platformStyles += ChatRetentionStylesheet()
 	platformStyles += positionSelectorStylesheet()
 	platformStyles += workflowDesignerStylesheet()
+	platformStyles += workflowStartStylesheet()
+	platformStyles += workflowListStylesheet()
 	platformStyles += workflowEditorStylesheet()
 	platformStyles += columnChooserStylesheet()
 	platformStyles += docsStylesheet()
 	platformStyles += projectui.Styles() + projectPageStylesheet()
+	platformStyles += projectWorkflowConfigurationStylesheet()
 	platformStyles += workflowNotificationStylesheet()
+	platformStyles += clockPageStylesheet()
+	platformStyles += personaAdminStylesheet()
 	platformDarkStyles = darkModeStylesStylesheet()
 }
 

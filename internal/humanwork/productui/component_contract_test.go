@@ -219,7 +219,8 @@ func TestPersonComponentsRenderIndependentlyFromRouteProjection(t *testing.T) {
 			Personal: SensitiveDetailsProps{Title: "Personal information", Description: "Hidden by default", Badge: "Restricted",
 				Facts: []ProfileFactProps{{Label: "Legal name", Value: "Avery Patel"}}},
 			Workflows: WorkflowLauncherProps{
-				PersonName: "Avery Patel", TotalCount: 1,
+				// UXBLIND-026: the filter appears only above five held workflows, so the fixture holds six.
+				PersonName: "Avery Patel", TotalCount: 6,
 				Filter:    WorkflowFilterProps{Action: "/person", PersonID: "worker-1", DirectoryQuery: "product", DirectoryPage: 2, NavCollapsed: true},
 				Workflows: []WorkflowCardProps{{Name: "Promotion", Category: "Career", Description: "Propose a change.", Href: "/journey?worker=worker-1"}},
 			},

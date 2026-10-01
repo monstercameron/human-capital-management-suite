@@ -15,13 +15,51 @@ import (
 	"testing"
 )
 
+type web031StorageAdapterRule struct {
+	relativePath      string
+	allowedProperties []string
+	allowedMethods    []string
+}
+
+// web031StorageAdapterRules is the reviewed source-level allowlist. Durable
+// kiosk storage is intentionally a separate adapter from the presentation
+// history hint so each browser capability has one auditable boundary.
+var web031StorageAdapterRules = []web031StorageAdapterRule{
+	{
+		relativePath:      "tools/uxqual/cmd/journeywasm/browser_history_wasm.go",
+		allowedProperties: []string{"sessionStorage"},
+		allowedMethods:    []string{"getItem", "setItem"},
+	},
+	{
+		relativePath:      "cmd/timeclock/wasm/tclock_storage_wasm.go",
+		allowedProperties: []string{"localStorage", "indexedDB"},
+		allowedMethods:    []string{"getItem", "setItem"},
+	},
+}
+
+func web031StorageAdapterPaths() []string {
+	paths := make([]string, 0, len(web031StorageAdapterRules))
+	for _, rule := range web031StorageAdapterRules {
+		paths = append(paths, rule.relativePath)
+	}
+	return paths
+}
+
+func web031Contains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestTodo_WEB_031_Conformance(t *testing.T) {
 	root, err := repositoryRoot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	approvedAdapter := filepath.Join("tools", "uxqual", "cmd", "journeywasm", "browser_history_wasm.go")
-	violations, err := browserStorageSourceViolations(root, approvedAdapter)
+	violations, err := browserStorageSourceViolations(root, web031StorageAdapterPaths()...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,9 +70,18 @@ func TestTodo_WEB_031_Conformance(t *testing.T) {
 
 func TestTodo_WEB_031_SourceGate(t *testing.T) {
 	const approvedRelative = "tools/uxqual/cmd/journeywasm/browser_history_wasm.go"
+	const clockApprovedRelative = "cmd/timeclock/wasm/tclock_storage_wasm.go"
 	const approvedSource = `package main
 func approved(global, storage sourceGateJSValue) {
 	browserProperty(global, "session" + "Storage")
+	browserCall(storage, "getItem", "key")
+	browserCall(storage, "setItem", "key", "value")
+}
+`
+	const clockApprovedSource = `package main
+func approvedClock(global, storage sourceGateJSValue) {
+	browserProperty(global, "local" + "Storage")
+	browserProperty(global, "indexed" + "DB")
 	browserCall(storage, "getItem", "key")
 	browserCall(storage, "setItem", "key", "value")
 }
@@ -43,11 +90,12 @@ func approved(global, storage sourceGateJSValue) {
 		t.Helper()
 		root := t.TempDir()
 		writeSourceGateFixture(t, root, approvedRelative, approvedSource)
+		writeSourceGateFixture(t, root, clockApprovedRelative, clockApprovedSource)
 		return root
 	}
 	assertViolation := func(t *testing.T, root, want string) {
 		t.Helper()
-		violations, err := browserStorageSourceViolations(root, approvedRelative)
+		violations, err := browserStorageSourceViolations(root, web031StorageAdapterPaths()...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,7 +112,7 @@ func approved(global, storage sourceGateJSValue) {
 		} {
 			writeSourceGateFixture(t, root, path, `package ignored; func f(v sourceGateJSValue) { v.Get("localStorage") }`)
 		}
-		violations, err := browserStorageSourceViolations(root, approvedRelative)
+		violations, err := browserStorageSourceViolations(root, web031StorageAdapterPaths()...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -109,16 +157,25 @@ func writeSourceGateFixture(t *testing.T, root, relative, body string) {
 // browserStorageSourceViolations parses production Go source rather than
 // searching comments or Go-ignored artifact directories. Generated and
 // build-named Go remain in scope because they can be compiled release source.
-// The gate pins acquisition and browser Web Storage calls to one reviewed
-// adapter, including the calls themselves: moving getItem/setItem while leaving
-// the global acquisition behind cannot evade the gate, and forbidden APIs
-// remain forbidden inside the approved file.
-func browserStorageSourceViolations(root, approvedAdapter string) ([]string, error) {
-	approvedAdapter, err := filepath.Abs(filepath.Join(root, approvedAdapter))
-	if err != nil {
-		return nil, err
+// Each registered adapter declares its own browser properties and methods;
+// moving a capability to an unregistered file or adding a second use fails
+// the gate.
+func browserStorageSourceViolations(root string, approvedAdapters ...string) ([]string, error) {
+	if len(approvedAdapters) == 0 {
+		approvedAdapters = web031StorageAdapterPaths()
 	}
-	approvedAdapter = filepath.Clean(approvedAdapter)
+	rules := make(map[string]web031StorageAdapterRule, len(approvedAdapters))
+	for _, relative := range approvedAdapters {
+		absolute, err := filepath.Abs(filepath.Join(root, relative))
+		if err != nil {
+			return nil, err
+		}
+		for _, rule := range web031StorageAdapterRules {
+			if filepath.Clean(relative) == filepath.Clean(rule.relativePath) {
+				rules[filepath.Clean(absolute)] = rule
+			}
+		}
+	}
 	approvedCounts := map[string]int{}
 	var violations []string
 	walkErr := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
@@ -143,6 +200,7 @@ func browserStorageSourceViolations(root, approvedAdapter string) ([]string, err
 			return parseErr
 		}
 		constants := sourceStringConstants(parsed)
+		rule, registered := rules[filepath.Clean(path)]
 		ast.Inspect(parsed, func(node ast.Node) bool {
 			call, callOK := node.(*ast.CallExpr)
 			if !callOK || len(call.Args) == 0 {
@@ -173,28 +231,34 @@ func browserStorageSourceViolations(root, approvedAdapter string) ([]string, err
 			if !literalOK {
 				return true
 			}
-			kind := ""
 			switch operation {
 			case "Get":
-				switch name {
-				case "sessionStorage":
-					kind = "sessionStorage acquisition"
-				case "localStorage", "indexedDB", "caches", "cacheStorage", "CacheStorage":
+				if !web031Contains([]string{"sessionStorage", "localStorage", "indexedDB", "caches", "cacheStorage", "CacheStorage"}, name) {
+					return true
+				}
+				kind := name + " acquisition"
+				if !registered {
 					violations = append(violations, fmt.Sprintf("%s acquires forbidden browser storage API %q", sourceRelativePath(root, path), name))
+				} else if !web031Contains(rule.allowedProperties, name) {
+					violations = append(violations, fmt.Sprintf("%s acquires forbidden browser storage API %q", sourceRelativePath(root, path), name))
+				} else {
+					approvedCounts[filepath.Clean(path)+"|"+kind]++
 				}
 			case "Call":
-				switch name {
-				case "getItem", "setItem":
-					kind = name + " call"
-				case "removeItem", "clear", "key":
-					violations = append(violations, fmt.Sprintf("%s invokes forbidden browser-storage method %q", sourceRelativePath(root, path), name))
+				if !web031Contains([]string{"getItem", "setItem", "removeItem", "clear", "key"}, name) {
+					return true
 				}
-			}
-			if kind != "" {
-				if filepath.Clean(path) != approvedAdapter {
+				if name == "removeItem" || name == "clear" || name == "key" {
+					violations = append(violations, fmt.Sprintf("%s invokes forbidden browser-storage method %q", sourceRelativePath(root, path), name))
+					return true
+				}
+				kind := name + " call"
+				if !registered {
 					violations = append(violations, fmt.Sprintf("%s contains %s outside the approved adapter", sourceRelativePath(root, path), kind))
+				} else if !web031Contains(rule.allowedMethods, name) {
+					violations = append(violations, fmt.Sprintf("%s invokes forbidden browser-storage method %q", sourceRelativePath(root, path), name))
 				} else {
-					approvedCounts[kind]++
+					approvedCounts[filepath.Clean(path)+"|"+kind]++
 				}
 			}
 			return true
@@ -204,9 +268,18 @@ func browserStorageSourceViolations(root, approvedAdapter string) ([]string, err
 	if walkErr != nil {
 		return nil, walkErr
 	}
-	for _, kind := range []string{"sessionStorage acquisition", "getItem call", "setItem call"} {
-		if approvedCounts[kind] != 1 {
-			violations = append(violations, fmt.Sprintf("approved adapter has %d %s uses, want exactly one", approvedCounts[kind], kind))
+	for path, rule := range rules {
+		for _, property := range rule.allowedProperties {
+			kind := property + " acquisition"
+			if approvedCounts[path+"|"+kind] != 1 {
+				violations = append(violations, fmt.Sprintf("approved adapter %s has %d %s uses, want exactly one", sourceRelativePath(root, path), approvedCounts[path+"|"+kind], kind))
+			}
+		}
+		for _, method := range rule.allowedMethods {
+			kind := method + " call"
+			if approvedCounts[path+"|"+kind] != 1 {
+				violations = append(violations, fmt.Sprintf("approved adapter %s has %d %s uses, want exactly one", sourceRelativePath(root, path), approvedCounts[path+"|"+kind], kind))
+			}
 		}
 	}
 	sort.Strings(violations)

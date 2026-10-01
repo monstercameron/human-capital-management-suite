@@ -223,7 +223,8 @@ func TestTodo_WEB_033_Conformance(t *testing.T) {
 			if strings.Contains(connect, "'self'") {
 				t.Errorf("connect-src retained origin-wide authority: %q", connect)
 			}
-			if test.assetConnect != strings.Contains(connect, "http://cell.test:8080"+PathAssetPrefix) || test.assetConnect != strings.Contains(connect, "https://cell.test:8080"+PathAssetPrefix) {
+			assetAllowed := strings.Contains(connect, "cell.test:8080"+PathAssetPrefix)
+			if test.assetConnect != assetAllowed {
 				t.Errorf("connect-src = %q, assetConnect=%v", connect, test.assetConnect)
 			}
 			if test.tunnelConnect != strings.Contains(connect, "ws://cell.test:8080"+PathTunnel) || test.tunnelConnect != strings.Contains(connect, "wss://cell.test:8080"+PathTunnel) {
@@ -236,8 +237,10 @@ func TestTodo_WEB_033_Conformance(t *testing.T) {
 						t.Errorf("WebSocket source is not path scoped: %q", source)
 					}
 				case strings.HasPrefix(source, "http://"), strings.HasPrefix(source, "https://"):
-					if !strings.HasSuffix(source, PathAssetPrefix) && !strings.HasSuffix(source, PathChatMediaPrefix) && !strings.HasSuffix(source, PathDocumentMediaPrefix) {
-						t.Errorf("HTTP source is not asset- or media-prefix scoped: %q", source)
+					// UXBLIND-085: the two brand-asset endpoints are named exactly.
+					if !strings.HasSuffix(source, PathAssetPrefix) && !strings.HasSuffix(source, PathChatMediaPrefix) && !strings.HasSuffix(source, PathDocumentMediaPrefix) &&
+						!strings.HasSuffix(source, PathBrandAssets) && !strings.HasSuffix(source, PathBrandAssetLifecycle) {
+						t.Errorf("HTTP source is not asset-, media- or brand-endpoint scoped: %q", source)
 					}
 				}
 			}
@@ -398,12 +401,18 @@ func TestTodo_WEB_033_Fault(t *testing.T) {
 	if sanitizeHostAuthority(maxHost) == "" {
 		t.Fatal("maximum bounded host fixture was not a valid authority")
 	}
-	// The product policy names eight path-scoped connect sources (assets,
-	// chat media, document media and the tunnel, each over both schemes), so
-	// the bound leaves room for them at the longest valid authority while
-	// staying well under the 4 KiB header line common proxies enforce.
-	if got := len(ProductContentSecurityPolicy(maxHost)); got > 3072 {
-		t.Fatalf("maximum valid CSP header is %d bytes, want <= 3072", got)
+	// The product policy names twelve path-scoped connect sources (assets,
+	// chat media, document media, the tunnel and, since UXBLIND-085, the two
+	// exact brand-asset endpoints, each over both schemes). At the longest
+	// valid 254-byte authority every source repeats that authority, so the
+	// worst case approaches 4 KB; realistic hosts stay near 1.3 KB. The bound
+	// keeps the header plus its field name inside the 4 KiB header line
+	// common proxies enforce.
+	if got := len(ProductContentSecurityPolicy(maxHost)); got+len("Content-Security-Policy: ") > 4096 {
+		t.Fatalf("maximum valid CSP header is %d bytes, want the header line <= 4096", got)
+	}
+	if got := len(ProductContentSecurityPolicy("hcm.example.com")); got > 1536 {
+		t.Fatalf("typical product CSP header is %d bytes, want <= 1536", got)
 	}
 }
 

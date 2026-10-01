@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"strings"
 	"sync"
 
 	gwccss "github.com/monstercameron/GoWebComponents/v5/css"
@@ -78,6 +79,41 @@ func declareLoginStyles() {
 		gwccss.TextColor(gwccss.Hex("fff")),
 		gwccss.Raw("font-weight", "800"),
 	)
+	// The sign-in document has no authenticated preference record yet, so its
+	// first paint follows the same device color preference as the workspace.
+	declareGlobal("body",
+		mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark)"), gwccss.Bg(gwccss.Hex("111315")), gwccss.TextColor(gwccss.Hex("f2f0ec"))),
+	)
+	// The unauthenticated selector has no person preference to read, so it
+	// follows the same device color preference as the default workspace and
+	// selects the public company accent before a credential exists.
+	declareGlobal(`body[data-hcm-company="ironridge-demo"]`,
+		gwccss.Bg(gwccss.Hex("f4f4f2")), gwccss.TextColor(gwccss.Hex("1f2328")),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .login-mark,body[data-hcm-company="ironridge-demo"] .persona button`,
+		gwccss.Bg(gwccss.Hex("c2410c")),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .persona button:hover`,
+		gwccss.Bg(gwccss.Hex("9a3412")),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .persona-access,body[data-hcm-company="ironridge-demo"] .company-headcount`,
+		gwccss.TextColor(gwccss.Hex("9a3412")),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .company-option:hover,body[data-hcm-company="ironridge-demo"] .company-option:focus-visible`,
+		gwccss.Raw("border-color", "#c2410c"),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .company-option[aria-current="true"]`,
+		gwccss.Raw("border-color", "#c2410c"), gwccss.Bg(gwccss.Hex("fdeee5")),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .login-card`,
+		gwccss.Bg(gwccss.Hex("ffffff")),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"]`,
+		mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark)"), gwccss.Bg(gwccss.Hex("111315")), gwccss.TextColor(gwccss.Hex("f2f0ec"))),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .persona button`,
+		mediaRule(gwccss.RawMedia("(prefers-color-scheme:dark)"), gwccss.Bg(gwccss.Hex("fb923c")), gwccss.TextColor(gwccss.Hex("1f2328"))),
+	)
 	declareGlobal(".login-card h1",
 		gwccss.MarginY(gwccss.Rem(.15)), gwccss.MarginX(gwccss.Zero),
 		gwccss.FontSize(gwccss.RawLength("clamp(1.8rem,4vw,2.5rem)")),
@@ -141,6 +177,82 @@ func declareLoginStyles() {
 	)
 	declareGlobal(".login-card",
 		mediaRule(gwccss.RawMedia("(max-width:42.5rem)"), gwccss.Padding(gwccss.Rem(1.375))),
+	)
+	declareLoginDarkStyles(false)
+}
+
+// darkScoped returns each selector bare and, for the multi-company page,
+// again under the company body attribute, so a dark rule outranks the company
+// accent rules (`body[data-hcm-company=...] .x`) that would otherwise keep the
+// light surface in dark mode.
+func darkScoped(company bool, selectors ...string) string {
+	out := make([]string, 0, len(selectors)*2)
+	for _, selector := range selectors {
+		out = append(out, selector)
+		if company {
+			out = append(out, "body[data-hcm-company] "+selector)
+		}
+	}
+	return strings.Join(out, ",")
+}
+
+// declareLoginDarkStyles is every dark-mode surface and text colour of the
+// sign-in page. It must be the LAST thing emitted in every stylesheet that
+// declares a card: the light base rules (.persona, .company-option, the
+// selected card, the directory entry) share or exceed the specificity of a
+// bare dark selector, so a dark rule declared before them loses the cascade
+// and leaves a light surface under light text. loginSpecificStylesheet ends
+// with the shared rules; loginCompanyStylesheet ends with the company ones
+// (company is true), which keeps the single-company stylesheet free of
+// company selectors.
+func declareLoginDarkStyles(company bool) {
+	dark := gwccss.RawMedia("(prefers-color-scheme:dark)")
+	// The workspace token sheet paints every bare <section> with a light
+	// surface, which would sit under the directory's light-on-dark text.
+	declareGlobal(".directory",
+		mediaRule(dark, gwccss.Raw("background-color", "transparent")),
+	)
+	if !company {
+		declareGlobal(darkScoped(false, ".login-card", ".persona", ".directory-entry"),
+			mediaRule(dark, gwccss.Bg(gwccss.Hex("1b1e22")), gwccss.BorderColor(gwccss.Hex("3d4249")), gwccss.TextColor(gwccss.Hex("f2f0ec"))),
+		)
+		declareGlobal(darkScoped(false, ".persona strong", ".directory-name", ".directory-roles"),
+			mediaRule(dark, gwccss.TextColor(gwccss.Hex("f2f0ec"))),
+		)
+		declareGlobal(darkScoped(false, ".login-intro", ".persona span", ".directory-ident", ".directory-meta", ".directory-summary", ".org-count", ".advanced"),
+			mediaRule(dark, gwccss.TextColor(gwccss.Hex("b5b1aa"))),
+		)
+		declareGlobal(darkScoped(false, ".persona-access", ".directory-clear"),
+			mediaRule(dark, gwccss.TextColor(gwccss.Hex("4ade80"))),
+		)
+		declareGlobal(".directory-search input,.directory-search select",
+			mediaRule(dark, gwccss.Bg(gwccss.Hex("111315")), gwccss.TextColor(gwccss.Hex("f2f0ec")), gwccss.BorderColor(gwccss.Hex("3d4249"))),
+		)
+		return
+	}
+	declareGlobal(darkScoped(true, ".login-card", ".persona", ".company-option", ".directory-entry"),
+		mediaRule(dark, gwccss.Bg(gwccss.Hex("1b1e22")), gwccss.BorderColor(gwccss.Hex("3d4249")), gwccss.TextColor(gwccss.Hex("f2f0ec"))),
+	)
+	declareGlobal(darkScoped(true, `.company-option[aria-current="true"]`),
+		mediaRule(dark, gwccss.Bg(gwccss.Hex("1d2b23")), gwccss.Raw("border-color", "#4ade80")),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .company-option[aria-current="true"]`,
+		mediaRule(dark, gwccss.Bg(gwccss.Hex("2b2023")), gwccss.Raw("border-color", "#fb923c")),
+	)
+	declareGlobal(darkScoped(true, ".company-option .company-name", ".persona strong", ".directory-name", ".directory-roles"),
+		mediaRule(dark, gwccss.TextColor(gwccss.Hex("f2f0ec"))),
+	)
+	declareGlobal(darkScoped(true, ".login-intro", ".company-picker h2", ".company-option .company-description", ".persona span", ".directory-ident", ".directory-meta", ".directory-summary", ".org-count", ".advanced"),
+		mediaRule(dark, gwccss.TextColor(gwccss.Hex("b5b1aa"))),
+	)
+	declareGlobal(darkScoped(true, ".persona-access", ".company-headcount", ".directory-clear"),
+		mediaRule(dark, gwccss.TextColor(gwccss.Hex("4ade80"))),
+	)
+	declareGlobal(`body[data-hcm-company="ironridge-demo"] .persona-access,body[data-hcm-company="ironridge-demo"] .company-headcount`,
+		mediaRule(dark, gwccss.TextColor(gwccss.Hex("fb923c"))),
+	)
+	declareGlobal(".directory-search input,.directory-search select",
+		mediaRule(dark, gwccss.Bg(gwccss.Hex("111315")), gwccss.TextColor(gwccss.Hex("f2f0ec")), gwccss.BorderColor(gwccss.Hex("3d4249"))),
 	)
 }
 
@@ -301,6 +413,24 @@ func declareLoginDirectoryStyles() {
 		gwccss.Bg(gwccss.Hex("eef4f0")),
 	)
 	declareGlobal(".org-unit > details > summary:focus-visible",
+		gwccss.Raw("outline", "3px solid #0e623a"),
+		gwccss.Raw("outline-offset", "2px"),
+	)
+	// UXBLIND-053: the disclosure keeps a visible affordance once the native
+	// marker is replaced, and the result summary shows where focus landed.
+	declareGlobal(".org-unit > details > summary::-webkit-details-marker",
+		gwccss.Display.None,
+	)
+	declareGlobal(".org-unit > details > summary::before",
+		gwccss.Raw("content", `"\25B8"`),
+		gwccss.Raw("display", "inline-block"),
+		gwccss.Raw("margin-inline-end", ".375rem"),
+		gwccss.Raw("transition", "transform .15s"),
+	)
+	declareGlobal(".org-unit > details[open] > summary::before",
+		gwccss.Raw("transform", "rotate(90deg)"),
+	)
+	declareGlobal(".directory-summary:focus-visible",
 		gwccss.Raw("outline", "3px solid #0e623a"),
 		gwccss.Raw("outline-offset", "2px"),
 	)

@@ -575,7 +575,7 @@ func TestEmbeddedJourneyDirectoryHandoffUsesHostSoftwareNavigation(t *testing.T)
 		t.Fatal("embedded workforce preview did not wire its People directory handoff")
 	}
 	p.List.People.DirectoryLink.OnNavigate()
-	if p.List.People.DirectoryLink.Href != "/workspace/app/people" {
+	if p.List.People.DirectoryLink.Href != "/workspace/app/people?eligible=1" {
 		t.Fatalf("directory href = %q", p.List.People.DirectoryLink.Href)
 	}
 	if len(navigated) != 1 || navigated[0] != p.List.People.DirectoryLink.Href {
@@ -1346,7 +1346,7 @@ func TestTodo_PROMOUX_007_I18N_ServerPayRefusalUsesActiveLocale(t *testing.T) {
 func TestNoticeTitlesReadAsSentencesNotCodes(t *testing.T) {
 	cases := map[codes.Code]string{
 		codes.PermissionDenied:   "You can't complete this action",
-		codes.Unauthenticated:    "This page is no longer signed in",
+		codes.Unauthenticated:    "Signed out", // REV-063-01: the converged signed-out state owns this title (rev06301_test.go)
 		codes.NotFound:           "Request not found",
 		codes.InvalidArgument:    "That proposal is not valid",
 		codes.FailedPrecondition: "Not available at this stage",

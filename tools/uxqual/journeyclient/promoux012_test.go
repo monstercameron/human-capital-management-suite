@@ -79,7 +79,7 @@ func TestTodo_PROMOUX_012_Regression(t *testing.T) {
 			t.Errorf("%s has no shared label", name)
 		}
 		switch tone {
-		case toneNeutral, toneWarning, toneSuccess, toneDanger:
+		case toneNeutral, toneWarning, toneSuccess, toneDanger, toneInfo: // UXBLIND-048: waiting stages use the information tone
 		default:
 			t.Errorf("%s has tone %q outside the shared set", name, tone)
 		}

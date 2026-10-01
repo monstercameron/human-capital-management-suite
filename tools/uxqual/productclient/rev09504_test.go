@@ -9,11 +9,9 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 )
 
-// REV-095-04: a People directory search carried into Organization (the
-// stored people-table filter the preference layer applies when the address
-// names no search) is written into Organization's own address, so reloading
-// or sharing it reproduces the filtered browse while the scope counts stay
-// unfiltered, and Back returns to an unchanged People entry.
+// REV-095-04: directory search is page-scoped. A stored People filter does not
+// leak into Organization, while an explicit Organization filter remains
+// shareable and clearing it stays cleared.
 
 func rev09504Service(storedQuery string) Service {
 	return Service{
@@ -53,31 +51,34 @@ func TestTodo_REV_095_04(t *testing.T) {
 	service := rev09504Service("Jane")
 	organization := productui.Path(productui.PageOrganization)
 
-	// People -> Organization with no search in the address.
+	// People -> Organization with no search in the address does not carry the
+	// stored People-table filter.
 	state, view := rev09504Load(t, service, organization, "")
-	if view.Query != "Jane" {
-		t.Fatalf("carried search = %q, want Jane (the premise of this todo)", view.Query)
+	if view.Query != "" {
+		t.Fatalf("cross-page search = %q, want empty", view.Query)
 	}
 	href := ResolvedCanonicalHref(state, view)
-	if href != organization+"?q=Jane" {
-		t.Fatalf("Organization address = %q, want the carried search in it", href)
+	if href != organization {
+		t.Fatalf("Organization address = %q, want no query", href)
 	}
 	if state.Provided["q"] {
 		t.Fatal("resolving the address mutated the caller's parsed state")
 	}
 
-	// Reload/share: the address alone reproduces the same browse, even for a
-	// viewer with no stored search at all.
-	sharedPath, sharedQuery, _ := strings.Cut(href, "?")
+	if len(view.People) != 2 {
+		t.Fatalf("Organization population = %d, want unfiltered population", len(view.People))
+	}
+
+	// An explicit Organization search is page-local and shareable.
+	sharedState, shared := rev09504Load(t, rev09504Service(""), organization, "q=Jane")
+	sharedHref := ResolvedCanonicalHref(sharedState, shared)
+	if shared.Query != "Jane" || sharedHref != organization+"?q=Jane" {
+		t.Fatalf("explicit Organization search = %q -> %q", shared.Query, sharedHref)
+	}
+	sharedPath, sharedQuery, _ := strings.Cut(sharedHref, "?")
 	reloadState, reloaded := rev09504Load(t, rev09504Service(""), sharedPath, sharedQuery)
-	if reloaded.Query != "Jane" || !reloadState.Provided["q"] {
-		t.Fatalf("shared address loaded query %q (provided %v), want Jane", reloaded.Query, reloadState.Provided["q"])
-	}
-	if got := ResolvedCanonicalHref(reloadState, reloaded); got != href {
-		t.Fatalf("reloaded address = %q, want the stable %q", got, href)
-	}
-	if len(reloaded.People) != len(view.People) {
-		t.Fatalf("scope population differs: %d vs %d", len(reloaded.People), len(view.People))
+	if reloaded.Query != "Jane" || !reloadState.Provided["q"] || ResolvedCanonicalHref(reloadState, reloaded) != sharedHref {
+		t.Fatalf("shared address loaded query %q (provided %v), want stable Jane", reloaded.Query, reloadState.Provided["q"])
 	}
 
 	// An explicit clear stays a clear; nothing is carried over it.
@@ -92,14 +93,26 @@ func TestTodo_REV_095_04(t *testing.T) {
 		t.Fatalf("People address = %q", got)
 	}
 
-	// Only pages that declare the carry in their route-state profile get it.
+	// Organization no longer declares a cross-page directory-query carry.
 	homeState, homeView := rev09504Load(t, service, productui.Path(productui.PageHome), "")
 	if got := ResolvedCanonicalHref(homeState, homeView); strings.Contains(got, "q=") {
 		t.Fatalf("Home gained a search it does not declare: %q", got)
 	}
 	profile, _, _ := productui.PageProfiles(productui.PageOrganization)
-	if !profile.StateProfile().CarriesDirectoryQuery {
-		t.Fatal("Organization's route-state profile does not declare the carried search")
+	if profile.StateProfile().CarriesDirectoryQuery {
+		t.Fatal("Organization's route-state profile still declares a carried search")
+	}
+}
+
+func TestTodo_UXBLIND_079(t *testing.T) {
+	organization := productui.Path(productui.PageOrganization)
+	state, view := rev09504Load(t, rev09504Service("Omar"), organization, "")
+	if view.Query != "" || ResolvedCanonicalHref(state, view) != organization {
+		t.Fatalf("stored People search leaked into Organization: query=%q href=%q", view.Query, ResolvedCanonicalHref(state, view))
+	}
+	cleared, clearedView := rev09504Load(t, rev09504Service("Omar"), organization, "q=")
+	if clearedView.Query != "" || ResolvedCanonicalHref(cleared, clearedView) != organization+"?q=" {
+		t.Fatalf("explicit clear did not stick: query=%q href=%q", clearedView.Query, ResolvedCanonicalHref(cleared, clearedView))
 	}
 }
 
@@ -126,7 +139,19 @@ func TestTodo_REV_095_04_Browser(t *testing.T) {
 		t.Fatalf("scope %q changed under the carried search", units)
 	}
 	if !strings.Contains(filteredDoc, `value="Jane"`) {
-		t.Fatal("the organization search field does not show the carried search")
+		t.Fatal("the organization search field does not show its explicit search")
+	}
+}
+
+func TestTodo_UXBLIND_079_Browser(t *testing.T) {
+	organization := productui.Path(productui.PageOrganization)
+	_, docView := rev09504Load(t, rev09504Service("Jane"), organization, "")
+	doc, err := productui.Render(docView)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(doc, "Jane Doe") || !strings.Contains(doc, "Omar Reyes") || strings.Contains(doc, `value="Jane"`) {
+		t.Fatal("stored People query changed the unscoped Organization render")
 	}
 }
 

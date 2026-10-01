@@ -26,7 +26,8 @@ func TestTodo_WEB_229(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Promotion workflows", "Experience configuration"} {
+	// UXBLIND lane I: cards carry the one page label ("Worker IDs", "Journeys").
+	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker IDs", "Brand &amp; appearance", "Journeys", "Experience configuration"} {
 		if !strings.Contains(adminDoc, card) {
 			t.Fatalf("admin home hides %q from the platform admin", card)
 		}
@@ -45,7 +46,7 @@ func TestTodo_WEB_229(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, route := range []string{"/workspace/app/admin/roles", "/workspace/app/admin/organization-visibility", "/workspace/app/admin/worker-ids", "/workspace/app/appearance", "/workspace/app/studio"} {
+	for _, route := range []string{"/workspace/app/admin/roles", "/workspace/app/admin/organization-visibility", "/workspace/app/admin/worker-ids", "/workspace/app/admin/appearance", "/workspace/app/studio"} {
 		if strings.Contains(rolelessDoc, route) {
 			t.Fatalf("admin home offers %q to a role-less viewer", route)
 		}
@@ -64,8 +65,11 @@ func adminHomeCardsForRoles(t *testing.T, roles []string) []string {
 		t.Fatal(err)
 	}
 	var titles []string
-	for _, card := range []string{"Roles &amp; access", "Organization visibility", "Worker ID rules", "Brand &amp; appearance", "Promotion workflows", "Experience configuration"} {
-		if strings.Contains(doc, card) {
+	// UXBLIND lane I: cards carry the one page label. Cards are looked up by
+	// their section, because the navigation also names "Journeys".
+	root := mustParse(t, doc)
+	for _, card := range []string{"Roles & access", "Organization visibility", "Worker IDs", "Brand & appearance", "Journeys", "Experience configuration"} {
+		if findCardByTitle(root, card) != nil {
 			titles = append(titles, card)
 		}
 	}
@@ -82,7 +86,7 @@ func TestTodo_WEB_229_Golden(t *testing.T) {
 	}
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
-	const want = "cd77ec18d3238bb09ea043015a1417cb08b531dfe3283048057dba1fc97088bf"
+	const want = "072e2cf76df6240010a222d611eff13801447c5bd8305df097d381f2cbab28f3"
 	if got != want {
 		t.Fatalf("admin home resolution digest = %s, want %s", got, want)
 	}

@@ -38,7 +38,8 @@ func journeyCardIdentity(locale string, j JourneyCard) productui.ObjectIdentity 
 func journeyCardHead(locale string, j JourneyCard) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
 	identity := journeyCardIdentity(locale, j)
-	accessibleName := identity.AccessibleName(copy) + " — " + copy.Text("journey.open_request")
+	action := journeyCardActionLabel(locale, j)
+	accessibleName := identity.AccessibleName(copy) + " — " + action
 	return html.Div(html.Props{Class: "jn-journey-top"},
 		html.H3(html.Props{},
 			html.A(html.Props{Href: j.Href, OnClick: activate(j.OnOpen), Aria: map[string]string{"label": accessibleName}},

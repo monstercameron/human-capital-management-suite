@@ -524,6 +524,9 @@ func workflowPathProblems(path workflowPath, name func(WorkflowDraftNode) string
 	}
 	for _, group := range [][]workflowPathStep{path.Steps, path.Loose} {
 		for _, step := range group {
+			if strings.EqualFold(step.Node.StepType, "TASK") && workflowNodeHasParameter(step.Node, "task_assignee") && workflowNodeParameterValue(step.Node, "task_assignee") == "" {
+				problems = append(problems, workflowPathProblem{NodeID: step.Node.ID, Key: "workflow_editor.problem_task_assignee", Vars: map[string]string{"step": name(step.Node)}})
+			}
 			exceptions := 0
 			for _, route := range step.Open {
 				if workflowOutcomeIsException(route) {
@@ -548,4 +551,22 @@ func workflowPathProblems(path workflowPath, name func(WorkflowDraftNode) string
 		problems = append(problems, workflowPathProblem{Key: "workflow_editor.problem_no_exit"})
 	}
 	return problems
+}
+
+func workflowNodeParameterValue(node WorkflowDraftNode, id string) string {
+	for _, parameter := range node.Parameters {
+		if parameter.ID == id {
+			return strings.TrimSpace(parameter.Value)
+		}
+	}
+	return ""
+}
+
+func workflowNodeHasParameter(node WorkflowDraftNode, id string) bool {
+	for _, parameter := range node.Parameters {
+		if parameter.ID == id {
+			return true
+		}
+	}
+	return false
 }

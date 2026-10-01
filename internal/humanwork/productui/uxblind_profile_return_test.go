@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestTodo_UXBLIND_018(t *testing.T) {
+func TestLegacyUXBLIND_018(t *testing.T) {
 	view := testView(PagePerson)
 	view.SelectedPerson = "worker-avery"
 

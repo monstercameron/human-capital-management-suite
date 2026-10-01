@@ -123,7 +123,7 @@ func TestTodo_UIPOLISH_006_Regression(t *testing.T) {
 
 func TestTodo_UIPOLISH_007_RenderedDocument(t *testing.T) {
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
-		view := ApplyLocale(testView(PageHistory), ResolveProductLocale(locale))
+		view := ApplyLocale(testView(PageWorkflowHistory), ResolveProductLocale(locale))
 		doc, err := Render(view)
 		if err != nil {
 			t.Fatalf("%s: %v", locale, err)
@@ -142,7 +142,7 @@ func TestTodo_UIPOLISH_007_RenderedDocument(t *testing.T) {
 }
 
 func TestTodo_UIPOLISH_008_RenderedDocument(t *testing.T) {
-	view := testView(PageHistory)
+	view := testView(PageWorkflowHistory)
 	view.Appearance = DefaultCustomerTheme()
 	view.Appearance.Density = "compact"
 	doc, err := Render(view)
@@ -163,7 +163,7 @@ func TestTodo_UIPOLISH_008_RenderedDocument(t *testing.T) {
 
 func TestTodo_UIPOLISH_008_Accessibility(t *testing.T) {
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
-		view := ApplyLocale(testView(PageHistory), ResolveProductLocale(locale))
+		view := ApplyLocale(testView(PageWorkflowHistory), ResolveProductLocale(locale))
 		doc, err := Render(view)
 		if err != nil {
 			t.Fatalf("%s: %v", locale, err)
@@ -187,12 +187,12 @@ func TestTodo_UIPOLISH_008_Accessibility(t *testing.T) {
 
 func TestTodo_UIPOLISH_008_I18N(t *testing.T) {
 	for _, locale := range SupportedProductLocales() {
-		view := ApplyLocale(testView(PageHistory), ResolveProductLocale(locale))
+		view := ApplyLocale(testView(PageWorkflowHistory), ResolveProductLocale(locale))
 		doc, err := Render(view)
 		if err != nil {
 			t.Fatalf("%s: %v", locale, err)
 		}
-		for _, key := range []string{"page.history.title", "history.search_aria", "history.all_people"} {
+		for _, key := range []string{"page.workflow_history.title", "workflow_history.search", "workflow_history.person"} {
 			message := view.Locale.Text(key)
 			if message == "" || strings.Contains(message, "⟦") || !strings.Contains(doc, message) {
 				t.Errorf("%s history omits translated %s = %q", locale, key, message)
@@ -255,7 +255,8 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := fmt.Sprintf("%x", sha256.Sum256([]byte(doc)))
-	const want = "ee2e99d3d0b8918b680af335ebde26c05fed4d48aac420cec00f446b1d0a32e2"
+	// UXBLIND blind-test lanes (Home, top bar, scroll/loading, brand) re-pin: whole-document digest.
+	const want = "6d70f19c9bf3249d21750c7628e3e4a9d94c87afd4b62f4d892af3ba145678c5"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s", digest, want)
 	}

@@ -96,7 +96,8 @@ func findSearchForm(root *xhtml.Node) *xhtml.Node {
 }
 
 // web041GoldenDigest is pinned from the GREEN implementation run.
-const web041GoldenDigest = "c8c983c19d30b613989bdc539a6099b9a42e88d1f8f9c2607e5ff9373c5a64a2"
+// Re-pinned UXBLIND-026 after inspecting the render: the top-bar input now shows the short "Search workspace" placeholder; label and aria-label keep the full name.
+const web041GoldenDigest = "1cc1122b6f87f21db7b0fabcaadc6f8063c816efb72b763cf96a4c1eafd212f1"
 
 func TestTodo_WEB_041_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

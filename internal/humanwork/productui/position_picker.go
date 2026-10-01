@@ -19,6 +19,7 @@ package productui
 // selection round-trips as that one opaque token.
 
 import (
+	"strings"
 	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -35,7 +36,11 @@ type PositionPickerOptionProps struct {
 	// Reference is the opaque position+revision token this option's radio
 	// input carries as its value -- the one thing REFACTOR lets the browser
 	// carry back on submission.
-	Reference        string
+	Reference string
+	// Code is the authorized role/position discriminator supplied with the
+	// vacancy projection. It is rendered with the title so two otherwise
+	// similar choices do not collapse into the same accessible label.
+	Code             string
 	Title            string
 	Organization     string
 	Manager          string
@@ -134,6 +139,7 @@ func PositionPicker(props PositionPickerProps) ui.Node {
 				html.Input(input),
 				html.Span(html.Props{Class: "position-picker-option-main"},
 					html.Strong(html.Props{}, ui.Text(opt.Title)),
+					html.Small(html.Props{Class: "position-picker-option-code"}, ui.Text(positionPickerCode(opt))),
 					html.Small(html.Props{}, ui.Text(opt.Organization)),
 					html.Small(html.Props{}, ui.Text(opt.Manager)),
 					html.Small(html.Props{}, ui.Text(opt.Location)),
@@ -148,4 +154,14 @@ func PositionPicker(props PositionPickerProps) ui.Node {
 		html.Legend(html.Props{}, ui.Text(props.Legend)),
 		html.Ul(html.Props{Class: "position-picker-options", Raw: map[string]any{"role": "list"}}, choices...),
 	)
+}
+
+func positionPickerCode(opt PositionPickerOptionProps) string {
+	if code := strings.TrimSpace(opt.Code); code != "" {
+		return code
+	}
+	if reference := strings.TrimSpace(opt.Reference); reference != "" {
+		return reference
+	}
+	return ""
 }

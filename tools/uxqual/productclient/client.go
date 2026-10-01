@@ -19,6 +19,7 @@ import (
 
 	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	notificationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	positionv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
@@ -50,6 +51,8 @@ type Service struct {
 	ListPositionOccupancyOptions func(context.Context, *positionv1.ListPositionOccupancyOptionsRequest) (*positionv1.ListPositionOccupancyOptionsResponse, error)
 	GetReviewParticipants        func(context.Context) (*productui.ReviewParticipantsProjection, error)
 	ListJourneys                 func(context.Context, *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error)
+	ListNotifications            func(context.Context, *notificationv1.ListNotificationsRequest) (*notificationv1.ListNotificationsResponse, error)
+	MarkNotificationRead         func(context.Context, *notificationv1.MarkNotificationReadRequest) (*notificationv1.MarkNotificationReadResponse, error)
 	ListWorkers                  func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error)
 	GetPreferences               func(context.Context, *journeyv1.GetProductPreferencesRequest) (*journeyv1.GetProductPreferencesResponse, error)
 	GetWorkerIDPolicy            func(context.Context, *journeyv1.GetWorkerIDPolicyRequest) (*journeyv1.GetWorkerIDPolicyResponse, error)
@@ -86,11 +89,24 @@ type Session struct {
 	// "compensation_review"), which persisted a task-specific badge on
 	// every unrelated page. A purpose belongs inside the workflow it
 	// actually governs, not here.
-	Scope                 string
-	Roles                 []string
-	Permissions           []productui.RolePagePermission
-	FeaturePermissions    []productui.RoleFeaturePermission
-	LauncherActions       []productui.LauncherActionProjection
+	Scope              string
+	Roles              []string
+	Permissions        []productui.RolePagePermission
+	FeaturePermissions []productui.RoleFeaturePermission
+	LauncherActions    []productui.LauncherActionProjection
+	// WorkflowStarts, WorkflowStartFavorites and WorkflowStartRecent are the
+	// server-authorized workflow start catalog and the viewer's saved ids from
+	// the admitted island; the server resolved availability per viewer.
+	WorkflowStarts         []productui.WorkflowStartItem
+	WorkflowStartFavorites []string
+	WorkflowStartRecent    []string
+	// Agents is the server's agents availability projection (UXBLIND-122).
+	// A composed session without one fails closed: agents stay hidden.
+	Agents *productui.AgentsAvailabilityProjection
+	// Clock is the server's workspace-level time clock availability
+	// (UXBLIND-123). A composed session without one fails closed: the clock is
+	// reported as not running here.
+	Clock                 *productui.ClockAvailabilityProjection
 	EnforceRoleVisibility bool
 	LogoutHref            string
 	// TenantName is the company's own display name when the server supplied
@@ -130,6 +146,19 @@ func LoadingView(session Session, state State) productui.View {
 		view = productui.ApplyFeaturePermissions(view, session.FeaturePermissions)
 	}
 	view.LauncherActions = append([]productui.LauncherActionProjection(nil), session.LauncherActions...)
+	view.WorkflowStartCatalog = append([]productui.WorkflowStartItem(nil), session.WorkflowStarts...)
+	view.WorkflowStartFavorites = append([]string(nil), session.WorkflowStartFavorites...)
+	view.WorkflowStartRecent = append([]string(nil), session.WorkflowStartRecent...)
+	if session.Agents != nil {
+		view = productui.ApplyAgentsAvailability(view, *session.Agents)
+	} else if session.EnforceRoleVisibility {
+		view = productui.ApplyAgentsAvailability(view, productui.AgentsAvailabilityProjection{})
+	}
+	if session.Clock != nil {
+		view = productui.ApplyClockAvailability(view, *session.Clock)
+	} else if session.EnforceRoleVisibility {
+		view = productui.ApplyClockAvailability(view, productui.ClockAvailabilityProjection{})
+	}
 	view = productui.ApplyRequest(view, state.Request)
 	if view.Page == productui.PageHome {
 		// The authenticated principal is not necessarily the admitted worker's
@@ -226,17 +255,21 @@ func ParseState(pathname, rawQuery string) (State, error) {
 	if !routeProfile.ValidControlledValues(values) {
 		return State{}, errors.New("productclient: route state is malformed")
 	}
+	agentTaskID := ""
+	if routeProfile == productui.RouteProfileAgents {
+		agentTaskID = routeValue(values, "task")
+	}
 	state := State{Page: page, Provided: provided, Request: productui.PageRequest{
 		Page: page, Locale: routeValue(values, "locale"), Query: routeValue(values, "q"), RolePage: rolePage, Mode: routeValue(values, "mode"),
-		SelectedWork: routeValue(values, "selected"), SelectedPerson: routeValue(values, "person"),
+		SelectedWork: routeValue(values, "selected"), AgentTaskID: agentTaskID, SelectedPerson: routeValue(values, "person"),
 		PeoplePage: peoplePage, PeoplePageSize: peoplePageSize, PeopleTeam: routeValue(values, "team"), PeopleLocation: routeValue(values, "location"), PeopleEligibleOnly: routeValue(values, "eligible") == "1", PeopleSort: routeValue(values, "sort"), PeopleDirection: routeValue(values, "dir"),
 		PeopleColumns:    routeValue(values, "columns"),
 		OrganizationView: routeValue(values, "org_view"), OrganizationAsOf: routeValue(values, "as_of"), OrganizationUnit: routeValue(values, "unit"),
 		WorkflowQuery: routeValue(values, "workflow_q"), HistoryQuery: routeValue(values, "history_q"), HistoryOutcome: routeValue(values, "outcome"),
-		HistoryPerson: routeValue(values, "history_person"), HistoryYear: routeValue(values, "history_year"), HistorySort: routeValue(values, "history_sort"), HistoryDirection: routeValue(values, "history_dir"), HistoryPage: historyPage, HistoryPageSize: historyPageSize,
+		HistoryPerson: routeValue(values, "history_person"), HistoryRequester: routeValue(values, "history_requester"), HistoryYear: routeValue(values, "history_year"), HistorySort: routeValue(values, "history_sort"), HistoryDirection: routeValue(values, "history_dir"), HistoryPage: historyPage, HistoryPageSize: historyPageSize,
 		WorkFilter: routeValue(values, "filter"), NavCollapsed: routeValue(values, "nav") == "collapsed",
 		JourneyID: routeValue(values, "journey"), JourneyWorker: routeValue(values, "worker"), JourneyMode: routeValue(values, "mode"),
-		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"), DocumentID: routeValue(values, "document"), DocumentQuery: routeValue(values, "docs_q"), DocumentCollection: routeValue(values, "collection"), DocumentPageToken: routeValue(values, "cursor"),
+		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"), WorkflowShowReferences: routeProfile == productui.RouteProfileWorkflow && routeValue(values, "workflow_references") == "1", DocumentID: routeValue(values, "document"), DocumentQuery: routeValue(values, "docs_q"), DocumentCollection: routeValue(values, "collection"), DocumentPageToken: routeValue(values, "cursor"),
 		DocumentFolder: routeValue(values, "folder"), DocumentSort: routeValue(values, "docs_sort"), DocumentOwner: routeValue(values, "docs_owner"), DocumentPage: documentPage, DocumentPerPage: documentPerPage, DocumentSearchMode: routeValue(values, "docs_mode"), DocumentEditing: routeValue(values, "docs_edit") == "1",
 		PositionReference: routeValue(values, "position_ref"),
 		MenuQuery:         routeValue(values, "menu_q"), FavoritePages: parseFavoritePages(routeValue(values, "favorites")),
@@ -256,6 +289,9 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		} else if state.Request.JourneyMode != "" && state.Request.JourneyMode != "new" {
 			return State{}, errors.New("productclient: route state is malformed")
 		}
+	}
+	if routeProfile.StateProfile().History {
+		state.Request.JourneyList = productui.JourneyListFilterFromValues(values)
 	}
 	return state, nil
 }
@@ -937,9 +973,13 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 			if notice == nil {
 				continue
 			}
+			createdAt := time.Time{}
+			if stamp := notice.GetCreatedAt(); stamp != nil {
+				createdAt = stamp.AsTime()
+			}
 			view.WorkflowNotifications = append(view.WorkflowNotifications, productui.WorkflowNotification{
 				ID: notice.GetNotificationId(), JourneyID: notice.GetJourneyId(), WorkerName: notice.GetWorkerName(),
-				Purpose: notice.GetPurpose(), Status: notice.GetStatus(),
+				Purpose: notice.GetPurpose(), Status: notice.GetStatus(), CreatedAt: createdAt, Read: notice.GetRead(),
 			})
 		}
 		if projectionErr != nil {
@@ -1074,11 +1114,58 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		view.Work[index].Href = productui.JourneyDetailHref(view, view.Work[index].ID)
 	}
 	view.PersonWorkflows = projectPersonWorkflows(view, view.SelectedPerson)
+	view.MarkNotificationRead = notificationReadHandler(context.WithoutCancel(ctx), service)
 	loadErr := errors.Join(failures...)
 	if journeyclient.ErrorHasCode(loadErr, codes.Unauthenticated) {
 		view.SignedOut = productui.UnauthenticatedRecovery()
 	}
 	return view, loadErr
+}
+
+func notificationReadHandler(ctx context.Context, service Service) func(string, func(error)) {
+	if service.ListNotifications == nil || service.MarkNotificationRead == nil {
+		return nil
+	}
+	return func(id string, done func(error)) {
+		go func() {
+			operationCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			var target *notificationv1.Notification
+			cursor := ""
+			var err error
+			for page := 0; page < 100 && target == nil; page++ {
+				var response *notificationv1.ListNotificationsResponse
+				response, err = service.ListNotifications(operationCtx, &notificationv1.ListNotificationsRequest{PageSize: 100, Cursor: cursor, Archived: false})
+				if err != nil {
+					break
+				}
+				for _, item := range response.GetNotifications() {
+					if item != nil && item.GetId() == id {
+						target = item
+						break
+					}
+				}
+				cursor = response.GetNextCursor()
+				if cursor == "" {
+					break
+				}
+			}
+			if err == nil {
+				if target == nil {
+					err = fmt.Errorf("notification %q is no longer available", id)
+				} else if target.GetReadState() == "READ" {
+					// Another tab already completed the transition. Treat that as
+					// success without issuing a blind second mutation.
+					err = nil
+				} else {
+					_, err = service.MarkNotificationRead(operationCtx, &notificationv1.MarkNotificationReadRequest{Id: id, ExpectedVersion: target.GetVersion()})
+				}
+			}
+			if done != nil {
+				done(err)
+			}
+		}()
+	}
 }
 
 // linkJourneyWorkers only rewrites a journey's person link when exactly one
@@ -1412,7 +1499,7 @@ func applyPreferences(view *productui.View, state *State, response *journeyv1.Ge
 		view.PreferenceVersion = user.GetVersion()
 		view.WorkflowUses = user.GetWorkflowUses()
 		if access := user.GetAccessibility(); access != nil {
-			view.Accessibility = productui.NormalizeAccessibilityPreferences(productui.AccessibilityPreferences{TextSize: access.GetTextSize(), Contrast: access.GetContrast(), Motion: access.GetMotion(), Links: access.GetLinks()})
+			view.Accessibility = productui.NormalizeAccessibilityPreferences(productui.AccessibilityPreferences{TextSize: access.GetTextSize(), Contrast: access.GetContrast(), Motion: access.GetMotion(), Links: access.GetLinks(), ColorMode: access.GetColorMode()})
 		}
 		view.NavigationGroupOpen = make(map[productui.PageID]bool, len(user.GetNavigationGroups()))
 		for key, open := range user.GetNavigationGroups() {
@@ -1437,8 +1524,15 @@ func applyPreferences(view *productui.View, state *State, response *journeyv1.Ge
 		if !state.Provided["favorites"] {
 			request.FavoritePages = parseFavoritePages(strings.Join(user.GetFavoritePages(), ","))
 		}
-		applyTableDefaults(request, state.Provided, user.GetTables()["people"], false)
-		applyTableDefaults(request, state.Provided, user.GetTables()["history"], true)
+		if profile, _, ok := productui.PageProfiles(state.Page); ok {
+			spec := profile.StateProfile()
+			if spec.PeopleDirectory {
+				applyTableDefaults(request, state.Provided, user.GetTables()["people"], false)
+			}
+			if spec.History {
+				applyTableDefaults(request, state.Provided, user.GetTables()["history"], true)
+			}
+		}
 		// UXLIVE-027: the saved My Work tab is My Work's own default. Applied on
 		// every route it narrowed Home, Insights and History to that tab (a
 		// saved "tracked" left Rafael's Home and Insights at zero beside nine
@@ -1583,6 +1677,7 @@ func projectJourneys(journeys []*journeyv1.Journey) ([]productui.WorkItem, error
 			Due: journey.GetEffectiveDate(), EffectiveDate: journey.GetEffectiveDate(), CompletedAt: timestampLabel(journey.GetUpdatedAt()),
 			InstanceID: journey.GetInstanceId(), InstanceVersion: journey.GetInstanceVersion(), MaterialDigest: journey.GetMaterialDigest(),
 			CurrentBase: currentBase, ProposedBase: proposedBase,
+			CurrentPayBasis: journey.GetCurrentPayBasis(), ProposedPayBasis: journey.GetProposedPayBasis(),
 			ViewerRelationships:  journeyclient.JourneyViewerRelationships(journey),
 			ViewerResponsibility: journeyclient.JourneyViewerResponsibility(journey),
 		})
@@ -1685,6 +1780,14 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 }
 
 func projectManagerRelationship(worker *journeyv1.Worker, workersByRef map[string]int, namesByRef map[string]string) (productui.OrganizationRelationshipState, string, string, error) {
+	if worker != nil && worker.GetManagerRelationship() == nil && strings.TrimSpace(worker.GetManagerRef()) == "" {
+		// The directory's field disclosure removes the whole manager linkage
+		// (projection and reference alike) from a row whose linkage the
+		// viewer may not see (authz.DirectoryDisclosure.ManagerLinkage) --
+		// for example an own-unit peer outside a manager's chain. That is a
+		// withheld relationship, not a malformed row (UXBLIND-003).
+		return productui.OrganizationRelationshipWithheld, "", "", nil
+	}
 	if worker == nil || worker.GetManagerRelationship() == nil {
 		return "", "", "", fmt.Errorf("project worker manager relationship: missing authorized projection")
 	}

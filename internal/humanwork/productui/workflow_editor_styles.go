@@ -11,6 +11,12 @@ package productui
 // because they are the only things an author is looking for.
 func workflowEditorStylesheet() string {
 	return `.workflow-designer-page.editing{display:grid;gap:var(--hcm-space-2)}
+.workflow-release{display:grid;gap:var(--hcm-space-2);padding:var(--hcm-space-3);border:1px solid var(--line);border-radius:var(--hcm-radius-surface);background:var(--surface)}
+.workflow-release-heading h3,.workflow-release-heading p{margin:0}.workflow-release-heading p{margin-block-start:var(--hcm-space-1);max-inline-size:70ch}
+.workflow-release-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--hcm-space-2);margin:0;padding:0;list-style:none;counter-reset:release-step}
+.workflow-release-step{display:grid;gap:.35rem;padding:var(--hcm-space-2);border:1px solid var(--line);border-radius:var(--hcm-radius-control);counter-increment:release-step}
+.workflow-release-step::before{content:counter(release-step);font-size:var(--hcm-font-size-small);color:var(--muted)}.workflow-release-step-label{font-weight:600}.workflow-release-state{justify-self:start}.workflow-release-action{font-size:var(--hcm-font-size-small);color:var(--muted)}.workflow-release-next{margin:0;font-weight:600}
+@media (max-width:640px){.workflow-release-steps{grid-template-columns:1fr}}
 .network-stage:has(.workflow-designer-page.editing)>.page-head{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .workflow-designer-page .status-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.0625rem .5rem;border:1px solid var(--control-border,var(--line));border-radius:999px;color:var(--muted);font-size:var(--hcm-font-size-small);font-weight:600;white-space:nowrap}.workflow-designer-page .status-chip[data-tone=positive]{color:var(--success);border-color:var(--success)}.workflow-designer-page .status-chip[data-tone=warning]{color:var(--warning);border-color:var(--warning)}.workflow-designer-page .status-chip[data-tone=danger]{color:var(--danger);border-color:var(--danger)}.workflow-designer-page .status-chip[data-tone=info]{color:var(--info);border-color:var(--info)}
 .workflow-editor{display:grid;gap:var(--hcm-space-2);min-inline-size:0}

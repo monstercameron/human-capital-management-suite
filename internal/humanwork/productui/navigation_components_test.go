@@ -5,26 +5,37 @@ import (
 	"testing"
 )
 
+// UXBLIND-102: the My Work overview child is named for what it lists, not for its group.
 func TestNavigationRegistryBuildsReusableSubmenus(t *testing.T) {
-	view := testView(PageHistory)
+	view := testView(PageWorkflowHistory)
 	_, items := projectNavigation(view)
 	work, ok := projectedNavigationItem(items, PageWork)
 	if !ok {
 		t.Fatal("My Work navigation group is missing")
 	}
-	if !work.Active || len(work.Children) != 2 || work.Children[0].Label != "Work queue" || work.Children[1].Label != "Work History" {
+	if work.Active || len(work.Children) != 1 || work.Children[0].Page != PageWork || work.Children[0].Label != view.Locale.Text("home.needs_action") {
 		t.Fatalf("My Work submenu = %+v", work)
+	}
+	workflowStart, ok := projectedNavigationItem(items, PageWorkflowStart)
+	if !ok || !workflowStart.Active || len(workflowStart.Children) != 2 || workflowStart.Children[0].Page != PageWorkflowStart || workflowStart.Children[1].Page != PageWorkflowHistory {
+		t.Fatalf("Workflows submenu = %+v", workflowStart)
 	}
 	// UXAUDIT-011: Studio and the ten other unbuilt admin fallback surfaces
 	// (Policy Studio, Policy simulation, Configuration center, Integration
 	// operations, Reconciliation workbench, Privacy telemetry, Performance
 	// budgets, Browser matrix, Assistive tech, Disaster recovery, Release
 	// gate) keep their ParentNav wiring to Admin but declare no admitted
-	// capability. The published Chat settings page is the fifth admitted
-	// destination after the overview.
+	// capability. The published Chat settings and Personas pages follow the
+	// overview and other admitted configuration destinations.
 	admin, ok := projectedNavigationItem(items, PageAdmin)
-	if !ok || len(admin.Children) != 6 || admin.Children[1].Page != PageWorkerIDs || admin.Children[2].Page != PageRoles || admin.Children[3].Page != PageOrganizationVisibility || admin.Children[4].Page != PageAppearance || admin.Children[5].Page != PageChatSettings {
+	wantAdminChildren := []PageID{PageAdmin, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageClockDevices}
+	if !ok || len(admin.Children) != len(wantAdminChildren) {
 		t.Fatalf("Admin submenu = %+v, present=%t", admin, ok)
+	}
+	for index, want := range wantAdminChildren {
+		if admin.Children[index].Page != want {
+			t.Fatalf("Admin child %d = %s, want %s", index, admin.Children[index].Page, want)
+		}
 	}
 	for _, unadmitted := range []PageID{PageStudio, PagePolicyStudio, PagePolicySimulation, PageConfigurationCenter, PageIntegrationOperations, PageReconciliationWorkbench, PagePrivacyTelemetry, PagePerformanceBudgets, PageBrowserMatrix, PageAssistiveTech, PageDisasterRecovery, PageReleaseGate} {
 		for _, child := range admin.Children {
@@ -41,9 +52,9 @@ func TestMenuFilterKeepsOnlyMatchingHierarchy(t *testing.T) {
 	if len(favorites) != 0 || len(items) != 1 {
 		t.Fatalf("filtered navigation favorites=%+v items=%+v", favorites, items)
 	}
-	work := items[0]
-	if work.Page != PageWork || !work.Expanded || len(work.Children) != 1 || work.Children[0].Page != PageHistory {
-		t.Fatalf("history filter did not retain its open parent: %+v", work)
+	workflows := items[0]
+	if workflows.Page != PageWorkflowStart || !workflows.Expanded || len(workflows.Children) != 1 || workflows.Children[0].Page != PageWorkflowHistory {
+		t.Fatalf("history filter did not retain its open parent: %+v", workflows)
 	}
 
 	view.MenuQuery = "does not exist"
@@ -56,11 +67,10 @@ func TestMenuFilterKeepsOnlyMatchingHierarchy(t *testing.T) {
 func TestUXBLIND025MenuFilterPreservesSupportNavigation(t *testing.T) {
 	view := ApplyRequest(testView(PageSettings), PageRequest{MenuQuery: "pe"})
 	favorites, items := projectNavigation(view)
-	// UXAUDIT-011 removed the unbuilt "Performance budgets" admin fallback
-	// surface, which was the only reason the "pe" prefix used to also
-	// resolve Admin (a word-prefix match on "Performance"). Only the real,
-	// admitted People destination starts with "pe" now.
-	if len(favorites) != 0 || len(items) != 1 || items[0].Page != PagePeople {
+	// The short prefix ranks People first and also reaches the admitted
+	// Personas child under Admin. Both are real destinations, not fallback
+	// aliases.
+	if len(favorites) != 0 || len(items) != 2 || items[0].Page != PagePeople || items[1].Page != PageAdmin || len(items[1].Children) != 1 || items[1].Children[0].Page != PagePersonaAdmin {
 		t.Fatalf("short prefix should resolve People: favorites=%+v items=%+v", favorites, items)
 	}
 	props := navigationSidebarProps(view)
@@ -81,7 +91,7 @@ func TestMenuFilterFindsAliasesTyposAndMultipleTerms(t *testing.T) {
 		{query: "poeple", page: PagePeople},
 		{query: "ppl", page: PagePeople},
 		{query: "dark mode", page: PageAdmin},
-		{query: "past workflow", page: PageWork},
+		{query: "past workflow", page: PageWorkflowStart},
 		{query: "org chart", page: PageOrganization},
 	} {
 		t.Run(test.query, func(t *testing.T) {
@@ -154,8 +164,14 @@ func TestFavoriteOnlySearchDoesNotRenderAnEmptyAllNavigationSection(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(doc, ">Favorites</li>") || strings.Contains(doc, ">All navigation</li>") {
-		t.Fatal("favorite-only fuzzy result rendered an empty ordinary-navigation section")
+	// UXBLIND-066: a favorited page stays in its place in the main list, so
+	// the ordinary section is never empty for a favorite-only match.
+	_, items := projectNavigation(view)
+	if _, ok := projectedNavigationItem(items, PagePeople); !ok {
+		t.Fatalf("favorited People left the ordinary navigation: %+v", items)
+	}
+	if !strings.Contains(doc, ">Favorites</li>") || !strings.Contains(doc, ">All navigation</li>") {
+		t.Fatal("favorite fuzzy result lost its Favorites or its in-place navigation section")
 	}
 }
 
@@ -219,34 +235,38 @@ func TestUXBLIND024ClearMenuFilterResetsStateAndCancelsPendingNavigation(t *test
 
 func TestFavoritesMoveLeavesToTheTopAndToggleWithoutLosingPageState(t *testing.T) {
 	view := ApplyRequest(testView(PageWork), PageRequest{
-		WorkFilter: "review", MenuQuery: "", FavoritePages: []PageID{PageHistory, PagePeople, PageHistory, "unknown"},
+		WorkFilter: "review", MenuQuery: "", FavoritePages: []PageID{PageWorkflowHistory, PagePeople, PageWorkflowHistory, "unknown"},
 	})
-	if got := view.FavoritePages; len(got) != 2 || got[0] != PageHistory || got[1] != PagePeople {
+	if got := view.FavoritePages; len(got) != 2 || got[0] != PageWorkflowHistory || got[1] != PagePeople {
 		t.Fatalf("authorized favorites = %v", got)
 	}
 	favorites, items := projectNavigation(view)
-	if len(favorites) != 2 || favorites[0].Page != PageHistory || favorites[1].Page != PagePeople {
+	if len(favorites) != 2 || favorites[0].Page != PageWorkflowHistory || favorites[1].Page != PagePeople {
 		t.Fatalf("favorite order = %+v", favorites)
 	}
-	work, ok := projectedNavigationItem(items, PageWork)
-	if !ok || len(work.Children) != 1 || work.Children[0].Page != PageWork {
-		t.Fatalf("favorited history was not moved out of My Work: %+v", work)
+	workflows, ok := projectedNavigationItem(items, PageWorkflowStart)
+	// UXBLIND-066: favorited pages stay in place in the main list.
+	if !ok || len(workflows.Children) != 2 || workflows.Children[1].Page != PageWorkflowHistory {
+		t.Fatalf("favorited history left its place in Workflows: %+v", workflows)
 	}
-	if _, ok := projectedNavigationItem(items, PagePeople); ok {
-		t.Fatal("favorited People remained duplicated in all navigation")
+	if _, ok := projectedNavigationItem(items, PagePeople); !ok {
+		t.Fatal("favorited People left its place in all navigation")
 	}
 	href := favoriteToggleHref(view, PageOrganization)
-	for _, want := range []string{"favorites=organization%2Chistory%2Cpeople", "filter=review"} {
+	for _, want := range []string{"filter=review"} {
 		if !strings.Contains(href, want) {
 			t.Fatalf("favorite toggle lost state %q in %s", want, href)
 		}
+	}
+	if strings.Contains(href, "favorites=") {
+		t.Fatalf("favorite toggle leaked account state into %s", href)
 	}
 }
 
 func TestRemovingTheLastFavoriteAndExpandingNavigationAreExplicit(t *testing.T) {
 	view := ApplyRequest(testView(PagePeople), PageRequest{FavoritePages: []PageID{PagePeople}, NavCollapsed: true})
-	if href := favoriteToggleHref(view, PagePeople); !strings.Contains(href, "favorites=") {
-		t.Fatalf("last-favorite removal was indistinguishable from a missing server preference: %s", href)
+	if href := favoriteToggleHref(view, PagePeople); strings.Contains(href, "favorites=") {
+		t.Fatalf("last-favorite removal leaked account state into the URL: %s", href)
 	}
 	if href := navigationToggleProps(view).Href; !strings.Contains(href, "nav=expanded") {
 		t.Fatalf("expanded navigation was indistinguishable from a missing server preference: %s", href)
@@ -254,7 +274,7 @@ func TestRemovingTheLastFavoriteAndExpandingNavigationAreExplicit(t *testing.T) 
 }
 
 func TestSidebarRendersAccessibleFilterFavoriteAndDisclosureControls(t *testing.T) {
-	view := ApplyRequest(testView(PageHistory), PageRequest{FavoritePages: []PageID{PagePeople}})
+	view := ApplyRequest(testView(PageWorkflowHistory), PageRequest{FavoritePages: []PageID{PagePeople}})
 	doc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
@@ -262,7 +282,7 @@ func TestSidebarRendersAccessibleFilterFavoriteAndDisclosureControls(t *testing.
 	for _, want := range []string{
 		`id="menu-filter"`, `aria-label="Filter pages"`, `>Favorites</li>`,
 		`aria-label="Remove People from favorites"`, `class="nav-group current"`, `open`,
-		`data-hcm-nav-group="work"`, `>Work queue</span>`, `>Work History</span>`,
+		`data-hcm-nav-group="workflow-start"`, `>Workflow history</span>`,
 	} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("sidebar missing %q", want)
@@ -274,7 +294,7 @@ func TestSidebarRendersAccessibleFilterFavoriteAndDisclosureControls(t *testing.
 }
 
 func TestCollapsedSidebarOmitsFilterAndUsesGroupDestination(t *testing.T) {
-	view := ApplyRequest(testView(PageHistory), PageRequest{NavCollapsed: true, MenuQuery: "history"})
+	view := ApplyRequest(testView(PageWorkflowHistory), PageRequest{NavCollapsed: true, MenuQuery: "history"})
 	doc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
@@ -282,19 +302,19 @@ func TestCollapsedSidebarOmitsFilterAndUsesGroupDestination(t *testing.T) {
 	if strings.Contains(doc, `id="menu-filter"`) {
 		t.Fatal("collapsed navigation retained a hidden focusable menu filter")
 	}
-	if !strings.Contains(doc, `href="/workspace/app/work?menu_q=history&amp;nav=collapsed"`) {
-		t.Fatal("collapsed My Work group has no software-navigation destination")
+	if !strings.Contains(doc, `href="/workspace/app/workflows?menu_q=history&amp;nav=collapsed"`) {
+		t.Fatal("collapsed Workflows group has no software-navigation destination")
 	}
 }
 
 func TestFilteredNavigationForcesMatchingGroupsOpenWithoutChangingPreference(t *testing.T) {
 	view := ApplyRequest(testView(PageHome), PageRequest{MenuQuery: "history"})
-	view.NavigationGroupOpen = map[PageID]bool{PageWork: false}
+	view.NavigationGroupOpen = map[PageID]bool{PageWorkflowStart: false}
 	doc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`data-hcm-nav-group="work"`, `data-hcm-nav-force-open="true"`, `open`} {
+	for _, want := range []string{`data-hcm-nav-group="workflow-start"`, `data-hcm-nav-force-open="true"`, `open`} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("filtered navigation group missing %q", want)
 		}
@@ -302,10 +322,10 @@ func TestFilteredNavigationForcesMatchingGroupsOpenWithoutChangingPreference(t *
 }
 
 func TestSavedNavigationDisclosureOverridesContextualDefault(t *testing.T) {
-	view := testView(PageHistory)
-	view.NavigationGroupOpen = map[PageID]bool{PageWork: false, PageAdmin: true}
+	view := testView(PageWorkflowHistory)
+	view.NavigationGroupOpen = map[PageID]bool{PageWorkflowStart: false, PageAdmin: true}
 	_, items := projectNavigation(view)
-	work, _ := projectedNavigationItem(items, PageWork)
+	work, _ := projectedNavigationItem(items, PageWorkflowStart)
 	admin, _ := projectedNavigationItem(items, PageAdmin)
 	if work.Expanded {
 		t.Fatal("saved closed state did not override the active-route default")

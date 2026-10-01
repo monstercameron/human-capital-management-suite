@@ -362,18 +362,23 @@ func TestListPageCards(t *testing.T) {
 	}
 	c := p.List.Journeys[0]
 	want := journey.JourneyCard{
-		IntentID:      testIntentID,
-		Href:          "#/journeys/" + testIntentID,
-		WorkerName:    "Omar Reyes",
-		WorkerRef:     "worker:NW-40118",
-		Headline:      "OPS-HRBP2 · P2 → OPS-HRBP3 · P3",
-		PayLine:       "USD 93,000.00 → 98,000.00 (+5.4%)",
+		IntentID:   testIntentID,
+		Href:       "#/journeys/" + testIntentID,
+		WorkerName: "Omar Reyes",
+		WorkerRef:  "worker:NW-40118",
+		Headline:   "OPS-HRBP2 · P2 → OPS-HRBP3 · P3",
+		// UXBLIND-010/020: both sides of the change carry currency and pay
+		// unit through the shared formatter (non-breaking space joins the
+		// currency code to the amount).
+		PayLine:       "USD 93,000.00 per year → USD 98,000.00 per year (+5.4%)",
 		EffectiveDate: "1 Jun 2026",
 		Stage:         "AWAITING_APPROVAL",
-		StageLabel:    "Awaiting approval",
-		StageTone:     toneWarning,
-		Updated:       "12 May 2026, 09:12 UTC",
-		InstanceID:    testInstanceID,
+		// UXBLIND-048: waiting-for-approval stages read as informational,
+		// not a warning.
+		StageLabel: "Awaiting approval",
+		StageTone:  toneInfo,
+		Updated:    "12 May 2026, 09:12 UTC",
+		InstanceID: testInstanceID,
 	}
 	// JourneyCard carries an OnOpen callback, so the comparison is field by
 	// field rather than a struct equality: the projection leaves the
@@ -410,15 +415,18 @@ func TestStageLabelsAndTones(t *testing.T) {
 		// PROMOUX-012: one vocabulary shared with My Work (StagePresentation).
 		{journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED, stageProposed, "Ready to start approval", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED, stageBlocked, "Blocked", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL, stageAwaitingApproval, "Awaiting approval", toneWarning},
+		// UXBLIND-048: normal waiting-for-approval stages read as
+		// informational, not a warning; only Blocked/Failed/Repair keep an
+		// alarming tone.
+		{journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL, stageAwaitingApproval, "Awaiting approval", toneInfo},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED, stageCompleted, "Completed", toneSuccess},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_REJECTED, stageRejected, "Rejected", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_FAILED, stageFailed, "Failed", toneDanger},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL, stageFinanceApproval, "Finance approval", toneWarning},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL, stageManagerApproval, "Manager approval", toneWarning},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL, stageFinanceApproval, "Finance approval", toneInfo},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL, stageManagerApproval, "Manager approval", toneInfo},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE, stageWaitingEffective, "Waiting for effective date", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_REVALIDATION, stageRevalidation, "Final checks", toneNeutral},
-		{journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL, stageReapproval, "Approval required again", toneWarning},
+		{journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL, stageReapproval, "Approval required again", toneInfo},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED, stageExecuted, "Recording promotion", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS, stageObservingEffects, "Checking downstream effects", toneNeutral},
 		{journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED, stageRecorded, "Recorded", toneSuccess},
@@ -444,7 +452,7 @@ func TestTodo_UXAUDIT_006_JourneyHeaderLocale(t *testing.T) {
 	for _, tc := range []struct {
 		locale, title, stage, back string
 	}{
-		{"en-US", "Promotion journey", "Finance approval", "Back to Omar Reyes's profile"},
+		{"en-US", "Promotion journey", "Finance approval", "Back to Omar Reyes' profile"},
 		{"de-DE", "Beförderungsantrag", "Finanzprüfung", "Zurück zum Profil von Omar Reyes"},
 		{"ar", "طلب الترقية", "مراجعة المالية", "العودة إلى الملف الشخصي لـOmar Reyes"},
 	} {
@@ -942,7 +950,7 @@ func TestDetailPageSections(t *testing.T) {
 	if p.Title != "Omar Reyes · Promotion journey · Human Capital Management Suite" {
 		t.Errorf("Title = %q", p.Title)
 	}
-	if d.BackLink.Label != "Back to Omar Reyes's profile" || d.BackLink.Href != "/workspace/app/person?person=worker%3ANW-40118" || d.JourneysLink.Href != ListHref() {
+	if d.BackLink.Label != "Back to Omar Reyes' profile" || d.BackLink.Href != "/workspace/app/person?person=worker%3ANW-40118" || d.JourneysLink.Href != ListHref() {
 		t.Errorf("detail context links = back %+v, journeys %+v", d.BackLink, d.JourneysLink)
 	}
 
@@ -966,7 +974,7 @@ func TestDetailPageSections(t *testing.T) {
 	for _, r := range d.Comparison {
 		rows[r.Label] = r
 	}
-	if got, want := len(d.Comparison), 6; got != want {
+	if got, want := len(d.Comparison), 7; got != want {
 		t.Errorf("comparison rows = %d, want %d", got, want)
 	}
 	if r := rows["Job code"]; r.Current != "OPS-HRBP2" || r.Proposed != "OPS-HRBP3" || !r.Changed {
@@ -975,7 +983,10 @@ func TestDetailPageSections(t *testing.T) {
 	if r := rows["Position"]; r.Changed {
 		t.Errorf("position row marked changed though it did not move: %+v", r)
 	}
-	if r := rows["Base pay"]; r.Current != "USD 93,000.00" || r.Proposed != "USD 98,000.00" ||
+	// UXBLIND-075: comparison rows format through the shared en-US money
+	// formatter too, which joins currency and amount with a non-breaking
+	// space.
+	if r := rows["Base pay"]; r.Current != "USD 93,000.00" || r.Proposed != "USD 98,000.00" ||
 		r.Delta != "+USD 5,000.00 (+5.4%)" || !r.Changed {
 		t.Errorf("base pay row = %+v", r)
 	}
@@ -1260,9 +1271,10 @@ func TestTodo_UXAUDIT_006_I18N_CodeBackedFinding(t *testing.T) {
 		{Code: "other.finding", Severity: "WARNING", Message: "Unmapped finding"},
 	}
 	for _, tc := range []struct{ locale, want string }{
-		{"en-US", "Finance confirmed the current budget baseline."},
-		{"de-DE", "Die Finanzprüfung bestätigte die aktuelle Budgetgrundlage."},
-		{"ar", "أكدت المالية أساس الميزانية الحالي."},
+		// UXBLIND-013: the note states what the system checked, not a human finance confirmation.
+		{"en-US", "The system checked the current budget baseline."},
+		{"de-DE", "Das System hat die aktuelle Budgetgrundlage geprüft."},
+		{"ar", "تحقق النظام من أساس الميزانية الحالي."},
 	} {
 		got := findingsLocale(tc.locale, input)
 		if len(got) != 2 || !strings.HasPrefix(got[0].Message, tc.want) || got[0].Code != input[0].Code || got[1].Message != "Unmapped finding" {
@@ -1417,7 +1429,7 @@ func TestProjectedPagesRender(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rendering the list: %v", err)
 	}
-	for _, want := range []string{"Human Capital Management Suite", "Omar Reyes", "USD 93,000.00", "Awaiting approval", "Review and submit"} {
+	for _, want := range []string{"Human Capital Management Suite", "Omar Reyes", "USD 93,000.00", "Awaiting approval", "Review and submit"} {
 		if !strings.Contains(list, want) {
 			t.Errorf("the rendered list page does not carry %q", want)
 		}
@@ -1576,10 +1588,11 @@ func TestListPageProjectsThePeoplePanel(t *testing.T) {
 		t.Fatal("the employee recorded through this page is missing from People")
 	}
 	want := journey.WorkerCard{
-		Ref: testCreatedRef, Name: "Rosa", Number: "W-2001",
+		// UXBLIND-082/090: every surface shows the shared display name.
+		Ref: testCreatedRef, Name: "Rosa Iglesias", Number: "W-2001",
 		Title: "HR Business Partner", JobCode: "OPS-HRBP2", Grade: "P2",
 		OrgUnit: "People Ops", Location: "Barcelona, ES",
-		PayLine: "USD 72,500.00", HireDate: "1 Oct 2026",
+		PayLine: "USD 72,500.00 per year", HireDate: "1 Oct 2026", // UXBLIND-010/020: pay carries its unit
 		Source: "CREATED", SourceLabel: "Created", Tone: toneInfo,
 		ProposeHref: "#/journeys/new?worker=worker%3Acreated-rosa",
 	}
@@ -1596,7 +1609,7 @@ func TestListPageProjectsThePeoplePanel(t *testing.T) {
 	if jane.PayLine != emDash {
 		t.Errorf("the corpus worker's pay line = %q, want a dash", jane.PayLine)
 	}
-	if jane.Name != "Jane" || jane.Title != "Software Engineer III" ||
+	if jane.Name != "Jane Doe" || jane.Title != "Software Engineer III" ||
 		jane.Source != "CORPUS" || jane.SourceLabel != "Corpus" || jane.Tone != "" {
 		t.Errorf("the corpus worker's card = %+v", jane)
 	}
@@ -1621,7 +1634,7 @@ func TestProposalPageKeepsOneWorkerAsImmutableContext(t *testing.T) {
 		t.Fatalf("focused proposal page shape = %+v", p)
 	}
 	v := p.Proposal
-	if v.Subject == nil || v.Subject.Ref != "jane-doe" || v.Subject.Name != "Jane" || v.Subject.Title != "Software Engineer III" {
+	if v.Subject == nil || v.Subject.Ref != "jane-doe" || v.Subject.Name != "Jane Doe" || v.Subject.Title != "Software Engineer III" {
 		t.Fatalf("proposal subject = %+v", v.Subject)
 	}
 	if v.BackHref != "/workspace/app/person?person=jane-doe" || v.JourneysLink.Href != ListHref() {
@@ -1724,8 +1737,9 @@ func TestTodo_UXAUDIT_006_PromotionSubjectUsesAuthorizedJobTitle(t *testing.T) {
 func TestTodo_UXAUDIT_006_PromotionSubjectFormatsPayForLocale(t *testing.T) {
 	worker := &journeyv1.Worker{WorkerRef: "demo-worker", JobCode: "SAL-AE3", JobTitle: "Senior Account Executive", Grade: "P4", BasePay: "135000.00", Currency: "USD"}
 	for _, tc := range []struct{ locale, want string }{
-		{"en-US", "USD\u00a0135,000.00"},
-		{"de-DE", "135.000,00\u00a0USD"},
+		// UXBLIND-010/020: pay carries its unit as well as its currency.
+		{"en-US", "USD\u00a0135,000.00 per year"},
+		{"de-DE", "135.000,00\u00a0USD pro Jahr"},
 	} {
 		subject := promotionSubject(worker, nil, productui.ResolveProductLocale(tc.locale))
 		if subject == nil || subject.PayLine != tc.want {
@@ -1965,10 +1979,10 @@ func TestProposalFormListsEveryWorkerIncludingTheCreatedOnes(t *testing.T) {
 	for _, o := range options[1:] {
 		labels[o.Value] = o.Label
 	}
-	if labels[testCreatedRef] != "Rosa — OPS-HRBP2 · P2" {
+	if labels[testCreatedRef] != "Rosa Iglesias — OPS-HRBP2 · P2" {
 		t.Errorf("the created employee's option = %q", labels[testCreatedRef])
 	}
-	if labels["jane-doe"] != "Jane — ENG-SWE3 · P3" {
+	if labels["jane-doe"] != "Jane Doe — ENG-SWE3 · P3" {
 		t.Errorf("the corpus employee's option = %q", labels["jane-doe"])
 	}
 	if form.Fields[0].Value != testCreatedRef {
@@ -2032,8 +2046,8 @@ func TestThePeoplePanelRenders(t *testing.T) {
 		t.Fatalf("rendering: %v", err)
 	}
 	for _, want := range []string{
-		"People", "Rosa", "Jane", "Omar Reyes",
-		"Senior HR Business Partner", "USD 72,500.00", "Created", "Corpus",
+		"People", "Rosa Iglesias", "Jane Doe", "Omar Reyes",
+		"Senior HR Business Partner", "USD 72,500.00", "Created", "Corpus",
 		"New employee", "Add employee", "Selected",
 	} {
 		if !strings.Contains(html, want) {

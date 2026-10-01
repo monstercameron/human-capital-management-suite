@@ -20,13 +20,12 @@ const (
 	homeRecentRequestLimit = 3
 )
 
-// FactLink renders a fact's value as a drill-down. The visible text is the
-// number; the fact's label is repeated for assistive technology so the link
-// is not announced as a bare number.
+// FactLink renders a fact's value as a drill-down. FactList supplies the
+// accessible label through the paired <dt>, so the link contains only the
+// value and does not cause screen readers to announce the label twice.
 func FactLink(props FactProps) ui.Node {
 	return softwareLink(props.Navigate, html.Props{Class: "fact-link"}, props.Href,
 		ui.Text(props.Value),
-		html.Span(html.Props{Class: "sr-only"}, ui.Text(" "+props.Label)),
 	)
 }
 
@@ -41,7 +40,7 @@ func FactLink(props FactProps) ui.Node {
 //     with a problem -> Journeys, status issue (blocked, failed, repair);
 //     completed or closed -> History (closed journeys).
 //   - People you can see: visible -> People; eligible -> People, eligible.
-func homeOperationalGroups(view View, totals JourneyPopulation, workVisible, historyVisible, peopleVisible bool, visiblePeople []Person) []FactGroupProps {
+func homeOperationalGroups(view View, totals JourneyPopulation, pendingCount int, workVisible, historyVisible, peopleVisible bool, visiblePeople []Person) []FactGroupProps {
 	groups := make([]FactGroupProps, 0, 3)
 	fact := func(key string, value int, allowed bool, page PageID, pairs ...string) FactProps {
 		props := FactProps{Label: view.Locale.Text(key), Value: view.Locale.FormatNumber(fmt.Sprint(value), 0), Navigate: view.Navigate}
@@ -55,7 +54,7 @@ func homeOperationalGroups(view View, totals JourneyPopulation, workVisible, his
 	// a number never links to a page that lists fewer.
 	if workVisible && view.Viewer.PersonID != "" {
 		groups = append(groups, FactGroupProps{Title: view.Locale.Text("home.group_your_work"), Facts: []FactProps{
-			fact("home.needs_action", totals.NeedsAction, true, PageWork),
+			fact("home.needs_action", pendingCount, true, PageWork),
 			fact("home.following", totals.Tracking, true, PageWork, "filter", "tracked"),
 		}})
 	}
@@ -63,8 +62,8 @@ func homeOperationalGroups(view View, totals JourneyPopulation, workVisible, his
 	var requests []FactProps
 	if workVisible || journeysVisible {
 		requests = append(requests,
-			fact("home.in_progress", totals.Active, journeysVisible, PageJourneys, JourneyListStatusKey, JourneyListStatusOpen),
-			fact("home.exceptions", totals.Exceptions, journeysVisible, PageJourneys, JourneyListStatusKey, JourneyListStatusIssue),
+			fact("home.in_progress", totals.Active, journeysVisible, PageJourneys, JourneyListStatusKey, JourneyHomeFilter(JourneyHomeGroupInProgress)),
+			fact("home.exceptions", totals.Exceptions, journeysVisible, PageJourneys, JourneyListStatusKey, JourneyHomeFilter(JourneyHomeGroupProblem)),
 		)
 	}
 	if historyVisible {
@@ -108,7 +107,7 @@ func homeRecentRequests(view View) (TrackedRequestsProps, bool) {
 		props.Items = props.Items[:homeRecentRequestLimit]
 	}
 	if view.Allows(PageJourneys, "view") {
-		props.More = ActionLinkProps{Label: view.Locale.Text("home.exceptions_view_all"), Href: statefulHref(view, PageJourneys, JourneyListStatusKey, JourneyListStatusOpen), Navigate: view.Navigate}
+		props.More = ActionLinkProps{Label: view.Locale.Text("home.exceptions_view_all"), Href: statefulHref(view, PageJourneys, JourneyListStatusKey, JourneyHomeFilter(JourneyHomeGroupInProgress)), Navigate: view.Navigate}
 	}
 	return props, len(props.Items) > 0
 }
@@ -134,7 +133,7 @@ func homeExceptions(view View, totals JourneyPopulation) (TrackedRequestsProps, 
 		props.Items = props.Items[:homeExceptionLimit]
 	}
 	if view.Allows(PageJourneys, "view") {
-		props.More = ActionLinkProps{Label: view.Locale.Text("home.exceptions_view_all"), Href: statefulHref(view, PageJourneys, JourneyListStatusKey, JourneyListStatusIssue), Navigate: view.Navigate}
+		props.More = ActionLinkProps{Label: view.Locale.Text("home.exceptions_view_all"), Href: statefulHref(view, PageJourneys, JourneyListStatusKey, JourneyHomeFilter(JourneyHomeGroupProblem)), Navigate: view.Navigate}
 	}
 	return props, len(props.Items) > 0
 }
@@ -155,14 +154,26 @@ func homeJourneyRows(view View, items []WorkItem, updated bool) TrackedRequestsP
 		} else if at, err := time.Parse("2006-01-02", strings.TrimSpace(item.EffectiveDate)); err == nil {
 			date = view.Locale.Text("work.row_effective_date", map[string]string{"date": formatCivilDateLabel(view.Locale, at)})
 		}
+		href := homeJourneyHref(view, item.Href)
+		navigate := view.Navigate
+		if href == "" {
+			navigate = nil
+		}
 		props.Items = append(props.Items, TrackedRequestProps{
 			ID: item.ID, Title: homeTaskLabel(view, item), Status: localizedWorkStatus(view.Locale, item),
 			// Open only suppresses the card's closed suffix: the status
 			// already says how a closed request ended.
-			Due: date, Open: true, Href: item.Href, Navigate: view.Navigate,
+			Due: date, Open: true, Href: href, Navigate: navigate,
 		})
 	}
 	return props
+}
+
+func homeJourneyHref(view View, href string) string {
+	if !view.Allows(PageJourneys, "view") {
+		return ""
+	}
+	return href
 }
 
 // homeTaskLabel is the human task label UXLIVE-032 introduced for journey

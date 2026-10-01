@@ -14,6 +14,8 @@ package journey
 
 import "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
 
+import "github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+
 // Page is the whole document. Exactly one of List, Proposal and Detail is
 // set.
 type Page struct {
@@ -26,6 +28,10 @@ type Page struct {
 	// Direction is the resolved text direction for Locale (ltr or rtl).
 	// Empty is inferred from Locale.
 	Direction string
+	// JourneyCapabilities is the server/client availability verdict for
+	// optional cross-surface actions. Nil preserves the rolling-upgrade
+	// compatibility path used by older callers.
+	JourneyCapabilities *productui.JourneyCapabilityAvailability
 	// Brand is the product name in the masthead.
 	Brand string
 	// TenantLabel is the human name of the tenant the page is served for.
@@ -59,9 +65,15 @@ type Page struct {
 	// value as a plain attribute the browser owns. Nil (the SSR and test
 	// path) leaves the controls uncontrolled and the forms plain.
 	OnFieldChange func(fieldID, value string)
+	// OnFieldBlur, when set, receives the field that just lost focus. It is
+	// separate from OnFieldChange so client validation can wait until the
+	// reader leaves a control while the controlled value remains current.
+	OnFieldBlur func(fieldID string)
 	// OnFocusField upgrades error-summary anchors to in-place focus without
 	// changing the journey's hash route. Nil leaves ordinary fragment links.
 	OnFocusField func(fieldID string)
+	// OnReviewDismiss clears form-scoped transient state after a review closes.
+	OnReviewDismiss func(actionID string)
 }
 
 // Principal is the signed-in caller as the masthead shows them.
@@ -305,13 +317,35 @@ const (
 // EditDefaults is one proposal's own current values, in the types the
 // governed edit form submits.
 type EditDefaults struct {
-	JobCode string
-	Grade   string
+	SourceJobCode    string
+	SourceGrade      string
+	Currency         string
+	CurrentBase      string
+	CurrentPayBasis  string
+	ProposedPayBasis string
+	JobCode          string
+	Grade            string
 	// Base is decimal text with no currency, separators or delta.
 	Base string
 	// EffectiveISO is yyyy-mm-dd, which is what a date input accepts.
-	EffectiveISO string
+	EffectiveISO   string
+	BusinessReason string
 }
+
+// PositionIdentity is the safe, reader-facing identity of a selected
+// position. Code is a stable governed role/position code; raw revision
+// references never belong in this value or in the default page scan.
+type PositionIdentity struct {
+	Title string
+	Code  string
+	State string
+}
+
+const (
+	PositionIdentityResolved   = "resolved"
+	PositionIdentityUnresolved = "unresolved"
+	PositionIdentityWithheld   = "withheld"
+)
 
 type JourneyCard struct {
 	IntentID   string
@@ -320,8 +354,16 @@ type JourneyCard struct {
 	WorkerRef  string
 	// Headline is the placement change, e.g. "OPS-HRBP2 · P2 → OPS-HRBP3 · P3".
 	Headline string
+	// PlacementCodes is the muted machine-code line for a placement change.
+	// It stays separate from Headline so codes are not embedded in role copy.
+	PlacementCodes string
 	// PayLine is the pay change, e.g. "USD 93,000.00 → 98,000.00 (+5.4%)".
 	PayLine string
+	// BusinessReason is the reader-facing explanation for the pay change.
+	BusinessReason string
+	// TargetPosition is the exact selected position's safe display snapshot.
+	// It is empty when the proposal did not bind a position.
+	TargetPosition PositionIdentity
 	// EffectiveDate is already formatted for display.
 	EffectiveDate string
 	Stage         string
@@ -468,6 +510,14 @@ type DetailView struct {
 
 	// Steps is the stage stepper, in order.
 	Steps []Step
+
+	// OutcomeReason is the server-derived explanation for a blocked or
+	// terminal non-success journey. It is intentionally separate from the
+	// status label so every surface can reuse the same typed evidence.
+	OutcomeReason *OutcomeReason
+	// Progress is the durable runtime reading for an active downstream phase.
+	// It is nil when the journey is not actively processing.
+	Progress *Progress
 
 	// Proposal is the request as facts, and Comparison the before/after
 	// table.
@@ -651,6 +701,26 @@ type Finding struct {
 	Message  string
 }
 
+// OutcomeReason is a localized projection of typed finding evidence.
+type OutcomeReason struct {
+	Summary      string
+	Stage        string
+	StoppedAt    string
+	NextStep     string
+	Tone         string
+	Blocking     []string
+	Supplemental []string
+}
+
+// Progress is a localized, time-bounded reading of durable workflow progress.
+type Progress struct {
+	Phase        string
+	Summary      string
+	LastProgress string
+	NextAction   string
+	Status       string
+}
+
 // NodeRow is one node execution.
 type NodeRow struct {
 	NodeID    string
@@ -739,6 +809,9 @@ type Action struct {
 	// Confirmation/ConfirmationNote also carry the busy state below.
 	Confirmation     []Fact
 	ConfirmationNote string
+	// CancelLabel names the non-committing button inside the review surface.
+	// Empty keeps the shared generic label.
+	CancelLabel string
 	// Busy is true while this action's own submission is in flight. The
 	// review surface keeps the action bar mounted and disables the submit
 	// control rather than collapsing, so a second click cannot fire a

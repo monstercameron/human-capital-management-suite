@@ -13,6 +13,9 @@ import (
 // replaces this body once the governed service publishes;
 // until then the UI will not simulate one.
 func timeExceptionsPage(view View) ui.Node {
+	if view.TimeExceptionsProjection.State == TimeSurfaceReady {
+		return timeExceptionsSurface(view, view.TimeExceptionsProjection, false)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("time_exceptions.unavailable_title"),
 		Description: view.Locale.Text("time_exceptions.unavailable_detail"),

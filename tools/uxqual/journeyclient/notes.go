@@ -240,7 +240,10 @@ func (a *App) addNote(ctx context.Context, generation int, intentID, body string
 				page.Values[FieldNoteBody] = ""
 			}
 		})
-		a.applyDetail(generation, resp.GetDetail(), a.store.Page().Notice)
+		// A successful note is a successful page action. Do not carry a prior
+		// failed approval-start notice into the freshly projected detail; the
+		// composer status already says that this note was recorded.
+		a.applyDetail(generation, resp.GetDetail(), nil)
 	})
 }
 

@@ -371,6 +371,81 @@ func (c LocaleContext) FormatMoney(decimal, currency string, fraction int) strin
 	return formatted
 }
 
+// WithTimeZone returns a presentation-only copy of the locale context. The
+// browser supplies the viewer's IANA zone; keeping it on the immutable context
+// makes every date and timestamp formatter use the same zone.
+func (c LocaleContext) WithTimeZone(zone string) LocaleContext {
+	c = c.normalized()
+	if strings.TrimSpace(zone) != "" {
+		c.TimeZone = strings.TrimSpace(zone)
+	}
+	return c
+}
+
+// FormatTimestamp renders an instant in the viewer's zone and includes the
+// resolved zone abbreviation. It is the single product form for an instant;
+// callers must not append UTC or format the clock independently.
+func (c LocaleContext) FormatTimestamp(value time.Time) string {
+	c = c.normalized()
+	location, err := time.LoadLocation(c.TimeZone)
+	if err != nil {
+		location = time.UTC
+	}
+	local := value.In(location)
+	return c.FormatDate(value) + ", " + local.Format("15:04 MST")
+}
+
+// FormatDateTime is a readable alias for callers whose domain names the
+// rendered value as a date-time rather than a timestamp.
+func (c LocaleContext) FormatDateTime(value time.Time) string {
+	return c.FormatTimestamp(value)
+}
+
+// FormatMoneyWithUnit keeps the currency and pay basis together wherever a
+// compensation amount is shown. The unit is semantic input (annual/hourly or
+// a localized label), never inferred from the amount.
+func (c LocaleContext) FormatMoneyWithUnit(decimal, currency, unit string, fraction int) string {
+	c = c.normalized()
+	formatted := c.FormatMoney(decimal, currency, fraction)
+	unitKey := ""
+	switch strings.ToLower(strings.TrimSpace(unit)) {
+	case "annual", "annual_salary", "year", "yearly", "per year":
+		unitKey = "format.pay_unit.year"
+	case "hour", "hourly", "hourly_rate", "per hour":
+		unitKey = "format.pay_unit.hour"
+	}
+	if unitKey != "" {
+		unit = c.Text(unitKey)
+	}
+	if strings.TrimSpace(unit) == "" {
+		return formatted
+	}
+	return formatted + " " + strings.TrimSpace(unit)
+}
+
+// FormatMoneyWithPayUnit is the explicit compensation-oriented spelling used
+// by projections that already call their basis a pay unit.
+func (c LocaleContext) FormatMoneyWithPayUnit(decimal, currency, unit string, fraction int) string {
+	return c.FormatMoneyWithUnit(decimal, currency, unit, fraction)
+}
+
+// Possessive returns a display name in the locale's possessive form. English
+// uses the written-name rule for names ending in s; locales whose profile
+// copy uses an "of <name>" construction keep the name unchanged.
+func (c LocaleContext) Possessive(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
+	}
+	if c.normalized().Resolved == "en-US" {
+		if strings.HasSuffix(strings.ToLower(name), "s") {
+			return name + "'"
+		}
+		return name + "'s"
+	}
+	return name
+}
+
 func (c LocaleContext) Plural(key string, count int64) string {
 	c = c.normalized()
 	n := big.NewRat(count, 1)
@@ -385,6 +460,22 @@ func (c LocaleContext) Plural(key string, count int64) string {
 
 var productMessages = withFeatureMessages(map[string]map[string]localize.Message{
 	"en-US": {
+		// UXBLIND lane P18
+		"page.personas.label": {Text: "Personas"}, "page.personas.title": {Text: "Personas"}, "page.personas.subtitle": {Text: "Review persona lifecycle, reach, and conversation placements."},
+		"persona_admin.eyebrow": {Text: "Agent administration"}, "persona_admin.title": {Text: "Personas"}, "persona_admin.description": {Text: "Review owners, skills, data reach, placements, and lifecycle controls before a persona acts in a conversation."}, "persona_admin.catalog_title": {Text: "Persona catalog"}, "persona_admin.catalog_detail": {Text: "Published versions remain bounded by reviewed skills, audience, and conversation policy."}, "persona_admin.loading": {Text: "Loading persona administration…"}, "persona_admin.unavailable_title": {Text: "Persona administration is unavailable"}, "persona_admin.permission_denied": {Text: "You do not have persona administration permission."}, "persona_admin.service_unavailable": {Text: "The persona service is not connected to this workspace."}, "persona_admin.empty": {Text: "No personas are configured."},
+		"persona_admin.preview_unavailable": {Text: "Access preview could not be loaded. The persona must be published and installed in this conversation, and you must have permission to preview it."},
+		"persona_admin.lifecycle_draft":     {Text: "Draft"}, "persona_admin.lifecycle_in_review": {Text: "In review"}, "persona_admin.lifecycle_published": {Text: "Published"}, "persona_admin.lifecycle_suspended": {Text: "Suspended"}, "persona_admin.lifecycle_retired": {Text: "Retired"}, "persona_admin.version": {Text: "Version"}, "persona_admin.owner": {Text: "Owner"}, "persona_admin.steward": {Text: "Steward"}, "persona_admin.audience": {Text: "Audience"}, "persona_admin.data_reach": {Text: "Derived data reach"}, "persona_admin.limits": {Text: "Limits"}, "persona_admin.skills": {Text: "Pinned skills"}, "persona_admin.placements": {Text: "Conversation placements"}, "persona_admin.not_reported": {Text: "Not reported"}, "persona_admin.no_skills": {Text: "No skills are pinned."}, "persona_admin.no_installations": {Text: "No conversation installations."},
+		"persona_admin.review_step": {Text: "AGENTP-006 review"}, "persona_admin.review_required": {Text: "A separate reviewer must approve this version before publication."}, "persona_admin.evaluation_required": {Text: "Evaluation is required before publication."}, "persona_admin.review_approved": {Text: "Approved by an independent reviewer."}, "persona_admin.review_not_required": {Text: "No publication review is recorded yet."}, "persona_admin.reviewer": {Text: "Reviewer"}, "persona_admin.evaluation": {Text: "Evaluation"}, "persona_admin.review_detail_unavailable": {Text: "Review evidence is not available."}, "persona_admin.approve": {Text: "Approve version"}, "persona_admin.reject": {Text: "Reject version"}, "persona_admin.request_review": {Text: "Request review"}, "persona_admin.publish": {Text: "Publish"}, "persona_admin.rollback": {Text: "Rollback"}, "persona_admin.suspend": {Text: "Suspend"}, "persona_admin.retire": {Text: "Retire"}, "persona_admin.actions_unavailable": {Text: "Actions are unavailable while the service is disconnected."},
+		"persona_admin.preview_title": {Text: "Effective access preview"}, "persona_admin.preview_detail": {Text: "Choose a user and conversation to see the skills and data classes that are effective there."}, "persona_admin.choose_persona": {Text: "Persona"}, "persona_admin.choose_user": {Text: "User"}, "persona_admin.choose_conversation": {Text: "Conversation"}, "persona_admin.placement": {Text: "Reply placement"}, "persona_admin.effective_skills": {Text: "Effective skills"}, "persona_admin.no_effective_skills": {Text: "No effective skills in this context."}, "persona_admin.preview_warnings": {Text: "Preview warnings"}, "persona_admin.no_preview_warnings": {Text: "No additional warnings."}, "persona_admin.preview_server_authorized": {Text: "Preview is filtered by the selected user's current authority."},
+		// UXBLIND lane AC
+		"page.workflow_history.label": {Text: "Workflow history"}, "page.workflow_history.title": {Text: "Workflow history"}, "page.workflow_history.subtitle": {Text: "Review workflow runs you started, joined, or are authorized to see."},
+		"workflow_history.heading": {Text: "Workflow history"}, "workflow_history.description": {Text: "Find authorized workflow runs by type, status, person, requester, or date."}, "workflow_history.export": {Text: "Export history"}, "workflow_history.empty": {Text: "No workflow runs found"}, "workflow_history.empty_detail": {Text: "No authorized workflow runs match these filters."}, "workflow_history.record": {Text: "record"}, "workflow_history.records": {Text: "records"},
+		"workflow_history.search": {Text: "Search history"}, "workflow_history.search_placeholder": {Text: "Search workflow history"}, "workflow_history.workflow": {Text: "Workflow"}, "workflow_history.requester": {Text: "Requester"}, "workflow_history.status": {Text: "Status"}, "workflow_history.person": {Text: "Subject"}, "workflow_history.from": {Text: "Started from"}, "workflow_history.to": {Text: "Started through"}, "workflow_history.sort": {Text: "Sort by"}, "workflow_history.sort_started": {Text: "Started"}, "workflow_history.sort_updated": {Text: "Updated"}, "workflow_history.sort_status": {Text: "Status"}, "workflow_history.apply": {Text: "Apply filters"},
+		"workflow_history.status_all": {Text: "All statuses"}, "workflow_history.status_open": {Text: "In progress"}, "workflow_history.status_review": {Text: "In review"}, "workflow_history.status_waiting": {Text: "Waiting"}, "workflow_history.status_issue": {Text: "Needs attention"}, "workflow_history.status_closed": {Text: "Closed"}, "workflow_history.version": {Text: "Version"}, "workflow_history.participants": {Text: "Participants"}, "workflow_history.stage": {Text: "Stage"}, "workflow_history.started": {Text: "Started"}, "workflow_history.updated": {Text: "Updated"}, "workflow_history.table": {Text: "Workflow history table"}, "workflow_history.pagination": {Text: "Workflow history pages"},
+		// UXBLIND lane UU
+		"journey.profile_link_possessive": {Text: "View {name} profile"}, "journey.back_to_profile_possessive": {Text: "Back to {name} profile"},
+		// UXBLIND lane S
+		"journey.timeline_decision_approved": {Text: "approved"}, "journey.timeline_decision_rejected": {Text: "rejected"}, "journey.timeline_assigned_to": {Text: "Assigned to {assignee}"}, "journey.timeline_decision_reason": {Text: "Reason: {reason}"},
 		"workflow_viewer.publication_status":        {Text: "Publication"},
 		"workflow_viewer.version":                   {Text: "Version"},
 		"workflow_viewer.run_status":                {Text: "Run"},
@@ -465,13 +556,15 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"settings.preferences_group_description":  {Text: "Choose language and accessibility options that follow your account."},
 		"settings.signout_action":                 {Text: "Sign out"},
 		"settings.signout_description":            {Text: "End this session on this device. You can sign in again when you are ready."},
-		"insights.open_work":                      {Text: "Open My Work"}, "insights.visible_label": {Text: "Visible workflows"}, "insights.visible_note": {Text: "Promotion journeys you can view"},
+		"insights.open_work":                      {Text: "Open My Work"}, "insights.visible_label": {Text: "Promotion requests"}, "insights.visible_note": {Text: "Promotion journeys you can view"},
 		"insights.in_progress_label": {Text: "In progress"}, "insights.in_progress_note": {Text: "Requests waiting for a next step"}, "insights.closed_label": {Text: "Completed or closed"}, "insights.closed_note": {Text: "Requests with a final outcome"},
 		"insights.attention_title": {Text: "Your action queue"},
 		"insights.no_data_note":    {Text: "Not enough visible requests to report a count"}, "insights.no_data_title": {Text: "No journeys to summarize in your view"}, "insights.no_data_description": {Text: "Your current access scope contains no visible promotion journeys. This does not establish an organization-wide count; other journeys may be outside your access."}, "insights.start_promotion": {Text: "Find an employee to promote"},
 		"insights.needs_attention": {Text: "Needs attention"}, "insights.context_title": {Text: "About these numbers"}, "insights.time_range_label": {Text: "Period"}, "insights.freshness_label": {Text: "Last updated"}, "insights.source_label": {Text: "Includes"},
 		"insights.empty_context_title": {Text: "About this view"},
 		"insights.time_range_value":    {Text: "Current view; no historical period selected"}, "insights.freshness_value": {Text: "Update time not available"}, "insights.source_value": {Text: "Promotion journeys you can access"},
+		// UXBLIND lane E
+		"insights.workforce_title": {Text: "Workforce snapshot"}, "insights.headcount_by_unit": {Text: "Headcount by unit"}, "insights.headcount_by_location": {Text: "Headcount by location"}, "insights.promotion_throughput": {Text: "Promotion throughput"}, "insights.promotion_cycle_time": {Text: "Average cycle time"}, "insights.cycle_time_unavailable": {Text: "Not reported in this view"}, "insights.cycle_time_days": {Text: "{days} days"},
 
 		"journey.startup_title": {Text: "This page could not start"}, "journey.startup_detail": {Text: "Return to the workspace and try again. If the problem continues, contact your administrator."}, "journey.startup_footer": {Text: "Your request has not been changed."},
 		"journey.actions_unavailable_title": {Text: "Promotion actions are temporarily unavailable"}, "journey.actions_unavailable_detail": {Text: "Your request has not changed. Try again later or contact your administrator."},
@@ -482,7 +575,16 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.worker_number": {Text: "Employee ID"}, "journey.current_job": {Text: "Current role"}, "journey.organization": {Text: "Organization"}, "journey.location": {Text: "Location"}, "journey.current_base": {Text: "Current base pay"}, "journey.form_heading": {Text: "Promotion details"},
 		"journey.form_submit_help": {Text: "We check this request before submission. Nothing changes until the required reviews are complete."}, "journey.required": {Text: "required"},
 		"journey.form_submit": {Text: "Review and submit"}, "journey.form_submit_final": {Text: "Submit proposal"}, "journey.notice_existing_title": {Text: "A promotion is already in progress"}, "journey.notice_existing_detail": {Text: "This employee already has an open promotion, shown here. Edit or withdraw it to make changes."}, "journey.form_confirm_title": {Text: "Check the proposal before you submit"}, "journey.form_worker": {Text: "Employee"}, "journey.form_worker_help": {Text: "Choose an employee you can view. Current role and pay come from their record."}, "journey.form_worker_option": {Text: "Select an employee"},
-		"journey.form_next_role": {Text: "Next role"}, "journey.form_next_role_help": {Text: "Choose a published next role for this employee."}, "journey.form_next_role_option": {Text: "Select a next role"},
+		// UXBLIND lane C
+		"journey.form_save": {Text: "Save proposal"},
+		// UXBLIND lane D
+		"journey.timeline_note": {Text: "Note added"}, "journey.action_current_pay": {Text: "Current pay"}, "journey.action_change": {Text: "Change"},
+		"journey.finance_annualized_cost": {Text: "Annualized cost increase"}, "journey.finance_in_year_cost": {Text: "Increase in this calendar year"}, "journey.finance_budget_line": {Text: "Budget line"}, "journey.finance_budget_unavailable": {Text: "Budget line not reported"},
+		"journey.iv_cancel_desc_plain":      {Text: "Requests that this promotion stop before it takes effect. If it has already taken effect, it will finish instead."},
+		"journey.action_keep_request":       {Text: "Keep request"},
+		"journey.form_allowed_base_amounts": {Text: "Allowed proposed base-pay range: {minimum} to {maximum} per year."},
+		"journey.finding_budget_checked":    {Text: "The system checked the current budget baseline. Funds are reserved only when the promotion is recorded."},
+		"journey.form_next_role":            {Text: "Next role"}, "journey.form_next_role_help": {Text: "Choose a published next role for this employee."}, "journey.form_next_role_option": {Text: "Select a next role"},
 		"journey.form_grade": {Text: "Target grade"}, "journey.form_grade_help": {Text: "Choose a grade published for the selected role."}, "journey.form_grade_option": {Text: "Select a target grade"},
 		"journey.form_position": {Text: "Target position (optional)"}, "journey.form_position_help": {Text: "Every position listed is open and cleared for you to target. Leave it unchosen to propose the move without naming a position."}, "journey.form_position_none": {Text: "No open position to target"}, "journey.form_position_none_help": {Text: "Nothing open matches this role right now. You can still propose the promotion; a position has to be confirmed before it takes effect."},
 		"journey.form_base": {Text: "Proposed base pay"}, "journey.form_base_help": {Text: "Enter the proposed annual base pay in the employee's currency. The request is checked against the available budget."}, "journey.form_base_year": {Text: "per year"}, "journey.form_base_hour": {Text: "per hour"}, "journey.form_base_help_hourly": {Text: "Enter the proposed hourly rate in the employee's currency. The request is checked against the available budget."}, "journey.form_base_amounts_hourly": {Text: "Available rate range: {minimum} to {maximum} per hour."}, "journey.pay_per_hour": {Text: "{amount}/hr"},
@@ -528,6 +630,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.effective_window_heading": {Text: "Effective window"}, "journey.cycle_opens": {Text: "Cycle opens"}, "journey.takes_effect": {Text: "Takes effect"}, "journey.current_as_of": {Text: "Information current as of"}, "journey.effective_window_note": {Text: "These details show what reviewers saw at that time. Later corrections appear in history and do not rewrite this decision."},
 		"journey.effective_date_fallback": {Text: "the effective date"}, "journey.outcome_waiting": {Text: "Approvals are complete. Final checks follow on {date} before the promotion outcome is recorded."}, "journey.outcome_manager": {Text: "No employee record has changed yet. The manager review and effective-date checks must finish first."}, "journey.outcome_finance": {Text: "No employee record has changed yet. Finance and manager reviews must finish before the effective-date checks."}, "journey.outcome_blocked": {Text: "The employee record was not changed. Review the status and checks above to understand what needs attention."}, "journey.outcome_default": {Text: "No employee record has changed yet. Complete the remaining reviews and effective-date checks to finish this promotion."},
 		"journey.outcome_heading": {Text: "Recorded outcome"}, "journey.outcome_pending_heading": {Text: "What happens next"}, "journey.outcome_result": {Text: "Result"}, "journey.outcome_recorded": {Text: "Promotion outcome recorded"}, "journey.outcome_not_recorded": {Text: "Promotion not recorded"}, "journey.outcome_recorded_at": {Text: "Outcome recorded"},
+		// UXBLIND lane k-uxlive-4
+		"journey.outcome_reason_multiple": {Text: "The promotion stopped because these blocking checks were not met."}, "journey.outcome_reason_unavailable": {Text: "The promotion stopped at this stage; the available checks do not provide a permitted recovery detail."}, "journey.outcome_reason_budget": {Text: "The approved budget observed for this promotion is insufficient."}, "journey.outcome_reason_next": {Text: "Review the blocking checks and correct the proposal if the workflow permits it."}, "journey.outcome_reason_repair": {Text: "A governed repair is required; no further action is permitted from this page."}, "journey.progress_active": {Text: "The workflow is running the {phase} phase."}, "journey.progress_retrying": {Text: "The {phase} phase is retrying automatically."}, "journey.progress_delayed": {Text: "The {phase} phase is waiting; the workflow will check again automatically."}, "journey.progress_repair": {Text: "The {phase} phase needs governed repair."}, "journey.progress_next": {Text: "The workflow will continue automatically after this check."}, "journey.progress_last": {Text: "Last progress"},
 		"journey.actions_history": {Text: "Actions and history"}, "journey.history_heading": {Text: "History"}, "journey.timeline_by": {Text: "by {actor}"}, "journey.timeline_system": {Text: "System"}, "journey.timeline_reviewer": {Text: "Authorized reviewer"}, "journey.timeline_requested": {Text: "Promotion requested"}, "journey.timeline_checked": {Text: "Proposal checks completed"}, "journey.timeline_started": {Text: "Approval process started"}, "journey.timeline_recorded": {Text: "Promotion recorded"}, "journey.timeline_ended": {Text: "Request ended"}, "journey.timeline_ended_detail": {Text: "The request ended without changing the employee record."}, "journey.timeline_assigned": {Text: "Approval assigned"}, "journey.timeline_review_started": {Text: "Review started"}, "journey.timeline_approved": {Text: "Approval completed"}, "journey.timeline_cancelled": {Text: "Approval cancelled"}, "journey.timeline_expired": {Text: "Approval expired"},
 		"journey.action_start": {Text: "Start approval workflow"}, "journey.action_start_description": {Text: "Review the proposal, then start its approval workflow. Required approvals and final checks still apply; starting does not record the promotion."}, "journey.action_start_note": {Text: "Starting sends the proposal through its required approvals. It does not record the promotion yet."}, "journey.action_start_blocked_description": {Text: "Start the approval workflow after the proposal passes its required checks."}, "journey.action_start_blocked_reason": {Text: "This proposal cannot start yet. Resolve the highlighted checks, then submit an updated request."},
 		"journey.action_preparing": {Text: "Preparing approval"}, "journey.action_preparing_description": {Text: "The approval is being assigned to a reviewer."}, "journey.action_preparing_reason": {Text: "You can decide once the approval is assigned and ready."},
@@ -551,6 +655,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.context_navigation": {Text: "Journey context"}, "journey.back_employee": {Text: "Back to employee"}, "journey.view_all": {Text: "View all promotion journeys"}, "journey.diagnostics_heading": {Text: "System diagnostics"},
 		"journey.support_details": {Text: "Support details"}, "journey.support_reference": {Text: "Support reference"}, "journey.support_reference_help": {Text: "Select and copy this reference if you contact support."},
 		"journey.footer": {Text: "These details reflect the latest information available to you. Missing values are never estimated."}, "journey.section_title": {Text: "Requests"}, "journey.count_one": {Text: "1 request"}, "journey.count_many": {Text: "{count} requests"}, "journey.open_request": {Text: "Open request"}, "journey.effective": {Text: "Effective"}, "journey.updated": {Text: "Updated"}, "journey.empty_title": {Text: "No journeys to track"},
+		// UXBLIND lane k-uxlive-5
+		"journey.card_action_start": {Text: "Start approval"}, "journey.card_action_correct": {Text: "Correct proposal"}, "journey.card_action_complete": {Text: "Complete approval"}, "journey.card_action_track": {Text: "Track request"}, "journey.card_action_review": {Text: "Review decision"}, "journey.card_action_review_request": {Text: "Review request"}, "journey.position_identity": {Text: "Position"}, "journey.position_unavailable": {Text: "Position unavailable"}, "journey.position_withheld": {Text: "Position not shown"}, "journey.position_reference": {Text: "Position code"},
 		"journey.group.review": {Text: "In review"}, "journey.group.waiting": {Text: "Waiting for next step"}, "journey.group.issue": {Text: "Needs follow-up"}, "journey.group.closed": {Text: "Closed requests"}, "journey.group.other": {Text: "Other requests"},
 		"admin.eyebrow": {Text: "Administration"}, "admin.available": {Text: "Available"}, "admin.unavailable": {Text: "Unavailable"},
 		"admin.roles_description": {Text: "Create roles, assign them to employees, and choose the access each role grants."}, "admin.roles_action": {Text: "Manage roles"},
@@ -631,6 +737,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"global_search.closed":         {Text: "Closed {value}"}, "global_search.effective": {Text: "Effective {value}"},
 
 		"action_launcher.trigger": {Text: "Jump to"}, "action_launcher.dialog_title": {Text: "Start an action"}, "action_launcher.navigate_trigger": {Text: "Go to"}, "action_launcher.filter_label": {Text: "Search authorized actions or employees"}, "action_launcher.filter_placeholder": {Text: "Search actions or employees"}, "action_launcher.empty_title": {Text: "No actions available"}, "action_launcher.empty_description": {Text: "No authorized action is available for this identity right now."},
+		// UXBLIND lane O
+		"action_launcher.actions_filter_label": {Text: "Search authorized actions"}, "action_launcher.actions_filter_placeholder": {Text: "Search actions"},
 		"shell.work_overview": {Text: "Work overview"},
 		"shell.open_work":     {Text: "Open My Work"},
 		"shell.acting_self":   {Text: "Acting as yourself"}, "context_switcher.label": {Text: "Workspace context"}, "context_switcher.tenant": {Text: "Tenant"}, "context_switcher.acting": {Text: "Acting authority"}, "context_switcher.current_unknown": {Text: "Current context unavailable"}, "context_switcher.loading": {Text: "Loading authorized contexts…"}, "context_switcher.ready": {Text: "Choose an authorized context"}, "context_switcher.empty": {Text: "No other authorized contexts are available."}, "context_switcher.current": {Text: "Current"}, "context_switcher.delegated_by": {Text: "delegated by {name}"}, "context_switcher.expires": {Text: "expires {date}"},
@@ -678,7 +786,9 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"nav.favorite_add": {Text: "Add {label} to favorites"}, "nav.favorite_remove": {Text: "Remove {label} from favorites"},
 		"nav.work_queue": {Text: "Work queue"}, "nav.admin_overview": {Text: "Admin overview"}, "nav.overview": {Text: "Overview"},
 		"page.home.label": {Text: "Home"}, "page.home.title": {Text: "Home"}, "page.home.subtitle": {Text: "Review live requests and keep your work moving."},
-		"page.home.greeting":   {Text: "Good morning, {name}."},
+		"page.home.greeting": {Text: "Good morning, {name}."},
+		// UXBLIND lane E
+		"page.home.greeting.morning": {Text: "Good morning, {name}."}, "page.home.greeting.afternoon": {Text: "Good afternoon, {name}."}, "page.home.greeting.evening": {Text: "Good evening, {name}."},
 		"home.attention_title": {Text: "Needs your attention"}, "home.activity_title": {Text: "Current activity"}, "home.activity_scope": {Text: "Your assigned work and records visible to you."}, "home.start_title": {Text: "Start a request"},
 		"home.empty_title": {Text: "No work in progress"}, "home.empty_detail": {Text: "New assignments, saved drafts, and requests you follow will appear here."},
 		"home.following": {Text: "Requests you started"}, "home.exceptions": {Text: "Stopped with a problem"}, "home.in_progress": {Text: "In progress"}, "home.group_your_work": {Text: "Your work"}, "home.group_requests": {Text: "Requests you can see"}, "home.group_people": {Text: "People you can see"}, "home.recent_requests_title": {Text: "Recent requests"}, "home.row_updated": {Text: "Updated {date}"}, "workflow.promotion_in_progress_title": {Text: "Promotion in progress"}, "home.recent_requests_description": {Text: "Open requests you can see, most recently changed first."}, "home.eligible_workers": {Text: "Eligible for promotion"}, "home.exceptions_title": {Text: "Requests with problems"}, "home.exceptions_description": {Text: "These requests stopped: the proposal is blocked, the run failed, or a repair is required."}, "home.exceptions_view_all": {Text: "Open in Journeys"},
@@ -691,13 +801,45 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"home.recent_completed_title": {Text: "Recently completed"}, "home.recent_completed_empty_title": {Text: "No completed journeys"}, "home.recent_completed_empty_detail": {Text: "Completed or rejected journeys will appear here after the server records them."},
 		"home.needs_action": {Text: "Your actions"}, "home.tracked_waiting": {Text: "Your tracked requests and waits"}, "home.closed": {Text: "Completed or closed"}, "home.visible_workers": {Text: "Visible workers"},
 		"home.action_promote": {Text: "Choose an employee to promote"}, "home.action_find": {Text: "Find an employee"}, "home.action_profile": {Text: "Open my profile"}, "home.action_time_off": {Text: "Request time off"}, "home.action_pay_statement": {Text: "View pay statement"},
-		"page.myself.label": {Text: "Myself"}, "page.myself.title": {Text: "Myself"}, "page.myself.subtitle": {Text: "Your employment, organization, payroll, and workflow information."},
+		"page.myself.label": {Text: "Myself"}, "page.myself.title": {Text: "Myself"}, "page.myself.subtitle": {Text: "Your employment, organization, and available workflow information."},
 		"page.journeys.label": {Text: "Journeys"}, "page.journeys.title": {Text: "Journeys"}, "page.journeys.subtitle": {Text: "Start, follow, and complete governed employee workflows."},
+		// UXBLIND lane XX
+		// UXBLIND lane AJ
+		"workflow_start.start_action": {Text: "Start {workflow}"}, "workflow_start.favorite_add": {Text: "Add to favourites"}, "workflow_start.favorite_remove": {Text: "Remove from favourites"},
+		"page.workflow_start.label": {Text: "Workflows"}, "page.workflow_start.title": {Text: "Start a workflow"}, "page.workflow_start.subtitle": {Text: "Find and start governed workflows."},
+		"workflow_start.eyebrow": {Text: "Workflow center"}, "workflow_start.title": {Text: "Start a workflow"}, "workflow_start.description": {Text: "Find the right governed workflow for your work."}, "workflow_start.search_label": {Text: "Search workflows"}, "workflow_start.search_placeholder": {Text: "Search by workflow name, keyword, or category"}, "workflow_start.result_count": {Text: "{count} workflows"}, "workflow_start.favorites": {Text: "Favourites"}, "workflow_start.recent": {Text: "Recently started"}, "workflow_start.catalog_label": {Text: "Available workflows"}, "workflow_start.uncategorized": {Text: "Other"}, "workflow_start.empty_title": {Text: "No workflow is available to you"}, "workflow_start.empty_detail": {Text: "No workflows have been published in this workspace yet, so there is nothing to start."}, "workflow_start.empty_detail_designer": {Text: "No workflow is published and active in this workspace yet. Publish one in the Workflow Designer and it will appear here."}, "workflow_start.not_found_title": {Text: "Workflow not found"}, "workflow_start.not_found_detail": {Text: "This link does not identify a workflow available in your workspace."}, "workflow_start.unavailable_title": {Text: "This workflow cannot be started"}, "workflow_start.unavailable_detail": {Text: "{reason}. Ask your HR or workspace administrator for help."}, "workflow_start.unavailable_detail_designer": {Text: "{reason}. Review the workflow and your role grants in the Workflow Designer and Roles pages."}, "workflow_start.availability_available": {Text: "Available"}, "workflow_start.availability_no_capability": {Text: "You do not have the required access"}, "workflow_start.availability_missing_authority": {Text: "Additional authority is required"}, "workflow_start.availability_missing_prerequisite": {Text: "Required information is not ready"}, "workflow_start.availability_quarantined": {Text: "This version is temporarily unavailable"}, "workflow_start.start": {Text: "Start"}, "workflow_start.favorite": {Text: "Save as favourite"},
 		"page.chat.label": {Text: "Chat"}, "page.chat.title": {Text: "Chat"}, "page.chat.subtitle": {Text: "Talk with coworkers in authorized channels and conversations."},
-		"page.docs.label": {Text: "Docs"}, "page.docs.title": {Text: "Documents"}, "page.docs.subtitle": {Text: "Browse documents you are authorized to read."},
+		// UXBLIND lane A11
+		"page.agents.label": {Text: "Agents"}, "page.agents.title": {Text: "Agents"}, "page.agents.subtitle": {Text: "Talk with your agents and follow work they are doing for you."},
+		"agents.page_title": {Text: "Your agents"}, "agents.page_subtitle": {Text: "Start quick answers or follow long-running work done on your behalf."}, "agents.available": {Text: "Agents"}, "agents.sidebar": {Text: "Agent conversations"}, "agents.conversations": {Text: "Agent conversations"}, "agents.threads": {Text: "Threads"}, "agents.agent_identity": {Text: "Agent"}, "agents.acting_for_you": {Text: "Acting for you"}, "agents.skills_used": {Text: "Skills used"}, "agents.no_agents": {Text: "No agents are available for your account."}, "agents.no_threads": {Text: "No agent conversations yet."}, "agents.tasks": {Text: "Tasks"}, "agents.no_tasks": {Text: "No tasks yet."}, "agents.open_task": {Text: "Open task"}, "agents.composer": {Text: "Start work with an agent"}, "agents.composer_label": {Text: "What would you like your agent to do?"}, "agents.composer_placeholder": {Text: "Ask a quick question or describe a longer task"}, "agents.composer_help": {Text: "Long tasks show their plan, progress and approvals here."}, "agents.quick_answer": {Text: "Quick answer"}, "agents.start_task": {Text: "Start long task"}, "agents.unavailable_title": {Text: "Agents are not available yet"}, "agents.unavailable_detail": {Text: "The agent service is not connected to this workspace. Your conversations and tasks will appear here when it is available."}, "agents.task_view": {Text: "Task details"}, "agents.confirmed_plan": {Text: "Confirmed plan"}, "agents.live_step": {Text: "Live step"}, "agents.budget_used": {Text: "Budget used: {used} of {limit}"}, "agents.checkpoints": {Text: "Checkpoints"}, "agents.artifacts": {Text: "Artifacts"}, "agents.approvals": {Text: "Pending approvals"}, "agents.submitted_intents": {Text: "Submitted intents"}, "agents.sources": {Text: "Sources"}, "agents.plan_revision": {Text: "Plan revision {revision}"}, "agents.pause": {Text: "Pause"}, "agents.resume": {Text: "Resume"}, "agents.cancel": {Text: "Cancel"}, "agents.extend_budget": {Text: "Extend budget"},
+		"agents.answer":          {Text: "Answer"},
+		"agents.state.cancelled": {Text: "Cancelled"}, "agents.state.expired": {Text: "Expired"}, "agents.state.unknown": {Text: "Status unavailable"},
+		"agents.state.drafting": {Text: "Drafting"}, "agents.state.awaiting_plan_confirmation": {Text: "Awaiting plan confirmation"}, "agents.state.waiting": {Text: "Waiting"},
+		"agents.confirm_plan": {Text: "Confirm plan"}, "agents.proposed_plan": {Text: "Plan to review"},
+		"agents.control_working": {Text: "Updating task…"}, "agents.control_done": {Text: "Task updated."},
+		"agents.control_conflict":             {Text: "The task changed. Refresh the page before trying again."},
+		"agents.control_denied":               {Text: "You no longer have permission to update this task."},
+		"agents.control_disabled":             {Text: "Agents are turned off for your organization."},
+		"agents.control_failed":               {Text: "The task could not be updated. Try again."},
+		"agents.step_state.observed":          {Text: "Checked"},
+		"agents.step_state.awaiting_approval": {Text: "Waiting for approval"},
+		"agents.step_state.pending":           {Text: "Pending"},
+		"agents.step_state.running":           {Text: "In progress"},
+		"agents.step_state.completed":         {Text: "Completed"},
+		"agents.step_state.failed":            {Text: "Failed"},
+		"agents.tier.read":                    {Text: "Read information"},
+		"agents.tier.private_draft":           {Text: "Prepare a private draft"},
+		"agents.tier.communicate":             {Text: "Send a message"},
+		"agents.tier.submit_governed":         {Text: "Submit for approval"},
+		"agents.tier.external_write":          {Text: "Update an external system"},
+		"agents.tier.unknown":                 {Text: "Action type unavailable"},
+		"agents.state.running":                {Text: "Running"}, "agents.state.awaiting_approval": {Text: "Awaiting approval"}, "agents.state.awaiting_input": {Text: "Awaiting input"}, "agents.state.paused": {Text: "Paused"}, "agents.state.completed": {Text: "Completed"}, "agents.state.failed": {Text: "Failed"},
+		// UXBLIND-122: composer status copy (en-US)
+		"agents.start_working": {Text: "Starting your task..."}, "agents.start_done": {Text: "Task started. Loading it now."}, "agents.start_empty": {Text: "Describe what you would like the agent to do first."}, "agents.start_disabled": {Text: "Agents are turned off for your organization."}, "agents.start_denied": {Text: "You are not allowed to start agent tasks."}, "agents.start_failed": {Text: "The task could not be started. Try again."},
+		"page.docs.label": {Text: "Documents"}, "page.docs.title": {Text: "Documents"}, "page.docs.subtitle": {Text: "Browse documents you are authorized to read."},
 
 		"page.work.label": {Text: "My Work"}, "page.work.title": {Text: "My Work"}, "page.work.subtitle": {Text: "Decisions and tasks assigned to you. Track requests you can see in Journeys."},
-		"page.history.label": {Text: "Work History"}, "page.history.title": {Text: "Workflow History"}, "page.history.subtitle": {Text: "Review completed, rejected, and failed workflow records."},
+		"page.history.label": {Text: "Work History"}, "page.history.title": {Text: "Work History"}, "page.history.subtitle": {Text: "Review completed, rejected, and failed workflow records."},
 		"page.people.label": {Text: "People"}, "page.people.title": {Text: "People"}, "page.people.subtitle": {Text: "People you're authorized to view across the organization."},
 		"page.person.label": {Text: "Person"}, "page.person.title": {Text: "Person profile"}, "page.person.subtitle": {Text: "Worker facts and available governed workflows."},
 		"page.headcount.label": {Text: "Headcount"}, "page.headcount.title": {Text: "Headcount requests"}, "page.headcount.subtitle": {Text: "Request headcount through the governed requisition service."},
@@ -724,16 +866,16 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"onboarding_tasks.unavailable_title": {Text: "Onboarding tasks unavailable"}, "onboarding_tasks.unavailable_detail": {Text: "Completing onboarding tasks requires the governed onboarding service, which is not published yet. Completion stays server authority and the UI will not simulate it."}, "onboarding_tasks.return_home": {Text: "Return to live workspace"},
 		"page.activation_readiness.label": {Text: "Activation readiness"}, "page.activation_readiness.title": {Text: "Worker-activation readiness"}, "page.activation_readiness.subtitle": {Text: "Prove workers ready to activate through the governed activation service."},
 		"activation_readiness.unavailable_title": {Text: "Activation readiness unavailable"}, "activation_readiness.unavailable_detail": {Text: "Proving a worker ready to activate requires the governed activation service, which is not published yet. Activation stays server authority and the UI will not simulate it."}, "activation_readiness.return_home": {Text: "Return to live workspace"},
-		"page.time_hub.label": {Text: "Time hub"}, "page.time_hub.title": {Text: "Employee time hub"}, "page.time_hub.subtitle": {Text: "Balances, requests, and leave cases from the governed time service."},
-		"time_hub.unavailable_title": {Text: "Time hub unavailable"}, "time_hub.unavailable_detail": {Text: "Balances, requests, and leave cases require the governed time service, which is not published yet. Time truth stays server authority and the UI will not simulate it."}, "time_hub.return_home": {Text: "Return to live workspace"},
-		"page.time_entry.label": {Text: "Time entry"}, "page.time_entry.title": {Text: "Accessible time entry"}, "page.time_entry.subtitle": {Text: "Record hours worked through the governed time service."},
-		"time_entry.unavailable_title": {Text: "Time entry unavailable"}, "time_entry.unavailable_detail": {Text: "Recording hours worked requires the governed time service, which is not published yet. Time truth stays server authority and the UI will not simulate it."}, "time_entry.return_home": {Text: "Return to live workspace"},
-		"page.time_correction.label": {Text: "Time correction"}, "page.time_correction.title": {Text: "Time correction"}, "page.time_correction.subtitle": {Text: "Fix recorded time through the governed time service."},
-		"time_correction.unavailable_title": {Text: "Time correction unavailable"}, "time_correction.unavailable_detail": {Text: "Fixing recorded time requires the governed time service, which is not published yet. Time truth stays server authority and the UI will not simulate it."}, "time_correction.return_home": {Text: "Return to live workspace"},
-		"page.time_approval.label": {Text: "Time approval"}, "page.time_approval.title": {Text: "Manager time approval"}, "page.time_approval.subtitle": {Text: "Approve team time through the governed time service."},
-		"time_approval.unavailable_title": {Text: "Time approval unavailable"}, "time_approval.unavailable_detail": {Text: "Approving team time requires the governed time service, which is not published yet. Approval stays server authority and the UI will not simulate it."}, "time_approval.return_home": {Text: "Return to live workspace"},
-		"page.time_exceptions.label": {Text: "Time exceptions"}, "page.time_exceptions.title": {Text: "Time-exception workbench"}, "page.time_exceptions.subtitle": {Text: "Resolve time exceptions through the governed time service."},
-		"time_exceptions.unavailable_title": {Text: "Time exceptions unavailable"}, "time_exceptions.unavailable_detail": {Text: "Resolving time exceptions requires the governed time service, which is not published yet. Resolution stays server authority and the UI will not simulate it."}, "time_exceptions.return_home": {Text: "Return to live workspace"},
+		"page.time_hub.label": {Text: "Time hub"}, "page.time_hub.title": {Text: "Employee time hub"}, "page.time_hub.subtitle": {Text: "See your time balances, requests and leave."},
+		"time_hub.unavailable_title": {Text: "Time hub unavailable"}, "time_hub.unavailable_detail": {Text: "Your time balances and requests are not available yet. Nothing has been changed. Check back soon, or ask your supervisor."}, "time_hub.return_home": {Text: "Go to Home"},
+		"page.time_entry.label": {Text: "Time entry"}, "page.time_entry.title": {Text: "Accessible time entry"}, "page.time_entry.subtitle": {Text: "Enter the hours you worked."},
+		"time_entry.unavailable_title": {Text: "Time entry unavailable"}, "time_entry.unavailable_detail": {Text: "Entering hours is not available yet. Your time has not been changed. Use the time clock to record your hours for now."}, "time_entry.return_home": {Text: "Go to Home"},
+		"page.time_correction.label": {Text: "Time correction"}, "page.time_correction.title": {Text: "Time correction"}, "page.time_correction.subtitle": {Text: "Fix time that was recorded wrong."},
+		"time_correction.unavailable_title": {Text: "Time correction unavailable"}, "time_correction.unavailable_detail": {Text: "Correcting recorded time is not available yet. Nothing has been changed. Ask your supervisor to fix the entry for you."}, "time_correction.return_home": {Text: "Go to Home"},
+		"page.time_approval.label": {Text: "Time approval"}, "page.time_approval.title": {Text: "Manager time approval"}, "page.time_approval.subtitle": {Text: "Review and approve your crew's hours."},
+		"time_approval.unavailable_title": {Text: "Time approval unavailable"}, "time_approval.unavailable_detail": {Text: "Approving timecards is not available yet. Nothing has been approved. Check back soon."}, "time_approval.return_home": {Text: "Go to Home"},
+		"page.time_exceptions.label": {Text: "Time exceptions"}, "page.time_exceptions.title": {Text: "Time-exception workbench"}, "page.time_exceptions.subtitle": {Text: "Fix punches that do not match the schedule."},
+		"time_exceptions.unavailable_title": {Text: "Time exceptions unavailable"}, "time_exceptions.unavailable_detail": {Text: "Time exceptions are not available yet. Nothing has been changed. Check back soon."}, "time_exceptions.return_home": {Text: "Go to Home"},
 		"page.time_off.label": {Text: "Time off"}, "page.time_off.title": {Text: "Time-off balance and calendar"}, "page.time_off.subtitle": {Text: "Balances and calendar from the governed time service."},
 		"time_off.unavailable_title": {Text: "Time off unavailable"}, "time_off.unavailable_detail": {Text: "Balances and calendar require the governed time service, which is not published yet. Time truth stays server authority and the UI will not simulate it."}, "time_off.return_home": {Text: "Return to live workspace"},
 		"page.time_off_request.label": {Text: "Request time off"}, "page.time_off_request.title": {Text: "Time-off request journey"}, "page.time_off_request.subtitle": {Text: "Ask for time off through the governed time service."},
@@ -937,7 +1079,7 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"organization.structure_title": {Text: "Workforce by organization"}, "organization.structure_description": {Text: "Expand a team to browse its people, or follow reporting lines. Select a person to open their profile. Only people you can access are shown."}, "organization.view_label": {Text: "Organization view"}, "organization.view_flat": {Text: "By team"}, "organization.view_tree": {Text: "Reporting lines"}, "organization.empty_title": {Text: "No organization members to show"}, "organization.empty_description": {Text: "No employees are visible to you in this organization right now. If you expect to see people here, ask your administrator to check your access."},
 		"organization.tree_label": {Text: "Reporting lines"}, "organization.reports_to": {Text: "Reports to %s"},
 		"organization.relationship_undetermined": {Text: "The manager relationship for this person could not be confirmed."}, "organization.relationship_ambiguous": {Text: "More than one manager is on record for this person, so no single manager could be shown."}, "organization.relationship_stale": {Text: "The manager relationship for this person could not be confirmed as current."}, "organization.relationship_disagreeing": {Text: "The manager relationship record for this person is inconsistent and could not be shown."}, "organization.manager_withheld": {Text: "The manager for this person is not shown to you."}, "organization.manager_not_visible": {Text: "The manager for this person is not visible to you."}, "organization.relationship_cycle": {Text: "A reporting-line loop was found for this person, so it could not be shown here."},
-		"page.insights.label": {Text: "Insights"}, "page.insights.title": {Text: "Insights"}, "page.insights.subtitle": {Text: "Operational counts derived from live journey states."}, "insights.attention_description": {Text: "This summary covers promotion journeys you can view. Broader workforce reporting is not available yet."}, "insights.attention_queue_detail": {Text: "Decisions and next steps currently assigned to you."},
+		"page.insights.label": {Text: "Insights"}, "page.insights.title": {Text: "Insights"}, "page.insights.subtitle": {Text: "Operational counts derived from live journey states."}, "insights.attention_description": {Text: "This summary covers promotion journeys you can view; the workforce snapshot below adds headcount by unit and location."}, "insights.attention_queue_detail": {Text: "Decisions and next steps currently assigned to you."},
 		"page.admin.label": {Text: "Admin"}, "page.admin.title": {Text: "Admin"}, "admin.journeys_unavailable_reason": {Text: "Journey actions aren't available right now because the connection didn't respond. Try refreshing the page."}, "admin.studio_unavailable_reason": {Text: "Page configuration isn't available for your organization yet."}, "page.admin.subtitle": {Text: "Published service capabilities and configuration availability."}, "admin.hero_eyebrow": {Text: "Administration"}, "admin.hero_description": {Text: "Manage available settings and see what is planned for this workspace."}, "admin.planned": {Text: "Planned"}, "admin.journey_card_description": {Text: "Promotion journeys and the workers you can see are loaded live from your organization's data."}, "admin.studio_card_description": {Text: "Experience configuration isn't available for your organization yet."},
 		"organization.relationship_withheld": {Text: "This person has a manager outside the organization view available to you."},
 		"organization.relationship_orphan":   {Text: "This reporting line cannot be connected to a person in the current directory."},
@@ -945,7 +1087,7 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"organization.selected_person":       {Text: " — selected"},
 		"organization.employee_details":      {Text: "Employee details"},
 		"organization.employee_details_for":  {Text: "Employee details for {name}"},
-		"page.worker_ids.label":              {Text: "Worker IDs"}, "page.worker_ids.title": {Text: "Worker ID rules"}, "page.worker_ids.subtitle": {Text: "Configure how this organization issues unique worker numbers."},
+		"page.worker_ids.label":              {Text: "Worker IDs"}, "page.worker_ids.title": {Text: "Worker IDs"}, "page.worker_ids.subtitle": {Text: "Configure how this organization issues unique worker numbers."},
 		"page.roles.label": {Text: "Roles & access"}, "page.roles.title": {Text: "Roles & access"}, "page.roles.subtitle": {Text: "Create roles and assign one or more roles across the workforce."},
 		"roles.sections":               {Text: "Roles page sections"},
 		"roles.effective_boundary":     {Text: "This directory shows explicit role assignments, not a worker's effective access. Page permissions and organization scope are enforced by the server."},
@@ -964,23 +1106,25 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"roles.column_action":   {Text: "Action"},
 		"roles.create":          {Text: "Create a role"}, "roles.role_id": {Text: "Role ID"}, "roles.role_id_help": {Text: "Lowercase letters, digits, and underscores."}, "roles.display_name": {Text: "Display name"}, "roles.description_label": {Text: "Description"}, "roles.create_action": {Text: "Create role"}, "roles.status": {Text: "Role changes are version checked."}, "roles.assigned_roles": {Text: "Assigned roles"}, "roles.save_employee": {Text: "Save employee roles"}, "roles.at_least_one": {Text: "At least one role is required."},
 		"roles.per_worker_guidance":          {Text: "Role changes are saved per worker and validated by the server."},
-		"roles.no_explicit_assignment":       {Text: "No explicit assignment"},
+		"roles.no_explicit_assignment":       {Text: "No effective role was provided"},
 		"workflow.no_promotion_path":         {Text: "No eligible promotion role is published for this employee. Ask your HR administrator to review the job ladder and pay band."},
 		"workflow.promotion_active_conflict": {Text: "This employee already has an active promotion in progress. Open it instead of starting a new one."},
 		"workflow.promotion_name":            {Text: "Promotion"}, "workflow.promotion_category": {Text: "Career & compensation"}, "workflow.promotion_description": {Text: "Request a change to job, grade, position, or compensation."},
 		"workflow.promotion_withheld": {Text: "Starting a promotion requires authority this session does not have."},
-		"help.choose_employee":        {Text: "Choose an employee and review their workflow options"},
-		"help.review_requests":        {Text: "Review promotion requests and their progress"},
-		"help.past_decisions":         {Text: "Review past decisions in workflow history"},
-		"help.account_settings":       {Text: "Review your account and preferences"},
-		"help.tasks":                  {Text: "What would you like to do?"},
-		"help.my_profile":             {Text: "View your employment, pay and workflow history"},
-		"help.organization":           {Text: "Explore your visible organization and reporting lines"},
-		"help.access_title":           {Text: "Need access or a change to your record?"},
-		"help.access_detail":          {Text: "Your assigned roles determine which pages and actions are available. If you need to request a change and no workflow is available, contact your HR administrator through your usual company channel. Employment and pay records cannot be edited directly here. Support tickets cannot be submitted from this workspace."},
-		"help.promotion_title":        {Text: "Promotion setup and support"},
-		"help.promotion_detail":       {Text: "An empty promotion role selector can mean no eligible next job is published for the employee's current job and grade. Ask your HR administrator to check the job ladder and target pay band. Changing access roles does not create a promotion path. Support tickets cannot be submitted from this workspace."},
-		"help.open":                   {Text: "Open"}, "help.hub_title": {Text: "Find help for your task"}, "help.category_answer": {Text: "Find an answer"}, "help.category_hr": {Text: "Request HR support"}, "help.category_confidential": {Text: "Escalate a sensitive concern"}, "help.category_track": {Text: "Track a submitted request"},
+		// UXBLIND lane B
+		"workflow.promotion_self_subject": {Text: "You cannot start a promotion for your own employee record."},
+		"help.choose_employee":            {Text: "Choose an employee and review their workflow options"},
+		"help.review_requests":            {Text: "Review promotion requests and their progress"},
+		"help.past_decisions":             {Text: "Review past decisions in workflow history"},
+		"help.account_settings":           {Text: "Review your account and preferences"},
+		"help.tasks":                      {Text: "What would you like to do?"},
+		"help.my_profile":                 {Text: "View your employment, pay and workflow history"},
+		"help.organization":               {Text: "Explore your visible organization and reporting lines"},
+		"help.access_title":               {Text: "Need access or a change to your record?"},
+		"help.access_detail":              {Text: "Your assigned roles determine which pages and actions are available. If you need to request a change and no workflow is available, contact your HR administrator through your usual company channel. Employment and pay records cannot be edited directly here. Support tickets cannot be submitted from this workspace."},
+		"help.promotion_title":            {Text: "Promotion setup and support"},
+		"help.promotion_detail":           {Text: "An empty promotion role selector can mean no eligible next job is published for the employee's current job and grade. Ask your HR administrator to check the job ladder and target pay band. Changing access roles does not create a promotion path. Support tickets cannot be submitted from this workspace."},
+		"help.open":                       {Text: "Open"}, "help.hub_title": {Text: "Find help for your task"}, "help.category_answer": {Text: "Find an answer"}, "help.category_hr": {Text: "Request HR support"}, "help.category_confidential": {Text: "Escalate a sensitive concern"}, "help.category_track": {Text: "Track a submitted request"},
 		"hr_request.category_label": {Text: "What do you need help with?"}, "hr_request.details_label": {Text: "Describe the request"}, "hr_request.category_placeholder": {Text: "Choose a support category"}, "hr_request.details_placeholder": {Text: "Include the outcome you need and any relevant dates."}, "hr_request.submit": {Text: "Review request"}, "hr_request.pay_benefits": {Text: "Pay and benefits"}, "hr_request.time_leave": {Text: "Time and leave"}, "hr_request.workplace_access": {Text: "Workplace and access"}, "hr_request.other": {Text: "Other HR question"},
 		"roles.definition": {Text: "Role details"}, "roles.page_access": {Text: "Page and action access"}, "roles.page_access_open": {Text: "Configure page permissions"}, "roles.page_access_help": {Text: "View controls page and menu discovery. Create, update, and delete are independent server-enforced actions; enabling one also enables View."}, "roles.page": {Text: "Page"}, "roles.feature": {Text: "Feature"}, "roles.feature_access": {Text: "Feature access"}, "roles.feature_access_help": {Text: "Feature grants narrow page access. A feature cannot be used unless this role also has the same action on its page."}, "roles.feature_access_empty": {Text: "Grant View on a published page before configuring its features."}, "roles.view": {Text: "View"}, "roles.create_permission": {Text: "Create"}, "roles.update_permission": {Text: "Update"}, "roles.delete_permission": {Text: "Delete"}, "roles.action": {Text: "Action"}, "roles.save_page": {Text: "Save"}, "roles.read_only": {Text: "View only"}, "roles.read_only_heading": {Text: "Role catalog is read-only"}, "roles.read_only_help": {Text: "Your assigned role can inspect access policy but cannot create roles or change assignments."},
 		"shell.resource_history": {Text: "Recently visited resources"}, "shell.history_back": {Text: "Back to the previous resource"}, "shell.history_forward": {Text: "Forward to the next resource"},
@@ -998,11 +1142,11 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"worker_ids.eyebrow": {Text: "WORKFORCE IDENTITY"}, "worker_ids.heading": {Text: "Issue worker numbers your way"}, "worker_ids.description": {Text: "Define a readable format while the server owns atomic sequencing, collision avoidance, and non-reuse."},
 		"worker_ids.format_title": {Text: "Number format"}, "worker_ids.format_help": {Text: "Rules apply to new workers only; existing identifiers never change."}, "worker_ids.prefix": {Text: "Prefix"}, "worker_ids.prefix_help": {Text: "Up to 12 letters or digits."}, "worker_ids.suffix": {Text: "Suffix"}, "worker_ids.suffix_help": {Text: "Optional employment or company marker."}, "worker_ids.separator": {Text: "Separator"}, "worker_ids.digits": {Text: "Maximum sequence digits"}, "worker_ids.digits_help": {Text: "One to twelve digits; allocation stops before overflow."}, "worker_ids.start": {Text: "Starting number"}, "worker_ids.start_help": {Text: "Used only before this organization issues its first number."}, "worker_ids.increment": {Text: "Increment"}, "worker_ids.increment_help": {Text: "The step between eligible sequence values."}, "worker_ids.padding": {Text: "Number width"}, "worker_ids.year": {Text: "Hire-year segment"}, "worker_ids.unit": {Text: "Organization-unit segment"}, "worker_ids.check": {Text: "Error-detection digit"}, "worker_ids.excluded": {Text: "Reserved numbers or ranges"}, "worker_ids.excluded_help": {Text: "Comma-separated values such as 13,100-199,666."}, "worker_ids.save": {Text: "Save worker ID rules"}, "worker_ids.status": {Text: "Changes are organization-wide and version checked."},
 		"worker_ids.saved": {Text: "Saved"}, "worker_ids.unsaved": {Text: "Unsaved changes"}, "worker_ids.no_unsaved": {Text: "No unsaved changes"}, "worker_ids.changes_to_apply": {Text: "Changes to apply"}, "worker_ids.change_identity": {Text: "Number prefix, suffix, or separator"}, "worker_ids.change_sequence": {Text: "Sequence allocation"}, "worker_ids.change_format": {Text: "Display format"}, "worker_ids.change_reserved": {Text: "Reserved numbers"},
-		"worker_ids.unique": {Text: "Atomic uniqueness"}, "worker_ids.preview": {Text: "Format preview"}, "worker_ids.preview_help": {Text: "Preview of your current inputs using the current year and CARE as a sample unit. No numbers are issued. Save to apply changes."}, "worker_ids.next": {Text: "Next sequence"}, "worker_ids.issued": {Text: "Numbers reserved"}, "worker_ids.non_reuse": {Text: "Reserved worker numbers are never reused. Failed or cancelled hiring workflows may intentionally leave gaps."},
+		"worker_ids.unique": {Text: "Atomic uniqueness"}, "worker_ids.preview": {Text: "Format preview"}, "worker_ids.preview_help": {Text: "Preview of the current format. Examples use the next sequence; no numbers are issued until you save."}, "worker_ids.next": {Text: "Next sequence"}, "worker_ids.issued": {Text: "Numbers reserved"}, "worker_ids.non_reuse": {Text: "Reserved worker numbers are never reused. Failed or cancelled hiring workflows may intentionally leave gaps."},
 		"page.chat_settings.label": {Text: "Chat settings"}, "page.chat_settings.title": {Text: "Chat settings"}, "page.chat_settings.subtitle": {Text: "Manage tenant-wide chat retention settings."},
 		"page.appearance.label": {Text: "Brand & appearance"}, "page.appearance.title": {Text: "Brand & appearance"}, "page.appearance.subtitle": {Text: "Shape a consistent workspace identity with governed, accessible theme choices."},
 		"page.studio.label": {Text: "Experience Studio"}, "page.studio.title": {Text: "Experience Studio"}, "page.studio.subtitle": {Text: "Customer page configuration requires its governed service."},
-		"page.workflow_designer.label": {Text: "Workflow editor"}, "page.workflow_designer.title": {Text: "Workflow Designer"}, "page.workflow_designer.subtitle": {Text: "Review published workflow paths and build controlled workflow drafts."},
+		"page.workflow_designer.label": {Text: "Workflow Designer"}, "page.workflow_designer.title": {Text: "Workflow Designer"}, "page.workflow_designer.subtitle": {Text: "Review published workflow paths and build controlled workflow drafts."},
 		"workflow_designer.eyebrow": {Text: "Workflow authoring"}, "workflow_designer.heading": {Text: "Design and inspect workflows"}, "workflow_designer.description": {Text: "Browse published definitions, inspect authorized live runs, and continue controlled drafts from one workspace."},
 		"workflow_designer.catalog_title": {Text: "Published workflows"}, "workflow_designer.catalog_detail": {Text: "Select a workflow to inspect its latest published path."},
 		"workflow_designer.empty_catalog_title": {Text: "No published workflows available"}, "workflow_designer.empty_catalog_detail": {Text: "Published workflows you are authorized to view will appear here."},
@@ -1027,7 +1171,9 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"workflow_draft.changes_title": {Text: "What changed"}, "workflow_draft.no_changes": {Text: "This saved version has no semantic changes."},
 		"workflow_draft.change_summary": {Text: "{operation} {kind}: {subject} {field}"},
 		"workflow_draft.auto_layout":    {Text: "Auto layout"},
-		"workflow_viewer.change.added":  {Text: "Added"}, "workflow_viewer.change.removed": {Text: "Removed"}, "workflow_viewer.change.updated": {Text: "Updated"},
+		// UXBLIND lane AA
+		"workflow_draft.delete": {Text: "Delete draft"}, "workflow_draft.delete_title": {Text: "Delete this draft?"}, "workflow_draft.delete_detail": {Text: "This empty draft has never been submitted. Deleting it cannot be undone."}, "workflow_draft.delete_confirm": {Text: "Delete draft"}, "workflow_draft.delete_cancel": {Text: "Keep draft"},
+		"workflow_viewer.change.added": {Text: "Added"}, "workflow_viewer.change.removed": {Text: "Removed"}, "workflow_viewer.change.updated": {Text: "Updated"},
 		"workflow_viewer.change.node": {Text: "step"}, "workflow_viewer.change.edge": {Text: "route"}, "workflow_viewer.change.binding": {Text: "binding"}, "workflow_viewer.change.parameter": {Text: "setting"},
 		"workflow_outline_editor.title": {Text: "Editable outline"}, "workflow_outline_editor.description": {Text: "Select a step to configure it, or move it in the shared presentation order. Execution still follows the connected paths."},
 		"workflow_outline_editor.move_earlier": {Text: "Move {name} earlier"}, "workflow_outline_editor.move_later": {Text: "Move {name} later"},
@@ -1062,6 +1208,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"work.waiting_on.proposer": {Text: "the proposer"}, "work.waiting_on.approver": {Text: "the approver"}, "work.waiting_on.manager": {Text: "the manager"}, "work.waiting_on.finance": {Text: "finance"}, "work.waiting_on.system": {Text: "the workflow"},
 		"work.assignee_note": {Text: "Assignee, deadline and your next action appear only on rows whose current work item you are entitled to see. Open a journey for its full record."},
 		"work.mine":          {Text: "Assigned to me"}, "work.row_assigned_to_you": {Text: "Assigned to you"}, "work.row_claimable_by_you": {Text: "You can claim this"}, "work.row_assigned_to": {Text: "Assigned to {assignee}"}, "work.row_due": {Text: "Due {date}"}, "work.row_next_action": {Text: "Your next action: {action}"}, "work.current_work_item_label": {Text: "Current work item"},
+		// UXBLIND lane E
+		"work.assignment_label": {Text: "Assignment"}, "work.due_label": {Text: "Deadline"}, "work.next_action_label": {Text: "Next action"}, "work.waiting_on.you": {Text: "you"},
 		"work.action.claim": {Text: "Claim"}, "work.action.release": {Text: "Release"}, "work.action.complete": {Text: "Complete"}, "work.action.decide_approval": {Text: "Decide approval"},
 		"work.tracked": {Text: "Tracked requests"}, "work.row_no_action_needed": {Text: "No action needed from you"},
 		"work.tracked_empty_title": {Text: "You are not tracking any open requests"}, "work.tracked_empty_detail": {Text: "Promotions you propose appear here while they move through approval and waiting, with their next step and who holds it."},
@@ -1070,8 +1218,14 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"position_picker.open_now": {Text: "Open now"}, "position_picker.open_until": {Text: "Open through {date}"}, "position_picker.reservation_available": {Text: "Available"}, "position_picker.reservation_unavailable": {Text: "Not currently available"},
 		"promotion_review.target_manager": {Text: "Reports to {manager}"}, "promotion_review.no_target_manager": {Text: "No target manager selected"}, "promotion_review.manager_unchanged": {Text: "Keeps the current manager"}, "promotion_review.manager_unchanged_named": {Text: "Keeps reporting to {manager}"}, "promotion_review.target_organization": {Text: "Organization: {organization}"}, "promotion_review.target_position": {Text: "Position: {position}"}, "promotion_review.affected_direct_reports": {Plural: map[string]string{"one": "{count} direct report will move", "other": "{count} direct reports will move"}}, "promotion_review.no_affected_reports": {Text: "No direct reports are affected"}, "promotion_review.cycle_safe": {Text: "No reporting-cycle conflicts found"}, "promotion_review.cycle_unsafe": {Text: "This change could not be certified free of a reporting cycle"},
 		"compensation_guardrail.title": {Text: "Compensation guardrail"}, "compensation_guardrail.current_pay": {Text: "Current pay"}, "compensation_guardrail.permitted_increase": {Text: "Largest raise the range allows"}, "compensation_guardrail.minimum": {Text: "Minimum for this role"}, "compensation_guardrail.maximum": {Text: "Maximum for this role"}, "compensation_guardrail.band_position": {Text: "Where current pay sits in the range"}, "compensation_guardrail.effective_date_basis": {Text: "Range effective as of"}, "compensation_guardrail.band_position.below_minimum": {Text: "Below the minimum"}, "compensation_guardrail.band_position.in_band": {Text: "Within the range"}, "compensation_guardrail.band_position.above_maximum": {Text: "Above the maximum"}, "compensation_guardrail.band_position.unspecified": {Text: "Not determined"}, "compensation_guardrail.unavailable_action": {Text: "Enter proposed pay"}, "compensation_guardrail.review_unavailable.not_authorized": {Text: "Pay details are not shown to you."}, "compensation_guardrail.review_unavailable.band_unresolved": {Text: "No pay range is published for this role."}, "compensation_guardrail.unavailable_reason.not_authorized": {Text: "You are not authorized to view or set compensation for this promotion."}, "compensation_guardrail.unavailable_reason.band_unresolved": {Text: "No pay range is published for this role yet, so an amount cannot be entered."}, "compensation_guardrail.unavailable_reason.unspecified": {Text: "Compensation details are not available for this promotion."},
+		// UXBLIND lane Y
+		"compensation_guardrail.allowed_minimum": {Text: "Allowed minimum for this promotion"}, "compensation_guardrail.allowed_maximum": {Text: "Allowed maximum for this promotion"}, "compensation_guardrail.role_band_position": {Text: "Current pay versus the role band"},
 
 		"promotion_validation.current_amount_invalid": {Text: "Current base pay must be a valid amount greater than zero."}, "promotion_validation.proposed_amount_invalid": {Text: "Proposed base pay must be a valid amount greater than zero."}, "promotion_validation.currency_required": {Text: "Choose a currency for the proposed pay."}, "promotion_validation.pay_basis_required": {Text: "Choose how the proposed pay is measured (for example, annual or hourly)."}, "promotion_validation.currency_change_not_supported": {Text: "Changing currency during a promotion is not supported yet. Keep the current currency."}, "promotion_validation.not_a_raise": {Text: "Proposed base pay must be greater than the current base pay."}, "promotion_validation.business_reason_required": {Text: "Enter a business reason for this promotion."}, "promotion_validation.effective_date_required": {Text: "Choose a valid effective date."}, "promotion_validation.effective_date_too_far_past": {Text: "Choose an effective date closer to today."}, "promotion_validation.increase_over_threshold": {Text: "This increase is larger than usual and will need extra review."}, "promotion_validation.subject_not_disclosable": {Text: "You are not authorized to view or propose this promotion."}, "promotion_validation.required_field_denied": {Text: "You are not authorized to view a detail this promotion needs."}, "promotion_validation.required_field_unavailable": {Text: "A detail this promotion needs could not be read. Try again later."}, "promotion_validation.worker_not_active": {Text: "This worker's employment status does not allow a promotion right now."}, "promotion_validation.target_job_required": {Text: "Choose the target job for this promotion."}, "promotion_validation.target_grade_required": {Text: "Choose the target grade for this promotion."}, "promotion_validation.same_grade": {Text: "The target grade matches the current grade. Choose a higher grade for a promotion."}, "promotion_validation.effective_before_hire": {Text: "The effective date cannot be before the worker's hire date."}, "promotion_validation.pay_band_not_found": {Text: "No pay range is published for the target role yet."}, "promotion_validation.below_band_minimum": {Text: "Proposed base pay must be at least {amount}, the minimum for this role."}, "promotion_validation.below_band_minimum_generic": {Text: "Proposed base pay is below the minimum for this role."}, "promotion_validation.above_band_maximum": {Text: "Proposed base pay must be at most {amount}, the maximum for this role."}, "promotion_validation.above_band_maximum_generic": {Text: "Proposed base pay is above the maximum for this role."}, "promotion_validation.budget_authority_missing": {Text: "A workforce budget reference is required for this promotion."}, "promotion_validation.budget_observation_only": {Text: "The workforce budget shown is an observation, not a reservation."}, "promotion_validation.budget_observed_short": {Text: "The observed workforce budget may not cover this promotion's cost."}, "promotion_validation.target_manager_not_found": {Text: "Choose a valid target manager for this promotion."}, "promotion_validation.manager_relationship_cycle": {Text: "This assignment would make the worker their own manager's manager. Choose a different manager."}, "promotion_validation.manager_chain_unresolved": {Text: "The reporting chain for the target manager could not be resolved."}, "promotion_validation.target_position_not_found": {Text: "Choose a valid target position for this promotion."}, "promotion_validation.target_position_incompatible": {Text: "The selected position is not compatible with the target job and grade."}, "promotion_validation.target_position_not_effective": {Text: "The selected position is not open on the chosen effective date."}, "promotion_validation.target_position_at_capacity": {Text: "The selected position has no remaining capacity."}, "promotion_validation.target_position_reservation_conflict": {Text: "The selected position was just reserved by another request. Choose a different position."}, "promotion_validation.unrecognized_reason": {Text: "Check this value and try again."}, "promotion_validation.diagnostics_disclosure": {Text: "Diagnostics"}, "promotion_validation.support_reference_label": {Text: "Support reference"},
+		// UXBLIND lane SS
+		"work.awaiting_my_approval": {Text: "Awaiting my approval"}, "organization.top_of_organization": {Text: "None — top of organization"},
+		// UXBLIND lane G
+		"people.promotion_title": {Text: "Choose an employee to promote"}, "people.promotion_detail": {Text: "Choose an eligible employee to promote. Clear the eligibility filter to browse everyone you can see."}, "people.promotion_count": {Text: "{eligible} eligible of {visible} you can see"},
 		"people.filter_placeholder": {Text: "Name, role, or worker ID"}, "people.filter_aria": {Text: "Filter employees"},
 		"people.filter": {Text: "Filter"}, "people.clear": {Text: "Clear"}, "people.find": {Text: "Find an employee"},
 		"people.all_teams": {Text: "All teams"}, "people.all_locations": {Text: "All locations"}, "people.team_aria": {Text: "Filter employees by team"}, "people.location_aria": {Text: "Filter employees by location"}, "people.sort_by": {Text: "Sort by"},
@@ -1155,10 +1309,18 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"accessibility.contrast": {Text: "Contrast"}, "accessibility.contrast_help": {Text: "Use the operating-system preference or strengthen visual boundaries."}, "accessibility.system": {Text: "Use system setting"}, "accessibility.contrast_system_help": {Text: "Follow the device contrast preference."}, "accessibility.contrast_more": {Text: "More contrast"}, "accessibility.contrast_more_help": {Text: "Strengthen text, controls, borders, and state indicators."},
 		"accessibility.motion": {Text: "Motion"}, "accessibility.motion_help": {Text: "Reduce non-essential movement across pages and workflows."}, "accessibility.motion_system_help": {Text: "Follow the device reduced-motion preference."}, "accessibility.motion_limited": {Text: "Limited motion"}, "accessibility.motion_limited_help": {Text: "Keep brief state cues while removing travel, stagger, and decorative movement."}, "accessibility.motion_reduce": {Text: "Reduce motion"}, "accessibility.motion_reduce_help": {Text: "Disable animation and shorten state transitions."},
 		"accessibility.links": {Text: "Link visibility"}, "accessibility.links_help": {Text: "Choose whether inline links always have a non-color cue."}, "accessibility.links_standard": {Text: "Standard links"}, "accessibility.links_standard_help": {Text: "Use context, focus, and hover indicators."}, "accessibility.links_underlined": {Text: "Always underline links"}, "accessibility.links_underlined_help": {Text: "Underline inline links throughout the product."},
+		// UXBLIND lane MM
+		"accessibility.color_mode": {Text: "Personal color mode"}, "accessibility.color_mode_help": {Text: "Override the organization's color mode for your account only."}, "accessibility.color_mode_organization": {Text: "Use organization setting"}, "accessibility.color_mode_organization_help": {Text: "Follow the color mode chosen for your organization."}, "accessibility.color_mode_light": {Text: "Light"}, "accessibility.color_mode_light_help": {Text: "Use light mode for your account."}, "accessibility.color_mode_dark": {Text: "Dark"}, "accessibility.color_mode_dark_help": {Text: "Use dark mode for your account."},
 		"accessibility.save": {Text: "Save preferences"}, "accessibility.reset": {Text: "Use defaults"}, "accessibility.status": {Text: "Preferences are stored securely with your account."},
 		"settings.locale_title": {Text: "Language & region"}, "settings.locale_description": {Text: "Choose the language used for navigation, labels, dates, numbers, and currency formatting."},
 		"settings.locale_option_detail": {Text: "{code} · {direction}"}, "settings.locale_ltr": {Text: "Left to right"}, "settings.locale_rtl": {Text: "Right to left"},
 		"settings.locale_current": {Text: "Current"}, "settings.locale_status": {Text: "Language changes apply immediately and remain active as you move between pages."},
+		// UXBLIND lane F
+		"format.pay_unit.year": {Text: "per year"}, "format.pay_unit.hour": {Text: "per hour"},
+		// UXBLIND lane X
+		"journey.error_domain_unavailable_title": {Text: "Approval service unavailable"}, "journey.error_domain_unavailable_detail": {Text: "The approval service could not be reached. No change was made; try again later."},
+		"journey.error_storage_failed_title": {Text: "Approval start could not be saved"}, "journey.error_storage_failed_detail": {Text: "The approval service could not save this attempt. No change was made; try again later."},
+		"journey.timeline_start_failed": {Text: "Approval start failed"}, "journey.timeline_start_failed_domain": {Text: "The approval service was unavailable."}, "journey.timeline_start_failed_storage": {Text: "The failed start could not be saved."}, "journey.timeline_start_failed_stage": {Text: "The request was not at a startable stage."},
 		"organization_visibility.configured_roles":    {Text: "Configured visibility by role"},
 		"organization_visibility.scope_relative":      {Text: "Resolved from each viewer's organization unit"},
 		"organization_visibility.validation_title":    {Text: "Validation"},
@@ -1173,8 +1335,77 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"settings.profile_title": {Text: "User profile"}, "settings.profile_description": {Text: "Your account identity and authorized employee profile."},
 		"settings.organization": {Text: "Organization"}, "settings.principal": {Text: "Principal"}, "settings.purpose_scope": {Text: "Purpose / scope"}, "settings.data_source": {Text: "Data source"},
 		"settings.access_callout": {Text: "Your organization controls your access. Changing personal preferences does not change your permissions."},
+		// UXBLIND lane M
+		"help.access_detail_viewer":                   {Text: "Your roles determine which pages and actions are available. If you need access, ask your workspace administrator through your usual company channel. Employment and pay records can only be changed through an available workflow."},
+		"help.access_detail_admin":                    {Text: "Your role can manage workspace access. Use Roles & access to review effective roles and page permissions, and Organization visibility to set each role's directory boundary."},
+		"roles.page_access_summary":                   {Text: "Pages and actions this role can use: {count}"},
+		"roles.access_explanation":                    {Text: "Pages are where a role can go; actions are what it can do there. Feature access is narrower control inside those pages and never expands page access."},
+		"roles.effective_roles_unavailable":           {Text: "No effective role was provided for this employee."},
+		"organization_visibility.scope_control_label": {Text: "Visibility setting for this role"},
+		// UXBLIND lane U
+		"roles.create_toggle":        {Text: "Open role creation"},
+		"roles.create_id_help":       {Text: "Suggested from the display name; you can edit it."},
+		"roles.create_access_help":   {Text: "After creation, configure page and feature access in this role's Page and action access section."},
+		"roles.create_id_required":   {Text: "Enter a role ID or enter a display name to derive one."},
+		"roles.create_id_invalid":    {Text: "Use lowercase letters, digits, and underscores; start with a letter."},
+		"roles.create_name_required": {Text: "Enter a display name so administrators can recognize this role."},
+		// UXBLIND lane L
+		"workflow_designer.active_note":          {Text: "New promotions use the active product configuration shown here. New promotions run on {workflow}."},
+		"workflow_designer.active_note_fallback": {Text: "New promotions run on the active workflow shown here."},
+		"workflow_designer.catalog_heading":      {Text: "Workflow catalog"},
+		"workflow_designer.drafts_heading":       {Text: "Draft workflows"},
+		"workflow_designer.references_heading":   {Text: "Reference workflows"},
+		"workflow_designer.references_toggle":    {Text: "Show reference workflows"},
+		"workflow_designer.references_hide":      {Text: "Hide reference workflows"},
+		"workflow_designer.review_only":          {Text: "Review only"},
+		// UXBLIND lane WW
+		"workflow_list.search_label": {Text: "Search workflows"}, "workflow_list.search_placeholder": {Text: "Name, workflow ID, or category"}, "workflow_list.sort_label": {Text: "Sort workflows"}, "workflow_list.sort_recent": {Text: "Recently updated"}, "workflow_list.sort_name": {Text: "Name A–Z"}, "workflow_list.sort_status": {Text: "Status"}, "workflow_list.status_filters": {Text: "Workflow status filters"}, "workflow_list.all": {Text: "All"}, "workflow_list.active": {Text: "Active"}, "workflow_list.draft": {Text: "Draft"}, "workflow_list.review": {Text: "Review only"}, "workflow_list.retired": {Text: "Retired"}, "workflow_list.result": {Text: "{shown} of {total} workflows"}, "workflow_list.range": {Text: "{from}–{to} of {total}"}, "workflow_list.page": {Text: "Page {page} of {pages}"}, "workflow_list.table_label": {Text: "Workflow catalog"}, "workflow_list.col_workflow": {Text: "Workflow"}, "workflow_list.col_version": {Text: "Version"}, "workflow_list.col_status": {Text: "Status"}, "workflow_list.col_category": {Text: "Category"}, "workflow_list.col_updated": {Text: "Updated"}, "workflow_list.col_owner": {Text: "Owner"}, "workflow_list.no_match": {Text: "No workflows match the current search and filters."}, "workflow_list.group_counts": {Text: "Published {published} · Draft {draft} · Reference {reference}"},
+		// UXBLIND lane K
+		"capability_unavailable.title":          {Text: "Not set up for this workspace"},
+		"capability_unavailable.detail":         {Text: "An administrator can enable this capability for the workspace."},
+		"capability_unavailable.request_detail": {Text: "Ask your workspace administrator to enable this capability for the workspace. An administrator can enable this capability there."},
+		"capability_unavailable.admin_detail":   {Text: "Review the Admin capability settings for this workspace and enable this capability there."},
+		"capability_unavailable.open_admin":     {Text: "Open Admin"},
+		// UXBLIND lane P
+		"shell.notifications": {Text: "Notifications"}, "shell.account_menu": {Text: "Account menu"},
+		"notifications.unread": {Text: "Unread"}, "notifications.read": {Text: "Read"}, "notifications.time_unavailable": {Text: "Time unavailable"},
+		"notifications.read_failed":  {Text: "Couldn't mark this notification as read. Try again."},
+		"notifications.item_aria":    {Text: "{title} from {actor}, {time}, {state}"},
+		"notifications.unread_count": {Plural: map[string]string{"one": "{count} unread notification", "other": "{count} unread notifications"}},
+		// UXBLIND lane II
+		// UXBLIND lane DD
+		"work.action_queue_empty_detail_no_journeys": {Text: "New assignments will appear here."},
+		// UXBLIND lane II
+		"global_search.topbar_placeholder": {Text: "Search workspace"},
 	},
 	"de-DE": {
+		// UXBLIND lane P18
+		"page.personas.label": {Text: "Personas"}, "page.personas.title": {Text: "Personas"}, "page.personas.subtitle": {Text: "Lebenszyklus, Reichweite und Gesprächsplatzierungen von Personas prüfen."},
+		"persona_admin.eyebrow": {Text: "Agentenverwaltung"}, "persona_admin.title": {Text: "Personas"}, "persona_admin.description": {Text: "Prüfen Sie Eigentümer, Fähigkeiten, Datenreichweite, Platzierungen und Lebenszyklus, bevor eine Persona in einer Unterhaltung handelt."}, "persona_admin.catalog_title": {Text: "Persona-Katalog"}, "persona_admin.catalog_detail": {Text: "Veröffentlichte Versionen bleiben durch geprüfte Fähigkeiten, Zielgruppen und Gesprächsrichtlinien begrenzt."}, "persona_admin.loading": {Text: "Persona-Verwaltung wird geladen…"}, "persona_admin.unavailable_title": {Text: "Persona-Verwaltung nicht verfügbar"}, "persona_admin.permission_denied": {Text: "Sie benötigen die Berechtigung zur Persona-Verwaltung."}, "persona_admin.service_unavailable": {Text: "Der Persona-Dienst ist nicht mit diesem Arbeitsbereich verbunden."}, "persona_admin.empty": {Text: "Keine Personas konfiguriert."},
+		"persona_admin.preview_unavailable": {Text: "Die Zugriffsvorschau konnte nicht geladen werden. Die Persona muss veröffentlicht und in dieser Unterhaltung installiert sein. Sie benötigen außerdem die Berechtigung zur Vorschau."},
+		"persona_admin.lifecycle_draft":     {Text: "Entwurf"}, "persona_admin.lifecycle_in_review": {Text: "In Prüfung"}, "persona_admin.lifecycle_published": {Text: "Veröffentlicht"}, "persona_admin.lifecycle_suspended": {Text: "Ausgesetzt"}, "persona_admin.lifecycle_retired": {Text: "Stillgelegt"}, "persona_admin.version": {Text: "Version"}, "persona_admin.owner": {Text: "Eigentümer"}, "persona_admin.steward": {Text: "Verantwortliche Person"}, "persona_admin.audience": {Text: "Zielgruppe"}, "persona_admin.data_reach": {Text: "Abgeleitete Datenreichweite"}, "persona_admin.limits": {Text: "Grenzen"}, "persona_admin.skills": {Text: "Festgelegte Fähigkeiten"}, "persona_admin.placements": {Text: "Gesprächsplatzierungen"}, "persona_admin.not_reported": {Text: "Nicht gemeldet"}, "persona_admin.no_skills": {Text: "Keine Fähigkeiten festgelegt."}, "persona_admin.no_installations": {Text: "Keine Gesprächsinstallationen."},
+		"persona_admin.review_step": {Text: "AGENTP-006-Prüfung"}, "persona_admin.review_required": {Text: "Eine getrennte prüfende Person muss diese Version vor der Veröffentlichung genehmigen."}, "persona_admin.evaluation_required": {Text: "Vor der Veröffentlichung ist eine Evaluierung erforderlich."}, "persona_admin.review_approved": {Text: "Von einer unabhängigen prüfenden Person genehmigt."}, "persona_admin.review_not_required": {Text: "Noch keine Veröffentlichungsprüfung erfasst."}, "persona_admin.reviewer": {Text: "Prüfende Person"}, "persona_admin.evaluation": {Text: "Evaluierung"}, "persona_admin.review_detail_unavailable": {Text: "Prüfnachweise sind nicht verfügbar."}, "persona_admin.approve": {Text: "Version genehmigen"}, "persona_admin.reject": {Text: "Version ablehnen"}, "persona_admin.request_review": {Text: "Prüfung anfordern"}, "persona_admin.publish": {Text: "Veröffentlichen"}, "persona_admin.rollback": {Text: "Zurücksetzen"}, "persona_admin.suspend": {Text: "Aussetzen"}, "persona_admin.retire": {Text: "Stilllegen"}, "persona_admin.actions_unavailable": {Text: "Aktionen sind bei getrennter Verbindung nicht verfügbar."},
+		"persona_admin.preview_title": {Text: "Vorschau des effektiven Zugriffs"}, "persona_admin.preview_detail": {Text: "Wählen Sie eine Person und eine Unterhaltung, um dort wirksame Fähigkeiten und Datenklassen zu sehen."}, "persona_admin.choose_persona": {Text: "Persona"}, "persona_admin.choose_user": {Text: "Person"}, "persona_admin.choose_conversation": {Text: "Unterhaltung"}, "persona_admin.placement": {Text: "Antwortplatzierung"}, "persona_admin.effective_skills": {Text: "Wirksame Fähigkeiten"}, "persona_admin.no_effective_skills": {Text: "In diesem Kontext keine wirksamen Fähigkeiten."}, "persona_admin.preview_warnings": {Text: "Warnungen der Vorschau"}, "persona_admin.no_preview_warnings": {Text: "Keine weiteren Warnungen."}, "persona_admin.preview_server_authorized": {Text: "Die Vorschau ist nach der aktuellen Berechtigung der gewählten Person gefiltert."},
+		// UXBLIND lane AC
+		"page.workflow_history.label": {Text: "Workflowverlauf"}, "page.workflow_history.title": {Text: "Workflowverlauf"}, "page.workflow_history.subtitle": {Text: "Prüfen Sie Workflows, die Sie gestartet haben, an denen Sie beteiligt waren oder sehen dürfen."},
+		"workflow_history.heading": {Text: "Workflowverlauf"}, "workflow_history.description": {Text: "Finden Sie autorisierte Workflows nach Typ, Status, Person, anfragender Person oder Datum."}, "workflow_history.export": {Text: "Verlauf exportieren"}, "workflow_history.empty": {Text: "Keine Workflowläufe gefunden"}, "workflow_history.empty_detail": {Text: "Keine autorisierten Workflowläufe entsprechen diesen Filtern."}, "workflow_history.record": {Text: "Datensatz"}, "workflow_history.records": {Text: "Datensätze"},
+		"workflow_history.search": {Text: "Verlauf durchsuchen"}, "workflow_history.search_placeholder": {Text: "Workflowverlauf durchsuchen"}, "workflow_history.workflow": {Text: "Workflow"}, "workflow_history.requester": {Text: "Anfragende Person"}, "workflow_history.status": {Text: "Status"}, "workflow_history.person": {Text: "Betreff"}, "workflow_history.from": {Text: "Beginn ab"}, "workflow_history.to": {Text: "Beginn bis"}, "workflow_history.sort": {Text: "Sortieren nach"}, "workflow_history.sort_started": {Text: "Begonnen"}, "workflow_history.sort_updated": {Text: "Aktualisiert"}, "workflow_history.sort_status": {Text: "Status"}, "workflow_history.apply": {Text: "Filter anwenden"},
+		"workflow_history.status_all": {Text: "Alle Status"}, "workflow_history.status_open": {Text: "In Bearbeitung"}, "workflow_history.status_review": {Text: "In Prüfung"}, "workflow_history.status_waiting": {Text: "Wartend"}, "workflow_history.status_issue": {Text: "Aufmerksamkeit erforderlich"}, "workflow_history.status_closed": {Text: "Geschlossen"}, "workflow_history.version": {Text: "Version"}, "workflow_history.participants": {Text: "Beteiligte"}, "workflow_history.stage": {Text: "Phase"}, "workflow_history.started": {Text: "Begonnen"}, "workflow_history.updated": {Text: "Aktualisiert"}, "workflow_history.table": {Text: "Workflowverlaufstabelle"}, "workflow_history.pagination": {Text: "Seiten des Workflowverlaufs"},
+		// UXBLIND lane UU
+		"journey.profile_link_possessive": {Text: "Profil von {name} anzeigen"}, "journey.back_to_profile_possessive": {Text: "Zurück zum Profil von {name}"},
+		// UXBLIND lane SS
+		"work.awaiting_my_approval": {Text: "Wartet auf meine Genehmigung"}, "organization.top_of_organization": {Text: "Keine — an der Spitze der Organisation"},
+		// UXBLIND lane S
+		"journey.timeline_decision_approved": {Text: "genehmigt"}, "journey.timeline_decision_rejected": {Text: "abgelehnt"}, "journey.timeline_assigned_to": {Text: "Zugewiesen an {assignee}"}, "journey.timeline_decision_reason": {Text: "Begründung: {reason}"},
+		// UXBLIND lane C
+		"journey.form_save": {Text: "Vorschlag speichern"},
+		// UXBLIND lane D
+		"journey.timeline_note": {Text: "Notiz hinzugefügt"}, "journey.action_current_pay": {Text: "Aktuelles Gehalt"}, "journey.action_change": {Text: "Änderung"},
+		"journey.finance_annualized_cost": {Text: "Jährliche Mehrkosten"}, "journey.finance_in_year_cost": {Text: "Mehrkosten im laufenden Kalenderjahr"}, "journey.finance_budget_line": {Text: "Budgetzeile"}, "journey.finance_budget_unavailable": {Text: "Budgetzeile nicht angegeben"},
+		"journey.iv_cancel_desc_plain":              {Text: "Fordert an, die Beförderung vor ihrem Wirksamwerden zu stoppen. Ist sie bereits wirksam, wird sie stattdessen abgeschlossen."},
+		"journey.action_keep_request":               {Text: "Antrag beibehalten"},
+		"journey.form_allowed_base_amounts":         {Text: "Zulässiger Bereich für das vorgeschlagene Grundgehalt: {minimum} bis {maximum} pro Jahr."},
+		"journey.finding_budget_checked":            {Text: "Das System hat die aktuelle Budgetgrundlage geprüft. Mittel werden erst bei der Erfassung der Beförderung reserviert."},
 		"workflow_viewer.publication_status":        {Text: "Veröffentlichung"},
 		"workflow_viewer.version":                   {Text: "Version"},
 		"workflow_viewer.run_status":                {Text: "Ausführung"},
@@ -1261,13 +1492,15 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"settings.preferences_group_description":    {Text: "Wählen Sie Sprache und Barrierefreiheit für Ihr Konto."},
 		"settings.signout_action":                   {Text: "Abmelden"},
 		"settings.signout_description":              {Text: "Beenden Sie diese Sitzung auf diesem Gerät. Sie können sich später wieder anmelden."},
-		"insights.open_work":                        {Text: "Meine Aufgaben öffnen"}, "insights.visible_label": {Text: "Sichtbare Abläufe"}, "insights.visible_note": {Text: "Beförderungsanträge, die Sie sehen können"},
+		"insights.open_work":                        {Text: "Meine Aufgaben öffnen"}, "insights.visible_label": {Text: "Beförderungsanträge"}, "insights.visible_note": {Text: "Beförderungsanträge, die Sie sehen können"},
 		"insights.in_progress_label": {Text: "In Bearbeitung"}, "insights.in_progress_note": {Text: "Anträge, die auf den nächsten Schritt warten"}, "insights.closed_label": {Text: "Abgeschlossen oder beendet"}, "insights.closed_note": {Text: "Anträge mit einem endgültigen Ergebnis"},
-		"insights.attention_title": {Text: "Ihre Aufgabenliste"}, "insights.attention_description": {Text: "Diese Ansicht fasst die Beförderungsanträge zusammen, die Sie sehen können. Weitergehende Personalberichte sind noch nicht verfügbar."}, "insights.attention_queue_detail": {Text: "Entscheidungen und nächste Schritte, die Ihnen aktuell zugewiesen sind."},
+		"insights.attention_title": {Text: "Ihre Aufgabenliste"}, "insights.attention_description": {Text: "Diese Ansicht fasst die sichtbaren Beförderungsanträge zusammen; die Übersicht unten ergänzt Personalzahlen nach Einheit und Standort."}, "insights.attention_queue_detail": {Text: "Entscheidungen und nächste Schritte, die Ihnen aktuell zugewiesen sind."},
 		"insights.no_data_note": {Text: "Nicht genügend sichtbare Anträge für eine Zahl"}, "insights.no_data_title": {Text: "Keine Abläufe in Ihrer Ansicht zusammenzufassen"}, "insights.no_data_description": {Text: "In Ihrem aktuellen Zugriffsbereich sind keine Beförderungsanträge sichtbar. Das ist keine organisationsweite Zahl; weitere Anträge können außerhalb Ihres Zugriffs liegen."}, "insights.start_promotion": {Text: "Person für eine Beförderung suchen"},
 		"insights.needs_attention": {Text: "Handlungsbedarf"}, "insights.context_title": {Text: "Zu diesen Zahlen"}, "insights.time_range_label": {Text: "Zeitraum"}, "insights.freshness_label": {Text: "Zuletzt aktualisiert"}, "insights.source_label": {Text: "Enthält"},
 		"insights.empty_context_title": {Text: "Über diese Ansicht"},
 		"insights.time_range_value":    {Text: "Aktuelle Ansicht; kein vergangener Zeitraum ausgewählt"}, "insights.freshness_value": {Text: "Aktualisierungszeit nicht verfügbar"}, "insights.source_value": {Text: "Beförderungsanträge, auf die Sie Zugriff haben"},
+		// UXBLIND lane E
+		"insights.workforce_title": {Text: "Personalbestand im Überblick"}, "insights.headcount_by_unit": {Text: "Personalbestand nach Organisationseinheit"}, "insights.headcount_by_location": {Text: "Personalbestand nach Standort"}, "insights.promotion_throughput": {Text: "Beförderungsdurchsatz"}, "insights.promotion_cycle_time": {Text: "Durchschnittliche Durchlaufzeit"}, "insights.cycle_time_unavailable": {Text: "In dieser Ansicht nicht gemeldet"}, "insights.cycle_time_days": {Text: "{days} Tage"},
 
 		"journey.startup_title": {Text: "Diese Seite konnte nicht gestartet werden"}, "journey.startup_detail": {Text: "Kehren Sie zum Arbeitsbereich zurück und versuchen Sie es erneut. Wenn das Problem bleibt, wenden Sie sich an Ihre Administration."}, "journey.startup_footer": {Text: "Ihre Anfrage wurde nicht geändert."},
 		"journey.actions_unavailable_title": {Text: "Beförderungsaktionen sind vorübergehend nicht verfügbar"}, "journey.actions_unavailable_detail": {Text: "Ihre Anfrage wurde nicht geändert. Versuchen Sie es später erneut oder wenden Sie sich an Ihre Administration."},
@@ -1308,7 +1541,7 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.detail_title": {Text: "Beförderungsantrag"}, "journey.back_to_profile": {Text: "Zurück zum Profil von {name}"}, "journey.technical_details": {Text: "Technische Details"}, "journey.group_statuses": {Text: "Status für {name}"}, "journey.copy_value": {Text: "Wert für {field} kopieren"},
 		"journey.blocked_pay_below_band": {Text: "Das vorgeschlagene Gehalt liegt unter der genehmigten Untergrenze für diese Stelle. Der Mitarbeitendendatensatz wurde nicht geändert."},
 		"journey.blocked_pay_above_band": {Text: "Das vorgeschlagene Gehalt liegt über der genehmigten Obergrenze für diese Stelle. Der Mitarbeitendendatensatz wurde nicht geändert."},
-		"journey.stage_proposed":         {Text: "Vorgeschlagen"}, "journey.stage_blocked": {Text: "Blockiert"}, "journey.stage_awaiting_approval": {Text: "Wartet auf Genehmigung"}, "journey.stage_completed": {Text: "Abgeschlossen"}, "journey.stage_rejected": {Text: "Abgelehnt"}, "journey.stage_failed": {Text: "Fehlgeschlagen"}, "journey.stage_finance_approval": {Text: "Finanzprüfung"}, "journey.stage_manager_approval": {Text: "Führungskraft prüft"}, "journey.stage_waiting_effective": {Text: "Wartet auf Wirksamkeitsdatum"}, "journey.stage_revalidation": {Text: "Abschließende Prüfungen"}, "journey.stage_reapproval": {Text: "Erneute Prüfung erforderlich"}, "journey.stage_updating_record": {Text: "Mitarbeiterdaten werden aktualisiert"}, "journey.stage_recorded": {Text: "Erfasst"}, "journey.stage_repair_required": {Text: "Handlungsbedarf"}, "journey.stage_awaiting_acknowledgement": {Text: "Wartet auf Bestätigung"}, "journey.stage_unknown": {Text: "Unbekannter Status"},
+		"journey.stage_proposed":         {Text: "Bereit, die Genehmigung zu starten"}, "journey.stage_blocked": {Text: "Blockiert"}, "journey.stage_awaiting_approval": {Text: "Wartet auf Genehmigung"}, "journey.stage_completed": {Text: "Abgeschlossen"}, "journey.stage_rejected": {Text: "Abgelehnt"}, "journey.stage_failed": {Text: "Fehlgeschlagen"}, "journey.stage_finance_approval": {Text: "Finanzprüfung"}, "journey.stage_manager_approval": {Text: "Führungskraft prüft"}, "journey.stage_waiting_effective": {Text: "Wartet auf Wirksamkeitsdatum"}, "journey.stage_revalidation": {Text: "Abschließende Prüfungen"}, "journey.stage_reapproval": {Text: "Erneute Prüfung erforderlich"}, "journey.stage_updating_record": {Text: "Mitarbeiterdaten werden aktualisiert"}, "journey.stage_recorded": {Text: "Erfasst"}, "journey.stage_repair_required": {Text: "Handlungsbedarf"}, "journey.stage_awaiting_acknowledgement": {Text: "Wartet auf Bestätigung"}, "journey.stage_unknown": {Text: "Unbekannter Status"},
 		"journey.stage_recording": {Text: "Beförderung wird erfasst"}, "journey.stage_observing_effects": {Text: "Nachgelagerte Auswirkungen werden geprüft"},
 		"journey.stages_title": {Text: "Schritte"}, "journey.step_state_done": {Text: "Abgeschlossen"}, "journey.step_state_active": {Text: "Aktueller Schritt"}, "journey.step_state_failed": {Text: "Nicht abgeschlossen"}, "journey.step_state_upcoming": {Text: "Noch nicht begonnen"},
 		"journey.step.proposal.label": {Text: "Antrag"}, "journey.step.proposal.done": {Text: "Der Antrag wurde gespeichert und anhand der Beförderungsregeln geprüft."}, "journey.step.proposal.active": {Text: "Prüfen Sie die Hinweise und korrigieren Sie blockierte Angaben."}, "journey.step.proposal.upcoming": {Text: "Reichen Sie die vorgeschlagene Änderung zur Prüfung ein."}, "journey.step.proposal.failed": {Text: "Der Antrag kann erst nach Klärung der blockierenden Punkte weitergehen."},
@@ -1324,6 +1557,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.effective_window_heading": {Text: "Zeitlicher Ablauf"}, "journey.cycle_opens": {Text: "Prüfung eröffnet"}, "journey.takes_effect": {Text: "Wirksam ab"}, "journey.current_as_of": {Text: "Informationsstand"}, "journey.effective_window_note": {Text: "Diese Angaben zeigen den Informationsstand der damaligen Prüfung. Spätere Korrekturen stehen im Verlauf und ändern diese Entscheidung nicht rückwirkend."},
 		"journey.effective_date_fallback": {Text: "dem Wirksamkeitsdatum"}, "journey.outcome_waiting": {Text: "Die Genehmigungen liegen vor. Nach den abschließenden Prüfungen am {date} wird das Beförderungsergebnis erfasst."}, "journey.outcome_manager": {Text: "Die Mitarbeiterdaten wurden noch nicht geändert. Die Prüfung durch die Führungskraft und die abschließenden Datumsprüfungen stehen aus."}, "journey.outcome_finance": {Text: "Die Mitarbeiterdaten wurden noch nicht geändert. Finanzprüfung und Prüfung durch die Führungskraft müssen vor den abschließenden Datumsprüfungen beendet sein."}, "journey.outcome_blocked": {Text: "Die Mitarbeiterdaten wurden nicht geändert. Status und Prüfungen oben zeigen, was geklärt werden muss."}, "journey.outcome_default": {Text: "Die Mitarbeiterdaten wurden noch nicht geändert. Schließen Sie die übrigen Prüfungen und Datumsprüfungen ab."},
 		"journey.outcome_heading": {Text: "Erfasstes Ergebnis"}, "journey.outcome_pending_heading": {Text: "Nächste Schritte"}, "journey.outcome_result": {Text: "Ergebnis"}, "journey.outcome_recorded": {Text: "Beförderungsergebnis erfasst"}, "journey.outcome_not_recorded": {Text: "Beförderung nicht erfasst"}, "journey.outcome_recorded_at": {Text: "Erfasst am"},
+		// UXBLIND lane k-uxlive-4
+		"journey.outcome_reason_multiple": {Text: "Die Beförderung wurde beendet, weil diese blockierenden Prüfungen nicht erfüllt sind."}, "journey.outcome_reason_unavailable": {Text: "Die Beförderung wurde in diesem Schritt beendet; die verfügbaren Prüfungen erlauben keine angezeigte Wiederherstellung."}, "journey.outcome_reason_budget": {Text: "Das für diese Beförderung geprüfte Budget reicht nicht aus."}, "journey.outcome_reason_next": {Text: "Prüfen Sie die blockierenden Prüfungen und korrigieren Sie den Antrag, sofern der Ablauf dies erlaubt."}, "journey.outcome_reason_repair": {Text: "Eine geprüfte Reparatur ist erforderlich; auf dieser Seite ist keine weitere Aktion zulässig."}, "journey.progress_active": {Text: "Der Ablauf führt gerade den Schritt „{phase}“ aus."}, "journey.progress_retrying": {Text: "Der Schritt „{phase}“ wird automatisch erneut versucht."}, "journey.progress_delayed": {Text: "Der Schritt „{phase}“ wartet; der Ablauf prüft automatisch erneut."}, "journey.progress_repair": {Text: "Für den Schritt „{phase}“ ist eine geprüfte Reparatur erforderlich."}, "journey.progress_next": {Text: "Der Ablauf wird nach dieser Prüfung automatisch fortgesetzt."}, "journey.progress_last": {Text: "Letzter Fortschritt"},
 		"journey.actions_history": {Text: "Aktionen und Verlauf"}, "journey.history_heading": {Text: "Verlauf"}, "journey.timeline_by": {Text: "durch {actor}"}, "journey.timeline_system": {Text: "System"}, "journey.timeline_reviewer": {Text: "Berechtigte prüfende Person"}, "journey.timeline_requested": {Text: "Beförderung beantragt"}, "journey.timeline_checked": {Text: "Antrag geprüft"}, "journey.timeline_started": {Text: "Genehmigungsablauf gestartet"}, "journey.timeline_recorded": {Text: "Beförderung erfasst"}, "journey.timeline_ended": {Text: "Antrag beendet"}, "journey.timeline_ended_detail": {Text: "Der Antrag wurde beendet, ohne den Personaldatensatz zu ändern."}, "journey.timeline_assigned": {Text: "Prüfung zugewiesen"}, "journey.timeline_review_started": {Text: "Prüfung begonnen"}, "journey.timeline_approved": {Text: "Genehmigung abgeschlossen"}, "journey.timeline_cancelled": {Text: "Genehmigung abgebrochen"}, "journey.timeline_expired": {Text: "Genehmigung abgelaufen"},
 		"journey.action_start": {Text: "Genehmigungsablauf starten"}, "journey.action_start_description": {Text: "Prüfen Sie den Antrag und starten Sie die Genehmigungen. Die Beförderung wird erst nach allen Freigaben und Abschlussprüfungen erfasst."}, "journey.action_start_note": {Text: "Der Antrag wird zur Genehmigung weitergeleitet. Die Beförderung wird noch nicht erfasst."}, "journey.action_start_blocked_description": {Text: "Starten Sie die Genehmigungen, sobald der Antrag alle erforderlichen Prüfungen besteht."}, "journey.action_start_blocked_reason": {Text: "Dieser Antrag kann noch nicht starten. Beheben Sie die markierten Punkte und reichen Sie ihn erneut ein."},
 		"journey.action_preparing": {Text: "Genehmigung wird vorbereitet"}, "journey.action_preparing_description": {Text: "Die Prüfung wird einer zuständigen Person zugewiesen."}, "journey.action_preparing_reason": {Text: "Sie können entscheiden, sobald die Prüfung zugewiesen und bereit ist."},
@@ -1347,6 +1582,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.context_navigation": {Text: "Kontext des Antrags"}, "journey.back_employee": {Text: "Zurück zum Mitarbeiterprofil"}, "journey.view_all": {Text: "Alle Beförderungsanträge anzeigen"}, "journey.diagnostics_heading": {Text: "Systemdiagnose"},
 		"journey.support_details": {Text: "Supportangaben"}, "journey.support_reference": {Text: "Supportreferenz"}, "journey.support_reference_help": {Text: "Markieren und kopieren Sie diese Referenz, wenn Sie den Support kontaktieren."},
 		"journey.footer": {Text: "Diese Angaben entsprechen den neuesten für Sie verfügbaren Informationen. Fehlende Werte werden nicht geschätzt."}, "journey.section_title": {Text: "Anträge"}, "journey.count_one": {Text: "1 Antrag"}, "journey.count_many": {Text: "{count} Anträge"}, "journey.open_request": {Text: "Antrag öffnen"}, "journey.effective": {Text: "Wirksam"}, "journey.updated": {Text: "Aktualisiert"}, "journey.empty_title": {Text: "Noch keine Anträge"},
+		// UXBLIND lane k-uxlive-5
+		"journey.card_action_start": {Text: "Genehmigung starten"}, "journey.card_action_correct": {Text: "Vorschlag korrigieren"}, "journey.card_action_complete": {Text: "Genehmigung abschließen"}, "journey.card_action_track": {Text: "Antrag verfolgen"}, "journey.card_action_review": {Text: "Entscheidung prüfen"}, "journey.card_action_review_request": {Text: "Antrag prüfen"}, "journey.position_identity": {Text: "Position"}, "journey.position_unavailable": {Text: "Position nicht verfügbar"}, "journey.position_withheld": {Text: "Position nicht angezeigt"}, "journey.position_reference": {Text: "Positionscode"},
 		"journey.group.review": {Text: "In Prüfung"}, "journey.group.waiting": {Text: "Wartet auf den nächsten Schritt"}, "journey.group.issue": {Text: "Klärung erforderlich"}, "journey.group.closed": {Text: "Abgeschlossene Anträge"}, "journey.group.other": {Text: "Weitere Anträge"},
 		"shell.resource_history": {Text: "Zuletzt besuchte Seiten"}, "shell.history_back": {Text: "Zur vorherigen Seite zurück"}, "shell.history_forward": {Text: "Zur nächsten Seite vor"},
 		"admin.eyebrow": {Text: "Administration"}, "admin.available": {Text: "Verfügbar"}, "admin.unavailable": {Text: "Nicht verfügbar"},
@@ -1360,21 +1597,50 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"workflow.promotion_active_conflict": {Text: "Für diese Person läuft bereits eine aktive Beförderung. Öffnen Sie diese, anstatt eine neue zu starten."},
 		"workflow.promotion_name":            {Text: "Beförderung"}, "workflow.promotion_category": {Text: "Karriere & Vergütung"}, "workflow.promotion_description": {Text: "Beantragen Sie eine Änderung von Stelle, Stufe, Position oder Vergütung."},
 		"workflow.promotion_withheld": {Text: "Für das Starten einer Beförderung fehlt dieser Sitzung die Berechtigung."},
-		"help.choose_employee":        {Text: "Mitarbeitende auswählen und Workflow-Optionen prüfen"},
-		"help.review_requests":        {Text: "Beförderungsanträge und ihren Fortschritt prüfen"},
-		"help.past_decisions":         {Text: "Frühere Entscheidungen im Workflow-Verlauf ansehen"},
-		"help.account_settings":       {Text: "Konto und Einstellungen prüfen"},
-		"help.tasks":                  {Text: "Was möchten Sie tun?"},
-		"help.my_profile":             {Text: "Eigene Beschäftigungsdaten, Vergütung und Workflow-Verlauf ansehen"},
-		"help.organization":           {Text: "Sichtbare Organisation und Berichtslinien erkunden"},
-		"help.access_title":           {Text: "Benötigen Sie Zugriff oder eine Änderung Ihrer Daten?"},
-		"help.access_detail":          {Text: "Ihre zugewiesenen Rollen bestimmen, welche Seiten und Aktionen verfügbar sind. Wenn Sie eine Änderung benötigen und kein Workflow verfügbar ist, kontaktieren Sie Ihre Personaladministration über den üblichen Unternehmenskanal. Beschäftigungs- und Vergütungsdaten können hier nicht direkt bearbeitet werden. Supportanfragen können in diesem Arbeitsbereich nicht eingereicht werden."},
-		"help.promotion_title":        {Text: "Beförderung: Einrichtung und Unterstützung"},
-		"help.promotion_detail":       {Text: "Eine leere Auswahl für die Beförderungsrolle kann bedeuten, dass für die aktuelle Stelle und Stufe keine geeignete Folgestelle veröffentlicht ist. Bitten Sie Ihre Personaladministration, die Laufbahn und das Zielgehaltsband zu prüfen. Eine Änderung der Zugriffsrollen erstellt keinen Beförderungspfad. Supportanfragen können in diesem Arbeitsbereich nicht eingereicht werden."},
-		"page.help.subtitle":          {Text: "Finden Sie Ihren nächsten Schritt und erfahren Sie, welche Zugriffsrechte Sie haben."},
-		"page.docs.label":             {Text: "Dokumente"}, "page.docs.title": {Text: "Dokumente"}, "page.docs.subtitle": {Text: "Dokumente durchsuchen, für die Sie eine Leseberechtigung haben."},
+		// UXBLIND lane B
+		"workflow.promotion_self_subject": {Text: "Sie können keine Beförderung für den eigenen Beschäftigtendatensatz starten."},
+		"help.choose_employee":            {Text: "Mitarbeitende auswählen und Workflow-Optionen prüfen"},
+		"help.review_requests":            {Text: "Beförderungsanträge und ihren Fortschritt prüfen"},
+		"help.past_decisions":             {Text: "Frühere Entscheidungen im Workflow-Verlauf ansehen"},
+		"help.account_settings":           {Text: "Konto und Einstellungen prüfen"},
+		"help.tasks":                      {Text: "Was möchten Sie tun?"},
+		"help.my_profile":                 {Text: "Eigene Beschäftigungsdaten, Vergütung und Workflow-Verlauf ansehen"},
+		"help.organization":               {Text: "Sichtbare Organisation und Berichtslinien erkunden"},
+		"help.access_title":               {Text: "Benötigen Sie Zugriff oder eine Änderung Ihrer Daten?"},
+		"help.access_detail":              {Text: "Ihre zugewiesenen Rollen bestimmen, welche Seiten und Aktionen verfügbar sind. Wenn Sie eine Änderung benötigen und kein Workflow verfügbar ist, kontaktieren Sie Ihre Personaladministration über den üblichen Unternehmenskanal. Beschäftigungs- und Vergütungsdaten können hier nicht direkt bearbeitet werden. Supportanfragen können in diesem Arbeitsbereich nicht eingereicht werden."},
+		"help.promotion_title":            {Text: "Beförderung: Einrichtung und Unterstützung"},
+		"help.promotion_detail":           {Text: "Eine leere Auswahl für die Beförderungsrolle kann bedeuten, dass für die aktuelle Stelle und Stufe keine geeignete Folgestelle veröffentlicht ist. Bitten Sie Ihre Personaladministration, die Laufbahn und das Zielgehaltsband zu prüfen. Eine Änderung der Zugriffsrollen erstellt keinen Beförderungspfad. Supportanfragen können in diesem Arbeitsbereich nicht eingereicht werden."},
+		"page.help.subtitle":              {Text: "Finden Sie Ihren nächsten Schritt und erfahren Sie, welche Zugriffsrechte Sie haben."},
+		"page.docs.label":                 {Text: "Dokumente"}, "page.docs.title": {Text: "Dokumente"}, "page.docs.subtitle": {Text: "Dokumente durchsuchen, für die Sie eine Leseberechtigung haben."},
 		"page.chat.label": {Text: "Chat"}, "page.chat.title": {Text: "Chat"}, "page.chat.subtitle": {Text: "Mit Kolleginnen und Kollegen in autorisierten Kanälen und Unterhaltungen sprechen."},
-		"roles.no_explicit_assignment": {Text: "Keine explizite Zuweisung"},
+		// UXBLIND lane A11
+		"page.agents.label": {Text: "Agenten"}, "page.agents.title": {Text: "Agenten"}, "page.agents.subtitle": {Text: "Mit Ihren Agenten sprechen und die Arbeit verfolgen, die sie für Sie erledigen."},
+		"agents.page_title": {Text: "Ihre Agenten"}, "agents.page_subtitle": {Text: "Starten Sie schnelle Antworten oder verfolgen Sie länger laufende Arbeit in Ihrem Auftrag."}, "agents.available": {Text: "Agenten"}, "agents.sidebar": {Text: "Agenten-Unterhaltungen"}, "agents.conversations": {Text: "Agenten-Unterhaltungen"}, "agents.threads": {Text: "Unterhaltungen"}, "agents.agent_identity": {Text: "Agent"}, "agents.acting_for_you": {Text: "Handelt in Ihrem Auftrag"}, "agents.skills_used": {Text: "Verwendete Fähigkeiten"}, "agents.no_agents": {Text: "Für Ihr Konto sind keine Agenten verfügbar."}, "agents.no_threads": {Text: "Noch keine Agenten-Unterhaltungen."}, "agents.tasks": {Text: "Aufgaben"}, "agents.no_tasks": {Text: "Noch keine Aufgaben."}, "agents.open_task": {Text: "Aufgabe öffnen"}, "agents.composer": {Text: "Arbeit mit einem Agenten starten"}, "agents.composer_label": {Text: "Was soll Ihr Agent erledigen?"}, "agents.composer_placeholder": {Text: "Stellen Sie eine kurze Frage oder beschreiben Sie eine längere Aufgabe"}, "agents.composer_help": {Text: "Längere Aufgaben zeigen hier ihren Plan, Fortschritt und Freigaben."}, "agents.quick_answer": {Text: "Schnelle Antwort"}, "agents.start_task": {Text: "Lange Aufgabe starten"}, "agents.unavailable_title": {Text: "Agenten sind noch nicht verfügbar"}, "agents.unavailable_detail": {Text: "Der Agentendienst ist mit diesem Arbeitsbereich noch nicht verbunden. Unterhaltungen und Aufgaben werden hier angezeigt, sobald er verfügbar ist."}, "agents.task_view": {Text: "Aufgabendetails"}, "agents.confirmed_plan": {Text: "Bestätigter Plan"}, "agents.live_step": {Text: "Aktiver Schritt"}, "agents.budget_used": {Text: "Verwendetes Budget: {used} von {limit}"}, "agents.checkpoints": {Text: "Meilensteine"}, "agents.artifacts": {Text: "Artefakte"}, "agents.approvals": {Text: "Ausstehende Freigaben"}, "agents.submitted_intents": {Text: "Übermittelte Absichten"}, "agents.sources": {Text: "Quellen"}, "agents.plan_revision": {Text: "Planversion {revision}"}, "agents.pause": {Text: "Pausieren"}, "agents.resume": {Text: "Fortsetzen"}, "agents.cancel": {Text: "Abbrechen"}, "agents.extend_budget": {Text: "Budget erweitern"},
+		"agents.answer":          {Text: "Antwort"},
+		"agents.state.cancelled": {Text: "Abgebrochen"}, "agents.state.expired": {Text: "Abgelaufen"}, "agents.state.unknown": {Text: "Status nicht verfügbar"},
+		"agents.state.drafting": {Text: "Wird entworfen"}, "agents.state.awaiting_plan_confirmation": {Text: "Wartet auf Planbestätigung"}, "agents.state.waiting": {Text: "Wartet"},
+		"agents.confirm_plan": {Text: "Plan bestätigen"}, "agents.proposed_plan": {Text: "Plan zur Prüfung"},
+		"agents.control_working": {Text: "Aufgabe wird aktualisiert…"}, "agents.control_done": {Text: "Aufgabe aktualisiert."},
+		"agents.control_conflict":             {Text: "Die Aufgabe wurde geändert. Laden Sie die Seite neu, bevor Sie es erneut versuchen."},
+		"agents.control_denied":               {Text: "Sie dürfen diese Aufgabe nicht mehr aktualisieren."},
+		"agents.control_disabled":             {Text: "Agenten sind für Ihre Organisation ausgeschaltet."},
+		"agents.control_failed":               {Text: "Die Aufgabe konnte nicht aktualisiert werden. Versuchen Sie es erneut."},
+		"agents.step_state.observed":          {Text: "Geprüft"},
+		"agents.step_state.awaiting_approval": {Text: "Wartet auf Genehmigung"},
+		"agents.step_state.pending":           {Text: "Ausstehend"},
+		"agents.step_state.running":           {Text: "In Bearbeitung"},
+		"agents.step_state.completed":         {Text: "Abgeschlossen"},
+		"agents.step_state.failed":            {Text: "Fehlgeschlagen"},
+		"agents.tier.read":                    {Text: "Informationen lesen"},
+		"agents.tier.private_draft":           {Text: "Privaten Entwurf vorbereiten"},
+		"agents.tier.communicate":             {Text: "Nachricht senden"},
+		"agents.tier.submit_governed":         {Text: "Zur Genehmigung einreichen"},
+		"agents.tier.external_write":          {Text: "Externes System aktualisieren"},
+		"agents.tier.unknown":                 {Text: "Aktionstyp nicht verfügbar"},
+		"agents.state.running":                {Text: "Läuft"}, "agents.state.awaiting_approval": {Text: "Wartet auf Freigabe"}, "agents.state.awaiting_input": {Text: "Wartet auf Eingabe"}, "agents.state.paused": {Text: "Pausiert"}, "agents.state.completed": {Text: "Abgeschlossen"}, "agents.state.failed": {Text: "Fehlgeschlagen"},
+		// UXBLIND-122: composer status copy (de-DE)
+		"agents.start_working": {Text: "Ihre Aufgabe wird gestartet ..."}, "agents.start_done": {Text: "Aufgabe gestartet. Sie wird jetzt geladen."}, "agents.start_empty": {Text: "Beschreiben Sie zuerst, was der Agent tun soll."}, "agents.start_disabled": {Text: "Agenten sind für Ihre Organisation ausgeschaltet."}, "agents.start_denied": {Text: "Sie dürfen keine Agentenaufgaben starten."}, "agents.start_failed": {Text: "Die Aufgabe konnte nicht gestartet werden. Versuchen Sie es erneut."},
+		"roles.no_explicit_assignment": {Text: "Für diese Person wurde keine effektive Rolle übermittelt."},
 		"roles.per_worker_guidance":    {Text: "Rollenänderungen werden pro Person gespeichert und vom Server geprüft."},
 		"context_switcher.single":      {Text: "Nur ein autorisierter Kontext ist verfügbar"}, "context_switcher.switching": {Text: "Arbeitsbereichskontext wird gewechselt…"}, "context_switcher.failed": {Text: "Arbeitsbereich konnte nicht gewechselt werden. Versuchen Sie es erneut."}, "context_switcher.switch_to": {Text: "Zu {tenant}, {acting} wechseln"}, "context_switcher.current_context": {Text: "{tenant}, {acting}, aktuell"}, "context_switcher.elevated": {Text: "Erweiterter Zugriff"},
 		"context_switcher.tenant": {Text: "Mandant"}, "context_switcher.acting": {Text: "Handlungsbefugnis"},
@@ -1399,6 +1665,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"global_search.closed": {Text: "Geschlossen {value}"}, "global_search.effective": {Text: "Wirksam {value}"},
 
 		"action_launcher.trigger": {Text: "Gehe zu"}, "action_launcher.dialog_title": {Text: "Aktion starten"}, "action_launcher.navigate_trigger": {Text: "Gehe zu"}, "action_launcher.filter_label": {Text: "Autorisierte Aktionen oder Mitarbeitende suchen"}, "action_launcher.filter_placeholder": {Text: "Aktionen oder Mitarbeitende suchen"}, "action_launcher.empty_title": {Text: "Keine Aktionen verfügbar"}, "action_launcher.empty_description": {Text: "Für diese Identität ist derzeit keine autorisierte Aktion verfügbar."},
+		// UXBLIND lane O
+		"action_launcher.actions_filter_label": {Text: "Autorisierte Aktionen suchen"}, "action_launcher.actions_filter_placeholder": {Text: "Aktionen suchen"},
 		"shell.connecting": {Text: "Verbindung zu Human Capital Management Suite wird hergestellt"}, "shell.loading_authorized": {Text: "Ihre Arbeitsbereichsdaten werden geladen…"},
 		"action_launcher.navigation_trigger":                {Text: "Gehe zu"},
 		"action_launcher.navigation_title":                  {Text: "Zu einer Seite wechseln"},
@@ -1419,6 +1687,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"nav.collapse":                                      {Text: "Navigation einklappen"}, "nav.expand": {Text: "Navigation ausklappen"}, "nav.drawer_open": {Text: "Navigationsmenü öffnen"}, "nav.drawer_close": {Text: "Navigationsmenü schließen"}, "nav.favorites": {Text: "Favoriten"}, "nav.all": {Text: "Alle Bereiche"}, "nav.none": {Text: "Keine passenden Menüs"}, "nav.unavailable": {Text: "In diesem Kontext ist keine Navigation verfügbar."}, "nav.main": {Text: "Hauptnavigation"}, "nav.support": {Text: "Hilfe und Einstellungen"}, "nav.workspace": {Text: "Arbeitsbereich-Navigation"}, "nav.filter": {Text: "Navigation filtern"}, "nav.filter_placeholder": {Text: "Menü filtern"}, "nav.filter_apply": {Text: "Menüfilter anwenden"}, "nav.filter_clear": {Text: "Menüfilter löschen"}, "nav.favorite_add": {Text: "{label} zu Favoriten hinzufügen"}, "nav.favorite_remove": {Text: "{label} aus Favoriten entfernen"}, "nav.work_queue": {Text: "Aufgabenliste"}, "nav.admin_overview": {Text: "Admin-Übersicht"}, "nav.overview": {Text: "Übersicht"},
 		"nav.filter_pages": {Text: "Seiten filtern"}, "nav.search_above": {Text: "Personen und Workflows über die obere Suche finden."}, "nav.support_always": {Text: "Hilfe und Einstellungen · immer verfügbar"},
 		"page.home.label": {Text: "Start"}, "page.home.title": {Text: "Start"}, "page.home.subtitle": {Text: "Prüfen Sie offene Anfragen und halten Sie Ihre Arbeit in Bewegung."}, "page.home.greeting": {Text: "Guten Morgen, {name}."},
+		// UXBLIND lane E
+		"page.home.greeting.morning": {Text: "Guten Morgen, {name}."}, "page.home.greeting.afternoon": {Text: "Guten Tag, {name}."}, "page.home.greeting.evening": {Text: "Guten Abend, {name}."},
 		"home.attention_title": {Text: "Ihre nächsten Aufgaben"}, "home.activity_title": {Text: "Aktuelle Übersicht"}, "home.activity_scope": {Text: "Ihre zugewiesenen Aufgaben und für Sie sichtbare Datensätze."}, "home.start_title": {Text: "Anfrage starten"},
 		"home.empty_title": {Text: "Keine laufenden Vorgänge"}, "home.empty_detail": {Text: "Neue Aufgaben, gespeicherte Entwürfe und verfolgte Anfragen erscheinen hier."},
 		"home.activity_scope_work": {Text: "Ihre zugewiesenen Aufgaben und sichtbare Datensätze."}, "home.activity_scope_people": {Text: "Für Sie sichtbare Mitarbeitende und Datensätze."},
@@ -1433,12 +1703,12 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"page.journeys.label": {Text: "Abläufe"}, "page.journeys.title": {Text: "Abläufe"}, "page.journeys.subtitle": {Text: "Geregelte Personalabläufe starten, verfolgen und abschließen."},
 
 		"page.work.label": {Text: "Meine Aufgaben"}, "page.work.title": {Text: "Meine Aufgaben"}, "page.work.subtitle": {Text: "Beförderungsentscheidungen und -aufgaben, die Ihr Handeln erfordern."},
-		"page.history.label": {Text: "Aufgabenverlauf"}, "page.history.title": {Text: "Ablaufverlauf"}, "page.history.subtitle": {Text: "Abgeschlossene, abgelehnte und fehlgeschlagene Abläufe prüfen."},
+		"page.history.label": {Text: "Aufgabenverlauf"}, "page.history.title": {Text: "Aufgabenverlauf"}, "page.history.subtitle": {Text: "Abgeschlossene, abgelehnte und fehlgeschlagene Abläufe prüfen."},
 		"page.people.label": {Text: "Mitarbeitende"}, "page.people.title": {Text: "Mitarbeitende"}, "page.people.subtitle": {Text: "Mitarbeitende, die Sie in der gesamten Organisation einsehen dürfen."},
-		"page.myself.label": {Text: "Ich"}, "page.myself.title": {Text: "Mein Profil"}, "page.myself.subtitle": {Text: "Eigene Beschäftigungs-, Organisations-, Entgelt- und Ablaufdaten."},
+		"page.myself.label": {Text: "Ich"}, "page.myself.title": {Text: "Ich"}, "page.myself.subtitle": {Text: "Ihre Beschäftigungs- und Organisationsdaten sowie verfügbare Abläufe."},
 		"page.person.label": {Text: "Person"}, "page.person.title": {Text: "Personenprofil"}, "page.person.subtitle": {Text: "Beschäftigtendaten und verfügbare geregelte Abläufe."},
 		"page.organization.label": {Text: "Organisation"}, "page.organization.title": {Text: "Organisation"}, "page.insights.label": {Text: "Einblicke"}, "page.insights.title": {Text: "Einblicke"}, "page.admin.label": {Text: "Administration"}, "page.admin.title": {Text: "Administration"}, "admin.journeys_unavailable_reason": {Text: "Journey-Aktionen sind derzeit nicht verfügbar, da die Verbindung nicht geantwortet hat. Laden Sie die Seite neu, um es erneut zu versuchen."}, "admin.studio_unavailable_reason": {Text: "Die Seitenkonfiguration ist für Ihre Organisation noch nicht verfügbar."}, "admin.hero_eyebrow": {Text: "Administration"}, "admin.hero_description": {Text: "Verwalten Sie verfügbare Einstellungen und sehen Sie, was für diesen Arbeitsbereich geplant ist."}, "admin.planned": {Text: "Geplant"}, "admin.journey_card_description": {Text: "Beförderungsvorgänge und die für Sie sichtbaren Beschäftigten werden live aus den Daten Ihrer Organisation geladen."}, "admin.studio_card_description": {Text: "Die Erlebniskonfiguration ist für Ihre Organisation noch nicht verfügbar."}, "page.appearance.label": {Text: "Marke & Darstellung"}, "page.appearance.title": {Text: "Marke & Darstellung"}, "page.studio.label": {Text: "Experience Studio"}, "page.studio.title": {Text: "Experience Studio"}, "page.help.label": {Text: "Hilfe"}, "page.help.title": {Text: "Hilfe-Center"}, "page.settings.label": {Text: "Einstellungen"}, "page.settings.title": {Text: "Einstellungen"}, "page.settings.subtitle": {Text: "Verwalten Sie Sprache, Barrierefreiheit und persönliche Einstellungen."},
-		"page.worker_ids.label": {Text: "Personalnummern"}, "page.worker_ids.title": {Text: "Regeln für Personalnummern"}, "page.worker_ids.subtitle": {Text: "Konfigurieren Sie die eindeutigen Personalnummern dieser Organisation."},
+		"page.worker_ids.label": {Text: "Personalnummern"}, "page.worker_ids.title": {Text: "Personalnummern"}, "page.worker_ids.subtitle": {Text: "Konfigurieren Sie die eindeutigen Personalnummern dieser Organisation."},
 		"page.organization_visibility.label": {Text: "Organisationssichtbarkeit"}, "page.organization_visibility.title": {Text: "Organisationssichtbarkeit"}, "page.organization_visibility.subtitle": {Text: "Steuern Sie, welche Organisationseinheiten normale Benutzer finden können."},
 		"organization_visibility.eyebrow": {Text: "VERZEICHNISZUGRIFF"}, "organization_visibility.heading": {Text: "Sichtbarkeitsgrenze der Belegschaft festlegen"}, "organization_visibility.description": {Text: "Diese organisationsweite Regel wird vom Server angewendet, bevor Beschäftigtendaten den Browser erreichen."}, "organization_visibility.scope_title": {Text: "Welche Personen können Mitglieder dieser Rolle finden?"}, "organization_visibility.current_scope": {Text: "Aktueller Bereich"}, "organization_visibility.proposed_scope": {Text: "Vorgeschlagener Bereich"}, "organization_visibility.scope_empty": {Text: "Keine Einheiten im Bereich"}, "organization_visibility.mode_all": {Text: "Alle"}, "organization_visibility.mode_all_detail": {Text: "Alle für diesen Organisationsbereich autorisierten Beschäftigten anzeigen."}, "organization_visibility.mode_own": {Text: "Eigene Organisationseinheit"}, "organization_visibility.mode_own_detail": {Text: "Die angemeldete Person und Kolleginnen und Kollegen derselben Einheit anzeigen."}, "organization_visibility.mode_allow": {Text: "Nur ausgewählte Einheiten"}, "organization_visibility.mode_allow_detail": {Text: "Nur die unten ausgewählten Organisationseinheiten anzeigen."}, "organization_visibility.mode_deny": {Text: "Alle außer ausgewählten Einheiten"}, "organization_visibility.mode_deny_detail": {Text: "Die unten ausgewählten Organisationseinheiten ausblenden."}, "organization_visibility.units_title": {Text: "Ausgewählte Organisationseinheiten"}, "organization_visibility.units_help": {Text: "Die Auswahl gilt für Positiv- und Sperrlistenmodus und bleibt beim Moduswechsel gespeichert."}, "organization_visibility.boundary_title": {Text: "Automatisch angewendet"}, "organization_visibility.boundary_detail": {Text: "Ausgeblendete Beschäftigte, Einheitsnamen und Berichtslinien werden entfernt, bevor die Beschäftigtendaten den Browser erreichen. Die eigene Akte bleibt sichtbar; Vergütungsadministratoren behalten vollständigen Verwaltungszugriff."}, "organization_visibility.save": {Text: "Sichtbarkeitsrichtlinie speichern"}, "organization_visibility.status": {Text: "Änderungen gelten organisationsweit und sind versionsgeprüft."}, "organization_visibility.save_unavailable": {Text: "Zum Speichern ist die Aktualisierungsberechtigung für die Organisationssichtbarkeit erforderlich."}, "data_domain_scope.title": {Text: "Datenbereiche"}, "data_domain_scope.empty": {Text: "Keine Datenbereiche im Geltungsbereich"},
 		"myself.organization_title": {Text: "Mein Organisationsbaum"}, "myself.organization_detail": {Text: "Berichtsbeziehungen gemäß der Verzeichnisrichtlinie Ihrer Organisation. Ihr Profil ist hervorgehoben."},
@@ -1458,6 +1728,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"work.waiting_on.proposer": {Text: "die antragstellende Person"}, "work.waiting_on.approver": {Text: "die genehmigende Person"}, "work.waiting_on.manager": {Text: "die Führungskraft"}, "work.waiting_on.finance": {Text: "die Finanzabteilung"}, "work.waiting_on.system": {Text: "den Workflow"},
 		"work.assignee_note": {Text: "Zuständige Person, Frist und Ihr nächster Schritt erscheinen nur bei Zeilen, deren aktuelle Arbeitsaufgabe Sie einsehen dürfen. Öffnen Sie einen Ablauf für den vollständigen Datensatz."},
 		"work.mine":          {Text: "Mir zugewiesen"}, "work.row_assigned_to_you": {Text: "Ihnen zugewiesen"}, "work.row_claimable_by_you": {Text: "Sie können dies übernehmen"}, "work.row_assigned_to": {Text: "Zugewiesen an {assignee}"}, "work.row_due": {Text: "Fällig {date}"}, "work.row_next_action": {Text: "Ihr nächster Schritt: {action}"}, "work.current_work_item_label": {Text: "Aktuelle Arbeitsaufgabe"},
+		// UXBLIND lane E
+		"work.assignment_label": {Text: "Zuweisung"}, "work.due_label": {Text: "Frist"}, "work.next_action_label": {Text: "Nächster Schritt"}, "work.waiting_on.you": {Text: "Ihnen"},
 		"work.action.claim": {Text: "Übernehmen"}, "work.action.release": {Text: "Freigeben"}, "work.action.complete": {Text: "Abschließen"}, "work.action.decide_approval": {Text: "Genehmigung entscheiden"},
 		"work.tracked": {Text: "Verfolgte Anfragen"}, "work.row_no_action_needed": {Text: "Keine Aktion von Ihnen erforderlich"},
 		"work.all":                 {Text: "Ihr Handeln erforderlich"},
@@ -1468,25 +1740,39 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"position_picker.open_now": {Text: "Sofort verfügbar"}, "position_picker.open_until": {Text: "Verfügbar bis {date}"}, "position_picker.reservation_available": {Text: "Verfügbar"}, "position_picker.reservation_unavailable": {Text: "Derzeit nicht verfügbar"},
 		"promotion_review.target_manager": {Text: "Berichtet an {manager}"}, "promotion_review.no_target_manager": {Text: "Kein Zielvorgesetzter ausgewählt"}, "promotion_review.manager_unchanged": {Text: "Behält die aktuelle Führungskraft"}, "promotion_review.manager_unchanged_named": {Text: "Berichtet weiterhin an {manager}"}, "promotion_review.target_organization": {Text: "Organisation: {organization}"}, "promotion_review.target_position": {Text: "Position: {position}"}, "promotion_review.affected_direct_reports": {Plural: map[string]string{"one": "{count} direkter Mitarbeiter wird verschoben", "other": "{count} direkte Mitarbeiter werden verschoben"}}, "promotion_review.no_affected_reports": {Text: "Keine direkten Mitarbeiter betroffen"}, "promotion_review.cycle_safe": {Text: "Keine Konflikte in der Berichtslinie gefunden"}, "promotion_review.cycle_unsafe": {Text: "Diese Änderung konnte nicht als frei von einem Berichtszyklus bestätigt werden"},
 		"compensation_guardrail.title": {Text: "Vergütungsleitplanke"}, "compensation_guardrail.current_pay": {Text: "Aktuelles Gehalt"}, "compensation_guardrail.permitted_increase": {Text: "Größte Erhöhung innerhalb des Rahmens"}, "compensation_guardrail.minimum": {Text: "Minimum für diese Rolle"}, "compensation_guardrail.maximum": {Text: "Maximum für diese Rolle"}, "compensation_guardrail.band_position": {Text: "Position des aktuellen Gehalts im Rahmen"}, "compensation_guardrail.effective_date_basis": {Text: "Rahmen gültig zum"}, "compensation_guardrail.band_position.below_minimum": {Text: "Unter dem Minimum"}, "compensation_guardrail.band_position.in_band": {Text: "Innerhalb des Rahmens"}, "compensation_guardrail.band_position.above_maximum": {Text: "Über dem Maximum"}, "compensation_guardrail.band_position.unspecified": {Text: "Nicht ermittelt"}, "compensation_guardrail.unavailable_action": {Text: "Vorgeschlagenes Gehalt eingeben"}, "compensation_guardrail.review_unavailable.not_authorized": {Text: "Vergütungsdetails werden Ihnen nicht angezeigt."}, "compensation_guardrail.review_unavailable.band_unresolved": {Text: "Für diese Rolle ist kein Gehaltsrahmen veröffentlicht."}, "compensation_guardrail.unavailable_reason.not_authorized": {Text: "Sie sind nicht berechtigt, die Vergütung für diese Beförderung einzusehen oder festzulegen."}, "compensation_guardrail.unavailable_reason.band_unresolved": {Text: "Für diese Rolle ist noch kein Gehaltsrahmen veröffentlicht, daher kann kein Betrag eingegeben werden."}, "compensation_guardrail.unavailable_reason.unspecified": {Text: "Vergütungsdetails sind für diese Beförderung nicht verfügbar."},
+		// UXBLIND lane Y
+		"compensation_guardrail.allowed_minimum": {Text: "Zulässiges Minimum für diese Beförderung"}, "compensation_guardrail.allowed_maximum": {Text: "Zulässiges Maximum für diese Beförderung"}, "compensation_guardrail.role_band_position": {Text: "Aktuelles Gehalt im Vergleich zum Gehaltsband"},
 		"promotion_validation.current_amount_invalid": {Text: "Das aktuelle Grundgehalt muss ein gültiger Betrag größer als null sein."}, "promotion_validation.proposed_amount_invalid": {Text: "Das vorgeschlagene Grundgehalt muss ein gültiger Betrag größer als null sein."}, "promotion_validation.currency_required": {Text: "Wählen Sie eine Währung für das vorgeschlagene Gehalt."}, "promotion_validation.pay_basis_required": {Text: "Wählen Sie, wie das vorgeschlagene Gehalt bemessen wird (zum Beispiel jährlich oder stündlich)."}, "promotion_validation.currency_change_not_supported": {Text: "Ein Währungswechsel während einer Beförderung wird noch nicht unterstützt. Behalten Sie die aktuelle Währung bei."}, "promotion_validation.not_a_raise": {Text: "Das vorgeschlagene Grundgehalt muss höher sein als das aktuelle Grundgehalt."}, "promotion_validation.business_reason_required": {Text: "Geben Sie eine geschäftliche Begründung für diese Beförderung ein."}, "promotion_validation.effective_date_required": {Text: "Wählen Sie ein gültiges Wirksamkeitsdatum."}, "promotion_validation.effective_date_too_far_past": {Text: "Wählen Sie ein Wirksamkeitsdatum näher am heutigen Tag."}, "promotion_validation.increase_over_threshold": {Text: "Diese Erhöhung ist größer als üblich und erfordert eine zusätzliche Prüfung."}, "promotion_validation.subject_not_disclosable": {Text: "Sie sind nicht berechtigt, diese Beförderung einzusehen oder vorzuschlagen."}, "promotion_validation.required_field_denied": {Text: "Sie sind nicht berechtigt, eine für diese Beförderung erforderliche Angabe einzusehen."}, "promotion_validation.required_field_unavailable": {Text: "Eine für diese Beförderung erforderliche Angabe konnte nicht gelesen werden. Versuchen Sie es später erneut."}, "promotion_validation.worker_not_active": {Text: "Der Beschäftigungsstatus dieser Person lässt derzeit keine Beförderung zu."}, "promotion_validation.target_job_required": {Text: "Wählen Sie die Zielstelle für diese Beförderung."}, "promotion_validation.target_grade_required": {Text: "Wählen Sie die Zielgehaltsstufe für diese Beförderung."}, "promotion_validation.same_grade": {Text: "Die Zielgehaltsstufe entspricht der aktuellen Stufe. Wählen Sie für eine Beförderung eine höhere Stufe."}, "promotion_validation.effective_before_hire": {Text: "Das Wirksamkeitsdatum darf nicht vor dem Einstellungsdatum liegen."}, "promotion_validation.pay_band_not_found": {Text: "Für die Zielrolle ist noch kein Gehaltsrahmen veröffentlicht."}, "promotion_validation.below_band_minimum": {Text: "Das vorgeschlagene Grundgehalt muss mindestens {amount} betragen, das Minimum für diese Rolle."}, "promotion_validation.below_band_minimum_generic": {Text: "Das vorgeschlagene Grundgehalt liegt unter dem Minimum für diese Rolle."}, "promotion_validation.above_band_maximum": {Text: "Das vorgeschlagene Grundgehalt darf höchstens {amount} betragen, das Maximum für diese Rolle."}, "promotion_validation.above_band_maximum_generic": {Text: "Das vorgeschlagene Grundgehalt liegt über dem Maximum für diese Rolle."}, "promotion_validation.budget_authority_missing": {Text: "Für diese Beförderung ist ein Verweis auf das Personalbudget erforderlich."}, "promotion_validation.budget_observation_only": {Text: "Das angezeigte Personalbudget ist eine Beobachtung, keine Reservierung."}, "promotion_validation.budget_observed_short": {Text: "Das beobachtete Personalbudget deckt die Kosten dieser Beförderung möglicherweise nicht."}, "promotion_validation.target_manager_not_found": {Text: "Wählen Sie eine gültige Zielführungskraft für diese Beförderung."}, "promotion_validation.manager_relationship_cycle": {Text: "Diese Zuordnung würde die Person zum Vorgesetzten ihrer eigenen Führungskraft machen. Wählen Sie eine andere Führungskraft."}, "promotion_validation.manager_chain_unresolved": {Text: "Die Berichtslinie der Zielführungskraft konnte nicht ermittelt werden."}, "promotion_validation.target_position_not_found": {Text: "Wählen Sie eine gültige Zielposition für diese Beförderung."}, "promotion_validation.target_position_incompatible": {Text: "Die ausgewählte Position ist mit der Zielstelle und -gehaltsstufe nicht kompatibel."}, "promotion_validation.target_position_not_effective": {Text: "Die ausgewählte Position ist am gewählten Wirksamkeitsdatum nicht verfügbar."}, "promotion_validation.target_position_at_capacity": {Text: "Die ausgewählte Position hat keine freie Kapazität mehr."}, "promotion_validation.target_position_reservation_conflict": {Text: "Die ausgewählte Position wurde soeben von einer anderen Anfrage reserviert. Wählen Sie eine andere Position."}, "promotion_validation.unrecognized_reason": {Text: "Prüfen Sie diesen Wert und versuchen Sie es erneut."}, "promotion_validation.diagnostics_disclosure": {Text: "Diagnose"}, "promotion_validation.support_reference_label": {Text: "Support-Referenz"},
-		"people.filter_placeholder": {Text: "Name, Rolle oder ID"}, "people.filter_aria": {Text: "Mitarbeitende filtern"}, "people.filter": {Text: "Filtern"}, "people.clear": {Text: "Löschen"}, "people.find": {Text: "Mitarbeitende suchen"}, "people.all_teams": {Text: "Alle Teams"}, "people.all_locations": {Text: "Alle Standorte"}, "people.team_aria": {Text: "Mitarbeitende nach Team filtern"}, "people.location_aria": {Text: "Mitarbeitende nach Standort filtern"}, "people.sort_by": {Text: "Sortieren nach"}, "people.table_aria": {Text: "Autorisierte Mitarbeitende"}, "people.column.person": {Text: "Person"}, "people.column.role": {Text: "Rolle"}, "people.column.team": {Text: "Team"}, "people.column.manager": {Text: "Führungskraft"}, "people.column.location": {Text: "Standort"}, "people.column.actions": {Text: "Aktionen"}, "people.promote": {Text: "Befördern"}, "people.promote_aria": {Text: "Beförderung für {name} starten"}, "people.workflows": {Text: "Abläufe"}, "people.workflows_aria": {Text: "Ablauf für {name} auswählen"}, "people.workflow_aria": {Text: "{workflow} für {name} starten"}, "people.frequent": {Text: "Häufig verwendet"}, "people.no_workflows": {Text: "Keine verfügbaren Abläufe"}, "people.workflows_unavailable_short": {Text: "Nicht verfügbar"}, "people.eligible_only": {Text: "Nur beförderungsberechtigt"}, "people.open_active_promotion": {Text: "Aktive Beförderung öffnen"}, "people.open_active_promotion_aria": {Text: "Aktive Beförderung für {name} öffnen"}, "people.pages": {Text: "Mitarbeitendenseiten"}, "people.range": {Text: "{first}–{last} von {total}"}, "people.page_count": {Text: "Seite {page} von {pages}"}, "people.empty_title": {Text: "Keine Mitarbeitenden gefunden"}, "people.clear_filter": {Text: "Filter löschen"},
-		"organization.relationship_withheld":       {Text: "Die Führungskraft dieser Person liegt außerhalb der für Sie verfügbaren Organisationsansicht."},
-		"organization.relationship_orphan":         {Text: "Diese Berichtslinie kann keiner Person im aktuellen Verzeichnis zugeordnet werden."},
-		"organization.current_you":                 {Text: " — Sie"},
-		"organization.selected_person":             {Text: " — ausgewählt"},
-		"organization.employee_details":            {Text: "Mitarbeiterdetails"},
-		"organization.employee_details_for":        {Text: "Mitarbeiterdetails für {name}"},
-		"work.action_queue_description":            {Text: "Aufgaben, die Ihre Entscheidung oder Ihren nächsten Schritt erfordern, nach Fälligkeit sortiert."},
-		"work.action_queue_empty_title":            {Text: "Keine Aufgabe erfordert Ihr Handeln"},
-		"work.action_queue_empty_detail":           {Text: "Neue Aufgaben erscheinen hier. Den Status Ihrer Anfragen finden Sie unter Abläufe."},
-		"work.resumable_drafts":                    {Text: "Fortsetzbare Entwürfe"},
-		"work.drafts_description":                  {Text: "Setzen Sie einen Entwurf vor der Einreichung fort."},
-		"work.review_empty_title":                  {Text: "Keine Ihnen zugewiesenen Prüfungen"},
-		"work.review_empty_detail":                 {Text: "Ihnen zugewiesene Genehmigungen erscheinen hier. Andere sichtbare Anfragen können Sie unter Abläufe verfolgen."},
-		"work.blocked_empty_title":                 {Text: "Keine Ihnen zugewiesenen blockierten Aufgaben"},
-		"work.blocked_empty_detail":                {Text: "Zugewiesene Aufgaben, die eine Klärung benötigen, erscheinen hier. Verfolgen Sie den Fortschritt unter Abläufe."},
-		"work.track_requests":                      {Text: "Beförderungsanträge verfolgen"},
-		"work.nothing_detail":                      {Text: "Wählen Sie eine Aufgabe aus der Liste oder zeigen Sie alle Aufgaben an."},
+		// UXBLIND lane G
+		"people.promotion_title": {Text: "Mitarbeitende für eine Beförderung auswählen"}, "people.promotion_detail": {Text: "Wählen Sie eine beförderungsberechtigte Person aus. Löschen Sie den Berechtigungsfilter, um alle sichtbaren Mitarbeitenden zu sehen."}, "people.promotion_count": {Text: "{eligible} berechtigt von {visible} sichtbar"},
+		"organization.relationship_withheld": {Text: "Die Führungskraft dieser Person liegt außerhalb der für Sie verfügbaren Organisationsansicht."},
+		"organization.relationship_orphan":   {Text: "Diese Berichtslinie kann keiner Person im aktuellen Verzeichnis zugeordnet werden."},
+		"organization.current_you":           {Text: " — Sie"},
+		"organization.selected_person":       {Text: " — ausgewählt"},
+		"organization.employee_details":      {Text: "Mitarbeiterdetails"},
+		"organization.employee_details_for":  {Text: "Mitarbeiterdetails für {name}"},
+		"work.action_queue_description":      {Text: "Aufgaben, die Ihre Entscheidung oder Ihren nächsten Schritt erfordern, nach Fälligkeit sortiert."},
+		"work.action_queue_empty_title":      {Text: "Keine Aufgabe erfordert Ihr Handeln"},
+		"work.action_queue_empty_detail":     {Text: "Neue Aufgaben erscheinen hier. Den Status Ihrer Anfragen finden Sie unter Abläufe."},
+		"work.resumable_drafts":              {Text: "Fortsetzbare Entwürfe"},
+		"work.drafts_description":            {Text: "Setzen Sie einen Entwurf vor der Einreichung fort."},
+		"work.review_empty_title":            {Text: "Keine Ihnen zugewiesenen Prüfungen"},
+		"work.review_empty_detail":           {Text: "Ihnen zugewiesene Genehmigungen erscheinen hier. Andere sichtbare Anfragen können Sie unter Abläufe verfolgen."},
+		"work.blocked_empty_title":           {Text: "Keine Ihnen zugewiesenen blockierten Aufgaben"},
+		"work.blocked_empty_detail":          {Text: "Zugewiesene Aufgaben, die eine Klärung benötigen, erscheinen hier. Verfolgen Sie den Fortschritt unter Abläufe."},
+		"work.track_requests":                {Text: "Beförderungsanträge verfolgen"},
+		"work.nothing_detail":                {Text: "Wählen Sie eine Aufgabe aus der Liste oder zeigen Sie alle Aufgaben an."},
+		// UXBLIND lane G People directory copy, German.
+		"people.filter_placeholder": {Text: "Name, Rolle oder ID"}, "people.filter_aria": {Text: "Mitarbeitende filtern"},
+		"people.filter": {Text: "Filtern"}, "people.clear": {Text: "Zurücksetzen"}, "people.find": {Text: "Mitarbeitende suchen"},
+		"people.all_teams": {Text: "Alle Teams"}, "people.all_locations": {Text: "Alle Standorte"},
+		"people.team_aria": {Text: "Mitarbeitende nach Team filtern"}, "people.location_aria": {Text: "Mitarbeitende nach Standort filtern"},
+		"people.eligible_only": {Text: "Nur beförderungsberechtigt"}, "people.frequent": {Text: "Häufig verwendet"}, "people.sort_by": {Text: "Sortieren nach"},
+		"people.column.actions": {Text: "Aktionen"}, "people.range": {Text: "{first}–{last} von {total}"},
+		"people.promote": {Text: "Befördern"}, "people.promote_aria": {Text: "Beförderung für {name} starten"},
+		"people.workflows": {Text: "Abläufe"}, "people.workflows_aria": {Text: "Ablauf für {name} auswählen"}, "people.workflow_aria": {Text: "{workflow} für {name} starten"},
+		"people.workflows_unavailable_short": {Text: "Nicht verfügbar"}, "people.no_workflows": {Text: "Keine verfügbaren Abläufe"},
+		"people.open_active_promotion": {Text: "Aktive Beförderung öffnen"}, "people.open_active_promotion_aria": {Text: "Aktive Beförderung für {name} öffnen"},
 		"people.workflow_unavailable":              {Text: "Nicht verfügbar"},
 		"people.workflow_unavailable_aria":         {Text: "Warum für {name} keine Abläufe verfügbar sind"},
 		"people.workflow_unavailable_generic_aria": {Text: "Für {name} sind keine Abläufe verfügbar"},
@@ -1538,6 +1824,12 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"settings.locale_title": {Text: "Sprache & Region"}, "settings.locale_description": {Text: "Wählen Sie die Sprache für Navigation, Beschriftungen, Datumsangaben, Zahlen und Währungsformate."},
 		"settings.locale_option_detail": {Text: "{code} · {direction}"}, "settings.locale_ltr": {Text: "Von links nach rechts"}, "settings.locale_rtl": {Text: "Von rechts nach links"},
 		"settings.locale_current": {Text: "Aktuell"}, "settings.locale_status": {Text: "Sprachänderungen gelten sofort und bleiben beim Wechsel zwischen Seiten aktiv."},
+		// UXBLIND lane F
+		"format.pay_unit.year": {Text: "pro Jahr"}, "format.pay_unit.hour": {Text: "pro Stunde"},
+		// UXBLIND lane X
+		"journey.error_domain_unavailable_title": {Text: "Genehmigungsdienst nicht verfügbar"}, "journey.error_domain_unavailable_detail": {Text: "Der Genehmigungsdienst war nicht erreichbar. Es wurde nichts geändert; versuchen Sie es später erneut."},
+		"journey.error_storage_failed_title": {Text: "Start der Genehmigung konnte nicht gespeichert werden"}, "journey.error_storage_failed_detail": {Text: "Der Genehmigungsdienst konnte diesen Versuch nicht speichern. Es wurde nichts geändert; versuchen Sie es später erneut."},
+		"journey.timeline_start_failed": {Text: "Start der Genehmigung fehlgeschlagen"}, "journey.timeline_start_failed_domain": {Text: "Der Genehmigungsdienst war nicht verfügbar."}, "journey.timeline_start_failed_storage": {Text: "Der fehlgeschlagene Start konnte nicht gespeichert werden."}, "journey.timeline_start_failed_stage": {Text: "Der Antrag war nicht in einer startbaren Phase."},
 		"organization_visibility.configured_roles":    {Text: "Konfigurierte Sichtbarkeit nach Rolle"},
 		"organization_visibility.scope_relative":      {Text: "Wird anhand der Organisationseinheit der jeweiligen Person bestimmt"},
 		"organization_visibility.validation_title":    {Text: "Prüfung"},
@@ -1549,13 +1841,88 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"worker_ids.numeric_required":                 {Text: "Füllen Sie die Zahlenfelder innerhalb der zulässigen Bereiche aus, um zu speichern."},
 		"worker_ids.preview_unavailable":              {Text: "Keine Beispiele verfügbar. Prüfen Sie den Nummernbereich und die Formateinstellungen."},
 		"worker_ids.preview":                          {Text: "Formatvorschau"},
-		"worker_ids.preview_help":                     {Text: "Vorschau Ihrer aktuellen Eingaben mit dem aktuellen Jahr und CARE als Beispielbereich. Es werden keine Nummern vergeben. Erst Speichern übernimmt die Änderungen."},
+		"worker_ids.preview_help":                     {Text: "Vorschau des aktuellen Formats. Die Beispiele verwenden die nächste Sequenz; bis zum Speichern werden keine Nummern vergeben."},
 		"settings.access_title":                       {Text: "Kontozugriff"}, "settings.access_description": {Text: "Ihr angemeldetes Konto und Ihre Organisation."},
 		"settings.profile_title": {Text: "Benutzerprofil"}, "settings.profile_description": {Text: "Ihre Kontoidentität und Ihr autorisiertes Beschäftigtenprofil."},
 		"settings.organization": {Text: "Organisation"}, "settings.principal": {Text: "Identität"}, "settings.purpose_scope": {Text: "Zweck / Bereich"}, "settings.data_source": {Text: "Datenquelle"},
 		"settings.access_callout": {Text: "Ihre Organisation verwaltet Ihren Zugriff. Persönliche Einstellungen ändern Ihre Berechtigungen nicht."},
+		// UXBLIND lane M
+		"help.access_detail_viewer": {Text: "Ihre Rollen bestimmen, welche Seiten und Aktionen verfügbar sind. Wenn Sie Zugriff benötigen, wenden Sie sich über den üblichen Unternehmenskanal an die Workspace-Administration. Beschäftigungs- und Vergütungsdaten können nur über einen verfügbaren Ablauf geändert werden."},
+		"help.access_detail_admin":  {Text: "Ihre Rolle kann den Workspace-Zugriff verwalten. Prüfen Sie unter Rollen und Zugriff die effektiven Rollen und Seitenberechtigungen und legen Sie unter Organisationssichtbarkeit die Verzeichnisgrenze jeder Rolle fest."},
+		"roles.page_access_summary": {Text: "Nutzbare Seiten und Aktionen für diese Rolle: {count}"},
+		"roles.access_explanation":  {Text: "Seiten bestimmen, wohin eine Rolle gehen kann; Aktionen bestimmen, was sie dort tun darf. Der Funktionszugriff ist eine engere Kontrolle innerhalb dieser Seiten und erweitert den Seitenzugriff nie."},
+		// UXBLIND lane U
+		"roles.create_toggle":                         {Text: "Rollenerstellung öffnen"},
+		"roles.create_id_help":                        {Text: "Aus dem Anzeigenamen vorgeschlagen; Sie können ihn bearbeiten."},
+		"roles.create_access_help":                    {Text: "Konfigurieren Sie nach der Erstellung den Seiten- und Funktionszugriff im Abschnitt Seiten- und Aktionszugriff dieser Rolle."},
+		"roles.create_id_required":                    {Text: "Geben Sie eine Rollen-ID ein oder einen Anzeigenamen, aus dem sie abgeleitet wird."},
+		"roles.create_id_invalid":                     {Text: "Verwenden Sie Kleinbuchstaben, Ziffern und Unterstriche; beginnen Sie mit einem Buchstaben."},
+		"roles.create_name_required":                  {Text: "Geben Sie einen Anzeigenamen ein, damit Administratoren diese Rolle erkennen."},
+		"roles.effective_roles_unavailable":           {Text: "Für diese Person wurde keine effektive Rolle übermittelt."},
+		"organization_visibility.scope_control_label": {Text: "Sichtbarkeitseinstellung für diese Rolle"},
+		// UXBLIND lane L
+		"workflow_designer.active_note":          {Text: "Neue Beförderungen verwenden die hier angezeigte aktive Produktkonfiguration. Neue Beförderungen laufen über {workflow}."},
+		"workflow_designer.active_note_fallback": {Text: "Neue Beförderungen laufen über den hier angezeigten aktiven Workflow."},
+		// UXBLIND lane XX
+		// UXBLIND lane AJ
+		"workflow_start.start_action": {Text: "{workflow} starten"}, "workflow_start.favorite_add": {Text: "Zu Favoriten hinzufügen"}, "workflow_start.favorite_remove": {Text: "Aus Favoriten entfernen"},
+		"page.workflow_start.label": {Text: "Workflows"}, "page.workflow_start.title": {Text: "Workflow starten"}, "page.workflow_start.subtitle": {Text: "Geregelte Workflows finden und starten."},
+		"workflow_start.eyebrow": {Text: "Workflow-Zentrale"}, "workflow_start.title": {Text: "Workflow starten"}, "workflow_start.description": {Text: "Finden Sie den passenden geregelten Workflow für Ihre Aufgabe."}, "workflow_start.search_label": {Text: "Workflows durchsuchen"}, "workflow_start.search_placeholder": {Text: "Nach Name, Stichwort oder Kategorie suchen"}, "workflow_start.result_count": {Text: "{count} Workflows"}, "workflow_start.favorites": {Text: "Favoriten"}, "workflow_start.recent": {Text: "Zuletzt gestartet"}, "workflow_start.catalog_label": {Text: "Verfügbare Workflows"}, "workflow_start.uncategorized": {Text: "Weitere"}, "workflow_start.empty_title": {Text: "Für Sie ist kein Workflow verfügbar"}, "workflow_start.empty_detail": {Text: "In diesem Arbeitsbereich wurde noch kein Workflow veröffentlicht, daher gibt es nichts zu starten."}, "workflow_start.empty_detail_designer": {Text: "In diesem Arbeitsbereich ist noch kein Workflow veröffentlicht und aktiv. Veröffentlichen Sie einen im Workflow-Designer, dann erscheint er hier."}, "workflow_start.not_found_title": {Text: "Workflow nicht gefunden"}, "workflow_start.not_found_detail": {Text: "Dieser Link verweist auf keinen Workflow, der in Ihrem Arbeitsbereich verfügbar ist."}, "workflow_start.unavailable_title": {Text: "Dieser Workflow kann nicht gestartet werden"}, "workflow_start.unavailable_detail": {Text: "{reason}. Wenden Sie sich an HR oder die Arbeitsbereichsadministration."}, "workflow_start.unavailable_detail_designer": {Text: "{reason}. Prüfen Sie den Workflow und Ihre Rollenfreigaben im Workflow-Designer und unter Rollen."}, "workflow_start.availability_available": {Text: "Verfügbar"}, "workflow_start.availability_no_capability": {Text: "Die erforderliche Berechtigung fehlt"}, "workflow_start.availability_missing_authority": {Text: "Zusätzliche Autorisierung erforderlich"}, "workflow_start.availability_missing_prerequisite": {Text: "Erforderliche Informationen fehlen"}, "workflow_start.availability_quarantined": {Text: "Diese Version ist vorübergehend nicht verfügbar"}, "workflow_start.start": {Text: "Starten"}, "workflow_start.favorite": {Text: "Als Favorit speichern"},
+		"workflow_designer.catalog_heading":    {Text: "Workflow-Katalog"},
+		"workflow_designer.drafts_heading":     {Text: "Workflow-Entwürfe"},
+		"workflow_designer.references_heading": {Text: "Referenz-Workflows"},
+		"workflow_designer.references_toggle":  {Text: "Referenz-Workflows anzeigen"},
+		"workflow_designer.references_hide":    {Text: "Referenz-Workflows ausblenden"},
+		"workflow_designer.review_only":        {Text: "Nur zur Prüfung"},
+		// UXBLIND lane WW
+		"workflow_list.search_label": {Text: "Workflows suchen"}, "workflow_list.search_placeholder": {Text: "Name, Workflow-ID oder Kategorie"}, "workflow_list.sort_label": {Text: "Workflows sortieren"}, "workflow_list.sort_recent": {Text: "Zuletzt aktualisiert"}, "workflow_list.sort_name": {Text: "Name A–Z"}, "workflow_list.sort_status": {Text: "Status"}, "workflow_list.status_filters": {Text: "Workflow-Statusfilter"}, "workflow_list.all": {Text: "Alle"}, "workflow_list.active": {Text: "Aktiv"}, "workflow_list.draft": {Text: "Entwurf"}, "workflow_list.review": {Text: "Nur zur Prüfung"}, "workflow_list.retired": {Text: "Zurückgezogen"}, "workflow_list.result": {Text: "{shown} von {total} Workflows"}, "workflow_list.range": {Text: "{from}–{to} von {total}"}, "workflow_list.page": {Text: "Seite {page} von {pages}"}, "workflow_list.table_label": {Text: "Workflow-Katalog"}, "workflow_list.col_workflow": {Text: "Workflow"}, "workflow_list.col_version": {Text: "Version"}, "workflow_list.col_status": {Text: "Status"}, "workflow_list.col_category": {Text: "Kategorie"}, "workflow_list.col_updated": {Text: "Aktualisiert"}, "workflow_list.col_owner": {Text: "Verantwortlich"}, "workflow_list.no_match": {Text: "Keine Workflows entsprechen der aktuellen Suche und den Filtern."}, "workflow_list.group_counts": {Text: "Veröffentlicht {published} · Entwurf {draft} · Referenz {reference}"},
+		// UXBLIND lane K
+		"capability_unavailable.title":          {Text: "F\u00fcr diesen Arbeitsbereich noch nicht eingerichtet"},
+		"capability_unavailable.detail":         {Text: "Eine Administration kann diese Funktion f\u00fcr den Arbeitsbereich aktivieren."},
+		"capability_unavailable.request_detail": {Text: "Bitten Sie Ihre Arbeitsbereichsadministration, diese Funktion f\u00fcr den Arbeitsbereich zu aktivieren. Eine Administration kann sie dort aktivieren."},
+		"capability_unavailable.admin_detail":   {Text: "Pr\u00fcfen Sie die Funktionsverwaltung im Admin-Bereich dieses Arbeitsbereichs und aktivieren Sie die Funktion dort."},
+		"capability_unavailable.open_admin":     {Text: "Admin \u00f6ffnen"},
+		// UXBLIND lane P
+		"shell.notifications": {Text: "Benachrichtigungen"}, "shell.account_menu": {Text: "Kontomenü"},
+		"notifications.unread": {Text: "Ungelesen"}, "notifications.read": {Text: "Gelesen"}, "notifications.time_unavailable": {Text: "Zeit nicht verfügbar"},
+		"notifications.read_failed":  {Text: "Diese Benachrichtigung konnte nicht als gelesen markiert werden. Versuchen Sie es erneut."},
+		"notifications.item_aria":    {Text: "{title} von {actor}, {time}, {state}"},
+		"notifications.unread_count": {Plural: map[string]string{"one": "{count} ungelesene Benachrichtigung", "other": "{count} ungelesene Benachrichtigungen"}},
+		// UXBLIND lane DD
+		"work.action_queue_empty_detail_no_journeys": {Text: "Neue Aufgaben erscheinen hier."},
+		// UXBLIND lane II
+		"global_search.topbar_placeholder": {Text: "Arbeitsbereich durchsuchen"},
 	},
 	"ar": {
+		// UXBLIND lane P18
+		"page.personas.label": {Text: "الشخصيات"}, "page.personas.title": {Text: "الشخصيات"}, "page.personas.subtitle": {Text: "راجع دورة حياة الشخصية ونطاقها ومواضعها في المحادثات."},
+		"persona_admin.eyebrow": {Text: "إدارة الوكلاء"}, "persona_admin.title": {Text: "الشخصيات"}, "persona_admin.description": {Text: "راجع المالكين والمهارات ونطاق البيانات والمواضع وضوابط دورة الحياة قبل أن تتصرف الشخصية في محادثة."}, "persona_admin.catalog_title": {Text: "دليل الشخصيات"}, "persona_admin.catalog_detail": {Text: "تبقى الإصدارات المنشورة مقيدة بالمهارات المراجعة والجمهور وسياسة المحادثة."}, "persona_admin.loading": {Text: "جارٍ تحميل إدارة الشخصيات…"}, "persona_admin.unavailable_title": {Text: "إدارة الشخصيات غير متاحة"}, "persona_admin.permission_denied": {Text: "لا تملك صلاحية إدارة الشخصيات."}, "persona_admin.service_unavailable": {Text: "خدمة الشخصيات غير متصلة بمساحة العمل هذه."}, "persona_admin.empty": {Text: "لا توجد شخصيات مهيأة."},
+		"persona_admin.preview_unavailable": {Text: "تعذر تحميل معاينة الوصول. يجب نشر الشخصية وتثبيتها في هذه المحادثة، ويجب أن تكون لديك صلاحية معاينتها."},
+		"persona_admin.lifecycle_draft":     {Text: "مسودة"}, "persona_admin.lifecycle_in_review": {Text: "قيد المراجعة"}, "persona_admin.lifecycle_published": {Text: "منشورة"}, "persona_admin.lifecycle_suspended": {Text: "موقوفة"}, "persona_admin.lifecycle_retired": {Text: "متقاعدة"}, "persona_admin.version": {Text: "الإصدار"}, "persona_admin.owner": {Text: "المالك"}, "persona_admin.steward": {Text: "المسؤول"}, "persona_admin.audience": {Text: "الجمهور"}, "persona_admin.data_reach": {Text: "نطاق البيانات المشتق"}, "persona_admin.limits": {Text: "الحدود"}, "persona_admin.skills": {Text: "المهارات المثبتة"}, "persona_admin.placements": {Text: "مواضع المحادثات"}, "persona_admin.not_reported": {Text: "غير مذكور"}, "persona_admin.no_skills": {Text: "لا توجد مهارات مثبتة."}, "persona_admin.no_installations": {Text: "لا توجد عمليات تثبيت في المحادثات."},
+		"persona_admin.review_step": {Text: "مراجعة AGENTP-006"}, "persona_admin.review_required": {Text: "يجب أن يوافق مراجع مستقل على هذا الإصدار قبل النشر."}, "persona_admin.evaluation_required": {Text: "يلزم التقييم قبل النشر."}, "persona_admin.review_approved": {Text: "وافق مراجع مستقل على الإصدار."}, "persona_admin.review_not_required": {Text: "لم تُسجل مراجعة للنشر بعد."}, "persona_admin.reviewer": {Text: "المراجع"}, "persona_admin.evaluation": {Text: "التقييم"}, "persona_admin.review_detail_unavailable": {Text: "أدلة المراجعة غير متاحة."}, "persona_admin.approve": {Text: "الموافقة على الإصدار"}, "persona_admin.reject": {Text: "رفض الإصدار"}, "persona_admin.request_review": {Text: "طلب المراجعة"}, "persona_admin.publish": {Text: "نشر"}, "persona_admin.rollback": {Text: "تراجع"}, "persona_admin.suspend": {Text: "إيقاف"}, "persona_admin.retire": {Text: "إحالة للتقاعد"}, "persona_admin.actions_unavailable": {Text: "الإجراءات غير متاحة أثناء انقطاع الخدمة."},
+		"persona_admin.preview_title": {Text: "معاينة الوصول الفعلي"}, "persona_admin.preview_detail": {Text: "اختر مستخدماً ومحادثة لرؤية المهارات وفئات البيانات الفعالة هناك."}, "persona_admin.choose_persona": {Text: "الشخصية"}, "persona_admin.choose_user": {Text: "المستخدم"}, "persona_admin.choose_conversation": {Text: "المحادثة"}, "persona_admin.placement": {Text: "موضع الرد"}, "persona_admin.effective_skills": {Text: "المهارات الفعالة"}, "persona_admin.no_effective_skills": {Text: "لا توجد مهارات فعالة في هذا السياق."}, "persona_admin.preview_warnings": {Text: "تحذيرات المعاينة"}, "persona_admin.no_preview_warnings": {Text: "لا توجد تحذيرات إضافية."}, "persona_admin.preview_server_authorized": {Text: "تُصفّى المعاينة وفق صلاحية المستخدم المختار الحالية."},
+		// UXBLIND lane AC
+		"page.workflow_history.label": {Text: "سجل مسارات العمل"}, "page.workflow_history.title": {Text: "سجل مسارات العمل"}, "page.workflow_history.subtitle": {Text: "راجع مسارات العمل التي بدأتها أو شاركت فيها أو يُسمح لك برؤيتها."},
+		"workflow_history.heading": {Text: "سجل مسارات العمل"}, "workflow_history.description": {Text: "اعثر على مسارات العمل المصرح بها حسب النوع أو الحالة أو الشخص أو مقدم الطلب أو التاريخ."}, "workflow_history.export": {Text: "تصدير السجل"}, "workflow_history.empty": {Text: "لم يتم العثور على مسارات عمل"}, "workflow_history.empty_detail": {Text: "لا تطابق مسارات العمل المصرح بها هذه المرشحات."}, "workflow_history.record": {Text: "سجل"}, "workflow_history.records": {Text: "سجلات"},
+		"workflow_history.search": {Text: "البحث في السجل"}, "workflow_history.search_placeholder": {Text: "البحث في سجل مسارات العمل"}, "workflow_history.workflow": {Text: "مسار العمل"}, "workflow_history.requester": {Text: "مقدم الطلب"}, "workflow_history.status": {Text: "الحالة"}, "workflow_history.person": {Text: "الموضوع"}, "workflow_history.from": {Text: "البدء من"}, "workflow_history.to": {Text: "البدء حتى"}, "workflow_history.sort": {Text: "الترتيب حسب"}, "workflow_history.sort_started": {Text: "تاريخ البدء"}, "workflow_history.sort_updated": {Text: "آخر تحديث"}, "workflow_history.sort_status": {Text: "الحالة"}, "workflow_history.apply": {Text: "تطبيق المرشحات"},
+		"workflow_history.status_all": {Text: "كل الحالات"}, "workflow_history.status_open": {Text: "قيد التنفيذ"}, "workflow_history.status_review": {Text: "قيد المراجعة"}, "workflow_history.status_waiting": {Text: "في الانتظار"}, "workflow_history.status_issue": {Text: "يتطلب الانتباه"}, "workflow_history.status_closed": {Text: "مغلق"}, "workflow_history.version": {Text: "الإصدار"}, "workflow_history.participants": {Text: "المشاركون"}, "workflow_history.stage": {Text: "المرحلة"}, "workflow_history.started": {Text: "بدأ"}, "workflow_history.updated": {Text: "حُدّث"}, "workflow_history.table": {Text: "جدول سجل مسارات العمل"}, "workflow_history.pagination": {Text: "صفحات سجل مسارات العمل"},
+		// UXBLIND lane UU
+		"journey.profile_link_possessive": {Text: "عرض ملف {name}"}, "journey.back_to_profile_possessive": {Text: "العودة إلى الملف الشخصي لـ{name}"},
+		// UXBLIND lane SS
+		"work.awaiting_my_approval": {Text: "بانتظار موافقتي"}, "organization.top_of_organization": {Text: "لا أحد — قمة المؤسسة"},
+		// UXBLIND lane II
+		"global_search.topbar_placeholder": {Text: "البحث في مساحة العمل"},
+		// UXBLIND lane S
+		"journey.timeline_decision_approved": {Text: "تمت الموافقة"}, "journey.timeline_decision_rejected": {Text: "مرفوض"}, "journey.timeline_assigned_to": {Text: "أُسندت إلى {assignee}"}, "journey.timeline_decision_reason": {Text: "السبب: {reason}"},
+		// UXBLIND lane C
+		"journey.form_save": {Text: "حفظ المقترح"},
+		// UXBLIND lane D
+		"journey.timeline_note": {Text: "تمت إضافة ملاحظة"}, "journey.action_current_pay": {Text: "الراتب الحالي"}, "journey.action_change": {Text: "التغيير"},
+		"journey.finance_annualized_cost": {Text: "الزيادة السنوية في التكلفة"}, "journey.finance_in_year_cost": {Text: "الزيادة في تكلفة هذه السنة"}, "journey.finance_budget_line": {Text: "بند الميزانية"}, "journey.finance_budget_unavailable": {Text: "بند الميزانية غير مذكور"},
+		"journey.iv_cancel_desc_plain":              {Text: "يطلب إيقاف الترقية قبل سريانها. إذا سرت بالفعل، فستكتمل بدلًا من ذلك."},
+		"journey.action_keep_request":               {Text: "الإبقاء على الطلب"},
+		"journey.form_allowed_base_amounts":         {Text: "نطاق الأجر الأساسي المقترح المسموح: من {minimum} إلى {maximum} سنويًا."},
+		"journey.finding_budget_checked":            {Text: "تحقق النظام من أساس الميزانية الحالي. لا تُحجز الأموال إلا عند تسجيل الترقية."},
 		"workflow_viewer.publication_status":        {Text: "النشر"},
 		"workflow_viewer.version":                   {Text: "الإصدار"},
 		"workflow_viewer.run_status":                {Text: "التشغيل"},
@@ -1660,14 +2027,16 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"settings.preferences_group_description":  {Text: "اختر اللغة وإعدادات إمكانية الوصول التي تتبع حسابك."},
 		"settings.signout_action":                 {Text: "تسجيل الخروج"},
 		"settings.signout_description":            {Text: "أنهِ هذه الجلسة على هذا الجهاز. يمكنك تسجيل الدخول مرة أخرى عند الحاجة."},
-		"insights.open_work":                      {Text: "فتح عملي"}, "insights.visible_label": {Text: "مسارات العمل الظاهرة"}, "insights.visible_note": {Text: "طلبات الترقية التي يمكنك عرضها"},
+		"insights.open_work":                      {Text: "فتح عملي"}, "insights.visible_label": {Text: "طلبات الترقية"}, "insights.visible_note": {Text: "طلبات الترقية التي يمكنك عرضها"},
 		"insights.in_progress_label": {Text: "قيد التنفيذ"}, "insights.in_progress_note": {Text: "طلبات تنتظر الخطوة التالية"}, "insights.closed_label": {Text: "مكتملة أو مغلقة"}, "insights.closed_note": {Text: "طلبات وصلت إلى نتيجة نهائية"},
 		"insights.attention_title":       {Text: "قائمة إجراءاتك"},
-		"insights.attention_description": {Text: "يلخص هذا العرض طلبات الترقية التي يمكنك رؤيتها. التقارير الأوسع عن القوى العاملة غير متاحة بعد."}, "insights.attention_queue_detail": {Text: "القرارات والخطوات التالية المسندة إليك حاليًا."},
+		"insights.attention_description": {Text: "يلخص هذا العرض طلبات الترقية الظاهرة لك؛ وتضيف لمحة القوى العاملة أدناه أعداد الموظفين حسب الوحدة والموقع."}, "insights.attention_queue_detail": {Text: "القرارات والخطوات التالية المسندة إليك حاليًا."},
 		"insights.no_data_note": {Text: "لا توجد طلبات ظاهرة كافية لعرض العدد"}, "insights.no_data_title": {Text: "لا توجد مسارات عمل لتلخيصها في عرضك"}, "insights.no_data_description": {Text: "لا تظهر أي طلبات ترقية ضمن نطاق وصولك الحالي. لا يمثل ذلك عددًا على مستوى المؤسسة؛ فقد توجد طلبات خارج نطاق وصولك."}, "insights.start_promotion": {Text: "ابحث عن موظف لترقيته"},
 		"insights.needs_attention": {Text: "بحاجة إلى انتباهك"}, "insights.context_title": {Text: "حول هذه الأعداد"}, "insights.time_range_label": {Text: "الفترة"}, "insights.freshness_label": {Text: "آخر تحديث"}, "insights.source_label": {Text: "يشمل"},
 		"insights.empty_context_title": {Text: "حول هذا العرض"},
 		"insights.time_range_value":    {Text: "العرض الحالي؛ لم تُحدَّد فترة سابقة"}, "insights.freshness_value": {Text: "وقت التحديث غير متاح"}, "insights.source_value": {Text: "طلبات الترقية التي يمكنك الوصول إليها"},
+		// UXBLIND lane E
+		"insights.workforce_title": {Text: "لمحة عن القوى العاملة"}, "insights.headcount_by_unit": {Text: "عدد الموظفين حسب الوحدة"}, "insights.headcount_by_location": {Text: "عدد الموظفين حسب الموقع"}, "insights.promotion_throughput": {Text: "معدل إنجاز الترقيات"}, "insights.promotion_cycle_time": {Text: "متوسط مدة الدورة"}, "insights.cycle_time_unavailable": {Text: "غير مُبلغ عنه في هذا العرض"}, "insights.cycle_time_days": {Text: "{days} يومًا"},
 
 		"journey.startup_title": {Text: "تعذر بدء هذه الصفحة"}, "journey.startup_detail": {Text: "عُد إلى مساحة العمل وحاول مرة أخرى. إذا استمرت المشكلة، فتواصل مع مسؤول النظام."}, "journey.startup_footer": {Text: "لم يتغير طلبك."},
 		"journey.actions_unavailable_title": {Text: "إجراءات الترقية غير متاحة مؤقتًا"}, "journey.actions_unavailable_detail": {Text: "لم يتغير طلبك. حاول مجددًا لاحقًا أو تواصل مع مسؤول النظام."},
@@ -1708,7 +2077,7 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.detail_title": {Text: "طلب الترقية"}, "journey.back_to_profile": {Text: "العودة إلى الملف الشخصي لـ{name}"}, "journey.technical_details": {Text: "التفاصيل التقنية"}, "journey.group_statuses": {Text: "حالات {name}"}, "journey.copy_value": {Text: "نسخ قيمة {field}"},
 		"journey.blocked_pay_below_band": {Text: "الراتب المقترح أقل من الحد الأدنى المعتمد لهذا الدور. لم يتغير سجل الموظف."},
 		"journey.blocked_pay_above_band": {Text: "الراتب المقترح أعلى من الحد الأقصى المعتمد لهذا الدور. لم يتغير سجل الموظف."},
-		"journey.stage_proposed":         {Text: "مقترح"}, "journey.stage_blocked": {Text: "متوقف"}, "journey.stage_awaiting_approval": {Text: "بانتظار الموافقة"}, "journey.stage_completed": {Text: "مكتمل"}, "journey.stage_rejected": {Text: "مرفوض"}, "journey.stage_failed": {Text: "فشل"}, "journey.stage_finance_approval": {Text: "مراجعة المالية"}, "journey.stage_manager_approval": {Text: "مراجعة المدير"}, "journey.stage_waiting_effective": {Text: "بانتظار تاريخ السريان"}, "journey.stage_revalidation": {Text: "الفحوص النهائية"}, "journey.stage_reapproval": {Text: "تستلزم مراجعة جديدة"}, "journey.stage_updating_record": {Text: "جارٍ تحديث سجل الموظف"}, "journey.stage_recorded": {Text: "مسجل"}, "journey.stage_repair_required": {Text: "يتطلب اهتمامًا"}, "journey.stage_awaiting_acknowledgement": {Text: "بانتظار الإقرار"}, "journey.stage_unknown": {Text: "حالة غير معروفة"},
+		"journey.stage_proposed":         {Text: "جاهز لبدء الموافقة"}, "journey.stage_blocked": {Text: "متوقف"}, "journey.stage_awaiting_approval": {Text: "بانتظار الموافقة"}, "journey.stage_completed": {Text: "مكتمل"}, "journey.stage_rejected": {Text: "مرفوض"}, "journey.stage_failed": {Text: "فشل"}, "journey.stage_finance_approval": {Text: "مراجعة المالية"}, "journey.stage_manager_approval": {Text: "مراجعة المدير"}, "journey.stage_waiting_effective": {Text: "بانتظار تاريخ السريان"}, "journey.stage_revalidation": {Text: "الفحوص النهائية"}, "journey.stage_reapproval": {Text: "تستلزم مراجعة جديدة"}, "journey.stage_updating_record": {Text: "جارٍ تحديث سجل الموظف"}, "journey.stage_recorded": {Text: "مسجل"}, "journey.stage_repair_required": {Text: "يتطلب اهتمامًا"}, "journey.stage_awaiting_acknowledgement": {Text: "بانتظار الإقرار"}, "journey.stage_unknown": {Text: "حالة غير معروفة"},
 		"journey.stage_recording": {Text: "جارٍ تسجيل الترقية"}, "journey.stage_observing_effects": {Text: "جارٍ التحقق من الآثار اللاحقة"},
 		"journey.stages_title": {Text: "مراحل الطلب"}, "journey.step_state_done": {Text: "مكتملة"}, "journey.step_state_active": {Text: "المرحلة الحالية"}, "journey.step_state_failed": {Text: "لم تكتمل"}, "journey.step_state_upcoming": {Text: "لم تبدأ بعد"},
 		"journey.step.proposal.label": {Text: "الطلب"}, "journey.step.proposal.done": {Text: "حُفظ الطلب وفُحص وفق قواعد الترقية."}, "journey.step.proposal.active": {Text: "راجع الفحوص وصحح تفاصيل الطلب المتوقفة."}, "journey.step.proposal.upcoming": {Text: "قدّم التغيير المقترح لفحص القواعد."}, "journey.step.proposal.failed": {Text: "لا يمكن متابعة الطلب حتى تُحل أسباب التوقف."},
@@ -1724,6 +2093,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.effective_window_heading": {Text: "الفترة الفعالة"}, "journey.cycle_opens": {Text: "بدأت المراجعة"}, "journey.takes_effect": {Text: "يبدأ السريان"}, "journey.current_as_of": {Text: "المعلومات حتى"}, "journey.effective_window_note": {Text: "تعرض هذه التفاصيل ما رآه المراجعون حينئذ. تظهر التصحيحات اللاحقة في السجل ولا تعيد كتابة هذا القرار."},
 		"journey.effective_date_fallback": {Text: "تاريخ السريان"}, "journey.outcome_waiting": {Text: "اكتملت الموافقات. تُسجل نتيجة الترقية بعد الفحوص النهائية في {date}."}, "journey.outcome_manager": {Text: "لم يتغير سجل الموظف بعد. يجب إكمال مراجعة المدير وفحوص تاريخ السريان أولًا."}, "journey.outcome_finance": {Text: "لم يتغير سجل الموظف بعد. يجب إكمال مراجعتَي المالية والمدير قبل فحوص تاريخ السريان."}, "journey.outcome_blocked": {Text: "لم يتغير سجل الموظف. راجع الحالة والفحوص أعلاه لمعرفة ما يحتاج إلى معالجة."}, "journey.outcome_default": {Text: "لم يتغير سجل الموظف بعد. أكمل المراجعات وفحوص تاريخ السريان المتبقية لإنهاء الترقية."},
 		"journey.outcome_heading": {Text: "النتيجة المسجلة"}, "journey.outcome_pending_heading": {Text: "ما التالي"}, "journey.outcome_result": {Text: "النتيجة"}, "journey.outcome_recorded": {Text: "سُجلت نتيجة الترقية"}, "journey.outcome_not_recorded": {Text: "لم تُسجَّل الترقية"}, "journey.outcome_recorded_at": {Text: "وقت التسجيل"},
+		// UXBLIND lane k-uxlive-4
+		"journey.outcome_reason_multiple": {Text: "توقفت الترقية لأن فحوص المنع التالية لم تُستوفَ."}, "journey.outcome_reason_unavailable": {Text: "توقفت الترقية في هذه المرحلة؛ ولا تعرض الفحوص المتاحة تفاصيل معالجة مسموحة."}, "journey.outcome_reason_budget": {Text: "الميزانية المرصودة والمعتمدة لهذه الترقية غير كافية."}, "journey.outcome_reason_next": {Text: "راجع فحوص المنع وصحح المقترح إذا كان مسار العمل يسمح بذلك."}, "journey.outcome_reason_repair": {Text: "يلزم إصلاح خاضع للحوكمة؛ لا يُسمح بإجراء آخر من هذه الصفحة."}, "journey.progress_active": {Text: "ينفذ مسار العمل مرحلة {phase} الآن."}, "journey.progress_retrying": {Text: "تُعاد محاولة مرحلة {phase} تلقائيًا."}, "journey.progress_delayed": {Text: "تنتظر مرحلة {phase}؛ وسيتحقق مسار العمل مجددًا تلقائيًا."}, "journey.progress_repair": {Text: "تحتاج مرحلة {phase} إلى إصلاح خاضع للحوكمة."}, "journey.progress_next": {Text: "سيستمر مسار العمل تلقائيًا بعد هذا الفحص."}, "journey.progress_last": {Text: "آخر تقدم"},
 		"journey.actions_history": {Text: "الإجراءات والسجل"}, "journey.history_heading": {Text: "السجل"}, "journey.timeline_by": {Text: "بواسطة {actor}"}, "journey.timeline_system": {Text: "النظام"}, "journey.timeline_reviewer": {Text: "مراجع مخوّل"}, "journey.timeline_requested": {Text: "قُدم طلب الترقية"}, "journey.timeline_checked": {Text: "اكتملت فحوص الطلب"}, "journey.timeline_started": {Text: "بدأ مسار الموافقة"}, "journey.timeline_recorded": {Text: "سُجلت الترقية"}, "journey.timeline_ended": {Text: "انتهى الطلب"}, "journey.timeline_ended_detail": {Text: "انتهى الطلب دون تغيير سجل الموظف."}, "journey.timeline_assigned": {Text: "أُسندت الموافقة"}, "journey.timeline_review_started": {Text: "بدأت المراجعة"}, "journey.timeline_approved": {Text: "اكتملت الموافقة"}, "journey.timeline_cancelled": {Text: "أُلغيت الموافقة"}, "journey.timeline_expired": {Text: "انتهت مهلة الموافقة"},
 		"journey.action_start": {Text: "بدء مسار الموافقة"}, "journey.action_start_description": {Text: "راجع الطلب ثم ابدأ مسار الموافقات. لا تُسجل الترقية إلا بعد جميع الموافقات والفحوص النهائية."}, "journey.action_start_note": {Text: "يُرسل الطلب إلى المراجعين المطلوبين. لا تُسجل الترقية بعد."}, "journey.action_start_blocked_description": {Text: "ابدأ مسار الموافقة بعد اجتياز الطلب فحوصه المطلوبة."}, "journey.action_start_blocked_reason": {Text: "لا يمكن بدء هذا الطلب بعد. عالج البنود المميزة ثم أعد تقديمه."},
 		"journey.action_preparing": {Text: "جارٍ تجهيز الموافقة"}, "journey.action_preparing_description": {Text: "تُسند المراجعة إلى الشخص المختص."}, "journey.action_preparing_reason": {Text: "يمكنك اتخاذ القرار بعد إسناد المراجعة وجاهزيتها."},
@@ -1747,6 +2118,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"journey.context_navigation": {Text: "التنقل بين الطلبات"}, "journey.back_employee": {Text: "العودة إلى ملف الموظف"}, "journey.view_all": {Text: "عرض جميع طلبات الترقية"}, "journey.diagnostics_heading": {Text: "تشخيص النظام"},
 		"journey.support_details": {Text: "تفاصيل الدعم"}, "journey.support_reference": {Text: "مرجع الدعم"}, "journey.support_reference_help": {Text: "حدّد هذا المرجع وانسخه عند التواصل مع الدعم."},
 		"journey.footer": {Text: "تعكس هذه التفاصيل أحدث المعلومات المتاحة لك. لا تُقدَّر القيم الناقصة."}, "journey.section_title": {Text: "الطلبات"}, "journey.count_one": {Text: "طلب واحد"}, "journey.count_many": {Text: "{count} طلبات"}, "journey.open_request": {Text: "فتح الطلب"}, "journey.effective": {Text: "السريان"}, "journey.updated": {Text: "آخر تحديث"}, "journey.empty_title": {Text: "لا توجد طلبات بعد"},
+		// UXBLIND lane k-uxlive-5
+		"journey.card_action_start": {Text: "\u0628\u062f\u0621 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629"}, "journey.card_action_correct": {Text: "\u062a\u0635\u062d\u064a\u062d \u0627\u0644\u0645\u0642\u062a\u0631\u062d"}, "journey.card_action_complete": {Text: "\u0625\u0643\u0645\u0627\u0644 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629"}, "journey.card_action_track": {Text: "\u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u0637\u0644\u0628"}, "journey.card_action_review": {Text: "\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0642\u0631\u0627\u0631"}, "journey.card_action_review_request": {Text: "\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0637\u0644\u0628"}, "journey.position_identity": {Text: "\u0627\u0644\u0645\u0646\u0635\u0628"}, "journey.position_unavailable": {Text: "\u0627\u0644\u0645\u0646\u0635\u0628 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d"}, "journey.position_withheld": {Text: "\u0627\u0644\u0645\u0646\u0635\u0628 \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0636"}, "journey.position_reference": {Text: "\u0631\u0645\u0632 \u0627\u0644\u0645\u0646\u0635\u0628"},
 		"journey.group.review": {Text: "قيد المراجعة"}, "journey.group.waiting": {Text: "بانتظار الخطوة التالية"}, "journey.group.issue": {Text: "يتطلب متابعة"}, "journey.group.closed": {Text: "الطلبات المغلقة"}, "journey.group.other": {Text: "طلبات أخرى"},
 		"shell.resource_history": {Text: "الصفحات التي زرتها مؤخرًا"}, "shell.history_back": {Text: "العودة إلى الصفحة السابقة"}, "shell.history_forward": {Text: "الانتقال إلى الصفحة التالية"},
 		"admin.eyebrow": {Text: "الإدارة"}, "admin.available": {Text: "متاح"}, "admin.unavailable": {Text: "غير متاح"},
@@ -1760,13 +2133,17 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"workflow.promotion_active_conflict": {Text: "توجد بالفعل ترقية نشطة لهذا الموظف. افتحها بدلاً من بدء ترقية جديدة."},
 
 		"workflow.promotion_withheld": {Text: "بدء الترقية يتطلب صلاحية لا تملكها هذه الجلسة."},
-		"work.technical_details":      {Text: "التفاصيل الفنية"}, "work.copy_value": {Text: "نسخ"},
+		// UXBLIND lane B
+		"workflow.promotion_self_subject": {Text: "لا يمكنك بدء ترقية لسجل الموظف الخاص بك."},
+		"work.technical_details":          {Text: "التفاصيل الفنية"}, "work.copy_value": {Text: "نسخ"},
 		"work.approval_role_unknown": {Text: "المعتمد المطلوب"}, "work.approval_protected_group": {Text: "مجموعة محمية من المعتمدين"}, "work.approval_no_acting_authority": {Text: "ليس لديك صلاحية التصرف بشأن هذه الموافقة."}, "work.approval_waiting_for": {Text: "في انتظار {role}"}, "work.approval_assigned_to": {Text: "مُسندة إلى {assignee}"}, "work.approval_due": {Text: "الاستحقاق {date}"}, "work.approval_viewer_authority": {Text: "أنت تتصرف بصفة {role}."}, "work.approval_available": {Text: "يمكنك اتخاذ قرار بشأن هذه الموافقة."}, "work.approval_no_authority": {Text: "لا تملك صلاحية اتخاذ قرار بشأن هذه الموافقة."}, "work.approval_not_actionable": {Text: "هذه الموافقة غير متاحة للقرار حاليًا."}, "work.approval_separation_conflict": {Text: "لقد اتخذت بالفعل قرارًا بشأن متطلب موافقة آخر لهذا المقترح، لذا لا يجوز لك اتخاذ قرار بشأن هذا أيضًا."},
 		"work.row_next_step": {Text: "الخطوة التالية: {step}"}, "work.row_waiting_on": {Text: "في انتظار {actor}"}, "work.next_step_label": {Text: "الخطوة التالية"}, "work.waiting_on_label": {Text: "في انتظار"},
 		"work.next_step.start_approval": {Text: "بدء الموافقة"}, "work.next_step.correct_proposal": {Text: "تصحيح المقترح"}, "work.next_step.approval_decision": {Text: "قرار الموافقة"}, "work.next_step.manager_decision": {Text: "قرار المدير"}, "work.next_step.finance_decision": {Text: "قرار الإدارة المالية"}, "work.next_step.reapproval_decision": {Text: "قرار الموافقة مرة أخرى"}, "work.next_step.repair": {Text: "إصلاح خاضع للحوكمة"}, "work.next_step.await_effective_date": {Text: "انتظار تاريخ السريان"}, "work.next_step.system_processing": {Text: "معالجة سير العمل"}, "work.next_step.await_acknowledgement": {Text: "انتظار الإقرار"},
 		"work.waiting_on.proposer": {Text: "مقدّم المقترح"}, "work.waiting_on.approver": {Text: "المعتمد"}, "work.waiting_on.manager": {Text: "المدير"}, "work.waiting_on.finance": {Text: "الإدارة المالية"}, "work.waiting_on.system": {Text: "سير العمل"},
 		"work.assignee_note": {Text: "يظهر المكلَّف والموعد النهائي وإجراؤك التالي فقط في الصفوف التي يحق لك الاطلاع على مهمة العمل الحالية فيها. افتح المسار لعرض السجل الكامل."},
 		"work.mine":          {Text: "المسندة إليّ"}, "work.row_assigned_to_you": {Text: "مسندة إليك"}, "work.row_claimable_by_you": {Text: "يمكنك تولّي هذه المهمة"}, "work.row_assigned_to": {Text: "مسندة إلى {assignee}"}, "work.row_due": {Text: "تاريخ الاستحقاق {date}"}, "work.row_next_action": {Text: "إجراؤك التالي: {action}"}, "work.current_work_item_label": {Text: "مهمة العمل الحالية"},
+		// UXBLIND lane E
+		"work.assignment_label": {Text: "التعيين"}, "work.due_label": {Text: "الموعد النهائي"}, "work.next_action_label": {Text: "الإجراء التالي"}, "work.waiting_on.you": {Text: "أنت"},
 		"work.action.claim": {Text: "تولّي"}, "work.action.release": {Text: "إفلات"}, "work.action.complete": {Text: "إكمال"}, "work.action.decide_approval": {Text: "البت في الموافقة"},
 		"work.tracked": {Text: "الطلبات المتابَعة"}, "work.all": {Text: "يتطلب إجراءك"}, "work.promotion_journeys": {Text: "رحلات الترقية"}, "work.row_no_action_needed": {Text: "لا يلزمك أي إجراء"},
 		"work.tracked_empty_title": {Text: "لا تتابع أي طلبات مفتوحة"}, "work.tracked_empty_detail": {Text: "تظهر هنا الترقيات التي تقترحها أثناء مرورها بالموافقة والانتظار، مع خطوتها التالية ومن يتولاها."},
@@ -1779,6 +2156,8 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"position_picker.open_now":       {Text: "متاح الآن"}, "position_picker.open_until": {Text: "متاح حتى {date}"}, "position_picker.reservation_available": {Text: "متاح"}, "position_picker.reservation_unavailable": {Text: "غير متاح حاليًا"},
 		"promotion_review.target_manager": {Text: "يقدم التقارير إلى {manager}"}, "promotion_review.no_target_manager": {Text: "لم يتم تحديد مدير مستهدف"}, "promotion_review.manager_unchanged": {Text: "يحتفظ بالمدير الحالي"}, "promotion_review.manager_unchanged_named": {Text: "يستمر في تقديم التقارير إلى {manager}"}, "promotion_review.target_organization": {Text: "المؤسسة: {organization}"}, "promotion_review.target_position": {Text: "المنصب: {position}"}, "promotion_review.affected_direct_reports": {Plural: map[string]string{"one": "سيتأثر {count} مرؤوس مباشر", "other": "سيتأثر {count} من المرؤوسين المباشرين"}}, "promotion_review.no_affected_reports": {Text: "لا يوجد مرؤوسون مباشرون متأثرون"}, "promotion_review.cycle_safe": {Text: "لم يتم العثور على تعارضات في تسلسل الإدارة"}, "promotion_review.cycle_unsafe": {Text: "تعذر التأكد من خلو هذا التغيير من حلقة في تسلسل الإدارة"},
 		"compensation_guardrail.title": {Text: "الضوابط الإرشادية للتعويضات"}, "compensation_guardrail.current_pay": {Text: "الراتب الحالي"}, "compensation_guardrail.permitted_increase": {Text: "أكبر زيادة يسمح بها النطاق"}, "compensation_guardrail.minimum": {Text: "الحد الأدنى لهذا الدور"}, "compensation_guardrail.maximum": {Text: "الحد الأقصى لهذا الدور"}, "compensation_guardrail.band_position": {Text: "موضع الراتب الحالي ضمن النطاق"}, "compensation_guardrail.effective_date_basis": {Text: "النطاق ساري اعتبارًا من"}, "compensation_guardrail.band_position.below_minimum": {Text: "أقل من الحد الأدنى"}, "compensation_guardrail.band_position.in_band": {Text: "ضمن النطاق"}, "compensation_guardrail.band_position.above_maximum": {Text: "أعلى من الحد الأقصى"}, "compensation_guardrail.band_position.unspecified": {Text: "غير محدد"}, "compensation_guardrail.unavailable_action": {Text: "إدخال الراتب المقترح"}, "compensation_guardrail.review_unavailable.not_authorized": {Text: "لا تُعرض عليك تفاصيل الأجر."}, "compensation_guardrail.review_unavailable.band_unresolved": {Text: "لا يوجد نطاق راتب منشور لهذا الدور."}, "compensation_guardrail.unavailable_reason.not_authorized": {Text: "غير مصرح لك بعرض أو تحديد التعويضات لهذه الترقية."}, "compensation_guardrail.unavailable_reason.band_unresolved": {Text: "لا يوجد نطاق راتب منشور لهذا الدور بعد، لذا لا يمكن إدخال مبلغ."}, "compensation_guardrail.unavailable_reason.unspecified": {Text: "تفاصيل التعويضات غير متاحة لهذه الترقية."},
+		// UXBLIND lane Y
+		"compensation_guardrail.allowed_minimum": {Text: "الحد الأدنى المسموح به لهذه الترقية"}, "compensation_guardrail.allowed_maximum": {Text: "الحد الأقصى المسموح به لهذه الترقية"}, "compensation_guardrail.role_band_position": {Text: "الراتب الحالي مقارنة بنطاق الدور"},
 		"promotion_validation.current_amount_invalid": {Text: "يجب أن يكون الراتب الأساسي الحالي مبلغًا صالحًا أكبر من صفر."}, "promotion_validation.proposed_amount_invalid": {Text: "يجب أن يكون الراتب الأساسي المقترح مبلغًا صالحًا أكبر من صفر."}, "promotion_validation.currency_required": {Text: "اختر عملة للراتب المقترح."}, "promotion_validation.pay_basis_required": {Text: "اختر كيفية قياس الراتب المقترح (سنويًا أو بالساعة على سبيل المثال)."}, "promotion_validation.currency_change_not_supported": {Text: "تغيير العملة أثناء الترقية غير مدعوم حاليًا. أبقِ العملة الحالية."}, "promotion_validation.not_a_raise": {Text: "يجب أن يكون الراتب الأساسي المقترح أعلى من الراتب الأساسي الحالي."}, "promotion_validation.business_reason_required": {Text: "أدخل سببًا تجاريًا لهذه الترقية."}, "promotion_validation.effective_date_required": {Text: "اختر تاريخ سريان صالحًا."}, "promotion_validation.effective_date_too_far_past": {Text: "اختر تاريخ سريان أقرب إلى اليوم."}, "promotion_validation.increase_over_threshold": {Text: "هذه الزيادة أكبر من المعتاد وستحتاج إلى مراجعة إضافية."}, "promotion_validation.subject_not_disclosable": {Text: "غير مصرح لك بعرض هذه الترقية أو اقتراحها."}, "promotion_validation.required_field_denied": {Text: "غير مصرح لك بعرض تفاصيل تحتاجها هذه الترقية."}, "promotion_validation.required_field_unavailable": {Text: "تعذّرت قراءة تفاصيل تحتاجها هذه الترقية. حاول مرة أخرى لاحقًا."}, "promotion_validation.worker_not_active": {Text: "حالة التوظيف الحالية لهذا الموظف لا تسمح بالترقية الآن."}, "promotion_validation.target_job_required": {Text: "اختر الوظيفة المستهدفة لهذه الترقية."}, "promotion_validation.target_grade_required": {Text: "اختر الدرجة المستهدفة لهذه الترقية."}, "promotion_validation.same_grade": {Text: "الدرجة المستهدفة مطابقة للدرجة الحالية. اختر درجة أعلى لتكون ترقية."}, "promotion_validation.effective_before_hire": {Text: "لا يمكن أن يسبق تاريخ السريان تاريخ التعيين."}, "promotion_validation.pay_band_not_found": {Text: "لا يوجد نطاق راتب منشور للدور المستهدف بعد."}, "promotion_validation.below_band_minimum": {Text: "يجب ألا يقل الراتب الأساسي المقترح عن {amount}، الحد الأدنى لهذا الدور."}, "promotion_validation.below_band_minimum_generic": {Text: "الراتب الأساسي المقترح أقل من الحد الأدنى لهذا الدور."}, "promotion_validation.above_band_maximum": {Text: "يجب ألا يزيد الراتب الأساسي المقترح عن {amount}، الحد الأقصى لهذا الدور."}, "promotion_validation.above_band_maximum_generic": {Text: "الراتب الأساسي المقترح أعلى من الحد الأقصى لهذا الدور."}, "promotion_validation.budget_authority_missing": {Text: "هذه الترقية تتطلب مرجع ميزانية القوى العاملة."}, "promotion_validation.budget_observation_only": {Text: "ميزانية القوى العاملة المعروضة هي ملاحظة وليست حجزًا."}, "promotion_validation.budget_observed_short": {Text: "قد لا تغطي ميزانية القوى العاملة الملاحَظة تكلفة هذه الترقية."}, "promotion_validation.target_manager_not_found": {Text: "اختر مديرًا مستهدفًا صالحًا لهذه الترقية."}, "promotion_validation.manager_relationship_cycle": {Text: "سيؤدي هذا التعيين إلى جعل الموظف مديرًا لمدير نفسه. اختر مديرًا آخر."}, "promotion_validation.manager_chain_unresolved": {Text: "تعذّر تحديد التسلسل الإداري للمدير المستهدف."}, "promotion_validation.target_position_not_found": {Text: "اختر منصبًا مستهدفًا صالحًا لهذه الترقية."}, "promotion_validation.target_position_incompatible": {Text: "المنصب المختار غير متوافق مع الوظيفة والدرجة المستهدفتين."}, "promotion_validation.target_position_not_effective": {Text: "المنصب المختار غير متاح في تاريخ السريان المحدد."}, "promotion_validation.target_position_at_capacity": {Text: "لم تعد هناك سعة متبقية في المنصب المختار."}, "promotion_validation.target_position_reservation_conflict": {Text: "تم للتو حجز المنصب المختار من قِبل طلب آخر. اختر منصبًا آخر."}, "promotion_validation.unrecognized_reason": {Text: "تحقق من هذه القيمة وحاول مرة أخرى."}, "promotion_validation.diagnostics_disclosure": {Text: "التشخيص"}, "promotion_validation.support_reference_label": {Text: "مرجع الدعم"},
 		"help.choose_employee":  {Text: "اختر موظفًا وراجع خيارات سير العمل"},
 		"help.review_requests":  {Text: "راجع طلبات الترقية وتقدمها"},
@@ -1794,7 +2173,34 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"page.help.subtitle":    {Text: "حدد خطوتك التالية وتعرف على صلاحيات الوصول المتاحة لك."},
 		"page.docs.label":       {Text: "المستندات"}, "page.docs.title": {Text: "المستندات"}, "page.docs.subtitle": {Text: "تصفح المستندات المصرح لك بقراءتها."},
 		"page.chat.label": {Text: "الدردشة"}, "page.chat.title": {Text: "الدردشة"}, "page.chat.subtitle": {Text: "تحدث مع الزملاء في القنوات والمحادثات المصرح بها."},
-		"roles.no_explicit_assignment": {Text: "لا يوجد تعيين صريح"},
+		// UXBLIND lane A11
+		"page.agents.label": {Text: "الوكلاء"}, "page.agents.title": {Text: "الوكلاء"}, "page.agents.subtitle": {Text: "تحدث مع وكلائك وتابع العمل الذي ينجزونه نيابةً عنك."},
+		"agents.page_title": {Text: "وكلاؤك"}, "agents.page_subtitle": {Text: "ابدأ إجابات سريعة أو تابع عملاً طويل الأمد يُنجز نيابةً عنك."}, "agents.available": {Text: "الوكلاء"}, "agents.sidebar": {Text: "محادثات الوكلاء"}, "agents.conversations": {Text: "محادثات الوكلاء"}, "agents.threads": {Text: "المحادثات"}, "agents.agent_identity": {Text: "وكيل"}, "agents.acting_for_you": {Text: "يعمل نيابةً عنك"}, "agents.skills_used": {Text: "المهارات المستخدمة"}, "agents.no_agents": {Text: "لا يتوفر وكلاء لحسابك."}, "agents.no_threads": {Text: "لا توجد محادثات مع الوكلاء بعد."}, "agents.tasks": {Text: "المهام"}, "agents.no_tasks": {Text: "لا توجد مهام بعد."}, "agents.open_task": {Text: "فتح المهمة"}, "agents.composer": {Text: "بدء العمل مع وكيل"}, "agents.composer_label": {Text: "ما الذي تريد من وكيلك إنجازه؟"}, "agents.composer_placeholder": {Text: "اطرح سؤالاً سريعاً أو صف مهمة أطول"}, "agents.composer_help": {Text: "تظهر خطط المهام الطويلة وتقدمها وموافقاتها هنا."}, "agents.quick_answer": {Text: "إجابة سريعة"}, "agents.start_task": {Text: "بدء مهمة طويلة"}, "agents.unavailable_title": {Text: "الوكلاء غير متاحين بعد"}, "agents.unavailable_detail": {Text: "خدمة الوكلاء غير متصلة بمساحة العمل هذه بعد. ستظهر محادثاتك ومهامك هنا عند توفرها."}, "agents.task_view": {Text: "تفاصيل المهمة"}, "agents.confirmed_plan": {Text: "الخطة المؤكدة"}, "agents.live_step": {Text: "الخطوة الحالية"}, "agents.budget_used": {Text: "الميزانية المستخدمة: {used} من {limit}"}, "agents.checkpoints": {Text: "نقاط التحقق"}, "agents.artifacts": {Text: "المخرجات"}, "agents.approvals": {Text: "الموافقات المعلقة"}, "agents.submitted_intents": {Text: "النيات المرسلة"}, "agents.sources": {Text: "المصادر"}, "agents.plan_revision": {Text: "مراجعة الخطة {revision}"}, "agents.pause": {Text: "إيقاف مؤقت"}, "agents.resume": {Text: "استئناف"}, "agents.cancel": {Text: "إلغاء"}, "agents.extend_budget": {Text: "تمديد الميزانية"},
+		"agents.answer":          {Text: "الإجابة"},
+		"agents.state.cancelled": {Text: "ملغاة"}, "agents.state.expired": {Text: "منتهية الصلاحية"}, "agents.state.unknown": {Text: "الحالة غير متاحة"},
+		"agents.state.drafting": {Text: "قيد إعداد المسودة"}, "agents.state.awaiting_plan_confirmation": {Text: "بانتظار تأكيد الخطة"}, "agents.state.waiting": {Text: "قيد الانتظار"},
+		"agents.confirm_plan": {Text: "تأكيد الخطة"}, "agents.proposed_plan": {Text: "خطة للمراجعة"},
+		"agents.control_working": {Text: "جارٍ تحديث المهمة…"}, "agents.control_done": {Text: "تم تحديث المهمة."},
+		"agents.control_conflict":             {Text: "تغيّرت المهمة. حدّث الصفحة قبل المحاولة مرة أخرى."},
+		"agents.control_denied":               {Text: "لم يعد لديك إذن لتحديث هذه المهمة."},
+		"agents.control_disabled":             {Text: "تم إيقاف الوكلاء لمؤسستك."},
+		"agents.control_failed":               {Text: "تعذّر تحديث المهمة. حاول مرة أخرى."},
+		"agents.step_state.observed":          {Text: "تم التحقق"},
+		"agents.step_state.awaiting_approval": {Text: "بانتظار الموافقة"},
+		"agents.step_state.pending":           {Text: "قيد الانتظار"},
+		"agents.step_state.running":           {Text: "قيد التنفيذ"},
+		"agents.step_state.completed":         {Text: "مكتمل"},
+		"agents.step_state.failed":            {Text: "فشل"},
+		"agents.tier.read":                    {Text: "قراءة المعلومات"},
+		"agents.tier.private_draft":           {Text: "إعداد مسودة خاصة"},
+		"agents.tier.communicate":             {Text: "إرسال رسالة"},
+		"agents.tier.submit_governed":         {Text: "تقديم للموافقة"},
+		"agents.tier.external_write":          {Text: "تحديث نظام خارجي"},
+		"agents.tier.unknown":                 {Text: "نوع الإجراء غير متاح"},
+		"agents.state.running":                {Text: "قيد التشغيل"}, "agents.state.awaiting_approval": {Text: "بانتظار الموافقة"}, "agents.state.awaiting_input": {Text: "بانتظار الإدخال"}, "agents.state.paused": {Text: "متوقفة مؤقتاً"}, "agents.state.completed": {Text: "مكتملة"}, "agents.state.failed": {Text: "فشلت"},
+		// UXBLIND-122: composer status copy (ar)
+		"agents.start_working": {Text: "جارٍ بدء مهمتك..."}, "agents.start_done": {Text: "بدأت المهمة. جارٍ تحميلها الآن."}, "agents.start_empty": {Text: "صف أولاً ما تريد من الوكيل أن يفعله."}, "agents.start_disabled": {Text: "الوكلاء متوقفون لمؤسستك."}, "agents.start_denied": {Text: "لا يُسمح لك ببدء مهام الوكلاء."}, "agents.start_failed": {Text: "تعذر بدء المهمة. حاول مرة أخرى."},
+		"roles.no_explicit_assignment": {Text: "لم يتم توفير دور فعال لهذا الموظف."},
 		"roles.per_worker_guidance":    {Text: "تُحفظ تغييرات الأدوار لكل موظف ويتحقق منها الخادم."},
 		"context_switcher.single":      {Text: "يتوفر سياق مصرح به واحد فقط"}, "context_switcher.switching": {Text: "جارٍ تبديل سياق مساحة العمل…"}, "context_switcher.failed": {Text: "تعذر تبديل مساحة العمل. حاول مرة أخرى."}, "context_switcher.switch_to": {Text: "التبديل إلى {tenant}، {acting}"}, "context_switcher.current_context": {Text: "{tenant}، {acting}، الحالي"}, "context_switcher.elevated": {Text: "وصول مرفوع الصلاحية"},
 		"context_switcher.tenant": {Text: "المستأجر"}, "context_switcher.acting": {Text: "السلطة التمثيلية"},
@@ -1819,10 +2225,17 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"global_search.kind_page": {Text: "صفحة"}, "global_search.kind_person": {Text: "شخص"}, "global_search.kind_workflow": {Text: "مسار عمل"}, "global_search.kind_setting": {Text: "إعداد"}, "global_search.kind_component": {Text: "ميزة"}, "global_search.kind_action": {Text: "إجراء"}, "global_search.promote_person": {Text: "بدء ترقية لـ {name}"},
 		"global_search.closed": {Text: "أُغلق {value}"}, "global_search.effective": {Text: "يسري {value}"},
 		"action_launcher.trigger": {Text: "الانتقال إلى"}, "action_launcher.dialog_title": {Text: "بدء إجراء"}, "action_launcher.navigate_trigger": {Text: "الانتقال إلى"}, "action_launcher.filter_label": {Text: "ابحث عن إجراءات أو موظفين مصرّح بهم"}, "action_launcher.filter_placeholder": {Text: "ابحث عن إجراءات أو موظفين"}, "action_launcher.empty_title": {Text: "لا توجد إجراءات متاحة"}, "action_launcher.empty_description": {Text: "لا يوجد إجراء مصرّح به لهذه الهوية حالياً."},
+		// UXBLIND lane O
+		// UXBLIND lane XX
+		// UXBLIND lane AJ
+		"workflow_start.start_action": {Text: "بدء {workflow}"}, "workflow_start.favorite_add": {Text: "إضافة إلى المفضلة"}, "workflow_start.favorite_remove": {Text: "إزالة من المفضلة"},
+		"page.workflow_start.label": {Text: "مسارات العمل"}, "page.workflow_start.title": {Text: "بدء مسار عمل"}, "page.workflow_start.subtitle": {Text: "اعثر على مسارات العمل المحكومة وابدأها."},
+		"workflow_start.eyebrow": {Text: "مركز مسارات العمل"}, "workflow_start.title": {Text: "بدء مسار عمل"}, "workflow_start.description": {Text: "اعثر على مسار العمل المحكوم المناسب لمهمتك."}, "workflow_start.search_label": {Text: "البحث في مسارات العمل"}, "workflow_start.search_placeholder": {Text: "ابحث بالاسم أو الكلمة المفتاحية أو الفئة"}, "workflow_start.result_count": {Text: "{count} من مسارات العمل"}, "workflow_start.favorites": {Text: "المفضلة"}, "workflow_start.recent": {Text: "بدأت مؤخراً"}, "workflow_start.catalog_label": {Text: "مسارات العمل المتاحة"}, "workflow_start.uncategorized": {Text: "أخرى"}, "workflow_start.empty_title": {Text: "لا يوجد مسار عمل متاح لك"}, "workflow_start.empty_detail": {Text: "لم يتم نشر أي مسار عمل في مساحة العمل هذه بعد، لذلك لا يوجد ما يمكن بدؤه."}, "workflow_start.empty_detail_designer": {Text: "لا يوجد مسار عمل منشور ونشط في مساحة العمل هذه بعد. انشر مساراً في مصمم مسارات العمل وسيظهر هنا."}, "workflow_start.not_found_title": {Text: "لم يتم العثور على مسار العمل"}, "workflow_start.not_found_detail": {Text: "لا يشير هذا الرابط إلى مسار عمل متاح في مساحة العمل الخاصة بك."}, "workflow_start.unavailable_title": {Text: "لا يمكن بدء مسار العمل هذا"}, "workflow_start.unavailable_detail": {Text: "{reason}. اسأل مسؤول الموارد البشرية أو مسؤول مساحة العمل للحصول على المساعدة."}, "workflow_start.unavailable_detail_designer": {Text: "{reason}. راجع مسار العمل وصلاحيات دورك في مصمم مسارات العمل وصفحة الأدوار."}, "workflow_start.availability_available": {Text: "متاح"}, "workflow_start.availability_no_capability": {Text: "لا تملك صلاحية الوصول المطلوبة"}, "workflow_start.availability_missing_authority": {Text: "يلزم تفويض إضافي"}, "workflow_start.availability_missing_prerequisite": {Text: "المعلومات المطلوبة غير جاهزة"}, "workflow_start.availability_quarantined": {Text: "هذا الإصدار غير متاح مؤقتاً"}, "workflow_start.start": {Text: "بدء"}, "workflow_start.favorite": {Text: "حفظ في المفضلة"},
+		"action_launcher.actions_filter_label": {Text: "البحث عن الإجراءات المصرح بها"}, "action_launcher.actions_filter_placeholder": {Text: "البحث عن الإجراءات"},
 		"shell.connecting": {Text: "جارٍ الاتصال بـ Human Capital Management Suite"}, "shell.loading_authorized": {Text: "جارٍ تحميل بيانات مساحة عملك…"},
 		"shell.page_loaded": {Text: "تم تحميل صفحة {title}"},
 		"nav.collapse":      {Text: "طي التنقل"}, "nav.expand": {Text: "توسيع التنقل"}, "nav.drawer_open": {Text: "فتح قائمة التنقل"}, "nav.drawer_close": {Text: "إغلاق قائمة التنقل"}, "nav.favorites": {Text: "المفضلة"}, "nav.all": {Text: "كل التنقل"}, "nav.none": {Text: "لا توجد قوائم مطابقة"}, "nav.unavailable": {Text: "لا تتوفر وجهات تنقل مصرح بها في هذا السياق."}, "nav.main": {Text: "الرئيسية"}, "nav.workspace": {Text: "التنقل في مساحة العمل"}, "nav.filter": {Text: "تصفية التنقل"}, "nav.filter_placeholder": {Text: "تصفية القائمة"}, "nav.filter_apply": {Text: "تطبيق عامل التصفية"}, "nav.filter_clear": {Text: "مسح عامل التصفية"},
-		"page.home.label": {Text: "الرئيسية"}, "page.home.title": {Text: "الرئيسية"}, "page.myself.label": {Text: "ملفي"}, "page.myself.title": {Text: "ملفي"}, "page.myself.subtitle": {Text: "معلومات التوظيف والمؤسسة والرواتب وسير العمل الخاصة بك."}, "page.journeys.label": {Text: "الرحلات"}, "page.journeys.title": {Text: "الرحلات"}, "page.work.label": {Text: "عملي"}, "page.work.title": {Text: "عملي"}, "page.history.label": {Text: "سجل العمل"}, "page.history.title": {Text: "سجل سير العمل"}, "page.people.label": {Text: "الأشخاص"}, "page.people.title": {Text: "الأشخاص"}, "page.person.label": {Text: "الشخص"}, "page.person.title": {Text: "ملف الشخص"}, "page.organization.label": {Text: "المؤسسة"}, "page.organization.title": {Text: "المؤسسة"}, "page.insights.label": {Text: "الرؤى"}, "page.insights.title": {Text: "الرؤى"}, "page.admin.label": {Text: "الإدارة"}, "page.admin.title": {Text: "الإدارة"}, "admin.journeys_unavailable_reason": {Text: "إجراءات الرحلات غير متاحة حالياً لأن الاتصال لم يستجب. أعد تحميل الصفحة للمحاولة مرة أخرى."}, "admin.studio_unavailable_reason": {Text: "تكوين الصفحات غير متاح لمؤسستك بعد."}, "admin.hero_eyebrow": {Text: "الإدارة"}, "admin.hero_description": {Text: "أدر الإعدادات المتاحة واطّلع على ما هو مخطط لمساحة العمل هذه."}, "admin.planned": {Text: "مخطط له"}, "admin.journey_card_description": {Text: "تُحمَّل مسارات الترقية والموظفون الذين يمكنك رؤيتهم مباشرة من بيانات مؤسستك."}, "admin.studio_card_description": {Text: "تكوين التجربة غير متاح لمؤسستك بعد."}, "page.appearance.label": {Text: "العلامة التجارية والمظهر"}, "page.appearance.title": {Text: "العلامة التجارية والمظهر"}, "page.help.label": {Text: "المساعدة"}, "page.help.title": {Text: "مركز المساعدة"}, "page.settings.label": {Text: "الإعدادات"}, "page.settings.title": {Text: "الإعدادات"}, "page.settings.subtitle": {Text: "أدر لغتك وإعدادات إمكانية الوصول وتفضيلاتك الشخصية."},
+		"page.home.label": {Text: "الرئيسية"}, "page.home.title": {Text: "الرئيسية"}, "page.myself.label": {Text: "ملفي"}, "page.myself.title": {Text: "ملفي"}, "page.myself.subtitle": {Text: "معلومات التوظيف والمؤسسة ومعلومات سير العمل المتاحة لك."}, "page.journeys.label": {Text: "الرحلات"}, "page.journeys.title": {Text: "الرحلات"}, "page.work.label": {Text: "عملي"}, "page.work.title": {Text: "عملي"}, "page.history.label": {Text: "سجل العمل"}, "page.history.title": {Text: "سجل سير العمل"}, "page.people.label": {Text: "الأشخاص"}, "page.people.title": {Text: "الأشخاص"}, "page.person.label": {Text: "الشخص"}, "page.person.title": {Text: "ملف الشخص"}, "page.organization.label": {Text: "المؤسسة"}, "page.organization.title": {Text: "المؤسسة"}, "page.insights.label": {Text: "الرؤى"}, "page.insights.title": {Text: "الرؤى"}, "page.admin.label": {Text: "الإدارة"}, "page.admin.title": {Text: "الإدارة"}, "admin.journeys_unavailable_reason": {Text: "إجراءات الرحلات غير متاحة حالياً لأن الاتصال لم يستجب. أعد تحميل الصفحة للمحاولة مرة أخرى."}, "admin.studio_unavailable_reason": {Text: "تكوين الصفحات غير متاح لمؤسستك بعد."}, "admin.hero_eyebrow": {Text: "الإدارة"}, "admin.hero_description": {Text: "أدر الإعدادات المتاحة واطّلع على ما هو مخطط لمساحة العمل هذه."}, "admin.planned": {Text: "مخطط له"}, "admin.journey_card_description": {Text: "تُحمَّل مسارات الترقية والموظفون الذين يمكنك رؤيتهم مباشرة من بيانات مؤسستك."}, "admin.studio_card_description": {Text: "تكوين التجربة غير متاح لمؤسستك بعد."}, "page.appearance.label": {Text: "العلامة التجارية والمظهر"}, "page.appearance.title": {Text: "العلامة التجارية والمظهر"}, "page.help.label": {Text: "المساعدة"}, "page.help.title": {Text: "مركز المساعدة"}, "page.settings.label": {Text: "الإعدادات"}, "page.settings.title": {Text: "الإعدادات"}, "page.settings.subtitle": {Text: "أدر لغتك وإعدادات إمكانية الوصول وتفضيلاتك الشخصية."},
 
 		"shell.live_source":                                 {Text: "بيانات مباشرة · {source}"},
 		"action_launcher.navigation_trigger":                {Text: "الانتقال إلى"},
@@ -1876,16 +2289,20 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"home.action_time_off":                              {Text: "اطلب إجازة"},
 		"home.action_pay_statement":                         {Text: "اعرض كشف الراتب"},
 		"page.home.greeting":                                {Text: "صباح الخير، {name}."},
-		"work.empty_title":                                  {Text: "لا توجد أعمال في هذا العرض"},
-		"work.empty_detail":                                 {Text: "ستظهر هنا الأعمال المطابقة عندما يحتاج طلب إلى اهتمامك."},
-		"work.action_queue_description":                     {Text: "المهام التي تحتاج قرارك أو خطوتك التالية، مرتبة حسب موعد الاستحقاق."},
-		"work.action_queue_empty_title":                     {Text: "لا توجد مهام تتطلب إجراءً منك"},
-		"work.action_queue_empty_detail":                    {Text: "ستظهر المهام الجديدة هنا. تابع حالة الطلبات في الرحلات."},
-		"work.resumable_drafts":                             {Text: "المسودات القابلة للاستكمال"},
-		"work.drafts_description":                           {Text: "أكمل المسودة قبل إرسالها."},
-		"work.track_requests":                               {Text: "متابعة طلبات الترقية"},
-		"work.collection_label":                             {Text: "رحلات الترقية"},
-		"work.filter_label":                                 {Text: "تصفية العمل"},
+		// UXBLIND lane E
+		"page.home.greeting.morning":     {Text: "صباح الخير، {name}."},
+		"page.home.greeting.afternoon":   {Text: "مساء الخير، {name}."},
+		"page.home.greeting.evening":     {Text: "مساء الخير، {name}."},
+		"work.empty_title":               {Text: "لا توجد أعمال في هذا العرض"},
+		"work.empty_detail":              {Text: "ستظهر هنا الأعمال المطابقة عندما يحتاج طلب إلى اهتمامك."},
+		"work.action_queue_description":  {Text: "المهام التي تحتاج قرارك أو خطوتك التالية، مرتبة حسب موعد الاستحقاق."},
+		"work.action_queue_empty_title":  {Text: "لا توجد مهام تتطلب إجراءً منك"},
+		"work.action_queue_empty_detail": {Text: "ستظهر المهام الجديدة هنا. تابع حالة الطلبات في الرحلات."},
+		"work.resumable_drafts":          {Text: "المسودات القابلة للاستكمال"},
+		"work.drafts_description":        {Text: "أكمل المسودة قبل إرسالها."},
+		"work.track_requests":            {Text: "متابعة طلبات الترقية"},
+		"work.collection_label":          {Text: "رحلات الترقية"},
+		"work.filter_label":              {Text: "تصفية العمل"},
 
 		"work.awaiting":         {Text: "بانتظار الموافقة"},
 		"work.blocked":          {Text: "متوقف"},
@@ -1912,12 +2329,14 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"organization.tree_label": {Text: "التسلسل الإداري"}, "organization.reports_to": {Text: "يرفع تقاريره إلى %s"},
 		"organization.relationship_undetermined": {Text: "تعذر تأكيد علاقة الإدارة لهذا الشخص."}, "organization.relationship_ambiguous": {Text: "يوجد أكثر من مدير مسجل لهذا الشخص، لذا تعذر عرض مدير واحد محدد."}, "organization.relationship_stale": {Text: "تعذر تأكيد أن علاقة الإدارة لهذا الشخص محدثة."}, "organization.relationship_disagreeing": {Text: "سجل علاقة الإدارة لهذا الشخص غير متسق وتعذر عرضه."}, "organization.manager_withheld": {Text: "لا يمكن عرض مدير هذا الشخص لك."}, "organization.manager_not_visible": {Text: "مدير هذا الشخص غير ظاهر لك."}, "organization.relationship_cycle": {Text: "تم العثور على حلقة في التسلسل الإداري لهذا الشخص وتعذر عرضها هنا."},
 		"people.all_teams": {Text: "كل الفرق"}, "people.all_locations": {Text: "كل المواقع"}, "people.team_aria": {Text: "تصفية الموظفين حسب الفريق"}, "people.location_aria": {Text: "تصفية الموظفين حسب الموقع"}, "people.sort_by": {Text: "الترتيب حسب"}, "people.column.actions": {Text: "الإجراءات"}, "people.promote": {Text: "ترقية"}, "people.promote_aria": {Text: "بدء ترقية لـ {name}"}, "people.workflows": {Text: "سير العمل"}, "people.workflows_aria": {Text: "اختر سير عمل لـ {name}"}, "people.workflow_aria": {Text: "ابدأ {workflow} لـ {name}"}, "people.frequent": {Text: "مستخدم كثيراً"}, "people.no_workflows": {Text: "لا توجد مسارات عمل متاحة"}, "people.workflows_unavailable_short": {Text: "غير متاح"}, "people.eligible_only": {Text: "المؤهلون للترقية فقط"}, "people.open_active_promotion": {Text: "فتح الترقية النشطة"}, "people.open_active_promotion_aria": {Text: "فتح الترقية النشطة لـ {name}"},
-		"organization.relationship_withheld":       {Text: "لدى هذا الشخص مدير خارج عرض المؤسسة المتاح لك."},
-		"organization.relationship_orphan":         {Text: "لا يمكن ربط علاقة الإشراف هذه بشخص في الدليل الحالي."},
-		"organization.current_you":                 {Text: " — أنت"},
-		"organization.selected_person":             {Text: " — محدد"},
-		"organization.employee_details":            {Text: "تفاصيل الموظف"},
-		"organization.employee_details_for":        {Text: "تفاصيل الموظف لـ {name}"},
+		"organization.relationship_withheld": {Text: "لدى هذا الشخص مدير خارج عرض المؤسسة المتاح لك."},
+		"organization.relationship_orphan":   {Text: "لا يمكن ربط علاقة الإشراف هذه بشخص في الدليل الحالي."},
+		"organization.current_you":           {Text: " — أنت"},
+		"organization.selected_person":       {Text: " — محدد"},
+		"organization.employee_details":      {Text: "تفاصيل الموظف"},
+		"organization.employee_details_for":  {Text: "تفاصيل الموظف لـ {name}"},
+		// UXBLIND lane G
+		"people.promotion_title": {Text: "اختر موظفًا للترقية"}, "people.promotion_detail": {Text: "اختر موظفًا مؤهلًا للترقية. امسح عامل التصفية لعرض جميع الموظفين الذين يمكنك رؤيتهم."}, "people.promotion_count": {Text: "{eligible} مؤهل من أصل {visible} يمكنك رؤيتهم"},
 		"people.filter_placeholder":                {Text: "الاسم أو الدور أو المعرّف"},
 		"people.filter_aria":                       {Text: "تصفية الموظفين"},
 		"people.filter":                            {Text: "تصفية"},
@@ -1940,6 +2359,12 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"settings.locale_title": {Text: "اللغة والمنطقة"}, "settings.locale_description": {Text: "اختر اللغة المستخدمة للتنقل والتسميات والتواريخ والأرقام وتنسيق العملات."},
 		"settings.locale_option_detail": {Text: "{code} · {direction}"}, "settings.locale_ltr": {Text: "من اليسار إلى اليمين"}, "settings.locale_rtl": {Text: "من اليمين إلى اليسار"},
 		"settings.locale_current": {Text: "الحالية"}, "settings.locale_status": {Text: "تُطبق تغييرات اللغة فورًا وتظل نشطة عند التنقل بين الصفحات."},
+		// UXBLIND lane F
+		"format.pay_unit.year": {Text: "سنويًا"}, "format.pay_unit.hour": {Text: "بالساعة"},
+		// UXBLIND lane X
+		"journey.error_domain_unavailable_title": {Text: "تعذر الوصول إلى خدمة الموافقات"}, "journey.error_domain_unavailable_detail": {Text: "تعذر الوصول إلى خدمة الموافقات. لم يتغير شيء؛ حاول مرة أخرى لاحقًا."},
+		"journey.error_storage_failed_title": {Text: "تعذر حفظ بدء الموافقة"}, "journey.error_storage_failed_detail": {Text: "تعذر على خدمة الموافقات حفظ هذه المحاولة. لم يتغير شيء؛ حاول مرة أخرى لاحقًا."},
+		"journey.timeline_start_failed": {Text: "فشل بدء الموافقة"}, "journey.timeline_start_failed_domain": {Text: "كانت خدمة الموافقات غير متاحة."}, "journey.timeline_start_failed_storage": {Text: "تعذر حفظ محاولة البدء الفاشلة."}, "journey.timeline_start_failed_stage": {Text: "لم يكن الطلب في مرحلة تسمح ببدء الموافقات."},
 		"organization_visibility.configured_roles":    {Text: "الرؤية المهيأة حسب الدور"},
 		"organization_visibility.scope_relative":      {Text: "يُحدد بحسب الوحدة التنظيمية لكل مشاهد"},
 		"organization_visibility.validation_title":    {Text: "التحقق"},
@@ -1951,13 +2376,52 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 		"worker_ids.numeric_required":                 {Text: "أكمل الحقول الرقمية ضمن النطاقات المسموح بها للحفظ."},
 		"worker_ids.preview_unavailable":              {Text: "لا تتوفر أمثلة. تحقق من نطاق الأرقام وإعدادات التنسيق."},
 		"worker_ids.preview":                          {Text: "معاينة التنسيق"},
-		"worker_ids.preview_help":                     {Text: "معاينة المدخلات الحالية باستخدام السنة الحالية وCARE كوحدة نموذجية. لا تُحجز أرقام. يجب الحفظ لتطبيق التغييرات."},
+		"worker_ids.preview_help":                     {Text: "معاينة التنسيق الحالي. تستخدم الأمثلة التسلسل التالي؛ ولا تُحجز أرقام قبل الحفظ."},
 		"settings.access_title":                       {Text: "الوصول إلى الحساب"}, "settings.access_description": {Text: "الحساب الذي سجلت الدخول به ومؤسستك."},
 		"settings.profile_title": {Text: "ملف المستخدم"}, "settings.profile_description": {Text: "هوية حسابك وملف الموظف المصرح به."},
 		"settings.organization": {Text: "المؤسسة"}, "settings.principal": {Text: "الهوية"}, "settings.purpose_scope": {Text: "الغرض / النطاق"}, "settings.data_source": {Text: "مصدر البيانات"},
 		"settings.access_callout": {Text: "تدير مؤسستك صلاحيات الوصول. تغيير تفضيلاتك الشخصية لا يغير صلاحياتك."},
 		"appearance.color_mode":   {Text: "نمط الألوان"}, "appearance.color_mode_help": {Text: "اتبع إعداد الجهاز أو اختر مساحة عمل فاتحة أو داكنة باستمرار."},
 		"appearance.color_mode_system": {Text: "استخدام إعداد النظام"}, "appearance.color_mode_system_help": {Text: "اتبع هذا الجهاز وحدّث تلقائيًا"}, "appearance.color_mode_light": {Text: "فاتح"}, "appearance.color_mode_light_help": {Text: "استخدم مساحة العمل الفاتحة للجميع"}, "appearance.color_mode_dark": {Text: "داكن"}, "appearance.color_mode_dark_help": {Text: "استخدم مساحة العمل الداكنة للجميع"},
+		// UXBLIND lane M
+		"help.access_detail_viewer": {Text: "تحدد أدوارك الصفحات والإجراءات المتاحة لك. إذا احتجت إلى وصول إضافي، فتواصل مع مسؤول مساحة العمل عبر قناة شركتك المعتادة. لا يمكن تغيير بيانات التوظيف والرواتب إلا من خلال سير عمل متاح."},
+		"help.access_detail_admin":  {Text: "يسمح دورك بإدارة الوصول إلى مساحة العمل. استخدم الأدوار والوصول لمراجعة الأدوار الفعالة وأذونات الصفحات، واستخدم رؤية المؤسسة لتحديد حدود دليل كل دور."},
+		"roles.page_access_summary": {Text: "الصفحات والإجراءات التي يمكن لهذا الدور استخدامها: {count}"},
+		"roles.access_explanation":  {Text: "تحدد الصفحات الأماكن التي يمكن للدور فتحها، وتحدد الإجراءات ما يمكنه فعله فيها. ويضيق وصول الميزات التحكم داخل هذه الصفحات ولا يوسع وصول الصفحة."},
+		// UXBLIND lane U
+		"roles.create_toggle":                         {Text: "فتح إنشاء دور"},
+		"roles.create_id_help":                        {Text: "اقتراح من الاسم الظاهر؛ يمكنك تعديله."},
+		"roles.create_access_help":                    {Text: "بعد الإنشاء، اضبط وصول الصفحات والميزات في قسم وصول الصفحات والإجراءات لهذا الدور."},
+		"roles.create_id_required":                    {Text: "أدخل معرّف الدور أو اسمًا ظاهرًا لاشتقاقه."},
+		"roles.create_id_invalid":                     {Text: "استخدم الأحرف اللاتينية الصغيرة والأرقام والشرطات السفلية، وابدأ بحرف."},
+		"roles.create_name_required":                  {Text: "أدخل اسمًا ظاهرًا ليسهل على المسؤولين التعرّف على هذا الدور."},
+		"roles.effective_roles_unavailable":           {Text: "لم يتم توفير دور فعال لهذا الموظف."},
+		"organization_visibility.scope_control_label": {Text: "إعداد الرؤية لهذا الدور"},
+		// UXBLIND lane L
+		"workflow_designer.active_note":          {Text: "تستخدم طلبات الترقية الجديدة إعداد المنتج النشط المعروض هنا. تعمل طلبات الترقية الجديدة عبر {workflow}."},
+		"workflow_designer.active_note_fallback": {Text: "تعمل طلبات الترقية الجديدة عبر سير العمل النشط المعروض هنا."},
+		"workflow_designer.catalog_heading":      {Text: "كتالوج مسارات العمل"},
+		"workflow_designer.drafts_heading":       {Text: "مسودات سير العمل"},
+		"workflow_designer.references_heading":   {Text: "مسارات العمل المرجعية"},
+		"workflow_designer.references_toggle":    {Text: "إظهار مسارات العمل المرجعية"},
+		"workflow_designer.references_hide":      {Text: "إخفاء مسارات العمل المرجعية"},
+		"workflow_designer.review_only":          {Text: "للمراجعة فقط"},
+		// UXBLIND lane WW
+		"workflow_list.search_label": {Text: "البحث في مسارات العمل"}, "workflow_list.search_placeholder": {Text: "الاسم أو معرّف سير العمل أو الفئة"}, "workflow_list.sort_label": {Text: "فرز مسارات العمل"}, "workflow_list.sort_recent": {Text: "الأحدث تحديثًا"}, "workflow_list.sort_name": {Text: "الاسم من أ إلى ي"}, "workflow_list.sort_status": {Text: "الحالة"}, "workflow_list.status_filters": {Text: "فلاتر حالة سير العمل"}, "workflow_list.all": {Text: "الكل"}, "workflow_list.active": {Text: "نشط"}, "workflow_list.draft": {Text: "مسودة"}, "workflow_list.review": {Text: "للمراجعة فقط"}, "workflow_list.retired": {Text: "متقاعد"}, "workflow_list.result": {Text: "{shown} من {total} من مسارات العمل"}, "workflow_list.range": {Text: "{from}–{to} من {total}"}, "workflow_list.page": {Text: "الصفحة {page} من {pages}"}, "workflow_list.table_label": {Text: "كتالوج مسارات العمل"}, "workflow_list.col_workflow": {Text: "سير العمل"}, "workflow_list.col_version": {Text: "الإصدار"}, "workflow_list.col_status": {Text: "الحالة"}, "workflow_list.col_category": {Text: "الفئة"}, "workflow_list.col_updated": {Text: "آخر تحديث"}, "workflow_list.col_owner": {Text: "المالك"}, "workflow_list.no_match": {Text: "لا تطابق أي مسارات عمل البحث والفلاتر الحالية."}, "workflow_list.group_counts": {Text: "منشور {published} · مسودة {draft} · مرجعي {reference}"},
+		// UXBLIND lane K
+		"capability_unavailable.title":          {Text: "\u063a\u064a\u0631 \u0645\u064f\u0639\u062f\u0651\u0629 \u0644\u0645\u0633\u0627\u062d\u0629 \u0627\u0644\u0639\u0645\u0644 \u0647\u0630\u0647 \u0628\u0639\u062f"},
+		"capability_unavailable.detail":         {Text: "\u064a\u0645\u0643\u0646 \u0644\u0644\u0645\u0633\u0624\u0648\u0644 \u062a\u0641\u0639\u064a\u0644 \u0647\u0630\u0647 \u0627\u0644\u0625\u0645\u0643\u0627\u0646\u064a\u0629 \u0644\u0645\u0633\u0627\u062d\u0629 \u0627\u0644\u0639\u0645\u0644."},
+		"capability_unavailable.request_detail": {Text: "\u0627\u0637\u0644\u0628 \u0645\u0646 \u0645\u0633\u0624\u0648\u0644 \u0645\u0633\u0627\u062d\u0629 \u0627\u0644\u0639\u0645\u0644 \u062a\u0641\u0639\u064a\u0644 \u0647\u0630\u0647 \u0627\u0644\u0625\u0645\u0643\u0627\u0646\u064a\u0629 \u0644\u0644\u0645\u0633\u0627\u062d\u0629. \u064a\u0645\u0643\u0646 \u0644\u0644\u0645\u0633\u0624\u0648\u0644 \u062a\u0641\u0639\u064a\u0644 \u0647\u0630\u0647 \u0627\u0644\u0625\u0645\u0643\u0627\u0646\u064a\u0629 \u0647\u0646\u0627\u0643."},
+		"capability_unavailable.admin_detail":   {Text: "\u0631\u0627\u062c\u0639 \u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u0625\u0645\u0643\u0627\u0646\u064a\u0627\u062a \u0641\u064a \u0635\u0641\u062d\u0629 \u0627\u0644\u0625\u062f\u0627\u0631\u0629 \u0644\u0645\u0633\u0627\u062d\u0629 \u0627\u0644\u0639\u0645\u0644 \u0648\u0641\u0639\u0651\u0644 \u0647\u0630\u0647 \u0627\u0644\u0625\u0645\u0643\u0627\u0646\u064a\u0629 \u0647\u0646\u0627\u0643."},
+		"capability_unavailable.open_admin":     {Text: "\u0641\u062a\u062d \u0627\u0644\u0625\u062f\u0627\u0631\u0629"},
+		// UXBLIND lane P
+		"shell.notifications": {Text: "الإشعارات"}, "shell.account_menu": {Text: "قائمة الحساب"},
+		"notifications.unread": {Text: "غير مقروء"}, "notifications.read": {Text: "مقروء"}, "notifications.time_unavailable": {Text: "الوقت غير متاح"},
+		"notifications.read_failed":  {Text: "تعذر وضع علامة مقروء على هذا الإشعار. حاول مرة أخرى."},
+		"notifications.item_aria":    {Text: "{title} من {actor}، {time}، {state}"},
+		"notifications.unread_count": {Plural: map[string]string{"zero": "لا توجد إشعارات غير مقروءة", "one": "إشعار غير مقروء واحد", "two": "إشعاران غير مقروءين", "few": "{count} إشعارات غير مقروءة", "many": "{count} إشعارًا غير مقروء", "other": "{count} إشعار غير مقروء"}},
+		// UXBLIND lane DD
+		"work.action_queue_empty_detail_no_journeys": {Text: "ستظهر المهام الجديدة هنا."},
 	},
 })
 
@@ -1967,7 +2431,7 @@ var productMessages = withFeatureMessages(map[string]map[string]localize.Message
 // programming error rather than a silent override.
 func withFeatureMessages(catalog map[string]map[string]localize.Message) map[string]map[string]localize.Message {
 	base := catalog[DefaultProductLocale]
-	for _, feature := range []map[string]localize.Message{workflowEditorMessages(), workflowNotifyMessages(), chatMessages(), projectMessages()} {
+	for _, feature := range []map[string]localize.Message{workflowEditorMessages(), workflowNotifyMessages(), chatMessages(), projectMessages(), clockMessages(), agentsAvailabilityMessages()} {
 		for key, message := range feature {
 			if _, exists := base[key]; exists {
 				panic("productui: duplicate catalog key " + key)
@@ -1975,18 +2439,29 @@ func withFeatureMessages(catalog map[string]map[string]localize.Message) map[str
 			base[key] = message
 		}
 	}
+	// UXBLIND lane I: page identity is cataloged once as the page label. The
+	// title entries remain in the catalog for compatibility with older clients,
+	// but shell surfaces must not give the same route a second name.
+	for _, messages := range catalog {
+		for key, message := range messages {
+			if !strings.HasPrefix(key, "page.") || !strings.HasSuffix(key, ".label") {
+				continue
+			}
+			titleKey := strings.TrimSuffix(key, ".label") + ".title"
+			if _, exists := messages[titleKey]; exists {
+				messages[titleKey] = message
+			}
+		}
+		if journeyName, exists := messages["page.journeys.label"]; exists {
+			messages["admin.promotion_title"] = journeyName
+		}
+	}
 	return catalog
 }
 
-var productMessageRegistry = func() *localize.Registry {
-	registry := localize.NewRegistry()
-	for locale, messages := range productMessages {
-		if err := registry.Register(localize.Catalog{Locale: locale, Version: productCatalogVersion, Messages: productCatalogMessages(locale, messages)}); err != nil {
-			panic(err)
-		}
-	}
-	return registry
-}()
+// productMessageRegistry registers each built-in catalog on first use; see
+// productCatalogRegistry.
+var productMessageRegistry = newProductCatalogRegistry()
 
 // productCatalogMessages keeps protocol and storage vocabulary out of
 // ordinary availability cards while leaving the admin/status/provenance
@@ -1997,11 +2472,39 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 	for key, message := range source {
 		messages[key] = message
 	}
+	for key, message := range clockTranslations(locale) {
+		messages[key] = message
+	}
+	for key, text := range agentsAvailabilityTranslations(locale) {
+		messages[key] = localize.Message{Text: text}
+	}
+	switch locale {
+	case "de-DE":
+		// UXBLIND lane MM
+		messages["accessibility.color_mode"] = localize.Message{Text: "Persönlicher Farbmodus"}
+		messages["accessibility.color_mode_help"] = localize.Message{Text: "Überschreiben Sie den Farbmodus der Organisation nur für Ihr Konto."}
+		messages["accessibility.color_mode_organization"] = localize.Message{Text: "Organisationseinstellung verwenden"}
+		messages["accessibility.color_mode_organization_help"] = localize.Message{Text: "Den für Ihre Organisation gewählten Farbmodus übernehmen."}
+		messages["accessibility.color_mode_light"] = localize.Message{Text: "Hell"}
+		messages["accessibility.color_mode_light_help"] = localize.Message{Text: "Den hellen Modus für Ihr Konto verwenden."}
+		messages["accessibility.color_mode_dark"] = localize.Message{Text: "Dunkel"}
+		messages["accessibility.color_mode_dark_help"] = localize.Message{Text: "Den dunklen Modus für Ihr Konto verwenden."}
+	case "ar":
+		// UXBLIND lane MM
+		messages["accessibility.color_mode"] = localize.Message{Text: "نمط الألوان الشخصي"}
+		messages["accessibility.color_mode_help"] = localize.Message{Text: "تجاوز نمط ألوان المؤسسة لحسابك فقط."}
+		messages["accessibility.color_mode_organization"] = localize.Message{Text: "استخدام إعداد المؤسسة"}
+		messages["accessibility.color_mode_organization_help"] = localize.Message{Text: "اتبع نمط الألوان الذي اختارته مؤسستك."}
+		messages["accessibility.color_mode_light"] = localize.Message{Text: "فاتح"}
+		messages["accessibility.color_mode_light_help"] = localize.Message{Text: "استخدم النمط الفاتح لحسابك."}
+		messages["accessibility.color_mode_dark"] = localize.Message{Text: "داكن"}
+		messages["accessibility.color_mode_dark_help"] = localize.Message{Text: "استخدم النمط الداكن لحسابك."}
+	}
 	switch locale {
 	case "de-DE":
 		messages["appearance.asset_revision_label"] = localize.Message{Text: "Version {revision}"}
 		messages["appearance.asset_load_more"] = localize.Message{Text: "Weitere Bilder laden"}
-	case "ar-SA":
+	case "ar":
 		messages["appearance.asset_revision_label"] = localize.Message{Text: "الإصدار {revision}"}
 		messages["appearance.asset_load_more"] = localize.Message{Text: "تحميل المزيد من الصور"}
 	default:
@@ -2094,7 +2597,7 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 		"page.admin.subtitle": {}, "page.appearance.subtitle": {}, "page.studio.subtitle": {},
 		"page.workflow_designer.label": {}, "page.workflow_designer.title": {}, "page.workflow_designer.subtitle": {},
 		"workflow_designer.eyebrow": {}, "workflow_designer.heading": {}, "workflow_designer.description": {},
-		"workflow_designer.catalog_title": {}, "workflow_designer.catalog_detail": {}, "workflow_designer.empty_catalog_title": {}, "workflow_designer.empty_catalog_detail": {},
+		"workflow_designer.catalog_title": {}, "workflow_designer.catalog_detail": {}, "workflow_designer.catalog_heading": {}, "workflow_designer.drafts_heading": {}, "workflow_designer.references_heading": {}, "workflow_designer.references_toggle": {}, "workflow_designer.references_hide": {}, "workflow_designer.active_note": {}, "workflow_designer.active_note_fallback": {}, "workflow_designer.empty_catalog_title": {}, "workflow_designer.empty_catalog_detail": {},
 		"workflow_designer.choose_title": {}, "workflow_designer.choose_detail": {}, "workflow_designer.create": {}, "workflow_designer.create_unavailable": {},
 		"workflow_version.published_eyebrow": {}, "workflow_version.published_title": {}, "workflow_version.published_help": {}, "workflow_version.next_label": {}, "workflow_version.create": {},
 		"workflow_palette.title": {}, "workflow_palette.detail": {}, "workflow_palette.search": {}, "workflow_palette.search_aria": {}, "workflow_palette.empty": {}, "workflow_palette.unavailable": {}, "workflow_palette.other_domain": {}, "workflow_palette.properties": {}, "workflow_palette.kind_block": {}, "workflow_palette.kind_fragment": {}, "workflow_palette.kind_template": {},
@@ -2159,6 +2662,21 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 		messages["people.count"] = localize.Message{Plural: map[string]string{"zero": "لا يوجد أشخاص", "one": "شخص واحد", "two": "شخصان", "few": "{count} أشخاص", "many": "{count} شخصًا", "other": "{count} شخص"}}
 		messages["workflow.available_count"] = localize.Message{Plural: map[string]string{"zero": "لا توجد مهام متاحة", "one": "مهمة واحدة متاحة", "two": "مهمتان متاحتان", "few": "{count} مهام متاحة", "many": "{count} مهمة متاحة", "other": "{count} مهمة متاحة"}}
 		messages["history.count"] = localize.Message{Plural: map[string]string{"zero": "لا توجد سجلات", "one": "سجل واحد", "two": "سجلان", "few": "{count} سجلات", "many": "{count} سجلًا", "other": "{count} سجل"}}
+	}
+	// UXBLIND lane I: the final catalog projection is also the authority for
+	// server-rendered page titles, after locale-specific fallback copy runs.
+	for key, message := range messages {
+		if strings.HasPrefix(key, "page.") && strings.HasSuffix(key, ".label") {
+			titleKey := strings.TrimSuffix(key, ".label") + ".title"
+			if _, exists := messages[titleKey]; exists {
+				messages[titleKey] = message
+			}
+		} else if strings.HasPrefix(key, "page.") && strings.HasSuffix(key, ".title") {
+			labelKey := strings.TrimSuffix(key, ".title") + ".label"
+			if _, exists := messages[labelKey]; !exists {
+				messages[labelKey] = message
+			}
+		}
 	}
 	return messages
 }
@@ -2248,106 +2766,112 @@ func ordinaryCopy(locale, key string) string {
 			"workflow_draft.no_changes":                  "Diese gespeicherte Version enthält keine semantischen Änderungen.",
 			"workflow_draft.change_summary":              "{operation} {kind}: {subject} {field}",
 			"workflow_draft.auto_layout":                 "Automatisches Layout",
-			"workflow_viewer.change.added":               "Hinzugefügt",
-			"workflow_viewer.change.removed":             "Entfernt",
-			"workflow_viewer.change.updated":             "Geändert",
-			"workflow_viewer.change.node":                "Schritt",
-			"workflow_viewer.change.edge":                "Route",
-			"workflow_viewer.change.binding":             "Bindung",
-			"workflow_viewer.change.parameter":           "Einstellung",
-			"workflow_outline_editor.title":              "Bearbeitbare Gliederung",
-			"workflow_outline_editor.description":        "Wählen Sie einen Schritt zum Konfigurieren aus oder verschieben Sie ihn in der gemeinsamen Darstellungsreihenfolge. Die Ausführung folgt weiterhin den verbundenen Pfaden.",
-			"workflow_outline_editor.move_earlier":       "{name} nach oben verschieben",
-			"workflow_outline_editor.move_later":         "{name} nach unten verschieben",
-			"workflow_outline_editor.configure":          "{name} konfigurieren",
-			"workflow_outline_editor.graph_label":        "Bearbeitbares Workflow-Diagramm",
-			"workflow_inspector.eyebrow":                 "Ausgewählter Schritt",
-			"workflow_inspector.title":                   "Schritt konfigurieren",
-			"workflow_inspector.node":                    "Schritt",
-			"workflow_inspector.parameters":              "Parameter",
-			"workflow_inspector.save":                    "Parameter speichern",
-			"workflow_inspector.outcomes":                "Ergebnispfade",
-			"workflow_inspector.outcomes_help":           "Verbinden Sie jedes deklarierte Ergebnis mit dem nächsten Schritt.",
-			"workflow_inspector.choose_target":           "Nächsten Schritt auswählen",
-			"workflow_inspector.target_step":             "Nächster Schritt",
-			"workflow_inspector.connect":                 "Verbinden",
-			"workflow_inspector.current_target":          "Derzeit: {target}",
-			"workflow_inspector.not_connected":           "Nicht verbunden",
-			"workflow_inspector.no_outcomes":             "Dieser Schritt hat keine ausgehenden Ergebnispfade.",
-			"workflow_inspector.bindings":                "Datenbindungen",
-			"workflow_inspector.bindings_help":           "Verwenden Sie nur kompatible Ausgaben von Schritten, die garantiert vorher ausgeführt werden.",
-			"workflow_inspector.source_output":           "Quellausgabe",
-			"workflow_inspector.bind":                    "Eingabe binden",
-			"workflow_inspector.current_source":          "Derzeit: {source}",
-			"workflow_inspector.not_bound":               "Nicht gebunden",
-			"workflow_inspector.no_compatible_outputs":   "Keine kompatiblen früheren Ausgaben",
-			"workflow_inspector.no_inputs":               "Dieser Schritt hat keine typisierten Eingaben.",
-			"workflow_inspector.locked":                  "Erforderliche Kontrolle",
-			"workflow_inspector.locked_detail":           "Diese Phase {kind} ist gesperrt und kann nicht ausgelassen oder ersetzt werden.",
-			"workflow_inspector.overlay":                 "Vorlagenänderung",
-			"workflow_inspector.overlay_help":            "Auslassungen und Ersetzungen benötigen eine überprüfbare Begründung. Erforderliche Kontrollen bleiben gesperrt.",
-			"workflow_inspector.reason":                  "Begründung",
-			"workflow_inspector.replacement":             "Ersatzbaustein",
-			"workflow_inspector.omit":                    "Schritt auslassen",
-			"workflow_inspector.replace":                 "Schritt ersetzen",
-			"workflow_inspector.history":                 "Verlauf der Vorlagenänderungen · {count}",
-			"page.roles.label":                           "Rollen & Zugriff",
-			"page.roles.title":                           "Rollen & Zugriff",
-			"page.roles.subtitle":                        "Erstellen Sie Rollen und weisen Sie der Belegschaft eine oder mehrere Rollen zu.",
-			"admin.journeys_unavailable_reason":          "Beförderungsabläufe sind vorübergehend nicht verfügbar. Versuchen Sie es später erneut.",
-			"admin.studio_unavailable_reason":            "Die Gestaltung eigener Seiten ist noch nicht verfügbar.",
-			"admin.custom_description":                   "Eigene Seiten sind geplant. Darstellung und Zugriffsrechte können Sie bereits verwalten.",
-			"shell.load_recovery":                        "Die neuesten Informationen konnten nicht geladen werden. Versuchen Sie es erneut. Wenn das Problem bleibt, wenden Sie sich an Ihre Administration.",
-			"shell.load_retry":                           "Erneut versuchen",
-			"shell.page_unavailable":                     "Seite nicht verfügbar",
-			"shell.page_recovery":                        "Kehren Sie zur Startseite zurück und wählen Sie eine andere Aufgabe. Bei Bedarf hilft Ihnen Ihre Administration.",
-			"shell.live_source":                          "Arbeitsbereichsdaten",
-			"shell.myself_unidentified":                  "Eigenes Beschäftigtenprofil öffnen",
-			"work.server_proposal":                       "Aktueller Vorschlag",
-			"person.employment_detail":                   "Aktuelle Beschäftigtendaten.",
-			"workflow.choose":                            "Wählen Sie eine verfügbare Aufgabe für {name}.",
-			"appearance.brand_help":                      "Geben Sie dem Arbeitsbereich ein erkennbares Unternehmenslogo mit gut lesbarer Textalternative.",
-			"studio.back_admin":                          "← Zurück zur Administration",
-			"studio.unavailable_badge":                   "Nicht verfügbar",
-			"studio.unavailable_title":                   "Eigene Seiten können hier noch nicht bearbeitet werden",
-			"studio.unavailable_description":             "Sie können weiterhin Marke und Erscheinungsbild anpassen sowie Rollen und Zugriff in der Administration verwalten.",
-			"studio.return_home":                         "Zurück zum Arbeitsbereich",
-			"page.position_object.label":                 "Positionsobjekt",
-			"page.position_object.title":                 "Positionsobjekt",
-			"page.position_object.subtitle":              "Prüfen Sie eine Position anhand der aktuellen Revision und Kompatibilität.",
-			"position_object.select_title":               "Position auswählen",
-			"position_object.select_detail":              "Wählen Sie eine Position aus, um die aktuelle Revision zu prüfen.",
-			"position_object.details":                    "Positionsdetails",
-			"position_object.position":                   "Position",
-			"position_object.revision":                   "Revision",
-			"position_object.job":                        "Stelle",
-			"position_object.organization_unit":          "Organisationseinheit",
-			"position_object.lifecycle":                  "Lebenszyklus",
-			"position_object.compatibility":              "Kompatibilität",
-			"position_object.compatible":                 "Kompatibel",
-			"position_object.incompatible":               "Nicht kompatibel",
-			"page.position_occupancy.label":              "Positionsbesetzung",
-			"page.position_occupancy.title":              "Positionsbesetzung",
-			"page.position_occupancy.subtitle":           "Prüfen Sie aktuelle Besetzungen und freie Kapazität einer Position.",
-			"position_occupancy.select_title":            "Position auswählen",
-			"position_occupancy.select_detail":           "Wählen Sie eine Position aus, um Besetzung und freie Kapazität zu prüfen.",
-			"position_occupancy.details":                 "Positionsbesetzung",
-			"position_occupancy.position":                "Position",
-			"position_occupancy.capacity":                "Kapazität (Köpfe · FTE)",
-			"position_occupancy.consumed":                "Besetzt (Köpfe · FTE)",
-			"position_occupancy.vacancies":               "Verfügbar (Köpfe · FTE)",
-			"position_occupancy.occupants":               "Besetzungen",
-			"position_occupancy.no_occupants":            "Derzeit keine Besetzungen",
-			"position_occupancy.fte":                     "FTE",
-			"page.governed_feedback.label":               "Feedback",
-			"page.governed_feedback.title":               "Feedback",
-			"governed_feedback.unavailable_title":        "Feedback ist noch nicht verfügbar",
-			"page.skills_profile.title":                  "Kompetenzprofil",
-			"page.governed_population.label":             "Personengruppen",
-			"page.governed_population.title":             "Personengruppen erstellen",
-			"governed_population.unavailable_title":      "Personengruppen sind noch nicht verfügbar",
-			"page.report_export.title":                   "Berichte exportieren",
-			"report_export.unavailable_title":            "Berichtexport ist noch nicht verfügbar",
+			// UXBLIND lane AA
+			"workflow_draft.delete":                    "Entwurf löschen",
+			"workflow_draft.delete_title":              "Diesen Entwurf löschen?",
+			"workflow_draft.delete_detail":             "Dieser leere Entwurf wurde noch nicht eingereicht. Das Löschen kann nicht rückgängig gemacht werden.",
+			"workflow_draft.delete_confirm":            "Entwurf löschen",
+			"workflow_draft.delete_cancel":             "Entwurf behalten",
+			"workflow_viewer.change.added":             "Hinzugefügt",
+			"workflow_viewer.change.removed":           "Entfernt",
+			"workflow_viewer.change.updated":           "Geändert",
+			"workflow_viewer.change.node":              "Schritt",
+			"workflow_viewer.change.edge":              "Route",
+			"workflow_viewer.change.binding":           "Bindung",
+			"workflow_viewer.change.parameter":         "Einstellung",
+			"workflow_outline_editor.title":            "Bearbeitbare Gliederung",
+			"workflow_outline_editor.description":      "Wählen Sie einen Schritt zum Konfigurieren aus oder verschieben Sie ihn in der gemeinsamen Darstellungsreihenfolge. Die Ausführung folgt weiterhin den verbundenen Pfaden.",
+			"workflow_outline_editor.move_earlier":     "{name} nach oben verschieben",
+			"workflow_outline_editor.move_later":       "{name} nach unten verschieben",
+			"workflow_outline_editor.configure":        "{name} konfigurieren",
+			"workflow_outline_editor.graph_label":      "Bearbeitbares Workflow-Diagramm",
+			"workflow_inspector.eyebrow":               "Ausgewählter Schritt",
+			"workflow_inspector.title":                 "Schritt konfigurieren",
+			"workflow_inspector.node":                  "Schritt",
+			"workflow_inspector.parameters":            "Parameter",
+			"workflow_inspector.save":                  "Parameter speichern",
+			"workflow_inspector.outcomes":              "Ergebnispfade",
+			"workflow_inspector.outcomes_help":         "Verbinden Sie jedes deklarierte Ergebnis mit dem nächsten Schritt.",
+			"workflow_inspector.choose_target":         "Nächsten Schritt auswählen",
+			"workflow_inspector.target_step":           "Nächster Schritt",
+			"workflow_inspector.connect":               "Verbinden",
+			"workflow_inspector.current_target":        "Derzeit: {target}",
+			"workflow_inspector.not_connected":         "Nicht verbunden",
+			"workflow_inspector.no_outcomes":           "Dieser Schritt hat keine ausgehenden Ergebnispfade.",
+			"workflow_inspector.bindings":              "Datenbindungen",
+			"workflow_inspector.bindings_help":         "Verwenden Sie nur kompatible Ausgaben von Schritten, die garantiert vorher ausgeführt werden.",
+			"workflow_inspector.source_output":         "Quellausgabe",
+			"workflow_inspector.bind":                  "Eingabe binden",
+			"workflow_inspector.current_source":        "Derzeit: {source}",
+			"workflow_inspector.not_bound":             "Nicht gebunden",
+			"workflow_inspector.no_compatible_outputs": "Keine kompatiblen früheren Ausgaben",
+			"workflow_inspector.no_inputs":             "Dieser Schritt hat keine typisierten Eingaben.",
+			"workflow_inspector.locked":                "Erforderliche Kontrolle",
+			"workflow_inspector.locked_detail":         "Diese Phase {kind} ist gesperrt und kann nicht ausgelassen oder ersetzt werden.",
+			"workflow_inspector.overlay":               "Vorlagenänderung",
+			"workflow_inspector.overlay_help":          "Auslassungen und Ersetzungen benötigen eine überprüfbare Begründung. Erforderliche Kontrollen bleiben gesperrt.",
+			"workflow_inspector.reason":                "Begründung",
+			"workflow_inspector.replacement":           "Ersatzbaustein",
+			"workflow_inspector.omit":                  "Schritt auslassen",
+			"workflow_inspector.replace":               "Schritt ersetzen",
+			"workflow_inspector.history":               "Verlauf der Vorlagenänderungen · {count}",
+			"page.roles.label":                         "Rollen & Zugriff",
+			"page.roles.title":                         "Rollen & Zugriff",
+			"page.roles.subtitle":                      "Erstellen Sie Rollen und weisen Sie der Belegschaft eine oder mehrere Rollen zu.",
+			"admin.journeys_unavailable_reason":        "Beförderungsabläufe sind vorübergehend nicht verfügbar. Versuchen Sie es später erneut.",
+			"admin.studio_unavailable_reason":          "Die Gestaltung eigener Seiten ist noch nicht verfügbar.",
+			"admin.custom_description":                 "Eigene Seiten sind geplant. Darstellung und Zugriffsrechte können Sie bereits verwalten.",
+			"shell.load_recovery":                      "Die neuesten Informationen konnten nicht geladen werden. Versuchen Sie es erneut. Wenn das Problem bleibt, wenden Sie sich an Ihre Administration.",
+			"shell.load_retry":                         "Erneut versuchen",
+			"shell.page_unavailable":                   "Seite nicht verfügbar",
+			"shell.page_recovery":                      "Kehren Sie zur Startseite zurück und wählen Sie eine andere Aufgabe. Bei Bedarf hilft Ihnen Ihre Administration.",
+			"shell.live_source":                        "Arbeitsbereichsdaten",
+			"shell.myself_unidentified":                "Eigenes Beschäftigtenprofil öffnen",
+			"work.server_proposal":                     "Aktueller Vorschlag",
+			"person.employment_detail":                 "Aktuelle Beschäftigtendaten.",
+			"workflow.choose":                          "Wählen Sie eine verfügbare Aufgabe für {name}.",
+			"appearance.brand_help":                    "Geben Sie dem Arbeitsbereich ein erkennbares Unternehmenslogo mit gut lesbarer Textalternative.",
+			"studio.back_admin":                        "← Zurück zur Administration",
+			"studio.unavailable_badge":                 "Nicht verfügbar",
+			"studio.unavailable_title":                 "Eigene Seiten können hier noch nicht bearbeitet werden",
+			"studio.unavailable_description":           "Sie können weiterhin Marke und Erscheinungsbild anpassen sowie Rollen und Zugriff in der Administration verwalten.",
+			"studio.return_home":                       "Zurück zum Arbeitsbereich",
+			"page.position_object.label":               "Positionsobjekt",
+			"page.position_object.title":               "Positionsobjekt",
+			"page.position_object.subtitle":            "Prüfen Sie eine Position anhand der aktuellen Revision und Kompatibilität.",
+			"position_object.select_title":             "Position auswählen",
+			"position_object.select_detail":            "Wählen Sie eine Position aus, um die aktuelle Revision zu prüfen.",
+			"position_object.details":                  "Positionsdetails",
+			"position_object.position":                 "Position",
+			"position_object.revision":                 "Revision",
+			"position_object.job":                      "Stelle",
+			"position_object.organization_unit":        "Organisationseinheit",
+			"position_object.lifecycle":                "Lebenszyklus",
+			"position_object.compatibility":            "Kompatibilität",
+			"position_object.compatible":               "Kompatibel",
+			"position_object.incompatible":             "Nicht kompatibel",
+			"page.position_occupancy.label":            "Positionsbesetzung",
+			"page.position_occupancy.title":            "Positionsbesetzung",
+			"page.position_occupancy.subtitle":         "Prüfen Sie aktuelle Besetzungen und freie Kapazität einer Position.",
+			"position_occupancy.select_title":          "Position auswählen",
+			"position_occupancy.select_detail":         "Wählen Sie eine Position aus, um Besetzung und freie Kapazität zu prüfen.",
+			"position_occupancy.details":               "Positionsbesetzung",
+			"position_occupancy.position":              "Position",
+			"position_occupancy.capacity":              "Kapazität (Köpfe · FTE)",
+			"position_occupancy.consumed":              "Besetzt (Köpfe · FTE)",
+			"position_occupancy.vacancies":             "Verfügbar (Köpfe · FTE)",
+			"position_occupancy.occupants":             "Besetzungen",
+			"position_occupancy.no_occupants":          "Derzeit keine Besetzungen",
+			"position_occupancy.fte":                   "FTE",
+			"page.governed_feedback.label":             "Feedback",
+			"page.governed_feedback.title":             "Feedback",
+			"governed_feedback.unavailable_title":      "Feedback ist noch nicht verfügbar",
+			"page.skills_profile.title":                "Kompetenzprofil",
+			"page.governed_population.label":           "Personengruppen",
+			"page.governed_population.title":           "Personengruppen erstellen",
+			"governed_population.unavailable_title":    "Personengruppen sind noch nicht verfügbar",
+			"page.report_export.title":                 "Berichte exportieren",
+			"report_export.unavailable_title":          "Berichtexport ist noch nicht verfügbar",
 		}[key]; ok {
 			return text
 		}
@@ -2436,106 +2960,112 @@ func ordinaryCopy(locale, key string) string {
 			"workflow_draft.no_changes":                  "لا يحتوي هذا الإصدار المحفوظ على تغييرات دلالية.",
 			"workflow_draft.change_summary":              "{operation} {kind}: {subject} {field}",
 			"workflow_draft.auto_layout":                 "تخطيط تلقائي",
-			"workflow_viewer.change.added":               "تمت الإضافة",
-			"workflow_viewer.change.removed":             "تمت الإزالة",
-			"workflow_viewer.change.updated":             "تم التحديث",
-			"workflow_viewer.change.node":                "خطوة",
-			"workflow_viewer.change.edge":                "مسار",
-			"workflow_viewer.change.binding":             "ربط",
-			"workflow_viewer.change.parameter":           "إعداد",
-			"workflow_outline_editor.title":              "مخطط تفصيلي قابل للتحرير",
-			"workflow_outline_editor.description":        "اختر خطوة لتهيئتها أو انقلها في ترتيب العرض المشترك. يظل التنفيذ تابعًا للمسارات المتصلة.",
-			"workflow_outline_editor.move_earlier":       "نقل {name} إلى موضع أسبق",
-			"workflow_outline_editor.move_later":         "نقل {name} إلى موضع لاحق",
-			"workflow_outline_editor.configure":          "تهيئة {name}",
-			"workflow_outline_editor.graph_label":        "مخطط سير عمل قابل للتحرير",
-			"workflow_inspector.eyebrow":                 "الخطوة المحددة",
-			"workflow_inspector.title":                   "تهيئة الخطوة",
-			"workflow_inspector.node":                    "الخطوة",
-			"workflow_inspector.parameters":              "المعلمات",
-			"workflow_inspector.save":                    "حفظ المعلمات",
-			"workflow_inspector.outcomes":                "مسارات النتائج",
-			"workflow_inspector.outcomes_help":           "اربط كل نتيجة معلنة بالخطوة التالية.",
-			"workflow_inspector.choose_target":           "اختر الخطوة التالية",
-			"workflow_inspector.target_step":             "الخطوة التالية",
-			"workflow_inspector.connect":                 "ربط",
-			"workflow_inspector.current_target":          "حاليًا: {target}",
-			"workflow_inspector.not_connected":           "غير متصل",
-			"workflow_inspector.no_outcomes":             "لا تحتوي هذه الخطوة على مسارات نتائج صادرة.",
-			"workflow_inspector.bindings":                "ارتباطات البيانات",
-			"workflow_inspector.bindings_help":           "استخدم فقط المخرجات المتوافقة من الخطوات المضمونة قبل هذه الخطوة.",
-			"workflow_inspector.source_output":           "المخرج المصدر",
-			"workflow_inspector.bind":                    "ربط الإدخال",
-			"workflow_inspector.current_source":          "حاليًا: {source}",
-			"workflow_inspector.not_bound":               "غير مرتبط",
-			"workflow_inspector.no_compatible_outputs":   "لا توجد مخرجات سابقة متوافقة",
-			"workflow_inspector.no_inputs":               "لا تحتوي هذه الخطوة على إدخالات ذات نوع.",
-			"workflow_inspector.locked":                  "عنصر تحكم مطلوب",
-			"workflow_inspector.locked_detail":           "مرحلة {kind} هذه مقفلة ولا يمكن حذفها أو استبدالها.",
-			"workflow_inspector.overlay":                 "تغيير القالب",
-			"workflow_inspector.overlay_help":            "يتطلب الحذف والاستبدال سببًا قابلًا للمراجعة. تظل عناصر التحكم المطلوبة مقفلة.",
-			"workflow_inspector.reason":                  "السبب",
-			"workflow_inspector.replacement":             "الكتلة البديلة",
-			"workflow_inspector.omit":                    "حذف الخطوة",
-			"workflow_inspector.replace":                 "استبدال الخطوة",
-			"workflow_inspector.history":                 "سجل تغييرات القالب · {count}",
-			"page.roles.label":                           "الأدوار والوصول",
-			"page.roles.title":                           "الأدوار والوصول",
-			"page.roles.subtitle":                        "أنشئ الأدوار وعيّن دورًا واحدًا أو أكثر عبر القوى العاملة.",
-			"admin.journeys_unavailable_reason":          "طلبات الترقية غير متاحة مؤقتًا. حاول مرة أخرى لاحقًا.",
-			"admin.studio_unavailable_reason":            "تصميم الصفحات المخصصة غير متاح بعد.",
-			"admin.custom_description":                   "الصفحات المخصصة مخطط لها. يمكنك إدارة المظهر وصلاحيات الوصول الآن.",
-			"shell.load_recovery":                        "تعذر تحميل أحدث المعلومات. حاول مرة أخرى. إذا استمرت المشكلة، فتواصل مع مسؤول النظام.",
-			"shell.load_retry":                           "حاول مرة أخرى",
-			"shell.page_unavailable":                     "الصفحة غير متاحة",
-			"shell.page_recovery":                        "عُد إلى الصفحة الرئيسية واختر مهمة أخرى، أو تواصل مع مسؤول النظام إذا كنت بحاجة إلى هذه الصفحة.",
-			"shell.live_source":                          "بيانات مساحة العمل",
-			"shell.myself_unidentified":                  "فتح ملف الموظف الخاص بك",
-			"work.server_proposal":                       "الاقتراح الحالي",
-			"person.employment_detail":                   "بيانات الموظف الحالية.",
-			"workflow.choose":                            "اختر مهمة متاحة لـ {name}.",
-			"appearance.brand_help":                      "امنح مساحة العمل شعارًا مميزًا لشركتك مع بديل نصي واضح.",
-			"studio.back_admin":                          "→ العودة إلى الإدارة",
-			"studio.unavailable_badge":                   "غير متاح",
-			"studio.unavailable_title":                   "لا يمكن تحرير الصفحات المخصصة هنا بعد",
-			"studio.unavailable_description":             "لا يزال بإمكانك تخصيص العلامة والمظهر وإدارة الأدوار والوصول من إعدادات الإدارة.",
-			"studio.return_home":                         "العودة إلى مساحة العمل",
-			"page.position_object.label":                 "ملف المنصب",
-			"page.position_object.title":                 "ملف المنصب",
-			"page.position_object.subtitle":              "راجع المنصب وفق مراجعته الحالية ومدى توافقه.",
-			"position_object.select_title":               "اختر منصبًا",
-			"position_object.select_detail":              "اختر منصبًا محكومًا لمراجعة نسخته الحالية.",
-			"position_object.details":                    "تفاصيل المنصب",
-			"position_object.position":                   "المنصب",
-			"position_object.revision":                   "المراجعة",
-			"position_object.job":                        "الوظيفة",
-			"position_object.organization_unit":          "الوحدة التنظيمية",
-			"position_object.lifecycle":                  "الحالة",
-			"position_object.compatibility":              "التوافق",
-			"position_object.compatible":                 "متوافق",
-			"position_object.incompatible":               "غير متوافق",
-			"page.position_occupancy.label":              "شاغلو المنصب",
-			"page.position_occupancy.title":              "شاغلو المنصب",
-			"page.position_occupancy.subtitle":           "راجع شاغلي المنصب الحاليين والسعة المتاحة.",
-			"position_occupancy.select_title":            "اختر منصبًا",
-			"position_occupancy.select_detail":           "اختر منصبًا محكومًا لمراجعة شاغليه والسعة المتاحة.",
-			"position_occupancy.details":                 "إشغال المنصب",
-			"position_occupancy.position":                "المنصب",
-			"position_occupancy.capacity":                "السعة (عدد الأشخاص · مكافئ الدوام الكامل)",
-			"position_occupancy.consumed":                "المشغول (عدد الأشخاص · مكافئ الدوام الكامل)",
-			"position_occupancy.vacancies":               "المتاح (عدد الأشخاص · مكافئ الدوام الكامل)",
-			"position_occupancy.occupants":               "الشاغلون",
-			"position_occupancy.no_occupants":            "لا يوجد شاغلون حاليًا",
-			"position_occupancy.fte":                     "مكافئ الدوام الكامل",
-			"page.governed_feedback.label":               "الملاحظات",
-			"page.governed_feedback.title":               "الملاحظات",
-			"governed_feedback.unavailable_title":        "الملاحظات غير متاحة بعد",
-			"page.skills_profile.title":                  "ملف المهارات",
-			"page.governed_population.label":             "مجموعات الموظفين",
-			"page.governed_population.title":             "إنشاء مجموعات الموظفين",
-			"governed_population.unavailable_title":      "مجموعات الموظفين غير متاحة بعد",
-			"page.report_export.title":                   "تصدير التقارير",
-			"report_export.unavailable_title":            "تصدير التقارير غير متاح بعد",
+			// UXBLIND lane AA
+			"workflow_draft.delete":                    "حذف المسودة",
+			"workflow_draft.delete_title":              "هل تريد حذف هذه المسودة؟",
+			"workflow_draft.delete_detail":             "هذه المسودة الفارغة لم تُرسَل من قبل. لا يمكن التراجع عن حذفها.",
+			"workflow_draft.delete_confirm":            "حذف المسودة",
+			"workflow_draft.delete_cancel":             "الاحتفاظ بالمسودة",
+			"workflow_viewer.change.added":             "تمت الإضافة",
+			"workflow_viewer.change.removed":           "تمت الإزالة",
+			"workflow_viewer.change.updated":           "تم التحديث",
+			"workflow_viewer.change.node":              "خطوة",
+			"workflow_viewer.change.edge":              "مسار",
+			"workflow_viewer.change.binding":           "ربط",
+			"workflow_viewer.change.parameter":         "إعداد",
+			"workflow_outline_editor.title":            "مخطط تفصيلي قابل للتحرير",
+			"workflow_outline_editor.description":      "اختر خطوة لتهيئتها أو انقلها في ترتيب العرض المشترك. يظل التنفيذ تابعًا للمسارات المتصلة.",
+			"workflow_outline_editor.move_earlier":     "نقل {name} إلى موضع أسبق",
+			"workflow_outline_editor.move_later":       "نقل {name} إلى موضع لاحق",
+			"workflow_outline_editor.configure":        "تهيئة {name}",
+			"workflow_outline_editor.graph_label":      "مخطط سير عمل قابل للتحرير",
+			"workflow_inspector.eyebrow":               "الخطوة المحددة",
+			"workflow_inspector.title":                 "تهيئة الخطوة",
+			"workflow_inspector.node":                  "الخطوة",
+			"workflow_inspector.parameters":            "المعلمات",
+			"workflow_inspector.save":                  "حفظ المعلمات",
+			"workflow_inspector.outcomes":              "مسارات النتائج",
+			"workflow_inspector.outcomes_help":         "اربط كل نتيجة معلنة بالخطوة التالية.",
+			"workflow_inspector.choose_target":         "اختر الخطوة التالية",
+			"workflow_inspector.target_step":           "الخطوة التالية",
+			"workflow_inspector.connect":               "ربط",
+			"workflow_inspector.current_target":        "حاليًا: {target}",
+			"workflow_inspector.not_connected":         "غير متصل",
+			"workflow_inspector.no_outcomes":           "لا تحتوي هذه الخطوة على مسارات نتائج صادرة.",
+			"workflow_inspector.bindings":              "ارتباطات البيانات",
+			"workflow_inspector.bindings_help":         "استخدم فقط المخرجات المتوافقة من الخطوات المضمونة قبل هذه الخطوة.",
+			"workflow_inspector.source_output":         "المخرج المصدر",
+			"workflow_inspector.bind":                  "ربط الإدخال",
+			"workflow_inspector.current_source":        "حاليًا: {source}",
+			"workflow_inspector.not_bound":             "غير مرتبط",
+			"workflow_inspector.no_compatible_outputs": "لا توجد مخرجات سابقة متوافقة",
+			"workflow_inspector.no_inputs":             "لا تحتوي هذه الخطوة على إدخالات ذات نوع.",
+			"workflow_inspector.locked":                "عنصر تحكم مطلوب",
+			"workflow_inspector.locked_detail":         "مرحلة {kind} هذه مقفلة ولا يمكن حذفها أو استبدالها.",
+			"workflow_inspector.overlay":               "تغيير القالب",
+			"workflow_inspector.overlay_help":          "يتطلب الحذف والاستبدال سببًا قابلًا للمراجعة. تظل عناصر التحكم المطلوبة مقفلة.",
+			"workflow_inspector.reason":                "السبب",
+			"workflow_inspector.replacement":           "الكتلة البديلة",
+			"workflow_inspector.omit":                  "حذف الخطوة",
+			"workflow_inspector.replace":               "استبدال الخطوة",
+			"workflow_inspector.history":               "سجل تغييرات القالب · {count}",
+			"page.roles.label":                         "الأدوار والوصول",
+			"page.roles.title":                         "الأدوار والوصول",
+			"page.roles.subtitle":                      "أنشئ الأدوار وعيّن دورًا واحدًا أو أكثر عبر القوى العاملة.",
+			"admin.journeys_unavailable_reason":        "طلبات الترقية غير متاحة مؤقتًا. حاول مرة أخرى لاحقًا.",
+			"admin.studio_unavailable_reason":          "تصميم الصفحات المخصصة غير متاح بعد.",
+			"admin.custom_description":                 "الصفحات المخصصة مخطط لها. يمكنك إدارة المظهر وصلاحيات الوصول الآن.",
+			"shell.load_recovery":                      "تعذر تحميل أحدث المعلومات. حاول مرة أخرى. إذا استمرت المشكلة، فتواصل مع مسؤول النظام.",
+			"shell.load_retry":                         "حاول مرة أخرى",
+			"shell.page_unavailable":                   "الصفحة غير متاحة",
+			"shell.page_recovery":                      "عُد إلى الصفحة الرئيسية واختر مهمة أخرى، أو تواصل مع مسؤول النظام إذا كنت بحاجة إلى هذه الصفحة.",
+			"shell.live_source":                        "بيانات مساحة العمل",
+			"shell.myself_unidentified":                "فتح ملف الموظف الخاص بك",
+			"work.server_proposal":                     "الاقتراح الحالي",
+			"person.employment_detail":                 "بيانات الموظف الحالية.",
+			"workflow.choose":                          "اختر مهمة متاحة لـ {name}.",
+			"appearance.brand_help":                    "امنح مساحة العمل شعارًا مميزًا لشركتك مع بديل نصي واضح.",
+			"studio.back_admin":                        "→ العودة إلى الإدارة",
+			"studio.unavailable_badge":                 "غير متاح",
+			"studio.unavailable_title":                 "لا يمكن تحرير الصفحات المخصصة هنا بعد",
+			"studio.unavailable_description":           "لا يزال بإمكانك تخصيص العلامة والمظهر وإدارة الأدوار والوصول من إعدادات الإدارة.",
+			"studio.return_home":                       "العودة إلى مساحة العمل",
+			"page.position_object.label":               "ملف المنصب",
+			"page.position_object.title":               "ملف المنصب",
+			"page.position_object.subtitle":            "راجع المنصب وفق مراجعته الحالية ومدى توافقه.",
+			"position_object.select_title":             "اختر منصبًا",
+			"position_object.select_detail":            "اختر منصبًا محكومًا لمراجعة نسخته الحالية.",
+			"position_object.details":                  "تفاصيل المنصب",
+			"position_object.position":                 "المنصب",
+			"position_object.revision":                 "المراجعة",
+			"position_object.job":                      "الوظيفة",
+			"position_object.organization_unit":        "الوحدة التنظيمية",
+			"position_object.lifecycle":                "الحالة",
+			"position_object.compatibility":            "التوافق",
+			"position_object.compatible":               "متوافق",
+			"position_object.incompatible":             "غير متوافق",
+			"page.position_occupancy.label":            "شاغلو المنصب",
+			"page.position_occupancy.title":            "شاغلو المنصب",
+			"page.position_occupancy.subtitle":         "راجع شاغلي المنصب الحاليين والسعة المتاحة.",
+			"position_occupancy.select_title":          "اختر منصبًا",
+			"position_occupancy.select_detail":         "اختر منصبًا محكومًا لمراجعة شاغليه والسعة المتاحة.",
+			"position_occupancy.details":               "إشغال المنصب",
+			"position_occupancy.position":              "المنصب",
+			"position_occupancy.capacity":              "السعة (عدد الأشخاص · مكافئ الدوام الكامل)",
+			"position_occupancy.consumed":              "المشغول (عدد الأشخاص · مكافئ الدوام الكامل)",
+			"position_occupancy.vacancies":             "المتاح (عدد الأشخاص · مكافئ الدوام الكامل)",
+			"position_occupancy.occupants":             "الشاغلون",
+			"position_occupancy.no_occupants":          "لا يوجد شاغلون حاليًا",
+			"position_occupancy.fte":                   "مكافئ الدوام الكامل",
+			"page.governed_feedback.label":             "الملاحظات",
+			"page.governed_feedback.title":             "الملاحظات",
+			"governed_feedback.unavailable_title":      "الملاحظات غير متاحة بعد",
+			"page.skills_profile.title":                "ملف المهارات",
+			"page.governed_population.label":           "مجموعات الموظفين",
+			"page.governed_population.title":           "إنشاء مجموعات الموظفين",
+			"governed_population.unavailable_title":    "مجموعات الموظفين غير متاحة بعد",
+			"page.report_export.title":                 "تصدير التقارير",
+			"report_export.unavailable_title":          "تصدير التقارير غير متاح بعد",
 		}[key]; ok {
 			return text
 		}

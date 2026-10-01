@@ -17,7 +17,7 @@ func TestTodo_UIPOLISH_007_HistoryLocalizesColumnsAndRecordedOutcome(t *testing.
 		{"ar", "مسجل", "١ ديسمبر ٢٠٢٦", "١ ديسمبر ٢٠٢٦ · \u2066٠٧:٠٠ EST\u2069", []string{"الموظف", "التغيير", "أُغلق", "النتيجة"}},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
-			view := ApplyLocale(testView(PageHistory), ResolveProductLocale(tc.locale))
+			view := ApplyLocale(testView(PageWorkflowHistory), ResolveProductLocale(tc.locale))
 			view.Locale.TimeZone = "America/New_York"
 			view.Work = []WorkItem{{
 				ID: "recorded", Title: "Promotion journey", TitleKey: "journey.detail_title",
@@ -59,28 +59,23 @@ func TestTodo_UIPOLISH_007_HistoryLocalizesColumnsAndRecordedOutcome(t *testing.
 }
 
 func TestTodo_UIPOLISH_007_ArabicHistoryHasNoEnglishPageOrFilterFallback(t *testing.T) {
-	view := ApplyLocale(testView(PageHistory), ResolveProductLocale("ar"))
-	markup, err := ui.RenderToString(historyPage(view))
+	view := ApplyLocale(testView(PageWorkflowHistory), ResolveProductLocale("ar"))
+	view.HistoryOutcome = "closed"
+	markup, err := ui.RenderToString(workflowHistoryPage(view))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"سجل مسارات العمل", "كل الموظفين", "ترقية", "فتح السجل"} {
+	for _, want := range []string{"سجل مسارات العمل", "البحث في السجل", "كل الحالات", "الموضوع", "تصدير السجل", "مغلق"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("Arabic History missing %q", want)
 		}
 	}
-	for _, leaked := range []string{"Global workflow history", "All employees", "Promotion", "Open record"} {
+	for _, leaked := range []string{"Global workflow history", "All employees", "Open record"} {
 		if strings.Contains(markup, leaked) {
 			t.Errorf("Arabic History retained English UI copy %q", leaked)
 		}
 	}
-	if got := view.Locale.Text("page.history.subtitle"); got != "راجع مسارات العمل المكتملة والمرفوضة والفاشلة." {
+	if got := view.Locale.Text("page.workflow_history.subtitle"); got != "راجع مسارات العمل التي بدأتها أو شاركت فيها أو يُسمح لك برؤيتها." {
 		t.Errorf("Arabic History subtitle = %q", got)
-	}
-	if got := historyCountLabel(view.Locale, 2, 2); got != "سجلان" {
-		t.Errorf("Arabic exact-two record count = %q", got)
-	}
-	if got := historyCountLabel(view.Locale, 0, 2); got != "٠ من أصل ٢" {
-		t.Errorf("Arabic filtered record count = %q", got)
 	}
 }

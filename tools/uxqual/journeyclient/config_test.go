@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 )
 
@@ -25,9 +26,11 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 		LauncherActions: []workspace.LauncherActionConfig{{
 			ID: "promote-worker", Availability: "available", Priority: 3,
 		}},
-		Purpose:      "promotion_review",
-		JourneysPath: workspace.PathJourney,
-		GiphyAPIKey:  "giphy-public-client-key",
+		WorkflowStarts:       []workspace.WorkflowStartConfig{{WorkflowID: "hire", Name: "New hire", Availability: "available"}},
+		PersonaAdminSnapshot: &productui.PersonaAdminSnapshot{Available: true, Personas: []productui.PersonaAdminPersona{{ID: "policy-helper", Name: "Policy Helper"}}},
+		Purpose:              "promotion_review",
+		JourneysPath:         workspace.PathJourney,
+		GiphyAPIKey:          "giphy-public-client-key",
 	})
 	if err != nil {
 		t.Fatalf("marshalling the shell's own config: %v", err)
@@ -55,6 +58,9 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 	if len(cfg.LauncherActions) != 1 || cfg.LauncherActions[0].ID != "promote-worker" || cfg.LauncherActions[0].Priority != 3 {
 		t.Errorf("LauncherActions = %+v", cfg.LauncherActions)
 	}
+	if len(cfg.WorkflowStarts) != 1 || cfg.WorkflowStarts[0].WorkflowID != "hire" || cfg.WorkflowStarts[0].Availability != "available" {
+		t.Errorf("WorkflowStarts = %+v", cfg.WorkflowStarts)
+	}
 	if cfg.Purpose != "promotion_review" {
 		t.Errorf("Purpose = %q", cfg.Purpose)
 	}
@@ -63,6 +69,9 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 	}
 	if cfg.GiphyAPIKey != "giphy-public-client-key" {
 		t.Errorf("GiphyAPIKey = %q", cfg.GiphyAPIKey)
+	}
+	if cfg.PersonaAdminSnapshot == nil || !cfg.PersonaAdminSnapshot.Available || len(cfg.PersonaAdminSnapshot.Personas) != 1 || cfg.PersonaAdminSnapshot.Personas[0].ID != "policy-helper" {
+		t.Fatalf("PersonaAdminSnapshot = %+v, want server projection", cfg.PersonaAdminSnapshot)
 	}
 }
 

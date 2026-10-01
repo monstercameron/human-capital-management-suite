@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -59,12 +60,36 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	config.Roles, config.PagePermissions = access.roles, access.permissions
+	if h.personaAdmin != nil {
+		config.PersonaAdminClient = h.personaAdmin.ClientForRequest(admitted.Context())
+		if config.PersonaAdminClient != nil && definition.ID == productui.PagePersonaAdmin && access.can(definition.ID, roleaccess.ActionView) {
+			snapshot, snapshotErr := config.PersonaAdminClient.Snapshot(admitted.Context(), productui.PersonaAdminSnapshotRequest{
+				TenantID: config.Tenant, Principal: config.Subject,
+			})
+			if snapshotErr == nil && snapshot.Available {
+				config.PersonaAdminSnapshot = &snapshot
+			} else {
+				h.logPersonaAdminSnapshotFailure(snapshotErr)
+			}
+		}
+	}
 	if access.featuresConfigured {
 		config.FeaturePermissions = access.features
 	}
 	config.LauncherActions = resolveProductLauncherActions(access.configured, access.permissions)
+	config.WorkflowStarts = h.resolveWorkflowStarts(admitted.Context(), principal, access)
+	config.Agents = h.resolveAgents(admitted.Context(), principal, access)
+	config.Clock = h.resolveClock(access)
 	if !access.can(definition.ID, roleaccess.ActionView) && !assignedJourneyDetail(definition.ID, r.URL.Query(), access) {
 		h.writeProductProblem(w, r, http.StatusForbidden, productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), ""))
+		return
+	}
+	if definition.ID == productui.PageHistory {
+		location := PathProductPrefix + "workflows/history"
+		if r.URL.RawQuery != "" {
+			location += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, location, http.StatusSeeOther)
 		return
 	}
 	// REV-067-01: resolve the served page through the governed rollout
@@ -100,6 +125,8 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	appearance := productui.DefaultCustomerTheme()
 	accessibility := productui.DefaultAccessibilityPreferences()
 	savedLocale := ""
+	var favoritePages []productui.PageID
+	var navigationGroups map[productui.PageID]bool
 	if h.preferences != nil && principal != nil {
 		snapshot, loadErr := h.preferences.Load(admitted.Context(), principal.Tenant(), principal.OrganizationScopeID(), principal.Subject())
 		if loadErr != nil {
@@ -117,14 +144,29 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		// loaded -- on every navigation.
 		stored := snapshot.User.Accessibility
 		accessibility = productui.NormalizeAccessibilityPreferences(productui.AccessibilityPreferences{
-			TextSize: stored.TextSize, Contrast: stored.Contrast, Motion: stored.Motion, Links: stored.Links,
+			TextSize: stored.TextSize, Contrast: stored.Contrast, Motion: stored.Motion, Links: stored.Links, ColorMode: stored.ColorMode,
 		})
 		savedLocale = snapshot.User.Locale
+		favoritePages = make([]productui.PageID, 0, len(snapshot.User.FavoritePages))
+		for _, page := range snapshot.User.FavoritePages {
+			favoritePages = append(favoritePages, productui.PageID(page))
+		}
+		navigationGroups = make(map[productui.PageID]bool, len(snapshot.User.NavigationGroups))
+		for page, open := range snapshot.User.NavigationGroups {
+			navigationGroups[productui.PageID(page)] = open
+		}
 	}
 	if config.TenantLogo != "" && appearance.BrandLogoURL == "" {
 		// A multi-company workspace shows the signed-in company's own logo
 		// until an administrator configures one.
 		appearance.BrandLogoURL = config.TenantLogo
+	}
+	if config.TenantName != "" && appearance.BrandName == productui.DefaultCustomerTheme().BrandName {
+		// Seed the loading shell with the same company identity the client will
+		// receive after its preference read. This keeps the header and sidebar
+		// geometry stable while the stored appearance is being adopted.
+		appearance.BrandName = config.TenantName
+		appearance.BrandMark = config.TenantMark
 	}
 	locale = productui.ResolveProductLocalePreference(query.Get("locale"), savedLocale)
 	if h.catalogs != nil && config.Tenant != "" {
@@ -161,12 +203,32 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		h.writeProductProblem(w, r, http.StatusServiceUnavailable, locale)
 		return
 	}
-	doc, err := productShellDocumentForRouteStateWithPreferences(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, accessibility, stylesheet)
+	doc, err := productShellDocumentForRouteStateWithPreferencesAndNavigation(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, accessibility, stylesheet, favoritePages, navigationGroups)
 	if err != nil {
 		h.writeProductProblem(w, r, http.StatusInternalServerError, locale)
 		return
 	}
 	writeHTMLDocument(w, http.StatusOK, doc, productContentSecurityPolicyForStylesheetAndGiphy(h.policyHost(r), stylesheet, h.giphyAPIKey != ""))
+}
+
+func (h *Handler) logPersonaAdminSnapshotFailure(err error) {
+	if h == nil || h.config.Logger == nil {
+		return
+	}
+	stage := "snapshot_unavailable"
+	if err != nil {
+		var staged interface{ PersonaCatalogFailureStage() string }
+		if errors.As(err, &staged) {
+			switch staged.PersonaCatalogFailureStage() {
+			case "authorization", "versions", "installations", "targets", "target_rooms", "target_memberships", "target_directory", "target_directory_identity", "target_directory_label", "member_identity_read", "member_identity_absent", "member_identity_malformed", "member_facts_read", "member_facts_scope", "member_facts_absent", "member_name_absent", "target_data", "target_authority", "target_validation", "installation_validation", "profile_validation", "skill_resolution", "preview":
+				stage = staged.PersonaCatalogFailureStage()
+			}
+		}
+	}
+	h.config.Logger.LogRequest(transport.LogRecord{
+		Method: "GET /workspace/app/persona-admin", Transport: transport.KindHTTPEdge,
+		ReasonRef: "PERSONA_ADMIN_SNAPSHOT_UNAVAILABLE", ErrorType: stage, Failed: true,
+	})
 }
 
 // writeProductProblem renders a product-context error in the locale already
@@ -297,6 +359,10 @@ func productShellDocumentForRouteStateWithTheme(config JourneyConfig, bundleBuil
 // what makes the first paint final: the client adopts these attributes rather
 // than replacing them (see browserThemeController.Reapply).
 func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, accessibilityPreferences productui.AccessibilityPreferences, stylesheet string) (string, error) {
+	return productShellDocumentForRouteStateWithPreferencesAndNavigation(config, bundleBuilt, locale, page, menuQuery, nav, theme, accessibilityPreferences, stylesheet, nil, nil)
+}
+
+func productShellDocumentForRouteStateWithPreferencesAndNavigation(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, accessibilityPreferences productui.AccessibilityPreferences, stylesheet string, favoritePages []productui.PageID, navigationGroups map[productui.PageID]bool) (string, error) {
 	island, err := json.Marshal(config)
 	if err != nil {
 		return "", err
@@ -312,10 +378,13 @@ func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bund
 	if missing := len(productui.MissingProductTranslations(locale.Resolved)); missing > 0 {
 		b.WriteString(` data-hcm-message-fallback="en-US" data-hcm-message-fallback-count="` + strconv.Itoa(missing) + `"`)
 	}
+	organizationColorMode := productui.NormalizeCustomerTheme(theme).ColorMode
+	theme = productui.EffectiveColorMode(theme, accessibilityPreferences.ColorMode)
 	appearance := productui.CustomerThemeAttributes(theme)
 	for _, name := range []string{"data-hcm-color-mode", "data-hcm-palette", "data-hcm-shape", "data-hcm-density", "data-hcm-glyphs", "data-hcm-typeface", "data-hcm-navigation", "data-hcm-motion"} {
 		b.WriteString(` ` + name + `="` + html.EscapeString(appearance[name]) + `"`)
 	}
+	b.WriteString(` data-hcm-organization-color-mode="` + html.EscapeString(organizationColorMode) + `"`)
 	accessibility := productui.AccessibilityPreferenceAttributes(accessibilityPreferences)
 	for _, name := range []string{"data-hcm-text-size", "data-hcm-contrast", "data-hcm-motion-preference", "data-hcm-links"} {
 		b.WriteString(` ` + name + `="` + html.EscapeString(accessibility[name]) + `"`)
@@ -326,7 +395,11 @@ func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bund
 	if definition, ok := productui.LookupPage(page); ok && definition.TitleKey != "" {
 		title = locale.Text(definition.TitleKey)
 	}
-	b.WriteString("<title>" + html.EscapeString(title) + "</title><style>")
+	tenantLabel := productui.DisplayLabel(config.Tenant)
+	if config.TenantName != "" {
+		tenantLabel = config.TenantName
+	}
+	b.WriteString("<title>" + html.EscapeString(productui.DocumentTitle(title, theme, tenantLabel)) + "</title><style>")
 	b.WriteString(stylesheet)
 	b.WriteString("</style></head><body>")
 	b.WriteString(`<div id="` + JourneyRootElementID + `">`)
@@ -350,11 +423,14 @@ func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bund
 			tenantLabel = config.TenantName
 		}
 		view := productui.NewView(page, tenantLabel, productui.DisplayLabel(config.Subject), "")
+		view.PersonaAdminClient = config.PersonaAdminClient
 		view.Appearance = theme
 		// Hydration preserves live input values. Seed the request's query in the
 		// loading shell so an empty SSR value cannot hide an active client filter.
 		view.MenuQuery = strings.TrimSpace(menuQuery)
 		view.NavCollapsed = nav == "collapsed"
+		view.FavoritePages = favoritePages
+		view.NavigationGroupOpen = navigationGroups
 		view.LogoutHref = config.LogoutPath
 		view = productui.ApplyRoleVisibility(view, config.Roles)
 		if len(config.PagePermissions) > 0 {
@@ -364,8 +440,22 @@ func productShellDocumentForRouteStateWithPreferences(config JourneyConfig, bund
 			view = productui.ApplyFeaturePermissions(view, productFeaturePermissions(config.FeaturePermissions))
 		}
 		view.LauncherActions = productLauncherActions(config.LauncherActions)
+		view.WorkflowStartCatalog = productWorkflowStartItems(config.WorkflowStarts)
+		view.WorkflowStartFavorites = append([]string(nil), config.WorkflowStartFavorites...)
+		view.WorkflowStartRecent = append([]string(nil), config.WorkflowStartRecent...)
+		if config.Agents != nil {
+			view = productui.ApplyAgentsAvailability(view, ProductAgentsAvailability(config.Agents))
+		}
+		if config.Clock != nil {
+			view = productui.ApplyClockAvailability(view, ProductClockAvailability(config.Clock))
+		}
 		view = productui.ApplyLocale(view, locale)
-		loading, renderErr := ui.RenderToString(productui.BuildLoading(view))
+		// The server has already resolved the authenticated shell chrome
+		// (identity, brand, navigation preferences and support controls), so
+		// only the route content is pending. Using the content-loading tree
+		// keeps the first paint identical to the hydrated shell and confines
+		// the inert proxy to the main outlet.
+		loading, renderErr := ui.RenderToString(productui.BuildContentLoading(view))
 		if renderErr != nil {
 			return "", renderErr
 		}
@@ -478,17 +568,22 @@ func productContentSecurityPolicyForHash(host, stylesheetHash string) string {
 
 func productContentSecurityPolicyForHashAndGiphy(host, stylesheetHash string, allowGiphy bool) string {
 	return cspPolicy{
-		styleHashes:           []string{stylesheetHash},
-		scriptHash:            journeyLoaderHash,
-		formActionSelf:        true,
-		connectHost:           host,
-		allowAssetConnections: true,
-		allowTunnelConnection: true,
-		allowMediaConnections: true,
-		allowGiphy:            allowGiphy,
-		sameOriginImages:      true,
-		blobImages:            true,
-		allowBlobScript:       true,
-		allowWASM:             true,
+		styleHashes:                  []string{stylesheetHash},
+		scriptHash:                   journeyLoaderHash,
+		formActionSelf:               true,
+		connectHost:                  host,
+		allowAssetConnections:        true,
+		allowTunnelConnection:        true,
+		allowMediaConnections:        true,
+		allowPersonaAdminConnections: true,
+		allowAgentConnections:        true,
+		// UXBLIND-085: the appearance page's brand-asset picker fetches the
+		// collection and its lifecycle endpoint from the WASM client.
+		allowBrandAssetConnections: true,
+		allowGiphy:                 allowGiphy,
+		sameOriginImages:           true,
+		blobImages:                 true,
+		allowBlobScript:            true,
+		allowWASM:                  true,
 	}.header()
 }

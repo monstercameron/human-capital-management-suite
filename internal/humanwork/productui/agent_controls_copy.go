@@ -1,0 +1,97 @@
+package productui
+
+// Keeping this small surface's copy together prevents translated labels from
+// becoming policy values. Commands always carry canonical action identifiers.
+func agentControlsText(locale LocaleContext, key string) string {
+	copy := map[string][3]string{
+		"denied":                {"No owner operations granted.", "Keine Verwaltungsaktionen freigegeben.", "لم تُمنح إجراءات إدارة المالك."},
+		"title":                 {"Agent owner controls", "Agentenverwaltung", "إدارة الوكيل"},
+		"loading":               {"Loading authorized controls…", "Berechtigte Aktionen werden geladen…", "جارٍ تحميل الإجراءات المصرح بها…"},
+		"refresh":               {"Refresh controls", "Aktionen aktualisieren", "تحديث الإجراءات"},
+		"invalid":               {"Enter a valid nonnegative whole number.", "Geben Sie eine gültige nichtnegative Ganzzahl ein.", "أدخل عددًا صحيحًا صالحًا غير سالب."},
+		"misfire_skip":          {"Skip missed occurrences", "Verpasste Termine überspringen", "تخطي المواعيد الفائتة"},
+		"misfire_catch_up_once": {"Catch up once", "Einmal nachholen", "تعويض مرة واحدة"},
+		"misfire_review":        {"Require review", "Prüfung erforderlich", "طلب المراجعة"},
+		"overlap_skip":          {"Skip overlapping run", "Überlappende Ausführung überspringen", "تخطي التشغيل المتداخل"},
+		"overlap_queue":         {"Queue overlapping run", "Überlappende Ausführung einreihen", "إدراج التشغيل المتداخل في الانتظار"},
+		"overlap_refuse":        {"Refuse overlap", "Überlappung ablehnen", "رفض التداخل"},
+		"dst_reject":            {"Refuse ambiguous time", "Mehrdeutige Zeit ablehnen", "رفض الوقت الغامض"},
+		"dst_earlier":           {"Use earlier offset", "Früheren Versatz verwenden", "استخدام الإزاحة الأسبق"},
+		"dst_later":             {"Use later offset", "Späteren Versatz verwenden", "استخدام الإزاحة اللاحقة"},
+		"unavailable":           {"Owner controls are unavailable for your current access.", "Für Ihren aktuellen Zugriff ist die Verwaltung nicht verfügbar.", "الإدارة غير متاحة لصلاحياتك الحالية."},
+		"empty":                 {"No authorized records.", "Keine berechtigten Datensätze.", "لا توجد سجلات مصرح بها."},
+		"schedules":             {"Schedules", "Zeitpläne", "الجداول"},
+		"runs":                  {"Runs and incidents", "Ausführungen und Vorfälle", "التشغيل والحوادث"},
+		"memory":                {"Derived memory and retention", "Abgeleiteter Speicher und Aufbewahrung", "الذاكرة المشتقة والاحتفاظ"},
+		"state":                 {"Status", "Status", "الحالة"},
+		"state_active":          {"Active", "Aktiv", "نشط"},
+		"state_draft":           {"Draft", "Entwurf", "مسودة"},
+		"state_paused":          {"Paused", "Pausiert", "متوقف مؤقتًا"},
+		"state_retired":         {"Retired", "Stillgelegt", "متوقف نهائيًا"},
+		"state_running":         {"Running", "Wird ausgeführt", "قيد التشغيل"},
+		"state_waiting":         {"Waiting", "Wartend", "في الانتظار"},
+		"state_completed":       {"Completed", "Abgeschlossen", "مكتمل"},
+		"state_failed":          {"Failed", "Fehlgeschlagen", "فشل"},
+		"version":               {"Pinned agent version", "Feste Agentenversion", "إصدار الوكيل المثبت"},
+		"zone":                  {"Timezone", "Zeitzone", "المنطقة الزمنية"},
+		"calendar":              {"Calendar", "Kalender", "التقويم"},
+		"destination":           {"Approved destination", "Genehmigtes Ziel", "الوجهة المعتمدة"},
+		"misfire":               {"Missed occurrence policy", "Regel für verpasste Termine", "سياسة المواعيد الفائتة"},
+		"overlap":               {"Overlap policy", "Überschneidungsregel", "سياسة التداخل"},
+		"budget":                {"Budget", "Budget", "الميزانية"},
+		"occurrences":           {"Occurrence preview", "Terminvorschau", "معاينة المواعيد"},
+		"occurrence":            {"Occurrence to skip", "Zu überspringender Termin", "الموعد المراد تخطيه"},
+		"max_cost":              {"Maximum cost (microunits)", "Maximale Kosten (Mikroeinheiten)", "التكلفة القصوى (وحدات دقيقة)"},
+		"max_input":             {"Maximum input tokens", "Maximale Eingabetoken", "الحد الأقصى لرموز الإدخال"},
+		"max_output":            {"Maximum output tokens", "Maximale Ausgabetoken", "الحد الأقصى لرموز الإخراج"},
+		"installation":          {"Installation", "Installation", "التثبيت"},
+		"cause":                 {"Run cause", "Auslöser", "سبب التشغيل"},
+		"lag":                   {"Queue lag", "Wartezeit", "تأخير قائمة الانتظار"},
+		"spend":                 {"Spend", "Ausgaben", "الإنفاق"},
+		"failure":               {"Failure", "Fehler", "الفشل"},
+		"denials":               {"Tool denials", "Abgelehnte Werkzeugaufrufe", "رفض الأدوات"},
+		"citations":             {"Citations", "Quellen", "المراجع"},
+		"evals":                 {"Evaluations", "Bewertungen", "التقييمات"},
+		"incident":              {"Incident reference", "Vorfallsreferenz", "مرجع الحادث"},
+		"source":                {"Source reference", "Quellenreferenz", "مرجع المصدر"},
+		"audience":              {"Audience", "Zielgruppe", "الجمهور"},
+		"purpose":               {"Purpose", "Zweck", "الغرض"},
+		"class":                 {"Classification", "Klassifizierung", "التصنيف"},
+		"expires":               {"Retention expiry", "Aufbewahrungsende", "انتهاء الاحتفاظ"},
+		"held":                  {"Legal hold", "Aufbewahrungssperre", "الحفظ القانوني"},
+		"yes":                   {"Yes", "Ja", "نعم"}, "no": {"No", "Nein", "لا"},
+		"publish":    {"Publish", "Veröffentlichen", "نشر"},
+		"pause":      {"Pause", "Pausieren", "إيقاف مؤقت"},
+		"skip":       {"Skip next occurrence", "Nächsten Termin überspringen", "تخطي الموعد التالي"},
+		"resume":     {"Resume", "Fortsetzen", "استئناف"},
+		"dry_run":    {"Dry run", "Probelauf", "تشغيل تجريبي"},
+		"retire":     {"Retire", "Stilllegen", "إيقاف نهائي"},
+		"quarantine": {"Quarantine", "Isolieren", "عزل"},
+		"export":     {"Export authorized records", "Berechtigte Datensätze exportieren", "تصدير السجلات المصرح بها"},
+		"delete":     {"Delete derived item", "Abgeleiteten Eintrag löschen", "حذف العنصر المشتق"},
+		"revoke":     {"Revoke source", "Quelle widerrufen", "إلغاء المصدر"},
+		"hold":       {"Apply legal hold", "Aufbewahrungssperre setzen", "تطبيق الحفظ القانوني"},
+		"id":         {"Schedule ID", "Zeitplan-ID", "معرف الجدول"},
+		"recurrence": {"Recurrence rule", "Wiederholungsregel", "قاعدة التكرار"},
+		"revision":   {"Expected revision (0 for new)", "Erwartete Revision (0 für neu)", "المراجعة المتوقعة (0 للجديد)"},
+		"dst":        {"DST ambiguity policy", "Regel bei Zeitumstellung", "سياسة غموض التوقيت الصيفي"},
+		"draft":      {"Save schedule draft", "Zeitplanentwurf speichern", "حفظ مسودة الجدول"},
+		"preview":    {"Preview occurrences", "Termine anzeigen", "معاينة المواعيد"},
+		"draft_help": {"Preview uses the declared timezone and DST policy. Publication requires an authorized reviewer.", "Die Vorschau nutzt Zeitzone und Sommerzeitregel. Die Veröffentlichung erfordert eine berechtigte Prüfung.", "تستخدم المعاينة المنطقة الزمنية وسياسة التوقيت الصيفي. يتطلب النشر مراجعًا مخولًا."},
+		"working":    {"Applying authorized action…", "Berechtigte Aktion wird ausgeführt…", "جارٍ تطبيق الإجراء المصرح به…"},
+		"done":       {"Owner records refreshed.", "Verwaltungsdaten aktualisiert.", "تم تحديث سجلات الإدارة."},
+		"error":      {"Action refused. Refresh records and review your access before retrying.", "Aktion abgelehnt. Aktualisieren Sie die Daten und prüfen Sie Ihren Zugriff.", "تم رفض الإجراء. حدّث السجلات وراجع صلاحياتك قبل إعادة المحاولة."},
+		"conflict":   {"The record changed. Refresh before retrying.", "Der Datensatz wurde geändert. Aktualisieren Sie vor einem erneuten Versuch.", "تغير السجل. حدّثه قبل إعادة المحاولة."},
+		"reason":     {"Reason for the action", "Grund für die Aktion", "سبب الإجراء"},
+	}
+	index := 0
+	if locale.Resolved == "de-DE" {
+		index = 1
+	} else if locale.Resolved == "ar" {
+		index = 2
+	}
+	if values, ok := copy[key]; ok {
+		return values[index]
+	}
+	return ""
+}

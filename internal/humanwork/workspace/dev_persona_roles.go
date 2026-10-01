@@ -3,8 +3,9 @@ package workspace
 // DevPersonaRoleSet pairs one local-development persona's stable ID with the
 // exact role bundle its signed credential carries.
 type DevPersonaRoleSet struct {
-	ID    string
-	Roles []string
+	ID          string
+	Roles       []string
+	Description string
 }
 
 // DevPersonaRoleSets enumerates the four local-development personas, in the
@@ -45,10 +46,10 @@ type DevPersonaRoleSet struct {
 // approval is CurrentManagerOf(worker) and the requester may not approve.
 func DevPersonaRoleSets() []DevPersonaRoleSet {
 	return []DevPersonaRoleSet{
-		{ID: "admin", Roles: []string{"hcm_admin", "comp_admin", "intent_author", "promotion_operator"}},
-		{ID: "hiring-manager", Roles: []string{"hiring_manager", "manager", "intent_author"}},
-		{ID: "finance-partner", Roles: []string{"finance_partner"}},
-		{ID: "individual-contributor", Roles: []string{"worker_self"}},
+		{ID: "admin", Roles: []string{"hcm_admin", "comp_admin", "intent_author", "promotion_operator"}, Description: "Approves promotions and runs governed execution."},
+		{ID: "hiring-manager", Roles: []string{"hiring_manager", "manager", "intent_author"}, Description: "Proposes promotions for workers in the reporting line."},
+		{ID: "finance-partner", Roles: []string{"finance_partner"}, Description: "Reviews and approves compensation decisions routed to finance."},
+		{ID: "individual-contributor", Roles: []string{"worker_self"}, Description: "Reviews their own employment information."},
 	}
 }
 
@@ -61,4 +62,16 @@ func DevPersonaRoles(id string) ([]string, bool) {
 		}
 	}
 	return nil, false
+}
+
+// DevPersonaDescription returns the local-development persona's job in the
+// reference promotion story. It is display copy, never an authorization
+// input; the credential still carries only the role bundle above.
+func DevPersonaDescription(id string) (string, bool) {
+	for _, set := range DevPersonaRoleSets() {
+		if set.ID == id {
+			return set.Description, true
+		}
+	}
+	return "", false
 }

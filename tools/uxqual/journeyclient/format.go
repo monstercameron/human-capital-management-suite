@@ -67,15 +67,18 @@ func formatTime(ts protoTimestamp) string {
 }
 
 func formatTimeLocale(locale string, ts protoTimestamp) string {
-	copy := productui.ResolveProductLocale(locale)
-	if copy.Resolved == productui.DefaultProductLocale {
-		return formatTime(ts)
-	}
 	t, ok := timeOf(ts)
 	if !ok {
 		return ""
 	}
-	return copy.FormatDate(t) + ", " + t.Format("15:04") + " UTC"
+	copy := productui.ResolveProductLocale(locale)
+	// The browser Go runtime exposes the viewer's IANA zone through
+	// time.Local. Keep the conversion in productui so its date, clock and
+	// abbreviation stay one shared presentation vocabulary.
+	if local := time.Local; local != nil && local.String() != "Local" {
+		copy = copy.WithTimeZone(local.String())
+	}
+	return copy.FormatTimestamp(t)
 }
 
 // formatTimeOr renders one instant, or fallback when it is unset. The
@@ -127,9 +130,6 @@ func formatDate(iso string) string {
 }
 
 func formatDateLocale(locale, iso string) string {
-	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
-		return formatDate(iso)
-	}
 	s := strings.TrimSpace(iso)
 	if s == "" {
 		return ""
@@ -171,9 +171,6 @@ func formatMoney(amount string) string {
 }
 
 func formatMoneyLocale(locale, amount string) string {
-	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
-		return formatMoney(amount)
-	}
 	if _, ok := decimalOf(amount); !ok {
 		return strings.TrimSpace(amount)
 	}
@@ -193,13 +190,24 @@ func formatAmount(currency, amount string) string {
 }
 
 func formatAmountLocale(locale, currency, amount string) string {
-	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
-		return formatAmount(currency, amount)
-	}
 	if _, ok := decimalOf(amount); !ok {
 		return strings.TrimSpace(amount)
 	}
 	return productui.ResolveProductLocale(locale).FormatMoney(amount, currency, 2)
+}
+
+// formatAmountWithPayUnitLocale is the journey compensation projection's
+// one shared path. The basis is semantic wire data, so the renderer never
+// guesses whether a number is annual or hourly from its magnitude.
+func formatAmountWithPayUnitLocale(locale, currency, amount, basis string) string {
+	if _, ok := decimalOf(amount); !ok {
+		return strings.TrimSpace(amount)
+	}
+	unit := "annual"
+	if strings.EqualFold(strings.TrimSpace(basis), payBasisHourly) || strings.EqualFold(strings.TrimSpace(basis), "hourly") {
+		unit = "hourly_rate"
+	}
+	return productui.ResolveProductLocale(locale).FormatMoneyWithPayUnit(amount, currency, unit, 2)
 }
 
 // groupThousands inserts a comma every three digits of the integer part of
@@ -360,11 +368,8 @@ func perHourLocale(locale, amount, basis string) string {
 // payLineLocale does. A move across bases (an hourly rate to a salary)
 // carries no percentage, because a rate and a salary are not a ratio.
 func payLineBasisLocale(locale, currency, current, proposed, currentBasis, proposedBasis string) string {
-	if currentBasis != payBasisHourly && proposedBasis != payBasisHourly {
-		return payLineLocale(locale, currency, current, proposed)
-	}
-	from := perHourLocale(locale, formatAmountLocale(locale, currency, current), currentBasis)
-	to := perHourLocale(locale, formatAmountLocale(locale, currency, proposed), proposedBasis)
+	from := formatAmountWithPayUnitLocale(locale, currency, current, currentBasis)
+	to := formatAmountWithPayUnitLocale(locale, currency, proposed, proposedBasis)
 	switch {
 	case from == "" && to == "":
 		return ""
@@ -383,24 +388,7 @@ func payLineBasisLocale(locale, currency, current, proposed, currentBasis, propo
 }
 
 func payLineLocale(locale, currency, current, proposed string) string {
-	if productui.ResolveProductLocale(locale).Resolved == productui.DefaultProductLocale {
-		return payLine(currency, current, proposed)
-	}
-	from := formatAmountLocale(locale, currency, current)
-	to := formatMoneyLocale(locale, proposed)
-	switch {
-	case from == "" && to == "":
-		return ""
-	case from == "":
-		return formatAmountLocale(locale, currency, proposed)
-	case to == "":
-		return from
-	}
-	line := from + " → " + to
-	if pct, ok := percentDeltaLocale(locale, current, proposed); ok {
-		line += " (" + pct + ")"
-	}
-	return line
+	return payLineBasisLocale(locale, currency, current, proposed, "ANNUAL_SALARY", "ANNUAL_SALARY")
 }
 
 // headline is the list card's placement change: "OPS-HRBP2 · P2 →
@@ -431,4 +419,81 @@ func joinPlacement(job, grade string) string {
 		return job
 	}
 	return job + " · " + grade
+}
+
+// summaryEligible identifies the published demo roles whose directory title
+// is available to the journey projection. Older synthetic fixtures use OPS
+// codes without titles and intentionally keep their established compact copy.
+func summaryEligible(currentJob, targetJob string) bool {
+	return strings.HasPrefix(strings.TrimSpace(currentJob), "PPL-") ||
+		strings.HasPrefix(strings.TrimSpace(targetJob), "PPL-") ||
+		strings.HasPrefix(strings.TrimSpace(currentJob), "IR-") ||
+		strings.HasPrefix(strings.TrimSpace(targetJob), "IR-")
+}
+
+func summaryPlacement(currentJob, currentGrade, targetJob, targetGrade string) string {
+	if !summaryEligible(currentJob, targetJob) {
+		return headline(currentJob, currentGrade, targetJob, targetGrade)
+	}
+	from := summaryRole(currentJob, currentGrade)
+	to := summaryRole(targetJob, targetGrade)
+	switch {
+	case from == "":
+		return to
+	case to == "":
+		return from
+	default:
+		return from + " → " + to
+	}
+}
+
+func summaryRole(job, grade string) string {
+	job, grade = strings.TrimSpace(job), strings.TrimSpace(grade)
+	title := JobTitle(job)
+	if title == "" {
+		return joinPlacement(job, grade)
+	}
+	if grade == "" {
+		return title
+	}
+	return title + " (" + grade + ")"
+}
+
+func summaryHeadline(currentJob, currentGrade, targetJob, targetGrade string) string {
+	return summaryPlacement(currentJob, currentGrade, targetJob, targetGrade)
+}
+
+func summaryPlacementCodes(currentJob, targetJob string) string {
+	currentJob, targetJob = strings.TrimSpace(currentJob), strings.TrimSpace(targetJob)
+	switch {
+	case currentJob == "":
+		return targetJob
+	case targetJob == "":
+		return currentJob
+	default:
+		return currentJob + " → " + targetJob
+	}
+}
+
+// summaryPayLine keeps the old compact fixture copy for legacy OPS examples,
+// while published PPL/IR summaries state the currency and pay unit on both
+// sides. The business reason travels as its own projection field.
+func summaryPayLine(locale, currentJob, currentGrade, targetJob, targetGrade, currency, current, proposed, currentBasis, proposedBasis, reason string) string {
+	if !summaryEligible(currentJob, targetJob) {
+		return payLineBasisLocale(locale, currency, current, proposed, currentBasis, proposedBasis)
+	}
+	from := formatAmountWithPayUnitLocale(locale, currency, current, currentBasis)
+	to := formatAmountWithPayUnitLocale(locale, currency, proposed, proposedBasis)
+	line := from
+	if from != "" && to != "" {
+		line += " → " + to
+		if currentBasis == proposedBasis {
+			if pct, ok := percentDeltaLocale(locale, current, proposed); ok {
+				line += " (" + pct + ")"
+			}
+		}
+	} else if to != "" {
+		line = to
+	}
+	return line
 }

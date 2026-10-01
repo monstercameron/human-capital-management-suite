@@ -35,6 +35,7 @@ type PageRequest struct {
 	HistoryQuery       string
 	HistoryOutcome     string
 	HistoryPerson      string
+	HistoryRequester   string
 	HistoryYear        string
 	HistorySort        string
 	HistoryDirection   string
@@ -42,6 +43,7 @@ type PageRequest struct {
 	HistoryPageSize    int
 	Mode               string
 	SelectedWork       string
+	AgentTaskID        string
 	SelectedPerson     string
 	PositionReference  string
 	WorkFilter         string
@@ -53,9 +55,11 @@ type PageRequest struct {
 	WorkflowRunID      string
 	WorkflowDraftID    string
 	WorkflowNodeID     string
-	NavCollapsed       bool
-	MenuQuery          string
-	FavoritePages      []PageID
+	// WorkflowShowReferences preserves the designer's reference catalog toggle.
+	WorkflowShowReferences bool
+	NavCollapsed           bool
+	MenuQuery              string
+	FavoritePages          []PageID
 }
 
 // ApplyRequest applies address-bar presentation state to a live projection.
@@ -113,6 +117,29 @@ func ApplyRequest(view View, request PageRequest) View {
 	if hasProfile {
 		stateProfile = routeProfile.StateProfile()
 	}
+	if routeProfile == RouteProfileAgents && view.AgentsProjection != nil {
+		// The server projection is already filtered to this owner. Clear any
+		// previously selected detail before resolving the address selector, and
+		// admit only an exact task from that authorized snapshot. A copied task
+		// keeps the request-local view from aliasing the projection's task list.
+		projection := *view.AgentsProjection
+		snapshot := projection.Snapshot
+		snapshot.SelectedTask = nil
+		if projection.Enabled && snapshot.Availability == AgentsAvailable {
+			requested := strings.TrimSpace(request.AgentTaskID)
+			if requested != "" {
+				for index := range snapshot.Tasks {
+					if strings.TrimSpace(snapshot.Tasks[index].ID) == requested {
+						selected := cloneAgentTask(snapshot.Tasks[index])
+						snapshot.SelectedTask = &selected
+						break
+					}
+				}
+			}
+		}
+		projection.Snapshot = snapshot
+		view.AgentsProjection = &projection
+	}
 	if stateProfile.OrganizationOutline {
 		// The outline route has one intentionally fixed semantic presentation.
 		// Keep shell, search, and navigation links aligned with what it renders
@@ -123,8 +150,12 @@ func ApplyRequest(view View, request PageRequest) View {
 	view.HistoryQuery = strings.TrimSpace(request.HistoryQuery)
 	view.HistoryOutcome = strings.ToLower(strings.TrimSpace(request.HistoryOutcome))
 	view.HistoryPerson = strings.TrimSpace(request.HistoryPerson)
+	view.HistoryRequester = strings.TrimSpace(request.HistoryRequester)
 	view.HistoryYear = strings.TrimSpace(request.HistoryYear)
 	view.HistorySort = normalizeHistorySort(request.HistorySort)
+	if view.Page == PageWorkflowHistory {
+		view.HistorySort = normalizeWorkflowHistorySort(request.HistorySort)
+	}
 	view.HistoryDirection = normalizeHistoryDirection(request.HistoryDirection)
 	view.HistoryPage = request.HistoryPage
 	if view.HistoryPage < 1 {
@@ -140,6 +171,7 @@ func ApplyRequest(view View, request PageRequest) View {
 	view.SelectedWorkflowRunID = strings.TrimSpace(request.WorkflowRunID)
 	view.SelectedWorkflowDraftID = strings.TrimSpace(request.WorkflowDraftID)
 	view.SelectedWorkflowNodeID = strings.TrimSpace(request.WorkflowNodeID)
+	view.WorkflowShowReferences = request.WorkflowShowReferences
 	view.NavCollapsed = request.NavCollapsed
 	view.MenuQuery = strings.TrimSpace(request.MenuQuery)
 	view.FavoritePages = authorizedFavoritePages(view.Navigation, request.FavoritePages)
@@ -178,6 +210,15 @@ func ApplyRequest(view View, request PageRequest) View {
 	return view
 }
 
+func normalizeWorkflowHistorySort(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "started", "updated", "status":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return normalizeHistorySort(value)
+	}
+}
+
 func isOrganizationRoute(page PageID) bool {
 	routeProfile, _, ok := PageProfiles(page)
 	return ok && routeProfile.StateProfile().Organization
@@ -214,7 +255,8 @@ func authorizedFavoritePages(navigation []NavItem, requested []PageID) []PageID 
 // canonical entity reference a durable journey records. It normalizes both
 // to the public reference used by profile navigation and workflow launchers.
 func stablePersonID(people []Person, ref string) string {
-	for _, person := range people {
+	for index := range people {
+		person := &people[index]
 		if person.ID == ref {
 			return person.ID
 		}
@@ -225,7 +267,8 @@ func stablePersonID(people []Person, ref string) string {
 			workerID = ref[split+1:]
 		}
 	}
-	for _, person := range people {
+	for index := range people {
+		person := &people[index]
 		if person.WorkerID != "" && person.WorkerID == workerID {
 			return person.ID
 		}
@@ -234,12 +277,27 @@ func stablePersonID(people []Person, ref string) string {
 }
 
 func personIDPresent(people []Person, id string) bool {
-	for _, person := range people {
+	for index := range people {
+		person := &people[index]
 		if person.ID != "" && person.ID == id {
 			return true
 		}
 	}
 	return false
+}
+
+func cloneAgentTask(task AgentTask) AgentTask {
+	clone := task
+	clone.Steps = append([]AgentTaskStep(nil), task.Steps...)
+	clone.Checkpoints = append([]AgentCheckpoint(nil), task.Checkpoints...)
+	clone.Artifacts = append([]AgentArtifact(nil), task.Artifacts...)
+	clone.Approvals = append([]AgentApproval(nil), task.Approvals...)
+	for index, approval := range task.Approvals {
+		clone.Approvals[index] = approval
+		clone.Approvals[index].Sources = append([]string(nil), approval.Sources...)
+	}
+	clone.SubmittedIntents = append([]AgentIntentStatus(nil), task.SubmittedIntents...)
+	return clone
 }
 
 func filterWork(items []WorkItem, filter string) []WorkItem {

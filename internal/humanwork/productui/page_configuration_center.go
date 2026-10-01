@@ -14,6 +14,9 @@ import (
 // the governed service publishes; until then the UI will
 // not simulate one.
 func configurationCenterPage(view View) ui.Node {
+	if view.ConfigurationCenter != nil && view.ConfigurationCenter.Ready {
+		return configurationCenterLivePage(view, *view.ConfigurationCenter)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("configuration_center.unavailable_title"),
 		Description: view.Locale.Text("configuration_center.unavailable_detail"),

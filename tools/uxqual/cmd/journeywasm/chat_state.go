@@ -1235,6 +1235,9 @@ func (s *chatState) selectChatConversation(id string) (chatui.Model, uint64) {
 		model.ThreadParentID = ""
 		model.ThreadParent = nil
 		model.ThreadMessages = nil
+		model.ResolvedPersonaMentions = nil
+		model.PersonaInvocations = nil
+		model.PersonaPostActors = nil
 		model.ThreadLoading = false
 		model.ThreadHasOlder, model.ThreadHasNewer = false, false
 		s.threadBeforeSequence, s.threadAfterSequence = 0, 0
@@ -1690,6 +1693,8 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 		// menu, typed a browse filter -- lives in the current model and must
 		// not be rolled back by a refresh that only re-read the listing.
 		cur := s.model
+		loaded.ResolvedPersonaMentions, loaded.PersonaInvocations, loaded.RenderPersonaTask = cur.ResolvedPersonaMentions, cur.PersonaInvocations, cur.RenderPersonaTask
+		loaded.PersonaPostActors = cur.PersonaPostActors
 		loaded.SidebarOpen, loaded.ShowDetails, loaded.ShowCreate, loaded.ShowBrowse = cur.SidebarOpen, cur.ShowDetails, cur.ShowCreate, cur.ShowBrowse
 		loaded.ShowPerson, loaded.PersonDetails = cur.ShowPerson, cur.PersonDetails
 		loaded.SharePostID, loaded.ShareSourceRoomID, loaded.ShareDestinationID, loaded.ShareQuery, loaded.ShareError = cur.SharePostID, cur.ShareSourceRoomID, cur.ShareDestinationID, cur.ShareQuery, cur.ShareError
@@ -2519,6 +2524,7 @@ func chatMessage(v *chatv1.Post, locale string, directory map[string]string, now
 		Attachments:       chatMediaAttachments(v),
 		ForwardedAuthor:   forwardedAuthor,
 		ForwardedAuthorID: forwardedAuthorID,
+		PersonaReferences: personaChatPostReferences(v),
 	}
 }
 

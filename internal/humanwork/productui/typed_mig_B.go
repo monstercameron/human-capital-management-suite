@@ -123,7 +123,7 @@ func navigationInteractionRefinementsStylesheet() string {
 // and the cue stays at its base opacity:0. It must follow the max-height
 // fallback rule so its opacity:0 base wins where the feature exists.
 func navScrollCueSupports() string {
-	return atRule("@supports (animation-timeline:scroll())", buildTypedSheet(func() {
+	supported := atRule("@supports (animation-timeline:scroll())", buildTypedSheet(func() {
 		declareGlobal(".primary-nav::after",
 			mediaRule(gwccss.MinW(761),
 				gwccss.OpacityNum(gwccss.Num(0)),
@@ -138,6 +138,17 @@ func navScrollCueSupports() string {
 			),
 		)
 	}))
+	// Keep the overflow cue visible for people who request reduced motion.
+	// The scroll-linked opacity animation is intentionally absent in that mode.
+	reducedMotion := atRule("@media (prefers-reduced-motion:reduce)", buildTypedSheet(func() {
+		declareGlobal(".primary-nav::after",
+			mediaRule(gwccss.MinW(761),
+				gwccss.OpacityNum(gwccss.Num(1)),
+				gwccss.Raw("animation", "none"),
+			),
+		)
+	}))
+	return supported + reducedMotion
 }
 
 func declarenavigationInteractionRefinementsStyles() {
@@ -201,13 +212,12 @@ func declarenavigationInteractionRefinementsStyles() {
 	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-entry:is(:hover,:focus-within)>.nav-link",
 		mediaRule(gwccss.RawMedia("(min-width:761px) and (hover:hover)"), gwccss.Raw("padding-inline-end", "44px")),
 	)
-	// S-5: top-level rail labels stay on one line and ellipsize (the link
-	// carries the full name as its title and aria-label). The generic
-	// ".sidebar .nav-copy>.nav-label" rule keeps word-boundary wrapping for
-	// nested and search-result rows; only first-level entries opt out, since
-	// a wrapped top-level row is what grew the list past a laptop viewport.
+	// Registered page names stay readable at the default rail width. The link
+	// carries the full name as its title and aria-label, while the visible copy
+	// wraps at word boundaries so names such as Workflow Designer never lose
+	// their identifying suffix beside the favorite control.
 	declareGlobal(".primary-nav>ul>.nav-entry>.nav-link:not(.has-search-detail) .nav-copy>.nav-label",
-		mediaRule(gwccss.MinW(761), gwccss.Raw("white-space", "nowrap"), gwccss.Raw("text-overflow", "ellipsis")),
+		mediaRule(gwccss.MinW(761), gwccss.Raw("white-space", "normal"), gwccss.Raw("text-overflow", "clip"), gwccss.Raw("overflow", "visible"), gwccss.Raw("overflow-wrap", "normal"), gwccss.Raw("word-break", "normal"), gwccss.Raw("hyphens", "none")),
 	)
 	// The label's box must be the row's free space, not its own max-content
 	// width: a shrink-to-fit box rounds a fraction of a pixel under the
@@ -218,19 +228,14 @@ func declarenavigationInteractionRefinementsStyles() {
 	declareGlobal(".primary-nav>ul>.nav-entry>.nav-link:not(.has-search-detail)>.nav-copy",
 		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto")),
 	)
-	// The group rows (My Work, Admin) wrapped the same way in German
-	// ("Meine Aufgaben" needs ~110px; the row left it ~100px beside the icon
-	// and chevron). Their label takes the free space and ellipsizes as a
-	// last resort; the chevron sits 6px after it instead of gap + auto
-	// margin, and 7px from the row's end, level with where a link's star
-	// appears. Resting group rows use the links' 500 weight -- at 600 they
-	// read as a heavier, different kind of item than their siblings -- while
-	// the current group keeps its 700 like the current link.
+	// Group names use the same boundary-wrapping contract. The label takes the
+	// free space beside the icon and chevron; it is allowed to grow the row
+	// rather than truncating a registered page name.
 	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-group-summary",
 		mediaRule(gwccss.MinW(761), gwccss.Raw("padding-inline-end", "7px")),
 	)
 	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-group>.nav-group-summary>.nav-label",
-		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto"), gwccss.MinWidth(gwccss.Zero), gwccss.Raw("overflow-x", "clip"), gwccss.Raw("overflow-y", "visible"), gwccss.Raw("white-space", "nowrap"), gwccss.Raw("text-overflow", "ellipsis")),
+		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "1 1 auto"), gwccss.MinWidth(gwccss.Zero), gwccss.Raw("overflow", "visible"), gwccss.Raw("white-space", "normal"), gwccss.Raw("text-overflow", "clip"), gwccss.Raw("overflow-wrap", "normal"), gwccss.Raw("word-break", "normal"), gwccss.Raw("hyphens", "none")),
 	)
 	declareGlobal(":where(.sidebar:not(.collapsed)) .primary-nav .nav-group-summary>.nav-chevron",
 		mediaRule(gwccss.MinW(761), gwccss.Raw("flex", "none"), gwccss.Raw("margin-inline-start", "-4px")),
@@ -506,8 +511,15 @@ func peopleSortFilterStylesStylesheet() string {
 
 func declarepeopleSortFilterStylesStyles() {
 	declareGlobal(".people-filter-control",
-		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(175)), gwccss.Fr(1.25)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(132)), gwccss.Fr(.85)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(170)), gwccss.Fr(1.1)), gwccss.TrackLen(gwccss.RawLength("max-content")), gwccss.TrackLen(gwccss.RawLength("max-content"))),
+		gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Px(220)), gwccss.Fr(2)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(160)), gwccss.Fr(1)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(160)), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("max-content")), gwccss.TrackLen(gwccss.RawLength("max-content"))),
 		gwccss.Items.Center,
+	)
+	// Keep the anchored column chooser on the same 44px rhythm as the live
+	// search controls. The extra selector specificity beats the chooser's
+	// standalone defaults without changing the shared chooser component.
+	declareGlobal(".people-page .people-search-panel>.column-chooser>summary",
+		gwccss.Display.Flex, gwccss.Items.Center,
+		gwccss.MinHeight(gwccss.Px(44)), gwccss.PaddingY(gwccss.Px(9)), gwccss.PaddingX(gwccss.Px(12)),
 	)
 	declareGlobal(".people-eligible-filter-label",
 		gwccss.Display.Flex, gwccss.Items.Center, gwccss.Gap(gwccss.Px(8)),

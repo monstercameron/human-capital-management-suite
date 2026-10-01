@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -97,6 +98,28 @@ type Options struct {
 	// Preferences supplies the organization-scoped admitted appearance for the
 	// initial CSP-pinned product document. Nil keeps the default presentation.
 	Preferences preferences.Store
+	// WorkflowStarts projects the published workflows the signed-in viewer may
+	// discover, each with a safe availability class. Nil serves an empty
+	// catalog.
+	WorkflowStarts WorkflowStartSource
+	// AgentSettings is the tenant agents on/off setting (UXBLIND-122). Nil
+	// leaves agents off for every tenant.
+	AgentSettings AgentSettings
+	// Agents reads the signed-in user's own agent tasks for tenants where
+	// agents are on. Nil reports the agent service as not connected.
+	Agents productui.AgentClient
+	// PersonaAdminClientFactory binds the metadata-only persona catalog to an
+	// admitted request. Nil keeps the administrator route unavailable.
+	PersonaAdminClientFactory interface {
+		ClientForRequest(context.Context) productui.PersonaAdminClient
+	}
+	// PersonaAdminCommands executes authenticated persona lifecycle commands.
+	// Nil leaves the command route unavailable.
+	PersonaAdminCommands productui.PersonaAdminCommandTransport
+	// ClockEnabled reports that this cell serves the worker self clock
+	// (UXBLIND-123). False tells every viewer the time clock is not turned on
+	// here, and only an administrator is shown how to turn it on.
+	ClockEnabled bool
 	// PublicOrigin is the canonical http(s) origin (for example
 	// "https://hcm.example.com") this cell is publicly reached at. It is a
 	// deployment fact the request cannot carry: a proxy that terminates TLS
@@ -157,11 +180,19 @@ type Handler struct {
 	// directory mirrors Options.DevDirectory. It is read only by the
 	// dev-only sign-in page, and only when devBrowserLogin registered that
 	// route at all.
-	directory   DevDirectory
-	roleAccess  roleaccess.Store
-	preferences preferences.Store
-	catalogs    i18n.ActivatedCatalogStore
-	giphyAPIKey string
+	directory      DevDirectory
+	roleAccess     roleaccess.Store
+	preferences    preferences.Store
+	workflowStarts WorkflowStartSource
+	agentSettings  AgentSettings
+	agents         productui.AgentClient
+	personaAdmin   interface {
+		ClientForRequest(context.Context) productui.PersonaAdminClient
+	}
+	personaAdminCommands productui.PersonaAdminCommandTransport
+	clockEnabled         bool
+	catalogs             i18n.ActivatedCatalogStore
+	giphyAPIKey          string
 	// pages is the governed page-revision and rollout ledger the live
 	// page-serving handler resolves through (REV-067-01). Nil or empty
 	// preserves the pre-ledger behavior: pages with no published rollout
@@ -224,6 +255,9 @@ func NewHandler(opts Options) (*Handler, error) {
 		return nil, errors.New("workspace: incomplete OIDC login configuration")
 	case opts.OIDCFlow != nil && func() bool { _, ok := opts.OIDCSessionIssuer.(trust.Verifier); return !ok }():
 		return nil, errors.New("workspace: OIDC session issuer must verify issued credentials")
+	}
+	if err := validateJourneyRendererServingContract(); err != nil {
+		return nil, err
 	}
 	key := opts.SessionKey
 	if len(key) == 0 {
@@ -290,6 +324,12 @@ func NewHandler(opts Options) (*Handler, error) {
 		devPersonas:            personas,
 		directory:              directory,
 		roleAccess:             opts.RoleAccess,
+		workflowStarts:         opts.WorkflowStarts,
+		agentSettings:          opts.AgentSettings,
+		agents:                 opts.Agents,
+		personaAdmin:           opts.PersonaAdminClientFactory,
+		personaAdminCommands:   opts.PersonaAdminCommands,
+		clockEnabled:           opts.ClockEnabled,
 		preferences:            opts.Preferences,
 		catalogs:               opts.Catalogs,
 		giphyAPIKey:            giphyAPIKey,
@@ -321,6 +361,9 @@ func NewHandler(opts Options) (*Handler, error) {
 	// pages). Capture the complete suffix so a cold reload reaches the same
 	// registered route as client-side navigation.
 	mux.HandleFunc("GET "+PathProductPrefix+"{page...}", h.serveProduct)
+	mux.HandleFunc("GET "+PathPersonaAdminData, h.servePersonaAdminData)
+	mux.HandleFunc("GET "+PathPersonaAdminData+"/{$}", h.servePersonaAdminData)
+	mux.HandleFunc("POST "+PathPersonaAdminCommand, h.servePersonaAdminCommand)
 	mux.HandleFunc("POST "+PathSimulate, h.serveSimulate)
 	mux.HandleFunc("GET "+PathReceiptPrefix+"{digest}", h.serveReceipt)
 	mux.HandleFunc("GET "+PathAssetPrefix+"{name}", h.serveAsset)
@@ -413,7 +456,11 @@ func (h *Handler) admit(w http.ResponseWriter, r *http.Request) (*http.Request, 
 	if ownedErr != nil {
 		status := ownedErr.HTTPStatus()
 		if status == http.StatusUnauthorized && h.loginEnabled && r.Method == http.MethodGet && strings.TrimSpace(r.Header.Get("Authorization")) == "" {
-			writeRedirect(w, r, PathLogin, http.StatusSeeOther)
+			target := PathLogin
+			if returnTo := loginReturnTarget(r.URL.RequestURI()); returnTo != "" {
+				target += "?" + paramLoginReturnTo + "=" + url.QueryEscape(returnTo)
+			}
+			writeRedirect(w, r, target, http.StatusSeeOther)
 			return nil, false
 		}
 		if status == http.StatusUnauthorized {
@@ -706,6 +753,7 @@ const maxLoginFormBytes = 8 << 10
 // paramLoginToken names the sign-in form's one field.
 const paramLoginToken = "token"
 const paramLoginPersona = "persona"
+const paramLoginReturnTo = "return_to"
 
 // serveLoginForm renders the plain, accessible sign-in form. The employee
 // search is a native GET, so its whole state is the request's own query.
@@ -718,7 +766,7 @@ func (h *Handler) serveLoginForm(w http.ResponseWriter, r *http.Request) {
 			h.rememberCompany(w, company)
 		}
 	}
-	h.writeLoginPageFor(w, http.StatusOK, "", query.Get(paramDirectoryQuery), query.Get(paramDirectoryRole), company, query.Get("locale"))
+	h.writeLoginPageForTarget(w, http.StatusOK, "", query.Get(paramDirectoryQuery), query.Get(paramDirectoryRole), company, query.Get("locale"), loginReturnTarget(query.Get(paramLoginReturnTo)))
 }
 
 func (h *Handler) serveOIDCLogin(w http.ResponseWriter, r *http.Request) {
@@ -784,20 +832,21 @@ func (h *Handler) setLoginSessionCookie(w http.ResponseWriter, token string, lif
 func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxLoginFormBytes)
 	if err := r.ParseForm(); err != nil {
-		h.writeLoginPage(w, http.StatusBadRequest, "Unreadable submission.")
+		h.writeLoginSubmitPage(w, r, http.StatusBadRequest, "Unreadable submission.")
 		return
 	}
+	returnTo := loginReturnTarget(r.PostFormValue(paramLoginReturnTo))
 	token := ""
 	var selected *DevPersona
 	if personaID := strings.TrimSpace(r.PostFormValue(paramLoginPersona)); personaID != "" {
 		persona, ok := h.devPersonas[personaID]
 		if !ok {
-			h.writeLoginPage(w, http.StatusUnauthorized, "We couldn't find that workspace persona. Try again, or use a bearer credential or contact the workspace administrator.")
+			h.writeLoginSubmitPage(w, r, http.StatusUnauthorized, "We couldn't find that workspace persona. Try again, or use a bearer credential or contact the workspace administrator.")
 			return
 		}
 		issuedToken, issueErr := devPersonaToken(persona)
 		if issueErr != nil {
-			h.writeLoginPage(w, http.StatusServiceUnavailable, "A workspace session couldn't be created. Try again later.")
+			h.writeLoginSubmitPage(w, r, http.StatusServiceUnavailable, "A workspace session couldn't be created. Try again later.")
 			return
 		}
 		token = issuedToken
@@ -806,31 +855,41 @@ func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 		token = normalizeBearerInput(r.PostFormValue(paramLoginToken))
 	}
 	if token == "" {
-		h.writeLoginPage(w, http.StatusBadRequest, "Choose a development persona or paste a bearer credential.")
+		h.writeLoginSubmitPage(w, r, http.StatusBadRequest, "Choose a development persona or paste a bearer credential.")
 		return
 	}
 	principal, err := h.config.Verifier.Verify(r.Context(), trust.Credential{
 		Token: token, Audience: h.config.Audience,
 	})
 	if err != nil || principal == nil {
-		h.writeLoginPage(w, http.StatusUnauthorized, "We couldn't sign you in right now. Try again; if the problem continues, use a bearer credential or contact the workspace administrator.")
+		h.writeLoginSubmitPage(w, r, http.StatusUnauthorized, "We couldn't sign you in right now. Try again; if the problem continues, use a bearer credential or contact the workspace administrator.")
 		return
 	}
 	destination := PathProductHome
 	if selected != nil {
 		if worker := strings.TrimSpace(selected.WorkerRef); worker != "" && worker != principal.Subject() {
-			h.writeLoginPage(w, http.StatusUnauthorized, "This workspace persona is unavailable. Choose another account or contact the workspace administrator.")
+			h.writeLoginSubmitPage(w, r, http.StatusUnauthorized, "This workspace persona is unavailable. Choose another account or contact the workspace administrator.")
 			return
 		}
 		access, loadErr := h.resolveProductAccess(r.Context(), principal)
 		if loadErr != nil {
-			h.writeLoginPage(w, http.StatusServiceUnavailable, "Workspace access is temporarily unavailable. Try again later.")
+			h.writeLoginSubmitPage(w, r, http.StatusServiceUnavailable, "Workspace access is temporarily unavailable. Try again later.")
 			return
 		}
-		destination = loginPersonaLanding(access)
-		if destination == "" {
-			h.writeLoginPage(w, http.StatusForbidden, "This account has no available workspace pages. Contact the workspace administrator.")
+		if returnTo != "" {
+			if authorized := loginAuthorizedReturnTo(returnTo, access); authorized != "" {
+				destination = authorized
+			}
+		} else if !access.can(productui.PageHome, roleaccess.ActionView) {
+			h.writeLoginSubmitPage(w, r, http.StatusForbidden, "This account has no available workspace pages. Contact the workspace administrator.")
 			return
+		}
+	} else if returnTo != "" {
+		access, loadErr := h.resolveProductAccess(r.Context(), principal)
+		if loadErr == nil {
+			if authorized := loginAuthorizedReturnTo(returnTo, access); authorized != "" {
+				destination = authorized
+			}
 		}
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -848,30 +907,8 @@ func (h *Handler) serveLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	writeRedirect(w, r, destination, http.StatusSeeOther)
 }
 
-func loginPersonaLanding(access productAccess) string {
-	candidates := []productui.PageID{productui.PageHome}
-	for _, role := range access.roles {
-		switch role {
-		case "hiring_manager":
-			candidates = append([]productui.PageID{productui.PagePeople}, candidates...)
-		case "payroll_manager":
-			candidates = append([]productui.PageID{productui.PageWork}, candidates...)
-		case "worker_self":
-			candidates = append([]productui.PageID{productui.PageMyself}, candidates...)
-		}
-	}
-	for _, page := range candidates {
-		definition, ok := productui.LookupPage(page)
-		if ok && definition.NavigationPublished && access.can(page, roleaccess.ActionView) {
-			return definition.Route
-		}
-	}
-	for _, definition := range productui.PageDefinitions() {
-		if definition.NavigationPublished && access.can(definition.ID, roleaccess.ActionView) {
-			return definition.Route
-		}
-	}
-	return ""
+func (h *Handler) writeLoginSubmitPage(w http.ResponseWriter, r *http.Request, status int, problem string) {
+	h.writeLoginPageForTarget(w, status, problem, "", "", r.PostFormValue(paramLoginCompany), "", loginReturnTarget(r.PostFormValue(paramLoginReturnTo)))
 }
 
 // serveLogout clears the session cookie PathLogin set.
@@ -905,6 +942,45 @@ func normalizeBearerInput(raw string) string {
 	return trimmed
 }
 
+func loginReturnTarget(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.IsAbs() || parsed.Opaque != "" || parsed.Scheme != "" || parsed.Host != "" || parsed.User != nil || parsed.Fragment != "" {
+		return ""
+	}
+	if !strings.HasPrefix(parsed.Path, PathProductPrefix) {
+		return ""
+	}
+	if _, ok := productui.LookupRoute(parsed.Path); !ok {
+		return ""
+	}
+	for key, values := range parsed.Query() {
+		if len(values) != 1 || (key != "locale" && key != "nav" && key != "favorites" && key != "menu_q") {
+			return ""
+		}
+	}
+	return parsed.String()
+}
+
+func loginAuthorizedReturnTo(target string, access productAccess) string {
+	target = loginReturnTarget(target)
+	if target == "" {
+		return ""
+	}
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return ""
+	}
+	definition, ok := productui.LookupRoute(parsed.Path)
+	if !ok || !access.can(definition.ID, roleaccess.ActionView) {
+		return ""
+	}
+	return parsed.String()
+}
+
 // writeLoginPage renders the sign-in form, optionally over a refusal banner.
 // It never includes the value that was submitted.
 func (h *Handler) writeLoginPage(w http.ResponseWriter, status int, problem string) {
@@ -924,6 +1000,10 @@ func (h *Handler) writeLoginPageQuery(w http.ResponseWriter, status int, problem
 // single-company composition ignores both company and locale and renders
 // byte for byte what it always rendered.
 func (h *Handler) writeLoginPageFor(w http.ResponseWriter, status int, problem, directoryQuery, directoryRole, companyKey, locale string) {
+	h.writeLoginPageForTarget(w, status, problem, directoryQuery, directoryRole, companyKey, locale, "")
+}
+
+func (h *Handler) writeLoginPageForTarget(w http.ResponseWriter, status int, problem, directoryQuery, directoryRole, companyKey, locale, returnTo string) {
 	companies := h.devCompanies()
 	company := selectedCompany(companies, companyKey)
 	defaultCompany := ""
@@ -935,6 +1015,13 @@ func (h *Handler) writeLoginPageFor(w http.ResponseWriter, status int, problem, 
 		banner = `<div class="status-banner" data-status="failed" role="alert">` + html.EscapeString(problem) + ` <a href="#credential-sign-in">Use a bearer credential</a></div>`
 	}
 	var personaForms strings.Builder
+	formFields := ""
+	if company.Key != "" {
+		formFields += `<input type="hidden" name="` + paramLoginCompany + `" value="` + html.EscapeString(company.Key) + `">`
+	}
+	if returnTo != "" {
+		formFields += `<input type="hidden" name="` + paramLoginReturnTo + `" value="` + html.EscapeString(returnTo) + `">`
+	}
 	for _, set := range DevPersonaRoleSets() {
 		persona, ok := h.devPersonas[set.ID]
 		if len(companies) > 0 {
@@ -943,7 +1030,7 @@ func (h *Handler) writeLoginPageFor(w http.ResponseWriter, status int, problem, 
 		if !ok {
 			continue
 		}
-		personaForms.WriteString(`<form class="persona" method="post" action="` + PathLogin + `">`)
+		personaForms.WriteString(`<form class="persona" method="post" action="` + PathLogin + `">` + formFields)
 		access, description := h.loginPersonaCopy(persona)
 		personaForms.WriteString(`<span class="persona-access">` + html.EscapeString(access) + `</span>`)
 		personaForms.WriteString(`<strong>` + html.EscapeString(persona.Name) + `</strong>`)
@@ -959,10 +1046,10 @@ func (h *Handler) writeLoginPageFor(w http.ResponseWriter, status int, problem, 
 	}
 	credentialForm := ""
 	if h.devBrowserLogin {
-		credentialForm = `<details class="advanced" id="credential-sign-in"` + credentialDisclosure + `><summary>Use a bearer credential</summary><p>Development fallback: paste the bearer credential provided by your workspace administrator.</p><form method="post" action="` + PathLogin + `"><label for="` + paramLoginToken + `">Bearer credential</label><input type="password" id="` + paramLoginToken + `" name="` + paramLoginToken + `" autocomplete="off"><button type="submit">Sign in</button></form></details>`
+		credentialForm = `<details class="advanced" id="credential-sign-in"` + credentialDisclosure + `><summary>Use a bearer credential</summary><p>Development fallback: paste the bearer credential provided by your workspace administrator.</p><form method="post" action="` + PathLogin + `">` + formFields + `<label for="` + paramLoginToken + `">Bearer credential</label><input type="password" id="` + paramLoginToken + `" name="` + paramLoginToken + `" autocomplete="off"><button type="submit">Sign in</button></form></details>`
 	}
 	if h.devBrowserLogin && len(h.devPersonas) == 0 {
-		credentialForm = `<form id="credential-sign-in" method="post" action="` + PathLogin + `"><label for="` + paramLoginToken + `">Bearer credential</label><input type="password" id="` + paramLoginToken + `" name="` + paramLoginToken + `" autocomplete="off" required><button type="submit">Sign in</button></form>`
+		credentialForm = `<form id="credential-sign-in" method="post" action="` + PathLogin + `">` + formFields + `<label for="` + paramLoginToken + `">Bearer credential</label><input type="password" id="` + paramLoginToken + `" name="` + paramLoginToken + `" autocomplete="off" required><button type="submit">Sign in</button></form>`
 	}
 	oidcLink := ""
 	if h.oidcFlow != nil {
@@ -989,7 +1076,7 @@ func (h *Handler) writeLoginPageFor(w http.ResponseWriter, status int, problem, 
 <title>Sign in</title>
 <style>` + stylesheet + `</style>
 </head>
-<body>
+<body` + loginBodyAttributes(company) + `>
 <main id="main-content" class="login-shell"><section class="login-card">
 ` + brand + `
 <p class="persona-access">` + map[bool]string{true: "Local development", false: "Organization sign-in"}[h.devBrowserLogin] + `</p><h1>` + heading + `</h1>
@@ -1190,6 +1277,13 @@ func personaAccessTitle(access productAccess) string {
 // snapshot as the page shell, so local-dev cards cannot overpromise when an
 // organization has narrowed a role's default grants.
 func admittedDestinationLabelsForAccess(access productAccess) []string {
+	if !access.configured {
+		// Without a durable policy the copy follows the default grants, the
+		// same projection admittedDestinationLabels uses. productui.PageVisible
+		// alone would name pages (Workflows) that the defaults only extend to
+		// the roles holding the page they inherit from.
+		return admittedDestinationLabels(access.roles)
+	}
 	var labels []string
 	for _, definition := range productui.PageDefinitions() {
 		if !definition.Admitted || !definition.PrimaryNav {

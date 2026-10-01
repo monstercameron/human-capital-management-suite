@@ -157,7 +157,11 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// appears. This fixture has no PersonWorkflows/People, so its trigger
 	// already rendered the navigation-only copy; only the label text itself
 	// changed.
-	const want = "22aeea3594b4aba2d8683f77a3e6c2a5b919b0c9a3d4bcb5d77dd2508be3d7a2"
+	// UXBLIND-027/056/064/066 re-pin: page title == label, the notification
+	// panel and account menu were rebuilt, and favorite hrefs no longer
+	// carry account state.
+	// UXBLIND blind-test lanes (scroll/loading, top bar, brand, personal colour mode) re-pin: whole-document digest, structural checks above unchanged.
+	const want = "69b10cbdc9ca64d5155e0f31d303c688cf582f222b86c2e4b04ff1da6a4f53b5"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}
@@ -236,9 +240,13 @@ func linkForRoute(root *xhtml.Node, route string) *xhtml.Node {
 	if root == nil {
 		return nil
 	}
+	// UXBLIND-066: the favorite star's no-JS fallback href deliberately
+	// stays on the current page, so it can coincidentally equal the route
+	// under test; only an actual navigation link (nav-link, not
+	// nav-favorite) discloses the route.
 	var found *xhtml.Node
 	walkElements(root, func(node *xhtml.Node) {
-		if found == nil && node.Data == "a" && attr(node, "href") == route {
+		if found == nil && node.Data == "a" && attr(node, "href") == route && strings.Contains(" "+attr(node, "class")+" ", " nav-link ") {
 			found = node
 		}
 	})

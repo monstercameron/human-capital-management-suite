@@ -69,3 +69,25 @@ func TestTodo_UXLIVE_008_Browser(t *testing.T) {
 		t.Fatalf("a brand field lost its form name:\n%s", doc)
 	}
 }
+
+// TestTodo_UXLIVE_008_Security proves an admitted tenant label is rendered as
+// text, not executable markup, and that a configured brand does not expose an
+// unrelated tenant fallback in its help copy.
+func TestTodo_UXLIVE_008_Security(t *testing.T) {
+	defaults := DefaultCustomerTheme()
+	unsafeTenant := `Tenant <script>alert("cross-tenant")</script>`
+	escaped := uxlive008Brand(t, defaults, unsafeTenant)
+	if strings.Contains(escaped, "<script>") {
+		t.Fatalf("tenant fallback was emitted as executable markup:\n%s", escaped)
+	}
+	if !strings.Contains(escaped, "&lt;script&gt;") {
+		t.Fatalf("tenant fallback was not HTML-escaped in the field help:\n%s", escaped)
+	}
+
+	configured := defaults
+	configured.BrandName, configured.BrandMark = "Harborcare", "HC"
+	doc := uxlive008Brand(t, configured, "tenant-secret-not-in-force")
+	if strings.Contains(doc, "tenant-secret-not-in-force") {
+		t.Fatalf("configured branding exposed an unrelated tenant fallback:\n%s", doc)
+	}
+}

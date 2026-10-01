@@ -264,12 +264,19 @@ func PersonProfileHeader(props PersonHeroProps) ui.Node {
 			personAvatar(props.Name, props.Initials, props.PhotoURL, "profile"),
 			html.Div(html.Props{},
 				html.Span(html.Props{Class: "eyebrow"}, ui.Text(props.Text("person.worker_profile"))),
-				html.H2(html.Props{}, ui.Text(props.Name)),
+				nameHeading(props.Name),
 				html.P(html.Props{Class: "muted"}, ui.Text(props.Role)),
 				personStatusBadge(props.StatusLabel),
 			),
 		),
 	)
+}
+
+func nameHeading(name string) ui.Node {
+	if strings.TrimSpace(name) == "" {
+		return ui.Fragment()
+	}
+	return html.H2(html.Props{}, ui.Text(name))
 }
 
 // EmploymentDetails renders a stable section around an extensible fact list.
@@ -457,7 +464,9 @@ func WorkflowLauncher(props WorkflowLauncherProps) ui.Node {
 	children := []ui.Node{ui.CreateElement(SectionHeading, SectionHeadingProps{
 		Title: headingText, Description: description, ShowDescription: true, Class: "workflow-heading", Trailing: trailing,
 	})}
-	if props.TotalCount > 0 {
+	// A short authorized list is already scannable; keep the filter for larger
+	// lists, and for an active query so a no-match result can be cleared.
+	if props.TotalCount > 5 || strings.TrimSpace(props.Filter.Query) != "" {
 		children = append(children, ui.CreateElement(WorkflowFilter, props.Filter))
 	}
 	children = append(children, html.Div(html.Props{Class: "workflow-results"}, results...))

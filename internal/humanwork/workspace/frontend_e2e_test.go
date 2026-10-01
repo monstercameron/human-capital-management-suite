@@ -27,9 +27,9 @@ func TestTodo_UXAUDIT_014_Browser_Live(t *testing.T) {
 	}
 	personas := []personaCase{
 		{id: "admin", name: "Rafael Torres", subject: "hc-050-rafael-torres", landing: PathProductHome, roles: []string{productui.RoleHCMAdmin, "comp_admin", "intent_author", "promotion_operator"}},
-		{id: "hiring-manager", name: "Darius Bennett", subject: "hc-004-darius-bennett", landing: PathProductPrefix + "people", roles: []string{"hiring_manager", "manager", "intent_author"}},
+		{id: "hiring-manager", name: "Darius Bennett", subject: "hc-004-darius-bennett", landing: PathProductHome, roles: []string{"hiring_manager", "manager", "intent_author"}},
 		{id: "finance-partner", name: "Thomas Baker", subject: "hc-054-thomas-baker", landing: PathProductHome, roles: []string{"finance_partner"}},
-		{id: "individual-contributor", name: "Linh Tran", subject: "hc-051-linh-tran", landing: PathProductPrefix + "myself", roles: []string{"worker_self"}},
+		{id: "individual-contributor", name: "Linh Tran", subject: "hc-051-linh-tran", landing: PathProductHome, roles: []string{"worker_self"}},
 	}
 
 	handler, _ := newShellHandler(t, true)
@@ -129,7 +129,17 @@ func TestTodo_UXAUDIT_014_Browser_Live(t *testing.T) {
 			for _, definition := range productui.PageDefinitions() {
 				definition := definition
 				t.Run(string(definition.ID), func(t *testing.T) {
-					response, err := client.Get(server.URL + definition.Route + "?locale=de-DE")
+					route := definition.Route
+					permissionPageID := definition.ID
+					if definition.ID == productui.PageHistory {
+						canonical, ok := productui.LookupPage(productui.PageWorkflowHistory)
+						if !ok {
+							t.Fatal("canonical workflow history page is not registered")
+						}
+						route = canonical.Route
+						permissionPageID = canonical.ID
+					}
+					response, err := client.Get(server.URL + route + "?locale=de-DE")
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -141,11 +151,11 @@ func TestTodo_UXAUDIT_014_Browser_Live(t *testing.T) {
 					body := string(bodyBytes)
 
 					want := http.StatusForbidden
-					if roleaccess.CanPageAction(permissions, string(definition.ID), roleaccess.ActionView) {
+					if roleaccess.CanPageAction(permissions, string(permissionPageID), roleaccess.ActionView) {
 						want = http.StatusOK
 					}
 					if response.StatusCode != want {
-						t.Fatalf("GET %s as %s = %d, want %d", definition.Route, persona.id, response.StatusCode, want)
+						t.Fatalf("GET %s as %s = %d, want %d", route, persona.id, response.StatusCode, want)
 					}
 					if want != http.StatusOK {
 						if strings.Contains(body, `id="`+JourneyRootElementID+`"`) || strings.Contains(body, `id="`+JourneyConfigElementID+`"`) {

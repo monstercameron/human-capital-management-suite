@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/positionpicker"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/reasontext"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
@@ -189,16 +190,20 @@ func dd(props html.Props, children ...ui.Node) ui.Node { return html.Tag("dd", p
 type live struct {
 	values        map[string]string
 	onFieldChange func(fieldID, value string)
+	onFieldBlur   func(fieldID string)
 	locale        string
+	closeReviews  bool
 	// sharedBlocked is the one reason every action in the current section
 	// is refused for, when they all give the same one. An action card that
 	// sees it points at the section's single statement instead of repeating
 	// it (UXLIVE-017).
-	sharedBlocked string
+	sharedBlocked   string
+	onReviewDismiss func(actionID string)
 }
 
 func liveOf(p Page) live {
-	return live{values: p.Values, onFieldChange: p.OnFieldChange, locale: p.Locale}
+	return live{values: p.Values, onFieldChange: p.OnFieldChange, onFieldBlur: p.OnFieldBlur, locale: p.Locale,
+		closeReviews: p.Notice != nil && !p.Notice.Busy && p.Notice.Tone == "danger", onReviewDismiss: p.OnReviewDismiss}
 }
 
 // controlled reports whether the client owns the field values. When it
@@ -625,7 +630,7 @@ func proposalView(p Page, v ProposalView) ui.Node {
 			Lead: copy.Text("journey.promotion_lead"),
 			Actions: []ui.Node{
 				htmlIf(v.BackHref != "", func() ui.Node {
-					return html.A(html.Props{Class: "jn-context-link", Href: v.BackHref, OnClick: activate(v.BackNavigate)}, html.Text(copy.Text("journey.profile_link", map[string]string{"name": name})))
+					return html.A(html.Props{Class: "jn-context-link", Href: v.BackHref, OnClick: activate(v.BackNavigate)}, html.Text(copy.Text("journey.profile_link_possessive", map[string]string{"name": copy.Possessive(name)})))
 				}),
 				htmlIf(v.JourneysLink.Href != "", func() ui.Node {
 					return html.A(html.Props{Class: "jn-context-link", Href: v.JourneysLink.Href, OnClick: activate(v.JourneysLink.OnNavigate)}, html.Text(copy.Text("journey.all_link")))
@@ -720,7 +725,7 @@ func listView(p Page, v ListView) ui.Node {
 	l := liveOf(p)
 	copy := productui.ResolveProductLocale(p.Locale)
 	return html.Div(html.Props{Class: "jn-stack"},
-		pageHeader(pageHeaderProps{Eyebrow: copy.Text("journey.list_eyebrow"), Title: copy.Text("journey.list_title"), Lead: copy.Text("journey.list_lead")}),
+		pageHeader(pageHeaderProps{Title: copy.Text("page.journeys.label"), Lead: copy.Text("journey.list_lead")}),
 		peopleSection(v.People),
 		htmlIf(v.People != nil, func() ui.Node { return newEmployeeSection(l, v.People.Form) }),
 		engineUnavailableCallout(p.Locale, v.EngineAvailable, v.EngineNotice),
@@ -739,7 +744,7 @@ func embeddedListView(p Page, v ListView) ui.Node {
 		v.Empty = copy.Text("journey.list_empty")
 	}
 	return html.Div(html.Props{Class: "jn-stack"},
-		pageHeader(pageHeaderProps{Eyebrow: copy.Text("journey.list_eyebrow"), Title: copy.Text("journey.list_title"), Lead: copy.Text("journey.list_lead"),
+		pageHeader(pageHeaderProps{Title: copy.Text("page.journeys.label"), Lead: copy.Text("journey.list_lead"),
 			Actions: []ui.Node{htmlIf(v.People != nil && v.People.DirectoryLink.Href != "", func() ui.Node {
 				link := v.People.DirectoryLink
 				return html.A(html.Props{Class: "jn-btn", Href: link.Href, OnClick: activate(link.OnNavigate)}, html.Text(copy.Text("journey.list_choose_employee")))
@@ -933,19 +938,126 @@ func JourneyReference(intentID string) string {
 	return strings.ToUpper(compact)
 }
 
+func journeyStageLabel(locale, stage, fallback string) string {
+	copy := productui.ResolveProductLocale(locale)
+	key := map[string]string{
+		"PROPOSED": "journey.stage_proposed", "BLOCKED": "journey.stage_blocked", "AWAITING_APPROVAL": "journey.stage_awaiting_approval",
+		"COMPLETED": "journey.stage_completed", "REJECTED": "journey.stage_rejected", "FAILED": "journey.stage_failed",
+		"FINANCE_APPROVAL": "journey.stage_finance_approval", "MANAGER_APPROVAL": "journey.stage_manager_approval",
+		"WAITING_EFFECTIVE": "journey.stage_waiting_effective", "WAITING_EFFECTIVE_DATE": "journey.stage_waiting_effective",
+		"REVALIDATION": "journey.stage_revalidation", "REAPPROVAL": "journey.stage_reapproval", "UPDATING_RECORD": "journey.stage_updating_record",
+		"RECORDED": "journey.stage_recorded", "REPAIR_REQUIRED": "journey.stage_repair_required", "AWAITING_ACKNOWLEDGEMENT": "journey.stage_awaiting_acknowledgement",
+		"RECORDING": "journey.stage_recording", "OBSERVING_EFFECTS": "journey.stage_observing_effects",
+	}
+	normalizedStage := strings.ToUpper(strings.TrimSpace(stage))
+	if normalizedStage == "" {
+		return fallback
+	}
+	if strings.TrimSpace(fallback) == "" {
+		return copy.Text(productui.JourneyStatusForStage(normalizedStage).BadgeKey)
+	}
+	// Non-proposed labels are already localized by the authorized projector;
+	// retain them so renderer-only fixtures and server-owned wording do not
+	// get translated a second time. Proposed is the shared status-key repair.
+	if normalizedStage != "PROPOSED" && strings.TrimSpace(fallback) != "" {
+		return fallback
+	}
+	if statusKey, ok := key[normalizedStage]; ok {
+		return copy.Text(statusKey)
+	}
+	if strings.TrimSpace(fallback) != "" {
+		return fallback
+	}
+	return copy.Text("journey.stage_unknown")
+}
+
+func logicalizeDirectionalText(locale, value string) string {
+	copy := productui.ResolveProductLocale(locale)
+	if productui.LogicalArrow(copy, true) == "→" {
+		return value
+	}
+	value = strings.ReplaceAll(value, "→", "\x00")
+	value = strings.ReplaceAll(value, "←", "→")
+	return strings.ReplaceAll(value, "\x00", "←")
+}
+
+func journeyArrowIcon(locale string, forward bool) IconID {
+	copy := productui.ResolveProductLocale(locale)
+	if productui.LogicalArrow(copy, forward) == "←" {
+		return IconArrowLeft
+	}
+	return IconArrowRight
+}
+
+func journeyBusinessReason(j JourneyCard) string {
+	if strings.TrimSpace(j.BusinessReason) != "" {
+		return strings.TrimSpace(j.BusinessReason)
+	}
+	return strings.TrimSpace(j.Edit.BusinessReason)
+}
+
+func journeySeparatedChange(j JourneyCard) bool {
+	return strings.TrimSpace(j.PlacementCodes) != "" || journeyBusinessReason(j) != ""
+}
+
+func journeyReasonNode(locale string, j JourneyCard) ui.Node {
+	reason := journeyBusinessReason(j)
+	if reason == "" {
+		return nil
+	}
+	copy := productui.ResolveProductLocale(locale)
+	value := ui.Node(html.Text(" "+reason))
+	if reasontext.TokenShaped(reason) {
+		value = html.Span(html.Props{Class: "jn-mono", Dir: "auto"}, html.Text(" "+reason))
+	}
+	return html.P(html.Props{Class: "jn-journey-reason"},
+		html.Span(html.Props{Class: "jn-journey-reason-label"}, html.Text(copy.Text("journey.business_reason")+":")),
+		value,
+	)
+}
+
+func journeyPlacementNode(locale string, j JourneyCard) ui.Node {
+	if strings.TrimSpace(j.Headline) == "" {
+		return nil
+	}
+	return html.P(html.Props{Class: "jn-journey-headline"}, html.Text(logicalizeDirectionalText(locale, j.Headline)))
+}
+
+func journeyPlacementCodesNode(locale string, j JourneyCard) ui.Node {
+	if strings.TrimSpace(j.PlacementCodes) == "" {
+		return nil
+	}
+	return html.P(html.Props{Class: "jn-journey-codes", Raw: map[string]any{"dir": "ltr"}}, html.Text(logicalizeDirectionalText(locale, j.PlacementCodes)))
+}
+
 func journeyCardLocale(locale string, j JourneyCard) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
+	display := j
+	display.StageLabel = journeyStageLabel(locale, j.Stage, j.StageLabel)
+	separated := journeySeparatedChange(j)
 	return html.Article(html.Props{Class: "jn-card jn-journey",
 		DataAttr: html.DataAttribute{Name: "stage", Value: j.Stage}},
 		// UXLIVE-032: task label, reference and status are separate slots
 		// of the shared object identity, not one concatenated heading.
-		journeyCardHead(locale, j),
+		journeyCardHead(locale, display),
 		journeyCardReference(locale, j),
-		htmlIf(j.Headline != "", func() ui.Node {
-			return html.P(html.Props{Class: "jn-journey-headline"}, html.Text(j.Headline))
+		htmlIf(separated, func() ui.Node {
+			return html.Fragment(
+				htmlIf(journeyPayLineLocale(locale, j) != "", func() ui.Node {
+					return html.P(html.Props{Class: "jn-journey-pay"}, html.Text(logicalizeDirectionalText(locale, journeyPayLineLocale(locale, j))))
+				}),
+				journeyReasonNode(locale, j), journeyPlacementNode(locale, j), journeyPlacementCodesNode(locale, j),
+			)
 		}),
-		htmlIf(j.PayLine != "", func() ui.Node {
-			return html.P(html.Props{Class: "jn-journey-pay"}, html.Text(j.PayLine))
+		htmlIf(!separated, func() ui.Node {
+			return html.Fragment(
+				htmlIf(j.Headline != "", func() ui.Node {
+					return html.P(html.Props{Class: "jn-journey-headline"}, html.Text(logicalizeDirectionalText(locale, j.Headline)))
+				}),
+				htmlIf(journeyPayLineLocale(locale, j) != "", func() ui.Node {
+					return html.P(html.Props{Class: "jn-journey-pay"}, html.Text(logicalizeDirectionalText(locale, journeyPayLineLocale(locale, j))))
+				}),
+			)
 		}),
 		html.P(html.Props{Class: "jn-meta"},
 			metaItem(copy.Text("journey.effective"), j.EffectiveDate, false),
@@ -954,12 +1066,13 @@ func journeyCardLocale(locale string, j JourneyCard) ui.Node {
 		htmlIf(j.NextStep != "", func() ui.Node {
 			return html.P(html.Props{Class: "jn-journey-next"}, metaItem(copy.Text("journey.next_step"), j.NextStep, false))
 		}),
+		positionIdentityNode(locale, j.TargetPosition),
 		technicalDetailsSection(locale, j.DiagnosticsAuthorized, []technicalDetail{
 			{Label: "Worker", Value: j.WorkerRef},
 			{Label: "Instance", Value: j.InstanceID},
 		}),
 		html.P(html.Props{Class: "jn-journey-foot", Aria: map[string]string{"hidden": "true"}},
-			html.Text(copy.Text("journey.open_request")), RenderIcon(IconArrowRight, "jn-journey-arrow", nil),
+			html.Text(journeyCardActionLabel(locale, j)), RenderIcon(journeyArrowIcon(locale, true), "jn-journey-arrow", nil),
 		),
 	)
 }
@@ -1062,22 +1175,24 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 
 	busy := !f.Disabled && f.Busy
 	btn := html.Props{Class: "jn-btn", Type: submitButtonType(f.OnSubmit),
-		DataAttr: html.DataAttribute{Name: "variant", Value: "primary"}}
+		DataAttr: html.DataAttribute{Name: "variant", Value: "primary"},
+		Aria:     map[string]string{"label": submit}}
 	if f.Disabled {
 		btn.Disabled = true
-		btn.Aria = map[string]string{"describedby": "proposal-disabled"}
+		btn.Aria["describedby"] = "proposal-disabled"
 	} else if busy {
 		btn.Disabled = true
-		btn.Aria = map[string]string{"busy": "true"}
+		btn.Aria["busy"] = "true"
 	} else if f.OnSubmit != nil {
 		btn.OnClick = clickHandler(f.OnSubmit, l.collect(f.Hidden, f.Fields))
 	}
-	submitBtn := html.Button(btn, html.Text(submit))
+	submitBtn := html.Button(labeledButtonProps(btn, submit), html.Text(submit))
 	foot := []ui.Node{}
+	reviewReady := !proposalFormHasInvalidRequiredField(l, f)
 	switch {
 	case f.Disabled:
 		foot = append(foot, submitBtn)
-	case len(f.Confirmation) > 0 || f.ConfirmationNote != "":
+	case reviewReady && (len(f.Confirmation) > 0 || f.ConfirmationNote != ""):
 		// PROMOUX-010: Start's own final action goes through the same
 		// shared review surface as Approve and Reject, so it keeps the
 		// same compact, contained, keyboard-stable confirmation instead of
@@ -1085,7 +1200,15 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 		triggerLabel := submit
 		confirmHeading := copy.Text("journey.action_confirm_generic", map[string]string{"action": strings.ToLower(submit)})
 		finalBtn := submitBtn
-		if !strings.EqualFold(strings.TrimSpace(submit), strings.TrimSpace(copy.Text("journey.form_submit"))) {
+		if promotionDraftSave(f, copy, submit) {
+			// The first dialog is the draft boundary: this saves the proposal,
+			// while the journey's next step is the separately named approval
+			// workflow. Keep the existing trigger copy for compatibility with
+			// the no-script form, but make the dialog's heading and final action
+			// unambiguous.
+			confirmHeading = copy.Text("journey.form_save")
+			finalBtn = html.Button(labeledButtonProps(btn, copy.Text("journey.form_save")), html.Text(copy.Text("journey.form_save")))
+		} else if !strings.EqualFold(strings.TrimSpace(submit), strings.TrimSpace(copy.Text("journey.form_submit"))) {
 			triggerLabel = copy.Text("journey.action_review_generic", map[string]string{"action": strings.ToLower(submit)})
 		} else {
 			// The trigger already says "Review and submit". Inside the review
@@ -1093,7 +1216,7 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 			// and submit" over a second "Review and submit"), so the button
 			// that actually sends the proposal did not say it sends it.
 			confirmHeading = copy.Text("journey.form_confirm_title")
-			finalBtn = html.Button(btn, html.Text(copy.Text("journey.form_submit_final")))
+			finalBtn = html.Button(labeledButtonProps(btn, copy.Text("journey.form_submit_final")), html.Text(copy.Text("journey.form_submit_final")))
 		}
 		// The review trigger is this form's primary action: the page exists to
 		// propose, and nothing else on it is primary. Left at the surface's
@@ -1108,6 +1231,7 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 			Note:           nonEmpty(f.ConfirmationNote, copy.Text("journey.form_submit_help")),
 			Submit:         finalBtn,
 			Busy:           busy,
+			CloseOnFailure: l.closeReviews,
 			BusyLabel:      f.BusyLabel,
 			DismissLabel:   copy.Text("journey.action_cancel_review"),
 			CancelLabel:    copy.Text("journey.action_cancel"),
@@ -1132,6 +1256,57 @@ func proposalFormSection(l live, f ProposalForm, heading string) ui.Node {
 			html.Div(html.Props{Class: "jn-formfoot"}, foot...),
 		),
 	)
+}
+
+func labeledButtonProps(props html.Props, label string) html.Props {
+	aria := make(map[string]string, len(props.Aria)+1)
+	for key, value := range props.Aria {
+		aria[key] = value
+	}
+	aria["label"] = label
+	props.Aria = aria
+	return props
+}
+
+func promotionDraftSave(f ProposalForm, copy productui.LocaleContext, submit string) bool {
+	if !strings.EqualFold(strings.TrimSpace(submit), strings.TrimSpace(copy.Text("journey.form_submit"))) {
+		return false
+	}
+	for _, field := range f.Fields {
+		if field.ID == "propose-job" {
+			return true
+		}
+	}
+	return false
+}
+
+func proposalFormHasInvalidRequiredField(l live, f ProposalForm) bool {
+	proposal := false
+	invalid := false
+	values := make(map[string]string, len(f.Fields))
+	for _, field := range f.Fields {
+		if field.ID == "propose-job" {
+			proposal = true
+		}
+		if field.Name != "" {
+			values[field.Name] = l.value(field)
+			if field.Kind == fieldKindSelect && values[field.Name] == "" {
+				// The select renders its published Selected option while no
+				// answer is held, so that option is the field's value here.
+				if _, held := l.values[field.ID]; !held {
+					for _, option := range field.Options {
+						if option.Selected {
+							values[field.Name] = option.Value
+						}
+					}
+				}
+			}
+		}
+		if field.Error != "" {
+			invalid = true
+		}
+	}
+	return proposal && (invalid || len(MissingRequired(f.Fields, values)) > 0)
 }
 
 // Live callbacks own submission; the native fallback retains a real form submit.
@@ -1192,6 +1367,7 @@ func positionPickerField(l live, f Field) ui.Node {
 	for _, vacancy := range f.Vacancies {
 		options = append(options, productui.PositionPickerOptionProps{
 			Reference:        vacancy.Reference,
+			Code:             vacancy.JobCode,
 			Title:            vacancy.Title,
 			Organization:     vacancy.Organization,
 			Manager:          vacancy.Manager,
@@ -1293,14 +1469,23 @@ func fieldNode(l live, f Field, formDisabled bool) ui.Node {
 	}
 
 	value := l.value(f)
+	// The grade choice is governed by the selected role. The projector keeps
+	// only the prompt option until a role is chosen, so the renderer can make
+	// that dependency native and keyboard-visible without inventing a second
+	// form state.
+	gradeUnavailable := f.ID == "propose-grade" && len(f.Options) <= 1
 	base := html.Props{
 		ID:       f.ID,
 		Name:     f.Name,
 		Class:    "jn-input",
 		Required: f.Required,
-		Disabled: formDisabled,
+		Disabled: formDisabled || gradeUnavailable,
 		Aria:     aria,
 		OnInput:  l.input(f),
+	}
+	if l.onFieldBlur != nil {
+		id, blur := f.ID, l.onFieldBlur
+		base.OnBlur = ui.UseEvent(func(ui.FocusEvent) { blur(id) })
 	}
 
 	var control ui.Node
@@ -1377,6 +1562,9 @@ func fieldNode(l live, f Field, formDisabled bool) ui.Node {
 	if f.Error != "" {
 		data["invalid"] = "true"
 	}
+	if strings.HasPrefix(f.ID, "journey-filter-") {
+		data["field-id"] = f.ID
+	}
 	if len(data) > 0 {
 		fieldProps.Data = data
 	}
@@ -1407,10 +1595,11 @@ func detailView(p Page, v DetailView) ui.Node {
 	return html.Div(html.Props{Class: "jn-stack"},
 		html.Div(html.Props{Class: "jn-detail-toolbar"},
 			detailNavigationLocale(p.Locale, v),
-			productui.ProjectJourneyActions(p.Locale, v.Journey.WorkerName)),
+			productui.ProjectJourneyActions(p.Locale, v.Journey.WorkerName, valueOrJourneyCapabilities(p.JourneyCapabilities))),
 		heroSectionLocale(p.Locale, v.Journey, v.Diagnostics),
-		blockedFindingBannerLocale(p.Locale, v),
-		actionsSection(l, v.Actions),
+		outcomeReasonSectionLocale(p.Locale, v),
+		progressSummarySectionLocale(p.Locale, v.Progress),
+		actionsSection(l, primaryActions(v.Actions)),
 		stepperSectionLocale(p.Locale, v.Steps),
 		proposalDetailSectionLocale(p.Locale, v),
 		reviewCardsSectionLocale(p.Locale, v.Review),
@@ -1425,7 +1614,86 @@ func detailView(p Page, v DetailView) ui.Node {
 				timelineSectionLocale(p.Locale, v.Timeline),
 			),
 		),
+		interventionsDisclosure(l, v.Journey.Closed, v.Actions),
 		diagnosticsSectionLocale(p.Locale, v),
+	)
+}
+
+func outcomeReasonSectionLocale(locale string, detail DetailView) ui.Node {
+	reason := detail.OutcomeReason
+	if reason == nil {
+		return nil
+	}
+	copy := productui.ResolveProductLocale(locale)
+	children := []ui.Node{
+		html.P(html.Props{Class: "jn-notice-title"}, html.Text(reason.Stage)),
+		html.P(html.Props{Class: "jn-notice-detail"}, html.Text(reason.Summary)),
+	}
+	if len(reason.Blocking) > 0 {
+		children = append(children, html.Ul(html.Props{Class: "jn-outcome-reasons", Role: "list"}, html.Map(reason.Blocking, func(item string) ui.Node {
+			return html.Li(html.Props{}, html.Text(item))
+		})...))
+	}
+	if reason.NextStep != "" {
+		children = append(children, html.P(html.Props{Class: "jn-notice-next"}, html.Text(reason.NextStep)))
+	}
+	body := append([]ui.Node{html.H2(html.Props{ID: "outcome-reason-heading"}, html.Text(copy.Text("journey.outcome_pending_heading")))}, children...)
+	return html.Section(html.Props{Class: "jn-notice jn-outcome-reason", Data: map[string]string{"tone": nonEmpty(reason.Tone, "warning")}, Aria: map[string]string{"labelledby": "outcome-reason-heading"}},
+		RenderIcon(IconWarning, "jn-notice-icon", nil),
+		html.Div(html.Props{Class: "jn-notice-body"}, body...),
+	)
+}
+
+func progressSummarySectionLocale(locale string, progress *Progress) ui.Node {
+	if progress == nil {
+		return nil
+	}
+	copy := productui.ResolveProductLocale(locale)
+	children := []ui.Node{
+		html.P(html.Props{Class: "jn-progress-phase"}, html.Text(progress.Phase)),
+		html.P(html.Props{Class: "jn-progress-summary"}, html.Text(progress.Summary)),
+	}
+	if progress.LastProgress != "" {
+		children = append(children, html.P(html.Props{Class: "jn-progress-last"},
+			html.Span(html.Props{Class: "jn-meta-key"}, html.Text(copy.Text("journey.progress_last")+": ")),
+			html.Text(progress.LastProgress)))
+	}
+	children = append(children, html.P(html.Props{Class: "jn-progress-next"}, html.Text(progress.NextAction)))
+	return html.Section(html.Props{Class: "jn-panel jn-progress-summary", Aria: map[string]string{"labelledby": "progress-heading", "live": "polite"}},
+		html.H2(html.Props{ID: "progress-heading"}, html.Text(copy.Text("journey.outcome_pending_heading"))),
+		html.Div(html.Props{}, children...),
+	)
+}
+
+func primaryActions(actions []Action) []Action {
+	out := make([]Action, 0, len(actions))
+	for _, action := range actions {
+		if action.Variant != "secondary" {
+			out = append(out, action)
+		}
+	}
+	return out
+}
+
+func interventionActions(actions []Action, closed bool) []Action {
+	out := make([]Action, 0, len(actions))
+	for _, action := range actions {
+		if action.Variant == "secondary" && !(closed && action.Disabled) {
+			out = append(out, action)
+		}
+	}
+	return out
+}
+
+func interventionsDisclosure(l live, closed bool, actions []Action) ui.Node {
+	interventions := interventionActions(actions, closed)
+	if len(interventions) == 0 {
+		return nil
+	}
+	copy := productui.ResolveProductLocale(l.locale)
+	return html.Details(html.Props{Class: "jn-interventions"},
+		html.Summary(html.Props{}, html.Text(copy.Text("journey.actions_heading"))),
+		actionsSection(l, interventions),
 	)
 }
 
@@ -1494,7 +1762,8 @@ func detailNavigationLocale(locale string, v DetailView) ui.Node {
 	links := make([]ui.Node, 0, 2)
 	if v.BackLink.Href != "" {
 		links = append(links, html.A(html.Props{Href: v.BackLink.Href, OnClick: activate(v.BackLink.OnNavigate)},
-			html.Text(nonEmpty(v.BackLink.Label, copy.Text("journey.back_employee")))))
+			html.Span(html.Props{Class: "jn-directional-arrow", Dir: "ltr"}, html.Text(productui.LogicalBackArrow(copy))),
+			html.Text(" "+backLinkLabel(v.BackLink.Label, copy.Text("journey.back_employee")))))
 	}
 	if v.JourneysLink.Href != "" {
 		links = append(links, html.A(html.Props{Href: v.JourneysLink.Href, OnClick: activate(v.JourneysLink.OnNavigate)},
@@ -1504,6 +1773,12 @@ func detailNavigationLocale(locale string, v DetailView) ui.Node {
 		return nil
 	}
 	return html.Nav(html.Props{Class: "jn-context-nav", Aria: map[string]string{"label": copy.Text("journey.context_navigation")}}, links...)
+}
+
+func backLinkLabel(label, fallback string) string {
+	label = nonEmpty(label, fallback)
+	label = strings.NewReplacer("←", "", "→", "").Replace(label)
+	return strings.TrimSpace(label)
 }
 
 func nonEmpty(value, fallback string) string {
@@ -1519,25 +1794,42 @@ func heroSection(j JourneyCard, diagnostics bool) ui.Node {
 
 func heroSectionLocale(locale string, j JourneyCard, diagnostics bool) ui.Node {
 	copy := productui.ResolveProductLocale(locale)
+	separated := journeySeparatedChange(j)
 	return html.Section(html.Props{Class: "jn-panel jn-hero", Aria: map[string]string{"labelledby": "journey-heading"}},
 		html.Div(html.Props{Class: "jn-hero-top"},
 			html.Div(html.Props{},
 				html.P(html.Props{Class: "jn-eyebrow"}, html.Text(copy.Text("journey.detail_title"))),
 				html.H1(html.Props{ID: "journey-heading", Class: "jn-display"}, html.Text(j.WorkerName)),
-				htmlIf(j.Headline != "", func() ui.Node {
-					return html.P(html.Props{Class: "jn-lead"}, html.Text(j.Headline))
+				htmlIf(!separated && j.Headline != "", func() ui.Node {
+					return html.P(html.Props{Class: "jn-lead"}, html.Text(logicalizeDirectionalText(locale, j.Headline)))
 				}),
 			),
-			chip(j.StageTone, j.StageLabel),
+			chip(j.StageTone, journeyStageLabel(locale, j.Stage, j.StageLabel)),
 		),
-		htmlIf(j.PayLine != "", func() ui.Node {
+		htmlIf(separated && journeyPayLineLocale(locale, j) != "", func() ui.Node {
 			return html.P(html.Props{Class: "jn-hero-pay"},
-				html.Span(html.Props{Dir: "ltr"}, html.Text(j.PayLine)))
+				html.Span(html.Props{Dir: "ltr"}, html.Text(logicalizeDirectionalText(locale, journeyPayLineLocale(locale, j)))),
+			)
+		}),
+		htmlIf(separated, func() ui.Node {
+			return html.Fragment(
+				journeyReasonNode(locale, j),
+			htmlIf(j.Headline != "", func() ui.Node {
+				return html.P(html.Props{Class: "jn-lead jn-journey-headline"}, html.Text(logicalizeDirectionalText(locale, j.Headline)))
+			}),
+				journeyPlacementCodesNode(locale, j),
+			)
+		}),
+		htmlIf(!separated && journeyPayLineLocale(locale, j) != "", func() ui.Node {
+			return html.P(html.Props{Class: "jn-hero-pay"},
+				html.Span(html.Props{Dir: "ltr"}, html.Text(logicalizeDirectionalText(locale, journeyPayLineLocale(locale, j)))),
+			)
 		}),
 		html.P(html.Props{Class: "jn-meta jn-hero-ids"},
 			metaItem(copy.Text("journey.effective"), j.EffectiveDate, false),
 			metaItem(copy.Text("journey.updated"), j.Updated, false),
 		),
+		positionIdentityNode(locale, j.TargetPosition),
 		technicalDetailsSection(locale, diagnostics && j.DiagnosticsAuthorized, []technicalDetail{
 			{Label: "Worker", Value: j.WorkerRef},
 			{Label: "Intent", Value: j.IntentID},
@@ -2116,7 +2408,7 @@ func nodesTable(nodes []NodeRow) ui.Node {
 				return html.Tr(html.Props{},
 					html.Th(html.Props{Raw: map[string]any{"scope": "row"}, Class: "jn-mono"}, html.Text(n.NodeID)),
 					html.Td(html.Props{}, html.Text(n.StepType)),
-					html.Td(html.Props{}, chip(n.Tone, n.Status)),
+					html.Td(html.Props{}, chip(n.Tone, uxblindSNodeStatusLabel("en-US", n.Status))),
 					html.Td(html.Props{Class: "jn-num"}, html.Text(n.Attempt)),
 					html.Td(html.Props{Class: "jn-num"}, html.Text(n.Started)),
 					html.Td(html.Props{Class: "jn-num"}, html.Text(n.Completed)),
@@ -2369,6 +2661,11 @@ func actionCard(l live, a Action) ui.Node {
 		}
 	}
 	submitProps := btn
+	accessibleSubmit := map[string]string{"label": submitLabel}
+	for key, value := range submitProps.Aria {
+		accessibleSubmit[key] = value
+	}
+	submitProps.Aria = accessibleSubmit
 	if !a.Disabled && (len(a.Confirmation) > 0 || a.ConfirmationNote != "") && variant != "danger" {
 		// Inside the review the committing button is the dialog's one primary
 		// action; styled like Cancel beside it, the two read as equals.
@@ -2386,12 +2683,18 @@ func actionCard(l live, a Action) ui.Node {
 			Fields: html.Map(a.Fields, func(field Field) ui.Node {
 				return fieldNode(l, field, false)
 			}),
-			Note:         a.ConfirmationNote,
-			Submit:       submit,
-			Busy:         busy,
-			BusyLabel:    a.BusyLabel,
-			DismissLabel: copy.Text("journey.action_cancel_review"),
-			CancelLabel:  copy.Text("journey.action_cancel"),
+			Note:           a.ConfirmationNote,
+			Submit:         submit,
+			Busy:           busy,
+			CloseOnFailure: l.closeReviews,
+			BusyLabel:      a.BusyLabel,
+			DismissLabel:   copy.Text("journey.action_cancel_review"),
+			CancelLabel:    nonEmpty(a.CancelLabel, copy.Text("journey.action_cancel")),
+			OnDismiss: func() {
+				if l.onReviewDismiss != nil {
+					l.onReviewDismiss(a.ID)
+				}
+			},
 		}))
 	} else {
 		for _, f := range a.Fields {

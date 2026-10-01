@@ -42,6 +42,9 @@ func ChatDocDateLabel(locale LocaleContext, at, now time.Time) string {
 // BuildChatPage completes a chat model with what the view knows (locale,
 // direction, viewer, catalog) and builds the workspace.
 func BuildChatPage(view View, model chatui.Model) ui.Node {
+	if model.State == chatui.StateError && len(model.Conversations) == 0 && len(model.Messages) == 0 {
+		return capabilityUnavailableFrame(view)
+	}
 	if model.State == "" {
 		model.State = chatui.StateLoading
 	}

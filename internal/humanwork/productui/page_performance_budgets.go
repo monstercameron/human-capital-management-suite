@@ -14,6 +14,9 @@ import (
 // governed service publishes; until then the UI will not
 // simulate one.
 func performanceBudgetsPage(view View) ui.Node {
+	if view.PerformanceBudgets != nil && view.PerformanceBudgets.Ready {
+		return performanceBudgetsLivePage(view, *view.PerformanceBudgets)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("performance_budgets.unavailable_title"),
 		Description: view.Locale.Text("performance_budgets.unavailable_detail"),

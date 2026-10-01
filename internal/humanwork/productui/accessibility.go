@@ -8,6 +8,8 @@ type AccessibilityPreferences struct {
 	Contrast string `json:"contrast"`
 	Motion   string `json:"motion"`
 	Links    string `json:"links"`
+	// ColorMode is empty when the person follows the organization's mode.
+	ColorMode string `json:"color_mode,omitempty"`
 }
 
 type AccessibilityOption struct {
@@ -35,16 +37,23 @@ func NormalizeAccessibilityPreferences(value AccessibilityPreferences) Accessibi
 	if !allowedAccessibilityValue(value.Links, "standard", "underlined") {
 		value.Links = defaults.Links
 	}
+	if !allowedAccessibilityValue(value.ColorMode, "", "organization", "light", "dark") {
+		value.ColorMode = defaults.ColorMode
+	}
+	if value.ColorMode == "organization" {
+		value.ColorMode = defaults.ColorMode
+	}
 	return value
 }
 
 func AccessibilityPreferenceAttributes(value AccessibilityPreferences) map[string]string {
 	value = NormalizeAccessibilityPreferences(value)
 	return map[string]string{
-		"data-hcm-text-size":         value.TextSize,
-		"data-hcm-contrast":          value.Contrast,
-		"data-hcm-motion-preference": value.Motion,
-		"data-hcm-links":             value.Links,
+		"data-hcm-text-size":           value.TextSize,
+		"data-hcm-contrast":            value.Contrast,
+		"data-hcm-motion-preference":   value.Motion,
+		"data-hcm-links":               value.Links,
+		"data-hcm-personal-color-mode": value.ColorMode,
 	}
 }
 
@@ -84,5 +93,13 @@ func AccessibilityLinkOptions() []AccessibilityOption {
 	return []AccessibilityOption{
 		{ID: "standard", LabelKey: "accessibility.links_standard", DescriptionKey: "accessibility.links_standard_help"},
 		{ID: "underlined", LabelKey: "accessibility.links_underlined", DescriptionKey: "accessibility.links_underlined_help"},
+	}
+}
+
+func AccessibilityColorModeOptions() []AccessibilityOption {
+	return []AccessibilityOption{
+		{ID: "organization", LabelKey: "accessibility.color_mode_organization", DescriptionKey: "accessibility.color_mode_organization_help"},
+		{ID: "light", LabelKey: "accessibility.color_mode_light", DescriptionKey: "accessibility.color_mode_light_help"},
+		{ID: "dark", LabelKey: "accessibility.color_mode_dark", DescriptionKey: "accessibility.color_mode_dark_help"},
 	}
 }

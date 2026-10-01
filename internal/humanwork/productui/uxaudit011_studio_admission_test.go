@@ -7,16 +7,21 @@ import (
 	xhtml "golang.org/x/net/html"
 )
 
-// uxaudit011BaselineDestinations are the thirteen genuinely admitted
-// destinations the 2026-09-12 live audit's own primary-navigation fetch
-// found beside Experience Studio (the fourteenth, RED item). UXAUDIT-011
-// must remove Studio without disturbing any of these.
+// uxaudit011BaselineDestinations are the current admitted canonical routes
+// beside Experience Studio. UXAUDIT-011 must remove Studio without
+// disturbing any of these.
 var uxaudit011BaselineDestinations = []string{
 	"/workspace/app/home",
 	"/workspace/app/myself",
 	"/workspace/app/journeys",
+	"/workspace/app/workflows",
+	"/workspace/app/admin/workflows",
+	"/workspace/app/chat",
+	"/workspace/app/chat/agents",
+	"/workspace/app/docs",
 	"/workspace/app/work",
-	"/workspace/app/history",
+	"/workspace/app/workflows/history",
+	"/workspace/app/projects",
 	"/workspace/app/people",
 	"/workspace/app/organization",
 	"/workspace/app/insights",
@@ -24,8 +29,11 @@ var uxaudit011BaselineDestinations = []string{
 	"/workspace/app/admin/worker-ids",
 	"/workspace/app/admin/roles",
 	"/workspace/app/admin/organization-visibility",
-	"/workspace/app/appearance",
+	"/workspace/app/admin/appearance",
 	"/workspace/app/admin/chat-settings",
+	"/workspace/app/admin/personas",
+	"/workspace/app/admin/time/devices",
+	"/workspace/app/time/clock",
 }
 
 // TestTodo_UXAUDIT_011 is the PRIMARY: Experience Studio must not remain a
@@ -50,8 +58,8 @@ func TestTodo_UXAUDIT_011(t *testing.T) {
 		t.Fatal("Experience Studio text still appears in navigation")
 	}
 
-	// Nothing usable was lost: every one of the fourteen live-audited
-	// destinations other than Studio keeps its menu slot.
+	// Nothing usable was lost: every current admitted route other than Studio
+	// keeps its menu slot.
 	for _, route := range uxaudit011BaselineDestinations {
 		if linkForRoute(navigation, route) == nil {
 			t.Fatalf("admitted destination %q disappeared from navigation", route)
@@ -100,9 +108,8 @@ func TestTodo_UXAUDIT_011_Browser(t *testing.T) {
 		t.Fatal("navigation DOM still contains a Studio anchor element")
 	}
 
-	// The Admin group's rendered subnav accordion shrank to exactly its
-	// four admitted children (Worker IDs, Roles, Organization visibility,
-	// Brand & appearance); Studio and the eleven other unbuilt admin
+	// The Admin group's rendered subnav contains its seven admitted children;
+	// Studio and the eleven other unbuilt admin
 	// fallback surfaces claim no <a> element anywhere in the group. The
 	// group is located by its stable data-hcm-nav-group="admin" attribute
 	// rather than by class, since My Work is also a "nav-group".
@@ -117,7 +124,7 @@ func TestTodo_UXAUDIT_011_Browser(t *testing.T) {
 	}
 	// Each leaf renders a nav-link anchor plus an optional nav-favorite
 	// toggle anchor, so count only the navigational links: one overview
-	// leaf (pointing back at Admin itself) plus the four admitted
+	// leaf (pointing back at Admin itself) plus the seven admitted
 	// children -- Studio and the eleven other unbuilt admin fallback
 	// surfaces contribute none.
 	navLinks := 0
@@ -126,8 +133,8 @@ func TestTodo_UXAUDIT_011_Browser(t *testing.T) {
 			navLinks++
 		}
 	})
-	if navLinks != 6 {
-		t.Fatalf("Admin subnav has %d nav-link anchors, want 6 (overview plus 5 admitted children)", navLinks)
+	if navLinks != 8 {
+		t.Fatalf("Admin subnav has %d nav-link anchors, want 8 (overview plus 7 admitted children)", navLinks)
 	}
 
 	// Direct navigation to the unadmitted route claims no active
@@ -245,6 +252,7 @@ func TestTodo_UXAUDIT_011_Conformance(t *testing.T) {
 	}
 	admittedChild := zeroValueChild
 	admittedChild.Admitted = true
+	admittedChild.NavigationPublished = true
 	if !navigationChildEligible(admittedChild, nil) {
 		t.Fatal("an explicitly admitted child page was rejected")
 	}
@@ -277,7 +285,7 @@ func TestTodo_UXAUDIT_011_Conformance(t *testing.T) {
 		}
 		navWired++
 		switch {
-		case definition.Admitted && !flattened[definition.ID]:
+		case definition.Admitted && (definition.PrimaryNav || definition.NavigationPublished) && !flattened[definition.ID]:
 			t.Fatalf("%s declares an admitted capability and navigation wiring but was not rendered", definition.ID)
 		case definition.Admitted:
 			admittedWired++

@@ -54,11 +54,34 @@ func unavailablePanelWithRetry(title, detail, retryLabel, href string, navigate 
 }
 
 func personAvatar(name, label, photoURL, size string) ui.Node {
+	return ui.CreateElement(personAvatarWithFallback, personAvatarProps{
+		Name: name, Initials: label, PhotoURL: photoURL, Size: size,
+	})
+}
+
+type personAvatarProps struct {
+	Name, Initials, PhotoURL, Size string
+}
+
+func personAvatarWithFallback(props personAvatarProps) ui.Node {
 	class := "avatar"
-	if size != "" {
-		class += " " + size
+	if props.Size != "" {
+		class += " " + props.Size
+	}
+	photoURL := strings.TrimSpace(props.PhotoURL)
+	failed := ui.UseState(false)
+	// Created on every render: a hook inside the branch would disappear on
+	// the render after a failed photo and shift this component's hook slots.
+	onError := ui.UseEvent(func(ui.Event) { failed.Set(true) })
+	if photoURL != "" && !failed.Get() {
+		return html.Img(html.Props{
+			Class: class, Src: photoURL, Loading: "lazy", Width: "64", Height: "64",
+			Aria:    map[string]string{"hidden": "true"},
+			Raw:     map[string]any{"alt": "", "decoding": "async"},
+			OnError: onError,
+		})
 	}
 	return uicomponents.Avatar(uicomponents.AvatarProps{
-		Name: name, Initials: label, PhotoURL: photoURL, Class: class, Decorative: true,
+		Name: props.Name, Initials: props.Initials, Class: class, Decorative: true,
 	})
 }

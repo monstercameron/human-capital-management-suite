@@ -245,7 +245,7 @@ func TestLoginDirectorySignInUsesTheServerOwnedCredential(t *testing.T) {
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	recorder := httptest.NewRecorder()
 	h.ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusSeeOther || recorder.Header().Get("Location") != PathProductPrefix+"myself" {
+	if recorder.Code != http.StatusSeeOther || recorder.Header().Get("Location") != PathProductHome {
 		t.Fatalf("employee sign-in = %d to %q, want 303 to the self-service landing", recorder.Code, recorder.Header().Get("Location"))
 	}
 	if strings.Contains(recorder.Body.String(), token) {

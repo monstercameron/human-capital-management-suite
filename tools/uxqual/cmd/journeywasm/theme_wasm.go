@@ -244,6 +244,7 @@ func (c *browserThemeController) Apply(theme productui.CustomerTheme) {
 	brandName, brandMark := productui.HeaderBrandIdentity(theme, c.tenant)
 	setThemeText(`[data-hcm-brand-link] [data-hcm-brand-name]`, brandName)
 	setThemeText(`[data-hcm-brand-link] [data-hcm-brand-mark]`, brandMark)
+	setThemeText(`.footer [data-hcm-brand-name]`, brandName)
 	setThemeText(`.appearance-preview-live-header [data-hcm-brand-name]`, brandName)
 	setThemeText(`.appearance-preview-live-header [data-hcm-brand-mark]`, brandMark)
 	setThemeAttribute(`[data-hcm-brand-link]`, "title", brandName)
@@ -266,7 +267,7 @@ func applyThemeDocumentIdentity(pageTitle string, theme productui.CustomerTheme,
 		}
 	}
 	if strings.TrimSpace(pageTitle) != "" {
-		document.Set("title", pageTitle+" · "+brandName)
+		document.Set("title", productui.DocumentTitle(pageTitle, theme, tenant))
 		if root.Truthy() {
 			root.Call("setAttribute", "data-hcm-page-title", pageTitle)
 		}

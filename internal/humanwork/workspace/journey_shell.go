@@ -10,6 +10,7 @@ import (
 
 	journey "github.com/monstercameron/human-capital-management-suite/internal/experience/journeycss"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -107,6 +108,13 @@ const journeyBuildCommand = "scripts/build.sh hcmnext"
 // It is a struct rather than a map so the field names are a compile-time
 // contract with the client that reads them.
 type JourneyConfig struct {
+	// PersonaAdminClient is request-scoped and omitted from the browser JSON
+	// island. It is used only by the server-rendered product route.
+	PersonaAdminClient productui.PersonaAdminClient `json:"-"`
+	// PersonaAdminSnapshot is the request-authorized metadata projection used
+	// by the browser product client. It contains catalog, placement and reach
+	// metadata only; task content and credentials never cross this boundary.
+	PersonaAdminSnapshot *productui.PersonaAdminSnapshot `json:"persona_admin_snapshot,omitempty"`
 	// TunnelURL is the absolute ws:// or wss:// address of the cell's gRPC
 	// tunnel, derived from the request that asked for this page so that a
 	// page served through a proxy dials the proxy and not the origin.
@@ -122,10 +130,11 @@ type JourneyConfig struct {
 	Tenant  string   `json:"tenant"`
 	Subject string   `json:"subject"`
 	Roles   []string `json:"roles"`
-	// TenantName and TenantLogo are the signed-in company's own display name
+	// TenantName, TenantMark and TenantLogo are the signed-in company's own display name
 	// and logo asset path, set only when one process serves several demo
 	// companies; empty keeps the header's tenant-derived fallback.
 	TenantName string `json:"tenant_name,omitempty"`
+	TenantMark string `json:"tenant_mark,omitempty"`
 	TenantLogo string `json:"tenant_logo,omitempty"`
 	// PagePermissions is the effective union of durable role grants. It is
 	// presentation metadata only; RPC handlers enforce the same policy.
@@ -137,7 +146,20 @@ type JourneyConfig struct {
 	// LauncherActions is a server-resolved semantic-action projection. The
 	// browser may render these entries, but every RPC still authorizes again.
 	LauncherActions []LauncherActionConfig `json:"launcher_actions,omitempty"`
-	Purpose         string                 `json:"purpose"`
+	// WorkflowStarts is the server-authorized workflow start catalog for this
+	// viewer; WorkflowStartFavorites and WorkflowStartRecent are the viewer's
+	// own saved ids, newest first for recents.
+	WorkflowStarts         []WorkflowStartConfig `json:"workflow_starts,omitempty"`
+	WorkflowStartFavorites []string              `json:"workflow_start_favorites,omitempty"`
+	WorkflowStartRecent    []string              `json:"workflow_start_recent,omitempty"`
+	// Agents is the server's agents availability projection for this viewer
+	// (UXBLIND-122): it decides the Agents menu entry and the Agents page.
+	Agents *AgentsConfig `json:"agents,omitempty"`
+	// Clock is the workspace half of the time clock's availability
+	// (UXBLIND-123): it decides the Time clock menu entry and the reason the
+	// page states when the clock service is not running here.
+	Clock   *ClockConfig `json:"clock,omitempty"`
+	Purpose string       `json:"purpose"`
 	// JourneysPath is this page's own address, so the client can build
 	// links back to itself.
 	JourneysPath string `json:"journeys_path"`
@@ -256,11 +278,13 @@ func journeyShellDocument(config JourneyConfig, bundleBuilt bool) (string, error
 //
 // It is a compile-time constant for one reason: [JourneyContentSecurityPolicy]
 // pins its sha256, and a loader assembled at run time could not be hashed at
-// build time. It fails silently and completely - no Go runtime, no start; a
-// failed instantiation, no start - because the fallback paragraph the shell
-// already rendered is the correct thing for the reader to be left looking at.
+// build time. Failed initialization preserves the server-rendered fallback
+// and reports the loader error so a stalled page can be diagnosed.
 const journeyLoaderSource = `(function(){` +
 	`if(!window.WebAssembly){return}` +
+	// p records a cold-start phase as a User Timing mark (UXBLIND-089); the
+	// Go client marks the phases after it starts under the same prefix.
+	`var h="hcm:";function p(n){try{performance.mark(h+n)}catch(e){}document.documentElement.setAttribute("data-workspace-load-phase",n)}p("loader");` +
 	`var c=document.getElementById("` + JourneyConfigElementID + `"),j=JSON.parse(c?c.textContent||"{}":"{}");` +
 	`function o(i){return{credentials:"same-origin",headers:{authorization:"Bearer "+(j.bearer||"")},integrity:i||""}}` +
 	// v stamps an asset address with its own digest so a stored copy can
@@ -284,8 +308,14 @@ const journeyLoaderSource = `(function(){` +
 	`.then(function(r){if(!r.ok){throw new Error("asset manifest unavailable")}return r.json()})` +
 	`.then(function(m){var a,s;for(var i=0;i<m.assets.length;i++){if(m.assets[i].path=="` + PathJourneyWasm + `"){a=m.assets[i]}else if(m.assets[i].path=="` + PathWasmExec + `"){s=m.assets[i]}}` +
 	`if(!a||!s||typeof a.integrity!=="string"||typeof s.integrity!=="string"){throw new Error("asset integrity unavailable")}` +
-	`return k("` + PathWasmExec + `"+v(s),s.integrity).then(function(r){if(!r.ok){throw new Error("wasm runtime unavailable")}return r.blob()}).then(function(b){var u=URL.createObjectURL(b);return import(u).then(function(){URL.revokeObjectURL(u)},function(e){URL.revokeObjectURL(u);throw e})}).then(function(){if(!window.Go){throw new Error("wasm runtime unavailable")}var g=new window.Go();return window.WebAssembly.instantiateStreaming(k("` + PathJourneyWasm + `"+v(a),a.integrity),g.importObject).then(function(r){g.run(r.instance)})})})` +
-	`.catch(function(){});` +
+	// The bundle is fetched and compiled at the same time as the runtime
+	// shim is fetched and imported, rather than after it: compiling needs
+	// only the bytes, and only instantiation needs the shim's import
+	// object. w's own rejection handler keeps a failed compile from being
+	// reported twice; the chain below still observes it and stops.
+	`p("manifest");var w=window.WebAssembly.compileStreaming(k("` + PathJourneyWasm + `"+v(a),a.integrity).then(function(r){p("wasm-response");return r}));w.catch(function(){});` +
+	`return k("` + PathWasmExec + `"+v(s),s.integrity).then(function(r){if(!r.ok){throw new Error("wasm runtime unavailable")}return r.blob()}).then(function(b){var u=URL.createObjectURL(b);return import(u).then(function(){URL.revokeObjectURL(u)},function(e){URL.revokeObjectURL(u);throw e})}).then(function(){if(!window.Go){throw new Error("wasm runtime unavailable")}var g=new window.Go();return w.then(function(b){p("compiled");return window.WebAssembly.instantiate(b,g.importObject)}).then(function(n){p("instantiated");g.run(n)})})})` +
+	`.catch(function(e){console.error("Workspace initialization failed",e&&e.message?e.message:"unavailable")});` +
 	`})();`
 
 // journeyStylesheetHash pins the exact stylesheet the journey client injects.
@@ -305,7 +335,7 @@ var journeyLoaderHash = sha256Source(journeyLoaderSource)
 //   - script-src: the inline loader by hash, loader-created blob modules
 //     (for the authenticated wasm_exec.js fetch), and
 //     'wasm-unsafe-eval', which is what
-//     WebAssembly.instantiateStreaming needs and is strictly narrower than
+//     WebAssembly.compileStreaming needs and is strictly narrower than
 //     'unsafe-eval'.
 //   - connect-src: this host's authenticated asset prefix and exact gRPC
 //     tunnel path. Both transport schemes are listed because whether the page

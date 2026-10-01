@@ -53,7 +53,8 @@ func TestUXBlind017InsightsUsesBusinessSummaryLanguage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Visible workflows", "Completed or closed", "summary covers promotion journeys you can view", "Broader workforce reporting is not available"} {
+	// UXBLIND-036: Insights now shows a workforce snapshot, and the metric is labelled by what it counts.
+	for _, want := range []string{"Promotion requests", "Completed or closed", "summary covers promotion journeys you can view", "headcount by unit and location"} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("insights copy missing %q", want)
 		}

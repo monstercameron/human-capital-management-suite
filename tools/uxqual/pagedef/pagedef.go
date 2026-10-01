@@ -211,9 +211,9 @@ type Region struct {
 type Accessibility struct {
 	// Landmarks are the ARIA landmark roles this page's shell renders, in
 	// document order (e.g. "banner", "navigation", "main", "contentinfo").
-	Landmarks []string
+	Landmarks []string `json:"landmarks"`
 	// LiveRegion is this page's one explicit live-region declaration.
-	LiveRegion LiveRegionPoliteness
+	LiveRegion LiveRegionPoliteness `json:"live_region"`
 }
 
 // PageDefinition is the whole of WEB-002's versioned contract: a page id,

@@ -349,5 +349,14 @@ func declareRoleAccessPreviewStyles() {
 		gwccss.Display.Flex, gwccss.Raw("flex-wrap", "wrap"), gwccss.Gap(gwccss.Px(6)),
 		gwccss.Margin(gwccss.Zero), gwccss.Raw("padding", "0"), gwccss.Raw("list-style", "none"),
 	)
-	declareGlobal(".role-access-preview .organization-scope-unit", gwccss.MinWidth(gwccss.Zero), gwccss.Raw("overflow-wrap", "anywhere"))
+	declareGlobal(".role-access-preview .organization-scope-unit", gwccss.MinWidth(gwccss.Zero), gwccss.Raw("overflow-wrap", "normal"), gwccss.Raw("word-break", "normal"))
+	// UXBLIND lane I: role names, organization-unit labels, and identifiers
+	// remain readable words. Long values are clipped by their containing row;
+	// they are never made unreadable by arbitrary mid-word wrapping.
+	declareGlobal(".role-access-preview .organization-scope-unit,.role-visibility-editor>summary code",
+		gwccss.Raw("overflow-wrap", "normal"), gwccss.Raw("word-break", "normal"), gwccss.Raw("white-space", "nowrap"), gwccss.Raw("text-overflow", "ellipsis"), gwccss.Raw("overflow", "hidden"),
+	)
+	declareGlobal(".organization-visibility-mode strong,.organization-visibility-mode small",
+		gwccss.Raw("overflow-wrap", "normal"), gwccss.Raw("word-break", "normal"),
+	)
 }

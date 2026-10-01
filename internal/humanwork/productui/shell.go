@@ -9,7 +9,6 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 )
 
 func appShell(view View, page ui.Node) ui.Node {
@@ -17,6 +16,7 @@ func appShell(view View, page ui.Node) ui.Node {
 }
 
 func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
+	useUXBlindQPopoverController()
 	class := "app-shell"
 	if view.NavCollapsed {
 		class += " nav-collapsed"
@@ -54,7 +54,7 @@ func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
 	if view.Loading || view.ContentLoading || view.Refreshing {
 		announcement = view.Locale.Text("shell.loading_authorized")
 	}
-	return html.Div(html.Props{Class: class},
+	return html.Div(html.Props{Class: class, Data: map[string]string{"hcm-popover-controller": "uxblind-q"}},
 		html.A(html.Props{Class: "skip-link", Href: "#main-content"}, ui.Text(view.Locale.Text("shell.skip_main"))),
 		html.Div(html.Props{Class: "sr-only route-announcer", Raw: map[string]any{"role": "status", "aria-live": "polite", "aria-atomic": "true"}}, ui.Text(announcement)),
 		ui.CreateElement(NavigationDrawerScope, navigationDrawerScopeProps{
@@ -212,24 +212,7 @@ func viewerProfileLink(view View) ui.Node {
 			Raw:   map[string]any{"aria-hidden": "true"},
 		}, html.Span(html.Props{Class: "loading-block loading-viewer-profile"}))
 	}
-	profile := view.Viewer
-	name := strings.TrimSpace(profile.Name)
-	if strings.TrimSpace(profile.Initials) == "" {
-		profile.Initials = uicomponents.Initials(name)
-	}
-	label := view.Locale.Text("shell.myself_unidentified")
-	if name != "" {
-		label = view.Locale.Text("shell.myself", map[string]string{"name": name})
-	}
-	props := html.Props{
-		Class: "viewer-profile-link network-slot network-slot-ready", Title: label,
-		Aria: map[string]string{"label": label},
-	}
-	avatar := personAvatar(name, profile.Initials, profile.PhotoURL, "viewer")
-	if !navigationDestinationAuthorized(view, PageMyself) {
-		return html.Div(props, avatar)
-	}
-	return appLink(view, props, statefulHref(view, PageMyself), avatar)
+	return accountMenu(view)
 }
 
 func notificationSlot(view View) ui.Node {
@@ -246,15 +229,6 @@ func globalSearch(view View) ui.Node {
 	if view.NavigationProjection != nil {
 		props.Items = authorizedGlobalSearchItems(view, props.Items)
 		props.FallbackHref = authorizedGlobalSearchFallback(view)
-		if favorites := authorizedFavoritePages(view.Navigation, view.FavoritePages); len(favorites) == 0 {
-			delete(props.HiddenInputs, "favorites")
-		} else {
-			values := make([]string, 0, len(favorites))
-			for _, page := range favorites {
-				values = append(values, string(page))
-			}
-			props.HiddenInputs["favorites"] = strings.Join(values, ",")
-		}
 	}
 	return ui.CreateElement(GlobalSearch, props)
 }
@@ -514,29 +488,59 @@ func authorizedNavigationPages(view View) map[PageID]bool {
 }
 
 func notificationMenu(view View) ui.Node {
-	// The attention count follows the current authority: denied
-	// instances keep no share of it. A silent server keeps the current
-	// count, and page-visibility keeps its honest restricted state.
-	// PROMOUX-012: the summary counts only work the viewer must act on, so a
-	// passive wait or a tracked request never inflates it.
-	open := len(ActionableWorkItems(admittedWork(view)))
-	label := view.Locale.Text("shell.work_overview") + ", " + view.Locale.Plural("shell.work_count", int64(open))
+	readOverrides := ui.UseState(map[string]bool{})
+	readError := ui.UseState(false)
+	markRead := func(id string, done func(error)) {
+		next := make(map[string]bool, len(readOverrides.Get())+1)
+		for known, marked := range readOverrides.Get() {
+			next[known] = marked
+		}
+		next[id] = true
+		readOverrides.Set(next)
+		if view.MarkNotificationRead == nil {
+			return
+		}
+		view.MarkNotificationRead(id, func(err error) {
+			if err != nil {
+				reverted := make(map[string]bool, len(readOverrides.Get()))
+				for known, marked := range readOverrides.Get() {
+					reverted[known] = marked
+				}
+				delete(reverted, id)
+				readOverrides.Set(reverted)
+				readError.Set(true)
+			}
+			if done != nil {
+				done(err)
+			}
+		})
+	}
+	unread := unreadWorkflowNotificationsWithOverrides(view.WorkflowNotifications, readOverrides.Get())
+	label := view.Locale.Text("shell.notifications") + ", " + view.Locale.Plural("notifications.unread_count", int64(unread))
 	children := []ui.Node{
-		html.H2(html.Props{}, ui.Text(view.Locale.Text("shell.work_overview"))),
-		html.P(html.Props{}, ui.Text(view.Locale.Plural("shell.work_count", int64(open)))),
+		html.H2(html.Props{}, ui.Text(view.Locale.Text("shell.notifications"))),
+		html.P(html.Props{}, ui.Text(view.Locale.Plural("notifications.unread_count", int64(unread)))),
+	}
+	if readError.Get() {
+		children = append(children, html.P(html.Props{Role: "alert", Class: "notification-read-error"}, ui.Text(view.Locale.Text("notifications.read_failed"))))
 	}
 	if navigationDestinationAuthorized(view, PageWork) {
 		children = append(children, ui.CreateElement(WorkflowNotificationList, WorkflowNotificationListProps{
 			I18nProps: I18nProps{Locale: view.Locale}, Items: view.WorkflowNotifications, Unavailable: view.NotificationsUnavailable,
+			ReadOverrides: readOverrides.Get(), OnRead: markRead,
 			Link: func(item WorkflowNotification) ActionLinkProps {
 				return ActionLinkProps{Href: JourneyDetailHref(view, item.JourneyID), Navigate: view.Navigate}
 			},
 		}))
 		children = append(children, appLink(view, html.Props{}, statefulHref(view, PageWork), ui.Text(view.Locale.Text("shell.open_work"))))
 	}
+	trigger := []ui.Node{navIcon("notifications")}
+	if unread > 0 {
+		trigger = append(trigger, html.Span(html.Props{Class: "notification-unread-count", Aria: map[string]string{"label": view.Locale.Plural("notifications.unread_count", int64(unread))}}, ui.Text(fmt.Sprint(unread))))
+	}
 	return ui.CreateElement(TransientPopover, TransientPopoverProps{
 		Kind: "notification", Class: "notifications network-slot network-slot-ready", Label: label,
-		Trigger: []ui.Node{navIcon("notifications")}, PanelClass: "popover notification-popover",
+		Trigger: trigger, PanelClass: "popover notification-popover",
 		Children: children,
 	})
 }
@@ -669,9 +673,13 @@ func pageFrame(view View, page ui.Node, showHeading bool) ui.Node {
 	// does not change while a document opens or closes, so the footer slot
 	// is stable within the route (see the D-1 note above).
 	if !fullBleed && view.Page != PageDocs {
+		// UXBLIND-105: the footer names the company the way the header does. The
+		// raw appearance name is the product default until the appearance loads
+		// (and for every tenant that never set one), which read as the vendor.
+		footerBrand, _ := HeaderBrandIdentity(NormalizeCustomerTheme(view.Appearance), view.Tenant)
 		children = append(children,
 			html.Footer(html.Props{Key: "page-footer", Class: "footer"},
-				html.Span(html.Props{Data: map[string]string{"hcm-brand-name": ""}}, ui.Text(NormalizeCustomerTheme(view.Appearance).BrandName)),
+				html.Span(html.Props{Data: map[string]string{"hcm-brand-name": ""}}, ui.Text(footerBrand)),
 				html.Span(html.Props{}, ui.Text(view.Locale.Text("shell.live_source"))),
 			),
 		)

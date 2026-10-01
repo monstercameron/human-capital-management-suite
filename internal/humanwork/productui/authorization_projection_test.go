@@ -16,7 +16,8 @@ func TestInsightsCountsOnlyDiscoverableWorkflows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`Visible workflows</span><strong>1</strong>`, `In progress</span><strong>1</strong>`, `Completed or closed</span><strong>0</strong>`} {
+	// UXBLIND-106: the first Insights metric is labelled Promotion requests; the count is unchanged.
+	for _, want := range []string{`Promotion requests</span><strong>1</strong>`, `In progress</span><strong>1</strong>`, `Completed or closed</span><strong>0</strong>`} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("admitted metric missing: %s", want)
 		}

@@ -58,7 +58,7 @@ func TestTodo_UXLIVE_018(t *testing.T) {
 		switch tab.Label {
 		case view.Locale.Text("work.all"):
 			all = tab.Count
-		case view.Locale.Text("work.awaiting"):
+		case view.Locale.Text("work.awaiting_my_approval"): // UXBLIND-102 renamed the review tab
 			review = tab.Count
 		}
 	}
@@ -81,7 +81,7 @@ func TestTodo_UXLIVE_018_Browser(t *testing.T) {
 	if !strings.Contains(doc, "work-tab-count") {
 		t.Fatalf("the rendered filter strip carries no counts:\n%s", doc)
 	}
-	for _, label := range []string{view.Locale.Text("work.all"), view.Locale.Text("work.awaiting"), view.Locale.Text("work.blocked")} {
+	for _, label := range []string{view.Locale.Text("work.all"), view.Locale.Text("work.awaiting_my_approval"), view.Locale.Text("work.blocked")} { // UXBLIND-102: the review tab is "Awaiting my approval"
 		if !strings.Contains(doc, label) {
 			t.Fatalf("the filter strip lost %q:\n%s", label, doc)
 		}

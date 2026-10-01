@@ -22,7 +22,9 @@ func rolesPage(view View) ui.Node {
 		Roles:     view.AccessRoles, Assignments: view.RoleAssignments, People: people, Query: view.Query, Page: view.RolePage,
 		Policies:   view.RoleVisibilityPolicies,
 		FilterHref: statefulHref(view, PageRoles), Navigate: view.Navigate,
-		Back:            ActionLinkProps{Label: "← " + view.Locale.Text("page.admin.title"), Href: statefulHref(view, PageAdmin), Class: "button secondary", Navigate: view.Navigate},
+		// The shell's Admin / Roles & access breadcrumb is the single back
+		// affordance for this administration surface.
+		Back:            ActionLinkProps{},
 		PagePermissions: view.RolePagePermissions, FeaturePermissions: view.RoleFeaturePermissions, Pages: pages,
 		CanCreate: view.Can(PageRoles, "create"), CanUpdate: view.Can(PageRoles, "update"),
 		OnSaveRole: view.SaveAccessRole, OnAssign: view.SaveWorkerRoleAssignment, OnSavePermission: view.SaveRolePagePermission, OnSaveFeaturePermission: view.SaveRoleFeaturePermission,

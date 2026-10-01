@@ -41,6 +41,7 @@ const (
 )
 
 func main() {
+	bootMark(bootPhaseGoMain)
 	settleViewTransitions()
 	if err := start(); err != nil {
 		mountStartupFailure()
@@ -81,6 +82,7 @@ func start() error {
 	if root := js.Global().Get("document").Get("documentElement"); root.Truthy() {
 		cfg.Locale = productui.ResolveProductLocale(root.Get("lang").String()).Resolved
 	}
+	bootMark(bootPhaseDial)
 	conn, err := dial(cfg)
 	if err != nil {
 		return err

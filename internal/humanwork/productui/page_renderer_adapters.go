@@ -18,6 +18,10 @@ type journeysPageModuleRenderer struct{}
 
 func (journeysPageModuleRenderer) Render(view View) ui.Node { return journeysPage(view) }
 
+type workflowStartPageModuleRenderer struct{}
+
+func (workflowStartPageModuleRenderer) Render(view View) ui.Node { return workflowStartPage(view) }
+
 type chatPageModuleRenderer struct{}
 
 func (chatPageModuleRenderer) Render(view View) ui.Node { return chatPage(view) }
@@ -29,6 +33,10 @@ func (workPageModuleRenderer) Render(view View) ui.Node { return workPage(view) 
 type historyPageModuleRenderer struct{}
 
 func (historyPageModuleRenderer) Render(view View) ui.Node { return historyPage(view) }
+
+type workflowHistoryPageModuleRenderer struct{}
+
+func (workflowHistoryPageModuleRenderer) Render(view View) ui.Node { return workflowHistoryPage(view) }
 
 type peoplePageModuleRenderer struct{}
 
@@ -150,7 +158,7 @@ func (adminPageModuleRenderer) Render(view View) ui.Node { return adminPage(view
 
 type chatSettingsPageModuleRenderer struct{}
 
-func (chatSettingsPageModuleRenderer) Render(view View) ui.Node { return chatSettingsPage(view) }
+func (chatSettingsPageModuleRenderer) Render(view View) ui.Node { return chatSettingsWithAgents(view) }
 
 type workerIDsPageModuleRenderer struct{}
 

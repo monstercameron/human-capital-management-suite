@@ -37,3 +37,18 @@ func TestTodo_UXAUDIT_003_ClientProjection(t *testing.T) {
 		t.Fatalf("safe unavailable projection = %+v", unavailable)
 	}
 }
+
+func TestTodo_WFPAGE_002_ClientWorkflowStarts(t *testing.T) {
+	got := projectWorkflowStarts([]journeyclient.WorkflowStart{
+		{WorkflowID: " hire ", Name: "New hire", Availability: "available", Keywords: []string{"onboarding"}},
+		{WorkflowID: "hire", Name: "duplicate", Availability: "available"},
+		{WorkflowID: "", Name: "no id", Availability: "available"},
+		{WorkflowID: "odd", Name: "Odd", Availability: "granted-by-server-maybe"},
+	})
+	if len(got) != 2 || got[0].WorkflowID != "hire" || got[0].Availability != productui.WorkflowStartAvailable {
+		t.Fatalf("projection = %+v", got)
+	}
+	if got[1].Availability != productui.WorkflowStartMissingAuthority {
+		t.Fatalf("unknown availability = %q, want fail-closed missing_authority", got[1].Availability)
+	}
+}

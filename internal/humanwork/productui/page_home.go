@@ -17,6 +17,7 @@ func homePage(view View) ui.Node {
 	population := admittedWork(view)
 	workVisible := view.Allows(PageWork, "view")
 	historyVisible := view.Allows(PageHistory, "view")
+	journeysVisible := view.Allows(PageJourneys, "view")
 	workPopulation := population
 	if !workVisible {
 		workPopulation = nil
@@ -26,10 +27,10 @@ func homePage(view View) ui.Node {
 		historyPopulation = nil
 	}
 	peopleVisible := view.Allows(PagePeople, "view")
-	visiblePeople := admittedPeople(view)
+	visiblePeople := visibleWorkforcePeople(view)
 	// UXLIVE-027/030: every journey number on Home is the server's one
 	// authorized summary, the same one Insights and Journeys reconcile to.
-	totals, _ := journeyTotals(view)
+	totals, totalsFromServer := journeyTotals(view)
 	// REV-069-02: the recent rail derives from the governed
 	// completed-work history mapped by ID, never hand-picked per
 	// row, so redefining "completed" only touches
@@ -46,7 +47,8 @@ func homePage(view View) ui.Node {
 	announcementProps, showAnnouncements := homeAnnouncementProps(view, politeAnnouncements, assertiveAnnouncements)
 	scoped := view
 	viewerWork := MyWorkItems(workPopulation, view.Viewer)
-	queue := ActionableWorkItems(viewerWork)
+	pending := PendingWork(view)
+	queue := pending
 	orderedQueue := PrioritizeDueWork(queue)
 	if len(orderedQueue) > homeAttentionLimit {
 		orderedQueue = orderedQueue[:homeAttentionLimit]
@@ -56,9 +58,18 @@ func homePage(view View) ui.Node {
 	work.CountLabel = view.Locale.Plural("work.item_count", int64(len(queue)))
 	work.Description = view.Locale.Text("home.work_description")
 	work.EmptyTitle = view.Locale.Text("work.action_queue_empty_title")
-	work.EmptyDetail = view.Locale.Text("work.action_queue_empty_detail")
+	if journeysVisible {
+		work.EmptyDetail = view.Locale.Text("work.action_queue_empty_detail")
+	} else {
+		work.EmptyDetail = view.Locale.Text("work.action_queue_empty_detail_no_journeys")
+	}
 	if !view.Allows(PageWork, "view") {
 		work.Footer.Action = ActionLinkProps{}
+	}
+	if !historyVisible && len(work.Tabs) > 0 {
+		// The final tab is the History destination; Home must not expose it
+		// when the viewer cannot open that page.
+		work.Tabs = work.Tabs[:len(work.Tabs)-1]
 	}
 	buckets := pageWorkBuckets(viewerWork, view.Viewer)
 	draftsView := view
@@ -89,6 +100,10 @@ func homePage(view View) ui.Node {
 		if status, ok := localizedTrackedStatuses[tracked.Items[index].ID]; ok {
 			tracked.Items[index].Status = status
 		}
+		if !journeysVisible {
+			tracked.Items[index].Href = ""
+			tracked.Items[index].Navigate = nil
+		}
 	}
 	if len(tracked.Items) > homeTrackedLimit {
 		tracked.Items = tracked.Items[:homeTrackedLimit]
@@ -115,9 +130,21 @@ func homePage(view View) ui.Node {
 	if !(view.Allows(PageJourneys, "create") && view.Allows(PagePeople, "view")) {
 		quickTitle = view.Locale.Text("home.quick_links_title")
 	}
-	groups := homeOperationalGroups(view, totals, workVisible, historyVisible, peopleVisible, visiblePeople)
+	// UXLIVE-030: the summary decides the count whenever the server sent one;
+	// only without a summary does Home count the rows it holds.
+	needsAction := len(pending)
+	if totalsFromServer {
+		needsAction = totals.NeedsAction
+	}
+	groups := homeOperationalGroups(view, totals, needsAction, workVisible, historyVisible, peopleVisible, visiblePeople)
 	exceptions, showExceptions := homeExceptions(view, totals)
 	recentRequests, showRecentRequests := homeRecentRequests(view)
+	if !journeysVisible {
+		for index := range activities {
+			activities[index].Href = ""
+			activities[index].Navigate = nil
+		}
+	}
 	scopeKey := "home.activity_scope"
 	if workVisible && !peopleVisible {
 		scopeKey = "home.activity_scope_work"

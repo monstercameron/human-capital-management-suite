@@ -25,7 +25,7 @@ type docsMarkdownBodyProps struct {
 	ProjectTasks string
 	// Journeys is the encoded authorized journey previews.
 	Journeys string
-	Navigate func(string)
+	Navigate *docsNavigator
 	// DocumentID and Media let attachment references load their files;
 	// Media is one stable pointer for the page, so it compares by value too.
 	DocumentID string
@@ -35,6 +35,11 @@ type docsMarkdownBodyProps struct {
 	Origin string
 }
 
+// docsNavigator hands the reader's text the current in-app navigate func
+// through one stable pointer, so docsMarkdownBodyProps stays comparable by
+// value (a func field defeats the reconciler bailout).
+type docsNavigator struct{ navigate func(string) }
+
 // docsMarkdownBody is the reader's text. Its nodes are built once per
 // document version and locale.
 func docsMarkdownBody(props docsMarkdownBodyProps) ui.Node {
@@ -43,7 +48,9 @@ func docsMarkdownBody(props docsMarkdownBodyProps) ui.Node {
 		if props.ChatRefs != "" || props.Links != "" || props.ProjectTasks != "" || props.Journeys != "" {
 			view.Document = &DocumentDetail{Chat: decodeDocsChatRefs(props.ChatRefs), Links: decodeDocsLinks(props.Links), ProjectTasks: decodeDocsProjectTasks(props.ProjectTasks), Journeys: decodeDocsJourneys(props.Journeys)}
 		}
-		view.Navigate = props.Navigate
+		if props.Navigate != nil {
+			view.Navigate = props.Navigate.navigate
+		}
 		return docsASTMarkdownNodes(view, props.Markdown)
 	}, props.Locale, props.VersionID, props.Markdown, props.ChatRefs, props.Links, props.ProjectTasks, props.Journeys, props.Navigate, props.DocumentID, props.Media, props.Origin)
 	return html.Div(html.Props{ID: "docs-markdown", Class: "docs-markdown", Dir: docsContentDirection(props.Markdown), Raw: map[string]any{"tabindex": "0"}}, nodes...)

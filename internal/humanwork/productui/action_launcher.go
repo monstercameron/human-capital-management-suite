@@ -592,13 +592,11 @@ func appendActionLauncherDestinations(items []ActionLauncherItem, view View, nav
 			seen[destination.Page] = true
 			label, description := destination.Label, destination.Description
 			keywords := append([]string(nil), destination.Keywords...)
-			switch destination.Page {
-			case PagePeople:
-				label, description = view.Locale.Text("action_launcher.browse_people"), view.Locale.Text("action_launcher.browse_people_description")
-				keywords = append(keywords, "find", "browse", "directory", "employee", "worker")
-			case PageJourneys:
-				label, description = view.Locale.Text("action_launcher.view_journeys"), view.Locale.Text("action_launcher.view_journeys_description")
-				keywords = append(keywords, "view", "track", "workflow", "request", "journey")
+			if definition, ok := LookupPage(destination.Page); ok {
+				label = view.Locale.Text(definition.LabelKey)
+				description = view.Locale.Text(definition.SubtitleKey)
+				keywords = append(keywords, definition.SearchTerms...)
+				keywords = append(keywords, view.Locale.Text(definition.TitleKey))
 			}
 			href := destination.Href
 			if href == "" {
@@ -712,8 +710,18 @@ func RankActionLauncherItems(items []ActionLauncherItem, query string, limit int
 	})
 	results := make([]ActionLauncherItem, 0, minInt(limit, len(scoredItems)))
 	cutoff := 0
-	if len(scoredItems) > 0 && scoredItems[0].score >= 130 {
+	// The shared scorer uses a much larger scale for whole-word and prefix
+	// matches. Keep the old fuzzy-noise cutoff only for the small legacy score
+	// range; a useful substring result must remain visible after a strong name
+	// or worker-number match.
+	if len(scoredItems) > 0 && scoredItems[0].score >= 130 && scoredItems[0].score < 1000 {
 		cutoff = scoredItems[0].score - 55
+	}
+	// Typo-tolerant matches score below 1000; once a whole-word, prefix or
+	// substring match exists they are noise (a strong employee name must not
+	// pull an unrelated destination that merely resembles it).
+	if len(scoredItems) > 0 && scoredItems[0].score >= 1000 {
+		cutoff = 1000
 	}
 	for _, candidate := range scoredItems {
 		if candidate.score < cutoff {
@@ -739,36 +747,27 @@ func actionLauncherWorkerQueryMatches(lookup, tokens []string) bool {
 }
 
 func actionLauncherScore(item ActionLauncherItem, tokens []string) int {
-	fields := []struct {
-		value  string
-		weight int
-	}{
-		{item.Label, 48}, {item.Description, 16},
+	fields := []uxblindOSearchField{
+		{value: item.Label, weight: 48}, {value: item.Description, weight: 16},
 	}
 	for _, keyword := range item.Keywords {
-		fields = append(fields, struct {
-			value  string
-			weight int
-		}{keyword, 30})
+		fields = append(fields, uxblindOSearchField{value: keyword, weight: 30})
 	}
-	total := 0
-	for _, token := range tokens {
-		best := 0
-		for _, field := range fields {
-			if score := fuzzyFieldScore(field.value, token); score > 0 && score+field.weight > best {
-				best = score + field.weight
-			}
-		}
-		if best == 0 {
-			return 0
-		}
-		total += best
-	}
-	return total
+	return uxblindOSearchScore(fields, tokens, item.Label)
 }
 
 // ActionLauncher is the shell "Start an action" control: a trigger button
 // opening a non-modal dialog that filters the authorized starts locally.
+func actionLauncherEscape(key string, preventDefault, close func()) bool {
+	if !drawerEscapeCloses(key) {
+		return false
+	}
+	preventDefault()
+	close()
+	focusPopoverElement("action-launcher-trigger")
+	return true
+}
+
 func ActionLauncher(props ActionLauncherProps) ui.Node {
 	props.Items = presentableActionLauncherItems(props.Items)
 	if props.Page == PageChat && props.RefreshChatItems != nil {
@@ -783,7 +782,7 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	query := ui.UseState(props.InitialQuery)
 	open := ui.UseState(strings.TrimSpace(props.InitialQuery) != "")
 	active := ui.UseState(0)
-	usePopoverFocusDismissal("action-launcher", "action-launcher-trigger", open.Get(), func() { open.Set(false) })
+	useUXBlindQPopoverDismissal("action-launcher", open.Get(), func() { open.Set(false) }, "action-launcher-trigger")
 	ui.UseEffectOf(func() func() {
 		if open.Get() {
 			// Run after the reconciler commits the dialog. The native helper is a
@@ -839,6 +838,7 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 			"label": props.Text(triggerKey), "haspopup": "dialog",
 			"expanded": fmt.Sprint(open.Get()), "controls": "action-launcher-dialog",
 		},
+		Raw: map[string]any{"title": props.Text(triggerKey) + " (Alt+K)", "aria-keyshortcuts": "Alt+K"},
 		OnClick: ui.UseEvent(func(ui.MouseEvent) {
 			if open.Get() {
 				open.Set(false)
@@ -888,11 +888,10 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 				}),
 				OnKeyDown: ui.UseEvent(func(event ui.KeyboardEvent) {
 					switch {
-					case drawerEscapeCloses(event.GetKey()):
+					case actionLauncherEscape(event.GetKey(), event.PreventDefault, func() { open.Set(false) }):
 						// The shared predicate every shell dialog (search,
 						// launcher, drawer) uses, so Escape cannot drift key
 						// by key between them (landmarks.go).
-						open.Set(false)
 					case event.GetKey() == "ArrowDown":
 						if len(results) > 0 {
 							event.PreventDefault()
@@ -930,7 +929,7 @@ func ActionLauncher(props ActionLauncherProps) ui.Node {
 	if !dialogHidden {
 		class += " action-launcher-open"
 	}
-	return html.Div(html.Props{ID: "action-launcher", Class: class}, trigger, dialog)
+	return html.Div(html.Props{ID: "action-launcher", Class: class, Data: map[string]string{"hcm-transient-popover": "action-launcher"}}, trigger, dialog)
 }
 
 func presentableActionLauncherItems(items []ActionLauncherItem) []ActionLauncherItem {
@@ -951,14 +950,20 @@ func presentableActionLauncherItems(items []ActionLauncherItem) []ActionLauncher
 
 func actionLauncherCopyKeys(items []ActionLauncherItem) (trigger, dialog, filter, placeholder string) {
 	if actionLauncherHasAction(items) {
-		return "action_launcher.trigger", "action_launcher.dialog_title", "action_launcher.filter_label", "action_launcher.filter_placeholder"
+		return "action_launcher.dialog_title", "action_launcher.dialog_title", "action_launcher.actions_filter_label", "action_launcher.actions_filter_placeholder"
 	}
-	return "action_launcher.navigation_trigger", "action_launcher.navigation_title", "action_launcher.navigation_filter_label", "action_launcher.navigation_filter_placeholder"
+	return "action_launcher.navigation_title", "action_launcher.navigation_title", "action_launcher.navigation_filter_label", "action_launcher.navigation_filter_placeholder"
 }
 
 func actionLauncherCopyKeysForPage(page PageID, items []ActionLauncherItem) (trigger, dialog, filter, placeholder string) {
-	if page == PageChat {
-		return "action_launcher.navigation_trigger", "action_launcher.navigation_title", "action_launcher.navigation_filter_label", "action_launcher.navigation_filter_placeholder"
+	switch page {
+	case PageChat:
+		return "action_launcher.navigation_title", "action_launcher.navigation_title", "action_launcher.navigation_filter_label", "action_launcher.navigation_filter_placeholder"
+	case PageWorkflowDesigner:
+		// The Workflow Designer can hydrate before its action projection is
+		// available. Keep the shell's server-rendered action name stable while
+		// the client replaces its item list.
+		return "action_launcher.dialog_title", "action_launcher.dialog_title", "action_launcher.actions_filter_label", "action_launcher.actions_filter_placeholder"
 	}
 	return actionLauncherCopyKeys(items)
 }

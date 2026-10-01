@@ -42,5 +42,14 @@ func uipolish008TableStylesheet() string {
 		declareGlobal(".workflow-history.history-density-compact .history-row",
 			mediaRule(gwccss.MaxW(420), gwccss.PaddingY(gwccss.Px(10)), gwccss.PaddingX(gwccss.Px(12)), gwccss.Gap(gwccss.Px(8))),
 		)
+		// The canonical workflow-history page uses DataTable cells rather than
+		// the legacy history-row projection. Keep compact spacing measurable on
+		// both semantic header and body cells without shrinking controls.
+		declareGlobal(".workflow-history-page.workflow-history.history-density-compact .data-table-cell",
+			gwccss.PaddingY(gwccss.RawLength("calc(2px + var(--hcm-space-1) * var(--hcm-density))")),
+		)
+		declareGlobal(".workflow-history-page.workflow-history.history-density-compact .data-table-head .data-table-cell",
+			gwccss.PaddingY(gwccss.RawLength("calc(2px + var(--hcm-space-1) * var(--hcm-density))")),
+		)
 	})
 }

@@ -160,7 +160,7 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 	)
 	switch props.State {
 	case AsyncRegionLoading, AsyncRegionEmpty, AsyncRegionStale, AsyncRegionResolved:
-		return html.Section(html.Props{Class: class, Raw: map[string]any{"aria-hidden": "true", "data-async-region": LoadingRegionPage, "data-loading-contract": LoadingContractVersion, "data-loading-layout": geometry.Layout, "data-preserve-scroll": "true", "data-preserve-focus": "true"}}, body)
+		return html.Section(html.Props{Class: class, Raw: map[string]any{"aria-hidden": "true", "inert": "", "data-async-region": LoadingRegionPage, "data-loading-contract": LoadingContractVersion, "data-loading-layout": geometry.Layout, "data-preserve-scroll": "true", "data-preserve-focus": "true"}}, body)
 	case AsyncRegionFailure:
 		if props.Failure != nil {
 			// The notice is drawn over the unchanged body, so the failed region

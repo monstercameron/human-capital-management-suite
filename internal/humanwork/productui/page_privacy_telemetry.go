@@ -14,6 +14,9 @@ import (
 // this body once the governed service publishes; until
 // then the UI will not simulate one.
 func privacyTelemetryPage(view View) ui.Node {
+	if view.PrivacyTelemetry != nil && view.PrivacyTelemetry.Ready {
+		return privacyTelemetryLivePage(view, *view.PrivacyTelemetry)
+	}
 	return ui.CreateElement(EmptyState, EmptyStateProps{
 		Title:       view.Locale.Text("privacy_telemetry.unavailable_title"),
 		Description: view.Locale.Text("privacy_telemetry.unavailable_detail"),
